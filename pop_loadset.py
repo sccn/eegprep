@@ -1,9 +1,10 @@
 import scipy.io
 import numpy as np
+import os
 
 def pop_loadset(file_path):
     # Load MATLAB file
-    mat_data = scipy.io.loadmat(file_path, struct_as_record=False, squeeze_me=True)
+    EEG = scipy.io.loadmat(file_path, struct_as_record=False, squeeze_me=True)
         
     def check_keys(dict_data):
         """
@@ -44,7 +45,19 @@ def pop_loadset(file_path):
                 
         return dict_data
 
-    mat_data = check_keys(mat_data)
-    if 'EEG' in mat_data:
-        mat_data = mat_data['EEG']
-    return mat_data
+    # check if EEG['data'] is a string, and if it the case, read the binary float32 file
+    EEG = check_keys(EEG)
+    if 'EEG' in EEG:
+        EEG = EEG['EEG']
+        
+    if isinstance(EEG['data'], str):
+        file_name = EEG['filepath'] + os.sep + EEG['data']
+        EEG['data'] = np.fromfile(file_name, dtype='float32').reshape( EEG['pnts']*EEG['trials'], EEG['nbchan'])
+        EEG['data'] = EEG['data'].T.reshape(EEG['nbchan'], EEG['pnts'], EEG['trials'])
+
+    # compute ICA activations
+    if 'icaweights' in EEG and 'icasphere' in EEG:
+        EEG['icaact'] = np.dot(np.dot(EEG['icaweights'], EEG['icasphere']), EEG['data'].reshape(EEG['nbchan'], -1))
+        EEG['icaact'] = EEG['icaact'].reshape(EEG['icaweights'].shape[0], -1, EEG['trials'])
+            
+    return EEG
