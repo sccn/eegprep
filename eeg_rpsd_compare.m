@@ -1,8 +1,10 @@
 % this script compares the MATLAB and Python version of the function
+pyenv('Version', '/Users/arno/miniconda3/envs/p39env/bin/python');
 
 % call Python function
-system('/Users/arno/miniconda3/envs/p311env/bin/python eeg_rpsd_compare_helper.py')
+system('/Users/arno/miniconda3/envs/p311env/bin/python eeg_rpsd_compare_helper.py');
 res = load('eeg_rpsd_data.mat');
+delete('eeg_rpsd_data.mat');
 
 % call EEGLAB function
 if ~exist('pop_loadset')
