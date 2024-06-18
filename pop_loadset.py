@@ -2,6 +2,15 @@ import scipy.io
 import numpy as np
 import os
 
+# Allows access using . notation
+# class EEG:
+#     def __init__(self, **kwargs):
+#         self.__dict__.update(kwargs)
+#     def __getitem__(self, key):
+#         return self.__dict__[key]
+#     def __setitem__(self, key, value):
+#         self.__dict__[key] = value
+
 def pop_loadset(file_path):
     # Load MATLAB file
     EEG = scipy.io.loadmat(file_path, struct_as_record=False, squeeze_me=True)
@@ -50,7 +59,7 @@ def pop_loadset(file_path):
     if 'EEG' in EEG:
         EEG = EEG['EEG']
         
-    if isinstance(EEG['data'], str):
+    if 'data' in EEG and isinstance(EEG['data'], str):
         file_name = EEG['filepath'] + os.sep + EEG['data']
         EEG['data'] = np.fromfile(file_name, dtype='float32').reshape( EEG['pnts']*EEG['trials'], EEG['nbchan'])
         EEG['data'] = EEG['data'].T.reshape(EEG['nbchan'], EEG['trials'], EEG['pnts']).transpose(0, 2, 1)
