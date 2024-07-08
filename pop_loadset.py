@@ -65,7 +65,7 @@ def pop_loadset(file_path):
         EEG['data'] = EEG['data'].T.reshape(EEG['nbchan'], EEG['trials'], EEG['pnts']).transpose(0, 2, 1)
 
     # compute ICA activations
-    if 'icaweights' in EEG and 'icasphere' in EEG:
+    if 'icaweights' in EEG and 'icasphere' in EEG and not np.empty(EEG['icaweights']) and not np.empty(EEG['icasphere']):
         EEG['icaact'] = np.dot(np.dot(EEG['icaweights'], EEG['icasphere']), EEG['data'].reshape(EEG['nbchan'], -1))
         EEG['icaact'] = EEG['icaact'].reshape(EEG['icaweights'].shape[0], -1, EEG['trials'])
             
