@@ -11,51 +11,46 @@ import os
 #     def __setitem__(self, key, value):
 #         self.__dict__[key] = value
 
+default_empty = np.array([])
+#default_empty = None
+
 def pop_loadset(file_path):
     # Load MATLAB file
     EEG = scipy.io.loadmat(file_path, struct_as_record=False, squeeze_me=True)
         
-    def check_keys(dict_data):
-        """
-        Check if entries in dictionary are mat-objects. If yes,
-        _to_dict is called to change them to dictionaries.
-        Recursively go through the entire structure.
-        """
-        for key in dict_data:
-            if isinstance(dict_data[key], scipy.io.matlab.mat_struct):
-                dict_data[key] = to_dict(dict_data[key])
-            elif isinstance(dict_data[key], dict):
-                dict_data[key] = check_keys(dict_data[key])
-            elif isinstance(dict_data[key], np.ndarray) and dict_data[key].dtype == object:
-                dict_data[key] = np.array([check_keys({i: item})[i] if isinstance(item, dict) else item for i, item in enumerate(dict_data[key])], dtype=object)
-                if dict_data[key].size == 0:
-                    dict_data[key] = None
-        return dict_data
-
-    def to_dict(matobj):
-        """
-        A recursive function which constructs from matobjects nested dictionaries.
-        """
-        dict_data = {}
-        for strg in matobj._fieldnames:
-            elem = getattr(matobj, strg)
-            if isinstance(elem, scipy.io.matlab.mat_struct):
-                dict_data[strg] = to_dict(elem)
-            elif isinstance(elem, np.ndarray) and elem.dtype == object:
-                dict_data[strg] = np.array([to_dict(sub_elem) if isinstance(sub_elem, scipy.io.matlab.mat_struct) else sub_elem for sub_elem in elem], dtype=object)
-                if dict_data[strg].size == 0:
-                    dict_data[strg] = None
+    def new_check(obj):
+        # check if obj is a dictionary and apply recursively the function to each object not changing the struture of the dictionary
+        if isinstance(obj, dict):
+            return {key: new_check(obj[key]) for key in obj}
+        # check if obj is a numpy array and apply recursively the function to each object not changing the struture of the array
+        elif isinstance(obj, list):
+            if len(obj) == 0:
+                return default_empty
             else:
-                dict_data[strg] = elem
-        # check if contains empty arrays
-        for key in dict_data:
-            if isinstance(dict_data[key], np.ndarray) and dict_data[key].size == 0:
-                dict_data[key] = np.array([])
-                
-        return dict_data
-
+                return [new_check(item) for item in obj]
+        elif isinstance(obj, np.ndarray):
+            # check if empty and return none
+            if obj.size == 0:
+                return default_empty
+            # check if it is a numeric array
+            elif obj.dtype.kind in ['i', 'u', 'f', 'c']:
+                return obj
+            else:
+                return np.array([new_check(item) for item in obj])
+        # check if it is a scalar or a string and return it
+        elif np.isscalar(obj) or isinstance(obj, str):
+            return obj
+        # check if obj is a mat_struct object and convert it to a dictionary
+        elif isinstance(obj, scipy.io.matlab.mat_struct) or isinstance(obj, scipy.io.matlab.mio5_params.mat_struct):
+            dict_obj = {}
+            for field_name in obj._fieldnames:
+                field_value = getattr(obj, field_name)
+                dict_obj[field_name] = new_check(field_value)
+            return dict_obj
+    
     # check if EEG['data'] is a string, and if it the case, read the binary float32 file
-    EEG = check_keys(EEG)
+    #EEG = check_keys(EEG)
+    EEG = new_check(EEG)
     if 'EEG' in EEG:
         EEG = EEG['EEG']
         
@@ -71,3 +66,17 @@ def pop_loadset(file_path):
         EEG['icaact'] = EEG['icaact'].reshape(EEG['icaweights'].shape[0], -1, EEG['trials'])
             
     return EEG
+
+def test_pop_loadset():
+    file_path = './eeglab_data_with_ica_tmp.set'
+    EEG = pop_loadset(file_path)
+    
+    # print the keys of the EEG dictionary
+    print(EEG.keys())
+    
+test_pop_loadset()
+
+# STILL OPEN QUESTION: Better to have empty MATLAB arrays as None for empty numpy arrays (current default).
+# The current default is to make it more MALTAB compatible. A lot of MATLAB function start indexing MATLAB
+# empty arrays to add values to them. This is not possible with None and would create more conversion and 
+# bugs. However, None is more pythonic. 
