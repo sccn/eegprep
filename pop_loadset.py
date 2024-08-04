@@ -61,14 +61,15 @@ def pop_loadset(file_path):
 
     # compute ICA activations
     if 'icaweights' in EEG and 'icasphere' in EEG and EEG['icaweights'].size > 0 and EEG['icasphere'].size > 0:
-        EEG['icaact'] = np.dot(np.dot(EEG['icaweights'], EEG['icasphere']), EEG['data'].reshape(EEG['nbchan'], -1))
+        EEG['icaact'] = np.dot(np.dot(EEG['icaweights'], EEG['icasphere']), EEG['data'].reshape(int(EEG['nbchan']), -1))
         EEG['icaact'] = EEG['icaact'].astype(np.float32)
-        EEG['icaact'] = EEG['icaact'].reshape(EEG['icaweights'].shape[0], -1, EEG['trials'])
+        EEG['icaact'] = EEG['icaact'].reshape(EEG['icaweights'].shape[0], -1, int(EEG['trials']))
             
     return EEG
 
 def test_pop_loadset():
     file_path = './eeglab_data_with_ica_tmp.set'
+    file_path = './tmp2.set'
     EEG = pop_loadset(file_path)
     
     # print the keys of the EEG dictionary
