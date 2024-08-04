@@ -74,7 +74,7 @@ def test_pop_loadset():
     # print the keys of the EEG dictionary
     print(EEG.keys())
     
-test_pop_loadset()
+# test_pop_loadset()
 
 # STILL OPEN QUESTION: Better to have empty MATLAB arrays as None for empty numpy arrays (current default).
 # The current default is to make it more MALTAB compatible. A lot of MATLAB function start indexing MATLAB

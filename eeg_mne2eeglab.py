@@ -43,4 +43,4 @@ def test_eeg_mne2eeglab():
     # print the keys of the EEG dictionary
     print(EEG2.keys())
 
-test_eeg_mne2eeglab()
+# test_eeg_mne2eeglab()
