@@ -2,9 +2,9 @@
 pyenv('Version', '/Users/arno/miniconda3/envs/p39env/bin/python');
 
 % call Python function
-system('/Users/arno/miniconda3/envs/p311env/bin/python eeg_rpsd_compare_helper.py');
-res = load('eeg_rpsd_data.mat');
-delete('eeg_rpsd_data.mat');
+system('/Users/arno/miniconda3/envs/p311env/bin/python eeg_autocorr_fftw_compare_helper.py');
+res = load('eeg_autocorr_data.mat');
+delete('eeg_autocorr_data.mat');
 
 % call EEGLAB function
 if ~exist('pop_loadset')
@@ -12,8 +12,8 @@ if ~exist('pop_loadset')
 end
 eeglabpath = which('eeglab.m');
 eeglabpath = eeglabpath(1:end-length('eeglab.m'));
-EEG = pop_loadset(fullfile(eeglabpath, 'sample_data', 'eeglab_data_epochs_ica.set'));
-temp2 = eeg_rpsd(EEG, 100);
+EEG = pop_loadset(fullfile(pwd, 'eeglab_data_with_ica_tmp.set'));
+temp2 = eeg_autocorr(EEG, 100);
 
 % compare the two
 figure('position', [924  835 1276 482])

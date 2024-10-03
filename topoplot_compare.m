@@ -17,3 +17,5 @@ subplot(1,2,1);
 imagesc(temp2); title('MATLAB'); cbar;
 subplot(1,2,2);
 imagesc(res.grid); title('Python'); cbar;
+
+compare_variables(temp2, res.grid);
