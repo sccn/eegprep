@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 from scipy.interpolate import griddata
 from scipy.interpolate import Rbf
 
+from scipy.spatial import cKDTree
+
 def topoplot(datavector, chan_locs, **kwargs):
     # Set default values
     noplot = kwargs.get('noplot', 'off')
@@ -23,6 +25,9 @@ def topoplot(datavector, chan_locs, **kwargs):
     squeezefac = 1.0
     ContourVals = datavector
     method = kwargs.get('method', 'rbf')
+    
+    # print method
+    # print(f'method = {method}')
     
     # Handle additional arguments
     if 'noplot' in kwargs:
@@ -120,9 +125,18 @@ def topoplot(datavector, chan_locs, **kwargs):
         values = np.delete(values, nanidx)
 
         # Create the RBF interpolator
+        
+        rbf = Rbf(coords[0], coords[1], values, function='inverse') #, function='linear')
+        Zi1 = rbf(xi, yi)
+        
         rbf = Rbf(coords[0], coords[1], values, function='thin_plate') #, function='linear')
-    
-        Zi = rbf(xi, yi)
+        Zi2 = rbf(xi, yi)
+        
+        # average the two results
+        Zi = (Zi1 + Zi2) / 2
+        
+        # rbf = Rbf(coords[0], coords[1], values, function='linear') #, function='linear')
+        # Zi = rbf(xi, yi)
         
     mask = (np.sqrt(xi**2 + yi**2) <= rmax)
     Zi[~mask] = np.nan

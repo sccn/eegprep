@@ -19,7 +19,7 @@ def eeg_autocorr(EEG, pct_data=None):
         Xtmp = fft(comp, nfft)
         Xtmp = Xtmp.astype(np.complex64) # matches MATLAB's single precision since python convert to double precision by default
         X = np.abs(Xtmp)**2
-        c[it, :] = ifft(X) #, n=nfft)  # Force ifft to match the size of nfft
+        c[it, :] = np.real(ifft(X))
 
     # Adjust the size of the autocorrelation to match sampling rate
     if EEG['pnts'] < EEG['srate']:

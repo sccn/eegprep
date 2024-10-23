@@ -38,6 +38,8 @@ else
         end
     end
 
+    fprintf('Mean difference: %1.8f (+- %1.8f)\n', mean(abs((aa(:)-bb(:)))/max(abs(aa(:)))), std(abs((aa(:)-bb(:)))/max(abs(aa(:)))))
+    fprintf('Max difference: %1.8f\n', max(abs((aa(:)-bb(:)))/max(abs(aa(:)))))
     if mean(abs((aa(:)-bb(:)))/max(abs(aa(:)))) < tol
         disp('Pass - value')
     else

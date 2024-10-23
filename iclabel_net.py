@@ -31,39 +31,39 @@ class ICLabelNet(torch.nn.Module):
         print(self.discriminator_image_layer1_conv.weight.shape)
         self.discriminator_image_layer1_conv.weight = torch.nn.Parameter(torch.tensor(params[0][1]).permute(3, 2, 0, 1))
         self.discriminator_image_layer1_conv.bias = torch.nn.Parameter(torch.tensor(params[1][1]).squeeze())
-        self.discriminator_image_layer1_relu = torch.nn.ReLU()
+        self.discriminator_image_layer1_relu = torch.nn.LeakyReLU(0.2)
         self.discriminator_image_layer2_conv = torch.nn.Conv2d(in_channels=128, out_channels=256, kernel_size=4, stride=2, padding=1, dilation=1)
         self.discriminator_image_layer2_conv.weight = torch.nn.Parameter(torch.tensor(params[2][1]).permute(3, 2, 0, 1))
         self.discriminator_image_layer2_conv.bias = torch.nn.Parameter(torch.tensor(params[3][1]).squeeze())
-        self.discriminator_image_layer2_relu = torch.nn.ReLU()
+        self.discriminator_image_layer2_relu = torch.nn.LeakyReLU(0.2)
         self.discriminator_image_layer3_conv = torch.nn.Conv2d(in_channels=256, out_channels=512, kernel_size=4, stride=2, padding=1, dilation=1)
         self.discriminator_image_layer3_conv.weight = torch.nn.Parameter(torch.tensor(params[4][1]).permute(3, 2, 0, 1))
         self.discriminator_image_layer3_conv.bias = torch.nn.Parameter(torch.tensor(params[5][1]).squeeze())
-        self.discriminator_image_layer3_relu = torch.nn.ReLU()
+        self.discriminator_image_layer3_relu = torch.nn.LeakyReLU(0.2)
         self.discriminator_psdmed_layer1_conv_conv = torch.nn.Conv2d(in_channels=1, out_channels=128, kernel_size=(1,3), stride=1, padding=(0,1), dilation=1)
         self.discriminator_psdmed_layer1_conv_conv.weight = torch.nn.Parameter(torch.tensor(params[6][1]).permute(3, 2, 0, 1))
         self.discriminator_psdmed_layer1_conv_conv.bias = torch.nn.Parameter(torch.tensor(params[7][1]).squeeze())
-        self.discriminator_psdmed_layer1_conv_relu = torch.nn.ReLU()
+        self.discriminator_psdmed_layer1_conv_relu = torch.nn.LeakyReLU(0.2)
         self.discriminator_psdmed_layer2_conv_conv = torch.nn.Conv2d(in_channels=128, out_channels=256, kernel_size=(1,3), stride=1, padding=(0,1), dilation=1)
         self.discriminator_psdmed_layer2_conv_conv.weight = torch.nn.Parameter(torch.tensor(params[8][1]).permute(3, 2, 0, 1))
         self.discriminator_psdmed_layer2_conv_conv.bias = torch.nn.Parameter(torch.tensor(params[9][1]).squeeze())
-        self.discriminator_psdmed_layer2_conv_relu = torch.nn.ReLU()
+        self.discriminator_psdmed_layer2_conv_relu = torch.nn.LeakyReLU(0.2)
         self.discriminator_psdmed_layer3_conv_conv = torch.nn.Conv2d(in_channels=256, out_channels=1, kernel_size=(1,3), stride=1, padding=(0,1), dilation=1)
         self.discriminator_psdmed_layer3_conv_conv.weight = torch.nn.Parameter(torch.tensor(params[10][1]).unsqueeze(3).permute(3, 2, 0, 1))
         self.discriminator_psdmed_layer3_conv_conv.bias = torch.nn.Parameter(torch.tensor(params[11][1]).squeeze(1))
-        self.discriminator_psdmed_layer3_conv_relu = torch.nn.ReLU()
+        self.discriminator_psdmed_layer3_conv_relu = torch.nn.LeakyReLU(0.2)
         self.discriminator_autocorr_layer1_conv_conv = torch.nn.Conv2d(in_channels=1, out_channels=128, kernel_size=(1,3), stride=1, padding=(0,1), dilation=1)
         self.discriminator_autocorr_layer1_conv_conv.weight = torch.nn.Parameter(torch.tensor(params[12][1]).permute(3, 2, 0, 1))
         self.discriminator_autocorr_layer1_conv_conv.bias = torch.nn.Parameter(torch.tensor(params[13][1]).squeeze())
-        self.discriminator_autocorr_layer1_conv_relu = torch.nn.ReLU()
+        self.discriminator_autocorr_layer1_conv_relu = torch.nn.LeakyReLU(0.2)
         self.discriminator_autocorr_layer2_conv_conv = torch.nn.Conv2d(in_channels=128, out_channels=256, kernel_size=(1,3), stride=1, padding=(0,1), dilation=1)
         self.discriminator_autocorr_layer2_conv_conv.weight = torch.nn.Parameter(torch.tensor(params[14][1]).permute(3, 2, 0, 1))
         self.discriminator_autocorr_layer2_conv_conv.bias = torch.nn.Parameter(torch.tensor(params[15][1]).squeeze())
-        self.discriminator_autocorr_layer2_conv_relu = torch.nn.ReLU()
+        self.discriminator_autocorr_layer2_conv_relu = torch.nn.LeakyReLU(0.2)
         self.discriminator_autocorr_layer3_conv_conv = torch.nn.Conv2d(in_channels=256, out_channels=1, kernel_size=(1,3), stride=1, padding=(0,1), dilation=1)
         self.discriminator_autocorr_layer3_conv_conv.weight = torch.nn.Parameter(torch.tensor(params[16][1]).unsqueeze(3).permute(3, 2, 0, 1))
         self.discriminator_autocorr_layer3_conv_conv.bias = torch.nn.Parameter(torch.tensor(params[17][1]).squeeze(1))
-        self.discriminator_autocorr_layer3_conv_relu = torch.nn.ReLU()
+        self.discriminator_autocorr_layer3_conv_relu = torch.nn.LeakyReLU(0.2)
         self.discriminator_psdmed_reshape = Reshape((100, 1, 1))
         self.discriminator_psdmed_concat1 = Concatenate(dim=2)
         self.discriminator_psdmed_concat2 = Concatenate(dim=3)
@@ -110,15 +110,17 @@ class ICLabelNet(torch.nn.Module):
         x = self.discriminator_concat([x_image, x_psdmed, x_autocorr])
         x = self.discriminator_conv(x)
         print('x', x.shape)
+        # subtract max value to avoid overflow
+        x = x - torch.max(x, dim=1, keepdim=True).values
         x = self.discriminator_softmax(x)
-
+        
         return x
     
 if __name__ == "__main__":
     model = ICLabelNet('netICL.mat')
-    image_mat = scipy.io.loadmat('in_image.mat')['in_image']
-    psdmed_mat = scipy.io.loadmat('in_psdmed.mat')['in_psdmed']
-    autocorr_mat = scipy.io.loadmat('in_autocorr.mat')['in_autocorr']
+    image_mat = scipy.io.loadmat('net_vars.mat')['in_image']
+    psdmed_mat = scipy.io.loadmat('net_vars.mat')['in_psdmed']
+    autocorr_mat = scipy.io.loadmat('net_vars.mat')['in_autocorr']
     # assuming third dimension is trivial and last dimension is channel. First two dimensions (32 x 32) are size of topoplot
     image = torch.tensor(image_mat).permute(-1, 2, 0, 1)
     print('image shape', image.shape)
@@ -128,3 +130,7 @@ if __name__ == "__main__":
     print('autocorr shape', autocorr.shape)
     output = model(image, psdmed, autocorr)
     print(output.shape)
+    
+    # save the output to a mat file
+    scipy.io.savemat('output4.mat', {'output': output.detach().numpy()})
+    
