@@ -49,7 +49,7 @@ cbar;
 setfont(gcf, 'fontsize', 20)
 set(gcf, 'color', 'w')
 set(gcf, 'PaperPositionMode', 'auto');
-print('-djpeg', 'ersp_diff.jpg')
-print('-depsc', 'ersp_diff.eps')
+print('-djpeg', 'figures/ersp_diff.jpg')
+print('-depsc', 'figures/ersp_diff.eps')
 
 compare_variables(temp2, res.grid);

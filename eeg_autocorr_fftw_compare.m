@@ -50,8 +50,8 @@ cbar;
 setfont(gcf, 'fontsize', 20)
 set(gcf, 'color', 'w')
 set(gcf, 'PaperPositionMode', 'auto');
-print('-djpeg', 'autocorr_diff.jpg')
-print('-depsc', 'autocorr_diff.eps')
+print('-djpeg', 'figures/autocorr_diff.jpg')
+print('-depsc', 'figures/autocorr_diff.eps')
 
 
 %print('-djpeg', 'topoplot_diff.jpg')

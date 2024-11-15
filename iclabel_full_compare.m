@@ -52,8 +52,8 @@ cbar;
 setfont(gcf, 'fontsize', 20)
 set(gcf, 'color', 'w')
 set(gcf, 'PaperPositionMode', 'auto');
-print('-djpeg', 'iclabel_diff.jpg')
-print('-depsc', 'iclabel_diff.eps')
+print('-djpeg', 'figures/iclabel_diff.jpg')
+print('-depsc', 'figures/iclabel_diff.eps')
 
 [~,class_mat] = max(labels_mat,[],2);
 [~,class_py ] = max(labels_py4,[],2);

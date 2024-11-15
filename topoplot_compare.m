@@ -54,6 +54,6 @@ cbar;
 setfont(gcf, 'fontsize', 16)
 set(gcf, 'color', 'w')
 set(gcf, 'PaperPositionMode', 'auto');
-%print('-djpeg', 'topoplot_diff.jpg')
+print('-djpeg', 'figures/topoplot_diff.jpg')
 
 compare_variables(temp2, res.grid);
