@@ -15,7 +15,10 @@ def iclabel(EEG, algorithm='default'):
     features[0] = np.single(np.concatenate([features[0],-features[0],features[0][:, ::-1, :, :],-features[0][:, ::-1, :, :]], axis=3))
     features[1] = np.single(np.tile(features[1], (1, 1, 1, 4)))
     features[2] = np.single(np.tile(features[2], (1, 1, 1, 4)))
-    
+    print('Feature 0 shape:', features[0].shape)
+    print('Feature 1 shape:', features[1].shape)
+    print('Feature 2 shape:', features[2].shape)
+
     # Load the ICLabelNet model
     model = ICLabelNet('netICL.mat')
     

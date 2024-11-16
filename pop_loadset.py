@@ -55,6 +55,8 @@ def pop_loadset(file_path):
         EEG = EEG['EEG']
         
     if 'data' in EEG and isinstance(EEG['data'], str):
+        # get path from file_path
+        EEG['filepath'] = os.path.dirname(file_path)
         file_name = EEG['filepath'] + os.sep + EEG['data']
         EEG['data'] = np.fromfile(file_name, dtype='float32').reshape( EEG['pnts']*EEG['trials'], EEG['nbchan'])
         EEG['data'] = EEG['data'].T.reshape(EEG['nbchan'], EEG['trials'], EEG['pnts']).transpose(0, 2, 1)
@@ -68,8 +70,8 @@ def pop_loadset(file_path):
     return EEG
 
 def test_pop_loadset():
-    file_path = './eeglab_data_with_ica_tmp.set'
     file_path = './tmp2.set'
+    file_path = '/System/Volumes/Data/data/data/STUDIES/STERN/S04/Memorize.set' #'./eeglab_data_with_ica_tmp.set'
     EEG = pop_loadset(file_path)
     
     # print the keys of the EEG dictionary

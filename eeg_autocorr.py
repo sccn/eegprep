@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.signal import resample
+from scipy.signal import resample_poly
 from numpy.fft import fft, ifft
 
 def eeg_autocorr(EEG, pct_data=None):
@@ -33,13 +33,10 @@ def eeg_autocorr(EEG, pct_data=None):
     # Resample to 1 second at 100 samples/sec
 
     # print the size of the second dim of ac
-    num_samples = round(ac.shape[1] * 100 / EEG['srate'])  # Calculate the number of samples for the new rate
-    resamp = resample(ac.T, num_samples).T
-
-    # Remove the first column
-    resamp = resamp[:, 1:]
+    ac = resample_poly(ac.T, up=100, down=EEG['srate']).T
+    ac = ac[:, 1:]
     
-    return resamp
+    return ac
 
 def test_eeg_autocorr():
     EEG = {

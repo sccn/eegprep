@@ -1,9 +1,9 @@
-function compare_variable(a, b, tol)
+function res = compare_variables(a, b, tol)
 
 if nargin < 3
     tol = 0.005;
 end
-
+res = [];
 if iscell(a)
     if ~iscell(b)
         disp('Error - data type')
@@ -38,8 +38,11 @@ else
         end
     end
 
-    fprintf('Mean difference: %1.8f (+- %1.8f)\n', mean(abs((aa(:)-bb(:)))/max(abs(aa(:)))), std(abs((aa(:)-bb(:)))/max(abs(aa(:)))))
-    fprintf('Max difference: %1.8f\n', max(abs((aa(:)-bb(:)))/max(abs(aa(:)))))
+    res.meandiff = mean(abs((aa(:)-bb(:)))/max(abs(aa(:))));
+    res.stddiff  = std(abs((aa(:)-bb(:)))/max(abs(aa(:))));
+    res.maxdiff = max(abs((aa(:)-bb(:)))/max(abs(aa(:))));
+    fprintf('Mean difference: %1.8f (+- %1.8f)\n', res.meandiff, res.stddiff)
+    fprintf('Max difference: %1.8f\n', res.maxdiff)
     if mean(abs((aa(:)-bb(:)))/max(abs(aa(:)))) < tol
         disp('Pass - value')
     else

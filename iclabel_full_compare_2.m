@@ -1,4 +1,7 @@
+% same as eeg_iclabelcompare but as a script (legacy)
+
 clear
+
 pyenv('Version', '/Users/arno/miniconda3/envs/p39env/bin/python');
 system('/Users/arno/miniconda3/envs/p311env/bin/python iclabel_helper.py eeglab_data_with_ica_tmp.set eeglab_data_with_ica_out.set');
 EEGTMP = pop_loadset('eeglab_data_with_ica_out.set');

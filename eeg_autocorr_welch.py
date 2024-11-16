@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.signal import resample
+from scipy.signal import resample_poly
 import random
 import pop_loadset
 from pop_loadset import pop_loadset
@@ -44,8 +44,7 @@ def eeg_autocorr_welch(EEG, pct_data=100):
         ac = ac[:, :EEG['srate'] + 1] / (ac[:, 0][:, np.newaxis] * np.concatenate((np.arange(n_points, n_points - EEG['srate'], -1), np.array([max(1, n_points - EEG['srate'])]))) / n_points)
     
     # resample to 1 second at 100 samples/sec
-    num_samples = round(ac.shape[1] * 100 / EEG['srate'])  # Calculate the number of samples for the new rate
-    ac = resample(ac.T, num_samples).T
+    ac = resample_poly(ac.T, up=100, down=EEG['srate']).T
     ac = ac[:, 1:101]
       
     return ac

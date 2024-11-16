@@ -1,3 +1,5 @@
+% original comparison, not in a single Python script yet
+
 pyenv('Version', '/Users/arno/miniconda3/envs/p39env/bin/python');
 system('/Users/arno/miniconda3/envs/p311env/bin/python ICL_feature_extractor_compare_helper.py');
 

@@ -1,7 +1,7 @@
 import numpy as np
 from scipy import signal
 from scipy.fft import fft, ifft, next_fast_len
-from scipy.signal import resample
+from scipy.signal import resample_poly
 
 def eeg_autocorr_fftw(EEG, pct_data=100):
     
@@ -35,13 +35,11 @@ def eeg_autocorr_fftw(EEG, pct_data=100):
     # Normalize by 0-lag autocorrelation
     ac = ac / ac[:, 0][:, np.newaxis]
     
-    num_samples = round(ac.shape[1] * 100 / EEG['srate'])  # Calculate the number of samples for the new rate
-    resamp = resample(ac.T, num_samples).T
+    # resample to 1 second at 100 samples/sec
+    ac = resample_poly(ac.T, up=100, down=EEG['srate']).T
+    ac = ac[:, 1:101]
 
-    # Remove the first column
-    resamp = resamp[:, 1:]
-    
-    return resamp
+    return ac
     
     
 def test_eeg_autocorr_fftw():

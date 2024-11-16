@@ -2,7 +2,10 @@
 pyenv('Version', '/Users/arno/miniconda3/envs/p39env/bin/python');
 
 % call Python function
+fileName = './eeglab_data_with_ica_tmp.set';
+fileName = '/System/Volumes/Data/data/data/STUDIES/STERN/S01/Memorize.set';
 system('/Users/arno/miniconda3/envs/p311env/bin/python eeg_autocorr_fftw_compare_helper.py');
+system([ '/Users/arno/miniconda3/envs/p311env/bin/python eeg_autocorr_fftw_compare_helper.py ' fileName ]);
 res = load('eeg_autocorr_data.mat');
 %delete('eeg_autocorr_data.mat');
 
@@ -12,8 +15,8 @@ if ~exist('pop_loadset')
 end
 eeglabpath = which('eeglab.m');
 eeglabpath = eeglabpath(1:end-length('eeglab.m'));
-EEG = pop_loadset(fullfile(pwd, 'eeglab_data_with_ica_tmp.set'));
-temp2 = eeg_autocorr(EEG, 100);
+EEG = pop_loadset(fileName);
+temp2 = eeg_autocorr_fftw(EEG, 100);
 
 %% compare the two
 figure('position', [924   752   912   565])

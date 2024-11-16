@@ -1,7 +1,12 @@
 from eeg_autocorr_fftw import eeg_autocorr_fftw
 from pop_loadset import pop_loadset
+import sys
 
-eeglab_file_path = './eeglab_data_with_ica_tmp.set'
+# check if a parameter is present and if it is assign eeglab_file_path to it
+if len(sys.argv) > 1:
+    eeglab_file_path = sys.argv[1]
+else:
+    eeglab_file_path = './eeglab_data_with_ica_tmp.set'
 EEG = pop_loadset(eeglab_file_path)
 
 # Print the loaded data
