@@ -37,6 +37,6 @@ def test_pop_resample():
     print(EEG2.keys())
     print(EEG2['srate'])
     
-test_pop_resample()
+# test_pop_resample()
     
     

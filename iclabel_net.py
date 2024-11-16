@@ -116,21 +116,21 @@ class ICLabelNet(torch.nn.Module):
         
         return x
     
-if __name__ == "__main__":
-    model = ICLabelNet('netICL.mat')
-    image_mat = scipy.io.loadmat('net_vars.mat')['in_image']
-    psdmed_mat = scipy.io.loadmat('net_vars.mat')['in_psdmed']
-    autocorr_mat = scipy.io.loadmat('net_vars.mat')['in_autocorr']
-    # assuming third dimension is trivial and last dimension is channel. First two dimensions (32 x 32) are size of topoplot
-    image = torch.tensor(image_mat).permute(-1, 2, 0, 1)
-    print('image shape', image.shape)
-    psdmed = torch.tensor(psdmed_mat).permute(-1, 2, 0, 1)
-    print('psd shape', psdmed.shape)
-    autocorr = torch.tensor(autocorr_mat).permute(-1, 2, 0, 1)
-    print('autocorr shape', autocorr.shape)
-    output = model(image, psdmed, autocorr)
-    print(output.shape)
+# if __name__ == "__main__":
+#     model = ICLabelNet('netICL.mat')
+#     image_mat = scipy.io.loadmat('net_vars.mat')['in_image']
+#     psdmed_mat = scipy.io.loadmat('net_vars.mat')['in_psdmed']
+#     autocorr_mat = scipy.io.loadmat('net_vars.mat')['in_autocorr']
+#     # assuming third dimension is trivial and last dimension is channel. First two dimensions (32 x 32) are size of topoplot
+#     image = torch.tensor(image_mat).permute(-1, 2, 0, 1)
+#     print('image shape', image.shape)
+#     psdmed = torch.tensor(psdmed_mat).permute(-1, 2, 0, 1)
+#     print('psd shape', psdmed.shape)
+#     autocorr = torch.tensor(autocorr_mat).permute(-1, 2, 0, 1)
+#     print('autocorr shape', autocorr.shape)
+#     output = model(image, psdmed, autocorr)
+#     print(output.shape)
     
-    # save the output to a mat file
-    scipy.io.savemat('output4.mat', {'output': output.detach().numpy()})
+#     # save the output to a mat file
+#     scipy.io.savemat('output4.mat', {'output': output.detach().numpy()})
     
