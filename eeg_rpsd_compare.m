@@ -1,18 +1,19 @@
 % this script compares the MATLAB and Python version of the function
+clear
 pyenv('Version', '/Users/arno/miniconda3/envs/p39env/bin/python');
 
+eeglabpath = which('eeglab.m');
+eeglabpath = eeglabpath(1:end-length('eeglab.m'));
+fileName = fullfile(eeglabpath, 'sample_data', 'eeglab_data_epochs_ica.set');
+%fileName = fullfile(pwd, 'eeglab_data_with_ica_tmp.set');
+
 % call Python function
-system('/Users/arno/miniconda3/envs/p311env/bin/python eeg_rpsd_compare_helper.py');
+system(['/Users/arno/miniconda3/envs/p311env/bin/python eeg_rpsd_compare_helper.py ' fileName]);
 res = load('eeg_rpsd_data.mat');
 %delete('eeg_rpsd_data.mat');
 
 % call EEGLAB function
-if ~exist('pop_loadset')
-    addpath('~/eeglab');
-end
-eeglabpath = which('eeglab.m');
-eeglabpath = eeglabpath(1:end-length('eeglab.m'));
-EEG = pop_loadset(fullfile(eeglabpath, 'sample_data', 'eeglab_data_epochs_ica.set'));
+EEG = pop_loadset(fileName);
 temp2 = eeg_rpsd(EEG, 100);
 
 %% compare the two

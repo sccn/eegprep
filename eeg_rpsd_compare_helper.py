@@ -1,7 +1,11 @@
 from eeg_rpsd import eeg_rpsd
 from pop_loadset import pop_loadset
+import sys
 
-eeglab_file_path = '/System/Volumes/Data/data/matlab/eeglab/sample_data/eeglab_data_epochs_ica.set'
+if len(sys.argv) > 1:
+    eeglab_file_path = sys.argv[1]
+else:
+    eeglab_file_path = '/System/Volumes/Data/data/matlab/eeglab/sample_data/eeglab_data_epochs_ica.set'
 EEG = pop_loadset(eeglab_file_path)
 
 # Print the loaded data

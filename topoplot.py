@@ -2,8 +2,47 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.interpolate import griddata
 from scipy.interpolate import Rbf
-
 from scipy.spatial import cKDTree
+
+def griddata_v4(x, y, v, xq, yq):
+    """
+    Python version of MATLAB's GDATAV4 interpolation based on David T. Sandwell's biharmonic spline interpolation.
+    
+    Parameters:
+    x, y : 1D arrays of coordinates for known points
+    v : 1D array of values at known points
+    xq, yq : 2D arrays of query points coordinates
+    
+    Returns:
+    vq : 2D array of interpolated values at query points
+    """
+    # Combine x and y into complex numbers for convenience
+    xy = x + 1j * y
+    
+    # Determine distances between points
+    d = np.abs(xy[:, None] - xy[None, :])
+    
+    # Determine weights for interpolation
+    with np.errstate(divide='ignore', invalid='ignore'):
+        g = (d**2) * (np.log(d) - 1)  # Green's function
+    np.fill_diagonal(g, 0)  # Fix value along diagonal
+    weights = np.linalg.solve(g, v)
+    
+    # Initialize output array
+    m, n = xq.shape
+    vq = np.zeros_like(xq)
+    
+    # Evaluate at requested points
+    xy = xy[:, None]  # Make it column vector for broadcasting
+    for i in range(m):
+        for j in range(n):
+            d = np.abs(xq[i, j] + 1j * yq[i, j] - xy.ravel())
+            with np.errstate(divide='ignore', invalid='ignore'):
+                g = (d**2) * (np.log(d) - 1)  # Green's function
+            g[d == 0] = 0  # Handle Green's function at zero
+            vq[i, j] = np.dot(g, weights)
+    
+    return vq
 
 def topoplot(datavector, chan_locs, **kwargs):
     # Set default values
@@ -124,19 +163,19 @@ def topoplot(datavector, chan_locs, **kwargs):
         coords = np.delete(coords, nanidx, axis=1)
         values = np.delete(values, nanidx)
 
+        # use griddata_v4 to interpolate
+        Zi = griddata_v4(coords[0], coords[1], values, xi, yi)
+
         # Create the RBF interpolator
         
-        rbf = Rbf(coords[0], coords[1], values, function='inverse') #, function='linear')
-        Zi1 = rbf(xi, yi)
+        # rbf = Rbf(coords[0], coords[1], values, function='inverse') #, function='linear')
+        # Zi1 = rbf(xi, yi)
         
-        rbf = Rbf(coords[0], coords[1], values, function='thin_plate') #, function='linear')
-        Zi2 = rbf(xi, yi)
+        # rbf = Rbf(coords[0], coords[1], values, function='thin_plate') #, function='linear')
+        # Zi2 = rbf(xi, yi)
         
-        # average the two results
-        Zi = (Zi1 + Zi2) / 2
-        
-        # rbf = Rbf(coords[0], coords[1], values, function='linear') #, function='linear')
-        # Zi = rbf(xi, yi)
+        # # average the two results
+        # Zi = (Zi1 + Zi2) / 2
         
     mask = (np.sqrt(xi**2 + yi**2) <= rmax)
     Zi[~mask] = np.nan

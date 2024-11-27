@@ -11,17 +11,25 @@ def pop_reref(EEG, ref):
         # Subtract mean from EEG data using broadcasting in NumPy
         EEG['data'] = EEG['data'] - np.mean(EEG['data'], axis=0)
         
+        #print(np.array2string(EEG['icaweights'][:10, :10], precision=3, suppress_small=True))
+
         # Subtract mean from EEG icawinv using broadcasting in NumPy
         EEG['icawinv'] = EEG['icawinv'] - np.mean(EEG['icawinv'], axis=0)
         
+        # show the first 10 rows and columns of EEG['icawinv']
+        # print it pretty line by line with 4 digit after the decimal point
+        
         # Compute the pseudoinverse of EEG['icawinv']
         EEG['icaweights'] = np.linalg.pinv(EEG['icawinv'])
+        #print(' ')
+        #print(np.array2string(EEG['icaweights'][:10, :10], precision=3, suppress_small=True))
+
         EEG['icasphere'] = np.eye(EEG['nbchan'])
 
         # Compute the ICA activations        
-        data = EEG['data'].reshape(EEG['data'].shape[0], -1)
-        EEG['icaact'] = np.dot(EEG['icaweights'], data)
-        EEG['icaact'] = EEG['icaact'].reshape(EEG['icaweights'].shape[0], EEG['pnts'], EEG['trials'])
+        # data = EEG['data'].reshape(EEG['data'].shape[0], -1)
+        # EEG['icaact'] = np.dot(EEG['icaweights'], data)
+        # EEG['icaact'] = EEG['icaact'].reshape(EEG['icaweights'].shape[0], EEG['pnts'], EEG['trials'])
                 
         # Set EEG['ref'] to 'average'
         EEG['ref'] = 'average'

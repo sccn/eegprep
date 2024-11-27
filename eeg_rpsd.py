@@ -28,8 +28,8 @@ def eeg_rpsd(EEG, nfreqs=None, pct_data=100):
         window = np.concatenate([window, window[::-1]])
     
     cutoff = (EEG['pnts'] // n_points) * n_points
-    index = np.add.outer(np.arange(0, cutoff - n_points//2, n_points // 2), np.arange(0, n_points)).astype(int).transpose()
-    
+    index = np.add.outer(np.ceil(np.arange(0, cutoff - n_points + 1, n_points/2)).astype(int), np.arange(0, n_points)).astype(int).transpose()
+
     np.random.seed(0)  # rng('default') in MATLAB
     n_seg = index.shape[1] * EEG['trials']
     subset = np.random.permutation(n_seg)[:int(n_seg * pct_data / 100)]

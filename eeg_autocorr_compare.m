@@ -1,8 +1,13 @@
 % this script compares the MATLAB and Python version of the function
 pyenv('Version', '/Users/arno/miniconda3/envs/p39env/bin/python');
 
+eeglabpath = which('eeglab.m');
+eeglabpath = eeglabpath(1:end-length('eeglab.m'));
+fileName = fullfile(eeglabpath, 'sample_data', 'eeglab_data_epochs_ica.set');
+fileName = '/System/Volumes/Data/data/data/STUDIES/STERN/S01/Memorize.set';
+
 % call Python function
-system('/Users/arno/miniconda3/envs/p311env/bin/python eeg_autocorr_compare_helper.py');
+system('/Users/arno/miniconda3/envs/p311env/bin/python eeg_autocorr_compare_helper.py ' fileName);
 res = load('eeg_autocorr_data.mat');
 delete('eeg_autocorr_data.mat');
 

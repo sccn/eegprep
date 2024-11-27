@@ -38,9 +38,12 @@ else
         end
     end
 
-    res.meandiff = mean(abs((aa(:)-bb(:)))/max(abs(aa(:))));
-    res.stddiff  = std(abs((aa(:)-bb(:)))/max(abs(aa(:))));
-    res.maxdiff = max(abs((aa(:)-bb(:)))/max(abs(aa(:))));
+    res.meandiff = mean(abs((aa(:)-bb(:))));
+    res.stddiff  = std(abs((aa(:)-bb(:))));
+    res.maxdiff  = max(abs((aa(:)-bb(:))));
+    res.meanpercentdiff = mean(abs((aa(:)-bb(:)))/max(abs(aa(:))));
+    res.stdpercentdiff  = std(abs((aa(:)-bb(:)))/max(abs(aa(:))));
+    res.maxpercentdiff = max(abs((aa(:)-bb(:)))/max(abs(aa(:))));
     fprintf('Mean difference: %1.8f (+- %1.8f)\n', res.meandiff, res.stddiff)
     fprintf('Max difference: %1.8f\n', res.maxdiff)
     if mean(abs((aa(:)-bb(:)))/max(abs(aa(:)))) < tol

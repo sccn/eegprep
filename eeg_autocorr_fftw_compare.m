@@ -4,7 +4,8 @@ pyenv('Version', '/Users/arno/miniconda3/envs/p39env/bin/python');
 % call Python function
 fileName = './eeglab_data_with_ica_tmp.set';
 fileName = '/System/Volumes/Data/data/data/STUDIES/STERN/S01/Memorize.set';
-system('/Users/arno/miniconda3/envs/p311env/bin/python eeg_autocorr_fftw_compare_helper.py');
+
+% system('/Users/arno/miniconda3/envs/p311env/bin/python eeg_autocorr_fftw_compare_helper.py');
 system([ '/Users/arno/miniconda3/envs/p311env/bin/python eeg_autocorr_fftw_compare_helper.py ' fileName ]);
 res = load('eeg_autocorr_data.mat');
 %delete('eeg_autocorr_data.mat');
@@ -16,6 +17,8 @@ end
 eeglabpath = which('eeglab.m');
 eeglabpath = eeglabpath(1:end-length('eeglab.m'));
 EEG = pop_loadset(fileName);
+EEG = pop_reref(EEG, []);
+
 temp2 = eeg_autocorr_fftw(EEG, 100);
 
 %% compare the two
@@ -59,3 +62,15 @@ print('-depsc', 'figures/autocorr_diff.eps')
 
 %print('-djpeg', 'topoplot_diff.jpg')
 compare_variables(temp2, res.grid);
+
+comp = 59;
+
+figure('position', [201   715   560   232]); plot(temp2(comp,:));
+hold on; plot(res.grid(comp, :), 'r')
+set(gcf, 'color', 'w')
+xlabel('Frequency');
+ylabel('Autocorrelation');
+legend({ 'MATLAB' 'Python' })
+setfont(gcf, 'fontsize', 16)
+
+

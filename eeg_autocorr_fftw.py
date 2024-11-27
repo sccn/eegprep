@@ -2,6 +2,8 @@ import numpy as np
 from scipy import signal
 from scipy.fft import fft, ifft, next_fast_len
 from scipy.signal import resample_poly
+from pop_loadset import pop_loadset
+from pop_reref import pop_reref
 
 def eeg_autocorr_fftw(EEG, pct_data=100):
     
@@ -50,6 +52,12 @@ def test_eeg_autocorr_fftw():
         'trials': 5,
         'icaact': np.random.randn(10, 1000, 5)
     }
+    EEG = pop_loadset('/System/Volumes/Data/data/data/STUDIES/STERN/S01/Memorize.set')
+    
+    # reshape the last two dimensions of EEG['icaact']
+    # EEG['icaact'] = EEG['icaact'].reshape(EEG['icaact'].shape[0], -1)
+    
+    # convert EEG['icaact'] to double precision
     
     psdmed = eeg_autocorr_fftw(EEG, 100)
     
