@@ -34,7 +34,7 @@ def ICL_feature_extractor(EEG, flag_autocorr=False):
     # Calculate topo
     topo = np.zeros((32, 32, 1, ncomp))
     for it in range(ncomp):
-        _, temp_topo, _, _, _ = topoplot(EEG['icawinv'][:, it], EEG['chanlocs'][EEG['icachansind']-1], noplot='on')
+        _, temp_topo, _, _, _ = topoplot(EEG['icawinv'][:, it], EEG['chanlocs'][EEG['icachansind']], noplot='on')
         temp_topo[np.isnan(temp_topo)] = 0
         topo[:, :, 0, it] = temp_topo / np.max(np.abs(temp_topo))
 

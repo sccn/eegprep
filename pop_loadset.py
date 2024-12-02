@@ -14,6 +14,9 @@ import os
 default_empty = np.array([])
 #default_empty = None
 
+def loadset(file_path):
+    return pop_loadset(file_path)
+
 def pop_loadset(file_path):
     # Load MATLAB file
     EEG = scipy.io.loadmat(file_path, struct_as_record=False, squeeze_me=True)
@@ -66,7 +69,16 @@ def pop_loadset(file_path):
         EEG['icaact'] = np.dot(np.dot(EEG['icaweights'], EEG['icasphere']), EEG['data'].reshape(int(EEG['nbchan']), -1))
         EEG['icaact'] = EEG['icaact'].astype(np.float32)
         EEG['icaact'] = EEG['icaact'].reshape(EEG['icaweights'].shape[0], -1, int(EEG['trials']))
-            
+    
+    # subtract 1 to EEG['icachansind'] to make it 0-based
+    if 'icachansind' in EEG and EEG['icachansind'].size > 0:
+        EEG['icachansind'] = EEG['icachansind'] - 1
+    
+    # type conversion
+    EEG['xmin'] = float(EEG['xmin'])
+    EEG['xmax'] = float(EEG['xmax'])
+    EEG['srate'] = float(EEG['srate'])
+    
     return EEG
 
 def test_pop_loadset():

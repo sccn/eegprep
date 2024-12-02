@@ -7,6 +7,7 @@ def eeg_rpsd(EEG, nfreqs=None, pct_data=100):
     nyquist = EEG['srate'] // 2
     if nfreqs is None or nfreqs > nyquist:
         nfreqs = nyquist
+    nfreqs = int(nfreqs)
     
     # setup constants
     ncomp = EEG['icaweights'].shape[0]

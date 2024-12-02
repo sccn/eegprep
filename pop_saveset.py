@@ -47,10 +47,17 @@ def flatten_dict(data):
     rec_array = np.array(data_tuples, dtype=dtype).view(np.recarray)
     return rec_array
         
+def saveset(EEG, file_name):
+    return pop_saveset(EEG, file_name)
+
 def pop_saveset(EEG, file_path):
     # convert Events to structured array
     # if 'event' in EEG:
     #     EEG['event'] = flatten_dict(EEG['event'])    
+        
+    # add 1 to EEG['icachansind'] to make it 1-based
+    if 'icachansind' in EEG and EEG['icachansind'].size > 0:
+        EEG['icachansind'] = EEG['icachansind'] + 1 
         
     # search for array of dictionaries and convert them to flatten_dicts
     for key in EEG:
@@ -73,6 +80,10 @@ from scipy.io import savemat
 
 def pop_saveset2(EEG, file_name):
     
+     # add 1 to EEG['icachansind'] to make it 1-based
+    if 'icachansind' in EEG and EEG['icachansind'].size > 0:
+        EEG['icachansind'] = EEG['icachansind'] + 1 
+        
     eeglab_dict = {
         'setname'         : '',
         'filename'        : '',
