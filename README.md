@@ -1,4 +1,4 @@
-## how to duplicate a function
+## How to convert a function from MATLAB to Python
 
 1. Get a MATLAB file to load and process an EEG file
 
