@@ -1,8 +1,7 @@
 import numpy as np
 from scipy.signal import resample_poly
 import random
-import pop_loadset
-from pop_loadset import pop_loadset
+from .pop_loadset import pop_loadset
 import numpy as np
 from numpy.fft import fft, ifft
 

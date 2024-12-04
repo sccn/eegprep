@@ -1,5 +1,5 @@
-from ICL_feature_extractor import ICL_feature_extractor
-from iclabel_net import ICLabelNet
+from .ICL_feature_extractor import ICL_feature_extractor
+from .iclabel_net import ICLabelNet
 import torch
 import numpy as np
 

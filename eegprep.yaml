@@ -1,0 +1,19 @@
+Name: EEGDash on AWS
+Description: 
+Documentation: https://github.com/sccn/eegprep
+Contact: adelorme@ucsd.edu
+ManagedBy: "[Swartz Center for Computational Neuroscience](https://sccn.ucsd.edu/)"
+UpdateFrequency: 
+Tags:
+  - aws-pds
+License: 
+DataAtWork:
+  Tools & Applications:
+    - Title: eegprep on pypi.python.org
+      URL: https://test.pypi.org/project/eegprep/
+      AuthorName: Young Truong
+      AuthorURL: https://github.com/dungscout96
+  Publications:
+    - Title: 
+      URL: 
+      AuthorName: 

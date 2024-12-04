@@ -1,0 +1,56 @@
+Metadata-Version: 2.1
+Name: eegprep
+Version: 0.0.2
+Summary: EEG preprocessing pipeline on Python
+Author-email: Arnaud Delorme <adelorme@gmail.com>, Young Truong <dt.young112@gmail.com>
+License: GNU General Public License
+        
+        Copyright (C) 2024-2025
+        
+        Young Truong, UCSD, dt.young112@gmail.com
+        Arnaud Delorme, UCSD, adelorme@ucsd.edu
+        
+        This program is free software; you can redistribute it and/or modify
+        it under the terms of the GNU General Public License as published by
+        the Free Software Foundation; either version 2 of the License, or
+        (at your option) any later version.
+        
+        This program is distributed in the hope that it will be useful,
+        but WITHOUT ANY WARRANTY; without even the implied warranty of
+        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+        GNU General Public License for more details.
+        
+        You should have received a copy of the GNU General Public License
+        along with this program; if not, write to the Free Software
+        Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1.07  USA
+        
+Project-URL: Homepage, https://github.com/sccn/eegprep
+Project-URL: Issues, https://github.com/sccn/eegprep/issues
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: numpy>=1.21.0
+Requires-Dist: scipy>=1.7.0
+Requires-Dist: matplotlib>=3.4.0
+Requires-Dist: mne>=1.0.0
+Requires-Dist: oct2py>=5.5.0
+Requires-Dist: torch>=1.10.0
+Requires-Dist: h5py>=3.3.0
+
+## how to duplicate a function
+
+1. Get a MATLAB file to load and process an EEG file
+
+2. Convert the code using GPT4 or when short Copilot and test in a Notebook. Once the code runs without erroring, move to 3.
+
+3. Use the Jupyter code to create a Python file (not notebook) to load the same file as MATLAB and process it as well (in plain Python, not in a subfunction)
+
+4. Start the debugger in both and compare. Note that it is better to use the debugger on Python file than Jupyter Notebook (could not get it to stop)
+
+5. Once the result is the same, package the Python code in a function with the same name as MATLAB
+
+6. Write the function to compare (see example) and the helper Python function to load the file (note that there could be a general Python helper function)
+

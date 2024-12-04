@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "eegprep"
+version = "0.0.2"
+authors = [
+  { name="Arnaud Delorme", email="adelorme@gmail.com" },
+  { name="Young Truong", email="dt.young112@gmail.com" },
+]
+description = "EEG preprocessing pipeline on Python"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+  "numpy>=1.21.0",
+  "scipy>=1.7.0",
+  "matplotlib>=3.4.0",
+  "mne>=1.0.0",
+  "oct2py>=5.5.0",
+  "torch>=1.10.0",
+  "h5py>=3.3.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/sccn/eegprep"
+Issues = "https://github.com/sccn/eegprep/issues"

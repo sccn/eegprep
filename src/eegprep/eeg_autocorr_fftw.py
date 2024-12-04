@@ -2,8 +2,8 @@ import numpy as np
 from scipy import signal
 from scipy.fft import fft, ifft, next_fast_len
 from scipy.signal import resample_poly
-from pop_loadset import pop_loadset
-from pop_reref import pop_reref
+from .pop_loadset import pop_loadset
+from .pop_reref import pop_reref
 
 def eeg_autocorr_fftw(EEG, pct_data=100):
     

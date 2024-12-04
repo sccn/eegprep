@@ -12,3 +12,7 @@
 
 6. Write the function to compare (see example) and the helper Python function to load the file (note that there could be a general Python helper function)
 
+## Install test package
+```
+pip install -i https://test.pypi.org/simple/ eegprep==0.0.2 --extra-index-url https://pypi.org/simple/
+```
