@@ -1,0 +1,10 @@
+#!/bin/bash
+
+#SBATCH --job-name=mytestjob
+#SBATCH --ntasks-per-node=1
+#SBATCH --mem=1G
+#SBATCH --time=00:15:00
+
+#parse config.json for input parameters (here, we are pulling "t1")
+data=$(jq -r .set config.json)
+singularity exec -e docker://dtyoung/eeglab-pipeline:eeglab octave-cli ./dataqual.m $data
