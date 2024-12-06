@@ -1,5 +1,5 @@
-from eeg_rpsd import eeg_rpsd
-from pop_loadset import pop_loadset
+from .eeg_rpsd import eeg_rpsd
+from .pop_loadset import pop_loadset
 import sys
 
 if len(sys.argv) > 1:

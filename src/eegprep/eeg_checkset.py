@@ -1,6 +1,6 @@
 import numpy as np
 import os
-from pop_loadset import pop_loadset
+from .pop_loadset import pop_loadset
 
 def eeg_checkset(EEG):
      

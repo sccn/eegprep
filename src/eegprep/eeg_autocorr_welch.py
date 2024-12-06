@@ -55,7 +55,7 @@ def test_eeg_autocorr_welch():
     psdmed = eeg_autocorr_welch(EEG, 100)
     
     # print information about psdmed
-    print(psdmed.shape)
-    print(psdmed)
+    # print(psdmed.shape)
+    # print(psdmed)
 
 # test_eeg_autocorr_welch()

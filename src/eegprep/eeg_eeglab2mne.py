@@ -1,10 +1,10 @@
-from eeg_autocorr import eeg_autocorr
-from pop_loadset import pop_loadset
+from .eeg_autocorr import eeg_autocorr
+from .pop_loadset import pop_loadset
 import mne
 import tempfile
 import os
 from mne.export import export_raw
-from pop_saveset import pop_saveset # in development
+from .pop_saveset import pop_saveset # in development
 
 # write a funtion that converts a MNE raw object to an EEGLAB set file
 def eeg_eeglab2mne(EEG):

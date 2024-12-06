@@ -48,3 +48,6 @@ USER octave
 WORKDIR /home/octave
 
 VOLUME ["/source"]
+
+#https://wiki.ubuntu.com/DashAsBinSh
+#RUN rm /bin/sh && ln -s /bin/bash /bin/sh

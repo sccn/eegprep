@@ -1,6 +1,6 @@
 from oct2py import Oct2Py, get_log
-from pop_saveset import pop_saveset
-from pop_loadset import pop_loadset
+from .pop_saveset import pop_saveset
+from .pop_loadset import pop_loadset
 import logging
 import os
 import sys

@@ -1,5 +1,5 @@
-from eeg_autocorr import eeg_autocorr
-from pop_loadset import pop_loadset
+from .eeg_autocorr import eeg_autocorr
+from .pop_loadset import pop_loadset
 import mne
 import tempfile
 import os

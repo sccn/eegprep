@@ -25,10 +25,10 @@ class ICLabelNet(torch.nn.Module):
         super().__init__()
         iclabel_matlab = scipy.io.loadmat(mat_path)
         params = iclabel_matlab['params'][0]
-        i = 11
-        print('shape of param', i, torch.tensor(params[i][1]).shape)
+        # i = 11
+        # print('shape of param', i, torch.tensor(params[i][1]).shape)
         self.discriminator_image_layer1_conv = torch.nn.Conv2d(in_channels=1, out_channels=128, kernel_size=4, stride=2, padding=1, dilation=1)
-        print(self.discriminator_image_layer1_conv.weight.shape)
+        # print(self.discriminator_image_layer1_conv.weight.shape)
         self.discriminator_image_layer1_conv.weight = torch.nn.Parameter(torch.tensor(params[0][1]).permute(3, 2, 0, 1))
         self.discriminator_image_layer1_conv.bias = torch.nn.Parameter(torch.tensor(params[1][1]).squeeze())
         self.discriminator_image_layer1_relu = torch.nn.LeakyReLU(0.2)
@@ -83,7 +83,7 @@ class ICLabelNet(torch.nn.Module):
         x_image = self.discriminator_image_layer2_relu(x_image)
         x_image = self.discriminator_image_layer3_conv(x_image)
         x_image = self.discriminator_image_layer3_relu(x_image)
-        print('x_image', x_image.shape)
+        # print('x_image', x_image.shape)
 
         x_psdmed = self.discriminator_psdmed_layer1_conv_conv(psdmed)
         x_psdmed = self.discriminator_psdmed_layer1_conv_relu(x_psdmed)
@@ -94,7 +94,7 @@ class ICLabelNet(torch.nn.Module):
         x_psdmed = self.discriminator_psdmed_reshape(x_psdmed)
         x_psdmed = self.discriminator_psdmed_concat1([x_psdmed]*4)
         x_psdmed = self.discriminator_psdmed_concat2([x_psdmed]*4)
-        print('x_psdmed', x_psdmed.shape)
+        # print('x_psdmed', x_psdmed.shape)
 
         x_autocorr = self.discriminator_autocorr_layer1_conv_conv(autocorr)
         x_autocorr = self.discriminator_autocorr_layer1_conv_relu(x_autocorr)
@@ -105,11 +105,11 @@ class ICLabelNet(torch.nn.Module):
         x_autocorr = self.discriminator_autocorr_reshape(x_autocorr)
         x_autocorr = self.discriminator_autocorr_concat1([x_autocorr]*4)
         x_autocorr = self.discriminator_autocorr_concat2([x_autocorr]*4)
-        print('x_autocorr', x_autocorr.shape)
+        # print('x_autocorr', x_autocorr.shape)
 
         x = self.discriminator_concat([x_image, x_psdmed, x_autocorr])
         x = self.discriminator_conv(x)
-        print('x', x.shape)
+        # print('x', x.shape)
         # subtract max value to avoid overflow
         x = x - torch.max(x, dim=1, keepdim=True).values
         x = self.discriminator_softmax(x)

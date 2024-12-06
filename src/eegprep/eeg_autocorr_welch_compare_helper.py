@@ -1,5 +1,5 @@
-from eeg_autocorr_welch import eeg_autocorr_welch
-from pop_loadset import pop_loadset
+from .eeg_autocorr_welch import eeg_autocorr_welch
+from .pop_loadset import pop_loadset
 
 eeglab_file_path = './eeglab_data_with_ica_tmp.set'
 EEG = pop_loadset(eeglab_file_path)

@@ -1,5 +1,5 @@
-from ICL_feature_extractor import ICL_feature_extractor
-from pop_loadset import pop_loadset
+from .ICL_feature_extractor import ICL_feature_extractor
+from .pop_loadset import pop_loadset
 import sys
 
 # check if a parameter is present and if it is assign eeglab_file_path to it

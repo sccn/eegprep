@@ -1,5 +1,5 @@
-from topoplot import topoplot
-from pop_loadset import pop_loadset
+from .topoplot import topoplot
+from .pop_loadset import pop_loadset
 import sys
 
 print('Topoplot compare helper')

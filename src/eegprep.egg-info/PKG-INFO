@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: eegprep
-Version: 0.0.2
+Version: 0.0.3
 Summary: EEG preprocessing pipeline on Python
 Author-email: Arnaud Delorme <adelorme@gmail.com>, Young Truong <dt.young112@gmail.com>
 License: GNU General Public License
@@ -40,7 +40,7 @@ Requires-Dist: oct2py>=5.5.0
 Requires-Dist: torch>=1.10.0
 Requires-Dist: h5py>=3.3.0
 
-## how to duplicate a function
+## How to convert a function from MATLAB to Python
 
 1. Get a MATLAB file to load and process an EEG file
 
@@ -54,3 +54,10 @@ Requires-Dist: h5py>=3.3.0
 
 6. Write the function to compare (see example) and the helper Python function to load the file (note that there could be a general Python helper function)
 
+## Install package
+Packaging was done following the tutorial: https://packaging.python.org/en/latest/tutorials/packaging-projects/ with setuptools
+
+To install the package, run:
+```
+pip install eegprep==0.0.2
+```

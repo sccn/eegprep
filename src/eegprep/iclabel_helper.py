@@ -1,6 +1,6 @@
 from iclabel import iclabel
-from pop_loadset import pop_loadset
-from pop_saveset import pop_saveset
+from .pop_loadset import pop_loadset
+from .pop_saveset import pop_saveset
 import sys
 
 # check if there are 2 arguments otherwise issue an error
@@ -19,7 +19,7 @@ EEG = pop_loadset(eeglab_file_path_in)
 # EEG['trials'] = 1
 
 # Print the loaded data
-print('Data shape:', EEG['data'].shape)
+# print('Data shape:', EEG['data'].shape)
 EEG = iclabel(EEG, 'default')
 
 # save dataset

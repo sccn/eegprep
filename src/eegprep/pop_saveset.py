@@ -183,7 +183,7 @@ def pop_saveset2(EEG, file_name):
     # # Step 4: Save the EEGLAB dataset as a .mat file
     savemat(file_name, eeglab_dict)
 
-from pop_loadset import pop_loadset
+from .pop_loadset import pop_loadset
 
 def test_pop_saveset():
     file_path = './eeglab_data_with_ica_tmp.set'

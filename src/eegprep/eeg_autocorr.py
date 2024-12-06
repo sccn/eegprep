@@ -50,7 +50,7 @@ def test_eeg_autocorr():
     psdmed = eeg_autocorr(EEG, 100)
     
     # print information about psdmed
-    print(psdmed.shape)
+    # print(psdmed.shape)
     
     #print(psdmed)
     
@@ -58,4 +58,4 @@ def test_eeg_autocorr():
     #assert psdmed.shape == (10, 100)
     #assert np.all(np.isfinite(psdmed))
 
-test_eeg_autocorr()
+# test_eeg_autocorr()

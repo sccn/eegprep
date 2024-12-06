@@ -1,5 +1,5 @@
-from pop_reref import pop_reref
-from pop_loadset import pop_loadset
+from .pop_reref import pop_reref
+from .pop_loadset import pop_loadset
 import sys
 import os
 import scipy.io

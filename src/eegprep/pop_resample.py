@@ -2,8 +2,8 @@
 import os
 from scipy.io import savemat
 import tempfile # need to do something with tempfile
-from pop_loadset import pop_loadset
-from pop_saveset import pop_saveset
+from .pop_loadset import pop_loadset
+from .pop_saveset import pop_saveset
 from oct2py import octave as eeglab
 
 def pop_resample( EEG, freq): # 2 additional parameters in MATLAB (never used)

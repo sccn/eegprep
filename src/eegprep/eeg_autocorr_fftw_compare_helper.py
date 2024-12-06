@@ -1,6 +1,6 @@
-from eeg_autocorr_fftw import eeg_autocorr_fftw
-from pop_loadset import pop_loadset
-from pop_reref import pop_reref
+from .eeg_autocorr_fftw import eeg_autocorr_fftw
+from .pop_loadset import pop_loadset
+from .pop_reref import pop_reref
 import sys
 
 # check if a parameter is present and if it is assign eeglab_file_path to it
