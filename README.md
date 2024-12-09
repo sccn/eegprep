@@ -1,3 +1,9 @@
+## Build docker
+
+docker run --rm -it -v $(pwd):/usr/src/project dtyoung/eegprep /bin/bash
+
+Mounted folder in /usr/src/project
+
 ## How to convert a function from MATLAB to Python
 
 1. Get a MATLAB file to load and process an EEG file
