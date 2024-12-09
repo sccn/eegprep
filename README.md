@@ -1,6 +1,10 @@
 ## Build docker
 
 docker run --rm -it -v $(pwd):/usr/src/project dtyoung/eegprep /bin/bash
+docker run -u root --rm -it -v $(pwd):/usr/src/project dtyoung/eegprep /bin/bash
+
+# remove
+docker rmi dtyoung/eegprep
 
 Mounted folder in /usr/src/project
 
