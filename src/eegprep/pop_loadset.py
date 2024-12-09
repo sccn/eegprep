@@ -39,7 +39,7 @@ def pop_loadset(file_path):
             elif obj.dtype.kind in ['i', 'u', 'f', 'c']:
                 return obj
             else:
-                return np.array([new_check(item) for item in obj])
+                return np.array([new_check(item) for item in obj], dtype=object)
         # check if it is a scalar or a string and return it
         elif np.isscalar(obj) or isinstance(obj, str):
             return obj
