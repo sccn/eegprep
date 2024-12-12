@@ -1,12 +1,12 @@
 import numpy as np
-from .topoplot import topoplot
-from .eeg_rpsd import eeg_rpsd
-from .eeg_autocorr_welch import eeg_autocorr_welch
-from .eeg_autocorr import eeg_autocorr
-from .eeg_autocorr_fftw import eeg_autocorr_fftw
-from .pop_reref import pop_reref
 
 def ICL_feature_extractor(EEG, flag_autocorr=False):
+    from eegprep import topoplot
+    from eegprep import eeg_rpsd
+    from eegprep import eeg_autocorr_welch
+    from eegprep import eeg_autocorr
+    from eegprep import eeg_autocorr_fftw
+    from eegprep import pop_reref
 
     # Check inputs
     ncomp = EEG['icawinv'].shape[1]

@@ -1,9 +1,10 @@
-from .ICL_feature_extractor import ICL_feature_extractor
-from .iclabel_net import ICLabelNet
 import torch
 import numpy as np
 
 def iclabel(EEG, algorithm='default'):
+    from eegprep import ICLabelNet
+    from eegprep import ICL_feature_extractor
+
     # issue error if algorithm is not 'default'
     if algorithm != 'default':
         raise ValueError('Only the default algorithm is supported')
@@ -20,7 +21,7 @@ def iclabel(EEG, algorithm='default'):
     # print('Feature 2 shape:', features[2].shape)
 
     # Load the ICLabelNet model
-    model = ICLabelNet('netICL.mat')
+    model = ICLabelNet('./data/netICL.mat')
     
     # Convert the features to torch tensors
     image = torch.tensor(features[0]).permute(-1, 2, 0, 1)

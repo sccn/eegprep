@@ -19,7 +19,7 @@ def loadset(file_path):
 
 def pop_loadset(file_path):
     # Load MATLAB file
-    EEG = scipy.io.loadmat(file_path, struct_as_record=False, squeeze_me=True)
+    EEG = scipy.io.loadmat(file_path, struct_as_record=False, squeeze_me=True, appendmat=False)
         
     def new_check(obj):
         # check if obj is a dictionary and apply recursively the function to each object not changing the struture of the dictionary
@@ -57,6 +57,14 @@ def pop_loadset(file_path):
     if 'EEG' in EEG:
         EEG = EEG['EEG']
         
+    # convert EEG['nbchan] to integer
+    if 'nbchan' in EEG:
+        EEG['nbchan'] = int(EEG['nbchan'])
+    if 'trials' in EEG:
+        EEG['trials'] = int(EEG['trials'])
+    if 'pnts' in EEG:
+        EEG['pnts'] = int(EEG['pnts'])
+    
     if 'data' in EEG and isinstance(EEG['data'], str):
         # get path from file_path
         EEG['filepath'] = os.path.dirname(file_path)

@@ -38,9 +38,9 @@ def eeg_autocorr_welch(EEG, pct_data=100):
     # normalizefft
     if EEG['pnts'] < EEG['srate']:
         ac = np.concatenate([ac[:, :EEG['pnts']] / (ac[:, 0][:, np.newaxis] * np.arange(n_points, 0, -1) / n_points), 
-                             np.zeros((ncomp, EEG['srate'] - n_points + 1))], axis=1)
+                             np.zeros((ncomp, int(EEG['srate']) - n_points + 1))], axis=1)
     else:
-        ac = ac[:, :EEG['srate'] + 1] / (ac[:, 0][:, np.newaxis] * np.concatenate((np.arange(n_points, n_points - EEG['srate'], -1), np.array([max(1, n_points - EEG['srate'])]))) / n_points)
+        ac = ac[:, :int(EEG['srate']) + 1] / (ac[:, 0][:, np.newaxis] * np.concatenate((np.arange(n_points, n_points - int(EEG['srate']), -1), np.array([max(1, n_points - int(EEG['srate']))]))) / n_points)
     
     # resample to 1 second at 100 samples/sec
     ac = resample_poly(ac.T, up=100, down=EEG['srate']).T

@@ -117,7 +117,7 @@ class ICLabelNet(torch.nn.Module):
         return x
     
 if __name__ == "__main__":
-    model = ICLabelNet('netICL.mat')
+    model = ICLabelNet('../../data/netICL.mat')
     data = scipy.io.loadmat('python_temp_reformated.mat')
     image_mat    = data['grid'][0][0]
     psdmed_mat   = data['grid'][0][1]
