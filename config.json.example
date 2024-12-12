@@ -1,6 +1,6 @@
 {
    "set2": "/System/Volumes/Data/data/matlab/eeglab/sample_data/eeglab_data_epochs_ica.set",
    "set3": "/usr/src/project/data/eeglab_data_with_ica_tmp.set",
-   "set4": "/Users/arno/python/eegprep/data/eeglab_data_with_ica_tmp.set",
-   "set": "/System/Volumes/Data/data/matlab/eeglab/sample_data/eeglab_data.set"
+   "set": "/Users/arno/python/eegprep/data/eeglab_data_with_ica_tmp.set",
+   "set5": "/System/Volumes/Data/data/matlab/eeglab/sample_data/eeglab_data.set"
 }
