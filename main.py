@@ -1,8 +1,7 @@
 import os
 import json
 import sys
-sys.path.insert(0, '/Users/arno/Python/eegprep/src/')
-sys.path.insert(0, '/usr/src/project/src/')
+sys.path.insert(0, 'src/')
 from eegprep import iclabel
 from eegprep import pop_loadset
 from eegprep import pop_saveset

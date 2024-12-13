@@ -6,3 +6,4 @@ oct2py>=5.5.0
 torch>=1.10.0
 numexpr>=2.0.0
 h5py>=3.3.0
+python-picard==0.8
