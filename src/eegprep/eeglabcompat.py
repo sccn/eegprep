@@ -13,7 +13,7 @@ eeglab.logger.setLevel(logging.WARNING)
 eeglab.warning('off', 'backtrace')
 
 # On the command line, type "octave-8.4.0" OCTAVE_EXECUTABLE or OCTAVE var
-path2eeglab = 'eeglab/' # init >10 seconds
+path2eeglab = 'eeglab' # init >10 seconds
 eeglab.addpath(path2eeglab + '/functions/guifunc')
 eeglab.addpath(path2eeglab + '/functions/popfunc')
 eeglab.addpath(path2eeglab + '/functions/adminfunc')
