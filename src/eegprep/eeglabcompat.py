@@ -53,8 +53,8 @@ def pop_eegfiltnew(EEG, locutoff=None,hicutoff=None,revfilt=False,plotfreqz=Fals
     EEG4 = pop_loadset('./tmp2.set') # 0.2 seconds
     
     # delete temporary files
-    os.remove('./tmp.set')
-    os.remove('./tmp2.set')
+    # os.remove('./tmp.set')
+    # os.remove('./tmp2.set')
     return EEG4
 
 def clean_artifacts( EEG, ChannelCriterion=False, LineNoiseCriterion=False, FlatlineCriterion=False, BurstCriterion=False, BurstRejection=False, WindowCriterion=0, Highpass=[0.25, 0.75], WindowCriterionTolerances=[float('-inf'), 8]):

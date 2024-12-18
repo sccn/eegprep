@@ -1,4 +1,4 @@
-from picard import picard
+import picard
 import numpy as np
 
 def eeg_picard(EEG):
