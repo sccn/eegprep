@@ -46,7 +46,7 @@ def pop_eegfiltnew(EEG, locutoff=None,hicutoff=None,revfilt=False,plotfreqz=Fals
         raise('Cannot have low cutoff and high cutoff not defined')
     
     pop_saveset(EEG, './tmp.set') # 0.8 seconds
-    EEG2 = pop_loadset('./tmp.set') # 2 seconds
+    EEG2 = eeglab.pop_loadset('./tmp.set') # 2 seconds
     EEG3 = eeglab.pop_eegfiltnew(EEG2, 'locutoff',locutoff,'hicutoff',hicutoff,'revfilt',revfilt,'plotfreqz',plotfreqz)
     eeglab.pop_saveset(EEG3, './tmp2.set') # 2.4 seconds
     EEG4 = pop_loadset('./tmp2.set') # 0.2 seconds
