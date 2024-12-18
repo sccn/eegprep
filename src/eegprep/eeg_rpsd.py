@@ -40,7 +40,7 @@ def eeg_rpsd(EEG, nfreqs=None, pct_data=100):
     for it in range(ncomp):
         temp = np.reshape(EEG['icaact'][it, index, :], (1, index.shape[0], index.shape[1] * EEG['trials']))
         temp = temp[:, :, subset] * window[:, np.newaxis]
-        temp = fft(temp, n_points, axis=1)
+        temp = fft(temp, int(n_points), axis=1)
         temp = np.abs(temp) ** 2
         temp = temp[:, 1:nfreqs + 1, :] * 2 / (EEG['srate'] * np.sum(window ** 2))
         if nfreqs == nyquist:
