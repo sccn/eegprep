@@ -1,9 +1,8 @@
 from oct2py import Oct2Py, get_log
-import sys
-sys.path.insert(0, '/Users/arno/Python/eegprep/src/')
-sys.path.insert(0, '/usr/src/project/src/')
-from eegprep import pop_loadset
-from eegprep import pop_saveset
+# import sys
+# sys.path.insert(0, 'src/')
+from .pop_loadset import pop_loadset
+from .pop_saveset import pop_saveset
 import logging
 import os
 
@@ -14,7 +13,7 @@ eeglab.logger.setLevel(logging.WARNING)
 eeglab.warning('off', 'backtrace')
 
 # On the command line, type "octave-8.4.0" OCTAVE_EXECUTABLE or OCTAVE var
-path2eeglab = '/System/Volumes/Data/data/matlab/eeglab/' # init >10 seconds
+path2eeglab = 'eeglab' # init >10 seconds
 eeglab.addpath(path2eeglab + '/functions/guifunc')
 eeglab.addpath(path2eeglab + '/functions/popfunc')
 eeglab.addpath(path2eeglab + '/functions/adminfunc')
@@ -47,9 +46,9 @@ def pop_eegfiltnew(EEG, locutoff=None,hicutoff=None,revfilt=False,plotfreqz=Fals
         raise('Cannot have low cutoff and high cutoff not defined')
     
     pop_saveset(EEG, './tmp.set') # 0.8 seconds
-    EEG2 = eeglab.pop_loadset('./tmp.set') # 2 seconds
+    EEG2 = pop_loadset('./tmp.set') # 2 seconds
     EEG3 = eeglab.pop_eegfiltnew(EEG2, 'locutoff',locutoff,'hicutoff',hicutoff,'revfilt',revfilt,'plotfreqz',plotfreqz)
-    eeglab.pop_saveset(EEG2, './tmp2.set') # 2.4 seconds
+    eeglab.pop_saveset(EEG3, './tmp2.set') # 2.4 seconds
     EEG4 = pop_loadset('./tmp2.set') # 0.2 seconds
     
     # delete temporary files
