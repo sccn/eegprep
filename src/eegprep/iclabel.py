@@ -41,10 +41,11 @@ def iclabel(EEG, algorithm='default'):
         EEG['etc']['ic_classification'] = {}
     if 'ICLabel' not in EEG['etc']['ic_classification']:
         EEG['etc']['ic_classification']['ICLabel'] = {}
-        
+
+    np.object = object   
     EEG['etc']['ic_classification']['ICLabel']['classes'] = np.array(
         ['Brain', 'Muscle', 'Eye', 'Heart', 'Line Noise', 'Channel Noise', 'Other'], 
-        dtype=np.object
+        dtype=object
     )
     EEG['etc']['ic_classification']['ICLabel']['classifications'] = output_np
     EEG['etc']['ic_classification']['ICLabel']['version'] = 'default'
