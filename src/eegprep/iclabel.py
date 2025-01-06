@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+import os
 
 def iclabel(EEG, algorithm='default'):
     from eegprep import ICLabelNet
@@ -21,7 +22,9 @@ def iclabel(EEG, algorithm='default'):
     # print('Feature 2 shape:', features[2].shape)
 
     # Load the ICLabelNet model
-    model = ICLabelNet('./data/netICL.mat')
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    data_path = os.path.join(base_dir, 'netICL.mat')
+    model = ICLabelNet(data_path)
     
     # Convert the features to torch tensors
     image = torch.tensor(features[0]).permute(-1, 2, 0, 1)

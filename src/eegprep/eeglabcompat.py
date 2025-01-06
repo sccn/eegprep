@@ -1,32 +1,37 @@
-from oct2py import Oct2Py, get_log
 # import sys
 # sys.path.insert(0, 'src/')
 from .pop_loadset import pop_loadset
 from .pop_saveset import pop_saveset
 import logging
 import os
+eeglab = None
 
-eeglab = Oct2Py(logger=get_log())
-oc = Oct2Py(logger=get_log())
-eeglab.logger = get_log("new_log")
-eeglab.logger.setLevel(logging.WARNING)
-eeglab.warning('off', 'backtrace')
+def start_eeglab():
+    global eeglab
+    if eeglab is None:
+        from oct2py import Oct2Py, get_log
+        eeglab = Oct2Py(logger=get_log())
+        oc = Oct2Py(logger=get_log())
+        eeglab.logger = get_log("new_log")
+        eeglab.logger.setLevel(logging.WARNING)
+        eeglab.warning('off', 'backtrace')
 
-# On the command line, type "octave-8.4.0" OCTAVE_EXECUTABLE or OCTAVE var
-path2eeglab = 'eeglab' # init >10 seconds
-eeglab.addpath(path2eeglab + '/functions/guifunc')
-eeglab.addpath(path2eeglab + '/functions/popfunc')
-eeglab.addpath(path2eeglab + '/functions/adminfunc')
-eeglab.addpath(path2eeglab + '/plugins/firfilt')
-eeglab.addpath(path2eeglab + '/functions/sigprocfunc')
-eeglab.addpath(path2eeglab + '/functions/miscfunc')
-eeglab.addpath(path2eeglab + '/plugins/dipfit')
-eeglab.addpath(path2eeglab + '/plugins/clean_rawdata')
-#res = eeglab.version()
-#print('Running EEGLAB commands in compatibility mode with Octave ' + res)
-eeglab.logger.setLevel(logging.INFO)
+        # On the command line, type "octave-8.4.0" OCTAVE_EXECUTABLE or OCTAVE var
+        path2eeglab = 'eeglab' # init >10 seconds
+        eeglab.addpath(path2eeglab + '/functions/guifunc')
+        eeglab.addpath(path2eeglab + '/functions/popfunc')
+        eeglab.addpath(path2eeglab + '/functions/adminfunc')
+        eeglab.addpath(path2eeglab + '/plugins/firfilt')
+        eeglab.addpath(path2eeglab + '/functions/sigprocfunc')
+        eeglab.addpath(path2eeglab + '/functions/miscfunc')
+        eeglab.addpath(path2eeglab + '/plugins/dipfit')
+        eeglab.addpath(path2eeglab + '/plugins/clean_rawdata')
+        #res = eeglab.version()
+        #print('Running EEGLAB commands in compatibility mode with Octave ' + res)
+        eeglab.logger.setLevel(logging.INFO)
 
 def pop_resample( EEG, freq): # 2 additional parameters in MATLAB (never used)
+    start_eeglab()
     
     pop_saveset(EEG, './tmp.set') # 0.8 seconds
     EEG2 = eeglab.pop_loadset('./tmp.set') # 2 seconds
@@ -41,6 +46,7 @@ def pop_resample( EEG, freq): # 2 additional parameters in MATLAB (never used)
 
 
 def pop_eegfiltnew(EEG, locutoff=None,hicutoff=None,revfilt=False,plotfreqz=False):
+    start_eeglab()
     # error if locutoff and hicutoff are none
     if locutoff==None and hicutoff==None:
         raise('Cannot have low cutoff and high cutoff not defined')
@@ -57,7 +63,8 @@ def pop_eegfiltnew(EEG, locutoff=None,hicutoff=None,revfilt=False,plotfreqz=Fals
     return EEG4
 
 def clean_artifacts( EEG, ChannelCriterion=False, LineNoiseCriterion=False, FlatlineCriterion=False, BurstCriterion=False, BurstRejection=False, WindowCriterion=0, Highpass=[0.25, 0.75], WindowCriterionTolerances=[float('-inf'), 8]):
-
+    start_eeglab()
+    
     if ChannelCriterion == False or ChannelCriterion == 'off':
         ChannelCriterion='off'
         
