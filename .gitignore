@@ -1,8 +1,17 @@
 __pycache__
+eeglab_data_with_ica_tmp_out.set
+.vscode/
+data/ds002680/
+out_dir
+figures
+notebooks/octave-workspace
 old
 python_temp.mat
 python_temp_reformated.mat
 *.asv
 .venv/
 build/
+test*.set
+test*.fdt
 tmp*.set
+tmp*.fdt
