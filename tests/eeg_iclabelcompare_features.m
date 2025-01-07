@@ -7,8 +7,9 @@ if nargin < 2
     plotFlag = false;
 end
 
-pyenv('Version', '/Users/arno/miniconda3/envs/p39env/bin/python');
-system([ '/Users/arno/miniconda3/envs/p311env/bin/python ICL_feature_extractor_compare_helper.py ' filename ]);
+pythonFunc = '../.venv/bin/python';
+pyenv('Version', pythonFunc);
+system([pythonFunc ' ICL_feature_extractor_compare_helper.py ' filename]);
 respy = load('python_temp.mat');
 delete('python_temp.mat');
 
@@ -18,7 +19,7 @@ respy.grid{2} = single(repmat(respy.grid{2}, [1 1 1 4]));
 respy.grid{3} = single(repmat(respy.grid{3}, [1 1 1 4]));
 save('python_temp_reformated.mat', '-struct', 'respy');
 
-system('/Users/arno/miniconda3/envs/p311env/bin/python iclabel_net_load_py_measures.py');
+system([pythonFunc ' iclabel_net_load_py_measures.py']);
 labels_py4 = load('-mat','output4_py.mat');
 labels_py4 = reshape(mean(reshape(labels_py4.output', [], 4), 2), 7, [])';
 delete('output4_py.mat');
