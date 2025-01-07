@@ -1,6 +1,9 @@
-from .ICL_feature_extractor import ICL_feature_extractor
-from .pop_loadset import pop_loadset
+import os
 import sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
+
+from eegprep import pop_loadset
+from eegprep import ICL_feature_extractor
 
 # check if a parameter is present and if it is assign eeglab_file_path to it
 if len(sys.argv) > 1:

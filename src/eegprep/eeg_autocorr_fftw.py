@@ -32,7 +32,7 @@ def eeg_autocorr_fftw(EEG, pct_data=100):
         # ac = np.hstack(     [ac[:, :EEG['pnts']], np.zeros((ncomp      , EEG['srate'] - EEG['pnts'] + 1))])
         ac = np.concatenate((ac[:, :EEG['pnts']], np.zeros((ac.shape[0], EEG['srate'] - EEG['pnts'] + 1))), axis=1)
     else:
-        ac = ac[:, :EEG['srate'] + 1]
+        ac = ac[:, :int(EEG['srate']) + 1]
     
     # Normalize by 0-lag autocorrelation
     ac = ac / ac[:, 0][:, np.newaxis]

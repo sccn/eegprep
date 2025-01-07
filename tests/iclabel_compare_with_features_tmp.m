@@ -1,7 +1,16 @@
 % original comparison, not in a single Python script yet
+clear
+
+pythonFunc = '../.venv/bin/python';
+pyenv('Version', pythonFunc);
+dataset = '/System/Volumes/Data/data/matlab/eeglab/sample_data/eeglab_data_epochs_ica.set';
+addpath(fullfile(pwd, '..', 'eeglab'));
+if ~exist('pop_loadset')
+    eeglab;
+end
 
 pyenv('Version', '/Users/arno/miniconda3/envs/p39env/bin/python');
-system('/Users/arno/miniconda3/envs/p311env/bin/python ICL_feature_extractor_compare_helper.py');
+system([pythonFunc ' ICL_feature_extractor_compare_helper.py']);
 
 res = load('python_temp.mat');
 res.grid{1} = single(cat(4, res.grid{1}, -res.grid{1}, res.grid{1}(:, end:-1:1, :, :), -res.grid{1}(:, end:-1:1, :, :)));
@@ -9,7 +18,7 @@ res.grid{2} = single(repmat(res.grid{2}, [1 1 1 4]));
 res.grid{3} = single(repmat(res.grid{3}, [1 1 1 4]));
 save('python_temp_reformated.mat', '-struct', 'res');
 
-system('/Users/arno/miniconda3/envs/p311env/bin/python iclabel_net_load_py_measures.py');
+system([pythonFunc ' iclabel_net_load_py_measures.py']);
 labels_py4 = load('-mat','output4_py.mat');
 labels_py4 = reshape(mean(reshape(labels_py4.output', [], 4), 2), 7, [])';
 delete('output4_py.mat');

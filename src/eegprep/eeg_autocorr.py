@@ -25,7 +25,7 @@ def eeg_autocorr(EEG, pct_data=None):
     if EEG['pnts'] < EEG['srate']:
         ac = np.hstack([c[:, :EEG['pnts']], np.zeros((ncomp, EEG['srate'] - EEG['pnts'] + 1))])
     else:
-        ac = c[:, :EEG['srate'] + 1]
+        ac = c[:, :int(EEG['srate']) + 1]
 
     # Normalize by the 0-tap of the autocorrelation
     ac /= ac[:, [0]]

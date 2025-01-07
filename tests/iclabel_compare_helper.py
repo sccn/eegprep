@@ -1,7 +1,10 @@
-from iclabel import iclabel
-from .pop_loadset import pop_loadset
-from .pop_saveset import pop_saveset
+import os
 import sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
+
+from eegprep import iclabel
+from eegprep import pop_loadset
+from eegprep import pop_saveset
 
 # check if there are 2 arguments otherwise issue an error
 if len(sys.argv) != 3:

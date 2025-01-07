@@ -1,6 +1,9 @@
-from .eeg_rpsd import eeg_rpsd
-from .pop_loadset import pop_loadset
 import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
+
+from eegprep import eeg_rpsd
+from eegprep import pop_loadset
 
 if len(sys.argv) > 1:
     eeglab_file_path = sys.argv[1]

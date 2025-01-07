@@ -1,5 +1,10 @@
-from .topoplot import topoplot
-from .pop_loadset import pop_loadset
+# get relative path
+import os
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
+
+from eegprep import topoplot
+from eegprep import pop_loadset
 import sys
 
 print('Topoplot compare helper')

@@ -1,4 +1,9 @@
 __pycache__
+eeglab_data_with_ica_out.set
+eeg_autocorr_data.mat
+eeg_rpsd_data.mat
+fit_eeg_distribution_for_compiling.m
+topoplot_data.mat
 eeglab_data_with_ica_tmp_out.set
 .vscode/
 data/ds002680/

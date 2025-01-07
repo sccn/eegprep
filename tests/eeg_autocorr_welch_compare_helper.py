@@ -1,7 +1,11 @@
-from .eeg_autocorr_welch import eeg_autocorr_welch
-from .pop_loadset import pop_loadset
+import os
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
 
-eeglab_file_path = './eeglab_data_with_ica_tmp.set'
+from eegprep import pop_loadset
+from eegprep import eeg_autocorr_welch
+
+eeglab_file_path = '../data/eeglab_data_with_ica_tmp.set'
 EEG = pop_loadset(eeglab_file_path)
 
 # Print the loaded data

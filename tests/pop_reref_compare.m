@@ -1,12 +1,14 @@
 clear
 
-% call EEGLAB function
+pythonFunc = '../.venv/bin/python';
+pyenv('Version', pythonFunc);
+dataset = '/System/Volumes/Data/data/matlab/eeglab/sample_data/eeglab_data_epochs_ica.set';
+addpath(fullfile(pwd, '..', 'eeglab'));
 if ~exist('pop_loadset')
-    addpath('~/eeglab');
+    eeglab;
 end
-eeglabpath = which('eeglab.m');
-eeglabpath = eeglabpath(1:end-length('eeglab.m'));
-fileNameIn  = fullfile(pwd, 'eeglab_data_with_ica_tmp.set');
+
+fileNameIn  = fullfile(pwd, '..', 'data', 'eeglab_data_with_ica_tmp.set');
 fileNameOut = [ fileNameIn(1:end-4) '_averef.set' ];
 
 EEG = pop_loadset(fileNameIn);
@@ -25,11 +27,10 @@ if length(EEG3.icachansind) == EEG3.nbchan
     end
 end
 
-pyenv('Version', '/Users/arno/miniconda3/envs/p39env/bin/python');
-system(['/Users/arno/miniconda3/envs/p311env/bin/python pop_reref_helper.py ' fileNameIn fileNameOut]);
-EEG4 = load('-mat', fileNameOut); % do not use pop_loadset or it rescales to RMS
+system([pythonFunc ' pop_reref_compare_helper.py ' fileNameIn ]);
+EEG4 = load('-mat', 'python_temp.set'); % do not use pop_loadset or it rescales to RMS
 EEG4.icaact = EEG4.icaweights*EEG4.data(:,:);
-delete(fileNameOut)
+delete('python_temp.set')
 
 fprintf('EEG2 vs EEG3 icaact:\n')
 EEG3.icaact(1:10,1:10) - EEG2.icaact(1:10,1:10)

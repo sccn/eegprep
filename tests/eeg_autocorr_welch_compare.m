@@ -1,18 +1,24 @@
+clear
+
 % this script compares the MATLAB and Python version of the function
-pyenv('Version', '/Users/arno/miniconda3/envs/p39env/bin/python');
+pythonFunc = '../.venv/bin/python';
+pyenv('Version', pythonFunc);
+dataset = '/System/Volumes/Data/data/matlab/eeglab/sample_data/eeglab_data_epochs_ica.set';
+addpath(fullfile(pwd, '..', 'eeglab'));
+if ~exist('pop_loadset')
+    eeglab;
+end
+
+fileName = '../data/eeglab_data_with_ica_tmp.set';
+% fileName = '/System/Volumes/Data/data/data/STUDIES/STERN/S01/Memorize.set';
 
 % call Python function
-system('/Users/arno/miniconda3/envs/p311env/bin/python eeg_autocorr_welch_compare_helper.py');
+system([pythonFunc ' eeg_autocorr_welch_compare_helper.py']);
 res = load('eeg_autocorr_welch_data.mat');
 delete('eeg_autocorr_welch_data.mat');
 
 % call EEGLAB function
-if ~exist('pop_loadset')
-    addpath('~/eeglab');
-end
-eeglabpath = which('eeglab.m');
-eeglabpath = eeglabpath(1:end-length('eeglab.m'));
-EEG = pop_loadset(fullfile(pwd, 'eeglab_data_with_ica_tmp.set'));
+EEG = pop_loadset(fullfile(pwd, fileName));
 temp2 = eeg_autocorr_welch(EEG, 100);
 
 % compare the two

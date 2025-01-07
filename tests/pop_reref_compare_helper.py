@@ -1,5 +1,11 @@
-from .pop_reref import pop_reref
-from .pop_loadset import pop_loadset
+import os
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
+
+from eegprep import pop_reref
+from eegprep import pop_loadset
+from eegprep import pop_saveset
+
 import sys
 import os
 import scipy.io
@@ -11,7 +17,7 @@ if len(sys.argv) > 1:
     print(f"The EEG file is: {file_name}")
     print(f"Output will be in python_temp.mat (result field)")
 else:
-    file_name = './eeglab_data_with_ica_tmp.set'
+    file_name = '../data/eeglab_data_with_ica_tmp.set'
     # raise("Provide the name of a file containing EEG (full path) as the first parameter.")
     
 # check if file name exists on disk
@@ -27,5 +33,4 @@ EEG['urevent'] = []
 EEG['epoch'] = []
 
 # save in a matlab file
-scipy.io.savemat('python_temp.mat', EEG)
-print('Saved python_temp.mat')
+pop_saveset(EEG, 'python_temp.set')

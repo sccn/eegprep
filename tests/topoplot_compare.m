@@ -1,12 +1,18 @@
 % this script compares the MATLAB and Python version of the function
-pyenv('Version', '/Users/arno/miniconda3/envs/p39env/bin/python');
-dataset = '/System/Volumes/Data/data/matlab/eeglab/sample_data/eeglab_data_epochs_ica.set'
+pythonFunc = '../.venv/bin/python';
+pyenv('Version', pythonFunc);
+dataset = '/System/Volumes/Data/data/matlab/eeglab/sample_data/eeglab_data_epochs_ica.set';
+addpath(fullfile(pwd, '..', 'eeglab'));
+if ~exist('pop_loadset')
+    eeglab;
+end
+
 EEG = pop_loadset(dataset);
 
 for compInd = 0:31
     
     % call Python function
-    system([ '/Users/arno/miniconda3/envs/p311env/bin/python topoplot_compare_helper.py ' dataset ' ' int2str(compInd) ]);
+    system([ pythonFunc ' topoplot_compare_helper.py ' dataset ' ' int2str(compInd) ]);
     
     res = load('topoplot_data.mat')
     %delete('topoplot_data.mat')
@@ -54,6 +60,6 @@ cbar;
 setfont(gcf, 'fontsize', 16)
 set(gcf, 'color', 'w')
 set(gcf, 'PaperPositionMode', 'auto');
-print('-djpeg', 'figures/topoplot_diff.jpg')
+print('-djpeg', '../figures/topoplot_diff.jpg')
 
 compare_variables(temp2, res.grid);
