@@ -4,6 +4,7 @@ docker run --rm -it -v $(pwd):/usr/src/project dtyoung/eegprep /bin/bash
 docker run -u root --rm -it -v $(pwd):/usr/src/project dtyoung/eegprep /bin/bash
 
 # remove
+
 docker rmi dtyoung/eegprep
 
 Mounted folder in /usr/src/project
@@ -29,3 +30,7 @@ To install the package, run:
 ```
 pip install eegprep==0.0.2
 ```
+
+## Test
+
+use tests/main_compare.m

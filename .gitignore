@@ -1,4 +1,5 @@
 __pycache__
+*tmp_out2.*
 eeglab_data_with_ica_out.set
 eeg_autocorr_data.mat
 eeg_rpsd_data.mat
