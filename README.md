@@ -28,7 +28,7 @@ Packaging was done following the tutorial: https://packaging.python.org/en/lates
 
 To install the package, run:
 ```
-pip install eegprep==0.0.2
+pip install eegprep
 ```
 
 ## Test
