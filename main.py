@@ -1,7 +1,6 @@
 import os
 import json
 import sys
-sys.path.insert(0, 'src/')
 from eegprep import iclabel
 from eegprep import pop_loadset
 from eegprep import pop_saveset
@@ -25,8 +24,8 @@ fname_tmp = fname.replace('.set', '_tmp.set')
 fname_out = fname.replace('.set', '_out.set')
 
 EEG = pop_loadset(fname)
-EEG = pop_eegfiltnew(EEG, locutoff=5,hicutoff=25,revfilt=True,plotfreqz=False)
-EEG = clean_artifacts(EEG, FlatlineCriterion=5,ChannelCriterion=0.87, LineNoiseCriterion=4,Highpass=[0.25, 0.75],BurstCriterion= 20, WindowCriterion=0.25, BurstRejection=True, WindowCriterionTolerances=[float('-inf'), 7])
+# EEG = pop_eegfiltnew(EEG, locutoff=5,hicutoff=25,revfilt=True,plotfreqz=False)
+# EEG = clean_artifacts(EEG, FlatlineCriterion=5,ChannelCriterion=0.87, LineNoiseCriterion=4,Highpass=[0.25, 0.75],BurstCriterion= 20, WindowCriterion=0.25, BurstRejection=True, WindowCriterionTolerances=[float('-inf'), 7])
 EEG = eeg_picard(EEG)
 EEG = iclabel(EEG)
 print('It worked')
