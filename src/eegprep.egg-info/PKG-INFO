@@ -1,4 +1,4 @@
-Metadata-Version: 2.1
+Metadata-Version: 2.2
 Name: eegprep
 Version: 0.0.3
 Summary: EEG preprocessing pipeline on Python
@@ -39,6 +39,18 @@ Requires-Dist: mne>=1.0.0
 Requires-Dist: oct2py>=5.5.0
 Requires-Dist: torch>=1.10.0
 Requires-Dist: h5py>=3.3.0
+Requires-Dist: python-picard
+
+## Build docker
+
+docker run --rm -it -v $(pwd):/usr/src/project dtyoung/eegprep /bin/bash
+docker run -u root --rm -it -v $(pwd):/usr/src/project dtyoung/eegprep /bin/bash
+
+# remove
+
+docker rmi dtyoung/eegprep
+
+Mounted folder in /usr/src/project
 
 ## How to convert a function from MATLAB to Python
 
@@ -61,3 +73,11 @@ To install the package, run:
 ```
 pip install eegprep==0.0.2
 ```
+
+## Test
+
+use tests/main_compare.m
+
+## Versions
+
+0.1 - Initial BrainLife
