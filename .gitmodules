@@ -1,3 +1,0 @@
-[submodule "eeglab"]
-	path = eeglab
-	url = git@github.com:sccn/eeglab.git

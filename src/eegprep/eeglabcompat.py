@@ -17,7 +17,9 @@ def start_eeglab():
         eeglab.warning('off', 'backtrace')
 
         # On the command line, type "octave-8.4.0" OCTAVE_EXECUTABLE or OCTAVE var
-        path2eeglab = 'eeglab' # init >10 seconds
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        path2eeglab = os.path.join(base_dir, 'eeglab')
+        # path2eeglab = 'eeglab' # init >10 seconds
         eeglab.addpath(path2eeglab + '/functions/guifunc')
         eeglab.addpath(path2eeglab + '/functions/popfunc')
         eeglab.addpath(path2eeglab + '/functions/adminfunc')
