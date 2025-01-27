@@ -1,1 +1,0 @@
-Warning: only ".asc" files can be imported in EEGLAB at present.
