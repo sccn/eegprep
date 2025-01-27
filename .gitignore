@@ -1,3 +1,4 @@
+src/eegprep.egg-info
 __pycache__
 *tmp_out2.*
 eeglab_data_with_ica_out.set

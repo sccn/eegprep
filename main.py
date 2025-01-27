@@ -19,9 +19,7 @@ with open(__location__+'/config.json.example') as config_json:
 
 fname = config['set']
 
-# create temp file with the same name and _tmp.set suffix
-fname_tmp = fname.replace('.set', '_tmp.set')
-fname_out = fname.replace('.set', '_out.set')
+# remove path from fname
 
 EEG = pop_loadset(fname)
 # EEG = pop_eegfiltnew(EEG, locutoff=5,hicutoff=25,revfilt=True,plotfreqz=False)
@@ -29,4 +27,11 @@ EEG = pop_loadset(fname)
 EEG = eeg_picard(EEG)
 EEG = iclabel(EEG)
 print('It worked')
-pop_saveset(EEG, fname_out)
+
+# create results directory if it does not exist
+if not os.path.exists('results'):
+    os.makedirs('results')
+
+fname = os.path.basename(fname)
+fname_out = fname.replace('.set', '_out.set')
+pop_saveset(EEG, 'results/' + fname_out)
