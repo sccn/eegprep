@@ -1,0 +1,3 @@
+[submodule "src/eegprep/eeglab"]
+	path = src/eegprep/eeglab
+	url = https://github.com/sccn/eeglab.git
