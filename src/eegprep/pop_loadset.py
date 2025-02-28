@@ -47,7 +47,11 @@ def pop_loadset(file_path):
         elif isinstance(obj, scipy.io.matlab.mat_struct) or isinstance(obj, scipy.io.matlab.mio5_params.mat_struct):
             dict_obj = {}
             for field_name in obj._fieldnames:
-                field_value = getattr(obj, field_name)
+                if field_name in ['tracking']:
+                    # used for fields that this code can't yet parse
+                    field_value = '<unsupported>'
+                else:
+                    field_value = getattr(obj, field_name)
                 dict_obj[field_name] = new_check(field_value)
             return dict_obj
     
