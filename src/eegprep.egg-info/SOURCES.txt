@@ -16,6 +16,7 @@ src/eegprep/eeglabcompat.py
 src/eegprep/iclabel.py
 src/eegprep/iclabel_net.py
 src/eegprep/iclabel_net_load_py_measures.py
+src/eegprep/netICL.mat
 src/eegprep/pop_loadset.py
 src/eegprep/pop_reref.py
 src/eegprep/pop_reref_helper.py

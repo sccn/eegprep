@@ -1,6 +1,6 @@
 Metadata-Version: 2.2
 Name: eegprep
-Version: 0.0.3
+Version: 0.0.6
 Summary: EEG preprocessing pipeline on Python
 Author-email: Arnaud Delorme <adelorme@gmail.com>, Young Truong <dt.young112@gmail.com>
 License: GNU General Public License
@@ -32,7 +32,7 @@ Classifier: Operating System :: OS Independent
 Requires-Python: >=3.8
 Description-Content-Type: text/markdown
 License-File: LICENSE
-Requires-Dist: numpy>=1.21.0
+Requires-Dist: numpy<2
 Requires-Dist: scipy>=1.7.0
 Requires-Dist: matplotlib>=3.4.0
 Requires-Dist: mne>=1.0.0
@@ -40,6 +40,10 @@ Requires-Dist: oct2py>=5.5.0
 Requires-Dist: torch>=1.10.0
 Requires-Dist: h5py>=3.3.0
 Requires-Dist: python-picard
+
+## Branlife execution
+
+Simply press the Execute button. The documentation below is related to the EEGprep GitHub repository.
 
 ## Build docker
 
@@ -66,12 +70,47 @@ Mounted folder in /usr/src/project
 
 6. Write the function to compare (see example) and the helper Python function to load the file (note that there could be a general Python helper function)
 
+## Create package
+
+# Documentation
+https://packaging.python.org/en/latest/tutorials/packaging-projects/
+
+# API tokens
+- Get API token, one for official and one for test(Dung has it)
+- Twine will ask them from you
+
+# Update version
+
+Change version in pyproject.toml
+
+# Staging release
+```
+python -m build
+python -m twine upload --repository testpypi dist/*
+```
+
+to test
+```
+pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ eegprep==0.0.x
+```
+
+# Final release
+```
+twine upload dist/*
+```
+
+to test
+
+```
+pip install eegprep
+```
+
 ## Install package
 Packaging was done following the tutorial: https://packaging.python.org/en/latest/tutorials/packaging-projects/ with setuptools
 
 To install the package, run:
 ```
-pip install eegprep==0.0.2
+pip install eegprep
 ```
 
 ## Test

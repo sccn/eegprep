@@ -1,9 +1,38 @@
 import numpy as np
 import os
-from .pop_loadset import pop_loadset
 
-def eeg_checkset(EEG):
-     
+def eeg_checkset(EEG, load_data=True):
+      
+    # convert EEG['nbchan] to integer
+    if 'nbchan' in EEG:
+        EEG['nbchan'] = int(EEG['nbchan'])
+    if 'trials' in EEG:
+        EEG['trials'] = int(EEG['trials'])
+    if 'pnts' in EEG:
+        EEG['pnts'] = int(EEG['pnts'])
+    
+    if 'data' in EEG and isinstance(EEG['data'], str) and load_data:
+        # get path from file_path
+        EEG['filepath'] = os.path.dirname(file_path)
+        file_name = EEG['filepath'] + os.sep + EEG['data']
+        EEG['data'] = np.fromfile(file_name, dtype='float32').reshape( EEG['pnts']*EEG['trials'], EEG['nbchan'])
+        EEG['data'] = EEG['data'].T.reshape(EEG['nbchan'], EEG['trials'], EEG['pnts']).transpose(0, 2, 1)
+
+    # compute ICA activations
+    if 'icaweights' in EEG and 'icasphere' in EEG and EEG['icaweights'].size > 0 and EEG['icasphere'].size > 0:
+        EEG['icaact'] = np.dot(np.dot(EEG['icaweights'], EEG['icasphere']), EEG['data'].reshape(int(EEG['nbchan']), -1))
+        EEG['icaact'] = EEG['icaact'].astype(np.float32)
+        EEG['icaact'] = EEG['icaact'].reshape(EEG['icaweights'].shape[0], -1, int(EEG['trials']))
+    
+    # subtract 1 to EEG['icachansind'] to make it 0-based
+    if 'icachansind' in EEG and EEG['icachansind'].size > 0:
+        EEG['icachansind'] = EEG['icachansind'] - 1
+    
+    # type conversion
+    EEG['xmin'] = float(EEG['xmin'])
+    EEG['xmax'] = float(EEG['xmax'])
+    EEG['srate'] = float(EEG['srate'])
+         
     # Define the expected types
     expected_types = {
         'setname': str,
@@ -102,9 +131,11 @@ def eeg_checkset(EEG):
     return EEG
 
 def test_eeg_checkset():
+    from pop_loadset import pop_loadset
+
     eeglab_file_path = './eeglab_data_with_ica_tmp.set'
     EEG = pop_loadset(eeglab_file_path)
     EEG = eeg_checkset(EEG)
     print('Checkset done')
 
-test_eeg_checkset()
+# test_eeg_checkset()

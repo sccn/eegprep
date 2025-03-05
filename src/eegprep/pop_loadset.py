@@ -1,7 +1,9 @@
 import scipy.io
 import numpy as np
 import os
-
+import h5py
+from .pop_loadset_h5 import pop_loadset_h5
+from .eeg_checkset import eeg_checkset
 # Allows access using . notation
 # class EEG:
 #     def __init__(self, **kwargs):
@@ -17,10 +19,10 @@ default_empty = np.array([])
 def loadset(file_path):
     return pop_loadset(file_path)
 
-def pop_loadset(file_path):
-    # Load MATLAB file
-    EEG = scipy.io.loadmat(file_path, struct_as_record=False, squeeze_me=True, appendmat=False)
-        
+def pop_loadset(file_path=None):
+    if file_path is None:
+        raise ValueError("file_path argument is required")
+    
     def new_check(obj):
         # check if obj is a dictionary and apply recursively the function to each object not changing the struture of the dictionary
         if isinstance(obj, dict):
@@ -50,42 +52,18 @@ def pop_loadset(file_path):
                 field_value = getattr(obj, field_name)
                 dict_obj[field_name] = new_check(field_value)
             return dict_obj
-    
-    # check if EEG['data'] is a string, and if it the case, read the binary float32 file
-    #EEG = check_keys(EEG)
-    EEG = new_check(EEG)
-    if 'EEG' in EEG:
-        EEG = EEG['EEG']
-        
-    # convert EEG['nbchan] to integer
-    if 'nbchan' in EEG:
-        EEG['nbchan'] = int(EEG['nbchan'])
-    if 'trials' in EEG:
-        EEG['trials'] = int(EEG['trials'])
-    if 'pnts' in EEG:
-        EEG['pnts'] = int(EEG['pnts'])
-    
-    if 'data' in EEG and isinstance(EEG['data'], str):
-        # get path from file_path
-        EEG['filepath'] = os.path.dirname(file_path)
-        file_name = EEG['filepath'] + os.sep + EEG['data']
-        EEG['data'] = np.fromfile(file_name, dtype='float32').reshape( EEG['pnts']*EEG['trials'], EEG['nbchan'])
-        EEG['data'] = EEG['data'].T.reshape(EEG['nbchan'], EEG['trials'], EEG['pnts']).transpose(0, 2, 1)
 
-    # compute ICA activations
-    if 'icaweights' in EEG and 'icasphere' in EEG and EEG['icaweights'].size > 0 and EEG['icasphere'].size > 0:
-        EEG['icaact'] = np.dot(np.dot(EEG['icaweights'], EEG['icasphere']), EEG['data'].reshape(int(EEG['nbchan']), -1))
-        EEG['icaact'] = EEG['icaact'].astype(np.float32)
-        EEG['icaact'] = EEG['icaact'].reshape(EEG['icaweights'].shape[0], -1, int(EEG['trials']))
-    
-    # subtract 1 to EEG['icachansind'] to make it 0-based
-    if 'icachansind' in EEG and EEG['icachansind'].size > 0:
-        EEG['icachansind'] = EEG['icachansind'] - 1
-    
-    # type conversion
-    EEG['xmin'] = float(EEG['xmin'])
-    EEG['xmax'] = float(EEG['xmax'])
-    EEG['srate'] = float(EEG['srate'])
+    # Load MATLAB file
+    print(file_path)  # This will show us the actual path being used
+    try:
+        EEG = scipy.io.loadmat(file_path, struct_as_record=False, squeeze_me=True, appendmat=False)
+        EEG = new_check(EEG)
+        if 'EEG' in EEG:
+            EEG = EEG['EEG']
+    except Exception as e:
+        EEG = pop_loadset_h5(file_path)    
+
+    EEG = eeg_checkset(EEG)
     
     return EEG
 
