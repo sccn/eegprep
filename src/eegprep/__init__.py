@@ -1,6 +1,7 @@
 from .iclabel import iclabel
 from .pop_saveset import pop_saveset
-from .pop_loadset import pop_loadset
+from .pop_loadset import loadset, pop_loadset
+from .eeg_checkset import eeg_checkset
 from .eeglabcompat import pop_eegfiltnew
 from .eeglabcompat import clean_artifacts
 from .ICL_feature_extractor import ICL_feature_extractor
