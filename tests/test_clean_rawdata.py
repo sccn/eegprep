@@ -21,5 +21,24 @@ class TestCleanFlatlines(unittest.TestCase):
         cleaned_EEG = clean_flatlines(deepcopy(self.EEG), 3.5)
         np.testing.assert_equal(cleaned_EEG['data'], self.expected, err_msg='clean_flatlines() test failed')
 
+
+class TestCleanDrifts(unittest.TestCase):
+
+    def setUp(self):
+        self.myfile = '/home/christian/Intheon/NeuroPype/sample-datasets/neuropype/FlankerTest.set'
+        self.EEG = pop_loadset(self.myfile)
+        self.expected = pop_loadset('/home/christian/Intheon/Projects/eegprep-refdata/dedrift.set')
+
+    def test_clean_drifts(self):
+        # test just the fft_filtfilt function
+        cleaned1 = clean_drifts(deepcopy(self.EEG), [3, 4], 75, method='fir')
+        np.testing.assert_almost_equal(cleaned1['data'], self.expected['data'],
+                                       err_msg='clean_drifts() failed')
+        cleaned2 = clean_drifts(deepcopy(self.EEG), [3, 4], 75, method='fft')
+        np.testing.assert_almost_equal(cleaned1['data'], cleaned2['data'],
+                                       err_msg='clean_drifts() FFT mode test failed')
+        pass
+
+
 if __name__ == "__main__":
     unittest.main()
