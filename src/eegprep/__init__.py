@@ -14,3 +14,4 @@ from .pop_reref import pop_reref
 from .eeg_picard import eeg_picard
 from .clean_flatlines import clean_flatlines
 from .clean_drifts import clean_drifts
+from .clean_channels_nolocs import clean_channels_nolocs

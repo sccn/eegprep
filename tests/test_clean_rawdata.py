@@ -40,5 +40,19 @@ class TestCleanDrifts(unittest.TestCase):
         pass
 
 
+class TestCleanChannelsNoLocs(unittest.TestCase):
+
+    def setUp(self):
+        self.myfile = '/home/christian/Intheon/NeuroPype/sample-datasets/neuropype/EmotionValence.set'
+        self.EEG = pop_loadset(self.myfile)
+        self.expected = pop_loadset('/home/christian/Intheon/Projects/eegprep-refdata/cln_chn_nl_0.9.set')
+
+    def test_clean_channels(self):
+        cleaned, _ = clean_channels_nolocs(deepcopy(self.EEG), 0.9)
+        np.testing.assert_almost_equal(cleaned['data'], self.expected['data'],
+                                       err_msg='clean_channels_nolocs() failed')
+        pass
+
+
 if __name__ == "__main__":
     unittest.main()
