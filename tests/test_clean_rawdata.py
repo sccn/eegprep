@@ -1,6 +1,9 @@
 import unittest
+from copy import deepcopy
+
 import numpy as np
-from eegprep import pop_loadset, clean_flatlines
+
+from eegprep import *
 
 
 class TestCleanFlatlines(unittest.TestCase):
@@ -15,7 +18,7 @@ class TestCleanFlatlines(unittest.TestCase):
         self.expected = self.EEG['data'][~np.isin(np.arange(self.EEG['nbchan']), [5, 9]), :]
 
     def test_clean_flatlines(self):
-        cleaned_EEG = clean_flatlines(self.EEG, 3.5)
+        cleaned_EEG = clean_flatlines(deepcopy(self.EEG), 3.5)
         np.testing.assert_equal(cleaned_EEG['data'], self.expected, err_msg='clean_flatlines() test failed')
 
 if __name__ == "__main__":
