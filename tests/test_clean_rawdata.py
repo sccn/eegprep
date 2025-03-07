@@ -1,16 +1,29 @@
+import os
 import unittest
 from copy import deepcopy
+
 
 import numpy as np
 
 from eegprep import *
 
 
+def ensure_file(url: str, fname: str):
+    if not os.path.exists(fname):
+        from urllib.request import urlretrieve
+        urlretrieve(url, fname)
+
+
 class TestCleanFlatlines(unittest.TestCase):
 
+    web_url = 'https://sccntestdatasets.s3.us-east-2.amazonaws.com/FlankerTest.set'
+    local_url = os.path.join(os.path.dirname(__file__), '../data/FlankerTest.set')
+
     def setUp(self):
-        self.myfile = '/home/christian/Intheon/NeuroPype/sample-datasets/neuropype/FlankerTest.set'
-        self.EEG = pop_loadset(self.myfile)
+        # download file
+        ensure_file(self.web_url, self.local_url)
+
+        self.EEG = pop_loadset(self.local_url)
         self.EEG['data'][5, 1000:2000] = 3.5  # this should trigger
         self.EEG['data'][7, 2000:2100] = 4.5  # this should not (too short)
         self.EEG['data'][9, 3000:4000] = 5.5  # should trigger too
