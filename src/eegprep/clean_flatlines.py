@@ -1,4 +1,3 @@
-import logging
 import traceback
 from typing import *
 
@@ -12,7 +11,7 @@ def clean_flatlines(EEG: Dict[str, Any], max_flatline_duration: float = 5.0, max
     the data contains no flat-lined channels.
 
     Args:
-      EEG: the EEG data structure
+      EEG: the continuous-time EEG data structure
       max_flatline_duration: maximum tolerated flatline duration. In seconds.
         If a channel has a longer flatline than this, it will be considered
         abnormal.
@@ -30,26 +29,23 @@ def clean_flatlines(EEG: Dict[str, Any], max_flatline_duration: float = 5.0, max
     max_duration = max_flatline_duration * EEG['srate']
     max_jitter = max_allowed_jitter * np.finfo(np.float64).eps
 
+    # flag channels
     removed_channels = np.zeros(X.shape[0], dtype=bool)
     for i in range(X.shape[0]):
-        x = X[i, :]
-        dx = np.abs(np.diff(x))
-        bad = dx < max_jitter
-        bad = np.concatenate(([False], bad, [False]), axis=0)
-        transitions = np.diff(bad)
-        breakpoints = np.where(transitions > 0)[0]
-        flat_intervals = np.reshape(breakpoints, (-1, 2))
+        flat = np.pad(np.abs(np.diff(X[i, :])) < max_jitter, 1)
+        flat_intervals = np.reshape(np.where(np.diff(flat) > 0)[0], (-1, 2))
         if flat_intervals.shape[0] > 0:
-            durations = flat_intervals[:, 1] - flat_intervals[:, 0]
-            if np.max(durations) > max_duration:
+            if np.max(flat_intervals[:, 1] - flat_intervals[:, 0]) > max_duration:
                 removed_channels[i] = True
 
+    # remove them
     if np.all(removed_channels):
         print('Warning: all channels have a flat-line portion; not removing anything.')
     elif np.any(removed_channels):
         # noinspection PyBroadException
         try:
-            from eegprep.pop_select import pop_select
+            # noinspection PyUnresolvedReferences
+            from eegprep import pop_select
             EEG = pop_select(EEG, nochannel=np.where(removed_channels)[0])
         except Exception as e:
             if isinstance(e, ImportError):

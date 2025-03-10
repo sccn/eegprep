@@ -77,6 +77,7 @@ import mne
 from mne.datasets import sample
 import numpy as np
 from scipy.io import savemat
+from .pop_loadset import pop_loadset
 
 def pop_saveset2(EEG, file_name):
     
@@ -185,8 +186,6 @@ def pop_saveset2(EEG, file_name):
 
 
 def test_pop_saveset():
-    from eegprep import pop_loadset
-
     file_path = './eeglab_data_with_ica_tmp.set'
     EEG = pop_loadset(file_path)
     pop_saveset( EEG, 'tmp.set')

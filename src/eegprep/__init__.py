@@ -1,6 +1,7 @@
 from .iclabel import iclabel
 from .pop_saveset import pop_saveset
-from .pop_loadset import pop_loadset
+from .pop_loadset import loadset, pop_loadset
+from .eeg_checkset import eeg_checkset
 from .eeglabcompat import pop_eegfiltnew
 from .eeglabcompat import clean_artifacts
 from .ICL_feature_extractor import ICL_feature_extractor
@@ -13,3 +14,5 @@ from .eeg_autocorr_fftw import eeg_autocorr_fftw
 from .pop_reref import pop_reref
 from .eeg_picard import eeg_picard
 from .clean_flatlines import clean_flatlines
+from .clean_drifts import clean_drifts
+from .clean_channels_nolocs import clean_channels_nolocs
