@@ -61,6 +61,14 @@ class OctaveWrapper:
                 # passage data through a file
                 with tempfile.NamedTemporaryFile(delete=True, suffix='.set') as temp_file:
                     # this is a little less ugly since Octave allows you to return struct arrays
+                    pop_saveset(args[0], temp_file.name)
+                    
+'''
+When needs_roundtrip is True, 
+EEG = self.engine.pop_loadset(temp_file.name) is called before the file is written, 
+but at this point, the file has not yet been written with data via pop_saveset, which may lead to errors.
+
+'''                 
                     EEG = self.engine.pop_loadset(temp_file.name)
                     EEG = getattr(self.engine, name)(EEG, *args[1:])
                     self.engine.pop_saveset(EEG, temp_file.name)
@@ -74,7 +82,12 @@ class OctaveWrapper:
 
 
 # noinspection PyDefaultArgument
-def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = True, _cache={}):
+'''
+I believe _cache = {} is a default parameter of the function. 
+Cause mutable objects are shared across multiple calls, it may cause unexpected caching behavior.
+'''
+_cache = {}
+def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = True, cache=_cache):
     """Get a reference to an EEGLAB namespace that is powered
     by the specified runtime (Octave or MATLAB).
 
