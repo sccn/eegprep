@@ -8,22 +8,41 @@ import numpy as np
 from eegprep import *
 
 
-def ensure_file(url: str, fname: str):
+# where the test resources
+web_root = 'https://sccntestdatasets.s3.us-east-2.amazonaws.com/'
+local_url = os.path.join(os.path.dirname(__file__), '../data/')
+
+
+def ensure_file(fname: str) -> str:
+    """Download a file if it does not exist and return the local path."""
+    full_url = f"{web_root}{fname}"
+    local_file = f"{local_url}{fname}"
     if not os.path.exists(fname):
         from urllib.request import urlretrieve
-        urlretrieve(url, fname)
+        urlretrieve(full_url, local_file)
+    return local_file
+
+
+class TestMATLABAccess(unittest.TestCase):
+
+    def setUp(self):
+        self.eeglab = eeglabcompat.get_eeglab('MAT')
+        self.EEG = pop_loadset(ensure_file('FlankerTest.set'))
+
+    def test_basic(self):
+        result = self.eeglab.sqrt(4.0)
+        self.assertEqual(result, 2.0, 'MATLAB sqrt() failed')
+
+    def test_eeglab_presence(self):
+        result = eeglabcompat.eeg_checkset(self.EEG, eeglab=self.eeglab)
+        pass
 
 
 class TestCleanFlatlines(unittest.TestCase):
 
-    web_url = 'https://sccntestdatasets.s3.us-east-2.amazonaws.com/FlankerTest.set'
-    local_url = os.path.join(os.path.dirname(__file__), '../data/FlankerTest.set')
-
     def setUp(self):
         # download file
-        ensure_file(self.web_url, self.local_url)
-
-        self.EEG = pop_loadset(self.local_url)
+        self.EEG = pop_loadset(ensure_file('FlankerTest.set'))
         self.EEG['data'][5, 1000:2000] = 3.5  # this should trigger
         self.EEG['data'][7, 2000:2100] = 4.5  # this should not (too short)
         self.EEG['data'][9, 3000:4000] = 5.5  # should trigger too
@@ -38,31 +57,34 @@ class TestCleanFlatlines(unittest.TestCase):
 class TestCleanDrifts(unittest.TestCase):
 
     def setUp(self):
-        self.myfile = '/home/christian/Intheon/NeuroPype/sample-datasets/neuropype/FlankerTest.set'
-        self.EEG = pop_loadset(self.myfile)
-        self.expected = pop_loadset('/home/christian/Intheon/Projects/eegprep-refdata/dedrift.set')
+        self.EEG = pop_loadset(ensure_file('FlankerTest.set'))
 
     def test_clean_drifts(self):
-        # test just the fft_filtfilt function
+        eeglab = eeglabcompat.get_eeglab('MAT')
+
+        # compare vs MATLAB
+        expected = eeglab.clean_drifts(self.EEG, [3, 4], 75)        
         cleaned1 = clean_drifts(deepcopy(self.EEG), [3, 4], 75, method='fir')
-        np.testing.assert_almost_equal(cleaned1['data'], self.expected['data'],
+        np.testing.assert_almost_equal(cleaned1['data'], expected['data'],
                                        err_msg='clean_drifts() failed')
+        
+        # compare FFT vs FIR
         cleaned2 = clean_drifts(deepcopy(self.EEG), [3, 4], 75, method='fft')
         np.testing.assert_almost_equal(cleaned1['data'], cleaned2['data'],
                                        err_msg='clean_drifts() FFT mode test failed')
-        pass
+
 
 
 class TestCleanChannelsNoLocs(unittest.TestCase):
 
     def setUp(self):
-        self.myfile = '/home/christian/Intheon/NeuroPype/sample-datasets/neuropype/EmotionValence.set'
-        self.EEG = pop_loadset(self.myfile)
-        self.expected = pop_loadset('/home/christian/Intheon/Projects/eegprep-refdata/cln_chn_nl_0.9.set')
+        self.EEG = pop_loadset(ensure_file('EmotionValence.set'))
 
     def test_clean_channels(self):
+        eeglab = eeglabcompat.get_eeglab('MAT')
+        expected = eeglab.clean_channels_nolocs(self.EEG, 0.9)
         cleaned, _ = clean_channels_nolocs(deepcopy(self.EEG), 0.9)
-        np.testing.assert_almost_equal(cleaned['data'], self.expected['data'],
+        np.testing.assert_almost_equal(cleaned['data'], expected['data'],
                                        err_msg='clean_channels_nolocs() failed')
         pass
 
