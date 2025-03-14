@@ -27,6 +27,7 @@ dependencies = [
   "torch>=1.10.0",
   "h5py>=3.3.0",
   "python-picard",
+  "h5py"
 ]
 
 [tool.setuptools.package-data]
