@@ -80,10 +80,6 @@ from scipy.io import savemat
 
 def pop_saveset(EEG, file_name):
     
-     # add 1 to EEG['icachansind'] to make it 1-based
-    if 'icachansind' in EEG and EEG['icachansind'].size > 0:
-        EEG['icachansind'] = EEG['icachansind'] + 1 
-        
     eeglab_dict = {
         'setname'         : '',
         'filename'        : '',
@@ -105,7 +101,7 @@ def pop_saveset(EEG, file_name):
         'icawinv'         : EEG['icawinv'],
         'icasphere'       : EEG['icasphere'],
         'icaweights'      : EEG['icaweights'],
-        'icachansind'     : EEG['icachansind'],
+        'icachansind'     : EEG['icachansind'].copy(),
         'chanlocs'        : EEG['chanlocs'],
         'urchanlocs'      : EEG['urchanlocs'],
         'chaninfo'        : EEG['chaninfo'],
@@ -128,7 +124,11 @@ def pop_saveset(EEG, file_name):
         'run'             : EEG['run'] if 'run' in EEG else np.array([]),
         'roi'             : EEG['roi'] if 'roi' in EEG else np.array([]),
     }
-    
+
+     # add 1 to EEG['icachansind'] to make it 1-based
+    if 'icachansind' in eeglab_dict and eeglab_dict['icachansind'].size > 0:
+        eeglab_dict['icachansind'] = eeglab_dict['icachansind'] + 1 
+        
     # Create the list of dictionaries with a string field
     if 'chanlocs' in EEG and len(EEG['chanlocs']) > 0:
         d_list = [{
