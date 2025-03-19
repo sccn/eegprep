@@ -30,7 +30,6 @@ class MatlabWrapper:
             if needs_roundtrip:
                 # passage data through a file
                 with tempfile.NamedTemporaryFile(delete=True, suffix='.set') as temp_file:
-                    temp_file.name = './tmp.set'
                     pop_saveset(args[0], temp_file.name)
                     # needs to use eval since returning struct arrays is not supported
                     self.engine.eval(f"EEG = pop_loadset('{temp_file.name}');", nargout=0)
@@ -62,19 +61,21 @@ class OctaveWrapper:
                     break
             if needs_roundtrip:
                 # passage data through a file
-                with tempfile.NamedTemporaryFile(delete=True, suffix='.set') as temp_file:
-                    # this is a little less ugly since Octave allows you to return struct arrays
-                    EEG = self.engine.pop_loadset(temp_file.name)
-                    EEG = getattr(self.engine, name)(EEG, *args[1:])
-                    self.engine.pop_saveset(EEG, temp_file.name)
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.set') as temp_file:
+                    pop_saveset(args[0], temp_file.name)
+                    # needs to use eval since returning struct arrays is not supported
+                    self.engine.eval(f"EEG = pop_loadset('{temp_file.name}');", nargout=0)
+                    # TODO: marshalling of extra arguments should follow octave conventions
+                    eval_str = f"EEG = {name}(EEG{',' if args[1:] else ''}{','.join([str(a) for a in args[1:]])});"
+                    print(eval_str)
+                    self.engine.eval(eval_str, nargout=0)
+                    self.engine.eval(f"pop_saveset(EEG, '{temp_file.name}');", nargout=0)
                     return pop_loadset(temp_file.name)
             else:
                 # run it directly
                 return getattr(self.engine, name)(*args)
         
         return wrapper
-
-
 
 # noinspection PyDefaultArgument
 def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = True, _cache={}):
@@ -169,19 +170,19 @@ def clean_drifts(EEG, Transition, Attenuation, eeglab=None):
     return eeglab.clean_drifts(EEG, Transition, Attenuation)
 
 
-def pop_resample( EEG, freq): # 2 additional parameters in MATLAB (never used)
-    eeglab = get_eeglab(auto_file_roundtrip=False)
+# def pop_resample( EEG, freq): # 2 additional parameters in MATLAB (never used)
+#     eeglab = get_eeglab(auto_file_roundtrip=False)
     
-    pop_saveset(EEG, './tmp.set') # 0.8 seconds
-    EEG2 = eeglab.pop_loadset('./tmp.set') # 2 seconds
-    EEG2 = eeglab.pop_resample(EEG2, freq) # 2.4 seconds
-    eeglab.pop_saveset(EEG2, './tmp2.set') # 2.4 seconds
-    EEG3 = pop_loadset('./tmp2.set') # 0.2 seconds
+#     pop_saveset(EEG, './tmp.set') # 0.8 seconds
+#     EEG2 = eeglab.pop_loadset('./tmp.set') # 2 seconds
+#     EEG2 = eeglab.pop_resample(EEG2, freq) # 2.4 seconds
+#     eeglab.pop_saveset(EEG2, './tmp2.set') # 2.4 seconds
+#     EEG3 = pop_loadset('./tmp2.set') # 0.2 seconds
     
-    # delete temporary files
-    os.remove('./tmp.set')
-    os.remove('./tmp2.set')
-    return EEG3
+#     # delete temporary files
+#     os.remove('./tmp.set')
+#     os.remove('./tmp2.set')
+#     return EEG3
 
 
 def pop_eegfiltnew(EEG, locutoff=None,hicutoff=None,revfilt=False,plotfreqz=False):
