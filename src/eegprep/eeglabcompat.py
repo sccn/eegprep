@@ -61,9 +61,13 @@ class OctaveWrapper:
                     break
             if needs_roundtrip:
                 # passage data through a file
-                with tempfile.NamedTemporaryFile(delete=False, suffix='.set') as temp_file:
+                with tempfile.NamedTemporaryFile(delete=True, suffix='.set') as temp_file:
+                    # Save data to the temporary file
                     pop_saveset(args[0], temp_file.name)
-                    # needs to use eval since returning struct arrays is not supported
+                    # Ensure the file is fully written before proceeding
+                    temp_file.flush()
+                    os.fsync(temp_file.fileno())  # Force write to disk to avoid timing issues
+                    # Needs to use eval since returning struct arrays is not supported in Octave
                     self.engine.eval(f"EEG = pop_loadset('{temp_file.name}');", nargout=0)
                     # TODO: marshalling of extra arguments should follow octave conventions
                     eval_str = f"EEG = {name}(EEG{',' if args[1:] else ''}{','.join([str(a) for a in args[1:]])});"
