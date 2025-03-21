@@ -58,6 +58,7 @@ def design_fir(
         *,
         nfft: Optional[int] = None,
         w: Optional[np.ndarray] = None,
+        compat: bool = True,
 ) -> np.ndarray:
     """
     Design an FIR filter using the frequency-sampling method.
@@ -71,15 +72,19 @@ def design_fir(
       a: vector of amplitudes, one value per specified frequency
       nfft: optionally number of FFT bins to use
       w: optionally the window function to use
-
+      compat: whether to use the original MATLAB-compatible filter design
+        (where the window is off by 1 sample)
     """
     from scipy.interpolate import PchipInterpolator
     f, a = np.asarray(f), np.asarray(a)
     if nfft is None:
         nfft = max([512, 2**np.ceil(np.log(n) / np.log(2))])
     if w is None:
-        from scipy.signal.windows import hamming
-        w = hamming(n)
+        if compat:
+            w = 0.54 - 0.46*np.cos(2*np.pi*np.arange(n+1)/n)
+        else:
+            from scipy.signal.windows import hamming
+            w = hamming(n)
 
     # calculate interpolated frequency response
     # noinspection PyTypeChecker
