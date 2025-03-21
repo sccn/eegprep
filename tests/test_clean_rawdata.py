@@ -17,7 +17,7 @@ def ensure_file(fname: str) -> str:
     """Download a file if it does not exist and return the local path."""
     full_url = f"{web_root}{fname}"
     local_file = f"{local_url}{fname}"
-    if not os.path.exists(fname):
+    if not os.path.exists(local_file):
         from urllib.request import urlretrieve
         urlretrieve(full_url, local_file)
     return local_file
