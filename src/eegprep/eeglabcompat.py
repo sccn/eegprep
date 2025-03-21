@@ -2,6 +2,7 @@
 # sys.path.insert(0, 'src/')
 
 import tempfile
+from typing import *
 
 from .pop_loadset import pop_loadset
 from .pop_saveset import pop_saveset
@@ -20,6 +21,15 @@ class MatlabWrapper:
     def __init__(self, engine):
         self.engine = engine
 
+    @staticmethod
+    def marshal(a: Any) -> str:
+        if a is True:
+            return 'true'
+        elif a is False:
+            return 'false'
+        else:
+            return str(a)
+
     def __getattr__(self, name):
         def wrapper(*args):
             needs_roundtrip = False
@@ -34,7 +44,7 @@ class MatlabWrapper:
                     # needs to use eval since returning struct arrays is not supported
                     self.engine.eval(f"EEG = pop_loadset('{temp_file.name}');", nargout=0)
                     # TODO: marshalling of extra arguments should follow octave conventions
-                    self.engine.eval(f"EEG = {name}(EEG{',' if args[1:] else ''}{','.join([str(a) for a in args[1:]])});", nargout=0)
+                    self.engine.eval(f"EEG = {name}(EEG{',' if args[1:] else ''}{','.join([self.marshal(a) for a in args[1:]])});", nargout=0)
                     self.engine.eval(f"pop_saveset(EEG, '{temp_file.name}');", nargout=0)
                     return pop_loadset(temp_file.name)
             else:
