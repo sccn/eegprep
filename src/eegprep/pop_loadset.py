@@ -2,8 +2,7 @@ import scipy.io
 import numpy as np
 import os
 import h5py
-from .pop_loadset_h5 import pop_loadset_h5
-from .eeg_checkset import eeg_checkset
+from eegprep.pop_loadset_h5 import pop_loadset_h5
 # Allows access using . notation
 # class EEG:
 #     def __init__(self, **kwargs):
@@ -20,6 +19,8 @@ def loadset(file_path):
     return pop_loadset(file_path)
 
 def pop_loadset(file_path=None):
+    from eegprep.eeg_checkset import eeg_checkset
+
     if file_path is None:
         raise ValueError("file_path argument is required")
     
@@ -67,6 +68,8 @@ def pop_loadset(file_path=None):
     except Exception as e:
         EEG = pop_loadset_h5(file_path)    
 
+    EEG['filepath'] = os.path.dirname(file_path)
+    EEG['filename'] = os.path.basename(file_path)
     EEG = eeg_checkset(EEG)
     
     return EEG

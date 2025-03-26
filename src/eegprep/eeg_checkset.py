@@ -13,7 +13,6 @@ def eeg_checkset(EEG, load_data=True):
     
     if 'data' in EEG and isinstance(EEG['data'], str) and load_data:
         # get path from file_path
-        EEG['filepath'] = os.path.dirname(file_path)
         file_name = EEG['filepath'] + os.sep + EEG['data']
         EEG['data'] = np.fromfile(file_name, dtype='float32').reshape( EEG['pnts']*EEG['trials'], EEG['nbchan'])
         EEG['data'] = EEG['data'].T.reshape(EEG['nbchan'], EEG['trials'], EEG['pnts']).transpose(0, 2, 1)
@@ -131,9 +130,9 @@ def eeg_checkset(EEG, load_data=True):
     return EEG
 
 def test_eeg_checkset():
-    from pop_loadset import pop_loadset
+    from eegprep.pop_loadset import pop_loadset
 
-    eeglab_file_path = './eeglab_data_with_ica_tmp.set'
+    eeglab_file_path = './data/eeglab_data_with_ica_tmp_out2.set'
     EEG = pop_loadset(eeglab_file_path)
     EEG = eeg_checkset(EEG)
     print('Checkset done')
