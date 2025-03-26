@@ -17,7 +17,7 @@ def ensure_file(fname: str) -> str:
     """Download a file if it does not exist and return the local path."""
     full_url = f"{web_root}{fname}"
     local_file = f"{local_url}{fname}"
-    if not os.path.exists(fname):
+    if not os.path.exists(local_file):
         from urllib.request import urlretrieve
         urlretrieve(full_url, local_file)
     return local_file
@@ -63,7 +63,7 @@ class TestCleanDrifts(unittest.TestCase):
         eeglab = eeglabcompat.get_eeglab('MAT')
 
         # compare vs MATLAB
-        expected = eeglab.clean_drifts(self.EEG, [3, 4], 75)        
+        expected = eeglab.clean_drifts(self.EEG, [3, 4], 75)
         cleaned1 = clean_drifts(deepcopy(self.EEG), [3, 4], 75, method='fir')
         np.testing.assert_almost_equal(cleaned1['data'], expected['data'],
                                        err_msg='clean_drifts() failed')
@@ -74,19 +74,24 @@ class TestCleanDrifts(unittest.TestCase):
                                        err_msg='clean_drifts() FFT mode test failed')
 
 
-
-class TestCleanChannelsNoLocs(unittest.TestCase):
+class TestCleanChannels(unittest.TestCase):
 
     def setUp(self):
         self.EEG = pop_loadset(ensure_file('EmotionValence.set'))
 
-    def test_clean_channels(self):
+    def test_clean_channels_nolocs(self):
         eeglab = eeglabcompat.get_eeglab('MAT')
-        expected = eeglab.clean_channels_nolocs(self.EEG, 0.9)
         cleaned, _ = clean_channels_nolocs(deepcopy(self.EEG), 0.9)
+        expected = eeglab.clean_channels_nolocs(self.EEG, 0.9)
         np.testing.assert_almost_equal(cleaned['data'], expected['data'],
                                        err_msg='clean_channels_nolocs() failed')
-        pass
+
+    def test_clean_channels_locs(self):
+        cleaned = clean_channels(deepcopy(self.EEG), 0.9)
+        eeglab = eeglabcompat.get_eeglab('MAT')
+        expected = eeglab.clean_channels(self.EEG, 0.9)
+        np.testing.assert_almost_equal(cleaned['data'], expected['data'],
+                                       err_msg='clean_channels() failed')
 
 
 if __name__ == "__main__":
