@@ -146,7 +146,10 @@ def pop_saveset(EEG, file_name):
             'ref':        c['ref']        if not isinstance(c['ref'], np.ndarray) else None
         } for c in EEG['chanlocs']]
 
-        dtype = np.dtype([
+        # build a list of fields to selectively filter out if all entries are None
+        retain_fields = [fld for fld in d_list[0].keys() if not all(d[fld] is None for d in d_list)]
+
+        dtype = np.dtype([(f, t) for f, t in [
             ('labels', 'U100'),      # String up to 100 characters
             ('theta', np.float64),
             ('radius', np.float64),
@@ -159,24 +162,11 @@ def pop_saveset(EEG, file_name):
             ('type', 'U10'),         # String up to 10 characters
             ('urchan', np.int32),
             ('ref', 'U100')          # String up to 100 characters
-        ])
+        ] if f in retain_fields])
 
         # Convert the list of dictionaries to a structured NumPy array
         eeglab_dict['chanlocs'] = np.array([
-            (
-                item['labels'],
-                item['theta'],
-                item['radius'],
-                item['X'],
-                item['Y'],
-                item['Z'],
-                item['sph_theta'],
-                item['sph_phi'],
-                item['sph_radius'],
-                item['type'],
-                item['urchan'],
-                item['ref']
-            )
+            tuple(item[fld] for fld in retain_fields)
             for item in d_list
         ], dtype=dtype)
         
