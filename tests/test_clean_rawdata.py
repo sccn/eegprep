@@ -65,14 +65,14 @@ class TestCleanDrifts(unittest.TestCase):
         # compare vs MATLAB
         expected = eeglab.clean_drifts(self.EEG, [3, 4], 75)
         cleaned1 = clean_drifts(deepcopy(self.EEG), [3, 4], 75, method='fir')
-        np.testing.assert_almost_equal(cleaned1['data'], expected['data'],
-                                       err_msg='clean_drifts() failed')
+        np.testing.assert_allclose(cleaned1['data'], expected['data'], 
+                                   err_msg='clean_drifts() failed', rtol=0, atol=1e-10)
         
         # compare FFT vs FIR
         cleaned2 = clean_drifts(deepcopy(self.EEG), [3, 4], 75, method='fft')
-        np.testing.assert_almost_equal(cleaned1['data'], cleaned2['data'],
-                                       err_msg='clean_drifts() FFT mode test failed')
-
+        np.testing.assert_allclose(cleaned1['data'], cleaned2['data'], rtol=0, atol=1e-10,
+                                   err_msg='clean_drifts() FFT mode test failed')
+        
 
 class TestCleanChannels(unittest.TestCase):
 
