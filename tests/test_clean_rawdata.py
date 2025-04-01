@@ -54,6 +54,19 @@ class TestCleanFlatlines(unittest.TestCase):
         np.testing.assert_equal(cleaned_EEG['data'], self.expected, err_msg='clean_flatlines() test failed')
 
 
+class TestUtilFuncs(unittest.TestCase):
+
+    def setUp(self):
+        self.eeglab = eeglabcompat.get_eeglab('MAT')
+
+    def test_design_kaiser(self):
+        from eegprep.utils import design_kaiser
+        observed = design_kaiser(0.06, 0.08, 75, True)
+        expected = np.asarray(self.eeglab.design_kaiser(0.06, 0.08, 75.0, True))
+        np.testing.assert_almost_equal(observed.flatten(), expected.flatten(), 
+                                       err_msg='design_kaiser() test failed')
+
+
 class TestCleanDrifts(unittest.TestCase):
 
     def setUp(self):
