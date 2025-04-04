@@ -160,6 +160,7 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
         engine.addpath(path2eeglab + '/plugins/iclabel')
         engine.addpath(path2eeglab + '/plugins/clean_rawdata')
         engine.addpath(path2eeglab + '/plugins/clean_rawdata2.10')
+        engine.cd(path2eeglab + '/plugins/clean_rawdata/private')  # to grant access to util funcs for unit testing
         #res = eeglab.version()
         #print('Running EEGLAB commands in compatibility mode with Octave ' + res)
 
