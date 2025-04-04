@@ -66,6 +66,22 @@ class TestUtilFuncs(unittest.TestCase):
         np.testing.assert_almost_equal(observed.flatten(), expected.flatten(), 
                                        err_msg='design_kaiser() test failed')
 
+    def test_design_fir_default_wnd(self):
+        from eegprep.utils import design_fir
+        observed = design_fir(234, [0.0, 0.06, 0.08, 1.0], [0, 0, 1, 1])
+        expected = np.asarray(self.eeglab.design_fir(234.0, np.asarray([0.0, 0.06, 0.08, 1.0]), np.asarray([0.0, 0.0, 1.0, 1.0])))
+        np.testing.assert_almost_equal(observed.flatten(), expected.flatten(),
+                                       err_msg='test_design_fir_default_wnd() test failed')
+
+    def test_design_fir_custom_wnd(self):
+        from eegprep.utils import design_fir, design_kaiser
+        wnd = design_kaiser(0.06, 0.08, 75.0, True)
+        observed = design_fir(234, [0.0, 0.06, 0.08, 1.0], [0, 0, 1.0, 1.0], w=wnd)
+        expected = np.asarray(self.eeglab.design_fir(234.0, np.asarray([0.0, 0.06, 0.08, 1.0]),
+                                                     np.asarray([0, 0, 1.0, 1.0]), np.asarray([]), wnd))
+        np.testing.assert_almost_equal(observed.flatten(), expected.flatten(),
+                                       err_msg='test_design_fir_custom_wnd() test failed')
+
 
 class TestCleanDrifts(unittest.TestCase):
 
