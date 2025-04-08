@@ -129,6 +129,10 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
         engine = _cache[rt]
     except KeyError:
         print(f"Loading {runtime} runtime...", end='', flush=True)
+        # On the command line, type "octave-8.4.0" OCTAVE_EXECUTABLE or OCTAVE var
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        path2eeglab = os.path.join(base_dir, 'eeglab')
+
         # not yet loaded, do so now
         if rt == 'oct':
             from oct2py import Oct2Py, get_log
@@ -136,6 +140,16 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
             engine.logger = get_log("new_log")
             engine.logger.setLevel(logging.WARNING)
             engine.warning('off', 'backtrace')
+            engine.addpath(path2eeglab + '/functions/guifunc')
+            engine.addpath(path2eeglab + '/functions/popfunc')
+            engine.addpath(path2eeglab + '/functions/adminfunc')
+            engine.addpath(path2eeglab + '/plugins/firfilt')
+            engine.addpath(path2eeglab + '/functions/sigprocfunc')
+            engine.addpath(path2eeglab + '/functions/miscfunc')
+            engine.addpath(path2eeglab + '/plugins/dipfit')
+            engine.addpath(path2eeglab + '/plugins/iclabel')
+            engine.addpath(path2eeglab + '/plugins/clean_rawdata')
+            engine.addpath(path2eeglab + '/plugins/clean_rawdata2.10')
         elif rt == 'mat':
             try:
                 import matlab.engine
@@ -150,23 +164,12 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
                     calls to the MATLAB runtime.                                  
                     """)
             engine = matlab.engine.start_matlab()
+            engine.cd(path2eeglab)
+            engine.eval('eeglab nogui;', nargout=0)
         else:
             raise ValueError(f"Unsupported runtime: {runtime}. Should be 'OCT' or 'MAT'")
 
-        # On the command line, type "octave-8.4.0" OCTAVE_EXECUTABLE or OCTAVE var
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        path2eeglab = os.path.join(base_dir, 'eeglab')
         # path2eeglab = 'eeglab' # init >10 seconds
-        engine.addpath(path2eeglab + '/functions/guifunc')
-        engine.addpath(path2eeglab + '/functions/popfunc')
-        engine.addpath(path2eeglab + '/functions/adminfunc')
-        engine.addpath(path2eeglab + '/plugins/firfilt')
-        engine.addpath(path2eeglab + '/functions/sigprocfunc')
-        engine.addpath(path2eeglab + '/functions/miscfunc')
-        engine.addpath(path2eeglab + '/plugins/dipfit')
-        engine.addpath(path2eeglab + '/plugins/iclabel')
-        engine.addpath(path2eeglab + '/plugins/clean_rawdata')
-        engine.addpath(path2eeglab + '/plugins/clean_rawdata2.10')
         engine.cd(path2eeglab + '/plugins/clean_rawdata/private')  # to grant access to util funcs for unit testing
         #res = eeglab.version()
         #print('Running EEGLAB commands in compatibility mode with Octave ' + res)
