@@ -79,13 +79,13 @@ class TestCleanDrifts(unittest.TestCase):
         # compare vs MATLAB
         expected = eeglab.clean_drifts(self.EEG, [3, 4], 75)
         cleaned1 = clean_drifts(deepcopy(self.EEG), [3, 4], 75, method='fir')
-        np.testing.assert_allclose(cleaned1['data'], expected['data'], 
-                                   err_msg='clean_drifts() failed', rtol=0, atol=1e-10)
+        compare_eeg(cleaned1['data'], expected['data'], 
+                    err_msg='clean_drifts() failed')
         
         # compare FFT vs FIR
         cleaned2 = clean_drifts(deepcopy(self.EEG), [3, 4], 75, method='fft')
-        np.testing.assert_allclose(cleaned1['data'], cleaned2['data'], rtol=0, atol=1e-10,
-                                   err_msg='clean_drifts() FFT mode test failed')
+        compare_eeg(cleaned1['data'], cleaned2['data'], 
+                    err_msg='clean_drifts() FFT mode test failed')
         
 
 class TestCleanChannels(unittest.TestCase):
@@ -97,15 +97,15 @@ class TestCleanChannels(unittest.TestCase):
         eeglab = eeglabcompat.get_eeglab('MAT')
         cleaned, _ = clean_channels_nolocs(deepcopy(self.EEG), 0.9)
         expected = eeglab.clean_channels_nolocs(self.EEG, 0.9)
-        np.testing.assert_almost_equal(cleaned['data'], expected['data'],
-                                       err_msg='clean_channels_nolocs() failed')
+        compare_eeg(cleaned['data'], expected['data'],
+                    err_msg='clean_channels_nolocs() failed')
 
     def test_clean_channels_locs(self):
         cleaned = clean_channels(deepcopy(self.EEG), 0.9)
         eeglab = eeglabcompat.get_eeglab('MAT')
         expected = eeglab.clean_channels(self.EEG, 0.9)
-        np.testing.assert_almost_equal(cleaned['data'], expected['data'],
-                                       err_msg='clean_channels() failed')
+        compare_eeg(cleaned['data'], expected['data'],
+                    err_msg='clean_channels() failed')
 
 
 if __name__ == "__main__":
