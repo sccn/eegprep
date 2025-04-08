@@ -6,6 +6,7 @@ from copy import deepcopy
 import numpy as np
 
 from eegprep import *
+from eegprep.utils.testing import *
 
 
 # where the test resources
@@ -54,7 +55,7 @@ class TestCleanFlatlines(unittest.TestCase):
         np.testing.assert_equal(cleaned_EEG['data'], self.expected, err_msg='clean_flatlines() test failed')
 
 
-class TestUtilFuncs(unittest.TestCase):
+class TestUtilFuncs(DebuggableTestCase):
 
     def setUp(self):
         self.eeglab = eeglabcompat.get_eeglab('MAT')
@@ -108,4 +109,6 @@ class TestCleanChannels(unittest.TestCase):
 
 
 if __name__ == "__main__":
+    TestUtilFuncs.debugTestCase()
     unittest.main()
+    
