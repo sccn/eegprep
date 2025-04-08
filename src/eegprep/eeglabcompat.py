@@ -14,6 +14,11 @@ logger = logging.getLogger(__name__)
 # can be either 'OCT' (for Oct2Py) or 'MAT' (MATLAB engine)
 default_runtime = 'OCT'
 
+# directory where temporary .set files are written
+temp_dir = os.path.abspath(os.path.dirname(__file__) + '../../../temp')
+if not os.path.exists(temp_dir):
+    os.makedirs(temp_dir, exist_ok=True)
+
 
 class MatlabWrapper:
     """MATLAB engine wrapper that round-trips calls involving the EEGLAB data structure through files."""
@@ -39,16 +44,33 @@ class MatlabWrapper:
                     break
             if needs_roundtrip:
                 # passage data through a file
-                with tempfile.NamedTemporaryFile(delete=True, suffix='.set') as temp_file:
-                    pop_saveset(args[0], temp_file.name)
+                try:
+                    temp_filename = tempfile.mktemp(dir=temp_dir, suffix='.set')
+                    result_filename = temp_filename + '.result.set'
+                    pop_saveset(args[0], temp_filename)
                     # needs to use eval since returning struct arrays is not supported
-                    self.engine.eval(f"EEG = pop_loadset('{temp_file.name}');", nargout=0)
+                    self.engine.eval(f"EEG = pop_loadset('{temp_filename}');", nargout=0)
                     # TODO: marshalling of extra arguments should follow octave conventions
                     eval_str = f"EEG = {name}(EEG{',' if args[1:] else ''}{','.join([self.marshal(a) for a in args[1:]])});"
-                    print(eval_str)
+                    print(f"Running in MATLAB: {eval_str}")
                     self.engine.eval(eval_str, nargout=0)
-                    self.engine.eval(f"pop_saveset(EEG, '{temp_file.name}');", nargout=0)
-                    return pop_loadset(temp_file.name)
+                    self.engine.eval(f"pop_saveset(EEG, '{result_filename}');", nargout=0)
+                    return pop_loadset(result_filename)
+                finally:
+                    # delete temporary file
+                    try:
+                        # noinspection PyUnboundLocalVariable
+                        if os.path.exists(temp_filename):
+                            os.remove(temp_filename)
+                        if os.path.exists(fdt_file := temp_filename.replace('.set', '.fdt')):
+                            os.remove(fdt_file)
+                        # noinspection PyUnboundLocalVariable
+                        if os.path.exists(result_filename):
+                            os.remove(result_filename)
+                        if os.path.exists(fdt_file := result_filename.replace('result.set', 'result.fdt')):
+                            os.remove(fdt_file)
+                    except OSError as e:
+                        logger.warning(f"Error deleting temporary file {temp_filename}: {e}")
             else:
                 # run it directly
                 return getattr(self.engine, name)(*args)
@@ -71,7 +93,7 @@ class OctaveWrapper:
                     break
             if needs_roundtrip:
                 # passage data through a file
-                with tempfile.NamedTemporaryFile(delete=False, suffix='.set') as temp_file:
+                with tempfile.NamedTemporaryFile(dir=temp_dir, delete=False, suffix='.set') as temp_file:
                     pop_saveset(args[0], temp_file.name)
                     # needs to use eval since returning struct arrays is not supported
                     self.engine.eval(f"EEG = pop_loadset('{temp_file.name}');", nargout=0)
@@ -107,6 +129,10 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
         engine = _cache[rt]
     except KeyError:
         print(f"Loading {runtime} runtime...", end='', flush=True)
+        # On the command line, type "octave-8.4.0" OCTAVE_EXECUTABLE or OCTAVE var
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        path2eeglab = os.path.join(base_dir, 'eeglab')
+
         # not yet loaded, do so now
         if rt == 'oct':
             from oct2py import Oct2Py, get_log
@@ -114,6 +140,16 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
             engine.logger = get_log("new_log")
             engine.logger.setLevel(logging.WARNING)
             engine.warning('off', 'backtrace')
+            engine.addpath(path2eeglab + '/functions/guifunc')
+            engine.addpath(path2eeglab + '/functions/popfunc')
+            engine.addpath(path2eeglab + '/functions/adminfunc')
+            engine.addpath(path2eeglab + '/plugins/firfilt')
+            engine.addpath(path2eeglab + '/functions/sigprocfunc')
+            engine.addpath(path2eeglab + '/functions/miscfunc')
+            engine.addpath(path2eeglab + '/plugins/dipfit')
+            engine.addpath(path2eeglab + '/plugins/iclabel')
+            engine.addpath(path2eeglab + '/plugins/clean_rawdata')
+            engine.addpath(path2eeglab + '/plugins/clean_rawdata2.10')
         elif rt == 'mat':
             try:
                 import matlab.engine
@@ -128,23 +164,13 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
                     calls to the MATLAB runtime.                                  
                     """)
             engine = matlab.engine.start_matlab()
+            engine.cd(path2eeglab)
+            engine.eval('eeglab nogui;', nargout=0)
         else:
             raise ValueError(f"Unsupported runtime: {runtime}. Should be 'OCT' or 'MAT'")
 
-        # On the command line, type "octave-8.4.0" OCTAVE_EXECUTABLE or OCTAVE var
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        path2eeglab = os.path.join(base_dir, 'eeglab')
         # path2eeglab = 'eeglab' # init >10 seconds
-        engine.addpath(path2eeglab + '/functions/guifunc')
-        engine.addpath(path2eeglab + '/functions/popfunc')
-        engine.addpath(path2eeglab + '/functions/adminfunc')
-        engine.addpath(path2eeglab + '/plugins/firfilt')
-        engine.addpath(path2eeglab + '/functions/sigprocfunc')
-        engine.addpath(path2eeglab + '/functions/miscfunc')
-        engine.addpath(path2eeglab + '/plugins/dipfit')
-        engine.addpath(path2eeglab + '/plugins/iclabel')
-        engine.addpath(path2eeglab + '/plugins/clean_rawdata')
-        engine.addpath(path2eeglab + '/plugins/clean_rawdata2.10')
+        engine.cd(path2eeglab + '/plugins/clean_rawdata/private')  # to grant access to util funcs for unit testing
         #res = eeglab.version()
         #print('Running EEGLAB commands in compatibility mode with Octave ' + res)
 
