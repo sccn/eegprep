@@ -4,6 +4,7 @@ import numpy as np
 
 from .utils.sigproc import design_fir, filtfilt_fast
 from .utils.ransac import calc_projector
+from .utils.stats import mad
 
 
 def clean_channels(
@@ -169,9 +170,3 @@ def clean_channels(
             EEG['etc']['clean_channel_mask'] = ~removed_channels
     
     return EEG
-
-
-def mad(X, axis=0, keepdims=False):
-    """Median absolute deviation helper."""
-    med = np.median(X, axis=axis, keepdims=True)
-    return np.median(np.abs(X - med), axis=axis, keepdims=keepdims)
