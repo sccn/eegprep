@@ -28,7 +28,7 @@ class MatlabWrapper:
         elif a is False:
             return 'false'
         else:
-            return str(a)
+            return repr(a)
 
     def __getattr__(self, name):
         def wrapper(*args):
