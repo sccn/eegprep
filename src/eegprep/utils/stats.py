@@ -55,7 +55,7 @@ def fit_eeg_distribution(X, min_clean_fraction=None, max_dropout_fraction=None,
           clean-data quantiles) (default: (0.01, 0.01)).
       beta : array-like, optional
           Range that the clean EEG distribution's shape parameter beta may take
-          (default: np.arange(1.7, 3.5 + 0.15, 0.15)).
+          (default: np.arange(1.7, 3.6, 0.15)).
 
     Returns:
       tuple:
@@ -78,8 +78,7 @@ def fit_eeg_distribution(X, min_clean_fraction=None, max_dropout_fraction=None,
     if step_sizes is None:
         step_sizes = (0.01, 0.01)
     if beta is None:
-        # MATLAB's 1.7:0.15:3.5 includes 3.5
-        beta = np.arange(1.7, 3.5 + 0.15 / 2, 0.15) # Add small fudge factor for endpoint
+        beta = np.arange(1.7, 3.6, 0.15)
 
     # Convert potentially list inputs to numpy arrays for consistency
     quants = np.array(quants)
@@ -117,11 +116,6 @@ def fit_eeg_distribution(X, min_clean_fraction=None, max_dropout_fraction=None,
         lower_bound_arg = abs(2 * quants[0] - 1)
         upper_bound_arg = abs(2 * quants[1] - 1)
 
-        # Add small epsilon to avoid potential domain issues at 0 or 1
-        epsilon = 1e-9
-        lower_bound_arg = np.clip(lower_bound_arg, epsilon, 1.0 - epsilon)
-        upper_bound_arg = np.clip(upper_bound_arg, epsilon, 1.0 - epsilon)
-
         lower_y = gammaincinv(1.0 / b_val, lower_bound_arg)
         upper_y = gammaincinv(1.0 / b_val, upper_bound_arg)
 
@@ -142,8 +136,6 @@ def fit_eeg_distribution(X, min_clean_fraction=None, max_dropout_fraction=None,
     start_indices = np.round(n * np.arange(lower_min,
                                             lower_min + max_dropout_fraction + 0.99 * step_sizes[0],
                                             step_sizes[0])).astype(int)
-    # Ensure indices are within bounds
-    start_indices = np.clip(start_indices, 0, n - 1)
 
     # Generate indices within each window based on max_width
     max_window_len = int(np.round(n * max_width))
@@ -152,9 +144,6 @@ def fit_eeg_distribution(X, min_clean_fraction=None, max_dropout_fraction=None,
     # Use broadcasting to create the matrix of indices (equivalent to bsxfun(@plus, ...))
     # Indices shape: (num_starts, max_window_len)
     all_indices = start_indices[:, None] + window_indices[None, :]
-
-    # Ensure indices do not exceed data length n
-    all_indices = np.clip(all_indices, 0, n - 1)
 
     # Index into sorted data X to get the windows
     X_windows = X[all_indices]
@@ -171,17 +160,8 @@ def fit_eeg_distribution(X, min_clean_fraction=None, max_dropout_fraction=None,
     opt_bounds = np.array([np.nan, np.nan])
     opt_lu = np.array([np.nan, np.nan]) # Lower and Upper data values of the optimal interval
 
-    # Iterate through possible interval widths 'm'
-    # Use np.arange; add small epsilon to min_width side if necessary depending on step direction
-    m_steps = np.round(n * np.arange(max_width, min_width - 0.99 * step_sizes[1], -step_sizes[1])).astype(int)
-    # Ensure m is at least 1 and not greater than the max calculated window length
-    m_steps = np.clip(m_steps, 1, max_window_len)
-    m_steps = np.unique(m_steps)[::-1] # Ensure unique steps, sorted descending
-
-    # Small constant for log stabilization
-    log_offset = 0.01
-    # Small constant to prevent division by zero or log(0) for p
-    p_epsilon = 1e-10
+    # Iterate through possible interval widths 'm' exactly as in-house
+    m_steps = np.int32(np.round(n * np.arange(max_width, min_width, -step_sizes[1])))
 
     for m in m_steps:
         if m <= 0: continue # Skip if width is non-positive
@@ -193,85 +173,30 @@ def fit_eeg_distribution(X, min_clean_fraction=None, max_dropout_fraction=None,
         # Get the endpoint of the interval for scaling (width m means index m-1)
         X_m = X_shifted[:, m - 1]
 
-        # Avoid division by zero or near-zero: check where X_m is too small
-        valid_rows_mask = X_m > 1e-9 # Rows where scaling is safe
-        if not np.any(valid_rows_mask):
-            continue # Skip this 'm' if no rows have valid scaling factor
-
-        # Select only valid rows for this 'm'
-        current_X_shifted = X_shifted[valid_rows_mask, :m]
-        current_X_m = X_m[valid_rows_mask]
-        current_X1 = X1[valid_rows_mask]
-        num_valid_rows = current_X_shifted.shape[0]
-
-        # Scale data: H = bsxfun(@times,X(1:m,:),nbins./X(m,:));
-        # Equivalent: H = current_X_shifted * nbins / current_X_m[:, None]
-        H = current_X_shifted * (nbins / current_X_m[:, None])
-
-        # --- Histogram calculation (logq) ---
-        # Define bin edges for histogram [0, 1, ..., nbins]
-        bin_edges = np.linspace(0, nbins, nbins + 1)
-
-        # Pre-allocate logq for valid rows
-        logq = np.zeros((num_valid_rows, nbins))
-
-        # Compute histogram row-wise
-        for r in range(num_valid_rows):
-            # np.histogram counts values in [edge[i], edge[i+1])
-            # We use density=False to get counts, matching histc behavior before normalization
-            counts, _ = np.histogram(H[r, :], bins=bin_edges)
-            logq[r, :] = np.log(counts + log_offset)
-            # Note: MATLAB's histc includes counts equal to the last edge in the last bin.
-            # np.histogram does not include the rightmost edge by default.
-            # For scaled data [0, nbins], this approach should be similar.
-            # The MATLAB code uses logq(1:end-1,:), implying the last output of histc might be ignored.
-            # Here, `counts` has length `nbins`, matching the expectation.
+        # scale and bin the data in the intervals exactly as in the MATLAB code
+        H = np.asarray(X_shifted[:, :m] * nbins / X_shifted[:, m - 1].reshape((-1, 1)))
+        H[np.isnan(H)] = -1
+        bins = list(range(nbins))
+        bins.append(np.inf)
+        logq = np.zeros((H.shape[0], nbins))
+        for k in range(H.shape[0]):
+            h, _ = np.histogram(H[k, :], bins=bins, density=False)
+            logq[k, :] = np.log(np.asarray(h) + 0.01)
 
         # --- Inner loop: Iterate through shape parameters (beta) ---
-        for b_idx, b_val in enumerate(beta):
-            bounds = zbounds[b_idx]
-            if np.any(np.isnan(bounds)) or np.isclose(bounds[1] - bounds[0], 0):
-                 continue # Skip if bounds are invalid
-
-            # --- Evaluate truncated generalized Gaussian pdf at bin centers ---
-            # x = bounds(1)+(0.5:(nbins-0.5))/nbins*diff(bounds);
-            bin_centers = bounds[0] + (np.arange(nbins) + 0.5) / nbins * (bounds[1] - bounds[0])
-
-            # p = exp(-abs(x).^beta(b))*rescale(b);
-            p = np.exp(-np.power(np.abs(bin_centers), b_val)) * rescale[b_idx]
-
-            # p=p'/sum(p); Normalize p
-            p_sum = np.sum(p)
-            if p_sum < p_epsilon: # Avoid division by zero if sum(p) is tiny
-                continue # Cannot calculate KL divergence
-            p = p / p_sum
-
-            # --- Calc KL divergences ---
-            # kl = sum(bsxfun(@times,p,bsxfun(@minus,log(p),logq(1:end-1,:)))) + log(m);
-            # Equivalent: kl = np.sum(p[None, :] * (np.log(p[None, :] + p_epsilon) - logq), axis=1) + np.log(m)
-            # Add p_epsilon to log(p) for numerical stability
-
-            log_p = np.log(p + p_epsilon) # Shape (nbins,)
-            # Use broadcasting: p is (nbins,), log_p is (nbins,), logq is (num_valid_rows, nbins)
-            kl = np.sum(p * (log_p - logq), axis=1) + np.log(m) # kl shape (num_valid_rows,)
-
-            # Find minimum KL divergence for this beta across all valid windows
-            # Ignore NaNs/Infs that might arise
-            if not np.all(np.isnan(kl)):
-                min_kl_idx_local = np.nanargmin(kl)
-                min_val_for_beta = kl[min_kl_idx_local]
-
-                # --- Update optimal parameters ---
-                if min_val_for_beta < opt_val:
-                    opt_val = min_val_for_beta
-                    opt_beta = b_val
-                    opt_bounds = bounds
-                    # Get the index in the original start_indices corresponding to the local min index
-                    original_idx = np.where(valid_rows_mask)[0][min_kl_idx_local]
-                    # opt_lu = [X1(idx) X1(idx)+X(m,idx)]; (MATLAB indexing)
-                    # Python: opt_lu = [X1[original_idx], X1[original_idx] + X_shifted[original_idx, m-1]]
-                    opt_lu = np.array([X1[original_idx], X1[original_idx] + X_shifted[original_idx, m - 1]])
-
+        for b in range(len(beta)):
+            bounds = zbounds[b]
+            x_vals = bounds[0] + (0.5 + np.arange(nbins)) / nbins * np.diff(bounds)
+            p = np.exp(-np.abs(x_vals)**beta[b]) * rescale[b]
+            p /= np.sum(p)
+            kl = np.sum(p * (np.log(p) - logq), axis=1) + np.log(m)
+            min_val = np.min(kl)
+            idx = np.where(kl == min_val)[0][0]
+            if min_val < opt_val:
+                opt_val = min_val
+                opt_beta = beta[b]
+                opt_bounds = bounds
+                opt_lu = [X1[idx], X1[idx] + X_shifted[idx, m - 1]]
 
     # --- Recover distribution parameters at optimum ---
     if np.any(np.isnan(opt_lu)) or np.any(np.isnan(opt_bounds)):
