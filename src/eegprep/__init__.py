@@ -19,3 +19,4 @@ from .clean_flatlines import clean_flatlines
 from .clean_drifts import clean_drifts
 from .clean_channels_nolocs import clean_channels_nolocs
 from .clean_channels import clean_channels
+from .clean_asr import clean_asr

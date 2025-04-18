@@ -1,5 +1,6 @@
 import os
 import unittest
+import psutil
 from copy import deepcopy
 
 
@@ -83,6 +84,30 @@ class TestUtilFuncs(DebuggableTestCase):
         np.testing.assert_almost_equal(observed.flatten(), expected.flatten(),
                                        err_msg='test_design_fir_custom_wnd() test failed')
 
+    def test_block_geometric_median(self):
+        from eegprep.utils.stats import block_geometric_median
+        np.random.seed(42)
+        # generate heavy-tailed data with non-zero centroid and apply random rotation
+        df = 3  # degrees of freedom for t-distribution
+        center = np.arange(1, 33)  # non-zero centroid vector
+        # random noise transform
+        R = np.random.randn(32, 32)
+        noise = np.random.standard_t(df, size=(5007, 32))
+        X = noise.dot(R) + center
+        observed = block_geometric_median(X, 10)
+        expected = np.asarray(self.eeglab.block_geometric_median(X, 10.0))
+        np.testing.assert_almost_equal(observed.flatten(), expected.flatten(),
+                                       err_msg='block_geometric_median() test failed')
+        
+    def test_fit_eeg_distribution(self):
+        from eegprep.utils.stats import fit_eeg_distribution
+        from scipy.stats import genextreme
+        x = genextreme.rvs(0.1, size=5007)
+        observed, *_ = fit_eeg_distribution(x)  # returns 4 values, for now we check only the first
+        expected = self.eeglab.fit_eeg_distribution(x)
+        # compare numbers
+        np.testing.assert_almost_equal(observed, expected,
+                                       err_msg='fit_eeg_distribution() test failed')
 
 class TestCleanDrifts(unittest.TestCase):
 
@@ -122,6 +147,21 @@ class TestCleanChannels(unittest.TestCase):
         expected = eeglab.clean_channels(self.EEG, 0.9)
         compare_eeg(cleaned['data'], expected['data'],
                     err_msg='clean_channels() failed')
+
+
+class TestCleanASR(unittest.TestCase):
+
+    def setUp(self):
+        self.EEG = pop_loadset(ensure_file('EmotionValence.set'))
+
+    def test_clean_asr_nowindow(self):
+        print('running reference implementation')
+        cleaned = clean_asr(deepcopy(self.EEG), ref_maxbadchannels='off')
+        eeglab = eeglabcompat.get_eeglab('MAT')
+        expected = eeglab.clean_asr(self.EEG, [],[],[],[], 'off')
+        compare_eeg(cleaned['data'], expected['data'], 
+                    atol=0, rtol=1e-6, # because of eigh() precision differences
+                    err_msg='clean_asr() failed vs MATLAB')
 
 
 if __name__ == "__main__":
