@@ -155,13 +155,61 @@ class TestCleanASR(unittest.TestCase):
         self.EEG = pop_loadset(ensure_file('EmotionValence.set'))
 
     def test_clean_asr_nowindow(self):
-        print('running reference implementation')
         cleaned = clean_asr(deepcopy(self.EEG), ref_maxbadchannels='off')
         eeglab = eeglabcompat.get_eeglab('MAT')
         expected = eeglab.clean_asr(self.EEG, [],[],[],[], 'off')
         compare_eeg(cleaned['data'], expected['data'], 
                     atol=0, rtol=1e-6, # because of eigh() precision differences
                     err_msg='clean_asr() failed vs MATLAB')
+
+
+class TestCleanWindows(unittest.TestCase):
+
+    def setUp(self):
+        self.EEG = pop_loadset(ensure_file('EmotionValence.set'))
+
+        # ------------------------------------------------------------------
+        # Inject synthetic high‑amplitude artefacts so that clean_windows()
+        # has something to remove. We draw 20 random stretches (200‑2000
+        # samples) and corrupt a random subset of channels in each stretch
+        # by adding scaled Gaussian noise.
+        # ------------------------------------------------------------------
+        rng = np.random.default_rng(seed=42)  # deterministic for the test
+
+        n_stretches = 20
+        n_chans = self.EEG['nbchan']
+        n_samp = self.EEG['pnts']
+
+        for _ in range(n_stretches):
+            # Random stretch length between 200 and 2000 samples (inclusive)
+            stretch_len = int(rng.integers(200, 2001))
+
+            # Random start index ensuring we stay within bounds
+            start = int(rng.integers(0, max(1, n_samp - stretch_len)))
+            stop = start + stretch_len
+
+            # Random number of channels (at least 1, at most all channels)
+            n_corrupt = int(rng.integers(1, n_chans + 1))
+            chan_idx = rng.choice(n_chans, size=n_corrupt, replace=False)
+
+            # Local scale (robust): std of the windowed data
+            window_data = self.EEG['data'][chan_idx, start:stop]
+            local_std = float(np.std(window_data, ddof=0))
+            if local_std == 0:
+                local_std = 1.0  # avoid degenerate case
+
+            # Heavy‑tailed positive scale factor (Gamma with mean ≈3)
+            scale_factor = float(rng.gamma(shape=2.0, scale=1.5))
+
+            noise = rng.standard_normal(size=(n_corrupt, stretch_len)) * local_std * scale_factor
+            self.EEG['data'][chan_idx, start:stop] += noise
+
+    def test_clean_windows(self):
+        cleaned, _ = clean_windows(deepcopy(self.EEG))
+        eeglab = eeglabcompat.get_eeglab('MAT')
+        expected = eeglab.clean_windows(self.EEG)
+        compare_eeg(cleaned['data'], expected['data'], 
+                    err_msg='clean_windows() failed vs MATLAB')
 
 
 if __name__ == "__main__":
