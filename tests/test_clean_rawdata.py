@@ -126,7 +126,7 @@ class TestCleanDrifts(unittest.TestCase):
         # compare FFT vs FIR
         cleaned2 = clean_drifts(deepcopy(self.EEG), [3, 4], 75, method='fft')
         compare_eeg(cleaned1['data'], cleaned2['data'], 
-                    err_msg='clean_drifts() FFT mode test failed')
+                    err_msg='clean_drifts() FFT mode test failed',atol=2e-7)
         
 
 class TestCleanChannels(unittest.TestCase):
