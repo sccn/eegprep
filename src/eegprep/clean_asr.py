@@ -1,19 +1,12 @@
 import logging
 from typing import Dict, Any, Optional, Union, Tuple
+from copy import deepcopy
 
 import numpy as np
 
 # Assuming these utilities exist and are correctly ported/placed
 from .utils.asr import asr_calibrate, asr_process
-try:
-    # Allow optional dependency on clean_windows
-    from .utils.clean_windows import clean_windows
-    _has_clean_windows = True
-except ImportError:
-    _has_clean_windows = False
-    # Define a placeholder if clean_windows is not available
-    def clean_windows(*args, **kwargs):
-        raise ImportError("The 'clean_windows' function is required for automatic calibration data selection but was not found.")
+from .clean_windows import clean_windows
 
 
 logger = logging.getLogger(__name__)
@@ -98,15 +91,13 @@ def clean_asr(
     # --- Determine Reference/Calibration Data ---
     ref_section_data = None
     if isinstance(ref_maxbadchannels, (int, float)) and isinstance(ref_tolerances, (tuple, list)) and isinstance(ref_wndlen, (int, float)):
-        if not _has_clean_windows:
-             raise ImportError("clean_windows is needed for automatic calibration data selection (ref_maxbadchannels is numeric) but was not found.")
         logger.info('Finding a clean section of the data for calibration...')
         try:
             # clean_windows is assumed to return the selected data array (C x S_clean)
             # It needs the EEG dict structure, similar to other clean_* funcs
-            temp_EEG_for_cleanwin = EEG.copy()
+            temp_EEG_for_cleanwin = deepcopy(EEG)
             temp_EEG_for_cleanwin['data'] = data # ensure it has the float64 data
-            cleaned_EEG = clean_windows(temp_EEG_for_cleanwin, ref_maxbadchannels, ref_tolerances, ref_wndlen)
+            cleaned_EEG, _ = clean_windows(temp_EEG_for_cleanwin, ref_maxbadchannels, ref_tolerances, ref_wndlen)
             ref_section_data = np.asarray(cleaned_EEG['data'], dtype=np.float64)
             if ref_section_data.size == 0 or ref_section_data.shape[1] == 0:
                 logger.warning("clean_windows returned no data. Falling back to using all data for calibration.")

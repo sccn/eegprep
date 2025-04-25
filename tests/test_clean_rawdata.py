@@ -212,7 +212,39 @@ class TestCleanWindows(unittest.TestCase):
                     err_msg='clean_windows() failed vs MATLAB')
 
 
+# ------------------------------------------------------------------------------
+#                               clean_artifacts
+# ------------------------------------------------------------------------------
+
+
+class TestCleanArtifacts(DebuggableTestCase):
+
+    def setUp(self):
+        # Use the same dataset as other heavy‑duty tests
+        self.EEG = pop_loadset(ensure_file('EmotionValence.set'))
+
+    def test_clean_artifacts_defaults(self):
+        """Compare Python clean_artifacts against MATLAB implementation (default params).
+        """
+        # --- Python version ---
+        cleaned_py, _, _, _ = clean_artifacts(deepcopy(self.EEG))
+
+        # --- MATLAB reference ---
+        eeglab = eeglabcompat.get_eeglab('MAT')
+        # Call with the matching name‑value pair
+        expected_mat = eeglab.clean_artifacts(self.EEG)
+
+        compare_eeg(
+            cleaned_py['data'],
+            expected_mat['data'],
+            rtol=0,  
+            atol=1e-5,  # limit to 1e-5 uV likely due to solver differences
+            err_msg='clean_artifacts() failed vs MATLAB'
+        )
+
+
 if __name__ == "__main__":
-    TestUtilFuncs.debugTestCase()
+    TestCleanArtifacts.debugTestCase()
+    # TestUtilFuncs.debugTestCase()
     unittest.main()
     

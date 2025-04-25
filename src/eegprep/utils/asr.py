@@ -497,8 +497,12 @@ def asr_process(data, srate, state, window_len=0.5, lookahead=None, step_size=32
             last_n = n
             last_R = R
             last_trivial = trivial
+
+        if splits > 1:
+            print(f'.', end='',flush=True)
     
     if splits > 1:
+        print('')
         logger.info('Finished cleaning.')
     
     # Update the carry buffer for next call (last P samples)
