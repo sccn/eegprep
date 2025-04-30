@@ -1,3 +1,4 @@
+import warnings
 from typing import *
 
 import numpy as np
@@ -175,7 +176,8 @@ def clean_windows(
     diff = np.diff(padded.astype(int))
     starts = np.where(diff == 1)[0]
     ends = np.where(diff == -1)[0] - 1
-    retain_intervals = np.stack([starts, ends], axis=1)  # shape (K,2)
+    # assuming that pop-select will accept 1-based intervals for point
+    retain_intervals = np.stack([starts, ends], axis=1) + 1  # shape (K,2)
 
     # ------------------------------------------------------------------
     #               Apply selection (pop_select if available)
@@ -183,6 +185,8 @@ def clean_windows(
     try:
         from eegprep import pop_select  # type: ignore
         EEG = pop_select(EEG, point=retain_intervals)
+        warnings.warn("This call to pop_select() assumes that time intervals use "
+                      "1-based indexing; if this has been verified, please remove this warning.")
     except Exception as e:  # noqa: BLE001 – we really want to catch *everything*
         # Fall back to manual trimming and minimal bookkeeping
         if isinstance(e, ImportError):
@@ -193,6 +197,8 @@ def clean_windows(
             traceback.print_exc()
 
         print('Falling back to a basic substitute and dropping signal meta-data.')
+        # pop_select() by default truncates to single precision in EEGLAB, which we're mirroring here
+        EEG['data'] = np.asarray(EEG['data'], dtype=np.float32)
         EEG['data'] = EEG['data'][:, sample_mask]
         EEG['pnts'] = EEG['data'].shape[1]
         EEG['xmax'] = EEG['xmin'] + (EEG['pnts'] - 1) / Fs

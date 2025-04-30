@@ -178,18 +178,9 @@ def clean_asr(
     )
 
     # --- Finalize ---
-    # asr_process returns the data adjusted for lookahead, matching original length S
-    if outdata.shape[1] != S:
-         logger.warning(f"Output data length ({outdata.shape[1]}) does not match input length ({S}). Truncating/padding output.")
-         # This shouldn't happen if asr_process works correctly, but handle defensively
-         if outdata.shape[1] > S:
-             outdata = outdata[:, :S]
-         else:
-             padding = np.zeros((C, S - outdata.shape[1]))
-             outdata = np.concatenate((outdata, padding), axis=1)
-
-
+    # shift signal content back (to compensate for processing delay)
+    outdata = outdata[:, :S]
     EEG['data'] = outdata
     logger.info('ASR cleaning finished.')
 
-    return EEG 
+    return EEG

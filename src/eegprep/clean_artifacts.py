@@ -168,7 +168,7 @@ def clean_artifacts(
     #                     1) Flat‑line channel removal
     # ------------------------------------------------------------------
     if FlatlineCriterion != 'off':
-        print('Detecting flat line channels…')
+        print('Detecting flat line channels...')
         EEG = clean_flatlines(EEG, max_flatline_duration=float(FlatlineCriterion))
 
     # ------------------------------------------------------------------
@@ -177,7 +177,7 @@ def clean_artifacts(
     if Highpass != 'off':
         if not isinstance(Highpass, (tuple, list)) or len(Highpass) != 2:
             raise ValueError('Highpass must be a (low, high) tuple or "off".')
-        print('Applying high‑pass filter…')
+        print('Applying high‑pass filter...')
         EEG = clean_drifts(EEG, tuple(Highpass))
     # Keep a copy after HP for optional return
     HP = EEG.copy()
@@ -190,7 +190,7 @@ def clean_artifacts(
         chancorr_crit = 0.0 if ChannelCriterion == 'off' else float(ChannelCriterion)
         line_crit = 100.0 if LineNoiseCriterion == 'off' else float(LineNoiseCriterion)
         try:
-            EEG, removed_channels = clean_channels(
+            EEG = clean_channels(
                 EEG,
                 corr_threshold=chancorr_crit,
                 noise_threshold=line_crit,
@@ -198,6 +198,7 @@ def clean_artifacts(
                 max_broken_time=float(ChannelCriterionMaxBadTime),
                 num_samples=int(NumSamples),
             )
+            removed_channels = ~EEG['etc']['clean_channel_mask']
         except Exception as e:
             # Fall back to "no‑locs" version if location dependent failure
             warnings.warn(
@@ -216,7 +217,7 @@ def clean_artifacts(
     # ------------------------------------------------------------------
     BUR = EEG  # default in case ASR is skipped
     if BurstCriterion != 'off':
-        print('Applying ASR burst repair…')
+        print('Applying ASR burst repair...')
         try:
             BUR = clean_asr(
                 EEG,
@@ -280,7 +281,7 @@ def clean_artifacts(
     #                     5) Post‑clean windows stage
     # ------------------------------------------------------------------
     if WindowCriterion != 'off' and WindowCriterionTolerances != 'off':
-        print('Final post‑processing – removing irrecoverable windows…')
+        print('Final post‑processing – removing irrecoverable windows...')
         EEG, _ = clean_windows(
             EEG,
             max_bad_channels=float(WindowCriterion),

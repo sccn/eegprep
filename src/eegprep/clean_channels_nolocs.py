@@ -124,7 +124,8 @@ def clean_channels_nolocs(
             # Manual channel removal
             if len(EEG['chanlocs']) == EEG['data'].shape[0]:
                 EEG['chanlocs'] = [ch for i, ch in enumerate(EEG['chanlocs']) if not removed_channels[i]]
-            
+            # pop_select() by default truncates the data to float32, so we need to do the same
+            EEG['data'] = np.asarray(EEG['data'], dtype=np.float32)
             EEG['data'] = EEG['data'][~removed_channels, :]
             EEG['nbchan'] = EEG['data'].shape[0]
             

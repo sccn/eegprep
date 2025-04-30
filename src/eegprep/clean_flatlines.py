@@ -54,6 +54,8 @@ def clean_flatlines(EEG: Dict[str, Any], max_flatline_duration: float = 5.0, max
                 print('Could not select channels using EEGLAB''s pop_select(); details: ')
                 traceback.print_exc()
             print('Falling back to a basic substitute and dropping signal meta-data.')
+            # pop_select() by default truncates the data to float32, so we need to do the same
+            EEG['data'] = np.asarray(EEG['data'], dtype=np.float32)
             EEG['data'] = EEG['data'][np.logical_not(removed_channels), :]
             if len(EEG['chanlocs']) == len(removed_channels):
                 EEG['chanlocs'] = EEG['chanlocs'][np.logical_not(removed_channels)]
