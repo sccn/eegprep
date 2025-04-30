@@ -1,14 +1,15 @@
+import logging
 import os
 import unittest
 import psutil
 from copy import deepcopy
-
 
 import numpy as np
 
 from eegprep import *
 from eegprep.utils.testing import *
 
+logger = logging.getLogger(__name__)
 
 # where the test resources
 web_root = 'https://sccntestdatasets.s3.us-east-2.amazonaws.com/'
