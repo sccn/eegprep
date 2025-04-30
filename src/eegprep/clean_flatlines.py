@@ -1,7 +1,10 @@
 import traceback
 from typing import *
+import logging
 
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 
 def clean_flatlines(EEG: Dict[str, Any], max_flatline_duration: float = 5.0, max_allowed_jitter: float = 20.0):
@@ -40,7 +43,7 @@ def clean_flatlines(EEG: Dict[str, Any], max_flatline_duration: float = 5.0, max
 
     # remove them
     if np.all(removed_channels):
-        print('Warning: all channels have a flat-line portion; not removing anything.')
+        logger.warning('All channels have a flat-line portion; not removing anything.')
     elif np.any(removed_channels):
         # noinspection PyBroadException
         try:
@@ -49,11 +52,11 @@ def clean_flatlines(EEG: Dict[str, Any], max_flatline_duration: float = 5.0, max
             EEG = pop_select(EEG, nochannel=np.where(removed_channels)[0])
         except Exception as e:
             if isinstance(e, ImportError):
-                print('Apparently you do not have access to a pop_select() function.')
+                logger.error('Apparently you do not have access to a pop_select() function.')
             else:
-                print('Could not select channels using EEGLAB''s pop_select(); details: ')
-                traceback.print_exc()
-            print('Falling back to a basic substitute and dropping signal meta-data.')
+                logger.error('Could not select channels using EEGLAB\'s pop_select(); details: %s', str(e))
+                logger.debug('Exception traceback:', exc_info=True)
+            logger.info('Falling back to a basic substitute and dropping signal meta-data.')
             # pop_select() by default truncates the data to float32, so we need to do the same
             EEG['data'] = np.asarray(EEG['data'], dtype=np.float32)
             EEG['data'] = EEG['data'][np.logical_not(removed_channels), :]

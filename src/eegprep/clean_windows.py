@@ -1,9 +1,12 @@
 import warnings
+import logging
 from typing import *
 
 import numpy as np
 
 from .utils.stats import fit_eeg_distribution
+
+logger = logging.getLogger(__name__)
 
 
 def clean_windows(
@@ -103,7 +106,7 @@ def clean_windows(
     wnd = np.arange(N, dtype=int)
     W = len(offsets)
 
-    print('Determining time window rejection thresholds...')
+    logger.info('Determining time window rejection thresholds...')
 
     # ------------------------------------------------------------------
     #                      Compute z-score per channel
@@ -135,7 +138,7 @@ def clean_windows(
 
         # z-score relative to fitted distribution
         wz[c, :] = (rms - mu) / sig
-    print('done.')
+    logger.info('done.')
 
     # ------------------------------------------------------------------
     #                Identify windows to be removed/kept
@@ -167,7 +170,7 @@ def clean_windows(
 
     kept_pct = 100.0 * np.mean(sample_mask)
     kept_seconds = np.count_nonzero(sample_mask) / Fs
-    print(f'Keeping {kept_pct:.1f}% ({kept_seconds:.0f} seconds) of the data.')
+    logger.info(f'Keeping {kept_pct:.1f}% ({kept_seconds:.0f} seconds) of the data.')
 
     # ------------------------------------------------------------------
     #                    Determine retain intervals (inclusive)
@@ -185,18 +188,17 @@ def clean_windows(
     try:
         from eegprep import pop_select  # type: ignore
         EEG = pop_select(EEG, point=retain_intervals)
-        warnings.warn("This call to pop_select() assumes that time intervals use "
+        logger.warning("This call to pop_select() assumes that time intervals use "
                       "1-based indexing; if this has been verified, please remove this warning.")
     except Exception as e:  # noqa: BLE001 – we really want to catch *everything*
         # Fall back to manual trimming and minimal bookkeeping
         if isinstance(e, ImportError):
-            print("Apparently you do not have EEGLAB's pop_select() on the path.")
+            logger.error("Apparently you do not have EEGLAB's pop_select() on the path.")
         else:
-            print('Could not select time windows using EEGLAB\'s pop_select(); details:')
-            import traceback
-            traceback.print_exc()
+            logger.error('Could not select time windows using EEGLAB\'s pop_select(); details: %s', str(e))
+            logger.debug('Exception traceback:', exc_info=True)
 
-        print('Falling back to a basic substitute and dropping signal meta-data.')
+        logger.info('Falling back to a basic substitute and dropping signal meta-data.')
         # pop_select() by default truncates to single precision in EEGLAB, which we're mirroring here
         EEG['data'] = np.asarray(EEG['data'], dtype=np.float32)
         EEG['data'] = EEG['data'][:, sample_mask]
@@ -222,7 +224,7 @@ def clean_windows(
             prev_mask[one_inds] = sample_mask
             etc['clean_sample_mask'] = prev_mask
         else:
-            print('Warning: EEG.etc.clean_sample is present but incompatible; it is being overwritten.')
+            logger.warning('EEG.etc.clean_sample is present but incompatible; it is being overwritten.')
             etc['clean_sample_mask'] = sample_mask
     else:
         etc['clean_sample_mask'] = sample_mask

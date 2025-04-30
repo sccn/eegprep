@@ -1,4 +1,6 @@
 from typing import *
+import logging
+
 import numpy as np
 import warnings
 
@@ -9,6 +11,9 @@ from .clean_channels import clean_channels
 from .clean_channels_nolocs import clean_channels_nolocs
 from .clean_asr import clean_asr
 from .clean_windows import clean_windows
+
+
+logger = logging.getLogger(__name__)
 
 # -----------------------------------------------------------------------------
 #                               Public API
@@ -168,7 +173,7 @@ def clean_artifacts(
     #                     1) Flat‑line channel removal
     # ------------------------------------------------------------------
     if FlatlineCriterion != 'off':
-        print('Detecting flat line channels...')
+        logger.info('Detecting flat line channels...')
         EEG = clean_flatlines(EEG, max_flatline_duration=float(FlatlineCriterion))
 
     # ------------------------------------------------------------------
@@ -177,7 +182,7 @@ def clean_artifacts(
     if Highpass != 'off':
         if not isinstance(Highpass, (tuple, list)) or len(Highpass) != 2:
             raise ValueError('Highpass must be a (low, high) tuple or "off".')
-        print('Applying high‑pass filter...')
+        logger.info('Applying high‑pass filter...')
         EEG = clean_drifts(EEG, tuple(Highpass))
     # Keep a copy after HP for optional return
     HP = EEG.copy()
@@ -201,8 +206,8 @@ def clean_artifacts(
             removed_channels = ~EEG['etc']['clean_channel_mask']
         except Exception as e:
             # Fall back to "no‑locs" version if location dependent failure
-            warnings.warn(
-                f'clean_channels failed ({e}); falling back to clean_channels_nolocs.', RuntimeWarning
+            logger.warning(
+                f'clean_channels failed ({e}); falling back to clean_channels_nolocs.'
             )
             EEG, removed_channels = clean_channels_nolocs(
                 EEG,
@@ -217,7 +222,7 @@ def clean_artifacts(
     # ------------------------------------------------------------------
     BUR = EEG  # default in case ASR is skipped
     if BurstCriterion != 'off':
-        print('Applying ASR burst repair...')
+        logger.info('Applying ASR burst repair...')
         try:
             BUR = clean_asr(
                 EEG,
@@ -229,7 +234,7 @@ def clean_artifacts(
                 maxmem=int(MaxMem),
             )
         except NotImplementedError as e:
-            warnings.warn(str(e))
+            logger.warning(str(e))
             BUR = clean_asr(
                 EEG,
                 cutoff=float(BurstCriterion),
@@ -281,14 +286,14 @@ def clean_artifacts(
     #                     5) Post‑clean windows stage
     # ------------------------------------------------------------------
     if WindowCriterion != 'off' and WindowCriterionTolerances != 'off':
-        print('Final post‑processing – removing irrecoverable windows...')
+        logger.info('Final post‑processing – removing irrecoverable windows...')
         EEG, _ = clean_windows(
             EEG,
             max_bad_channels=float(WindowCriterion),
             zthresholds=WindowCriterionTolerances,
         )
 
-    print('Use vis_artifacts to compare the cleaned data to the original.')
+    logger.info('Use vis_artifacts to compare the cleaned data to the original.')
 
     # ------------------------------------------------------------------
     #                  Optionally re‑insert ignored channels

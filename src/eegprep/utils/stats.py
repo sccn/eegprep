@@ -1,8 +1,10 @@
 import math
-
+import logging
 import numpy as np
 from numpy.linalg import norm as np_norm  # Use alias to avoid potential name collision
 from scipy.special import gamma, gammaincinv
+
+logger = logging.getLogger(__name__)
 
 
 def fit_eeg_distribution(X, min_clean_fraction=None, max_dropout_fraction=None,
@@ -200,12 +202,12 @@ def fit_eeg_distribution(X, min_clean_fraction=None, max_dropout_fraction=None,
 
     # --- Recover distribution parameters at optimum ---
     if np.any(np.isnan(opt_lu)) or np.any(np.isnan(opt_bounds)):
-        print("Warning: Optimal parameters not found; returning NaNs.")
+        logger.warning("Optimal parameters not found; returning NaNs.")
         return np.nan, np.nan, np.nan, np.nan
 
     bound_diff = opt_bounds[1] - opt_bounds[0]
     if abs(bound_diff) < 1e-9:
-        print("Warning: Optimal bounds are too close; returning NaNs.")
+        logger.warning("Optimal bounds are too close; returning NaNs.")
         return np.nan, np.nan, np.nan, np.nan
 
     # alpha = (opt_lu(2)-opt_lu(1))/diff(opt_bounds);
@@ -224,12 +226,12 @@ def fit_eeg_distribution(X, min_clean_fraction=None, max_dropout_fraction=None,
         gamma_1_over_beta = gamma(1.0 / final_beta)
         if gamma_1_over_beta < 1e-9: # Avoid division by near-zero
              sig = np.nan
-             print("Warning: gamma(1/beta) is close to zero; std dev calculation failed.")
+             logger.warning("gamma(1/beta) is close to zero; std dev calculation failed.")
         else:
              sig = np.sqrt((alpha**2) * gamma_3_over_beta / gamma_1_over_beta)
     except ValueError: # Catches potential issues with gamma function inputs (e.g., non-positive)
         sig = np.nan
-        print("Warning: Could not calculate std dev due to invalid gamma function input.")
+        logger.warning("Could not calculate std dev due to invalid gamma function input.")
 
     # Ensure output types are standard Python floats if they are scalar
     mu = float(mu) if np.isscalar(mu) else mu
@@ -309,7 +311,7 @@ def geometric_median(X, tol=1.e-5, y=None, max_iter=500):
 
     # Optional: Add a warning if max_iter was reached without convergence
     if i == max_iter - 1:
-        print(f"Warning: Geometric median calculation did not converge within {max_iter} iterations.")
+        logger.warning(f"Geometric median calculation did not converge within {max_iter} iterations.")
 
     return y
 

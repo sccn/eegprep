@@ -1,6 +1,5 @@
 import logging
 import math
-from warnings import warn
 import numpy as np
 import scipy.signal
 import scipy.linalg
@@ -111,7 +110,7 @@ def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
             # Fallback if no precomputed filter matches or yulewalk is unavailable
             # Consider adding a call to a yulewalk implementation if available,
             # or raising a more specific error/warning.
-            warn(f"No pre-computed spectral filter for srate {srate}. "
+            logger.warning(f"No pre-computed spectral filter for srate {srate}. "
                  f"Using a simple default (may be suboptimal).")
             B = np.array([1.0, -1.0]) # Simple high-pass/difference filter as a basic fallback
             A = np.array([1.0])
@@ -141,7 +140,7 @@ def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
 
     # Calculate the sample covariance matrices U (averaged in blocks of blocksize successive samples)
     # U will be shape (C, C, num_blocks)
-    print("Calculating blockwise covariances...")
+    logger.info("Calculating blockwise covariances...")
     
     # Determine the number of blocks
     num_blocks = int(np.ceil(S / blocksize))
@@ -173,7 +172,7 @@ def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
     U_reshaped = U.reshape(C * C, -1).T  # Shape: (num_blocks, C*C)
 
     # Calculate the geometric median of covariance matrices
-    print("Calculating robust geometric median covariance...")
+    logger.info("Calculating robust geometric median covariance...")
     med = block_geometric_median(U_reshaped)
     
     # Handle NaN cases (can happen with single observation or degenerate data)
@@ -181,7 +180,7 @@ def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
         if U_reshaped.shape[0] == 1:
             med = np.median(U_reshaped, axis=0)
         else:
-            warn("Geometric median calculation resulted in NaNs. Using standard median as fallback.")
+            logger.warning("Geometric median calculation resulted in NaNs. Using standard median as fallback.")
             med = np.median(U_reshaped, axis=0)
 
     # Reshape median back to matrix form
@@ -197,7 +196,7 @@ def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
     if S < N:
         raise ValueError(f'Not enough calibration data. Need at least {N} samples, got {S}.')
 
-    print('Determining per-component thresholds...')
+    logger.info('Determining per-component thresholds...')
     
     # Eigendecomposition of M
     D, V = np.linalg.eigh(M)  # eigh returns sorted eigenvalues
@@ -208,7 +207,7 @@ def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
     # Calculate window indices for RMS calculation
     step = N * (1.0 - window_overlap)
     if step <= 0:
-        warn("Window overlap >= 1, using step=1")
+        logger.warning("Window overlap >= 1, using step=1")
         step = 1
     window_starts = np.round(np.arange(0, S - N + 1, step)).astype(int)
     
@@ -239,13 +238,13 @@ def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
             mu[c] = mu_c
             sig[c] = sig_c
         except Exception as e:
-            warn(f"Distribution fitting failed for component {c}: {e}")
+            logger.warning(f"Distribution fitting failed for component {c}: {e}")
             mu[c] = np.nan
             sig[c] = np.nan
     
     # Check for NaN values and provide warning
     if np.any(np.isnan(mu)) or np.any(np.isnan(sig)):
-        warn("NaN values in threshold calculation. Results may be unreliable.")
+        logger.warning("NaN values in threshold calculation. Results may be unreliable.")
         # Replace NaNs with reasonable values
         mu = np.nan_to_num(mu, nan=np.nanmedian(mu) if np.any(~np.isnan(mu)) else 1.0)
         sig = np.nan_to_num(sig, nan=np.nanmedian(sig) if np.any(~np.isnan(sig)) else 0.5)
@@ -256,7 +255,7 @@ def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
     # Calculate threshold matrix T
     T = np.diag(mu + cutoff * sig) @ V.T
     
-    print('done.')
+    logger.info('Thresholds calculation complete.')
     
     # Return the state dictionary
     state = {
@@ -365,7 +364,7 @@ def asr_process(data, srate, state, window_len=0.5, lookahead=None, step_size=32
     # Calculate number of splits for memory management
 
     if max_mem*1024*1024 - C*C*P*8*3 < 0:
-        warn("Memory too low, increasing it (rejection block size now "
+        logger.warning("Memory too low, increasing it (rejection block size now "
              "depends on available memory so it might not be fully reproducible)...")
         import psutil
         max_mem = psutil.virtual_memory().free / 1024**2 / 2
@@ -388,7 +387,7 @@ def asr_process(data, srate, state, window_len=0.5, lookahead=None, step_size=32
     splits = min(splits, 10000)
     
     if splits > 1:
-        print(f'Now cleaning data in {splits} blocks', end='',flush=True)
+        logger.info(f'Cleaning data in {splits} blocks')
     
     # Process data in chunks
     for k in range(splits):
@@ -498,11 +497,10 @@ def asr_process(data, srate, state, window_len=0.5, lookahead=None, step_size=32
             last_R = R
             last_trivial = trivial
 
-        if splits > 1:
-            print(f'.', end='',flush=True)
+        if splits > 1 and k % 10 == 0:
+            logger.debug(f'Processing block {k+1}/{splits}')
     
     if splits > 1:
-        print('')
         logger.info('Finished cleaning.')
     
     # Update the carry buffer for next call (last P samples)

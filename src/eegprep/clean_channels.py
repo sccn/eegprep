@@ -1,10 +1,14 @@
 from typing import *
+import logging
+import traceback
 
 import numpy as np
 
 from .utils.sigproc import design_fir, filtfilt_fast
 from .utils.ransac import calc_projector
 from .utils.stats import mad
+
+logger = logging.getLogger(__name__)
 
 
 def clean_channels(
@@ -69,7 +73,7 @@ def clean_channels(
     offsets = np.arange(0, S - window_len, window_len, dtype=int)
     W = len(offsets)
 
-    print('Scanning for bad channels...')
+    logger.info('Scanning for bad channels...')
 
     if Fs > 100:
         # remove signal content above 50Hz
@@ -124,7 +128,7 @@ def clean_channels(
         
         time_passed_list[o] = time.time() - start_time
         median_time_passed = np.median(time_passed_list[:o+1])
-        print(f'clean_channel: {o+1:3d}/{W} blocks, {median_time_passed*(W-o-1)/60:.1f} minutes remaining.')
+        logger.info(f'clean_channel: {o+1:3d}/{W} blocks, {median_time_passed*(W-o-1)/60:.1f} minutes remaining.')
 
     flagged = corrs < corr_threshold
     
@@ -143,13 +147,12 @@ def clean_channels(
             EEG = pop_select(EEG, nochannel=np.where(removed_channels)[0])
         except Exception as e:
             if isinstance(e, ImportError):
-                print("Apparently you do not have EEGLAB's pop_select() on the path.")
+                logger.error("Apparently you do not have EEGLAB's pop_select() on the path.")
             else:
-                print("Could not select channels using EEGLAB's pop_select(); details: ")
-                import traceback
-                traceback.print_exc()
+                logger.error("Could not select channels using EEGLAB's pop_select(); details: %s", str(e))
+                logger.debug("Exception traceback:", exc_info=True)
             
-            print(f'Removing {np.sum(removed_channels)} channels and dropping signal meta-data.')
+            logger.info(f'Removing {np.sum(removed_channels)} channels and dropping signal meta-data.')
             if len(EEG['chanlocs']) == EEG['data'].shape[0]:
                 EEG['chanlocs'] = [ch for i, ch in enumerate(EEG['chanlocs']) if not removed_channels[i]]
             # pop_select() by default truncates the data to float32, so we need to do the same
