@@ -128,7 +128,8 @@ def clean_channels(
         
         time_passed_list[o] = time.time() - start_time
         median_time_passed = np.median(time_passed_list[:o+1])
-        logger.info(f'clean_channel: {o+1:3d}/{W} blocks, {median_time_passed*(W-o-1)/60:.1f} minutes remaining.')
+        if o % 50 == 0:
+            logger.info(f'{o+1:3d}/{W} blocks, {median_time_passed*(W-o-1)/60:.1f} minutes remaining.')
 
     flagged = corrs < corr_threshold
     
