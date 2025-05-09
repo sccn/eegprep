@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Any, Optional, Union, Tuple
+from typing import Dict, Any, Optional, Union, Tuple, Optional
 from copy import deepcopy
 
 import numpy as np
@@ -22,7 +22,7 @@ def clean_asr(
     ref_tolerances: Union[Tuple[float, float], str] = (-3.5, 5.5),
     ref_wndlen: Union[float, str] = 1.0,
     use_gpu: bool = False,
-    useriemannian: bool = False,
+    useriemannian: Optional[str] = None,
     maxmem: Optional[int] = 64
 ) -> Dict[str, Any]:
     """Run the Artifact Subspace Reconstruction (ASR) method on EEG data.
@@ -55,7 +55,9 @@ def clean_asr(
                                     for a channel to be considered 'bad' during calibration data selection. Default: (-3.5, 5.5). Use 'off' to disable.
         ref_wndlen (Union[float, str], optional): Window length in seconds for calibration data selection granularity. Default: 1.0. Use 'off' to disable.
         use_gpu (bool, optional): Whether to try using GPU (requires compatible hardware and libraries, currently ignored). Default: False.
-        useriemannian (bool, optional): Whether to use Riemannian ASR variant (NOT IMPLEMENTED). Default: False.
+        useriemannian (str, optional): Option to use a Riemannian ASR variant. Can be set to 'calib' to use a Riemannian estimate 
+            at calibration time; this make somewhat different statistical tradeoffs than the default, resulting in a somewhat different 
+            baseline rejection threshold; as a result it is suggested to visually check results and adjust the cutoff as needed. Default: None (disabled).
         maxmem (Optional[int], optional): Maximum memory in MB (passed to asr_calibrate/process, but chunking based on it is not implemented in Python port). Default: 64.
 
     Returns:
@@ -66,8 +68,6 @@ def clean_asr(
         ImportError: If automatic calibration data selection is needed (`ref_maxbadchannels` is float) but `clean_windows` cannot be imported.
         ValueError: If input arguments are invalid or calibration fails critically.
     """
-    if useriemannian:
-        raise NotImplementedError("The Riemannian ASR variant is not implemented in this Python port.")
 
     if 'data' not in EEG or 'srate' not in EEG or 'nbchan' not in EEG:
         raise ValueError("EEG dictionary must contain 'data', 'srate', and 'nbchan'.")
@@ -128,14 +128,14 @@ def clean_asr(
     # The Python asr_calibrate uses its own defaults for blocksize, filters, etc.
     # We only pass the core parameters specified in the clean_asr call signature.
     try:
-        state = asr_calibrate(ref_section_data, srate, cutoff=cutoff, maxmem=maxmem)
+        state = asr_calibrate(ref_section_data, srate, cutoff=cutoff, maxmem=maxmem, useriemannian=useriemannian)
     except ValueError as e:
          # Catch specific errors like not enough calibration data
          raise ValueError(f"ASR calibration failed: {e}")
-    except Exception as e:
-         # Catch unexpected errors during calibration
-         logger.exception("An unexpected error occurred during ASR calibration.")
-         raise RuntimeError(f"ASR calibration failed unexpectedly: {e}")
+    # except Exception as e:
+    #      # Catch unexpected errors during calibration
+    #      logger.exception("An unexpected error occurred during ASR calibration.")
+    #      raise RuntimeError(f"ASR calibration failed unexpectedly: {e}")
 
     del ref_section_data # Free memory
 
