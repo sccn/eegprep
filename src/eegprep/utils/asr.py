@@ -4,15 +4,17 @@ import numpy as np
 import scipy.signal
 import scipy.linalg
 
-from .stats import block_geometric_median, fit_eeg_distribution
+from .stats import geometric_median, fit_eeg_distribution
 from .sigproc import moving_average
+from .covariance import cov_mean, cov_shrinkage
+
 
 logger = logging.getLogger(__name__)
 
 
 def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
                   window_len=None, window_overlap=None, max_dropout_fraction=None,
-                  min_clean_fraction=None, maxmem=None):
+                  min_clean_fraction=None, maxmem=None, useriemannian=None):
     """Calibration function for the Artifact Subspace Reconstruction (ASR) method.
 
     State = asr_calibrate(Data, SamplingRate, Cutoff, BlockSize, FilterB, FilterA, WindowLength, WindowOverlap, MaxDropoutFraction, MinCleanFraction, MaxMemory)
@@ -56,6 +58,10 @@ def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
       max_dropout_fraction (float, optional): Maximum fraction (0-1) of windows subject to dropouts. Default: 0.1.
       min_clean_fraction (float, optional): Minimum fraction (0-1) of windows that must be clean. Default: 0.25.
       maxmem (int, optional): Maximum memory in MB (for very large data/many channels). Default: 64.
+      useriemannian (str, optional): Option to use a Riemannian ASR variant. Can be set to 'calib' to use a Riemannian estimate 
+            at calibration time; this make somewhat different statistical tradeoffs than the default, resulting in a potentially
+            different baseline rejection threshold; as a result it is suggested to visually check results and adjust 
+            the cutoff as needed. Default: None (disabled).
 
     Returns:
       dict: State dictionary containing calibration results ('M', 'T') and filter parameters ('B', 'A', 'sos', 'iir_state')
@@ -168,22 +174,26 @@ def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
     # Average the accumulated covariances
     U /= blocksize
 
-    # Reshape for geometric median calculation
-    U_reshaped = U.reshape(C * C, -1).T  # Shape: (num_blocks, C*C)
-
-    # Calculate the geometric median of covariance matrices
-    logger.info("Calculating robust geometric median covariance...")
-    med = block_geometric_median(U_reshaped)
-    
-    # Handle NaN cases (can happen with single observation or degenerate data)
+    # compute a robust average of the covariance matrices
+    med = None    
+    if useriemannian in ('calib', 'all', True):
+        logger.info("Calculating Riemannian geometric median covariance...")
+        U = U.transpose(2, 0, 1)
+        # small amount of shrinkage to prevent singularities
+        U = cov_shrinkage(U, 1e-4, target='scaled-eye')
+        med = cov_mean(U, robust=True)
+    if med is None or np.any(np.isnan(med)):
+        if med is not None:
+            logger.warning("Riemannian geometric median calculation resulted in "
+                           "NaNs. Using standard geometric median as fallback.")
+        logger.info("Calculating robust geometric median covariance...")
+        med = geometric_median(U.reshape(C * C, -1).T)
     if np.any(np.isnan(med)):
-        if U_reshaped.shape[0] == 1:
-            med = np.median(U_reshaped, axis=0)
-        else:
-            logger.warning("Geometric median calculation resulted in NaNs. Using standard median as fallback.")
-            med = np.median(U_reshaped, axis=0)
+        logger.warning("Geometric median calculation resulted in NaNs. "
+                       "Using standard median as fallback.")
+        med = np.median(U, axis=-1)
 
-    # Reshape median back to matrix form
+    # make sure median is reshaped back to matrix form
     M_robust = np.reshape(med, (C, C))
 
     # Get the mixing matrix M (matrix square root of the robust covariance)
@@ -269,6 +279,7 @@ def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
         'carry': None,          # Initial carry buffer (will be set in process)
         'last_R': None,         # Initial reconstruction matrix (will be set in process)
         'last_trivial': True,   # Initial trivial flag
+        'useriemannian': useriemannian, # Riemannian ASR variant option
     }
     
     return state

@@ -1,9 +1,11 @@
 """Testing utilities."""
 
-import numpy as np
+import sys
 import unittest
 
-__all__ = ['compare_eeg', 'DebuggableTestCase']
+import numpy as np
+
+__all__ = ['compare_eeg', 'DebuggableTestCase', 'is_debug']
 
 
 # default to True since the round-tripping through file can force data to
@@ -43,3 +45,7 @@ class DebuggableTestCase(unittest.TestCase):
         loader = unittest.defaultTestLoader
         testSuite = loader.loadTestsFromTestCase(cls)
         testSuite.debug()
+
+def is_debug():
+    """Determine whether Python is running in debug mode."""
+    return getattr(sys, 'gettrace', None)() is not None

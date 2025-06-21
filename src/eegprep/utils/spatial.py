@@ -4,7 +4,6 @@ from numpy.linalg import pinv
 
 
 # Helper function (vectorized version of MATLAB's interpMx)
-# Using a leading underscore as is common for internal helper functions in Python
 def _interpMx(cosEE, order, tol):
     """
     Compute the interpolation matrix for a set of point pairs (vectorized).

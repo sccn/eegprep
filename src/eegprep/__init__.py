@@ -1,3 +1,8 @@
+import logging
+
+from .utils.logs import setup_logging
+setup_logging(logging.INFO)
+
 from .iclabel import iclabel
 from .pop_saveset import pop_saveset
 from .pop_loadset import loadset, pop_loadset

@@ -1,14 +1,15 @@
+import logging
 import os
 import unittest
 import psutil
 from copy import deepcopy
-
 
 import numpy as np
 
 from eegprep import *
 from eegprep.utils.testing import *
 
+logger = logging.getLogger(__name__)
 
 # where the test resources
 web_root = 'https://sccntestdatasets.s3.us-east-2.amazonaws.com/'
@@ -109,7 +110,7 @@ class TestUtilFuncs(DebuggableTestCase):
         np.testing.assert_almost_equal(observed, expected,
                                        err_msg='fit_eeg_distribution() test failed')
 
-class TestCleanDrifts(unittest.TestCase):
+class TestCleanDrifts(DebuggableTestCase):
 
     def setUp(self):
         self.EEG = pop_loadset(ensure_file('FlankerTest.set'))
@@ -129,7 +130,7 @@ class TestCleanDrifts(unittest.TestCase):
                     err_msg='clean_drifts() FFT mode test failed',atol=2e-7)
         
 
-class TestCleanChannels(unittest.TestCase):
+class TestCleanChannels(DebuggableTestCase):
 
     def setUp(self):
         self.EEG = pop_loadset(ensure_file('EmotionValence.set'))
@@ -149,7 +150,7 @@ class TestCleanChannels(unittest.TestCase):
                     err_msg='clean_channels() failed')
 
 
-class TestCleanASR(unittest.TestCase):
+class TestCleanASR(DebuggableTestCase):
 
     def setUp(self):
         self.EEG = pop_loadset(ensure_file('EmotionValence.set'))
@@ -162,8 +163,14 @@ class TestCleanASR(unittest.TestCase):
                     atol=0, rtol=1e-6, # because of eigh() precision differences
                     err_msg='clean_asr() failed vs MATLAB')
 
+    def test_riemannian(self):
+        """Test the Riemannian mode."""
+        # for now this is just checking that it does not crash since we don't have
+        # MATLAB reference code for this
+        cleaned_py = clean_asr(deepcopy(self.EEG), useriemannian='calib')
 
-class TestCleanWindows(unittest.TestCase):
+
+class TestCleanWindows(DebuggableTestCase):
 
     def setUp(self):
         self.EEG = pop_loadset(ensure_file('EmotionValence.set'))
@@ -242,9 +249,10 @@ class TestCleanArtifacts(DebuggableTestCase):
             err_msg='clean_artifacts() failed vs MATLAB'
         )
 
-
 if __name__ == "__main__":
-    TestCleanArtifacts.debugTestCase()
-    # TestUtilFuncs.debugTestCase()
-    unittest.main()
+    if is_debug():
+        # put the test here that you want to run in the debugger
+        TestCleanASR.debugTestCase()
+    else:
+        unittest.main()
     
