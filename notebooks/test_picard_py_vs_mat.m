@@ -1,3 +1,4 @@
+clear
 rng(0); % for reproducibility
 
 % Run Python version first so it saves the data.mat array
