@@ -98,8 +98,9 @@ class OctaveWrapper:
                     # needs to use eval since returning struct arrays is not supported
                     self.engine.eval(f"EEG = pop_loadset('{temp_file.name}');", nargout=0)
                     # TODO: marshalling of extra arguments should follow octave conventions
-                    eval_str = f"EEG = {name}(EEG{',' if args[1:] else ''}{','.join([str(a) for a in args[1:]])});"
-                    print(eval_str)
+                    # eval_str = f"EEG = {name}(EEG{',' if args[1:] else ''}{','.join([str(a) for a in args[1:]])});"
+                    eval_str = f"EEG = {name}(EEG{',' if args[1:] else ''}{','.join([repr(a) for a in args[1:]])});"
+                    print("This is the eval_str: ", eval_str)
                     self.engine.eval(eval_str, nargout=0)
                     self.engine.eval(f"pop_saveset(EEG, '{temp_file.name}');", nargout=0)
                     return pop_loadset(temp_file.name)
@@ -132,6 +133,7 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
         # On the command line, type "octave-8.4.0" OCTAVE_EXECUTABLE or OCTAVE var
         base_dir = os.path.dirname(os.path.abspath(__file__))
         path2eeglab = os.path.join(base_dir, 'eeglab')
+        print("This is the path2eeglab: ", path2eeglab)
 
         # not yet loaded, do so now
         if rt == 'oct':
@@ -148,6 +150,7 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
             engine.addpath(path2eeglab + '/functions/miscfunc')
             engine.addpath(path2eeglab + '/plugins/dipfit')
             engine.addpath(path2eeglab + '/plugins/iclabel')
+            engine.addpath(path2eeglab + '/plugins/PICARD1.0')
             engine.addpath(path2eeglab + '/plugins/clean_rawdata')
             engine.addpath(path2eeglab + '/plugins/clean_rawdata2.10')
         elif rt == 'mat':
