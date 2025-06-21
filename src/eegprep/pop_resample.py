@@ -9,6 +9,14 @@ sys.path.insert(0, '/usr/src/project/src/')
 from eegprep import pop_loadset, pop_saveset
 from eegprep.eeglabcompat import get_eeglab
 
+# TO DO TO ADDRESS DIFFERENCES BETWEEN MATLAB AND PYTHON
+# - Do a simple resample 500 to 250 Hz, there only the filter should matter (subsampling is just a decimation)
+# - Check the filter result in MATLAB and Python
+# - Check the options of the resample function in MATLAB and Python 
+# - Try the pyresample package
+# - Check for boundary effects in MATLAB and Python (different padding)
+# - Try Cyton (mix of Python and typing that compiles to C)
+
 def pop_resample(EEG, freq, engine=None):
     """
     Resample EEG data to a new sampling rate.

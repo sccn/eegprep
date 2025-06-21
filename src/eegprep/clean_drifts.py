@@ -1,9 +1,12 @@
 from typing import *
+import logging
 
 import numpy as np
 from scipy.signal import filtfilt
 
 from .utils import design_kaiser, design_fir, filtfilt_fast
+
+logger = logging.getLogger(__name__)
 
 
 def clean_drifts(

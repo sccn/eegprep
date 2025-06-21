@@ -1,9 +1,13 @@
 from typing import *
+import logging
+import traceback
 
 import numpy as np
 from scipy.signal import filtfilt
 
 from .utils import design_fir, design_kaiser, filtfilt_fast
+
+logger = logging.getLogger(__name__)
 
 
 
@@ -105,26 +109,26 @@ def clean_channels_nolocs(
 
     # Apply removal
     if np.all(removed_channels):
-        print('Warning: all channels are flagged bad according to the used criterion: not removing anything.')
+        logger.warning('All channels are flagged bad according to the used criterion: not removing anything.')
     elif np.any(removed_channels):
-        print('Now removing bad channels...')
+        logger.info('Now removing bad channels...')
         try:
             # Try to use pop_select if available
             from eegprep import pop_select
             EEG = pop_select(EEG, nochannel=np.where(removed_channels)[0])
         except Exception as e:
             if isinstance(e, ImportError):
-                print('Apparently you do not have access to a pop_select() function.')
+                logger.error('Apparently you do not have access to a pop_select() function.')
             else:
-                print('Could not select channels using EEGLAB\'s pop_select(); details: ')
-                import traceback
-                traceback.print_exc()
+                logger.error('Could not select channels using EEGLAB\'s pop_select(); details: %s', str(e))
+                logger.debug('Exception traceback:', exc_info=True)
             
-            print('Falling back to a basic substitute and dropping signal meta-data.')
+            logger.info('Falling back to a basic substitute and dropping signal meta-data.')
             # Manual channel removal
             if len(EEG['chanlocs']) == EEG['data'].shape[0]:
                 EEG['chanlocs'] = [ch for i, ch in enumerate(EEG['chanlocs']) if not removed_channels[i]]
-            
+            # pop_select() by default truncates the data to float32, so we need to do the same
+            EEG['data'] = np.asarray(EEG['data'], dtype=np.float32)
             EEG['data'] = EEG['data'][~removed_channels, :]
             EEG['nbchan'] = EEG['data'].shape[0]
             
