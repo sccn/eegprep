@@ -4,6 +4,13 @@ import numpy as np
 from eegprep import pop_loadset, eeg_picard, pop_saveset
 from eegprep.eeglabcompat import get_eeglab
 
+# ASSESSMENT OF THE TEST RESULTS
+# -----------------------------
+# The current conclusion is that while MATLAB and Octave are not exactly the same, they are close enough.
+# However, Python is quite different. The image is saved in the test folder of the difference between the 2-D arrays.
+# More investigation is needed to understand why this is the case. The implementation are quite different to start with.
+
+
 # where the test resources
 local_url = os.path.join(os.path.dirname(__file__), '../data/')
 
