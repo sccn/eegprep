@@ -39,10 +39,11 @@ def eeg_picard(EEG, engine=None, **kwargs):
         # Parameters to match MATLAB defaults, can be overriden by user kwargs
         params = {
             'ortho': False,
-            'w_init': np.eye(data.shape[0]),
-            'max_iter': 512,
+            'verbose': True,
+            'random_state': 5489,
             'm': 10
         }
+#            'w_init': np.eye(data.shape[0]),
         params.update(kwargs)
         
         weighting_matrix, unmixing_matrix, sources = picard(data, **params)

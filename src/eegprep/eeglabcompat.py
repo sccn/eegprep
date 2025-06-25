@@ -153,7 +153,7 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
             engine.addpath(path2eeglab + '/functions/miscfunc')
             engine.addpath(path2eeglab + '/plugins/dipfit')
             engine.addpath(path2eeglab + '/plugins/iclabel')
-            engine.addpath(path2eeglab + '/plugins/PICARD1.0')
+            engine.addpath(path2eeglab + '/plugins/picard')
             engine.addpath(path2eeglab + '/plugins/clean_rawdata')
             engine.addpath(path2eeglab + '/plugins/clean_rawdata2.10')
         elif rt == 'mat':
