@@ -31,7 +31,7 @@ def eeg_picard(EEG, engine=None, **kwargs):
     if engine is None:
         # Assuming EEG['data'] contains the EEG data as a numpy array of shape (channels, timepoints)
         # Assuming EEG['data'] contains the EEG data as a numpy array of shape (channels, timepoints)
-        data = EEG['data']
+        data = EEG['data'].astype('float64')
         
         # reshape from 3D to 2D
         data = data.reshape(data.shape[0], -1)
