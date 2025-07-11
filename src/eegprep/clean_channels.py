@@ -96,6 +96,7 @@ def clean_channels(
     xyz = [
         [ch.get(coord, np.nan) for ch in EEG['chanlocs']]
         for coord in ['X', 'Y', 'Z']]
+    xyz = [[x if not (isinstance(x, np.ndarray) and x.size == 0) else np.nan for x in xyz_sub] for xyz_sub in xyz]
     xyz = np.asarray([np.asarray([np.nan if x is None else x for x in row], dtype=float) for row in xyz])
     if np.mean(np.any(np.isnan(xyz), axis=0)) > 0.5:
         raise ValueError(
