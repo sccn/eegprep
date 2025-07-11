@@ -62,7 +62,7 @@ def clean_channels_nolocs(
         max_broken_time = Fs * max_broken_time
 
     EEG['data'] = np.asarray(EEG['data'], dtype=np.float64)
-    C, S = EEG['data'].shape
+    C, S, *_ = EEG['data'].shape
     window_len = window_len * Fs
     wnd = np.arange(int(window_len))
     offsets = np.arange(0, int(S - window_len), window_len, dtype=int)

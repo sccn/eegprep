@@ -7,6 +7,33 @@ from mne.export import export_raw
 import eeglabio
 import numpy as np
 
+def _mne_events_to_eeglab_events(raw_or_epochs):
+    """
+    Convert MNE Annotations or events to EEGLAB event structure (list of dicts).
+    """
+    events = []
+    sfreq = raw_or_epochs.info['sfreq']
+    # Handle Annotations (Raw)
+    if hasattr(raw_or_epochs, 'annotations') and raw_or_epochs.annotations is not None and len(raw_or_epochs.annotations) > 0:
+        for ann in raw_or_epochs.annotations:
+            latency = int(ann['onset'] * sfreq) + 1  # EEGLAB is 1-based
+            events.append({'latency': latency, 'type': ann['description']})
+    # Handle Epochs/events array
+    elif hasattr(raw_or_epochs, 'events') and raw_or_epochs.events is not None:
+        for ev in raw_or_epochs.events:
+            latency = int(ev[0]) + 1  # sample index, 1-based
+            # Try to get event type from event_id
+            event_type = None
+            if hasattr(raw_or_epochs, 'event_id'):
+                for k, v in raw_or_epochs.event_id.items():
+                    if v == ev[2]:
+                        event_type = k
+                        break
+            if event_type is None:
+                event_type = str(ev[2])
+            events.append({'latency': latency, 'type': event_type})
+    return events
+
 # write a funtion that converts a MNE raw object to an EEGLAB set file
 def eeg_mne2eeglab(raw):
     # Generate a temporary file name
@@ -21,6 +48,11 @@ def eeg_mne2eeglab(raw):
 
     # load the EEGLAB set file
     EEG = pop_loadset(new_temp_file_path)
+
+    # Inject events/annotations from MNE object into EEGLAB structure
+    eeglab_events = _mne_events_to_eeglab_events(raw)
+    if eeglab_events:
+        EEG['event'] = eeglab_events
     
     return EEG
 

@@ -16,7 +16,6 @@ default_32_bit = True
 # as 3d
 flatten_to_2d = True
 
-
 def compare_eeg(a, b, rtol=0, atol=1e-7, use_32_bit=default_32_bit, err_msg=''):
     """Compare EEG time series data, with optional 32-bit precision."""
     if use_32_bit:
@@ -28,6 +27,17 @@ def compare_eeg(a, b, rtol=0, atol=1e-7, use_32_bit=default_32_bit, err_msg=''):
         if b.ndim >= 3:
             b = b.reshape(b.shape[:2])
 
+    # check if a and b are the same shape
+    if a.shape != b.shape:
+        raise ValueError(f"a and b have different shapes: {a.shape} != {b.shape}")
+    
+    # compute and show tolerances even for 2D arrays
+    if a.ndim == 2:
+        a = a.flatten()
+        b = b.flatten()
+    rtol = np.max(np.abs(a - b) / (np.abs(a) + np.abs(b)))
+    atol = np.max(np.abs(a - b))
+    print(f"Actual tolerances: rtol: {rtol}, atol: {atol}")
     np.testing.assert_allclose(a, b, rtol=rtol, atol=atol, err_msg=err_msg)
 
 

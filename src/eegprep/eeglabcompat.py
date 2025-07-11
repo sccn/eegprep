@@ -101,7 +101,6 @@ class OctaveWrapper:
                     # Needs to use eval since returning struct arrays is not supported in Octave
                     self.engine.eval(f"EEG = pop_loadset('{temp_file.name}');", nargout=0)
                     # TODO: marshalling of extra arguments should follow octave conventions
-                    # eval_str = f"EEG = {name}(EEG{',' if args[1:] else ''}{','.join([str(a) for a in args[1:]])});"
                     eval_str = f"EEG = {name}(EEG{',' if args[1:] else ''}{','.join([repr(a) for a in args[1:]])});"
                     print("This is the eval_str: ", eval_str)
                     self.engine.eval(eval_str, nargout=0)

@@ -27,6 +27,10 @@ def eeg_checkset(EEG, load_data=True):
     if 'icachansind' in EEG and EEG['icachansind'].size > 0:
         EEG['icachansind'] = EEG['icachansind'] - 1
     
+    # check if EEG['data'] is 3D
+    if 'data' in EEG and EEG['data'].ndim == 3:
+        EEG['data'] = np.squeeze(EEG['data'], axis=2)
+    
     # type conversion
     EEG['xmin'] = float(EEG['xmin'])
     EEG['xmax'] = float(EEG['xmax'])
