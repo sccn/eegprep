@@ -249,7 +249,6 @@ class TestCleanArtifacts(DebuggableTestCase):
             err_msg='clean_artifacts() failed vs MATLAB'
         )
 
-@unittest.skip("file not yet available")
 class TestCleanArtifactsAdvanced(DebuggableTestCase):
 
     def setUp(self):
@@ -262,7 +261,7 @@ class TestCleanArtifactsAdvanced(DebuggableTestCase):
         kwargs = dict(
             FlatlineCriterion=5, ChannelCriterion=0.87, LineNoiseCriterion=4,
             Highpass=[0.25, 0.75], BurstCriterion=20, WindowCriterion=0.25,
-            BurstRejection=True, WindowCriterionTolerances=[float('-inf'), 7]
+            WindowCriterionTolerances=[float('-inf'), 7]
         )
 
         # --- Python version ---
@@ -271,7 +270,6 @@ class TestCleanArtifactsAdvanced(DebuggableTestCase):
 
         # --- MATLAB reference ---
         eeglab = eeglabcompat.get_eeglab('MAT')
-        # Call with the matching name‑value pair
         expected_mat = eeglab.clean_artifacts(
             self.EEG, **kwargs)
 
