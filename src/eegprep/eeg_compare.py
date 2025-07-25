@@ -21,19 +21,57 @@ def eeg_compare(eeg1, eeg2):
         # arrays with NaN
         if isinstance(a, np.ndarray) or isinstance(b, np.ndarray):
             try:
-                return np.array_equal(np.array(a), np.array(b), equal_nan=True)
+                return bool(np.array_equal(np.array(a), np.array(b), equal_nan=True))
             except:
                 pass
-        return a == b
+        # Handle numpy arrays in general comparison
+        if isinstance(a, np.ndarray) and isinstance(b, np.ndarray):
+            try:
+                return bool(np.array_equal(a, b, equal_nan=True))
+            except:
+                pass
+        # Handle scalar vs array comparisons
+        if isinstance(a, np.ndarray) and np.isscalar(b):
+            try:
+                return bool(np.all(a == b))
+            except:
+                pass
+        if isinstance(b, np.ndarray) and np.isscalar(a):
+            try:
+                return bool(np.all(b == a))
+            except:
+                pass
+        # Final comparison - ensure we return a boolean
+        try:
+            result = a == b
+            if isinstance(result, np.ndarray):
+                return bool(result.all())
+            return bool(result)
+        except:
+            return False
     
     """Compare two EEG-like structures, reporting differences to stderr."""
     print('Field analysis:')
-    for field in getattr(eeg1, '__dict__', eeg1).keys():
-        if not hasattr(eeg2, field):
+    # Handle both dictionary-like objects and objects with __dict__
+    if hasattr(eeg1, 'keys'):
+        # Dictionary-like object
+        fields1 = eeg1.keys()
+        get_val1 = lambda f: eeg1.get(f, None)
+        has_field2 = lambda f: f in eeg2
+        get_val2 = lambda f: eeg2.get(f, None)
+    else:
+        # Object with __dict__
+        fields1 = getattr(eeg1, '__dict__', {}).keys()
+        get_val1 = lambda f: getattr(eeg1, f, None)
+        has_field2 = lambda f: hasattr(eeg2, f)
+        get_val2 = lambda f: getattr(eeg2, f, None)
+    
+    for field in fields1:
+        if not has_field2(field):
             print(f'    Field {field} missing in second dataset', file=sys.stderr)
         else:
-            v1 = getattr(eeg1, field, None)
-            v2 = getattr(eeg2, field, None)
+            v1 = get_val1(field)
+            v2 = get_val2(field)
             if not isequaln(v1, v2):
                 name = field.lower()
                 if any(sub in name for sub in ('filename', 'datfile')):
@@ -48,8 +86,8 @@ def eeg_compare(eeg1, eeg2):
                     print(f'    Field {field} differs', file=sys.stderr)
     # compare xmin/xmax
     for attr in ('xmin', 'xmax'):
-        x1 = getattr(eeg1, attr, None)
-        x2 = getattr(eeg2, attr, None)
+        x1 = get_val1(attr)
+        x2 = get_val2(attr)
         if not isequaln(x1, x2):
             diff = (x1 or 0) - (x2 or 0)
             print(f'    Difference between {attr} is {diff:1.6f} sec', file=sys.stderr)
@@ -86,8 +124,6 @@ def eeg_compare(eeg1, eeg2):
     ev1, ev2 = eeg1['event'], eeg2['event']
     if len(ev1) != len(ev2):
         print('    Different numbers of events', file=sys.stderr)
-    elif not ev1:
-        print('    All events OK (empty)')
     else:
         f1 = set(ev1[0].keys())
         f2 = set(ev2[0].keys())
@@ -132,3 +168,14 @@ def eeg_compare(eeg1, eeg2):
     #             print('    All epoch and all epoch fields are OK')
 
     return True
+
+# add test data and compare with it
+
+# load test data
+if __name__ == '__main__':
+    from eegprep import pop_loadset
+    eeg1 = pop_loadset('../../data/eeglab_data_tmp.set')
+    eeg2 = pop_loadset('../../data/eeglab_data_tmp.set')
+
+    # compare
+    eeg_compare(eeg1, eeg2)
