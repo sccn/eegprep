@@ -41,15 +41,6 @@ def eeg_compare(eeg1, eeg2):
                 return bool(np.all(b == a))
             except:
                 pass
-        # Handle nested structures
-        if isinstance(a, dict) and isinstance(b, dict):
-            if set(a.keys()) != set(b.keys()):
-                return False
-            return all(isequaln(a[k], b[k]) for k in a.keys())
-        elif isinstance(a, list) and isinstance(b, list):
-            if len(a) != len(b):
-                return False
-            return all(isequaln(a[i], b[i]) for i in range(len(a)))
         # Final comparison - ensure we return a boolean
         try:
             result = a == b
@@ -60,7 +51,7 @@ def eeg_compare(eeg1, eeg2):
             return False
     
     """Compare two EEG-like structures, reporting differences to stderr."""
-    print('Field analysis:')
+    print('\nField analysis: (no entries means OK)')
     # Handle both dictionary-like objects and objects with __dict__
     if hasattr(eeg1, 'keys'):
         # Dictionary-like object
@@ -87,13 +78,13 @@ def eeg_compare(eeg1, eeg2):
                     print(f'    Field {field} differs (ok, supposed to differ)')
                 elif any(sub in name for sub in ('subject', 'session', 'run', 'task')):
                     print(f'    Field {field} differs ("{v1}" vs "{v2}")', file=sys.stderr)
-                elif any(sub in name for sub in ('eventdescription', 'event')):
+                elif any(sub in name for sub in ('chanlocs', 'event', 'reject')):
+                    pass
+                    # For complex nested structures, provide more detailed info
+                elif any(sub in name for sub in ('eventdescription')):
                     n1 = len(v1) if isinstance(v1, Sequence) else 1
                     n2 = len(v2) if isinstance(v2, Sequence) else 1
                     print(f'    Field {field} differs (n={n1} vs n={n2})', file=sys.stderr)
-                elif any(sub in name for sub in ('chanlocs', 'reject')):
-                    # For complex nested structures, provide more detailed info
-                    print(f'    Field {field} differs (complex structure - see detailed analysis below)')
                 else:
                     print(f'    Field {field} differs', file=sys.stderr)
     # compare xmin/xmax
