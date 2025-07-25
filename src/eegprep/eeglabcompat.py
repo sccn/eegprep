@@ -36,7 +36,7 @@ class MatlabWrapper:
             return repr(a)
 
     def __getattr__(self, name):
-        def wrapper(*args):
+        def wrapper(*args, **kwargs):
             needs_roundtrip = False
             for a in args:
                 if isinstance(a, dict) and a.get('nbchan') is not None:
@@ -50,8 +50,13 @@ class MatlabWrapper:
                     pop_saveset(args[0], temp_filename)
                     # needs to use eval since returning struct arrays is not supported
                     self.engine.eval(f"EEG = pop_loadset('{temp_filename}');", nargout=0)
+
                     # TODO: marshalling of extra arguments should follow octave conventions
-                    eval_str = f"EEG = {name}(EEG{',' if args[1:] else ''}{','.join([self.marshal(a) for a in args[1:]])});"
+                    maybe_comma = ',' if args[1:] or kwargs else ''
+                    arg_str = ','.join([self.marshal(a) for a in args[1:]])
+                    kwarg_str = ','.join([f"{k!r},{self.marshal(v)}" for k, v in kwargs.items()])
+                    maybe_comma2 = ',' if arg_str and kwarg_str else ''
+                    eval_str = f"EEG = {name}(EEG{maybe_comma}{arg_str}{maybe_comma2}{kwarg_str});"
                     print(f"Running in MATLAB: {eval_str}")
                     self.engine.eval(eval_str, nargout=0)
                     self.engine.eval(f"pop_saveset(EEG, '{result_filename}');", nargout=0)
