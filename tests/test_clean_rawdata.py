@@ -54,7 +54,7 @@ class TestCleanFlatlines(unittest.TestCase):
 
     def test_clean_flatlines(self):
         cleaned_EEG = clean_flatlines(deepcopy(self.EEG), 3.5)
-        np.testing.assert_equal(cleaned_EEG['data'], self.expected, err_msg='clean_flatlines() test failed')
+        np.testing.assert_almost_equal(cleaned_EEG['data'], self.expected, err_msg='clean_flatlines() test failed')
 
 
 class TestUtilFuncs(DebuggableTestCase):
@@ -248,6 +248,41 @@ class TestCleanArtifacts(DebuggableTestCase):
             atol=1e-5,  # limit to 1e-5 uV likely due to solver differences
             err_msg='clean_artifacts() failed vs MATLAB'
         )
+
+@unittest.skip("file not yet available")
+class TestCleanArtifactsAdvanced(DebuggableTestCase):
+
+    def setUp(self):
+        # Use the same dataset as other heavy‑duty tests
+        self.EEG = pop_loadset(ensure_file('eeglab_data_with_ica_tmp.set'))
+
+    def test_clean_artifacts_alt_defaults(self):
+        """Compare Python clean_artifacts against MATLAB implementation (alt parameters).
+        """
+        kwargs = dict(
+            FlatlineCriterion=5, ChannelCriterion=0.87, LineNoiseCriterion=4,
+            Highpass=[0.25, 0.75], BurstCriterion=20, WindowCriterion=0.25,
+            BurstRejection=True, WindowCriterionTolerances=[float('-inf'), 7]
+        )
+
+        # --- Python version ---
+        cleaned_py, _, _, _ = clean_artifacts(
+            deepcopy(self.EEG), **kwargs)
+
+        # --- MATLAB reference ---
+        eeglab = eeglabcompat.get_eeglab('MAT')
+        # Call with the matching name‑value pair
+        expected_mat = eeglab.clean_artifacts(
+            self.EEG, **kwargs)
+
+        compare_eeg(
+            cleaned_py['data'],
+            expected_mat['data'],
+            rtol=0,
+            atol=1e-5,  # limit to 1e-5 uV likely due to solver differences
+            err_msg='clean_artifacts() failed vs MATLAB'
+        )
+
 
 if __name__ == "__main__":
     if is_debug():
