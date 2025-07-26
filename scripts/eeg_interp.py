@@ -1,3 +1,6 @@
+
+# to do, look at line 83 and 84 and try to see if the MATLAB array output match. Run code side by side.
+
 import numpy as np
 from scipy.linalg import pinv
 from scipy.special import lpmv
@@ -80,18 +83,22 @@ def spheric_spline(xelec, yelec, zelec, xbad, ybad, zbad, values, params):
     Gelec = computeg(xelec, yelec, zelec, xelec, yelec, zelec, params)
     Gsph  = computeg(xbad,  ybad,  zbad,  xelec, yelec, zelec, params)
 
-    meanvals = values.mean(axis=1, keepdims=True)
-    V = values - meanvals
-    V = np.vstack([V, np.zeros((1, V.shape[1]))])
+    # Match MATLAB: mean across all values (not just axis=1)
+    # mean across the first dimension
+    meanvalues = values.mean(axis=0)  # scalar mean across all dimensions
+    values = values - meanvalues  # subtract scalar mean
+    
+    # Add zero row like MATLAB
+    values = np.vstack([values, np.zeros((1, values.shape[1]))])
 
     lam = params[0]
     A   = np.vstack([Gelec + np.eye(Gelec.shape[0])*lam,
                      np.ones((1, Gelec.shape[0]))])
-    C   = pinv(A) @ V
+    C   = pinv(A) @ values
 
     allres = Gsph @ C
-    meanval_broadcast = values.mean()  # scalar mean across all good channels and time points
-    allres += meanval_broadcast
+    # Add mean back like MATLAB: repmat(meanvalues, [size(allres,1) 1])
+    allres = allres + meanvalues
     return allres
 
 def computeg(x, y, z, xelec, yelec, zelec, params):
@@ -197,10 +204,19 @@ def test_computeg():
     print(f"Max absolute difference: {max_abs_diff}")
     print(f"Max relative difference: {max_rel_diff}")
     
+def test_eeg_interp():
+    # test eeg_interp
+    from eegprep import pop_loadset
+    eeg = pop_loadset('../data/eeglab_data_tmp.set')
+    eeg_interp(eeg, [1, 2, 3], method='spherical')
+    eeg.save('test_eeg_interp.set')
+    
 if __name__ == '__main__':
     print("Running test_computeg")
     test_computeg()
     print("\nRunning test_spheric_spline")
     test_spheric_spline()
+    print("\nRunning test_eeg_interp")
+    # test_eeg_interp()
     
     
