@@ -159,7 +159,7 @@ def test_spheric_spline():
         'values': values,
         'params': (0.0, 4.0, 7.0)
     }
-    savemat('test_spheric_spline.mat', mat)
+    savemat(os.path.join(data_path, 'test_spheric_spline.mat'), mat)
 
     # compute in Python
     py_res = spheric_spline(
@@ -169,7 +169,7 @@ def test_spheric_spline():
     )
 
     # # load MATLAB result (assumed saved as `mat_res` in test.mat)
-    mat_data = loadmat('test_spheric_spline_results.mat')
+    mat_data = loadmat(os.path.join(data_path, 'test_spheric_spline_results.mat'))
     mat_res = mat_data['allres']  # Assuming the MATLAB result is saved as 'mat_res'
     
     # # compare
@@ -203,14 +203,14 @@ def test_computeg():
         'zelec': zelec,
         'params': params
     }
-    savemat('test_computeg.mat', mat)
+    savemat(os.path.join(data_path, 'test_computeg.mat'), mat)
     
     # compute in Python
     g = computeg(x, y, z, xelec, yelec, zelec, params)
     print("g.shape python:", g.shape)
     
     # load MATLAB result
-    mat_data = loadmat('test_computeg_results.mat')
+    mat_data = loadmat(os.path.join(data_path, 'test_computeg_results.mat'))
     mat_res = mat_data['g']
     print("g.shape matlab:", mat_res.shape)
 
@@ -227,9 +227,9 @@ def test_eeg_interp():
     # test eeg_interp
     from eegprep import pop_loadset
     # EEG = pop_loadset('../data/eeglab_data_tmp.set')
-    EEG = pop_loadset('data/eeglab_data_tmp.set')
+    EEG = pop_loadset(os.path.join(data_path, 'eeglab_data_tmp.set'))
     EEG = eeg_interp(EEG, [0, 1, 2], method='spherical')
-    EEG2 = pop_loadset('data/eeglab_data_tmp_out_matlab.set');
+    EEG2 = pop_loadset(os.path.join(data_path, 'eeglab_data_tmp_out_matlab.set'));
     # eeg_compare(EEG, EEG2)
 
     # compare data fields
@@ -254,7 +254,7 @@ def test_eeg_interp():
     print('Max rel diff:', max_rel_diff, 'value:', EEG['data'][max_rel_coords])
     
 if __name__ == '__main__':
-    print("Running test_computeg")
+    print("\nRunning test_computeg")
     test_computeg()
     print("\nRunning test_spheric_spline")
     test_spheric_spline()
