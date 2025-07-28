@@ -1,6 +1,9 @@
 
 # to do, look at line 83 and 84 and try to see if the MATLAB array output match. Run code side by side.
 
+# EEG = pop_loadset('data/eeglab_data_tmp.set');
+# EEG = eeg_interp(EEG, [1, 2, 3], 'spherical');
+
 import numpy as np
 from scipy.linalg import pinv
 from scipy.special import lpmv
@@ -10,7 +13,7 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None):
     if method not in ('spherical','sphericalKang','sphericalCRD','sphericalfast'):
         raise ValueError(f"Unknown method {method}")
     if t_range is None:
-        t_range = (EEG.xmin, EEG.xmax)
+        t_range = (EEG['xmin'], EEG['xmax'])
     if params is None:
         if method=='spherical':
             params = (0,4,7)
@@ -24,8 +27,11 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None):
         method = 'spherical'
 
     # ensure channel locations present
-    locs = EEG.chanlocs
-    if not locs or any(('X' not in ch or 'Y' not in ch or 'Z' not in ch) for ch in locs):
+    locs = EEG['chanlocs']
+    # check if locs is null or empty
+    if locs is None or len(locs) == 0:
+        raise RuntimeError("Channel locations required for interpolation")
+    if 'X' not in locs[0] or 'Y' not in locs[0] or 'Z' not in locs[0]:
         raise RuntimeError("Channel locations required for interpolation")
 
     # convert bad_chans from labels to indices if needed
@@ -35,14 +41,14 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None):
     else:
         bad_idx = sorted(bad_chans)
 
-    good_idx = [i for i in range(EEG.nbchan) if i not in bad_idx]
-    if method=='sphericalfast':
-        # drop bad, later reshuffle if desired
-        data = EEG.data.copy()
-        data = np.delete(data, bad_idx, axis=0)
-        EEG.data = data
-        EEG.nbchan = data.shape[0]
-        return EEG
+    good_idx = [i for i in range(EEG['nbchan']) if i not in bad_idx]
+    good_idx = [i for i in good_idx if not np.isnan(locs[i]['X'])]
+
+    # drop bad channels
+    data = EEG['data'].copy()
+    data = np.delete(data, bad_idx, axis=0)
+    EEG['data'] = data
+    EEG['nbchan'] = data.shape[0]
 
     # extract Cartesian positions and normalize to unit sphere
     def _norm(ch_ids):
@@ -54,7 +60,7 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None):
     xyz_bad  = _norm(bad_idx)
 
     # reshape data to (n_chan, n_timepoints)
-    d = EEG.data.reshape(EEG.nbchan, -1)
+    d = EEG['data'].reshape(EEG['nbchan'], -1)
 
     # compute interpolated signals for bad channels
     bad_data = spheric_spline(
@@ -65,9 +71,9 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None):
     )
 
     # restore original time range if needed
-    if t_range != (EEG.xmin, EEG.xmax):
+    if t_range != (EEG['xmin'], EEG['xmax']):
         start, end = t_range
-        ts = np.arange(EEG.nbchan) # dummy
+        ts = np.arange(EEG['nbchan']) # dummy
         # here you would mask out-of-range portions as in MATLAB
 
     # assemble full data array
@@ -75,7 +81,7 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None):
     full[good_idx,:] = d[good_idx,:]
     full[bad_idx,:]  = bad_data
 
-    EEG.data = full.reshape(EEG.nbchan, EEG.pnts, EEG.trials)
+    EEG['data'] = full.reshape(EEG['nbchan'], EEG['pnts'], EEG['trials'])
     return EEG
 
 def spheric_spline(xelec, yelec, zelec, xbad, ybad, zbad, values, params):
@@ -207,16 +213,16 @@ def test_computeg():
 def test_eeg_interp():
     # test eeg_interp
     from eegprep import pop_loadset
-    eeg = pop_loadset('../data/eeglab_data_tmp.set')
-    eeg_interp(eeg, [1, 2, 3], method='spherical')
-    eeg.save('test_eeg_interp.set')
+    # EEG = pop_loadset('../data/eeglab_data_tmp.set')
+    EEG = pop_loadset('data/eeglab_data_tmp.set')
+    EEG = eeg_interp(EEG, [1, 2, 3], method='spherical')
     
 if __name__ == '__main__':
     print("Running test_computeg")
-    test_computeg()
+    #test_computeg()
     print("\nRunning test_spheric_spline")
-    test_spheric_spline()
+    # test_spheric_spline()
     print("\nRunning test_eeg_interp")
-    # test_eeg_interp()
+    test_eeg_interp()
     
     
