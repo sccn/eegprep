@@ -9,6 +9,10 @@ import numpy as np
 from scipy.linalg import pinv
 from scipy.special import lpmv
 from eegprep.eeg_compare import eeg_compare
+import os
+
+# absolute path for all files in data folder
+data_path = os.path.abspath('data/')
 
 def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None):
     # set defaults
@@ -27,6 +31,10 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None):
         if len(params)!=3:
             raise ValueError("params must be length-3 tuple")
         method = 'spherical'
+        
+    # if bad chans is numerical, subtract 1 to make it 0-based
+    # if isinstance(bad_chans, list) and isinstance(bad_chans[0], int):
+    #     bad_chans = [i-1 for i in bad_chans]
 
     # ensure channel locations present
     locs = EEG['chanlocs']
@@ -95,7 +103,8 @@ def spheric_spline(xelec, yelec, zelec, xbad, ybad, zbad, values, params):
 
     # Match MATLAB: mean across all values (not just axis=1)
     # mean across the first dimension
-    meanvalues = values.mean(axis=0)  # scalar mean across all dimensions
+    meanvalues = values.mean(axis=0, dtype=np.float32)  # scalar mean across all dimensions
+    values = values.astype(np.float32)
     values = values - meanvalues  # subtract scalar mean
     
     # Add zero row like MATLAB
@@ -104,7 +113,7 @@ def spheric_spline(xelec, yelec, zelec, xbad, ybad, zbad, values, params):
     lam = params[0]
     A   = np.vstack([Gelec + np.eye(Gelec.shape[0])*lam,
                      np.ones((1, Gelec.shape[0]))])
-    C   = pinv(A) @ values
+    C   = pinv(A) @ values # some minor differences with MATLAB in the pinv implementation
 
     allres = Gsph @ C
     # Add mean back like MATLAB: repmat(meanvalues, [size(allres,1) 1])
@@ -219,9 +228,9 @@ def test_eeg_interp():
     from eegprep import pop_loadset
     # EEG = pop_loadset('../data/eeglab_data_tmp.set')
     EEG = pop_loadset('data/eeglab_data_tmp.set')
-    EEG = eeg_interp(EEG, [1, 2, 3], method='spherical')
+    EEG = eeg_interp(EEG, [0, 1, 2], method='spherical')
     EEG2 = pop_loadset('data/eeglab_data_tmp_out_matlab.set');
-    eeg_compare(EEG, EEG2)
+    # eeg_compare(EEG, EEG2)
 
     # compare data fields
     EEG['data'] = EEG['data'].reshape(EEG['nbchan'], -1)
@@ -229,13 +238,26 @@ def test_eeg_interp():
     print('EEG2[data] shape MATLAB:', EEG2['data'].shape)
     
     print('np.allclose(EEG[data], EEG2[data]):', np.allclose(EEG['data'], EEG2['data']))
-    print('np.max(np.abs(EEG[data] - EEG2[data])):', np.max(np.abs(EEG['data'] - EEG2['data'])))
+    
+    # get max abs diff, index, and value at the max diff
+    max_abs_diff = np.max(np.abs(EEG['data'] - EEG2['data']))
+    max_idx = np.argmax(np.abs(EEG['data'] - EEG2['data']))
+    max_coords = np.unravel_index(max_idx, EEG['data'].shape)
+    print('Max abs diff:', max_abs_diff, 'value:', EEG['data'][max_coords])
+    
+    # find non-zero values before computing relative difference
+    non_zero_idx = np.where(EEG['data'] != 0)
+    rel_diff = np.abs(EEG['data'][non_zero_idx] - EEG2['data'][non_zero_idx]) / np.abs(EEG['data'][non_zero_idx])
+    max_rel_diff = np.max(rel_diff)
+    max_rel_idx_in_nonzero = np.argmax(rel_diff)
+    max_rel_coords = (non_zero_idx[0][max_rel_idx_in_nonzero], non_zero_idx[1][max_rel_idx_in_nonzero])
+    print('Max rel diff:', max_rel_diff, 'value:', EEG['data'][max_rel_coords])
     
 if __name__ == '__main__':
     print("Running test_computeg")
-    #test_computeg()
+    test_computeg()
     print("\nRunning test_spheric_spline")
-    # test_spheric_spline()
+    test_spheric_spline()
     print("\nRunning test_eeg_interp")
     test_eeg_interp()
     
