@@ -12,7 +12,7 @@ from eegprep.eeg_compare import eeg_compare
 import os
 
 # absolute path for all files in data folder
-data_path = os.path.abspath('data/')
+data_path = '/Users/arno/Python/eegprep/data/' #os.path.abspath('data/')
 
 def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None):
     # set defaults
