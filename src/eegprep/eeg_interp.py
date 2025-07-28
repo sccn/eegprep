@@ -2,7 +2,7 @@
 # to do, look at line 83 and 84 and try to see if the MATLAB array output match. Run code side by side.
 
 # EEG = pop_loadset('data/eeglab_data_tmp.set');
-# EEG = eeg_interp(EEG, [1, 2, 3], 'spherical');
+# EEG = eeg_interp(EEG, [1, 2, 3], 'spherical'); % or EEG = eeg_interp(EEG, {'Fp1' 'Fp2' 'F7'}, 'spherical');
 # pop_save(EEG, 'data/eeglab_data_tmp_out_matlab.set');
 
 import numpy as np
@@ -228,7 +228,8 @@ def test_eeg_interp():
     from eegprep import pop_loadset
     # EEG = pop_loadset('../data/eeglab_data_tmp.set')
     EEG = pop_loadset(os.path.join(data_path, 'eeglab_data_tmp.set'))
-    EEG = eeg_interp(EEG, [0, 1, 2], method='spherical')
+    # EEG = eeg_interp(EEG, [0, 1, 2], method='spherical')
+    EEG = eeg_interp(EEG, ['Fp1','Fp2','F7'], method='spherical')
     EEG2 = pop_loadset(os.path.join(data_path, 'eeglab_data_tmp_out_matlab.set'));
     # eeg_compare(EEG, EEG2)
 
