@@ -3,10 +3,12 @@
 
 # EEG = pop_loadset('data/eeglab_data_tmp.set');
 # EEG = eeg_interp(EEG, [1, 2, 3], 'spherical');
+# pop_save(EEG, 'data/eeglab_data_tmp_out_matlab.set');
 
 import numpy as np
 from scipy.linalg import pinv
 from scipy.special import lpmv
+from eegprep.eeg_compare import eeg_compare
 
 def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None):
     # set defaults
@@ -42,13 +44,14 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None):
         bad_idx = sorted(bad_chans)
 
     good_idx = [i for i in range(EEG['nbchan']) if i not in bad_idx]
+    empty_idx = [i for i in range(EEG['nbchan']) if np.isnan(locs[i]['X'])]
     good_idx = [i for i in good_idx if not np.isnan(locs[i]['X'])]
 
     # drop bad channels
-    data = EEG['data'].copy()
-    data = np.delete(data, bad_idx, axis=0)
-    EEG['data'] = data
-    EEG['nbchan'] = data.shape[0]
+    # data = EEG['data'].copy()
+    # data = np.delete(data, bad_idx, axis=0)
+    # EEG['data'] = data
+    # EEG['nbchan'] = data.shape[0]
 
     # extract Cartesian positions and normalize to unit sphere
     def _norm(ch_ids):
@@ -79,6 +82,7 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None):
     # assemble full data array
     full = np.zeros_like(d)
     full[good_idx,:] = d[good_idx,:]
+    full[empty_idx,:] = d[empty_idx,:]
     full[bad_idx,:]  = bad_data
 
     EEG['data'] = full.reshape(EEG['nbchan'], EEG['pnts'], EEG['trials'])
@@ -216,6 +220,16 @@ def test_eeg_interp():
     # EEG = pop_loadset('../data/eeglab_data_tmp.set')
     EEG = pop_loadset('data/eeglab_data_tmp.set')
     EEG = eeg_interp(EEG, [1, 2, 3], method='spherical')
+    EEG2 = pop_loadset('data/eeglab_data_tmp_out_matlab.set');
+    eeg_compare(EEG, EEG2)
+
+    # compare data fields
+    EEG['data'] = EEG['data'].reshape(EEG['nbchan'], -1)
+    print('EEG[data] shape Python:', EEG['data'].shape)
+    print('EEG2[data] shape MATLAB:', EEG2['data'].shape)
+    
+    print('np.allclose(EEG[data], EEG2[data]):', np.allclose(EEG['data'], EEG2['data']))
+    print('np.max(np.abs(EEG[data] - EEG2[data])):', np.max(np.abs(EEG['data'] - EEG2['data'])))
     
 if __name__ == '__main__':
     print("Running test_computeg")
