@@ -32,7 +32,7 @@ def clean_windows(
     Args
     ----
     EEG : dict
-        Continuous dataset using the EEGLAB/Intheon dict schema. The data is
+        Continuous dataset using the EEGLAB dict schema. The data is
         expected to be high-passed appropriately (>1 Hz recommended).
     max_bad_channels : int | float
         The maximum number **or** fraction of channels that may exceed the

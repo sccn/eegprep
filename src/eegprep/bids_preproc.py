@@ -55,7 +55,7 @@ def bids_preproc(
         ApplyChanlocs: bool = True,
         ApplyEvents: bool = False,
         # Derived data parameters
-        StageNames: Sequence[str] = ('cleaned', 'picard', 'iclabel'),
+        StageNames: Sequence[str] = ('desc-cleaned', 'desc-picard', 'desc-iclabel'),
         MinimizeDiskUsage: bool = True,
         # Reserved parameters
         _lock: Optional[multiprocessing.Lock] = contextlib.nullcontext(),
@@ -160,7 +160,7 @@ def bids_preproc(
     StageNames Sequence[str]:
         list of file name parts for the preprocessing stages, in the order of cleaning,ica,iclabel;
         these can be adjusted when working with different preprocessed versions (e.g., using
-        different parameters for cleaning).
+        different parameters for cleaning). It is recommended that these start with 'desc-'.
     MinimizeDiskUsage (bool):
         whether to minimize disk usage by not saving some intermediate files (specifically
         the PICARD output if WithICLabel=False). Default True.

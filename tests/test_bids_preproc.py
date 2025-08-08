@@ -21,11 +21,12 @@ if __name__ == "__main__":
         EEG = pop_load_frombids(fn, apply_bids_events=True)
 
     if True:
-        # has no coords whatsoever
-        rt = '/home/christian/data/OpenNeuro/ds005815-download'
 
-        # good test case
-        rt = '/home/christian/data/OpenNeuro/ds004324-download'
+        # good test case for coord import
+        # rt = '/home/christian/data/OpenNeuro/ds004324-download'
+
+        # good test case for coord inference
+        rt = '/home/christian/data/OpenNeuro/ds005815-download'
 
         print(f'parsing BIDS files in {rt}...')
         filelist = bids_list_eeg_files(rt)
@@ -33,4 +34,4 @@ if __name__ == "__main__":
             print(' - ' + fn)
 
         reserve = '4CPU,4GB-5GB,16max' # ''
-        bids_preproc(rt, ReservePerJob=reserve, WithICLabel=True, SkipIfPresent=True)
+        bids_preproc(rt, ReservePerJob=reserve, WithICLabel=True, SkipIfPresent=False)

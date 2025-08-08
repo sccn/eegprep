@@ -1,11 +1,12 @@
 
 import os
 import copy
-from typing import Dict, Any, Tuple, List
+from typing import Dict, Any, Tuple, List, Union, Sequence
 import logging
 import warnings
 import contextlib
 from .utils.bids import layout_for_fpath, layout_get_lenient, query_for_adjacent_fpath
+from .utils.coords import *
 from .utils import ExceptionUnlessDebug
 
 import numpy as np
@@ -22,7 +23,8 @@ def pop_load_frombids(
         *,
         apply_bids_metadata: bool = True,
         apply_bids_channels: bool = True,
-        apply_bids_events: bool = False,
+        apply_bids_events: bool = False,  # TODO: allow 'replace' to replace by default, allow 'merge' or None/False to skip
+        infer_locations: Union[bool, str, None] = None,
         dtype: np.dtype = np.float32,
         numeric_null: Any = np.array([]),
         verbose: bool = True,
@@ -39,6 +41,14 @@ def pop_load_frombids(
           in the EEG file with channel information from BIDS.
         apply_bids_events: Whether to override any event data in the EEG file with
           event data from BIDS.
+        infer_locations: Whether to infer channel locations if necessary from the
+          channel labels (if 10-20 labeling system).
+          * True: infer locations from channel labels; override existing locations if any
+          * False: leave locations as-is, even if missing
+          * None: infer only if no channels have locations
+          * str: filename of a locations file to infer locations from; see files in
+            resources/montages directory (this can be used to disambiguate between
+            alternative montages that use the same naming system)
         dtype: The data type to use for the EEG data.
         numeric_null: The value to use for empty numeric fields in the EEG data.
           * the default is np.array([]) for MATLAB/pop_loadset compatibility
@@ -334,7 +344,8 @@ def pop_load_frombids(
         # apply overrides
         EEG['subject'] = metadata.get('subject', '')
         if EEG['ref'] == 'unknown':
-            EEG['ref'] = metadata.get('EEGReference', 'unknown')
+            EEG['ref'] = metadata.get('EEGReference', 'unknown')  # TODO: check EEGLAB import convention if any
+        # EEG['etc']['bids'] <-- TODO: put in all the metadata
 
     if apply_bids_channels:
         import bids
@@ -494,22 +505,19 @@ def pop_load_frombids(
                     # override nosedir and wipe existing chanlocs, if any
                     EEG['chaninfo']['nosedir'] = '+X'  # set to +X for AJS coordinate system
                     for ch in EEG['chanlocs']:
-                        ch['sph_radius'] = numeric_null
-                        ch['sph_theta'] = numeric_null
-                        ch['sph_phi'] = numeric_null
-                        ch['theta'] = numeric_null
-                        ch['radius'] = numeric_null
-                        ch['X'] = numeric_null
-                        ch['Y'] = numeric_null
-                        ch['Z'] = numeric_null
+                        clear_chanloc(ch, numeric_null)
 
                 # convert to mm (EEGLAB's internal unit)
-                if coord_units == 'mm':
-                    pass
-                elif coord_units == 'cm':
-                    coords *= 10.0
-                elif coord_units == 'm':
-                    coords *= 1000.0
+                coords = coords_to_mm(coords, coord_units)
+                # convert to ALS if needed
+                if coord_system == 'RAS':
+                    coords = coords_RAS_to_ALS(coords)
+                elif coord_system != 'ALS':
+                    raise ValueError(f"Unsupported coordinate system {coord_system!r} "
+                                     f"in BIDS file {fo.filename}. Supported systems are "
+                                     f"ALS and RAS.")
+
+                sph_theta, sph_phi, sph_radius, polar_theta, polar_radius = coords_ALS_to_angular(coords)
 
                 # now read in the electrode locations
                 notfound = []
@@ -529,32 +537,15 @@ def pop_load_frombids(
                     if np.any(np.isnan(xyz)):
                         continue  # invalid, nothing to do
                     num_updated += 1
-                    if coord_system == 'ALS':
-                        # applies as-is
-                        x = rec['X'] = xyz[0]
-                        y = rec['Y'] = xyz[1]
-                        z = rec['Z'] = xyz[2]
-                    elif coord_system == 'RAS':
-                        # map from RAS to ALS
-                        x = rec['X'] = xyz[1]  # A is second position
-                        y = rec['Y'] = -xyz[0] # L is first position, but inverted
-                        z = rec['Z'] = xyz[2]  # S is third position, as-is
-                    else:
-                        raise ValueError(f"Unsupported coordinate system {coord_system!r} "
-                                         f"in BIDS file {fo.filename}. Supported systems are "
-                                         f"ALS and RAS.")
-                    # also regenerate the spherical coordinates (cart2sph)
-                    hypotxy = np.hypot(x, y)
-                    theta = np.arctan2(y, x)
-                    phi = np.arctan2(z, hypotxy)
-                    radius = np.hypot(hypotxy, z)
-                    rec['sph_theta'] = theta / np.pi * 180
-                    rec['sph_phi'] = phi / np.pi * 180
-                    rec['sph_radius'] = radius
-                    # and the 2d topographic coordinates (sph2topo)
-                    rec['theta'] = -rec['sph_theta']
-                    rec['radius'] = 0.5 - rec['sph_phi']/180
-
+                    rec['X'] = xyz[0]
+                    rec['Y'] = xyz[1]
+                    rec['Z'] = xyz[2]
+                    # also regenerate the angular coordinates
+                    rec['sph_theta'] = sph_theta[k]
+                    rec['sph_phi'] = sph_phi[k]
+                    rec['sph_radius'] = sph_radius[k]
+                    rec['theta'] = polar_theta[k]
+                    rec['radius'] = polar_radius[k]
                 if notfound:
                     logger.warning(f"Electrodes {','.join(notfound)} from BIDS file {fo.filename} "
                                    f"not found in EEG data structure; skipping.")
@@ -606,7 +597,7 @@ def pop_load_frombids(
                 ev_durs = np.round(np.maximum(1, Fs*durations)).astype(int)
 
                 # read out the event types and/or codes
-                for candidate_column in event_type_columns:
+                for candidate_column in event_type_columns:  # TODO: maybe add override option for this?
                     try:
                         # preferred column for the event type
                         ev_types = events[candidate_column].to_numpy()
@@ -670,4 +661,133 @@ def pop_load_frombids(
             logger.exception(f"Failed to load BIDS events file for {filename}. Only the events "
                              f"in the EEG file itself will be retained.")
 
+    coords = chanlocs_to_coords(EEG['chanlocs'])
+    have_coords = not np.all(np.isnan(coords))
+    if infer_locations is None:
+        infer_locations = not have_coords # only if no coordinates are present
+
+    if infer_locations:
+        from scipy.io.matlab import loadmat
+        # Portions of this code are Copyright (c) 2015-2025 Syntrogi Inc. dba Intheon;
+        # used under the terms of the BSD 2-Clause License.
+
+        # set nosedir to +X (ALS) since that's the only coord system that we convert to here
+        EEG['chaninfo']['nosedir'] = '+X'
+
+        # find best-matching montage file out of available options
+        # we're scoring by coverage of data channels first, and coverage in
+        # locfile second (the latter because we want to use the smallest locfile
+        # that covers the cap since sometimes there's one that has a superset
+        # of the names, but with different locations, e.g., 128ch vs 256ch)
+        datalabels = [cl['labels'].lower() for cl in EEG['chanlocs']]
+        opt_score, best_data, best_cap = (0, 0), None, '(not set)'
+        fractions = []
+        caplabels = []
+        if isinstance(infer_locations, str):
+            filenames = [infer_locations]
+        else:
+            montage_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'resources', 'montages'))
+            filenames = sorted(os.listdir(montage_path))
+        for filename in filenames:
+            if not filename.endswith('.locs'):
+                raise ValueError(f"Only montage files with the .locs extension are supported, "
+                                 f"but found {filename}. These are MATLAB v7 .mat files; "
+                                 f"please convert your montage into the appropriate format.")
+            try:
+                data = loadmat(os.path.join(montage_path, filename),
+                               squeeze_me=True)
+            except Exception:
+                raise ValueError(f"Failed to load montage file {filename}. "
+                                 f"Make sure it is a valid .locs file (MATLAB v7 .mat format).")
+            caplabels = [l.lower() for l in data['labels']]
+            fraction_in_data = np.mean([n in caplabels for n in datalabels])
+            fraction_in_locfile = np.mean([n in datalabels for n in caplabels])
+            # bonus score for 10-20 preference
+            if {'c3', 'cz', 'fcz', 'c4'}.issubset(caplabels):
+                bonus1020 = 1
+            else:
+                bonus1020 = 0
+            score = (fraction_in_data, bonus1020, fraction_in_locfile)
+            if score > opt_score:
+                opt_score = score
+                best_data = data
+                best_cap = filename
+            fractions.append(fraction_in_data)
+        fractions = sorted(fractions, reverse=True)
+        best_fraction = opt_score[0]
+
+        if best_data is None:
+            if isinstance(infer_locations, str):
+                raise RuntimeError(
+                    f'The channel labels in your data do not match the specified montage '
+                    f'file ({infer_locations}).')
+            else:
+                raise RuntimeError(
+                    'Channel labels do not match any known or specified montage.')
+
+        # additional diagnostics
+        percent_found = int(100 * best_fraction)
+        if best_fraction < 0.25:
+            logger.error("The given data has a very poor match to all "
+                         "known montages (%s percent of channels found); "
+                         "not assigning locations (got: %s)" % (percent_found, datalabels))
+            return
+        elif best_fraction < 0.5:
+            if len(fractions) > 1 and best_fraction / 1.5 < fractions[1]:
+                logger.warning("The given data has a poor match and multiple "
+                               "montages are partially matching potentially "
+                               "ambiguously (%s percent of channels found); "
+                               "please double-check assigned locations." %
+                               percent_found)
+            else:
+                logger.warning("The given data has a poor match to all known "
+                               "montages (%s percent of channels found); please "
+                               "double-check assigned locations." %
+                               percent_found)
+        elif (best_fraction < 0.75 and len(fractions) > 1 and
+              best_fraction / 1.5 < fractions[1]):
+            logger.warning("The given data has a reasonable match to known "
+                           "montages but multiple montages are potentially "
+                           "matching (%s percent of channels found); "
+                           "locations may be wrong." %
+                           percent_found)
+        elif best_fraction < 1.0:
+            logger.warning("Not all channel locations could be matched to a "
+                           "known montage; some channels may be non-EEG "
+                           "channels ({} percent of channels found).".format(percent_found))
+
+        # transform coordinates from file into the EEGLAB coordinate system
+        # unit=millimeters, x=A (front), y=L (left), z=S (up)
+        unit = best_data['meta']['unit'][()]
+        x = best_data['meta']['x'][()]
+        y = best_data['meta']['y'][()]
+        z = best_data['meta']['z'][()]
+        coords = best_data['coordinates']
+        coords = coords_to_mm(coords, unit)
+        coords = coords_any_to_RAS(coords, x, y, z)
+        coords = coords_RAS_to_ALS(coords)
+        sph_theta, sph_phi, sph_radius, polar_theta, polar_radius = coords_ALS_to_angular(coords)
+
+        # cross-reference location indices from best montage
+        caplabels = [l.lower() for l in best_data['labels']]
+        for di, dl in enumerate(datalabels):
+            rec = EEG['chanlocs'][di]
+            for ci, cl in enumerate(caplabels):
+                if dl == cl:
+                    xyz = coords[ci, :]
+                    rec['X'] = xyz[0]
+                    rec['Y'] = xyz[1]
+                    rec['Z'] = xyz[2]
+                    rec['sph_radius'] = sph_radius[ci]
+                    rec['sph_theta'] = sph_theta[ci]
+                    rec['sph_phi'] = sph_phi[ci]
+                    rec['theta'] = polar_theta[ci]
+                    rec['radius'] = polar_radius[ci]
+                    break
+            else:
+                 # otherwise clear the locs to invalid
+                clear_chanloc(rec, numeric_null)
+
+    # TODO: eeg_checkset(EEG)  # check the EEG structure for consistency
+    #  eeg_checkchanlocs(EEG)
     return EEG
