@@ -26,12 +26,19 @@ dependencies = [
   "oct2py>=5.5.0",
   "torch>=1.10.0",
   "h5py>=3.3.0",
+  "pybids>=0.4",
+  "pyedflib>=0.1.42",
   "python-picard",
-  "h5py"
+  "neo",
+  "pynvml",
+  "psutil",
+  "colorama",
+  "threadpoolctl"
 ]
 
 [tool.setuptools.package-data]
 "eegprep" = ["eeglab/*", "netICL.mat"]
+
 
 [project.urls]
 Homepage = "https://github.com/sccn/eegprep"

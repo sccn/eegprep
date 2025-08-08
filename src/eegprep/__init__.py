@@ -28,3 +28,6 @@ from .clean_asr import clean_asr
 from .clean_windows import clean_windows
 # from .eeg_compare import eeg_compare
 from .clean_artifacts import clean_artifacts
+from .pop_load_frombids import pop_load_frombids
+from .bids_list_eeg_files import bids_list_eeg_files
+from .bids_preproc import bids_preproc
