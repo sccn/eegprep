@@ -17,7 +17,13 @@ logger = logging.getLogger(__name__)
 # list of candidate column names for event types in BIDS events files, in order of preference.
 event_type_columns = ['trial_type', 'type', 'event_type', 'HED', 'value', 'code']
 
-
+        
+# remove matching leading/trailing quotes in pairs (repeat if nested)
+def _strip_matching_quotes(name: str) -> str:
+    while len(name) >= 2 and name[0] == name[-1] and name[0] in ("'", '"'):
+        name = name[1:-1]
+    return name
+        
 def pop_load_frombids(
         filename: str,
         *,
@@ -682,6 +688,16 @@ def pop_load_frombids(
         # that covers the cap since sometimes there's one that has a superset
         # of the names, but with different locations, e.g., 128ch vs 256ch)
         datalabels = [cl['labels'].lower() for cl in EEG['chanlocs']]
+        
+        # remove channel prefixes if any
+        chanprefixes = ['brainvision rda_','rda_','eeg ','eeg-','eeg']
+        for prefix in chanprefixes:
+            datalabels = [l.replace(prefix, '') for l in datalabels]
+            
+        # remove suffixes after minus sign (if reference is present in the channel label)
+        datalabels = [l.split('-')[0] for l in datalabels]
+        datalabels = [_strip_matching_quotes(l) for l in datalabels]
+        
         opt_score, best_data, best_cap = (0, 0), None, '(not set)'
         fractions = []
         caplabels = []
