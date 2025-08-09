@@ -32,3 +32,5 @@ from .clean_artifacts import clean_artifacts
 from .pop_load_frombids import pop_load_frombids
 from .bids_list_eeg_files import bids_list_eeg_files
 from .bids_preproc import bids_preproc
+from .eeg_decodechan import eeg_decodechan
+from .eegrej import eegrej
