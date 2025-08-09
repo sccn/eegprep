@@ -26,7 +26,8 @@ from .clean_channels_nolocs import clean_channels_nolocs
 from .clean_channels import clean_channels
 from .clean_asr import clean_asr
 from .clean_windows import clean_windows
-# from .eeg_compare import eeg_compare
+from .eeg_compare import eeg_compare
+from .eeg_interp import eeg_interp
 from .clean_artifacts import clean_artifacts
 from .pop_load_frombids import pop_load_frombids
 from .bids_list_eeg_files import bids_list_eeg_files
