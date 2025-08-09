@@ -208,6 +208,20 @@ def eeg_checkset(EEG, eeglab=None):
         eeglab = get_eeglab()
     return eeglab.eeg_checkset(EEG)
 
+def pop_biosig(filename, *args, eeglab=None, **kwargs):
+    """Reference implementation of pop_biosig().
+
+    Accepts arbitrary positional/keyword arguments which are forwarded
+    directly to ``eeglab.pop_biosig``. The ``eeglab`` engine can be
+    provided explicitly via keyword, or as the first extra positional
+    argument for backward compatibility.
+    """
+    # Allow passing the engine as first positional arg (backward compat)
+    if eeglab is None and args and hasattr(args[0], 'pop_biosig'):
+        eeglab, args = args[0], args[1:]
+    if eeglab is None:
+        eeglab = get_eeglab()
+    return eeglab.pop_biosig(filename, *args, **kwargs)
 
 def clean_drifts(EEG, Transition, Attenuation, eeglab=None):
     """Reference implementation of clean_drifts()."""
