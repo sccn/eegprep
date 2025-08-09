@@ -449,7 +449,7 @@ def pop_load_frombids(
                 logger.warning(f"Found multiple BIDS coordsystem files for {fo.filename}: "
                                f"{', '.join([fo.filename for fo in coordsystem_file_list])}. "
                                f"Using the first one only.")
-            elif not coordsystem_file_list:
+            if not coordsystem_file_list:
                 # if it's a .set study, then we assume ALS for the chanlocs, otherwise RAS
                 coord_system = 'ALS' if ext == '.set' else 'RAS'
                 coord_units = 'guess'
