@@ -474,8 +474,10 @@ def pop_load_frombids(
                     break
 
             # guess the coordinate units if not specified
+            coords = np.stack(
+                (elecs['x'].to_numpy(), elecs['y'].to_numpy(), elecs['z'].to_numpy()),
+                axis=1)
             if coord_units == 'guess':
-                coords = np.stack((elecs['x'].to_numpy(), elecs['y'].to_numpy(), elecs['z'].to_numpy()), axis=1)
                 with warnings.catch_warnings():
                     warnings.simplefilter('ignore')
                     max_coord = np.nanmax(np.abs(coords))
