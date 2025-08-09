@@ -13,12 +13,12 @@ logger = logging.getLogger(__name__)
 
 # can be either 'OCT' (for Oct2Py) or 'MAT' (MATLAB engine)
 default_runtime = 'OCT'
+EEG_OUTPUT_FUNCTIONS =  ['pop_biosig']
 
 # directory where temporary .set files are written
 temp_dir = os.path.abspath(os.path.dirname(__file__) + '../../../temp')
 if not os.path.exists(temp_dir):
     os.makedirs(temp_dir, exist_ok=True)
-
 
 class MatlabWrapper:
     """MATLAB engine wrapper that round-trips calls involving the EEGLAB data structure through files."""
@@ -37,7 +37,10 @@ class MatlabWrapper:
 
     def __getattr__(self, name):
         def wrapper(*args, **kwargs):
-            needs_roundtrip = False
+            if name in EEG_OUTPUT_FUNCTIONS:
+                needs_roundtrip = True
+            else:
+                needs_roundtrip = False
             for a in args:
                 if isinstance(a, dict) and a.get('nbchan') is not None:
                     needs_roundtrip = True
@@ -47,16 +50,23 @@ class MatlabWrapper:
                 try:
                     temp_filename = tempfile.mktemp(dir=temp_dir, suffix='.set')
                     result_filename = temp_filename + '.result.set'
-                    pop_saveset(args[0], temp_filename)
-                    # needs to use eval since returning struct arrays is not supported
-                    self.engine.eval(f"EEG = pop_loadset('{temp_filename}');", nargout=0)
+                    if name not in EEG_OUTPUT_FUNCTIONS:
+                        pop_saveset(args[0], temp_filename)
+                        # needs to use eval since returning struct arrays is not supported
+                        self.engine.eval(f"EEG = pop_loadset('{temp_filename}');", nargout=0)
+                        first_arg_ind = 1
+                    else:
+                        first_arg_ind = 0
 
                     # TODO: marshalling of extra arguments should follow octave conventions
                     maybe_comma = ',' if args[1:] or kwargs else ''
-                    arg_str = ','.join([self.marshal(a) for a in args[1:]])
+                    arg_str = ','.join([self.marshal(a) for a in args[first_arg_ind:]])
                     kwarg_str = ','.join([f"{k!r},{self.marshal(v)}" for k, v in kwargs.items()])
                     maybe_comma2 = ',' if arg_str and kwarg_str else ''
-                    eval_str = f"EEG = {name}(EEG{maybe_comma}{arg_str}{maybe_comma2}{kwarg_str});"
+                    if name not in EEG_OUTPUT_FUNCTIONS:
+                        eval_str = f"EEG = {name}(EEG{maybe_comma}{arg_str}{maybe_comma2}{kwarg_str});"
+                    else:
+                        eval_str = f"EEG = {name}({arg_str}{maybe_comma2}{kwarg_str});"
                     print(f"Running in MATLAB: {eval_str}")
                     self.engine.eval(eval_str, nargout=0)
                     self.engine.eval(f"pop_saveset(EEG, '{result_filename}');", nargout=0)
@@ -83,39 +93,42 @@ class MatlabWrapper:
         return wrapper
 
 
-class OctaveWrapper:
-    """Octave engine wrapper that round-trips calls involving the EEGLAB data structure through files."""
+# class OctaveWrapper:
+#     """Octave engine wrapper that round-trips calls involving the EEGLAB data structure through files."""
 
-    def __init__(self, engine):
-        self.engine = engine
+#     def __init__(self, engine):
+#         self.engine = engine
                 
-    def __getattr__(self, name):
-        def wrapper(*args):
-            needs_roundtrip = False
-            for a in args:
-                if isinstance(a, dict) and a.get('nbchan') is not None:
-                    needs_roundtrip = True
-                    break
-            if needs_roundtrip:
-                # passage data through a file
-                with tempfile.NamedTemporaryFile(dir=temp_dir, delete=True, suffix='.set') as temp_file:
-                    pop_saveset(args[0], temp_file.name)
-                    # Ensure the file is fully written before proceeding
-                    temp_file.flush()
-                    os.fsync(temp_file.fileno())  # Force write to disk to avoid timing issues
-                    # Needs to use eval since returning struct arrays is not supported in Octave
-                    self.engine.eval(f"EEG = pop_loadset('{temp_file.name}');", nargout=0)
-                    # TODO: marshalling of extra arguments should follow octave conventions
-                    eval_str = f"EEG = {name}(EEG{',' if args[1:] else ''}{','.join([repr(a) for a in args[1:]])});"
-                    print("This is the eval_str: ", eval_str)
-                    self.engine.eval(eval_str, nargout=0)
-                    self.engine.eval(f"pop_saveset(EEG, '{temp_file.name}');", nargout=0)
-                    return pop_loadset(temp_file.name)
-            else:
-                # run it directly
-                return getattr(self.engine, name)(*args)
+#     def __getattr__(self, name):
+#         def wrapper(*args):
+#             if name in FORCE_ROUNDTRIP_FUNCTIONS:
+#                 needs_roundtrip = True
+#             else:
+#                 needs_roundtrip = False
+#             for a in args:
+#                 if isinstance(a, dict) and a.get('nbchan') is not None:
+#                     needs_roundtrip = True
+#                     break
+#             if needs_roundtrip:
+#                 # passage data through a file
+#                 with tempfile.NamedTemporaryFile(dir=temp_dir, delete=True, suffix='.set') as temp_file:
+#                     pop_saveset(args[0], temp_file.name)
+#                     # Ensure the file is fully written before proceeding
+#                     temp_file.flush()
+#                     os.fsync(temp_file.fileno())  # Force write to disk to avoid timing issues
+#                     # Needs to use eval since returning struct arrays is not supported in Octave
+#                     self.engine.eval(f"EEG = pop_loadset('{temp_file.name}');", nargout=0)
+#                     # TODO: marshalling of extra arguments should follow octave conventions
+#                     eval_str = f"EEG = {name}(EEG{',' if args[1:] else ''}{','.join([repr(a) for a in args[1:]])});"
+#                     print("This is the eval_str: ", eval_str)
+#                     self.engine.eval(eval_str, nargout=0)
+#                     self.engine.eval(f"pop_saveset(EEG, '{temp_file.name}');", nargout=0)
+#                     return pop_loadset(temp_file.name)
+#             else:
+#                 # run it directly
+#                 return getattr(self.engine, name)(*args)
         
-        return wrapper
+#         return wrapper
 
 # noinspection PyDefaultArgument
 def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = True, _cache={}):
@@ -160,6 +173,9 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
             engine.addpath(path2eeglab + '/plugins/picard')
             engine.addpath(path2eeglab + '/plugins/clean_rawdata')
             engine.addpath(path2eeglab + '/plugins/clean_rawdata2.10')
+            engine.addpath(path2eeglab + '/plugins/Biosig3.8.4/biosig/t200_FileAccess')
+            engine.addpath(path2eeglab + '/plugins/Biosig3.8.4/biosig/t250_ArtifactPreProcessingQualityControl')
+            engine.addpath(path2eeglab + '/plugins/Biosig3.8.4/biosig/doc')
         elif rt == 'mat':
             try:
                 import matlab.engine
@@ -193,7 +209,7 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
     # optionally wrap the engine in a file-roundtripping wrapper
     if auto_file_roundtrip:
         if rt == 'oct':
-            engine = OctaveWrapper(engine)
+            engine = MatlabWrapper(engine)
         elif rt == 'mat':
             engine = MatlabWrapper(engine)
         else:
