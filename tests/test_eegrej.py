@@ -10,10 +10,12 @@ class TestEEGRej(unittest.TestCase):
         self.timelength = 10.0  # seconds
 
     def test_no_regions(self):
-        outdata, newt, newevents, boundevents = eegrej(self.data, [], self.timelength, [5, 10])
+        events = [{"latency": 5.0}, {"latency": 10.0}]
+        outdata, newt, newevents, boundevents = eegrej(self.data, [], self.timelength, events)
         np.testing.assert_array_equal(outdata, self.data)
         self.assertEqual(newt, self.timelength)
-        np.testing.assert_array_equal(newevents, [5, 10])
+        lats = np.array([ev["latency"] for ev in newevents], dtype=float)
+        np.testing.assert_array_equal(lats, [5.0, 10.0])
         self.assertEqual(boundevents.size, 0)
 
     def test_single_region_no_events(self):
@@ -21,30 +23,27 @@ class TestEEGRej(unittest.TestCase):
         expected_data = np.delete(self.data, np.arange(4, 8), axis=1)
         np.testing.assert_array_equal(outdata, expected_data)
         self.assertAlmostEqual(newt, self.timelength * (expected_data.shape[1] / self.data.shape[1]))
-        self.assertIsNone(newevents)
+        self.assertIsInstance(newevents, list)
+        self.assertEqual(len(newevents), 0)
         np.testing.assert_array_equal(boundevents, [4.5])
 
-    def test_event_shifting_and_nan_for_removed(self):
-        events = [3, 6, 10]  # event at 6 will be removed
+    def test_event_shifting_and_removed_inside_region(self):
+        events = [{"latency": 3.0}, {"latency": 6.0}, {"latency": 10.0}]  # event at 6 will be removed
         outdata, newt, newevents, boundevents = eegrej(self.data, [[5, 8]], self.timelength, events)
-        # After removing samples 5–8, event at 3 stays at 3, event at 10 shifts by -4, event at 6 becomes NaN
-        expected_events = np.array([3, np.nan, 6])
-        np.testing.assert_array_equal(newevents, expected_events)
+        # After removing samples 5–8, event at 3 stays at 3, event at 10 shifts by -4 to 6,
+        # event at 6 (inside region) is removed (MATLAB-style)
+        # Ignore boundary events when checking latencies
+        lats = np.array([ev["latency"] for ev in newevents if ev.get("type") != "boundary"], dtype=float)
+        np.testing.assert_array_equal(lats, [3.0, 6.0])
         np.testing.assert_array_equal(boundevents, [4.5])
 
     def test_multiple_regions_event_shift(self):
-        events = [3, 6, 15, 19]
+        events = [{"latency": 3.0}, {"latency": 6.0}, {"latency": 15.0}, {"latency": 19.0}]
         outdata, newt, newevents, boundevents = eegrej(self.data, [[5, 8], [12, 14]], self.timelength, events)
         # Removed lengths: first=4 samples, second=3 samples
-        # After first region: events >8 shift by -4
-        # After second region: (using original event latencies) events >14 shift by -3 more
-        expected_events = np.array([
-            3,         # before any region
-            np.nan,    # inside first region
-            15 - 4 - 3, # event originally at 15: 15-4=11, then 11-3=8
-            19 - 4 - 3  # event originally at 19: 19-4=15, then 15-3=12
-        ], dtype=float)
-        np.testing.assert_array_equal(newevents, expected_events)
+        # Event at 6 removed; 15 -> 8; 19 -> 12
+        lats = np.array([ev["latency"] for ev in newevents if ev.get("type") != "boundary"], dtype=float)
+        np.testing.assert_array_equal(lats, [3.0, 8.0, 12.0])
         # Boundary latencies: first at (5-1)=4 -> 4.5, second at (12-1)-4=7 -> 7.5
         np.testing.assert_array_equal(boundevents, [4.5, 7.5])
 
