@@ -47,22 +47,6 @@ class TestEEGEegrej(unittest.TestCase):
         # Reject samples 6 to 10 inclusive (1-based)
         regions = np.array([[6, 10]], dtype=int)
 
-        # Patch backend eegrej to perform the core excision deterministically
-        # Signature: eegrej(data, regions, xdur, events) -> (new_data, new_xmax_rel, event2, boundevents)
-        def mock_eegrej(data, regs, xdur, events):
-            kept = []
-            cursor = 1
-            regs = np.asarray(regs, dtype=int)
-            for b, e in regs:
-                if cursor <= b - 1:
-                    kept.append((cursor, b - 1))
-                cursor = e + 1
-            if cursor <= data.shape[1]:
-                kept.append((cursor, data.shape[1]))
-            kept_slices = [data[:, s - 1:e] for s, e in kept]
-            new_data = np.concatenate(kept_slices, axis=1) if kept_slices else data[:, :0]
-            return new_data, xdur, [], []  # event2 and boundevents are unused by eeg_eegrej wrapper
-
         EEG_out = eeg_eegrej(EEG, regions)
 
         # After excision, length is 20 - 5 = 15

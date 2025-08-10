@@ -20,16 +20,8 @@ def eeg_eegrej(EEG, regions):
 
     regions = _combine_regions(regions)
 
-    # remove events that fall within any region, except boundary events
+    # Use original events; backend will handle pruning, shifting, and boundary insertion
     events = list(EEG.get("event", []))
-    if events:
-        ev_lats = np.array([float(e["latency"]) for e in events])
-        kill = np.zeros(len(events), dtype=bool)
-        for beg, end in regions:
-            kill |= (ev_lats >= beg) & (ev_lats <= end)
-        bidx = _find_boundary_event_indices(events)
-        kill[bidx] = False
-        events = [ev for i, ev in enumerate(events) if not kill[i]]
 
     # call eegrej backend
     xdur = float(EEG["xmax"] - EEG["xmin"])
@@ -41,8 +33,47 @@ def eeg_eegrej(EEG, regions):
     EEG["pnts"] = int(data_out.shape[1])
     EEG["xmax"] = float(EEG["xmax"] + EEG["xmin"])
 
-    # insert boundary events into our pruned events, then consistency trims
-    EEG["event"] = _insert_boundaries(events, old_pnts, regions)
+    # Use backend-generated events list and sort
+    EEG["event"] = list(event2) if isinstance(event2, list) else []
+    EEG["event"].sort(key=lambda e: e.get("latency", float("inf")))
+
+    # Ensure a boundary is present at each kept/run boundary with integer latency and correct duration
+    # This mirrors historical behavior expected by tests (new boundary at run_len+1 with duration = removed length)
+    def _ensure_integer_boundaries(ev_list, old_pnts, regs):
+        kept = []
+        cursor = 1
+        for beg, end in regs:
+            if cursor <= beg - 1:
+                kept.append([cursor, beg - 1])
+            cursor = end + 1
+        if cursor <= old_pnts:
+            kept.append([cursor, old_pnts])
+
+        out = list(ev_list)
+        run_len = 0
+        for i in range(len(kept) - 1):
+            seg_len = kept[i][1] - kept[i][0] + 1
+            run_len += seg_len
+            rem_beg, rem_end = regs[i]
+            rem_len = int(rem_end - rem_beg + 1)
+            new_lat = float(run_len + 1)
+            # find existing boundary at this integer latency
+            found = False
+            for ev in out:
+                if ev.get("type") == "boundary" and float(ev.get("latency", -1.0)) == new_lat:
+                    # update duration to removed length
+                    ev["duration"] = float(rem_len)
+                    found = True
+                    break
+            if not found:
+                out.append({
+                    "type": "boundary",
+                    "latency": new_lat,
+                    "duration": float(rem_len),
+                })
+        return out
+
+    EEG["event"] = _ensure_integer_boundaries(EEG["event"], old_pnts, regions)
     EEG["event"].sort(key=lambda e: e.get("latency", float("inf")))
 
     if len(EEG["event"]) > 1 and EEG["event"][-1].get("latency", 0) - 0.5 > EEG["pnts"] and EEG.get("trials", 1) == 1:
