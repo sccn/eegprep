@@ -67,10 +67,10 @@ def pop_resample(EEG, freq, engine=None):
             
             if 'data' in EEG:
                 EEG_new['data'] = resample(EEG['data'].astype(np.float64), new_pnts, axis=1).astype(np.float32)
-        
+
         else:
             raise ValueError(f"Unsupported engine: {engine}. Should be None, 'matlab', or 'octave'")
-            
+
         # Update EEG structure
         new_pnts = EEG['data'].shape[1]
         EEG_new['pnts'] = new_pnts
@@ -79,14 +79,17 @@ def pop_resample(EEG, freq, engine=None):
         # Update times if present
         if 'times' in EEG:
             EEG_new['times'] = np.linspace(EEG['times'][0], EEG['times'][-1], new_pnts)
-        
+
         # Update xmin and xmax if present
         if 'xmin' in EEG and 'xmax' in EEG:
             duration = EEG['xmax'] - EEG['xmin']
             EEG_new['xmin'] = EEG['xmin']
             EEG_new['xmax'] = EEG['xmin'] + duration
 
-        # TODO: merge code for event/urevent recalculation
+        # Update event/urevent latencies if present
+        ratio = EEG['pnts'] / new_pnts
+        for event in EEG['event'].tolist() + EEG['urevent'].tolist():
+            event['latency'] = int(np.clip((event['latency']-1) * ratio + 1, 1, new_pnts))
 
         return EEG_new
 
