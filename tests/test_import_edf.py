@@ -6,7 +6,7 @@ if __name__ == "__main__":
     from eegprep import pop_load_frombids, pop_biosig
 
     fn = '/Users/arno/Python/eegprep/data/test_file.edf'
-    EEG1 = pop_load_frombids(fn, apply_bids_events=True)
+    EEG1 = pop_load_frombids(fn, bidsevent=True)
     
     # import using eeglabcompat
     EEG2 = pop_biosig(fn)

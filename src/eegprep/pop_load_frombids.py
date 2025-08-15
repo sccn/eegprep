@@ -1,11 +1,12 @@
 
 import os
 import copy
-from typing import Dict, Any, Tuple, List, Union, Sequence
+from typing import Dict, Any, Tuple, List, Union, Sequence, Optional
 import logging
 import warnings
 import contextlib
-from .utils.bids import layout_for_fpath, layout_get_lenient, query_for_adjacent_fpath
+from .utils.bids import layout_for_fpath, layout_get_lenient, query_for_adjacent_fpath, \
+    root_for_fpath
 from .utils.coords import *
 from .utils import ExceptionUnlessDebug
 
@@ -27,26 +28,35 @@ def _strip_matching_quotes(name: str) -> str:
 def pop_load_frombids(
         filename: str,
         *,
-        apply_bids_metadata: bool = True,
-        apply_bids_channels: bool = True,
-        apply_bids_events: bool = False,  # TODO: allow 'replace' to replace by default, allow 'merge' or None/False to skip
+        bidsmetadata: bool = True,
+        bidschanloc: bool = True,
+        bidsevent: Union[bool, str] = 'replace',
+        eventtype: Optional[str] = None,
         infer_locations: Union[bool, str, None] = None,
         dtype: np.dtype = np.float32,
         numeric_null: Any = np.array([]),
+        return_report: bool = False,
         verbose: bool = True,
-) -> Dict[str, Any]:
+) -> Dict[str, Any] | Tuple[Dict[str, Any], Dict[str, Any]]:
     """Load an EEG data file of a supported format from a BIDS dataset.
 
     Supported formats are EDF, BrainVision, EEGLAB SET, BDF.
 
     Args:
         filename: Path to the EEG data file in a BIDS dataset.
-        apply_bids_metadata: Whether to override any metadata in the EEG file with
+        bidsmetadata: Whether to override any metadata in the EEG file with
           metadata from BIDS.
-        apply_bids_channels: Whether to override any channel information (incl. locations)
+        bidschanloc: Whether to override any channel information (incl. locations)
           in the EEG file with channel information from BIDS.
-        apply_bids_events: Whether to override any event data in the EEG file with
-          event data from BIDS.
+        bidsevent: Whether to load in and override any event data in the EEG file with
+          event data from BIDS. Can be one of the following:
+          * 'replace'/True: replace events from EEG file with those from the BIDS event file
+          * 'merge': selectively override events from EEG file with those from the BIDS event file
+          * 'append': append events from the BIDS event file to those from the EEG file;
+              WARNING: this mode can result in duplicate events; use with caution
+          * False/None: do not load events from BIDS, keep those from the EEG file
+        eventtype: Optionally the column name in the BIDS events file to use for event
+          types; if not set, will be inferred heuristically.
         infer_locations: Whether to infer channel locations if necessary from the
           channel labels (if 10-20 labeling system).
           * True: infer locations from channel labels; override existing locations if any
@@ -58,14 +68,33 @@ def pop_load_frombids(
         dtype: The data type to use for the EEG data.
         numeric_null: The value to use for empty numeric fields in the EEG data.
           * the default is np.array([]) for MATLAB/pop_loadset compatibility
+        return_report: whether to return an import report dictionary as a second output
+        verbose: whether to log verbose output
 
     Returns:
         EEG: A dictionary containing the EEG data and metadata.
+        Report: optionally the import report to return, if desired.
 
     """
+    from . import eeg_checkset
+
+    report = {
+        'Warnings': [],
+        'Errors': [],
+    }
+
+    def warning(msg: str):
+        logger.warning(msg)
+        report['Warnings'].append(msg)
+
+    def error(msg: str):
+        logger.error(msg)
+        report['Errors'].append(msg)
 
     path, ext = os.path.splitext(filename)
     ext = ext.lower()
+
+    root = root_for_fpath(filename)
 
     if verbose:
         logger.info(f"Loading EEG data from {filename}...")
@@ -73,11 +102,14 @@ def pop_load_frombids(
         from . import pop_loadset
         EEG = pop_loadset(filename)
         EEG['data'] = EEG['data'].astype(dtype)
+        report['ImporterUsed'] = 'pop_loadset'
     elif ext in ['.edf', '.bdf', '.vhdr']:
         if ext == '.vhdr':
             from neo.rawio.brainvisionrawio import BrainVisionRawIO as NeoIO
+            report['ImporterUsed'] = 'neo.rawio.brainvisionrawio.BrainVisionRawIO'
         elif ext in ['.edf', '.bdf']:
             from neo.rawio.edfrawio import EDFRawIO as NeoIO
+            report['ImporterUsed'] = 'neo.rawio.edfrawio.EDFRawIO'
         else:
             # if you're getting this, there's an elif statement missing here for one of
             # the formats allowed above
@@ -87,14 +119,14 @@ def pop_load_frombids(
         io = NeoIO(filename)
         io.parse_header()
         if (nStreams := io.signal_streams_count()) > 1:
-            logger.warning(f"The raw data file {filename} appears to contain "
-                           f"more than one stream; using only the first stream.")
+            warning(f"The raw data file {filename} appears to contain "
+                    f"more than one stream; using only the first stream.")
         elif not nStreams:
             raise ValueError(f"The raw data file {filename} does not contain any data.")
         if (nBlocks := io.block_count()) > 1:
-            logger.warning(f"The raw data file {filename} appears to contain "
-                           f"more than one recording; this is not meaningful "
-                           f"in a BIDS context; using only the first block.")
+            warning(f"The raw data file {filename} appears to contain "
+                    f"more than one recording; this is not meaningful "
+                    f"in a BIDS context; using only the first block.")
         elif not nBlocks:
             raise ValueError(f"The raw data file {filename} does not contain any data.")
         if (nSegments := io.segment_count(0)) > 1:
@@ -108,18 +140,34 @@ def pop_load_frombids(
         nSamples = io.get_signal_size(0, 0, 0)
         chnIdxs = list(range(nChannels))
 
+        report['NumStreams'] = nStreams
+        report['NumBlocks'] = nBlocks
+        report['NumSegments'] = nSegments
+
         if verbose:
             logger.info("  retrieving EEG data from file...")
         data_T = io.get_analogsignal_chunk(block_index=0, seg_index=0,
                                            channel_indexes=chnIdxs,
                                            i_start=None, i_stop=None)
+        old_scale = np.std(data_T, axis=0)
         data_T = io.rescale_signal_raw_to_float(data_T, dtype=dtype,
                                                 channel_indexes=chnIdxs)
+        new_scale = np.std(data_T, axis=0)
+        scale_ratios = new_scale/old_scale
+        uq_ratios = np.unique(scale_ratios)
+        if len(uq_ratios) == 1:
+            report['ScaleApplied'] = uq_ratios.item()
+        else:
+            report['ScalesApplied'] = scale_ratios.tolist()
 
         # data time codes
         Fs = io.get_signal_sampling_rate(0)
         t0 = io.get_signal_t_start(block_index=0, seg_index=0, stream_index=0)
-        t0 += getattr(io, '_global_time', 0.0)  # default to 0 if not set
+        report['RawStartTime'] = t0
+        time_ofs = getattr(io, '_global_time', 0.0)  # default to 0 if not set
+        report['StartTimeOffset'] = time_ofs
+        t0 += time_ofs
+        report['CombinedStartTime'] = t0
         times = t0 + np.arange(0, nSamples, dtype=float) / Fs
 
         # construct the chanlocs data structure
@@ -131,8 +179,8 @@ def pop_load_frombids(
             units = ['uV']*nChannels
         uq_unit = np.unique(units)
         if len(uq_unit) == 1 and uq_unit[0] not in ('uV', 'microvolts'):
-            logger.warning(f"Your channel unit does not appear to be in microvolts (uV) "
-                           f"but is documented instead as {uq_unit[0]}. EEG scale might be incorrect. ")
+            warning(f"Your channel unit does not appear to be in microvolts (uV) "
+                    f"but is documented instead as {uq_unit[0]}. EEG scale might be incorrect. ")
 
         labels = chns['name'].tolist()
 
@@ -173,8 +221,8 @@ def pop_load_frombids(
                 sph_theta = phi - 90 * np.sign(theta)
                 sph_phi = -np.abs(theta) + 90
             except KeyError:
-                logger.warning(f"Channel coordinates not found in {filename}. "
-                               f"Using default values for channel locations.")
+                warning(f"Channel coordinates not found in {filename}. "
+                        f"Using default values for channel locations.")
                 valid = np.zeros(nChannels, dtype=bool)
         elif ext in ['.edf', '.bdf']:
             # EDF/BDF files do not have channel coordinates, so we use default values
@@ -339,7 +387,12 @@ def pop_load_frombids(
         raise ValueError(f"Unsupported file format: {ext}. Supported formats "
                          f"are .set, .edf, .bdf, .vhdr.")
 
-    if apply_bids_metadata:
+    report['EEGFileHadLocations'] = sum(chanloc_has_coords(ch) for ch in EEG['chanlocs'])
+    report['ChanlocsFrom'] = os.path.relpath(filename, root)
+    report['EEGFileHadEvents'] = len(EEG['event'])
+    report['EventsFrom'] = os.path.relpath(filename, root)
+
+    if bidsmetadata:
         if verbose:
             logger.info("  applying BIDS metadata...")
         import bids
@@ -350,10 +403,10 @@ def pop_load_frombids(
         # apply overrides
         EEG['subject'] = metadata.get('subject', '')
         if EEG['ref'] == 'unknown':
-            EEG['ref'] = metadata.get('EEGReference', 'unknown')  # TODO: check EEGLAB import convention if any
-        # EEG['etc']['bids'] <-- TODO: put in all the metadata
+            EEG['ref'] = metadata.get('EEGReference', 'unknown')
+        EEG['etc']['BIDS'] = metadata
 
-    if apply_bids_channels:
+    if bidschanloc:
         import bids
         layout: bids.BIDSLayout = layout_for_fpath(filename)
 
@@ -371,13 +424,14 @@ def pop_load_frombids(
             tolerate_missing=('task', 'run')
         )
         if len(channel_file_list) > 1:
-            logger.warning(f"Found multiple BIDS channel files for {filename}: "
-                           f"{', '.join([fo.filename for fo in channel_file_list])}. "
-                           f"Using the first one only.")
+            warning(f"Found multiple BIDS channel files for {filename}: "
+                    f"{', '.join([fo.filename for fo in channel_file_list])}. "
+                    f"Using the first one only.")
         for fo in channel_file_list:
             import pandas as pd
             if verbose:
                 logger.info(f"  applying BIDS channel locations from {fo.filename}...")
+            report['ChanlocsFrom'] = os.path.relpath(fo.path, root)
             # read in the file contents
             chans: pd.DataFrame = fo.get_df()
 
@@ -413,11 +467,11 @@ def pop_load_frombids(
                     else:
                         EEG['chanlocs'][idx]['ref'] = ref_idx
             if notfound:
-                logger.warning(f"Channels {','.join(notfound)} from BIDS file {fo.filename} "
-                               f"not found in EEG data structure; skipping.")
+                warning(f"Channels {','.join(notfound)} from BIDS file {fo.filename} "
+                       f"not found in EEG data structure; skipping.")
             if notype:
-                logger.warning(f"Cchannels in BIDS file {fo.filename} do not have a 'type' "
-                               f"column; not overriding.")
+                warning(f"Channels in BIDS file {fo.filename} do not have a 'type' "
+                        f"column; not overriding.")
 
             break
 
@@ -432,13 +486,14 @@ def pop_load_frombids(
             tolerate_missing=('task', 'run'),
         )
         if len(elec_file_list) > 1:
-            logger.warning(f"Found multiple BIDS electrode files for {filename}: "
-                           f"{', '.join([fo.filename for fo in elec_file_list])}. "
-                           f"Using the first one only.")
+            warning(f"Found multiple BIDS electrode files for {filename}: "
+                    f"{', '.join([fo.filename for fo in elec_file_list])}. "
+                    f"Using the first one only.")
         for fo in elec_file_list:
             import pandas as pd
             if verbose:
                 logger.info(f"  applying BIDS electrode locations from {fo.filename}...")
+            report['ElectrodesFrom'] = os.path.relpath(fo.path, root)
             # read in the file contents
             elecs: pd.DataFrame = fo.get_df()
 
@@ -452,22 +507,24 @@ def pop_load_frombids(
                 tolerate_missing=('task', 'run', 'space'),
             )
             if len(coordsystem_file_list) > 1:
-                logger.warning(f"Found multiple BIDS coordsystem files for {fo.filename}: "
-                               f"{', '.join([fo.filename for fo in coordsystem_file_list])}. "
-                               f"Using the first one only.")
+                warning(f"Found multiple BIDS coordsystem files for {fo.filename}: "
+                        f"{', '.join([fo.filename for fo in coordsystem_file_list])}. "
+                        f"Using the first one only.")
             if not coordsystem_file_list:
                 # if it's a .set study, then we assume ALS for the chanlocs, otherwise RAS
                 coord_system = 'ALS' if ext == '.set' else 'RAS'
                 coord_units = 'guess'
-                logger.warning(f"Found no BIDS coordsystem files for {fo.filename}; your "
-                               f"dataset is not fully BIDS-compliant. Assuming coordinate "
-                               f"system {coord_system!r} and guessing units from the data.")
+                warning(f"Found no BIDS coordsystem files for {fo.filename}; your "
+                        f"dataset is not fully BIDS-compliant. Assuming coordinate "
+                        f"system {coord_system!r} and guessing units from the data.")
             else:
                 for coordsystem_fo in coordsystem_file_list:
                     if verbose:
                         logger.info(f"  applying BIDS coordsystem from {coordsystem_fo.filename}...")
+                    report['CoordsystemFrom'] = os.path.relpath(coordsystem_fo.path, root)
                     # read in the file contents
                     content: Dict[str, Any] = coordsystem_fo.get_dict()
+                    EEG['etc']['BIDSCoordsystem'] = content
                     coord_system = content.get('EEGCoordinateSystem', 'RAS')  # default to RAS if not specified
                     if 'EEGLAB' in coord_system.upper():
                         # as per BIDS docs, EEGLAB is the only one that's expressly not RAS
@@ -483,7 +540,10 @@ def pop_load_frombids(
             coords = np.stack(
                 (elecs['x'].to_numpy(), elecs['y'].to_numpy(), elecs['z'].to_numpy()),
                 axis=1)
-            if coord_units == 'guess':
+
+            guess_units = coord_units == 'guess'
+
+            if guess_units:
                 with warnings.catch_warnings():
                     warnings.simplefilter('ignore')
                     max_coord = np.nanmax(np.abs(coords))
@@ -501,12 +561,15 @@ def pop_load_frombids(
                 if verbose:
                     logger.info(f"  inferred coordinate units to be in {coord_units!r}...")
 
+            report['OriginalCoordUnits'] = coord_units
+            report['CoordUnitsWereGuessed'] = guess_units
+
             if coord_units == '':
-                logger.warning(f"Coordinate units for {fo.filename} could not be inferred "
-                               f"or were invalid; not overriding channel locations.")
+                warning(f"Coordinate units for {fo.filename} could not be inferred "
+                        f"or were invalid; not overriding channel locations.")
             else:
                 if EEG['chaninfo']['nosedir'] != '+X':
-                    logger.warning(
+                    warning(
                         f"Converting to the coordinate system {coord_system} of "
                         f"the EEG data file is not supported by this importer. "
                         f"Setting to +X and clearing existing coordinates.")
@@ -555,13 +618,15 @@ def pop_load_frombids(
                     rec['theta'] = polar_theta[k]
                     rec['radius'] = polar_radius[k]
                 if notfound:
-                    logger.warning(f"Electrodes {','.join(notfound)} from BIDS file {fo.filename} "
-                                   f"not found in EEG data structure; skipping.")
+                    warning(f"Electrodes {','.join(notfound)} from BIDS file {fo.filename} "
+                            f"not found in EEG data structure; skipping.")
                 if num_updated:
                     logger.info(f"Updated {num_updated} channel locations from BIDS file {fo.filename} "
                                 f"into the EEG data structure.")
+                    report['NumUpdatedChanlocs'] = num_updated
+                    report['NotfoundChanlocs'] = notfound
 
-    if apply_bids_events:
+    if bidsevent:
         import bids
         layout: bids.BIDSLayout = layout_for_fpath(filename)
 
@@ -575,23 +640,26 @@ def pop_load_frombids(
                 import pandas as pd
                 if verbose:
                     logger.info(f"  applying BIDS events from {fo.filename}...")
+                report['EventsFrom'] = os.path.relpath(fo.path, root)
                 # read in the file contents
                 events: pd.DataFrame = fo.get_df()
                 try:
                     # opportunistically look for the 'sample' column, which may be present in some files
                     # seen in the wild
                     ev_lats = events['sample'].to_numpy(dtype=int)
+                    report['EventTimingSource'] = 'sample'
                 except KeyError:
                     # otherwise get it from the onsets, which is expected to be always present
                     try:
                         onsets = events['onset'].to_numpy(dtype=float)
+                        report['EventTimingSource'] = 'onset'
                         ev_lats = np.searchsorted(times, onsets)
                     except KeyError as e:
                         raise ValueError(f"Your BIDS file {fo.filename} does not contain "
                                          f"the required 'onset' column for events and therefore "
                                          f"does not conform to the BIDS standard; to fall back "
                                          f"to the events present in the EEG file itself (if any), "
-                                         f"pass the apply_bids_events=False option "
+                                         f"pass the bidsevent=False option "
                                          f"when using pop_load_frombids, or equivalently "
                                          f"ApplyEvents=False when using  bids_preproc().")
 
@@ -604,22 +672,30 @@ def pop_load_frombids(
                 # convert to EEGLAB's sample-based durations
                 ev_durs = np.round(np.maximum(1, Fs*durations)).astype(int)
 
+                if eventtype:
+                    # restrict to the specified event type only
+                    probe_columns = [eventtype]
+                else:
+                    probe_columns = event_type_columns
+
                 # read out the event types and/or codes
-                for candidate_column in event_type_columns:  # TODO: maybe add override option for this?
+                for candidate_column in probe_columns:
                     try:
                         # preferred column for the event type
                         ev_types = events[candidate_column].to_numpy()
+                        report['EventSourceColumn'] = candidate_column
+                        EEG['etc']['event_column'] = candidate_column
                         break
                     except KeyError:
                         # not found
                         continue
                 else:
-                    logger.warning(f"Your BIDS file {fo.filename} does not appear to contain "
-                                   f"a column coding for the event type ({','.join(event_type_columns)}), "
-                                   f"importing as ''. To avoid importing these dummy events and use only"
-                                   f"the events in the EEG file itself (if any), pass the "
-                                   f"apply_bids_events=False option when using pop_load_frombids, "
-                                   f"or equivalently ApplyEvents=False when using bids_preproc().")
+                    warning(f"Your BIDS file {fo.filename} does not appear to contain "
+                            f"a column coding for the event type ({','.join(event_type_columns)}), "
+                            f"importing as ''. To avoid importing these dummy events and use only"
+                            f"the events in the EEG file itself (if any), pass the "
+                            f"bidsevent=False option when using pop_load_frombids, "
+                            f"or equivalently ApplyEvents=False when using bids_preproc().")
                     ev_types = np.full_like(ev_lats, '', dtype=object)
 
                 ev_types = [typ or ('boundary' if typ == 'New Segment' else '') for typ in ev_types]
@@ -627,13 +703,25 @@ def pop_load_frombids(
                 # filter out any events that are already in the EEG data structure itself
                 # noinspection PyBroadException
                 try:
-                    if len(EEG['event']):
-                        orig_lats = [e['latency'] for e in EEG['event']]
-                        indexes = np.searchsorted(orig_lats, ev_lats)
-                        orig_types = [ev['type'] for ev in EEG['event'][indexes]]
-                        keep = [o != e for o,e in zip(orig_types, ev_types)]
-                    else:
+                    if bidsevent in ('replace', True):
+                        EEG['event'] = np.array([], dtype=object)  # clear existing events
                         keep = np.ones_like(ev_types, dtype=bool)
+                    elif bidsevent == 'merge':
+                        if len(EEG['event']):
+                            orig_lats = [e['latency'] for e in EEG['event']]
+                            indexes = np.searchsorted(orig_lats, ev_lats)
+                            orig_types = [ev['type'] for ev in EEG['event'][indexes]]
+                            keep = [o != e for o,e in zip(orig_types, ev_types)]
+                        else:
+                            keep = np.ones_like(ev_types, dtype=bool)
+                    elif bidsevent == 'append':
+                        keep = np.ones_like(ev_types, dtype=bool)
+                    else:
+                        raise ValueError(
+                            f"Invalid value for bidsevent: {bidsevent}. "
+                            f"Expected one of 'replace', 'merge', 'append', or False/None.")
+
+                    report["NumEventsFromBids"] = int(np.sum(keep))
 
                     # append the new events to the EEG structure
                     if count := np.sum(keep):
@@ -662,6 +750,9 @@ def pop_load_frombids(
 
                         logger.info(f"Merged {count} events from the BIDS events file {fo.filename} " 
                                     f"into the EEG file {basename}.")
+
+                    report["NumEventsFromEEGFile"] = len(EEG['event']) - int(np.sum(keep))
+
                 except ExceptionUnlessDebug:
                     logger.exception(f"Failed to deduplicate events between the EEG file {basename} "
                                      f"and the BIDS events file {fo.filename}; keeping all events.")
@@ -744,68 +835,80 @@ def pop_load_frombids(
                     'Channel labels do not match any known or specified montage.')
 
         # additional diagnostics
+        skip_locations = False
         percent_found = int(100 * best_fraction)
         if best_fraction < 0.25:
-            logger.error("The given data has a very poor match to all "
-                         "known montages (%s percent of channels found); "
-                         "not assigning locations (got: %s)" % (percent_found, datalabels))
-            return
+            error("The given data has a very poor match to all "
+                  "known montages (%s percent of channels found); "
+                  "not assigning locations (got: %s)" % (percent_found, datalabels))
+            skip_locations = True
         elif best_fraction < 0.5:
             if len(fractions) > 1 and best_fraction / 1.5 < fractions[1]:
-                logger.warning("The given data has a poor match and multiple "
-                               "montages are partially matching potentially "
-                               "ambiguously (%s percent of channels found); "
-                               "please double-check assigned locations." %
-                               percent_found)
+                warning("The given data has a poor match and multiple "
+                        "montages are partially matching potentially "
+                        "ambiguously (%s percent of channels found); "
+                        "please double-check assigned locations." %
+                        percent_found)
             else:
-                logger.warning("The given data has a poor match to all known "
-                               "montages (%s percent of channels found); please "
-                               "double-check assigned locations." %
-                               percent_found)
+                warning("The given data has a poor match to all known "
+                        "montages (%s percent of channels found); please "
+                        "double-check assigned locations." %
+                        percent_found)
         elif (best_fraction < 0.75 and len(fractions) > 1 and
               best_fraction / 1.5 < fractions[1]):
-            logger.warning("The given data has a reasonable match to known "
-                           "montages but multiple montages are potentially "
-                           "matching (%s percent of channels found); "
-                           "locations may be wrong." %
-                           percent_found)
+            warning("The given data has a reasonable match to known "
+                   "montages but multiple montages are potentially "
+                   "matching (%s percent of channels found); "
+                   "locations may be wrong." %
+                   percent_found)
         elif best_fraction < 1.0:
-            logger.warning("Not all channel locations could be matched to a "
-                           "known montage; some channels may be non-EEG "
-                           "channels ({} percent of channels found).".format(percent_found))
+            warning("Not all channel locations could be matched to a "
+                    "known montage; some channels may be non-EEG "
+                    "channels ({} percent of channels found).".format(percent_found))
 
-        # transform coordinates from file into the EEGLAB coordinate system
-        # unit=millimeters, x=A (front), y=L (left), z=S (up)
-        unit = best_data['meta']['unit'][()]
-        x = best_data['meta']['x'][()]
-        y = best_data['meta']['y'][()]
-        z = best_data['meta']['z'][()]
-        coords = best_data['coordinates']
-        coords = coords_to_mm(coords, unit)
-        coords = coords_any_to_RAS(coords, x, y, z)
-        coords = coords_RAS_to_ALS(coords)
-        sph_theta, sph_phi, sph_radius, polar_theta, polar_radius = coords_ALS_to_angular(coords)
+        if not skip_locations:
+            report['ChanlocsFrom'] = os.path.basename(best_cap)
 
-        # cross-reference location indices from best montage
-        caplabels = [l.lower() for l in best_data['labels']]
-        for di, dl in enumerate(datalabels):
-            rec = EEG['chanlocs'][di]
-            for ci, cl in enumerate(caplabels):
-                if dl == cl:
-                    xyz = coords[ci, :]
-                    rec['X'] = xyz[0]
-                    rec['Y'] = xyz[1]
-                    rec['Z'] = xyz[2]
-                    rec['sph_radius'] = sph_radius[ci]
-                    rec['sph_theta'] = sph_theta[ci]
-                    rec['sph_phi'] = sph_phi[ci]
-                    rec['theta'] = polar_theta[ci]
-                    rec['radius'] = polar_radius[ci]
-                    break
-            else:
-                 # otherwise clear the locs to invalid
-                clear_chanloc(rec, numeric_null)
+            # transform coordinates from file into the EEGLAB coordinate system
+            # unit=millimeters, x=A (front), y=L (left), z=S (up)
+            unit = best_data['meta']['unit'][()]
+            x = best_data['meta']['x'][()]
+            y = best_data['meta']['y'][()]
+            z = best_data['meta']['z'][()]
+            coords = best_data['coordinates']
+            coords = coords_to_mm(coords, unit)
+            coords = coords_any_to_RAS(coords, x, y, z)
+            coords = coords_RAS_to_ALS(coords)
+            sph_theta, sph_phi, sph_radius, polar_theta, polar_radius = coords_ALS_to_angular(coords)
 
-    # TODO: eeg_checkset(EEG)  # check the EEG structure for consistency
-    #  eeg_checkchanlocs(EEG)
-    return EEG
+            # cross-reference location indices from best montage
+            caplabels = [l.lower() for l in best_data['labels']]
+            for di, dl in enumerate(datalabels):
+                rec = EEG['chanlocs'][di]
+                for ci, cl in enumerate(caplabels):
+                    if dl == cl:
+                        xyz = coords[ci, :]
+                        rec['X'] = xyz[0]
+                        rec['Y'] = xyz[1]
+                        rec['Z'] = xyz[2]
+                        rec['sph_radius'] = sph_radius[ci]
+                        rec['sph_theta'] = sph_theta[ci]
+                        rec['sph_phi'] = sph_phi[ci]
+                        rec['theta'] = polar_theta[ci]
+                        rec['radius'] = polar_radius[ci]
+                        break
+                else:
+                     # otherwise clear the locs to invalid
+                    clear_chanloc(rec, numeric_null)
+
+    EEG = eeg_checkset(EEG)
+    try:
+        from eegprep import eeg_checkchanlocs
+        EEG = eeg_checkchanlocs(EEG)
+    except ImportError:
+        print("eeg_checkchanlocs not available, skipping channel location check.")
+
+    if return_report:
+        return EEG, report
+    else:
+        return EEG
