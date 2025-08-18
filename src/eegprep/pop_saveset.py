@@ -161,7 +161,17 @@ def pop_saveset(EEG, file_name):
      # add 1 to EEG['icachansind'] to make it 1-based
     if 'icachansind' in eeglab_dict and eeglab_dict['icachansind'].size > 0:
         eeglab_dict['icachansind'] = eeglab_dict['icachansind'] + 1 
-        
+
+    # check if EEG['urchan'] is 0-based
+    if len(eeglab_dict['chanlocs']) > 0 and 'urchan' in eeglab_dict['chanlocs'][0]:
+        for i in range(len(eeglab_dict['chanlocs'])):
+            eeglab_dict['chanlocs'][i]['urchan'] = eeglab_dict['chanlocs'][i]['urchan'] + 1        
+            
+    # check if EEG['chanlocs'][i]['urvent'] is 0-based
+    if len(eeglab_dict['event']) > 0 and 'urvent' in eeglab_dict['event'][0]:
+        for i in range(len(eeglab_dict['event'])):
+            eeglab_dict['event'][i]['urvent'] = eeglab_dict['event'][i]['urvent'] + 1  
+                   
     # Create the list of dictionaries with a string field
     if 'chanlocs' in EEG and len(EEG['chanlocs']) > 0:
         d_list = [{
