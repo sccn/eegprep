@@ -29,7 +29,7 @@ def eeg_checkset(EEG, load_data=True):
     
     # check if EEG['data'] is 3D
     if 'data' in EEG and EEG['data'].ndim == 3:
-        EEG['data'] = np.squeeze(EEG['data'], axis=2)
+        EEG['data'] = np.squeeze(EEG['data'])
     
     # type conversion
     EEG['xmin'] = float(EEG['xmin'])

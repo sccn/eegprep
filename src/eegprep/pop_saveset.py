@@ -50,6 +50,39 @@ def flatten_dict(data):
 def saveset(EEG, file_name):
     return pop_saveset(EEG, file_name)
 
+# def dictlist_to_recarray(events):
+#     # --- Infer dtype automatically ---
+#     dtype_fields = []
+#     for key in events[0].keys():
+#         values = [e[key] for e in events]
+
+#         # If string: pick Unicode type with max length
+#         if all(isinstance(v, str) for v in values):
+#             maxlen = max(len(v) for v in values)
+#             dtype_fields.append((key, f'U{maxlen}'))
+
+#         # If integer: use int32
+#         elif all(isinstance(v, int) for v in values):
+#             dtype_fields.append((key, 'i4'))
+
+#         # If float or mixed int/float: use float64
+#         elif all(isinstance(v, (float, int)) for v in values):
+#             dtype_fields.append((key, 'f8'))
+
+#         else:
+#             # fallback: generic object
+#             dtype_fields.append((key, object))
+
+#     dtype = np.dtype(dtype_fields)
+
+#     # --- Convert events to recarray ---
+#     rec_events = np.array(
+#         [tuple(e[k] for k in events[0].keys()) for e in events],
+#         dtype=dtype
+#     ).view(np.recarray)
+
+#     return rec_events
+
 def pop_saveset_old(EEG, file_path):
     # convert Events to structured array
     # if 'event' in EEG:
@@ -176,17 +209,17 @@ def pop_saveset(EEG, file_name):
     # # Step 4: Save the EEGLAB dataset as a .mat file
     scipy.io.savemat(file_name, eeglab_dict, appendmat=False)
 
-
 def test_pop_saveset():
     from eegprep.pop_loadset import pop_loadset
     file_path = './data/eeglab_data_with_ica_tmp.set'
     EEG = pop_loadset(file_path)
-    pop_saveset( EEG, 'tmp.set')
-    pop_saveset_old(EEG, 'tmp2.set') # does not do events and function above is better
+    pop_saveset( EEG, '/Users/arno/Python/eegprep/data/tmp.set')
+    pop_saveset_old(EEG, '/Users/arno/Python/eegprep/data/tmp2.set') # does not do events and function above is better
     # print the keys of the EEG dictionary
     print(EEG.keys())
     
-# test_pop_saveset()
+if __name__ == '__main__':
+    test_pop_saveset()
 
 # STILL OPEN QUESTION: Better to have empty MATLAB arrays as None for empty numpy arrays (current default).
 # The current default is to make it more MALTAB compatible. A lot of MATLAB function start indexing MATLAB
