@@ -4,7 +4,7 @@ import os
 import tempfile
 from .pop_saveset import pop_saveset
 from .pop_loadset import pop_loadset
-from .eeglabcompat import temp_dir, MatlabWrapper, OctaveWrapper
+from .eeglabcompat import temp_dir, MatlabWrapper
 
 
 def eeg_picard(EEG, engine=None, **kwargs):

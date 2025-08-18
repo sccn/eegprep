@@ -83,39 +83,39 @@ class MatlabWrapper:
         return wrapper
 
 
-class OctaveWrapper:
-    """Octave engine wrapper that round-trips calls involving the EEGLAB data structure through files."""
+# class OctaveWrapper:
+#     """Octave engine wrapper that round-trips calls involving the EEGLAB data structure through files."""
 
-    def __init__(self, engine):
-        self.engine = engine
+#     def __init__(self, engine):
+#         self.engine = engine
                 
-    def __getattr__(self, name):
-        def wrapper(*args):
-            needs_roundtrip = False
-            for a in args:
-                if isinstance(a, dict) and a.get('nbchan') is not None:
-                    needs_roundtrip = True
-                    break
-            if needs_roundtrip:
-                # passage data through a file
-                with tempfile.NamedTemporaryFile(dir=temp_dir, delete=True, suffix='.set') as temp_file:
-                    pop_saveset(args[0], temp_file.name)
-                    # Ensure the file is fully written before proceeding
-                    temp_file.flush()
-                    os.fsync(temp_file.fileno())  # Force write to disk to avoid timing issues
-                    # Needs to use eval since returning struct arrays is not supported in Octave
-                    self.engine.eval(f"EEG = pop_loadset('{temp_file.name}');", nargout=0)
-                    # TODO: marshalling of extra arguments should follow octave conventions
-                    eval_str = f"EEG = {name}(EEG{',' if args[1:] else ''}{','.join([repr(a) for a in args[1:]])});"
-                    print("This is the eval_str: ", eval_str)
-                    self.engine.eval(eval_str, nargout=0)
-                    self.engine.eval(f"pop_saveset(EEG, '{temp_file.name}');", nargout=0)
-                    return pop_loadset(temp_file.name)
-            else:
-                # run it directly
-                return getattr(self.engine, name)(*args)
+#     def __getattr__(self, name):
+#         def wrapper(*args):
+#             needs_roundtrip = False
+#             for a in args:
+#                 if isinstance(a, dict) and a.get('nbchan') is not None:
+#                     needs_roundtrip = True
+#                     break
+#             if needs_roundtrip:
+#                 # passage data through a file
+#                 with tempfile.NamedTemporaryFile(dir=temp_dir, delete=True, suffix='.set') as temp_file:
+#                     pop_saveset(args[0], temp_file.name)
+#                     # Ensure the file is fully written before proceeding
+#                     temp_file.flush()
+#                     os.fsync(temp_file.fileno())  # Force write to disk to avoid timing issues
+#                     # Needs to use eval since returning struct arrays is not supported in Octave
+#                     self.engine.eval(f"EEG = pop_loadset('{temp_file.name}');", nargout=0)
+#                     # TODO: marshalling of extra arguments should follow octave conventions
+#                     eval_str = f"EEG = {name}(EEG{',' if args[1:] else ''}{','.join([repr(a) for a in args[1:]])});"
+#                     print("This is the eval_str: ", eval_str)
+#                     self.engine.eval(eval_str, nargout=0)
+#                     self.engine.eval(f"pop_saveset(EEG, '{temp_file.name}');", nargout=0)
+#                     return pop_loadset(temp_file.name)
+#             else:
+#                 # run it directly
+#                 return getattr(self.engine, name)(*args)
         
-        return wrapper
+#         return wrapper
 
 # noinspection PyDefaultArgument
 def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = True, _cache={}):
@@ -193,7 +193,7 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
     # optionally wrap the engine in a file-roundtripping wrapper
     if auto_file_roundtrip:
         if rt == 'oct':
-            engine = OctaveWrapper(engine)
+            engine = MatlabWrapper(engine)
         elif rt == 'mat':
             engine = MatlabWrapper(engine)
         else:
