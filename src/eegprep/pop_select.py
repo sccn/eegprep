@@ -1,5 +1,9 @@
 import numpy as np
 import copy
+from eegprep.eeg_lat2point import eeg_lat2point
+from eegprep.eeg_point2lat import eeg_point2lat
+from eegprep.eeg_decodechan import eeg_decodechan
+from eegprep.eeg_eegrej import eeg_eegrej
 
 def pop_select(EEG, **kwargs):
     """
@@ -106,12 +110,12 @@ def pop_select(EEG, **kwargs):
             raise ValueError('Select channels by name OR by type, not both')
 
         if _decode_list(g['channel']):
-            inds = eeg_decodechan(EEG, g['channel'], 'labels', True)
+            inds, _ = eeg_decodechan(EEG, g['channel'], 'labels', True)
             chan_selected_flag[:] = False
             chan_selected_flag[np.array(inds, dtype=int)] = True
 
         if _decode_list(g['nochannel']):
-            inds = eeg_decodechan(EEG, g['nochannel'], 'labels', True)
+            inds, _ = eeg_decodechan(EEG, g['nochannel'], 'labels', True)
             chan_selected_flag[np.array(inds, dtype=int)] = False
 
     else:
@@ -128,27 +132,6 @@ def pop_select(EEG, **kwargs):
     g['channel'] = np.where(chan_selected_flag)[0].tolist()
     if len(g['channel']) == 0:
         raise ValueError('Empty channel selection')
-
-    # 3) Point/time reconciliation
-    # Helpers replicate EEGLAB conversions
-    def eeg_point2lat(point, epoch_index, srate, win):
-        # EEGLAB: returns latency in seconds given point index in epoch
-        xmin_s, xmax_s = float(win[0]), float(win[1])
-        # EEGLAB uses 1-based points; here we assume MATLAB semantics for point inputs
-        # If point is 1, latency equals xmin
-        return xmin_s + (float(point) - 1.0) / float(srate)
-
-    def eeg_lat2point(latencies, epochs, srate, win):
-        """
-        Convert seconds latencies to 1-based points, returns (points, flag)
-        points: array like latencies
-        flag: True if last [start,end] are equal
-        """
-        xmin_s, xmax_s = float(win[0]), float(win[1])
-        lat = np.asarray(latencies, dtype=float)
-        pts = 1 + np.round((lat - xmin_s) * float(srate)).astype(int)
-        flag = False
-        return pts, flag
 
     # normalize vector forms for point/nopoint to Nx2
     def _normalize_range_matrix(x):
@@ -297,7 +280,7 @@ def pop_select(EEG, **kwargs):
             pnts = EEG['pnts']
 
             # shift event latencies within each epoch window
-            if EEG.get('event'):
+            if EEG['event'] is not None and len(EEG['event']) > 0:
                 newevents = []
                 for ev in EEG['event']:
                     if 'epoch' in ev and 'latency' in ev:
@@ -310,7 +293,7 @@ def pop_select(EEG, **kwargs):
                 EEG['event'] = newevents
 
             # erase epoch-level event fields
-            if EEG.get('epoch'):
+            if EEG['epoch'] is not None and len(EEG['epoch']) > 0:
                 # remove fields that start with 'event'
                 new_epoch = []
                 for ep in EEG['epoch']:
@@ -379,25 +362,21 @@ def pop_select(EEG, **kwargs):
         EEG['data'] = data[chan_idx, :]
 
     # icaact
-    if EEG.get('icaact') is not None:
+    if EEG['icaact'] is not None and len(EEG['icaact']) > 0:
         ia = EEG['icaact']
         if ia is not None and isinstance(ia, np.ndarray) and ia.ndim == 3:
             EEG['icaact'] = ia[:, :, trial_idx_0]
 
     # chanlocs bookkeeping
-    if EEG.get('chanlocs'):
-        if 'chaninfo' not in EEG or EEG['chaninfo'] is None:
+    if EEG['chanlocs'] is not None and len(EEG['chanlocs']) > 0:
+        if 'chaninfo' in EEG and EEG['chaninfo'] is not None and len(EEG['chaninfo']) > 0:
             EEG['chaninfo'] = {}
         if 'removedchans' not in EEG['chaninfo'] or EEG['chaninfo']['removedchans'] is None:
             EEG['chaninfo']['removedchans'] = []
         try:
             removed = np.setdiff1d(np.arange(nbchan), chan_idx)
-            fields = list(EEG['chanlocs'][0].keys()) if EEG['chanlocs'] else []
-            for i in removed.tolist():
-                entry = {}
-                for f in fields:
-                    entry[f] = EEG['chanlocs'][i].get(f, None)
-                EEG['chaninfo']['removedchans'].append(entry)
+            for chan in EEG['chanlocs'][removed.tolist()]:
+                EEG['chaninfo']['removedchans'].append(chan)
         except Exception:
             print('There was an issue storing removed channels in pop_select')
         EEG['chanlocs'] = [EEG['chanlocs'][i] for i in chan_idx.tolist()]
@@ -409,20 +388,10 @@ def pop_select(EEG, **kwargs):
     EEG['nbchan'] = len(chan_idx)
 
     # epoch metadata
-    if EEG.get('epoch'):
+    if EEG['epoch'] is not None and len(EEG['epoch']) > 0:
         EEG['epoch'] = [EEG['epoch'][i] for i in trial_idx_0.tolist()]
 
-    # specdata/specicaact handling
-    if EEG.get('specdata') is not None:
-        sd = EEG['specdata']
-        if isinstance(sd, np.ndarray) and sd.size:
-            if 'point' in kwargs and np.asarray(kwargs['point']).size == EEG['pnts']:
-                EEG['specdata'] = sd[chan_idx, :, :][:, :, trial_idx_0]
-            else:
-                EEG['specdata'] = []
-                print('Warning: spectral data were removed because of the change in the number of points')
-
-    # ICA channel bookkeeping
+     # ICA channel bookkeeping
     if EEG.get('icachansind') is not None and len(EEG.get('icachansind')) > 0:
         rmch = np.setdiff1d(np.array(EEG['icachansind'], dtype=int), chan_idx)
         icachans = list(range(len(EEG['icachansind'])))
@@ -442,10 +411,13 @@ def pop_select(EEG, **kwargs):
                 newinds.append(chan_idx_list.index(ch))
         EEG['icachansind'] = newinds
     else:
-        icachans = list(range(EEG.get('icasphere', np.eye(0)).shape[1] if EEG.get('icasphere') is not None else 0))
+        if EEG['icasphere'] is not None and len(EEG['icasphere']) > 0:  
+            icachans = range(EEG['icasphere'].shape[1])
+        else:
+            icachans = 0
 
     # icawinv/icaweights/icasphere coherence if channels removed
-    if EEG.get('icawinv') is not None:
+    if EEG['icawinv'] is not None and len(EEG['icawinv']) > 0:
         icawinv = EEG['icawinv']
         if isinstance(icawinv, np.ndarray) and icawinv.size:
             flag_rmchan = (len(icachans) != icawinv.shape[0])
@@ -456,25 +428,21 @@ def pop_select(EEG, **kwargs):
                 EEG['icaweights'] = np.linalg.pinv(iw)
                 EEG['icasphere']  = np.eye(EEG['icaweights'].shape[1])
 
-    if EEG.get('specicaact') is not None:
-        sia = EEG['specicaact']
-        if isinstance(sia, np.ndarray) and sia.size:
-            if 'point' in kwargs and np.asarray(kwargs['point']).size == EEG['pnts']:
-                EEG['specicaact'] = sia[np.array(icachans, dtype=int), :, :][:, :, trial_idx_0]
-            else:
-                EEG['specicaact'] = []
-                print('Warning: spectral ICA data were removed because of the change in the number of points')
-
+    if EEG['specicaact'] is not None and len(EEG['specicaact']) > 0:
+        EEG['specicaact'] = np.array([]) 
+   # specdata/specicaact handling
+    if EEG['specdata'] is not None and len(EEG['specdata']) > 0:
+        EEG['specdata'] = np.array([])
     # single epoch → drop event.epoch and clear epoch list
     if EEG['trials'] == 1:
-        if EEG.get('event'):
+        if EEG['event'] is not None and len(EEG['event']) > 0:
             for ev in EEG['event']:
                 if 'epoch' in ev:
                     ev.pop('epoch', None)
         EEG['epoch'] = []
 
     # reject, stats clean-up
-    if EEG.get('reject') and isinstance(EEG['reject'], dict) and 'gcompreject' in EEG['reject'] and \
+    if EEG['reject'] is not None and isinstance(EEG['reject'], dict) and 'gcompreject' in EEG['reject'] and \
        len(g['channel']) == nbchan:
         tmp = EEG['reject']['gcompreject']
         EEG['reject'] = {}
@@ -487,7 +455,7 @@ def pop_select(EEG, **kwargs):
 
     # event consistency check stub (depends on eeg_checkset in EEGLAB)
     # Here we simply ensure event latencies are within data bounds when possible.
-    if EEG.get('event'):
+    if EEG['event'] is not None and len(EEG['event']) > 0:
         total_pts = EEG['pnts'] * EEG['trials']
         cleaned = []
         for ev in EEG['event']:
