@@ -10,6 +10,7 @@ import logging
 import os
 import numpy as np
 import eegprep.pymat as py2mat
+import scipy.io
 
 logger = logging.getLogger(__name__)
 
@@ -38,12 +39,6 @@ class MatlabWrapper:
 
     def __getattr__(self, name):
         def wrapper(*args, **kwargs):
-            # issue error if kwargs are passed unless it is "nargout"
-            needs_roundtrip = False
-            for a in args:
-                if isinstance(a, dict) and a.get('nbchan') is not None:
-                    needs_roundtrip = True
-                    break
             # arg list
             new_args = list(args)
             kwargs_list = []
@@ -51,65 +46,88 @@ class MatlabWrapper:
                 kwargs_list.append(f'{key}')
                 kwargs_list.append(value)      
             new_args.extend(kwargs_list)
+
+            # issue error if kwargs are passed unless it is "nargout"
+            needs_roundtrip = False
+            eval_str = f"if iscell(args.args), OUT = {name}(args.args{{:}}); else, OUT = {name}(args.args); end;"
+            if len(args) > 0:
+                if isinstance(args[0], dict) and args[0].get('nbchan') is not None:
+                    needs_roundtrip = True
+                    new_args = new_args[1:]
+                    eval_str = f"if iscell(args.args), OUT = {name}(EEG,args.args{{:}}); else, OUT = {name}(EEG,args.args); end;"
             
             # convert numerical list arguments to numpy arrays
             for i, arg in enumerate(new_args):
-                if i > 0: 
-                    if isinstance(arg, list) and all(isinstance(x, (int, float)) for x in arg):
-                        new_args[i] = np.array(arg, dtype=np.float64)
-                    elif isinstance(arg, (int, float, np.integer, np.floating)):
-                        new_args[i] = np.array(arg, dtype=np.float64)
+                if isinstance(arg, list) and all(isinstance(x, (int, float, np.integer, np.floating)) for x in arg):
+                    new_args[i] = np.array(arg, dtype=np.float64)
+                elif isinstance(arg, np.ndarray) and all(isinstance(x, (int, float, np.integer, np.floating)) for x in np.ravel(arg)):
+                    new_args[i] = np.array(arg, dtype=np.float64)
+                elif isinstance(arg, (int, float, np.integer, np.floating)):
+                    new_args[i] = np.array(arg, dtype=np.float64)
+                elif isinstance(arg, str):
+                    new_args[i] = arg
+                else:
+                    new_args[i] = py2mat(arg) # it is unclear if the flatten function of pop_saveset is better here
+
+            try:
+                # temporary files
+                temp_filename1 = tempfile.mktemp(dir=temp_dir, suffix='.set')
+                temp_filename2 = tempfile.mktemp(dir=temp_dir, suffix='.mat')
+                result_filename = temp_filename1 + '.result.set'
+                print(f"temp_filename1: {temp_filename1}")
+                print(f"temp_filename2: {temp_filename2}")
+                print(f"result_filename: {result_filename}")
+
+                # save all parameters in the temp_filename which is a .mat file
+                if len(new_args) > 0:
+                    if len(new_args) > 1:
+                        scipy.io.savemat(temp_filename2, {'args': np.array(new_args, dtype=object)}) # object required for passing as cell array
                     else:
-                        new_args[i] = py2mat(arg)
-            
-            if needs_roundtrip:
-                # passage data through a file
-                try:
-                    temp_filename1 = tempfile.mktemp(dir=temp_dir, suffix='.set')
-                    temp_filename2 = tempfile.mktemp(dir=temp_dir, suffix='.mat')
-                    print(f"temp_filename1: {temp_filename1}")
-                    print(f"temp_filename2: {temp_filename2}")
-                    result_filename = temp_filename1 + '.result.set'
+                        scipy.io.savemat(temp_filename2, {'args': new_args})
+                    self.engine.eval(f"args = load('{temp_filename2}');", nargout=0)
+                else:
+                    self.engine.eval("args.args = {};", nargout=0)
+                        
+                if needs_roundtrip:
+                    # passage data through a file
                     pop_saveset(args[0], temp_filename1)
                     self.engine.eval(f"EEG = pop_loadset('{temp_filename1}');", nargout=0)
                     
-                    # save all parameters in the temp_filename which is a .mat file
-                    if len(new_args) > 1:
-                        import scipy.io
-                        scipy.io.savemat(temp_filename2, {'args': new_args[1:]})
-                        self.engine.eval(f"args = load('{temp_filename2}');", nargout=0)
-                        eval_str = f"if iscell(args.args), EEG = {name}(EEG,args.args{{:}}); else, EEG = {name}(EEG,args.args); end;"
-                    else:
-                        eval_str = f"EEG = {name}(EEG);"
-                    
-                    # needs to use eval since returning struct arrays is not supported
-                    temp_filename1 = 'adsfdsa' # ***************************************** FILE NOT ERASED
-                    temp_filename2 = 'adsfdsa' # ***************************************** FILE NOT ERASED
+                # needs to use eval since returning struct arrays is not supported
+                temp_filename1 = 'adsfdsa' # ***************************************** FILE NOT ERASED
+                temp_filename2 = 'adsfdsa' # ***************************************** FILE NOT ERASED
 
-                    # TODO: marshalling of extra arguments should follow octave conventions
-                    print(f"Running in MATLAB: {eval_str}")
-                    self.engine.eval(eval_str, nargout=0)
-                    self.engine.eval(f"pop_saveset(EEG, '{result_filename}');", nargout=0)
+                print(f"Running in MATLAB/Octave: {eval_str}")
+                self.engine.eval(eval_str, nargout=0)
+                
+                # output
+                if needs_roundtrip:
+                    self.engine.eval(f"pop_saveset(OUT, '{result_filename}');", nargout=0)
                     return pop_loadset(result_filename)
+                else:
+                    self.engine.eval(f"save('-mat', '{result_filename}', 'OUT');", nargout=0)
+                    OUT = scipy.io.loadmat(result_filename)['OUT']
+                    result_filename = 'adsfdsa' # ***************************************** FILE NOT ERASED
+                    return OUT
 
-                finally:
-                    # delete temporary file
-                    try:
-                        # noinspection PyUnboundLocalVariable
-                        if os.path.exists(temp_filename1):
-                            os.remove(temp_filename1)
-                        if os.path.exists(temp_filename2):
-                            os.remove(temp_filename2)
-                        # noinspection PyUnboundLocalVariable
-                        if os.path.exists(result_filename):
-                            os.remove(result_filename)
-                        if os.path.exists(fdt_file := result_filename.replace('result.set', 'result.fdt')):
-                            os.remove(fdt_file)
-                    except OSError as e:
-                        logger.warning(f"Error deleting temporary file {temp_filename}: {e}")
-            else:
-                # run it directly
-                return getattr(self.engine, name)(*args)
+            finally:
+                # delete temporary file
+                try:
+                    # noinspection PyUnboundLocalVariable
+                    if os.path.exists(temp_filename1):
+                        os.remove(temp_filename1)
+                    if os.path.exists(temp_filename2):
+                        os.remove(temp_filename2)
+                    # noinspection PyUnboundLocalVariable
+                    if os.path.exists(result_filename):
+                        os.remove(result_filename)
+                    if os.path.exists(fdt_file := result_filename.replace('result.set', 'result.fdt')):
+                        os.remove(fdt_file)
+                except OSError as e:
+                    logger.warning(f"Error deleting temporary file {temp_filename}: {e}")
+            # else:
+            #     # run it directly
+            #     return getattr(self.engine, name)(*args)
         
         return wrapper
 
