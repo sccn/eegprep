@@ -70,7 +70,7 @@ class TestEEGRej(unittest.TestCase):
         outdata, newt, newevents, boundevents = eegrej(self.data, [[5, 8]], self.timelength, events)
         # compare to eeglab
         eeglab = get_eeglab()
-        eeglab_outdata, eeglab_newevents, eeglab_boundevents = eeglab.eegrej(self.data, np.array([[5, 8]]), self.timelength, events, nargout=3)
+        eeglab_outdata = eeglab.eegrej(self.data, np.array([[5, 8]]), self.timelength, events)
         np.testing.assert_array_equal(outdata, eeglab_outdata)
 
 if __name__ == "__main__":

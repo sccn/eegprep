@@ -9,7 +9,7 @@ from .pop_saveset import pop_saveset
 import logging
 import os
 import numpy as np
-import eegprep.pymat as py2mat
+from eegprep.pymat import py2mat
 import scipy.io
 
 logger = logging.getLogger(__name__)
@@ -51,7 +51,7 @@ class MatlabWrapper:
             needs_roundtrip = False
             eval_str = f"if iscell(args.args), OUT = {name}(args.args{{:}}); else, OUT = {name}(args.args); end;"
             if len(args) > 0:
-                if isinstance(args[0], dict) and args[0].get('nbchan') is not None:
+                if isinstance(args[0], dict) and args[0].get('trials') is not None:
                     needs_roundtrip = True
                     new_args = new_args[1:]
                     eval_str = f"if iscell(args.args), OUT = {name}(EEG,args.args{{:}}); else, OUT = {name}(EEG,args.args); end;"

@@ -6,6 +6,21 @@ from unittest.mock import patch
 
 # Assume eeg_eegrej is defined as in your module that imports: from eegrej import eegrej
 from eegprep import eeg_eegrej
+from eegprep.eeglabcompat import get_eeglab
+from eegprep.pop_loadset import pop_loadset
+
+# where the test resources
+web_root = 'https://sccntestdatasets.s3.us-east-2.amazonaws.com/'
+local_url = os.path.join(os.path.dirname(__file__), '../data/')
+
+def ensure_file(fname: str) -> str: # duplicate of test_clean_rawdata.py
+    """Download a file if it does not exist and return the local path."""
+    full_url = f"{web_root}{fname}"
+    local_file = os.path.abspath(f"{local_url}{fname}")
+    if not os.path.exists(local_file):
+        from urllib.request import urlretrieve
+        urlretrieve(full_url, local_file)
+    return local_file
 
 def _make_continuous_eeg():
     # 2 channels × 20 samples, 1-based event latencies
@@ -36,6 +51,7 @@ class TestEEGEegrej(unittest.TestCase):
     def setUp(self):
         self.tmpdir = tempfile.TemporaryDirectory()
         self.fpath = os.path.join(self.tmpdir.name, "eeg.npy")
+        self.fpath_eeglab = ensure_file('FlankerTest.set')
         _save_eeg(self.fpath, _make_continuous_eeg())
 
     def tearDown(self):
@@ -81,6 +97,15 @@ class TestEEGEegrej(unittest.TestCase):
 
         # No event latencies exceed pnts
         self.assertTrue(all(0 < e["latency"] <= EEG_out["pnts"] for e in ev))
+        
+    def test_compare_to_eeglab(self):
+        EEG = pop_loadset(self.fpath_eeglab)
+        regions = np.array([[6, 10]], dtype=int)
+        EEG_out = eeg_eegrej(EEG, regions)
+        
+        eeglab = get_eeglab('MAT')
+        eeglab_outdata = eeglab.eeg_eegrej(EEG, [6, 10])
+        np.testing.assert_array_equal(EEG_out["data"], eeglab_outdata["data"])
 
 if __name__ == "__main__":
     unittest.main()

@@ -7,10 +7,19 @@ def eeg_checkset(EEG, load_data=True):
     # convert EEG['nbchan] to integer
     if 'nbchan' in EEG:
         EEG['nbchan'] = int(EEG['nbchan'])
-    if 'trials' in EEG:
-        EEG['trials'] = int(EEG['trials'])
+    else:
+        EEG['nbchan'] = EEG['data'].shape[0]
     if 'pnts' in EEG:
         EEG['pnts'] = int(EEG['pnts'])
+    else:
+        EEG['pnts'] = EEG['data'].shape[1]
+    if 'trials' in EEG:
+        EEG['trials'] = int(EEG['trials'])
+    else:
+        if EEG['data'].ndim == 3:
+            EEG['trials'] = EEG['data'].shape[2]
+        else:
+            EEG['trials'] = 1
     
     if 'data' in EEG and isinstance(EEG['data'], str) and load_data:
         # get path from file_path
