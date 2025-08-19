@@ -29,3 +29,6 @@ from .clean_windows import clean_windows
 from .eeg_compare import eeg_compare
 from .eeg_interp import eeg_interp
 from .clean_artifacts import clean_artifacts
+from .eeg_decodechan import eeg_decodechan
+from .eegrej import eegrej
+from .eeg_eegrej import eeg_eegrej

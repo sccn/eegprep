@@ -8,6 +8,9 @@ from .pop_loadset import pop_loadset
 from .pop_saveset import pop_saveset
 import logging
 import os
+import numpy as np
+from eegprep.pymat import py2mat
+import scipy.io
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +21,6 @@ default_runtime = 'OCT'
 temp_dir = os.path.abspath(os.path.dirname(__file__) + '../../../temp')
 if not os.path.exists(temp_dir):
     os.makedirs(temp_dir, exist_ok=True)
-
 
 class MatlabWrapper:
     """MATLAB engine wrapper that round-trips calls involving the EEGLAB data structure through files."""
@@ -37,83 +39,95 @@ class MatlabWrapper:
 
     def __getattr__(self, name):
         def wrapper(*args, **kwargs):
+            # arg list
+            new_args = list(args)
+            kwargs_list = []
+            for key, value in kwargs.items():
+                kwargs_list.append(f'{key}')
+                kwargs_list.append(value)      
+            new_args.extend(kwargs_list)
+
+            # issue error if kwargs are passed unless it is "nargout"
             needs_roundtrip = False
-            for a in args:
-                if isinstance(a, dict) and a.get('nbchan') is not None:
+            eval_str = f"if iscell(args.args), OUT = {name}(args.args{{:}}); else, OUT = {name}(args.args); end;"
+            if len(args) > 0:
+                if isinstance(args[0], dict) and args[0].get('trials') is not None:
                     needs_roundtrip = True
-                    break
-            if needs_roundtrip:
-                # passage data through a file
-                try:
-                    temp_filename = tempfile.mktemp(dir=temp_dir, suffix='.set')
-                    result_filename = temp_filename + '.result.set'
-                    pop_saveset(args[0], temp_filename)
-                    # needs to use eval since returning struct arrays is not supported
-                    self.engine.eval(f"EEG = pop_loadset('{temp_filename}');", nargout=0)
+                    new_args = new_args[1:]
+                    eval_str = f"if iscell(args.args), OUT = {name}(EEG,args.args{{:}}); else, OUT = {name}(EEG,args.args); end;"
+            
+            # convert numerical list arguments to numpy arrays
+            for i, arg in enumerate(new_args):
+                if isinstance(arg, list) and all(isinstance(x, (int, float, np.integer, np.floating)) for x in arg):
+                    new_args[i] = np.array(arg, dtype=np.float64)
+                elif isinstance(arg, np.ndarray) and all(isinstance(x, (int, float, np.integer, np.floating)) for x in np.ravel(arg)):
+                    new_args[i] = np.array(arg, dtype=np.float64)
+                elif isinstance(arg, (int, float, np.integer, np.floating)):
+                    new_args[i] = np.array(arg, dtype=np.float64)
+                elif isinstance(arg, str):
+                    new_args[i] = arg
+                else:
+                    new_args[i] = py2mat(arg) # it is unclear if the flatten function of pop_saveset is better here
 
-                    # TODO: marshalling of extra arguments should follow octave conventions
-                    maybe_comma = ',' if args[1:] or kwargs else ''
-                    arg_str = ','.join([self.marshal(a) for a in args[1:]])
-                    kwarg_str = ','.join([f"{k!r},{self.marshal(v)}" for k, v in kwargs.items()])
-                    maybe_comma2 = ',' if arg_str and kwarg_str else ''
-                    eval_str = f"EEG = {name}(EEG{maybe_comma}{arg_str}{maybe_comma2}{kwarg_str});"
-                    print(f"Running in MATLAB: {eval_str}")
-                    self.engine.eval(eval_str, nargout=0)
-                    self.engine.eval(f"pop_saveset(EEG, '{result_filename}');", nargout=0)
-                    return pop_loadset(result_filename)
-                finally:
-                    # delete temporary file
-                    try:
-                        # noinspection PyUnboundLocalVariable
-                        if os.path.exists(temp_filename):
-                            os.remove(temp_filename)
-                        if os.path.exists(fdt_file := temp_filename.replace('.set', '.fdt')):
-                            os.remove(fdt_file)
-                        # noinspection PyUnboundLocalVariable
-                        if os.path.exists(result_filename):
-                            os.remove(result_filename)
-                        if os.path.exists(fdt_file := result_filename.replace('result.set', 'result.fdt')):
-                            os.remove(fdt_file)
-                    except OSError as e:
-                        logger.warning(f"Error deleting temporary file {temp_filename}: {e}")
-            else:
-                # run it directly
-                return getattr(self.engine, name)(*args)
-        
-        return wrapper
+            try:
+                # temporary files
+                temp_filename1 = tempfile.mktemp(dir=temp_dir, suffix='.set')
+                temp_filename2 = tempfile.mktemp(dir=temp_dir, suffix='.mat')
+                result_filename = temp_filename1 + '.result.set'
+                print(f"temp_filename1: {temp_filename1}")
+                print(f"temp_filename2: {temp_filename2}")
+                print(f"result_filename: {result_filename}")
 
+                # save all parameters in the temp_filename which is a .mat file
+                if len(new_args) > 0:
+                    if len(new_args) > 1:
+                        scipy.io.savemat(temp_filename2, {'args': np.array(new_args, dtype=object)}) # object required for passing as cell array
+                    else:
+                        scipy.io.savemat(temp_filename2, {'args': new_args})
+                    self.engine.eval(f"args = load('{temp_filename2}');", nargout=0)
+                else:
+                    self.engine.eval("args.args = {};", nargout=0)
+                        
+                if needs_roundtrip:
+                    # passage data through a file
+                    pop_saveset(args[0], temp_filename1)
+                    self.engine.eval(f"EEG = pop_loadset('{temp_filename1}');", nargout=0)
+                    
+                # needs to use eval since returning struct arrays is not supported
+                temp_filename1 = 'adsfdsa' # ***************************************** FILE NOT ERASED
+                temp_filename2 = 'adsfdsa' # ***************************************** FILE NOT ERASED
 
-class OctaveWrapper:
-    """Octave engine wrapper that round-trips calls involving the EEGLAB data structure through files."""
-
-    def __init__(self, engine):
-        self.engine = engine
+                print(f"Running in MATLAB/Octave: {eval_str}")
+                self.engine.eval(eval_str, nargout=0)
                 
-    def __getattr__(self, name):
-        def wrapper(*args):
-            needs_roundtrip = False
-            for a in args:
-                if isinstance(a, dict) and a.get('nbchan') is not None:
-                    needs_roundtrip = True
-                    break
-            if needs_roundtrip:
-                # passage data through a file
-                with tempfile.NamedTemporaryFile(dir=temp_dir, delete=True, suffix='.set') as temp_file:
-                    pop_saveset(args[0], temp_file.name)
-                    # Ensure the file is fully written before proceeding
-                    temp_file.flush()
-                    os.fsync(temp_file.fileno())  # Force write to disk to avoid timing issues
-                    # Needs to use eval since returning struct arrays is not supported in Octave
-                    self.engine.eval(f"EEG = pop_loadset('{temp_file.name}');", nargout=0)
-                    # TODO: marshalling of extra arguments should follow octave conventions
-                    eval_str = f"EEG = {name}(EEG{',' if args[1:] else ''}{','.join([repr(a) for a in args[1:]])});"
-                    print("This is the eval_str: ", eval_str)
-                    self.engine.eval(eval_str, nargout=0)
-                    self.engine.eval(f"pop_saveset(EEG, '{temp_file.name}');", nargout=0)
-                    return pop_loadset(temp_file.name)
-            else:
-                # run it directly
-                return getattr(self.engine, name)(*args)
+                # output
+                if needs_roundtrip:
+                    self.engine.eval(f"pop_saveset(OUT, '{result_filename}');", nargout=0)
+                    return pop_loadset(result_filename)
+                else:
+                    self.engine.eval(f"save('-mat', '{result_filename}', 'OUT');", nargout=0)
+                    OUT = scipy.io.loadmat(result_filename)['OUT']
+                    result_filename = 'adsfdsa' # ***************************************** FILE NOT ERASED
+                    return OUT
+
+            finally:
+                # delete temporary file
+                try:
+                    # noinspection PyUnboundLocalVariable
+                    if os.path.exists(temp_filename1):
+                        os.remove(temp_filename1)
+                    if os.path.exists(temp_filename2):
+                        os.remove(temp_filename2)
+                    # noinspection PyUnboundLocalVariable
+                    if os.path.exists(result_filename):
+                        os.remove(result_filename)
+                    if os.path.exists(fdt_file := result_filename.replace('result.set', 'result.fdt')):
+                        os.remove(fdt_file)
+                except OSError as e:
+                    logger.warning(f"Error deleting temporary file {temp_filename}: {e}")
+            # else:
+            #     # run it directly
+            #     return getattr(self.engine, name)(*args)
         
         return wrapper
 
@@ -193,7 +207,7 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
     # optionally wrap the engine in a file-roundtripping wrapper
     if auto_file_roundtrip:
         if rt == 'oct':
-            engine = OctaveWrapper(engine)
+            engine = MatlabWrapper(engine)
         elif rt == 'mat':
             engine = MatlabWrapper(engine)
         else:

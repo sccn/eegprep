@@ -283,6 +283,7 @@ class TestCleanArtifactsAdvanced(DebuggableTestCase):
 
 
 if __name__ == "__main__":
+    # run TestCleanDrifts only
     if is_debug():
         # put the test here that you want to run in the debugger
         TestCleanASR.debugTestCase()
