@@ -3,7 +3,7 @@ import math
 from collections.abc import Sequence
 import numpy as np
 
-def eeg_compare(eeg1, eeg2):
+def eeg_compare(eeg1, eeg2, verbose_level=0):
     
     def isequaln(a, b):
         """Treat None and NaN as equal, otherwise compare by value."""
@@ -111,6 +111,8 @@ def eeg_compare(eeg1, eeg2):
                 coord_diff += 1
             if c1['labels'] != c2['labels']:
                 label_diff += 1
+                if verbose_level > 0:
+                    print(f'    Channel {c1["labels"]} differs from {c2["labels"]}', file=sys.stderr)
         if coord_diff:
             print(f'    {coord_diff} channel coordinates differ', file=sys.stderr)
         else:
@@ -126,7 +128,13 @@ def eeg_compare(eeg1, eeg2):
     print('Event analysis:')
     ev1, ev2 = eeg1['event'], eeg2['event']
     if len(ev1) != len(ev2):
-        print('    Different numbers of events', file=sys.stderr)
+        print(f'    Different numbers of events {len(ev1)} vs {len(ev2)}', file=sys.stderr)
+        # print the first event of each
+        if verbose_level > 0:
+            if len(ev1) > 0:
+                print(f'    First event of first dataset: {ev1[0]}', file=sys.stderr)
+            if len(ev2) > 0:
+                print(f'    First event of second dataset: {ev2[0]}', file=sys.stderr)
     else:
         f1 = set(ev1[0].keys())
         f2 = set(ev2[0].keys())

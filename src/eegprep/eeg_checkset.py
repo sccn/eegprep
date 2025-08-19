@@ -1,3 +1,4 @@
+# test_eeg_checkset()
 import numpy as np
 import os
 
@@ -6,10 +7,19 @@ def eeg_checkset(EEG, load_data=True):
     # convert EEG['nbchan] to integer
     if 'nbchan' in EEG:
         EEG['nbchan'] = int(EEG['nbchan'])
-    if 'trials' in EEG:
-        EEG['trials'] = int(EEG['trials'])
+    else:
+        EEG['nbchan'] = EEG['data'].shape[0]
     if 'pnts' in EEG:
         EEG['pnts'] = int(EEG['pnts'])
+    else:
+        EEG['pnts'] = EEG['data'].shape[1]
+    if 'trials' in EEG:
+        EEG['trials'] = int(EEG['trials'])
+    else:
+        if EEG['data'].ndim == 3:
+            EEG['trials'] = EEG['data'].shape[2]
+        else:
+            EEG['trials'] = 1
     
     if 'data' in EEG and isinstance(EEG['data'], str) and load_data:
         # get path from file_path
@@ -23,14 +33,11 @@ def eeg_checkset(EEG, load_data=True):
         EEG['icaact'] = EEG['icaact'].astype(np.float32)
         EEG['icaact'] = EEG['icaact'].reshape(EEG['icaweights'].shape[0], -1, int(EEG['trials']))
     
-    # subtract 1 to EEG['icachansind'] to make it 0-based
-    if 'icachansind' in EEG and EEG['icachansind'].size > 0:
-        EEG['icachansind'] = EEG['icachansind'] - 1
-    
     # check if EEG['data'] is 3D
     if 'data' in EEG and EEG['data'].ndim == 3:
-        EEG['data'] = np.squeeze(EEG['data'], axis=2)
-    
+        if EEG['data'].shape[2] == 1:
+            EEG['data'] = np.squeeze(EEG['data'], axis=2)
+     
     # type conversion
     EEG['xmin'] = float(EEG['xmin'])
     EEG['xmax'] = float(EEG['xmax'])
@@ -141,4 +148,5 @@ def test_eeg_checkset():
     EEG = eeg_checkset(EEG)
     print('Checkset done')
 
-# test_eeg_checkset()
+if __name__ == '__main__':
+    test_eeg_checkset()

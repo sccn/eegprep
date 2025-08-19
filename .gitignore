@@ -1,3 +1,6 @@
+temp
+*.set
+*.mat
 src/eegprep.egg-info
 __pycache__
 *tmp_out2.*
