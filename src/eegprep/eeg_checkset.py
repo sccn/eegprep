@@ -20,6 +20,14 @@ def eeg_checkset(EEG, load_data=True):
             EEG['trials'] = EEG['data'].shape[2]
         else:
             EEG['trials'] = 1
+            
+    if 'event' in EEG:
+        if isinstance(EEG['event'], dict):
+            EEG['event'] = [EEG['event']]
+            
+    if 'chanlocs' in EEG:
+        if isinstance(EEG['chanlocs'], dict):
+            EEG['chanlocs'] = [EEG['chanlocs']]
     
     if 'data' in EEG and isinstance(EEG['data'], str) and load_data:
         # get path from file_path

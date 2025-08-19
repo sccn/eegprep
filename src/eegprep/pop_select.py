@@ -39,10 +39,20 @@ def pop_select(EEG, **kwargs):
     }
 
     # alias normalization
-    if g['rmtrial']:   g['notrial']  = g['rmtrial']
-    if g['rmtime']:    g['notime']   = g['rmtime']
-    if g['rmpoint']:   g['nopoint']  = g['rmpoint']
-    if g['rmchannel']: g['nochannel']= g['rmchannel']
+    def _has_content(x):
+        """Check if parameter has content (not None, not empty list/array)"""
+        if x is None:
+            return False
+        if isinstance(x, (list, tuple)) and len(x) == 0:
+            return False
+        if isinstance(x, np.ndarray) and x.size == 0:
+            return False
+        return True
+    
+    if _has_content(g['rmtrial']):   g['notrial']  = g['rmtrial']
+    if _has_content(g['rmtime']):    g['notime']   = g['rmtime']
+    if _has_content(g['rmpoint']):   g['nopoint']  = g['rmpoint']
+    if _has_content(g['rmchannel']): g['nochannel']= g['rmchannel']
 
     # Core EEG fields with basic checks
     def _get(key, default=None):

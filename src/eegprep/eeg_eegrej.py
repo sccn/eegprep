@@ -31,7 +31,7 @@ def eeg_eegrej(EEG, regions):
     old_pnts = int(EEG["pnts"])
     EEG["data"] = data_out
     EEG["pnts"] = int(data_out.shape[1])
-    EEG["xmax"] = float(EEG["xmax"] + EEG["xmin"])
+    EEG["xmax"] = float(EEG["xmin"] + xmax_rel)
 
     # Use backend-generated events list and sort
     EEG["event"] = list(event2) if isinstance(event2, list) else []

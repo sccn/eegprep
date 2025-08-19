@@ -5,18 +5,18 @@ def eeg_decodechan(
     ignoremissing=False,
 ):
     """
-    Resolve channel identifiers to 1-based indices and labels.
+    Resolve channel identifiers to 0-based indices and labels.
 
     Supports:
       - chanlocs as a list-like of dicts, or a dict with key "chanlocs".
       - chanstr as an iterable of strings and/or integers.
       - Matching on the specified field (e.g., "labels" or "type").
-      - Numeric 1-based indices as input (returned directly after validation).
+      - Numeric 0-based indices as input (returned directly after validation).
       - Empty chanlocs with purely numeric input (indices passthrough).
 
     Returns:
       (chaninds, chanlist_out)
-        chaninds: sorted list of 1-based indices
+        chaninds: sorted list of 0-based indices
         chanlist_out: list of labels/types from chanlocs for those indices
                       or the indices themselves if chanlocs is empty
     """
@@ -50,15 +50,15 @@ def eeg_decodechan(
             else:
                 nonnum_req.append(xs)
 
-    # Case 1: purely numeric input → treat as 1-based indices
+    # Case 1: purely numeric input → treat as 0-based indices
     if len(nonnum_req) == 0:
         chaninds = sorted(int(i) for i in numeric_req)
         if nchan == 0:
             # passthrough when chanlocs is empty
             return chaninds, chaninds[:]
-        if any(i <= 0 or i > nchan for i in chaninds):
+        if any(i < 0 or i >= nchan for i in chaninds):
             raise ValueError("Channel index out of range")
-        chanlist_out = [str(chanlocs[i - 1][field]) for i in chaninds]
+        chanlist_out = [str(chanlocs[i][field]) for i in chaninds]
         return chaninds, chanlist_out
 
     # Case 2: name/type matching (optionally mixed with numeric indices)
@@ -68,7 +68,7 @@ def eeg_decodechan(
         if nchan == 0:
             # cannot validate numbers without chanlocs
             raise ValueError("Numeric indices cannot be validated because chanlocs is empty")
-        if any(i <= 0 or i > nchan for i in numeric_req):
+        if any(i < 0 or i >= nchan for i in numeric_req):
             raise ValueError("Channel index out of range")
         chaninds.extend(int(i) for i in numeric_req)
 
@@ -87,16 +87,16 @@ def eeg_decodechan(
 
     # Match each requested name (case-insensitive), keep duplicates if any
     for name in (s.lower().strip() for s in nonnum_req):
-        matches = [i + 1 for i, lab in enumerate(alllabs) if lab == name]
+        matches = [i for i, lab in enumerate(alllabs) if lab == name]
         if matches:
             chaninds.extend(matches)
         elif not ignoremissing:
             raise ValueError(f"Channel '{name}' not found")
 
     # Final validations and outputs
-    if any(i <= 0 or i > nchan for i in chaninds):
+    if any(i < 0 or i >= nchan for i in chaninds):
         raise ValueError("Channel index out of range")
 
     chaninds = sorted(chaninds)
-    chanlist_out = [str(chanlocs[i - 1][field]) for i in chaninds]
+    chanlist_out = [str(chanlocs[i][field]) for i in chaninds]
     return chaninds, chanlist_out

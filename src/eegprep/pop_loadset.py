@@ -79,6 +79,8 @@ def pop_loadset(file_path=None):
     if '__globals__' in EEG:
         del EEG['__globals__']
     
+    EEG = eeg_checkset(EEG)
+
     # subtract 1 to EEG['icachansind'] to make it 0-based
     if 'icachansind' in EEG and EEG['icachansind'].size > 0:
         EEG['icachansind'] = EEG['icachansind'] - 1
@@ -88,12 +90,11 @@ def pop_loadset(file_path=None):
         for i in range(len(EEG['chanlocs'])):
             EEG['chanlocs'][i]['urchan'] = EEG['chanlocs'][i]['urchan'] - 1        
 
-    # check if EEG['chanlocs'][i]['urvent'] is 0-based
-    if len(EEG['event']) > 0 and 'urvent' in EEG['event'][0]:
+    # check if EEG['chanlocs'][i]['urevent'] is 0-based
+    if len(EEG['event']) > 0 and 'urevent' in EEG['event'][0]:
         for i in range(len(EEG['event'])):
-            EEG['event'][i]['urvent'] = EEG['event'][i]['urvent'] - 1
-    
-    EEG = eeg_checkset(EEG)
+            if 'urevent' in EEG['event'][i] and EEG['event'][i]['urevent'] is not None:
+                EEG['event'][i]['urevent'] = EEG['event'][i]['urevent'] - 1
     
     return EEG
 

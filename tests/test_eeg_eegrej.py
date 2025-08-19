@@ -92,8 +92,12 @@ class TestEEGEegrej(unittest.TestCase):
         ridx = lats.index(7.0)
         self.assertEqual(types[ridx], "resp")
 
-        # xmax was updated like EEGLAB line: xmax := xmax + xmin
-        self.assertAlmostEqual(EEG_out["xmax"], EEG["xmax"] + EEG["xmin"], places=7)
+        # xmax was updated correctly to reflect the new duration after rejection
+        # new_duration = old_duration * (new_pnts / old_pnts)
+        old_duration = EEG["xmax"] - EEG["xmin"]
+        new_duration = old_duration * (EEG_out["pnts"] / EEG["pnts"])
+        expected_xmax = EEG["xmin"] + new_duration
+        self.assertAlmostEqual(EEG_out["xmax"], expected_xmax, places=7)
 
         # No event latencies exceed pnts
         self.assertTrue(all(0 < e["latency"] <= EEG_out["pnts"] for e in ev))
