@@ -8,6 +8,7 @@ from .pop_loadset import pop_loadset
 from .pop_saveset import pop_saveset
 import logging
 import os
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,177 @@ default_runtime = 'OCT'
 temp_dir = os.path.abspath(os.path.dirname(__file__) + '../../../temp')
 if not os.path.exists(temp_dir):
     os.makedirs(temp_dir, exist_ok=True)
+
+
+
+
+
+# convert list of arbitrary dicts to struct array
+def py2mat(dicts):
+    """
+    Convert a list of dictionaries to a NumPy structured array.
+    Handles nested dictionaries and lists recursively.
+    """
+    if dicts is None:
+        return np.array([], dtype=object)
+    
+    # Handle single dictionary input by wrapping in a list
+    if isinstance(dicts, dict):
+        dicts = [dicts]
+        
+    if not isinstance(dicts, (list, tuple)):
+        return dicts
+    
+    # Check if this is a list of dictionaries (the expected input)
+    if dicts and not all(isinstance(item, dict) for item in dicts):
+        # If it's a mixed list, we can't convert it to a struct array
+        # Return it as an object array instead
+        return np.array(dicts, dtype=object)
+    
+    def process_value(value):
+        """Recursively process values, converting nested structures"""
+        if value is None:
+            # Return None as-is, will be handled later
+            return None
+        elif isinstance(value, dict):
+            # Convert single dict to struct array with one element
+            if value:
+                return py2mat([value])[0]
+            else:
+                # Empty dict - return empty array with object dtype
+                return np.array([], dtype=object)
+        elif isinstance(value, np.ndarray) and value.size > 0:
+            try:
+                # Check if it's an array of dicts
+                if isinstance(value.flat[0], dict):
+                    # Convert numpy array of dicts to struct array
+                    return py2mat(value.tolist())
+                else:
+                    # Keep regular numpy arrays as-is
+                    return value
+            except (IndexError, AttributeError):
+                # If we can't access flat[0], just return the array as-is
+                return value
+        elif isinstance(value, (list, tuple)) and value and isinstance(value[0], dict):
+            # Convert list/tuple of dicts to struct array
+            return py2mat(value)
+        elif isinstance(value, np.ndarray):
+            # Keep numpy arrays as-is
+            return value
+        elif isinstance(value, (list, tuple)) and not isinstance(value, str):
+            # Convert regular list/tuple to numpy array (but not strings)
+            if not value:
+                return np.array([], dtype=object)
+            try:
+                # Try to create a numpy array, but handle inhomogeneous sequences
+                return np.array(value)
+            except ValueError:
+                # If the sequence is inhomogeneous, create an object array
+                return np.array(value, dtype=object)
+        else:
+            return value
+    
+    # Collect all unique keys and determine their types and sizes
+    all_keys = set()
+    key_types = {}
+    key_max_lengths = {}
+    
+    for d in dicts:
+        for k, v in d.items():
+            all_keys.add(k)
+            
+            # Process the value recursively
+            processed_v = process_value(v)
+            
+            # Determine the appropriate NumPy dtype for this value
+            if isinstance(processed_v, str):
+                # For strings, we need to track the maximum length
+                if k not in key_max_lengths:
+                    key_max_lengths[k] = len(processed_v)
+                else:
+                    key_max_lengths[k] = max(key_max_lengths[k], len(processed_v))
+                key_types[k] = 'U'  # Unicode string type
+            elif isinstance(processed_v, (int, np.integer)):
+                if k not in key_types:
+                    key_types[k] = int
+                elif key_types[k] != int and key_types[k] != object:
+                    key_types[k] = object
+            elif isinstance(processed_v, (float, np.floating)):
+                if k not in key_types:
+                    key_types[k] = float
+                elif key_types[k] not in [float, object]:
+                    key_types[k] = object
+            elif isinstance(processed_v, bool):
+                if k not in key_types:
+                    key_types[k] = bool
+                elif key_types[k] != bool and key_types[k] != object:
+                    key_types[k] = object
+            elif isinstance(processed_v, np.ndarray):
+                # For arrays (including nested struct arrays), use object type
+                key_types[k] = object
+            elif processed_v is None:
+                # For None values, we'll determine type from other instances
+                if k not in key_types:
+                    key_types[k] = object
+            else:
+                # For other types, use object
+                key_types[k] = object
+    
+    # Create dtype from all keys
+    dtype_list = []
+    for k in sorted(all_keys):
+        if key_types[k] == 'U':
+            # For Unicode strings, specify the maximum length
+            max_len = key_max_lengths.get(k, 1)
+            dtype_list.append((k, f'U{max_len}'))
+        else:
+            dtype_list.append((k, key_types[k]))
+    
+    dtype = np.dtype(dtype_list)
+    
+    # Create structured array
+    struct_array = np.empty(len(dicts), dtype=dtype)
+    
+    # Fill the array
+    for i, d in enumerate(dicts):
+        for k in all_keys:
+            value = d.get(k, None)
+            processed_value = process_value(value)
+            
+            if processed_value is None:
+                # Handle None values based on the field type
+                if key_types[k] == 'U':
+                    # For string fields, use empty string instead of None
+                    struct_array[i][k] = ''
+                elif key_types[k] == int:
+                    # For int fields, use 0
+                    struct_array[i][k] = 0
+                elif key_types[k] == float:
+                    # For float fields, use NaN
+                    struct_array[i][k] = np.nan
+                elif key_types[k] == bool:
+                    # For bool fields, use False
+                    struct_array[i][k] = False
+                else:
+                    # For object fields, use empty array with object dtype instead of None
+                    struct_array[i][k] = np.array([], dtype=object)
+            else:
+                struct_array[i][k] = processed_value
+    
+    return struct_array
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 class MatlabWrapper:
@@ -37,38 +209,72 @@ class MatlabWrapper:
 
     def __getattr__(self, name):
         def wrapper(*args, **kwargs):
+            # issue error if kwargs are passed unless it is "nargout"
             needs_roundtrip = False
             for a in args:
                 if isinstance(a, dict) and a.get('nbchan') is not None:
                     needs_roundtrip = True
                     break
+            # arg list
+            new_args = list(args)
+            kwargs_list = []
+            for key, value in kwargs.items():
+                kwargs_list.append(f'{key}')
+                kwargs_list.append(value)      
+            new_args.extend(kwargs_list)
+            
+            # convert numerical list arguments to numpy arrays
+            for i, arg in enumerate(new_args):
+                if i > 0: 
+                    if isinstance(arg, list) and all(isinstance(x, (int, float)) for x in arg):
+                        new_args[i] = np.array(arg, dtype=np.float64)
+                    elif isinstance(arg, (int, float, np.integer, np.floating)):
+                        new_args[i] = np.array(arg, dtype=np.float64)
+                    else:
+                        new_args[i] = py2mat(arg)
+            
             if needs_roundtrip:
                 # passage data through a file
                 try:
-                    temp_filename = tempfile.mktemp(dir=temp_dir, suffix='.set')
-                    result_filename = temp_filename + '.result.set'
-                    pop_saveset(args[0], temp_filename)
+                    temp_filename1 = tempfile.mktemp(dir=temp_dir, suffix='.set')
+                    temp_filename2 = tempfile.mktemp(dir=temp_dir, suffix='.mat')
+                    print(f"temp_filename1: {temp_filename1}")
+                    print(f"temp_filename2: {temp_filename2}")
+                    result_filename = temp_filename1 + '.result.set'
+                    pop_saveset(args[0], temp_filename1)
+                    self.engine.eval(f"EEG = pop_loadset('{temp_filename1}');", nargout=0)
+                    
+                    # save all parameters in the temp_filename which is a .mat file
+                    if len(new_args) > 1:
+                        # cell_array = np.empty(len(new_args)-1, dtype=object)
+                        # cell_array[:] = [py2mat(arg) for arg in new_args[1:]]
+                        # cell_array = np.ravel(cell_array)
+                        import scipy.io
+                        # scipy.io.savemat(temp_filename2, {'args': [py2mat(arg) for arg in new_args[1:]]})
+                        scipy.io.savemat(temp_filename2, {'args': new_args[1:]})
+                        self.engine.eval(f"args = load('{temp_filename2}');", nargout=0)
+                        eval_str = f"if iscell(args.args), EEG = {name}(EEG,args.args{{:}}); else, EEG = {name}(EEG,args.args); end;"
+                    else:
+                        eval_str = f"EEG = {name}(EEG);"
+                    
                     # needs to use eval since returning struct arrays is not supported
-                    self.engine.eval(f"EEG = pop_loadset('{temp_filename}');", nargout=0)
+                    temp_filename1 = 'adsfdsa' # ***************************************** FILE NOT ERASED
+                    temp_filename2 = 'adsfdsa' # ***************************************** FILE NOT ERASED
 
                     # TODO: marshalling of extra arguments should follow octave conventions
-                    maybe_comma = ',' if args[1:] or kwargs else ''
-                    arg_str = ','.join([self.marshal(a) for a in args[1:]])
-                    kwarg_str = ','.join([f"{k!r},{self.marshal(v)}" for k, v in kwargs.items()])
-                    maybe_comma2 = ',' if arg_str and kwarg_str else ''
-                    eval_str = f"EEG = {name}(EEG{maybe_comma}{arg_str}{maybe_comma2}{kwarg_str});"
                     print(f"Running in MATLAB: {eval_str}")
                     self.engine.eval(eval_str, nargout=0)
                     self.engine.eval(f"pop_saveset(EEG, '{result_filename}');", nargout=0)
                     return pop_loadset(result_filename)
+
                 finally:
                     # delete temporary file
                     try:
                         # noinspection PyUnboundLocalVariable
-                        if os.path.exists(temp_filename):
-                            os.remove(temp_filename)
-                        if os.path.exists(fdt_file := temp_filename.replace('.set', '.fdt')):
-                            os.remove(fdt_file)
+                        if os.path.exists(temp_filename1):
+                            os.remove(temp_filename1)
+                        if os.path.exists(temp_filename2):
+                            os.remove(temp_filename2)
                         # noinspection PyUnboundLocalVariable
                         if os.path.exists(result_filename):
                             os.remove(result_filename)

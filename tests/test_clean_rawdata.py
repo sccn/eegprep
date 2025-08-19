@@ -283,9 +283,12 @@ class TestCleanArtifactsAdvanced(DebuggableTestCase):
 
 
 if __name__ == "__main__":
-    if is_debug():
-        # put the test here that you want to run in the debugger
-        TestCleanASR.debugTestCase()
-    else:
-        unittest.main()
+    # run TestCleanDrifts only
+    unittest.main(defaultTest='TestCleanChannels.test_clean_channels_locs')
+    
+    # if is_debug():
+    #     # put the test here that you want to run in the debugger
+    #     TestCleanASR.debugTestCase()
+    # else:
+    #     unittest.main()
     
