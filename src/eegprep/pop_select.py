@@ -49,6 +49,9 @@ def pop_select(EEG, **kwargs):
             return False
         return True
     
+    # Track whether notime came directly from rmtime (to match MATLAB boundary adjustment logic)
+    notime_from_rmtime = _has_content(g['rmtime'])
+    
     if _has_content(g['rmtrial']):   g['notrial']  = g['rmtrial']
     if _has_content(g['rmtime']):    g['notime']   = g['rmtime']
     if _has_content(g['rmpoint']):   g['nopoint']  = g['rmpoint']
@@ -330,14 +333,19 @@ def pop_select(EEG, **kwargs):
 
             # now reject notime_mat intervals from continuous data
             if notime_mat.size:
-                # EEGLAB adjusts interior edges by +/- one sample; replicate
-                adjusted = notime_mat.copy()
-                for i in range(adjusted.shape[0]):
-                    # shift interior boundaries off-sample
-                    if adjusted[i,0] != xmin:
-                        adjusted[i,0] += 1.0 / srate
-                    if adjusted[i,1] != xmax:
-                        adjusted[i,1] -= 1.0 / srate
+                # EEGLAB only adjusts interior edges when notime was derived from time, not when it came from rmtime
+                if notime_from_rmtime:
+                    # Skip boundary adjustment when notime came directly from rmtime
+                    adjusted = notime_mat.copy()
+                else:
+                    # EEGLAB adjusts interior edges by +/- one sample; replicate
+                    adjusted = notime_mat.copy()
+                    for i in range(adjusted.shape[0]):
+                        # shift interior boundaries off-sample
+                        if adjusted[i,0] != xmin:
+                            adjusted[i,0] += 1.0 / srate
+                        if adjusted[i,1] != xmax:
+                            adjusted[i,1] -= 1.0 / srate
                 # map to 1-based sample indices
                 nbtimes = adjusted.size
                 pts, _ = eeg_lat2point(adjusted.reshape(-1), np.ones(nbtimes), srate, [xmin, xmax])
