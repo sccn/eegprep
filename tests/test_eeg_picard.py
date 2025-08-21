@@ -120,7 +120,7 @@ class TestEegPicard(unittest.TestCase):
         # print(repr(EEG_matlab['icasphere']))
         np.testing.assert_allclose(EEG_python['icasphere'], EEG_matlab['icasphere'],rtol=0.005, atol=1e-5,err_msg='Python and Matlab icasphere differ beyond tolerance')
         np.testing.assert_allclose(EEG_python['icaweights'], EEG_matlab['icaweights'],rtol=0.005, atol=1e-5,err_msg='Python and Matlab icaweights differ beyond tolerance')
-        # np.testing.assert_allclose(EEG_python['icawinv'], EEG_matlab['icawinv'],rtol=0.05, atol=0.0005,err_msg='Python and Matlab icawinv differ beyond tolerance')
+        np.testing.assert_allclose(EEG_python['icawinv'], EEG_matlab['icawinv'],rtol=0.05, atol=0.0005,err_msg='Python and Matlab icawinv differ beyond tolerance')
         # np.testing.assert_allclose(EEG_python['icaact'], EEG_octave['icaact'],rtol=0.005, atol=1e-5,err_msg='Python and Octave icaact differ beyond tolerance')
         print("Python and MATLAB results are consistent.")
         print("*************************************")
