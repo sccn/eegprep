@@ -20,8 +20,7 @@ class TestEegLat2PointParity(unittest.TestCase):
         py_out, py_flag = eeg_lat2point(lat_array, epoch_array, srate, timewin, 1.0)
         ml_out = self.eeglab.eeg_lat2point(lat_array, epoch_array, srate, timewin, 1.0)
 
-        # Python returns 0-based indices, so subtract 1 from MATLAB's 1-based result
-        self.assertTrue(np.allclose(py_out, ml_out - 1, atol=1e-9))
+        self.assertTrue(np.allclose(py_out, ml_out, atol=1e-9))
 
     def test_parity_epoched(self):
         srate = 100.0
@@ -32,8 +31,7 @@ class TestEegLat2PointParity(unittest.TestCase):
         py_out, py_flag = eeg_lat2point(lat_array, epoch_array, srate, timewin, 1.0)
         ml_out = self.eeglab.eeg_lat2point(lat_array, epoch_array, srate, timewin, 1.0)
 
-        # Python returns 0-based indices, so subtract 1 from MATLAB's 1-based result
-        self.assertTrue(np.allclose(py_out, ml_out - 1, atol=1e-9))
+        self.assertTrue(np.allclose(py_out, ml_out, atol=1e-9))
 
     def test_parity_milliseconds(self):
         srate = 1000.0
@@ -44,8 +42,7 @@ class TestEegLat2PointParity(unittest.TestCase):
         py_out, py_flag = eeg_lat2point(lat_array, epoch_array, srate, timewin, 1e-3)
         ml_out = self.eeglab.eeg_lat2point(lat_array, epoch_array, srate, timewin, 1e-3)
 
-        # Python returns 0-based indices, so subtract 1 from MATLAB's 1-based result
-        self.assertTrue(np.allclose(py_out, ml_out - 1, atol=1e-9))
+        self.assertTrue(np.allclose(py_out, ml_out, atol=1e-9))
 
     def test_parity_outrange_clamp(self):
         # One latency slightly beyond xmax to trigger clamp
@@ -57,42 +54,41 @@ class TestEegLat2PointParity(unittest.TestCase):
         py_out, py_flag = eeg_lat2point(lat_array, epoch_array, srate, timewin, 1.0)  # default outrange=1
         ml_out = self.eeglab.eeg_lat2point(lat_array, epoch_array, srate, timewin, 1.0)
 
-        # Python returns 0-based indices, so subtract 1 from MATLAB's 1-based result
-        self.assertTrue(np.allclose(py_out, ml_out - 1, atol=1e-9))
+        self.assertTrue(np.allclose(py_out, ml_out, atol=1e-9))
 
 
 class TestEegLat2PointFunctional(unittest.TestCase):
 
     def test_eeg_lat2point_continuous(self):
-        # 100 Hz, epoch 0–1 s → 101 points; 0,0.5,1.0 s map to 0,50,100 (0-based)
+        # 100 Hz, epoch 0–1 s → 101 points; 0,0.5,1.0 s map to 1,51,101 (1-based)
         srate = 100
         timewin = [0, 1]
         lat_array = [0.0, 0.5, 1.0]
         out, flag = eeg_lat2point(lat_array, [], srate, timewin, 1)
-        expected = np.array([0, 50, 100], dtype=float)
+        expected = np.array([1, 51, 101], dtype=float)
         self.assertTrue(np.allclose(out, expected, atol=1e-9))
         self.assertEqual(int(flag), 0)
 
     def test_eeg_lat2point_epoched(self):
         # 100 Hz, [-0.2, 0.8] s → 101 points per epoch
-        # Epoch 1: -0.2, 0.3, 0.8 → 0, 50, 100 (0-based)
-        # Epoch 2: -0.2 → 0 + 101 = 101 in concatenated points
+        # Epoch 1: -0.2, 0.3, 0.8 → 1, 51, 101 (1-based)
+        # Epoch 2: -0.2 → 1 + 101 = 102 in concatenated points
         srate = 100
         timewin = [-0.2, 0.8]
         lat_array = [-0.2, 0.3, 0.8, -0.2]
         epoch_array = [1, 1, 1, 2]
         out, flag = eeg_lat2point(lat_array, epoch_array, srate, timewin, 1)
-        expected = np.array([0, 50, 100, 101], dtype=float)
+        expected = np.array([1, 51, 101, 102], dtype=float)
         self.assertTrue(np.allclose(out, expected, atol=1e-9))
         self.assertEqual(int(flag), 0)
 
     def test_eeg_lat2point_milliseconds(self):
-        # ms output: 0 ms and 1000 ms → points 0 and 1000 at 1000 Hz (0-based)
+        # ms output: 0 ms and 1000 ms → points 1 and 1001 at 1000 Hz (1-based)
         srate = 1000
         timewin = [0, 1000]  # milliseconds (same units as lat_array)
         lat_array = [0.0, 1000.0]  # ms
         out, flag = eeg_lat2point(lat_array, [], srate, timewin, 1e-3)
-        expected = np.array([0, 1000], dtype=float)
+        expected = np.array([1, 1001], dtype=float)
         self.assertTrue(np.allclose(out, expected, atol=1e-9))
         self.assertEqual(int(flag), 0)
 
@@ -102,7 +98,7 @@ class TestEegLat2PointFunctional(unittest.TestCase):
         timewin = [0, 1]
         lat_array = [1.2]  # seconds, clearly beyond xmax
         out, flag = eeg_lat2point(lat_array, 1, srate, timewin, 1.0)  # default outrange=1
-        self.assertEqual(int(out[0]), 100)  # max valid point (0-based, so 101-1=100)
+        self.assertEqual(int(out[0]), 101)  # max valid point (1-based)
         self.assertEqual(int(flag), 1)
 
     def test_eeg_lat2point_outrange_error(self):
