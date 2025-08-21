@@ -82,6 +82,6 @@ Use tests under Cursos or Visual Studio Code.
 
 ## Core maintainers
 
-Arnaud Delorme, UCSD, CA, USA
-Christian Kothe, Intheon, CA, USA
-Bruno Aristimunha Pinto, Inria, France
+- Arnaud Delorme, UCSD, CA, USA
+- Christian Kothe, Intheon, CA, USA
+- Bruno Aristimunha Pinto, Inria, France
