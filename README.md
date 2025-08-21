@@ -1,3 +1,7 @@
+## EEGPrep
+
+EEGPrep is a Python package that reproduces the EEGLAB default preprocessing pipeline with numerical accuracy down to 10⁻⁷, including clean_rawdata and ICLabel, enabling MATLAB-to-Python equivalence for EEG analysis. The package is fully documented for conversion, packaging, and testing workflows, with installation available via PyPI.
+
 ## Branlife execution
 
 Simply press the Execute button. The documentation below is related to the EEGprep GitHub repository.
