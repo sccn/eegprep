@@ -7,7 +7,10 @@ def eeg_eegrej(EEG, regions):
     if regions is None or len(regions) == 0:
         return EEG
 
-    regions = np.asarray(regions, dtype=np.int64)
+    # Round first like MATLAB, then convert to int
+    regions = np.asarray(regions, dtype=float)
+    regions = np.round(regions).astype(np.int64)
+    
     # sort rows like MATLAB
     if regions.shape[1] > 2:
         regions = regions[np.argsort(regions[:, 2])]

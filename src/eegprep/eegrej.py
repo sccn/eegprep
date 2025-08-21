@@ -72,10 +72,12 @@ def eegrej(indata, regions, timelength, events: Optional[List[Dict]] = None) -> 
         return x, float(timelength), events_out, boundevents
 
     # Build reject mask (convert 1-based to 0-based slices)
+    # MATLAB: reject(beg:end) = 1  (includes both beg and end, 1-based)
+    # Python: reject[beg-1:end] = True  (includes beg-1 to end-1, since end is exclusive in Python slicing)
+    # To match MATLAB's inclusive end, we need reject[beg-1:end] where end is inclusive
     reject = np.zeros(n, dtype=bool)
     for beg, end in r:
-        reject[beg - 1:end] = True
-    #    reject[beg:end+1] = True # make eegrej test case fail
+        reject[beg - 1:end] = True  # This matches MATLAB reject(beg:end) when end is already the inclusive end
 
     # Prepare events
     ori_events: List[Dict] = [] if events is None else [dict(ev) for ev in events]
