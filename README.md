@@ -8,6 +8,10 @@ EEGPrep is a Python package that reproduces the EEGLAB default preprocessing pip
 pip install eegprep
 ```
 
+# Current code coverage
+
+<img width="489" height="1119" alt="Screenshot 2025-08-21 at 09 15 37" src="https://github.com/user-attachments/assets/cb958237-16bb-4f57-867b-d2cd393a42a2" />
+
 # Docker
 
 ## Build Docker
