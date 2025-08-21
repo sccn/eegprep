@@ -212,6 +212,9 @@ def pop_saveset(EEG, file_name):
             tuple(item[fld] for fld in retain_fields)
             for item in d_list
         ], dtype=dtype)
+    
+    if isinstance(eeglab_dict['event'], list):
+        eeglab_dict['event'] = np.array(eeglab_dict['event'])
         
     for key in eeglab_dict:
         if isinstance(eeglab_dict[key], np.ndarray) and len(eeglab_dict[key]) > 0 and isinstance(eeglab_dict[key][0], dict):

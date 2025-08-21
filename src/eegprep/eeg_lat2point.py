@@ -23,7 +23,7 @@ def eeg_lat2point(lat_array, epoch_array, srate, timewin, timeunit=1.0, **kwargs
 
     Returns
     newlat : np.ndarray
-        1-based point indices assuming concatenated epochs.
+        0-based point indices assuming concatenated epochs.
     flag   : int
         1 if any point was out of range and replaced; else 0.
     """
@@ -48,20 +48,22 @@ def eeg_lat2point(lat_array, epoch_array, srate, timewin, timeunit=1.0, **kwargs
     if timewin.size != 2:
         raise ValueError("eeg_lat2point: timelimits must have length 2")
 
-    # timewin is already in seconds, no scaling needed
-    timewin_sec = timewin.copy()
+    # Scale timewin by timeunit to convert to seconds (following MATLAB logic)
+    timewin_sec = timewin * float(timeunit)
 
     # points per epoch (inclusive endpoints)
     pnts = (timewin_sec[1] - timewin_sec[0]) * float(srate) + 1.0
 
     # core formula (EEGLAB):
-    # newlat = (lat*timeunit - timewin(1))*srate + 1 + (epoch-1)*pnts
+    # newlat = (lat*timeunit - timewin_scaled(1))*srate + 1 + (epoch-1)*pnts
+    # But return 0-based indices (subtract 1 from MATLAB's 1-based result)
     newlat = (lat_array * float(timeunit) - timewin_sec[0]) * float(srate) + 1.0 \
-             + (epoch_array - 1.0) * pnts
+             + (epoch_array - 1.0) * pnts - 1.0
 
     flag = 0
     if newlat.size and epoch_array.size:
-        max_valid = np.max(epoch_array * pnts)
+        # max_valid for 0-based indexing is (max_epoch * pnts - 1)
+        max_valid = np.max(epoch_array * pnts) - 1.0
         if np.max(newlat) > max_valid + 1e-12:  # tolerance for FP noise
             if outrange == 1:
                 idx = newlat > max_valid

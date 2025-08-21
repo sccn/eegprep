@@ -341,7 +341,7 @@ def pop_select(EEG, **kwargs):
                 # map to 1-based sample indices
                 nbtimes = adjusted.size
                 pts, _ = eeg_lat2point(adjusted.reshape(-1), np.ones(nbtimes), srate, [xmin, xmax])
-                pts = pts.reshape((-1, 2)).astype(int)
+                pts = pts.reshape((-1, 2))
                 # drop empty ranges
                 keep_rows = (pts[:,1] - pts[:,0]) != 0
                 pts = pts[keep_rows]

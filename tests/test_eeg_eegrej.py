@@ -8,6 +8,7 @@ from unittest.mock import patch
 from eegprep import eeg_eegrej
 from eegprep.eeglabcompat import get_eeglab
 from eegprep.pop_loadset import pop_loadset
+from eegprep.eeg_checkset import eeg_checkset
 
 # where the test resources
 web_root = 'https://sccntestdatasets.s3.us-east-2.amazonaws.com/'
@@ -30,6 +31,7 @@ def _make_continuous_eeg():
         "xmin": 0.0,
         "xmax": 2.0,
         "pnts": data.shape[1],
+        "srate": 100,
         "trials": 1,
         "event": [
             {"type": "stim", "latency": 3.0},
@@ -38,6 +40,29 @@ def _make_continuous_eeg():
             {"type": "resp", "latency": 12.0},
         ],
     }
+    return EEG
+
+def _make_continuous_eeg2():
+    # 2 channels × 20 samples, 1-based event latencies
+    data     = np.arange(75350*4, dtype=float).reshape(4, 75350)
+    timevals = np.array(range(data.shape[1]))/100
+    EEG = dict({
+        "data": data,
+        "xmin": 0.0,
+        "xmax": 753.4900,
+        "pnts": data.shape[1],
+        "srate": 100,
+        "nbchan": 4,
+        "trials": 1,
+        "times": timevals,
+        "event": [
+            {"type": "stim", "latency": 3.0},
+            {"type": "boundary", "latency": 6.0, "duration": 0.0},
+            {"type": "stim", "latency": 7.0},
+            {"type": "resp", "latency": 12.0},
+        ],
+    })
+    EEG = eeg_checkset(EEG)
     return EEG
 
 def _save_eeg(path, EEG):
@@ -49,9 +74,12 @@ def _load_eeg(path):
 
 class TestEEGEegrej(unittest.TestCase):
     def setUp(self):
+        EEG = _make_continuous_eeg2()
         self.tmpdir = tempfile.TemporaryDirectory()
         self.fpath = os.path.join(self.tmpdir.name, "eeg.npy")
         self.fpath_eeglab = ensure_file('FlankerTest.set')
+        self.eeglab = get_eeglab('MAT')
+
         _save_eeg(self.fpath, _make_continuous_eeg())
 
     def tearDown(self):
@@ -102,14 +130,37 @@ class TestEEGEegrej(unittest.TestCase):
         # No event latencies exceed pnts
         self.assertTrue(all(0 < e["latency"] <= EEG_out["pnts"] for e in ev))
         
-    def test_compare_to_eeglab(self):
-        EEG = pop_loadset(self.fpath_eeglab)
-        regions = np.array([[6, 10]], dtype=int)
-        EEG_out = eeg_eegrej(EEG, regions)
+    # def test_rmtime_continuous(self):
+    #     EEG = _make_continuous_eeg2()
+    
+    #     xmin = float(EEG['xmin'])
+    #     xmax = float(EEG['xmax'])
+    #     span = xmax - xmin
+    #     rm_seg = np.array([[xmin + 0.1 * span, xmin + 0.2 * span]], dtype=float)*EEG['srate']
+    #     rm_seg = rm_seg.astype(int)
+    #     EEG_py = eeg_eegrej(EEG, rm_seg)
         
-        eeglab = get_eeglab('MAT')
-        eeglab_outdata = eeglab.eeg_eegrej(EEG, [6, 10])
-        np.testing.assert_array_equal(EEG_out["data"], eeglab_outdata["data"])
+    #     EEG_mat = self.eeglab.eeg_eegrej(EEG, rm_seg)
+        
+    #     self.assertEqual(EEG_py['pnts'], EEG_mat['pnts'])
+    #     self.assertTrue(np.allclose(EEG_py['data'], EEG_mat['data'], atol=1e-7, equal_nan=True))
+    
+    def test_rmtime_continuous2(self):
+        EEG = pop_loadset(self.fpath_eeglab)
+        rm_seg = np.array([[7535.900000,15070.800000]], dtype=float)
+        EEG_py = eeg_eegrej(EEG, rm_seg)
+        
+        EEG_mat = self.eeglab.eeg_eegrej(EEG, rm_seg)
+        self.assertEqual(EEG_py['pnts'], EEG_mat['pnts'])
+        np.testing.assert_array_equal(EEG_py["data"], EEG_mat["data"])
+    
+    # def test_compare_to_eeglab(self):
+    #     EEG = pop_loadset(self.fpath_eeglab)
+    #     regions = np.array([[6, 10]], dtype=int)
+    #     EEG_out = eeg_eegrej(EEG, regions)
+        
+    #     eeglab_outdata = self.eeglab.eeg_eegrej(EEG, [6, 10])
+    #     np.testing.assert_array_equal(EEG_out["data"], eeglab_outdata["data"])
 
 if __name__ == "__main__":
     unittest.main()

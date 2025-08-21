@@ -83,7 +83,7 @@ class MatlabWrapper:
                     if len(new_args) > 1:
                         scipy.io.savemat(temp_filename2, {'args': np.array(new_args, dtype=object)}) # object required for passing as cell array
                     else:
-                        scipy.io.savemat(temp_filename2, {'args': new_args})
+                        scipy.io.savemat(temp_filename2, {'args': new_args[0]}) # [0] because other increase dim of array by 1
                     self.engine.eval(f"args = load('{temp_filename2}');", nargout=0)
                 else:
                     self.engine.eval("args.args = {};", nargout=0)
@@ -93,21 +93,17 @@ class MatlabWrapper:
                     pop_saveset(args[0], temp_filename1)
                     self.engine.eval(f"EEG = pop_loadset('{temp_filename1}');", nargout=0)
                     
-                # needs to use eval since returning struct arrays is not supported
-                temp_filename1 = 'adsfdsa' # ***************************************** FILE NOT ERASED
-                temp_filename2 = 'adsfdsa' # ***************************************** FILE NOT ERASED
-
                 print(f"Running in MATLAB/Octave: {eval_str}")
                 self.engine.eval(eval_str, nargout=0)
                 
                 # output
                 if needs_roundtrip:
                     self.engine.eval(f"pop_saveset(OUT, '{result_filename}');", nargout=0)
-                    return pop_loadset(result_filename)
+                    OUT = pop_loadset(result_filename)
+                    return OUT
                 else:
                     self.engine.eval(f"save('-mat', '{result_filename}', 'OUT');", nargout=0)
                     OUT = scipy.io.loadmat(result_filename)['OUT']
-                    result_filename = 'adsfdsa' # ***************************************** FILE NOT ERASED
                     return OUT
 
             finally:
@@ -115,14 +111,18 @@ class MatlabWrapper:
                 try:
                     # noinspection PyUnboundLocalVariable
                     if os.path.exists(temp_filename1):
-                        os.remove(temp_filename1)
+                        #os.remove(temp_filename1)
+                        pass
                     if os.path.exists(temp_filename2):
-                        os.remove(temp_filename2)
+                        #os.remove(temp_filename2)
+                        pass
                     # noinspection PyUnboundLocalVariable
                     if os.path.exists(result_filename):
-                        os.remove(result_filename)
+                        #os.remove(result_filename)
+                        pass
                     if os.path.exists(fdt_file := result_filename.replace('result.set', 'result.fdt')):
-                        os.remove(fdt_file)
+                        #os.remove(fdt_file)
+                        pass
                 except OSError as e:
                     logger.warning(f"Error deleting temporary file {temp_filename}: {e}")
             # else:

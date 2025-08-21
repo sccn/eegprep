@@ -75,6 +75,7 @@ def eegrej(indata, regions, timelength, events: Optional[List[Dict]] = None) -> 
     reject = np.zeros(n, dtype=bool)
     for beg, end in r:
         reject[beg - 1:end] = True
+    #    reject[beg:end+1] = True # make eegrej test case fail
 
     # Prepare events
     ori_events: List[Dict] = [] if events is None else [dict(ev) for ev in events]

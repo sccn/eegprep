@@ -102,31 +102,29 @@ class TestPopSelectParity(unittest.TestCase):
         self.assertTrue(np.allclose(EEG_py_out['data'], EEG_mat_out['data'], atol=1e-7, equal_nan=True))
 
     # TODO: This test has pre-existing issues with boundary adjustment differences
-    # def test_parity_rmtime_continuous(self):
-    #     # Only meaningful for continuous data
-    #     if int(self.EEG_py.get('trials', 1)) > 1:
-    #         self.skipTest("Dataset is epoched; skipping continuous rmtime parity test")
+    def test_parity_rmtime_continuous(self):
+        # Only meaningful for continuous data
+        if int(self.EEG_py.get('trials', 1)) > 1:
+            self.skipTest("Dataset is epoched; skipping continuous rmtime parity test")
 
-    #     xmin = float(self.EEG_py['xmin'])
-    #     xmax = float(self.EEG_py['xmax'])
-    #     span = xmax - xmin
-    #     if span <= 0.3:
-    #         self.skipTest("Not enough duration to remove a middle segment")
+        xmin = float(self.EEG_py['xmin'])
+        xmax = float(self.EEG_py['xmax'])
+        span = xmax - xmin
+        if span <= 0.3:
+            self.skipTest("Not enough duration to remove a middle segment")
 
-    #     # Remove a middle slice
-    #     rm_seg = np.array([[xmin + 0.1 * span, xmin + 0.2 * span]], dtype=float)
+        # Remove a middle slice
+        rm_seg = np.array([[xmin + 0.1 * span, xmin + 0.2 * span]], dtype=float)
 
-    #     EEG_py_out =              pop_select(copy.deepcopy(self.EEG_py), rmtime=rm_seg)
-    #     EEG_mat_out = self.eeglab.pop_select(copy.deepcopy(self.EEG_py), 'rmtime', rm_seg.flatten())
+        EEG_py_out =              pop_select(copy.deepcopy(self.EEG_py), rmtime=rm_seg)
+        EEG_mat_out = self.eeglab.pop_select(copy.deepcopy(self.EEG_py), 'rmtime', rm_seg.flatten())
 
-    #     self.assertTrue(EEG_py_out['pnts'] < self.EEG_py['pnts'])
-    #     # Allow small differences in pnts due to boundary adjustment differences
-    #     self.assertTrue(abs(EEG_py_out['pnts'] - EEG_mat_out['pnts']) <= 2, 
-    #                    f"Point count difference too large: {EEG_py_out['pnts']} vs {EEG_mat_out['pnts']}")
-    #     self.assertEqual(EEG_py_out['nbchan'], EEG_mat_out['nbchan'])
-    #     # Compare data only up to the smaller size due to potential boundary differences
-    #     min_pnts = min(EEG_py_out['pnts'], EEG_mat_out['pnts'])
-    #     self.assertTrue(np.allclose(EEG_py_out['data'][:, :min_pnts], EEG_mat_out['data'][:, :min_pnts], atol=1e-7, equal_nan=True))
+        self.assertEqual(EEG_py_out['pnts'], EEG_mat_out['pnts'])
+        # Allow small differences in pnts due to boundary adjustment differences
+        self.assertEqual(EEG_py_out['nbchan'], EEG_mat_out['nbchan'])
+        # Compare data only up to the smaller size due to potential boundary differences
+        min_pnts = min(EEG_py_out['pnts'], EEG_mat_out['pnts'])
+        self.assertTrue(np.allclose(EEG_py_out['data'][:, :min_pnts], EEG_mat_out['data'][:, :min_pnts], atol=1e-7, equal_nan=True))
 
 class TestPopSelectFunctional(unittest.TestCase):
 
