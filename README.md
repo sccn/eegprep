@@ -4,7 +4,7 @@ EEGPrep is a Python package that reproduces the EEGLAB default preprocessing pip
 
 ## Pre-release
 
-EEGPrep is currently in a pre-release phase. It functions end-to-end but has not yet been tested with multiple BIDS datasets. The documentation is incomplete, and use is at your own risk. The planned release is scheduled for the end of 2025.
+EEGPrep is currently in a pre-release phase. It functions end-to-end (bids branch) but has not yet been tested with multiple BIDS datasets. The documentation is incomplete, and use is at your own risk. The planned release is scheduled for the end of 2025.
 
 ## Install
 
