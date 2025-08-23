@@ -1,0 +1,2 @@
+- computeg: subfunction of eeg_interp
+- spheric_spline: subfunction of eeg_interp
