@@ -50,9 +50,11 @@ class MatlabWrapper:
             # issue error if kwargs are passed unless it is "nargout"
             needs_roundtrip = False
             
-            # Special case for epoch function which returns 6 outputs
+            # Special case for functions that return multiple outputs
             if name == 'epoch':
                 eval_str = f"if iscell(args.args), [OUT1,OUT2,OUT3,OUT4,OUT5,OUT6] = {name}(args.args{{:}}); else, [OUT1,OUT2,OUT3,OUT4,OUT5,OUT6] = {name}(args.args); end; OUT = {{OUT1,OUT2,OUT3,OUT4,OUT5,OUT6}};"
+            elif name == 'spheric_spline':
+                eval_str = f"if iscell(args.args), [OUT1,OUT2,OUT3,OUT4] = {name}(args.args{{:}}); else, [OUT1,OUT2,OUT3,OUT4] = {name}(args.args); end; OUT = {{OUT1,OUT2,OUT3,OUT4}};"
             else:
                 eval_str = f"if iscell(args.args), OUT = {name}(args.args{{:}}); else, OUT = {name}(args.args); end;"
                 
@@ -62,6 +64,8 @@ class MatlabWrapper:
                     new_args = new_args[1:]
                     if name == 'epoch':
                         eval_str = f"if iscell(args.args), [OUT1,OUT2,OUT3,OUT4,OUT5,OUT6] = {name}(EEG,args.args{{:}}); else, [OUT1,OUT2,OUT3,OUT4,OUT5,OUT6] = {name}(EEG,args.args); end; OUT = {{OUT1,OUT2,OUT3,OUT4,OUT5,OUT6}};"
+                    elif name == 'spheric_spline':
+                        eval_str = f"if iscell(args.args), [OUT1,OUT2,OUT3,OUT4] = {name}(EEG,args.args{{:}}); else, [OUT1,OUT2,OUT3,OUT4] = {name}(EEG,args.args); end; OUT = {{OUT1,OUT2,OUT3,OUT4}};"
                     else:
                         eval_str = f"if iscell(args.args), OUT = {name}(EEG,args.args{{:}}); else, OUT = {name}(EEG,args.args); end;"
             
@@ -114,8 +118,11 @@ class MatlabWrapper:
                     self.engine.eval(f"save('-mat', '{result_filename}', 'OUT');", nargout=0)
                     OUT = scipy.io.loadmat(result_filename)['OUT']
                     
-                    # Special handling for epoch function which returns a cell array of 6 outputs
+                    # Special handling for functions that return multiple outputs
                     if name == 'epoch' and isinstance(OUT, np.ndarray) and OUT.dtype == 'object':
+                        # Convert MATLAB cell array to Python tuple
+                        return tuple(OUT.flatten())
+                    elif name == 'spheric_spline' and isinstance(OUT, np.ndarray) and OUT.dtype == 'object':
                         # Convert MATLAB cell array to Python tuple
                         return tuple(OUT.flatten())
                     else:
