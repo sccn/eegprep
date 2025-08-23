@@ -9,9 +9,21 @@ from eegprep.epoch import epoch  # Python translation under test
 def _ml_list_of_arrays_to_0_based(list_of_arrays):
     # MATLAB returns 1-based indices; convert to 0-based for parity checks
     out = []
-    for arr in list_of_arrays:
-        a = np.asarray(arr).astype(int) - 1
-        out.append(a)
+    # Handle the nested structure from MATLAB
+    if isinstance(list_of_arrays, np.ndarray) and list_of_arrays.dtype == object:
+        # Flatten the outer structure and process each epoch's events
+        for epoch_events in list_of_arrays.flatten():
+            if isinstance(epoch_events, np.ndarray):
+                # Convert each array in the epoch to 0-based
+                converted = np.asarray(epoch_events).flatten().astype(int) - 1
+                out.append(converted)
+            else:
+                out.append(np.array([]))
+    else:
+        # Original logic for simpler structures
+        for arr in list_of_arrays:
+            a = np.asarray(arr).astype(int) - 1
+            out.append(a)
     return out
 
 
@@ -74,51 +86,63 @@ class TestEpochParity(unittest.TestCase):
         # Expect only the first event to survive
         self.assertTrue(np.array_equal(py_indexes, np.array([0])))
 
-#     def test_parity_rereference_allevents(self):
-#         srate = 100.0
-#         n_ch, n_samp = 2, 2000
-#         data = np.random.randn(n_ch, n_samp)
-#         events = np.array([5.0, 10.0], dtype=float)
-#         lim = np.array([-0.2, 0.8], dtype=float)
+    def test_parity_rereference_allevents(self):
+        srate = 100.0
+        n_ch, n_samp = 2, 2000
+        data = np.random.randn(n_ch, n_samp)
+        events = np.array([5.0, 10.0], dtype=float)
+        lim = np.array([-0.2, 0.8], dtype=float)
 
-#         # Define all events in seconds on the same scale as 'events'
-#         allevents = np.array([4.7, 4.9, 5.1, 5.6, 9.1, 9.85, 10.05], dtype=float)
-#         alleventrange = np.array([-0.1, 0.3], dtype=float)
+        # Define all events in seconds on the same scale as 'events'
+        allevents = np.array([4.7, 4.9, 5.1, 5.6, 9.1, 9.85, 10.05], dtype=float)
+        alleventrange = np.array([-0.1, 0.3], dtype=float)
 
-#         py = epoch(
-#             data, events, lim,
-#             srate=srate,
-#             allevents=allevents,
-#             alleventrange=alleventrange,
-#             verbose='off'
-#         )
-#         ml = self.eeglab.epoch(
-#             data, events, lim,
-#             'srate', srate,
-#             'allevents', allevents,
-#             'alleventrange', alleventrange,
-#             'verbose', 'off'
-#         )
+        py = epoch(
+            data, events, lim,
+            srate=srate,
+            allevents=allevents,
+            alleventrange=alleventrange,
+            verbose='off'
+        )
+        ml = self.eeglab.epoch(
+            data, events, lim,
+            'srate', srate,
+            'allevents', allevents,
+            'alleventrange', alleventrange,
+            'verbose', 'off'
+        )
 
-#         py_epochdat, py_newtime, py_indexes, py_alleventout, py_alllatencyout, py_reallim = py
-#         ml_epochdat, ml_newtime, ml_indexes, ml_alleventout, ml_alllatencyout, ml_reallim = ml
+        py_epochdat, py_newtime, py_indexes, py_alleventout, py_alllatencyout, py_reallim = py
+        ml_epochdat, ml_newtime, ml_indexes, ml_alleventout, ml_alllatencyout, ml_reallim = ml
 
-#         ml_indexes0 = np.asarray(ml_indexes).astype(int) - 1
-#         self.assertTrue(np.allclose(py_epochdat, ml_epochdat, atol=1e-12))
-#         self.assertTrue(np.allclose(py_newtime, ml_newtime, atol=1e-12))
-#         self.assertTrue(np.array_equal(py_indexes, ml_indexes0))
-#         self.assertTrue(np.allclose(py_reallim, ml_reallim, atol=1e-12))
+        ml_indexes0 = np.asarray(ml_indexes).astype(int).flatten() - 1  # flatten to 1D
+        self.assertTrue(np.allclose(py_epochdat, ml_epochdat, atol=1e-12))
+        self.assertTrue(np.allclose(py_newtime, ml_newtime, atol=1e-12))
+        self.assertTrue(np.array_equal(py_indexes, ml_indexes0))
+        self.assertTrue(np.allclose(py_reallim, ml_reallim, atol=1e-12))
 
-#         # Compare rereferenced indices and latencies
-#         # Convert MATLAB's 1-based event indices to 0-based
-#         ml_alleventout0 = _ml_list_of_arrays_to_0_based(ml_alleventout)
+        # Compare rereferenced indices and latencies
+        # Convert MATLAB's 1-based event indices to 0-based
+        ml_alleventout0 = _ml_list_of_arrays_to_0_based(ml_alleventout)
+        
+        # Handle MATLAB's nested structure for alllatencyout (similar to alleventout)
+        ml_alllatencyout_flat = []
+        if isinstance(ml_alllatencyout, np.ndarray) and ml_alllatencyout.dtype == object:
+            for epoch_latencies in ml_alllatencyout.flatten():
+                if isinstance(epoch_latencies, np.ndarray):
+                    flattened = np.asarray(epoch_latencies).flatten()
+                    ml_alllatencyout_flat.append(flattened)
+                else:
+                    ml_alllatencyout_flat.append(np.array([]))
+        else:
+            ml_alllatencyout_flat = list(ml_alllatencyout)
 
-#         self.assertEqual(len(py_alleventout), len(ml_alleventout0))
-#         self.assertEqual(len(py_alllatencyout), len(ml_alllatencyout))
+        self.assertEqual(len(py_alleventout), len(ml_alleventout0))
+        self.assertEqual(len(py_alllatencyout), len(ml_alllatencyout_flat))
 
-#         for i in range(len(py_alleventout)):
-#             self.assertTrue(np.array_equal(py_alleventout[i], np.asarray(ml_alleventout0[i])))
-#             self.assertTrue(np.allclose(py_alllatencyout[i], np.asarray(ml_alllatencyout[i]), atol=1e-12))
+        for i in range(len(py_alleventout)):
+            self.assertTrue(np.array_equal(py_alleventout[i], np.asarray(ml_alleventout0[i])))
+            self.assertTrue(np.allclose(py_alllatencyout[i], np.asarray(ml_alllatencyout_flat[i]), atol=1e-12))
 
 #     def test_parity_boundary_exclusion(self):
 #         # Place an event whose window crosses dataset boundary
