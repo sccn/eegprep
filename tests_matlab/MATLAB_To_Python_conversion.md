@@ -10,11 +10,15 @@
 Convert this MATLAB function to Python. Do not type the inputs. Use keywords Python calling conventions when MATLAB uses 'key', val, otherwise use positional arguments like MATLAB. Follow the MATLAB code scrupulously, using the same variable names. If a custom sub-function is missing, put a comment but do not write the function. Assume EEG is a dictionary, not an object (EEG['chanlocs'] access channels and EEG['chanlocs'][0]['X'] accesses the coordinate X of the channels.
 ```
 
-5. Create the testcase, copying an existing one and telling GPT5 to use it. "Create a test case for this function using the template from another function below"
+5. Create the testcase, copying an existing one and telling GPT5 to use it.
 
-6. Comment the MATLAB test cases. Run and debug until the non-MATLAB test cases do not crash.
+```
+Create a test case for this function using the template from another function below
+```
 
-7. Uncomment one of the MATLAB test cases at a time and run. Use the prompt.
+7. Comment the MATLAB test cases. Run and debug until the non-MATLAB test cases do not crash.
+
+8. Uncomment one of the MATLAB test cases at a time and run. Use the prompt.
 
 ```
 Please fix the issue. You can find the Python environment in .venv folder if you need to run Python code. Remember that function @x.py has the equivalent @x.m, which you can also modify to add a comment that will be visible when you run the test cases.
