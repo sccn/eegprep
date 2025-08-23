@@ -36,7 +36,9 @@ def eeg_checkset(EEG, load_data=True):
         EEG['data'] = EEG['data'].T.reshape(EEG['nbchan'], EEG['trials'], EEG['pnts']).transpose(0, 2, 1)
 
     # compute ICA activations
-    if 'icaweights' in EEG and 'icasphere' in EEG and EEG['icaweights'].size > 0 and EEG['icasphere'].size > 0:
+    if ('icaweights' in EEG and 'icasphere' in EEG and 
+        hasattr(EEG['icaweights'], 'size') and hasattr(EEG['icasphere'], 'size') and
+        EEG['icaweights'].size > 0 and EEG['icasphere'].size > 0):
         EEG['icaact'] = np.dot(np.dot(EEG['icaweights'], EEG['icasphere']), EEG['data'].reshape(int(EEG['nbchan']), -1))
         EEG['icaact'] = EEG['icaact'].astype(np.float32)
         EEG['icaact'] = EEG['icaact'].reshape(EEG['icaweights'].shape[0], -1, int(EEG['trials']))
