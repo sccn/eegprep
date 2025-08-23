@@ -163,17 +163,6 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
             engine.logger = get_log("new_log")
             engine.logger.setLevel(logging.WARNING)
             engine.warning('off', 'backtrace')
-            engine.addpath(path2eeglab + '/functions/guifunc')
-            engine.addpath(path2eeglab + '/functions/popfunc')
-            engine.addpath(path2eeglab + '/functions/adminfunc')
-            engine.addpath(path2eeglab + '/plugins/firfilt')
-            engine.addpath(path2eeglab + '/functions/sigprocfunc')
-            engine.addpath(path2eeglab + '/functions/miscfunc')
-            engine.addpath(path2eeglab + '/plugins/dipfit')
-            engine.addpath(path2eeglab + '/plugins/iclabel')
-            engine.addpath(path2eeglab + '/plugins/picard')
-            engine.addpath(path2eeglab + '/plugins/clean_rawdata')
-            engine.addpath(path2eeglab + '/plugins/clean_rawdata2.10')
         elif rt == 'mat':
             try:
                 import matlab.engine
@@ -188,13 +177,25 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
                     calls to the MATLAB runtime.                                  
                     """)
             engine = matlab.engine.start_matlab()
-            engine.cd(path2eeglab)
-            engine.eval('eeglab nogui;', nargout=0)
+            # engine.cd(path2eeglab)
+            # engine.eval('eeglab nogui;', nargout=0) # starting EEGLAB is too slow
         else:
             raise ValueError(f"Unsupported runtime: {runtime}. Should be 'OCT' or 'MAT'")
 
-        # path2eeglab = 'eeglab' # init >10 seconds
+        engine.addpath(path2eeglab + '/functions/guifunc')
+        engine.addpath(path2eeglab + '/functions/popfunc')
+        engine.addpath(path2eeglab + '/functions/adminfunc')
+        engine.addpath(path2eeglab + '/plugins/firfilt')
+        engine.addpath(path2eeglab + '/functions/sigprocfunc')
+        engine.addpath(path2eeglab + '/functions/miscfunc')
+        engine.addpath(path2eeglab + '/plugins/dipfit')
+        engine.addpath(path2eeglab + '/plugins/iclabel')
+        engine.addpath(path2eeglab + '/plugins/picard')
+        engine.addpath(path2eeglab + '/plugins/clean_rawdata')
+        engine.addpath(path2eeglab + '/plugins/clean_rawdata2.10')
         engine.cd(path2eeglab + '/plugins/clean_rawdata/private')  # to grant access to util funcs for unit testing
+        
+        # path2eeglab = 'eeglab' # init >10 seconds
         #res = eeglab.version()
         #print('Running EEGLAB commands in compatibility mode with Octave ' + res)
 
