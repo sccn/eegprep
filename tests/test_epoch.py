@@ -65,7 +65,7 @@ class TestEpochParity(unittest.TestCase):
         py_epochdat, py_newtime, py_indexes, _, _, py_reallim = py
         ml_epochdat, ml_newtime, ml_indexes, _, _, ml_reallim = ml
 
-        ml_indexes0 = np.asarray(ml_indexes).astype(int) - 1
+        ml_indexes0 = np.asarray(ml_indexes).astype(int).flatten() - 1  # flatten to 1D
         self.assertTrue(np.allclose(py_epochdat, ml_epochdat, atol=1e-12))
         self.assertTrue(np.allclose(py_newtime, ml_newtime, atol=1e-12))
         self.assertTrue(np.array_equal(py_indexes, ml_indexes0))
