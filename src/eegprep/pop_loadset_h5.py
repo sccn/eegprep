@@ -3,7 +3,12 @@ import numpy as np
 
 def pop_loadset_h5(file_name):
     EEGTMP = h5py.File(file_name, 'r')
-    EEG = {}    
+    EEG = {}
+    
+    # Check if the file has an EEG group (MATLAB .set format)
+    if 'EEG' in EEGTMP.keys():
+        # Use the EEG group as the main data source
+        EEGTMP = EEGTMP['EEG']    
 
     def convert_to_string(filecontent):
         if isinstance(filecontent, np.ndarray):
