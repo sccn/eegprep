@@ -1,3 +1,11 @@
+scripts/data
+data/eeglab_data_tmp_out_matlab.fdt
+data/icaweights_comparison.png
+data/iclabel_classifications_default.png
+data/iclabel_correlations_default.png
+data/test_file.edf
+.coverage*
+htmlcov/
 temp
 *.set
 *.mat
