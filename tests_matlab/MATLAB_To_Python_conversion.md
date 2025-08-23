@@ -7,7 +7,7 @@
 2. Convert the MATLAB code using GPT5. Copy and paste in Cursor. This is the prompt
 
 ```
-Convert this MATLAB function to Python. Do not type the inputs. Use keywords Python calling conventions when MATLAB uses 'key', val, otherwise use positional arguments like MATLAB. Follow the MATLAB code scrupulously, using the same variable names. If a custom sub-function is missing, put a comment but do not write the function. Assume EEG is a dictionary, not an object (EEG['chanlocs'] access channels and EEG['chanlocs'][0]['X'] accesses the coordinate X of the channels.
+I want to save this prompt "Convert this MATLAB function to Python. Do not type the inputs. Use keywords Python calling conventions when MATLAB uses 'key', val, otherwise use positional arguments like MATLAB. Follow the MATLAB code scrupulously, using the same variable names. If a custom sub-function is missing, put a comment but do not write the function. Assume EEG is a dictionary, not an object (EEG['chanlocs'] access channels and EEG['chanlocs'][0]['X'] accesses the coordinate X of the channels. Use 0-based index in Python but when using event latency EEG['event'][?]['latency'], remember that these indicate sample index 1-based and that should continue to do so in Python.
 ```
 
 5. Create the testcase, copying an existing one and telling GPT5 to use it (I like to use test_eeg_lat2point.py.
