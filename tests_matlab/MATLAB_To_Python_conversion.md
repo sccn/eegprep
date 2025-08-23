@@ -13,7 +13,7 @@ Convert this MATLAB function to Python. Do not type the inputs. Use keywords Pyt
 5. Create the testcase, copying an existing one and telling GPT5 to use it (I like to use test_eeg_lat2point.py.
 
 ```
-Create a test case for this function using the template from another function below
+Create a test case for this function using the template from another function below. Just use the same structure.
 ```
 
 7. Comment the MATLAB test cases. Run and debug until the non-MATLAB test cases do not crash.
