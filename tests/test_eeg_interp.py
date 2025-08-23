@@ -8,107 +8,107 @@ from eegprep.eeg_interp import eeg_interp, spheric_spline, computeg
 from eegprep.eeglabcompat import get_eeglab
 
 
-# class TestEegInterpParity(unittest.TestCase):
-#     """Test parity between Python eeg_interp and MATLAB eeg_interp.m"""
+class TestEegInterpParity(unittest.TestCase):
+    """Test parity between Python eeg_interp and MATLAB eeg_interp.m"""
 
-#     def setUp(self):
-#         """Set up MATLAB interface and test EEG data"""
-#         self.eeglab = get_eeglab('MAT')
+    def setUp(self):
+        """Set up MATLAB interface and test EEG data"""
+        self.eeglab = get_eeglab('MAT')
         
-#         # Create a simple EEG structure for parity testing
-#         n_channels = 32
-#         n_timepoints = 1000
-#         n_trials = 1
+        # Create a simple EEG structure for parity testing
+        n_channels = 32
+        n_timepoints = 1000
+        n_trials = 1
         
-#         # Generate synthetic EEG data
-#         np.random.seed(42)  # For reproducible tests
-#         self.test_EEG = {
-#             'data': np.random.randn(n_channels, n_timepoints, n_trials) * 50,
-#             'nbchan': n_channels,
-#             'pnts': n_timepoints,
-#             'trials': n_trials,
-#             'srate': 500,
-#             'xmin': -1.0,
-#             'xmax': 1.0,
-#             'times': np.linspace(-1.0, 1.0, n_timepoints),
-#             'chanlocs': [],
-#             # Required fields for pop_saveset
-#             'icaact': np.array([]),
-#             'icawinv': np.array([]),
-#             'icasphere': np.array([]),
-#             'icaweights': np.array([]),
-#             'icachansind': np.array([]),
-#             'urchanlocs': [],
-#             'chaninfo': {},
-#             'ref': 'common',
-#             'history': '',
-#             'saved': 'no',
-#             'etc': {}
-#         }
+        # Generate synthetic EEG data
+        np.random.seed(42)  # For reproducible tests
+        self.test_EEG = {
+            'data': np.random.randn(n_channels, n_timepoints, n_trials) * 50,
+            'nbchan': n_channels,
+            'pnts': n_timepoints,
+            'trials': n_trials,
+            'srate': 500,
+            'xmin': -1.0,
+            'xmax': 1.0,
+            'times': np.linspace(-1.0, 1.0, n_timepoints),
+            'chanlocs': [],
+            # Required fields for pop_saveset
+            'icaact': np.array([]),
+            'icawinv': np.array([]),
+            'icasphere': np.array([]),
+            'icaweights': np.array([]),
+            'icachansind': np.array([]),
+            'urchanlocs': [],
+            'chaninfo': {},
+            'ref': 'common',
+            'history': '',
+            'saved': 'no',
+            'etc': {}
+        }
         
-#         # Create realistic channel locations on unit sphere
-#         for i in range(n_channels):
-#             theta = 2 * np.pi * i / n_channels
-#             phi = np.pi/6 + (np.pi/3) * (i % 8) / 8
+        # Create realistic channel locations on unit sphere
+        for i in range(n_channels):
+            theta = 2 * np.pi * i / n_channels
+            phi = np.pi/6 + (np.pi/3) * (i % 8) / 8
             
-#             x = np.cos(phi) * np.cos(theta)
-#             y = np.cos(phi) * np.sin(theta)
-#             z = np.sin(phi)
+            x = np.cos(phi) * np.cos(theta)
+            y = np.cos(phi) * np.sin(theta)
+            z = np.sin(phi)
             
-#             # Add some standard channel names for first few channels
-#             if i == 0:
-#                 label = 'Fp1'
-#             elif i == 1:
-#                 label = 'Fp2'
-#             elif i == 2:
-#                 label = 'F7'
-#             elif i == 3:
-#                 label = 'F3'
-#             else:
-#                 label = f'Ch{i+1}'
+            # Add some standard channel names for first few channels
+            if i == 0:
+                label = 'Fp1'
+            elif i == 1:
+                label = 'Fp2'
+            elif i == 2:
+                label = 'F7'
+            elif i == 3:
+                label = 'F3'
+            else:
+                label = f'Ch{i+1}'
             
-#             self.test_EEG['chanlocs'].append({
-#                 'labels': label,
-#                 'X': x,
-#                 'Y': y,
-#                 'Z': z,
-#                 'theta': np.arctan2(y, x),
-#                 'radius': np.sqrt(x**2 + y**2),
-#                 'sph_theta': theta,
-#                 'sph_phi': phi,
-#                 'sph_radius': 1.0,  # Unit sphere
-#                 'type': 'EEG',
-#                 'urchan': i,  # 0-based original channel index
-#                 'ref': ''
-#             })
+            self.test_EEG['chanlocs'].append({
+                'labels': label,
+                'X': x,
+                'Y': y,
+                'Z': z,
+                'theta': np.arctan2(y, x),
+                'radius': np.sqrt(x**2 + y**2),
+                'sph_theta': theta,
+                'sph_phi': phi,
+                'sph_radius': 1.0,  # Unit sphere
+                'type': 'EEG',
+                'urchan': i,  # 0-based original channel index
+                'ref': ''
+            })
 
-#     def _compare_eeg_results(self, py_result, ml_result):
-#         """Helper method to compare Python and MATLAB EEG results"""
-#         # Compare interpolated data (handle shape differences for single trial)
-#         if py_result['data'].ndim == 3 and ml_result['data'].ndim == 2 and py_result['trials'] == 1:
-#             # MATLAB returns 2D for single trial, Python returns 3D
-#             py_data_2d = py_result['data'][:, :, 0]  # Extract single trial
-#             self.assertEqual(py_data_2d.shape, ml_result['data'].shape)
+    def _compare_eeg_results(self, py_result, ml_result):
+        """Helper method to compare Python and MATLAB EEG results"""
+        # Compare interpolated data (handle shape differences for single trial)
+        if py_result['data'].ndim == 3 and ml_result['data'].ndim == 2 and py_result['trials'] == 1:
+            # MATLAB returns 2D for single trial, Python returns 3D
+            py_data_2d = py_result['data'][:, :, 0]  # Extract single trial
+            self.assertEqual(py_data_2d.shape, ml_result['data'].shape)
             
-#             # Check if the data is close (allow for numerical differences)
-#             max_abs_diff = np.max(np.abs(py_data_2d - ml_result['data']))
-#             max_rel_diff = np.max(np.abs(py_data_2d - ml_result['data']) / (np.abs(ml_result['data']) + 1e-12))
+            # Check if the data is close (allow for numerical differences)
+            max_abs_diff = np.max(np.abs(py_data_2d - ml_result['data']))
+            max_rel_diff = np.max(np.abs(py_data_2d - ml_result['data']) / (np.abs(ml_result['data']) + 1e-12))
             
-#             # Allow for reasonable numerical differences in interpolation
-#             self.assertLess(max_abs_diff, 1e-2, f"Max absolute difference: {max_abs_diff}")
-#             self.assertLess(max_rel_diff, 1e-2, f"Max relative difference: {max_rel_diff}")
-#         else:
-#             self.assertEqual(py_result['data'].shape, ml_result['data'].shape)
-#             max_abs_diff = np.max(np.abs(py_result['data'] - ml_result['data']))
-#             max_rel_diff = np.max(np.abs(py_result['data'] - ml_result['data']) / (np.abs(ml_result['data']) + 1e-12))
+            # Allow for reasonable numerical differences in interpolation
+            self.assertLess(max_abs_diff, 1e-2, f"Max absolute difference: {max_abs_diff}")
+            self.assertLess(max_rel_diff, 1e-2, f"Max relative difference: {max_rel_diff}")
+        else:
+            self.assertEqual(py_result['data'].shape, ml_result['data'].shape)
+            max_abs_diff = np.max(np.abs(py_result['data'] - ml_result['data']))
+            max_rel_diff = np.max(np.abs(py_result['data'] - ml_result['data']) / (np.abs(ml_result['data']) + 1e-12))
             
-#             self.assertLess(max_abs_diff, 1e-2, f"Max absolute difference: {max_abs_diff}")
-#             self.assertLess(max_rel_diff, 1e-2, f"Max relative difference: {max_rel_diff}")
+            self.assertLess(max_abs_diff, 1e-2, f"Max absolute difference: {max_abs_diff}")
+            self.assertLess(max_rel_diff, 1e-2, f"Max relative difference: {max_rel_diff}")
         
-#         # Compare structure fields
-#         self.assertEqual(py_result['nbchan'], ml_result['nbchan'])
-#         self.assertEqual(py_result['pnts'], ml_result['pnts'])
-#         self.assertEqual(py_result['trials'], ml_result['trials'])
+        # Compare structure fields
+        self.assertEqual(py_result['nbchan'], ml_result['nbchan'])
+        self.assertEqual(py_result['pnts'], ml_result['pnts'])
+        self.assertEqual(py_result['trials'], ml_result['trials'])
 
 #     def test_parity_spherical_basic(self):
 #         """Test parity for basic spherical interpolation with channel indices"""
