@@ -110,19 +110,19 @@ class TestEegInterpParity(unittest.TestCase):
         self.assertEqual(py_result['pnts'], ml_result['pnts'])
         self.assertEqual(py_result['trials'], ml_result['trials'])
 
-#     def test_parity_spherical_basic(self):
-#         """Test parity for basic spherical interpolation with channel indices"""
-#         bad_chans = [0, 1, 2]  # First 3 channels (0-based for Python)
-#         bad_chans_matlab = [1, 2, 3]  # 1-based for MATLAB
+    def test_parity_spherical_basic(self):
+        """Test parity for basic spherical interpolation with channel indices"""
+        bad_chans = [0, 1, 2]  # First 3 channels (0-based for Python)
+        bad_chans_matlab = [1, 2, 3]  # 1-based for MATLAB
         
-#         # Python interpolation
-#         py_result = eeg_interp(self.test_EEG, bad_chans, method='spherical')
+        # Python interpolation
+        py_result = eeg_interp(self.test_EEG, bad_chans, method='spherical')
         
-#         # MATLAB interpolation
-#         ml_result = self.eeglab.eeg_interp(self.test_EEG, bad_chans_matlab, 'spherical')
+        # MATLAB interpolation
+        ml_result = self.eeglab.eeg_interp(self.test_EEG, bad_chans_matlab, 'spherical')
         
-#         # Compare results
-#         self._compare_eeg_results(py_result, ml_result)
+        # Compare results
+        self._compare_eeg_results(py_result, ml_result)
 
 #     def test_parity_spherical_kang(self):
 #         """Test parity for sphericalKang method"""
@@ -217,55 +217,55 @@ class TestEegInterpParity(unittest.TestCase):
 #         self.assertTrue(np.allclose(py_result['data'], ml_result['data'], atol=1e-10))
 
 
-# class TestSphericalSplineParity(unittest.TestCase):
-#     """Test parity between Python spheric_spline and MATLAB spheric_spline"""
+class TestSphericalSplineParity(unittest.TestCase):
+    """Test parity between Python spheric_spline and MATLAB spheric_spline"""
     
-#     def setUp(self):
-#         """Set up MATLAB interface and test data"""
-#         self.eeglab = get_eeglab('MAT')
+    def setUp(self):
+        """Set up MATLAB interface and test data"""
+        self.eeglab = get_eeglab('MAT')
         
-#         # Set up test electrode positions
-#         np.random.seed(42)
-#         n_good = 10
-#         n_bad = 3
-#         n_points = 100
+        # Set up test electrode positions
+        np.random.seed(42)
+        n_good = 10
+        n_bad = 3
+        n_points = 100
         
-#         # Generate electrode positions on unit sphere
-#         xyz_good = np.random.randn(3, n_good)
-#         xyz_good /= np.linalg.norm(xyz_good, axis=0)
+        # Generate electrode positions on unit sphere
+        xyz_good = np.random.randn(3, n_good)
+        xyz_good /= np.linalg.norm(xyz_good, axis=0)
         
-#         xyz_bad = np.random.randn(3, n_bad)
-#         xyz_bad /= np.linalg.norm(xyz_bad, axis=0)
+        xyz_bad = np.random.randn(3, n_bad)
+        xyz_bad /= np.linalg.norm(xyz_bad, axis=0)
         
-#         self.xelec, self.yelec, self.zelec = xyz_good
-#         self.xbad, self.ybad, self.zbad = xyz_bad
-#         self.values = np.random.randn(n_good, n_points)
-#         self.params = (0, 4, 7)
+        self.xelec, self.yelec, self.zelec = xyz_good
+        self.xbad, self.ybad, self.zbad = xyz_bad
+        self.values = np.random.randn(n_good, n_points)
+        self.params = (0, 4, 7)
     
-#     def test_parity_spheric_spline_basic(self):
-#         """Test parity for basic spherical spline interpolation"""
-#         # Python computation
-#         py_result = spheric_spline(
-#             self.xelec, self.yelec, self.zelec,
-#             self.xbad, self.ybad, self.zbad,
-#             self.values, self.params
-#         )
+    def test_parity_spheric_spline_basic(self):
+        """Test parity for basic spherical spline interpolation"""
+        # Python computation
+        py_result = spheric_spline(
+            self.xelec, self.yelec, self.zelec,
+            self.xbad, self.ybad, self.zbad,
+            self.values, self.params
+        )
         
-#         # MATLAB computation (call the internal function)
-#         ml_result = self.eeglab.spheric_spline(
-#             self.xelec, self.yelec, self.zelec,
-#             self.xbad, self.ybad, self.zbad,
-#             self.values, self.params
-#         )
+        # MATLAB computation (call the internal function)
+        ml_result = self.eeglab.spheric_spline(
+            self.xelec, self.yelec, self.zelec,
+            self.xbad, self.ybad, self.zbad,
+            self.values, self.params
+        )
         
-#         # Extract the actual interpolated values (4th output from MATLAB)
-#         if isinstance(ml_result, (list, tuple)) and len(ml_result) >= 4:
-#             ml_interpolated = ml_result[3]  # allres is the 4th output
-#         else:
-#             ml_interpolated = ml_result
+        # Extract the actual interpolated values (4th output from MATLAB)
+        if isinstance(ml_result, (list, tuple)) and len(ml_result) >= 4:
+            ml_interpolated = ml_result[3]  # allres is the 4th output
+        else:
+            ml_interpolated = ml_result
         
-#         self.assertEqual(py_result.shape, ml_interpolated.shape)
-#         self.assertTrue(np.allclose(py_result, ml_interpolated, atol=1e-10))
+        self.assertEqual(py_result.shape, ml_interpolated.shape)
+        self.assertTrue(np.allclose(py_result, ml_interpolated, atol=1e-10))
     
 #     def test_parity_spheric_spline_different_params(self):
 #         """Test parity with different parameter sets"""
