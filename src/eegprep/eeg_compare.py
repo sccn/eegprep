@@ -78,13 +78,14 @@ def eeg_compare(eeg1, eeg2, verbose_level=0):
                     print(f'    Field {field} differs (ok, supposed to differ)')
                 elif any(sub in name for sub in ('subject', 'session', 'run', 'task')):
                     print(f'    Field {field} differs ("{v1}" vs "{v2}")', file=sys.stderr)
-                elif any(sub in name for sub in ('chanlocs', 'event', 'reject')):
-                    pass
-                    # For complex nested structures, provide more detailed info
                 elif any(sub in name for sub in ('eventdescription')):
                     n1 = len(v1) if isinstance(v1, Sequence) else 1
                     n2 = len(v2) if isinstance(v2, Sequence) else 1
                     print(f'    Field {field} differs (n={n1} vs n={n2})', file=sys.stderr)
+                elif any(sub in name for sub in ('chanlocs', 'event', 'reject')):
+                    pass
+                    # For complex nested structures, provide more detailed info
+
                 else:
                     print(f'    Field {field} differs', file=sys.stderr)
     # compare xmin/xmax
@@ -97,8 +98,8 @@ def eeg_compare(eeg1, eeg2, verbose_level=0):
 
     # channel locations
     print('Chanlocs analysis:')
-    chans1 = eeg1['chanlocs'] # need to fuse with chaninfo   
-    chans2 = eeg2['chanlocs'] # need to fuse with chaninfo
+    chans1 = get_val1('chanlocs') or []  # need to fuse with chaninfo   
+    chans2 = get_val2('chanlocs') or []  # need to fuse with chaninfo
     if len(chans1) == len(chans2):
         coord_diff = label_diff = 0
         for c1, c2 in zip(chans1, chans2):
@@ -126,7 +127,7 @@ def eeg_compare(eeg1, eeg2, verbose_level=0):
 
     # events
     print('Event analysis:')
-    ev1, ev2 = eeg1['event'], eeg2['event']
+    ev1, ev2 = get_val1('event') or [], get_val2('event') or []
     if len(ev1) != len(ev2):
         print(f'    Different numbers of events {len(ev1)} vs {len(ev2)}', file=sys.stderr)
         # print the first event of each
@@ -136,29 +137,32 @@ def eeg_compare(eeg1, eeg2, verbose_level=0):
             if len(ev2) > 0:
                 print(f'    First event of second dataset: {ev2[0]}', file=sys.stderr)
     else:
-        f1 = set(ev1[0].keys())
-        f2 = set(ev2[0].keys())
-        if f1 != f2:
-            print('    Not the same number of event fields', file=sys.stderr)
-        for fld in f1:
-            diffs = []
-            if fld.lower() == 'latency':
-                diffs = [e1['latency'] - e2['latency'] for e1, e2 in zip(ev1, ev2)]
-                nonzero = [d for d in diffs if d != 0]
-                if nonzero:
-                    pct = len(nonzero) / len(diffs) * 100
-                    avg = sum(abs(d) for d in nonzero) / len(nonzero)
-                    print(f'    Event latency ({pct:2.1f} %) not OK (abs diff {avg:1.4f} samples)', file=sys.stderr)
-                    # print('    ******** (see plot)')
-                    # import matplotlib.pyplot as plt
-                    # plt.plot(diffs)
-                    # plt.show()
-            else:
-                diffs = [not isequaln(getattr(e1, fld, None), getattr(e2, fld, None)) for e1, e2 in zip(ev1, ev2)]
-                if any(diffs):
-                    pct = sum(diffs) / len(diffs) * 100
-                    print(f'    Event fields "{fld}" are NOT OK ({pct:2.1f} % of them)', file=sys.stderr)
-        print('    All other events OK')
+        if len(ev1) == 0:
+            print('    All events OK (empty)')
+        else:
+            f1 = set(ev1[0].keys())
+            f2 = set(ev2[0].keys())
+            if f1 != f2:
+                print('    Not the same number of event fields', file=sys.stderr)
+            for fld in f1:
+                diffs = []
+                if fld.lower() == 'latency':
+                    diffs = [e1['latency'] - e2['latency'] for e1, e2 in zip(ev1, ev2)]
+                    nonzero = [d for d in diffs if d != 0]
+                    if nonzero:
+                        pct = len(nonzero) / len(diffs) * 100
+                        avg = sum(abs(d) for d in nonzero) / len(nonzero)
+                        print(f'    Event latency ({pct:2.1f} %) not OK (abs diff {avg:1.4f} samples)', file=sys.stderr)
+                        # print('    ******** (see plot)')
+                        # import matplotlib.pyplot as plt
+                        # plt.plot(diffs)
+                        # plt.show()
+                else:
+                    diffs = [not isequaln(e1.get(fld, None), e2.get(fld, None)) for e1, e2 in zip(ev1, ev2)]
+                    if any(diffs):
+                        pct = sum(diffs) / len(diffs) * 100
+                        print(f'    Event fields "{fld}" are NOT OK ({pct:2.1f} % of them)', file=sys.stderr)
+            print('    All other events OK')
 
     # epochs
     # if 'epoch' in eeg1:
