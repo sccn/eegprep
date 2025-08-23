@@ -73,21 +73,25 @@ def epoch(data, events, lim, **kwargs):
     alllatencyout = []
 
     for index in range(len(events)):
-        # MATLAB uses 1-based sample indices, so we need to match that logic
-        pos0 = int(np.floor(events[index] * g['srate'])) + 1  # Convert to 1-based like MATLAB
-        posinit = pos0 + reallim[0]                           # 1-based + offset
-        posend = pos0 + reallim[1]                            # 1-based + offset
+        # Match MATLAB exactly: pos0 is 0-based, but MATLAB treats indices as 1-based when slicing
+        pos0 = int(np.floor(events[index] * g['srate']))      # 0-based sample index (same as MATLAB)
+        posinit = pos0 + reallim[0]                           # 0-based + offset  
+        posend = pos0 + reallim[1]                            # 0-based + offset
 
-        # Boundary check: must fall within the same pre-existing epoch when data is 3D
-        # This matches MATLAB's logic exactly
-        within_one_epoch = (np.floor((posinit - 1) / dataframes) == np.floor((posend - 1) / dataframes))
-        within_bounds = (posinit >= 1) and (posend <= datawidth)
+
+        # Boundary check: MATLAB uses 1-based logic for boundary checks
+        # Convert to 1-based for the boundary check only
+        posinit_1based = posinit + 1
+        posend_1based = posend + 1
+        within_one_epoch = (np.floor((posinit_1based - 1) / dataframes) == np.floor((posend_1based - 1) / dataframes))
+        within_bounds = (posinit_1based >= 1) and (posend_1based <= datawidth)
 
         if within_one_epoch and within_bounds:
-            # Extract contiguous slice. Convert MATLAB 1-based inclusive [posinit:posend]
-            # to Python 0-based slice [start:end_exclusive].
-            start = posinit - 1  # Convert 1-based to 0-based
-            end_excl = posend    # MATLAB inclusive end becomes Python exclusive end
+            # Extract contiguous slice. MATLAB does data(:,posinit:posend) with posinit/posend in MATLAB coordinates
+            # Since MATLAB uses 1-based indexing and Python uses 0-based, we need to adjust
+            start = posinit - 1  # Convert MATLAB 1-based to Python 0-based  
+            end_excl = posend        # MATLAB inclusive end to Python exclusive end
+
             
             if data.ndim == 2:
                 tmpdata = data[:, start:end_excl]
@@ -138,7 +142,7 @@ def epoch(data, events, lim, **kwargs):
         alllatencyout = []
     else:
         epochdat = epochdat[:, :, keep]
-        indexes = keep
+        indexes = keep  # Keep 0-based indices for Python
         if len(alleventout) > 0:
             alleventout = [alleventout[i] for i in keep]
             alllatencyout = [alllatencyout[i] for i in keep]

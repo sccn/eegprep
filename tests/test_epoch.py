@@ -15,63 +15,64 @@ def _ml_list_of_arrays_to_0_based(list_of_arrays):
     return out
 
 
-# class TestEpochParity(unittest.TestCase):
+class TestEpochParity(unittest.TestCase):
 
-#     def setUp(self):
-#         np.random.seed(0)
-#         self.eeglab = get_eeglab('MAT')
+    def setUp(self):
+        np.random.seed(0)
+        self.eeglab = get_eeglab('MAT')
 
-#     def test_parity_continuous_basic(self):
-#         # 2 channels, 1000 samples, 100 Hz
-#         srate = 100.0
-#         n_ch, n_samp = 2, 1000
-#         data = np.random.randn(n_ch, n_samp)
-#         # Events in seconds
-#         events = np.array([2.0, 5.0, 7.5], dtype=float)
-#         lim = np.array([-0.2, 0.5], dtype=float)  # seconds
+    def test_parity_continuous_basic(self):
+        # 2 channels, 1000 samples, 100 Hz
+        srate = 100.0
+        n_ch, n_samp = 2, 1000
+        data = np.random.randn(n_ch, n_samp)
+        # Events in seconds
+        events = np.array([2.0, 5.0, 7.5], dtype=float)
+        lim = np.array([-0.2, 0.5], dtype=float)  # seconds
 
-#         py = epoch(data, events, lim, srate=srate, verbose='off')
-#         ml = self.eeglab.epoch(data, events, lim, 'srate', srate, 'verbose', 'off')
+        py = epoch(data, events, lim, srate=srate, verbose='off')
+        ml = self.eeglab.epoch(data, events, lim, 'srate', srate, 'verbose', 'off')
 
-#         py_epochdat, py_newtime, py_indexes, py_alleventout, py_alllatencyout, py_reallim = py
-#         ml_epochdat, ml_newtime, ml_indexes, ml_alleventout, ml_alllatencyout, ml_reallim = ml
+        py_epochdat, py_newtime, py_indexes, py_alleventout, py_alllatencyout, py_reallim = py
+        ml_epochdat, ml_newtime, ml_indexes, ml_alleventout, ml_alllatencyout, ml_reallim = ml
 
-#         # MATLAB indexes are 1-based; convert to 0-based for comparison
-#         ml_indexes0 = np.asarray(ml_indexes).astype(int) - 1
-#         self.assertTrue(np.allclose(py_epochdat, ml_epochdat, atol=1e-12))
-#         self.assertTrue(np.allclose(py_newtime, ml_newtime, atol=1e-12))
-#         self.assertTrue(np.array_equal(py_indexes, ml_indexes0))
-#         self.assertTrue(np.allclose(py_reallim, ml_reallim, atol=1e-12))
+        # MATLAB indexes are 1-based; convert to 0-based for comparison
+        ml_indexes0 = np.asarray(ml_indexes).astype(int).flatten() - 1  # flatten to 1D
+        
+        self.assertTrue(np.allclose(py_epochdat, ml_epochdat, atol=1e-12))
+        self.assertTrue(np.allclose(py_newtime, ml_newtime, atol=1e-12))
+        self.assertTrue(np.array_equal(py_indexes, ml_indexes0))
+        self.assertTrue(np.allclose(py_reallim, ml_reallim, atol=1e-12))
 
-#         # Rereferencing not requested here
-#         self.assertEqual(len(py_alleventout), 0)
-#         self.assertEqual(len(py_alllatencyout), 0)
+        # Rereferencing not requested here
+        self.assertEqual(len(py_alleventout), 0)
+        self.assertEqual(len(py_alllatencyout), 0)
 
-#     def test_parity_valuelim_filter(self):
-#         srate = 100.0
-#         n_ch, n_samp = 1, 1000
-#         data = np.zeros((n_ch, n_samp))
-#         # Make the second epoch violate valuelim by inserting a large artifact
-#         data[0, 600:650] = 1e3
-#         events = np.array([2.0, 6.2], dtype=float)  # seconds
-#         lim = np.array([-0.1, 0.4], dtype=float)
+    def test_parity_valuelim_filter(self):
+        srate = 100.0
+        n_ch, n_samp = 1, 1000
+        data = np.zeros((n_ch, n_samp))
+        # Make the second epoch violate valuelim by inserting a large artifact
+        data[0, 600:650] = 1e3
+        events = np.array([2.0, 6.2], dtype=float)  # seconds
+        lim = np.array([-0.1, 0.4], dtype=float)
 
-#         valuelim = np.array([-50.0, 50.0], dtype=float)
+        valuelim = np.array([-50.0, 50.0], dtype=float)
 
-#         py = epoch(data, events, lim, srate=srate, valuelim=valuelim, verbose='off')
-#         ml = self.eeglab.epoch(data, events, lim, 'srate', srate, 'valuelim', valuelim, 'verbose', 'off')
+        py = epoch(data, events, lim, srate=srate, valuelim=valuelim, verbose='off')
+        ml = self.eeglab.epoch(data, events, lim, 'srate', srate, 'valuelim', valuelim, 'verbose', 'off')
 
-#         py_epochdat, py_newtime, py_indexes, _, _, py_reallim = py
-#         ml_epochdat, ml_newtime, ml_indexes, _, _, ml_reallim = ml
+        py_epochdat, py_newtime, py_indexes, _, _, py_reallim = py
+        ml_epochdat, ml_newtime, ml_indexes, _, _, ml_reallim = ml
 
-#         ml_indexes0 = np.asarray(ml_indexes).astype(int) - 1
-#         self.assertTrue(np.allclose(py_epochdat, ml_epochdat, atol=1e-12))
-#         self.assertTrue(np.allclose(py_newtime, ml_newtime, atol=1e-12))
-#         self.assertTrue(np.array_equal(py_indexes, ml_indexes0))
-#         self.assertTrue(np.allclose(py_reallim, ml_reallim, atol=1e-12))
+        ml_indexes0 = np.asarray(ml_indexes).astype(int) - 1
+        self.assertTrue(np.allclose(py_epochdat, ml_epochdat, atol=1e-12))
+        self.assertTrue(np.allclose(py_newtime, ml_newtime, atol=1e-12))
+        self.assertTrue(np.array_equal(py_indexes, ml_indexes0))
+        self.assertTrue(np.allclose(py_reallim, ml_reallim, atol=1e-12))
 
-#         # Expect only the first event to survive
-#         self.assertTrue(np.array_equal(py_indexes, np.array([0])))
+        # Expect only the first event to survive
+        self.assertTrue(np.array_equal(py_indexes, np.array([0])))
 
 #     def test_parity_rereference_allevents(self):
 #         srate = 100.0
@@ -157,10 +158,22 @@ class TestEpochFunctional(unittest.TestCase):
 
         # Expect one accepted epoch
         self.assertTrue(np.array_equal(idx, np.array([0])))
-        # The extracted data should match the ramp slice in epoch 2
-        start_in_epoch = (int(np.floor(events[0]*srate)) + int(np.round(lim[0]*srate))) - 100  # subtract one full epoch
-        end_in_epoch_excl = (int(np.floor(events[0]*srate)) + int(np.round(lim[1]*srate - 1))) - 100 + 1
-        expected = data[0, start_in_epoch:end_in_epoch_excl, 1]
+        # The extracted data should match the correct slice from linearized data
+        # With MATLAB-compatible indexing: event at 1.2s (sample 120) with window [-0.2, 0.3] 
+        # becomes MATLAB indices [101, 149] (1-based), which in Python becomes [99:149] (0-based)
+        pos0 = int(np.floor(events[0] * srate))  # 120 (0-based)
+        reallim0 = int(np.round(lim[0] * srate))  # -20
+        reallim1 = int(np.round(lim[1] * srate - 1))  # 29
+        posinit = pos0 + reallim0  # 100 (0-based)
+        posend = pos0 + reallim1   # 149 (0-based)
+        
+        # MATLAB slicing: posinit:posend (1-based) becomes [posinit-1:posend] (0-based)
+        start_global = posinit - 1  # 99 (Python 0-based)
+        end_global = posend         # 149 (Python 0-based exclusive)
+        
+        # Extract the expected slice from linearized data (Fortran order)
+        data_linearized = data.reshape(1, -1, order='F')
+        expected = data_linearized[0, start_global:end_global]
         self.assertTrue(np.allclose(ep[0, :, 0], expected, atol=1e-12))
         # newtime should reflect limits divided by srate with the -1 sample convention
         self.assertTrue(np.allclose(newtime, np.array([lim[0], np.round(lim[1]*srate-1)/srate]), atol=1e-12))

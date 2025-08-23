@@ -49,12 +49,21 @@ class MatlabWrapper:
 
             # issue error if kwargs are passed unless it is "nargout"
             needs_roundtrip = False
-            eval_str = f"if iscell(args.args), OUT = {name}(args.args{{:}}); else, OUT = {name}(args.args); end;"
+            
+            # Special case for epoch function which returns 6 outputs
+            if name == 'epoch':
+                eval_str = f"if iscell(args.args), [OUT1,OUT2,OUT3,OUT4,OUT5,OUT6] = {name}(args.args{{:}}); else, [OUT1,OUT2,OUT3,OUT4,OUT5,OUT6] = {name}(args.args); end; OUT = {{OUT1,OUT2,OUT3,OUT4,OUT5,OUT6}};"
+            else:
+                eval_str = f"if iscell(args.args), OUT = {name}(args.args{{:}}); else, OUT = {name}(args.args); end;"
+                
             if len(args) > 0:
                 if isinstance(args[0], dict) and args[0].get('trials') is not None:
                     needs_roundtrip = True
                     new_args = new_args[1:]
-                    eval_str = f"if iscell(args.args), OUT = {name}(EEG,args.args{{:}}); else, OUT = {name}(EEG,args.args); end;"
+                    if name == 'epoch':
+                        eval_str = f"if iscell(args.args), [OUT1,OUT2,OUT3,OUT4,OUT5,OUT6] = {name}(EEG,args.args{{:}}); else, [OUT1,OUT2,OUT3,OUT4,OUT5,OUT6] = {name}(EEG,args.args); end; OUT = {{OUT1,OUT2,OUT3,OUT4,OUT5,OUT6}};"
+                    else:
+                        eval_str = f"if iscell(args.args), OUT = {name}(EEG,args.args{{:}}); else, OUT = {name}(EEG,args.args); end;"
             
             # convert numerical list arguments to numpy arrays
             for i, arg in enumerate(new_args):
@@ -104,7 +113,13 @@ class MatlabWrapper:
                 else:
                     self.engine.eval(f"save('-mat', '{result_filename}', 'OUT');", nargout=0)
                     OUT = scipy.io.loadmat(result_filename)['OUT']
-                    return OUT
+                    
+                    # Special handling for epoch function which returns a cell array of 6 outputs
+                    if name == 'epoch' and isinstance(OUT, np.ndarray) and OUT.dtype == 'object':
+                        # Convert MATLAB cell array to Python tuple
+                        return tuple(OUT.flatten())
+                    else:
+                        return OUT
 
             finally:
                 # delete temporary file
