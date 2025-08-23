@@ -60,8 +60,13 @@ def eeg_compare(eeg1, eeg2, verbose_level=0, trigger_error=False):
         # Dictionary-like object
         fields1 = eeg1.keys()
         get_val1 = lambda f: eeg1.get(f, None)
-        has_field2 = lambda f: f in eeg2
-        get_val2 = lambda f: eeg2.get(f, None)
+        # Handle case where eeg2 might be a numpy array or other non-dict object
+        if hasattr(eeg2, 'keys'):
+            has_field2 = lambda f: f in eeg2
+            get_val2 = lambda f: eeg2.get(f, None)
+        else:
+            has_field2 = lambda f: False  # No fields available
+            get_val2 = lambda f: None
     else:
         # Object with __dict__
         fields1 = getattr(eeg1, '__dict__', {}).keys()
@@ -110,8 +115,12 @@ def eeg_compare(eeg1, eeg2, verbose_level=0, trigger_error=False):
 
     # channel locations
     print('Chanlocs analysis:')
-    chans1 = get_val1('chanlocs') or []  # need to fuse with chaninfo   
-    chans2 = get_val2('chanlocs') or []  # need to fuse with chaninfo
+    chans1 = get_val1('chanlocs')
+    if chans1 is None or (isinstance(chans1, np.ndarray) and len(chans1) == 0):
+        chans1 = []
+    chans2 = get_val2('chanlocs')
+    if chans2 is None or (isinstance(chans2, np.ndarray) and len(chans2) == 0):
+        chans2 = []
     if len(chans1) == len(chans2):
         coord_diff = label_diff = 0
         for c1, c2 in zip(chans1, chans2):
@@ -145,7 +154,12 @@ def eeg_compare(eeg1, eeg2, verbose_level=0, trigger_error=False):
 
     # events
     print('Event analysis:')
-    ev1, ev2 = get_val1('event') or [], get_val2('event') or []
+    ev1 = get_val1('event')
+    if ev1 is None or (isinstance(ev1, np.ndarray) and len(ev1) == 0):
+        ev1 = []
+    ev2 = get_val2('event')
+    if ev2 is None or (isinstance(ev2, np.ndarray) and len(ev2) == 0):
+        ev2 = []
     if len(ev1) != len(ev2):
         error_msg = f'Different numbers of events {len(ev1)} vs {len(ev2)}'
         print(f'    {error_msg}', file=sys.stderr)
