@@ -144,22 +144,22 @@ class TestEpochParity(unittest.TestCase):
             self.assertTrue(np.array_equal(py_alleventout[i], np.asarray(ml_alleventout0[i])))
             self.assertTrue(np.allclose(py_alllatencyout[i], np.asarray(ml_alllatencyout_flat[i]), atol=1e-12))
 
-#     def test_parity_boundary_exclusion(self):
-#         # Place an event whose window crosses dataset boundary
-#         srate = 100.0
-#         n_ch, n_samp = 1, 500
-#         data = np.random.randn(n_ch, n_samp)
-#         events = np.array([0.1, 5.0], dtype=float)  # second event is near end
-#         lim = np.array([-0.2, 0.5], dtype=float)
+    def test_parity_boundary_exclusion(self):
+        # Place an event whose window crosses dataset boundary
+        srate = 100.0
+        n_ch, n_samp = 1, 500
+        data = np.random.randn(n_ch, n_samp)
+        events = np.array([0.1, 5.0], dtype=float)  # second event is near end
+        lim = np.array([-0.2, 0.5], dtype=float)
 
-#         py = epoch(data, events, lim, srate=srate, verbose='off')
-#         ml = self.eeglab.epoch(data, events, lim, 'srate', srate, 'verbose', 'off')
+        py = epoch(data, events, lim, srate=srate, verbose='off')
+        ml = self.eeglab.epoch(data, events, lim, 'srate', srate, 'verbose', 'off')
 
-#         _, _, py_indexes, _, _, _ = py
-#         _, _, ml_indexes, _, _, _ = ml
-#         ml_indexes0 = np.asarray(ml_indexes).astype(int) - 1
+        _, _, py_indexes, _, _, _ = py
+        _, _, ml_indexes, _, _, _ = ml
+        ml_indexes0 = np.asarray(ml_indexes).astype(int).flatten() - 1  # flatten to 1D
 
-#         self.assertTrue(np.array_equal(py_indexes, ml_indexes0))
+        self.assertTrue(np.array_equal(py_indexes, ml_indexes0))
 
 
 class TestEpochFunctional(unittest.TestCase):
