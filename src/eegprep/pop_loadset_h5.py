@@ -1,5 +1,6 @@
 import h5py
 import numpy as np
+from eegprep.eeg_checkset import eeg_checkset
 
 def pop_loadset_h5(file_name):
     EEGTMP = h5py.File(file_name, 'r')
@@ -50,134 +51,76 @@ def pop_loadset_h5(file_name):
                 return filecontent
         else:
             return filecontent
+    
+    def read_ref(f, ref):
+        obj = f[ref]
+        arr = np.asarray(obj[()])
+        return arr.reshape(-1)[0]
 
-    def _sorted_keys(keys):
-        try:
-            return sorted(keys, key=lambda x: int(x))
-        except Exception:
-            return sorted(keys)
+    def single_struct_dict(hdf5_group, all_keys):
+        # Build one dict from a scalar struct where each field holds a single value
+        out = {}
+        f = hdf5_group.file
+        for k in all_keys:
+            ds = hdf5_group[k]
+            raw = ds[()]
+            if getattr(ds.dtype, "kind", None) == "O":
+                ref = np.asarray(raw).reshape(-1)[0]
+                out[k] = read_ref(f, ref)
+            else:
+                out[k] = np.asarray(raw).reshape(-1)[0]
+        return out
 
+    def list_of_dicts(hdf5_group, all_keys):
+        # number of channels from the first key
+        n = int(np.asarray(hdf5_group[all_keys[0]][()]).squeeze().shape[0])
+
+        # list of dicts, one per channel
+        dicts = [dict() for _ in range(n)]
+        f = hdf5_group.file
+
+        for k in all_keys:
+            ds = hdf5_group[k]
+            raw = ds[()]  # could be object refs or numeric
+            if getattr(ds.dtype, "kind", None) == "O":
+                refs = np.asarray(raw).squeeze()
+                for i, ref in enumerate(refs):
+                    dicts[i][k] = read_ref(f, ref)
+            else:
+                vals = np.asarray(raw).squeeze()
+                for i, v in enumerate(vals):
+                    dicts[i][k] = np.asarray(v).reshape(-1)[0]
+
+        return dicts
+    
     def get_data_array(EEGTMP, key):
-        chanlocs_group = EEGTMP[key]
+        hdf5_group = EEGTMP[key]
 
-        if isinstance(chanlocs_group, h5py.Group):
+        if isinstance(hdf5_group, h5py.Group):
             # First, determine number of channels/items
-            all_keys = list(chanlocs_group.keys())
+            all_keys = list(hdf5_group.keys())
             if len(all_keys) == 0:
                 return np.array([])  # Return empty numpy array instead of dict
             
-            # Get the first key to determine structure
-            first_key = all_keys[0]
-            first_item = chanlocs_group[first_key]
-            
-            if isinstance(first_item, h5py.Group):
-                # Nested group structure (like chanlocs)
-                num_channels = len(all_keys)
-                
-                # Get field names from the first channel
-                first_chan = chanlocs_group[first_key]
-                field_names = list(first_chan.keys())
-                
-                # Create dtype for structured array
-                dtype_list = []
-                for field_name in field_names:
-                    # Get sample data to determine type
-                    sample_data = first_chan[field_name][()]
-                    converted_sample = convert_to_string(sample_data)
-                    
-                    if isinstance(converted_sample, str):
-                        # String field - use object type for variable length strings
-                        dtype_list.append((field_name, object))
-                    elif isinstance(converted_sample, (int, float)):
-                        # Numeric field
-                        dtype_list.append((field_name, type(converted_sample)))
-                    else:
-                        # Default to object
-                        dtype_list.append((field_name, object))
-                
-                # Create structured array
-                structured_data = np.empty(num_channels, dtype=dtype_list)
-                
-                # Fill the structured array - process channels in order
-                for i, key2 in enumerate(_sorted_keys(all_keys)):
-                    chan_group = chanlocs_group[key2]
-                    for field_name in field_names:
-                        field_data = chan_group[field_name][()]
-                        # Get the reference
-                        ref_value = field_data[0] if isinstance(field_data, np.ndarray) and len(field_data) > 0 else field_data
-                        # Dereference it if it's a reference
-                        if isinstance(ref_value, h5py.h5r.Reference) or isinstance(ref_value, h5py.Reference):
-                            actual_value = EEGTMP[ref_value]
-                            data = actual_value[()]
-                        else:
-                            data = ref_value
-                        
-                        # Convert and store the data
-                        converted_data = convert_to_string(data)
-                        if isinstance(converted_data, np.ndarray):
-                            if converted_data.size == 1:
-                                converted_data = converted_data.reshape(-1)[0]
-                        
-                        structured_data[i][field_name] = converted_data
-                
-                return structured_data
-            else:
-                # Simple array structure (like event, epoch)
-                return np.array([chanlocs_group[k][()] for k in _sorted_keys(all_keys)])
-        return np.array([])  # Return empty numpy array instead of dict
-
-    def get_data(EEGTMP, key):
-        chanlocs_group = EEGTMP[key]
-        
-        if isinstance(chanlocs_group, h5py.Group):
-            field_names = list(chanlocs_group.keys())
-            if len(field_names) == 0:
-                return {}
-            
-            dtype_list = []
-            values = {}
-            
-            for field_name in field_names:
-                field_data = chanlocs_group[field_name][()]
-                converted_data = convert_to_string(field_data)
-                
-                if isinstance(converted_data, np.ndarray):
-                    # Strings become list[str]
-                    if converted_data.dtype.kind in ['S', 'U']:
-                        str_items = [str(item) for item in converted_data]
-                        dtype_list.append((field_name, object))
-                        values[field_name] = str_items
-                    else:
-                        # Numeric arrays – store entire array as object unless true scalar
-                        if converted_data.ndim == 0 or converted_data.size == 1:
-                            scalar_val = float(converted_data.reshape(-1)[0])
-                            dtype_list.append((field_name, type(scalar_val)))
-                            values[field_name] = scalar_val
-                        else:
-                            dtype_list.append((field_name, object))
-                            values[field_name] = converted_data
-                else:
-                    # Scalar (string or numeric)
-                    if isinstance(converted_data, (int, float)):
-                        dtype_list.append((field_name, type(converted_data)))
-                        values[field_name] = converted_data
-                    else:
-                        # String scalar
-                        s = str(converted_data)
-                        dtype_list.append((field_name, f'U{max(1, len(s))}'))
-                        values[field_name] = s
-            
-            # Create length-1 structured array and assign values
-            structured_data = np.empty(1, dtype=dtype_list)
-            for field_name, _ in dtype_list:
-                structured_data[0][field_name] = values[field_name]
-            return structured_data
+            dicts = list_of_dicts(hdf5_group, all_keys)
+            return dicts
         else:
-            # Simple dataset, just convert to string
-            return convert_to_string(chanlocs_group[()])
+            return hdf5_group[()]
+    
+    def get_data(EEGTMP, key):
+        hdf5_group = EEGTMP[key]
 
-        return np.array([])
-
+        if isinstance(hdf5_group, h5py.Group):
+            # First, determine number of channels/items
+            all_keys = list(hdf5_group.keys())
+            if len(all_keys) == 0:
+                return np.array([])  # Return empty numpy array instead of dict
+            
+            dicts = single_struct_dict(hdf5_group, all_keys)
+            return dicts
+        else:
+            return hdf5_group[()]
+    
     def handle_generic_group(EEGTMP, key):
         """Handle groups that aren't in the predefined lists."""
         group = EEGTMP[key]
@@ -292,24 +235,18 @@ def pop_loadset_h5(file_name):
                 EEG[key] = float(EEG[key].flatten()[0])
             else:
                 EEG[key] = float(EEG[key])
-
-    # Ensure EEG['data'] has channels x pnts (x trials) shape
-    if 'data' in EEG:
-        data_arr = np.array(EEG['data'])
-        if data_arr.ndim == 2:
-            # Infer nbchan/pnts if available
-            nbchan = int(EEG.get('nbchan', data_arr.shape[0]))
-            if data_arr.shape[0] != nbchan and data_arr.shape[1] == nbchan:
-                data_arr = data_arr.T
-        elif data_arr.ndim == 3:
-            nbchan = int(EEG.get('nbchan', data_arr.shape[0]))
-            # If (pnts, nbchan, trials), transpose to (nbchan, pnts, trials)
-            if data_arr.shape[0] != nbchan and data_arr.shape[1] == nbchan:
-                data_arr = np.transpose(data_arr, (1, 0, 2))
-        EEG['data'] = data_arr
-
+    
+    EEG = eeg_checkset(EEG)
     return EEG
 
+if __name__ == '__main__':
+    file_name = 'data/eeglab_data_epochs_ica_hdf5.set'
+    EEG = pop_loadset_h5(file_name)
+    print(EEG['data'].shape)
+    print(EEG['icaweights'].shape)
+    print(EEG['icasphere'].shape)
+    print(EEG['icawinv'].shape)
+    print(EEG['icaact'].shape)
 # file_name = 'eeglab_cont73.set'
 # EEG = pop_loadset_h5(file_name)
 # EEG['data'].shape
