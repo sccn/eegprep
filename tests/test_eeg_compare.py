@@ -461,29 +461,6 @@ class TestEegCompare(DebuggableTestCase):
         
         self.assertTrue(result)
 
-    @unittest.skipUnless(hasattr(sys, '_called_from_test'), 
-                        "MATLAB tests require MATLAB environment")
-    def test_parity_identical_datasets(self):
-        """Test parity with MATLAB for identical datasets."""
-        if not self.matlab_available:
-            self.skipTest("MATLAB not available")
-        
-        # This test would require setting up MATLAB comparison
-        # For now, we'll skip it but leave the structure for future implementation
-        pass
-
-    @unittest.skipUnless(hasattr(sys, '_called_from_test'), 
-                        "MATLAB tests require MATLAB environment")
-    def test_parity_different_datasets(self):
-        """Test parity with MATLAB for different datasets."""
-        if not self.matlab_available:
-            self.skipTest("MATLAB not available")
-        
-        # This test would require setting up MATLAB comparison
-        # For now, we'll skip it but leave the structure for future implementation
-        pass
-
-
 class TestIsequaln(unittest.TestCase):
     """Test cases for the internal isequaln function."""
     

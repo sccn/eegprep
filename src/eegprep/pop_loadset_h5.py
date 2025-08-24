@@ -51,11 +51,17 @@ def pop_loadset_h5(file_name):
         else:
             return filecontent
 
+    def _sorted_keys(keys):
+        try:
+            return sorted(keys, key=lambda x: int(x))
+        except Exception:
+            return sorted(keys)
+
     def get_data_array(EEGTMP, key):
         chanlocs_group = EEGTMP[key]
 
         if isinstance(chanlocs_group, h5py.Group):
-            # First, determine number of channels
+            # First, determine number of channels/items
             all_keys = list(chanlocs_group.keys())
             if len(all_keys) == 0:
                 return np.array([])  # Return empty numpy array instead of dict
@@ -66,7 +72,7 @@ def pop_loadset_h5(file_name):
             
             if isinstance(first_item, h5py.Group):
                 # Nested group structure (like chanlocs)
-                num_channels = len(chanlocs_group.keys())
+                num_channels = len(all_keys)
                 
                 # Get field names from the first channel
                 first_chan = chanlocs_group[first_key]
@@ -93,94 +99,84 @@ def pop_loadset_h5(file_name):
                 structured_data = np.empty(num_channels, dtype=dtype_list)
                 
                 # Fill the structured array - process channels in order
-                sorted_keys = sorted(chanlocs_group.keys(), key=lambda x: int(x))
-                for i, key2 in enumerate(sorted_keys):
+                for i, key2 in enumerate(_sorted_keys(all_keys)):
                     chan_group = chanlocs_group[key2]
                     for field_name in field_names:
                         field_data = chan_group[field_name][()]
                         # Get the reference
-                        ref_value = field_data[0] if len(field_data) > 0 else field_data
+                        ref_value = field_data[0] if isinstance(field_data, np.ndarray) and len(field_data) > 0 else field_data
                         # Dereference it if it's a reference
-                        if isinstance(ref_value, h5py.h5r.Reference):
+                        if isinstance(ref_value, h5py.h5r.Reference) or isinstance(ref_value, h5py.Reference):
                             actual_value = EEGTMP[ref_value]
                             data = actual_value[()]
                         else:
                             data = ref_value
-                            
+                        
                         # Convert and store the data
                         converted_data = convert_to_string(data)
                         if isinstance(converted_data, np.ndarray):
-                            converted_data = converted_data[0]
+                            if converted_data.size == 1:
+                                converted_data = converted_data.reshape(-1)[0]
                         
                         structured_data[i][field_name] = converted_data
                 
                 return structured_data
             else:
                 # Simple array structure (like event, epoch)
-                num_items = len(chanlocs_group.keys())
-                return np.array([chanlocs_group[str(i)][()] for i in range(num_items)])
+                return np.array([chanlocs_group[k][()] for k in _sorted_keys(all_keys)])
         return np.array([])  # Return empty numpy array instead of dict
 
     def get_data(EEGTMP, key):
         chanlocs_group = EEGTMP[key]
         
-        # check if chanlocs_group is of type dict
         if isinstance(chanlocs_group, h5py.Group):
-            # Create a structured array from the group
             field_names = list(chanlocs_group.keys())
             if len(field_names) == 0:
                 return {}
             
-            # Create structured array
             dtype_list = []
-            data_list = []
+            values = {}
             
             for field_name in field_names:
                 field_data = chanlocs_group[field_name][()]
                 converted_data = convert_to_string(field_data)
                 
                 if isinstance(converted_data, np.ndarray):
+                    # Strings become list[str]
                     if converted_data.dtype.kind in ['S', 'U']:
-                        # String field - ensure we have at least length 1
                         str_items = [str(item) for item in converted_data]
-                        max_len = max(len(item) for item in str_items) if str_items else 1
-                        dtype_list.append((field_name, f'U{max_len}'))
-                        data_list.append(str_items)
+                        dtype_list.append((field_name, object))
+                        values[field_name] = str_items
                     else:
-                        # Numeric field - handle multi-dimensional arrays
-                        if converted_data.ndim > 1:
-                            # For multi-dimensional arrays, store as object
-                            dtype_list.append((field_name, object))
-                            data_list.append([converted_data])
+                        # Numeric arrays – store entire array as object unless true scalar
+                        if converted_data.ndim == 0 or converted_data.size == 1:
+                            scalar_val = float(converted_data.reshape(-1)[0])
+                            dtype_list.append((field_name, type(scalar_val)))
+                            values[field_name] = scalar_val
                         else:
-                            dtype_list.append((field_name, converted_data.dtype))
-                            data_list.append(converted_data)
+                            dtype_list.append((field_name, object))
+                            values[field_name] = converted_data
                 else:
-                    # Scalar field
-                    str_item = str(converted_data)
-                    max_len = len(str_item) if str_item else 1
-                    dtype_list.append((field_name, f'U{max_len}'))
-                    data_list.append([str_item])
-            
-                        # Create structured array
-            if len(data_list) > 0:
-                max_len = max(len(data) for data in data_list)
-                structured_data = np.empty(max_len, dtype=dtype_list)
-
-                for i, (field_name, _) in enumerate(dtype_list):
-                    if len(data_list[i]) == 1:
-                        structured_data[field_name] = data_list[i][0]
+                    # Scalar (string or numeric)
+                    if isinstance(converted_data, (int, float)):
+                        dtype_list.append((field_name, type(converted_data)))
+                        values[field_name] = converted_data
                     else:
-                        structured_data[field_name] = data_list[i]
-
-                return structured_data
-            else:
-                return np.array([])  # Return empty numpy array
+                        # String scalar
+                        s = str(converted_data)
+                        dtype_list.append((field_name, f'U{max(1, len(s))}'))
+                        values[field_name] = s
+            
+            # Create length-1 structured array and assign values
+            structured_data = np.empty(1, dtype=dtype_list)
+            for field_name, _ in dtype_list:
+                structured_data[0][field_name] = values[field_name]
+            return structured_data
         else:
             # Simple dataset, just convert to string
             return convert_to_string(chanlocs_group[()])
 
-        return np.array([])  # Return empty numpy array instead of dict
+        return np.array([])
 
     def handle_generic_group(EEGTMP, key):
         """Handle groups that aren't in the predefined lists."""
@@ -285,7 +281,7 @@ def pop_loadset_h5(file_name):
         # Apply array transposition (but not for data arrays that are already transposed)
         if key in arrays and key in EEG:
             if key == 'data':
-                # Don't transpose data arrays - they should be (channels, timepoints, trials)
+                # Keep as loaded; we'll fix orientation after the loop when nbchan/pnts are known
                 EEG[key] = np.array(EEG[key])
             else:
                 EEG[key] = np.array(EEG[key]).T
@@ -296,6 +292,21 @@ def pop_loadset_h5(file_name):
                 EEG[key] = float(EEG[key].flatten()[0])
             else:
                 EEG[key] = float(EEG[key])
+
+    # Ensure EEG['data'] has channels x pnts (x trials) shape
+    if 'data' in EEG:
+        data_arr = np.array(EEG['data'])
+        if data_arr.ndim == 2:
+            # Infer nbchan/pnts if available
+            nbchan = int(EEG.get('nbchan', data_arr.shape[0]))
+            if data_arr.shape[0] != nbchan and data_arr.shape[1] == nbchan:
+                data_arr = data_arr.T
+        elif data_arr.ndim == 3:
+            nbchan = int(EEG.get('nbchan', data_arr.shape[0]))
+            # If (pnts, nbchan, trials), transpose to (nbchan, pnts, trials)
+            if data_arr.shape[0] != nbchan and data_arr.shape[1] == nbchan:
+                data_arr = np.transpose(data_arr, (1, 0, 2))
+        EEG['data'] = data_arr
 
     return EEG
 

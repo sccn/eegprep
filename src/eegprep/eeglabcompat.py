@@ -110,7 +110,8 @@ class MatlabWrapper:
                 self.engine.eval(eval_str, nargout=0)
                 
                 # output
-                if needs_roundtrip:
+                if needs_roundtrip or name == 'pop_loadset':
+                    # Always round-trip OUT for pop_loadset to get a proper Python EEG dict
                     self.engine.eval(f"pop_saveset(OUT, '{result_filename}');", nargout=0)
                     OUT = pop_loadset(result_filename)
                     return OUT
@@ -146,7 +147,7 @@ class MatlabWrapper:
                         #os.remove(fdt_file)
                         pass
                 except OSError as e:
-                    logger.warning(f"Error deleting temporary file {temp_filename}: {e}")
+                    logger.warning(f"Error deleting temporary file(s) in temp dir {temp_dir}: {e}")
             # else:
             #     # run it directly
             #     return getattr(self.engine, name)(*args)
