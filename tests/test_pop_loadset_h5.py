@@ -538,7 +538,13 @@ class TestPopLoadsetH5RealData(unittest.TestCase):
                 elif field == 'icachansind':
                     self.assertLessEqual(len(EEG[field]), EEG['nbchan'])
     
-    def test_compare_pop_loadset(self):
+    def test_compare_continuous_pop_loadset(self):
+        EEG1 = pop_loadset('data/eeglab_data.set')
+        EEG2 = pop_loadset_h5('data/eeglab_data_hdf5.set')
+        
+        eeg_compare(EEG1, EEG2)
+
+    def test_compare_epochs_pop_loadset(self):
         EEG1 = pop_loadset('data/eeglab_data_epochs_ica.set')
         EEG2 = pop_loadset_h5('data/eeglab_data_epochs_ica_hdf5.set')
         
