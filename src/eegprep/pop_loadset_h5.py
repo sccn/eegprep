@@ -106,7 +106,7 @@ def pop_loadset_h5(file_name):
             return dicts
         else:
             return hdf5_group[()]
-    
+        
     def get_data(EEGTMP, key):
         hdf5_group = EEGTMP[key]
 
@@ -120,7 +120,7 @@ def pop_loadset_h5(file_name):
             return dicts
         else:
             return hdf5_group[()]
-    
+        
     def handle_generic_group(EEGTMP, key):
         """Handle groups that aren't in the predefined lists."""
         group = EEGTMP[key]
@@ -235,8 +235,24 @@ def pop_loadset_h5(file_name):
                 EEG[key] = float(EEG[key].flatten()[0])
             else:
                 EEG[key] = float(EEG[key])
+
+    # Ensure EEG['data'] has channels x pnts (x trials) shape
+    if 'data' in EEG:
+        data_arr = np.array(EEG['data'])
+        if data_arr.ndim == 2:
+            # Infer nbchan/pnts if available
+            nbchan = int(EEG.get('nbchan', data_arr.shape[0]))
+            if data_arr.shape[0] != nbchan and data_arr.shape[1] == nbchan:
+                data_arr = data_arr.T
+        elif data_arr.ndim == 3:
+            nbchan = int(EEG.get('nbchan', data_arr.shape[0]))
+            # If (pnts, nbchan, trials), transpose to (nbchan, pnts, trials)
+            if data_arr.shape[0] != nbchan and data_arr.shape[1] == nbchan:
+                data_arr = np.transpose(data_arr, (1, 0, 2))
+        EEG['data'] = data_arr
     
     EEG = eeg_checkset(EEG)
+
     return EEG
 
 if __name__ == '__main__':
