@@ -51,8 +51,9 @@ def eeg_picard(EEG, engine=None, **kwargs):
         # Update EEG['icaweights'] with the separating (unmixing) matrix
         EEG['icasphere'] = np.eye(EEG['nbchan'])
         EEG['icaweights'] = unmixing_matrix @ weighting_matrix
-        EEG['icawinv'] = np.linalg.pinv(EEG['icaweights']*EEG['icasphere'])  
-
+        # use pinv from the imported pinv
+        EEG['icawinv'] = pinv(EEG['icaweights']*EEG['icasphere'])
+        
         # Calculate the inverse weights (mixing matrix) and store in EEG['icawinv']
         EEG['icaact'] = sources
 
