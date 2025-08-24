@@ -4,6 +4,7 @@ import numpy as np
 from eegprep import pop_loadset, eeg_picard, pop_saveset
 from eegprep.eeglabcompat import get_eeglab
 from eegprep.utils.testing import DebuggableTestCase
+from eegprep.pinv import pinv
 
 # ASSESSMENT OF THE TEST RESULTS
 # -----------------------------
@@ -380,6 +381,15 @@ class TestEegPicard(unittest.TestCase):
         # print(repr(EEG_matlab['icasphere']))
         np.testing.assert_allclose(EEG_python['icasphere'], EEG_matlab['icasphere'],rtol=0.005, atol=1e-5,err_msg='Python and Matlab icasphere differ beyond tolerance')
         np.testing.assert_allclose(EEG_python['icaweights'], EEG_matlab['icaweights'],rtol=0.005, atol=1e-5,err_msg='Python and Matlab icaweights differ beyond tolerance')
+        
+        EEG_matlab_icawinv = eeglab_mat.pinv(EEG_matlab['icaweights'])
+        EEG_python_icawinv1 = eeglab_mat.pinv(EEG_python['icaweights'])
+        EEG_python_icawinv2 = pinv(EEG_python['icaweights'])
+        np.testing.assert_allclose(EEG_python_icawinv1, EEG_matlab_icawinv, rtol=0.005, atol=1e-5,err_msg='Python and Matlab icawinv differ beyond tolerance')
+        np.testing.assert_allclose(EEG_python_icawinv2, EEG_matlab_icawinv, rtol=0.005, atol=1e-5,err_msg='Python and Matlab icawinv differ beyond tolerance')
+        np.testing.assert_allclose(EEG_matlab['icawinv'], EEG_matlab_icawinv,rtol=0.005, atol=1e-5,err_msg='Python and Matlab icawinv differ beyond tolerance')
+        np.testing.assert_allclose(EEG_python['icawinv'], EEG_matlab_icawinv,rtol=0.005, atol=1e-5,err_msg='Python and Matlab icawinv differ beyond tolerance')
+        
         # np.testing.assert_allclose(EEG_python['icawinv'], EEG_matlab['icawinv'],rtol=0.05, atol=0.0005,err_msg='Python and Matlab icawinv differ beyond tolerance')
         # np.testing.assert_allclose(EEG_python['icaact'], EEG_octave['icaact'],rtol=0.005, atol=1e-5,err_msg='Python and Octave icaact differ beyond tolerance')
         print("Python and MATLAB results are consistent.")
