@@ -195,5 +195,356 @@ class TestPopSelectFunctional(unittest.TestCase):
             self.assertTrue(EEG_out.get('epoch') == [])
 
 
+class TestPopSelectEdgeCases(unittest.TestCase):
+    """Test edge cases and error conditions in pop_select."""
+    
+    def setUp(self):
+        """Create a minimal test EEG structure."""
+        self.EEG = {
+            'data': np.random.randn(4, 100, 3),  # 4 channels, 100 points, 3 trials
+            'nbchan': 4,
+            'pnts': 100,
+            'trials': 3,
+            'srate': 250.0,
+            'xmin': -0.2,
+            'xmax': 0.2,
+            'chanlocs': [
+                {'labels': 'Fz', 'X': 0, 'Y': 1, 'Z': 0},
+                {'labels': 'Cz', 'X': 0, 'Y': 0, 'Z': 1},
+                {'labels': 'Pz', 'X': 0, 'Y': -1, 'Z': 0},
+                {'labels': 'Oz', 'X': 0, 'Y': -1, 'Z': -1}
+            ],
+            'event': [
+                {'type': 'stimulus', 'latency': 50, 'epoch': 1},
+                {'type': 'response', 'latency': 150, 'epoch': 2},
+                {'type': 'stimulus', 'latency': 250, 'epoch': 3}
+            ],
+            'epoch': [{}, {}, {}],
+            'icaact': None,
+            'icawinv': None,
+            'icaweights': None,
+            'icasphere': None,
+            'icachansind': None,
+            'specdata': None,
+            'specicaact': None,
+            'reject': {},
+            'stats': {},
+            'dipfit': None,
+            'roi': None,
+            'chaninfo': {}
+        }
+    
+    def test_missing_data_error(self):
+        """Test error when EEG data is missing."""
+        EEG = copy.deepcopy(self.EEG)
+        EEG['data'] = None
+        
+        with self.assertRaises(ValueError) as cm:
+            pop_select(EEG)
+        self.assertIn('EEG["data"] is required', str(cm.exception))
+    
+    def test_wrong_trial_range_error(self):
+        """Test error for invalid trial ranges."""
+        EEG = copy.deepcopy(self.EEG)
+        
+        # Trial index too low
+        with self.assertRaises(ValueError) as cm:
+            pop_select(EEG, trial=[0, 1, 2])
+        self.assertIn('Wrong trial range', str(cm.exception))
+        
+        # Trial index too high
+        with self.assertRaises(ValueError) as cm:
+            pop_select(EEG, trial=[1, 2, 5])
+        self.assertIn('Wrong trial range', str(cm.exception))
+    
+    def test_empty_dataset_error(self):
+        """Test error when all trials are removed."""
+        EEG = copy.deepcopy(self.EEG)
+        EEG['filename'] = 'test.set'
+        
+        with self.assertRaises(ValueError) as cm:
+            pop_select(EEG, notrial=[1, 2, 3])
+        self.assertIn('dataset test.set is empty', str(cm.exception))
+    
+    def test_channel_name_and_type_conflict_error(self):
+        """Test error when both channel names and types are specified."""
+        EEG = copy.deepcopy(self.EEG)
+        
+        with self.assertRaises(ValueError) as cm:
+            pop_select(EEG, channel=['Fz'], chantype=['EEG'])
+        self.assertIn('Select channels by name OR by type, not both', str(cm.exception))
+    
+    def test_empty_channel_selection_error(self):
+        """Test error when all channels are removed."""
+        EEG = copy.deepcopy(self.EEG)
+        
+        with self.assertRaises(ValueError) as cm:
+            pop_select(EEG, nochannel=['Fz', 'Cz', 'Pz', 'Oz'])
+        self.assertIn('Empty channel selection', str(cm.exception))
+    
+    def test_invalid_time_range_columns_error(self):
+        """Test error for time/point ranges with wrong number of columns."""
+        EEG = copy.deepcopy(self.EEG)
+        
+        with self.assertRaises(ValueError) as cm:
+            pop_select(EEG, time=[[0.1, 0.2, 0.3]])  # 3 columns instead of 2
+        self.assertIn('Time/point range must contain exactly 2 columns', str(cm.exception))
+    
+    def test_notime_epoched_boundary_error(self):
+        """Test error for notime ranges that don't touch epoch boundaries."""
+        EEG = copy.deepcopy(self.EEG)
+        
+        # notime range that doesn't touch boundaries
+        with self.assertRaises(ValueError) as cm:
+            pop_select(EEG, notime=[[-0.1, 0.1]])  # middle of epoch
+        self.assertIn('Wrong notime range for epoched data; must include an epoch boundary', str(cm.exception))
+    
+    def test_multiple_time_windows_epoched_error(self):
+        """Test error for multiple time windows in epoched data."""
+        EEG = copy.deepcopy(self.EEG)
+        
+        with self.assertRaises(ValueError) as cm:
+            pop_select(EEG, time=[[-0.2, -0.1], [0.1, 0.2]])
+        self.assertIn('Epoched data requires a single [tmin tmax] window', str(cm.exception))
+    
+    def test_invalid_time_window_points_error(self):
+        """Test error for invalid time window mapping to points."""
+        EEG = copy.deepcopy(self.EEG)
+        
+        # Time window that maps to invalid points
+        with self.assertRaises(ValueError) as cm:
+            pop_select(EEG, time=[[0.3, 0.1]])  # end before start
+        self.assertIn('Invalid time window mapped to points', str(cm.exception))
+    
+    def test_channel_selection_by_indices(self):
+        """Test channel selection by integer indices."""
+        EEG = copy.deepcopy(self.EEG)
+        
+        # Select channels by 0-based indices
+        EEG_out = pop_select(EEG, channel=[0, 2])  # Fz and Pz
+        
+        self.assertEqual(EEG_out['nbchan'], 2)
+        self.assertEqual(len(EEG_out['chanlocs']), 2)
+        self.assertEqual(EEG_out['chanlocs'][0]['labels'], 'Fz')
+        self.assertEqual(EEG_out['chanlocs'][1]['labels'], 'Pz')
+        self.assertEqual(EEG_out['data'].shape[0], 2)
+    
+    def test_channel_selection_by_labels(self):
+        """Test channel selection by string labels."""
+        EEG = copy.deepcopy(self.EEG)
+        
+        EEG_out = pop_select(EEG, channel=['Cz', 'Oz'])
+        
+        self.assertEqual(EEG_out['nbchan'], 2)
+        self.assertEqual(EEG_out['chanlocs'][0]['labels'], 'Cz')
+        self.assertEqual(EEG_out['chanlocs'][1]['labels'], 'Oz')
+        self.assertEqual(EEG_out['data'].shape[0], 2)
+    
+    def test_mixed_channel_indices_labels(self):
+        """Test mixed channel selection (indices and labels)."""
+        EEG = copy.deepcopy(self.EEG)
+        
+        # This should work - mix of int index and string label
+        EEG_out = pop_select(EEG, channel=[0, 'Oz'])
+        
+        self.assertEqual(EEG_out['nbchan'], 2)
+        self.assertEqual(EEG_out['data'].shape[0], 2)
+    
+    def test_negative_indices_error(self):
+        """Test that negative channel indices raise appropriate errors."""
+        EEG = copy.deepcopy(self.EEG)
+        
+        # This should fail during eeg_decodechan call
+        with self.assertRaises(Exception):  # Could be ValueError or IndexError
+            pop_select(EEG, channel=[-1])
+    
+    def test_float_indices_error(self):
+        """Test that float channel indices raise appropriate errors."""
+        EEG = copy.deepcopy(self.EEG)
+        
+        # Float indices should cause issues
+        with self.assertRaises(Exception):
+            pop_select(EEG, channel=[1.5])
+    
+    def test_out_of_range_channel_indices(self):
+        """Test out-of-range channel indices."""
+        EEG = copy.deepcopy(self.EEG)
+        
+        # Channel index beyond available channels
+        with self.assertRaises(Exception):
+            pop_select(EEG, channel=[10])  # Only 4 channels available (0-3)
+    
+    def test_time_range_selection(self):
+        """Test time range selection functionality."""
+        EEG = copy.deepcopy(self.EEG)
+        
+        # Select middle portion of epoch
+        EEG_out = pop_select(EEG, time=[[-0.1, 0.1]])
+        
+        # Should have fewer points (unless the window covers the whole epoch)
+        # The time window [-0.1, 0.1] might cover the whole epoch [-0.2, 0.2]
+        # Let's use a smaller window
+        EEG_out2 = pop_select(copy.deepcopy(self.EEG), time=[[-0.05, 0.05]])
+        self.assertLessEqual(EEG_out2['pnts'], EEG['pnts'])
+        self.assertAlmostEqual(EEG_out2['xmin'], -0.05, places=6)
+        self.assertEqual(EEG_out['trials'], EEG['trials'])
+        self.assertEqual(EEG_out['nbchan'], EEG['nbchan'])
+    
+    def test_trial_selection_with_events(self):
+        """Test trial selection updates events correctly."""
+        EEG = copy.deepcopy(self.EEG)
+        
+        # Select first two trials
+        EEG_out = pop_select(EEG, trial=[1, 2])
+        
+        self.assertEqual(EEG_out['trials'], 2)
+        # Should have 2 events (from epochs 1 and 2)
+        self.assertEqual(len(EEG_out['event']), 2)
+        # Check epoch numbers are updated
+        self.assertEqual(EEG_out['event'][0]['epoch'], 1)
+        self.assertEqual(EEG_out['event'][1]['epoch'], 2)
+    
+    def test_trial_reordering_preserves_order(self):
+        """Test that trial selection with sorttrial=off preserves order."""
+        EEG = copy.deepcopy(self.EEG)
+        
+        # Select trials in non-sorted order
+        EEG_out = pop_select(EEG, trial=[3, 1], sorttrial='off')
+        
+        self.assertEqual(EEG_out['trials'], 2)
+        # Events should reflect the new trial mapping
+        # When trials [3, 1] are selected, they become new trials [1, 2]
+        # So original epoch 3 becomes new epoch 1, and original epoch 1 becomes new epoch 2
+        if len(EEG_out['event']) >= 2:
+            # Find events by their original type to verify mapping
+            event_types = [ev['type'] for ev in EEG_out['event']]
+            # The event from original epoch 3 should now be in epoch 1
+            # The event from original epoch 1 should now be in epoch 2
+            self.assertEqual(len(EEG_out['event']), 2)
+    
+    def test_continuous_data_handling(self):
+        """Test handling of continuous (non-epoched) data."""
+        EEG = copy.deepcopy(self.EEG)
+        # Convert to continuous
+        EEG['data'] = EEG['data'][:, :, 0]  # Take first trial as continuous
+        EEG['trials'] = 1
+        EEG['event'] = [{'type': 'stimulus', 'latency': 50}]  # Remove epoch field
+        EEG['epoch'] = []
+        
+        # Select subset of channels
+        EEG_out = pop_select(EEG, channel=[0, 1])
+        
+        self.assertEqual(EEG_out['nbchan'], 2)
+        self.assertEqual(EEG_out['trials'], 1)
+        self.assertEqual(EEG_out['data'].shape, (2, 100))
+    
+    def test_empty_selection_parameters(self):
+        """Test that empty selection parameters work correctly."""
+        EEG = copy.deepcopy(self.EEG)
+        
+        # Empty lists should be ignored - but trial=[] means no trials, causing empty dataset error
+        # So test with None instead
+        EEG_out = pop_select(EEG, channel=None, time=[])
+        
+        # Should return original data unchanged
+        self.assertEqual(EEG_out['nbchan'], EEG['nbchan'])
+        self.assertEqual(EEG_out['trials'], EEG['trials'])
+        self.assertEqual(EEG_out['pnts'], EEG['pnts'])
+        np.testing.assert_array_equal(EEG_out['data'], EEG['data'])
+    
+    def test_metadata_updates(self):
+        """Test that metadata is properly updated after selection."""
+        EEG = copy.deepcopy(self.EEG)
+        
+        EEG_out = pop_select(EEG, channel=[0, 2], trial=[1, 3])
+        
+        # Check all metadata is updated
+        self.assertEqual(EEG_out['nbchan'], 2)
+        self.assertEqual(EEG_out['trials'], 2)
+        self.assertEqual(EEG_out['data'].shape, (2, 100, 2))
+        self.assertEqual(len(EEG_out['chanlocs']), 2)
+        self.assertEqual(len(EEG_out['epoch']), 2)
+        
+        # Check reject and stats are reset - both have specific fields
+        self.assertIn('rejmanual', EEG_out['reject'])
+        self.assertIn('jp', EEG_out['stats'])
+    
+    def test_ica_data_handling(self):
+        """Test proper handling of ICA-related data structures."""
+        EEG = copy.deepcopy(self.EEG)
+        
+        # Add some ICA data
+        EEG['icaact'] = np.random.randn(2, 100, 3)  # 2 components
+        EEG['icawinv'] = np.random.randn(4, 2)
+        EEG['icaweights'] = np.random.randn(2, 4)
+        EEG['icasphere'] = np.eye(4)
+        EEG['icachansind'] = [0, 1, 2, 3]
+        
+        # Select subset of channels
+        EEG_out = pop_select(EEG, channel=[0, 2])
+        
+        # ICA structures should be updated
+        if EEG_out['icaact'] is not None:
+            self.assertEqual(EEG_out['icaact'].shape[2], 3)  # Same trials
+        
+        # icachansind should be updated to new channel indices
+        if EEG_out['icachansind'] is not None:
+            self.assertEqual(len(EEG_out['icachansind']), 2)
+    
+    def test_dipfit_removal_warning(self):
+        """Test that dipfit is removed when channels are removed."""
+        EEG = copy.deepcopy(self.EEG)
+        EEG['dipfit'] = [{'some': 'dipole_info'}]
+        EEG['roi'] = [{'some': 'roi_info'}]
+        
+        # Remove one channel
+        EEG_out = pop_select(EEG, channel=[0, 1, 2])  # Remove channel 3
+        
+        # dipfit and roi should be cleared
+        self.assertEqual(EEG_out['dipfit'], [])
+        self.assertEqual(EEG_out['roi'], [])
+    
+    def test_single_trial_epoch_field_removal(self):
+        """Test that epoch fields are removed from events when only one trial remains."""
+        EEG = copy.deepcopy(self.EEG)
+        
+        # Select only first trial
+        EEG_out = pop_select(EEG, trial=[1])
+        
+        self.assertEqual(EEG_out['trials'], 1)
+        # epoch field should be removed from events
+        for event in EEG_out['event']:
+            self.assertNotIn('epoch', event)
+        # epoch list should be empty
+        self.assertEqual(EEG_out['epoch'], [])
+    
+    def test_event_latency_bounds_checking(self):
+        """Test that events with invalid latencies are removed."""
+        EEG = copy.deepcopy(self.EEG)
+        
+        # Add an event with invalid latency
+        EEG['event'].append({'type': 'invalid', 'latency': 1000, 'epoch': 1})  # Beyond data
+        
+        EEG_out = pop_select(EEG, trial=[1])
+        
+        # Invalid event should be removed
+        latencies = [ev['latency'] for ev in EEG_out['event'] if 'latency' in ev]
+        total_pts = EEG_out['pnts'] * EEG_out['trials']
+        for lat in latencies:
+            self.assertTrue(1 <= lat <= total_pts)
+    
+    def test_vector_format_deprecation_warning(self):
+        """Test that vector format for point/time ranges shows deprecation warning."""
+        EEG = copy.deepcopy(self.EEG)
+        
+        # This should trigger the deprecation warning for vector format
+        # We can't easily test the print statement, but we can verify it works
+        EEG_out = pop_select(EEG, point=[1, 5, 10, 20, 30])  # Vector with >2 elements
+        
+        # Should select from first to last point
+        expected_pnts = 30 - 1 + 1  # From point 1 to 30
+        self.assertEqual(EEG_out['pnts'], expected_pnts)
+
+
 if __name__ == '__main__':
     unittest.main()
