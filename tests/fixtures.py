@@ -248,3 +248,4 @@ class TestFixtures:
 
 # Legacy functions for backward compatibility
 small_eeg = lambda: create_test_eeg(n_channels=8, n_samples=250)  # Small EEG for quick tests
+

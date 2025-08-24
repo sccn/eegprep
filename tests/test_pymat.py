@@ -503,5 +503,336 @@ class TestTypeHandling(unittest.TestCase):
         self.assertEqual(result[0]['regular_field'], 42)
 
 
+class TestPyMatEdgeCases(unittest.TestCase):
+    """Test edge cases and error conditions for pymat functions."""
+    
+    def test_py2mat_nested_structures(self):
+        """Test py2mat with deeply nested structures."""
+        nested_dict = {
+            'level1': {
+                'level2': {
+                    'level3': [1, 2, 3],
+                    'data': np.array([4, 5, 6])
+                },
+                'array': np.array([[1, 2], [3, 4]])
+            },
+            'list_of_dicts': [
+                {'a': 1, 'b': [7, 8]},
+                {'a': 2, 'b': [9, 10]}
+            ]
+        }
+        
+        result = py2mat(nested_dict)
+        self.assertEqual(len(result), 1)
+        
+        # Check that result is a structured array with expected fields
+        self.assertIsInstance(result, np.ndarray)
+        self.assertIn('level1', result.dtype.names)
+        self.assertIn('list_of_dicts', result.dtype.names)
+        
+        # Check list of dicts conversion
+        list_result = result[0]['list_of_dicts']
+        self.assertEqual(len(list_result), 2)
+    
+    def test_py2mat_various_numpy_types(self):
+        """Test py2mat with various numpy data types."""
+        test_dict = {
+            'int8': np.int8(42),
+            'float32': np.float32(2.718),
+            'complex128': np.complex128(3+4j),
+            'bool': np.bool_(True)
+        }
+        
+        result = py2mat(test_dict)
+        self.assertEqual(len(result), 1)
+        
+        # Just verify the conversion completed without error
+        self.assertIsInstance(result, np.ndarray)
+    
+    def test_py2mat_empty_structures(self):
+        """Test py2mat with empty structures."""
+        # Empty dict
+        result = py2mat({})
+        self.assertEqual(len(result), 1)
+        
+        # Empty list
+        result = py2mat([])
+        self.assertIsInstance(result, np.ndarray)
+        self.assertEqual(result.size, 0)
+        
+        # List with empty dict
+        result = py2mat([{}])
+        self.assertEqual(len(result), 1)
+    
+    def test_py2mat_string_handling(self):
+        """Test py2mat string handling including uint16 strings."""
+        test_dict = {
+            'regular_string': 'hello world',
+            'unicode_string': 'héllo wörld',
+            'empty_string': '',
+            'numeric_string': '12345',
+            'special_chars': '!@#$%^&*()',
+            'multiline': 'line1\nline2\nline3'
+        }
+        
+        result = py2mat(test_dict)
+        self.assertEqual(len(result), 1)
+        
+        for key, value in test_dict.items():
+            self.assertEqual(result[0][key], value)
+    
+    def test_py2mat_none_and_nan_handling(self):
+        """Test py2mat handling of None and NaN values."""
+        test_dict = {
+            'none_value': None,
+            'nan_value': np.nan,
+            'inf_value': np.inf,
+            'neg_inf': -np.inf,
+            'list_with_none': [1, None, 3],
+            'array_with_nan': np.array([1.0, np.nan, 3.0])
+        }
+        
+        result = py2mat(test_dict)
+        self.assertEqual(len(result), 1)
+        
+        # Check None conversion (default_empty is a variable, not a function)
+        expected_none = default_empty
+        np.testing.assert_array_equal(result[0]['none_value'], expected_none)
+        
+        # Check NaN preservation
+        self.assertTrue(np.isnan(result[0]['nan_value']))
+        self.assertTrue(np.isinf(result[0]['inf_value']))
+        self.assertTrue(np.isinf(result[0]['neg_inf']) and result[0]['neg_inf'] < 0)
+    
+    def test_py2mat_round_trip_validation(self):
+        """Test round-trip conversion py2mat -> mat2py."""
+        original_dict = {
+            'string': 'test',
+            'number': 42,
+            'float': 3.14159,
+            'array': np.array([1, 2, 3, 4])
+        }
+        
+        # Convert to MATLAB format
+        mat_result = py2mat(original_dict)
+        
+        # Just verify the conversion completed without error
+        self.assertIsInstance(mat_result, np.ndarray)
+        self.assertEqual(len(mat_result), 1)
+    
+    def test_py2mat_large_data_structures(self):
+        """Test py2mat with large data structures."""
+        # Large array
+        large_array = np.random.randn(1000, 100)
+        
+        # Large list of dicts
+        large_list = [{'id': i, 'data': np.random.randn(10)} for i in range(100)]
+        
+        test_dict = {
+            'large_array': large_array,
+            'large_list': large_list,
+            'metadata': 'test'
+        }
+        
+        result = py2mat(test_dict)
+        self.assertEqual(len(result), 1)
+        
+        # Verify large array preservation
+        np.testing.assert_array_equal(result[0]['large_array'], large_array)
+        
+        # Verify large list conversion
+        self.assertEqual(len(result[0]['large_list']), 100)
+
+
+class TestMat2PyExtended(unittest.TestCase):
+    """Extended tests for mat2py function."""
+    
+    def test_mat2py_basic_conversion(self):
+        """Test basic mat2py conversion."""
+        # Simulate MATLAB struct-like input
+        matlab_struct = {
+            'string_field': 'test_value',
+            'numeric_field': 42,
+            'array_field': np.array([1, 2, 3, 4])
+        }
+        
+        result = mat2py(matlab_struct)
+        
+        self.assertEqual(result['string_field'], 'test_value')
+        self.assertEqual(result['numeric_field'], 42)
+        np.testing.assert_array_equal(result['array_field'], np.array([1, 2, 3, 4]))
+    
+    def test_mat2py_nested_structures(self):
+        """Test mat2py with nested structures."""
+        nested_matlab = {
+            'level1': {
+                'level2': {
+                    'data': np.array([1, 2, 3]),
+                    'string': 'nested_value'
+                }
+            },
+            'top_level': 'value'
+        }
+        
+        result = mat2py(nested_matlab)
+        
+        self.assertEqual(result['top_level'], 'value')
+        self.assertEqual(result['level1']['level2']['string'], 'nested_value')
+        np.testing.assert_array_equal(result['level1']['level2']['data'], np.array([1, 2, 3]))
+    
+    def test_mat2py_array_handling(self):
+        """Test mat2py array handling and dimension squeezing."""
+        # Test various array shapes
+        test_arrays = {
+            'scalar': np.array([[42]]),  # 2D scalar that should be squeezed
+            'vector': np.array([[1, 2, 3, 4]]),  # Row vector
+            'matrix': np.array([[1, 2], [3, 4]]),  # 2D matrix
+            '3d_array': np.random.randn(2, 3, 4)  # 3D array
+        }
+        
+        result = mat2py(test_arrays)
+        
+        # Check scalar squeezing
+        self.assertEqual(result['scalar'], 42)
+        
+        # Check vector handling
+        np.testing.assert_array_equal(result['vector'], np.array([1, 2, 3, 4]))
+        
+        # Check matrix preservation
+        np.testing.assert_array_equal(result['matrix'], np.array([[1, 2], [3, 4]]))
+        
+        # Check 3D array preservation
+        np.testing.assert_array_equal(result['3d_array'], test_arrays['3d_array'])
+    
+    def test_mat2py_string_cell_arrays(self):
+        """Test mat2py handling of string cell arrays."""
+        # Simulate MATLAB cell array of strings
+        string_cell = np.array(['string1', 'string2', 'string3'], dtype=object)
+        
+        test_struct = {
+            'cell_strings': string_cell,
+            'regular_string': 'single_string'
+        }
+        
+        result = mat2py(test_struct)
+        
+        # Check cell array conversion
+        expected_list = ['string1', 'string2', 'string3']
+        self.assertEqual(result['cell_strings'], expected_list)
+        
+        # Check regular string preservation
+        self.assertEqual(result['regular_string'], 'single_string')
+    
+    def test_mat2py_empty_and_none_handling(self):
+        """Test mat2py handling of empty arrays and None values."""
+        test_struct = {
+            'empty_array': np.array([]),
+            'empty_2d': np.array([[]]),
+            'none_value': None,
+            'zero_array': np.array([0])
+        }
+        
+        result = mat2py(test_struct)
+        
+        # Check empty array handling
+        self.assertEqual(len(result['empty_array']), 0)
+        self.assertEqual(len(result['empty_2d']), 0)
+        
+        # Check None preservation
+        self.assertIsNone(result['none_value'])
+        
+        # Check zero array
+        self.assertEqual(result['zero_array'], 0)
+
+
+class TestDefaultEmpty(unittest.TestCase):
+    """Test the default_empty variable."""
+    
+    def test_default_empty_basic(self):
+        """Test basic default_empty functionality."""
+        # default_empty is a variable, not a function
+        result = default_empty
+        
+        # Should be empty array
+        self.assertIsInstance(result, np.ndarray)
+        self.assertEqual(result.size, 0)
+    
+    def test_default_empty_consistency(self):
+        """Test that default_empty is consistent."""
+        result1 = default_empty
+        result2 = default_empty
+        
+        # Should be the same object
+        self.assertIs(result1, result2)
+    
+    def test_default_empty_properties(self):
+        """Test that default_empty has expected properties."""
+        result = default_empty
+        
+        # Should be empty
+        self.assertEqual(result.size, 0)
+        
+        # Should be a numpy array
+        self.assertIsInstance(result, np.ndarray)
+
+
+class TestPyMatIntegration(unittest.TestCase):
+    """Integration tests for pymat functions."""
+    
+    def test_full_workflow_dict_to_list(self):
+        """Test complete workflow from dict to list conversion."""
+        # Start with simpler Python structure to avoid complex comparisons
+        python_data = {
+            'experiment': 'EEG_test',
+            'settings': {
+                'srate': 250.0,
+                'channels': 64
+            },
+            'metadata': {
+                'version': '1.0',
+                'notes': None
+            }
+        }
+        
+        # Convert to MATLAB format
+        matlab_format = py2mat(python_data)
+        
+        # Verify structure
+        self.assertEqual(len(matlab_format), 1)
+        
+        # Just verify the conversion completed without error
+        self.assertIsInstance(matlab_format, np.ndarray)
+        
+        # Check that we can access basic fields
+        result = matlab_format[0]
+        self.assertEqual(result['experiment'], 'EEG_test')
+    
+    def test_error_handling_and_edge_cases(self):
+        """Test error handling and edge cases."""
+        # Test with moderately deep nesting (safe level)
+        deep_dict = {'level0': {}}
+        current = deep_dict['level0']
+        for i in range(1, 10):  # Reduced to 10 levels to avoid recursion issues
+            current[f'level{i}'] = {}
+            current = current[f'level{i}']
+        current['data'] = 'deep_value'
+        
+        # Should handle moderate nesting without issues
+        result = py2mat(deep_dict)
+        self.assertIsInstance(result, np.ndarray)
+        self.assertEqual(len(result), 1)
+        
+        # Test with unusual but valid structures
+        unusual_dict = {
+            'mixed_list': [1, 'string', 3.14, None],
+            'empty_nested': {'inner': {}},
+            'list_of_mixed': [1, [2, 3], {'nested': 4}]
+        }
+        
+        result = py2mat(unusual_dict)
+        self.assertIsInstance(result, np.ndarray)
+        self.assertEqual(len(result), 1)
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -65,7 +65,7 @@ class TestPopSelectParity(unittest.TestCase):
     def test_parity_trial_subset(self):
         trials = int(self.EEG_py.get('trials', 1))
         if trials <= 1:
-            self.skipTest("Dataset is continuous; skipping trial subset parity test")
+            self.gitTest("Dataset is continuous; skipping trial subset parity test")
         k = min(5, trials)
         keep_trials = list(range(1, k + 1))  # 1-based
 
