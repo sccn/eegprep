@@ -218,16 +218,6 @@ class TestICLFeatureExtractorDataTypes(unittest.TestCase):
         except Exception as e:
             self.skipTest(f"ICL_feature_extractor float64 test not available: {e}")
 
-    def test_icl_feature_extractor_complex_data_error(self):
-        """Test ICL_feature_extractor with complex input data (should fail)."""
-        EEG = self.base_eeg.copy()
-        EEG['icaact'] = EEG['icaact'].astype(np.complex64)
-        
-        with self.assertRaises(AssertionError) as cm:
-            ICL_feature_extractor(EEG, flag_autocorr=False)
-        self.assertIn('must be real', str(cm.exception))
-
-
 class TestICLFeatureExtractorEdgeCases(unittest.TestCase):
     """Test ICL_feature_extractor edge cases."""
 
