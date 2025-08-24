@@ -245,10 +245,8 @@ def pop_loadset_h5(file_name):
             if data_arr.shape[0] != nbchan and data_arr.shape[1] == nbchan:
                 data_arr = data_arr.T
         elif data_arr.ndim == 3:
-            nbchan = int(EEG.get('nbchan', data_arr.shape[0]))
-            # If (pnts, nbchan, trials), transpose to (nbchan, pnts, trials)
-            if data_arr.shape[0] != nbchan and data_arr.shape[1] == nbchan:
-                data_arr = np.transpose(data_arr, (1, 0, 2))
+            if int(EEG['nbchan']) != data_arr.shape[0]:
+                data_arr = np.transpose(data_arr, (2, 1, 0))
         EEG['data'] = data_arr
     
     EEG = eeg_checkset(EEG)
