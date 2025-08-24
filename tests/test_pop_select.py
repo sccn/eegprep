@@ -6,7 +6,9 @@ import os
 
 from eegprep.eeglabcompat import get_eeglab
 from eegprep.pop_loadset import pop_loadset
+from eegprep.pop_loadset import pop_loadset_h5
 from eegprep.pop_select import pop_select
+from eegprep.pop_epoch import pop_epoch
 
 # where the test resources
 web_root = 'https://sccntestdatasets.s3.us-east-2.amazonaws.com/'
@@ -63,14 +65,14 @@ class TestPopSelectParity(unittest.TestCase):
         self.assertEqual(_chan_labels(EEG_py_out), _chan_labels(EEG_mat_out))
 
     def test_parity_trial_subset(self):
-        trials = int(self.EEG_py.get('trials', 1))
-        if trials <= 1:
-            self.gitTest("Dataset is continuous; skipping trial subset parity test")
+        EEG_py_epochs, _ = pop_epoch(self.EEG_py, 'S 11', [-0.2, 0.2])
+        
+        trials = int(EEG_py_epochs['trials'])
         k = min(5, trials)
         keep_trials = list(range(1, k + 1))  # 1-based
 
-        EEG_py_out =              pop_select(copy.deepcopy(self.EEG_py), trial=keep_trials)
-        EEG_mat_out = self.eeglab.pop_select(copy.deepcopy(self.EEG_py), 'trial', keep_trials)
+        EEG_py_out =              pop_select(copy.deepcopy(EEG_py_epochs), trial=keep_trials)
+        EEG_mat_out = self.eeglab.pop_select(copy.deepcopy(EEG_py_epochs), 'trial', keep_trials)
 
         self.assertEqual(EEG_py_out['trials'], k)
         self.assertEqual(EEG_mat_out['trials'], k)
