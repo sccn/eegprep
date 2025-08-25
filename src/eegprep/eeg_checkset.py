@@ -24,11 +24,21 @@ def eeg_checkset(EEG, load_data=True):
     if 'event' in EEG:
         if isinstance(EEG['event'], dict):
             EEG['event'] = [EEG['event']]
+    else:
+        EEG['event'] = []
             
     if 'chanlocs' in EEG:
         if isinstance(EEG['chanlocs'], dict):
             EEG['chanlocs'] = [EEG['chanlocs']]
-    
+    else:
+        EEG['chanlocs'] = []
+        
+    if 'chaninfo' not in EEG:
+        EEG['chaninfo'] = {}
+        
+    if 'reject' not in EEG:
+        EEG['reject'] = {}
+        
     if 'data' in EEG and isinstance(EEG['data'], str) and load_data:
         # get path from file_path
         file_name = EEG['filepath'] + os.sep + EEG['data']

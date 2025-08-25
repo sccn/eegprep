@@ -110,8 +110,31 @@ import mne
 from mne.datasets import sample
 import numpy as np
 from scipy.io import savemat
+from eegprep.eeg_checkset import eeg_checkset
+
+
+def is_effectively_empty(x):
+    # None
+    if x is None:
+        return True
+    # Proper NumPy array with no elements
+    if isinstance(x, np.ndarray) and x.size == 0:
+        return True
+    # One-element object array containing an empty dict/list/None
+    if (isinstance(x, np.ndarray) and x.size == 1 and x.dtype == object):
+        elem = x.item()
+        if elem in (None, {}) or (hasattr(elem, '__len__') and len(elem) == 0):
+            return True
+    return False
+
+def _as_array_or_empty(x):
+    if x is None:
+        return np.array([])
+    return x.copy() if isinstance(x, np.ndarray) else np.array(x)
 
 def pop_saveset(EEG, file_name):
+    
+    EEG = eeg_checkset(EEG)
     
     eeglab_dict = {
         'setname'         : '',
@@ -134,28 +157,28 @@ def pop_saveset(EEG, file_name):
         'icawinv'         : EEG['icawinv'],
         'icasphere'       : EEG['icasphere'],
         'icaweights'      : EEG['icaweights'],
-        'icachansind'     : EEG['icachansind'].copy(),
+        'icachansind'     : _as_array_or_empty(EEG['icachansind']),
         'chanlocs'        : EEG['chanlocs'],
         'urchanlocs'      : EEG['urchanlocs'],
         'chaninfo'        : EEG['chaninfo'],
         'ref'             : EEG['ref'],
-        'event'           : EEG['event'] if 'event' in EEG else np.array([]),
-        'urevent'         : EEG['urevent'] if 'urevent' in EEG else np.array([]),
-        'eventdescription': EEG['eventdescription'] if 'eventdescription' in EEG else np.array([]),
-        'epoch'           : EEG['epoch'] if 'epoch' in EEG else np.array([]),
-        'epochdescription': EEG['epochdescription'] if 'epochdescription' in EEG else np.array([]),
-        'reject'          : EEG['reject'] if 'reject' in EEG else np.array([]),
-        'stats'           : EEG['stats'] if 'stats' in EEG else np.array([]),
-        'specdata'        : EEG['specdata'] if 'specdata' in EEG else np.array([]),
-        'specicaact'      : EEG['specicaact'] if 'specicaact' in EEG else np.array([]),
-        'splinefile'      : EEG['splinefile'] if 'splinefile' in EEG else np.array([]),
-        'icasplinefile'   : EEG['icasplinefile'] if 'icasplinefile' in EEG else np.array([]),
-        'dipfit'          : EEG['dipfit'] if 'dipfit' in EEG else np.array([]),
+        'event'           : _as_array_or_empty(EEG['event']),
+        'urevent'         : _as_array_or_empty(EEG['urevent']),
+        'eventdescription': _as_array_or_empty(EEG['eventdescription']),
+        'epoch'           : _as_array_or_empty(EEG['epoch']),
+        'epochdescription': _as_array_or_empty(EEG['epochdescription']),
+        'reject'          : _as_array_or_empty(EEG['reject']),
+        'stats'           : _as_array_or_empty(EEG['stats']),
+        'specdata'        : _as_array_or_empty(EEG['specdata']),
+        'specicaact'      : _as_array_or_empty(EEG['specicaact']),
+        'splinefile'      : _as_array_or_empty(EEG['splinefile']),
+        'icasplinefile'   : _as_array_or_empty(EEG['icasplinefile']),
+        'dipfit'          : _as_array_or_empty(EEG['dipfit']),
         'history'         : EEG['history'],
         'saved'           : EEG['saved'],
         'etc'             : EEG['etc'],
-        'run'             : EEG['run'] if 'run' in EEG else np.array([]),
-        'roi'             : EEG['roi'] if 'roi' in EEG else np.array([]),
+        'run'             : _as_array_or_empty(EEG['run']),
+        'roi'             : _as_array_or_empty(EEG['roi']),
     }
 
      # add 1 to EEG['icachansind'] to make it 1-based
@@ -219,7 +242,7 @@ def pop_saveset(EEG, file_name):
         eeglab_dict['event'] = np.array(eeglab_dict['event'])
         
     for key in eeglab_dict:
-        if isinstance(eeglab_dict[key], np.ndarray) and len(eeglab_dict[key]) > 0 and isinstance(eeglab_dict[key][0], dict):
+        if isinstance(eeglab_dict[key], np.ndarray) and not(is_effectively_empty(eeglab_dict[key])) and len(eeglab_dict[key]) > 0 and isinstance(eeglab_dict[key][0], dict):
             eeglab_dict[key] = flatten_dict(eeglab_dict[key])    
     # # Step 4: Save the EEGLAB dataset as a .mat file
     scipy.io.savemat(file_name, eeglab_dict, appendmat=False)
