@@ -10,7 +10,7 @@ import numpy as np
 from scipy.io import savemat
 
 # Load example data
-def eeg_mne2eeglab_epochs(epochs, ica):
+def eeg_mne2eeg_epochs(epochs, ica):
     
     # export to EEGLAB dataset
     data = epochs.get_data()  # Get the data from the epochs
@@ -151,7 +151,7 @@ def eeg_mne2eeglab_epochs(epochs, ica):
 
     #print("EEGLAB dataset saved successfully!")
     
-def test_eeg_mne2eeeglab_epochs():
+def test_eeg_mne2eeg_epochs():
     sample_data_folder = mne.datasets.sample.data_path()
     sample_data_raw_file = (
         sample_data_folder / "MEG" / "sample" / "sample_audvis_filt-0-40_raw.fif"
@@ -181,7 +181,7 @@ def test_eeg_mne2eeeglab_epochs():
     ica = ICA(n_components=15, random_state=97, max_iter=800)
     ica.fit(raw)
     
-    EEG = eeg_mne2eeglab_epochs(epochs, ica)
+    EEG = eeg_mne2eeg_epochs(epochs, ica)
     savemat('output_file.mat', EEG) # use pop_saveset
 
-# test_eeg_mne2eeeglab_epochs()
+# test_eeg_mne2eeg_epochs()

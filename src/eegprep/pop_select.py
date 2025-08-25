@@ -69,6 +69,12 @@ def pop_select(EEG, **kwargs):
     srate   = float(_get('srate'))
     data    = _get('data')  # expected shape (nbchan, pnts, trials) if epoched; (nbchan, pnts) if continuous
 
+    # if g['channel'] is a string, convert to list
+    if isinstance(g['channel'], str):
+        g['channel'] = [g['channel']]
+    if isinstance(g['nochannel'], str):
+        g['nochannel'] = [g['nochannel']]
+
     if data is None:
         raise ValueError('EEG["data"] is required')
 
@@ -124,12 +130,20 @@ def pop_select(EEG, **kwargs):
 
         if _decode_list(g['channel']):
             inds, _ = eeg_decodechan(EEG, g['channel'], 'labels', True)
+            # show warning if not all channels are found and error if no channels are found
+            if len(inds) != len(g['channel']):
+                print(f"Warning: {len(g['channel'])-len(inds)} channels not found")
+            if len(inds) == 0:
+                raise ValueError(f"Channels not found: {g['channel']}")
             chan_selected_flag[:] = False
             chan_selected_flag[np.array(inds, dtype=int)] = True
 
         if _decode_list(g['nochannel']):
             inds, _ = eeg_decodechan(EEG, g['nochannel'], 'labels', True)
             chan_selected_flag[np.array(inds, dtype=int)] = False
+            # show warning if not all channels are found and error if no channels are found 
+            if len(inds) != len(g['nochannel']):
+                print(f"Warning: {len(g['nochannel'])-len(inds)} channels not found")
 
     else:
         # by type
@@ -486,3 +500,9 @@ def pop_select(EEG, **kwargs):
         EEG['event'] = cleaned
 
     return EEG
+
+if __name__ == '__main__':
+    from eegprep.pop_loadset import pop_loadset
+    EEG = pop_loadset('data/eeglab_data.set')
+    EEG2 = pop_select(EEG, channel=['FP1', 'FP2'])
+    print(EEG2)

@@ -1,7 +1,7 @@
 import mne
 from mne.preprocessing import ICA
 from mne_icalabel import label_components
-from eeg_mne2eeglab_epochs import eeg_mne2eeglab_epochs
+from eeg_mne2eeg_epochs import eeg_mne2eeg_epochs
 from iclabel import iclabel
 from pop_loadset import pop_loadset
 
@@ -24,7 +24,7 @@ if 1:
     # Print the labels
     for idx, label in enumerate(labels2['labels']):
         print(f"Component {idx}: {label}")
-    EEG = eeg_mne2eeglab_epochs(raw, ica)
+    EEG = eeg_mne2eeg_epochs(raw, ica)
 else:
     eeglab_data_path = '/System/Volumes/Data/data/matlab/eeglab/sample_data/eeglab_data_epochs_ica.set'
     EEG = pop_loadset(eeglab_data_path)
