@@ -5,8 +5,8 @@ Each wrapper has the same signature and simply forwards all arguments to the ori
 For example, checkset(x) calls eeg_checkset(x) and epoch(ev) calls pop_epoch(ev).
 
 Wrappers let you use names without the eeg_ or pop_ prefix while returning the same results as the 
-originals. Available wrappers: checkset, compare, decodechan, eeglab2mne, eegrej, findboundaries, 
-interp, lat2point, mne2eeglab, mne2eeglab_epochs, options, picard, point2lat, epoch, loadset,
+originals. Available wrappers: checkset, compare, decodechan, eeg2mne, eegrej, findboundaries, 
+interp, lat2point, mne2eeg, mne2eeg_epochs, options, picard, point2lat, epoch, loadset,
 reref, resample, rmbase, saveset, select.
 
 """
@@ -14,7 +14,7 @@ reref, resample, rmbase, saveset, select.
 from eegprep.eeg_checkset import eeg_checkset
 from eegprep.eeg_compare import eeg_compare
 from eegprep.eeg_decodechan import eeg_decodechan
-from eegprep.eeg_eeglab2mne import eeg_eeglab2mne
+from eegprep.eeg_eeg2mne import eeg_eeg2mne
 from eegprep.eeg_eegrej import eeg_eegrej
 from eegprep.eeg_findboundaries import eeg_findboundaries
 from eegprep.eeg_interp import eeg_interp
@@ -41,8 +41,8 @@ def compare(*args, **kwargs):
 def decodechan(*args, **kwargs):
     return eeg_decodechan(*args, **kwargs)
 
-def eeglab2mne(*args, **kwargs):
-    return eeg_eeglab2mne(*args, **kwargs)
+def eeg2mne(*args, **kwargs):
+    return eeg_eeg2mne(*args, **kwargs)
 
 def eegrej(*args, **kwargs):
     return eeg_eegrej(*args, **kwargs)
