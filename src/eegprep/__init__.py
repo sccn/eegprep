@@ -32,3 +32,10 @@ from .clean_artifacts import clean_artifacts
 from .eeg_decodechan import eeg_decodechan
 from .eegrej import eegrej
 from .eeg_eegrej import eeg_eegrej
+from .eegobj import EEGobj
+from .redefine_functions import *
+from .eeg_mne2eeg import eeg_mne2eeg
+from .eeg_mne2eeg_epochs import eeg_mne2eeg_epochs
+from .eeg_lat2point import eeg_lat2point
+from .eeg_point2lat import eeg_point2lat
+from .eeg_options import EEG_OPTIONS

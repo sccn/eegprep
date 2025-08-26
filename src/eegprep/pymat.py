@@ -231,7 +231,7 @@ def mat2py(obj):
     elif isinstance(obj, np.recarray):
         return mat2py(obj.tolist())
     # check if obj is a mat_struct object and convert it to a dictionary
-    elif isinstance(obj, scipy.io.matlab.mat_struct) or isinstance(obj, scipy.io.matlab.mio5_params.mat_struct):
+    elif isinstance(obj, scipy.io.matlab.mat_struct):
         dict_obj = {}
         for field_name in obj._fieldnames:
             if field_name in ['tracking']:
@@ -247,13 +247,13 @@ def mat2py(obj):
         dict_obj = {}
         for attr_name in dir(obj):
             # Skip private/magic attributes and methods
-            if not attr_name.startswith('_') and not callable(getattr(obj, attr_name)):
-                try:
+            try:
+                if not attr_name.startswith('_') and not callable(getattr(obj, attr_name)):
                     attr_value = getattr(obj, attr_name)
                     dict_obj[attr_name] = mat2py(attr_value)
-                except:
-                    # Skip attributes that can't be accessed
-                    continue
+            except:
+                # Skip attributes that can't be accessed or cause errors
+                continue
         return dict_obj if dict_obj else obj
     else:
         # Fallback: return the object as-is if no conversion rule applies

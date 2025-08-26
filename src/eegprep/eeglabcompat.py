@@ -49,12 +49,25 @@ class MatlabWrapper:
 
             # issue error if kwargs are passed unless it is "nargout"
             needs_roundtrip = False
-            eval_str = f"if iscell(args.args), OUT = {name}(args.args{{:}}); else, OUT = {name}(args.args); end;"
+            
+            # Special case for functions that return multiple outputs
+            if name == 'epoch':
+                eval_str = f"if iscell(args.args), [OUT1,OUT2,OUT3,OUT4,OUT5,OUT6] = {name}(args.args{{:}}); else, [OUT1,OUT2,OUT3,OUT4,OUT5,OUT6] = {name}(args.args); end; OUT = {{OUT1,OUT2,OUT3,OUT4,OUT5,OUT6}};"
+            elif name == 'spheric_spline':
+                eval_str = f"if iscell(args.args), [OUT1,OUT2,OUT3,OUT4] = {name}(args.args{{:}}); else, [OUT1,OUT2,OUT3,OUT4] = {name}(args.args); end; OUT = {{OUT1,OUT2,OUT3,OUT4}};"
+            else:
+                eval_str = f"if iscell(args.args), OUT = {name}(args.args{{:}}); else, OUT = {name}(args.args); end;"
+                
             if len(args) > 0:
                 if isinstance(args[0], dict) and args[0].get('trials') is not None:
                     needs_roundtrip = True
                     new_args = new_args[1:]
-                    eval_str = f"if iscell(args.args), OUT = {name}(EEG,args.args{{:}}); else, OUT = {name}(EEG,args.args); end;"
+                    if name == 'epoch':
+                        eval_str = f"if iscell(args.args), [OUT1,OUT2,OUT3,OUT4,OUT5,OUT6] = {name}(EEG,args.args{{:}}); else, [OUT1,OUT2,OUT3,OUT4,OUT5,OUT6] = {name}(EEG,args.args); end; OUT = {{OUT1,OUT2,OUT3,OUT4,OUT5,OUT6}};"
+                    elif name == 'spheric_spline':
+                        eval_str = f"if iscell(args.args), [OUT1,OUT2,OUT3,OUT4] = {name}(EEG,args.args{{:}}); else, [OUT1,OUT2,OUT3,OUT4] = {name}(EEG,args.args); end; OUT = {{OUT1,OUT2,OUT3,OUT4}};"
+                    else:
+                        eval_str = f"if iscell(args.args), OUT = {name}(EEG,args.args{{:}}); else, OUT = {name}(EEG,args.args); end;"
             
             # convert numerical list arguments to numpy arrays
             for i, arg in enumerate(new_args):
@@ -97,14 +110,24 @@ class MatlabWrapper:
                 self.engine.eval(eval_str, nargout=0)
                 
                 # output
-                if needs_roundtrip:
+                if needs_roundtrip or name == 'pop_loadset':
+                    # Always round-trip OUT for pop_loadset to get a proper Python EEG dict
                     self.engine.eval(f"pop_saveset(OUT, '{result_filename}');", nargout=0)
                     OUT = pop_loadset(result_filename)
                     return OUT
                 else:
                     self.engine.eval(f"save('-mat', '{result_filename}', 'OUT');", nargout=0)
                     OUT = scipy.io.loadmat(result_filename)['OUT']
-                    return OUT
+                    
+                    # Special handling for functions that return multiple outputs
+                    if name == 'epoch' and isinstance(OUT, np.ndarray) and OUT.dtype == 'object':
+                        # Convert MATLAB cell array to Python tuple
+                        return tuple(OUT.flatten())
+                    elif name == 'spheric_spline' and isinstance(OUT, np.ndarray) and OUT.dtype == 'object':
+                        # Convert MATLAB cell array to Python tuple
+                        return tuple(OUT.flatten())
+                    else:
+                        return OUT
 
             finally:
                 # delete temporary file
@@ -124,7 +147,7 @@ class MatlabWrapper:
                         #os.remove(fdt_file)
                         pass
                 except OSError as e:
-                    logger.warning(f"Error deleting temporary file {temp_filename}: {e}")
+                    logger.warning(f"Error deleting temporary file(s) in temp dir {temp_dir}: {e}")
             # else:
             #     # run it directly
             #     return getattr(self.engine, name)(*args)
@@ -154,6 +177,7 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
         # On the command line, type "octave-8.4.0" OCTAVE_EXECUTABLE or OCTAVE var
         base_dir = os.path.dirname(os.path.abspath(__file__))
         path2eeglab = os.path.join(base_dir, 'eeglab')
+        path2localmatlab = os.path.join(base_dir, 'matlab_local_tests')
         print("This is the path2eeglab: ", path2eeglab)
 
         # not yet loaded, do so now
@@ -163,17 +187,6 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
             engine.logger = get_log("new_log")
             engine.logger.setLevel(logging.WARNING)
             engine.warning('off', 'backtrace')
-            engine.addpath(path2eeglab + '/functions/guifunc')
-            engine.addpath(path2eeglab + '/functions/popfunc')
-            engine.addpath(path2eeglab + '/functions/adminfunc')
-            engine.addpath(path2eeglab + '/plugins/firfilt')
-            engine.addpath(path2eeglab + '/functions/sigprocfunc')
-            engine.addpath(path2eeglab + '/functions/miscfunc')
-            engine.addpath(path2eeglab + '/plugins/dipfit')
-            engine.addpath(path2eeglab + '/plugins/iclabel')
-            engine.addpath(path2eeglab + '/plugins/picard')
-            engine.addpath(path2eeglab + '/plugins/clean_rawdata')
-            engine.addpath(path2eeglab + '/plugins/clean_rawdata2.10')
         elif rt == 'mat':
             try:
                 import matlab.engine
@@ -188,13 +201,26 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
                     calls to the MATLAB runtime.                                  
                     """)
             engine = matlab.engine.start_matlab()
-            engine.cd(path2eeglab)
-            engine.eval('eeglab nogui;', nargout=0)
+            # engine.cd(path2eeglab)
+            # engine.eval('eeglab nogui;', nargout=0) # starting EEGLAB is too slow
         else:
             raise ValueError(f"Unsupported runtime: {runtime}. Should be 'OCT' or 'MAT'")
 
-        # path2eeglab = 'eeglab' # init >10 seconds
+        engine.addpath(path2eeglab + '/functions/guifunc')
+        engine.addpath(path2eeglab + '/functions/popfunc')
+        engine.addpath(path2eeglab + '/functions/adminfunc')
+        engine.addpath(path2eeglab + '/plugins/firfilt')
+        engine.addpath(path2eeglab + '/functions/sigprocfunc')
+        engine.addpath(path2eeglab + '/functions/miscfunc')
+        engine.addpath(path2eeglab + '/plugins/dipfit')
+        engine.addpath(path2eeglab + '/plugins/iclabel')
+        engine.addpath(path2eeglab + '/plugins/picard')
+        engine.addpath(path2eeglab + '/plugins/clean_rawdata')
+        engine.addpath(path2eeglab + '/plugins/clean_rawdata2.10')
+        engine.addpath(path2localmatlab)
         engine.cd(path2eeglab + '/plugins/clean_rawdata/private')  # to grant access to util funcs for unit testing
+        
+        # path2eeglab = 'eeglab' # init >10 seconds
         #res = eeglab.version()
         #print('Running EEGLAB commands in compatibility mode with Octave ' + res)
 
