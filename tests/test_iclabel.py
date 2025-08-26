@@ -21,3 +21,6 @@ class TestICLabelEngines(unittest.TestCase):
 
         self.assertTrue(np.allclose(res1, res2, rtol=1e-5, atol=1e-8), 
                        'ICLabel results differ beyond tolerance')
+
+if __name__ == '__main__':
+    unittest.main()    
