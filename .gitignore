@@ -1,4 +1,9 @@
+.claude
+CLAUDE.md
+data/eeglab_data.fdt
+data/eeglab_data.set
 scripts/data
+data/eeglab_data_epochs_ica.fdt
 data/eeglab_data_tmp_out_matlab.fdt
 data/icaweights_comparison.png
 data/iclabel_classifications_default.png
