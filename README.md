@@ -16,7 +16,7 @@ pip install eegprep
 
 This is the current coverage of the test cases. The goal is to achieve 90% coverage.
 
-<img width="489" height="1119" alt="Screenshot 2025-08-21 at 09 15 37" src="https://github.com/user-attachments/assets/cb958237-16bb-4f57-867b-d2cd393a42a2" />
+<img width="451" height="1353" alt="Screenshot 2025-08-24 at 09 17 53" src="https://github.com/user-attachments/assets/99ac7fa6-c467-4523-94a0-a368af5b0de6" />
 
 # Docker
 
