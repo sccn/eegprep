@@ -64,8 +64,12 @@ def bids_preproc(
         bidschanloc: bool = True,
         bidsevent: bool = False,
         bidsmetadata: bool = True,
-        outputdir: str = '{root}/derivatives/eegprep',
         eventtype: Optional[str] = None,
+        subjects: Sequence[str | int] | str | int = (),
+        sessions: Sequence[str | int] | str | int = (),
+        runs: Sequence[str | int] | str | int = (),
+        tasks: Sequence[str | int] | str | int = (),
+        outputdir: str = '{root}/derivatives/eegprep',
 
         # Overall run configuration
         SkipIfPresent: bool = True,
@@ -125,6 +129,19 @@ def bids_preproc(
     eventtype (str):
         Optionally the column name in the BIDS events file to use for event types; if not
         set, will be inferred heuristically.
+    subjects (Sequence[str | int], optional):
+        A sequence of subject identifiers or (zero-based) indices to filter the files by.
+        If empty, all subjects are included.
+    sessions (Sequence[str | int], optional):
+        A sequence of session identifiers or (zero-based) indices to filter the files by.
+        If empty, all sessions are included.
+    runs (Sequence[str | int], optional):
+        A sequence of run numbers or identifiers to filter the files by. If empty, all runs
+        are included. Note that zero-based indexing does not apply to runs, unlike
+        subjects and sessions since runs are already integers.
+    tasks (Sequence[str] | str, optional):
+        A sequence of task names or single task to filter the files by. If empty, all
+        tasks are included (default is an empty sequence).
     outputdir (str):
       The name of the subdirectory where cleaned files will be saved. This can start
       with the placeholder '{root}' which will be replaced with the root path of
@@ -538,7 +555,8 @@ def bids_preproc(
 
     elif os.path.isdir(root):
         # process all files under a BIDS root recursively
-        all_files = bids_list_eeg_files(root)
+        all_files = bids_list_eeg_files(
+            root, subjects=subjects, sessions=sessions, runs=runs, tasks=tasks)
         n_jobs = 1 if is_debug() else num_jobs_from_reservation(ReservePerJob)
         n_total = len(all_files)
         t0 = now()
