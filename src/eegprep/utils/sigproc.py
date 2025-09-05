@@ -3,7 +3,7 @@ from typing import *
 import numpy as np
 from scipy.signal import fftconvolve
 
-__all__ = ['design_kaiser', 'design_fir', 'filtfilt_fast']
+__all__ = ['design_kaiser', 'design_fir', 'filtfilt_fast', 'firwsord']
 
 
 def design_kaiser(
@@ -228,3 +228,65 @@ def moving_average(X, *, N=3, axis=-1, Z=None, inplace=False, transform=None, in
             Y[slice_at(Y, k)] = res
         Z.p = (Z.p + 1) % N
     return (X if inplace else Y), Z
+
+
+def firwsord(wintype: str, fs: float, df: float, dev: Optional[float] = None) -> Tuple[int, float]:
+    """
+    Estimate windowed sinc FIR filter order depending on window type and 
+    requested transition band width.
+    
+    Args:
+        wintype: Window type. One of 'rectangular', 'hann', 'hamming', 'blackman', or 'kaiser'
+        fs: Sampling frequency
+        df: Requested transition band width
+        dev: Maximum passband deviation/ripple (Kaiser window only)
+        
+    Returns:
+        m: Estimated filter order
+        dev: Maximum passband deviation/ripple
+        
+    References:
+        [1] Smith, S. W. (1999). The scientist and engineer's guide to
+            digital signal processing (2nd ed.). San Diego, CA: California
+            Technical Publishing.
+        [2] Proakis, J. G., & Manolakis, D. G. (1996). Digital Signal
+            Processing: Principles, Algorithms, and Applications (3rd ed.).
+            Englewood Cliffs, NJ: Prentice-Hall
+        [3] Ifeachor E. C., & Jervis B. W. (1993). Digital Signal
+            Processing: A Practical Approach. Wokingham, UK: Addison-Wesley
+            
+    Author: Andreas Widmann, University of Leipzig, 2005
+    Python port: 2024
+    
+    See also:
+        pop_firwsord, firws, invfirwsord
+    """
+    
+    win_type_array = ['rectangular', 'hann', 'hamming', 'blackman', 'kaiser']
+    win_df_array = [0.9, 3.1, 3.3, 5.5]
+    win_dev_array = [0.089, 0.0063, 0.0022, 0.0002]
+    
+    # Check arguments
+    if fs is None or df is None or wintype is None:
+        raise ValueError('Not enough input arguments.')
+    
+    # Window type
+    try:
+        wintype_idx = win_type_array.index(wintype)
+    except ValueError:
+        raise ValueError('Unknown window type.')
+    
+    df_norm = df / fs  # Normalize transition band width
+    
+    if wintype_idx == 4:  # Kaiser window (index 4 in 0-based, was 5 in 1-based MATLAB)
+        if dev is None:
+            raise ValueError('Not enough input arguments.')
+        devdb = -20 * np.log10(dev)
+        m = 1 + (devdb - 8) / (2.285 * 2 * np.pi * df_norm)
+    else:
+        m = win_df_array[wintype_idx] / df_norm
+        dev = win_dev_array[wintype_idx]
+    
+    m = int(np.ceil(m / 2) * 2)  # Make filter order even (FIR type I)
+    
+    return m, dev
