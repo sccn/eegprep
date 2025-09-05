@@ -1,7 +1,11 @@
 import os
+import logging
 from typing import List, Sequence
 from types import NoneType
 from eegprep.utils.bids import layout_for_fpath
+
+logger = logging.getLogger(__name__)
+
 
 # list of valid file extensions for raw EEG data files in BIDS format
 eeg_extensions = ('.vhdr', '.edf', '.bdf', '.set')
@@ -62,8 +66,11 @@ def bids_list_eeg_files(
                 if isinstance(v, str) and '-' in v and v.split('-')[0] in ('sub', 'ses', 'run', 'task'):
                     raise ValueError("Query values should not be formatted with 'sub-', 'ses-', "
                                      "'run-', or 'task-' prefixes. Use the raw identifiers instead.")
-            all_values = [f.entities[key] for f in eeg_files]
-            if all(isinstance(v, int) for v in all_values):
+            all_values = [f.entities.get(key, None) for f in eeg_files]
+            if all(v is None for v in all_values):
+                logger.info(f"Dataset at {root} does not contain any files with the key '{key}'; "
+                            f"ignoring the filter.")
+            elif all(isinstance(v, int) for v in all_values):
                 # the items are natively integer-indexed for this key (eg run)
                 if any(isinstance(v, str) for v in values):
                     # convert query values to integer
@@ -76,7 +83,7 @@ def bids_list_eeg_files(
                 if all(isinstance(v, int) for v in values):
                     # index the applicable values (eg subjects) with integers, alphabetically
                     uq_values = sorted(set(all_values)) 
-                    values = [uq_values[i] for i in values]             
+                    values = [uq_values[i] for i in values if i < len(uq_values)]
                 if all(isinstance(v, str) for v in values):
                     eeg_files = [f for f in eeg_files if f.entities[key] in values]
                 else:
