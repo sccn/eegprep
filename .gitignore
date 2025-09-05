@@ -16,6 +16,10 @@ temp
 *.mat
 src/eegprep.egg-info
 __pycache__
+data/*
+temp
+scripts/data
+notebooks/*.set
 *tmp_out2.*
 eeglab_data_with_ica_out.set
 eeg_autocorr_data.mat

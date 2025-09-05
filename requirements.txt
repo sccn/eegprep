@@ -6,4 +6,14 @@ oct2py>=5.5.0
 torch>=1.10.0
 numexpr>=2.0.0
 h5py>=3.3.0
+pybids>=0.4
 python-picard==0.8
+neo>=0.14.2
+pyedflib>=0.1.42
+psutil
+pynvml
+colorama
+threadpoolctl
+neo
+pyedflib
+pybids

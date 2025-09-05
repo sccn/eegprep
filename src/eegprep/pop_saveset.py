@@ -218,7 +218,11 @@ def pop_saveset(EEG, file_name):
         
     for key in eeglab_dict:
         if isinstance(eeglab_dict[key], np.ndarray) and len(eeglab_dict[key]) > 0 and isinstance(eeglab_dict[key][0], dict):
-            eeglab_dict[key] = flatten_dict(eeglab_dict[key])    
+            eeglab_dict[key] = flatten_dict(eeglab_dict[key])
+
+    if not os.path.exists(os.path.dirname(file_name)):
+        os.makedirs(os.path.dirname(file_name))
+
     # # Step 4: Save the EEGLAB dataset as a .mat file
     scipy.io.savemat(file_name, eeglab_dict, appendmat=False)
 

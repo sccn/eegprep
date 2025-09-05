@@ -156,7 +156,7 @@ def clean_channels(
             
             logger.info(f'Removing {np.sum(removed_channels)} channels and dropping signal meta-data.')
             if len(EEG['chanlocs']) == EEG['data'].shape[0]:
-                EEG['chanlocs'] = [ch for i, ch in enumerate(EEG['chanlocs']) if not removed_channels[i]]
+                EEG['chanlocs'] = np.asarray([ch for i, ch in enumerate(EEG['chanlocs']) if not removed_channels[i]])
             # pop_select() by default truncates the data to float32, so we need to do the same
             EEG['data'] = np.asarray(EEG['data'], dtype=np.float32)
             EEG['data'] = EEG['data'][~removed_channels, :]

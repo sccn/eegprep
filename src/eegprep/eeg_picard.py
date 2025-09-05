@@ -53,7 +53,7 @@ def eeg_picard(EEG, engine=None, **kwargs):
         EEG['icaweights'] = unmixing_matrix @ weighting_matrix
         # use pinv from the imported pinv
         EEG['icawinv'] = pinv(EEG['icaweights'] @ EEG['icasphere'])
-        
+
         # Calculate the inverse weights (mixing matrix) and store in EEG['icawinv']
         EEG['icaact'] = sources
 
