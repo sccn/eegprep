@@ -7,7 +7,7 @@ from mne.export import export_raw
 from .pop_saveset import pop_saveset # in development
 
 # write a funtion that converts a MNE raw object to an EEGLAB set file
-def eeg_eeglab2mne(EEG):
+def eeg_eeg2mne(EEG):
     
     # Generate a temporary file name
     with tempfile.NamedTemporaryFile(delete=False) as temp_file:
@@ -27,13 +27,13 @@ def eeg_eeglab2mne(EEG):
     
     return raw
 
-def test_eeg_eeglab2mne():
+def test_eeg_eeg2mne():
     eeglab_file_path = './eeglab_data_with_ica_tmp.set'
     eeglab_file_path = '/System/Volumes/Data/data/matlab/eeglab/sample_data/eeglab_data_epochs_ica.set'
     EEG = pop_loadset(eeglab_file_path)
-    raw = eeg_eeglab2mne(EEG)
+    raw = eeg_eeg2mne(EEG)
     
     # print the keys of the EEG dictionary
     print(raw.info)
 
-# test_eeg_eeglab2mne()
+# test_eeg_eeg2mne()

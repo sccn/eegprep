@@ -23,4 +23,4 @@ class TestICLabelEngines(unittest.TestCase):
                        'ICLabel results differ beyond tolerance')
 
 if __name__ == '__main__':
-    unittest.main()    
+    unittest.main()

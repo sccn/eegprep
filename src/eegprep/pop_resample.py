@@ -30,9 +30,10 @@ def pop_resample(EEG, freq, engine=None):
     engine : str or None
         Engine to use for implementation. Options are:
         - None: Use the default Python implementation
+        - 'poly': Use scipy's resample_poly function
         - 'matlab': Use MATLAB engine
         - 'octave': Use Octave engine
-        
+
     Returns:
     --------
     EEG : dict
@@ -48,7 +49,7 @@ def pop_resample(EEG, freq, engine=None):
     else:
         if engine is None:
             # use the resample_eeg function
-            EEG_new = resample_eeg(EEG, freq, method='octave')
+            EEG_new = resample_eeg(EEG, freq, method='poly')
             
         elif engine == 'poly':
             # use the resample_poly function
@@ -66,9 +67,10 @@ def pop_resample(EEG, freq, engine=None):
             
             if 'data' in EEG:
                 EEG_new['data'] = resample(EEG['data'].astype(np.float64), new_pnts, axis=1).astype(np.float32)
+
         else:
             raise ValueError(f"Unsupported engine: {engine}. Should be None, 'matlab', or 'octave'")
-            
+
         # Update EEG structure
         new_pnts = EEG['data'].shape[1]
         EEG_new['pnts'] = new_pnts
@@ -77,13 +79,18 @@ def pop_resample(EEG, freq, engine=None):
         # Update times if present
         if 'times' in EEG:
             EEG_new['times'] = np.linspace(EEG['times'][0], EEG['times'][-1], new_pnts)
-        
+
         # Update xmin and xmax if present
         if 'xmin' in EEG and 'xmax' in EEG:
             duration = EEG['xmax'] - EEG['xmin']
             EEG_new['xmin'] = EEG['xmin']
             EEG_new['xmax'] = EEG['xmin'] + duration
-        
+
+        # Update event/urevent latencies if present
+        ratio = EEG['pnts'] / new_pnts
+        for event in EEG['event'].tolist() + EEG['urevent'].tolist():
+            event['latency'] = int(np.clip((event['latency']-1) * ratio + 1, 1, new_pnts))
+
         return EEG_new
 
 import numpy as np
@@ -91,7 +98,11 @@ from scipy import signal
 from math import gcd, ceil, floor
 import sympy as sp
 
-def resample_eeg(EEG, freq, method='poly'):
+def resample_eeg(EEG, freq, method='poly', fc=0.9, df=0.2):
+    """Port of EEGLAB's pop_resample behavior. This currently supports only filtering
+    of continuous / gap-free data.
+    """
+    assert 0 <= fc <= 1, "Anti-aliasing filter cutoff frequency out of range"
 
     # Calculate the ratio
     ratio = freq / EEG['srate']
@@ -100,18 +111,40 @@ def resample_eeg(EEG, freq, method='poly'):
     p = int(p)
     q = int(q)
 
-    # Resample the data
+    # Prepare new data
     EEG_new = EEG.copy()
     EEG_new['data'] = np.zeros((EEG['nbchan'], int(EEG['pnts'] * p / q)))
-    
-    # scan the data and resample each channel
-    for i in range(EEG['nbchan']):
-        if method == 'poly':
-            tmp = resample_poly(EEG['data'][i, :].flatten().astype(np.float64), p, q)
-            EEG_new['data'][i, :] = tmp.astype(np.float32)
-        else:
+
+    if method == 'poly':
+        # use scipy's resample_poly() function
+        from .utils.sigproc import firwsord, firws
+        from scipy.signal.windows import kaiser
+        nyq = 1 / np.maximum(p, q)
+        fc *= nyq
+        df *= nyq
+
+        # determine filter order
+        m, _ = firwsord('kaiser', 2, df, 0.002)
+
+        # design windowed-sinc filter
+        wnd = kaiser(m + 1, beta=5)
+        b, _ = firws(m, fc, w=wnd)
+
+        nPad = int(np.ceil((m / 2) / q) * q)
+        # constant-pad the data along axis=1
+        tmpdata = np.pad(EEG['data'], ((0, 0), (nPad, nPad)), mode='edge').astype(np.float64)
+        tmpdata = resample_poly(tmpdata, p, q, axis=1, window=b).astype(np.float32)
+        nPadAfter = nPad * p // q
+        # remove the padding and write back
+        EEG_new['data'] = tmpdata[:, nPadAfter:-nPadAfter]
+    elif method == 'octave':
+        # use port from octave:
+        for i in range(EEG['nbchan']):
             tmp, h = resample_raw(EEG['data'][i, :].flatten().astype(np.float64), p, q)
             EEG_new['data'][i, :] = tmp.astype(np.float32)
+    else:
+        raise ValueError(f"Unsupported method: {method}. Should be 'poly' or 'octave', but got {method}")
+
     return EEG_new
 
 import numpy as np
