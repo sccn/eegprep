@@ -300,7 +300,7 @@ def pop_load_frombids(
                                  f"Supported formats are .edf, .bdf, .vhdr.")
             ev_lats = np.searchsorted(times, ev_all_times)  # +1 for MATLAB format compatibility (1-based index)
             ev_durs = np.array(ev_all_durs, dtype=float)
-            ev_urevts = 1 + np.arange(len(ev_all_times))
+            ev_urevts = np.arange(len(ev_all_times))
             events = np.array([
                 {
                     'duration': dur,
@@ -732,7 +732,7 @@ def pop_load_frombids(
                                     'latency': lat,
                                     'duration': dur,
                                     'type': typ,
-                                    'urevent': 0  # urevent is 1-based index
+                                    'urevent': 0
                                 })
 
                         EEG['event'] = np.array(EEG_events, dtype=object)
@@ -743,7 +743,7 @@ def pop_load_frombids(
 
                         # rewrite the urevent index since it'll have gotten scrambled
                         for i, ev in enumerate(EEG['event']):
-                            ev['urevent'] = i + 1
+                            ev['urevent'] = i
 
                         # rewrite urevent itself
                         EEG['urevent'] = copy.deepcopy(EEG['event'])
