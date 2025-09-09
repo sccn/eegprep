@@ -408,10 +408,6 @@ def bids_preproc(
                     }
                     StagesToGo.remove('CleanArtifacts')
 
-                    # restore events if all were stripped somehow
-                    if not len(EEG['event']) and len(old_events):
-                        EEG['event'] = old_events
-
                     # we always save out the cleaned EEG data
                     pop_saveset(EEG, fpath_cln)
 
