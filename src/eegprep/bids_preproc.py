@@ -76,6 +76,7 @@ def bids_preproc(
         ReservePerJob: str = '',
         # Overall processing parameters
         SamplingRate: Optional[float] = None,
+        WithInterp: bool = False,
         WithPicard: bool = False,
         WithICLabel: bool = False,
         WithReport: bool = True,
@@ -162,6 +163,9 @@ def bids_preproc(
     SamplingRate (float):
         Desired sampling rate for the preprocessed data. If not specified, will retain
         the original sampling rate.
+    WithInterp (bool):
+        Whether to reinterpolate dropped channels, thus retaining the same channel
+        count as the raw data.
     WithPicard (bool):
         Whether to apply PICARD ICA decomposition after cleaning.
     WithICLabel (bool):
@@ -364,6 +368,7 @@ def bids_preproc(
                         }
 
                     old_events = EEG['event']
+                    old_chanlocs = EEG['chanlocs']
 
                     # apply processing chain
                     EEG, *_ = clean_artifacts(
@@ -407,6 +412,18 @@ def bids_preproc(
                         "Distance": Distance,
                     }
                     StagesToGo.remove('CleanArtifacts')
+
+                    # reinterpolate to original channel set if any channels were removed
+                    if WithInterp and (nDropped := (len(old_chanlocs) - len(EEG['chanlocs']))):
+                        logger.info(F"Reinterpolating {nDropped} dropped channels.")
+                        try:
+                            # note: this assumes that no non-ExG channels were dropped by
+                            # the above preproc, since those can't really be restored by
+                            # interpolation (although in the worst case they will contain
+                            # low-amplitude noise afterwards)
+                            EEG = eeg_interp(EEG, old_chanlocs)
+                        except Exception as e:
+                            logger.error(f"Could not reinterpolate dropped channels: {e}")
 
                     # we always save out the cleaned EEG data
                     pop_saveset(EEG, fpath_cln)
