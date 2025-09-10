@@ -290,6 +290,15 @@ def eeg_eegrej(EEG, regions):
             if EEG["event"][-1].get("type") == EEG["event"][-2].get("type"):
                 EEG["event"].pop()
 
+    # make sure that each newly inserted boundary event has all fields
+    extra_fields = set().union(*(ev.keys() for ev in EEG['event'])) - {"type", "latency", "duration"}
+    for ev in EEG['event']:
+        if _is_boundary_event(ev):
+            if extra_fields - set(ev.keys()):
+                for f in extra_fields:
+                    if f not in ev:
+                        ev[f] = np.array([])
+
     return EEG
 
 def _combine_regions(regs):
