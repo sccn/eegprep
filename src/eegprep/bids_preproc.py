@@ -22,8 +22,7 @@ logger = logging.getLogger(__name__)
 eeg_extensions = ('.vhdr', '.edf', '.bdf', '.set')
 
 # list of all possible processing stages
-all_stages = ['Import', 'Resample', 'CleanArtifacts', 'ICA', 'ICLabel']
-
+all_stages = ['Import', 'Resample', 'CleanArtifacts', 'ICA', 'ICLabel', 'ChannelInterp', 'Epoching']
 
 def _copy_misc_root_files(root: str, dst: str, exclude: List[str]) -> None:
     """Move miscellaneous description files from the study root to the target directory."""
@@ -60,7 +59,7 @@ def _copy_misc_root_files(root: str, dst: str, exclude: List[str]) -> None:
 def bids_preproc(
         root: str,
         *,
-        # BIDS loader parameters
+        # BIDS loader parameters  (EEGLAB parameter names were applicable)
         bidschanloc: bool = True,
         bidsevent: bool = False,
         bidsmetadata: bool = True,
@@ -102,8 +101,12 @@ def bids_preproc(
         Channels: Optional[Sequence[str]] = None,
         Channels_ignore: Optional[Sequence[str]] = None,
         availableRAM_GB: Optional[float] = None,
+        # Optional epoching stage
+        EpochEvents: Optional[Union[str, Sequence[str]]] = None,
+        EpochLimits: Sequence[float] = (-1, 2),
+        EpochBaseline: Optional[Sequence[float]] = None,
         # Derived data parameters
-        StageNames: Sequence[str] = ('desc-cleaned', 'desc-picard', 'desc-iclabel'),
+        StageNames: Sequence[str] = ('desc-cleaned', 'desc-picard', 'desc-iclabel', 'desc-epoch'),
         MinimizeDiskUsage: bool = True,
         # Reserved parameters
         _lock: Optional[multiprocessing.Lock] = contextlib.nullcontext(),
@@ -226,6 +229,18 @@ def bids_preproc(
     availableRAM_GB (float or None):
         Available system RAM in GB to adjust MaxMem. Default None.
 
+    (parameters for an optional epoching step)
+    EpochEvents (str or Sequence[str] or None):
+        Optionally a list of event types or regular expression matching event types
+        at which to time-lock epochs. If None (default), no epoching is done.
+    EpochLimits (Sequence[float]):
+        The time limits in seconds relative to the event markers for epoching. Default (-1, 2).
+    EpochBaseline (Sequence[float] or None):
+        Optionally a time range in seconds relative to the event markers for baseline
+        correction. If None (default), no baseline correction is applied. The special
+        value None can be used to refer to the respective end of the epoch limits,
+        as in (None, 0).
+
     (parameters specific to the BIDS loading routine)
     StageNames Sequence[str]:
         list of file name parts for the preprocessing stages, in the order of cleaning,ica,iclabel;
@@ -248,9 +263,9 @@ def bids_preproc(
     from eegprep import (bids_list_eeg_files, clean_artifacts, pop_load_frombids, eeg_checkset,
                          pop_saveset, eeg_picard, iclabel, pop_loadset, pop_resample, eeg_interp)
     from .utils.bids import gen_derived_fpath
-    if len(StageNames) != 3:
-        raise ValueError("StageNames, if given, must be a list of 3 strings, as in: "
-                         "['cleaned', 'picard', 'iclabel'].")
+    if len(StageNames) != 4:
+        raise ValueError("StageNames, if given, must be a list of 4 strings, as in: "
+                         "['desc-cleaned', 'desc-picard', 'desc-iclabel', 'desc-epoch'].")
     if WithICLabel and not WithPicard:
         logger.warning("WithICLabel=True implies WithPicard=True; setting WithPicard=True.")
         WithPicard = True
@@ -263,6 +278,7 @@ def bids_preproc(
         fpath_cln = gen_derived_fpath(fn, outputdir=outputdir, keyword=StageNames[0])
         fpath_picard = gen_derived_fpath(fn, outputdir=outputdir, keyword=StageNames[1])
         fpath_iclabel = gen_derived_fpath(fn, outputdir=outputdir, keyword=StageNames[2])
+        fpath_epoch = gen_derived_fpath(fn, outputdir=outputdir, keyword=StageNames[3])
         fpath_report = gen_derived_fpath(fn, outputdir=outputdir, keyword='desc-report', extension='.json')
 
         # JSON report file
@@ -277,18 +293,24 @@ def bids_preproc(
             report["Errors"] = []
 
         # stages for reporting purposes
+        needed_files = []
         StagesToGo = ['Import']
         if SamplingRate:
             StagesToGo += ['Resample']
         StagesToGo += ['CleanArtifacts']
         if WithICLabel:
-            needed_files = [fpath_cln, fpath_iclabel]
+            needed_files += [fpath_cln, fpath_iclabel]
             StagesToGo += ['ICA', 'ICLabel']
         elif WithPicard:
-            needed_files = [fpath_cln, fpath_picard]
+            needed_files += [fpath_cln, fpath_picard]
             StagesToGo += ['ICA']
         else:
-            needed_files = [fpath_cln]
+            needed_files += [fpath_cln]
+        if WithInterp:
+            StagesToGo += ['ChannelInterp']
+        if EpochEvents:
+            needed_files += [fpath_epoch]
+            StagesToGo += ['Epoching']
         SkippedStages = [s for s in all_stages if s not in StagesToGo]
 
         if SkipIfPresent and all(os.path.exists(fn) for fn in needed_files):
@@ -371,62 +393,54 @@ def bids_preproc(
                     old_chanlocs = EEG['chanlocs']
 
                     # apply processing chain
-                    EEG, *_ = clean_artifacts(
-                        EEG,
-                        ChannelCriterion=ChannelCriterion,
-                        LineNoiseCriterion=LineNoiseCriterion,
-                        BurstCriterion=BurstCriterion,
-                        WindowCriterion=WindowCriterion,
-                        Highpass=Highpass,
-                        ChannelCriterionMaxBadTime=ChannelCriterionMaxBadTime,
-                        BurstCriterionRefMaxBadChns=BurstCriterionRefMaxBadChns,
-                        BurstCriterionRefTolerances=BurstCriterionRefTolerances,
-                        BurstRejection=BurstRejection,
-                        WindowCriterionTolerances=WindowCriterionTolerances,
-                        FlatlineCriterion=FlatlineCriterion,
-                        NumSamples=NumSamples,
-                        NoLocsChannelCriterion=NoLocsChannelCriterion,
-                        NoLocsChannelCriterionExcluded=NoLocsChannelCriterionExcluded,
-                        MaxMem=MaxMem,
-                        Distance=Distance,
-                        Channels=Channels,
-                        Channels_ignore=Channels_ignore,
-                        availableRAM_GB=availableRAM_GB)
-                    report["CleanArtifacts"] = {
-                        "Applied": True,
-                        "ChannelCriterion": ChannelCriterion,
-                        "LineNoiseCriterion": LineNoiseCriterion,
-                        "BurstCriterion": BurstCriterion,
-                        "WindowCriterion": WindowCriterion,
-                        "Highpass": Highpass,
-                        "ChannelCriterionMaxBadTime": ChannelCriterionMaxBadTime,
-                        "BurstCriterionRefMaxBadChns": BurstCriterionRefMaxBadChns,
-                        "BurstCriterionRefTolerances": BurstCriterionRefTolerances,
-                        "BurstRejection": BurstRejection,
-                        "WindowCriterionTolerances": WindowCriterionTolerances,
-                        "FlatlineCriterion": FlatlineCriterion,
-                        "NumSamples": NumSamples,
-                        "NoLocsChannelCriterion": NoLocsChannelCriterion,
-                        "NoLocsChannelCriterionExcluded": NoLocsChannelCriterionExcluded,
-                        "MaxMem": MaxMem,
-                        "Distance": Distance,
-                    }
-                    StagesToGo.remove('CleanArtifacts')
+                    if os.path.exists(fpath_cln) and SkipIfPresent:
+                        logger.info(f"Found {fpath_cln}, skipping cleaning stage.")
+                        EEG = pop_loadset(fpath_cln)
+                    else:
+                        EEG, *_ = clean_artifacts(
+                            EEG,
+                            ChannelCriterion=ChannelCriterion,
+                            LineNoiseCriterion=LineNoiseCriterion,
+                            BurstCriterion=BurstCriterion,
+                            WindowCriterion=WindowCriterion,
+                            Highpass=Highpass,
+                            ChannelCriterionMaxBadTime=ChannelCriterionMaxBadTime,
+                            BurstCriterionRefMaxBadChns=BurstCriterionRefMaxBadChns,
+                            BurstCriterionRefTolerances=BurstCriterionRefTolerances,
+                            BurstRejection=BurstRejection,
+                            WindowCriterionTolerances=WindowCriterionTolerances,
+                            FlatlineCriterion=FlatlineCriterion,
+                            NumSamples=NumSamples,
+                            NoLocsChannelCriterion=NoLocsChannelCriterion,
+                            NoLocsChannelCriterionExcluded=NoLocsChannelCriterionExcluded,
+                            MaxMem=MaxMem,
+                            Distance=Distance,
+                            Channels=Channels,
+                            Channels_ignore=Channels_ignore,
+                            availableRAM_GB=availableRAM_GB)
+                        report["CleanArtifacts"] = {
+                            "Applied": True,
+                            "ChannelCriterion": ChannelCriterion,
+                            "LineNoiseCriterion": LineNoiseCriterion,
+                            "BurstCriterion": BurstCriterion,
+                            "WindowCriterion": WindowCriterion,
+                            "Highpass": Highpass,
+                            "ChannelCriterionMaxBadTime": ChannelCriterionMaxBadTime,
+                            "BurstCriterionRefMaxBadChns": BurstCriterionRefMaxBadChns,
+                            "BurstCriterionRefTolerances": BurstCriterionRefTolerances,
+                            "BurstRejection": BurstRejection,
+                            "WindowCriterionTolerances": WindowCriterionTolerances,
+                            "FlatlineCriterion": FlatlineCriterion,
+                            "NumSamples": NumSamples,
+                            "NoLocsChannelCriterion": NoLocsChannelCriterion,
+                            "NoLocsChannelCriterionExcluded": NoLocsChannelCriterionExcluded,
+                            "MaxMem": MaxMem,
+                            "Distance": Distance,
+                        }
+                        StagesToGo.remove('CleanArtifacts')
 
-                    # reinterpolate to original channel set if any channels were removed
-                    if WithInterp and (nDropped := (len(old_chanlocs) - len(EEG['chanlocs']))):
-                        logger.info(F"Reinterpolating {nDropped} dropped channels.")
-                        try:
-                            # note: this assumes that no non-ExG channels were dropped by
-                            # the above preproc, since those can't really be restored by
-                            # interpolation (although in the worst case they will contain
-                            # low-amplitude noise afterwards)
-                            EEG = eeg_interp(EEG, old_chanlocs)
-                        except Exception as e:
-                            logger.error(f"Could not reinterpolate dropped channels: {e}")
-
-                    # we always save out the cleaned EEG data
-                    pop_saveset(EEG, fpath_cln)
+                        # we always save out the cleaned EEG data
+                        pop_saveset(EEG, fpath_cln)
 
                     # TODO: possibly write SoftwareFilters into _eeg.json
 
@@ -515,7 +529,7 @@ def bids_preproc(
                 if WithICLabel:
                     if os.path.exists(fpath_iclabel) and SkipIfPresent:
                         logger.info(f"Found {fpath_iclabel}, skipping ICLabel stage.")
-                        # we'd only load if we had more processing to do downstream
+                        EEG = pop_loadset(fpath_iclabel)
                     else:
                         EEG = iclabel(EEG)
                         pop_saveset(EEG, fpath_iclabel)
@@ -525,6 +539,54 @@ def bids_preproc(
                         StagesToGo.remove('ICLabel')
                 else:
                     report["ICLabel"] = {
+                        "Applied": False,
+                    }
+
+                # reinterpolate to original channel set if any channels were removed
+                if WithInterp and (nDropped := (len(old_chanlocs) - len(EEG['chanlocs']))):
+                    logger.info(F"Reinterpolating {nDropped} dropped channels.")
+                    try:
+                        # note: this assumes that no non-ExG channels were dropped by
+                        # the above preproc, since those can't really be restored by
+                        # interpolation (although in the worst case they will contain
+                        # low-amplitude noise afterwards)
+                        EEG = eeg_interp(EEG, old_chanlocs)
+                        report["ChannelInterp"] = {
+                            "Applied": True,
+                            "NumInterpolated": nDropped
+                        }
+                        StagesToGo.remove('ChannelInterp')
+                    except Exception as e:
+                        logger.error(f"Could not reinterpolate dropped channels: {e}")
+                else:
+                    report["ChannelInterp"] = {
+                        "Applied": False,
+                    }
+
+                if EpochEvents:
+                    from . import pop_epoch
+                    assert len(EpochLimits) == 2, "EpochLimits must be a tuple of (min, max) times in seconds."
+                    EEG, *_ = pop_epoch(EEG, types=EpochEvents, lim=EpochLimits, timeunit='seconds')
+                    if EpochBaseline is not None:
+                        from . import pop_rmbase
+                        assert len(EpochBaseline) == 2, "EpochBaseline must be a tuple of (min, max) times in seconds or None."
+                        if EpochBaseline[0] is None:
+                            EpochBaseline = (EpochLimits[0], EpochBaseline[1])
+                        if EpochBaseline[1] is None:
+                            EpochBaseline = (EpochBaseline[0], EpochLimits[1])
+                        EEG = pop_rmbase(EEG, timerange=[EpochBaseline[0]*1000, EpochBaseline[1]*1000])
+
+                    pop_saveset(EEG, fpath_epoch)
+
+                    report["Epoching"] = {
+                        "Applied": True,
+                        "TimeLimits": EpochLimits,
+                        "EventTypes": EpochEvents,
+                        "Baseline": EpochBaseline
+                    }
+                    StagesToGo.remove('Epoching')
+                else:
+                    report["Epoching"] = {
                         "Applied": False,
                     }
 
