@@ -444,63 +444,6 @@ def bids_preproc(
 
                     # TODO: possibly write SoftwareFilters into _eeg.json
 
-                    # rewrite the events file
-                    if len(EEG['event']):
-                        fpath_events = gen_derived_fpath(fn, outputdir=outputdir,
-                                                         suffix='events', extension='.tsv')
-                        have_hed_column = EEG['etc'].get('event_column', None) == 'HED'
-                        columns = ['onset', 'duration', 'trial_type'] + (['HED'] if have_hed_column else [])
-                        with open(fpath_events, 'w') as fp:
-                            print('\t'.join(columns), file=fp)
-                            times, srate = EEG['times'], EEG['srate']
-                            for e in EEG['event']:
-                                ev_type = e['type']
-                                try:
-                                    ev_time = times[e['latency']]/1000.0  # in ms
-                                except IndexError:
-                                    logger.error(f'out-of-bounds event {ev_type} at lat {e["latency"]}; ignoring')
-                                    continue
-                                ev_dur = e.get('duration', 0.0)/srate
-                                if np.isnan(ev_dur):
-                                    ev_dur = 0.0
-                                row = [
-                                    ev_time,
-                                    ev_dur,
-                                    ev_type
-                                ] + ([ev_type] if have_hed_column else [])
-                                print('\t'.join(str(r) for r in row), file=fp)
-
-                    # rewrite the channels file
-                    fpath_channels = gen_derived_fpath(fn, outputdir=outputdir,
-                                                       suffix='channels', extension='.tsv')
-                    with open(fpath_channels, 'w') as fp:
-                        print('name\ttype\tunits', file=fp)
-                        for ch in EEG['chanlocs']:
-                            ch_type = ch.get('type', 'EEG')
-                            ch_unit = 'uV' if ch_type == 'EEG' else 'n/a'
-                            print(f"{ch['labels']}\t{ch_type}\t{ch_unit}", file=fp)
-
-                    # rewrite the electrodes file
-                    fpath_elecs = gen_derived_fpath(fn, outputdir=outputdir,
-                                                    suffix='electrodes', extension='.tsv')
-                    with open(fpath_elecs, 'w') as fp:
-                        print('name\tx\ty\tz', file=fp)
-                        for ch in EEG['chanlocs']:
-                            if chanloc_has_coords(ch):
-                                print(f"{ch['labels']}\t{ch['X']}\t{ch['Y']}\t{ch['Z']}", file=fp)
-
-                    # rewrite/update the coordsystem file
-                    fpath_coordsystem = gen_derived_fpath(fn, outputdir=outputdir,
-                                                          suffix='coordsystem', extension='.json')
-                    coordsystem = EEG['etc'].get('BIDSCoordsystem', {})
-                    coordsystem.update({
-                        "EEGCoordinateSystem": "EEGLAB",
-                        "EEGCoordinateUnits": "mm",
-                        "EEGCoordinateSystemDescription": "ALS | +x is front, +y is left, +z is up",
-                    })
-                    with open(fpath_coordsystem, 'w') as fp:
-                        json.dump(coordsystem, fp, indent=4)
-
                 if WithICLabel and os.path.exists(fpath_iclabel) and SkipIfPresent and MinimizeDiskUsage:
                     # in this case we have all the necessary data already and we won't try to
                     # recompute PICARD
@@ -589,6 +532,63 @@ def bids_preproc(
                     report["Epoching"] = {
                         "Applied": False,
                     }
+
+                # rewrite the events file
+                if len(EEG['event']):
+                    fpath_events = gen_derived_fpath(fn, outputdir=outputdir,
+                                                     suffix='events', extension='.tsv')
+                    have_hed_column = EEG['etc'].get('event_column', None) == 'HED'
+                    columns = ['onset', 'duration', 'trial_type'] + (['HED'] if have_hed_column else [])
+                    with open(fpath_events, 'w') as fp:
+                        print('\t'.join(columns), file=fp)
+                        times, srate = EEG['times'], EEG['srate']
+                        for e in EEG['event']:
+                            ev_type = e['type']
+                            try:
+                                ev_time = times[e['latency']]/1000.0  # in ms
+                            except IndexError:
+                                logger.error(f'out-of-bounds event {ev_type} at lat {e["latency"]}; ignoring')
+                                continue
+                            ev_dur = e.get('duration', 0.0)/srate
+                            if np.isnan(ev_dur):
+                                ev_dur = 0.0
+                            row = [
+                                ev_time,
+                                ev_dur,
+                                ev_type
+                            ] + ([ev_type] if have_hed_column else [])
+                            print('\t'.join(str(r) for r in row), file=fp)
+
+                # rewrite the channels file
+                fpath_channels = gen_derived_fpath(fn, outputdir=outputdir,
+                                                   suffix='channels', extension='.tsv')
+                with open(fpath_channels, 'w') as fp:
+                    print('name\ttype\tunits', file=fp)
+                    for ch in EEG['chanlocs']:
+                        ch_type = ch.get('type', 'EEG')
+                        ch_unit = 'uV' if ch_type == 'EEG' else 'n/a'
+                        print(f"{ch['labels']}\t{ch_type}\t{ch_unit}", file=fp)
+
+                # rewrite the electrodes file
+                fpath_elecs = gen_derived_fpath(fn, outputdir=outputdir,
+                                                suffix='electrodes', extension='.tsv')
+                with open(fpath_elecs, 'w') as fp:
+                    print('name\tx\ty\tz', file=fp)
+                    for ch in EEG['chanlocs']:
+                        if chanloc_has_coords(ch):
+                            print(f"{ch['labels']}\t{ch['X']}\t{ch['Y']}\t{ch['Z']}", file=fp)
+
+                # rewrite/update the coordsystem file
+                fpath_coordsystem = gen_derived_fpath(fn, outputdir=outputdir,
+                                                      suffix='coordsystem', extension='.json')
+                coordsystem = EEG['etc'].get('BIDSCoordsystem', {})
+                coordsystem.update({
+                    "EEGCoordinateSystem": "EEGLAB",
+                    "EEGCoordinateUnits": "mm",
+                    "EEGCoordinateSystemDescription": "ALS | +x is front, +y is left, +z is up",
+                })
+                with open(fpath_coordsystem, 'w') as fp:
+                    json.dump(coordsystem, fp, indent=4)
 
         except ExceptionUnlessDebug as e:
             logger.exception(f"Error processing {fn}: {e}")
