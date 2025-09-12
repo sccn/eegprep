@@ -802,5 +802,221 @@ class TestEegInterpFileOperations(unittest.TestCase):
                 self.assertEqual(g.shape, (n_points, n_elec))
                 self.assertTrue(np.all(np.isfinite(g)))
 
+class TestEegInterpChanlocs(unittest.TestCase):
+    """Test the new chanloc structure functionality in eeg_interp"""
+    
+    def setUp(self):
+        """Set up test EEG structure with known channel layout"""
+        # Create a test EEG structure with 4 channels
+        self.test_EEG = {
+            'data': np.random.randn(4, 100, 1),  # 4 channels, 100 time points, 1 trial
+            'nbchan': 4,
+            'pnts': 100,
+            'trials': 1,
+            'srate': 500,
+            'xmin': 0,
+            'xmax': 0.2,
+            'chanlocs': [
+                {'labels': 'Fp1', 'X': 0.1, 'Y': 0.8, 'Z': 0.6},
+                {'labels': 'Fp2', 'X': -0.1, 'Y': 0.8, 'Z': 0.6},
+                {'labels': 'F3', 'X': 0.4, 'Y': 0.6, 'Z': 0.7},
+                {'labels': 'F4', 'X': -0.4, 'Y': 0.6, 'Z': 0.7},
+            ]
+        }
+        
+        # Store original data for comparison
+        self.original_data = self.test_EEG['data'].copy()
+    
+    def test_chanloc_identical_returns_unchanged(self):
+        """Test Case 1: Identical chanlocs should return data unchanged"""
+        # Create identical chanlocs
+        identical_chanlocs = [ch.copy() for ch in self.test_EEG['chanlocs']]
+        
+        result = eeg_interp(self.test_EEG.copy(), identical_chanlocs)
+        
+        # Data should be identical (no interpolation needed)
+        np.testing.assert_array_equal(result['data'], self.original_data)
+        self.assertEqual(result['nbchan'], 4)
+        self.assertEqual(len(result['chanlocs']), 4)
+        self.assertEqual([ch['labels'] for ch in result['chanlocs']], 
+                        ['Fp1', 'Fp2', 'F3', 'F4'])
+    
+    def test_chanloc_no_overlap_appends_channels(self):
+        """Test Case 2: No overlap should append new channels"""
+        # Create completely new chanlocs with no overlap
+        new_chanlocs = [
+            {'labels': 'T7', 'X': 0.8, 'Y': 0.0, 'Z': 0.6},
+            {'labels': 'T8', 'X': -0.8, 'Y': 0.0, 'Z': 0.6},
+        ]
+        
+        result = eeg_interp(self.test_EEG.copy(), new_chanlocs)
+        
+        # Should have original 4 + 2 new = 6 channels
+        self.assertEqual(result['nbchan'], 6)
+        self.assertEqual(len(result['chanlocs']), 6)
+        self.assertEqual(result['data'].shape, (6, 100, 1))
+        
+        # Original data should be preserved in first 4 channels
+        np.testing.assert_array_equal(result['data'][:4, :, :], self.original_data)
+        
+        # New channels should have interpolated data (not zeros)
+        new_channel_data = result['data'][4:, :, :]
+        self.assertFalse(np.allclose(new_channel_data, 0))
+        
+        # Channel labels should be correct
+        expected_labels = ['Fp1', 'Fp2', 'F3', 'F4', 'T7', 'T8']
+        actual_labels = [ch['labels'] for ch in result['chanlocs']]
+        self.assertEqual(actual_labels, expected_labels)
+    
+    def test_chanloc_proper_subset_remaps_data(self):
+        """Test Case 3: Existing channels as proper subset should remap to new structure"""
+        # Create superset that includes existing channels plus new ones
+        superset_chanlocs = [
+            {'labels': 'Fp1', 'X': 0.1, 'Y': 0.8, 'Z': 0.6},    # existing
+            {'labels': 'C3', 'X': 0.6, 'Y': 0.0, 'Z': 0.8},     # new
+            {'labels': 'F3', 'X': 0.4, 'Y': 0.6, 'Z': 0.7},     # existing  
+            {'labels': 'C4', 'X': -0.6, 'Y': 0.0, 'Z': 0.8},    # new
+            {'labels': 'Fp2', 'X': -0.1, 'Y': 0.8, 'Z': 0.6},   # existing
+            {'labels': 'F4', 'X': -0.4, 'Y': 0.6, 'Z': 0.7},    # existing
+        ]
+        
+        result = eeg_interp(self.test_EEG.copy(), superset_chanlocs)
+        
+        # Should have 6 channels total
+        self.assertEqual(result['nbchan'], 6)
+        self.assertEqual(len(result['chanlocs']), 6)
+        self.assertEqual(result['data'].shape, (6, 100, 1))
+        
+        # Check that existing data is preserved in correct positions
+        # Fp1: original pos 0 -> new pos 0
+        np.testing.assert_array_equal(result['data'][0, :, :], self.original_data[0, :, :])
+        # F3: original pos 2 -> new pos 2  
+        np.testing.assert_array_equal(result['data'][2, :, :], self.original_data[2, :, :])
+        # Fp2: original pos 1 -> new pos 4
+        np.testing.assert_array_equal(result['data'][4, :, :], self.original_data[1, :, :])
+        # F4: original pos 3 -> new pos 5
+        np.testing.assert_array_equal(result['data'][5, :, :], self.original_data[3, :, :])
+        
+        # New channels (C3, C4) should have interpolated data
+        self.assertFalse(np.allclose(result['data'][1, :, :], 0))  # C3
+        self.assertFalse(np.allclose(result['data'][3, :, :], 0))  # C4
+        
+        # Channel labels should match the new structure
+        expected_labels = ['Fp1', 'C3', 'F3', 'C4', 'Fp2', 'F4']
+        actual_labels = [ch['labels'] for ch in result['chanlocs']]
+        self.assertEqual(actual_labels, expected_labels)
+    
+    def test_chanloc_empty_list(self):
+        """Test that empty chanloc list returns original data unchanged"""
+        result = eeg_interp(self.test_EEG.copy(), [])
+        
+        # Should return original data unchanged
+        np.testing.assert_array_equal(result['data'], self.original_data)
+        self.assertEqual(result['nbchan'], 4)
+    
+    def test_chanloc_partial_overlap_case(self):
+        """Test partial overlap case (not subset, not disjoint)"""
+        # Create chanlocs with partial overlap
+        partial_overlap_chanlocs = [
+            {'labels': 'Fp1', 'X': 0.1, 'Y': 0.8, 'Z': 0.6},    # exists
+            {'labels': 'T7', 'X': 0.8, 'Y': 0.0, 'Z': 0.6},     # new
+            {'labels': 'F3', 'X': 0.4, 'Y': 0.6, 'Z': 0.7},     # exists
+        ]
+        
+        result = eeg_interp(self.test_EEG.copy(), partial_overlap_chanlocs)
+        
+        # Should interpolate the channels that exist (Fp1=0, F3=2)
+        # Original data should be preserved, but interpolated channels should change
+        self.assertEqual(result['nbchan'], 4)  # Original structure preserved
+        self.assertEqual(result['data'].shape, (4, 100, 1))
+        
+        # Channels 0 (Fp1) and 2 (F3) should have been interpolated
+        # Check that they're different from original (interpolated)
+        with self.assertRaises(AssertionError):
+            np.testing.assert_array_equal(result['data'][0, :, :], self.original_data[0, :, :])
+        with self.assertRaises(AssertionError):
+            np.testing.assert_array_equal(result['data'][2, :, :], self.original_data[2, :, :])
+        
+        # Channels 1 (Fp2) and 3 (F4) should be preserved (not in bad_chans)
+        np.testing.assert_array_equal(result['data'][1, :, :], self.original_data[1, :, :])
+        np.testing.assert_array_equal(result['data'][3, :, :], self.original_data[3, :, :])
+    
+    def test_chanloc_coordinates_differ_but_labels_same(self):
+        """Test case where labels are same but coordinates differ - should raise error"""
+        # Same labels but different coordinates
+        different_coords_chanlocs = [
+            {'labels': 'Fp1', 'X': 0.2, 'Y': 0.9, 'Z': 0.5},  # Different coords
+            {'labels': 'Fp2', 'X': -0.2, 'Y': 0.9, 'Z': 0.5}, # Different coords
+            {'labels': 'F3', 'X': 0.5, 'Y': 0.7, 'Z': 0.6},   # Different coords
+            {'labels': 'F4', 'X': -0.5, 'Y': 0.7, 'Z': 0.6},  # Different coords
+        ]
+        
+        # Should raise ValueError for ambiguous case
+        with self.assertRaises(ValueError) as cm:
+            eeg_interp(self.test_EEG.copy(), different_coords_chanlocs)
+        
+        self.assertIn("coordinates differ", str(cm.exception))
+        self.assertIn("ambiguous", str(cm.exception))
+    
+    def test_chanloc_invalid_structure(self):
+        """Test error handling for invalid chanloc structures"""
+        # Test missing required fields
+        invalid_chanlocs = [
+            {'labels': 'T7', 'X': 0.8, 'Y': 0.0},  # Missing Z
+        ]
+        
+        # Should fall back to treating as regular channel names and fail appropriately
+        with self.assertRaises(ValueError):
+            eeg_interp(self.test_EEG.copy(), ['NonexistentChannel'])
+    
+    def test_chanloc_continuous_data(self):
+        """Test chanloc functionality with continuous (2D) data"""
+        # Create continuous data (no trial dimension)
+        continuous_EEG = self.test_EEG.copy()
+        original_continuous_data = np.random.randn(4, 100)  # 2D instead of 3D
+        continuous_EEG['data'] = original_continuous_data.copy()
+        continuous_EEG['trials'] = 1
+        
+        # Test no overlap case with continuous data
+        new_chanlocs = [
+            {'labels': 'T7', 'X': 0.8, 'Y': 0.0, 'Z': 0.6},
+        ]
+        
+        result = eeg_interp(continuous_EEG, new_chanlocs)
+        
+        # Should handle 2D data correctly
+        self.assertEqual(result['data'].shape, (5, 100))  # 4 original + 1 new
+        self.assertEqual(result['nbchan'], 5)
+        
+        # Original data should be preserved (compare with saved original)
+        np.testing.assert_array_equal(result['data'][:4, :], original_continuous_data)
+    
+    def test_chanloc_with_multiple_trials(self):
+        """Test chanloc functionality with multiple trials"""
+        # Create multi-trial data
+        multi_trial_EEG = self.test_EEG.copy()
+        multi_trial_EEG['data'] = np.random.randn(4, 100, 3)  # 3 trials
+        multi_trial_EEG['trials'] = 3
+        original_multi_data = multi_trial_EEG['data'].copy()
+        
+        # Test superset case with multi-trial data
+        superset_chanlocs = [
+            {'labels': 'Fp1', 'X': 0.1, 'Y': 0.8, 'Z': 0.6},
+            {'labels': 'Fp2', 'X': -0.1, 'Y': 0.8, 'Z': 0.6},
+            {'labels': 'F3', 'X': 0.4, 'Y': 0.6, 'Z': 0.7},
+            {'labels': 'F4', 'X': -0.4, 'Y': 0.6, 'Z': 0.7},
+            {'labels': 'C3', 'X': 0.6, 'Y': 0.0, 'Z': 0.8},
+        ]
+        
+        result = eeg_interp(multi_trial_EEG, superset_chanlocs)
+        
+        # Should handle 3D data correctly
+        self.assertEqual(result['data'].shape, (5, 100, 3))
+        self.assertEqual(result['nbchan'], 5)
+        
+        # Original data should be preserved in correct positions
+        np.testing.assert_array_equal(result['data'][:4, :, :], original_multi_data)
+
+
 if __name__ == '__main__':
     unittest.main()
