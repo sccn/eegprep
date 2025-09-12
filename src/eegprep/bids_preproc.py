@@ -346,6 +346,7 @@ def bids_preproc(
                     "threadpoolctl not installed, using default thread limits.")
                 thread_ctx = contextlib.nullcontext()
 
+            old_chanlocs = None
             with thread_ctx:
                 if os.path.exists(fpath_cln) and SkipIfPresent:
                     logger.info(f"Found {fpath_cln}, skipping clean_artifacts stage.")
@@ -486,21 +487,30 @@ def bids_preproc(
                     }
 
                 # reinterpolate to original channel set if any channels were removed
-                if WithInterp and (nDropped := (len(old_chanlocs) - len(EEG['chanlocs']))):
-                    logger.info(F"Reinterpolating {nDropped} dropped channels.")
-                    try:
+                if WithInterp:
+                    if old_chanlocs is None:
+                        # load input file to get original channel locations
+                        tmp, import_report = pop_load_frombids(
+                            fn,
+                            bidsmetadata=bidsmetadata,
+                            bidschanloc=bidschanloc,
+                            bidsevent=bidsevent,
+                            eventtype=eventtype,
+                            return_report=True)
+                        old_chanlocs = tmp['chanlocs']
+                        del tmp
+                    if nDropped := (len(old_chanlocs) - len(EEG['chanlocs'])):
+                        logger.info(F"Reinterpolating {nDropped} dropped channels.")
                         # note: this assumes that no non-ExG channels were dropped by
                         # the above preproc, since those can't really be restored by
                         # interpolation (although in the worst case they will contain
                         # low-amplitude noise afterwards)
-                        EEG = eeg_interp(EEG, old_chanlocs)
+                        EEG = eeg_interp(EEG, list(old_chanlocs))
                         report["ChannelInterp"] = {
                             "Applied": True,
                             "NumInterpolated": nDropped
                         }
                         StagesToGo.remove('ChannelInterp')
-                    except Exception as e:
-                        logger.error(f"Could not reinterpolate dropped channels: {e}")
                 else:
                     report["ChannelInterp"] = {
                         "Applied": False,
