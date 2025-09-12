@@ -15,6 +15,8 @@ from .utils.bids import layout_for_fpath
 from .utils.coords import chanloc_has_coords
 from .utils.git import get_git_commit_id
 
+# whether pop_rmbase accepts the time range in ms (change if needed)
+pop_rmbase_in_ms = False
 
 logger = logging.getLogger(__name__)
 
@@ -232,7 +234,9 @@ def bids_preproc(
     (parameters for an optional epoching step)
     EpochEvents (str or Sequence[str] or None):
         Optionally a list of event types or regular expression matching event types
-        at which to time-lock epochs. If None (default), no epoching is done.
+        at which to time-lock epochs. If None (default), no epoching is done. If [],
+        will time-lock to every event in the data (warning, this can amplify the data
+        if epochs overlap!)
     EpochLimits (Sequence[float]):
         The time limits in seconds relative to the event markers for epoching. Default (-1, 2).
     EpochBaseline (Sequence[float] or None):
@@ -308,7 +312,7 @@ def bids_preproc(
             needed_files += [fpath_cln]
         if WithInterp:
             StagesToGo += ['ChannelInterp']
-        if EpochEvents:
+        if EpochEvents is not None:
             needed_files += [fpath_epoch]
             StagesToGo += ['Epoching']
         SkippedStages = [s for s in all_stages if s not in StagesToGo]
@@ -516,18 +520,22 @@ def bids_preproc(
                         "Applied": False,
                     }
 
-                if EpochEvents:
+                if EpochEvents is not None:
                     from . import pop_epoch
                     assert len(EpochLimits) == 2, "EpochLimits must be a tuple of (min, max) times in seconds."
-                    EEG, *_ = pop_epoch(EEG, types=EpochEvents, lim=EpochLimits, timeunit='seconds')
+                    EEG, *_ = pop_epoch(EEG, types=EpochEvents, lim=EpochLimits)
                     if EpochBaseline is not None:
                         from . import pop_rmbase
                         assert len(EpochBaseline) == 2, "EpochBaseline must be a tuple of (min, max) times in seconds or None."
                         if EpochBaseline[0] is None:
-                            EpochBaseline = (EpochLimits[0], EpochBaseline[1])
+                            EpochBaseline = (EEG['times'][0], EpochBaseline[1])
                         if EpochBaseline[1] is None:
-                            EpochBaseline = (EpochBaseline[0], EpochLimits[1])
-                        EEG = pop_rmbase(EEG, timerange=[EpochBaseline[0]*1000, EpochBaseline[1]*1000])
+                            EpochBaseline = (EEG['times'][-1], EpochLimits[1])
+                        if pop_rmbase_in_ms:
+                            timerange = [EpochBaseline[0] * 1000, EpochBaseline[1] * 1000]
+                        else:
+                            timerange = EpochBaseline
+                        EEG = pop_rmbase(EEG, timerange=timerange)
 
                     pop_saveset(EEG, fpath_epoch)
 
