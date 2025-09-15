@@ -197,7 +197,7 @@ def pop_epoch(EEG, types=None, lim=None, **kwargs):
     EEG_out['xmin'] = tmptime[0]
     EEG_out['xmax'] = tmptime[1]
     EEG_out['pnts'] = epochdat.shape[1]
-    EEG_out['times'] = np.linspace(tmptime[0], tmptime[1], epochdat.shape[1])
+    EEG_out['times'] = np.linspace(tmptime[0]*1000, tmptime[1]*1000, epochdat.shape[1])
     EEG_out['trials'] = epochdat.shape[2]
     EEG_out['icaact'] = []  # Clear ICA activations
     
