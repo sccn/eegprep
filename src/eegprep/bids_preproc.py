@@ -16,7 +16,7 @@ from .utils.coords import chanloc_has_coords
 from .utils.git import get_git_commit_id
 
 # whether pop_rmbase accepts the time range in ms (change if needed)
-pop_rmbase_in_ms = False
+pop_rmbase_in_ms = True
 
 logger = logging.getLogger(__name__)
 
