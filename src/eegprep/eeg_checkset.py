@@ -42,6 +42,11 @@ def eeg_checkset(EEG, load_data=True):
     if 'data' in EEG and isinstance(EEG['data'], str) and load_data:
         # get path from file_path
         file_name = EEG['filepath'] + os.sep + EEG['data']
+        if not os.path.exists(file_name):
+            # try to use the sane name as the filename but with .fdt extension
+            file_name = EEG['filepath'] + os.sep + EEG['filename'].replace('.set', '.fdt')
+            if not os.path.exists(file_name):
+                raise FileNotFoundError(f"Data file {file_name} not found")
         EEG['data'] = np.fromfile(file_name, dtype='float32').reshape( EEG['pnts']*EEG['trials'], EEG['nbchan'])
         EEG['data'] = EEG['data'].T.reshape(EEG['nbchan'], EEG['trials'], EEG['pnts']).transpose(0, 2, 1)
 
