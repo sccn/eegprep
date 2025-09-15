@@ -49,8 +49,8 @@ class TestBidsPreprocSlow(DebuggableTestCase):
         for p in all_paths:
             bids_preproc(
                 os.path.join(self.root_path, p),
-                # process just the first 2 subjects/sessions, across all runs/tasks
-                subjects=[0,1], sessions=[0,1],
+                # process just the first few subjects/sessions/runs, across all tasks
+                subjects=[0,1], sessions=[0,1], runs=[0,1,2],
                 SkipIfPresent=True, # <- for quicker re-runs
                 # maximal settings enabled to test everything that could go wrong
                 # (except ICA/IClabel, which are too slow for a test)
