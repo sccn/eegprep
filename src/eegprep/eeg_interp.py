@@ -101,8 +101,9 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None):
         return EEG
 
     good_idx = [i for i in range(EEG['nbchan']) if i not in bad_idx]
-    empty_idx = [i for i in range(EEG['nbchan']) if np.isnan(locs[i]['X'])]
-    good_idx = [i for i in good_idx if not np.isnan(locs[i]['X'])]
+    empty_idx = [i for i in range(EEG['nbchan']) if ((0 in locs[i]['X'].shape) or np.isnan(locs[i]['X']))]
+    good_idx = [i for i in good_idx if i not in empty_idx]
+    bad_idx = [i for i in good_idx if i not in empty_idx]
 
     # drop bad channels
     # data = EEG['data'].copy()
@@ -112,6 +113,7 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None):
 
     # extract Cartesian positions and normalize to unit sphere
     def _norm(ch_ids):
+
         xyz = np.vstack([ [locs[i][c] for i in ch_ids] for c in ('X','Y','Z') ])
         rad = np.linalg.norm(xyz, axis=0)
         return xyz / rad
