@@ -289,7 +289,13 @@ def bids_preproc(
         if os.path.exists(fpath_report):
             logger.info(f"Found existing report file: {fpath_report}; extending.")
             with open(fpath_report, 'r') as f:
-                report = json.load(f)
+                try:
+                    report = json.load(f)
+                except json.JSONDecodeError as e:
+                    logger.warning(f"Failed to parse existing report file {fpath_report}, overwriting.")
+                    report = {
+                        "Errors": [f"Failed to parse existing report file: {e}. Prior report was overridden/regenerated."],
+                    }
         else:
             report = {}
         report["LastUpdated"] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
@@ -523,28 +529,47 @@ def bids_preproc(
                 if EpochEvents is not None:
                     from . import pop_epoch
                     assert len(EpochLimits) == 2, "EpochLimits must be a tuple of (min, max) times in seconds."
-                    EEG, *_ = pop_epoch(EEG, types=EpochEvents, lim=EpochLimits)
-                    if EpochBaseline is not None:
-                        from . import pop_rmbase
-                        assert len(EpochBaseline) == 2, "EpochBaseline must be a tuple of (min, max) times in seconds or None."
-                        if EpochBaseline[0] is None:
-                            EpochBaseline = (EEG['times'][0], EpochBaseline[1])
-                        if EpochBaseline[1] is None:
-                            EpochBaseline = (EEG['times'][-1], EpochLimits[1])
-                        if pop_rmbase_in_ms:
-                            timerange = [EpochBaseline[0] * 1000, EpochBaseline[1] * 1000]
+
+                    if EpochEvents == []:
+                        # check if there are no meaningful events in the data
+                        if len(EEG['event']) == 0 or all([e['type'] == 'boundary' for e in EEG['event']]):
+                            logger.info("Data has no (non-boundary) events, nothing to epoch")
+                            report["Epoching"] = {
+                                "Applied": False,
+                                "Reason": "No (non-boundary) events in data"
+                            }
                         else:
-                            timerange = EpochBaseline
-                        EEG = pop_rmbase(EEG, timerange=timerange)
+                            try:
+                                EEG, *_ = pop_epoch(EEG, types=EpochEvents, lim=EpochLimits)
+                                if EpochBaseline is not None:
+                                    from . import pop_rmbase
+                                    assert len(EpochBaseline) == 2, "EpochBaseline must be a tuple of (min, max) times in seconds or None."
+                                    timerange = EpochBaseline
+                                    if timerange[0] is None:
+                                        timerange = (EEG['times'][0] / 1000, timerange[1])
+                                    if timerange[1] is None:
+                                        timerange = (timerange[0], EEG['times'][-1] / 1000)
+                                    if pop_rmbase_in_ms:
+                                        timerange = [timerange[0] * 1000, timerange[1] * 1000]
+                                    EEG = pop_rmbase(EEG, timerange=timerange)
 
-                    pop_saveset(EEG, fpath_epoch)
+                                pop_saveset(EEG, fpath_epoch)
 
-                    report["Epoching"] = {
-                        "Applied": True,
-                        "TimeLimits": EpochLimits,
-                        "EventTypes": EpochEvents,
-                        "Baseline": EpochBaseline
-                    }
+                                report["Epoching"] = {
+                                    "Applied": True,
+                                    "TimeLimits": EpochLimits,
+                                    "EventTypes": EpochEvents,
+                                    "Baseline": EpochBaseline
+                                }
+                            except ValueError as e:
+                                if 'is empty' in str(e) or 'of an empty dataset' in str(e):
+                                    report["Epoching"] = {
+                                        "Applied": False,
+                                        "Reason": "No events retained (possibly all crossing boundaries)"
+                                    }
+                                else:
+                                    raise
+
                     StagesToGo.remove('Epoching')
                 else:
                     report["Epoching"] = {
