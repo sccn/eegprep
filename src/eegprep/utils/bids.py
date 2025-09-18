@@ -122,6 +122,7 @@ def layout_get_lenient(
         *,
         return_type: str = 'filename',
         tolerate_missing: Sequence[str] = ('task', 'run'),
+        expect_one: bool = False,
         **filters,
 ) -> list:
     """Wrapper for layout.get() that tolerates specific missing entities, in the
@@ -135,16 +136,35 @@ def layout_get_lenient(
         tolerate_missing: Sequence of entity names that can be missing in the query.
           The method will progressively strip these entities from the query until
           a match is found or there are no more candidates to strip.
+        expect_one: If True, expect exactly one result; if multiple are found,
+          this will try to winnow the list down using a few heuristics but when those
+          fail, it will still return all results.
 
     Returns:
         List of return values matching the query.
     """
+    result = []
     query_entities = filters.copy()
     for candidate in (None,) + tuple(tolerate_missing):
         if candidate is not None and candidate in query_entities:
             del query_entities[candidate]
         results = layout.get(**query_entities, return_type=return_type)
         if results:
-            return results
-    # If we reach here, no results were found
-    return []
+            break
+    if expect_one and len(results) > 1:
+        if 'run' in query_entities:
+            # filter the entities to those that match the run exactly
+            # (this helps disambiguate 001 vs 1 etc)
+            # rule: try to use the run as a verbatim string to disambiguate 001 vs 1 etc
+            run = str(query_entities['run'])
+            if return_type == 'filename':
+                alt_results = [r for r in results if f"_run-{run}_" in r or r.endswith(f"_run-{run}")]
+            elif return_type == 'object':
+                alt_results = [r for r in results if str(r.entities.get('run')) == run]
+            else:
+                # don't try to filter
+                alt_results = results
+            if len(alt_results) == 1:
+                return alt_results
+
+    return results or []

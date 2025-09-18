@@ -9,7 +9,7 @@ from typing import Union, Tuple, Optional, Sequence, List, Dict, Any
 
 import numpy as np
 
-from . import eeg_checkset
+from . import eeg_checkset, eeg_compare
 from .utils import ExceptionUnlessDebug, num_jobs_from_reservation, is_debug, \
     humanize_seconds, num_cpus_from_reservation, ToolError
 from .utils.bids import layout_for_fpath
