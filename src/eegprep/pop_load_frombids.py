@@ -430,7 +430,8 @@ def pop_load_frombids(
             layout,
             **query_entities,
             return_type='object',
-            tolerate_missing=('task', 'run')
+            tolerate_missing=('task', 'run'),
+            expect_one=True,
         )
         if len(channel_file_list) > 1:
             warning(f"Found multiple BIDS channel files for {filename}: "
@@ -494,32 +495,36 @@ def pop_load_frombids(
             **query_entities,
             return_type='object',
             tolerate_missing=('task', 'run'),
+            expect_one=True,
         )
         if len(elec_file_list) > 1:
             warning(f"Found multiple BIDS electrode files for {filename}: "
                     f"{', '.join([fo.filename for fo in elec_file_list])}. "
                     f"Using the first one only.")
-        for fo in elec_file_list:
+            elec_file_list = elec_file_list[:1]
+        for elec_fo in elec_file_list:
             import pandas as pd
             if verbose:
                 logger.info(f"  applying BIDS electrode locations from {fo.filename}...")
-            report['ElectrodesFrom'] = os.path.relpath(fo.path, root)
+            report['ElectrodesFrom'] = os.path.relpath(elec_fo.path, root)
             # read in the file contents
-            elecs: pd.DataFrame = fo.get_df()
+            elecs: pd.DataFrame = elec_fo.get_df()
 
             # check for the presence of a coordsystem file
             query_entities = query_for_adjacent_fpath(
-                fo.path, suffix='coordsystem', extension='.json')
+                elec_fo.path, suffix='coordsystem', extension='.json')
             coordsystem_file_list = layout_get_lenient(
                 layout,
                 **query_entities,
                 return_type='object',
                 tolerate_missing=('task', 'run', 'space'),
+                expect_one=True,
             )
             if len(coordsystem_file_list) > 1:
-                warning(f"Found multiple BIDS coordsystem files for {fo.filename}: "
+                warning(f"Found multiple BIDS coordsystem files for {elec_fo.filename}: "
                         f"{', '.join([fo.filename for fo in coordsystem_file_list])}. "
                         f"Using the first one only.")
+                coordsystem_file_list = coordsystem_file_list[:1]
             if not coordsystem_file_list:
                 # if it's a .set study, then we assume ALS for the chanlocs, otherwise RAS
                 coord_system = 'ALS' if ext == '.set' else 'RAS'
