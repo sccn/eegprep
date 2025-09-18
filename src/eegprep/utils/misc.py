@@ -2,7 +2,8 @@
 import sys
 from typing import Optional
 
-__all__ = ['is_debug', 'ExceptionUnlessDebug', 'num_jobs_from_reservation', 'humanize_seconds', 'num_cpus_from_reservation']
+__all__ = ['is_debug', 'ExceptionUnlessDebug', 'num_jobs_from_reservation', 'humanize_seconds',
+           'num_cpus_from_reservation', 'ToolError']
 
 
 def is_debug() -> bool:
@@ -124,10 +125,17 @@ def humanize_seconds(sec: float) -> str:
         return f"{sec:.1f}s"
 
 
-class DummyException(Exception):
+class SkippableException(Exception):
     """A dummy exception class for use in ExceptionUnlessDebug."""
     pass
 
-# a class that defaullts to Exception, but uses DummyException if a debugger is attached
+
+class ToolError(SkippableException):
+    """An exception class to indicate an error in a third-party tool that cannot be
+    addressed in eegprep and will not stop processing in debug mode."""
+    pass
+
+
+# a class that defaults to Exception, but uses SkippableException if a debugger is attached
 # (this is useful for exceptions that should only be caught in production but not in debug mode)
-ExceptionUnlessDebug = DummyException if is_debug() else Exception
+ExceptionUnlessDebug = SkippableException if is_debug() else Exception
