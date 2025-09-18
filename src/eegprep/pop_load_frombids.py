@@ -217,7 +217,7 @@ def pop_load_frombids(
                 'Z': numeric_null,
                 'type': 'EEG',
                 'ref': numeric_null,
-                'urchan': numeric_null
+                # 'urchan': numeric_null --> not present if urchanlocs not populated
             } for lab in labels])
 
         # try to read out channel coordinates from side-channel info, if any
@@ -543,6 +543,10 @@ def pop_load_frombids(
                     coord_system = content.get('EEGCoordinateSystem', 'RAS')  # default to RAS if not specified
                     if 'EEGLAB' in coord_system.upper():
                         # as per BIDS docs, EEGLAB is the only one that's expressly not RAS
+                        coord_system = 'ALS'
+                    elif 'EEGLAB' == content.get('EEGCoordinateSystemDescription', ''):
+                        # some datasets with EEGLAB-style coordinates use this field instead
+                        # and have other systems in the EEGCoordinateSystem field (e.g., 'CTF')
                         coord_system = 'ALS'
                     else:
                         coord_system = 'RAS'
