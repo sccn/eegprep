@@ -8,7 +8,7 @@ import contextlib
 from .utils.bids import layout_for_fpath, layout_get_lenient, query_for_adjacent_fpath, \
     root_for_fpath
 from .utils.coords import *
-from .utils import ExceptionUnlessDebug
+from .utils import ExceptionUnlessDebug, ToolError
 
 import numpy as np
 
@@ -109,6 +109,7 @@ def pop_load_frombids(
         report['ImporterUsed'] = 'pop_loadset'
         Fs = EEG['srate']
     elif ext in ['.edf', '.bdf', '.vhdr']:
+        from neo import NeoReadWriteError
         if ext == '.vhdr':
             from neo.rawio.brainvisionrawio import BrainVisionRawIO as NeoIO
             report['ImporterUsed'] = 'neo.rawio.brainvisionrawio.BrainVisionRawIO'
@@ -122,7 +123,11 @@ def pop_load_frombids(
                              f"format if needed.")
         # load from NEO
         io = NeoIO(filename)
-        io.parse_header()
+        try:
+            io.parse_header()
+        except NeoReadWriteError as e:
+            classname = io.__class__.__name__
+            raise ToolError(f"Encountered error with NEO {classname} importer on {filename!r}: {e}. Skipping file.") from e
         if (nStreams := io.signal_streams_count()) > 1:
             warning(f"The raw data file {filename} appears to contain "
                     f"more than one stream; using only the first stream.")
