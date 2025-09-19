@@ -58,23 +58,30 @@ class TestBidsPreproc(DebuggableTestCase):
             self.skipTest(f"Skipping test_end2end because neither {candidates} exist in {self.root_path}")
         study_path = os.path.join(self.root_path, retain[0])
 
-        print(f"Running bids_preproc on {study_path}...")
-        EEG_py = bids_preproc(
+        print(f"Running bids_pipeline() on {study_path}...")
+        eeglab = get_eeglab('MATLAB')
+        ALLEEG_mat = eeglab.bids_pipeline(study_path)
+
+        print(f"Running bids_preproc() on {study_path}...")
+        ALLEEG_py = bids_preproc(
             study_path,
             ReservePerJob=reservation,
-            # just the first subject/session/run of the main task
-            subjects=[0,1], sessions=[0], runs=[1],
+            # just the first 2 subjects of the main task
+            subjects=[0,1], runs=[1],
             SkipIfPresent=True, # <- for quicker re-runs
             bidsevent=True,
             SamplingRate=128,
             WithInterp=True, EpochEvents=[], EpochLimits=[-0.2, 0.5], EpochBaseline=[None, 0],
+            WithPicard=True, WithICLabel=True,
             MinimizeDiskUsage=False,
             ReturnData=True)
 
-        EEG_mat = ... # still puzzling over how to get pop_importbids() to import the adta
-
         print("Comparing Python vs MATLAB results...")
-        # eeg_compare(EEG_py, EEG_mat)
+        for k in range(min(len(ALLEEG_py), len(ALLEEG_mat))):
+            EEG_py = ALLEEG_py[k]
+            EEG_mat = ALLEEG_mat[k]
+            print(f"Comparing subject #{k}: {EEG_py['setname']}...")
+            eeg_compare(EEG_py, EEG_mat)
 
     @unittest.skipIf(curhost not in slow_tests_hosts_only, f"Slow stress test skipped by default on hosts other than {slow_tests_hosts_only}")
     def test_crashability_slow(self):
