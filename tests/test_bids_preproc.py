@@ -23,6 +23,7 @@ from eegprep.utils.testing import DebuggableTestCase
 
 curhost = socket.gethostname()
 run_on_hosts = ['ck-carbon']
+reservation = '8GB' if curhost in ['ck-carbon'] else ''
 
 @unittest.skipIf(curhost not in run_on_hosts, f"Slow stress test skipped by default on hosts other than {run_on_hosts}")
 class TestBidsPreprocSlow(DebuggableTestCase):
@@ -49,6 +50,7 @@ class TestBidsPreprocSlow(DebuggableTestCase):
         for p in all_paths:
             bids_preproc(
                 os.path.join(self.root_path, p),
+                ReservePerJob=reservation,
                 # process just the first few subjects/sessions/runs, across all tasks
                 subjects=[0,1], sessions=[0,1], runs=[0,1,2],
                 SkipIfPresent=True, # <- for quicker re-runs
