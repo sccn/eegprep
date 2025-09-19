@@ -178,6 +178,7 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
         base_dir = os.path.dirname(os.path.abspath(__file__))
         path2eeglab = os.path.join(base_dir, 'eeglab')
         path2localmatlab = os.path.join(base_dir, 'matlab_local_tests')
+        scripts_dir = os.path.abspath(os.path.join(base_dir, '../../scripts'))
         print("This is the path2eeglab: ", path2eeglab)
 
         # not yet loaded, do so now
@@ -214,10 +215,12 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
         engine.addpath(path2eeglab + '/functions/miscfunc')
         engine.addpath(path2eeglab + '/plugins/dipfit')
         engine.addpath(path2eeglab + '/plugins/iclabel')
+        engine.addpath(path2eeglab + '/plugins/EEG-BIDS')
         engine.addpath(path2eeglab + '/plugins/picard')
         engine.addpath(path2eeglab + '/plugins/clean_rawdata')
         engine.addpath(path2eeglab + '/plugins/clean_rawdata2.10')
         engine.addpath(path2localmatlab)
+        engine.addpath(scripts_dir)
         engine.cd(path2eeglab + '/plugins/clean_rawdata/private')  # to grant access to util funcs for unit testing
         
         # path2eeglab = 'eeglab' # init >10 seconds
