@@ -210,6 +210,7 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
         engine.addpath(path2eeglab + '/functions/guifunc')
         engine.addpath(path2eeglab + '/functions/popfunc')
         engine.addpath(path2eeglab + '/functions/adminfunc')
+        engine.addpath(path2eeglab + '/functions/studyfunc')
         engine.addpath(path2eeglab + '/plugins/firfilt')
         engine.addpath(path2eeglab + '/functions/sigprocfunc')
         engine.addpath(path2eeglab + '/functions/miscfunc')
