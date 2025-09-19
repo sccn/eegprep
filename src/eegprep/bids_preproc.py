@@ -555,46 +555,45 @@ def bids_preproc(
                 if EpochEvents is not None:
                     from . import pop_epoch
                     assert len(EpochLimits) == 2, "EpochLimits must be a tuple of (min, max) times in seconds."
+                    events = EpochEvents
+                    if EpochEvents == [] and len(EEG['event']) == 0 or all([e['type'] == 'boundary' for e in EEG['event']]):
+                        # trying to epoch around any marker but got no events at all, or only boundary events
+                        logger.info("Data has no (non-boundary) events, nothing to epoch")
+                        report["Epoching"] = {
+                            "Applied": False,
+                            "Reason": "No (non-boundary) events in data"
+                        }
+                    else:
+                        try:
+                            EEG, *_ = pop_epoch(EEG, types=EpochEvents, lim=EpochLimits)
+                            if EpochBaseline is not None:
+                                from . import pop_rmbase
+                                assert len(EpochBaseline) == 2, "EpochBaseline must be a tuple of (min, max) times in seconds or None."
+                                timerange = EpochBaseline
+                                if timerange[0] is None:
+                                    timerange = (EEG['times'][0] / 1000, timerange[1])
+                                if timerange[1] is None:
+                                    timerange = (timerange[0], EEG['times'][-1] / 1000)
+                                if pop_rmbase_in_ms:
+                                    timerange = [timerange[0] * 1000, timerange[1] * 1000]
+                                EEG = pop_rmbase(EEG, timerange=timerange)
 
-                    if EpochEvents == []:
-                        # check if there are no meaningful events in the data
-                        if len(EEG['event']) == 0 or all([e['type'] == 'boundary' for e in EEG['event']]):
-                            logger.info("Data has no (non-boundary) events, nothing to epoch")
+                            pop_saveset(EEG, fpath_epoch)
+
                             report["Epoching"] = {
-                                "Applied": False,
-                                "Reason": "No (non-boundary) events in data"
+                                "Applied": True,
+                                "TimeLimits": EpochLimits,
+                                "EventTypes": EpochEvents,
+                                "Baseline": EpochBaseline
                             }
-                        else:
-                            try:
-                                EEG, *_ = pop_epoch(EEG, types=EpochEvents, lim=EpochLimits)
-                                if EpochBaseline is not None:
-                                    from . import pop_rmbase
-                                    assert len(EpochBaseline) == 2, "EpochBaseline must be a tuple of (min, max) times in seconds or None."
-                                    timerange = EpochBaseline
-                                    if timerange[0] is None:
-                                        timerange = (EEG['times'][0] / 1000, timerange[1])
-                                    if timerange[1] is None:
-                                        timerange = (timerange[0], EEG['times'][-1] / 1000)
-                                    if pop_rmbase_in_ms:
-                                        timerange = [timerange[0] * 1000, timerange[1] * 1000]
-                                    EEG = pop_rmbase(EEG, timerange=timerange)
-
-                                pop_saveset(EEG, fpath_epoch)
-
+                        except ValueError as e:
+                            if 'is empty' in str(e) or 'of an empty dataset' in str(e):
                                 report["Epoching"] = {
-                                    "Applied": True,
-                                    "TimeLimits": EpochLimits,
-                                    "EventTypes": EpochEvents,
-                                    "Baseline": EpochBaseline
+                                    "Applied": False,
+                                    "Reason": "No events retained (possibly all crossing boundaries)"
                                 }
-                            except ValueError as e:
-                                if 'is empty' in str(e) or 'of an empty dataset' in str(e):
-                                    report["Epoching"] = {
-                                        "Applied": False,
-                                        "Reason": "No events retained (possibly all crossing boundaries)"
-                                    }
-                                else:
-                                    raise
+                            else:
+                                raise
 
                     StagesToGo.remove('Epoching')
                 else:
@@ -762,6 +761,9 @@ def bids_preproc(
                 "DOI": orig_doi
             }
         ]
+        # note that the actual epoched data *can* be absent if there were no matching 
+        # event markers in any study file, which we can't determine at this point
+        desc['IsEpoched'] = EpochEvents is not None
         fpath_dataset_desc = gen_derived_fpath(dataset_desc_path, outputdir=outputdir, keyword='',
                                                extension='.json')
         with open(fpath_dataset_desc, 'w') as f:
