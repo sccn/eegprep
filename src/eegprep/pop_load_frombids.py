@@ -476,7 +476,8 @@ def pop_load_frombids(
                     else:
                         EEG['chanlocs'][idx]['ref'] = ref_idx
             if notfound:
-                warning(f"Channels {','.join(notfound)} from BIDS file {fo.filename} "
+                nf = [str(n) for n in notfound]
+                warning(f"Channels {','.join(nf)} from BIDS file {fo.filename} "
                        f"not found in EEG data structure; skipping.")
             if notype:
                 warning(f"Channels in BIDS file {fo.filename} do not have a 'type' "
