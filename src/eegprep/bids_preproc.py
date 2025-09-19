@@ -359,9 +359,16 @@ def bids_preproc(
 
             old_chanlocs = None
             with thread_ctx:
+                EEG = None
                 if os.path.exists(fpath_cln) and SkipIfPresent:
                     logger.info(f"Found {fpath_cln}, skipping clean_artifacts stage.")
-                    EEG = pop_loadset(fpath_cln)
+                    try:
+                        EEG = pop_loadset(fpath_cln)
+                    except OSError as e:
+                        # this can happen if a previous export was truncated eg due to
+                        # file-write error
+                        logger.error(f"Failed to load existing cleaned file {fpath_cln}: {e}. Recomputing.")
+                if EEG is not None:
                     StagesToGo.remove('Import')
                     StagesToGo.remove('CleanArtifacts')
                 else:
@@ -407,8 +414,12 @@ def bids_preproc(
                     # apply processing chain
                     if os.path.exists(fpath_cln) and SkipIfPresent:
                         logger.info(f"Found {fpath_cln}, skipping cleaning stage.")
-                        EEG = pop_loadset(fpath_cln)
-                    else:
+                        try:
+                            EEG = pop_loadset(fpath_cln)
+                            had_error = False
+                        except OSError as e:
+                            had_error = True
+                    if not had_error:
                         EEG, *_ = clean_artifacts(
                             EEG,
                             ChannelCriterion=ChannelCriterion,
