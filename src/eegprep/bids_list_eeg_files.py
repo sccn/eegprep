@@ -82,9 +82,17 @@ def bids_list_eeg_files(
             else:
                 if all(isinstance(v, int) for v in values):
                     # index the applicable values (eg subjects) with integers, alphabetically
-                    uq_values = sorted(set(all_values)) 
-                    values = [uq_values[i] for i in values if i < len(uq_values)]
-                if all(isinstance(v, str) for v in values):
+                    try:
+                        uq_values = sorted(set(all_values))
+                        values = [uq_values[i] for i in values if i < len(uq_values)]
+                        eeg_files = [f for f in eeg_files if f.entities[key] in values]
+                    except TypeError:
+                        # this should really not happen, convert everything to strings
+                        values = [str(v) for v in values]
+                        uq_values = sorted(set(all_values))
+                        values = [uq_values[i] for i in values if i < len(uq_values)]
+                        eeg_files = [f for f in eeg_files if str(f.entities[key]) in values]
+                elif all(isinstance(v, str) for v in values):
                     eeg_files = [f for f in eeg_files if f.entities[key] in values]
                 else:
                     raise ValueError(f"query values for {key} must either all be strings or all "
