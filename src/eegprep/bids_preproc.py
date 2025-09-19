@@ -5,7 +5,7 @@ import multiprocessing
 import time
 from time import time as now
 import logging
-from typing import Union, Tuple, Optional, Sequence, List
+from typing import Union, Tuple, Optional, Sequence, List, Dict, Any
 
 import numpy as np
 
@@ -76,6 +76,7 @@ def bids_preproc(
         # Overall run configuration
         SkipIfPresent: bool = True,
         ReservePerJob: str = '',
+        ReturnData: bool = False,
         # Overall processing parameters
         SamplingRate: Optional[float] = None,
         WithInterp: bool = False,
@@ -118,7 +119,7 @@ def bids_preproc(
         _n_total: int = 1,
         _n_jobs: int = 1,
         _t0: float = now(),
-) -> None:
+) -> Dict[str,Any] | List[Dict[str, Any]] | None:
     """
     Apply data cleaning to EEG files in a BIDS dataset.
 
@@ -165,6 +166,10 @@ def bids_preproc(
       - if not set, will assume a single job. Generally runs serially when in debug mode.
       It is recommended to check in a serial run how much peak RAM a single job takes,
       and then sizing this to 1CPU,<N>GB-5GB or some other margin of your choice.
+    ReturnData (bool):
+      Whether to return the final EEG data objects as a list. Note that this can use
+      quite a lot of memory for large studies and it may be better to iterate over
+      the preprocessed files in downstream analyses.
 
     SamplingRate (float):
         Desired sampling rate for the preprocessed data. If not specified, will retain
@@ -257,9 +262,8 @@ def bids_preproc(
 
     Returns:
     --------
-
-    List[str]
-        A list of file paths to EEG files in the BIDS dataset.
+        Depending on ReturnData, either a list of EEG objects (if BIDS root folder was
+        specified) or a single EEG object (if a single file was specified), otherwise None.
     """
     # get a dictionary of all arguments
     kwargs = {k: v for k, v in locals().items() if not k.startswith('_')}
@@ -326,12 +330,15 @@ def bids_preproc(
 
         if SkipIfPresent and all(os.path.exists(fn) for fn in needed_files):
             logger.info(f"*** Skipping {fn} as preprocessed file(s) already exists: {','.join(needed_files)} ***")
+            # load the final file if requested
+            EEG = pop_loadset(needed_files[-1]) if ReturnData else None
             with _lock:
                 _n_skipped.value += 1
-                return
+                return EEG
 
         try:
             # if we get here we need to process at least one stage
+            EEG = None
 
             # calc new ETA
             elapsed = now() - _t0
@@ -359,7 +366,6 @@ def bids_preproc(
 
             old_chanlocs = None
             with thread_ctx:
-                EEG = None
                 if os.path.exists(fpath_cln) and SkipIfPresent:
                     logger.info(f"Found {fpath_cln}, skipping clean_artifacts stage.")
                     try:
@@ -658,6 +664,7 @@ def bids_preproc(
                 with open(fpath_coordsystem, 'w') as fp:
                     json.dump(coordsystem, fp, indent=4)
 
+            return EEG if ReturnData else None
         except ExceptionUnlessDebug as e:
             logger.exception(f"Error processing {fn}: {e}")
             if StagesToGo:
@@ -679,7 +686,7 @@ def bids_preproc(
                 })
             with _lock:
                 _n_skipped.value += 1
-            return
+            return None
         finally:
             for st in SkippedStages:
                 if st not in report:
@@ -775,13 +782,15 @@ def bids_preproc(
 
             if n_jobs == 1:
                 # run sequentially
+                results = []
                 for k, fn in enumerate(all_files):
-                    bids_preproc(
+                    results.append(bids_preproc(
                         fn,
                         **kwargs,
                         # reserved parameters
                         _lock=lock, _n_skipped=n_skipped, _k=k, _n_total=n_total, _n_jobs=n_jobs, _t0=t0
-                    )
+                    ))
+
             else:
                 # run in parallel
                 logger.info(f"Running {n_jobs} parallel jobs to process {n_total} files...")
@@ -799,9 +808,12 @@ def bids_preproc(
                         for k, fn in enumerate(all_files)
                     ]
                     # wait for all jobs to finish
-                    for result in results:
-                        result.get()
+                    results = [result.get() for result in results]
 
             logger.info(f"Processed {n_total - n_skipped.value} files, "
                         f"skipped {n_skipped.value} files; total time: "
                         f"{humanize_seconds(now() - t0)}.")
+
+            return results if ReturnData else None
+    else:
+        raise ValueError(f"root must be a BIDS root folder or a supported EEG file type, got {root}")
