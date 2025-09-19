@@ -225,7 +225,17 @@ def pop_saveset(EEG, file_name):
         os.makedirs(os.path.dirname(file_name))
 
     # # Step 4: Save the EEGLAB dataset as a .mat file
-    scipy.io.savemat(file_name, eeglab_dict, appendmat=False)
+    try:
+        scipy.io.savemat(file_name, eeglab_dict, appendmat=False)
+    except ValueError as e:
+        if '31 characters' in str(e):
+            # try to save with long_field_names option
+            scipy.io.savemat(file_name, eeglab_dict, appendmat=False, long_field_names=True)
+        else:
+            # the file is likely partial and thus invalid -- delete
+            if os.path.exists(file_name):
+                os.remove(file_name)
+            raise
 
 def test_pop_saveset():
     from eegprep.pop_loadset import pop_loadset
