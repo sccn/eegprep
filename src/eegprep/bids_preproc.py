@@ -475,11 +475,6 @@ def bids_preproc(
 
                     # TODO: possibly write SoftwareFilters into _eeg.json
 
-                if WithICLabel and os.path.exists(fpath_iclabel) and SkipIfPresent and MinimizeDiskUsage:
-                    # in this case we have all the necessary data already and we won't try to
-                    # recompute PICARD
-                    return
-
                 if WithPicard:
                     if os.path.exists(fpath_picard) and SkipIfPresent:
                         logger.info(f"Found {fpath_picard}, skipping PICARD stage.")
