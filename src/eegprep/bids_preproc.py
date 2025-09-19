@@ -10,7 +10,8 @@ from typing import Union, Tuple, Optional, Sequence, List
 import numpy as np
 
 from . import eeg_checkset
-from .utils import ExceptionUnlessDebug, num_jobs_from_reservation, is_debug, humanize_seconds, num_cpus_from_reservation
+from .utils import ExceptionUnlessDebug, num_jobs_from_reservation, is_debug, \
+    humanize_seconds, num_cpus_from_reservation, ToolError
 from .utils.bids import layout_for_fpath
 from .utils.coords import chanloc_has_coords
 from .utils.git import get_git_commit_id
@@ -515,11 +516,23 @@ def bids_preproc(
                         # the above preproc, since those can't really be restored by
                         # interpolation (although in the worst case they will contain
                         # low-amplitude noise afterwards)
-                        EEG = eeg_interp(EEG, list(old_chanlocs))
-                        report["ChannelInterp"] = {
-                            "Applied": True,
-                            "NumInterpolated": nDropped
-                        }
+                        try:
+                            EEG = eeg_interp(EEG, list(old_chanlocs))
+                            report["ChannelInterp"] = {
+                                "Applied": True,
+                                "NumInterpolated": nDropped
+                            }
+                        except RuntimeError as e:
+                            if 'locations required' in str(e):
+                                logger.warning("Cannot reinterpolate dropped channels as original "
+                                               "channel locations are missing and could not be "
+                                               "inferred.")
+                                report["ChannelInterp"] = {
+                                    "Applied": False,
+                                    "Reason": "Original channel locations missing"
+                                }
+                            else:
+                                raise
                         StagesToGo.remove('ChannelInterp')
                 else:
                     report["ChannelInterp"] = {
