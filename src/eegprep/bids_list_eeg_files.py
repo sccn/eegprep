@@ -61,42 +61,44 @@ def bids_list_eeg_files(
     
     # apply filters
     if filters:
-        for key, values in filters.items():
-            for v in values:
+        for key, query_values in filters.items():
+            for v in query_values:
                 if isinstance(v, str) and '-' in v and v.split('-')[0] in ('sub', 'ses', 'run', 'task'):
                     raise ValueError("Query values should not be formatted with 'sub-', 'ses-', "
                                      "'run-', or 'task-' prefixes. Use the raw identifiers instead.")
-            all_values = [f.entities.get(key, None) for f in eeg_files]
-            if all(v is None for v in all_values):
+            data_values = [f.entities.get(key, None) for f in eeg_files]
+            if all(v is None for v in data_values):
+                # key is missing from entire dataset: ignore the filter
                 logger.info(f"Dataset at {root} does not contain any files with the key '{key}'; "
                             f"ignoring the filter.")
-            elif all(isinstance(v, int) for v in all_values):
-                # the items are natively integer-indexed for this key (eg run)
-                if any(isinstance(v, str) for v in values):
-                    # convert query values to integer
+            elif all(isinstance(v, int) for v in data_values):
+                # all items are integers; make sure our queries are also integers if they're not already
+                if any(isinstance(v, str) for v in query_values):
+                    # uniformize query values to integer
                     try:
-                        values = [int(v) for v in values]
+                        query_values = [int(v) for v in query_values]
                     except Exception as e:
                         raise ValueError(f"When filtering by {key}, use integers for the query ({e})")
-                eeg_files = [f for f in eeg_files if f.entities[key] in values]
+                eeg_files = [f for f in eeg_files if f.entities[key] in query_values]
             else:
-                if all(isinstance(v, int) for v in values):
+                # data values might be some sort of mix of ints, strings, or None
+                # querying those strings by index (with integers)
+                if all(isinstance(v, int) for v in query_values):
                     # index the applicable values (eg subjects) with integers, alphabetically
-                    try:
-                        uq_values = sorted(set(all_values))
-                        values = [uq_values[i] for i in values if i < len(uq_values)]
-                        eeg_files = [f for f in eeg_files if f.entities[key] in values]
-                    except TypeError:
-                        # this should really not happen, convert everything to strings
-                        values = [str(v) for v in values]
-                        uq_values = sorted(set(all_values))
-                        values = [uq_values[i] for i in values if i < len(uq_values)]
-                        eeg_files = [f for f in eeg_files if str(f.entities[key]) in values]
-                elif all(isinstance(v, str) for v in values):
-                    eeg_files = [f for f in eeg_files if f.entities[key] in values]
+                    # strip any missing candidates
+                    data_values = [dv for dv in data_values if dv is not None and dv != '']
+                    # normalize data values to strings
+                    data_values = [str(dv) for dv in data_values]
+                    # get unique values, sorted alphabetically
+                    uq_values = sorted(set(data_values))
+                    # rewrite the query values into the first k sorted unique strings
+                    query_values = [uq_values[i] for i in query_values if i < len(uq_values)]
+                if all(isinstance(v, str) for v in query_values):
+                    # all query values are strings now, can do a direct lookup
+                    eeg_files = [f for f in eeg_files if str(f.entities.get(key)) in query_values]
                 else:
                     raise ValueError(f"query values for {key} must either all be strings or all "
-                                     f"integers, but were: {values}")
+                                     f"integers, but were: {query_values}")
         # reduce to file paths
         eeg_files = [eeg_file.path for eeg_file in eeg_files]
 
