@@ -412,14 +412,16 @@ def bids_preproc(
                     old_chanlocs = EEG['chanlocs']
 
                     # apply processing chain
+                    needs_recalc = True
                     if os.path.exists(fpath_cln) and SkipIfPresent:
                         logger.info(f"Found {fpath_cln}, skipping cleaning stage.")
                         try:
                             EEG = pop_loadset(fpath_cln)
-                            had_error = False
+                            needs_recalc = False
                         except OSError as e:
-                            had_error = True
-                    if not had_error:
+                            logger.warning(f"Encountered read error trying to look up "
+                                           f"cached derivative data {fpath_cln}. Recomputing.")
+                    if needs_recalc:
                         EEG, *_ = clean_artifacts(
                             EEG,
                             ChannelCriterion=ChannelCriterion,
