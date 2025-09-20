@@ -329,7 +329,7 @@ def bids_preproc(
         SkippedStages = [s for s in all_stages if s not in StagesToGo]
 
         if SkipIfPresent and all(os.path.exists(fn) for fn in needed_files):
-            logger.info(f"*** Skipping {fn} as preprocessed file(s) already exists: {','.join(needed_files)} ***")
+            logger.info(f"*** Skipping {fn} as preprocessed file(s) already exists: {', '.join(needed_files)} ***")
             # load the final file if requested
             EEG = pop_loadset(needed_files[-1]) if ReturnData else None
             with _lock:

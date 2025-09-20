@@ -14,6 +14,8 @@ import tempfile
 import os
 import shutil
 
+from eegprep import eeg_checkset
+
 logger = logging.getLogger(__name__)
 
 # Add src to path for imports
@@ -22,7 +24,7 @@ from eegprep.clean_artifacts import clean_artifacts
 from eegprep.utils.testing import DebuggableTestCase
 
 curhost = socket.gethostname()
-slow_tests_hosts_only = [] # ['ck-carbon']
+slow_tests_hosts_only = ['ck-carbon']
 reservation = '8GB' if curhost in ['ck-carbon'] else ''
 
 
@@ -45,9 +47,10 @@ class TestBidsPreproc(DebuggableTestCase):
 
     def test_end2end(self):
         """End-to-end test vs MATLAB."""
-        from eegprep import bids_preproc
+        from eegprep import bids_preproc, pop_loadset, eeg_checkset_strict_mode
         from eegprep.eeglabcompat import get_eeglab
         from eegprep.eeg_compare import eeg_compare
+
 
         if self.root_path is None:
             self.skipTest("Skipping test_end2end on unknown host")
@@ -57,10 +60,6 @@ class TestBidsPreproc(DebuggableTestCase):
         if len(retain) == 0:
             self.skipTest(f"Skipping test_end2end because neither {candidates} exist in {self.root_path}")
         study_path = os.path.join(self.root_path, retain[0])
-
-        print(f"Running bids_pipeline() on {study_path}...")
-        eeglab = get_eeglab('MATLAB')
-        ALLEEG_mat = eeglab.bids_pipeline(study_path)
 
         print(f"Running bids_preproc() on {study_path}...")
         ALLEEG_py = bids_preproc(
@@ -75,6 +74,17 @@ class TestBidsPreproc(DebuggableTestCase):
             WithPicard=True, WithICLabel=True,
             MinimizeDiskUsage=False,
             ReturnData=True)
+
+        print(f"Running bids_pipeline() on {study_path}...")
+        eeglab = get_eeglab('MATLAB')
+        result_paths = eeglab.bids_pipeline(study_path)
+        with eeg_checkset_strict_mode(False):
+            ALLEEG_mat = [pop_loadset(p.item()) for p in result_paths.flatten()]
+        for p in result_paths.flatten():
+            p = p.item()
+            if os.path.exists(p):
+                os.remove(p)
+        print(f"ALLEEG_mat was: {ALLEEG_mat}")
 
         print("Comparing Python vs MATLAB results...")
         for k in range(min(len(ALLEEG_py), len(ALLEEG_mat))):

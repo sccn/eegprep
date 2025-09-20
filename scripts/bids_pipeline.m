@@ -1,4 +1,4 @@
-function ALLEEG = bids_pipeline(rootpath)
+function result_paths = bids_pipeline(rootpath)
 % --- this pipeline is used to run the MATLAB side of the test_bids_preproc() unit test ---
 
 if nargin < 1
@@ -8,9 +8,9 @@ if nargin < 1
 [STUDY, ALLEEG] = pop_importbids(...    
     rootpath, ...
     'subjects', {'sub-001','sub-002'}, ...
-    'runs', {'1'})
+    'runs', {'1'});
 
-
+result_paths = {};
 for idx=1:length(ALLEEG)
     EEG = ALLEEG(idx);
     orig_chanlocs = EEG.chanlocs;
@@ -36,7 +36,11 @@ for idx=1:length(ALLEEG)
     % baseline removal
     EEG = pop_rmbase(EEG, [-0.2, 0]);
 
-    ALLEEG(idx) = EEG;
+    % write back as .set
+    tmp_path = [tempname(), '.set'];
+    pop_saveset(EEG, 'filename', tmp_path);
+    result_paths{end+1} = tmp_path;
     
 end
 
+return
