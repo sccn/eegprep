@@ -219,7 +219,7 @@ def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
     if step <= 0:
         logger.warning("Window overlap >= 1, using step=1")
         step = 1
-    window_starts = np.round(np.arange(0, S - N + 1, step)).astype(int)
+    window_starts = np.round(np.arange(0, S - N, step)).astype(int)
     
     if len(window_starts) <= 1:
         raise ValueError(f'Not enough windows possible. Need length > {N}, got {S}.')
@@ -237,7 +237,7 @@ def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
         
         # Calculate RMS amplitude for each window
         rms_windows = np.sqrt(np.mean(comp_data[window_indices], axis=1))
-        
+
         # Fit a distribution to the clean part
         try:
             mu_c, sig_c, _, _ = fit_eeg_distribution(

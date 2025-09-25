@@ -101,7 +101,7 @@ def clear_chanloc(ch: Dict[str, Any], numeric_null: Any) -> None:
 
 def chanloc_has_coords(ch: Dict[str, Any]) -> bool:
     """Check if a given channel location record has valid (Cartesian) coordinates."""
-    if ch['X'] is None or ch['Y'] is None or ch['Z'] is None:
+    if ch.get('X') is None or ch.get('Y') is None or ch.get('Z') is None:
         return False
     elif isinstance(ch['X'], np.ndarray) and not len(ch['X']):
         return False

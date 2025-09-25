@@ -197,6 +197,7 @@ def pop_epoch(EEG, types=None, lim=None, **kwargs):
     EEG_out['xmin'] = tmptime[0]
     EEG_out['xmax'] = tmptime[1]
     EEG_out['pnts'] = epochdat.shape[1]
+    EEG_out['times'] = np.linspace(tmptime[0]*1000, tmptime[1]*1000, epochdat.shape[1])
     EEG_out['trials'] = epochdat.shape[2]
     EEG_out['icaact'] = []  # Clear ICA activations
     
@@ -269,7 +270,9 @@ def pop_epoch(EEG, types=None, lim=None, **kwargs):
                 
                 # Remove epochs with boundary events
                 if indexepoch:
-                    EEG_out, _ = pop_select(EEG_out, notrial=indexepoch)
+                    EEG_out = pop_select(EEG_out, notrial=indexepoch)
+                    if isinstance(EEG_out, tuple) and len(EEG_out) == 2:
+                        EEG_out, _ = EEG_out
                     # Update indices of accepted events
                     indices = [idx for idx in indices if (idx + 1) not in indexepoch]  # Convert to 1-based for comparison
     

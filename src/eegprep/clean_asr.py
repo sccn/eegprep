@@ -102,6 +102,9 @@ def clean_asr(
             if ref_section_data.size == 0 or ref_section_data.shape[1] == 0:
                 logger.warning("clean_windows returned no data. Falling back to using all data for calibration.")
                 ref_section_data = data
+            elif ref_section_data.shape[1] < 64:
+                logger.warning("clean_windows returned insufficient data. Falling back to using all data for calibration.")
+                ref_section_data = data
         except Exception as e:
             logger.error(f"An error occurred during clean_windows: {e}")
             logger.warning("Could not automatically identify clean calibration data. Falling back to using the entire data for calibration.")

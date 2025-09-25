@@ -5,16 +5,19 @@ import multiprocessing
 import time
 from time import time as now
 import logging
-from typing import Union, Tuple, Optional, Sequence, List
+from typing import Union, Tuple, Optional, Sequence, List, Dict, Any
 
 import numpy as np
 
 from . import eeg_checkset
-from .utils import ExceptionUnlessDebug, num_jobs_from_reservation, is_debug, humanize_seconds, num_cpus_from_reservation
+from .utils import ExceptionUnlessDebug, num_jobs_from_reservation, is_debug, \
+    humanize_seconds, num_cpus_from_reservation, ToolError
 from .utils.bids import layout_for_fpath
 from .utils.coords import chanloc_has_coords
 from .utils.git import get_git_commit_id
 
+# whether pop_rmbase accepts the time range in ms (change if needed)
+pop_rmbase_in_ms = True
 
 logger = logging.getLogger(__name__)
 
@@ -22,8 +25,7 @@ logger = logging.getLogger(__name__)
 eeg_extensions = ('.vhdr', '.edf', '.bdf', '.set')
 
 # list of all possible processing stages
-all_stages = ['Import', 'Resample', 'CleanArtifacts', 'ICA', 'ICLabel']
-
+all_stages = ['Import', 'Resample', 'CleanArtifacts', 'ICA', 'ICLabel', 'ChannelInterp', 'Epoching']
 
 def _copy_misc_root_files(root: str, dst: str, exclude: List[str]) -> None:
     """Move miscellaneous description files from the study root to the target directory."""
@@ -60,7 +62,7 @@ def _copy_misc_root_files(root: str, dst: str, exclude: List[str]) -> None:
 def bids_preproc(
         root: str,
         *,
-        # BIDS loader parameters
+        # BIDS loader parameters  (EEGLAB parameter names were applicable)
         bidschanloc: bool = True,
         bidsevent: bool = False,
         bidsmetadata: bool = True,
@@ -74,8 +76,10 @@ def bids_preproc(
         # Overall run configuration
         SkipIfPresent: bool = True,
         ReservePerJob: str = '',
+        ReturnData: bool = False,
         # Overall processing parameters
         SamplingRate: Optional[float] = None,
+        WithInterp: bool = False,
         WithPicard: bool = False,
         WithICLabel: bool = False,
         WithReport: bool = True,
@@ -101,8 +105,12 @@ def bids_preproc(
         Channels: Optional[Sequence[str]] = None,
         Channels_ignore: Optional[Sequence[str]] = None,
         availableRAM_GB: Optional[float] = None,
+        # Optional epoching stage
+        EpochEvents: Optional[Union[str, Sequence[str]]] = None,
+        EpochLimits: Sequence[float] = (-1, 2),
+        EpochBaseline: Optional[Sequence[float]] = None,
         # Derived data parameters
-        StageNames: Sequence[str] = ('desc-cleaned', 'desc-picard', 'desc-iclabel'),
+        StageNames: Sequence[str] = ('desc-cleaned', 'desc-picard', 'desc-iclabel', 'desc-epoch'),
         MinimizeDiskUsage: bool = True,
         # Reserved parameters
         _lock: Optional[multiprocessing.Lock] = contextlib.nullcontext(),
@@ -111,7 +119,7 @@ def bids_preproc(
         _n_total: int = 1,
         _n_jobs: int = 1,
         _t0: float = now(),
-) -> None:
+) -> Dict[str,Any] | List[Dict[str, Any]] | None:
     """
     Apply data cleaning to EEG files in a BIDS dataset.
 
@@ -158,10 +166,17 @@ def bids_preproc(
       - if not set, will assume a single job. Generally runs serially when in debug mode.
       It is recommended to check in a serial run how much peak RAM a single job takes,
       and then sizing this to 1CPU,<N>GB-5GB or some other margin of your choice.
+    ReturnData (bool):
+      Whether to return the final EEG data objects as a list. Note that this can use
+      quite a lot of memory for large studies and it may be better to iterate over
+      the preprocessed files in downstream analyses.
 
     SamplingRate (float):
         Desired sampling rate for the preprocessed data. If not specified, will retain
         the original sampling rate.
+    WithInterp (bool):
+        Whether to reinterpolate dropped channels, thus retaining the same channel
+        count as the raw data.
     WithPicard (bool):
         Whether to apply PICARD ICA decomposition after cleaning.
     WithICLabel (bool):
@@ -222,6 +237,20 @@ def bids_preproc(
     availableRAM_GB (float or None):
         Available system RAM in GB to adjust MaxMem. Default None.
 
+    (parameters for an optional epoching step)
+    EpochEvents (str or Sequence[str] or None):
+        Optionally a list of event types or regular expression matching event types
+        at which to time-lock epochs. If None (default), no epoching is done. If [],
+        will time-lock to every event in the data (warning, this can amplify the data
+        if epochs overlap!)
+    EpochLimits (Sequence[float]):
+        The time limits in seconds relative to the event markers for epoching. Default (-1, 2).
+    EpochBaseline (Sequence[float] or None):
+        Optionally a time range in seconds relative to the event markers for baseline
+        correction. If None (default), no baseline correction is applied. The special
+        value None can be used to refer to the respective end of the epoch limits,
+        as in (None, 0).
+
     (parameters specific to the BIDS loading routine)
     StageNames Sequence[str]:
         list of file name parts for the preprocessing stages, in the order of cleaning,ica,iclabel;
@@ -233,9 +262,8 @@ def bids_preproc(
 
     Returns:
     --------
-
-    List[str]
-        A list of file paths to EEG files in the BIDS dataset.
+        Depending on ReturnData, either a list of EEG objects (if BIDS root folder was
+        specified) or a single EEG object (if a single file was specified), otherwise None.
     """
     # get a dictionary of all arguments
     kwargs = {k: v for k, v in locals().items() if not k.startswith('_')}
@@ -244,9 +272,9 @@ def bids_preproc(
     from eegprep import (bids_list_eeg_files, clean_artifacts, pop_load_frombids, eeg_checkset,
                          pop_saveset, eeg_picard, iclabel, pop_loadset, pop_resample, eeg_interp)
     from .utils.bids import gen_derived_fpath
-    if len(StageNames) != 3:
-        raise ValueError("StageNames, if given, must be a list of 3 strings, as in: "
-                         "['cleaned', 'picard', 'iclabel'].")
+    if len(StageNames) != 4:
+        raise ValueError("StageNames, if given, must be a list of 4 strings, as in: "
+                         "['desc-cleaned', 'desc-picard', 'desc-iclabel', 'desc-epoch'].")
     if WithICLabel and not WithPicard:
         logger.warning("WithICLabel=True implies WithPicard=True; setting WithPicard=True.")
         WithPicard = True
@@ -259,13 +287,20 @@ def bids_preproc(
         fpath_cln = gen_derived_fpath(fn, outputdir=outputdir, keyword=StageNames[0])
         fpath_picard = gen_derived_fpath(fn, outputdir=outputdir, keyword=StageNames[1])
         fpath_iclabel = gen_derived_fpath(fn, outputdir=outputdir, keyword=StageNames[2])
+        fpath_epoch = gen_derived_fpath(fn, outputdir=outputdir, keyword=StageNames[3])
         fpath_report = gen_derived_fpath(fn, outputdir=outputdir, keyword='desc-report', extension='.json')
 
         # JSON report file
         if os.path.exists(fpath_report):
             logger.info(f"Found existing report file: {fpath_report}; extending.")
             with open(fpath_report, 'r') as f:
-                report = json.load(f)
+                try:
+                    report = json.load(f)
+                except json.JSONDecodeError as e:
+                    logger.warning(f"Failed to parse existing report file {fpath_report}, overwriting.")
+                    report = {
+                        "Errors": [f"Failed to parse existing report file: {e}. Prior report was overridden/regenerated."],
+                    }
         else:
             report = {}
         report["LastUpdated"] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
@@ -273,28 +308,37 @@ def bids_preproc(
             report["Errors"] = []
 
         # stages for reporting purposes
+        needed_files = []
         StagesToGo = ['Import']
         if SamplingRate:
             StagesToGo += ['Resample']
         StagesToGo += ['CleanArtifacts']
         if WithICLabel:
-            needed_files = [fpath_cln, fpath_iclabel]
+            needed_files += [fpath_cln, fpath_iclabel]
             StagesToGo += ['ICA', 'ICLabel']
         elif WithPicard:
-            needed_files = [fpath_cln, fpath_picard]
+            needed_files += [fpath_cln, fpath_picard]
             StagesToGo += ['ICA']
         else:
-            needed_files = [fpath_cln]
+            needed_files += [fpath_cln]
+        if WithInterp:
+            StagesToGo += ['ChannelInterp']
+        if EpochEvents is not None:
+            needed_files += [fpath_epoch]
+            StagesToGo += ['Epoching']
         SkippedStages = [s for s in all_stages if s not in StagesToGo]
 
         if SkipIfPresent and all(os.path.exists(fn) for fn in needed_files):
-            logger.info(f"*** Skipping {fn} as preprocessed file(s) already exists: {','.join(needed_files)} ***")
+            logger.info(f"*** Skipping {fn} as preprocessed file(s) already exists: {', '.join(needed_files)} ***")
+            # load the final file if requested
+            EEG = pop_loadset(needed_files[-1]) if ReturnData else None
             with _lock:
                 _n_skipped.value += 1
-                return
+                return EEG
 
         try:
             # if we get here we need to process at least one stage
+            EEG = None
 
             # calc new ETA
             elapsed = now() - _t0
@@ -320,10 +364,17 @@ def bids_preproc(
                     "threadpoolctl not installed, using default thread limits.")
                 thread_ctx = contextlib.nullcontext()
 
+            old_chanlocs = None
             with thread_ctx:
                 if os.path.exists(fpath_cln) and SkipIfPresent:
                     logger.info(f"Found {fpath_cln}, skipping clean_artifacts stage.")
-                    EEG = pop_loadset(fpath_cln)
+                    try:
+                        EEG = pop_loadset(fpath_cln)
+                    except OSError as e:
+                        # this can happen if a previous export was truncated eg due to
+                        # file-write error
+                        logger.error(f"Failed to load existing cleaned file {fpath_cln}: {e}. Recomputing.")
+                if EEG is not None:
                     StagesToGo.remove('Import')
                     StagesToGo.remove('CleanArtifacts')
                 else:
@@ -364,120 +415,65 @@ def bids_preproc(
                         }
 
                     old_events = EEG['event']
+                    old_chanlocs = EEG['chanlocs']
 
                     # apply processing chain
-                    EEG, *_ = clean_artifacts(
-                        EEG,
-                        ChannelCriterion=ChannelCriterion,
-                        LineNoiseCriterion=LineNoiseCriterion,
-                        BurstCriterion=BurstCriterion,
-                        WindowCriterion=WindowCriterion,
-                        Highpass=Highpass,
-                        ChannelCriterionMaxBadTime=ChannelCriterionMaxBadTime,
-                        BurstCriterionRefMaxBadChns=BurstCriterionRefMaxBadChns,
-                        BurstCriterionRefTolerances=BurstCriterionRefTolerances,
-                        BurstRejection=BurstRejection,
-                        WindowCriterionTolerances=WindowCriterionTolerances,
-                        FlatlineCriterion=FlatlineCriterion,
-                        NumSamples=NumSamples,
-                        NoLocsChannelCriterion=NoLocsChannelCriterion,
-                        NoLocsChannelCriterionExcluded=NoLocsChannelCriterionExcluded,
-                        MaxMem=MaxMem,
-                        Distance=Distance,
-                        Channels=Channels,
-                        Channels_ignore=Channels_ignore,
-                        availableRAM_GB=availableRAM_GB)
-                    report["CleanArtifacts"] = {
-                        "Applied": True,
-                        "ChannelCriterion": ChannelCriterion,
-                        "LineNoiseCriterion": LineNoiseCriterion,
-                        "BurstCriterion": BurstCriterion,
-                        "WindowCriterion": WindowCriterion,
-                        "Highpass": Highpass,
-                        "ChannelCriterionMaxBadTime": ChannelCriterionMaxBadTime,
-                        "BurstCriterionRefMaxBadChns": BurstCriterionRefMaxBadChns,
-                        "BurstCriterionRefTolerances": BurstCriterionRefTolerances,
-                        "BurstRejection": BurstRejection,
-                        "WindowCriterionTolerances": WindowCriterionTolerances,
-                        "FlatlineCriterion": FlatlineCriterion,
-                        "NumSamples": NumSamples,
-                        "NoLocsChannelCriterion": NoLocsChannelCriterion,
-                        "NoLocsChannelCriterionExcluded": NoLocsChannelCriterionExcluded,
-                        "MaxMem": MaxMem,
-                        "Distance": Distance,
-                    }
-                    StagesToGo.remove('CleanArtifacts')
+                    needs_recalc = True
+                    if os.path.exists(fpath_cln) and SkipIfPresent:
+                        logger.info(f"Found {fpath_cln}, skipping cleaning stage.")
+                        try:
+                            EEG = pop_loadset(fpath_cln)
+                            needs_recalc = False
+                        except OSError as e:
+                            logger.warning(f"Encountered read error trying to look up "
+                                           f"cached derivative data {fpath_cln}. Recomputing.")
+                    if needs_recalc:
+                        EEG, *_ = clean_artifacts(
+                            EEG,
+                            ChannelCriterion=ChannelCriterion,
+                            LineNoiseCriterion=LineNoiseCriterion,
+                            BurstCriterion=BurstCriterion,
+                            WindowCriterion=WindowCriterion,
+                            Highpass=Highpass,
+                            ChannelCriterionMaxBadTime=ChannelCriterionMaxBadTime,
+                            BurstCriterionRefMaxBadChns=BurstCriterionRefMaxBadChns,
+                            BurstCriterionRefTolerances=BurstCriterionRefTolerances,
+                            BurstRejection=BurstRejection,
+                            WindowCriterionTolerances=WindowCriterionTolerances,
+                            FlatlineCriterion=FlatlineCriterion,
+                            NumSamples=NumSamples,
+                            NoLocsChannelCriterion=NoLocsChannelCriterion,
+                            NoLocsChannelCriterionExcluded=NoLocsChannelCriterionExcluded,
+                            MaxMem=MaxMem,
+                            Distance=Distance,
+                            Channels=Channels,
+                            Channels_ignore=Channels_ignore,
+                            availableRAM_GB=availableRAM_GB)
+                        report["CleanArtifacts"] = {
+                            "Applied": True,
+                            "ChannelCriterion": ChannelCriterion,
+                            "LineNoiseCriterion": LineNoiseCriterion,
+                            "BurstCriterion": BurstCriterion,
+                            "WindowCriterion": WindowCriterion,
+                            "Highpass": Highpass,
+                            "ChannelCriterionMaxBadTime": ChannelCriterionMaxBadTime,
+                            "BurstCriterionRefMaxBadChns": BurstCriterionRefMaxBadChns,
+                            "BurstCriterionRefTolerances": BurstCriterionRefTolerances,
+                            "BurstRejection": BurstRejection,
+                            "WindowCriterionTolerances": WindowCriterionTolerances,
+                            "FlatlineCriterion": FlatlineCriterion,
+                            "NumSamples": NumSamples,
+                            "NoLocsChannelCriterion": NoLocsChannelCriterion,
+                            "NoLocsChannelCriterionExcluded": NoLocsChannelCriterionExcluded,
+                            "MaxMem": MaxMem,
+                            "Distance": Distance,
+                        }
+                        StagesToGo.remove('CleanArtifacts')
 
-                    # restore events if all were stripped somehow
-                    if not len(EEG['event']) and len(old_events):
-                        EEG['event'] = old_events
-
-                    # we always save out the cleaned EEG data
-                    pop_saveset(EEG, fpath_cln)
+                        # we always save out the cleaned EEG data
+                        pop_saveset(EEG, fpath_cln)
 
                     # TODO: possibly write SoftwareFilters into _eeg.json
-
-                    # rewrite the events file
-                    if len(EEG['event']):
-                        fpath_events = gen_derived_fpath(fn, outputdir=outputdir,
-                                                         suffix='events', extension='.tsv')
-                        have_hed_column = EEG['etc'].get('event_column', None) == 'HED'
-                        columns = ['onset', 'duration', 'trial_type'] + (['HED'] if have_hed_column else [])
-                        with open(fpath_events, 'w') as fp:
-                            print('\t'.join(columns), file=fp)
-                            times, srate = EEG['times'], EEG['srate']
-                            for e in EEG['event']:
-                                ev_type = e['type']
-                                try:
-                                    ev_time = times[e['latency']]/1000.0  # in ms
-                                except IndexError:
-                                    logger.error(f'out-of-bounds event {ev_type} at lat {e["latency"]}; ignoring')
-                                    continue
-                                ev_dur = e.get('duration', 0.0)/srate
-                                if np.isnan(ev_dur):
-                                    ev_dur = 0.0
-                                row = [
-                                    ev_time,
-                                    ev_dur,
-                                    ev_type
-                                ] + ([ev_type] if have_hed_column else [])
-                                print('\t'.join(str(r) for r in row), file=fp)
-
-                    # rewrite the channels file
-                    fpath_channels = gen_derived_fpath(fn, outputdir=outputdir,
-                                                       suffix='channels', extension='.tsv')
-                    with open(fpath_channels, 'w') as fp:
-                        print('name\ttype\tunits', file=fp)
-                        for ch in EEG['chanlocs']:
-                            ch_type = ch.get('type', 'EEG')
-                            ch_unit = 'uV' if ch_type == 'EEG' else 'n/a'
-                            print(f"{ch['labels']}\t{ch_type}\t{ch_unit}", file=fp)
-
-                    # rewrite the electrodes file
-                    fpath_elecs = gen_derived_fpath(fn, outputdir=outputdir,
-                                                    suffix='electrodes', extension='.tsv')
-                    with open(fpath_elecs, 'w') as fp:
-                        print('name\tx\ty\tz', file=fp)
-                        for ch in EEG['chanlocs']:
-                            if chanloc_has_coords(ch):
-                                print(f"{ch['labels']}\t{ch['X']}\t{ch['Y']}\t{ch['Z']}", file=fp)
-
-                    # rewrite/update the coordsystem file
-                    fpath_coordsystem = gen_derived_fpath(fn, outputdir=outputdir,
-                                                          suffix='coordsystem', extension='.json')
-                    coordsystem = EEG['etc'].get('BIDSCoordsystem', {})
-                    coordsystem.update({
-                        "EEGCoordinateSystem": "EEGLAB",
-                        "EEGCoordinateUnits": "mm",
-                        "EEGCoordinateSystemDescription": "ALS | +x is front, +y is left, +z is up",
-                    })
-                    with open(fpath_coordsystem, 'w') as fp:
-                        json.dump(coordsystem, fp, indent=4)
-
-                if WithICLabel and os.path.exists(fpath_iclabel) and SkipIfPresent and MinimizeDiskUsage:
-                    # in this case we have all the necessary data already and we won't try to
-                    # recompute PICARD
-                    return
 
                 if WithPicard:
                     if os.path.exists(fpath_picard) and SkipIfPresent:
@@ -502,7 +498,7 @@ def bids_preproc(
                 if WithICLabel:
                     if os.path.exists(fpath_iclabel) and SkipIfPresent:
                         logger.info(f"Found {fpath_iclabel}, skipping ICLabel stage.")
-                        # we'd only load if we had more processing to do downstream
+                        EEG = pop_loadset(fpath_iclabel)
                     else:
                         EEG = iclabel(EEG)
                         pop_saveset(EEG, fpath_iclabel)
@@ -515,6 +511,155 @@ def bids_preproc(
                         "Applied": False,
                     }
 
+                # reinterpolate to original channel set if any channels were removed
+                if WithInterp:
+                    if old_chanlocs is None:
+                        # load input file to get original channel locations
+                        tmp, import_report = pop_load_frombids(
+                            fn,
+                            bidsmetadata=bidsmetadata,
+                            bidschanloc=bidschanloc,
+                            bidsevent=bidsevent,
+                            eventtype=eventtype,
+                            return_report=True)
+                        old_chanlocs = tmp['chanlocs']
+                        del tmp
+                    if nDropped := (len(old_chanlocs) - len(EEG['chanlocs'])):
+                        logger.info(F"Reinterpolating {nDropped} dropped channels.")
+                        # note: this assumes that no non-ExG channels were dropped by
+                        # the above preproc, since those can't really be restored by
+                        # interpolation (although in the worst case they will contain
+                        # low-amplitude noise afterwards)
+                        try:
+                            EEG = eeg_interp(EEG, list(old_chanlocs))
+                            report["ChannelInterp"] = {
+                                "Applied": True,
+                                "NumInterpolated": nDropped
+                            }
+                        except RuntimeError as e:
+                            if 'locations required' in str(e):
+                                logger.warning("Cannot reinterpolate dropped channels as original "
+                                               "channel locations are missing and could not be "
+                                               "inferred.")
+                                report["ChannelInterp"] = {
+                                    "Applied": False,
+                                    "Reason": "Original channel locations missing"
+                                }
+                            else:
+                                raise
+                        StagesToGo.remove('ChannelInterp')
+                else:
+                    report["ChannelInterp"] = {
+                        "Applied": False,
+                    }
+
+                if EpochEvents is not None:
+                    from . import pop_epoch
+                    assert len(EpochLimits) == 2, "EpochLimits must be a tuple of (min, max) times in seconds."
+                    events = EpochEvents
+                    if EpochEvents == [] and len(EEG['event']) == 0 or all([e['type'] == 'boundary' for e in EEG['event']]):
+                        # trying to epoch around any marker but got no events at all, or only boundary events
+                        logger.info("Data has no (non-boundary) events, nothing to epoch")
+                        report["Epoching"] = {
+                            "Applied": False,
+                            "Reason": "No (non-boundary) events in data"
+                        }
+                    else:
+                        try:
+                            EEG, *_ = pop_epoch(EEG, types=EpochEvents, lim=EpochLimits)
+                            if EpochBaseline is not None:
+                                from . import pop_rmbase
+                                assert len(EpochBaseline) == 2, "EpochBaseline must be a tuple of (min, max) times in seconds or None."
+                                timerange = EpochBaseline
+                                if timerange[0] is None:
+                                    timerange = (EEG['times'][0] / 1000, timerange[1])
+                                if timerange[1] is None:
+                                    timerange = (timerange[0], EEG['times'][-1] / 1000)
+                                if pop_rmbase_in_ms:
+                                    timerange = [timerange[0] * 1000, timerange[1] * 1000]
+                                EEG = pop_rmbase(EEG, timerange=timerange)
+
+                            pop_saveset(EEG, fpath_epoch)
+
+                            report["Epoching"] = {
+                                "Applied": True,
+                                "TimeLimits": EpochLimits,
+                                "EventTypes": EpochEvents,
+                                "Baseline": EpochBaseline
+                            }
+                        except ValueError as e:
+                            if 'is empty' in str(e) or 'of an empty dataset' in str(e):
+                                report["Epoching"] = {
+                                    "Applied": False,
+                                    "Reason": "No events retained (possibly all crossing boundaries)"
+                                }
+                            else:
+                                raise
+
+                    StagesToGo.remove('Epoching')
+                else:
+                    report["Epoching"] = {
+                        "Applied": False,
+                    }
+
+                # rewrite the events file
+                if len(EEG['event']):
+                    fpath_events = gen_derived_fpath(fn, outputdir=outputdir,
+                                                     suffix='events', extension='.tsv')
+                    have_hed_column = EEG['etc'].get('event_column', None) == 'HED'
+                    columns = ['onset', 'duration', 'trial_type'] + (['HED'] if have_hed_column else [])
+                    with open(fpath_events, 'w') as fp:
+                        print('\t'.join(columns), file=fp)
+                        times, srate = EEG['times'], EEG['srate']
+                        for e in EEG['event']:
+                            ev_type = e['type']
+                            try:
+                                ev_time = times[e['latency']]/1000.0  # in ms
+                            except IndexError:
+                                logger.error(f'out-of-bounds event {ev_type} at lat {e["latency"]}; ignoring')
+                                continue
+                            ev_dur = e.get('duration', 0.0)/srate
+                            if np.isnan(ev_dur):
+                                ev_dur = 0.0
+                            row = [
+                                ev_time,
+                                ev_dur,
+                                ev_type
+                            ] + ([ev_type] if have_hed_column else [])
+                            print('\t'.join(str(r) for r in row), file=fp)
+
+                # rewrite the channels file
+                fpath_channels = gen_derived_fpath(fn, outputdir=outputdir,
+                                                   suffix='channels', extension='.tsv')
+                with open(fpath_channels, 'w') as fp:
+                    print('name\ttype\tunits', file=fp)
+                    for ch in EEG['chanlocs']:
+                        ch_type = ch.get('type', 'EEG')
+                        ch_unit = 'uV' if ch_type == 'EEG' else 'n/a'
+                        print(f"{ch['labels']}\t{ch_type}\t{ch_unit}", file=fp)
+
+                # rewrite the electrodes file
+                fpath_elecs = gen_derived_fpath(fn, outputdir=outputdir,
+                                                suffix='electrodes', extension='.tsv')
+                with open(fpath_elecs, 'w') as fp:
+                    print('name\tx\ty\tz', file=fp)
+                    for ch in EEG['chanlocs']:
+                        if chanloc_has_coords(ch):
+                            print(f"{ch['labels']}\t{ch['X']}\t{ch['Y']}\t{ch['Z']}", file=fp)
+
+                # rewrite/update the coordsystem file
+                fpath_coordsystem = gen_derived_fpath(fn, outputdir=outputdir,
+                                                      suffix='coordsystem', extension='.json')
+                coordsystem = EEG['etc'].get('BIDSCoordsystem', {})
+                coordsystem.update({
+                    "EEGCoordinateSystem": "EEGLAB",
+                    "EEGCoordinateUnits": "mm",
+                    "EEGCoordinateSystemDescription": "ALS | +x is front, +y is left, +z is up",
+                })
+                with open(fpath_coordsystem, 'w') as fp:
+                    json.dump(coordsystem, fp, indent=4)
+
+            return EEG if ReturnData else None
         except ExceptionUnlessDebug as e:
             logger.exception(f"Error processing {fn}: {e}")
             if StagesToGo:
@@ -536,7 +681,7 @@ def bids_preproc(
                 })
             with _lock:
                 _n_skipped.value += 1
-            return
+            return None
         finally:
             for st in SkippedStages:
                 if st not in report:
@@ -618,6 +763,9 @@ def bids_preproc(
                 "DOI": orig_doi
             }
         ]
+        # note that the actual epoched data *can* be absent if there were no matching 
+        # event markers in any study file, which we can't determine at this point
+        desc['IsEpoched'] = EpochEvents is not None
         fpath_dataset_desc = gen_derived_fpath(dataset_desc_path, outputdir=outputdir, keyword='',
                                                extension='.json')
         with open(fpath_dataset_desc, 'w') as f:
@@ -629,13 +777,15 @@ def bids_preproc(
 
             if n_jobs == 1:
                 # run sequentially
+                results = []
                 for k, fn in enumerate(all_files):
-                    bids_preproc(
+                    results.append(bids_preproc(
                         fn,
                         **kwargs,
                         # reserved parameters
                         _lock=lock, _n_skipped=n_skipped, _k=k, _n_total=n_total, _n_jobs=n_jobs, _t0=t0
-                    )
+                    ))
+
             else:
                 # run in parallel
                 logger.info(f"Running {n_jobs} parallel jobs to process {n_total} files...")
@@ -653,9 +803,12 @@ def bids_preproc(
                         for k, fn in enumerate(all_files)
                     ]
                     # wait for all jobs to finish
-                    for result in results:
-                        result.get()
+                    results = [result.get() for result in results]
 
             logger.info(f"Processed {n_total - n_skipped.value} files, "
                         f"skipped {n_skipped.value} files; total time: "
                         f"{humanize_seconds(now() - t0)}.")
+
+            return results if ReturnData else None
+    else:
+        raise ValueError(f"root must be a BIDS root folder or a supported EEG file type, got {root}")

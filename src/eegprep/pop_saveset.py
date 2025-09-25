@@ -174,19 +174,20 @@ def pop_saveset(EEG, file_name):
                    
     # Create the list of dictionaries with a string field
     if 'chanlocs' in EEG and len(EEG['chanlocs']) > 0:
+        matlab_null = np.array([])
         d_list = [{
             'labels': c['labels'],
-            'theta':  c['theta']   if not isinstance(c['theta'], np.ndarray) else None,
-            'radius': c['radius']  if not isinstance(c['radius'], np.ndarray) else None,
-            'X':      c['X']       if not isinstance(c['X'], np.ndarray) else None,
-            'Y':      c['Y']       if not isinstance(c['Y'], np.ndarray) else None,
-            'Z':      c['Z']       if not isinstance(c['Z'], np.ndarray) else None,
-            'sph_theta':  c['sph_theta']  if not isinstance(c['sph_theta'], np.ndarray) else None,
-            'sph_phi':    c['sph_phi']    if not isinstance(c['sph_phi'], np.ndarray) else None,
-            'sph_radius': c['sph_radius'] if not isinstance(c['sph_radius'], np.ndarray) else None,
-            'type':       c['type']       if not isinstance(c['type'], np.ndarray) else None,
-            'urchan':     c['urchan']     if not isinstance(c['urchan'], np.ndarray) else None,
-            'ref':        c['ref']        if not isinstance(c['ref'], np.ndarray) else None
+            'theta':  c['theta']   if not isinstance(c.get('theta', matlab_null), np.ndarray) else None,
+            'radius': c['radius']  if not isinstance(c.get('radius', matlab_null), np.ndarray) else None,
+            'X':      c['X']       if not isinstance(c.get('X', matlab_null), np.ndarray) else None,
+            'Y':      c['Y']       if not isinstance(c.get('Y', matlab_null), np.ndarray) else None,
+            'Z':      c['Z']       if not isinstance(c.get('Z', matlab_null), np.ndarray) else None,
+            'sph_theta':  c['sph_theta']  if not isinstance(c.get('sph_theta', matlab_null), np.ndarray) else None,
+            'sph_phi':    c['sph_phi']    if not isinstance(c.get('sph_phi', matlab_null), np.ndarray) else None,
+            'sph_radius': c['sph_radius'] if not isinstance(c.get('sph_radius', matlab_null), np.ndarray) else None,
+            'type':       c['type']       if not isinstance(c.get('type', matlab_null), np.ndarray) else None,
+            'urchan':     c['urchan']     if not isinstance(c.get('urchan', matlab_null), np.ndarray) else None,
+            'ref':        c['ref']        if not isinstance(c.get('ref', matlab_null), np.ndarray) else None
         } for c in EEG['chanlocs']]
 
         # build a list of fields to selectively filter out if all entries are None
@@ -224,7 +225,17 @@ def pop_saveset(EEG, file_name):
         os.makedirs(os.path.dirname(file_name))
 
     # # Step 4: Save the EEGLAB dataset as a .mat file
-    scipy.io.savemat(file_name, eeglab_dict, appendmat=False)
+    try:
+        scipy.io.savemat(file_name, eeglab_dict, appendmat=False)
+    except ValueError as e:
+        if '31 characters' in str(e):
+            # try to save with long_field_names option
+            scipy.io.savemat(file_name, eeglab_dict, appendmat=False, long_field_names=True)
+        else:
+            # the file is likely partial and thus invalid -- delete
+            if os.path.exists(file_name):
+                os.remove(file_name)
+            raise
 
 def test_pop_saveset():
     from eegprep.pop_loadset import pop_loadset

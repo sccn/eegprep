@@ -8,7 +8,7 @@ import contextlib
 from .utils.bids import layout_for_fpath, layout_get_lenient, query_for_adjacent_fpath, \
     root_for_fpath
 from .utils.coords import *
-from .utils import ExceptionUnlessDebug
+from .utils import ExceptionUnlessDebug, ToolError
 
 import numpy as np
 
@@ -18,7 +18,10 @@ logger = logging.getLogger(__name__)
 # list of candidate column names for event types in BIDS events files, in order of preference.
 event_type_columns = ['trial_type', 'type', 'event_type', 'HED', 'value', 'code']
 
-        
+# a list of column names that we interpret to contain event timing information
+event_timing_columns = ['onset', 'duration', 'sample']
+
+
 # remove matching leading/trailing quotes in pairs (repeat if nested)
 def _strip_matching_quotes(name: str) -> str:
     while len(name) >= 2 and name[0] == name[-1] and name[0] in ("'", '"'):
@@ -98,12 +101,15 @@ def pop_load_frombids(
 
     if verbose:
         logger.info(f"Loading EEG data from {filename}...")
+    basename = os.path.basename(filename)
     if ext == '.set':
         from . import pop_loadset
         EEG = pop_loadset(filename)
         EEG['data'] = EEG['data'].astype(dtype)
         report['ImporterUsed'] = 'pop_loadset'
+        Fs = EEG['srate']
     elif ext in ['.edf', '.bdf', '.vhdr']:
+        from neo import NeoReadWriteError
         if ext == '.vhdr':
             from neo.rawio.brainvisionrawio import BrainVisionRawIO as NeoIO
             report['ImporterUsed'] = 'neo.rawio.brainvisionrawio.BrainVisionRawIO'
@@ -117,7 +123,11 @@ def pop_load_frombids(
                              f"format if needed.")
         # load from NEO
         io = NeoIO(filename)
-        io.parse_header()
+        try:
+            io.parse_header()
+        except NeoReadWriteError as e:
+            classname = io.__class__.__name__
+            raise ToolError(f"Encountered error with NEO {classname} importer on {filename!r}: {e}. Skipping file.") from e
         if (nStreams := io.signal_streams_count()) > 1:
             warning(f"The raw data file {filename} appears to contain "
                     f"more than one stream; using only the first stream.")
@@ -300,7 +310,7 @@ def pop_load_frombids(
                                  f"Supported formats are .edf, .bdf, .vhdr.")
             ev_lats = np.searchsorted(times, ev_all_times)  # +1 for MATLAB format compatibility (1-based index)
             ev_durs = np.array(ev_all_durs, dtype=float)
-            ev_urevts = 1 + np.arange(len(ev_all_times))
+            ev_urevts = np.arange(len(ev_all_times))
             events = np.array([
                 {
                     'duration': dur,
@@ -318,7 +328,6 @@ def pop_load_frombids(
         # of the channel infos in the .vhdr file, or separately in each channel under [Channel Infos]
         reference = 'unknown'
 
-        basename = os.path.basename(filename)
         EEG = {
             'setname': '',
             'filename': basename,
@@ -467,7 +476,8 @@ def pop_load_frombids(
                     else:
                         EEG['chanlocs'][idx]['ref'] = ref_idx
             if notfound:
-                warning(f"Channels {','.join(notfound)} from BIDS file {fo.filename} "
+                nf = [str(n) for n in notfound]
+                warning(f"Channels {','.join(nf)} from BIDS file {fo.filename} "
                        f"not found in EEG data structure; skipping.")
             if notype:
                 warning(f"Channels in BIDS file {fo.filename} do not have a 'type' "
@@ -643,6 +653,7 @@ def pop_load_frombids(
                 report['EventsFrom'] = os.path.relpath(fo.path, root)
                 # read in the file contents
                 events: pd.DataFrame = fo.get_df()
+
                 try:
                     # opportunistically look for the 'sample' column, which may be present in some files
                     # seen in the wild
@@ -672,6 +683,10 @@ def pop_load_frombids(
                 # convert to EEGLAB's sample-based durations
                 ev_durs = np.round(np.maximum(1, Fs*durations)).astype(int)
 
+                # set of column names that we've already carried over into the
+                # event data structure
+                used_columns = list(event_timing_columns)
+
                 if eventtype:
                     # restrict to the specified event type only
                     probe_columns = [eventtype]
@@ -679,12 +694,14 @@ def pop_load_frombids(
                     probe_columns = event_type_columns
 
                 # read out the event types and/or codes
+
                 for candidate_column in probe_columns:
                     try:
                         # preferred column for the event type
                         ev_types = events[candidate_column].to_numpy()
                         report['EventSourceColumn'] = candidate_column
                         EEG['etc']['event_column'] = candidate_column
+                        used_columns.append(candidate_column)
                         break
                     except KeyError:
                         # not found
@@ -699,6 +716,21 @@ def pop_load_frombids(
                     ev_types = np.full_like(ev_lats, '', dtype=object)
 
                 ev_types = [typ or ('boundary' if typ == 'New Segment' else '') for typ in ev_types]
+
+                # extract extra columns to include in the event data structure
+                # this does not in
+                extra_columns = sorted(set(events.columns) - set(used_columns))
+                ev_extra = {
+                    col: events[col].to_numpy()
+                    for col in extra_columns}
+
+                # drop trivial (all-nan) columns
+                for col in list(ev_extra):
+                    try:
+                        if np.all(np.isnan(ev_extra[col])):
+                            del ev_extra[col]
+                    except Exception as e:
+                        pass
 
                 # filter out any events that are already in the EEG data structure itself
                 # noinspection PyBroadException
@@ -725,25 +757,40 @@ def pop_load_frombids(
 
                     # append the new events to the EEG structure
                     if count := np.sum(keep):
-                        EEG_events = EEG['event'].tolist()
-                        for kp, lat, dur, typ in zip(keep, ev_lats, ev_durs, ev_types):
-                            if kp:
-                                EEG_events.append({
-                                    'latency': lat,
-                                    'duration': dur,
-                                    'type': typ,
-                                    'urevent': 0  # urevent is 1-based index
-                                })
+                        # build an events structure (SoA form)
+                        events_soa = {
+                            'latency': ev_lats,
+                            'duration': ev_durs,
+                            'type': ev_types,
+                            'urevent': np.zeros_like(ev_lats)
+                        }
+                        # append extra event columns
+                        events_soa.update(ev_extra)
+                        
+                        # convert from structure-of-arrays to array-of-structures and filter by keep
+                        new_events = [
+                            {key: values[i] for key, values in events_soa.items()}
+                            for i, kp in enumerate(keep) if kp
+                        ]
 
+                        EEG_events = EEG['event'].tolist()
+
+                        # append any missing fields to existing events with null values
+                        for col in ev_extra:
+                            for ev in EEG_events:
+                                if col not in ev:
+                                    ev[col] = numeric_null
+
+                        EEG_events = EEG['event'].tolist() + new_events
                         EEG['event'] = np.array(EEG_events, dtype=object)
 
-                        # resort events by latency
+                        # re-sort events by latency
                         lats = [ev['latency'] for ev in EEG['event']]
                         EEG['event'] = EEG['event'][np.argsort(lats)]
 
                         # rewrite the urevent index since it'll have gotten scrambled
                         for i, ev in enumerate(EEG['event']):
-                            ev['urevent'] = i + 1
+                            ev['urevent'] = i
 
                         # rewrite urevent itself
                         EEG['urevent'] = copy.deepcopy(EEG['event'])
