@@ -9,7 +9,7 @@ from .pop_loadset import loadset, pop_loadset
 from .pop_loadset_h5 import pop_loadset_h5
 from .pop_resample import pop_resample
 from .eeg_checkset import eeg_checkset
-from .eeglabcompat import pop_eegfiltnew, pop_biosig
+from .eeglabcompat import pop_eegfiltnew
 from .eeglabcompat import clean_artifacts as eeglab_clean_artifacts
 from .ICL_feature_extractor import ICL_feature_extractor
 from .iclabel_net import ICLabelNet
@@ -42,3 +42,4 @@ from .eeg_mne2eeg_epochs import eeg_mne2eeg_epochs
 from .eeg_lat2point import eeg_lat2point
 from .eeg_point2lat import eeg_point2lat
 from .eeg_options import EEG_OPTIONS
+from .eeg_checkset import eeg_checkset, strict_mode as eeg_checkset_strict_mode
