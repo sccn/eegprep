@@ -59,24 +59,36 @@ def _copy_misc_root_files(root: str, dst: str, exclude: List[str]) -> None:
             logger.error(f"Failed to copy {srcpath} to {dstpath}: {e}")
 
 
+def _legacy_override(new_and_name: Tuple[Any, str], old_and_name: Tuple[Any, str], default: Any):
+    """Handle overrides with values from legacy parameters and a default if both the new
+    and legacy parameter are None."""
+    new, new_name = new_and_name
+    old, old_name = old_and_name
+    if old is not None:
+        assert new is None, f"Only one of {new_name} and f{old_name} can be specified, but neither were set to None."
+        new = old
+    if new is None:
+        new = default
+    return new
+
+
 def bids_preproc(
         root: str,
         *,
-        # BIDS loader parameters  (EEGLAB parameter names were applicable)
-        bidschanloc: bool = True,
-        bidsevent: bool = False,
-        bidsmetadata: bool = True,
-        eventtype: Optional[str] = None,
-        subjects: Sequence[str | int] | str | int = (),
-        sessions: Sequence[str | int] | str | int = (),
-        runs: Sequence[str | int] | str | int = (),
-        tasks: Sequence[str | int] | str | int = (),
-        outputdir: str = '{root}/derivatives/eegprep',
-
+        # BIDS loader parameters
+        ApplyChanlocs: Optional[bool] = None,
+        ApplyEvents: Optional[bool] = None,
+        ApplyMetadata: Optional[bool] = None,
+        EventColumn: Optional[str] = None,
+        Subjects: Sequence[str | int] | str | int | None = None,
+        Sessions: Sequence[str | int] | str | int | None = None,
+        Runs: Sequence[str | int] | str | int | None = None,
+        Tasks: Sequence[str | int] | str | int | None = None,
         # Overall run configuration
         SkipIfPresent: bool = True,
         ReservePerJob: str = '',
         ReturnData: bool = False,
+        OutputDir: Optional[str] = None,
         # Overall processing parameters
         SamplingRate: Optional[float] = None,
         WithInterp: bool = False,
@@ -112,6 +124,18 @@ def bids_preproc(
         # Derived data parameters
         StageNames: Sequence[str] = ('desc-cleaned', 'desc-picard', 'desc-iclabel', 'desc-epoch'),
         MinimizeDiskUsage: bool = True,
+
+        # Legacy parameter names for compatibility with EEGLAB
+        bidschanloc: Optional[bool] = None,
+        bidsevent: Optional[bool] = None,
+        bidsmetadata: Optional[bool] = None,
+        eventtype: Optional[str] = None,
+        subjects: Sequence[str | int] | str | int | None = None,
+        sessions: Sequence[str | int] | str | int | None = None,
+        runs: Sequence[str | int] | str | int | None = None,
+        tasks: Sequence[str | int] | str | int | None = None,
+        outputdir: Optional[str] = None,
+
         # Reserved parameters
         _lock: Optional[multiprocessing.Lock] = contextlib.nullcontext(),
         _n_skipped: Optional[multiprocessing.Value] = None,
@@ -128,40 +152,43 @@ def bids_preproc(
     root_or_fn : str
         The root directory containing BIDS data or a single EEG file path.
 
-    bidsmetadata (bool):
+    ApplyMetadata (bool):
         whether to apply metadata from BIDS sidecar files when loading raw EEG data.
-    bidsevent (bool):
+        (default True)
+    ApplyEvents (bool):
         whether to apply events from BIDS sidecar files when loading raw EEG data.
-    bidschanloc (bool):
+        (default False)
+    ApplyChanlocs (bool):
         whether to apply channel locations from BIDS sidecar files when loading raw EEG data.
-    eventtype (str):
+        (default True)
+    EventColumn (str):
         Optionally the column name in the BIDS events file to use for event types; if not
         set, will be inferred heuristically.
-    subjects (Sequence[str | int], optional):
+    Subjects (Sequence[str | int], optional):
         A sequence of subject identifiers or (zero-based) indices to filter the files by.
         If empty, all subjects are included.
-    sessions (Sequence[str | int], optional):
+    Sessions (Sequence[str | int], optional):
         A sequence of session identifiers or (zero-based) indices to filter the files by.
         If empty, all sessions are included.
-    runs (Sequence[str | int], optional):
+    Runs (Sequence[str | int], optional):
         A sequence of run numbers or identifiers to filter the files by. If empty, all runs
         are included. Note that zero-based indexing does not apply to runs, unlike
         subjects and sessions since runs are already integers.
-    tasks (Sequence[str] | str, optional):
+    Tasks (Sequence[str] | str, optional):
         A sequence of task names or single task to filter the files by. If empty, all
         tasks are included (default is an empty sequence).
-    outputdir (str):
+    OutputDir (str):
       The name of the subdirectory where cleaned files will be saved. This can start
       with the placeholder '{root}' which will be replaced with the root path of
-      the BIDS dataset.
+      the BIDS dataset. Defaults to '{root}/derivatives/eegprep' if not specified.
 
     SkipIfPresent (bool):
       skip processing files that already have a cleaned version present.
     ReservePerJob (str):
       Optionally the resource amount and type to reserve per job, e.g. '4GB' or '2CPU';
-      the run will then use as many jobs as possible without exceeding the available resources.
+      the run will then use as many jobs as fit within the system resources of the specified type.
       - Can also contain a total or percentage margin, as in '4GB-10GB', '2CPU-10%'.
-      - Can also be specified as a total/maximum, as in '10 total' or '10max'.
+      - Can also be specified as a total or maximum, as in '10total' or '10max'.
       - Can also be a comma-separated list of reservations, e.g. '4GB,2CPU-1CPU,5max'.
       - if not set, will assume a single job. Generally runs serially when in debug mode.
       It is recommended to check in a serial run how much peak RAM a single job takes,
@@ -260,6 +287,17 @@ def bids_preproc(
         whether to minimize disk usage by not saving some intermediate files (specifically
         the PICARD output if WithICLabel=False). Default True.
 
+    (parameters retained for backwards compatibility with pop_importbids call signature)
+    bidsmetadata (bool): alias for ApplyMetadata
+    bidsevent (bool): alias for ApplyEvents
+    bidschanloc (bool): alias for ApplyChanlocs
+    eventtype (str): alias for EventColumn
+    subjects (Sequence[str | int], optional): alias for Subjects
+    sessions (Sequence[str | int], optional): alias for Sessions
+    runs (Sequence[str | int], optional): alias for RUns
+    tasks (Sequence[str] | str, optional): alias for Tasks
+    OutputDir (str): alias for OutputDir
+
     Returns:
     --------
         Depending on ReturnData, either a list of EEG objects (if BIDS root folder was
@@ -268,10 +306,29 @@ def bids_preproc(
     # get a dictionary of all arguments
     kwargs = {k: v for k, v in locals().items() if not k.startswith('_')}
     del kwargs['root']  # we don't need the root here, only in the function body
-
     from eegprep import (bids_list_eeg_files, clean_artifacts, pop_load_frombids, eeg_checkset,
                          pop_saveset, eeg_picard, iclabel, pop_loadset, pop_resample, eeg_interp)
     from .utils.bids import gen_derived_fpath
+    # handle support for legacy parameters and defaults
+    ApplyChanlocs = _legacy_override((ApplyChanlocs, 'ApplyChanlocs'), (bidschanloc, 'bidschanloc'),
+                                     True)
+    ApplyEvents = _legacy_override((ApplyEvents, 'ApplyEvents'), (bidsevent, 'bidsevent'),
+                                   False)
+    ApplyMetadata = _legacy_override((ApplyMetadata, 'ApplyMetadata'), (bidsmetadata, 'bidsmetadata'),
+                                     True)
+    EventColumn = _legacy_override((EventColumn, 'EventColumn'), (eventtype, 'eventtype'),
+                                 '')
+    OutputDir = _legacy_override((OutputDir, 'OutputDir'), (outputdir, 'outputdir'),
+                                 '{root}/derivatives/eegprep')
+    Subjects = _legacy_override((Subjects, 'Subjects'), (subjects, 'subjects'),
+                                ())
+    Sessions = _legacy_override((Sessions, 'Sessions'), (sessions, 'sessions'),
+                                ())
+    Runs = _legacy_override((Runs, 'Runs'), (runs, 'runs'),
+                            ())
+    Tasks = _legacy_override((Tasks, 'Tasks'), (tasks, 'tasks'),
+                             ())
+    # other sanity checks
     if len(StageNames) != 4:
         raise ValueError("StageNames, if given, must be a list of 4 strings, as in: "
                          "['desc-cleaned', 'desc-picard', 'desc-iclabel', 'desc-epoch'].")
@@ -284,11 +341,11 @@ def bids_preproc(
         if _n_skipped is None:
             _n_skipped = multiprocessing.Value('i', 0)
 
-        fpath_cln = gen_derived_fpath(fn, outputdir=outputdir, keyword=StageNames[0])
-        fpath_picard = gen_derived_fpath(fn, outputdir=outputdir, keyword=StageNames[1])
-        fpath_iclabel = gen_derived_fpath(fn, outputdir=outputdir, keyword=StageNames[2])
-        fpath_epoch = gen_derived_fpath(fn, outputdir=outputdir, keyword=StageNames[3])
-        fpath_report = gen_derived_fpath(fn, outputdir=outputdir, keyword='desc-report', extension='.json')
+        fpath_cln = gen_derived_fpath(fn, outputdir=OutputDir, keyword=StageNames[0])
+        fpath_picard = gen_derived_fpath(fn, outputdir=OutputDir, keyword=StageNames[1])
+        fpath_iclabel = gen_derived_fpath(fn, outputdir=OutputDir, keyword=StageNames[2])
+        fpath_epoch = gen_derived_fpath(fn, outputdir=OutputDir, keyword=StageNames[3])
+        fpath_report = gen_derived_fpath(fn, outputdir=OutputDir, keyword='desc-report', extension='.json')
 
         # JSON report file
         if os.path.exists(fpath_report):
@@ -381,23 +438,28 @@ def bids_preproc(
                     # load input file
                     EEG, import_report = pop_load_frombids(
                         fn,
-                        bidsmetadata=bidsmetadata,
-                        bidschanloc=bidschanloc,
-                        bidsevent=bidsevent,
-                        eventtype=eventtype,
+                        bidsmetadata=ApplyMetadata,
+                        bidschanloc=ApplyChanlocs,
+                        bidsevent=ApplyEvents,
+                        eventtype=EventColumn,
                         return_report=True)
                     StagesToGo.remove('Import')
 
                     report["Import"] = {
-                        "bidsmetadata": bidsmetadata,
-                        "bidschanloc": bidschanloc,
-                        "bidsevent": bidsevent,
-                        "eventtype": eventtype,
+                        "ApplyMetadata": ApplyMetadata,
+                        "ApplyChanlocs": ApplyChanlocs,
+                        "ApplyEvents": ApplyEvents,
+                        "EventColumn": EventColumn,
                         "InputFile": {
                             "Filename": os.path.basename(fn),
                             "Relpath": os.path.relpath(fn, root),
                             "Filesize": os.path.getsize(fn),
                         },
+                        # these are kept for back compat with previously generated reports
+                        "bidsmetadata": ApplyMetadata,
+                        "bidschanloc": ApplyChanlocs,
+                        "bidsevent": ApplyEvents,
+                        "eventtype": EventColumn,
                         **import_report,
                     }
 
@@ -517,10 +579,10 @@ def bids_preproc(
                         # load input file to get original channel locations
                         tmp, import_report = pop_load_frombids(
                             fn,
-                            bidsmetadata=bidsmetadata,
-                            bidschanloc=bidschanloc,
-                            bidsevent=bidsevent,
-                            eventtype=eventtype,
+                            bidsmetadata=ApplyMetadata,
+                            bidschanloc=ApplyChanlocs,
+                            bidsevent=ApplyEvents,
+                            eventtype=EventColumn,
                             return_report=True)
                         old_chanlocs = tmp['chanlocs']
                         del tmp
@@ -604,7 +666,7 @@ def bids_preproc(
 
                 # rewrite the events file
                 if len(EEG['event']):
-                    fpath_events = gen_derived_fpath(fn, outputdir=outputdir,
+                    fpath_events = gen_derived_fpath(fn, outputdir=OutputDir,
                                                      suffix='events', extension='.tsv')
                     have_hed_column = EEG['etc'].get('event_column', None) == 'HED'
                     columns = ['onset', 'duration', 'trial_type'] + (['HED'] if have_hed_column else [])
@@ -629,7 +691,7 @@ def bids_preproc(
                             print('\t'.join(str(r) for r in row), file=fp)
 
                 # rewrite the channels file
-                fpath_channels = gen_derived_fpath(fn, outputdir=outputdir,
+                fpath_channels = gen_derived_fpath(fn, outputdir=OutputDir,
                                                    suffix='channels', extension='.tsv')
                 with open(fpath_channels, 'w') as fp:
                     print('name\ttype\tunits', file=fp)
@@ -639,7 +701,7 @@ def bids_preproc(
                         print(f"{ch['labels']}\t{ch_type}\t{ch_unit}", file=fp)
 
                 # rewrite the electrodes file
-                fpath_elecs = gen_derived_fpath(fn, outputdir=outputdir,
+                fpath_elecs = gen_derived_fpath(fn, outputdir=OutputDir,
                                                 suffix='electrodes', extension='.tsv')
                 with open(fpath_elecs, 'w') as fp:
                     print('name\tx\ty\tz', file=fp)
@@ -648,7 +710,7 @@ def bids_preproc(
                             print(f"{ch['labels']}\t{ch['X']}\t{ch['Y']}\t{ch['Z']}", file=fp)
 
                 # rewrite/update the coordsystem file
-                fpath_coordsystem = gen_derived_fpath(fn, outputdir=outputdir,
+                fpath_coordsystem = gen_derived_fpath(fn, outputdir=OutputDir,
                                                       suffix='coordsystem', extension='.json')
                 coordsystem = EEG['etc'].get('BIDSCoordsystem', {})
                 coordsystem.update({
@@ -701,15 +763,15 @@ def bids_preproc(
     elif os.path.isdir(root):
         # process all files under a BIDS root recursively
         all_files = bids_list_eeg_files(
-            root, subjects=subjects, sessions=sessions, runs=runs, tasks=tasks)
+            root, subjects=Subjects, sessions=Sessions, runs=Runs, tasks=Tasks)
         n_jobs = 1 if is_debug() else num_jobs_from_reservation(ReservePerJob)
         n_total = len(all_files)
         t0 = now()
 
         # copy/move the other files from the root
-        if '{root}' in outputdir:
-            outputdir = outputdir.replace('{root}', root)
-        _copy_misc_root_files(root, outputdir, exclude=all_files)
+        if '{root}' in OutputDir:
+            OutputDir = OutputDir.replace('{root}', root)
+        _copy_misc_root_files(root, OutputDir, exclude=all_files)
 
         # rewrite the dataset_description.json file
         dataset_desc_path = os.path.join(root, 'dataset_description.json')
@@ -766,7 +828,7 @@ def bids_preproc(
         # note that the actual epoched data *can* be absent if there were no matching 
         # event markers in any study file, which we can't determine at this point
         desc['IsEpoched'] = EpochEvents is not None
-        fpath_dataset_desc = gen_derived_fpath(dataset_desc_path, outputdir=outputdir, keyword='',
+        fpath_dataset_desc = gen_derived_fpath(dataset_desc_path, outputdir=OutputDir, keyword='',
                                                extension='.json')
         with open(fpath_dataset_desc, 'w') as f:
             json.dump(desc, f, indent=4)
