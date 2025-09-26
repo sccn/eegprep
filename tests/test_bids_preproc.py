@@ -69,6 +69,7 @@ class TestBidsPreproc(DebuggableTestCase):
             subjects=[0,1], runs=[1],
             SkipIfPresent=True, # <- for quicker re-runs
             bidsevent=True,
+            eventtype='value', # <- needed for this study to match pop_importbids() in MATLAB
             SamplingRate=128,
             WithInterp=True, EpochEvents=[], EpochLimits=[-0.2, 0.5], EpochBaseline=[None, 0],
             WithPicard=True, WithICLabel=True,
