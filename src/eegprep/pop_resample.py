@@ -72,7 +72,7 @@ def pop_resample(EEG, freq, engine=None):
             raise ValueError(f"Unsupported engine: {engine}. Should be None, 'matlab', or 'octave'")
 
         # Update EEG structure
-        new_pnts = EEG['data'].shape[1]
+        new_pnts = EEG_new['data'].shape[1]
         EEG_new['pnts'] = new_pnts
         EEG_new['srate'] = freq
         
@@ -84,7 +84,7 @@ def pop_resample(EEG, freq, engine=None):
         if 'xmin' in EEG and 'xmax' in EEG:
             duration = EEG['xmax'] - EEG['xmin']
             EEG_new['xmin'] = EEG['xmin']
-            EEG_new['xmax'] = EEG['xmin'] + duration
+            EEG_new['xmax'] = EEG['xmin'] + (EEG_new['pnts']-1)/EEG_new['srate'] # was: EEG['xmin'] + duration
 
         # Update event/urevent latencies if present
         ratio = EEG['pnts'] / new_pnts
