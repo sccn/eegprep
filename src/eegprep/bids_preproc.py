@@ -190,6 +190,8 @@ def bids_preproc(
       number of logical cores on the system. If the ReservePerJob clause is also
       specified, this will be treated as a maximum, otherwise as the *total*. If neither
       of the two parameters is specified, a single job will run.
+      Note: as usual when running multiple processes in Python, you need to use the
+      if __name__ == "__main__": guard pattern in your main processing script.
     ReservePerJob (str):
       Optionally the resource amount and type to reserve per job, e.g. '4GB' or '2CPU';
       the run will then use as many jobs as fit within the system resources of the specified type.
