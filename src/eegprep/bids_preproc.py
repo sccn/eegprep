@@ -86,6 +86,7 @@ def bids_preproc(
         Tasks: Sequence[str | int] | str | int | None = None,
         # Overall run configuration
         SkipIfPresent: bool = True,
+        NumJobs: Optional[int] = None,
         ReservePerJob: str = '',
         ReturnData: bool = False,
         OutputDir: Optional[str] = None,
@@ -184,15 +185,28 @@ def bids_preproc(
 
     SkipIfPresent (bool):
       skip processing files that already have a cleaned version present.
+    NumJobs (int, optional):
+      The number of jobs to run in parallel. If set to -1, this will default to the
+      number of logical cores on the system. If the ReservePerJob clause is also
+      specified, this will be treated as a maximum, otherwise as the *total*. If neither
+      of the two parameters is specified, a single job will run.
     ReservePerJob (str):
       Optionally the resource amount and type to reserve per job, e.g. '4GB' or '2CPU';
       the run will then use as many jobs as fit within the system resources of the specified type.
-      - Can also contain a total or percentage margin, as in '4GB-10GB', '2CPU-10%'.
-      - Can also be specified as a total or maximum, as in '10total' or '10max'.
-      - Can also be a comma-separated list of reservations, e.g. '4GB,2CPU-1CPU,5max'.
-      - if not set, will assume a single job. Generally runs serially when in debug mode.
-      It is recommended to check in a serial run how much peak RAM a single job takes,
-      and then sizing this to 1CPU,<N>GB-5GB or some other margin of your choice.
+      * You can also specify how much of a margin of the total system resources should
+        be *withheld* for use by other programs on the computer, by following the amount
+        by a : and then the margin, as in '4GB:10GB' (always leave 10GB unused), '2CPU:10%'
+        (always leave 10% of the total installed RAM unused). This also works with other metrics.
+      * one may also specify a total or maximum number of jobs, as in '10total' or '10max'.
+      * Multiple criteria can be spefied in a comma-separated list of reservations, e.g.
+        '4GB:20%, 2CPU, 5max'.
+      * If neither this nor NumJobs are specified, a single job will run. Note that the
+        system will also run in serial when in debug mode and when on a platform that does
+        not cleanly support multiprocessing.
+      Tip: a good way to size this is to perform a serial run and to monitor how much
+        peak RAM a single job takes, and then setting this to <PeakUsage>GB:<YourMargin>GB
+        where YourMargin is however much you want to leave to other programs, e.g., 5GB
+        (this will depend on what else you expect to be running on the machine).
     ReturnData (bool):
       Whether to return the final EEG data objects as a list. Note that this can use
       quite a lot of memory for large studies and it may be better to iterate over
@@ -328,6 +342,14 @@ def bids_preproc(
                             ())
     Tasks = _legacy_override((Tasks, 'Tasks'), (tasks, 'tasks'),
                              ())
+    # account for the NumJobs parameter
+    if NumJobs == -1:
+        NumJobs = os.cpu_count()
+    if NumJobs is not None:
+        if ReservePerJob:
+            ReservePerJob = f"{ReservePerJob},{NumJobs}max"
+        else:
+            ReservePerJob = f"{NumJobs}total"
     # other sanity checks
     if len(StageNames) != 4:
         raise ValueError("StageNames, if given, must be a list of 4 strings, as in: "

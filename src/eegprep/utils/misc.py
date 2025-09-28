@@ -20,8 +20,11 @@ def num_cpus_from_reservation(ReservePerJob: str, *, default: int = 4) -> Option
             if 'CPU' in part:
                 ReservePerJob = part
                 break
+    # If a margin is specified, take the first part before the margin separator
+    if ':' in ReservePerJob:
+        ReservePerJob = ReservePerJob.split(':')[0]
+    # (legacy syntax for this uses a minus sign)
     if '-' in ReservePerJob:
-        # If a margin is specified, take the first part before the dash
         ReservePerJob = ReservePerJob.split('-')[0]
     if ReservePerJob.endswith('CPU'):
         # if we got a CPU reservation now
@@ -57,7 +60,10 @@ def num_jobs_from_reservation(ReservePerJob: str) -> int:
         return int(ReservePerJob[:-5])
     elif ReservePerJob.endswith('MAX'):
         return int(ReservePerJob[:-3])
-    if '-' in ReservePerJob:
+    if ':' in ReservePerJob:
+        reserve, margin = ReservePerJob.split(':')
+    elif '-' in ReservePerJob:
+        # legacy syntax used a minus sign
         reserve, margin = ReservePerJob.split('-')
     else:
         reserve, margin = ReservePerJob, '0%'
