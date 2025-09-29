@@ -100,7 +100,7 @@ def bids_preproc(
         WithPicard: bool = False,
         WithICLabel: bool = False,
         WithReport: bool = True,
-        CommonAverageReference: bool = False,
+        CommonAverageReference: bool = True,
         # Core cleaning parameters
         ChannelCriterion: Union[float, str] = 0.8,
         LineNoiseCriterion: Union[float, str] = 4.0,
@@ -775,9 +775,13 @@ def bids_preproc(
                     }
 
                 if CommonAverageReference:
-                    EEG = pop_reref(EEG, [])
-                    StagesToGo.remove('CommonAverageRef')
-                report["CommonAverageReference"] = {"Applied": CommonAverageReference}
+                    if EEG['ref'] == 'average':
+                        logger.info("Data is already average-referenced; skipping.")
+                        report["CommonAverageReference"] = {"Applied": 'skipped (redundant)'}
+                    else:
+                        EEG = pop_reref(EEG, [])
+                        StagesToGo.remove('CommonAverageRef')
+                        report["CommonAverageReference"] = {"Applied": True}
 
                 # optionally write out the final preprocessed file
                 if need_final:
