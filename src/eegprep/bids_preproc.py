@@ -1,5 +1,6 @@
 import os
 import json
+from copy import deepcopy
 import contextlib
 import multiprocessing
 import time
@@ -9,7 +10,6 @@ from typing import Union, Tuple, Optional, Sequence, List, Dict, Any
 
 import numpy as np
 
-from . import eeg_checkset, eeg_compare
 from .utils import ExceptionUnlessDebug, num_jobs_from_reservation, is_debug, \
     humanize_seconds, num_cpus_from_reservation, ToolError
 from .utils.bids import layout_for_fpath
@@ -30,6 +30,7 @@ all_stages = ['Import', 'ChannelSelection', 'Resample', 'CleanArtifacts', 'ICA',
 def _copy_misc_root_files(root: str, dst: str, exclude: List[str]) -> None:
     """Move miscellaneous description files from the study root to the target directory."""
     from bids import BIDSLayout
+    from bids.layout.models import BIDSJSONFile
     layout: BIDSLayout = layout_for_fpath(root)
     files = layout.get()
     # apply filter rules
@@ -39,8 +40,8 @@ def _copy_misc_root_files(root: str, dst: str, exclude: List[str]) -> None:
     # 2. no files that are in a disallowed path relative to root
     no_files = {os.path.join(root, 'derivatives'), os.path.join(root, 'sourcedata'), os.path.join(root, 'dataset_description.json')}
     files = [f for f in files if f.path not in no_files]
-    # 3. no (other) files for the eeg modality
-    files = [f for f in files if f.entities.get('suffix') != 'eeg']
+    # 3. no (other) files for the eeg modality except if they're json
+    files = [f for f in files if f.entities.get('suffix') != 'eeg' or isinstance(f, BIDSJSONFile)]
     # 4. no events, electrodes or channels files (since we'll rewrite those)
     no_suffixes = {'channels', 'events', 'electrodes'}
     files = [f for f in files if f.entities.get('suffix') not in no_suffixes]
@@ -335,7 +336,7 @@ def bids_preproc(
     del kwargs['root']  # we don't need the root here, only in the function body
     from eegprep import (bids_list_eeg_files, clean_artifacts, pop_load_frombids, eeg_checkset,
                          pop_saveset, eeg_picard, iclabel, pop_loadset, pop_resample,
-                         eeg_interp, pop_select)
+                         eeg_interp, pop_select, eeg_checkset_strict_mode)
     from .utils.bids import gen_derived_fpath
     # handle support for legacy parameters and defaults
     ApplyChanlocs = _legacy_override((ApplyChanlocs, 'ApplyChanlocs'), (bidschanloc, 'bidschanloc'),
@@ -426,7 +427,8 @@ def bids_preproc(
         if SkipIfPresent and all(os.path.exists(fn) for fn in needed_files):
             logger.info(f"*** Skipping {fn} as preprocessed file(s) already exists: {', '.join(needed_files)} ***")
             # load the final file if requested
-            EEG = pop_loadset(needed_files[-1]) if ReturnData else None
+            with eeg_checkset_strict_mode(False):
+                EEG = pop_loadset(needed_files[-1]) if ReturnData else None
             with _lock:
                 _n_skipped.value += 1
                 return EEG
@@ -464,7 +466,8 @@ def bids_preproc(
                 if os.path.exists(fpath_cln) and SkipIfPresent:
                     logger.info(f"Found {fpath_cln}, skipping clean_artifacts stage.")
                     try:
-                        EEG = pop_loadset(fpath_cln)
+                        with eeg_checkset_strict_mode(False):
+                            EEG = pop_loadset(fpath_cln)
                     except OSError as e:
                         # this can happen if a previous export was truncated eg due to
                         # file-write error
@@ -596,8 +599,6 @@ def bids_preproc(
                         # we always save out the cleaned EEG data
                         pop_saveset(EEG, fpath_cln)
 
-                    # TODO: possibly write SoftwareFilters into _eeg.json
-
                 if WithPicard:
                     if os.path.exists(fpath_picard) and SkipIfPresent:
                         logger.info(f"Found {fpath_picard}, skipping PICARD stage.")
@@ -689,20 +690,21 @@ def bids_preproc(
                         }
                     else:
                         try:
-                            EEG, *_ = pop_epoch(EEG, types=EpochEvents, lim=EpochLimits)
-                            if EpochBaseline is not None:
-                                from . import pop_rmbase
-                                assert len(EpochBaseline) == 2, "EpochBaseline must be a tuple of (min, max) times in seconds or None."
-                                timerange = EpochBaseline
-                                if timerange[0] is None:
-                                    timerange = (EEG['times'][0] / 1000, timerange[1])
-                                if timerange[1] is None:
-                                    timerange = (timerange[0], EEG['times'][-1] / 1000)
-                                if pop_rmbase_in_ms:
-                                    timerange = [timerange[0] * 1000, timerange[1] * 1000]
-                                EEG = pop_rmbase(EEG, timerange=timerange)
+                            with eeg_checkset_strict_mode(False):
+                                EEG, *_ = pop_epoch(EEG, types=EpochEvents, lim=EpochLimits)
+                                if EpochBaseline is not None:
+                                    from . import pop_rmbase
+                                    assert len(EpochBaseline) == 2, "EpochBaseline must be a tuple of (min, max) times in seconds or None."
+                                    timerange = EpochBaseline
+                                    if timerange[0] is None:
+                                        timerange = (EEG['times'][0] / 1000, timerange[1])
+                                    if timerange[1] is None:
+                                        timerange = (timerange[0], EEG['times'][-1] / 1000)
+                                    if pop_rmbase_in_ms:
+                                        timerange = [timerange[0] * 1000, timerange[1] * 1000]
+                                    EEG = pop_rmbase(EEG, timerange=timerange)
 
-                            pop_saveset(EEG, fpath_epoch)
+                                pop_saveset(EEG, fpath_epoch)
 
                             report["Epoching"] = {
                                 "Applied": True,
@@ -781,6 +783,81 @@ def bids_preproc(
                 })
                 with open(fpath_coordsystem, 'w') as fp:
                     json.dump(coordsystem, fp, indent=4)
+
+                # rewrite/update the _eeg.json file
+                fpath_eeg = gen_derived_fpath(fn, outputdir=OutputDir,
+                                              suffix='eeg', extension='.json')
+                if os.path.exists(fpath_eeg):
+                    with open(fpath_eeg, 'r') as fp:
+                        content = json.load(fp)
+                else:
+                    content = {}
+
+                # rewrite mandatory fields
+                if (ref := EEG.get('ref', 'unknown')) != 'unknown' or 'EEGReference' not in content:
+                    content['EEGReference'] = ref
+                if 'PowerLineFrequency' not in content:
+                    # while possible, it'd be tricky to infer that one on the fly
+                    content['PowerLineFrequency'] = 'n/a'
+                content['SamplingFrequency'] = EEG['srate']
+
+                # write channel counts based on the modality
+                content['EEGChannelCount'] = n_eeg = sum(lab['type'].lower() == 'eeg' for lab in EEG['chanlocs'])
+                content['ECGChannelCount'] = n_ecg = sum(lab['type'].lower() == 'ecg' for lab in EEG['chanlocs'])
+                content['EMGChannelCount'] = n_emg = sum(lab['type'].lower() == 'emg' for lab in EEG['chanlocs'])
+                content['EOGChannelCount'] = n_eog = sum(lab['type'].lower() == 'eog' for lab in EEG['chanlocs'])
+                content['TriggerChannelCount'] = n_trig = sum(lab['type'].lower() == 'trig' for lab in EEG['chanlocs'])
+                content['MISCChannelCount'] = len(EEG['chanlocs']) - (n_eeg+n_ecg+n_emg+n_eog+n_trig)
+
+                # remove misnamed field that may be present from prior json file
+                if 'MiscChannelCount' in content:
+                    del content['MiscChannelCount']
+
+                # other things that likely changed as a result of preprocessing
+                is_epoched = EEG['data'].ndim == 3
+                if not is_epoched:
+                    content['RecordingDuration'] = EEG['xmax'] - EEG['xmin']
+                else:
+                    content['EpochLength'] = EEG['xmax'] - EEG['xmin']
+                    content['RecordingDuration'] = (EEG['xmax'] - EEG['xmin']) * EEG['data'].shape[-1]
+                if is_epoched:
+                    content['RecordingType'] = 'epoched'
+                elif any(ev['type'] == 'boundary' for ev in EEG['event']):
+                    content['RecordingType'] = 'discontinuous'
+                else:
+                    content['RecordingType'] = 'continuous'
+
+                # complete a few fields that may be missing
+                if 'EEGPlacementScheme' not in content:
+                    content['EEGPlacementScheme'] = EEG['etc'].get('labelscheme', 'unknown')
+
+                # write information about the applied filters
+                if 'SoftwareFilters' not in content:
+                    content['SoftwareFilters'] = sw_filts = {}
+                else:
+                    sw_filts = content['SoftwareFilters']
+                filter_report = deepcopy(report)
+                # mapping from the name in the report to the name in the _eeg file
+                filter_names = {
+                    'Resample': 'pop_resample',
+                    'CleanArtifacts': 'clean_artifacts',
+                    'ICA': 'eeg_picard',
+                    'ChannelInterp': 'eeg_interp',
+                    'Epoching': 'pop_epoch'
+                }
+                for in_report, in_filters in filter_names.items():
+                    if (flt := filter_report.get(in_report, {'Applied': False})).pop('Applied'):
+                        sw_filts[in_filters] = flt
+
+                if is_epoched and EpochBaseline is not None:
+                    sw_filts['pop_rmbase'] = {
+                        'Baseline' : report['Epoching']['Baseline']
+                    }
+
+
+                # write the updated content back
+                with open(fpath_eeg, 'w') as fp:
+                    json.dump(content, fp, indent=4)
 
             return EEG if ReturnData else None
         except ExceptionUnlessDebug as e:
