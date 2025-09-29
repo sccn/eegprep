@@ -1,4 +1,5 @@
 import os
+import hashlib
 import json
 from copy import deepcopy
 import contextlib
@@ -24,8 +25,8 @@ logger = logging.getLogger(__name__)
 # list of valid file extensions for raw EEG data files in BIDS format
 eeg_extensions = ('.vhdr', '.edf', '.bdf', '.set')
 
-# list of all possible processing stages
-all_stages = ['Import', 'ChannelSelection', 'Resample', 'CleanArtifacts', 'ICA', 'ICLabel', 'ChannelInterp', 'Epoching']
+# list of all possible processing stages, in the order in which they apply
+all_stages = ['Import', 'ChannelSelection', 'Resample', 'CleanArtifacts', 'ICA', 'ICLabel', 'ChannelInterp', 'Epoching', 'CommonAverageRef']
 
 def _copy_misc_root_files(root: str, dst: str, exclude: List[str]) -> None:
     """Move miscellaneous description files from the study root to the target directory."""
@@ -99,6 +100,7 @@ def bids_preproc(
         WithPicard: bool = False,
         WithICLabel: bool = False,
         WithReport: bool = True,
+        CommonAverageReference: bool = False,
         # Core cleaning parameters
         ChannelCriterion: Union[float, str] = 0.8,
         LineNoiseCriterion: Union[float, str] = 4.0,
@@ -240,6 +242,9 @@ def bids_preproc(
     WithICLabel (bool):
         Whether to apply ICLabel classification after ICA. Normally requires
         WithPicard=True.
+    CommonAverageReference (bool):
+        Whether to transform the EEG data to a common average referencing scheme;
+        recommended for cross-study processing.
 
     (parameters for artifact removal - same as in clean_artifacts function)
     ChannelCriterion (float or 'off'):
@@ -339,8 +344,22 @@ def bids_preproc(
     del kwargs['root']  # we don't need the root here, only in the function body
     from eegprep import (bids_list_eeg_files, clean_artifacts, pop_load_frombids, eeg_checkset,
                          pop_saveset, eeg_picard, iclabel, pop_loadset, pop_resample,
-                         eeg_interp, pop_select, eeg_checkset_strict_mode)
+                         eeg_interp, pop_select, eeg_checkset_strict_mode, pop_reref)
     from .utils.bids import gen_derived_fpath
+
+    # set of options in kwargs that do NOT influence the processing result; all others
+    # are used to calc an options hash
+    non_proc_options = {
+        'root', 'Subjects', 'Sessions', 'Runs', 'Tasks', 'SkipIfPresent', 'NumJobs',
+        'ReservePerJob', 'ReturnData', 'OutputDir', 'MinimizeDiskUsage', 'subjects',
+        'sessions', 'runs', 'tasks', 'outputdir'}
+    # and collection of options that DO influence results
+    proc_options = {k: kwargs[k] for k in sorted(kwargs) if k not in non_proc_options}
+    options_str = ','.join([f'{k}:{v!r}' for k, v in proc_options.items()])
+    # get an abbreviated options hash
+    hasher = hashlib.sha256()
+    hasher.update(options_str.encode('utf-8'))
+    options_hash = hasher.hexdigest()[:8]
 
     # handle support for legacy parameters and defaults
     ApplyChanlocs = _legacy_override((ApplyChanlocs, 'ApplyChanlocs'), (bidschanloc, 'bidschanloc'),
@@ -388,6 +407,7 @@ def bids_preproc(
         fpath_picard = gen_derived_fpath(fn, outputdir=OutputDir, keyword=StageNames[1])
         fpath_iclabel = gen_derived_fpath(fn, outputdir=OutputDir, keyword=StageNames[2])
         fpath_epoch = gen_derived_fpath(fn, outputdir=OutputDir, keyword=StageNames[3])
+        fpath_final = gen_derived_fpath(fn, outputdir=OutputDir, keyword=f'desc-final#{options_hash}')
         fpath_report = gen_derived_fpath(fn, outputdir=OutputDir, keyword='desc-report', extension='.json')
 
         # JSON report file
@@ -409,12 +429,21 @@ def bids_preproc(
 
         # stages for reporting purposes
         needed_files = []
+        # whether we need to generate/load a _final.set file
+        need_final = False
+
         StagesToGo = ['Import']
+        need_final = True
+
         if OnlyModalities or OnlyChannelsWithPosition:
             StagesToGo += ['ChannelSelection']
+            need_final = True
         if SamplingRate:
             StagesToGo += ['Resample']
+            need_final = True
+
         StagesToGo += ['CleanArtifacts']
+
         if WithICLabel:
             needed_files += [fpath_cln, fpath_iclabel]
             StagesToGo += ['ICA', 'ICLabel']
@@ -423,11 +452,23 @@ def bids_preproc(
             StagesToGo += ['ICA']
         else:
             needed_files += [fpath_cln]
+        need_final = False
+
         if WithInterp:
             StagesToGo += ['ChannelInterp']
+            need_final = True
+
         if EpochEvents is not None:
             needed_files += [fpath_epoch]
             StagesToGo += ['Epoching']
+            need_final = False
+
+        if CommonAverageReference:
+            StagesToGo += ['CommonAverageRef']
+            need_final = True
+
+        if need_final:
+            needed_files += [fpath_final]
         SkippedStages = [s for s in all_stages if s not in StagesToGo]
 
         if SkipIfPresent and all(os.path.exists(fn) for fn in needed_files):
@@ -733,6 +774,15 @@ def bids_preproc(
                         "Applied": False,
                     }
 
+                if CommonAverageReference:
+                    EEG = pop_reref(EEG, [])
+                    StagesToGo.remove('CommonAverageRef')
+                report["CommonAverageReference"] = {"Applied": CommonAverageReference}
+
+                # optionally write out the final preprocessed file
+                if need_final:
+                    pop_saveset(EEG, fpath_final)
+
                 # rewrite the events file
                 if len(EEG['event']):
                     fpath_events = gen_derived_fpath(fn, outputdir=OutputDir,
@@ -849,16 +899,12 @@ def bids_preproc(
                     'CleanArtifacts': 'clean_artifacts',
                     'ICA': 'eeg_picard',
                     'ChannelInterp': 'eeg_interp',
-                    'Epoching': 'pop_epoch'
+                    'Epoching': 'pop_epoch+pop_rmbase' if EpochBaseline is not None else 'pop_epoch',
+                    'CommonAverageReference': 'pop_reref'
                 }
                 for in_report, in_filters in filter_names.items():
                     if (flt := filter_report.get(in_report, {'Applied': False})).pop('Applied'):
                         sw_filts[in_filters] = flt
-
-                if is_epoched and EpochBaseline is not None:
-                    sw_filts['pop_rmbase'] = {
-                        'Baseline' : report['Epoching']['Baseline']
-                    }
 
                 # write the updated content back
                 with open(fpath_eeg, 'w') as fp:
