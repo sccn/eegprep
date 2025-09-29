@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 eeg_extensions = ('.vhdr', '.edf', '.bdf', '.set')
 
 # list of all possible processing stages
-all_stages = ['Import', 'Resample', 'CleanArtifacts', 'ICA', 'ICLabel', 'ChannelInterp', 'Epoching']
+all_stages = ['Import', 'ChannelSelection', 'Resample', 'CleanArtifacts', 'ICA', 'ICLabel', 'ChannelInterp', 'Epoching']
 
 def _copy_misc_root_files(root: str, dst: str, exclude: List[str]) -> None:
     """Move miscellaneous description files from the study root to the target directory."""
@@ -92,6 +92,8 @@ def bids_preproc(
         OutputDir: Optional[str] = None,
         # Overall processing parameters
         SamplingRate: Optional[float] = None,
+        OnlyChannelsWithPosition: bool = True,
+        OnlyModalities: Sequence[str] = (),
         WithInterp: bool = False,
         WithPicard: bool = False,
         WithICLabel: bool = False,
@@ -154,13 +156,13 @@ def bids_preproc(
         The root directory containing BIDS data or a single EEG file path.
 
     ApplyMetadata (bool):
-        whether to apply metadata from BIDS sidecar files when loading raw EEG data.
+        Whether to apply metadata from BIDS sidecar files when loading raw EEG data.
         (default True)
     ApplyEvents (bool):
-        whether to apply events from BIDS sidecar files when loading raw EEG data.
+        Whether to apply events from BIDS sidecar files when loading raw EEG data.
         (default False)
     ApplyChanlocs (bool):
-        whether to apply channel locations from BIDS sidecar files when loading raw EEG data.
+        Whether to apply channel locations from BIDS sidecar files when loading raw EEG data.
         (default True)
     EventColumn (str):
         Optionally the column name in the BIDS events file to use for event types; if not
@@ -214,6 +216,15 @@ def bids_preproc(
       quite a lot of memory for large studies and it may be better to iterate over
       the preprocessed files in downstream analyses.
 
+    OnlyChannelsWithPosition (bool):
+        Whether to retain only channels for which positions were recorded or could be
+        inferred. If this is not set, then OnlyModalities should be set so as to retain
+        only modalities that should be preprocessed together.
+    OnlyModalities (Sequence[str], optional):
+        If set, retain only channels that have the associated modalities. If enabled, this
+        is typically set to ['EEG'] but may also include other ExG modalities such as
+        EOG or EMG that have the same unit and scale as EEG. If non-electrophysiological
+        modalities are included, some artifact removal steps may not function correctly.
     SamplingRate (float):
         Desired sampling rate for the preprocessed data. If not specified, will retain
         the original sampling rate.
@@ -323,7 +334,8 @@ def bids_preproc(
     kwargs = {k: v for k, v in locals().items() if not k.startswith('_')}
     del kwargs['root']  # we don't need the root here, only in the function body
     from eegprep import (bids_list_eeg_files, clean_artifacts, pop_load_frombids, eeg_checkset,
-                         pop_saveset, eeg_picard, iclabel, pop_loadset, pop_resample, eeg_interp)
+                         pop_saveset, eeg_picard, iclabel, pop_loadset, pop_resample,
+                         eeg_interp, pop_select)
     from .utils.bids import gen_derived_fpath
     # handle support for legacy parameters and defaults
     ApplyChanlocs = _legacy_override((ApplyChanlocs, 'ApplyChanlocs'), (bidschanloc, 'bidschanloc'),
@@ -391,6 +403,8 @@ def bids_preproc(
         # stages for reporting purposes
         needed_files = []
         StagesToGo = ['Import']
+        if OnlyModalities or OnlyChannelsWithPosition:
+            StagesToGo += ['ChannelSelection']
         if SamplingRate:
             StagesToGo += ['Resample']
         StagesToGo += ['CleanArtifacts']
@@ -486,6 +500,29 @@ def bids_preproc(
                         "eventtype": EventColumn,
                         **import_report,
                     }
+
+                    if OnlyChannelsWithPosition or OnlyModalities:
+                        keep = np.ones_like(EEG['chanlocs'], dtype=bool)
+                        if OnlyChannelsWithPosition:
+                            keep &= [chanloc_has_coords(ch) for ch in EEG['chanlocs']]
+                        if OnlyModalities:
+                            OM = [m.upper() for m in OnlyModalities]
+                            keep &= [ch.get('type', 'EEG').upper() in OM for ch in EEG['chanlocs']]
+                        retain = [ch['labels'] for ch, kp in zip(EEG['chanlocs'], keep) if kp]
+                        if 0 < len(retain) < len(EEG['chanlocs']):
+                            EEG = pop_select(EEG, channel=retain)
+                            EEG = eeg_checkset(EEG)
+                            report["ChannelSelection"] = {
+                                "Applied": True,
+                                "Retain": retain,
+                            }
+                        else:
+                            detail = 'no' if not retain else 'all'
+                            logger.info(f"No channel selection applied: {detail} channels retained")
+                            report["ChannelSelection"] = {
+                                "Applied": False
+                            }
+                        StagesToGo.remove('ChannelSelection')
 
                     if SamplingRate:
                         EEG = pop_resample(EEG, SamplingRate)
