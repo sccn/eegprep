@@ -924,6 +924,11 @@ def pop_load_frombids(
 
         if not skip_locations:
             report['ChanlocsFrom'] = os.path.basename(best_cap)
+            if '10-5' in best_cap:
+                labeling = '10-20'  # normalize to 10-20
+            else:
+                labeling, ext = os.path.splitext(os.path.basename(best_cap))
+            EEG['etc']['labelscheme'] = labeling
 
             # transform coordinates from file into the EEGLAB coordinate system
             # unit=millimeters, x=A (front), y=L (left), z=S (up)
@@ -956,6 +961,15 @@ def pop_load_frombids(
                 else:
                      # otherwise clear the locs to invalid
                     clear_chanloc(rec, numeric_null)
+    else:
+        # unambiguously 10-20 locations (excl. for example C3/C4 or F3/F4 since these
+        # are also in the Biosemi montage and likely some others)
+        candidate_locs = {
+            "fp1", "fp2", "fz", "t3",  "cz", "t4", "t5", "p3", "pz", "p4", "t6", "o1", "o2"}
+        if any(ch['labels'].lower() in candidate_locs for ch in EEG['chanlocs']):
+            EEG['etc']['labelscheme'] = '10-20'
+        else:
+            EEG['etc']['labelscheme'] = 'unknown'
 
     EEG = eeg_checkset(EEG)
     try:
