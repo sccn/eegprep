@@ -15,6 +15,11 @@ for idx=1:length(ALLEEG)
     EEG = ALLEEG(idx);
     orig_chanlocs = EEG.chanlocs;
 
+    % keep only channels with EEG modality
+    chn_modalities = {EEG.chanlocs.type};
+    keep = find(strcmp('EEG',chn_modalities));
+    EEG = pop_select(EEG, 'channel', keep);
+
     % resampling
     EEG = pop_resample(EEG, 128);
 
