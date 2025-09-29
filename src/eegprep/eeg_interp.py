@@ -239,6 +239,40 @@ def _handle_chanloc_interpolation(EEG, new_chanlocs):
         EEG['chanlocs'] = new_chanlocs.copy()
         EEG['nbchan'] = len(new_chanlocs)
         
+        # Handle ICA channel indices update (equivalent to MATLAB lines 174-189)
+        if (EEG.get('icasphere') is not None and 
+            hasattr(EEG['icasphere'], '__len__') and len(EEG['icasphere']) > 0):
+            
+            # Create inverse mapping from new positions back to old positions
+            new_to_old_idx = {new_idx: old_idx for old_idx, new_idx in old_to_new_idx.items()}
+            
+            # Update icachansind if it exists and is not empty
+            if (EEG.get('icachansind') is not None and 
+                hasattr(EEG['icachansind'], '__len__') and len(EEG['icachansind']) > 0):
+                
+                # Convert icachansind to list if it's a numpy array for easier manipulation
+                if hasattr(EEG['icachansind'], 'tolist'):
+                    icachansind = EEG['icachansind'].tolist()
+                else:
+                    icachansind = list(EEG['icachansind'])
+                
+                # Create sort index equivalent to MATLAB's [~, sorti] = sort(neworder)
+                # This maps from old position to new position in the sorted order
+                updated_icachansind = []
+                for old_ica_idx in icachansind:
+                    # Find where this old channel index went in the new structure
+                    if old_ica_idx in old_to_new_idx:
+                        new_pos = old_to_new_idx[old_ica_idx]
+                        updated_icachansind.append(new_pos)
+                
+                # Update both EEG.icachansind and EEG.chaninfo.icachansind
+                EEG['icachansind'] = updated_icachansind
+                
+                # Ensure chaninfo exists and update icachansind there too
+                if 'chaninfo' not in EEG:
+                    EEG['chaninfo'] = {}
+                EEG['chaninfo']['icachansind'] = updated_icachansind
+        
         # Bad indices are all positions that don't have existing data
         existing_new_indices = set(old_to_new_idx.values())
         bad_idx = [i for i in range(len(new_chanlocs)) if i not in existing_new_indices]
@@ -358,6 +392,81 @@ def test_chanloc_interpolation():
     
     return result1, result2, result3
 
-# Uncomment to run the test
+def test_ica_indices_update():
+    """
+    Test that ICA channel indices are properly updated when channels are reordered
+    during interpolation with chanloc structures.
+    """
+    
+    # Create a sample EEG structure with ICA data
+    EEG = {
+        'data': np.random.randn(4, 100, 1),  # 4 channels, 100 time points, 1 trial
+        'nbchan': 4,
+        'pnts': 100,
+        'trials': 1,
+        'srate': 500,
+        'xmin': 0,
+        'xmax': 0.2,
+        'chanlocs': [
+            {'labels': 'Fp1', 'X': 0.1, 'Y': 0.8, 'Z': 0.6},
+            {'labels': 'Fp2', 'X': -0.1, 'Y': 0.8, 'Z': 0.6},
+            {'labels': 'F3', 'X': 0.4, 'Y': 0.6, 'Z': 0.7},
+            {'labels': 'F4', 'X': -0.4, 'Y': 0.6, 'Z': 0.7},
+        ],
+        # Add ICA fields
+        'icasphere': np.eye(4),  # 4x4 identity matrix (not empty)
+        'icaweights': np.random.randn(4, 4),
+        'icawinv': np.random.randn(4, 4),
+        'icachansind': [0, 1, 2, 3],  # All channels used for ICA (0-based)
+        'chaninfo': {
+            'icachansind': [0, 1, 2, 3],
+        }
+    }
+    
+    print("Original EEG structure with ICA:")
+    print(f"Data shape: {EEG['data'].shape}")
+    print(f"Number of channels: {EEG['nbchan']}")
+    print(f"Channel labels: {[ch['labels'] for ch in EEG['chanlocs']]}")
+    print(f"ICA channel indices: {EEG['icachansind']}")
+    print(f"Chaninfo ICA indices: {EEG['chaninfo']['icachansind']}")
+    
+    # Test Case: Subset interpolation that causes channel reordering
+    # Create a superset where the existing channels appear in different order
+    superset_chanlocs = [
+        {'labels': 'F3', 'X': 0.4, 'Y': 0.6, 'Z': 0.7},    # was index 2, now 0
+        {'labels': 'Fp1', 'X': 0.1, 'Y': 0.8, 'Z': 0.6},   # was index 0, now 1
+        {'labels': 'C3', 'X': 0.6, 'Y': 0.0, 'Z': 0.8},    # new channel, index 2
+        {'labels': 'Fp2', 'X': -0.1, 'Y': 0.8, 'Z': 0.6},  # was index 1, now 3
+        {'labels': 'F4', 'X': -0.4, 'Y': 0.6, 'Z': 0.7},   # was index 3, now 4
+        {'labels': 'C4', 'X': -0.6, 'Y': 0.0, 'Z': 0.8},   # new channel, index 5
+    ]
+    
+    result = eeg_interp(EEG.copy(), superset_chanlocs)
+    
+    print(f"\nAfter interpolation with reordering:")
+    print(f"Data shape: {EEG['data'].shape} -> {result['data'].shape}")
+    print(f"Number of channels: {EEG['nbchan']} -> {result['nbchan']}")
+    print(f"Channel labels: {[ch['labels'] for ch in result['chanlocs']]}")
+    print(f"ICA channel indices: {EEG['icachansind']} -> {result['icachansind']}")
+    
+    # Verify the mapping is correct:
+    # Original: Fp1=0, Fp2=1, F3=2, F4=3
+    # New:      F3=0,  Fp1=1, C3=2, Fp2=3, F4=4, C4=5
+    # So ICA indices should be updated: [0,1,2,3] -> [1,3,0,4]
+    expected_indices = [1, 3, 0, 4]  # New positions of Fp1, Fp2, F3, F4
+    
+    print(f"Expected ICA indices: {expected_indices}")
+    print(f"Actual ICA indices: {result['icachansind']}")
+    print(f"Mapping correct: {result['icachansind'] == expected_indices}")
+    
+    # Also verify chaninfo is updated
+    if 'chaninfo' in result and 'icachansind' in result['chaninfo']:
+        print(f"Chaninfo ICA indices: {result['chaninfo']['icachansind']}")
+        print(f"Chaninfo mapping correct: {result['chaninfo']['icachansind'] == expected_indices}")
+    
+    return result
+
+# Uncomment to run the tests
 # if __name__ == '__main__':
 #     test_chanloc_interpolation()
+#     test_ica_indices_update()
