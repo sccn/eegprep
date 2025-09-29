@@ -159,6 +159,8 @@ def pop_saveset(EEG, file_name):
     }
 
      # add 1 to EEG['icachansind'] to make it 1-based
+    if isinstance(eeglab_dict['icachansind'], list):
+        eeglab_dict['icachansind'] = np.array(eeglab_dict['icachansind'])
     if 'icachansind' in eeglab_dict and eeglab_dict['icachansind'].size > 0:
         eeglab_dict['icachansind'] = eeglab_dict['icachansind'] + 1 
 
