@@ -67,13 +67,17 @@ def eeg_checkset(EEG, load_data=True):
             EEG['event'] = [EEG['event']]
     else:
         EEG['event'] = []
+    if isinstance(EEG['event'], list):
+        EEG['event'] = np.asarray(EEG['event'], dtype=object)
             
     if 'chanlocs' in EEG:
         if isinstance(EEG['chanlocs'], dict):
             EEG['chanlocs'] = [EEG['chanlocs']]
     else:
         EEG['chanlocs'] = []
-        
+    if isinstance(EEG['chanlocs'], list):
+        EEG['chanlocs'] = np.asarray(EEG['chanlocs'], dtype=object)
+
     if 'chaninfo' not in EEG:
         EEG['chaninfo'] = {}
         
