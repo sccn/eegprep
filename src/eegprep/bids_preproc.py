@@ -156,6 +156,7 @@ def bids_preproc(
     root_or_fn : str
         The root directory containing BIDS data or a single EEG file path.
 
+    (BIDS import stage parameters)
     ApplyMetadata (bool):
         Whether to apply metadata from BIDS sidecar files when loading raw EEG data.
         (default True)
@@ -186,6 +187,7 @@ def bids_preproc(
       with the placeholder '{root}' which will be replaced with the root path of
       the BIDS dataset. Defaults to '{root}/derivatives/eegprep' if not specified.
 
+    (overall run configuration)
     SkipIfPresent (bool):
       skip processing files that already have a cleaned version present.
     NumJobs (int, optional):
@@ -217,6 +219,7 @@ def bids_preproc(
       quite a lot of memory for large studies and it may be better to iterate over
       the preprocessed files in downstream analyses.
 
+    (overall processing parameters)
     OnlyChannelsWithPosition (bool):
         Whether to retain only channels for which positions were recorded or could be
         inferred. If this is not set, then OnlyModalities should be set so as to retain
@@ -238,7 +241,7 @@ def bids_preproc(
         Whether to apply ICLabel classification after ICA. Normally requires
         WithPicard=True.
 
-    (below are the parameters for clean_artifacts function)
+    (parameters for artifact removal - same as in clean_artifacts function)
     ChannelCriterion (float or 'off'):
         Minimum channel correlation threshold for channel cleaning; channels below
         this value are considered bad. Pass 'off' to skip channel criterion. Default 0.8.
@@ -292,7 +295,7 @@ def bids_preproc(
     availableRAM_GB (float or None):
         Available system RAM in GB to adjust MaxMem. Default None.
 
-    (parameters for an optional epoching step)
+    (parameters for an optional epoching and baseline removal step)
     EpochEvents (str or Sequence[str] or None):
         Optionally a list of event types or regular expression matching event types
         at which to time-lock epochs. If None (default), no epoching is done. If [],
@@ -306,7 +309,7 @@ def bids_preproc(
         value None can be used to refer to the respective end of the epoch limits,
         as in (None, 0).
 
-    (parameters specific to the BIDS loading routine)
+    (misc parameters specific to the BIDS loading routine)
     StageNames Sequence[str]:
         list of file name parts for the preprocessing stages, in the order of cleaning,ica,iclabel;
         these can be adjusted when working with different preprocessed versions (e.g., using
@@ -315,7 +318,7 @@ def bids_preproc(
         whether to minimize disk usage by not saving some intermediate files (specifically
         the PICARD output if WithICLabel=False). Default True.
 
-    (parameters retained for backwards compatibility with pop_importbids call signature)
+    (parameters retained for backwards compatibility with EEGLAB's pop_importbids call signature)
     bidsmetadata (bool): alias for ApplyMetadata
     bidsevent (bool): alias for ApplyEvents
     bidschanloc (bool): alias for ApplyChanlocs
@@ -324,7 +327,7 @@ def bids_preproc(
     sessions (Sequence[str | int], optional): alias for Sessions
     runs (Sequence[str | int], optional): alias for RUns
     tasks (Sequence[str] | str, optional): alias for Tasks
-    OutputDir (str): alias for OutputDir
+    outputdir (str): alias for OutputDir
 
     Returns:
     --------
@@ -338,6 +341,7 @@ def bids_preproc(
                          pop_saveset, eeg_picard, iclabel, pop_loadset, pop_resample,
                          eeg_interp, pop_select, eeg_checkset_strict_mode)
     from .utils.bids import gen_derived_fpath
+
     # handle support for legacy parameters and defaults
     ApplyChanlocs = _legacy_override((ApplyChanlocs, 'ApplyChanlocs'), (bidschanloc, 'bidschanloc'),
                                      True)
@@ -357,6 +361,7 @@ def bids_preproc(
                             ())
     Tasks = _legacy_override((Tasks, 'Tasks'), (tasks, 'tasks'),
                              ())
+
     # account for the NumJobs parameter
     if NumJobs == -1:
         NumJobs = os.cpu_count()
@@ -365,6 +370,7 @@ def bids_preproc(
             ReservePerJob = f"{ReservePerJob},{NumJobs}max"
         else:
             ReservePerJob = f"{NumJobs}total"
+
     # other sanity checks
     if len(StageNames) != 4:
         raise ValueError("StageNames, if given, must be a list of 4 strings, as in: "
@@ -853,7 +859,6 @@ def bids_preproc(
                     sw_filts['pop_rmbase'] = {
                         'Baseline' : report['Epoching']['Baseline']
                     }
-
 
                 # write the updated content back
                 with open(fpath_eeg, 'w') as fp:
