@@ -1,9 +1,12 @@
 
 import sys
+import math
 from typing import Optional
 
+import numpy as np
+
 __all__ = ['is_debug', 'ExceptionUnlessDebug', 'num_jobs_from_reservation', 'humanize_seconds',
-           'num_cpus_from_reservation', 'ToolError']
+           'num_cpus_from_reservation', 'ToolError', 'canonicalize_signs', 'round_mat']
 
 
 def is_debug() -> bool:
@@ -129,6 +132,51 @@ def humanize_seconds(sec: float) -> str:
         return f"{sec / 60:.1f}m"
     else:
         return f"{sec:.1f}s"
+
+
+def canonicalize_signs(V):
+    """Canonicalize signs of column matrix V so that the
+    largest absolute value is positive."""
+    # V: columns are eigenvectors
+    idx = np.argmax(np.abs(V), axis=0)
+    sgn = np.sign(V[idx, range(V.shape[1])])
+    sgn[sgn == 0] = 1
+    return V * sgn
+
+
+def round_mat(x, decimals=0):
+    """MATLAB-style rounding function.
+      - ties (.5 within fp error) round AWAY from zero
+      - supports positive/zero/negative `decimals` like MATLAB round(x, N)
+      - NaN/Inf propagate naturally
+      - does NOT return integer-typed results
+
+    This can be applied to numpy arrays and acts as a drop-in replacement
+    for np.round(), but also works for pure-Python float values; however,
+    to get a 1:1 replacement for a use of round(x) you need to write
+    int(round_mat(x)) since round() returns integers.
+    """
+    if isinstance(x, (float, int)):
+        # Propagate NaN/Inf instead of throwing in math.floor(...)
+        if math.isnan(x) or math.isinf(x):
+            return x
+        xp = math
+    else:
+        xp = np
+        x = np.asarray(x)             # ensure ndarray
+
+    if decimals == 0:
+        return xp.copysign(xp.floor(abs(x) + 0.5), x)
+
+    if decimals > 0:
+        factor = 10.0 ** decimals
+        y = xp.copysign(xp.floor(abs(x) * factor + 0.5), x)
+        return y / factor
+
+    # decimals < 0  -> round to tens/hundreds/…
+    factor = 10.0 ** (-decimals)
+    y = xp.copysign(xp.floor(abs(x) / factor + 0.5), x)
+    return y * factor
 
 
 class SkippableException(Exception):
