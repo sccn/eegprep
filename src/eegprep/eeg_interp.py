@@ -104,7 +104,7 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None):
     empty_idx = [i for i in range(EEG['nbchan'])
                  if (np.array_equal(locs[i]['X'], []) or np.isnan(locs[i]['X']))]
     good_idx = [i for i in good_idx if i not in empty_idx]
-    bad_idx = [i for i in good_idx if i not in empty_idx]
+    bad_idx = [i for i in bad_idx if i not in empty_idx]
 
     # drop bad channels
     # data = EEG['data'].copy()
