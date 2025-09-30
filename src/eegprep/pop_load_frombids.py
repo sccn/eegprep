@@ -682,6 +682,8 @@ def pop_load_frombids(
                                          f"pass the bidsevent=False option "
                                          f"when using pop_load_frombids, or equivalently "
                                          f"ApplyEvents=False when using  bids_preproc().")
+                # convert to 1-based indexes for MATLAB compat
+                ev_lats = ev_lats + 1
 
                 try:
                     durations = events['duration'].to_numpy(dtype=float)
