@@ -86,9 +86,9 @@ def pop_resample(EEG, freq, engine=None):
         EEG_new['times'] = np.linspace(EEG_new['xmin']*1000, EEG_new['xmax']*1000, new_pnts)
 
         # Update event/urevent latencies if present
-        ratio = EEG['pnts'] / new_pnts
+        ratio = new_pnts / EEG['pnts']
         for event in EEG_new['event'].tolist() + EEG_new['urevent'].tolist():
-            event['latency'] = int(np.clip((event['latency']-1) * ratio + 1, 1, new_pnts))
+            event['latency'] = np.clip((event['latency']-1) * ratio + 1, 1, new_pnts)
 
         return EEG_new
 
