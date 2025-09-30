@@ -524,6 +524,33 @@ def bids_preproc(
 
             old_chanlocs = None
             with thread_ctx:
+
+                def select_channels(EEG, report=None):
+                    """Apply channel selection, optionally update the provided report in-place."""
+                    if report is None:
+                        report = {}
+                    keep = np.ones_like(EEG['chanlocs'], dtype=bool)
+                    if OnlyChannelsWithPosition:
+                        keep &= [chanloc_has_coords(ch) for ch in EEG['chanlocs']]
+                    if OnlyModalities:
+                        OM = [m.upper() for m in OnlyModalities]
+                        keep &= [ch.get('type', 'EEG').upper() in OM for ch in EEG['chanlocs']]
+                    retain = [ch['labels'] for ch, kp in zip(EEG['chanlocs'], keep) if kp]
+                    if 0 < len(retain) < len(EEG['chanlocs']):
+                        EEG = pop_select(EEG, channel=retain)
+                        EEG = eeg_checkset(EEG)
+                        report["ChannelSelection"] = {
+                            "Applied": True,
+                            "Retain": retain,
+                        }
+                    else:
+                        detail = 'no' if not retain else 'all'
+                        logger.info(f"No channel selection applied: {detail} channels retained")
+                        report["ChannelSelection"] = {
+                            "Applied": False
+                        }
+                    return EEG
+
                 if os.path.exists(fpath_cln) and SkipIfPresent:
                     logger.info(f"Found {fpath_cln}, skipping clean_artifacts stage.")
                     try:
@@ -566,26 +593,7 @@ def bids_preproc(
                     }
 
                     if OnlyChannelsWithPosition or OnlyModalities:
-                        keep = np.ones_like(EEG['chanlocs'], dtype=bool)
-                        if OnlyChannelsWithPosition:
-                            keep &= [chanloc_has_coords(ch) for ch in EEG['chanlocs']]
-                        if OnlyModalities:
-                            OM = [m.upper() for m in OnlyModalities]
-                            keep &= [ch.get('type', 'EEG').upper() in OM for ch in EEG['chanlocs']]
-                        retain = [ch['labels'] for ch, kp in zip(EEG['chanlocs'], keep) if kp]
-                        if 0 < len(retain) < len(EEG['chanlocs']):
-                            EEG = pop_select(EEG, channel=retain)
-                            EEG = eeg_checkset(EEG)
-                            report["ChannelSelection"] = {
-                                "Applied": True,
-                                "Retain": retain,
-                            }
-                        else:
-                            detail = 'no' if not retain else 'all'
-                            logger.info(f"No channel selection applied: {detail} channels retained")
-                            report["ChannelSelection"] = {
-                                "Applied": False
-                            }
+                        EEG = select_channels(EEG, report)
                         StagesToGo.remove('ChannelSelection')
 
                     if SamplingRate:
@@ -707,6 +715,9 @@ def bids_preproc(
                             bidsevent=ApplyEvents,
                             eventtype=EventColumn,
                             return_report=True)
+                        # apply channel selection to that also
+                        if OnlyChannelsWithPosition or OnlyModalities:
+                            tmp = select_channels(tmp)
                         old_chanlocs = tmp['chanlocs']
                         del tmp
                     if nDropped := (len(old_chanlocs) - len(EEG['chanlocs'])):
