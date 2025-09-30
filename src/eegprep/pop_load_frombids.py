@@ -8,7 +8,7 @@ import contextlib
 from .utils.bids import layout_for_fpath, layout_get_lenient, query_for_adjacent_fpath, \
     root_for_fpath
 from .utils.coords import *
-from .utils import ExceptionUnlessDebug, ToolError
+from .utils import ExceptionUnlessDebug, ToolError, round_mat
 
 import numpy as np
 
@@ -690,7 +690,7 @@ def pop_load_frombids(
                     # fall back to zero duration
                     durations = np.zeros_like(onsets, dtype=float)
                 # convert to EEGLAB's sample-based durations
-                ev_durs = np.round(np.maximum(1, Fs*durations)).astype(int)
+                ev_durs = round_mat(np.maximum(1, Fs*durations)).astype(int)
 
                 # set of column names that we've already carried over into the
                 # event data structure

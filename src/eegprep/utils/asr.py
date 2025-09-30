@@ -7,7 +7,7 @@ import scipy.linalg
 from .stats import geometric_median, fit_eeg_distribution
 from .sigproc import moving_average
 from .covariance import cov_mean, cov_shrinkage
-
+from .misc import canonicalize_signs, round_mat
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +90,7 @@ def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
     # Default IIR filter coefficients (approximating MATLAB's yulewalk defaults)
     # Based on artifact_removal_legacy.py and asr_calibrate.m logic
     if B is None or A is None:
-        sr_round = int(round(srate))
+        sr_round = int(round_mat(srate))
         if sr_round == 100:
             B = np.array([0.9314233528641650, -1.0023683814963549, -0.4125359862018213, 0.7631567476327510, 0.4160430392910331, -0.6549131038692215, -0.0372583518046807, 0.1916268458752655, 0.0462411971592346], dtype=np.float64)
             A = np.array([1.0000000000000000, -0.4544220180303844, -1.0007038682936749, 0.5374925521337940, 0.4905013360991340, -0.4861062879351137, -0.1995986490699414, 0.1830048420730026, 0.0457678549234644], dtype=np.float64)
@@ -202,7 +202,7 @@ def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
 
     # ----- Calculate Thresholds -----
     # Window length for calculating thresholds
-    N = int(round(window_len * srate))
+    N = int(round_mat(window_len * srate))
     if S < N:
         raise ValueError(f'Not enough calibration data. Need at least {N} samples, got {S}.')
 
@@ -219,7 +219,7 @@ def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
     if step <= 0:
         logger.warning("Window overlap >= 1, using step=1")
         step = 1
-    window_starts = np.round(np.arange(0, S - N, step)).astype(int)
+    window_starts = round_mat(np.arange(0, S - N, step)).astype(int)
     
     if len(window_starts) <= 1:
         raise ValueError(f'Not enough windows possible. Need length > {N}, got {S}.')
@@ -340,13 +340,13 @@ def asr_process(data, srate, state, window_len=0.5, lookahead=None, step_size=32
     
     # Convert max_dims to actual number if given as fraction
     if max_dims < 1:
-        max_dims_num = round(C * max_dims)
+        max_dims_num = int(round_mat(C * max_dims))
     else:
         max_dims_num = int(max_dims)
     
     # Number of samples in sliding window and lookahead
-    N = round(window_len * srate)
-    P = round(lookahead * srate)
+    N = int(round_mat(window_len * srate))
+    P = int(round_mat(lookahead * srate))
     
     # Fix NaN and Inf values
     data[~np.isfinite(data)] = 0

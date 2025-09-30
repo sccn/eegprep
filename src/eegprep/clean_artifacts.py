@@ -11,6 +11,7 @@ from .clean_channels import clean_channels
 from .clean_channels_nolocs import clean_channels_nolocs
 from .clean_asr import clean_asr
 from .clean_windows import clean_windows
+from .utils.misc import round_mat
 
 
 logger = logging.getLogger(__name__)
@@ -122,7 +123,7 @@ def clean_artifacts(
     #                Basic argument sanity / aliases
     # ------------------------------------------------------------------
     if availableRAM_GB is not None and not np.isnan(availableRAM_GB):
-        MaxMem = int(round(availableRAM_GB * 1000))
+        MaxMem = int(round_mat(availableRAM_GB * 1000))
 
     if Channels is not None and Channels_ignore is not None and len(Channels) and len(Channels_ignore):
         raise ValueError('"Channels" and "Channels_ignore" are mutually exclusive – supply at most one.')

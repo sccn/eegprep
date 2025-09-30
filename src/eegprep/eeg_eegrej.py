@@ -1,7 +1,9 @@
-import numpy as np
 from copy import deepcopy
-import numpy as np
 from typing import List, Dict, Optional, Tuple
+
+import numpy as np
+from .utils.misc import round_mat
+
 
 def _is_boundary_event(event: Dict) -> bool:
     t = event.get("type")
@@ -143,7 +145,7 @@ def _eegrej(indata, regions, timelength, events: Optional[List[Dict]] = None) ->
 
     # Merge duplicate boundary latencies and sum durations for duplicates
     if boundevents.size:
-        rounded = np.round(boundevents, 12)
+        rounded = round_mat(boundevents, 12)
         merged_be: List[float] = []
         merged_du: List[float] = []
         for i, be in enumerate(rounded):
@@ -207,7 +209,7 @@ def eeg_eegrej(EEG, regions):
 
     # Round first like MATLAB, then convert to int
     regions = np.asarray(regions, dtype=float)
-    regions = np.round(regions).astype(np.int64)
+    regions = round_mat(regions).astype(np.int64)
     
     # sort rows like MATLAB
     if regions.shape[1] > 2:

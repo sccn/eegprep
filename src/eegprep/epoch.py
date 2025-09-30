@@ -1,5 +1,8 @@
 import numpy as np
 
+from .utils.misc import round_mat
+
+
 def epoch(data, events, lim, **kwargs):
     """
     EPOCH - Extract epochs time locked to specified events from continuous EEG data.
@@ -21,9 +24,6 @@ def epoch(data, events, lim, **kwargs):
     """
 
     # --- helpers to mimic MATLAB semantics ---
-    def matlab_round(x):
-        x = np.asarray(x, dtype=float)
-        return np.sign(x) * np.floor(np.abs(x) + 0.5)
 
     def _as_1d(a):
         if a is None:
@@ -41,8 +41,8 @@ def epoch(data, events, lim, **kwargs):
 
     # --- computing point limits (MATLAB uses 1-based logic; keep math identical) ---
     reallim = np.zeros(2, dtype=int)
-    reallim[0] = int(matlab_round(lim[0] * g['srate']))
-    reallim[1] = int(matlab_round(lim[1] * g['srate'] - 1))  # minus 1 sample
+    reallim[0] = int(round_mat(lim[0] * g['srate']))
+    reallim[1] = int(round_mat(lim[1] * g['srate'] - 1))  # minus 1 sample
 
     # --- epoching ---
     print('Epoching...')

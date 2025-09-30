@@ -7,7 +7,7 @@ import numpy as np
 # Assuming these utilities exist and are correctly ported/placed
 from .utils.asr import asr_calibrate, asr_process
 from .clean_windows import clean_windows
-
+from .utils.misc import round_mat
 
 logger = logging.getLogger(__name__)
 
@@ -144,12 +144,12 @@ def clean_asr(
 
     # --- Prepare for Processing ---
     if step_size is None:
-        step_size = int(round(srate * window_len / 2)) # Samples
+        step_size = int(round_mat(srate * window_len / 2)) # Samples
 
     # --- Extrapolate Signal End ---
     # Required because asr_process needs lookahead data beyond the signal end
     # Based on: sig = [signal.data bsxfun(@minus,2*signal.data(:,end),signal.data(:,(end-1):-1:end-round(windowlen/2*signal.srate)))];
-    N_extrap = int(round(window_len / 2 * srate))
+    N_extrap = int(round_mat(window_len / 2 * srate))
     if N_extrap > 0:
          # Calculate indices for reflection, handling edge case where N_extrap >= S-1
         extrap_len = min(N_extrap, S - 1 if S > 1 else 0)

@@ -2,6 +2,7 @@ from typing import *
 
 import numpy as np
 from scipy.signal import fftconvolve
+from .misc import round_mat
 
 __all__ = ['design_kaiser', 'design_fir', 'filtfilt_fast', 'firwsord', 'firws']
 
@@ -41,7 +42,7 @@ def design_kaiser(
             beta = 0.1102*(atten-8.7)
 
         #  determine the number of points
-        N = int(round((atten - 7.95) / (2 * np.pi * 2.285 * (hi - lo))) + 1)
+        N = int(round_mat((atten - 7.95) / (2 * np.pi * 2.285 * (hi - lo))) + 1)
     else:
         N, beta = kaiserord(atten, hi - lo)
 
@@ -88,7 +89,7 @@ def design_fir(
 
     # calculate interpolated frequency response
     # noinspection PyTypeChecker
-    f = PchipInterpolator(np.round(f * nfft), a)(np.arange(nfft + 1))
+    f = PchipInterpolator(round_mat(f * nfft), a)(np.arange(nfft + 1))
 
     # set phase & transform into time domain
     f = f * np.exp(-(0.5 * n) * 1j * np.pi * np.arange(nfft + 1) / nfft)

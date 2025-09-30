@@ -7,6 +7,7 @@ import numpy as np
 from .utils.sigproc import design_fir, filtfilt_fast
 from .utils.ransac import calc_projector
 from .utils.stats import mad
+from .utils.misc import round_mat
 
 logger = logging.getLogger(__name__)
 
@@ -62,13 +63,13 @@ def clean_channels(
     if subset_size >= 1:
         subset_size = int(subset_size)
     else:
-        subset_size = int(round(C * subset_size))
+        subset_size = int(round_mat(C * subset_size))
     if max_broken_time < 1:
         max_broken_time = S * max_broken_time
     else:
-        max_broken_time = round(Fs) * max_broken_time
+        max_broken_time = round_mat(Fs) * max_broken_time
 
-    window_len = window_len * round(Fs)
+    window_len = int(window_len * round_mat(Fs))
     wnd = np.arange(int(window_len))
     offsets = np.arange(0, S - window_len, window_len, dtype=int)
     W = len(offsets)
@@ -119,7 +120,7 @@ def clean_channels(
         
         XX = X[offsets[o] + wnd, :]
         YY = np.sort(np.reshape((XX @ P).T, (num_samples, -1)), axis=0)
-        YY = np.reshape(YY[round(num_samples / 2) - 1, :], (-1, window_len)).T
+        YY = np.reshape(YY[int(round_mat(num_samples / 2)) - 1, :], (-1, window_len)).T
 
         # Calculate correlation for each channel
         for c in range(len(usable_channels)):
