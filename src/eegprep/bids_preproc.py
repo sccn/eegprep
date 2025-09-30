@@ -346,6 +346,7 @@ def bids_preproc(
     # get a dictionary of all arguments
     kwargs = {k: v for k, v in locals().items() if not k.startswith('_')}
     del kwargs['root']  # we don't need the root here, only in the function body
+    from scipy.io.matlab import loadmat
     from eegprep import (bids_list_eeg_files, clean_artifacts, pop_load_frombids, eeg_checkset,
                          pop_saveset, eeg_picard, iclabel, pop_loadset, pop_resample,
                          eeg_interp, pop_select, eeg_checkset_strict_mode, pop_reref)
@@ -800,7 +801,7 @@ def bids_preproc(
                     }
 
                 if CommonAverageReference:
-                    if EEG['ref'] == 'average':
+                    if EEG['ref'] in ('average', 'common', 'car', 'CAR'):
                         logger.info("Data is already average-referenced; skipping.")
                         report["CommonAverageReference"] = {"Applied": 'skipped (redundant)'}
                     else:
