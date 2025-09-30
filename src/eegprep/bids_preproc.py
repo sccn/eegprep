@@ -90,6 +90,7 @@ def bids_preproc(
         SkipIfPresent: bool = True,
         NumJobs: Optional[int] = None,
         ReservePerJob: str = '',
+        UseHashes: bool = False,
         ReturnData: bool = False,
         OutputDir: Optional[str] = None,
         # Overall processing parameters
@@ -216,6 +217,9 @@ def bids_preproc(
         peak RAM a single job takes, and then setting this to <PeakUsage>GB:<YourMargin>GB
         where YourMargin is however much you want to leave to other programs, e.g., 5GB
         (this will depend on what else you expect to be running on the machine).
+    UseHashes (bool): Whether to bake hashes into intermediate file names; if you experiment
+      with alternative preprocessing settings, it is recommended to enable this or disable
+      the SkipIfPresent option since otherwise the routine may pick up a stale result.
     ReturnData (bool):
       Whether to return the final EEG data objects as a list. Note that this can use
       quite a lot of memory for large studies and it may be better to iterate over
@@ -314,7 +318,7 @@ def bids_preproc(
         value None can be used to refer to the respective end of the epoch limits,
         as in (None, 0).
 
-    (misc parameters specific to the BIDS loading routine)
+    (misc parameters)
     StageNames Sequence[str]:
         list of file name parts for the preprocessing stages, in the order of cleaning,ica,iclabel;
         these can be adjusted when working with different preprocessed versions (e.g., using
@@ -347,19 +351,28 @@ def bids_preproc(
                          eeg_interp, pop_select, eeg_checkset_strict_mode, pop_reref)
     from .utils.bids import gen_derived_fpath
 
-    # set of options in kwargs that do NOT influence the processing result; all others
-    # are used to calc an options hash
-    non_proc_options = {
-        'root', 'Subjects', 'Sessions', 'Runs', 'Tasks', 'SkipIfPresent', 'NumJobs',
-        'ReservePerJob', 'ReturnData', 'OutputDir', 'MinimizeDiskUsage', 'subjects',
-        'sessions', 'runs', 'tasks', 'outputdir'}
-    # and collection of options that DO influence results
-    proc_options = {k: kwargs[k] for k in sorted(kwargs) if k not in non_proc_options}
-    options_str = ','.join([f'{k}:{v!r}' for k, v in proc_options.items()])
-    # get an abbreviated options hash
-    hasher = hashlib.sha256()
-    hasher.update(options_str.encode('utf-8'))
-    options_hash = hasher.hexdigest()[:8]
+    def hash_suffix(ignore: Optional[set] = None, *, prefix='#') -> str:
+        """Get a hash for all options that affect results minus the ones listed in ignore,
+        unless UseHashes is False (in which case an empty string is returned)."""
+        if not UseHashes:
+            return ''
+        # set of options in kwargs that do NOT influence the processing result; all others
+        # are used to calc an options hash
+        non_proc_options = {
+            'root', 'Subjects', 'Sessions', 'Runs', 'Tasks', 'SkipIfPresent', 'NumJobs',
+            'ReservePerJob', 'ReturnData', 'OutputDir', 'MinimizeDiskUsage', 'UseHashes',
+            'subjects', 'sessions', 'runs', 'tasks', 'outputdir'}
+        if ignore is not None:
+            non_proc_options = non_proc_options | ignore
+        # and collection of options that DO influence results
+        proc_options = {k: kwargs[k] for k in sorted(kwargs) if k not in non_proc_options}
+        options_str = ','.join([f'{k}:{v!r}' for k, v in proc_options.items()])
+        # get an abbreviated options hash (note: this is only used to uniquely identify
+        # the final result, but we're not currently using that for preproc options)
+        hasher = hashlib.sha256()
+        hasher.update(options_str.encode('utf-8'))
+        options_hash = hasher.hexdigest()[:8]
+        return prefix + options_hash
 
     # handle support for legacy parameters and defaults
     ApplyChanlocs = _legacy_override((ApplyChanlocs, 'ApplyChanlocs'), (bidschanloc, 'bidschanloc'),
@@ -403,12 +416,13 @@ def bids_preproc(
         if _n_skipped is None:
             _n_skipped = multiprocessing.Value('i', 0)
 
-        fpath_cln = gen_derived_fpath(fn, outputdir=OutputDir, keyword=StageNames[0])
-        fpath_picard = gen_derived_fpath(fn, outputdir=OutputDir, keyword=StageNames[1])
-        fpath_iclabel = gen_derived_fpath(fn, outputdir=OutputDir, keyword=StageNames[2])
-        fpath_epoch = gen_derived_fpath(fn, outputdir=OutputDir, keyword=StageNames[3])
-        fpath_final = gen_derived_fpath(fn, outputdir=OutputDir, keyword=f'desc-final#{options_hash}')
-        fpath_report = gen_derived_fpath(fn, outputdir=OutputDir, keyword='desc-report', extension='.json')
+        late_opts = {'WithInterp', 'EpochLimits', 'EpochEvents', 'EpochBaseline', 'CommonAverageReference'}
+        fpath_cln = gen_derived_fpath(fn, outputdir=OutputDir, keyword=StageNames[0] + hash_suffix(ignore={'WithPicard', 'WithICLabel'} | late_opts))
+        fpath_picard = gen_derived_fpath(fn, outputdir=OutputDir, keyword=StageNames[1] + hash_suffix(ignore={'WithICLabel'} | late_opts))
+        fpath_iclabel = gen_derived_fpath(fn, outputdir=OutputDir, keyword=StageNames[2] + hash_suffix(ignore=late_opts))
+        fpath_epoch = gen_derived_fpath(fn, outputdir=OutputDir, keyword=StageNames[3] + hash_suffix(ignore={'CommonAverageReference'}))
+        fpath_final = gen_derived_fpath(fn, outputdir=OutputDir, keyword=f'desc-final' + hash_suffix())
+        fpath_report = gen_derived_fpath(fn, outputdir=OutputDir, keyword='desc-report' + hash_suffix(), extension='.json')
 
         # JSON report file
         if os.path.exists(fpath_report):
