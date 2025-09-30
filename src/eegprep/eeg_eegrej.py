@@ -235,6 +235,7 @@ def eeg_eegrej(EEG, regions):
     EEG["data"] = data_out
     EEG["pnts"] = int(data_out.shape[1])
     EEG["xmax"] = float(EEG["xmin"] + xmax_rel)
+    EEG['times'] = np.linspace(EEG['xmin'] * 1000, EEG['xmax'] * 1000, EEG['pnts'], dtype=float)
 
     # Use backend-generated events list and sort
     EEG["event"] = list(event2) if isinstance(event2, list) else []
