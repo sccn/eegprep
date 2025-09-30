@@ -208,9 +208,12 @@ def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
 
     logger.info('Determining per-component thresholds...')
     
-    # Eigendecomposition of M
+    # Eigendecomposition of M plus some massaging
+    # to ensure reproducibility across platforms
+    M = 0.5 * (M + M.T)  # Ensure symmetry
     D, V = np.linalg.eigh(M)  # eigh returns sorted eigenvalues
-    
+    V = canonicalize_signs(V)
+
     # Transform data into component space (using eigenvectors)
     X_transformed = np.abs(Xf.T @ V)  # Shape: (S, C)
     
