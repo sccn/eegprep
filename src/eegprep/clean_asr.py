@@ -2,6 +2,7 @@ import logging
 from typing import Dict, Any, Optional, Union, Tuple, Optional
 from copy import deepcopy
 
+import math
 import numpy as np
 
 # Assuming these utilities exist and are correctly ported/placed
@@ -144,7 +145,7 @@ def clean_asr(
 
     # --- Prepare for Processing ---
     if step_size is None:
-        step_size = int(round_mat(srate * window_len / 2)) # Samples
+        step_size = int(math.floor(srate * window_len / 2)) # Samples
 
     # --- Extrapolate Signal End ---
     # Required because asr_process needs lookahead data beyond the signal end
