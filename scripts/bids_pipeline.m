@@ -28,7 +28,7 @@ for idx=1:length(ALLEEG)
     EEG = clean_artifacts(EEG);
 
     % PICARD
-    EEG = pop_runica(EEG, 'icatype', 'picard');
+    EEG = eeg_picard(EEG);  % EEG = pop_runica(EEG, 'icatype', 'picard');    
 
     % ICLabel
     EEG = pop_iclabel(EEG, 'Default');
@@ -40,7 +40,7 @@ for idx=1:length(ALLEEG)
     EEG = pop_epoch(EEG, {}, [-0.2, 0.5]);
 
     % baseline removal
-    EEG = pop_rmbase(EEG, [-0.2, 0]);
+    EEG = pop_rmbase(EEG, [-200, 0]);
 
     % write back as .set
     tmp_path = [tempname(), '.set'];
