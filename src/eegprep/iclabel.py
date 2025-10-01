@@ -1,6 +1,8 @@
+from copy import deepcopy
+import os
+
 import torch
 import numpy as np
-import os
 
 def iclabel(EEG, algorithm='default', engine=None):
     """
@@ -24,6 +26,8 @@ def iclabel(EEG, algorithm='default', engine=None):
     EEG : dict
         EEGLAB EEG structure with ICLabel classifications added
     """
+    EEG = deepcopy(EEG)
+
     # Check if using MATLAB or Octave implementation
     if engine in ['matlab', 'octave']:
         from eegprep.eeglabcompat import get_eeglab
