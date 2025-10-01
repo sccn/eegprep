@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
                   window_len=None, window_overlap=None, max_dropout_fraction=None,
-                  min_clean_fraction=None, maxmem=None, useriemannian=None):
+                  min_clean_fraction=None, maxmem=None, useriemannian=None, compatibility=None):
     """Calibration function for the Artifact Subspace Reconstruction (ASR) method.
 
     State = asr_calibrate(Data, SamplingRate, Cutoff, BlockSize, FilterB, FilterA, WindowLength, WindowOverlap, MaxDropoutFraction, MinCleanFraction, MaxMemory)
@@ -62,6 +62,15 @@ def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
             at calibration time; this make somewhat different statistical tradeoffs than the default, resulting in a potentially
             different baseline rejection threshold; as a result it is suggested to visually check results and adjust 
             the cutoff as needed. Default: None (disabled).
+      compatibility (str, optional): MATLAB compatibility level.
+        * 'standard' (default) aims for 5 significant digits compatibility and may apply
+          slightly better numerical methods (e.g. using SOS filters for IIR filtering)
+          that are not available in stock MATLAB and therefore not used in the ASR
+          reference implementation.
+        * 'max' aims for maximum compatibility with MATLAB's results, aiming to match
+          results as closely as possible, perhaps trading off numerical robustness in
+          turn. Note the effects will mostly likely be miniscule and the MATLAB ASR
+          implementation is known to be highly robust.
 
     Returns:
       dict: State dictionary containing calibration results ('M', 'T') and filter parameters ('B', 'A', 'sos', 'iir_state')
@@ -82,6 +91,7 @@ def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
     if window_overlap is None: window_overlap = 0.66
     if max_dropout_fraction is None: max_dropout_fraction = 0.1
     if min_clean_fraction is None: min_clean_fraction = 0.25
+    if compatibility is None: compatibility = 'standard'
 
     # there's no record of when or how this formula crept into the MATLAB code, but 
     # to match it, we'll have to use it here as well
@@ -126,19 +136,21 @@ def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
     # Ensure data is finite
     X[~np.isfinite(X)] = 0.0
 
-    # Convert filter B, A to second-order sections (SOS) format for numerical stability
-    sos = scipy.signal.tf2sos(B, A)
-
-    # Apply the signal shaping filter and initialize the IIR filter state
-    # Initialize filter state using sosfilt_zi and scale by initial data
-    # zi_init = scipy.signal.sosfilt_zi(sos) # Shape (n_sections, 2)
-
-    # Need initial state per channel: shape (n_sections, n_channels, 2)
-    # (since the data are assumed to be zero-mean, use a zero state, as in MATLAB)
-    zi = np.zeros((sos.shape[0], C, 2))
-
-    # Filter the data
-    Xf, iir_state = scipy.signal.sosfilt(sos, X, axis=1, zi=zi)
+    # Apply the signal shaping filter based on compatibility mode
+    if compatibility == 'max':
+        # Maximum MATLAB compatibility: use B/A form with lfilter
+        # Initialize filter state to zeros (matching MATLAB's filter(..., [], 2))
+        # For multi-channel data (C x S) filtering along axis=1, zi shape is (C, max(len(A), len(B)) - 1)
+        zi = np.zeros((C, max(len(A), len(B)) - 1))
+        Xf, iir_state = scipy.signal.lfilter(B, A, X, axis=1, zi=zi)
+        sos = None  # Not used in this mode
+    else:
+        # Standard mode: use second-order sections (SOS) for numerical stability
+        sos = scipy.signal.tf2sos(B, A)
+        # Need initial state per channel: shape (n_sections, n_channels, 2)
+        # (since the data are assumed to be zero-mean, use a zero state, as in MATLAB)
+        zi = np.zeros((sos.shape[0], C, 2))
+        Xf, iir_state = scipy.signal.sosfilt(sos, X, axis=1, zi=zi)
 
     if np.any(~np.isfinite(Xf)):
         raise RuntimeError('The IIR filter diverged on your data. Please try using either '
@@ -276,13 +288,14 @@ def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
         'T': T,                 # Threshold matrix 
         'B': B,                 # Original filter coefficients (for reference)
         'A': A,
-        'sos': sos,             # SOS filter representation for processing
+        'sos': sos,             # SOS filter representation for processing (None if compatibility='max')
         'iir_state': iir_state, # Initial filter state
         'cov': None,            # Initial covariance buffer (will be set in process)
         'carry': None,          # Initial carry buffer (will be set in process)
         'last_R': None,         # Initial reconstruction matrix (will be set in process)
         'last_trivial': True,   # Initial trivial flag
         'useriemannian': useriemannian, # Riemannian ASR variant option
+        'compatibility': compatibility,  # Compatibility mode for IIR filtering
     }
     
     return state
@@ -357,7 +370,10 @@ def asr_process(data, srate, state, window_len=0.5, lookahead=None, step_size=32
     # Extract state variables
     M = state['M']                  # Mixing matrix
     T = state['T']                  # Threshold matrix
-    sos = state['sos']              # SOS filter representation
+    sos = state.get('sos')          # SOS filter representation (None if compatibility='max')
+    b = state.get('B')              # Filter numerator coefficients
+    a = state.get('A')              # Filter denominator coefficients
+    compatibility = state.get('compatibility', 'standard')  # Compatibility mode
     iir_state = state.get('iir_state')  # Filter state
     carry = state.get('carry')      # Carry buffer (previous lookahead data)
     cov = state.get('cov')          # Covariance state (MovAvgState or None)
@@ -416,8 +432,13 @@ def asr_process(data, srate, state, window_len=0.5, lookahead=None, step_size=32
         # Get spectrally shaped data for statistics computation (range shifted by lookahead)
         Xraw = X[:, range_ + P]
         
-        # Filter the data window
-        Xfilt, iir_state = scipy.signal.sosfilt(sos, Xraw, axis=1, zi=iir_state)
+        # Filter the data window based on compatibility mode
+        if compatibility == 'max':
+            # Maximum MATLAB compatibility: use B/A form with lfilter
+            Xfilt, iir_state = scipy.signal.lfilter(b, a, Xraw, axis=1, zi=iir_state)
+        else:
+            # Standard mode: use SOS form
+            Xfilt, iir_state = scipy.signal.sosfilt(sos, Xraw, axis=1, zi=iir_state)
         
         # Calculate per‑sample covariance vectors and compute the running mean
         # covariance using the stateful `moving_average` implementation that
@@ -533,9 +554,11 @@ def asr_process(data, srate, state, window_len=0.5, lookahead=None, step_size=32
         'carry': new_carry,
         'last_R': last_R,
         'last_trivial': last_trivial,
-        # Include original filter coefficients if present
-        'B': state.get('B'),
-        'A': state.get('A')
+        # Include original filter coefficients and compatibility mode
+        'B': b,
+        'A': a,
+        'compatibility': compatibility,
+        'useriemannian': state.get('useriemannian')
     }
     
     return outdata, outstate
