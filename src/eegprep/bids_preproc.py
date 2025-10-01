@@ -801,16 +801,9 @@ def bids_preproc(
                     }
 
                 if CommonAverageReference:
-                    if EEG['ref'] in ('average', 'common', 'car', 'CAR'):
-                        logger.info("Data is already average-referenced; skipping.")
-                        report["CommonAverageReference"] = {
-                            "Applied": False,
-                            "Reason": "Data is already average-referenced"
-                        }
-                    else:
-                        EEG = pop_reref(EEG, [])
-                        StagesToGo.remove('CommonAverageRef')
-                        report["CommonAverageReference"] = {"Applied": True}
+                    EEG = pop_reref(EEG, [])
+                    StagesToGo.remove('CommonAverageRef')
+                    report["CommonAverageReference"] = {"Applied": True}
 
                 # optionally write out the final preprocessed file
                 if need_final:
