@@ -1,16 +1,29 @@
+from copy import deepcopy
+import logging
+
 import numpy as np
 
+logger = logging.getLogger(__name__)
+
 def pop_reref(EEG, ref):
-    
+    EEG = deepcopy(EEG)
+
     # check if ref is not empty and not none
     if ref is not None and ref != []:
         raise ValueError('Feature not implemented: The ref parameter must be empty or None')
-            
+
+    # Subtract mean from EEG data using broadcasting in NumPy
+    EEG['data'] = EEG['data'] - np.mean(EEG['data'], axis=0)
+
     # Check if the number of channels in EEG['icachansind'] is the same as the number of channels in EEG['nbchan']
-    if len(EEG['icachansind']) == EEG['nbchan']:
-        # Subtract mean from EEG data using broadcasting in NumPy
-        EEG['data'] = EEG['data'] - np.mean(EEG['data'], axis=0)
-        
+    if len(EEG['icachansind']) and (len(EEG['icachansind']) != EEG['nbchan']):
+        logger.error('Feature not implemented: The number of channels in EEG[''icachansind''] '
+                     'must be the same as the number of channels in EEG[''nbchan'']. Clearing ICA fields.')
+        EEG['icawinv'] = np.array([])
+        EEG['icaweights'] = np.array([])
+        EEG['icasphere'] = np.array([])
+        EEG['icaact'] = np.array([])
+    elif len(EEG['icachansind']):
         #print(np.array2string(EEG['icaweights'][:10, :10], precision=3, suppress_small=True))
 
         # Subtract mean from EEG icawinv using broadcasting in NumPy
@@ -38,7 +51,4 @@ def pop_reref(EEG, ref):
         for iChan in range(len(EEG['chanlocs'])):
             EEG['chanlocs'][iChan]['ref'] = 'average'
         
-        return EEG
-            
-    else:
-        raise ValueError('Feature not implemented: The number of channels in EEG[''icachansind''] must be the same as the number of channels in EEG[''nbchan'']')
+    return EEG
