@@ -108,6 +108,7 @@ def pop_load_frombids(
         EEG['data'] = EEG['data'].astype(dtype)
         report['ImporterUsed'] = 'pop_loadset'
         Fs = EEG['srate']
+        times_sec = EEG['times']/1000.0
     elif ext in ['.edf', '.bdf', '.vhdr']:
         from neo import NeoReadWriteError
         if ext == '.vhdr':
@@ -178,7 +179,7 @@ def pop_load_frombids(
         report['StartTimeOffset'] = time_ofs
         t0 += time_ofs
         report['CombinedStartTime'] = t0
-        times = t0 + np.arange(0, nSamples, dtype=float) / Fs
+        times_sec = t0 + np.arange(0, nSamples, dtype=float) / Fs
 
         # construct the chanlocs data structure
         chns = io.header['signal_channels']
@@ -308,7 +309,7 @@ def pop_load_frombids(
                 # if you get this you need to add support for this file format here
                 raise ValueError(f"Unsupported file format for event extraction: {ext}. "
                                  f"Supported formats are .edf, .bdf, .vhdr.")
-            ev_lats = np.searchsorted(times, ev_all_times)  # +1 for MATLAB format compatibility (1-based index)
+            ev_lats = np.searchsorted(times_sec, ev_all_times)  # +1 for MATLAB format compatibility (1-based index)
             ev_durs = np.array(ev_all_durs, dtype=float)
             ev_urevts = np.arange(len(ev_all_times))
             events = np.array([
@@ -343,9 +344,9 @@ def pop_load_frombids(
             'trials': 1,  # assuming single trial for raw EEG datain
             'pnts': nSamples,
             'srate': Fs,
-            'xmin': times[0],
-            'xmax': times[-1],
-            'times': times*1000,  # in ms
+            'xmin': times_sec[0],
+            'xmax': times_sec[-1],
+            'times': times_sec*1000,  # in ms
             'data': data_T.T,
             # ICA data structures
             'icaact': numeric_null,
@@ -666,15 +667,20 @@ def pop_load_frombids(
                 try:
                     # opportunistically look for the 'sample' column, which may be present in some files
                     # seen in the wild
-                    ev_lats = events['sample'].to_numpy(dtype=int)
+                    ev_lats = events['sample'].to_numpy()
+                    if np.all(np.isnan(ev_lats)):
+                        raise ValueError(f"sample column in {fo.filename} is all NaN; falling back to onsets.")
+                    ev_lats = ev_lats.astype(int)
                     report['EventTimingSource'] = 'sample'
-                except KeyError:
+                except (KeyError, ValueError) as e:
                     # otherwise get it from the onsets, which is expected to be always present
                     try:
                         onsets = events['onset'].to_numpy(dtype=float)
+                        if np.all(np.isnan(onsets)):
+                            raise ValueError(f"onset column in {fo.filename} is all NaN; cannot proceed.")
                         report['EventTimingSource'] = 'onset'
-                        ev_lats = np.searchsorted(times, onsets)
-                    except KeyError as e:
+                        ev_lats = np.searchsorted(times_sec, onsets)
+                    except (KeyError, ValueError) as e:
                         raise ValueError(f"Your BIDS file {fo.filename} does not contain "
                                          f"the required 'onset' column for events and therefore "
                                          f"does not conform to the BIDS standard; to fall back "
