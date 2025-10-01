@@ -1,14 +1,20 @@
-function result_paths = bids_pipeline(rootpath)
+function result_paths = bids_pipeline(rootpath, subjs, runs)
 % --- this pipeline is used to run the MATLAB side of the test_bids_preproc() unit test ---
 
 if nargin < 1
     rootpath = '/home/christian/data/OpenNeuro/ds003061-download'; end
+if nargin < 2
+    % subjs = {'sub-002'};   % for testing
+    subjs = {'sub-001','sub-002'};
+end
+if nargin < 3
+    runs = {'1'}; end
 
 % import BIDS
 [STUDY, ALLEEG] = pop_importbids(...    
     rootpath, ...
-    'subjects', {'sub-001','sub-002'}, ...
-    'runs', {'1'});
+    'subjects', subjs, ...
+    'runs', runs);
 
 result_paths = {};
 for idx=1:length(ALLEEG)
@@ -41,6 +47,9 @@ for idx=1:length(ALLEEG)
 
     % baseline removal
     EEG = pop_rmbase(EEG, [-200, 0]);
+
+    % common average reference
+    EEG = pop_reref(EEG, []);
 
     % write back as .set
     tmp_path = [tempname(), '.set'];
