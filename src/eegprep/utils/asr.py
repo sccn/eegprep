@@ -414,10 +414,10 @@ def asr_process(data, srate, state, window_len=0.5, lookahead=None, step_size=32
             continue
         
         # Get spectrally shaped data for statistics computation (range shifted by lookahead)
-        Xfilt = X[:, range_ + P]
+        Xraw = X[:, range_ + P]
         
         # Filter the data window
-        Xfilt, iir_state = scipy.signal.sosfilt(sos, Xfilt, axis=1, zi=iir_state)
+        Xfilt, iir_state = scipy.signal.sosfilt(sos, Xraw, axis=1, zi=iir_state)
         
         # Calculate per‑sample covariance vectors and compute the running mean
         # covariance using the stateful `moving_average` implementation that
