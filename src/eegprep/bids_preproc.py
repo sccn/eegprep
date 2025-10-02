@@ -914,10 +914,11 @@ def bids_preproc(
                     content['EEGPlacementScheme'] = EEG['etc'].get('labelscheme', 'unknown')
 
                 # write information about the applied filters
-                if 'SoftwareFilters' not in content:
+                if ('SoftwareFilters' not in content) or not isinstance(content['SoftwareFilters'], dict):
                     content['SoftwareFilters'] = sw_filts = {}
                 else:
                     sw_filts = content['SoftwareFilters']
+
                 filter_report = deepcopy(report)
                 # mapping from the name in the report to the name in the _eeg file
                 filter_names = {
