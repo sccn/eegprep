@@ -884,11 +884,12 @@ def bids_preproc(
                 content['SamplingFrequency'] = EEG['srate']
 
                 # write channel counts based on the modality
-                content['EEGChannelCount'] = n_eeg = sum(lab['type'].lower() == 'eeg' for lab in EEG['chanlocs'])
-                content['ECGChannelCount'] = n_ecg = sum(lab['type'].lower() == 'ecg' for lab in EEG['chanlocs'])
-                content['EMGChannelCount'] = n_emg = sum(lab['type'].lower() == 'emg' for lab in EEG['chanlocs'])
-                content['EOGChannelCount'] = n_eog = sum(lab['type'].lower() == 'eog' for lab in EEG['chanlocs'])
-                content['TriggerChannelCount'] = n_trig = sum(lab['type'].lower() == 'trig' for lab in EEG['chanlocs'])
+                labels = [str(lab['type']).lower() if isinstance(lab['type'], str) else repr(lab['type']) for lab in EEG['chanlocs']]
+                content['EEGChannelCount'] = n_eeg = sum(lab == 'eeg' for lab in labels)
+                content['ECGChannelCount'] = n_ecg = sum(lab == 'ecg' for lab in labels)
+                content['EMGChannelCount'] = n_emg = sum(lab == 'emg' for lab in labels)
+                content['EOGChannelCount'] = n_eog = sum(lab == 'eog' for lab in labels)
+                content['TriggerChannelCount'] = n_trig = sum(lab == 'trig' for lab in labels)
                 content['MISCChannelCount'] = len(EEG['chanlocs']) - (n_eeg+n_ecg+n_emg+n_eog+n_trig)
 
                 # remove misnamed field that may be present from prior json file
