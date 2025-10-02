@@ -72,6 +72,7 @@ pip install eegprep
 
 ## Test
 
+Install MATLAB insterface "pip install /your/path/to/matlab/extern/engines/python"
 use tests/main_compare.m
 
 ## Versions
