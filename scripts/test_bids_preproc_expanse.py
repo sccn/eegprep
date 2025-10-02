@@ -7,7 +7,7 @@ if __name__ == '__main__':
     root_path = '/System/Volumes/Data/data/data/STUDIES/'
     root_path = '/System/Volumes/Data/data/matlab/pca_averef/'
     outputdir = './bids_preproc_output'
-    bids_collection = ['ds002680'] # 'ds003061']
+    bids_collection = ['ds003061'] #'ds002680'] # 'ds003061']
     retain = [d for d in os.listdir(root_path) if d in bids_collection]
     if len(retain) != len(bids_collection):
         self.skipTest(f"Skipping test_end2end because neither {bids_collection} exist in {root_path}")
