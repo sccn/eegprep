@@ -254,9 +254,9 @@ def pop_epoch(EEG, types=None, lim=None, **kwargs):
     
     # Check for boundary events
     print('pop_epoch: checking epochs for data discontinuity')
-    if EEG_out['event'] and len(EEG_out['event']) > 0:
+    if EEG_out['event'] is not None and len(EEG_out['event']) > 0:
         if isinstance(EEG_out['event'][0].get('type'), str):
-            tmpevent = EEG_out['event']
+            tmpevent = list(EEG_out['event'])
             boundaryindex = eeg_findboundaries(EEG=tmpevent)
             
             if boundaryindex:

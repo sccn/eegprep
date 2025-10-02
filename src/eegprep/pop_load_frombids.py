@@ -8,7 +8,7 @@ import contextlib
 from .utils.bids import layout_for_fpath, layout_get_lenient, query_for_adjacent_fpath, \
     root_for_fpath
 from .utils.coords import *
-from .utils import ExceptionUnlessDebug, ToolError
+from .utils import ExceptionUnlessDebug, ToolError, round_mat
 
 import numpy as np
 
@@ -108,6 +108,7 @@ def pop_load_frombids(
         EEG['data'] = EEG['data'].astype(dtype)
         report['ImporterUsed'] = 'pop_loadset'
         Fs = EEG['srate']
+        times_sec = EEG['times']/1000.0
     elif ext in ['.edf', '.bdf', '.vhdr']:
         from neo import NeoReadWriteError
         if ext == '.vhdr':
@@ -178,7 +179,7 @@ def pop_load_frombids(
         report['StartTimeOffset'] = time_ofs
         t0 += time_ofs
         report['CombinedStartTime'] = t0
-        times = t0 + np.arange(0, nSamples, dtype=float) / Fs
+        times_sec = t0 + np.arange(0, nSamples, dtype=float) / Fs
 
         # construct the chanlocs data structure
         chns = io.header['signal_channels']
@@ -217,7 +218,7 @@ def pop_load_frombids(
                 'Z': numeric_null,
                 'type': 'EEG',
                 'ref': numeric_null,
-                'urchan': numeric_null
+                # 'urchan': numeric_null --> not present if urchanlocs not populated
             } for lab in labels])
 
         # try to read out channel coordinates from side-channel info, if any
@@ -308,7 +309,7 @@ def pop_load_frombids(
                 # if you get this you need to add support for this file format here
                 raise ValueError(f"Unsupported file format for event extraction: {ext}. "
                                  f"Supported formats are .edf, .bdf, .vhdr.")
-            ev_lats = np.searchsorted(times, ev_all_times)  # +1 for MATLAB format compatibility (1-based index)
+            ev_lats = np.searchsorted(times_sec, ev_all_times)  # +1 for MATLAB format compatibility (1-based index)
             ev_durs = np.array(ev_all_durs, dtype=float)
             ev_urevts = np.arange(len(ev_all_times))
             events = np.array([
@@ -343,9 +344,9 @@ def pop_load_frombids(
             'trials': 1,  # assuming single trial for raw EEG datain
             'pnts': nSamples,
             'srate': Fs,
-            'xmin': times[0],
-            'xmax': times[-1],
-            'times': times*1000,  # in ms
+            'xmin': times_sec[0],
+            'xmax': times_sec[-1],
+            'times': times_sec*1000,  # in ms
             'data': data_T.T,
             # ICA data structures
             'icaact': numeric_null,
@@ -430,7 +431,8 @@ def pop_load_frombids(
             layout,
             **query_entities,
             return_type='object',
-            tolerate_missing=('task', 'run')
+            tolerate_missing=('task', 'run'),
+            expect_one=True,
         )
         if len(channel_file_list) > 1:
             warning(f"Found multiple BIDS channel files for {filename}: "
@@ -494,32 +496,36 @@ def pop_load_frombids(
             **query_entities,
             return_type='object',
             tolerate_missing=('task', 'run'),
+            expect_one=True,
         )
         if len(elec_file_list) > 1:
             warning(f"Found multiple BIDS electrode files for {filename}: "
                     f"{', '.join([fo.filename for fo in elec_file_list])}. "
                     f"Using the first one only.")
-        for fo in elec_file_list:
+            elec_file_list = elec_file_list[:1]
+        for elec_fo in elec_file_list:
             import pandas as pd
             if verbose:
                 logger.info(f"  applying BIDS electrode locations from {fo.filename}...")
-            report['ElectrodesFrom'] = os.path.relpath(fo.path, root)
+            report['ElectrodesFrom'] = os.path.relpath(elec_fo.path, root)
             # read in the file contents
-            elecs: pd.DataFrame = fo.get_df()
+            elecs: pd.DataFrame = elec_fo.get_df()
 
             # check for the presence of a coordsystem file
             query_entities = query_for_adjacent_fpath(
-                fo.path, suffix='coordsystem', extension='.json')
+                elec_fo.path, suffix='coordsystem', extension='.json')
             coordsystem_file_list = layout_get_lenient(
                 layout,
                 **query_entities,
                 return_type='object',
                 tolerate_missing=('task', 'run', 'space'),
+                expect_one=True,
             )
             if len(coordsystem_file_list) > 1:
-                warning(f"Found multiple BIDS coordsystem files for {fo.filename}: "
+                warning(f"Found multiple BIDS coordsystem files for {elec_fo.filename}: "
                         f"{', '.join([fo.filename for fo in coordsystem_file_list])}. "
                         f"Using the first one only.")
+                coordsystem_file_list = coordsystem_file_list[:1]
             if not coordsystem_file_list:
                 # if it's a .set study, then we assume ALS for the chanlocs, otherwise RAS
                 coord_system = 'ALS' if ext == '.set' else 'RAS'
@@ -538,6 +544,10 @@ def pop_load_frombids(
                     coord_system = content.get('EEGCoordinateSystem', 'RAS')  # default to RAS if not specified
                     if 'EEGLAB' in coord_system.upper():
                         # as per BIDS docs, EEGLAB is the only one that's expressly not RAS
+                        coord_system = 'ALS'
+                    elif 'EEGLAB' == content.get('EEGCoordinateSystemDescription', ''):
+                        # some datasets with EEGLAB-style coordinates use this field instead
+                        # and have other systems in the EEGCoordinateSystem field (e.g., 'CTF')
                         coord_system = 'ALS'
                     else:
                         coord_system = 'RAS'
@@ -657,15 +667,20 @@ def pop_load_frombids(
                 try:
                     # opportunistically look for the 'sample' column, which may be present in some files
                     # seen in the wild
-                    ev_lats = events['sample'].to_numpy(dtype=int)
+                    ev_lats = events['sample'].to_numpy()
+                    if np.all(np.isnan(ev_lats)):
+                        raise ValueError(f"sample column in {fo.filename} is all NaN; falling back to onsets.")
+                    ev_lats = ev_lats.astype(int)
                     report['EventTimingSource'] = 'sample'
-                except KeyError:
+                except (KeyError, ValueError) as e:
                     # otherwise get it from the onsets, which is expected to be always present
                     try:
                         onsets = events['onset'].to_numpy(dtype=float)
+                        if np.all(np.isnan(onsets)):
+                            raise ValueError(f"onset column in {fo.filename} is all NaN; cannot proceed.")
                         report['EventTimingSource'] = 'onset'
-                        ev_lats = np.searchsorted(times, onsets)
-                    except KeyError as e:
+                        ev_lats = np.searchsorted(times_sec, onsets)
+                    except (KeyError, ValueError) as e:
                         raise ValueError(f"Your BIDS file {fo.filename} does not contain "
                                          f"the required 'onset' column for events and therefore "
                                          f"does not conform to the BIDS standard; to fall back "
@@ -673,6 +688,8 @@ def pop_load_frombids(
                                          f"pass the bidsevent=False option "
                                          f"when using pop_load_frombids, or equivalently "
                                          f"ApplyEvents=False when using  bids_preproc().")
+                # convert to 1-based indexes for MATLAB compat
+                ev_lats = ev_lats + 1
 
                 try:
                     durations = events['duration'].to_numpy(dtype=float)
@@ -681,7 +698,7 @@ def pop_load_frombids(
                     # fall back to zero duration
                     durations = np.zeros_like(onsets, dtype=float)
                 # convert to EEGLAB's sample-based durations
-                ev_durs = np.round(np.maximum(1, Fs*durations)).astype(int)
+                ev_durs = round_mat(np.maximum(1, Fs*durations)).astype(int)
 
                 # set of column names that we've already carried over into the
                 # event data structure
@@ -915,6 +932,11 @@ def pop_load_frombids(
 
         if not skip_locations:
             report['ChanlocsFrom'] = os.path.basename(best_cap)
+            if '10-5' in best_cap:
+                labeling = '10-20'  # normalize to 10-20
+            else:
+                labeling, ext = os.path.splitext(os.path.basename(best_cap))
+            EEG['etc']['labelscheme'] = labeling
 
             # transform coordinates from file into the EEGLAB coordinate system
             # unit=millimeters, x=A (front), y=L (left), z=S (up)
@@ -947,6 +969,15 @@ def pop_load_frombids(
                 else:
                      # otherwise clear the locs to invalid
                     clear_chanloc(rec, numeric_null)
+    else:
+        # unambiguously 10-20 locations (excl. for example C3/C4 or F3/F4 since these
+        # are also in the Biosemi montage and likely some others)
+        candidate_locs = {
+            "fp1", "fp2", "fz", "t3",  "cz", "t4", "t5", "p3", "pz", "p4", "t6", "o1", "o2"}
+        if any(ch['labels'].lower() in candidate_locs for ch in EEG['chanlocs']):
+            EEG['etc']['labelscheme'] = '10-20'
+        else:
+            EEG['etc']['labelscheme'] = 'unknown'
 
     EEG = eeg_checkset(EEG)
     try:

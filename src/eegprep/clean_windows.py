@@ -5,6 +5,7 @@ from typing import *
 import numpy as np
 
 from .utils.stats import fit_eeg_distribution
+from .utils.misc import round_mat
 
 logger = logging.getLogger(__name__)
 
@@ -81,7 +82,7 @@ def clean_windows(
         raise ValueError('Empty data array encountered.')
 
     if max_bad_channels is not None and 0 < max_bad_channels < 1:
-        max_bad_channels = int(round(C * max_bad_channels))
+        max_bad_channels = int(round_mat(C * max_bad_channels))
     else:
         max_bad_channels = int(max_bad_channels)
 
@@ -90,7 +91,7 @@ def clean_windows(
     # ------------------------------------------------------------------
     #                    Prepare window indexing helpers
     # ------------------------------------------------------------------
-    N = int(round(window_len * Fs))  # samples per window
+    N = int(round_mat(window_len * Fs))  # samples per window
     if N <= 0:
         raise ValueError('Window length too small - results in N <= 0.')
 
@@ -99,7 +100,7 @@ def clean_windows(
     if step <= 0:
         # Avoid infinite loop when overlap >= 1
         step = 1.0
-    offsets = np.round(np.arange(0, S - N + 1, step)).astype(int)
+    offsets = round_mat(np.arange(0, S - N + 1, step)).astype(int)
     if len(offsets) == 0:
         raise ValueError('Not enough data for even a single window.')
 

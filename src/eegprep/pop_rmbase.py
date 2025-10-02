@@ -2,7 +2,7 @@ import numpy as np
 from typing import Iterable, List, Optional, Tuple
 
 from eegprep.eeg_findboundaries import eeg_findboundaries
-
+from .utils.misc import round_mat
 
 def _normalize_pointrange(
     pointrange: Optional[Iterable], pnts: int
@@ -184,7 +184,7 @@ def pop_rmbase(
             # MATLAB formula: round(lat - 0.5 - pointrange(1) + 1)
             boundaries = []
             for lat in boundary_lats:
-                boundary_idx = int(np.round(lat - 0.5 - pr[0] + 1))
+                boundary_idx = int(round_mat(lat - 0.5 - pr[0] + 1))
                 boundaries.append(boundary_idx)
             
             # Filter boundaries to be within the baseline range

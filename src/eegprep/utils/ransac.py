@@ -4,7 +4,7 @@ import numpy as np
 
 from .spatial import sphericalSplineInterpolate
 from ..eeglabcompat import get_eeglab
-
+from .misc import round_mat
 
 def rand_sample(
         n: int, 
@@ -25,7 +25,7 @@ def rand_sample(
     result = np.zeros((m,), dtype=int)
 
     for k in range(m):
-        choice = int(np.round((pool.shape[0] - 1) * stream.rand()))
+        choice = int(round_mat((pool.shape[0] - 1) * stream.rand()))
         result[k] = pool[choice]
         pool = np.delete(pool, choice)
     return result

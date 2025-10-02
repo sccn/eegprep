@@ -1,5 +1,7 @@
 import os
+import hashlib
 import json
+from copy import deepcopy
 import contextlib
 import multiprocessing
 import time
@@ -9,7 +11,6 @@ from typing import Union, Tuple, Optional, Sequence, List, Dict, Any
 
 import numpy as np
 
-from . import eeg_checkset
 from .utils import ExceptionUnlessDebug, num_jobs_from_reservation, is_debug, \
     humanize_seconds, num_cpus_from_reservation, ToolError
 from .utils.bids import layout_for_fpath
@@ -24,12 +25,13 @@ logger = logging.getLogger(__name__)
 # list of valid file extensions for raw EEG data files in BIDS format
 eeg_extensions = ('.vhdr', '.edf', '.bdf', '.set')
 
-# list of all possible processing stages
-all_stages = ['Import', 'Resample', 'CleanArtifacts', 'ICA', 'ICLabel', 'ChannelInterp', 'Epoching']
+# list of all possible processing stages, in the order in which they apply
+all_stages = ['Import', 'ChannelSelection', 'Resample', 'CleanArtifacts', 'ICA', 'ICLabel', 'ChannelInterp', 'Epoching', 'CommonAverageRef']
 
 def _copy_misc_root_files(root: str, dst: str, exclude: List[str]) -> None:
     """Move miscellaneous description files from the study root to the target directory."""
     from bids import BIDSLayout
+    from bids.layout.models import BIDSJSONFile
     layout: BIDSLayout = layout_for_fpath(root)
     files = layout.get()
     # apply filter rules
@@ -39,8 +41,8 @@ def _copy_misc_root_files(root: str, dst: str, exclude: List[str]) -> None:
     # 2. no files that are in a disallowed path relative to root
     no_files = {os.path.join(root, 'derivatives'), os.path.join(root, 'sourcedata'), os.path.join(root, 'dataset_description.json')}
     files = [f for f in files if f.path not in no_files]
-    # 3. no (other) files for the eeg modality
-    files = [f for f in files if f.entities.get('suffix') != 'eeg']
+    # 3. no (other) files for the eeg modality except if they're json
+    files = [f for f in files if f.entities.get('suffix') != 'eeg' or isinstance(f, BIDSJSONFile)]
     # 4. no events, electrodes or channels files (since we'll rewrite those)
     no_suffixes = {'channels', 'events', 'electrodes'}
     files = [f for f in files if f.entities.get('suffix') not in no_suffixes]
@@ -59,30 +61,47 @@ def _copy_misc_root_files(root: str, dst: str, exclude: List[str]) -> None:
             logger.error(f"Failed to copy {srcpath} to {dstpath}: {e}")
 
 
+def _legacy_override(new_and_name: Tuple[Any, str], old_and_name: Tuple[Any, str], default: Any):
+    """Handle overrides with values from legacy parameters and a default if both the new
+    and legacy parameter are None."""
+    new, new_name = new_and_name
+    old, old_name = old_and_name
+    if old is not None:
+        assert new is None, f"Only one of {new_name} and f{old_name} can be specified, but neither were set to None."
+        new = old
+    if new is None:
+        new = default
+    return new
+
+
 def bids_preproc(
         root: str,
         *,
-        # BIDS loader parameters  (EEGLAB parameter names were applicable)
-        bidschanloc: bool = True,
-        bidsevent: bool = False,
-        bidsmetadata: bool = True,
-        eventtype: Optional[str] = None,
-        subjects: Sequence[str | int] | str | int = (),
-        sessions: Sequence[str | int] | str | int = (),
-        runs: Sequence[str | int] | str | int = (),
-        tasks: Sequence[str | int] | str | int = (),
-        outputdir: str = '{root}/derivatives/eegprep',
-
+        # BIDS loader parameters
+        ApplyChanlocs: Optional[bool] = None,
+        ApplyEvents: Optional[bool] = None,
+        ApplyMetadata: Optional[bool] = None,
+        EventColumn: Optional[str] = None,
+        Subjects: Sequence[str | int] | str | int | None = None,
+        Sessions: Sequence[str | int] | str | int | None = None,
+        Runs: Sequence[str | int] | str | int | None = None,
+        Tasks: Sequence[str | int] | str | int | None = None,
         # Overall run configuration
         SkipIfPresent: bool = True,
+        NumJobs: Optional[int] = None,
         ReservePerJob: str = '',
+        UseHashes: bool = False,
         ReturnData: bool = False,
+        OutputDir: Optional[str] = None,
         # Overall processing parameters
         SamplingRate: Optional[float] = None,
+        OnlyChannelsWithPosition: bool = True,
+        OnlyModalities: Sequence[str] = (),
         WithInterp: bool = False,
         WithPicard: bool = False,
         WithICLabel: bool = False,
         WithReport: bool = True,
+        CommonAverageReference: bool = True,
         # Core cleaning parameters
         ChannelCriterion: Union[float, str] = 0.8,
         LineNoiseCriterion: Union[float, str] = 4.0,
@@ -112,6 +131,18 @@ def bids_preproc(
         # Derived data parameters
         StageNames: Sequence[str] = ('desc-cleaned', 'desc-picard', 'desc-iclabel', 'desc-epoch'),
         MinimizeDiskUsage: bool = True,
+
+        # Legacy parameter names for compatibility with EEGLAB
+        bidschanloc: Optional[bool] = None,
+        bidsevent: Optional[bool] = None,
+        bidsmetadata: Optional[bool] = None,
+        eventtype: Optional[str] = None,
+        subjects: Sequence[str | int] | str | int | None = None,
+        sessions: Sequence[str | int] | str | int | None = None,
+        runs: Sequence[str | int] | str | int | None = None,
+        tasks: Sequence[str | int] | str | int | None = None,
+        outputdir: Optional[str] = None,
+
         # Reserved parameters
         _lock: Optional[multiprocessing.Lock] = contextlib.nullcontext(),
         _n_skipped: Optional[multiprocessing.Value] = None,
@@ -128,49 +159,82 @@ def bids_preproc(
     root_or_fn : str
         The root directory containing BIDS data or a single EEG file path.
 
-    bidsmetadata (bool):
-        whether to apply metadata from BIDS sidecar files when loading raw EEG data.
-    bidsevent (bool):
-        whether to apply events from BIDS sidecar files when loading raw EEG data.
-    bidschanloc (bool):
-        whether to apply channel locations from BIDS sidecar files when loading raw EEG data.
-    eventtype (str):
+    (BIDS import stage parameters)
+    ApplyMetadata (bool):
+        Whether to apply metadata from BIDS sidecar files when loading raw EEG data.
+        (default True)
+    ApplyEvents (bool):
+        Whether to apply events from BIDS sidecar files when loading raw EEG data.
+        (default False)
+    ApplyChanlocs (bool):
+        Whether to apply channel locations from BIDS sidecar files when loading raw EEG data.
+        (default True)
+    EventColumn (str):
         Optionally the column name in the BIDS events file to use for event types; if not
         set, will be inferred heuristically.
-    subjects (Sequence[str | int], optional):
+    Subjects (Sequence[str | int], optional):
         A sequence of subject identifiers or (zero-based) indices to filter the files by.
         If empty, all subjects are included.
-    sessions (Sequence[str | int], optional):
+    Sessions (Sequence[str | int], optional):
         A sequence of session identifiers or (zero-based) indices to filter the files by.
         If empty, all sessions are included.
-    runs (Sequence[str | int], optional):
+    Runs (Sequence[str | int], optional):
         A sequence of run numbers or identifiers to filter the files by. If empty, all runs
         are included. Note that zero-based indexing does not apply to runs, unlike
         subjects and sessions since runs are already integers.
-    tasks (Sequence[str] | str, optional):
+    Tasks (Sequence[str] | str, optional):
         A sequence of task names or single task to filter the files by. If empty, all
         tasks are included (default is an empty sequence).
-    outputdir (str):
+    OutputDir (str):
       The name of the subdirectory where cleaned files will be saved. This can start
       with the placeholder '{root}' which will be replaced with the root path of
-      the BIDS dataset.
+      the BIDS dataset. Defaults to '{root}/derivatives/eegprep' if not specified.
 
+    (overall run configuration)
     SkipIfPresent (bool):
       skip processing files that already have a cleaned version present.
+    NumJobs (int, optional):
+      The number of jobs to run in parallel. If set to -1, this will default to the
+      number of logical cores on the system. If the ReservePerJob clause is also
+      specified, this will be treated as a maximum, otherwise as the *total*. If neither
+      of the two parameters is specified, a single job will run.
+      Note: as usual when running multiple processes in Python, you need to use the
+      if __name__ == "__main__": guard pattern in your main processing script.
     ReservePerJob (str):
       Optionally the resource amount and type to reserve per job, e.g. '4GB' or '2CPU';
-      the run will then use as many jobs as possible without exceeding the available resources.
-      - Can also contain a total or percentage margin, as in '4GB-10GB', '2CPU-10%'.
-      - Can also be specified as a total/maximum, as in '10 total' or '10max'.
-      - Can also be a comma-separated list of reservations, e.g. '4GB,2CPU-1CPU,5max'.
-      - if not set, will assume a single job. Generally runs serially when in debug mode.
-      It is recommended to check in a serial run how much peak RAM a single job takes,
-      and then sizing this to 1CPU,<N>GB-5GB or some other margin of your choice.
+      the run will then use as many jobs as fit within the system resources of the specified type.
+      * You can also specify how much of a margin of the total system resources should
+        be *withheld* for use by other programs on the computer, by following the amount
+        by a : and then the margin, as in '4GB:10GB' (always leave 10GB unused), '2CPU:10%'
+        (always leave 10% of the total installed RAM unused). This also works with other metrics.
+      * one may also specify a total or maximum number of jobs, as in '10total' or '10max'.
+      * Multiple criteria can be spefied in a comma-separated list of reservations, e.g.
+        '4GB:20%, 2CPU, 5max'.
+      * If neither this nor NumJobs are specified, a single job will run. Note that the
+        system will also run in serial when in debug mode and when on a platform that does
+        not cleanly support multiprocessing.
+      Tip: a good way to size this is to perform a serial run and to monitor how much
+        peak RAM a single job takes, and then setting this to <PeakUsage>GB:<YourMargin>GB
+        where YourMargin is however much you want to leave to other programs, e.g., 5GB
+        (this will depend on what else you expect to be running on the machine).
+    UseHashes (bool): Whether to bake hashes into intermediate file names; if you experiment
+      with alternative preprocessing settings, it is recommended to enable this or disable
+      the SkipIfPresent option since otherwise the routine may pick up a stale result.
     ReturnData (bool):
       Whether to return the final EEG data objects as a list. Note that this can use
       quite a lot of memory for large studies and it may be better to iterate over
       the preprocessed files in downstream analyses.
 
+    (overall processing parameters)
+    OnlyChannelsWithPosition (bool):
+        Whether to retain only channels for which positions were recorded or could be
+        inferred. If this is not set, then OnlyModalities should be set so as to retain
+        only modalities that should be preprocessed together.
+    OnlyModalities (Sequence[str], optional):
+        If set, retain only channels that have the associated modalities. If enabled, this
+        is typically set to ['EEG'] but may also include other ExG modalities such as
+        EOG or EMG that have the same unit and scale as EEG. If non-electrophysiological
+        modalities are included, some artifact removal steps may not function correctly.
     SamplingRate (float):
         Desired sampling rate for the preprocessed data. If not specified, will retain
         the original sampling rate.
@@ -182,8 +246,11 @@ def bids_preproc(
     WithICLabel (bool):
         Whether to apply ICLabel classification after ICA. Normally requires
         WithPicard=True.
+    CommonAverageReference (bool):
+        Whether to transform the EEG data to a common average referencing scheme;
+        recommended for cross-study processing.
 
-    (below are the parameters for clean_artifacts function)
+    (parameters for artifact removal - same as in clean_artifacts function)
     ChannelCriterion (float or 'off'):
         Minimum channel correlation threshold for channel cleaning; channels below
         this value are considered bad. Pass 'off' to skip channel criterion. Default 0.8.
@@ -237,7 +304,7 @@ def bids_preproc(
     availableRAM_GB (float or None):
         Available system RAM in GB to adjust MaxMem. Default None.
 
-    (parameters for an optional epoching step)
+    (parameters for an optional epoching and baseline removal step)
     EpochEvents (str or Sequence[str] or None):
         Optionally a list of event types or regular expression matching event types
         at which to time-lock epochs. If None (default), no epoching is done. If [],
@@ -251,7 +318,7 @@ def bids_preproc(
         value None can be used to refer to the respective end of the epoch limits,
         as in (None, 0).
 
-    (parameters specific to the BIDS loading routine)
+    (misc parameters)
     StageNames Sequence[str]:
         list of file name parts for the preprocessing stages, in the order of cleaning,ica,iclabel;
         these can be adjusted when working with different preprocessed versions (e.g., using
@@ -259,6 +326,17 @@ def bids_preproc(
     MinimizeDiskUsage (bool):
         whether to minimize disk usage by not saving some intermediate files (specifically
         the PICARD output if WithICLabel=False). Default True.
+
+    (parameters retained for backwards compatibility with EEGLAB's pop_importbids call signature)
+    bidsmetadata (bool): alias for ApplyMetadata
+    bidsevent (bool): alias for ApplyEvents
+    bidschanloc (bool): alias for ApplyChanlocs
+    eventtype (str): alias for EventColumn
+    subjects (Sequence[str | int], optional): alias for Subjects
+    sessions (Sequence[str | int], optional): alias for Sessions
+    runs (Sequence[str | int], optional): alias for RUns
+    tasks (Sequence[str] | str, optional): alias for Tasks
+    outputdir (str): alias for OutputDir
 
     Returns:
     --------
@@ -268,10 +346,65 @@ def bids_preproc(
     # get a dictionary of all arguments
     kwargs = {k: v for k, v in locals().items() if not k.startswith('_')}
     del kwargs['root']  # we don't need the root here, only in the function body
-
+    from scipy.io.matlab import loadmat
     from eegprep import (bids_list_eeg_files, clean_artifacts, pop_load_frombids, eeg_checkset,
-                         pop_saveset, eeg_picard, iclabel, pop_loadset, pop_resample, eeg_interp)
+                         pop_saveset, eeg_picard, iclabel, pop_loadset, pop_resample,
+                         eeg_interp, pop_select, eeg_checkset_strict_mode, pop_reref)
     from .utils.bids import gen_derived_fpath
+
+    def hash_suffix(ignore: Optional[set] = None, *, prefix='#') -> str:
+        """Get a hash for all options that affect results minus the ones listed in ignore,
+        unless UseHashes is False (in which case an empty string is returned)."""
+        if not UseHashes:
+            return ''
+        # set of options in kwargs that do NOT influence the processing result; all others
+        # are used to calc an options hash
+        non_proc_options = {
+            'root', 'Subjects', 'Sessions', 'Runs', 'Tasks', 'SkipIfPresent', 'NumJobs',
+            'ReservePerJob', 'ReturnData', 'OutputDir', 'MinimizeDiskUsage', 'UseHashes',
+            'subjects', 'sessions', 'runs', 'tasks', 'outputdir'}
+        if ignore is not None:
+            non_proc_options = non_proc_options | ignore
+        # and collection of options that DO influence results
+        proc_options = {k: kwargs[k] for k in sorted(kwargs) if k not in non_proc_options}
+        options_str = ','.join([f'{k}:{v!r}' for k, v in proc_options.items()])
+        # get an abbreviated options hash (note: this is only used to uniquely identify
+        # the final result, but we're not currently using that for preproc options)
+        hasher = hashlib.sha256()
+        hasher.update(options_str.encode('utf-8'))
+        options_hash = hasher.hexdigest()[:8]
+        return prefix + options_hash
+
+    # handle support for legacy parameters and defaults
+    ApplyChanlocs = _legacy_override((ApplyChanlocs, 'ApplyChanlocs'), (bidschanloc, 'bidschanloc'),
+                                     True)
+    ApplyEvents = _legacy_override((ApplyEvents, 'ApplyEvents'), (bidsevent, 'bidsevent'),
+                                   False)
+    ApplyMetadata = _legacy_override((ApplyMetadata, 'ApplyMetadata'), (bidsmetadata, 'bidsmetadata'),
+                                     True)
+    EventColumn = _legacy_override((EventColumn, 'EventColumn'), (eventtype, 'eventtype'),
+                                 '')
+    OutputDir = _legacy_override((OutputDir, 'OutputDir'), (outputdir, 'outputdir'),
+                                 '{root}/derivatives/eegprep')
+    Subjects = _legacy_override((Subjects, 'Subjects'), (subjects, 'subjects'),
+                                ())
+    Sessions = _legacy_override((Sessions, 'Sessions'), (sessions, 'sessions'),
+                                ())
+    Runs = _legacy_override((Runs, 'Runs'), (runs, 'runs'),
+                            ())
+    Tasks = _legacy_override((Tasks, 'Tasks'), (tasks, 'tasks'),
+                             ())
+
+    # account for the NumJobs parameter
+    if NumJobs == -1:
+        NumJobs = os.cpu_count()
+    if NumJobs is not None:
+        if ReservePerJob:
+            ReservePerJob = f"{ReservePerJob},{NumJobs}max"
+        else:
+            ReservePerJob = f"{NumJobs}total"
+
+    # other sanity checks
     if len(StageNames) != 4:
         raise ValueError("StageNames, if given, must be a list of 4 strings, as in: "
                          "['desc-cleaned', 'desc-picard', 'desc-iclabel', 'desc-epoch'].")
@@ -284,11 +417,13 @@ def bids_preproc(
         if _n_skipped is None:
             _n_skipped = multiprocessing.Value('i', 0)
 
-        fpath_cln = gen_derived_fpath(fn, outputdir=outputdir, keyword=StageNames[0])
-        fpath_picard = gen_derived_fpath(fn, outputdir=outputdir, keyword=StageNames[1])
-        fpath_iclabel = gen_derived_fpath(fn, outputdir=outputdir, keyword=StageNames[2])
-        fpath_epoch = gen_derived_fpath(fn, outputdir=outputdir, keyword=StageNames[3])
-        fpath_report = gen_derived_fpath(fn, outputdir=outputdir, keyword='desc-report', extension='.json')
+        late_opts = {'WithInterp', 'EpochLimits', 'EpochEvents', 'EpochBaseline', 'CommonAverageReference'}
+        fpath_cln = gen_derived_fpath(fn, outputdir=OutputDir, keyword=StageNames[0] + hash_suffix(ignore={'WithPicard', 'WithICLabel'} | late_opts))
+        fpath_picard = gen_derived_fpath(fn, outputdir=OutputDir, keyword=StageNames[1] + hash_suffix(ignore={'WithICLabel'} | late_opts))
+        fpath_iclabel = gen_derived_fpath(fn, outputdir=OutputDir, keyword=StageNames[2] + hash_suffix(ignore=late_opts))
+        fpath_epoch = gen_derived_fpath(fn, outputdir=OutputDir, keyword=StageNames[3] + hash_suffix(ignore={'CommonAverageReference'}))
+        fpath_final = gen_derived_fpath(fn, outputdir=OutputDir, keyword=f'desc-final' + hash_suffix())
+        fpath_report = gen_derived_fpath(fn, outputdir=OutputDir, keyword='desc-report' + hash_suffix(), extension='.json')
 
         # JSON report file
         if os.path.exists(fpath_report):
@@ -309,10 +444,21 @@ def bids_preproc(
 
         # stages for reporting purposes
         needed_files = []
+        # whether we need to generate/load a _final.set file
+        need_final = False
+
         StagesToGo = ['Import']
+        need_final = True
+
+        if OnlyModalities or OnlyChannelsWithPosition:
+            StagesToGo += ['ChannelSelection']
+            need_final = True
         if SamplingRate:
             StagesToGo += ['Resample']
+            need_final = True
+
         StagesToGo += ['CleanArtifacts']
+
         if WithICLabel:
             needed_files += [fpath_cln, fpath_iclabel]
             StagesToGo += ['ICA', 'ICLabel']
@@ -321,17 +467,30 @@ def bids_preproc(
             StagesToGo += ['ICA']
         else:
             needed_files += [fpath_cln]
+        need_final = False
+
         if WithInterp:
             StagesToGo += ['ChannelInterp']
+            need_final = True
+
         if EpochEvents is not None:
             needed_files += [fpath_epoch]
             StagesToGo += ['Epoching']
+            need_final = False
+
+        if CommonAverageReference:
+            StagesToGo += ['CommonAverageRef']
+            need_final = True
+
+        if need_final:
+            needed_files += [fpath_final]
         SkippedStages = [s for s in all_stages if s not in StagesToGo]
 
         if SkipIfPresent and all(os.path.exists(fn) for fn in needed_files):
             logger.info(f"*** Skipping {fn} as preprocessed file(s) already exists: {', '.join(needed_files)} ***")
             # load the final file if requested
-            EEG = pop_loadset(needed_files[-1]) if ReturnData else None
+            with eeg_checkset_strict_mode(False):
+                EEG = pop_loadset(needed_files[-1]) if ReturnData else None
             with _lock:
                 _n_skipped.value += 1
                 return EEG
@@ -366,10 +525,38 @@ def bids_preproc(
 
             old_chanlocs = None
             with thread_ctx:
+
+                def select_channels(EEG, report=None):
+                    """Apply channel selection, optionally update the provided report in-place."""
+                    if report is None:
+                        report = {}
+                    keep = np.ones_like(EEG['chanlocs'], dtype=bool)
+                    if OnlyChannelsWithPosition:
+                        keep &= [chanloc_has_coords(ch) for ch in EEG['chanlocs']]
+                    if OnlyModalities:
+                        OM = [m.upper() for m in OnlyModalities]
+                        keep &= [ch.get('type', 'EEG').upper() in OM for ch in EEG['chanlocs']]
+                    retain = [ch['labels'] for ch, kp in zip(EEG['chanlocs'], keep) if kp]
+                    if 0 < len(retain) < len(EEG['chanlocs']):
+                        EEG = pop_select(EEG, channel=retain)
+                        EEG = eeg_checkset(EEG)
+                        report["ChannelSelection"] = {
+                            "Applied": True,
+                            "Retain": retain,
+                        }
+                    else:
+                        detail = 'no' if not retain else 'all'
+                        logger.info(f"No channel selection applied: {detail} channels retained")
+                        report["ChannelSelection"] = {
+                            "Applied": False
+                        }
+                    return EEG
+
                 if os.path.exists(fpath_cln) and SkipIfPresent:
                     logger.info(f"Found {fpath_cln}, skipping clean_artifacts stage.")
                     try:
-                        EEG = pop_loadset(fpath_cln)
+                        with eeg_checkset_strict_mode(False):
+                            EEG = pop_loadset(fpath_cln)
                     except OSError as e:
                         # this can happen if a previous export was truncated eg due to
                         # file-write error
@@ -381,25 +568,34 @@ def bids_preproc(
                     # load input file
                     EEG, import_report = pop_load_frombids(
                         fn,
-                        bidsmetadata=bidsmetadata,
-                        bidschanloc=bidschanloc,
-                        bidsevent=bidsevent,
-                        eventtype=eventtype,
+                        bidsmetadata=ApplyMetadata,
+                        bidschanloc=ApplyChanlocs,
+                        bidsevent=ApplyEvents,
+                        eventtype=EventColumn,
                         return_report=True)
                     StagesToGo.remove('Import')
 
                     report["Import"] = {
-                        "bidsmetadata": bidsmetadata,
-                        "bidschanloc": bidschanloc,
-                        "bidsevent": bidsevent,
-                        "eventtype": eventtype,
+                        "ApplyMetadata": ApplyMetadata,
+                        "ApplyChanlocs": ApplyChanlocs,
+                        "ApplyEvents": ApplyEvents,
+                        "EventColumn": EventColumn,
                         "InputFile": {
                             "Filename": os.path.basename(fn),
                             "Relpath": os.path.relpath(fn, root),
                             "Filesize": os.path.getsize(fn),
                         },
+                        # these are kept for back compat with previously generated reports
+                        "bidsmetadata": ApplyMetadata,
+                        "bidschanloc": ApplyChanlocs,
+                        "bidsevent": ApplyEvents,
+                        "eventtype": EventColumn,
                         **import_report,
                     }
+
+                    if OnlyChannelsWithPosition or OnlyModalities:
+                        EEG = select_channels(EEG, report)
+                        StagesToGo.remove('ChannelSelection')
 
                     if SamplingRate:
                         EEG = pop_resample(EEG, SamplingRate)
@@ -473,8 +669,6 @@ def bids_preproc(
                         # we always save out the cleaned EEG data
                         pop_saveset(EEG, fpath_cln)
 
-                    # TODO: possibly write SoftwareFilters into _eeg.json
-
                 if WithPicard:
                     if os.path.exists(fpath_picard) and SkipIfPresent:
                         logger.info(f"Found {fpath_picard}, skipping PICARD stage.")
@@ -517,11 +711,14 @@ def bids_preproc(
                         # load input file to get original channel locations
                         tmp, import_report = pop_load_frombids(
                             fn,
-                            bidsmetadata=bidsmetadata,
-                            bidschanloc=bidschanloc,
-                            bidsevent=bidsevent,
-                            eventtype=eventtype,
+                            bidsmetadata=ApplyMetadata,
+                            bidschanloc=ApplyChanlocs,
+                            bidsevent=ApplyEvents,
+                            eventtype=EventColumn,
                             return_report=True)
+                        # apply channel selection to that also
+                        if OnlyChannelsWithPosition or OnlyModalities:
+                            tmp = select_channels(tmp)
                         old_chanlocs = tmp['chanlocs']
                         del tmp
                     if nDropped := (len(old_chanlocs) - len(EEG['chanlocs'])):
@@ -566,20 +763,21 @@ def bids_preproc(
                         }
                     else:
                         try:
-                            EEG, *_ = pop_epoch(EEG, types=EpochEvents, lim=EpochLimits)
-                            if EpochBaseline is not None:
-                                from . import pop_rmbase
-                                assert len(EpochBaseline) == 2, "EpochBaseline must be a tuple of (min, max) times in seconds or None."
-                                timerange = EpochBaseline
-                                if timerange[0] is None:
-                                    timerange = (EEG['times'][0] / 1000, timerange[1])
-                                if timerange[1] is None:
-                                    timerange = (timerange[0], EEG['times'][-1] / 1000)
-                                if pop_rmbase_in_ms:
-                                    timerange = [timerange[0] * 1000, timerange[1] * 1000]
-                                EEG = pop_rmbase(EEG, timerange=timerange)
+                            with eeg_checkset_strict_mode(False):
+                                EEG, *_ = pop_epoch(EEG, types=EpochEvents, lim=EpochLimits)
+                                if EpochBaseline is not None:
+                                    from . import pop_rmbase
+                                    assert len(EpochBaseline) == 2, "EpochBaseline must be a tuple of (min, max) times in seconds or None."
+                                    timerange = EpochBaseline
+                                    if timerange[0] is None:
+                                        timerange = (EEG['times'][0] / 1000, timerange[1])
+                                    if timerange[1] is None:
+                                        timerange = (timerange[0], EEG['times'][-1] / 1000)
+                                    if pop_rmbase_in_ms:
+                                        timerange = [timerange[0] * 1000, timerange[1] * 1000]
+                                    EEG = pop_rmbase(EEG, timerange=timerange)
 
-                            pop_saveset(EEG, fpath_epoch)
+                                pop_saveset(EEG, fpath_epoch)
 
                             report["Epoching"] = {
                                 "Applied": True,
@@ -602,9 +800,18 @@ def bids_preproc(
                         "Applied": False,
                     }
 
+                if CommonAverageReference:
+                    EEG = pop_reref(EEG, [])
+                    StagesToGo.remove('CommonAverageRef')
+                    report["CommonAverageReference"] = {"Applied": True}
+
+                # optionally write out the final preprocessed file
+                if need_final:
+                    pop_saveset(EEG, fpath_final)
+
                 # rewrite the events file
                 if len(EEG['event']):
-                    fpath_events = gen_derived_fpath(fn, outputdir=outputdir,
+                    fpath_events = gen_derived_fpath(fn, outputdir=OutputDir,
                                                      suffix='events', extension='.tsv')
                     have_hed_column = EEG['etc'].get('event_column', None) == 'HED'
                     columns = ['onset', 'duration', 'trial_type'] + (['HED'] if have_hed_column else [])
@@ -629,7 +836,7 @@ def bids_preproc(
                             print('\t'.join(str(r) for r in row), file=fp)
 
                 # rewrite the channels file
-                fpath_channels = gen_derived_fpath(fn, outputdir=outputdir,
+                fpath_channels = gen_derived_fpath(fn, outputdir=OutputDir,
                                                    suffix='channels', extension='.tsv')
                 with open(fpath_channels, 'w') as fp:
                     print('name\ttype\tunits', file=fp)
@@ -639,7 +846,7 @@ def bids_preproc(
                         print(f"{ch['labels']}\t{ch_type}\t{ch_unit}", file=fp)
 
                 # rewrite the electrodes file
-                fpath_elecs = gen_derived_fpath(fn, outputdir=outputdir,
+                fpath_elecs = gen_derived_fpath(fn, outputdir=OutputDir,
                                                 suffix='electrodes', extension='.tsv')
                 with open(fpath_elecs, 'w') as fp:
                     print('name\tx\ty\tz', file=fp)
@@ -648,7 +855,7 @@ def bids_preproc(
                             print(f"{ch['labels']}\t{ch['X']}\t{ch['Y']}\t{ch['Z']}", file=fp)
 
                 # rewrite/update the coordsystem file
-                fpath_coordsystem = gen_derived_fpath(fn, outputdir=outputdir,
+                fpath_coordsystem = gen_derived_fpath(fn, outputdir=OutputDir,
                                                       suffix='coordsystem', extension='.json')
                 coordsystem = EEG['etc'].get('BIDSCoordsystem', {})
                 coordsystem.update({
@@ -658,6 +865,76 @@ def bids_preproc(
                 })
                 with open(fpath_coordsystem, 'w') as fp:
                     json.dump(coordsystem, fp, indent=4)
+
+                # rewrite/update the _eeg.json file
+                fpath_eeg = gen_derived_fpath(fn, outputdir=OutputDir,
+                                              suffix='eeg', extension='.json')
+                if os.path.exists(fpath_eeg):
+                    with open(fpath_eeg, 'r') as fp:
+                        content = json.load(fp)
+                else:
+                    content = {}
+
+                # rewrite mandatory fields
+                if (ref := EEG.get('ref', 'unknown')) != 'unknown' or 'EEGReference' not in content:
+                    content['EEGReference'] = ref
+                if 'PowerLineFrequency' not in content:
+                    # while possible, it'd be tricky to infer that one on the fly
+                    content['PowerLineFrequency'] = 'n/a'
+                content['SamplingFrequency'] = EEG['srate']
+
+                # write channel counts based on the modality
+                content['EEGChannelCount'] = n_eeg = sum(lab['type'].lower() == 'eeg' for lab in EEG['chanlocs'])
+                content['ECGChannelCount'] = n_ecg = sum(lab['type'].lower() == 'ecg' for lab in EEG['chanlocs'])
+                content['EMGChannelCount'] = n_emg = sum(lab['type'].lower() == 'emg' for lab in EEG['chanlocs'])
+                content['EOGChannelCount'] = n_eog = sum(lab['type'].lower() == 'eog' for lab in EEG['chanlocs'])
+                content['TriggerChannelCount'] = n_trig = sum(lab['type'].lower() == 'trig' for lab in EEG['chanlocs'])
+                content['MISCChannelCount'] = len(EEG['chanlocs']) - (n_eeg+n_ecg+n_emg+n_eog+n_trig)
+
+                # remove misnamed field that may be present from prior json file
+                if 'MiscChannelCount' in content:
+                    del content['MiscChannelCount']
+
+                # other things that likely changed as a result of preprocessing
+                is_epoched = EEG['data'].ndim == 3
+                if not is_epoched:
+                    content['RecordingDuration'] = EEG['xmax'] - EEG['xmin']
+                else:
+                    content['EpochLength'] = EEG['xmax'] - EEG['xmin']
+                    content['RecordingDuration'] = (EEG['xmax'] - EEG['xmin']) * EEG['data'].shape[-1]
+                if is_epoched:
+                    content['RecordingType'] = 'epoched'
+                elif any(ev['type'] == 'boundary' for ev in EEG['event']):
+                    content['RecordingType'] = 'discontinuous'
+                else:
+                    content['RecordingType'] = 'continuous'
+
+                # complete a few fields that may be missing
+                if 'EEGPlacementScheme' not in content:
+                    content['EEGPlacementScheme'] = EEG['etc'].get('labelscheme', 'unknown')
+
+                # write information about the applied filters
+                if 'SoftwareFilters' not in content:
+                    content['SoftwareFilters'] = sw_filts = {}
+                else:
+                    sw_filts = content['SoftwareFilters']
+                filter_report = deepcopy(report)
+                # mapping from the name in the report to the name in the _eeg file
+                filter_names = {
+                    'Resample': 'pop_resample',
+                    'CleanArtifacts': 'clean_artifacts',
+                    'ICA': 'eeg_picard',
+                    'ChannelInterp': 'eeg_interp',
+                    'Epoching': 'pop_epoch+pop_rmbase' if EpochBaseline is not None else 'pop_epoch',
+                    'CommonAverageReference': 'pop_reref'
+                }
+                for in_report, in_filters in filter_names.items():
+                    if (flt := filter_report.get(in_report, {'Applied': False})).pop('Applied'):
+                        sw_filts[in_filters] = flt
+
+                # write the updated content back
+                with open(fpath_eeg, 'w') as fp:
+                    json.dump(content, fp, indent=4)
 
             return EEG if ReturnData else None
         except ExceptionUnlessDebug as e:
@@ -701,15 +978,15 @@ def bids_preproc(
     elif os.path.isdir(root):
         # process all files under a BIDS root recursively
         all_files = bids_list_eeg_files(
-            root, subjects=subjects, sessions=sessions, runs=runs, tasks=tasks)
+            root, subjects=Subjects, sessions=Sessions, runs=Runs, tasks=Tasks)
         n_jobs = 1 if is_debug() else num_jobs_from_reservation(ReservePerJob)
         n_total = len(all_files)
         t0 = now()
 
         # copy/move the other files from the root
-        if '{root}' in outputdir:
-            outputdir = outputdir.replace('{root}', root)
-        _copy_misc_root_files(root, outputdir, exclude=all_files)
+        if '{root}' in OutputDir:
+            OutputDir = OutputDir.replace('{root}', root)
+        _copy_misc_root_files(root, OutputDir, exclude=all_files)
 
         # rewrite the dataset_description.json file
         dataset_desc_path = os.path.join(root, 'dataset_description.json')
@@ -766,7 +1043,7 @@ def bids_preproc(
         # note that the actual epoched data *can* be absent if there were no matching 
         # event markers in any study file, which we can't determine at this point
         desc['IsEpoched'] = EpochEvents is not None
-        fpath_dataset_desc = gen_derived_fpath(dataset_desc_path, outputdir=outputdir, keyword='',
+        fpath_dataset_desc = gen_derived_fpath(dataset_desc_path, outputdir=OutputDir, keyword='',
                                                extension='.json')
         with open(fpath_dataset_desc, 'w') as f:
             json.dump(desc, f, indent=4)

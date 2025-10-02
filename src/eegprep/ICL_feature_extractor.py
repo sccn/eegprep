@@ -1,3 +1,4 @@
+from copy import deepcopy
 import numpy as np
 
 def ICL_feature_extractor(EEG, flag_autocorr=False):
@@ -7,6 +8,7 @@ def ICL_feature_extractor(EEG, flag_autocorr=False):
     from eegprep import eeg_autocorr
     from eegprep import eeg_autocorr_fftw
     from eegprep import pop_reref
+    EEG = deepcopy(EEG)
 
     # Check inputs
     ncomp = EEG['icawinv'].shape[1]

@@ -1,4 +1,6 @@
 import numpy as np
+from .utils.misc import round_mat
+
 
 def eeg_point2lat(lat_array, epoch_array=None, srate=None, timewin=None, timeunit=1.0):
     """
@@ -55,5 +57,5 @@ def eeg_point2lat(lat_array, epoch_array=None, srate=None, timewin=None, timeuni
     newlat = ((lat_array - (epoch_array - 1.0) * pnts - 1.0) / float(srate) + timewin[0]) / float(timeunit)
 
     # round to 1e-9 like MATLAB code
-    newlat = np.round(newlat * 1e9) / 1e9
+    newlat = round_mat(newlat * 1e9) / 1e9
     return newlat

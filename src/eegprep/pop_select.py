@@ -241,7 +241,7 @@ def pop_select(EEG, **kwargs):
         print(f"Removing {nbchan - len(g['channel'])} channel(s)...")
 
     # 5) Recompute event epoch indices and latencies when trials are dropped
-    if len(g['trial']) != trials and EEG.get('event'):
+    if len(g['trial']) != trials and (EEG.get('event') is not None and len(EEG.get('event', [])) > 0):
         if not any('epoch' in ev for ev in EEG['event']):
             print('Pop_epoch warning: bad event format with epoch dataset, removing events')
             EEG['event'] = []
