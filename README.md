@@ -78,6 +78,9 @@ pip install eegprep
 
 ## Test
 
+Install MATLAB insterface "pip install /your/path/to/matlab/extern/engines/python"
+Use tests/main_compare.m
+
 Use tests under Cursos or Visual Studio Code.
 
 ## Core maintainers
