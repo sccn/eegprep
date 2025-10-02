@@ -62,7 +62,7 @@ def clean_channels_nolocs(
         max_broken_time = Fs * max_broken_time
 
     EEG['data'] = np.asarray(EEG['data'], dtype=np.float64)
-    C, S = EEG['data'].shape
+    C, S, *_ = EEG['data'].shape
     window_len = window_len * Fs
     wnd = np.arange(int(window_len))
     offsets = np.arange(0, int(S - window_len), window_len, dtype=int)
@@ -126,7 +126,7 @@ def clean_channels_nolocs(
             logger.info('Falling back to a basic substitute and dropping signal meta-data.')
             # Manual channel removal
             if len(EEG['chanlocs']) == EEG['data'].shape[0]:
-                EEG['chanlocs'] = [ch for i, ch in enumerate(EEG['chanlocs']) if not removed_channels[i]]
+                EEG['chanlocs'] = np.asarray([ch for i, ch in enumerate(EEG['chanlocs']) if not removed_channels[i]])
             # pop_select() by default truncates the data to float32, so we need to do the same
             EEG['data'] = np.asarray(EEG['data'], dtype=np.float32)
             EEG['data'] = EEG['data'][~removed_channels, :]

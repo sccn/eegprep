@@ -1,0 +1,992 @@
+
+import os
+import copy
+from typing import Dict, Any, Tuple, List, Union, Sequence, Optional
+import logging
+import warnings
+import contextlib
+from .utils.bids import layout_for_fpath, layout_get_lenient, query_for_adjacent_fpath, \
+    root_for_fpath
+from .utils.coords import *
+from .utils import ExceptionUnlessDebug, ToolError, round_mat
+
+import numpy as np
+
+logger = logging.getLogger(__name__)
+
+
+# list of candidate column names for event types in BIDS events files, in order of preference.
+event_type_columns = ['trial_type', 'type', 'event_type', 'HED', 'value', 'code']
+
+# a list of column names that we interpret to contain event timing information
+event_timing_columns = ['onset', 'duration', 'sample']
+
+
+# remove matching leading/trailing quotes in pairs (repeat if nested)
+def _strip_matching_quotes(name: str) -> str:
+    while len(name) >= 2 and name[0] == name[-1] and name[0] in ("'", '"'):
+        name = name[1:-1]
+    return name
+        
+def pop_load_frombids(
+        filename: str,
+        *,
+        bidsmetadata: bool = True,
+        bidschanloc: bool = True,
+        bidsevent: Union[bool, str] = 'replace',
+        eventtype: Optional[str] = None,
+        infer_locations: Union[bool, str, None] = None,
+        dtype: np.dtype = np.float32,
+        numeric_null: Any = np.array([]),
+        return_report: bool = False,
+        verbose: bool = True,
+) -> Dict[str, Any] | Tuple[Dict[str, Any], Dict[str, Any]]:
+    """Load an EEG data file of a supported format from a BIDS dataset.
+
+    Supported formats are EDF, BrainVision, EEGLAB SET, BDF.
+
+    Args:
+        filename: Path to the EEG data file in a BIDS dataset.
+        bidsmetadata: Whether to override any metadata in the EEG file with
+          metadata from BIDS.
+        bidschanloc: Whether to override any channel information (incl. locations)
+          in the EEG file with channel information from BIDS.
+        bidsevent: Whether to load in and override any event data in the EEG file with
+          event data from BIDS. Can be one of the following:
+          * 'replace'/True: replace events from EEG file with those from the BIDS event file
+          * 'merge': selectively override events from EEG file with those from the BIDS event file
+          * 'append': append events from the BIDS event file to those from the EEG file;
+              WARNING: this mode can result in duplicate events; use with caution
+          * False/None: do not load events from BIDS, keep those from the EEG file
+        eventtype: Optionally the column name in the BIDS events file to use for event
+          types; if not set, will be inferred heuristically.
+        infer_locations: Whether to infer channel locations if necessary from the
+          channel labels (if 10-20 labeling system).
+          * True: infer locations from channel labels; override existing locations if any
+          * False: leave locations as-is, even if missing
+          * None: infer only if no channels have locations
+          * str: filename of a locations file to infer locations from; see files in
+            resources/montages directory (this can be used to disambiguate between
+            alternative montages that use the same naming system)
+        dtype: The data type to use for the EEG data.
+        numeric_null: The value to use for empty numeric fields in the EEG data.
+          * the default is np.array([]) for MATLAB/pop_loadset compatibility
+        return_report: whether to return an import report dictionary as a second output
+        verbose: whether to log verbose output
+
+    Returns:
+        EEG: A dictionary containing the EEG data and metadata.
+        Report: optionally the import report to return, if desired.
+
+    """
+    from . import eeg_checkset
+
+    report = {
+        'Warnings': [],
+        'Errors': [],
+    }
+
+    def warning(msg: str):
+        logger.warning(msg)
+        report['Warnings'].append(msg)
+
+    def error(msg: str):
+        logger.error(msg)
+        report['Errors'].append(msg)
+
+    path, ext = os.path.splitext(filename)
+    ext = ext.lower()
+
+    root = root_for_fpath(filename)
+
+    if verbose:
+        logger.info(f"Loading EEG data from {filename}...")
+    basename = os.path.basename(filename)
+    if ext == '.set':
+        from . import pop_loadset
+        EEG = pop_loadset(filename)
+        EEG['data'] = EEG['data'].astype(dtype)
+        report['ImporterUsed'] = 'pop_loadset'
+        Fs = EEG['srate']
+        times_sec = EEG['times']/1000.0
+    elif ext in ['.edf', '.bdf', '.vhdr']:
+        from neo import NeoReadWriteError
+        if ext == '.vhdr':
+            from neo.rawio.brainvisionrawio import BrainVisionRawIO as NeoIO
+            report['ImporterUsed'] = 'neo.rawio.brainvisionrawio.BrainVisionRawIO'
+        elif ext in ['.edf', '.bdf']:
+            from neo.rawio.edfrawio import EDFRawIO as NeoIO
+            report['ImporterUsed'] = 'neo.rawio.edfrawio.EDFRawIO'
+        else:
+            # if you're getting this, there's an elif statement missing here for one of
+            # the formats allowed above
+            raise ValueError(f"Unexpected file format: {ext}. Please add support for this "
+                             f"format if needed.")
+        # load from NEO
+        io = NeoIO(filename)
+        try:
+            io.parse_header()
+        except NeoReadWriteError as e:
+            classname = io.__class__.__name__
+            raise ToolError(f"Encountered error with NEO {classname} importer on {filename!r}: {e}. Skipping file.") from e
+        if (nStreams := io.signal_streams_count()) > 1:
+            warning(f"The raw data file {filename} appears to contain "
+                    f"more than one stream; using only the first stream.")
+        elif not nStreams:
+            raise ValueError(f"The raw data file {filename} does not contain any data.")
+        if (nBlocks := io.block_count()) > 1:
+            warning(f"The raw data file {filename} appears to contain "
+                    f"more than one recording; this is not meaningful "
+                    f"in a BIDS context; using only the first block.")
+        elif not nBlocks:
+            raise ValueError(f"The raw data file {filename} does not contain any data.")
+        if (nSegments := io.segment_count(0)) > 1:
+            raise NotImplementedError(f"The raw data file {filename} appears to contain "
+                                      f"more than one segment; This importer currently "
+                                      f"only supports continuous EEG data.")
+        elif not nSegments:
+            raise ValueError(f"The raw data file {filename} does not contain any data.")
+
+        nChannels = io.signal_channels_count(0)
+        nSamples = io.get_signal_size(0, 0, 0)
+        chnIdxs = list(range(nChannels))
+
+        report['NumStreams'] = nStreams
+        report['NumBlocks'] = nBlocks
+        report['NumSegments'] = nSegments
+
+        if verbose:
+            logger.info("  retrieving EEG data from file...")
+        data_T = io.get_analogsignal_chunk(block_index=0, seg_index=0,
+                                           channel_indexes=chnIdxs,
+                                           i_start=None, i_stop=None)
+        old_scale = np.std(data_T, axis=0)
+        data_T = io.rescale_signal_raw_to_float(data_T, dtype=dtype,
+                                                channel_indexes=chnIdxs)
+        new_scale = np.std(data_T, axis=0)
+        scale_ratios = new_scale/old_scale
+        uq_ratios = np.unique(scale_ratios)
+        if len(uq_ratios) == 1:
+            report['ScaleApplied'] = uq_ratios.item()
+        else:
+            report['ScalesApplied'] = scale_ratios.tolist()
+
+        # data time codes
+        Fs = io.get_signal_sampling_rate(0)
+        t0 = io.get_signal_t_start(block_index=0, seg_index=0, stream_index=0)
+        report['RawStartTime'] = t0
+        time_ofs = getattr(io, '_global_time', 0.0)  # default to 0 if not set
+        report['StartTimeOffset'] = time_ofs
+        t0 += time_ofs
+        report['CombinedStartTime'] = t0
+        times_sec = t0 + np.arange(0, nSamples, dtype=float) / Fs
+
+        # construct the chanlocs data structure
+        chns = io.header['signal_channels']
+        # get the units for all channels
+        try:
+            units = chns['units'].tolist()
+        except KeyError:
+            units = ['uV']*nChannels
+        uq_unit = np.unique(units)
+        if len(uq_unit) == 1 and uq_unit[0] not in ('uV', 'microvolts'):
+            warning(f"Your channel unit does not appear to be in microvolts (uV) "
+                    f"but is documented instead as {uq_unit[0]}. EEG scale might be incorrect. ")
+
+        labels = chns['name'].tolist()
+
+        # other available per-channel fields from neo:
+        # - id
+        # - sampling_rate (assumed to be uniform across all channels)
+        # - dtype
+        # - gain  (accounted for in rescaling)
+        # - offset (accounted for in rescaling)
+        # - stream_id
+        # - buffer_id
+
+        # preinitialize data structure
+        chanlocs = np.asarray([
+            {
+                'labels': lab,
+                'sph_radius': numeric_null,
+                'sph_theta': numeric_null,
+                'sph_phi': numeric_null,
+                'theta': numeric_null,
+                'radius': numeric_null,
+                'X': numeric_null,
+                'Y': numeric_null,
+                'Z': numeric_null,
+                'type': 'EEG',
+                'ref': numeric_null,
+                # 'urchan': numeric_null --> not present if urchanlocs not populated
+            } for lab in labels])
+
+        # try to read out channel coordinates from side-channel info, if any
+        if ext == '.vhdr':
+            if verbose:
+                logger.info("  parsing VHDR-specific channel locations...")
+            try:
+                annots = io.raw_annotations['blocks'][0]['segments'][0]['signals'][0]['__array_annotations__']
+                sph_radius, theta, phi = annots['coordinates_0'], annots['coordinates_1'], annots['coordinates_2']
+                valid = (sph_radius!=0) | (theta!=0) | (phi!=0)
+                sph_theta = phi - 90 * np.sign(theta)
+                sph_phi = -np.abs(theta) + 90
+            except KeyError:
+                warning(f"Channel coordinates not found in {filename}. "
+                        f"Using default values for channel locations.")
+                valid = np.zeros(nChannels, dtype=bool)
+        elif ext in ['.edf', '.bdf']:
+            # EDF/BDF files do not have channel coordinates, so we use default values
+            valid = np.zeros(nChannels, dtype=bool)
+        else:
+            raise ValueError(f"Unsupported file format for channel coordinates extraction: {ext}. "
+                             f"Supported formats are .edf, .bdf, .vhdr.")
+
+        if np.any(valid):
+            if verbose:
+                logger.info("  applying channel locations from EEG file...")
+            # set the channel locations to the extent that we have them
+            for loc, val, sph_r, sph_p, sph_t in zip(chanlocs, valid, sph_radius, sph_phi, sph_theta):
+                if val:
+                    # write coordinates in
+                    loc['sph_radius'] = sph_r
+                    loc['sph_theta'] = sph_t
+                    loc['sph_phi'] = sph_p
+                    # also derive topo coords (sph2topo)
+                    az = sph_p
+                    horiz = sph_t
+                    angle = -horiz
+                    radius = 0.5 - az/180
+                    loc['theta'] = angle
+                    loc['radius'] = radius
+                    # and derive cartesian coordinates (sph2cart)
+                    az = np.deg2rad(sph_t)
+                    elev = np.deg2rad(sph_p)
+                    z = sph_r * np.sin(elev)
+                    x = sph_r * np.cos(elev) * np.cos(az)
+                    y = sph_r * np.cos(elev) * np.sin(az)
+                    loc['X'] = x
+                    loc['Y'] = y
+                    loc['Z'] = z
+
+        # construct the events data structure
+        if (nEvtChns := io.event_channels_count()) > 0:
+            if verbose:
+                logger.info("  reading in event data from EEG file...")
+            ev_all_times = []
+            ev_all_durs = []
+            ev_all_channels = []
+            ev_all_data = []
+            # All channels containing events get collapsed into a single axis of instances.
+            # The instance 'label' contains the original channel name.
+            # The instance 'data' contains the original event marker.
+            for ev_ch_ix in range(nEvtChns):
+                ev_times, ev_durs, ev_labels = io.get_event_timestamps(
+                    block_index=0,
+                    seg_index=0,
+                    event_channel_index=ev_ch_ix,
+                    t_start=None,
+                    t_stop=None,
+                    # (no other args)
+                )
+                ev_all_times.extend(io.rescale_event_timestamp(ev_times))
+                if ev_durs is not None:
+                    ev_all_durs.extend(ev_durs)
+                else:
+                    ev_all_durs.extend([1] * len(ev_times))
+                ev_all_channels.extend(np.repeat(io.header['event_channels'][ev_ch_ix]['name'], len(ev_times)))
+                ev_all_data.extend(ev_labels)
+            # apply heuristics to deduce the event type
+            if ext == '.vhdr':
+                # BrainVision has the event name in the data, but when that's empty,
+                # we use the channel name as the event type.
+                ev_types = ev_all_data
+                ev_codes = ev_all_channels
+            elif ext in ['.edf', '.bdf']:
+                ev_types = [str(d) for d in ev_all_data]
+                ev_codes = [str(chn) for chn in ev_all_channels]
+            else:
+                # if you get this you need to add support for this file format here
+                raise ValueError(f"Unsupported file format for event extraction: {ext}. "
+                                 f"Supported formats are .edf, .bdf, .vhdr.")
+            ev_lats = np.searchsorted(times_sec, ev_all_times)  # +1 for MATLAB format compatibility (1-based index)
+            ev_durs = np.array(ev_all_durs, dtype=float)
+            ev_urevts = np.arange(len(ev_all_times))
+            events = np.array([
+                {
+                    'duration': dur,
+                    'latency': lat,
+                    'type': typ or ('boundary' if code == 'New Segment' else ''),
+                    'code': code,
+                    'urevent': chn,
+                } for dur, lat, typ, code, chn in
+                zip(ev_durs, ev_lats, ev_types, ev_codes, ev_urevts)])
+        else:
+            events = numeric_null
+
+        # this isn't really encoded in Neo's data structure, nor does pop_loadbv() seem
+        # to read it out, even though .vhdr CAN have it annotated (either the [Comments] section
+        # of the channel infos in the .vhdr file, or separately in each channel under [Channel Infos]
+        reference = 'unknown'
+
+        EEG = {
+            'setname': '',
+            'filename': basename,
+            'filepath': os.path.dirname(filename),
+            # these will be set from BIDS
+            'subject': '',
+            'group': '',
+            'condition': '',
+            'session': numeric_null,
+            'comments': '',
+            # raw data array
+            'nbchan': nChannels,
+            'trials': 1,  # assuming single trial for raw EEG datain
+            'pnts': nSamples,
+            'srate': Fs,
+            'xmin': times_sec[0],
+            'xmax': times_sec[-1],
+            'times': times_sec*1000,  # in ms
+            'data': data_T.T,
+            # ICA data structures
+            'icaact': numeric_null,
+            'icawinv': numeric_null,
+            'icasphere': numeric_null,
+            'icaweights': numeric_null,
+            'icachansind': numeric_null,
+            # channel info
+            'chanlocs': chanlocs,
+            'urchanlocs': numeric_null,
+            'chaninfo': {
+                'plotrad': numeric_null,
+                'shrink': numeric_null,
+                'nosedir': '+X',
+                'nodatchans': numeric_null,
+                'icachansind': numeric_null,
+            },
+            'ref': reference,
+            # event data structures
+            'event': events,
+            'urevent': copy.deepcopy(events),
+            'eventdescription': [],
+            # epoch info
+            'epoch': numeric_null,
+            'epochdescription': [],
+            # rejection info (note: could pre-populate)
+            'reject': {},
+            'stats': {},
+            # spectral data (not used)
+            'specdata': numeric_null,
+            'specicaact': numeric_null,
+            # spline fil
+            'splinefile': '',
+            'icasplinefile': '',
+            # DIPFIT info
+            'dipfit': numeric_null,
+            # history info
+            'history': '',
+            'saved': 'justloaded',
+            # additional metadata
+            'etc': {},
+            'run': numeric_null
+        }
+    elif ext in ['.fdt', '.vmrk', '.eeg']:
+        raise ValueError(f"pop_load_frombids should be called with the main data file, "
+                         f"but was called on a sidecar file: {filename}.")
+    else:
+        raise ValueError(f"Unsupported file format: {ext}. Supported formats "
+                         f"are .set, .edf, .bdf, .vhdr.")
+
+    report['EEGFileHadLocations'] = sum(chanloc_has_coords(ch) for ch in EEG['chanlocs'])
+    report['ChanlocsFrom'] = os.path.relpath(filename, root)
+    report['EEGFileHadEvents'] = len(EEG['event'])
+    report['EventsFrom'] = os.path.relpath(filename, root)
+
+    if bidsmetadata:
+        if verbose:
+            logger.info("  applying BIDS metadata...")
+        import bids
+        layout: bids.BIDSLayout = layout_for_fpath(filename)
+        # get the applicable metadata for this file
+        metadata: Dict[str, Any] = layout.get_metadata(filename, include_entities=True)
+
+        # apply overrides
+        EEG['subject'] = metadata.get('subject', '')
+        if EEG['ref'] == 'unknown':
+            EEG['ref'] = metadata.get('EEGReference', 'unknown')
+        EEG['etc']['BIDS'] = metadata
+
+    if bidschanloc:
+        import bids
+        layout: bids.BIDSLayout = layout_for_fpath(filename)
+
+        # check for presence of a _channels.tsv file
+        query_entities = {
+            **layout.parse_file_entities(filename),
+            'suffix': 'channels',
+            'extension': '.tsv'
+        }
+        # retrieve the list of all such files
+        channel_file_list = layout_get_lenient(
+            layout,
+            **query_entities,
+            return_type='object',
+            tolerate_missing=('task', 'run'),
+            expect_one=True,
+        )
+        if len(channel_file_list) > 1:
+            warning(f"Found multiple BIDS channel files for {filename}: "
+                    f"{', '.join([fo.filename for fo in channel_file_list])}. "
+                    f"Using the first one only.")
+        for fo in channel_file_list:
+            import pandas as pd
+            if verbose:
+                logger.info(f"  applying BIDS channel locations from {fo.filename}...")
+            report['ChanlocsFrom'] = os.path.relpath(fo.path, root)
+            # read in the file contents
+            chans: pd.DataFrame = fo.get_df()
+
+            # this is used to override the type (e.g. 'EEG', 'EOG', 'ECG', etc.) and the ref (if present)
+            notfound = []
+            notype = False
+            has_ref = 'reference' in chans.columns
+            orig_labels = [cl['labels'] for cl in EEG['chanlocs']]
+            for ch in chans.iloc:
+                lab = ch['name']
+                if lab not in orig_labels:
+                    notfound.append(lab)
+                    continue
+                idx = orig_labels.index(lab)
+
+                # update the channel type
+                try:
+                    typ = ch['type']
+                except KeyError:
+                    notype = True
+                else:
+                    EEG['chanlocs'][idx]['type'] = typ
+
+                # update the reference, if present
+                if has_ref:
+                    try:
+                        ref_idx = orig_labels.index(ch['reference'])
+                    except ValueError:
+                        # perhaps best to just leave it as is since the EEG file
+                        # might have it set already
+                        # EEG['chanlocs'][idx]['ref'] = numeric_null
+                        pass
+                    else:
+                        EEG['chanlocs'][idx]['ref'] = ref_idx
+            if notfound:
+                nf = [str(n) for n in notfound]
+                warning(f"Channels {','.join(nf)} from BIDS file {fo.filename} "
+                       f"not found in EEG data structure; skipping.")
+            if notype:
+                warning(f"Channels in BIDS file {fo.filename} do not have a 'type' "
+                        f"column; not overriding.")
+
+            break
+
+        # check for presence of an _electrodes.tsv file
+        query_entities = query_for_adjacent_fpath(
+            filename, suffix='electrodes', extension='.tsv')
+        # retrieve the list of all such files
+        elec_file_list = layout_get_lenient(
+            layout,
+            **query_entities,
+            return_type='object',
+            tolerate_missing=('task', 'run'),
+            expect_one=True,
+        )
+        if len(elec_file_list) > 1:
+            warning(f"Found multiple BIDS electrode files for {filename}: "
+                    f"{', '.join([fo.filename for fo in elec_file_list])}. "
+                    f"Using the first one only.")
+            elec_file_list = elec_file_list[:1]
+        for elec_fo in elec_file_list:
+            import pandas as pd
+            if verbose:
+                logger.info(f"  applying BIDS electrode locations from {fo.filename}...")
+            report['ElectrodesFrom'] = os.path.relpath(elec_fo.path, root)
+            # read in the file contents
+            elecs: pd.DataFrame = elec_fo.get_df()
+
+            # check for the presence of a coordsystem file
+            query_entities = query_for_adjacent_fpath(
+                elec_fo.path, suffix='coordsystem', extension='.json')
+            coordsystem_file_list = layout_get_lenient(
+                layout,
+                **query_entities,
+                return_type='object',
+                tolerate_missing=('task', 'run', 'space'),
+                expect_one=True,
+            )
+            if len(coordsystem_file_list) > 1:
+                warning(f"Found multiple BIDS coordsystem files for {elec_fo.filename}: "
+                        f"{', '.join([fo.filename for fo in coordsystem_file_list])}. "
+                        f"Using the first one only.")
+                coordsystem_file_list = coordsystem_file_list[:1]
+            if not coordsystem_file_list:
+                # if it's a .set study, then we assume ALS for the chanlocs, otherwise RAS
+                coord_system = 'ALS' if ext == '.set' else 'RAS'
+                coord_units = 'guess'
+                warning(f"Found no BIDS coordsystem files for {fo.filename}; your "
+                        f"dataset is not fully BIDS-compliant. Assuming coordinate "
+                        f"system {coord_system!r} and guessing units from the data.")
+            else:
+                for coordsystem_fo in coordsystem_file_list:
+                    if verbose:
+                        logger.info(f"  applying BIDS coordsystem from {coordsystem_fo.filename}...")
+                    report['CoordsystemFrom'] = os.path.relpath(coordsystem_fo.path, root)
+                    # read in the file contents
+                    content: Dict[str, Any] = coordsystem_fo.get_dict()
+                    EEG['etc']['BIDSCoordsystem'] = content
+                    coord_system = content.get('EEGCoordinateSystem', 'RAS')  # default to RAS if not specified
+                    if 'EEGLAB' in coord_system.upper():
+                        # as per BIDS docs, EEGLAB is the only one that's expressly not RAS
+                        coord_system = 'ALS'
+                    elif 'EEGLAB' == content.get('EEGCoordinateSystemDescription', ''):
+                        # some datasets with EEGLAB-style coordinates use this field instead
+                        # and have other systems in the EEGCoordinateSystem field (e.g., 'CTF')
+                        coord_system = 'ALS'
+                    else:
+                        coord_system = 'RAS'
+                    coord_units = content.get('EEGCoordinateUnits', 'guess').lower()  # default to 'guess' if not specified
+                    if coord_units == 'n/a':
+                        coord_units = 'guess'
+                    break
+
+            # guess the coordinate units if not specified
+            coords = np.stack(
+                (elecs['x'].to_numpy(), elecs['y'].to_numpy(), elecs['z'].to_numpy()),
+                axis=1)
+
+            guess_units = coord_units == 'guess'
+
+            if guess_units:
+                with warnings.catch_warnings():
+                    warnings.simplefilter('ignore')
+                    max_coord = np.nanmax(np.abs(coords))
+                if not np.isnan(max_coord):
+                    if max_coord < 0.2:
+                        coord_units = 'm'
+                    elif max_coord < 2:
+                        coord_units = 'cm'
+                    elif max_coord < 20:
+                        coord_units = 'mm'
+                    else:
+                        coord_units = ''
+                else:
+                    coord_units = ''
+                if verbose:
+                    logger.info(f"  inferred coordinate units to be in {coord_units!r}...")
+
+            report['OriginalCoordUnits'] = coord_units
+            report['CoordUnitsWereGuessed'] = guess_units
+
+            if coord_units == '':
+                warning(f"Coordinate units for {fo.filename} could not be inferred "
+                        f"or were invalid; not overriding channel locations.")
+            else:
+                if EEG['chaninfo']['nosedir'] != '+X':
+                    warning(
+                        f"Converting to the coordinate system {coord_system} of "
+                        f"the EEG data file is not supported by this importer. "
+                        f"Setting to +X and clearing existing coordinates.")
+                    # override nosedir and wipe existing chanlocs, if any
+                    EEG['chaninfo']['nosedir'] = '+X'  # set to +X for AJS coordinate system
+                    for ch in EEG['chanlocs']:
+                        clear_chanloc(ch, numeric_null)
+
+                # convert to mm (EEGLAB's internal unit)
+                coords = coords_to_mm(coords, coord_units)
+                # convert to ALS if needed
+                if coord_system == 'RAS':
+                    coords = coords_RAS_to_ALS(coords)
+                elif coord_system != 'ALS':
+                    raise ValueError(f"Unsupported coordinate system {coord_system!r} "
+                                     f"in BIDS file {fo.filename}. Supported systems are "
+                                     f"ALS and RAS.")
+
+                sph_theta, sph_phi, sph_radius, polar_theta, polar_radius = coords_ALS_to_angular(coords)
+
+                # now read in the electrode locations
+                notfound = []
+                num_updated = 0
+                for k, ch in enumerate(elecs.iloc):
+                    lab = ch['name']
+                    if lab not in orig_labels:
+                        notfound.append(lab)
+                        continue
+                    idx = orig_labels.index(lab)
+
+                    # assign the coordinates (note we always assume AJS)
+                    xyz = coords[k]
+
+                    # update the channel record
+                    rec = EEG['chanlocs'][idx]
+                    if np.any(np.isnan(xyz)):
+                        continue  # invalid, nothing to do
+                    num_updated += 1
+                    rec['X'] = xyz[0]
+                    rec['Y'] = xyz[1]
+                    rec['Z'] = xyz[2]
+                    # also regenerate the angular coordinates
+                    rec['sph_theta'] = sph_theta[k]
+                    rec['sph_phi'] = sph_phi[k]
+                    rec['sph_radius'] = sph_radius[k]
+                    rec['theta'] = polar_theta[k]
+                    rec['radius'] = polar_radius[k]
+                if notfound:
+                    warning(f"Electrodes {','.join(notfound)} from BIDS file {fo.filename} "
+                            f"not found in EEG data structure; skipping.")
+                if num_updated:
+                    logger.info(f"Updated {num_updated} channel locations from BIDS file {fo.filename} "
+                                f"into the EEG data structure.")
+                    report['NumUpdatedChanlocs'] = num_updated
+                    report['NotfoundChanlocs'] = notfound
+
+    if bidsevent:
+        import bids
+        layout: bids.BIDSLayout = layout_for_fpath(filename)
+
+        # get the query to find the associated events file
+        query_entities = query_for_adjacent_fpath(
+            filename, suffix='events', extension='.tsv')
+        try:
+            # retrieve the list of all such files
+            events_file_list = layout.get(**query_entities, return_type='object')
+            for fo in events_file_list:
+                import pandas as pd
+                if verbose:
+                    logger.info(f"  applying BIDS events from {fo.filename}...")
+                report['EventsFrom'] = os.path.relpath(fo.path, root)
+                # read in the file contents
+                events: pd.DataFrame = fo.get_df()
+
+                try:
+                    # opportunistically look for the 'sample' column, which may be present in some files
+                    # seen in the wild
+                    ev_lats = events['sample'].to_numpy()
+                    if np.all(np.isnan(ev_lats)):
+                        raise ValueError(f"sample column in {fo.filename} is all NaN; falling back to onsets.")
+                    ev_lats = ev_lats.astype(int)
+                    report['EventTimingSource'] = 'sample'
+                except (KeyError, ValueError) as e:
+                    # otherwise get it from the onsets, which is expected to be always present
+                    try:
+                        onsets = events['onset'].to_numpy(dtype=float)
+                        if np.all(np.isnan(onsets)):
+                            raise ValueError(f"onset column in {fo.filename} is all NaN; cannot proceed.")
+                        report['EventTimingSource'] = 'onset'
+                        ev_lats = np.searchsorted(times_sec, onsets)
+                    except (KeyError, ValueError) as e:
+                        raise ValueError(f"Your BIDS file {fo.filename} does not contain "
+                                         f"the required 'onset' column for events and therefore "
+                                         f"does not conform to the BIDS standard; to fall back "
+                                         f"to the events present in the EEG file itself (if any), "
+                                         f"pass the bidsevent=False option "
+                                         f"when using pop_load_frombids, or equivalently "
+                                         f"ApplyEvents=False when using  bids_preproc().")
+                # convert to 1-based indexes for MATLAB compat
+                ev_lats = ev_lats + 1
+
+                try:
+                    durations = events['duration'].to_numpy(dtype=float)
+                    durations[np.isnan(durations)] = 0.0  # replace NaNs with zero
+                except KeyError:
+                    # fall back to zero duration
+                    durations = np.zeros_like(onsets, dtype=float)
+                # convert to EEGLAB's sample-based durations
+                ev_durs = round_mat(np.maximum(1, Fs*durations)).astype(int)
+
+                # set of column names that we've already carried over into the
+                # event data structure
+                used_columns = list(event_timing_columns)
+
+                if eventtype:
+                    # restrict to the specified event type only
+                    probe_columns = [eventtype]
+                else:
+                    probe_columns = event_type_columns
+
+                # read out the event types and/or codes
+
+                for candidate_column in probe_columns:
+                    try:
+                        # preferred column for the event type
+                        ev_types = events[candidate_column].to_numpy()
+                        report['EventSourceColumn'] = candidate_column
+                        EEG['etc']['event_column'] = candidate_column
+                        used_columns.append(candidate_column)
+                        break
+                    except KeyError:
+                        # not found
+                        continue
+                else:
+                    warning(f"Your BIDS file {fo.filename} does not appear to contain "
+                            f"a column coding for the event type ({','.join(event_type_columns)}), "
+                            f"importing as ''. To avoid importing these dummy events and use only"
+                            f"the events in the EEG file itself (if any), pass the "
+                            f"bidsevent=False option when using pop_load_frombids, "
+                            f"or equivalently ApplyEvents=False when using bids_preproc().")
+                    ev_types = np.full_like(ev_lats, '', dtype=object)
+
+                ev_types = [typ or ('boundary' if typ == 'New Segment' else '') for typ in ev_types]
+
+                # extract extra columns to include in the event data structure
+                # this does not in
+                extra_columns = sorted(set(events.columns) - set(used_columns))
+                ev_extra = {
+                    col: events[col].to_numpy()
+                    for col in extra_columns}
+
+                # drop trivial (all-nan) columns
+                for col in list(ev_extra):
+                    try:
+                        if np.all(np.isnan(ev_extra[col])):
+                            del ev_extra[col]
+                    except Exception as e:
+                        pass
+
+                # filter out any events that are already in the EEG data structure itself
+                # noinspection PyBroadException
+                try:
+                    if bidsevent in ('replace', True):
+                        EEG['event'] = np.array([], dtype=object)  # clear existing events
+                        keep = np.ones_like(ev_types, dtype=bool)
+                    elif bidsevent == 'merge':
+                        if len(EEG['event']):
+                            orig_lats = [e['latency'] for e in EEG['event']]
+                            indexes = np.searchsorted(orig_lats, ev_lats)
+                            orig_types = [ev['type'] for ev in EEG['event'][indexes]]
+                            keep = [o != e for o,e in zip(orig_types, ev_types)]
+                        else:
+                            keep = np.ones_like(ev_types, dtype=bool)
+                    elif bidsevent == 'append':
+                        keep = np.ones_like(ev_types, dtype=bool)
+                    else:
+                        raise ValueError(
+                            f"Invalid value for bidsevent: {bidsevent}. "
+                            f"Expected one of 'replace', 'merge', 'append', or False/None.")
+
+                    report["NumEventsFromBids"] = int(np.sum(keep))
+
+                    # append the new events to the EEG structure
+                    if count := np.sum(keep):
+                        # build an events structure (SoA form)
+                        events_soa = {
+                            'latency': ev_lats,
+                            'duration': ev_durs,
+                            'type': ev_types,
+                            'urevent': np.zeros_like(ev_lats)
+                        }
+                        # append extra event columns
+                        events_soa.update(ev_extra)
+                        
+                        # convert from structure-of-arrays to array-of-structures and filter by keep
+                        new_events = [
+                            {key: values[i] for key, values in events_soa.items()}
+                            for i, kp in enumerate(keep) if kp
+                        ]
+
+                        EEG_events = EEG['event'].tolist()
+
+                        # append any missing fields to existing events with null values
+                        for col in ev_extra:
+                            for ev in EEG_events:
+                                if col not in ev:
+                                    ev[col] = numeric_null
+
+                        EEG_events = EEG['event'].tolist() + new_events
+                        EEG['event'] = np.array(EEG_events, dtype=object)
+
+                        # re-sort events by latency
+                        lats = [ev['latency'] for ev in EEG['event']]
+                        EEG['event'] = EEG['event'][np.argsort(lats)]
+
+                        # rewrite the urevent index since it'll have gotten scrambled
+                        for i, ev in enumerate(EEG['event']):
+                            ev['urevent'] = i
+
+                        # rewrite urevent itself
+                        EEG['urevent'] = copy.deepcopy(EEG['event'])
+
+                        logger.info(f"Merged {count} events from the BIDS events file {fo.filename} " 
+                                    f"into the EEG file {basename}.")
+
+                    report["NumEventsFromEEGFile"] = len(EEG['event']) - int(np.sum(keep))
+
+                except ExceptionUnlessDebug:
+                    logger.exception(f"Failed to deduplicate events between the EEG file {basename} "
+                                     f"and the BIDS events file {fo.filename}; keeping all events.")
+        except ExceptionUnlessDebug:
+            logger.exception(f"Failed to load BIDS events file for {filename}. Only the events "
+                             f"in the EEG file itself will be retained.")
+
+    coords = chanlocs_to_coords(EEG['chanlocs'])
+    have_coords = not np.all(np.isnan(coords))
+    if infer_locations is None:
+        infer_locations = not have_coords # only if no coordinates are present
+
+    if infer_locations:
+        from scipy.io.matlab import loadmat
+        # Portions of this code are Copyright (c) 2015-2025 Syntrogi Inc. dba Intheon;
+        # used under the terms of the BSD 2-Clause License.
+
+        # set nosedir to +X (ALS) since that's the only coord system that we convert to here
+        EEG['chaninfo']['nosedir'] = '+X'
+
+        # find best-matching montage file out of available options
+        # we're scoring by coverage of data channels first, and coverage in
+        # locfile second (the latter because we want to use the smallest locfile
+        # that covers the cap since sometimes there's one that has a superset
+        # of the names, but with different locations, e.g., 128ch vs 256ch)
+        datalabels = [cl['labels'].lower() for cl in EEG['chanlocs']]
+        
+        # remove channel prefixes if any
+        chanprefixes = ['brainvision rda_','rda_','eeg ','eeg-','eeg']
+        for prefix in chanprefixes:
+            datalabels = [l.replace(prefix, '') for l in datalabels]
+            
+        # remove suffixes after minus sign (if reference is present in the channel label)
+        datalabels = [l.split('-')[0] for l in datalabels]
+        datalabels = [_strip_matching_quotes(l) for l in datalabels]
+        
+        opt_score, best_data, best_cap = (0, 0), None, '(not set)'
+        fractions = []
+        caplabels = []
+        if isinstance(infer_locations, str):
+            filenames = [infer_locations]
+        else:
+            montage_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'resources', 'montages'))
+            filenames = sorted(os.listdir(montage_path))
+        for filename in filenames:
+            if not filename.endswith('.locs'):
+                raise ValueError(f"Only montage files with the .locs extension are supported, "
+                                 f"but found {filename}. These are MATLAB v7 .mat files; "
+                                 f"please convert your montage into the appropriate format.")
+            try:
+                data = loadmat(os.path.join(montage_path, filename),
+                               squeeze_me=True)
+            except Exception:
+                raise ValueError(f"Failed to load montage file {filename}. "
+                                 f"Make sure it is a valid .locs file (MATLAB v7 .mat format).")
+            caplabels = [l.lower() for l in data['labels']]
+            fraction_in_data = np.mean([n in caplabels for n in datalabels])
+            fraction_in_locfile = np.mean([n in datalabels for n in caplabels])
+            # bonus score for 10-20 preference
+            if {'c3', 'cz', 'fcz', 'c4'}.issubset(caplabels):
+                bonus1020 = 1
+            else:
+                bonus1020 = 0
+            score = (fraction_in_data, bonus1020, fraction_in_locfile)
+            if score > opt_score:
+                opt_score = score
+                best_data = data
+                best_cap = filename
+            fractions.append(fraction_in_data)
+        fractions = sorted(fractions, reverse=True)
+        best_fraction = opt_score[0]
+
+        if best_data is None:
+            if isinstance(infer_locations, str):
+                raise RuntimeError(
+                    f'The channel labels in your data do not match the specified montage '
+                    f'file ({infer_locations}).')
+            else:
+                raise RuntimeError(
+                    'Channel labels do not match any known or specified montage.')
+
+        # additional diagnostics
+        skip_locations = False
+        percent_found = int(100 * best_fraction)
+        if best_fraction < 0.25:
+            error("The given data has a very poor match to all "
+                  "known montages (%s percent of channels found); "
+                  "not assigning locations (got: %s)" % (percent_found, datalabels))
+            skip_locations = True
+        elif best_fraction < 0.5:
+            if len(fractions) > 1 and best_fraction / 1.5 < fractions[1]:
+                warning("The given data has a poor match and multiple "
+                        "montages are partially matching potentially "
+                        "ambiguously (%s percent of channels found); "
+                        "please double-check assigned locations." %
+                        percent_found)
+            else:
+                warning("The given data has a poor match to all known "
+                        "montages (%s percent of channels found); please "
+                        "double-check assigned locations." %
+                        percent_found)
+        elif (best_fraction < 0.75 and len(fractions) > 1 and
+              best_fraction / 1.5 < fractions[1]):
+            warning("The given data has a reasonable match to known "
+                   "montages but multiple montages are potentially "
+                   "matching (%s percent of channels found); "
+                   "locations may be wrong." %
+                   percent_found)
+        elif best_fraction < 1.0:
+            warning("Not all channel locations could be matched to a "
+                    "known montage; some channels may be non-EEG "
+                    "channels ({} percent of channels found).".format(percent_found))
+
+        if not skip_locations:
+            report['ChanlocsFrom'] = os.path.basename(best_cap)
+            if '10-5' in best_cap:
+                labeling = '10-20'  # normalize to 10-20
+            else:
+                labeling, ext = os.path.splitext(os.path.basename(best_cap))
+            EEG['etc']['labelscheme'] = labeling
+
+            # transform coordinates from file into the EEGLAB coordinate system
+            # unit=millimeters, x=A (front), y=L (left), z=S (up)
+            unit = best_data['meta']['unit'][()]
+            x = best_data['meta']['x'][()]
+            y = best_data['meta']['y'][()]
+            z = best_data['meta']['z'][()]
+            coords = best_data['coordinates']
+            coords = coords_to_mm(coords, unit)
+            coords = coords_any_to_RAS(coords, x, y, z)
+            coords = coords_RAS_to_ALS(coords)
+            sph_theta, sph_phi, sph_radius, polar_theta, polar_radius = coords_ALS_to_angular(coords)
+
+            # cross-reference location indices from best montage
+            caplabels = [l.lower() for l in best_data['labels']]
+            for di, dl in enumerate(datalabels):
+                rec = EEG['chanlocs'][di]
+                for ci, cl in enumerate(caplabels):
+                    if dl == cl:
+                        xyz = coords[ci, :]
+                        rec['X'] = xyz[0]
+                        rec['Y'] = xyz[1]
+                        rec['Z'] = xyz[2]
+                        rec['sph_radius'] = sph_radius[ci]
+                        rec['sph_theta'] = sph_theta[ci]
+                        rec['sph_phi'] = sph_phi[ci]
+                        rec['theta'] = polar_theta[ci]
+                        rec['radius'] = polar_radius[ci]
+                        break
+                else:
+                     # otherwise clear the locs to invalid
+                    clear_chanloc(rec, numeric_null)
+    else:
+        # unambiguously 10-20 locations (excl. for example C3/C4 or F3/F4 since these
+        # are also in the Biosemi montage and likely some others)
+        candidate_locs = {
+            "fp1", "fp2", "fz", "t3",  "cz", "t4", "t5", "p3", "pz", "p4", "t6", "o1", "o2"}
+        if any(ch['labels'].lower() in candidate_locs for ch in EEG['chanlocs']):
+            EEG['etc']['labelscheme'] = '10-20'
+        else:
+            EEG['etc']['labelscheme'] = 'unknown'
+
+    EEG = eeg_checkset(EEG)
+    try:
+        from eegprep import eeg_checkchanlocs
+        EEG = eeg_checkchanlocs(EEG)
+    except ImportError:
+        print("eeg_checkchanlocs not available, skipping channel location check.")
+
+    if return_report:
+        return EEG, report
+    else:
+        return EEG

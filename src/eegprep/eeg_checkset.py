@@ -1,32 +1,118 @@
+
+import logging
+import contextvars
+from contextlib import contextmanager
+
+# test_eeg_checkset()
 import numpy as np
 import os
 
+logger = logging.getLogger(__name__)
+
+__all__ = ['eeg_checkset', 'strict_mode']
+
+# Context variable for strict mode (default True)
+_strict_mode_var = contextvars.ContextVar('strict_mode', default=True)
+
+class DummyException(Exception):
+    """Exception that should never be raised, used to disable exception handling in strict mode"""
+    pass
+
+@contextmanager
+def strict_mode(enabled: bool):
+    """
+    Context manager to control strict mode for eeg_checkset.
+    
+    Args:
+        enabled (bool): If True, exceptions will propagate (strict mode).
+                       If False, exceptions will be caught and handled gracefully.
+    
+    Usage:
+        with strict_mode(False):
+            EEG = eeg_checkset(EEG)  # Will catch and handle exceptions
+    """
+    token = _strict_mode_var.set(enabled)
+    try:
+        yield
+    finally:
+        _strict_mode_var.reset(token)
+
+
 def eeg_checkset(EEG, load_data=True):
-      
+    # Get the exception type based on strict mode
+    # In strict mode (True), we catch DummyException (never raised) so exceptions propagate
+    # In non-strict mode (False), we catch Exception and handle gracefully
+    exception_type = DummyException if _strict_mode_var.get() else Exception
+        
+
     # convert EEG['nbchan] to integer
     if 'nbchan' in EEG:
         EEG['nbchan'] = int(EEG['nbchan'])
-    if 'trials' in EEG:
-        EEG['trials'] = int(EEG['trials'])
+    else:
+        EEG['nbchan'] = EEG['data'].shape[0]
     if 'pnts' in EEG:
         EEG['pnts'] = int(EEG['pnts'])
-    
+    else:
+        EEG['pnts'] = EEG['data'].shape[1]
+    if 'trials' in EEG:
+        EEG['trials'] = int(EEG['trials'])
+    else:
+        if EEG['data'].ndim == 3:
+            EEG['trials'] = EEG['data'].shape[2]
+        else:
+            EEG['trials'] = 1
+            
+    if 'event' in EEG:
+        if isinstance(EEG['event'], dict):
+            EEG['event'] = [EEG['event']]
+    else:
+        EEG['event'] = []
+    if isinstance(EEG['event'], list):
+        EEG['event'] = np.asarray(EEG['event'], dtype=object)
+            
+    if 'chanlocs' in EEG:
+        if isinstance(EEG['chanlocs'], dict):
+            EEG['chanlocs'] = [EEG['chanlocs']]
+    else:
+        EEG['chanlocs'] = []
+    if isinstance(EEG['chanlocs'], list):
+        EEG['chanlocs'] = np.asarray(EEG['chanlocs'], dtype=object)
+
+    if 'chaninfo' not in EEG:
+        EEG['chaninfo'] = {}
+        
+    if 'reject' not in EEG:
+        EEG['reject'] = {}
+        
     if 'data' in EEG and isinstance(EEG['data'], str) and load_data:
         # get path from file_path
         file_name = EEG['filepath'] + os.sep + EEG['data']
+        if not os.path.exists(file_name):
+            # try to use the sane name as the filename but with .fdt extension
+            file_name = EEG['filepath'] + os.sep + EEG['filename'].replace('.set', '.fdt')
+            if not os.path.exists(file_name):
+                raise FileNotFoundError(f"Data file {file_name} not found")
         EEG['data'] = np.fromfile(file_name, dtype='float32').reshape( EEG['pnts']*EEG['trials'], EEG['nbchan'])
         EEG['data'] = EEG['data'].T.reshape(EEG['nbchan'], EEG['trials'], EEG['pnts']).transpose(0, 2, 1)
 
     # compute ICA activations
-    if 'icaweights' in EEG and 'icasphere' in EEG and EEG['icaweights'].size > 0 and EEG['icasphere'].size > 0:
-        EEG['icaact'] = np.dot(np.dot(EEG['icaweights'], EEG['icasphere']), EEG['data'].reshape(int(EEG['nbchan']), -1))
-        EEG['icaact'] = EEG['icaact'].astype(np.float32)
-        EEG['icaact'] = EEG['icaact'].reshape(EEG['icaweights'].shape[0], -1, int(EEG['trials']))
+    if ('icaweights' in EEG and 'icasphere' in EEG and 
+        hasattr(EEG['icaweights'], 'size') and hasattr(EEG['icasphere'], 'size') and
+        EEG['icaweights'].size > 0 and EEG['icasphere'].size > 0):
+        
+        try:
+            EEG['icaact'] = np.dot(np.dot(EEG['icaweights'], EEG['icasphere']), EEG['data'].reshape(int(EEG['nbchan']), -1))
+            EEG['icaact'] = EEG['icaact'].astype(np.float32)
+            EEG['icaact'] = EEG['icaact'].reshape(EEG['icaweights'].shape[0], -1, int(EEG['trials']))
+        except exception_type as e:
+            logger.error("Error computing ICA activations: " + str(e))
+            EEG['icaact'] = np.array([])
     
-    # subtract 1 to EEG['icachansind'] to make it 0-based
-    if 'icachansind' in EEG and EEG['icachansind'].size > 0:
-        EEG['icachansind'] = EEG['icachansind'] - 1
-    
+    # check if EEG['data'] is 3D
+    if 'data' in EEG and EEG['data'].ndim == 3:
+        if EEG['data'].shape[2] == 1:
+            EEG['data'] = np.squeeze(EEG['data'], axis=2)
+     
     # type conversion
     EEG['xmin'] = float(EEG['xmin'])
     EEG['xmax'] = float(EEG['xmax'])
@@ -137,4 +223,5 @@ def test_eeg_checkset():
     EEG = eeg_checkset(EEG)
     print('Checkset done')
 
-# test_eeg_checkset()
+if __name__ == '__main__':
+    test_eeg_checkset()

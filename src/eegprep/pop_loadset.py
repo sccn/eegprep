@@ -70,7 +70,31 @@ def pop_loadset(file_path=None):
 
     EEG['filepath'] = os.path.dirname(file_path)
     EEG['filename'] = os.path.basename(file_path)
+
+    # delete keys '__header__', '__version__', '__globals__'
+    if '__header__' in EEG:
+        del EEG['__header__']
+    if '__version__' in EEG:
+        del EEG['__version__']
+    if '__globals__' in EEG:
+        del EEG['__globals__']
+    
     EEG = eeg_checkset(EEG)
+
+    # subtract 1 to EEG['icachansind'] to make it 0-based
+    if 'icachansind' in EEG and EEG['icachansind'].size > 0:
+        EEG['icachansind'] = EEG['icachansind'] - 1
+
+    # check if EEG['urchan'] is 0-based
+    if len(EEG['chanlocs']) > 0 and 'urchan' in EEG['chanlocs'][0]:
+        for i in range(len(EEG['chanlocs'])):
+            EEG['chanlocs'][i]['urchan'] = EEG['chanlocs'][i]['urchan'] - 1        
+
+    # check if EEG['chanlocs'][i]['urevent'] is 0-based
+    if len(EEG['event']) > 0 and 'urevent' in EEG['event'][0]:
+        for i in range(len(EEG['event'])):
+            if 'urevent' in EEG['event'][i] and EEG['event'][i]['urevent'] is not None:
+                EEG['event'][i]['urevent'] = EEG['event'][i]['urevent'] - 1
     
     return EEG
 
@@ -82,7 +106,8 @@ def test_pop_loadset():
     # print the keys of the EEG dictionary
     print(EEG.keys())
     
-# test_pop_loadset()
+if __name__ == "__main__":
+    test_pop_loadset()
 
 # STILL OPEN QUESTION: Better to have empty MATLAB arrays as None for empty numpy arrays (current default).
 # The current default is to make it more MALTAB compatible. A lot of MATLAB function start indexing MATLAB

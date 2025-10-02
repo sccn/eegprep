@@ -1,3 +1,8 @@
+import logging
+
+from .utils.logs import setup_logging
+setup_logging(logging.INFO)
+
 from .iclabel import iclabel
 from .pop_saveset import pop_saveset
 from .pop_loadset import loadset, pop_loadset
@@ -21,5 +26,20 @@ from .clean_channels_nolocs import clean_channels_nolocs
 from .clean_channels import clean_channels
 from .clean_asr import clean_asr
 from .clean_windows import clean_windows
+from .eeg_compare import eeg_compare
+from .eeg_interp import eeg_interp
 from .clean_artifacts import clean_artifacts
-
+from .pop_load_frombids import pop_load_frombids
+from .bids_list_eeg_files import bids_list_eeg_files
+from .bids_preproc import bids_preproc
+from .eeg_decodechan import eeg_decodechan
+from .eegrej import eegrej
+from .eeg_eegrej import eeg_eegrej
+from .eegobj import EEGobj
+from .redefine_functions import *
+from .eeg_mne2eeg import eeg_mne2eeg
+from .eeg_mne2eeg_epochs import eeg_mne2eeg_epochs
+from .eeg_lat2point import eeg_lat2point
+from .eeg_point2lat import eeg_point2lat
+from .eeg_options import EEG_OPTIONS
+from .eeg_checkset import eeg_checkset, strict_mode as eeg_checkset_strict_mode

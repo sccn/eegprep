@@ -4,15 +4,17 @@ import numpy as np
 import scipy.signal
 import scipy.linalg
 
-from .stats import block_geometric_median, fit_eeg_distribution
+from .stats import geometric_median, fit_eeg_distribution
 from .sigproc import moving_average
+from .covariance import cov_mean, cov_shrinkage
+from .misc import canonicalize_signs, round_mat
 
 logger = logging.getLogger(__name__)
 
 
 def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
                   window_len=None, window_overlap=None, max_dropout_fraction=None,
-                  min_clean_fraction=None, maxmem=None):
+                  min_clean_fraction=None, maxmem=None, useriemannian=None, compatibility=None):
     """Calibration function for the Artifact Subspace Reconstruction (ASR) method.
 
     State = asr_calibrate(Data, SamplingRate, Cutoff, BlockSize, FilterB, FilterA, WindowLength, WindowOverlap, MaxDropoutFraction, MinCleanFraction, MaxMemory)
@@ -56,6 +58,19 @@ def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
       max_dropout_fraction (float, optional): Maximum fraction (0-1) of windows subject to dropouts. Default: 0.1.
       min_clean_fraction (float, optional): Minimum fraction (0-1) of windows that must be clean. Default: 0.25.
       maxmem (int, optional): Maximum memory in MB (for very large data/many channels). Default: 64.
+      useriemannian (str, optional): Option to use a Riemannian ASR variant. Can be set to 'calib' to use a Riemannian estimate 
+            at calibration time; this make somewhat different statistical tradeoffs than the default, resulting in a potentially
+            different baseline rejection threshold; as a result it is suggested to visually check results and adjust 
+            the cutoff as needed. Default: None (disabled).
+      compatibility (str, optional): MATLAB compatibility level.
+        * 'standard' (default) aims for 5 significant digits compatibility and may apply
+          slightly better numerical methods (e.g. using SOS filters for IIR filtering)
+          that are not available in stock MATLAB and therefore not used in the ASR
+          reference implementation.
+        * 'max' aims for maximum compatibility with MATLAB's results, aiming to match
+          results as closely as possible, perhaps trading off numerical robustness in
+          turn. Note the effects will mostly likely be miniscule and the MATLAB ASR
+          implementation is known to be highly robust.
 
     Returns:
       dict: State dictionary containing calibration results ('M', 'T') and filter parameters ('B', 'A', 'sos', 'iir_state')
@@ -76,6 +91,7 @@ def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
     if window_overlap is None: window_overlap = 0.66
     if max_dropout_fraction is None: max_dropout_fraction = 0.1
     if min_clean_fraction is None: min_clean_fraction = 0.25
+    if compatibility is None: compatibility = 'standard'
 
     # there's no record of when or how this formula crept into the MATLAB code, but 
     # to match it, we'll have to use it here as well
@@ -84,7 +100,7 @@ def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
     # Default IIR filter coefficients (approximating MATLAB's yulewalk defaults)
     # Based on artifact_removal_legacy.py and asr_calibrate.m logic
     if B is None or A is None:
-        sr_round = int(round(srate))
+        sr_round = int(round_mat(srate))
         if sr_round == 100:
             B = np.array([0.9314233528641650, -1.0023683814963549, -0.4125359862018213, 0.7631567476327510, 0.4160430392910331, -0.6549131038692215, -0.0372583518046807, 0.1916268458752655, 0.0462411971592346], dtype=np.float64)
             A = np.array([1.0000000000000000, -0.4544220180303844, -1.0007038682936749, 0.5374925521337940, 0.4905013360991340, -0.4861062879351137, -0.1995986490699414, 0.1830048420730026, 0.0457678549234644], dtype=np.float64)
@@ -120,19 +136,21 @@ def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
     # Ensure data is finite
     X[~np.isfinite(X)] = 0.0
 
-    # Convert filter B, A to second-order sections (SOS) format for numerical stability
-    sos = scipy.signal.tf2sos(B, A)
-
-    # Apply the signal shaping filter and initialize the IIR filter state
-    # Initialize filter state using sosfilt_zi and scale by initial data
-    # zi_init = scipy.signal.sosfilt_zi(sos) # Shape (n_sections, 2)
-
-    # Need initial state per channel: shape (n_sections, n_channels, 2)
-    # (since the data are assumed to be zero-mean, use a zero state, as in MATLAB)
-    zi = np.zeros((sos.shape[0], C, 2))
-
-    # Filter the data
-    Xf, iir_state = scipy.signal.sosfilt(sos, X, axis=1, zi=zi)
+    # Apply the signal shaping filter based on compatibility mode
+    if compatibility == 'max':
+        # Maximum MATLAB compatibility: use B/A form with lfilter
+        # Initialize filter state to zeros (matching MATLAB's filter(..., [], 2))
+        # For multi-channel data (C x S) filtering along axis=1, zi shape is (C, max(len(A), len(B)) - 1)
+        zi = np.zeros((C, max(len(A), len(B)) - 1))
+        Xf, iir_state = scipy.signal.lfilter(B, A, X, axis=1, zi=zi)
+        sos = None  # Not used in this mode
+    else:
+        # Standard mode: use second-order sections (SOS) for numerical stability
+        sos = scipy.signal.tf2sos(B, A)
+        # Need initial state per channel: shape (n_sections, n_channels, 2)
+        # (since the data are assumed to be zero-mean, use a zero state, as in MATLAB)
+        zi = np.zeros((sos.shape[0], C, 2))
+        Xf, iir_state = scipy.signal.sosfilt(sos, X, axis=1, zi=zi)
 
     if np.any(~np.isfinite(Xf)):
         raise RuntimeError('The IIR filter diverged on your data. Please try using either '
@@ -168,22 +186,26 @@ def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
     # Average the accumulated covariances
     U /= blocksize
 
-    # Reshape for geometric median calculation
-    U_reshaped = U.reshape(C * C, -1).T  # Shape: (num_blocks, C*C)
-
-    # Calculate the geometric median of covariance matrices
-    logger.info("Calculating robust geometric median covariance...")
-    med = block_geometric_median(U_reshaped)
-    
-    # Handle NaN cases (can happen with single observation or degenerate data)
+    # compute a robust average of the covariance matrices
+    med = None    
+    if useriemannian in ('calib', 'all', True):
+        logger.info("Calculating Riemannian geometric median covariance...")
+        U = U.transpose(2, 0, 1)
+        # small amount of shrinkage to prevent singularities
+        U = cov_shrinkage(U, 1e-4, target='scaled-eye')
+        med = cov_mean(U, robust=True)
+    if med is None or np.any(np.isnan(med)):
+        if med is not None:
+            logger.warning("Riemannian geometric median calculation resulted in "
+                           "NaNs. Using standard geometric median as fallback.")
+        logger.info("Calculating robust geometric median covariance...")
+        med = geometric_median(U.reshape(C * C, -1).T)
     if np.any(np.isnan(med)):
-        if U_reshaped.shape[0] == 1:
-            med = np.median(U_reshaped, axis=0)
-        else:
-            logger.warning("Geometric median calculation resulted in NaNs. Using standard median as fallback.")
-            med = np.median(U_reshaped, axis=0)
+        logger.warning("Geometric median calculation resulted in NaNs. "
+                       "Using standard median as fallback.")
+        med = np.median(U, axis=-1)
 
-    # Reshape median back to matrix form
+    # make sure median is reshaped back to matrix form
     M_robust = np.reshape(med, (C, C))
 
     # Get the mixing matrix M (matrix square root of the robust covariance)
@@ -192,15 +214,18 @@ def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
 
     # ----- Calculate Thresholds -----
     # Window length for calculating thresholds
-    N = int(round(window_len * srate))
+    N = int(round_mat(window_len * srate))
     if S < N:
         raise ValueError(f'Not enough calibration data. Need at least {N} samples, got {S}.')
 
     logger.info('Determining per-component thresholds...')
     
-    # Eigendecomposition of M
+    # Eigendecomposition of M plus some massaging
+    # to ensure reproducibility across platforms
+    M = 0.5 * (M + M.T)  # Ensure symmetry
     D, V = np.linalg.eigh(M)  # eigh returns sorted eigenvalues
-    
+    V = canonicalize_signs(V)
+
     # Transform data into component space (using eigenvectors)
     X_transformed = np.abs(Xf.T @ V)  # Shape: (S, C)
     
@@ -209,7 +234,7 @@ def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
     if step <= 0:
         logger.warning("Window overlap >= 1, using step=1")
         step = 1
-    window_starts = np.round(np.arange(0, S - N + 1, step)).astype(int)
+    window_starts = round_mat(np.arange(0, S - N, step)).astype(int)
     
     if len(window_starts) <= 1:
         raise ValueError(f'Not enough windows possible. Need length > {N}, got {S}.')
@@ -227,7 +252,7 @@ def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
         
         # Calculate RMS amplitude for each window
         rms_windows = np.sqrt(np.mean(comp_data[window_indices], axis=1))
-        
+
         # Fit a distribution to the clean part
         try:
             mu_c, sig_c, _, _ = fit_eeg_distribution(
@@ -263,12 +288,14 @@ def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
         'T': T,                 # Threshold matrix 
         'B': B,                 # Original filter coefficients (for reference)
         'A': A,
-        'sos': sos,             # SOS filter representation for processing
+        'sos': sos,             # SOS filter representation for processing (None if compatibility='max')
         'iir_state': iir_state, # Initial filter state
         'cov': None,            # Initial covariance buffer (will be set in process)
         'carry': None,          # Initial carry buffer (will be set in process)
         'last_R': None,         # Initial reconstruction matrix (will be set in process)
         'last_trivial': True,   # Initial trivial flag
+        'useriemannian': useriemannian, # Riemannian ASR variant option
+        'compatibility': compatibility,  # Compatibility mode for IIR filtering
     }
     
     return state
@@ -329,13 +356,13 @@ def asr_process(data, srate, state, window_len=0.5, lookahead=None, step_size=32
     
     # Convert max_dims to actual number if given as fraction
     if max_dims < 1:
-        max_dims_num = round(C * max_dims)
+        max_dims_num = int(round_mat(C * max_dims))
     else:
         max_dims_num = int(max_dims)
     
     # Number of samples in sliding window and lookahead
-    N = round(window_len * srate)
-    P = round(lookahead * srate)
+    N = int(round_mat(window_len * srate))
+    P = int(round_mat(lookahead * srate))
     
     # Fix NaN and Inf values
     data[~np.isfinite(data)] = 0
@@ -343,7 +370,10 @@ def asr_process(data, srate, state, window_len=0.5, lookahead=None, step_size=32
     # Extract state variables
     M = state['M']                  # Mixing matrix
     T = state['T']                  # Threshold matrix
-    sos = state['sos']              # SOS filter representation
+    sos = state.get('sos')          # SOS filter representation (None if compatibility='max')
+    b = state.get('B')              # Filter numerator coefficients
+    a = state.get('A')              # Filter denominator coefficients
+    compatibility = state.get('compatibility', 'standard')  # Compatibility mode
     iir_state = state.get('iir_state')  # Filter state
     carry = state.get('carry')      # Carry buffer (previous lookahead data)
     cov = state.get('cov')          # Covariance state (MovAvgState or None)
@@ -400,10 +430,15 @@ def asr_process(data, srate, state, window_len=0.5, lookahead=None, step_size=32
             continue
         
         # Get spectrally shaped data for statistics computation (range shifted by lookahead)
-        Xfilt = X[:, range_ + P]
+        Xraw = X[:, range_ + P]
         
-        # Filter the data window
-        Xfilt, iir_state = scipy.signal.sosfilt(sos, Xfilt, axis=1, zi=iir_state)
+        # Filter the data window based on compatibility mode
+        if compatibility == 'max':
+            # Maximum MATLAB compatibility: use B/A form with lfilter
+            Xfilt, iir_state = scipy.signal.lfilter(b, a, Xraw, axis=1, zi=iir_state)
+        else:
+            # Standard mode: use SOS form
+            Xfilt, iir_state = scipy.signal.sosfilt(sos, Xraw, axis=1, zi=iir_state)
         
         # Calculate per‑sample covariance vectors and compute the running mean
         # covariance using the stateful `moving_average` implementation that
@@ -519,9 +554,11 @@ def asr_process(data, srate, state, window_len=0.5, lookahead=None, step_size=32
         'carry': new_carry,
         'last_R': last_R,
         'last_trivial': last_trivial,
-        # Include original filter coefficients if present
-        'B': state.get('B'),
-        'A': state.get('A')
+        # Include original filter coefficients and compatibility mode
+        'B': b,
+        'A': a,
+        'compatibility': compatibility,
+        'useriemannian': state.get('useriemannian')
     }
     
     return outdata, outstate

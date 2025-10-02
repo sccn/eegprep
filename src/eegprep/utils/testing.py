@@ -1,9 +1,11 @@
 """Testing utilities."""
 
-import numpy as np
+import sys
 import unittest
 
-__all__ = ['compare_eeg', 'DebuggableTestCase']
+import numpy as np
+
+__all__ = ['compare_eeg', 'DebuggableTestCase', 'is_debug']
 
 
 # default to True since the round-tripping through file can force data to
@@ -13,7 +15,6 @@ default_32_bit = True
 # works around an issue where pop_loadset can at times read back a 2d array@
 # as 3d
 flatten_to_2d = True
-
 
 def compare_eeg(a, b, rtol=0, atol=1e-7, use_32_bit=default_32_bit, err_msg=''):
     """Compare EEG time series data, with optional 32-bit precision."""
@@ -26,6 +27,17 @@ def compare_eeg(a, b, rtol=0, atol=1e-7, use_32_bit=default_32_bit, err_msg=''):
         if b.ndim >= 3:
             b = b.reshape(b.shape[:2])
 
+    # check if a and b are the same shape
+    if a.shape != b.shape:
+        raise ValueError(f"a and b have different shapes: {a.shape} != {b.shape}")
+    
+    # compute and show actual differences even for 2D arrays
+    if a.ndim == 2:
+        a = a.flatten()
+        b = b.flatten()
+    actual_rtol = np.max(np.abs(a - b) / (np.abs(a) + np.abs(b)))
+    actual_atol = np.max(np.abs(a - b))
+    print(f"Actual differences: rtol: {actual_rtol}, atol: {actual_atol}")
     np.testing.assert_allclose(a, b, rtol=rtol, atol=atol, err_msg=err_msg)
 
 
@@ -43,3 +55,7 @@ class DebuggableTestCase(unittest.TestCase):
         loader = unittest.defaultTestLoader
         testSuite = loader.loadTestsFromTestCase(cls)
         testSuite.debug()
+
+def is_debug():
+    """Determine whether Python is running in debug mode."""
+    return getattr(sys, 'gettrace', None)() is not None

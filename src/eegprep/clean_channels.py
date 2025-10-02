@@ -7,6 +7,7 @@ import numpy as np
 from .utils.sigproc import design_fir, filtfilt_fast
 from .utils.ransac import calc_projector
 from .utils.stats import mad
+from .utils.misc import round_mat
 
 logger = logging.getLogger(__name__)
 
@@ -62,13 +63,13 @@ def clean_channels(
     if subset_size >= 1:
         subset_size = int(subset_size)
     else:
-        subset_size = int(round(C * subset_size))
+        subset_size = int(round_mat(C * subset_size))
     if max_broken_time < 1:
         max_broken_time = S * max_broken_time
     else:
-        max_broken_time = round(Fs) * max_broken_time
+        max_broken_time = round_mat(Fs) * max_broken_time
 
-    window_len = window_len * round(Fs)
+    window_len = int(window_len * round_mat(Fs))
     wnd = np.arange(int(window_len))
     offsets = np.arange(0, S - window_len, window_len, dtype=int)
     W = len(offsets)
@@ -96,6 +97,7 @@ def clean_channels(
     xyz = [
         [ch.get(coord, np.nan) for ch in EEG['chanlocs']]
         for coord in ['X', 'Y', 'Z']]
+    xyz = [[x if not (isinstance(x, np.ndarray) and x.size == 0) else np.nan for x in xyz_sub] for xyz_sub in xyz]
     xyz = np.asarray([np.asarray([np.nan if x is None else x for x in row], dtype=float) for row in xyz])
     if np.mean(np.any(np.isnan(xyz), axis=0)) > 0.5:
         raise ValueError(
@@ -118,7 +120,7 @@ def clean_channels(
         
         XX = X[offsets[o] + wnd, :]
         YY = np.sort(np.reshape((XX @ P).T, (num_samples, -1)), axis=0)
-        YY = np.reshape(YY[round(num_samples / 2) - 1, :], (-1, window_len)).T
+        YY = np.reshape(YY[int(round_mat(num_samples / 2)) - 1, :], (-1, window_len)).T
 
         # Calculate correlation for each channel
         for c in range(len(usable_channels)):
@@ -128,7 +130,8 @@ def clean_channels(
         
         time_passed_list[o] = time.time() - start_time
         median_time_passed = np.median(time_passed_list[:o+1])
-        logger.info(f'clean_channel: {o+1:3d}/{W} blocks, {median_time_passed*(W-o-1)/60:.1f} minutes remaining.')
+        if o % 50 == 0:
+            logger.info(f'{o+1:3d}/{W} blocks, {median_time_passed*(W-o-1)/60:.1f} minutes remaining.')
 
     flagged = corrs < corr_threshold
     
@@ -154,7 +157,7 @@ def clean_channels(
             
             logger.info(f'Removing {np.sum(removed_channels)} channels and dropping signal meta-data.')
             if len(EEG['chanlocs']) == EEG['data'].shape[0]:
-                EEG['chanlocs'] = [ch for i, ch in enumerate(EEG['chanlocs']) if not removed_channels[i]]
+                EEG['chanlocs'] = np.asarray([ch for i, ch in enumerate(EEG['chanlocs']) if not removed_channels[i]])
             # pop_select() by default truncates the data to float32, so we need to do the same
             EEG['data'] = np.asarray(EEG['data'], dtype=np.float32)
             EEG['data'] = EEG['data'][~removed_channels, :]

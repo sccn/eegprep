@@ -3,6 +3,7 @@ import logging
 import numpy as np
 from numpy.linalg import norm as np_norm  # Use alias to avoid potential name collision
 from scipy.special import gamma, gammaincinv
+from .misc import round_mat
 
 logger = logging.getLogger(__name__)
 
@@ -135,12 +136,12 @@ def fit_eeg_distribution(X, min_clean_fraction=None, max_dropout_fraction=None,
     # --- Get matrix of shifted data ranges ---
     # Generate start indices based on lower quantile, dropout fraction, and step size
     # Use np.arange; add a small fraction of step_sizes[0] to ensure the endpoint is included if it's a multiple of the step
-    start_indices = np.round(n * np.arange(lower_min,
+    start_indices = round_mat(n * np.arange(lower_min,
                                             lower_min + max_dropout_fraction + 0.99 * step_sizes[0],
                                             step_sizes[0])).astype(int)
 
     # Generate indices within each window based on max_width
-    max_window_len = int(np.round(n * max_width))
+    max_window_len = int(round_mat(n * max_width))
     window_indices = np.arange(max_window_len)
 
     # Use broadcasting to create the matrix of indices (equivalent to bsxfun(@plus, ...))
@@ -163,13 +164,13 @@ def fit_eeg_distribution(X, min_clean_fraction=None, max_dropout_fraction=None,
     opt_lu = np.array([np.nan, np.nan]) # Lower and Upper data values of the optimal interval
 
     # Iterate through possible interval widths 'm' exactly as in-house
-    m_steps = np.int32(np.round(n * np.arange(max_width, min_width, -step_sizes[1])))
+    m_steps = np.int32(round_mat(n * np.arange(max_width, min_width, -step_sizes[1])))
 
     for m in m_steps:
         if m <= 0: continue # Skip if width is non-positive
 
         # --- Scale and bin the data in the intervals ---
-        nbins = int(np.round(3 * math.log2(1 + m / 2)))
+        nbins = int(round_mat(3 * math.log2(1 + m / 2)))
         if nbins <= 0: continue # Skip if nbins is non-positive
 
         # Get the endpoint of the interval for scaling (width m means index m-1)

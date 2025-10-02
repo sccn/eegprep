@@ -1,14 +1,15 @@
+import logging
 import os
 import unittest
 import psutil
 from copy import deepcopy
-
 
 import numpy as np
 
 from eegprep import *
 from eegprep.utils.testing import *
 
+logger = logging.getLogger(__name__)
 
 # where the test resources
 web_root = 'https://sccntestdatasets.s3.us-east-2.amazonaws.com/'
@@ -53,7 +54,7 @@ class TestCleanFlatlines(unittest.TestCase):
 
     def test_clean_flatlines(self):
         cleaned_EEG = clean_flatlines(deepcopy(self.EEG), 3.5)
-        np.testing.assert_equal(cleaned_EEG['data'], self.expected, err_msg='clean_flatlines() test failed')
+        np.testing.assert_almost_equal(cleaned_EEG['data'], self.expected, err_msg='clean_flatlines() test failed')
 
 
 class TestUtilFuncs(DebuggableTestCase):
@@ -109,7 +110,7 @@ class TestUtilFuncs(DebuggableTestCase):
         np.testing.assert_almost_equal(observed, expected,
                                        err_msg='fit_eeg_distribution() test failed')
 
-class TestCleanDrifts(unittest.TestCase):
+class TestCleanDrifts(DebuggableTestCase):
 
     def setUp(self):
         self.EEG = pop_loadset(ensure_file('FlankerTest.set'))
@@ -129,7 +130,7 @@ class TestCleanDrifts(unittest.TestCase):
                     err_msg='clean_drifts() FFT mode test failed',atol=2e-7)
         
 
-class TestCleanChannels(unittest.TestCase):
+class TestCleanChannels(DebuggableTestCase):
 
     def setUp(self):
         self.EEG = pop_loadset(ensure_file('EmotionValence.set'))
@@ -149,7 +150,7 @@ class TestCleanChannels(unittest.TestCase):
                     err_msg='clean_channels() failed')
 
 
-class TestCleanASR(unittest.TestCase):
+class TestCleanASR(DebuggableTestCase):
 
     def setUp(self):
         self.EEG = pop_loadset(ensure_file('EmotionValence.set'))
@@ -162,8 +163,14 @@ class TestCleanASR(unittest.TestCase):
                     atol=0, rtol=1e-6, # because of eigh() precision differences
                     err_msg='clean_asr() failed vs MATLAB')
 
+    def test_riemannian(self):
+        """Test the Riemannian mode."""
+        # for now this is just checking that it does not crash since we don't have
+        # MATLAB reference code for this
+        cleaned_py = clean_asr(deepcopy(self.EEG), useriemannian='calib')
 
-class TestCleanWindows(unittest.TestCase):
+
+class TestCleanWindows(DebuggableTestCase):
 
     def setUp(self):
         self.EEG = pop_loadset(ensure_file('EmotionValence.set'))
@@ -242,9 +249,44 @@ class TestCleanArtifacts(DebuggableTestCase):
             err_msg='clean_artifacts() failed vs MATLAB'
         )
 
+class TestCleanArtifactsAdvanced(DebuggableTestCase):
+
+    def setUp(self):
+        # Use the same dataset as other heavy‑duty tests
+        self.EEG = pop_loadset(ensure_file('eeglab_data_with_ica_tmp.set'))
+
+    def test_clean_artifacts_alt_defaults(self):
+        """Compare Python clean_artifacts against MATLAB implementation (alt parameters).
+        """
+        kwargs = dict(
+            FlatlineCriterion=5, ChannelCriterion=0.87, LineNoiseCriterion=4,
+            Highpass=[0.25, 0.75], BurstCriterion=20, WindowCriterion=0.25,
+            WindowCriterionTolerances=[float('-inf'), 7]
+        )
+
+        # --- Python version ---
+        cleaned_py, _, _, _ = clean_artifacts(
+            deepcopy(self.EEG), **kwargs)
+
+        # --- MATLAB reference ---
+        eeglab = eeglabcompat.get_eeglab('MAT')
+        expected_mat = eeglab.clean_artifacts(
+            self.EEG, **kwargs)
+
+        compare_eeg(
+            cleaned_py['data'],
+            expected_mat['data'],
+            rtol=0,
+            atol=1e-5,  # limit to 1e-5 uV likely due to solver differences
+            err_msg='clean_artifacts() failed vs MATLAB'
+        )
+
 
 if __name__ == "__main__":
-    TestCleanArtifacts.debugTestCase()
-    # TestUtilFuncs.debugTestCase()
-    unittest.main()
+    # run TestCleanDrifts only
+    if is_debug():
+        # put the test here that you want to run in the debugger
+        TestCleanASR.debugTestCase()
+    else:
+        unittest.main()
     

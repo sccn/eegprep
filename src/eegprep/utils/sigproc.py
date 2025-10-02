@@ -2,8 +2,9 @@ from typing import *
 
 import numpy as np
 from scipy.signal import fftconvolve
+from .misc import round_mat
 
-__all__ = ['design_kaiser', 'design_fir', 'filtfilt_fast']
+__all__ = ['design_kaiser', 'design_fir', 'filtfilt_fast', 'firwsord', 'firws']
 
 
 def design_kaiser(
@@ -41,7 +42,7 @@ def design_kaiser(
             beta = 0.1102*(atten-8.7)
 
         #  determine the number of points
-        N = int(round((atten - 7.95) / (2 * np.pi * 2.285 * (hi - lo))) + 1)
+        N = int(round_mat((atten - 7.95) / (2 * np.pi * 2.285 * (hi - lo))) + 1)
     else:
         N, beta = kaiserord(atten, hi - lo)
 
@@ -88,7 +89,7 @@ def design_fir(
 
     # calculate interpolated frequency response
     # noinspection PyTypeChecker
-    f = PchipInterpolator(np.round(f * nfft), a)(np.arange(nfft + 1))
+    f = PchipInterpolator(round_mat(f * nfft), a)(np.arange(nfft + 1))
 
     # set phase & transform into time domain
     f = f * np.exp(-(0.5 * n) * 1j * np.pi * np.arange(nfft + 1) / nfft)
@@ -228,3 +229,166 @@ def moving_average(X, *, N=3, axis=-1, Z=None, inplace=False, transform=None, in
             Y[slice_at(Y, k)] = res
         Z.p = (Z.p + 1) % N
     return (X if inplace else Y), Z
+
+
+def firws(m: int, f: Union[float, Sequence[float]], t: Optional[str] = None, w: Optional[np.ndarray] = None) -> Tuple[np.ndarray, float]:
+    """
+    Designs windowed sinc type I linear phase FIR filter.
+
+    Args:
+        m: filter order (mandatory even)
+        f: vector or scalar of cutoff frequency/ies (-6 dB; pi rad / sample)
+        t: 'high' for highpass, 'stop' for bandstop filter (default low-/bandpass)
+        w: vector of length m + 1 defining window (default hamming)
+
+    Returns:
+        b: filter coefficients
+        a: always 1 (FIR filter)
+
+    Example:
+        fs = 500; cutoff = 0.5; df = 1;
+        m = firwsord('hamming', fs, df)[0]
+        b, a = firws(m, cutoff / (fs / 2), 'high', scipy.signal.windows.hamming(m + 1))
+
+    Based on a MATLAB implementation by Andreas Widmann, University of Leipzig, 2005
+    """
+    from scipy.signal.windows import hamming
+
+    a = 1.0
+
+    if m <= 0 or not isinstance(m, int) or m % 2 != 0:
+        raise ValueError('Filter order must be a real, even, positive integer.')
+
+    # Convert f to array and normalize
+    f = np.asarray(f, dtype=float)
+    if f.ndim == 0:
+        f = f.reshape(1)
+    f = f / 2.0
+
+    if np.any(f <= 0) or np.any(f >= 0.5):
+        raise ValueError('Frequencies must fall in range between 0 and 1.')
+
+    if t is None:
+        t = ''
+
+    if w is None:
+        if t is not None and not isinstance(t, str):
+            # Handle case where third argument is window, not filter type
+            w = t
+            t = ''
+        else:
+            w = hamming(m + 1)
+
+    # Make window row vector
+    w = np.asarray(w).flatten()
+
+    b = _fkernel(m, f[0], w)
+
+    if len(f) == 1 and t.lower() == 'high':
+        b = _fspecinv(b)
+
+    if len(f) == 2:
+        b = b + _fspecinv(_fkernel(m, f[1], w))
+        if not t or t.lower() != 'stop':
+            b = _fspecinv(b)
+
+    return b, a
+
+
+def _fkernel(m: int, f: float, w: np.ndarray) -> np.ndarray:
+    """
+    Compute filter kernel.
+
+    Args:
+        m: filter order
+        f: normalized cutoff frequency
+        w: window function
+
+    Returns:
+        b: filter kernel
+    """
+    # Create range -m/2 : m/2
+    n = np.arange(-m//2, m//2 + 1, dtype=float)
+
+    # Compute sinc function
+    b = np.zeros_like(n)
+
+    # Handle n == 0 case (no division by zero)
+    zero_idx = (n == 0)
+    b[zero_idx] = 2 * np.pi * f
+
+    # Handle n != 0 case
+    nonzero_idx = (n != 0)
+    b[nonzero_idx] = np.sin(2 * np.pi * f * n[nonzero_idx]) / n[nonzero_idx]
+
+    # Apply window
+    b = b * w
+
+    # Normalization to unity gain at DC
+    b = b / np.sum(b)
+
+    return b
+
+
+def _fspecinv(b: np.ndarray) -> np.ndarray:
+    """
+    Spectral inversion.
+
+    Args:
+        b: filter coefficients
+
+    Returns:
+        b_inv: spectrally inverted filter coefficients
+    """
+    b_inv = -b.copy()
+    center_idx = (len(b) - 1) // 2
+    b_inv[center_idx] = b_inv[center_idx] + 1
+    return b_inv
+
+
+def firwsord(wintype: str, fs: float, df: float, dev: Optional[float] = None) -> Tuple[int, float]:
+    """
+    Estimate windowed sinc FIR filter order depending on window type and
+    requested transition band width.
+
+    Args:
+        wintype: Window type. One of 'rectangular', 'hann', 'hamming', 'blackman', or 'kaiser'
+        fs: Sampling frequency
+        df: Requested transition band width
+        dev: Maximum passband deviation/ripple (Kaiser window only)
+
+    Returns:
+        m: Estimated filter order
+        dev: Maximum passband deviation/ripple
+
+    Based on a MATLAB implementation by Andreas Widmann, University of Leipzig, 2005
+    """
+
+    win_type_array = ['rectangular', 'hann', 'hamming', 'blackman', 'kaiser']
+    win_df_array = [0.9, 3.1, 3.3, 5.5]
+    win_dev_array = [0.089, 0.0063, 0.0022, 0.0002]
+
+    # Check arguments
+    if fs is None or df is None or wintype is None:
+        raise ValueError('Not enough input arguments.')
+
+    # Window type
+    try:
+        wintype_idx = win_type_array.index(wintype)
+    except ValueError:
+        raise ValueError('Unknown window type.')
+
+    df_norm = df / fs  # Normalize transition band width
+
+    if wintype_idx == 4:  # Kaiser window (index 4 in 0-based, was 5 in 1-based MATLAB)
+        if dev is None:
+            raise ValueError('Not enough input arguments.')
+        devdb = -20 * np.log10(dev)
+        m = 1 + (devdb - 8) / (2.285 * 2 * np.pi * df_norm)
+    else:
+        m = win_df_array[wintype_idx] / df_norm
+        dev = win_dev_array[wintype_idx]
+
+    m = int(np.ceil(m / 2) * 2)  # Make filter order even (FIR type I)
+
+    return m, dev

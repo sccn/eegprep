@@ -50,6 +50,39 @@ def flatten_dict(data):
 def saveset(EEG, file_name):
     return pop_saveset(EEG, file_name)
 
+# def dictlist_to_recarray(events):
+#     # --- Infer dtype automatically ---
+#     dtype_fields = []
+#     for key in events[0].keys():
+#         values = [e[key] for e in events]
+
+#         # If string: pick Unicode type with max length
+#         if all(isinstance(v, str) for v in values):
+#             maxlen = max(len(v) for v in values)
+#             dtype_fields.append((key, f'U{maxlen}'))
+
+#         # If integer: use int32
+#         elif all(isinstance(v, int) for v in values):
+#             dtype_fields.append((key, 'i4'))
+
+#         # If float or mixed int/float: use float64
+#         elif all(isinstance(v, (float, int)) for v in values):
+#             dtype_fields.append((key, 'f8'))
+
+#         else:
+#             # fallback: generic object
+#             dtype_fields.append((key, object))
+
+#     dtype = np.dtype(dtype_fields)
+
+#     # --- Convert events to recarray ---
+#     rec_events = np.array(
+#         [tuple(e[k] for k in events[0].keys()) for e in events],
+#         dtype=dtype
+#     ).view(np.recarray)
+
+#     return rec_events
+
 def pop_saveset_old(EEG, file_path):
     # convert Events to structured array
     # if 'event' in EEG:
@@ -126,24 +159,37 @@ def pop_saveset(EEG, file_name):
     }
 
      # add 1 to EEG['icachansind'] to make it 1-based
+    if isinstance(eeglab_dict['icachansind'], list):
+        eeglab_dict['icachansind'] = np.array(eeglab_dict['icachansind'])
     if 'icachansind' in eeglab_dict and eeglab_dict['icachansind'].size > 0:
         eeglab_dict['icachansind'] = eeglab_dict['icachansind'] + 1 
-        
+
+    # check if EEG['urchan'] is 0-based
+    if len(eeglab_dict['chanlocs']) > 0 and 'urchan' in eeglab_dict['chanlocs'][0]:
+        for i in range(len(eeglab_dict['chanlocs'])):
+            eeglab_dict['chanlocs'][i]['urchan'] = eeglab_dict['chanlocs'][i]['urchan'] + 1        
+            
+    # check if EEG['chanlocs'][i]['urvent'] is 0-based
+    if len(eeglab_dict['event']) > 0 and 'urvent' in eeglab_dict['event'][0]:
+        for i in range(len(eeglab_dict['event'])):
+            eeglab_dict['event'][i]['urvent'] = eeglab_dict['event'][i]['urvent'] + 1  
+                   
     # Create the list of dictionaries with a string field
     if 'chanlocs' in EEG and len(EEG['chanlocs']) > 0:
+        matlab_null = np.array([])
         d_list = [{
             'labels': c['labels'],
-            'theta':  c['theta']   if not isinstance(c['theta'], np.ndarray) else None,
-            'radius': c['radius']  if not isinstance(c['radius'], np.ndarray) else None,
-            'X':      c['X']       if not isinstance(c['X'], np.ndarray) else None,
-            'Y':      c['Y']       if not isinstance(c['Y'], np.ndarray) else None,
-            'Z':      c['Z']       if not isinstance(c['Z'], np.ndarray) else None,
-            'sph_theta':  c['sph_theta']  if not isinstance(c['sph_theta'], np.ndarray) else None,
-            'sph_phi':    c['sph_phi']    if not isinstance(c['sph_phi'], np.ndarray) else None,
-            'sph_radius': c['sph_radius'] if not isinstance(c['sph_radius'], np.ndarray) else None,
-            'type':       c['type']       if not isinstance(c['type'], np.ndarray) else None,
-            'urchan':     c['urchan']     if not isinstance(c['urchan'], np.ndarray) else None,
-            'ref':        c['ref']        if not isinstance(c['ref'], np.ndarray) else None
+            'theta':  c['theta']   if not isinstance(c.get('theta', matlab_null), np.ndarray) else None,
+            'radius': c['radius']  if not isinstance(c.get('radius', matlab_null), np.ndarray) else None,
+            'X':      c['X']       if not isinstance(c.get('X', matlab_null), np.ndarray) else None,
+            'Y':      c['Y']       if not isinstance(c.get('Y', matlab_null), np.ndarray) else None,
+            'Z':      c['Z']       if not isinstance(c.get('Z', matlab_null), np.ndarray) else None,
+            'sph_theta':  c['sph_theta']  if not isinstance(c.get('sph_theta', matlab_null), np.ndarray) else None,
+            'sph_phi':    c['sph_phi']    if not isinstance(c.get('sph_phi', matlab_null), np.ndarray) else None,
+            'sph_radius': c['sph_radius'] if not isinstance(c.get('sph_radius', matlab_null), np.ndarray) else None,
+            'type':       c['type']       if not isinstance(c.get('type', matlab_null), np.ndarray) else None,
+            'urchan':     c['urchan']     if not isinstance(c.get('urchan', matlab_null), np.ndarray) else None,
+            'ref':        c['ref']        if not isinstance(c.get('ref', matlab_null), np.ndarray) else None
         } for c in EEG['chanlocs']]
 
         # build a list of fields to selectively filter out if all entries are None
@@ -169,24 +215,41 @@ def pop_saveset(EEG, file_name):
             tuple(item[fld] for fld in retain_fields)
             for item in d_list
         ], dtype=dtype)
+    
+    if isinstance(eeglab_dict['event'], list):
+        eeglab_dict['event'] = np.array(eeglab_dict['event'])
         
     for key in eeglab_dict:
         if isinstance(eeglab_dict[key], np.ndarray) and len(eeglab_dict[key]) > 0 and isinstance(eeglab_dict[key][0], dict):
-            eeglab_dict[key] = flatten_dict(eeglab_dict[key])    
-    # # Step 4: Save the EEGLAB dataset as a .mat file
-    scipy.io.savemat(file_name, eeglab_dict, appendmat=False)
+            eeglab_dict[key] = flatten_dict(eeglab_dict[key])
 
+    if not os.path.exists(os.path.dirname(file_name)):
+        os.makedirs(os.path.dirname(file_name))
+
+    # # Step 4: Save the EEGLAB dataset as a .mat file
+    try:
+        scipy.io.savemat(file_name, eeglab_dict, appendmat=False)
+    except ValueError as e:
+        if '31 characters' in str(e):
+            # try to save with long_field_names option
+            scipy.io.savemat(file_name, eeglab_dict, appendmat=False, long_field_names=True)
+        else:
+            # the file is likely partial and thus invalid -- delete
+            if os.path.exists(file_name):
+                os.remove(file_name)
+            raise
 
 def test_pop_saveset():
     from eegprep.pop_loadset import pop_loadset
     file_path = './data/eeglab_data_with_ica_tmp.set'
     EEG = pop_loadset(file_path)
-    pop_saveset( EEG, 'tmp.set')
-    pop_saveset_old(EEG, 'tmp2.set') # does not do events and function above is better
+    pop_saveset( EEG, '/Users/arno/Python/eegprep/data/tmp.set')
+    pop_saveset_old(EEG, '/Users/arno/Python/eegprep/data/tmp2.set') # does not do events and function above is better
     # print the keys of the EEG dictionary
     print(EEG.keys())
     
-# test_pop_saveset()
+if __name__ == '__main__':
+    test_pop_saveset()
 
 # STILL OPEN QUESTION: Better to have empty MATLAB arrays as None for empty numpy arrays (current default).
 # The current default is to make it more MALTAB compatible. A lot of MATLAB function start indexing MATLAB
