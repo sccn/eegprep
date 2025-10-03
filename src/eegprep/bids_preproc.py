@@ -756,7 +756,7 @@ def bids_preproc(
                     events = EpochEvents
                     if EpochEvents == [] and len(EEG['event']) == 0 or all([e['type'] == 'boundary' for e in EEG['event']]):
                         # trying to epoch around any marker but got no events at all, or only boundary events
-                        logger.info("Data has no (non-boundary) events, nothing to epoch")
+                        logger.info(f"Dataset {fn!r} has no (non-boundary) events, nothing to epoch")
                         report["Epoching"] = {
                             "Applied": False,
                             "Reason": "No (non-boundary) events in data"
