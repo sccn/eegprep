@@ -6,17 +6,18 @@ EEGPrep is a Python package that reproduces the EEGLAB default preprocessing pip
 
 EEGPrep is currently in a pre-release phase. It functions end-to-end (bids branch) but has not yet been tested with multiple BIDS datasets. The documentation is incomplete, and use is at your own risk. The planned release is scheduled for the end of 2025.
 
+
 ## Install
 
 ```
 pip install eegprep
 ```
 
-# Current code coverage
+# Comparing MATLAB and Python implementations
 
-This is the current coverage of the test cases. The goal is to achieve 90% coverage.
+The MATLAB and Python implementations were compared using the first two subjects from the BIDS datasets [ds003061](https://nemar.org/dataexplorer/detail?dataset_id=ds003061) and [ds002680](https://nemar.org/dataexplorer/detail?dataset_id=ds002680) available on NEMAR. The observed differences were extremely small, with the largest (during HighpassFilter) below 0.002, indicating excellent numerical consistency between the two implementations.
 
-<img width="451" height="1353" alt="Screenshot 2025-08-24 at 09 17 53" src="https://github.com/user-attachments/assets/99ac7fa6-c467-4523-94a0-a368af5b0de6" />
+<img width="1744" height="1049" alt="Screenshot 2025-10-02 at 11 43 03" src="https://github.com/user-attachments/assets/79c17151-e2e3-4acc-b144-accdf34ae4c5" />
 
 # Docker
 
