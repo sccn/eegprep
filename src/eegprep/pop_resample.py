@@ -8,7 +8,7 @@ sys.path.insert(0, '/Users/arno/Python/eegprep/src/')
 sys.path.insert(0, '/usr/src/project/src/')
 from eegprep import pop_loadset, pop_saveset
 from eegprep.eeglabcompat import get_eeglab
-from eegpre.utils import aslist
+from eegprep.utils import aslist
 
 # TO DO TO ADDRESS DIFFERENCES BETWEEN MATLAB AND PYTHON
 # - Do a simple resample 500 to 250 Hz, there only the filter should matter (subsampling is just a decimation)
