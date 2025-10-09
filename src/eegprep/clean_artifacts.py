@@ -36,6 +36,7 @@ def clean_artifacts(
     WindowCriterionTolerances: Union[Tuple[float, float], str] = (-np.inf, 7),
     FlatlineCriterion: Union[float, str] = 5.0,
     NumSamples: int = 50,
+    SubsetSize: float = 0.25,
     NoLocsChannelCriterion: float = 0.45,
     NoLocsChannelCriterionExcluded: float = 0.1,
     MaxMem: int = 64,
@@ -91,6 +92,8 @@ def clean_artifacts(
             'off' disables flatline removal. Default 5.0.
         NumSamples (int):
             Number of RANSAC samples for channel cleaning. Default 50.
+        SubsetSize (float):
+            Size of channel subsets for RANSAC, as fraction (0-1) or count. Default 0.25.
         NoLocsChannelCriterion (float):
             Correlation threshold for fallback channel cleaning when no channel locations.
             Default 0.45.
@@ -203,6 +206,7 @@ def clean_artifacts(
                 # use default window_len
                 max_broken_time=float(ChannelCriterionMaxBadTime),
                 num_samples=int(NumSamples),
+                subset_size=SubsetSize,
             )
             removed_channels = ~EEG['etc']['clean_channel_mask']
         except Exception as e:
