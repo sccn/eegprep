@@ -6,12 +6,24 @@ from typing import Optional
 import numpy as np
 
 __all__ = ['is_debug', 'ExceptionUnlessDebug', 'num_jobs_from_reservation', 'humanize_seconds',
-           'num_cpus_from_reservation', 'ToolError', 'canonicalize_signs', 'round_mat']
+           'num_cpus_from_reservation', 'ToolError', 'canonicalize_signs', 'round_mat',
+           'aslist']
 
 
 def is_debug() -> bool:
     """Check if a debugger is currently attached to the process."""
     return getattr(sys, 'gettrace', None)() is not None
+
+
+def aslist(arr_or_list: np.ndarray | list) -> list:
+    """Return the given array or list in list form."""
+    if hasattr(arr_or_list, 'tolist'):
+        return arr_or_list.tolist()
+    elif isinstance(arr_or_list, list):
+        return arr_or_list
+    else:
+        raise ValueError(f"Input must be a numpy array or a list, but "
+                         f"was of type {type(arr_or_list)}.")
 
 
 def num_cpus_from_reservation(ReservePerJob: str, *, default: int = 4) -> Optional[int]:
