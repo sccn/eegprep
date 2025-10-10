@@ -72,7 +72,7 @@ if __name__ == '__main__':
             results[stage][study['studyname']] = []
 
     # compare the first k trials of each recording
-    max_trials = 30
+    max_trials = None  # was 30
 
     for study in studies:
         # subset of subjects/runs to compare
