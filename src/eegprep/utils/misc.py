@@ -7,7 +7,7 @@ import numpy as np
 
 __all__ = ['is_debug', 'ExceptionUnlessDebug', 'num_jobs_from_reservation', 'humanize_seconds',
            'num_cpus_from_reservation', 'ToolError', 'canonicalize_signs', 'round_mat',
-           'aslist']
+           'aslist', 'get_nested']
 
 
 def is_debug() -> bool:
@@ -24,6 +24,63 @@ def aslist(arr_or_list: np.ndarray | list) -> list:
     else:
         raise ValueError(f"Input must be a numpy array or a list, but "
                          f"was of type {type(arr_or_list)}.")
+
+
+# Sentinel value to indicate that KeyError should be raised if key not found
+_RAISE_KEYERROR = object()
+
+
+def get_nested(data: dict, key: str, default=_RAISE_KEYERROR, separator: str = '.'):
+    """Deep (recursive) dictionary lookup using dot-notation keys.
+    
+    Retrieves a value from a nested dictionary structure using a dot-separated
+    key path. For example, 'user.profile.name' would access data['user']['profile']['name'].
+    
+    Args:
+        data: The dictionary to search in
+        key: The dot-notation key path (e.g., 'user.profile.name')
+        default: The value to return if the key path is not found. If not provided,
+                 a KeyError will be raised when the key is not found.
+        separator: The separator character to use for splitting the key (default: '.')
+    
+    Returns:
+        The value at the nested location, or the default value if not found
+        
+    Raises:
+        KeyError: If the key path is not found and no default value is provided
+        
+    Examples:
+        >>> data = {'user': {'profile': {'name': 'John', 'age': 30}}}
+        >>> get_nested(data, 'user.profile.name')
+        'John'
+        >>> get_nested(data, 'user.profile.age')
+        30
+        >>> get_nested(data, 'user.email', default='not@found.com')
+        'not@found.com'
+        >>> get_nested(data, 'user.profile.address.city', default='Unknown')
+        'Unknown'
+        >>> get_nested(data, 'user.nonexistent')  # Raises KeyError
+        Traceback (most recent call last):
+            ...
+        KeyError: 'user.nonexistent'
+    """
+    if not isinstance(data, dict):
+        if default is _RAISE_KEYERROR:
+            raise KeyError(key)
+        return default
+    
+    keys = key.split(separator) if separator in key else [key]
+    current = data
+    
+    for k in keys:
+        if isinstance(current, dict) and k in current:
+            current = current[k]
+        else:
+            if default is _RAISE_KEYERROR:
+                raise KeyError(key)
+            return default
+    
+    return current
 
 
 def num_cpus_from_reservation(ReservePerJob: str, *, default: int = 4) -> Optional[int]:
@@ -189,6 +246,8 @@ def round_mat(x, decimals=0):
     factor = 10.0 ** (-decimals)
     y = xp.copysign(xp.floor(abs(x) / factor + 0.5), x)
     return y * factor
+
+
 
 
 class SkippableException(Exception):
