@@ -76,7 +76,32 @@ for idx=1:length(ALLEEG)
 
     % PICARD
     if to_stage >= 9
-        EEG = eeg_picard(EEG); end  % EEG = pop_runica(EEG, 'icatype', 'picard');    
+        EEG = eeg_picard(EEG); 
+        % note: once eeg_picard is fixed to be equiv between MATLAB and
+        % Python, the below two steps are perhaps better disabled both here
+        % and in the eeg_picard call in bids_preproc, since it can
+        % amplify minor deviations
+        
+        % sort components by mean descending activation variance
+        [~, windex] = sort(sum(EEG.icawinv.^2).*sum((EEG.icaact').^2), 'descend');
+        EEG.icaact = EEG.icaact(windex, :, :);
+        EEG.icaweights = EEG.icaweights(windex, :);
+        EEG.icawinv = EEG.icawinv(:, windex);
+        
+        % normalize components using the same rule as runica()
+        [~, ix] = max(abs(EEG.icaact'));
+        had_flips = 0;
+        ncomps = size(EEG.icaact,1);
+        for r=1:ncomps
+            if sign(EEG.icaact(r,ix(r))) < 0
+                EEG.icaact(r,:) = -EEG.icaact(r,:);
+                EEG.icawinv(:,r) = -EEG.icawinv(:,r);
+                had_flips = 1;
+            end
+        end
+        if had_flips == 1
+            EEG.icaweights = pinv(EEG.icawinv); end
+    end    
 
     % ICLabel
     if to_stage >= 10

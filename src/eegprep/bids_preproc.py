@@ -674,7 +674,7 @@ def bids_preproc(
                         logger.info(f"Found {fpath_picard}, skipping PICARD stage.")
                         EEG = pop_loadset(fpath_picard)
                     else:
-                        EEG = eeg_picard(EEG)
+                        EEG = eeg_picard(EEG, posact=True, sortcomps=True)
                         EEG = eeg_checkset(EEG)
                         if not WithICLabel or not MinimizeDiskUsage:
                             # only save the PICARD output if we don't do ICLabel (to save disk space)

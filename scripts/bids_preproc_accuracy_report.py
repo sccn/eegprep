@@ -8,6 +8,7 @@ import numpy as np
 
 from eegprep import bids_preproc, pop_loadset, eeg_checkset_strict_mode
 from eegprep.eeglabcompat import get_eeglab
+from eegprep.utils import get_nested
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +20,9 @@ if curhost in ['ck-carbon']:
 else:
     reservation = ''
 
+# if enabled, comparison at the PICARD/ICLABEL stage will compare not the
+# data but icaweights and IC classification probabilities, respectively
+compare_ica_results = False
 
 # list of studies and subsets thereof to run the statistics on
 studies = [
@@ -144,12 +148,18 @@ if __name__ == '__main__':
                 EEG_py = ALLEEG_py[k]
                 EEG_mat = ALLEEG_mat[k]
 
-                if EEG_py['data'].ndim == 3:
-                    A = EEG_py['data'][:, :, :max_trials]
-                    B = EEG_mat['data'][:, :, :max_trials]
+                # decide what field of the data we're comparing
+                if not compare_ica_results:
+                    field = 'data'
+                elif to_stage == 9:
+                    field = 'icaweights'
+                elif to_stage == 10:
+                    field = 'etc.ic_classification.ICLabel.classifications'
                 else:
-                    A = EEG_py['data']
-                    B = EEG_mat['data']
+                    field = 'data'
+
+                A = get_nested(EEG_py, field)
+                B = get_nested(EEG_mat, field)
                 abs_err = np.abs(A - B)
                 max_err = np.amax(abs_err)
                 stage_errs.append(max_err)
