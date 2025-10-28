@@ -1,11 +1,16 @@
 """Testing utilities."""
 
+import os
+import shutil
 import sys
 import unittest
+import warnings
+from contextlib import contextmanager
+from pathlib import Path
 
 import numpy as np
 
-__all__ = ['compare_eeg', 'DebuggableTestCase', 'is_debug']
+__all__ = ['compare_eeg', 'DebuggableTestCase', 'is_debug', 'use_64bit_eeg_options']
 
 
 # default to True since the round-tripping through file can force data to
@@ -59,3 +64,63 @@ class DebuggableTestCase(unittest.TestCase):
 def is_debug():
     """Determine whether Python is running in debug mode."""
     return getattr(sys, 'gettrace', None)() is not None
+
+
+@contextmanager
+def use_64bit_eeg_options():
+    """Context manager to temporarily use EEG options that preserve
+    64-bit precision floating-point data. This can be used in unit tests that
+    compare vs. MATLAB outputs and ensure that these tests do not spuriously
+    fail due to regression to single-precision floats on the MATLAB side.
+    
+    This context manager:
+    - Backs up the user's ~/eeg_options.m file if it exists
+    - Replaces it with the 64-bit version from resources/eeg_options_64bit.m
+    - Restores the original file on cleanup (or removes it if it didn't exist)
+    
+    Usage:
+        with use_64bit_eeg_options():
+            # Your code that needs 64-bit EEG options
+            pass
+    """
+    # Get paths
+    homedir = Path.home()
+    eeg_options_path = homedir / 'eeg_options.m'
+    backup_path = homedir / 'eeg_options.m.backup'
+    
+    # Determine the repository root (go up from this file's location)
+    repo_root = Path(__file__).resolve().parent.parent.parent.parent
+    source_path = repo_root / 'resources' / 'eeg_options_64bit.m'
+    
+    # Check if source file exists
+    if not source_path.exists():
+        raise FileNotFoundError(f"Source file not found: {source_path}")
+    
+    # Track whether the file existed before
+    file_existed_before = eeg_options_path.exists()
+    
+    # Backup existing file if present
+    if file_existed_before:
+        shutil.copy2(eeg_options_path, backup_path)
+    
+    # Copy the 64-bit options file
+    shutil.copy2(source_path, eeg_options_path)
+    
+    try:
+        yield
+    finally:
+        # Cleanup: restore or delete as appropriate
+        if file_existed_before:
+            # Restore from backup
+            if backup_path.exists():
+                shutil.copy2(backup_path, eeg_options_path)
+                backup_path.unlink()  # Remove the backup file
+            else:
+                warnings.warn(
+                    f"Backup file {backup_path} went missing, could not restore original eeg_options.m",
+                    UserWarning
+                )
+        else:
+            # Delete the file since it didn't exist before
+            if eeg_options_path.exists():
+                eeg_options_path.unlink()
