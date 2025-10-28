@@ -115,7 +115,7 @@ def clean_channels_nolocs(
         try:
             # Try to use pop_select if available
             from eegprep import pop_select
-            EEG = pop_select(EEG, nochannel=np.where(removed_channels)[0])
+            EEG = pop_select(EEG, nochannel=list(np.where(removed_channels)[0]))
         except Exception as e:
             if isinstance(e, ImportError):
                 logger.error('Apparently you do not have access to a pop_select() function.')

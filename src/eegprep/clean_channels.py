@@ -147,7 +147,7 @@ def clean_channels(
     elif np.any(removed_channels):
         try:
             from eegprep import pop_select
-            EEG = pop_select(EEG, nochannel=np.where(removed_channels)[0])
+            EEG = pop_select(EEG, nochannel=list(np.where(removed_channels)[0]))
         except Exception as e:
             if isinstance(e, ImportError):
                 logger.error("Apparently you do not have EEGLAB's pop_select() on the path.")
