@@ -19,9 +19,9 @@ def clean_asr(
     window_len: Optional[float] = None,
     step_size: Optional[int] = None,
     max_dims: float = 0.66,
-    ref_maxbadchannels: Union[float, str, np.ndarray] = 0.075,
-    ref_tolerances: Union[Tuple[float, float], str] = (-3.5, 5.5),
-    ref_wndlen: Union[float, str] = 1.0,
+    ref_maxbadchannels: Union[float, str, None, np.ndarray] = 0.075,
+    ref_tolerances: Union[Tuple[float, float], str, None] = (-3.5, 5.5),
+    ref_wndlen: Union[float, str, None] = 1.0,
     use_gpu: bool = False,
     useriemannian: Optional[str] = None,
     maxmem: Optional[int] = 64
@@ -110,14 +110,14 @@ def clean_asr(
             logger.error(f"An error occurred during clean_windows: {e}")
             logger.warning("Could not automatically identify clean calibration data. Falling back to using the entire data for calibration.")
             ref_section_data = data
-    elif isinstance(ref_maxbadchannels, str) and ref_maxbadchannels.lower() == 'off':
-        logger.info("Using the entire data for calibration ('ref_maxbadchannels' set to 'off').")
+    elif (isinstance(ref_maxbadchannels, str) and ref_maxbadchannels.lower() == 'off') or ref_maxbadchannels is None:
+        logger.info(f"Using the entire data for calibration ('ref_maxbadchannels' set to {ref_maxbadchannels!r}).")
         ref_section_data = data
-    elif isinstance(ref_tolerances, str) and ref_tolerances.lower() == 'off':
-        logger.info("Using the entire data for calibration ('ref_tolerances' set to 'off').")
+    elif (isinstance(ref_tolerances, str) and ref_tolerances.lower() == 'off') or ref_tolerances is None:
+        logger.info(f"Using the entire data for calibration ('ref_tolerances' set to {ref_tolerances!r}).")
         ref_section_data = data
-    elif isinstance(ref_wndlen, str) and ref_wndlen.lower() == 'off':
-        logger.info("Using the entire data for calibration ('ref_wndlen' set to 'off').")
+    elif (isinstance(ref_wndlen, str) and ref_wndlen.lower() == 'off') or ref_wndlen is None:
+        logger.info(f"Using the entire data for calibration ('ref_wndlen' set to {ref_wndlen!r}).")
         ref_section_data = data
     elif isinstance(ref_maxbadchannels, np.ndarray):
         logger.info("Using user-supplied data array for calibration.")
@@ -125,7 +125,7 @@ def clean_asr(
         if ref_section_data.ndim != 2 or ref_section_data.shape[0] != C:
              raise ValueError(f"User-supplied calibration data must be a 2D array with shape ({C}, n_samples).")
     else:
-        raise ValueError(f"Unsupported value or type for 'ref_maxbadchannels': {ref_maxbadchannels}. Must be float, 'off', or numpy array.")
+        raise ValueError(f"Unsupported value or type for 'ref_maxbadchannels': {ref_maxbadchannels}. Must be float, None/'off', or numpy array.")
 
     # --- Calibrate ASR ---
     logger.info('Estimating ASR calibration statistics...')

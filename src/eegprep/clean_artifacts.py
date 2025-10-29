@@ -23,18 +23,18 @@ logger = logging.getLogger(__name__)
 def clean_artifacts(
     EEG: Dict[str, Any],
     # Core parameters
-    ChannelCriterion: Union[float, str] = 0.8,
-    LineNoiseCriterion: Union[float, str] = 4.0,
-    BurstCriterion: Union[float, str] = 5.0,
-    WindowCriterion: Union[float, str] = 0.25,
-    Highpass: Union[str, Tuple[float, float]] = (0.25, 0.75),
+    ChannelCriterion: Union[float, str, None] = 0.8,
+    LineNoiseCriterion: Union[float, str, None] = 4.0,
+    BurstCriterion: Union[float, str, None] = 5.0,
+    WindowCriterion: Union[float, str, None] = 0.25,
+    Highpass: Union[Tuple[float, float], str, None] = (0.25, 0.75),
     # Detail parameters
     ChannelCriterionMaxBadTime: float = 0.5,
-    BurstCriterionRefMaxBadChns: Union[float, str] = 0.075,
-    BurstCriterionRefTolerances: Union[Tuple[float, float], str] = (-np.inf, 5.5),
+    BurstCriterionRefMaxBadChns: Union[float, str, None] = 0.075,
+    BurstCriterionRefTolerances: Union[Tuple[float, float], str, None] = (-np.inf, 5.5),
     BurstRejection: str = 'off',
-    WindowCriterionTolerances: Union[Tuple[float, float], str] = (-np.inf, 7),
-    FlatlineCriterion: Union[float, str] = 5.0,
+    WindowCriterionTolerances: Union[Tuple[float, float], str, None] = (-np.inf, 7),
+    FlatlineCriterion: Union[float, str, None] = 5.0,
     NumSamples: int = 50,
     SubsetSize: float = 0.25,
     NoLocsChannelCriterion: float = 0.45,
@@ -176,16 +176,16 @@ def clean_artifacts(
     # ------------------------------------------------------------------
     #                     1) Flat‑line channel removal
     # ------------------------------------------------------------------
-    if FlatlineCriterion != 'off':
+    if FlatlineCriterion not in (None, 'off'):
         logger.info('Detecting flat line channels...')
         EEG = clean_flatlines(EEG, max_flatline_duration=float(FlatlineCriterion))
 
     # ------------------------------------------------------------------
     #                        2) High‑pass filtering
     # ------------------------------------------------------------------
-    if Highpass != 'off':
+    if Highpass not in (None, 'off'):
         if not isinstance(Highpass, (tuple, list)) or len(Highpass) != 2:
-            raise ValueError('Highpass must be a (low, high) tuple or "off".')
+            raise ValueError('Highpass must be a (low, high) tuple or None/"off".')
         logger.info('Applying high‑pass filter...')
         EEG = clean_drifts(EEG, tuple(Highpass))
     # Keep a copy after HP for optional return
@@ -195,9 +195,9 @@ def clean_artifacts(
     #            3) Channel cleaning (noisy / disconnected)
     # ------------------------------------------------------------------
     removed_channels = np.zeros(EEG['nbchan'], dtype=bool)
-    if ChannelCriterion != 'off' or LineNoiseCriterion != 'off':
-        chancorr_crit = 0.0 if ChannelCriterion == 'off' else float(ChannelCriterion)
-        line_crit = 100.0 if LineNoiseCriterion == 'off' else float(LineNoiseCriterion)
+    if ChannelCriterion not in (None, 'off') or LineNoiseCriterion not in (None, 'off'):
+        chancorr_crit = 0.0 if ChannelCriterion in (None, 'off') else float(ChannelCriterion)
+        line_crit = 100.0 if LineNoiseCriterion in (None, 'off') else float(LineNoiseCriterion)
         try:
             EEG = clean_channels(
                 EEG,
@@ -226,7 +226,7 @@ def clean_artifacts(
     #                     4) Burst repair via ASR
     # ------------------------------------------------------------------
     BUR = EEG  # default in case ASR is skipped
-    if BurstCriterion != 'off':
+    if BurstCriterion not in (None, 'off'):
         logger.info('Applying ASR burst repair...')
         try:
             BUR = clean_asr(
@@ -290,7 +290,7 @@ def clean_artifacts(
     # ------------------------------------------------------------------
     #                     5) Post‑clean windows stage
     # ------------------------------------------------------------------
-    if WindowCriterion != 'off' and WindowCriterionTolerances != 'off':
+    if WindowCriterion not in (None, 'off') and WindowCriterionTolerances not in (None, 'off'):
         logger.info('Final post‑processing – removing irrecoverable windows...')
         EEG, _ = clean_windows(
             EEG,
