@@ -153,21 +153,6 @@ def num_jobs_from_reservation(ReservePerJob: str) -> int:
         import multiprocessing
         avail_amt = multiprocessing.cpu_count()
         reserve_amt = float(reserve[:-3])
-    elif reserve.endswith('GPU'):
-        if sys.platform == 'win32':
-            raise NotImplementedError("GPU reservation is not supported on Windows. "
-                                      "Please use a Linux-based system.")
-        try:
-            import pynvml
-        except ImportError:
-            raise ImportError("pynvml is required to determine available GPU resources. "
-                              "Please install it with 'uv pip install pynvml'.")
-        try:
-            pynvml.nvmlInit()
-            avail_amt = pynvml.nvmlDeviceGetCount()
-        except pynvml.NVMLError as e:
-            avail_amt = 0
-        reserve_amt = float(reserve[:-3])
     else:
         raise ValueError(f"Invalid reserve amount format: {ReservePerJob}. "
                          "Expected format like '4GB' or '2CPU'.")

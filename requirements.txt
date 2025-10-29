@@ -10,10 +10,6 @@ pybids>=0.4
 python-picard==0.8
 neo>=0.14.2
 pyedflib>=0.1.42
-psutil
-pynvml
-colorama
-threadpoolctl
-neo
-pyedflib
-pybids
+psutil>=7.0.0
+colorama>=0.4.6
+threadpoolctl>=3.0.0
