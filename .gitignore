@@ -74,8 +74,6 @@ data/iclabel_correlations_default.png
 data/test_file.edf
 temp
 error_log.txt
-*.set
-*.mat
 data/*
 temp
 scripts/data
@@ -95,8 +93,11 @@ old
 python_temp.mat
 python_temp_reformated.mat
 *.asv
-test*.set
-test*.fdt
-tmp*.set
-tmp*.fdt
+*.set
+*.mat
+*.fdt
+
 matlab/clean_rawdata
+
+# for now excluded; may introduce for purposes of hard-locking dev deps
+uv.lock
