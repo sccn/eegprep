@@ -122,31 +122,31 @@ class TestCleanArtifactsBasic(DebuggableTestCase):
         """Test clean_artifacts with invalid highpass string parameter."""
         with self.assertRaises(ValueError) as cm:
             clean_artifacts(self.test_eeg, Highpass='invalid')
-        self.assertIn('Highpass must be a (low, high) tuple or "off"', str(cm.exception))
+        self.assertIn('Highpass must be a (low, high) tuple or None/"off"', str(cm.exception))
     
     def test_clean_artifacts_invalid_highpass_single_value(self):
         """Test clean_artifacts with single value instead of tuple."""
         with self.assertRaises(ValueError) as cm:
             clean_artifacts(self.test_eeg, Highpass=0.5)
-        self.assertIn('Highpass must be a (low, high) tuple or "off"', str(cm.exception))
+        self.assertIn('Highpass must be a (low, high) tuple or None/"off"', str(cm.exception))
     
     def test_clean_artifacts_invalid_highpass_too_many_values(self):
         """Test clean_artifacts with too many values in highpass tuple."""
         with self.assertRaises(ValueError) as cm:
             clean_artifacts(self.test_eeg, Highpass=(0.1, 0.5, 1.0))
-        self.assertIn('Highpass must be a (low, high) tuple or "off"', str(cm.exception))
+        self.assertIn('Highpass must be a (low, high) tuple or None/"off"', str(cm.exception))
     
     def test_clean_artifacts_invalid_highpass_empty_tuple(self):
         """Test clean_artifacts with empty highpass tuple."""
         with self.assertRaises(ValueError) as cm:
             clean_artifacts(self.test_eeg, Highpass=())
-        self.assertIn('Highpass must be a (low, high) tuple or "off"', str(cm.exception))
+        self.assertIn('Highpass must be a (low, high) tuple or None/"off"', str(cm.exception))
     
     def test_clean_artifacts_invalid_highpass_list_single(self):
         """Test clean_artifacts with single-element list."""
         with self.assertRaises(ValueError) as cm:
             clean_artifacts(self.test_eeg, Highpass=[0.5])
-        self.assertIn('Highpass must be a (low, high) tuple or "off"', str(cm.exception))
+        self.assertIn('Highpass must be a (low, high) tuple or None/"off"', str(cm.exception))
     
     def test_clean_artifacts_valid_highpass_list(self):
         """Test clean_artifacts with valid highpass list (should work like tuple)."""
