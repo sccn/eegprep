@@ -18,7 +18,7 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering :: Medical Science Apps.",
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: BSD License (BSD-2-Clause)",
+    "License :: OSI Approved :: BSD License",
     "Operating System :: OS Independent",
 ]
 keywords = ["eeg", "preprocessing", "EEGLAB"]
@@ -43,14 +43,14 @@ torch = [
   "torch>=1.10.0",
 ]
 all = [
-  "torch>=1.10.0"
+  "torch>=1.10.0",
 ]
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
-# [tool.setuptools.package-data]
-# "eegprep" = ["eeglab/*", "netICL.mat"]
+[tool.setuptools.package-data]
+"eegprep" = ["resources/montages/*.locs", "resources/montages/README.md", "resources/*.m"]
 
 
 [project.urls]

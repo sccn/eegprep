@@ -88,9 +88,9 @@ def use_64bit_eeg_options():
     eeg_options_path = homedir / 'eeg_options.m'
     backup_path = homedir / 'eeg_options.m.backup'
     
-    # Determine the repository root (go up from this file's location)
-    repo_root = Path(__file__).resolve().parent.parent.parent.parent
-    source_path = repo_root / 'resources' / 'eeg_options_64bit.m'
+    # Find the source file in the package resources (works for both installed and dev)
+    package_root = Path(__file__).resolve().parent.parent
+    source_path = package_root / 'resources' / 'eeg_options_64bit.m'
     
     # Check if source file exists
     if not source_path.exists():
