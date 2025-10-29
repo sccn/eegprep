@@ -43,6 +43,9 @@ dependencies = [
 torch = [
   "torch>=1.10.0",
 ]
+eeglabio = [
+  "eeglabio>=0.1.2",
+]
 all = [
   "torch>=1.10.0",
 ]
