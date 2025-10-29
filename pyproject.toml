@@ -47,12 +47,22 @@ all = [
   "torch>=1.10.0",
 ]
 
+[tool.setuptools]
+include-package-data = false
+
 [tool.setuptools.packages.find]
 where = ["src"]
 exclude = ["eegprep.eeglab*"]
 
 [tool.setuptools.package-data]
-"eegprep" = ["resources/montages/*.locs", "resources/montages/README.md", "resources/*.m"]
+"eegprep" = [
+  "resources/montages/*.locs",
+  "resources/montages/README.md",
+  "resources/*.m"
+]
+
+[tool.setuptools.exclude-package-data]
+"eegprep" = ["eeglab/**"]
 
 
 [project.urls]
