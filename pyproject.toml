@@ -18,22 +18,22 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
+keywords = ["eeg", "preprocessing", "EEGLAB"]
 dependencies = [
-  "numpy<2",
-  "scipy>=1.7.0",
-  "matplotlib>=3.4.0",
-  "mne>=1.0.0",
-  "oct2py>=5.5.0",
-  "torch>=1.10.0",
+  "colorama>=0.4.6",
   "h5py>=3.3.0",
+  "matplotlib>=3.4.0",
+  "mne>=1.10.0",
+  "neo>=0.14.2",
+  "numpy<2",
+  "oct2py>=5.5.0",
+  "psutil>=7.0.0",
   "pybids>=0.4",
   "pyedflib>=0.1.42",
-  "python-picard",
-  "neo",
-  "pynvml",
-  "psutil",
-  "colorama",
-  "threadpoolctl"
+  "python-picard==0.8",
+  "scipy>=1.7.0",
+  "threadpoolctl>=3.6.0",
+  "torch>=1.10.0",
 ]
 
 [tool.setuptools.package-data]
