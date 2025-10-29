@@ -1,8 +1,8 @@
 # EEGPrep
 
-EEGPrep is a Python package that reproduces the EEGLAB default preprocessing pipeline with numerical accuracy down to 10⁻⁷, including clean_rawdata and ICLabel, enabling MATLAB-to-Python equivalence for EEG analysis. It takes BIDS data as input and produces BIDS derivative dataset as output, which can then be reimported into other packages as needed (EEGLAB, Fieldtrip, Brainstorm, MNE). It does produce plots. The package will be fully documented for conversion, packaging, and testing workflows, with installation available via PyPI.
+EEGPrep is a Python package that reproduces the EEGLAB default preprocessing pipeline with numerical accuracy down to 1e-5 uV, including clean_rawdata and ICLabel, enabling MATLAB-to-Python equivalence for EEG analysis. It takes BIDS data as input and produces BIDS derivative dataset as output, which can then be reimported into other packages as needed (EEGLAB, Fieldtrip, Brainstorm, MNE). It does produce plots. The package will be fully documented for conversion, packaging, and testing workflows, with installation available via PyPI.
 
-## Pre-release
+## Pre-Release
 
 EEGPrep is currently in a pre-release phase. It functions end-to-end (bids branch) but has not yet been tested with multiple BIDS datasets. The documentation is incomplete, and use is at your own risk. The planned release is scheduled for the end of 2025.
 
@@ -29,7 +29,7 @@ The MATLAB and Python implementations were compared using the first two subjects
 
 <img width="1744" height="1049" alt="Screenshot 2025-10-02 at 11 43 03" src="https://github.com/user-attachments/assets/79c17151-e2e3-4acc-b144-accdf34ae4c5" />
 
-# Docker
+# Docker (SCCN Power Users)
 
 ## Build Docker
 
@@ -40,11 +40,13 @@ docker run -u root --rm -it -v $(pwd):/usr/src/project dtyoung/eegprep /bin/bash
 
 ## Remove Docker
 
+```
 docker rmi dtyoung/eegprep
+```
 
 Mounted folder in /usr/src/project
 
-# Pypi Release Notes (Maintainers Only)
+# PYPI Release Process (Maintainers Only)
 
 ## Quick Release Workflow
 
@@ -58,8 +60,11 @@ The script will:
 1. Check prerequisites (build, twine, git status)
 2. Confirm the version from `pyproject.toml`
 3. Let you choose: test release, production release, or both
-4. Build and upload the package
+4. Build and upload the package (automatically uses `eegprep_test` name for TestPyPI)
 5. Create and push git tags for production releases
+
+> **Note:** The script automatically handles a TestPyPI naming conflict by building a package
+> with the name `eegprep_test` for test releases.
 
 ## Prerequisites
 
@@ -75,15 +80,28 @@ pip install build twine
 
 ## Manual Release Process
 
+**Recommended:** Use `scripts/make_release.py` instead to avoid manual errors with package naming.
+
 If you need to release manually:
 
 **1. Update version in `pyproject.toml`**
 
 **2. Test release (staging):**
+
+> **Note:** A former maintainer owns the `eegprep` package name on TestPyPI, so you will not be able to post a 
+> package named `eegprep` there at this time. 
+> To work around this when performing the build manually (note the `make_release.py` script handles this for you), temporarily change the package name to `eegprep_test` in `pyproject.toml` before building.
+> Remember to change it back to `eegprep` after uploading!
+
 ```bash
+# In pyproject.toml, temporarily change: name = "eegprep" to name = "eegprep_test"
 python -m build
 python -m twine upload --repository testpypi dist/*
-pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ eegprep==X.Y.Z
+# Change name back to "eegprep" in pyproject.toml
+
+# Test the installation:
+pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ eegprep_test==X.Y.Z
+# (imports still work as 'import eegprep')
 ```
 
 **3. Production release:**
