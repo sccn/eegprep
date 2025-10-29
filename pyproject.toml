@@ -35,6 +35,7 @@ dependencies = [
   "pyedflib>=0.1.42",
   "python-picard>=0.8,<0.9",
   "scipy>=1.7.0",
+  "sympy>=1.14.0",
   "threadpoolctl>=3.6.0",
 ]
 
@@ -48,6 +49,7 @@ all = [
 
 [tool.setuptools.packages.find]
 where = ["src"]
+exclude = ["eegprep.eeglab*"]
 
 [tool.setuptools.package-data]
 "eegprep" = ["resources/montages/*.locs", "resources/montages/README.md", "resources/*.m"]

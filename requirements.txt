@@ -10,5 +10,6 @@ pybids>=0.4
 pyedflib>=0.1.42
 python-picard>=0.8,<0.9
 scipy>=1.7.0
+sympy>=1.14.0
 threadpoolctl>=3.6.0
 torch>=1.10.0
