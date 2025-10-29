@@ -4,6 +4,30 @@ Release script for eegprep package.
 
 This script helps maintainers create test and production releases with
 appropriate checks and git tagging.
+
+TestPyPI Package Naming:
+    TestPyPI releases use the package name 'eegprep_test' to avoid conflicts
+    with the existing package owned by a previous maintainer. The production
+    PyPI releases use the regular 'eegprep' package name.
+
+Authentication:
+    You can provide PyPI credentials in three ways:
+    
+    1. ~/.pypirc file (recommended for interactive use):
+        [testpypi]
+        repository = https://test.pypi.org/legacy/
+        username = __token__
+        password = pypi-...your-token...
+        
+        [pypi]
+        username = __token__
+        password = pypi-...your-token...
+    
+    2. Environment variables (recommended for CI/CD):
+        TESTPYPI_TOKEN or TWINE_PASSWORD_TESTPYPI - TestPyPI API token
+        PYPI_TOKEN or TWINE_PASSWORD - PyPI API token
+
+    3. Enter them when prompted.
 """
 
 import os
@@ -31,6 +55,9 @@ SCRIPT_DIR = Path(__file__).parent
 PROJECT_ROOT = SCRIPT_DIR.parent
 PYPROJECT_PATH = PROJECT_ROOT / "pyproject.toml"
 DIST_DIR = PROJECT_ROOT / "dist"
+
+# Test package name for TestPyPI (to avoid conflicts with existing package)
+TESTPYPI_PACKAGE_NAME = "eegprep_test"
 
 # Detect if this is a uv-managed project
 IS_UV_PROJECT = (PROJECT_ROOT / "uv.lock").exists()
@@ -78,6 +105,47 @@ def get_version():
     
     print_error("Could not find version in pyproject.toml")
     sys.exit(1)
+
+
+def get_package_name():
+    """Extract package name from pyproject.toml."""
+    try:
+        with open(PYPROJECT_PATH, 'r') as f:
+            content = f.read()
+            match = re.search(r'^name\s*=\s*["\']([^"\']+)["\']', content, re.MULTILINE)
+            if match:
+                return match.group(1)
+    except Exception as e:
+        print_error(f"Failed to read package name from pyproject.toml: {e}")
+        sys.exit(1)
+    
+    print_error("Could not find package name in pyproject.toml")
+    sys.exit(1)
+
+
+def set_package_name(new_name):
+    """Temporarily change the package name in pyproject.toml."""
+    try:
+        with open(PYPROJECT_PATH, 'r') as f:
+            content = f.read()
+        
+        # Replace the name field
+        modified_content = re.sub(
+            r'^name\s*=\s*["\']([^"\']+)["\']',
+            f'name = "{new_name}"',
+            content,
+            count=1,
+            flags=re.MULTILINE
+        )
+        
+        with open(PYPROJECT_PATH, 'w') as f:
+            f.write(modified_content)
+        
+        print_success(f"Temporarily set package name to: {new_name}")
+        return True
+    except Exception as e:
+        print_error(f"Failed to modify package name in pyproject.toml: {e}")
+        return False
 
 
 def get_install_command():
@@ -168,10 +236,13 @@ def choose_release_type():
     """Let user choose what type of release to make."""
     print_header("Release Type")
     print("Choose release type:")
-    print("  a) Test/staging release (TestPyPI only)")
+    print(f"  a) Test/staging release (TestPyPI only, as '{TESTPYPI_PACKAGE_NAME}')")
     print("  b) Production release (PyPI + git tag)")
     print("  c) Both (test first, then production)")
     print("  q) Quit")
+    print()
+    print_info(f"TestPyPI will use package name '{TESTPYPI_PACKAGE_NAME}' to avoid conflicts")
+    print_info("Production PyPI will use the regular package name 'eegprep'")
     
     while True:
         choice = input("\nYour choice [a/b/c/q]: ").strip().lower()
@@ -188,10 +259,23 @@ def clean_dist():
         print_success("Old dist directory removed")
 
 
-def build_package():
-    """Build the package."""
+def build_package(package_name=None):
+    """Build the package.
+    
+    Args:
+        package_name: Optional package name to use. If provided, temporarily 
+                      modifies pyproject.toml before building.
+    """
     print_header("Building Package")
     clean_dist()
+    
+    original_name = None
+    if package_name:
+        original_name = get_package_name()
+        if original_name != package_name:
+            print_info(f"Building with package name: {package_name}")
+            if not set_package_name(package_name):
+                return False
     
     try:
         subprocess.run(
@@ -209,26 +293,56 @@ def build_package():
                 for f in files:
                     print(f"  - {f.name}")
         
+        # Restore original name if it was changed
+        if original_name and original_name != package_name:
+            set_package_name(original_name)
+            print_info(f"Restored package name to: {original_name}")
+        
         return True
     except subprocess.CalledProcessError as e:
         print_error(f"Build failed: {e}")
+        
+        # Restore original name on error too
+        if original_name and original_name != package_name:
+            set_package_name(original_name)
+        
         return False
 
 
 def upload_to_testpypi():
-    """Upload to TestPyPI."""
+    """Upload to TestPyPI using the test package name."""
     print_header("Uploading to TestPyPI")
+    
+    print_info(f"Using test package name: {TESTPYPI_PACKAGE_NAME}")
+    print_info("This avoids conflicts with existing packages on TestPyPI")
+    
+    # Build command with optional token
+    cmd = [sys.executable, "-m", "twine", "upload", "--repository", "testpypi", "dist/*"]
+    
+    # Check if token is provided via environment variable
+    token = os.environ.get("TWINE_PASSWORD_TESTPYPI") or os.environ.get("TESTPYPI_TOKEN")
+    if token:
+        print_info("Using API token from environment variable")
+        # Set environment for subprocess
+        env = os.environ.copy()
+        env["TWINE_USERNAME"] = "__token__"
+        env["TWINE_PASSWORD"] = token
+    else:
+        print_info("Using credentials from ~/.pypirc or will prompt")
+        env = None
     
     try:
         subprocess.run(
-            [sys.executable, "-m", "twine", "upload", "--repository", "testpypi", "dist/*"],
+            cmd,
             cwd=PROJECT_ROOT,
-            check=True
+            check=True,
+            env=env
         )
-        print_success("Uploaded to TestPyPI successfully")
+        print_success(f"Uploaded to TestPyPI successfully as '{TESTPYPI_PACKAGE_NAME}'")
         return True
     except subprocess.CalledProcessError as e:
         print_error(f"Upload to TestPyPI failed: {e}")
+        print_info("Tip: Set TESTPYPI_TOKEN environment variable or configure ~/.pypirc")
         return False
 
 
@@ -236,16 +350,33 @@ def upload_to_pypi():
     """Upload to PyPI."""
     print_header("Uploading to PyPI")
     
+    # Build command with optional token
+    cmd = [sys.executable, "-m", "twine", "upload", "dist/*"]
+    
+    # Check if token is provided via environment variable
+    token = os.environ.get("TWINE_PASSWORD") or os.environ.get("PYPI_TOKEN")
+    if token:
+        print_info("Using API token from environment variable")
+        # Set environment for subprocess
+        env = os.environ.copy()
+        env["TWINE_USERNAME"] = "__token__"
+        env["TWINE_PASSWORD"] = token
+    else:
+        print_info("Using credentials from ~/.pypirc or will prompt")
+        env = None
+    
     try:
         subprocess.run(
-            [sys.executable, "-m", "twine", "upload", "dist/*"],
+            cmd,
             cwd=PROJECT_ROOT,
-            check=True
+            check=True,
+            env=env
         )
         print_success("Uploaded to PyPI successfully")
         return True
     except subprocess.CalledProcessError as e:
         print_error(f"Upload to PyPI failed: {e}")
+        print_info("Tip: Set PYPI_TOKEN environment variable or configure ~/.pypirc")
         return False
 
 
@@ -298,7 +429,11 @@ def print_test_instructions(version, release_type):
     
     if release_type in ['test', 'both']:
         print(f"{Fore.MAGENTA}To test the TestPyPI release:{Style.RESET_ALL}")
-        print(f"  pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ eegprep=={version}")
+        print(f"{Fore.YELLOW}  NOTE: The test package is named '{TESTPYPI_PACKAGE_NAME}' on TestPyPI{Style.RESET_ALL}")
+        print(f"  pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ {TESTPYPI_PACKAGE_NAME}=={version}")
+        print()
+        print(f"{Fore.CYAN}  After installing, you can still import it as 'eegprep':{Style.RESET_ALL}")
+        print(f"  python -c 'import eegprep; print(eegprep.__version__)'")
         print()
     
     if release_type in ['prod', 'both']:
@@ -334,32 +469,40 @@ def main():
         print("Exiting.")
         sys.exit(0)
     
-    # Build package
-    if not build_package():
-        sys.exit(1)
-    
     # Execute based on choice
     success = True
     release_type = None
     
     if choice == 'a':  # Test only
+        # Build with test package name
+        if not build_package(package_name=TESTPYPI_PACKAGE_NAME):
+            sys.exit(1)
         success = upload_to_testpypi()
         release_type = 'test'
     
     elif choice == 'b':  # Production only
+        # Build with production package name
+        if not build_package():
+            sys.exit(1)
         success = upload_to_pypi()
         if success:
             create_and_push_tag(version)
         release_type = 'prod'
     
     elif choice == 'c':  # Both
-        # First test
+        # First build and upload to test
+        if not build_package(package_name=TESTPYPI_PACKAGE_NAME):
+            sys.exit(1)
+        
         if upload_to_testpypi():
             print_success("Test release completed successfully!")
             print_info("Proceeding to production release...")
             input("Press Enter to continue or Ctrl+C to abort...")
             
-            # Then production
+            # Rebuild with production name and upload
+            if not build_package():
+                sys.exit(1)
+            
             if upload_to_pypi():
                 create_and_push_tag(version)
                 release_type = 'both'
