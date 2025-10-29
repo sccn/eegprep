@@ -8,7 +8,7 @@ oct2py>=5.5.0
 psutil>=7.0.0
 pybids>=0.4
 pyedflib>=0.1.42
-python-picard==0.8
+python-picard>=0.8,<0.9
 scipy>=1.7.0
 threadpoolctl>=3.6.0
 torch>=1.10.0

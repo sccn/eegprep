@@ -9,9 +9,19 @@ EEGPrep is currently in a pre-release phase. It functions end-to-end (bids branc
 
 ## Install
 
+To install the complete EEGPrep including the ICLabel classifier (which can pull in ~7GB of binaries on Linux), use the following line:
+```
+pip install eegprep[all]
+```
+
+To install the lean version:
 ```
 pip install eegprep
 ```
+
+You can then manually install a lightweight CPU-only version of PyTorch if desired by 
+your operating system.
+
 
 # Comparing MATLAB and Python implementations
 
@@ -34,7 +44,7 @@ docker rmi dtyoung/eegprep
 
 Mounted folder in /usr/src/project
 
-# Pypi release notes
+# Pypi Release Notes (Maintainers Only)
 
 ## Documentation
 https://packaging.python.org/en/latest/tutorials/packaging-projects/
@@ -69,20 +79,24 @@ to test
 pip install eegprep
 ```
 
-## Install package
+## Install Package
 Packaging was done following the tutorial: https://packaging.python.org/en/latest/tutorials/packaging-projects/ with setuptools
 
-To install the package, run:
+To install the package with all optional dependencies, run:
 ```
-pip install eegprep
+pip install eegprep[all]
 ```
 
-## Test
+## Running Tests
 
-Install MATLAB insterface "pip install /your/path/to/matlab/extern/engines/python"
+Install MATLAB interface `pip install /your/path/to/matlab/extern/engines/python`
 Use tests/main_compare.m
 
-Use tests under Cursos or Visual Studio Code.
+This project uses `unittest`. You can run tests from the project root via the command:
+```
+python -m unittest discover -s tests
+```
+...or use the unittest integration in your IDE (e.g., PyCharm, VS Code, or Cursor).
 
 ## Core maintainers
 
