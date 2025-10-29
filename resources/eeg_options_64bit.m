@@ -1,7 +1,10 @@
-% eeg_options() - eeglab option script
+% Do not edit or remove this file
+% ===============================
 %
-% Note: DO NOT EDIT, instead use pop_editoptions() or the menu
-%       /File/Maximize memory in EEGLAB gui
+% This is an EEGLAB eeg_options.m template that works in conjunction
+% with the use_64bit_eeg_options() context manager; the template is used
+% to switch EEGLAB into 64-bit float mode, which is necessary to for unit
+% tests vs MATLAB outputs to be sane.
 
 % STUDY and file options (set the first checkbox if you intend to work with studies)
 option_storedisk = 0 ; % If set, keep at most one dataset in memory. This allows processing hundreds of datasets within studies.
