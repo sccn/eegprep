@@ -32,6 +32,10 @@ PROJECT_ROOT = SCRIPT_DIR.parent
 PYPROJECT_PATH = PROJECT_ROOT / "pyproject.toml"
 DIST_DIR = PROJECT_ROOT / "dist"
 
+# Detect if this is a uv-managed project
+IS_UV_PROJECT = (PROJECT_ROOT / "uv.lock").exists()
+UV_AVAILABLE = shutil.which("uv") is not None
+
 
 def print_header(text):
     """Print a section header."""
@@ -76,9 +80,27 @@ def get_version():
     sys.exit(1)
 
 
+def get_install_command():
+    """Determine the appropriate install command based on the environment."""
+    if IS_UV_PROJECT and UV_AVAILABLE:
+        return "uv pip install"
+    return "pip install"
+
+
 def check_prerequisites():
     """Check that required tools are available."""
     print_header("Pre-flight Checks")
+    
+    # Show environment info
+    print_info(f"Python executable: {sys.executable}")
+    if IS_UV_PROJECT:
+        print_info("Detected uv-managed project (uv.lock present)")
+        if UV_AVAILABLE:
+            print_success("uv is available")
+        else:
+            print_warning("uv is not available in PATH but project uses uv")
+
+    install_cmd = get_install_command()
     
     # Check if running on Windows
     if platform.system() == "Windows":
@@ -91,14 +113,14 @@ def check_prerequisites():
     # Check for build package
     if find_spec("build") is None:
         print_error("Package 'build' is not installed.")
-        print("Install with: pip install build")
+        print(f"Install with: {Fore.CYAN}{install_cmd} build{Style.RESET_ALL}")
         sys.exit(1)
     print_success("Package 'build' is installed")
     
     # Check for twine
     if find_spec("twine") is None:
         print_error("Package 'twine' is not installed.")
-        print("Install with: pip install twine")
+        print(f"Install with: {Fore.CYAN}{install_cmd} twine{Style.RESET_ALL}")
         sys.exit(1)
     print_success("Package 'twine' is installed")
     
