@@ -48,6 +48,7 @@ eeglabio = [
 ]
 all = [
   "torch>=1.10.0",
+  "eeglabio>=0.1.2",
 ]
 
 [tool.setuptools]
