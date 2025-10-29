@@ -46,38 +46,56 @@ Mounted folder in /usr/src/project
 
 # Pypi Release Notes (Maintainers Only)
 
-## Documentation
-https://packaging.python.org/en/latest/tutorials/packaging-projects/
+## Quick Release Workflow
 
-## API tokens
-- Get API token, one for official and one for test(Dung has it)
-- Twine will ask them from you
+Use the release script for streamlined releases:
 
-## Update version
-
-Change version in pyproject.toml
-
-## Staging release
+```bash
+python scripts/make_release.py
 ```
+
+The script will:
+1. Check prerequisites (build, twine, git status)
+2. Confirm the version from `pyproject.toml`
+3. Let you choose: test release, production release, or both
+4. Build and upload the package
+5. Create and push git tags for production releases
+
+## Prerequisites
+
+Install build tools:
+```bash
+pip install build twine
+```
+
+## API Tokens
+- Get API token for PyPI and TestPyPI (both maintainers should have these)
+- Twine will prompt for them during upload
+- Store them in `~/.pypirc` for convenience
+
+## Manual Release Process
+
+If you need to release manually:
+
+**1. Update version in `pyproject.toml`**
+
+**2. Test release (staging):**
+```bash
 python -m build
 python -m twine upload --repository testpypi dist/*
+pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ eegprep==X.Y.Z
 ```
 
-to test
-```
-pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ eegprep==0.0.x
-```
-
-## Final release
-```
-twine upload dist/*
+**3. Production release:**
+```bash
+python -m twine upload dist/*
+git tag -a vX.Y.Z -m "Release version X.Y.Z"
+git push origin vX.Y.Z
+pip install eegprep==X.Y.Z
 ```
 
-to test
-
-```
-pip install eegprep
-```
+## Documentation
+https://packaging.python.org/en/latest/tutorials/packaging-projects/
 
 ## Install Package
 Packaging was done following the tutorial: https://packaging.python.org/en/latest/tutorials/packaging-projects/ with setuptools
