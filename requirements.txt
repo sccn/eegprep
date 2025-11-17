@@ -3,7 +3,7 @@ h5py>=3.3.0
 matplotlib>=3.4.0
 mne>=1.10.0
 neo>=0.14.2
-numpy<2.0
+numpy>=1.20
 oct2py>=5.5.0
 psutil>=7.0.0
 pybids>=0.4
