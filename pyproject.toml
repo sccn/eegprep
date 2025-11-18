@@ -37,6 +37,7 @@ dependencies = [
   "scipy>=1.7.0",
   "sympy>=1.14.0",
   "threadpoolctl>=3.6.0",
+  "torch"
 ]
 
 [project.optional-dependencies]
@@ -52,7 +53,7 @@ all = [
 ]
 
 [tool.setuptools]
-include-package-data = false
+include-package-data = true
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -62,7 +63,8 @@ exclude = ["eegprep.eeglab*"]
 "eegprep" = [
   "resources/montages/*.locs",
   "resources/montages/README.md",
-  "resources/*.m"
+  "resources/*.m",
+  "netICL.mat"
 ]
 
 [tool.setuptools.exclude-package-data]
