@@ -4,4 +4,4 @@
 
 # Author: Dung Truong and Arnaud Delorme
 
-singularity exec -e docker://dtyoung/eegprep python main.py
+singularity exec -e docker://arnodelorme/eegprep python main.py
