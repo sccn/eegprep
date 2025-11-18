@@ -34,14 +34,9 @@ The MATLAB and Python implementations were compared using the first two subjects
 ## Build Docker
 
 ```
-docker run --rm -it -v $(pwd):/usr/src/project dtyoung/eegprep /bin/bash
-docker run -u root --rm -it -v $(pwd):/usr/src/project dtyoung/eegprep /bin/bash
-```
-
-## Remove Docker
-
-```
-docker rmi dtyoung/eegprep
+docker build -t eegprep:0.2.1 -f DOCKERFILE .
+docker tag eegprep:0.2.1 arnodelorme/eegprep:0.2.1
+docker push arnodelorme/eegprep:0.2.1    
 ```
 
 Mounted folder in /usr/src/project
