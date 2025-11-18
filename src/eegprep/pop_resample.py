@@ -8,6 +8,7 @@ sys.path.insert(0, '/Users/arno/Python/eegprep/src/')
 sys.path.insert(0, '/usr/src/project/src/')
 from eegprep import pop_loadset, pop_saveset
 from eegprep.eeglabcompat import get_eeglab
+from eegprep.utils import aslist
 
 # TO DO TO ADDRESS DIFFERENCES BETWEEN MATLAB AND PYTHON
 # - Do a simple resample 500 to 250 Hz, there only the filter should matter (subsampling is just a decimation)
@@ -91,7 +92,7 @@ def pop_resample(EEG, freq, engine=None):
         p, q = rational_approx.as_numer_denom()
         ratio = float(p/q)
 
-        for event in EEG_new['event'].tolist() + EEG_new['urevent'].tolist():
+        for event in aslist(EEG_new['event']) + aslist(EEG_new['urevent']):
             event['latency'] = np.clip((event['latency']-1) * ratio + 1, 1, new_pnts)
 
         return EEG_new

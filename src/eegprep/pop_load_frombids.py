@@ -856,11 +856,29 @@ def pop_load_frombids(
         opt_score, best_data, best_cap = (0, 0), None, '(not set)'
         fractions = []
         caplabels = []
+        
+        # Determine montage path and files to check
+        # Resources are now always in the package directory
+        montage_path = os.path.join(os.path.dirname(__file__), 'resources', 'montages')
+        
+        if not os.path.isdir(montage_path):
+            raise RuntimeError(
+                f"Could not find montages directory at {montage_path}. "
+                f"This may indicate a corrupted installation.")
+        
         if isinstance(infer_locations, str):
-            filenames = [infer_locations]
+            # Custom montage file specified
+            if os.path.isabs(infer_locations):
+                # Absolute path provided - override montage_path
+                montage_path = os.path.dirname(infer_locations)
+                filenames = [os.path.basename(infer_locations)]
+            else:
+                # Relative path - use standard montage directory
+                filenames = [infer_locations]
         else:
-            montage_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'resources', 'montages'))
+            # Use all available montage files
             filenames = sorted(os.listdir(montage_path))
+        
         for filename in filenames:
             if not filename.endswith('.locs'):
                 raise ValueError(f"Only montage files with the .locs extension are supported, "

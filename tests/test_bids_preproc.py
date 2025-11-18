@@ -65,8 +65,7 @@ class TestBidsPreproc(DebuggableTestCase):
             studyname = study['studyname']
             subjects = study['subjects']
             runs = study['runs']
-            # compare the first k trials of each recording
-            max_trials = 30
+
             # 1 nV - would ideally be better, but errors compound across multiple preproc
             # steps amid intermittent single-precision downcasts in original MATLAB code
             abstol = 1e-3
@@ -117,13 +116,13 @@ class TestBidsPreproc(DebuggableTestCase):
 
             # testing up to here because pop_select occasionally retains events on py that
             # are dropped by the MATLAB code, so things go out of sync at that point
-            print(f"Comparing Python vs MATLAB results (first {max_trials} trials)...")
+            print(f"Comparing Python vs MATLAB results...")
             for k in range(min(len(ALLEEG_py), len(ALLEEG_mat))):
                 EEG_py = ALLEEG_py[k]
                 EEG_mat = ALLEEG_mat[k]
                 print(f"Comparing subject #{k}: {EEG_py['filename']}...")
-                np.testing.assert_allclose(EEG_py['data'][:, :, :max_trials],
-                                           EEG_mat['data'][:, :, :max_trials],
+                np.testing.assert_allclose(EEG_py['data'][:, :, :],
+                                           EEG_mat['data'][:, :, :],
                                            rtol=0, atol=abstol)
                 # PICARD currently doesn't pass its unit test vs MATLAB, so disabling for now
                 # np.testing.assert_allclose(EEG_py['icaweights'], EEG_mat['icaweights'], rtol=0, atol=1e-5)

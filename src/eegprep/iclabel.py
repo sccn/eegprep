@@ -1,7 +1,6 @@
 from copy import deepcopy
 import os
 
-import torch
 import numpy as np
 
 def iclabel(EEG, algorithm='default', engine=None):
@@ -26,6 +25,16 @@ def iclabel(EEG, algorithm='default', engine=None):
     EEG : dict
         EEGLAB EEG structure with ICLabel classifications added
     """
+    try:
+        import torch
+    except ImportError as e:
+        raise ImportError(
+            f"PyTorch is not installed in your environment ({e}). "
+            f"To include torch, install eegprep as eegprep[all] or "
+            f"install the torch package manually (see Getting Started "
+            f"on pytorch.org for specifics for your platform)."
+        ) from e
+
     EEG = deepcopy(EEG)
 
     # Check if using MATLAB or Octave implementation
@@ -44,7 +53,7 @@ def iclabel(EEG, algorithm='default', engine=None):
     
     # Default Python implementation
     elif engine is None:
-        from eegprep import ICLabelNet
+        from eegprep.iclabel_net import ICLabelNet
         from eegprep import ICL_feature_extractor
 
         #ICLABEL Extract ICLabel features from an EEG dataset.

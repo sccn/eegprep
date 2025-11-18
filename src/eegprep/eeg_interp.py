@@ -15,7 +15,7 @@ import os
 # absolute path for all files in data folder
 data_path = '/Users/arno/Python/eegprep/data/' #os.path.abspath('data/')
 
-def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None):
+def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dtype='float32'):
     """
     Interpolate missing or bad EEG channels using spherical spline interpolation.
     
@@ -38,6 +38,10 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None):
         Time range for interpolation
     params : tuple, optional
         Method-specific parameters
+    dtype: str | dtype, optional
+        Optionally the precision in which to perform the computation;
+        * 'float32' : matches MATLAB, but limits precision (default)
+        * 'float64': operate at full precision; requires twice the memory
         
     Returns:
     --------
@@ -130,7 +134,8 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None):
         xelec=xyz_good[0], yelec=xyz_good[1], zelec=xyz_good[2],
         xbad =xyz_bad[0],  ybad =xyz_bad[1],  zbad =xyz_bad[2],
         values=d[good_idx,:],
-        params=params
+        params=params,
+        dtype=dtype
     )
 
     # restore original time range if needed
@@ -290,15 +295,17 @@ def _handle_chanloc_interpolation(EEG, new_chanlocs):
         
         return EEG, bad_idx
 
-def spheric_spline(xelec, yelec, zelec, xbad, ybad, zbad, values, params):
+def spheric_spline(xelec, yelec, zelec, xbad, ybad, zbad, values, params, dtype='float32'):
+    dtype = np.dtype(dtype)
+
     # values: (n_good, n_points)
     Gelec = computeg(xelec, yelec, zelec, xelec, yelec, zelec, params)
     Gsph  = computeg(xbad,  ybad,  zbad,  xelec, yelec, zelec, params)
 
     # Match MATLAB: mean across all values (not just axis=1)
     # mean across the first dimension
-    meanvalues = values.mean(axis=0, dtype=np.float32)  # scalar mean across all dimensions
-    values = values.astype(np.float32)
+    meanvalues = values.mean(axis=0, dtype=dtype)  # scalar mean across all dimensions
+    values = values.astype(dtype)
     values = values - meanvalues  # subtract scalar mean
     
     # Add zero row like MATLAB

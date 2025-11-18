@@ -674,7 +674,7 @@ def bids_preproc(
                         logger.info(f"Found {fpath_picard}, skipping PICARD stage.")
                         EEG = pop_loadset(fpath_picard)
                     else:
-                        EEG = eeg_picard(EEG)
+                        EEG = eeg_picard(EEG, posact=True, sortcomps=True)
                         EEG = eeg_checkset(EEG)
                         if not WithICLabel or not MinimizeDiskUsage:
                             # only save the PICARD output if we don't do ICLabel (to save disk space)
@@ -756,7 +756,7 @@ def bids_preproc(
                     events = EpochEvents
                     if EpochEvents == [] and len(EEG['event']) == 0 or all([e['type'] == 'boundary' for e in EEG['event']]):
                         # trying to epoch around any marker but got no events at all, or only boundary events
-                        logger.info("Data has no (non-boundary) events, nothing to epoch")
+                        logger.info(f"Dataset {fn!r} has no (non-boundary) events, nothing to epoch")
                         report["Epoching"] = {
                             "Applied": False,
                             "Reason": "No (non-boundary) events in data"

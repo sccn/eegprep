@@ -12,7 +12,6 @@ from .eeg_checkset import eeg_checkset
 from .eeglabcompat import pop_eegfiltnew
 from .eeglabcompat import clean_artifacts as eeglab_clean_artifacts
 from .ICL_feature_extractor import ICL_feature_extractor
-from .iclabel_net import ICLabelNet
 from .topoplot import topoplot
 from .eeg_rpsd import eeg_rpsd
 from .eeg_autocorr_welch import eeg_autocorr_welch
