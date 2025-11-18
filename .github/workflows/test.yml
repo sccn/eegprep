@@ -33,31 +33,19 @@ jobs:
         python-version: ${{ matrix.python-version }}
         cache: 'pip'
     
-    - name: Install Octave
-      if: runner.os == 'Linux'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y octave liboctave-dev
-    
-    - name: Install Octave (macOS)
-      if: runner.os == 'macOS'
-      run: |
-        brew install octave
-    
-    - name: Install Octave (Windows)
-      if: runner.os == 'Windows'
-      run: |
-        choco install octave.portable -y
+    - name: Set up MATLAB
+      uses: matlab-actions/setup-matlab@v2
+      with:
+        release: R2023b
     
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -e .[all]
     
-    - name: Verify Octave installation
+    - name: Verify MATLAB installation
       run: |
-        octave --version
-        python -c "from oct2py import Oct2Py; oc = Oct2Py(); print('Octave connection successful')"
+        matlab -batch "ver"
     
     - name: Run tests
       run: |
