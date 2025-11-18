@@ -189,7 +189,8 @@ class TestPopLoadsetH5(DebuggableTestCase):
         
         # Check channel locations
         self.assertIn('chanlocs', EEG)
-        self.assertIsInstance(EEG['chanlocs'], list)
+        # In numpy 2.x, this might be a structured array instead of a list
+        self.assertTrue(isinstance(EEG['chanlocs'], (list, np.ndarray)))
         self.assertEqual(len(EEG['chanlocs']), 32)
         
         # Check individual channel properties
