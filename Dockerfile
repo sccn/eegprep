@@ -12,12 +12,19 @@
     # ---------------------------------------------------------
     RUN apt-get update && apt-get install -y --no-install-recommends \
         git \
+        ca-certificates \
         build-essential \
         libhdf5-dev \
         liblapack-dev \
         libblas-dev \
         libx11-6 \
+        python3 \
+        python3-pip \
+        python3-venv \
+        && update-ca-certificates \
         && rm -rf /var/lib/apt/lists/*
+
+        
     # ---------------------------------------------------------
     # Create working directory
     # ---------------------------------------------------------

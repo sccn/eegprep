@@ -384,7 +384,7 @@ def create_and_push_tag(version):
     """Create and push git tag for production release."""
     print_header("Git Tagging")
     
-    tag_name = f"v{version}"
+    tag_name = f"{version}"
     
     # Create tag
     try:
