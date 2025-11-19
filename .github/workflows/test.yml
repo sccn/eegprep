@@ -52,7 +52,7 @@ jobs:
         uv pip install --system -e .[all]
     
     - name: Run MATLAB tests
-      uses: matlab-actions/run-matlab-command@v2
+      uses: matlab-actions/run-command@v2
       with:
         command: "ver"
     
