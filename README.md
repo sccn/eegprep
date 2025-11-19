@@ -38,9 +38,9 @@ The MATLAB and Python implementations were compared using the first two subjects
 # Docker (SCCN Power Users)
 
 ```
-docker build -t eegprep:0.2.5 -f DOCKERFILE .
-docker tag eegprep:0.2.5 arnodelorme/eegprep:0.2.5
-docker push arnodelorme/eegprep:0.2.5 
+docker build -t eegprep:0.2.6 -f DOCKERFILE .
+docker tag eegprep:0.2.6 arnodelorme/eegprep:0.2.6
+docker push arnodelorme/eegprep:0.2.6
 ```
 
 Check the project on https://hub.docker.com/
