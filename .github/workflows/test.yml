@@ -47,6 +47,11 @@ jobs:
       with:
         release: R2021b
     
+    - name: Add MATLAB to PATH
+      shell: bash
+      run: |
+        echo "${{ runner.tool_cache }}/MATLAB/2021.2.999/${{ runner.arch }}/bin" >> $GITHUB_PATH
+    
     - name: Install dependencies
       run: |
         uv pip install --system -e .[all]
