@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "eegprep"
-version = "0.1.1"
+version = "0.2.21"
 authors = [
   { name="Arnaud Delorme", email="adelorme@gmail.com" },
   { name="Young Truong", email="dt.young112@gmail.com" },
@@ -41,18 +41,18 @@ dependencies = [
 
 [project.optional-dependencies]
 torch = [
-  "torch>=1.10.0",
+  "torch>=2.5.1"
 ]
 eeglabio = [
-  "eeglabio>=0.1.2",
+  "eeglabio>=0.1.2"
 ]
 all = [
-  "torch>=1.10.0",
-  "eeglabio>=0.1.2",
+  "torch>=2.5.1",
+  "eeglabio>=0.1.2"
 ]
 
 [tool.setuptools]
-include-package-data = false
+include-package-data = true
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -62,7 +62,8 @@ exclude = ["eegprep.eeglab*"]
 "eegprep" = [
   "resources/montages/*.locs",
   "resources/montages/README.md",
-  "resources/*.m"
+  "resources/*.m",
+  "netICL.mat"
 ]
 
 [tool.setuptools.exclude-package-data]

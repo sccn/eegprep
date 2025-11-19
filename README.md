@@ -29,20 +29,21 @@ The MATLAB and Python implementations were compared using the first two subjects
 
 <img width="1744" height="1049" alt="Screenshot 2025-10-02 at 11 43 03" src="https://github.com/user-attachments/assets/79c17151-e2e3-4acc-b144-accdf34ae4c5" />
 
+# versioning
+- Change version inside the file pyproject.toml
+- Change version inside the file main (for docker)
+- Run make_release in the script folder and tag with the version
+- Use the correct docker version when building (see below)
+
 # Docker (SCCN Power Users)
 
-## Build Docker
+```
+docker build -t eegprep:0.2.6 -f DOCKERFILE .
+docker tag eegprep:0.2.6 arnodelorme/eegprep:0.2.6
+docker push arnodelorme/eegprep:0.2.6
+```
 
-```
-docker run --rm -it -v $(pwd):/usr/src/project dtyoung/eegprep /bin/bash
-docker run -u root --rm -it -v $(pwd):/usr/src/project dtyoung/eegprep /bin/bash
-```
-
-## Remove Docker
-
-```
-docker rmi dtyoung/eegprep
-```
+Check the project on https://hub.docker.com/
 
 Mounted folder in /usr/src/project
 

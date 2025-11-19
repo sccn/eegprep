@@ -54,7 +54,9 @@ except ImportError:
 SCRIPT_DIR = Path(__file__).parent
 PROJECT_ROOT = SCRIPT_DIR.parent
 PYPROJECT_PATH = PROJECT_ROOT / "pyproject.toml"
+MAIN_PATH = PROJECT_ROOT / "main"
 DIST_DIR = PROJECT_ROOT / "dist"
+DOCKERFILE_PATH = PROJECT_ROOT / "DOCKERFILE"
 
 # Test package name for TestPyPI (to avoid conflicts with existing package)
 TESTPYPI_PACKAGE_NAME = "eegprep_test"
@@ -66,9 +68,16 @@ UV_AVAILABLE = shutil.which("uv") is not None
 
 def print_header(text):
     """Print a section header."""
-    print(f"\n{Fore.CYAN}{Style.BRIGHT}{'=' * 70}")
+    print(f"\n{Fore.CYAN}{Style.BRIGHT}{'*' * 40}")
     print(f"{text}")
-    print(f"{'=' * 70}{Style.RESET_ALL}\n")
+    print(f"{'*' * 40}{Style.RESET_ALL}\n")
+
+
+def print_step(step_num, text):
+    """Print a step header with clear delineation."""
+    print(f"\n{Fore.CYAN}{Style.BRIGHT}{'*' * 40}")
+    print(f"Step {step_num}: {text}")
+    print(f"{'*' * 40}{Style.RESET_ALL}\n")
 
 
 def print_success(text):
@@ -192,44 +201,112 @@ def check_prerequisites():
         sys.exit(1)
     print_success("Package 'twine' is installed")
     
-    # Check git status
-    try:
-        result = subprocess.run(
-            ["git", "status", "--porcelain"],
-            cwd=PROJECT_ROOT,
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        
-        if result.stdout.strip():
-            print_warning("Git working directory has uncommitted changes or untracked files:")
-            print(result.stdout)
-            response = input("Continue anyway? [y/N]: ").strip().lower()
-            if response != 'y':
-                print("Exiting. Commit or stash changes before releasing.")
-                sys.exit(0)
-        else:
-            print_success("Git working directory is clean")
-    except subprocess.CalledProcessError as e:
-        print_warning(f"Could not check git status: {e}")
-        response = input("Continue anyway? [y/N]: ").strip().lower()
-        if response != 'y':
-            sys.exit(0)
-    
     # Remind about tests
     print_info("Remember to run tests before releasing!")
     print_info("  python -m unittest discover -s tests")
 
 
-def confirm_version(version):
-    """Confirm the version number with the user."""
-    print_header("Version Confirmation")
-    print(f"Current version in pyproject.toml: {Fore.GREEN}{Style.BRIGHT}{version}{Style.RESET_ALL}")
-    response = input("Is this the correct version to release? [y/N]: ").strip().lower()
-    if response != 'y':
-        print("\nPlease update the version in pyproject.toml before releasing.")
-        sys.exit(0)
+def get_new_version(current_version):
+    """Ask user for new version number."""
+    print_step(2, "Version Update")
+    print(f"Current version in pyproject.toml: {Fore.GREEN}{Style.BRIGHT}{current_version}{Style.RESET_ALL}")
+    new_version = input("Enter new version number: ").strip()
+    if not new_version:
+        print_error("Version cannot be empty")
+        sys.exit(1)
+    return new_version
+
+
+def update_version_in_file(file_path, old_version, new_version):
+    """Update version in a file."""
+    try:
+        with open(file_path, 'r') as f:
+            content = f.read()
+        
+        # Replace version
+        updated_content = content.replace(old_version, new_version)
+        
+        with open(file_path, 'w') as f:
+            f.write(updated_content)
+        
+        return True
+    except Exception as e:
+        print_error(f"Failed to update version in {file_path}: {e}")
+        return False
+
+
+def update_version_files(old_version, new_version):
+    """Update version in pyproject.toml and main file."""
+    print_step(3, f"Updating version from {old_version} to {new_version}")
+    
+    # Update pyproject.toml
+    print_info(f"Updating pyproject.toml...")
+    cmd = f"sed -i '' 's/version = \"{old_version}\"/version = \"{new_version}\"/' {PYPROJECT_PATH}"
+    print(f"Running: {cmd}")
+    try:
+        subprocess.run(
+            ["sed", "-i", "", f's/version = "{old_version}"/version = "{new_version}"/', str(PYPROJECT_PATH)],
+            cwd=PROJECT_ROOT,
+            check=True
+        )
+        print_success(f"Updated pyproject.toml")
+    except subprocess.CalledProcessError:
+        # Fallback to Python method
+        if not update_version_in_file(PYPROJECT_PATH, f'version = "{old_version}"', f'version = "{new_version}"'):
+            return False
+        print_success(f"Updated pyproject.toml")
+    
+    # Update main file
+    print_info(f"Updating main file...")
+    cmd = f"sed -i '' 's/eegprep:{old_version}/eegprep:{new_version}/g' {MAIN_PATH}"
+    print(f"Running: {cmd}")
+    try:
+        subprocess.run(
+            ["sed", "-i", "", f's/eegprep:{old_version}/eegprep:{new_version}/g', str(MAIN_PATH)],
+            cwd=PROJECT_ROOT,
+            check=True
+        )
+        print_success(f"Updated main file")
+    except subprocess.CalledProcessError:
+        # Fallback to Python method
+        if not update_version_in_file(MAIN_PATH, f'eegprep:{old_version}', f'eegprep:{new_version}'):
+            return False
+        print_success(f"Updated main file")
+    
+    return True
+
+
+def commit_version_changes(version):
+    """Commit version changes."""
+    print_step(4, f"Committing version changes")
+    
+    cmd = f"git add {PYPROJECT_PATH} {MAIN_PATH}"
+    print(f"Running: {cmd}")
+    try:
+        subprocess.run(
+            ["git", "add", str(PYPROJECT_PATH), str(MAIN_PATH)],
+            cwd=PROJECT_ROOT,
+            check=True
+        )
+        print_success("Staged version files")
+    except subprocess.CalledProcessError as e:
+        print_error(f"Failed to stage files: {e}")
+        return False
+    
+    commit_msg = f"Release version {version}"
+    cmd = f'git commit -m "{commit_msg}"'
+    print(f"Running: {cmd}")
+    try:
+        subprocess.run(
+            ["git", "commit", "-m", commit_msg],
+            cwd=PROJECT_ROOT,
+            check=True
+        )
+        print_success(f"Committed version changes: {commit_msg}")
+        return True
+    except subprocess.CalledProcessError as e:
+        print_error(f"Failed to commit: {e}")
+        return False
 
 
 def choose_release_type():
@@ -266,7 +343,7 @@ def build_package(package_name=None):
         package_name: Optional package name to use. If provided, temporarily 
                       modifies pyproject.toml before building.
     """
-    print_header("Building Package")
+    print_step(5, "Building Package")
     clean_dist()
     
     original_name = None
@@ -277,6 +354,8 @@ def build_package(package_name=None):
             if not set_package_name(package_name):
                 return False
     
+    cmd = f"{sys.executable} -m build"
+    print(f"Running: {cmd}")
     try:
         subprocess.run(
             [sys.executable, "-m", "build"],
@@ -348,10 +427,11 @@ def upload_to_testpypi():
 
 def upload_to_pypi():
     """Upload to PyPI."""
-    print_header("Uploading to PyPI")
+    print_step(6, "Uploading to PyPI")
     
     # Build command with optional token
-    cmd = [sys.executable, "-m", "twine", "upload", "dist/*"]
+    cmd = f"{sys.executable} -m twine upload dist/*"
+    print(f"Running: {cmd}")
     
     # Check if token is provided via environment variable
     token = os.environ.get("TWINE_PASSWORD") or os.environ.get("PYPI_TOKEN")
@@ -367,7 +447,7 @@ def upload_to_pypi():
     
     try:
         subprocess.run(
-            cmd,
+            [sys.executable, "-m", "twine", "upload", "dist/*"],
             cwd=PROJECT_ROOT,
             check=True,
             env=env
@@ -380,13 +460,36 @@ def upload_to_pypi():
         return False
 
 
+def push_git_changes():
+    """Push all committed changes to remote."""
+    print_step(7, "Pushing git changes")
+    
+    cmd = "git push"
+    print(f"Running: {cmd}")
+    try:
+        subprocess.run(
+            ["git", "push"],
+            cwd=PROJECT_ROOT,
+            check=True
+        )
+        print_success("Pushed git changes successfully")
+        return True
+    except subprocess.CalledProcessError as e:
+        print_error(f"Failed to push git changes: {e}")
+        print_info("This might be due to credentials or network issues.")
+        print_info(f"To push manually later, run: {Fore.CYAN}git push{Style.RESET_ALL}")
+        return False
+
+
 def create_and_push_tag(version):
     """Create and push git tag for production release."""
-    print_header("Git Tagging")
+    print_step(8, "Creating and pushing git tag")
     
-    tag_name = f"v{version}"
+    tag_name = f"{version}"
     
     # Create tag
+    cmd = f'git tag -a {tag_name} -m "Release version {version}"'
+    print(f"Running: {cmd}")
     try:
         subprocess.run(
             ["git", "tag", "-a", tag_name, "-m", f"Release version {version}"],
@@ -398,16 +501,9 @@ def create_and_push_tag(version):
         print_error(f"Failed to create tag: {e}")
         return False
     
-    # Ask for confirmation before pushing
-    print_info(f"Ready to push tag {tag_name} to origin")
-    response = input("Push tag to remote? [y/N]: ").strip().lower()
-    
-    if response != 'y':
-        print_warning(f"Tag {tag_name} created locally but not pushed.")
-        print_info(f"To push later, run: git push origin {tag_name}")
-        return True
-    
-    # Try to push tag
+    # Push tag
+    cmd = f"git push origin {tag_name}"
+    print(f"Running: {cmd}")
     try:
         subprocess.run(
             ["git", "push", "origin", tag_name],
@@ -421,6 +517,55 @@ def create_and_push_tag(version):
         print_info("This might be due to credentials or network issues.")
         print_info(f"To push manually later, run: {Fore.CYAN}git push origin {tag_name}{Style.RESET_ALL}")
         return True  # Continue anyway
+
+
+def build_and_push_docker(version):
+    """Build and push Docker image."""
+    print_step(9, f"Building and pushing Docker image")
+    
+    # Build Docker image
+    cmd = f"docker build -t eegprep:{version} -f DOCKERFILE ."
+    print(f"Running: {cmd}")
+    try:
+        subprocess.run(
+            ["docker", "build", "-t", f"eegprep:{version}", "-f", "DOCKERFILE", "."],
+            cwd=PROJECT_ROOT,
+            check=True
+        )
+        print_success(f"Built Docker image: eegprep:{version}")
+    except subprocess.CalledProcessError as e:
+        print_error(f"Docker build failed: {e}")
+        return False
+    
+    # Tag Docker image
+    cmd = f"docker tag eegprep:{version} arnodelorme/eegprep:{version}"
+    print(f"Running: {cmd}")
+    try:
+        subprocess.run(
+            ["docker", "tag", f"eegprep:{version}", f"arnodelorme/eegprep:{version}"],
+            cwd=PROJECT_ROOT,
+            check=True
+        )
+        print_success(f"Tagged Docker image: arnodelorme/eegprep:{version}")
+    except subprocess.CalledProcessError as e:
+        print_error(f"Docker tag failed: {e}")
+        return False
+    
+    # Push Docker image
+    cmd = f"docker push arnodelorme/eegprep:{version}"
+    print(f"Running: {cmd}")
+    try:
+        subprocess.run(
+            ["docker", "push", f"arnodelorme/eegprep:{version}"],
+            cwd=PROJECT_ROOT,
+            check=True
+        )
+        print_success(f"Pushed Docker image: arnodelorme/eegprep:{version}")
+        return True
+    except subprocess.CalledProcessError as e:
+        print_error(f"Docker push failed: {e}")
+        print_info("Make sure you're logged in to Docker Hub: docker login")
+        return False
 
 
 def print_test_instructions(version, release_type):
@@ -453,73 +598,83 @@ def main():
     print("╚════════════════════════════════════════════════════════════════════╝")
     print(Style.RESET_ALL)
     
-    # Get version
-    version = get_version()
+    # Step 1: Check for uncommitted changes
+    print_step(1, "Checking for uncommitted changes")
+    cmd = "git status | grep modified"
+    print(f"Running: {cmd}")
+    try:
+        result = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        
+        if result.stdout.strip():
+            # Filter out src/eegprep/eeglab changes
+            modified_lines = []
+            for line in result.stdout.strip().split('\n'):
+                if 'src/eegprep/eeglab' not in line:
+                    modified_lines.append(line)
+            
+            if modified_lines:
+                print_warning("Found uncommitted changes (excluding src/eegprep/eeglab):")
+                for line in modified_lines:
+                    print(f"  {line}")
+                response = input("Continue anyway? [y/N]: ").strip().lower()
+                if response != 'y':
+                    print("Exiting. Commit or stash changes before releasing.")
+                    sys.exit(0)
+            else:
+                print_success("No uncommitted changes (ignoring src/eegprep/eeglab)")
+        else:
+            print_success("No uncommitted changes")
+    except subprocess.CalledProcessError as e:
+        print_warning(f"Could not check git status: {e}")
+        response = input("Continue anyway? [y/N]: ").strip().lower()
+        if response != 'y':
+            sys.exit(0)
     
-    # Run checks
+    # Run other checks
     check_prerequisites()
     
-    # Confirm version
-    confirm_version(version)
+    # Step 2: Get current version and ask for new version
+    current_version = get_version()
+    new_version = get_new_version(current_version)
     
-    # Choose release type
-    choice = choose_release_type()
+    # Step 3: Update version files
+    if not update_version_files(current_version, new_version):
+        sys.exit(1)
     
-    if choice == 'q':
-        print("Exiting.")
-        sys.exit(0)
+    # Step 4: Commit version changes
+    if not commit_version_changes(new_version):
+        sys.exit(1)
     
-    # Execute based on choice
-    success = True
-    release_type = None
+    # Step 5-9: Build, upload to PyPI, push changes, tag, and Docker
+    if not build_package():
+        sys.exit(1)
     
-    if choice == 'a':  # Test only
-        # Build with test package name
-        if not build_package(package_name=TESTPYPI_PACKAGE_NAME):
-            sys.exit(1)
-        success = upload_to_testpypi()
-        release_type = 'test'
+    if not upload_to_pypi():
+        sys.exit(1)
     
-    elif choice == 'b':  # Production only
-        # Build with production package name
-        if not build_package():
-            sys.exit(1)
-        success = upload_to_pypi()
-        if success:
-            create_and_push_tag(version)
-        release_type = 'prod'
+    if not push_git_changes():
+        sys.exit(1)
     
-    elif choice == 'c':  # Both
-        # First build and upload to test
-        if not build_package(package_name=TESTPYPI_PACKAGE_NAME):
-            sys.exit(1)
-        
-        if upload_to_testpypi():
-            print_success("Test release completed successfully!")
-            print_info("Proceeding to production release...")
-            input("Press Enter to continue or Ctrl+C to abort...")
-            
-            # Rebuild with production name and upload
-            if not build_package():
-                sys.exit(1)
-            
-            if upload_to_pypi():
-                create_and_push_tag(version)
-                release_type = 'both'
-            else:
-                success = False
-        else:
-            success = False
-            print_error("Test release failed. Aborting production release.")
+    if not create_and_push_tag(new_version):
+        sys.exit(1)
+    
+    if not build_and_push_docker(new_version):
+        print_warning("Docker build/push failed, but continuing...")
     
     # Print summary
     print_header("Release Summary")
-    if success:
-        print_success(f"Release {version} completed successfully!")
-        print_test_instructions(version, release_type)
-    else:
-        print_error("Release process encountered errors.")
-        sys.exit(1)
+    print_success(f"Release {new_version} completed successfully!")
+    
+    # Reminder about brainlife online
+    print_step(10, "Next Steps")
+    print_warning("REMINDER: Update the default app option on brainlife online")
+    print_test_instructions(new_version, 'prod')
 
 
 if __name__ == "__main__":

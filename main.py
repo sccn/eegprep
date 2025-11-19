@@ -23,10 +23,9 @@ fname = config['set']
 
 EEG = pop_loadset(fname)
 # EEG = pop_eegfiltnew(EEG, locutoff=5,hicutoff=25,revfilt=True,plotfreqz=False)
-EEG = clean_artifacts(EEG, FlatlineCriterion=5,ChannelCriterion=0.87, LineNoiseCriterion=4,Highpass=[0.25, 0.75],BurstCriterion= 20, WindowCriterion=0.25, BurstRejection=True, WindowCriterionTolerances=[float('-inf'), 7])
-EEG = eeg_picard(EEG)
+EEG, _, _, _ = clean_artifacts(EEG, FlatlineCriterion=5,ChannelCriterion=0.87, LineNoiseCriterion=4,Highpass=[0.25, 0.75],BurstCriterion= 20, WindowCriterion=0.25, BurstRejection=True, WindowCriterionTolerances=[float('-inf'), 7])
+EEG = eeg_picard(EEG) #, n_components=5)
 EEG = iclabel(EEG)
-print('It worked')
 
 # create results directory if it does not exist
 if not os.path.exists('results'):
@@ -35,3 +34,4 @@ if not os.path.exists('results'):
 fname = os.path.basename(fname)
 fname_out = fname.replace('.set', '_out.set')
 pop_saveset(EEG, 'results/' + fname_out)
+print('It worked')

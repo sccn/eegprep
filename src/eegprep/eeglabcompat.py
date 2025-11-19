@@ -18,9 +18,15 @@ logger = logging.getLogger(__name__)
 default_runtime = 'OCT'
 
 # directory where temporary .set files are written
-temp_dir = os.path.abspath(os.path.dirname(__file__) + '../../../temp')
-if not os.path.exists(temp_dir):
-    os.makedirs(temp_dir, exist_ok=True)
+# use environment variable if it exists
+if 'TEMP_DIR' in os.environ:
+    temp_dir = os.environ['TEMP_DIR']
+elif 'TMPDIR' in os.environ:
+    temp_dir = os.environ['TMPDIR']
+else:
+    temp_dir = os.path.abspath(os.path.dirname(__file__) + '../../../temp')
+    if not os.path.exists(temp_dir):
+        os.makedirs(temp_dir, exist_ok=True)
 
 class MatlabWrapper:
     """MATLAB engine wrapper that round-trips calls involving the EEGLAB data structure through files."""
