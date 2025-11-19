@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "eegprep"
-version = "0.2.2"
+version = "0.2.3"
 authors = [
   { name="Arnaud Delorme", email="adelorme@gmail.com" },
   { name="Young Truong", email="dt.young112@gmail.com" },

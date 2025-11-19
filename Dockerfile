@@ -1,7 +1,9 @@
 # ---------------------------------------------------------
 # Base image
 # ---------------------------------------------------------
-    FROM ubuntu:latest
+    #    FROM ubuntu:latest
+    FROM --platform=linux/amd64 ubuntu:22.04
+
     # python:3.10-slim
     # Avoid interactive prompts
     ENV DEBIAN_FRONTEND=noninteractive
