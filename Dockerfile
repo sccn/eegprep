@@ -1,7 +1,8 @@
 # ---------------------------------------------------------
 # Base image
 # ---------------------------------------------------------
-    FROM python:3.10-slim
+    FROM ubuntu:latest
+    # python:3.10-slim
     # Avoid interactive prompts
     ENV DEBIAN_FRONTEND=noninteractive
     # ---------------------------------------------------------

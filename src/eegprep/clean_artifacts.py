@@ -32,7 +32,7 @@ def clean_artifacts(
     ChannelCriterionMaxBadTime: float = 0.5,
     BurstCriterionRefMaxBadChns: Union[float, str, None] = 0.075,
     BurstCriterionRefTolerances: Union[Tuple[float, float], str, None] = (-np.inf, 5.5),
-    BurstRejection: str = 'off',
+    BurstRejection: bool = False,
     WindowCriterionTolerances: Union[Tuple[float, float], str, None] = (-np.inf, 7),
     FlatlineCriterion: Union[float, str, None] = 5.0,
     NumSamples: int = 50,
@@ -250,7 +250,7 @@ def clean_artifacts(
                 maxmem=int(MaxMem),
             )
 
-        if BurstRejection.lower() == 'on':
+        if BurstRejection:
             # Determine unchanged samples after ASR repair
             sample_mask = np.sum(np.abs(EEG['data'] - BUR['data']), axis=0) < 1e-8
             # Convert to intervals (start,end) inclusive
