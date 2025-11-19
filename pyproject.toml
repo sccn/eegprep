@@ -37,19 +37,18 @@ dependencies = [
   "scipy>=1.7.0",
   "sympy>=1.14.0",
   "threadpoolctl>=3.6.0",
-  "torch==2.5.1+cpu"
 ]
 
 [project.optional-dependencies]
 torch = [
-  "torch>=1.10.0",
+  "torch>=2.5.1"
 ]
 eeglabio = [
-  "eeglabio>=0.1.2",
+  "eeglabio>=0.1.2"
 ]
 all = [
-  "torch>=1.10.0",
-  "eeglabio>=0.1.2",
+  "torch>=2.5.1",
+  "eeglabio>=0.1.2"
 ]
 
 [tool.setuptools]
