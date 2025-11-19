@@ -460,9 +460,30 @@ def upload_to_pypi():
         return False
 
 
+def push_git_changes():
+    """Push all committed changes to remote."""
+    print_step(7, "Pushing git changes")
+    
+    cmd = "git push"
+    print(f"Running: {cmd}")
+    try:
+        subprocess.run(
+            ["git", "push"],
+            cwd=PROJECT_ROOT,
+            check=True
+        )
+        print_success("Pushed git changes successfully")
+        return True
+    except subprocess.CalledProcessError as e:
+        print_error(f"Failed to push git changes: {e}")
+        print_info("This might be due to credentials or network issues.")
+        print_info(f"To push manually later, run: {Fore.CYAN}git push{Style.RESET_ALL}")
+        return False
+
+
 def create_and_push_tag(version):
     """Create and push git tag for production release."""
-    print_step(7, "Creating and pushing git tag")
+    print_step(8, "Creating and pushing git tag")
     
     tag_name = f"{version}"
     
@@ -500,7 +521,7 @@ def create_and_push_tag(version):
 
 def build_and_push_docker(version):
     """Build and push Docker image."""
-    print_step(8, f"Building and pushing Docker image")
+    print_step(9, f"Building and pushing Docker image")
     
     # Build Docker image
     cmd = f"docker build -t eegprep:{version} -f DOCKERFILE ."
@@ -630,11 +651,14 @@ def main():
     if not commit_version_changes(new_version):
         sys.exit(1)
     
-    # Step 5-8: Build, upload to PyPI, tag, and Docker
+    # Step 5-9: Build, upload to PyPI, push changes, tag, and Docker
     if not build_package():
         sys.exit(1)
     
     if not upload_to_pypi():
+        sys.exit(1)
+    
+    if not push_git_changes():
         sys.exit(1)
     
     if not create_and_push_tag(new_version):
@@ -648,7 +672,7 @@ def main():
     print_success(f"Release {new_version} completed successfully!")
     
     # Reminder about brainlife online
-    print_step(9, "Next Steps")
+    print_step(10, "Next Steps")
     print_warning("REMINDER: Update the default app option on brainlife online")
     print_test_instructions(new_version, 'prod')
 
