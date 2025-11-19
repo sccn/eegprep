@@ -6,6 +6,7 @@ CONCLUSION: The Python implementation achieves perfect numerical parity with
 MATLAB EEGLAB's pop_epoch function across all tested scenarios.
 """
 
+import os
 import numpy as np
 import unittest
 import copy
@@ -14,6 +15,7 @@ from eegprep.eeglabcompat import get_eeglab
 from eegprep.pop_epoch import pop_epoch
 
 
+@unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestPopEpochParity(unittest.TestCase):
     
     def setUp(self):

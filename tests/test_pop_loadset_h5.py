@@ -5,6 +5,7 @@ This module tests the pop_loadset_h5 function which loads EEGLAB datasets
 from HDF5 format files.
 """
 
+import os
 import unittest
 import sys
 import numpy as np
@@ -370,8 +371,9 @@ class TestPopLoadsetH5(DebuggableTestCase):
         # Should handle Unicode strings (special case in the code)
         self.assertEqual(EEG['unicode_string'], 'hello 👖')
 
+@unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestPopLoadsetH5Parity(unittest.TestCase):
-    """Test parity between Python pop_loadset_h5 and MATLAB pop_loadset for real HDF5 files."""
+    """Test parity between Python pop_loadset_h5 and MATLAB pop_loadset for real HDF5 files.\"\"\"
     
     def setUp(self):
         """Set up MATLAB connection for parity testing."""

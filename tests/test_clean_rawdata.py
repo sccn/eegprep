@@ -26,6 +26,7 @@ def ensure_file(fname: str) -> str:
     return local_file
 
 
+@unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestMATLABAccess(unittest.TestCase):
 
     def setUp(self):
@@ -57,6 +58,7 @@ class TestCleanFlatlines(unittest.TestCase):
         np.testing.assert_almost_equal(cleaned_EEG['data'], self.expected, err_msg='clean_flatlines() test failed')
 
 
+@unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestUtilFuncs(DebuggableTestCase):
 
     def setUp(self):

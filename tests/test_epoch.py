@@ -1,4 +1,5 @@
 # test_epoch.py
+import os
 import numpy as np
 import unittest
 
@@ -27,6 +28,7 @@ def _ml_list_of_arrays_to_0_based(list_of_arrays):
     return out
 
 
+@unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestEpochParity(unittest.TestCase):
 
     def setUp(self):

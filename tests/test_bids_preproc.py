@@ -27,8 +27,9 @@ else:
     reservation = ''
 
 
+@unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestBidsPreproc(DebuggableTestCase):
-    """Basic test cases for clean_artifacts function."""
+    """Basic test cases for clean_artifacts function.""
 
     def setUp(self):
         """Set up test fixtures."""

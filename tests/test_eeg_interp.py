@@ -1,3 +1,4 @@
+import os
 import unittest
 import numpy as np
 import os
@@ -17,6 +18,7 @@ from eegprep.eeglabcompat import get_eeglab
 # test_parity_spherical_basic	        2.50e-04	3.18e-03 (0.32%)	Basic spherical, 3 channels, 1 trial
 # test_parity_custom_time_range	        2.49e-04	2.02e-03 (0.20%)	Custom time range, 3 channels
 
+@unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestEegInterpParity(unittest.TestCase):
     """Test parity between Python eeg_interp and MATLAB eeg_interp.m"""
 
@@ -232,6 +234,7 @@ class TestEegInterpParity(unittest.TestCase):
         self._compare_eeg_results(py_result, ml_result)
 
 
+@unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestSphericalSplineParity(unittest.TestCase):
     """Test parity between Python spheric_spline and MATLAB spheric_spline"""
     
@@ -319,6 +322,7 @@ class TestSphericalSplineParity(unittest.TestCase):
                 self.assertTrue(np.allclose(py_result, ml_interpolated, atol=1e-10))
 
 
+@unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestComputeGParity(unittest.TestCase):
     """Test parity between Python computeg and MATLAB computeg"""
     
