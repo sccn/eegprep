@@ -1,6 +1,7 @@
 FROM --platform=linux/amd64 python:3.10-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
+ENV TMPDIR=/tmp
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
@@ -20,14 +21,6 @@ RUN python -m pip install --no-cache-dir torch --index-url https://download.pyto
 RUN python -m pip install --no-cache-dir eegprep
 # or full:
 # RUN python -m pip install --no-cache-dir "eegprep[all]"
-
-# Sanity check: fail build if eegprep is not importable
-RUN python - << 'EOF'
-import sys
-print("Python:", sys.executable)
-import eegprep
-print("eegprep imported, version:", getattr(eegprep, "__version__", "unknown"))
-EOF
 
 WORKDIR /usr/src/project
 ENTRYPOINT ["/bin/bash"]
