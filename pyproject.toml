@@ -37,7 +37,7 @@ dependencies = [
   "scipy>=1.7.0",
   "sympy>=1.14.0",
   "threadpoolctl>=3.6.0",
-  "torch==2.5.1+cpu"
+  "torch==2.8.0"
 ]
 
 [project.optional-dependencies]
