@@ -7,6 +7,8 @@
     # python:3.10-slim
     # Avoid interactive prompts
     ENV DEBIAN_FRONTEND=noninteractive
+    ENV TMPDIR=/tmp
+    
     # ---------------------------------------------------------
     # System dependencies
     # ---------------------------------------------------------
@@ -41,7 +43,8 @@
     # RUN pip install --no-cache-dir ".[all]"
     # Lean install (no ICLabel heavy models)
     RUN git clone https://github.com/sccn/eegprep.git . 
-    RUN python3 -m pip install .[torch] --index-url https://download.pytorch.org/whl/cpu
+    RUN python3 -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+    RUN python3 -m pip install .
 
     # RUN python3 -m pip install --no-cache-dir eegprep@git+https://github.com/sccn/eegprep.git
     # RUN python3 -m pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
