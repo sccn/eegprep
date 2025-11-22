@@ -17,6 +17,10 @@ def matlab_engine_available():
     Returns:
         bool: True if matlab.engine can be imported and started, False otherwise.
     """
+    # Check if MATLAB tests should be skipped via environment variable
+    if os.environ.get('EEGPREP_SKIP_MATLAB', '0') == '1':
+        return False
+    
     try:
         import matlab.engine
         return True
@@ -35,7 +39,7 @@ def skip_without_matlab(test_func):
     """
     return unittest.skipUnless(
         matlab_engine_available(),
-        "MATLAB engine not available"
+        "MATLAB engine not available or skipped"
     )(test_func)
 
 
