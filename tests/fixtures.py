@@ -102,7 +102,7 @@ def create_test_eeg(n_channels=32, n_samples=1000, srate=250.0, n_trials=1):
         'icawinv': None,
         'icasphere': None,
         'icaweights': None,
-        'icachansind': None,
+        'icachansind': np.arange(n_channels),
         'chanlocs': [],
         'urchanlocs': [],
         'chaninfo': {},
@@ -224,7 +224,7 @@ def cleanup_matplotlib():
     plt.cla()
 
 
-class TestFixtures:
+class TestFixturesContextManager:
     """Context manager for common test fixtures.
     
     Usage:

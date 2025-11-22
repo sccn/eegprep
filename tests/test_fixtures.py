@@ -5,9 +5,10 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 
+from . import fixtures
 from .fixtures import (
     mpl_use_agg, rng_seed, create_test_eeg, create_test_eeg_with_ica,
-    create_test_events, cleanup_matplotlib, TestFixtures, small_eeg
+    create_test_events, cleanup_matplotlib, TestFixturesContextManager, small_eeg
 )
 
 
@@ -145,16 +146,16 @@ class TestFixturesContextManager(unittest.TestCase):
     
     def test_context_manager_basic(self):
         """Test basic context manager functionality."""
-        with TestFixtures(seed=456) as fixtures:
+        with TestFixturesContextManager(seed=456) as fixtures:
             eeg = fixtures.create_eeg(n_channels=4)
             self.assertEqual(eeg['nbchan'], 4)
     
     def test_context_manager_reproducible(self):
         """Test context manager provides reproducible results."""
-        with TestFixtures(seed=789) as fixtures:
+        with TestFixturesContextManager(seed=789) as fixtures:
             eeg1 = fixtures.create_eeg(n_channels=4, n_samples=100)
         
-        with TestFixtures(seed=789) as fixtures:
+        with TestFixturesContextManager(seed=789) as fixtures:
             eeg2 = fixtures.create_eeg(n_channels=4, n_samples=100)
         
         np.testing.assert_array_equal(eeg1['data'], eeg2['data'])
@@ -163,7 +164,7 @@ class TestFixturesContextManager(unittest.TestCase):
         """Test context manager sets matplotlib backend."""
         original_backend = matplotlib.get_backend()
         
-        with TestFixtures(mpl_backend='Agg'):
+        with TestFixturesContextManager(mpl_backend='Agg'):
             self.assertEqual(matplotlib.get_backend(), 'Agg')
         
         # Should restore original backend
@@ -171,7 +172,7 @@ class TestFixturesContextManager(unittest.TestCase):
     
     def test_context_manager_methods(self):
         """Test context manager methods."""
-        with TestFixtures() as fixtures:
+        with TestFixturesContextManager() as fixtures:
             # Test EEG creation
             eeg = fixtures.create_eeg(n_channels=8)
             self.assertEqual(eeg['nbchan'], 8)
@@ -193,12 +194,12 @@ class TestFixturesIntegration(unittest.TestCase):
         # This test verifies that using the same seed produces same results
         # even when called from different test methods
         
-        with TestFixtures(seed=999) as fixtures:
+        with TestFixturesContextManager(seed=999) as fixtures:
             eeg = fixtures.create_eeg(n_channels=3, n_samples=50)
             first_sample = eeg['data'][0, 0]
         
         # Call from different context but same seed
-        with TestFixtures(seed=999) as fixtures:
+        with TestFixturesContextManager(seed=999) as fixtures:
             eeg = fixtures.create_eeg(n_channels=3, n_samples=50)
             second_sample = eeg['data'][0, 0]
         
@@ -206,7 +207,7 @@ class TestFixturesIntegration(unittest.TestCase):
     
     def test_fixtures_with_real_processing(self):
         """Test fixtures work with actual data processing."""
-        with TestFixtures(seed=111, mpl_backend='Agg') as fixtures:
+        with TestFixturesContextManager(seed=111, mpl_backend='Agg') as fixtures:
             eeg = fixtures.create_eeg_with_ica(n_channels=4, n_samples=100)
             
             # Test that we can perform basic operations
@@ -222,7 +223,7 @@ class TestFixturesIntegration(unittest.TestCase):
         initial_figs = len(plt.get_fignums())
         
         for i in range(5):
-            with TestFixtures() as fixtures:
+            with TestFixturesContextManager() as fixtures:
                 eeg = fixtures.create_eeg(n_channels=2, n_samples=10)
                 plt.figure()  # Create figure that should be cleaned up
         

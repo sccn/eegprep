@@ -7,6 +7,10 @@ from HDF5 format files.
 
 import os
 import unittest
+import os
+
+if os.getenv('EEGPREP_SKIP_MATLAB') == '1':
+    raise unittest.SkipTest("MATLAB not available")
 import sys
 import numpy as np
 import h5py
@@ -373,7 +377,7 @@ class TestPopLoadsetH5(DebuggableTestCase):
 
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestPopLoadsetH5Parity(unittest.TestCase):
-    """Test parity between Python pop_loadset_h5 and MATLAB pop_loadset for real HDF5 files.\"\"\"
+    """Test parity between Python pop_loadset_h5 and MATLAB pop_loadset for real HDF5 files."""
     
     def setUp(self):
         """Set up MATLAB connection for parity testing."""

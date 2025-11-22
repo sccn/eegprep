@@ -4,6 +4,10 @@ Test suite for bids_preproc.py
 
 import logging
 import unittest
+import os
+
+if os.getenv('EEGPREP_SKIP_MATLAB') == '1':
+    raise unittest.SkipTest("MATLAB not available")
 import sys
 import socket
 import numpy as np
@@ -29,7 +33,7 @@ else:
 
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestBidsPreproc(DebuggableTestCase):
-    """Basic test cases for clean_artifacts function.""
+    """Basic test cases for clean_artifacts function."""
 
     def setUp(self):
         """Set up test fixtures."""

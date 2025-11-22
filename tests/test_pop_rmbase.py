@@ -1,11 +1,15 @@
 import os
 import unittest
+import os
+
+if os.getenv('EEGPREP_SKIP_MATLAB') == '1':
+    raise unittest.SkipTest("MATLAB not available")
 import numpy as np
 
 from eegprep.pop_rmbase import pop_rmbase
 from eegprep.pop_loadset import pop_loadset
 from eegprep.eeglabcompat import get_eeglab
-from fixtures import create_test_eeg
+from .fixtures import create_test_eeg
 
 
 # where the test resources
@@ -140,5 +144,4 @@ class TestPopRmbaseParity(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-
 

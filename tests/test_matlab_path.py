@@ -3,6 +3,11 @@ import unittest
 import os
 import sys
 import subprocess
+import os
+import unittest
+
+if os.getenv('EEGPREP_SKIP_MATLAB') == '1':
+    raise unittest.SkipTest("MATLAB not available")
 
 
 class TestMatlabPath(unittest.TestCase):

@@ -9,6 +9,10 @@ MATLAB EEGLAB's pop_epoch function across all tested scenarios.
 import os
 import numpy as np
 import unittest
+import os
+
+if os.getenv('EEGPREP_SKIP_MATLAB') == '1':
+    raise unittest.SkipTest("MATLAB not available")
 import copy
 
 from eegprep.eeglabcompat import get_eeglab
@@ -694,4 +698,3 @@ differences in data processing, event handling, and epoch extraction.
 
 if __name__ == '__main__':
     unittest.main()
-

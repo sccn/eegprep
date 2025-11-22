@@ -3,9 +3,9 @@ import numpy as np
 import os
 import tempfile
 import shutil
-from src.eegprep.eegobj import EEGobj
-from src.eegprep.pop_select import pop_select # Import pop_select for direct testing if needed
-from src.eegprep.eeg_checkset import eeg_checkset
+from eegprep.eegobj import EEGobj
+from eegprep.pop_select import pop_select # Import pop_select for direct testing if needed
+from eegprep.eeg_checkset import eeg_checkset
 import copy
 
 # Helper function to create a dummy EEG dictionary
