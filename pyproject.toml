@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "eegprep"
-version = "0.2.21"
+dynamic = ["version"]
 authors = [
   { name="Arnaud Delorme", email="adelorme@gmail.com" },
   { name="Young Truong", email="dt.young112@gmail.com" },
@@ -69,6 +69,8 @@ exclude = ["eegprep.eeglab*"]
 [tool.setuptools.exclude-package-data]
 "eegprep" = ["eeglab/**"]
 
+[tool.setuptools.dynamic]
+version = { attr = "eegprep.__version__" }
 
 [project.urls]
 Homepage = "https://github.com/sccn/eegprep"
