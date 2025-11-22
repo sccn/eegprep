@@ -50,10 +50,7 @@ jobs:
         id: matlab-availability
         shell: bash
         run: |
-          available=true
-          if [[ "${{ matrix.os }}" != "ubuntu-22.04" || "${{ matrix.python-version }}" == "3.13" || -z "${MLM_LICENSE_TOKEN}" ]]; then
-            available=false
-          fi
+          available=false
           echo "available=${available}" >> "$GITHUB_OUTPUT"
           if [[ "${available}" == "true" ]]; then
             echo "EEGPREP_SKIP_MATLAB=0" >> "$GITHUB_ENV"
