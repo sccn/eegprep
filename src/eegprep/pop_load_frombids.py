@@ -880,7 +880,8 @@ def pop_load_frombids(
             filenames = sorted(os.listdir(montage_path))
         
         for filename in filenames:
-            if not filename.endswith('.locs'):
+            # check if it is not the README.md file
+            if not filename.endswith('.locs') and filename != 'README.md':
                 raise ValueError(f"Only montage files with the .locs extension are supported, "
                                  f"but found {filename}. These are MATLAB v7 .mat files; "
                                  f"please convert your montage into the appropriate format.")

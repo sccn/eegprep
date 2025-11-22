@@ -38,9 +38,9 @@ The MATLAB and Python implementations were compared using the first two subjects
 # Docker (SCCN Power Users)
 
 ```
-docker build -t eegprep:0.2.6 -f DOCKERFILE .
-docker tag eegprep:0.2.6 arnodelorme/eegprep:0.2.6
-docker push arnodelorme/eegprep:0.2.6
+docker build -t eegprep:0.2.9 -f DOCKERFILE .
+docker tag eegprep:0.2.9 arnodelorme/eegprep:0.2.9
+docker push arnodelorme/eegprep:0.2.9
 ```
 
 Check the project on https://hub.docker.com/
@@ -126,7 +126,17 @@ pip install eegprep[all]
 
 ## Running Tests
 
-Install MATLAB interface `pip install /your/path/to/matlab/extern/engines/python`
+Install MATLAB interface `pip install /your/path/to/matlab/extern/engines/python` (for example on OSx `pip install /Applications/MATLAB_R2025a.app/extern/engines/python 
+Processing /Applications/MATLAB_R2025a.app/extern/engines/python`)
+
+Check installation
+
+```python
+import matlab.engine
+engine = matlab.engine.start_matlab()
+engine.eval("disp('hello world');", nargout=0)
+```
+
 Use tests/main_compare.m
 
 This project uses `unittest`. You can run tests from the project root via the command:
