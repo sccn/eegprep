@@ -52,13 +52,13 @@ jobs:
       if: matrix.os == 'ubuntu-22.04'
       shell: bash
       run: |
-        echo "${{ runner.tool_cache }}/MATLAB/2021.2.999/${{ runner.arch }}/bin" >> $GITHUB_PATH
+        echo "${{ runner.tool_cache }}/MATLAB/2021.2.999/x64/bin" >> $GITHUB_PATH
     
     - name: Install Python MATLAB Engine
       if: matrix.os == 'ubuntu-22.04'
       shell: bash
       run: |
-        cd "${{ runner.tool_cache }}/MATLAB/2021.2.999/${{ runner.arch }}/extern/engines/python"
+        cd "${{ runner.tool_cache }}/MATLAB/2021.2.999/x64/extern/engines/python"
         python -m pip install .
     
     - name: Install dependencies
