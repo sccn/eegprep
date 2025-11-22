@@ -157,7 +157,7 @@ class TestFixturesFunctions(unittest.TestCase):
         self.assertEqual(eeg['data'].shape, (8, 250))
 
 
-class TestFixturesContextManager(unittest.TestCase):
+class TestContextManager(unittest.TestCase):
     """Test TestFixtures context manager."""
     
     def test_context_manager_basic(self):
