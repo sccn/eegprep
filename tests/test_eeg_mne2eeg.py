@@ -21,7 +21,10 @@ except ImportError:
     MNE_AVAILABLE = False
 
 from eegprep.eeg_mne2eeg import eeg_mne2eeg, _mne_events_to_eeglab_events
-from .fixtures import create_test_eeg
+try:
+    from .fixtures import create_test_eeg
+except ImportError:
+    from fixtures import create_test_eeg
 
 
 class TestEEGMNE2EEG(unittest.TestCase):

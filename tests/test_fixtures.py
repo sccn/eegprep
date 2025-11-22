@@ -5,11 +5,18 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 
-from . import fixtures
-from .fixtures import (
-    mpl_use_agg, rng_seed, create_test_eeg, create_test_eeg_with_ica,
-    create_test_events, cleanup_matplotlib, TestFixturesContextManager, small_eeg
-)
+try:
+    from . import fixtures
+    from .fixtures import (
+        mpl_use_agg, rng_seed, create_test_eeg, create_test_eeg_with_ica,
+        create_test_events, cleanup_matplotlib, TestFixturesContextManager, small_eeg
+    )
+except ImportError:
+    import fixtures
+    from fixtures import (
+        mpl_use_agg, rng_seed, create_test_eeg, create_test_eeg_with_ica,
+        create_test_events, cleanup_matplotlib, TestFixturesContextManager, small_eeg
+    )
 
 
 class TestFixturesFunctions(unittest.TestCase):

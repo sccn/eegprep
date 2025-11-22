@@ -27,7 +27,10 @@ except ImportError:
     MNE_AVAILABLE = False
 
 from eegprep.eeg_mne2eeg_epochs import eeg_mne2eeg_epochs
-from .fixtures import create_test_eeg
+try:
+    from .fixtures import create_test_eeg
+except ImportError:
+    from fixtures import create_test_eeg
 
 
 class TestEEGMNE2EEGEpochs(unittest.TestCase):

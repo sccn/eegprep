@@ -26,7 +26,10 @@ except ImportError:
 
 from eegprep.eeg_eeg2mne import eeg_eeg2mne
 from eegprep.eeglabcompat import get_eeglab
-from .fixtures import create_test_eeg
+try:
+    from .fixtures import create_test_eeg
+except ImportError:
+    from fixtures import create_test_eeg
 
 
 class TestEEGEEG2MNE(unittest.TestCase):
