@@ -7,6 +7,7 @@ from eegprep import *
 # where the test resources
 local_url = os.path.join(os.path.dirname(__file__), '../data/')
 
+@unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestICLabelEngines(unittest.TestCase):
 
     def setUp(self):

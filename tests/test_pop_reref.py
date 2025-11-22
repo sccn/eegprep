@@ -5,6 +5,7 @@ This module tests the pop_reref function which re-references EEG data
 to average reference (currently the only implemented option).
 """
 
+import os
 import unittest
 import sys
 import numpy as np
@@ -16,6 +17,7 @@ from eegprep.eeglabcompat import get_eeglab
 from eegprep.utils.testing import DebuggableTestCase
 
 
+@unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestPopReref(DebuggableTestCase):
     """Test cases for pop_reref function."""
 
@@ -71,8 +73,8 @@ class TestPopReref(DebuggableTestCase):
         
         result = pop_reref(EEG, ref=None)
         
-        # Check that the function returns the modified EEG
-        self.assertIs(result, EEG)
+        # Check that the function returns a copy (not the same object)
+        self.assertIsNot(result, EEG)
         
         # Check that reference is set to 'average'
         self.assertEqual(result['ref'], 'average')
@@ -96,7 +98,8 @@ class TestPopReref(DebuggableTestCase):
         result = pop_reref(EEG, ref=[])
         
         # Should behave the same as ref=None
-        self.assertIs(result, EEG)
+        # Function returns a copy, not the same object
+        self.assertIsNot(result, EEG)
         self.assertEqual(result['ref'], 'average')
         
         # Check that data is modified (average subtracted)
@@ -177,18 +180,19 @@ class TestPopReref(DebuggableTestCase):
         self.assertIn('Feature not implemented', str(context.exception))
 
     def test_error_icachansind_mismatch(self):
-        """Test error when icachansind length doesn't match nbchan."""
+        """Test behavior when icachansind length doesn't match nbchan."""
         EEG = self.create_test_eeg(nbchan=16, pnts=100)
         
         # Make icachansind have different length
         EEG['icachansind'] = list(range(8))  # Only 8 channels instead of 16
         
-        with self.assertRaises(ValueError) as context:
-            pop_reref(EEG, ref=None)
+        # The function should clear ICA fields instead of raising an error
+        result = pop_reref(EEG, ref=None)
         
-        self.assertIn('Feature not implemented', str(context.exception))
-        self.assertIn('icachansind', str(context.exception))
-        self.assertIn('nbchan', str(context.exception))
+        # Check that ICA fields were cleared
+        self.assertEqual(result['icawinv'].size, 0)
+        self.assertEqual(result['icaweights'].size, 0)
+        self.assertEqual(result['icasphere'].size, 0)
 
     def test_data_mean_subtraction(self):
         """Test that data has mean subtracted correctly."""

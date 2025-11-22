@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "eegprep"
-version = "0.2.22"
+dynamic = ["version"]
 authors = [
   { name="Arnaud Delorme", email="adelorme@gmail.com" },
   { name="Young Truong", email="dt.young112@gmail.com" },
@@ -28,7 +28,7 @@ dependencies = [
   "matplotlib>=3.4.0",
   "mne>=1.10.0",
   "neo>=0.14.2",
-  "numpy<2",
+  "numpy>=1.20",
   "oct2py>=5.5.0",
   "psutil>=7.0.0",
   "pybids>=0.4",
@@ -69,6 +69,8 @@ exclude = ["eegprep.eeglab*"]
 [tool.setuptools.exclude-package-data]
 "eegprep" = ["eeglab/**"]
 
+[tool.setuptools.dynamic]
+version = { attr = "eegprep.__version__" }
 
 [project.urls]
 Homepage = "https://github.com/sccn/eegprep"

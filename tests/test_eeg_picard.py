@@ -275,6 +275,7 @@ class TestEegPicardSimple(DebuggableTestCase):
             self.skipTest(f"eeg_picard ortho parameter test not available: {e}")
 
 
+@unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestEegPicard(unittest.TestCase):
 
     def setUp(self):
