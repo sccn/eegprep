@@ -5,9 +5,38 @@ across different test modules.
 """
 
 import os
+import unittest
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
+
+
+def matlab_engine_available():
+    """Check if MATLAB engine is available for Python.
+    
+    Returns:
+        bool: True if matlab.engine can be imported and started, False otherwise.
+    """
+    try:
+        import matlab.engine
+        return True
+    except ImportError:
+        return False
+
+
+def skip_without_matlab(test_func):
+    """Decorator to skip tests that require MATLAB engine.
+    
+    Usage:
+        @skip_without_matlab
+        def test_matlab_function(self):
+            # Test code that requires MATLAB
+            pass
+    """
+    return unittest.skipUnless(
+        matlab_engine_available(),
+        "MATLAB engine not available"
+    )(test_func)
 
 
 def mpl_use_agg():

@@ -43,27 +43,35 @@ jobs:
         python-version: ${{ matrix.python-version }}
     
     - name: Set up MATLAB
+      if: matrix.os == 'ubuntu-22.04'
       uses: matlab-actions/setup-matlab@v2
       with:
         release: R2021b
     
     - name: Add MATLAB to PATH
+      if: matrix.os == 'ubuntu-22.04'
       shell: bash
       run: |
         echo "${{ runner.tool_cache }}/MATLAB/2021.2.999/${{ runner.arch }}/bin" >> $GITHUB_PATH
+    
+    - name: Install Python MATLAB Engine
+      if: matrix.os == 'ubuntu-22.04'
+      shell: bash
+      run: |
+        cd "${{ runner.tool_cache }}/MATLAB/2021.2.999/${{ runner.arch }}/extern/engines/python"
+        python -m pip install .
     
     - name: Install dependencies
       run: |
         uv pip install --system -e .[all]
     
     - name: Run MATLAB tests
+      if: matrix.os == 'ubuntu-22.04'
       uses: matlab-actions/run-command@v2
       with:
         command: "ver"
     
     - name: Run Python tests
-      env:
-        EEGPREP_SKIP_MATLAB: "1"
       run: |
         python -m unittest discover -s tests
     
