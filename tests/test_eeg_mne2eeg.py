@@ -21,9 +21,17 @@ except ImportError:
     MNE_AVAILABLE = False
 
 from eegprep.eeg_mne2eeg import eeg_mne2eeg, _mne_events_to_eeglab_events
+
+# Import fixtures - use absolute import to work with unittest discovery
 try:
+    # Try pytest-style relative import first
     from .fixtures import create_test_eeg
-except ImportError:
+except (ImportError, ValueError):
+    # Fallback for unittest: add tests dir to path if needed
+    import os
+    test_dir = os.path.dirname(os.path.abspath(__file__))
+    if test_dir not in sys.path:
+        sys.path.insert(0, test_dir)
     from fixtures import create_test_eeg
 
 

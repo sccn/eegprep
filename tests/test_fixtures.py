@@ -2,16 +2,25 @@
 
 import unittest
 import numpy as np
+import os
+import sys
 import matplotlib
 import matplotlib.pyplot as plt
 
+# Ensure tests dir is in path for unittest discovery
+test_dir = os.path.dirname(os.path.abspath(__file__))
+if test_dir not in sys.path:
+    sys.path.insert(0, test_dir)
+
 try:
+    # Try pytest-style relative import first
     from . import fixtures
     from .fixtures import (
         mpl_use_agg, rng_seed, create_test_eeg, create_test_eeg_with_ica,
         create_test_events, cleanup_matplotlib, TestFixturesContextManager, small_eeg
     )
-except ImportError:
+except (ImportError, ValueError):
+    # Fallback for unittest discovery
     import fixtures
     from fixtures import (
         mpl_use_agg, rng_seed, create_test_eeg, create_test_eeg_with_ica,

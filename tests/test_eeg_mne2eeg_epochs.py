@@ -18,6 +18,10 @@ import math
 
 # Add src to path for imports
 sys.path.insert(0, 'src')
+# Ensure tests dir is in path for unittest discovery
+test_dir = os.path.dirname(os.path.abspath(__file__))
+if test_dir not in sys.path:
+    sys.path.insert(0, test_dir)
 
 try:
     import mne
@@ -29,7 +33,7 @@ except ImportError:
 from eegprep.eeg_mne2eeg_epochs import eeg_mne2eeg_epochs
 try:
     from .fixtures import create_test_eeg
-except ImportError:
+except (ImportError, ValueError):
     from fixtures import create_test_eeg
 
 

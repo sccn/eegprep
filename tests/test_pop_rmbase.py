@@ -4,14 +4,20 @@ import os
 
 if os.getenv('EEGPREP_SKIP_MATLAB') == '1':
     raise unittest.SkipTest("MATLAB not available")
+import sys
 import numpy as np
+
+# Ensure tests dir is in path for unittest discovery
+test_dir = os.path.dirname(os.path.abspath(__file__))
+if test_dir not in sys.path:
+    sys.path.insert(0, test_dir)
 
 from eegprep.pop_rmbase import pop_rmbase
 from eegprep.pop_loadset import pop_loadset
 from eegprep.eeglabcompat import get_eeglab
 try:
     from .fixtures import create_test_eeg
-except ImportError:
+except (ImportError, ValueError):
     from fixtures import create_test_eeg
 
 

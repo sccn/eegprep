@@ -16,6 +16,11 @@ import tempfile
 import os
 import shutil
 
+# Ensure tests dir is in path for unittest discovery
+test_dir = os.path.dirname(os.path.abspath(__file__))
+if test_dir not in sys.path:
+    sys.path.insert(0, test_dir)
+
 try:
     import mne
     from mne.io.base import BaseRaw
@@ -28,7 +33,7 @@ from eegprep.eeg_eeg2mne import eeg_eeg2mne
 from eegprep.eeglabcompat import get_eeglab
 try:
     from .fixtures import create_test_eeg
-except ImportError:
+except (ImportError, ValueError):
     from fixtures import create_test_eeg
 
 
