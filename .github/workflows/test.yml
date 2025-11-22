@@ -53,18 +53,39 @@ jobs:
         release: R2024b
         products: MATLAB
     
-    - name: Add MATLAB to PATH
+    - name: Locate MATLAB root
       if: matrix.os == 'ubuntu-22.04' && matrix.python-version != '3.13'
       shell: bash
       run: |
-        echo "${{ runner.tool_cache }}/MATLAB/2024.2.999/x64/bin" >> $GITHUB_PATH
+        MATLAB_ROOT=$(python - <<'PY'
+import os
+from pathlib import Path
+tool_cache = Path(os.environ.get("RUNNER_TOOL_CACHE", "")) / "MATLAB"
+candidates = sorted(tool_cache.glob("*/x64"))
+if not candidates:
+    raise SystemExit(f"No MATLAB installation found under {tool_cache}")
+print(candidates[-1])
+PY
+)
+        echo "MATLAB_ROOT=$MATLAB_ROOT" >> $GITHUB_ENV
+        echo "$MATLAB_ROOT/bin" >> $GITHUB_PATH
     
     - name: Install Python MATLAB Engine
       if: matrix.os == 'ubuntu-22.04' && matrix.python-version != '3.13'
       shell: bash
       run: |
-        cd "${{ runner.tool_cache }}/MATLAB/2024.2.999/x64/extern/engines/python"
-        python -m pip install .
+        python -m pip install "${MATLAB_ROOT}/extern/engines/python"
+    
+    - name: Verify MATLAB Engine
+      if: matrix.os == 'ubuntu-22.04' && matrix.python-version != '3.13'
+      shell: bash
+      run: |
+        python - <<'PY'
+import matlab.engine
+engine = matlab.engine.start_matlab()
+engine.eval("disp('hello world');", nargout=0)
+engine.quit()
+PY
     
     - name: Install dependencies
       run: |
