@@ -8,7 +8,7 @@ on:
 
 env:
   # Set MATLAB batch licensing token for private repos or when using MATLAB Engine
-  MLM_LICENSE_TOKEN: ${{ secrets.MATLAB_LICENSE_TOKEN }}
+  MLM_LICENSE_TOKEN: ${{ secrets.MLM_LICENSE_TOKEN }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -46,15 +46,30 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
     
+      - name: Determine MATLAB availability
+        id: matlab-availability
+        shell: bash
+        run: |
+          available=true
+          if [[ "${{ matrix.os }}" != "ubuntu-22.04" || "${{ matrix.python-version }}" == "3.13" || -z "${MLM_LICENSE_TOKEN}" ]]; then
+            available=false
+          fi
+          echo "available=${available}" >> "$GITHUB_OUTPUT"
+          if [[ "${available}" == "true" ]]; then
+            echo "EEGPREP_SKIP_MATLAB=0" >> "$GITHUB_ENV"
+          else
+            echo "EEGPREP_SKIP_MATLAB=1" >> "$GITHUB_ENV"
+          fi
+    
       - name: Set up MATLAB
-        if: matrix.os == 'ubuntu-22.04' && matrix.python-version != '3.13'
+        if: steps.matlab-availability.outputs.available == 'true'
         uses: matlab-actions/setup-matlab@v2
         with:
           release: R2024b
           products: MATLAB
     
       - name: Locate MATLAB root
-        if: matrix.os == 'ubuntu-22.04' && matrix.python-version != '3.13'
+        if: steps.matlab-availability.outputs.available == 'true'
         shell: bash
         run: |
           MATLAB_ROOT=$(python - <<'PY'
@@ -71,13 +86,13 @@ jobs:
           echo "$MATLAB_ROOT/bin" >> $GITHUB_PATH
     
       - name: Install Python MATLAB Engine
-        if: matrix.os == 'ubuntu-22.04' && matrix.python-version != '3.13'
+        if: steps.matlab-availability.outputs.available == 'true'
         shell: bash
         run: |
           python -m pip install "${MATLAB_ROOT}/extern/engines/python"
     
       - name: Verify MATLAB Engine
-        if: matrix.os == 'ubuntu-22.04' && matrix.python-version != '3.13'
+        if: steps.matlab-availability.outputs.available == 'true'
         shell: bash
         run: |
           python - <<'PY'
@@ -92,14 +107,12 @@ jobs:
           uv pip install --system -e .[all]
     
       - name: Run MATLAB tests
-        if: matrix.os == 'ubuntu-22.04' && matrix.python-version != '3.13'
+        if: steps.matlab-availability.outputs.available == 'true'
         uses: matlab-actions/run-command@v2
         with:
           command: "ver"
     
       - name: Run Python tests
-        env:
-          EEGPREP_SKIP_MATLAB: ${{ matrix.python-version == '3.13' && '1' || '0' }}
         run: |
           python -m unittest discover -s tests
     
