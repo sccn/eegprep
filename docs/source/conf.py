@@ -71,7 +71,7 @@ html_theme_options = {
     "icon_links": [
         {
             "name": "GitHub",
-            "url": "https://github.com/NeuroTechX/eegprep",
+            "url": "https://github.com/sccn/eegprep",
             "icon": "fab fa-github-square",
         },
     ],
