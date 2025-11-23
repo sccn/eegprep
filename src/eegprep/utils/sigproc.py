@@ -1,3 +1,5 @@
+"""Signal processing utilities."""
+
 from typing import *
 
 import numpy as np
@@ -14,20 +16,26 @@ def design_kaiser(
         want_odd: bool,
         use_scipy: bool = False
 ) -> np.ndarray:
-    """
-    Design a Kaiser window for a low-pass FIR filter.
+    """Design a Kaiser window for a low-pass FIR filter.
 
-    Args:
-        lo: normalized lower edge of the transition band
-        hi: normalized upper edge of the transition band
-        atten: stop-band attenuation in dB (-20log10(ratio))
-        want_odd: whether the desired window length shall be odd
-        use_scipy: whether to use scipy's kaiserord() function, which gives
-          an approx. 2x longer window than the original function clean_rawdata
+    Parameters
+    ----------
+    lo : float
+        Normalized lower edge of the transition band.
+    hi : float
+        Normalized upper edge of the transition band.
+    atten : float
+        Stop-band attenuation in dB (-20log10(ratio)).
+    want_odd : bool
+        Whether the desired window length shall be odd.
+    use_scipy : bool, optional
+        Whether to use scipy's kaiserord() function, which gives
+        an approx. 2x longer window than the original function clean_rawdata.
 
-    Returns:
-        the Kaiser window
-
+    Returns
+    -------
+    np.ndarray
+        The Kaiser window.
     """
     from scipy.signal import kaiserord
     from scipy.signal.windows import kaiser
@@ -61,20 +69,32 @@ def design_fir(
         w: Optional[np.ndarray] = None,
         compat: bool = True,
 ) -> np.ndarray:
-    """
-    Design an FIR filter using the frequency-sampling method.
+    """Design an FIR filter using the frequency-sampling method.
+
     The frequency response is interpolated cubically between the specified
     frequency points.
 
-    Args:
-      n: order of the filter
-      f: vector of frequencies at which amplitudes shall be defined
-         (starts with 0 and goes up to 1; try to avoid too sharp transitions)
-      a: vector of amplitudes, one value per specified frequency
-      nfft: optionally number of FFT bins to use
-      w: optionally the window function to use
-      compat: whether to use the original MATLAB-compatible filter design
-        (where the window is off by 1 sample)
+    Parameters
+    ----------
+    n : int
+        Order of the filter.
+    f : array_like
+        Vector of frequencies at which amplitudes shall be defined
+        (starts with 0 and goes up to 1; try to avoid too sharp transitions).
+    a : array_like
+        Vector of amplitudes, one value per specified frequency.
+    nfft : int, optional
+        Optionally number of FFT bins to use.
+    w : array_like, optional
+        Optionally the window function to use.
+    compat : bool, optional
+        Whether to use the original MATLAB-compatible filter design
+        (where the window is off by 1 sample).
+
+    Returns
+    -------
+    np.ndarray
+        The filter coefficients.
     """
     from scipy.interpolate import PchipInterpolator
     f, a = np.asarray(f), np.asarray(a)
@@ -104,15 +124,24 @@ def filtfilt_fast(
         a: Union[float, np.ndarray],
         x: np.ndarray,
 ) -> np.ndarray:
-    """
-    Apply a zero-phase forward-backward filter to a signal using FFTs; this is a
-    drop-in replacement for scipy.signal.filtfilt() that is considerably faster
+    """Apply a zero-phase forward-backward filter to a signal using FFTs.
+
+    This is a drop-in replacement for scipy.signal.filtfilt() that is considerably faster
     for long signals.
 
-    Args:
-      b: numerator coefficients of the filter
-      a: must be 1
-      x: signal to filter (1-D array)
+    Parameters
+    ----------
+    b : np.ndarray
+        Numerator coefficients of the filter.
+    a : float or np.ndarray
+        Must be 1.
+    x : np.ndarray
+        Signal to filter (1-D array).
+
+    Returns
+    -------
+    np.ndarray
+        The filtered signal.
     """
     assert a == 1, "a must be 1; use filtfilt() for IIR filters"
     n = len(b)
@@ -131,52 +160,64 @@ def filtfilt_fast(
 def moving_average(X, *, N=3, axis=-1, Z=None, inplace=False, transform=None, init=None):
     """lfilter()-style moving average function with support for state.
 
-    Args:
-        X: signal to filter
-        N: number of points that shall be averaged (window length)
-        axis: axis along which to filter; note: IF you use transform, and if
-          it inserts additional axes, the same index needs to work before and
-          after the transform (e.g., you can use negative indices to count from
-          the end if needed to accomplish that)
-        Z: initial state (or None)
-        inplace: whether to overwrite the input
-        transform: optionally a transformation to apply to each input sample,
-          usually to generate higher-dimensional data; one use case is to calculate
-          covariance matrices per sample on the fly instead of having the moving average
-          to apply to and buffer potentially very large covariance data
-          (by passing lambda x: x[:, None] @ x[None, :])
-        init: how to behave on the first N samples of input; if set to 0,
-          this will behave as if the data were pre-pended by zeros; if set to None,
-          this will average the (fewer, noisier) samples in the buffer.
+    Parameters
+    ----------
+    X : array_like
+        Signal to filter.
+    N : int, optional
+        Number of points that shall be averaged (window length).
+    axis : int, optional
+        Axis along which to filter; note: IF you use transform, and if
+        it inserts additional axes, the same index needs to work before and
+        after the transform (e.g., you can use negative indices to count from
+        the end if needed to accomplish that).
+    Z : object, optional
+        Initial state (or None).
+    inplace : bool, optional
+        Whether to overwrite the input.
+    transform : callable, optional
+        Optionally a transformation to apply to each input sample,
+        usually to generate higher-dimensional data; one use case is to calculate
+        covariance matrices per sample on the fly instead of having the moving average
+        to apply to and buffer potentially very large covariance data
+        (by passing lambda x: x[:, None] @ x[None, :]).
+    init : int or None, optional
+        How to behave on the first N samples of input; if set to 0,
+        this will behave as if the data were pre-pended by zeros; if set to None,
+        this will average the (fewer, noisier) samples in the buffer.
 
-    Returns:
-        X': filtered signal
-        Z': final state (can be passed into the next call to moving_average())
-        
-    License:
-        Copyright (c) 2015-2025 Syntrogi Inc. dba Intheon.
+    Returns
+    -------
+    X' : array_like
+        Filtered signal.
+    Z' : object
+        Final state (can be passed into the next call to moving_average()).
 
-        Permission is hereby granted, free of charge, to any person obtaining a copy
-        of this software and associated documentation files (the "Software"), to deal
-        in the Software without restriction, including without limitation the rights
-        to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-        copies of the Software, and to permit persons to whom the Software is
-        furnished to do so, subject to the following conditions:
+    License
+    -------
+    Copyright (c) 2015-2025 Syntrogi Inc. dba Intheon.
 
-        The above copyright notice and this permission notice shall be included in all
-        copies or substantial portions of the Software.
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
 
-        THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-        IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-        FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-        AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-        LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-        OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-        SOFTWARE.
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
 
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
     """
     class MovAvgState:
         """State representation for moving_average() filter function."""
+
         def __init__(self, p, buf, acc, n):
             self.p, self.buf, self.acc, self.n = p, buf, acc, n
 
@@ -232,25 +273,35 @@ def moving_average(X, *, N=3, axis=-1, Z=None, inplace=False, transform=None, in
 
 
 def firws(m: int, f: Union[float, Sequence[float]], t: Optional[str] = None, w: Optional[np.ndarray] = None) -> Tuple[np.ndarray, float]:
-    """
-    Designs windowed sinc type I linear phase FIR filter.
+    """Designs windowed sinc type I linear phase FIR filter.
 
-    Args:
-        m: filter order (mandatory even)
-        f: vector or scalar of cutoff frequency/ies (-6 dB; pi rad / sample)
-        t: 'high' for highpass, 'stop' for bandstop filter (default low-/bandpass)
-        w: vector of length m + 1 defining window (default hamming)
+    Parameters
+    ----------
+    m : int
+        Filter order (mandatory even).
+    f : float or sequence of float
+        Vector or scalar of cutoff frequency/ies (-6 dB; pi rad / sample).
+    t : str, optional
+        'high' for highpass, 'stop' for bandstop filter (default low-/bandpass).
+    w : array_like, optional
+        Vector of length m + 1 defining window (default hamming).
 
-    Returns:
-        b: filter coefficients
-        a: always 1 (FIR filter)
+    Returns
+    -------
+    b : np.ndarray
+        Filter coefficients.
+    a : float
+        Always 1 (FIR filter).
 
-    Example:
-        fs = 500; cutoff = 0.5; df = 1;
-        m = firwsord('hamming', fs, df)[0]
-        b, a = firws(m, cutoff / (fs / 2), 'high', scipy.signal.windows.hamming(m + 1))
+    Examples
+    --------
+    fs = 500; cutoff = 0.5; df = 1;
+    m = firwsord('hamming', fs, df)[0]
+    b, a = firws(m, cutoff / (fs / 2), 'high', scipy.signal.windows.hamming(m + 1))
 
-    Based on a MATLAB implementation by Andreas Widmann, University of Leipzig, 2005
+    Notes
+    -----
+    Based on a MATLAB implementation by Andreas Widmann, University of Leipzig, 2005.
     """
     from scipy.signal.windows import hamming
 
@@ -296,16 +347,21 @@ def firws(m: int, f: Union[float, Sequence[float]], t: Optional[str] = None, w: 
 
 
 def _fkernel(m: int, f: float, w: np.ndarray) -> np.ndarray:
-    """
-    Compute filter kernel.
+    """Compute filter kernel.
 
-    Args:
-        m: filter order
-        f: normalized cutoff frequency
-        w: window function
+    Parameters
+    ----------
+    m : int
+        Filter order.
+    f : float
+        Normalized cutoff frequency.
+    w : np.ndarray
+        Window function.
 
-    Returns:
-        b: filter kernel
+    Returns
+    -------
+    b : np.ndarray
+        Filter kernel.
     """
     # Create range -m/2 : m/2
     n = np.arange(-m//2, m//2 + 1, dtype=float)
@@ -331,14 +387,17 @@ def _fkernel(m: int, f: float, w: np.ndarray) -> np.ndarray:
 
 
 def _fspecinv(b: np.ndarray) -> np.ndarray:
-    """
-    Spectral inversion.
+    """Perform spectral inversion.
 
-    Args:
-        b: filter coefficients
+    Parameters
+    ----------
+    b : np.ndarray
+        Filter coefficients.
 
-    Returns:
-        b_inv: spectrally inverted filter coefficients
+    Returns
+    -------
+    b_inv : np.ndarray
+        Spectrally inverted filter coefficients.
     """
     b_inv = -b.copy()
     center_idx = (len(b) - 1) // 2
@@ -347,23 +406,29 @@ def _fspecinv(b: np.ndarray) -> np.ndarray:
 
 
 def firwsord(wintype: str, fs: float, df: float, dev: Optional[float] = None) -> Tuple[int, float]:
+    """Estimate windowed sinc FIR filter order depending on window type and requested transition band width.
+
+    Parameters
+    ----------
+    wintype : str
+        Window type. One of 'rectangular', 'hann', 'hamming', 'blackman', or 'kaiser'.
+    fs : float
+        Sampling frequency.
+    df : float
+        Requested transition band width.
+    dev : float, optional
+        Maximum passband deviation/ripple (Kaiser window only).
+
+    Returns
+    -------
+    m : int
+        Estimated filter order.
+    dev : float
+        Maximum passband deviation/ripple.
+    Notes
+    -----
+    Based on a MATLAB implementation by Andreas Widmann, University of Leipzig, 2005.
     """
-    Estimate windowed sinc FIR filter order depending on window type and
-    requested transition band width.
-
-    Args:
-        wintype: Window type. One of 'rectangular', 'hann', 'hamming', 'blackman', or 'kaiser'
-        fs: Sampling frequency
-        df: Requested transition band width
-        dev: Maximum passband deviation/ripple (Kaiser window only)
-
-    Returns:
-        m: Estimated filter order
-        dev: Maximum passband deviation/ripple
-
-    Based on a MATLAB implementation by Andreas Widmann, University of Leipzig, 2005
-    """
-
     win_type_array = ['rectangular', 'hann', 'hamming', 'blackman', 'kaiser']
     win_df_array = [0.9, 3.1, 3.3, 5.5]
     win_dev_array = [0.089, 0.0063, 0.0022, 0.0002]

@@ -1,4 +1,6 @@
 
+"""Miscellaneous utility functions."""
+
 import sys
 import math
 from typing import Optional
@@ -32,46 +34,56 @@ _RAISE_KEYERROR = object()
 
 def get_nested(data: dict, key: str, default=_RAISE_KEYERROR, separator: str = '.'):
     """Deep (recursive) dictionary lookup using dot-notation keys.
-    
+
     Retrieves a value from a nested dictionary structure using a dot-separated
     key path. For example, 'user.profile.name' would access data['user']['profile']['name'].
-    
-    Args:
-        data: The dictionary to search in
-        key: The dot-notation key path (e.g., 'user.profile.name')
-        default: The value to return if the key path is not found. If not provided,
-                 a KeyError will be raised when the key is not found.
-        separator: The separator character to use for splitting the key (default: '.')
-    
-    Returns:
-        The value at the nested location, or the default value if not found
-        
-    Raises:
-        KeyError: If the key path is not found and no default value is provided
-        
-    Examples:
-        >>> data = {'user': {'profile': {'name': 'John', 'age': 30}}}
-        >>> get_nested(data, 'user.profile.name')
-        'John'
-        >>> get_nested(data, 'user.profile.age')
-        30
-        >>> get_nested(data, 'user.email', default='not@found.com')
-        'not@found.com'
-        >>> get_nested(data, 'user.profile.address.city', default='Unknown')
-        'Unknown'
-        >>> get_nested(data, 'user.nonexistent')  # Raises KeyError
-        Traceback (most recent call last):
-            ...
-        KeyError: 'user.nonexistent'
+
+    Parameters
+    ----------
+    data : dict
+        The dictionary to search in.
+    key : str
+        The dot-notation key path (e.g., 'user.profile.name').
+    default : object
+        The value to return if the key path is not found. If not provided,
+        a KeyError will be raised when the key is not found.
+    separator : str
+        The separator character to use for splitting the key (default: '.').
+
+    Returns
+    -------
+    object
+        The value at the nested location, or the default value if not found.
+
+    Raises
+    ------
+    KeyError
+        If the key path is not found and no default value is provided.
+
+    Examples
+    --------
+    >>> data = {'user': {'profile': {'name': 'John', 'age': 30}}}
+    >>> get_nested(data, 'user.profile.name')
+    'John'
+    >>> get_nested(data, 'user.profile.age')
+    30
+    >>> get_nested(data, 'user.email', default='not@found.com')
+    'not@found.com'
+    >>> get_nested(data, 'user.profile.address.city', default='Unknown')
+    'Unknown'
+    >>> get_nested(data, 'user.nonexistent')  # Raises KeyError
+    Traceback (most recent call last):
+        ...
+    KeyError: 'user.nonexistent'
     """
     if not isinstance(data, dict):
         if default is _RAISE_KEYERROR:
             raise KeyError(key)
         return default
-    
+
     keys = key.split(separator) if separator in key else [key]
     current = data
-    
+
     for k in keys:
         if isinstance(current, dict) and k in current:
             current = current[k]
@@ -79,12 +91,12 @@ def get_nested(data: dict, key: str, default=_RAISE_KEYERROR, separator: str = '
             if default is _RAISE_KEYERROR:
                 raise KeyError(key)
             return default
-    
+
     return current
 
 
 def num_cpus_from_reservation(ReservePerJob: str, *, default: int = 4) -> Optional[int]:
-    """Get the number of reserved CPUs per job from the reservation string, if set"""
+    """Get the number of reserved CPUs per job from the reservation string, if set."""
     ReservePerJob = ReservePerJob.strip().replace(' ', '').upper()
     if ',' in ReservePerJob:
         # scan through multiple reservations, pick the first match
@@ -107,16 +119,23 @@ def num_cpus_from_reservation(ReservePerJob: str, *, default: int = 4) -> Option
 
 def num_jobs_from_reservation(ReservePerJob: str) -> int:
     """Parse the job reservation string and calculate the number of jobs that can be run.
-      This is the resource amount and type to reserve per job, e.g. '4GB' or '2CPU';
-      the run will then use as many jobs as possible without exceeding the available resources.
-      - Can also contain a total or percentage margin, as in '4GB-10GB', '2CPU-10%'.
-      - Can also be specified as a total/maximum, as in '10 total' or '10max'.
-      - Can also be a comma-separated list of reservations, e.g. '4GB,2CPU-1CPU,5max'.
-      - if not set, will assume a single job.
 
-    Returns:
-        the number of jobs that can be run based on the available system resources
+    This is the resource amount and type to reserve per job, e.g. '4GB' or '2CPU';
+    the run will then use as many jobs as possible without exceeding the available resources.
+    - Can also contain a total or percentage margin, as in '4GB-10GB', '2CPU-10%'.
+    - Can also be specified as a total/maximum, as in '10 total' or '10max'.
+    - Can also be a comma-separated list of reservations, e.g. '4GB,2CPU-1CPU,5max'.
+    - if not set, will assume a single job.
 
+    Parameters
+    ----------
+    ReservePerJob : str
+        The reservation string.
+
+    Returns
+    -------
+    int
+        The number of jobs that can be run based on the available system resources.
     """
     if not ReservePerJob:
         return 1  # No reservation means we can run one job without restrictions
@@ -180,6 +199,7 @@ def num_jobs_from_reservation(ReservePerJob: str) -> int:
 
 
 def humanize_seconds(sec: float) -> str:
+    """Humanize seconds into a readable string."""
     if sec > 3600:
         return f"{sec / 3600:.1f}h"
     elif sec > 180:
@@ -189,8 +209,7 @@ def humanize_seconds(sec: float) -> str:
 
 
 def canonicalize_signs(V):
-    """Canonicalize signs of column matrix V so that the
-    largest absolute value is positive."""
+    """Canonicalize signs of column matrix V so that the largest absolute value is positive."""
     # V: columns are eigenvectors
     idx = np.argmax(np.abs(V), axis=0)
     sgn = np.sign(V[idx, range(V.shape[1])])
@@ -200,15 +219,28 @@ def canonicalize_signs(V):
 
 def round_mat(x, decimals=0):
     """MATLAB-style rounding function.
-      - ties (.5 within fp error) round AWAY from zero
-      - supports positive/zero/negative `decimals` like MATLAB round(x, N)
-      - NaN/Inf propagate naturally
-      - does NOT return integer-typed results
+
+    - ties (.5 within fp error) round AWAY from zero
+    - supports positive/zero/negative `decimals` like MATLAB round(x, N)
+    - NaN/Inf propagate naturally
+    - does NOT return integer-typed results
 
     This can be applied to numpy arrays and acts as a drop-in replacement
     for np.round(), but also works for pure-Python float values; however,
     to get a 1:1 replacement for a use of round(x) you need to write
     int(round_mat(x)) since round() returns integers.
+
+    Parameters
+    ----------
+    x : array_like
+        The value(s) to round.
+    decimals : int
+        Number of decimals to round to.
+
+    Returns
+    -------
+    array_like
+        The rounded value(s).
     """
     if isinstance(x, (float, int)):
         # Propagate NaN/Inf instead of throwing in math.floor(...)
@@ -237,13 +269,13 @@ def round_mat(x, decimals=0):
 
 class SkippableException(Exception):
     """A dummy exception class for use in ExceptionUnlessDebug."""
-    pass
 
 
 class ToolError(SkippableException):
-    """An exception class to indicate an error in a third-party tool that cannot be
-    addressed in eegprep and will not stop processing in debug mode."""
-    pass
+    """An exception class to indicate an error in a third-party tool.
+
+    This error cannot be addressed in eegprep and will not stop processing in debug mode.
+    """
 
 
 # a class that defaults to Exception, but uses SkippableException if a debugger is attached

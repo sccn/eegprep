@@ -1,3 +1,5 @@
+"""Spatial interpolation utilities."""
+
 from typing import *
 import numpy as np
 from numpy.linalg import pinv
@@ -7,6 +9,7 @@ from numpy.linalg import pinv
 def _interpMx(cosEE, order, tol):
     """
     Compute the interpolation matrix for a set of point pairs (vectorized).
+
     Internal helper function for sphericalSplineInterpolate.
 
     Args:

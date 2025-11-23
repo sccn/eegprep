@@ -79,9 +79,7 @@ def cov_sqrtm2(C):
 
 def cov_mean(X, *, weights=None, robust=False, iters=50, tol=1e-5, huber=0,
              nancheck=False, verbose=False):
-    """Calculate the (weighted) average of a set of covariance matrices on the
-    manifold of SPD matrices, optionally robustly using the geometric median or
-    Huber mean.
+    """Calculate the (weighted) average of a set of covariance matrices on the manifold of SPD matrices, optionally robustly using the geometric median or Huber mean.
 
     Args:
         X: a M,N,N array of covariance matrices

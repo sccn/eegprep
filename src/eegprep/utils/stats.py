@@ -1,3 +1,5 @@
+"""Statistical utilities for EEG data."""
+
 import math
 import logging
 import numpy as np
@@ -69,8 +71,7 @@ def fit_eeg_distribution(X, min_clean_fraction=None, max_dropout_fraction=None,
           - beta (float): estimated shape parameter of the generalized Gaussian
                           clean EEG distribution.
     """
-
-    # --- Assign defaults ---
+# --- Assign defaults ---
     if min_clean_fraction is None:
         min_clean_fraction = 0.25
     if max_dropout_fraction is None:

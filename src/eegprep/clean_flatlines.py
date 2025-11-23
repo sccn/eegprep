@@ -1,3 +1,5 @@
+"""EEG flatline channel removal utilities."""
+
 import traceback
 from typing import *
 import logging

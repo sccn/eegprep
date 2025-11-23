@@ -1,3 +1,5 @@
+"""EEG channel cleaning utilities without locations."""
+
 from typing import *
 import logging
 import traceback

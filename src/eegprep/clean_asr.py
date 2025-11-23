@@ -1,3 +1,10 @@
+"""
+EEG ASR (Artifact Subspace Reconstruction) cleaning utilities.
+
+This module provides functions for running the Artifact Subspace Reconstruction
+method on EEG data to remove artifacts.
+"""
+
 import logging
 from typing import Dict, Any, Optional, Union, Tuple, Optional
 from copy import deepcopy
@@ -69,7 +76,6 @@ def clean_asr(
         ImportError: If automatic calibration data selection is needed (`ref_maxbadchannels` is float) but `clean_windows` cannot be imported.
         ValueError: If input arguments are invalid or calibration fails critically.
     """
-
     if 'data' not in EEG or 'srate' not in EEG or 'nbchan' not in EEG:
         raise ValueError("EEG dictionary must contain 'data', 'srate', and 'nbchan'.")
 

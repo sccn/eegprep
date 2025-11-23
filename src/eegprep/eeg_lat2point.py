@@ -1,11 +1,13 @@
+"""EEG latency to point conversion utilities."""
+
 import numpy as np
 
 def eeg_lat2point(lat_array, epoch_array, srate, timewin, timeunit=1.0, **kwargs):
     """
-    Convert latencies in time units (relative to per-epoch time 0) to
-    latencies in data points assuming concatenated epochs (EEGLAB style).
+    Convert latencies in time units (relative to per-epoch time 0) to latencies in data points assuming concatenated epochs (EEGLAB style).
 
     Parameters
+    ----------
     lat_array   : array-like
         Latencies in 'timeunit' units (e.g., seconds if timeunit=1, ms if 1e-3).
     epoch_array : array-like or scalar
@@ -22,6 +24,7 @@ def eeg_lat2point(lat_array, epoch_array, srate, timewin, timeunit=1.0, **kwargs
         If 0, raise an error.
 
     Returns
+    -------
     newlat : np.ndarray
         1-based point indices assuming concatenated epochs.
     flag   : int

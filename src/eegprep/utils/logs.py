@@ -1,3 +1,5 @@
+"""Logging utilities."""
+
 import logging
 import sys
 import warnings
@@ -16,10 +18,11 @@ logger = logging.getLogger(__name__)
 
 
 class ColoredWarningFormatter(logging.Formatter):
+    """A custom logging formatter that colors WARNING and ERROR/CRITICAL messages when outputting to a TTY.
+
+    Uses colorama if available.
     """
-    A custom logging formatter that colors WARNING and ERROR/CRITICAL messages
-    when outputting to a TTY, using colorama if available.
-    """
+
     # ANSI color codes
     # Use colorama's constants if available, otherwise use raw ANSI codes
     # (these might not work on Windows without colorama)
@@ -34,6 +37,7 @@ class ColoredWarningFormatter(logging.Formatter):
     log_format_error = f'{RED}%(levelname)s (%(name)s) %(message)s{RESET}'
 
     def __init__(self, fmt=log_format, datefmt=None, style='%'):
+        """Initialize the formatter."""
         super().__init__(fmt=fmt, datefmt=datefmt, style=style)
         # Store formatters for different levels only if colorama is used
         if _COLORAMA_AVAILABLE:
@@ -47,7 +51,7 @@ class ColoredWarningFormatter(logging.Formatter):
 
 
     def format(self, record):
-        """Formats the record with color if applicable."""
+        """Format the record with color if applicable."""
         if _COLORAMA_AVAILABLE:
             # Get the specialized formatter if one exists for this level
             formatter = self.formats.get(record.levelno)
@@ -64,18 +68,20 @@ class ColoredWarningFormatter(logging.Formatter):
 
 
 def setup_logging(level=logging.INFO, only_if_unset=True):
-    """
-    Configures logging for the application.
+    """Configure logging for the application.
 
     Sets up a handler that writes to stderr. If running in a TTY and
     'colorama' is installed, it uses ColoredWarningFormatter to colorize
     warnings (yellow) and errors/criticals (red). Otherwise, uses standard
     formatting.
 
-    Args:
-        level: The minimum logging level to output (e.g., logging.INFO, logging.DEBUG).
-        only_if_unset (bool): If True (default), configuration is skipped if the
-                              root logger already has handlers configured.
+    Parameters
+    ----------
+    level : int
+        The minimum logging level to output (e.g., logging.INFO, logging.DEBUG).
+    only_if_unset : bool
+        If True (default), configuration is skipped if the
+        root logger already has handlers configured.
     """
     root_logger = logging.getLogger() # Get the root logger
 

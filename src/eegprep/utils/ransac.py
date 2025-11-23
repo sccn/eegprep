@@ -1,3 +1,5 @@
+"""RANSAC utilities for EEG data processing."""
+
 from typing import *
 
 import numpy as np

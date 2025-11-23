@@ -1,3 +1,5 @@
+"""EEG epoching utilities."""
+
 import numpy as np
 import copy
 import re
@@ -8,10 +10,9 @@ from eegprep.eeg_checkset import eeg_checkset
 
 
 def pop_epoch(EEG, types=None, lim=None, **kwargs):
-    """
-    POP_EPOCH - Convert a continuous EEG dataset to epoched data by extracting
-                data epochs time locked to specified event types or event indices.
-                May also sub-epoch an already epoched dataset.
+    """Convert a continuous EEG dataset to epoched data by extracting data epochs time locked to specified event types or event indices.
+
+    May also sub-epoch an already epoched dataset.
 
     Python translation of EEGLAB's pop_epoch function.
 
@@ -22,10 +23,10 @@ def pop_epoch(EEG, types=None, lim=None, **kwargs):
 
     Inputs:
         EEG        - Input EEG dataset (dict). Data may already be epoched.
-        types      - String (regular expression) or list of event types to time 
-                     lock to. Default is [] which means to extract epochs 
+        types      - String (regular expression) or list of event types to time
+                     lock to. Default is [] which means to extract epochs
                      locked to every single event.
-        lim        - Epoch latency limits [start end] in seconds relative to 
+        lim        - Epoch latency limits [start end] in seconds relative to
                      the time-locking event. Default: [-1, 2]
 
     Optional keyword arguments:
@@ -41,6 +42,63 @@ def pop_epoch(EEG, types=None, lim=None, **kwargs):
 
     Note: This function calls the epoch() function to do the actual epoching.
     """
+    # Input validation
+    if EEG is None:
+        raise ValueError('pop_epoch: EEG dataset is required')
+
+    # Handle multiple datasets (not implemented)
+    if isinstance(EEG, list) and len(EEG) > 1:
+        raise NotImplementedError('pop_epoch: multiple datasets not supported')
+
+    if isinstance(EEG, list):
+        EEG = EEG[0]
+
+    # Check for empty event structure
+    if 'event' not in EEG or EEG['event'] is None or len(EEG['event']) == 0:
+        if EEG.get('trials', 1) > 1 and EEG.get('xmin', 0) <= 0 and EEG.get('xmax', 0) >= 0:
+            print("No EEG.event structure found: creating events of type 'TLE' (Time-Locking Event) at time 0")
+            # Create TLE events
+            EEG['event'] = []
+            for trial in range(EEG['trials']):
+                event = {
+                    'epoch': trial + 1,  # 1-based for MATLAB compatibility
+                    'type': 'TLE',
+                    'latency': -EEG['xmin'] * EEG['srate'] + 1 + trial * EEG['pnts']
+                }
+                EEG['event'].append(event)
+        else:
+            print('Cannot epoch data with no events')
+            return EEG, []
+
+    # Check for latency field
+    if not any('latency' in event for event in EEG['event']):
+        raise ValueError('Absent latency field in event array/structure: must name one of the fields "latency"')
+
+    # Default parameters
+    if types is None:
+        types = []
+    if lim is None:
+        lim = [-1, 2]
+
+    # Process optional arguments
+    g = {
+        'epochfield': kwargs.get('epochfield', 'type'),  # obsolete
+        'timeunit': kwargs.get('timeunit', 'points'),
+        'verbose': kwargs.get('verbose', 'on'),  # obsolete
+        'newname': kwargs.get('newname', EEG.get('setname', '') + ' epochs' if EEG.get('setname') else ''),
+        'eventindices': kwargs.get('eventindices', list(range(len(EEG['event'])))),  # 0-based
+        'epochinfo': kwargs.get('epochinfo', 'yes'),
+        'valuelim': kwargs.get('valuelim', [-np.inf, np.inf])
+    }
+
+    if g['valuelim'] is None:
+        g['valuelim'] = [-np.inf, np.inf]
+
+    # Sort events by latency
+    tmpevent = copy.deepcopy(EEG['event'])
+    tmpeventlatency = [event['latency'] for event in tmpevent]
+    sorted_indices = np.argsort(tmpeventlatency)
+    EEG['event'] = [EEG['event'][i] for i in sorted_indices]
     
     # Input validation
     if EEG is None:

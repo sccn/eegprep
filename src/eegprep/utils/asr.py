@@ -1,3 +1,5 @@
+"""Artifact Subspace Reconstruction (ASR) utilities."""
+
 import logging
 import math
 import numpy as np
@@ -305,7 +307,7 @@ def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
 
 
 def asr_process(data, srate, state, window_len=0.5, lookahead=None, step_size=32, max_dims=0.66, max_mem=None, use_gpu=False):
-    """Processing function for the Artifact Subspace Reconstruction (ASR) method.
+    """Process data using the Artifact Subspace Reconstruction (ASR) method.
 
     CleanedData, State = asr_process(Data, SamplingRate, State, WindowLength, LookAhead, StepSize, MaxDimensions, MaxMemory, UseGPU)
 
