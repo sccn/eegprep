@@ -3,11 +3,11 @@ name: Documentation Build and Deploy
 on:
   push:
     branches:
-      - main
+      - master
       - develop
   pull_request:
     branches:
-      - main
+      - master 
       - develop
 
 permissions:
