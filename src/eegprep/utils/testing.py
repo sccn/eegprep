@@ -70,8 +70,7 @@ def is_debug():
 
 @contextmanager
 def use_64bit_eeg_options():
-    """Context manager to temporarily use EEG options that preserve 64-bit precision
-    floating-point data.
+    """Context manager to temporarily use EEG options that preserve 64-bit precision floating-point data.
 
     This can be used in unit tests that compare vs. MATLAB outputs and ensure that these tests do not spuriously
     fail due to regression to single-precision floats on the MATLAB side.

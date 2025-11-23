@@ -22,9 +22,7 @@ def coords_to_mm(coords: np.ndarray, unit: str) -> np.ndarray:
 
 
 def coords_RAS_to_ALS(coords: np.ndarray) -> np.ndarray:
-    """Convert coordinates from RAS (Right-Anterior-Superior) to ALS (Anterior- Left-
-    Superior) convention.
-    """
+    """Convert coordinates from RAS (Right-Anterior-Superior) to ALS (Anterior-Left-Superior) convention."""
     if coords.ndim == 1:
         coords = coords[np.newaxis, :]  # Ensure 2D array for consistent processing
     if coords.shape[1] != 3:
