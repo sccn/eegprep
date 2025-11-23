@@ -13,8 +13,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 # -- Project information -------------------------------------------------------
 project = "eegprep"
-copyright = "2024, eegprep contributors"
-author = "eegprep contributors"
+copyright = "2024 - , EEGPrep contributors"
+author = "EEGPrep contributors"
 
 # Import version from eegprep package
 try:
@@ -62,7 +62,7 @@ html_theme_options = {
     "navbar_center": ["navbar-nav"],
     "navbar_end": ["navbar-icon-links"],
     "navbar_persistent": [],
-    "primary_sidebar_end": ["sidebar-ethical-ads"],
+    "primary_sidebar_end": [],
     "footer_start": ["copyright"],
     "footer_end": ["sphinx-version"],
     "secondary_sidebar_items": ["page-toc"],
@@ -85,7 +85,7 @@ html_theme_options = {
 }
 
 html_context = {
-    "github_user": "NeuroTechX",
+    "github_user": "sccn",
     "github_repo": "eegprep",
     "github_version": "main",
     "doc_path": "docs/source",
