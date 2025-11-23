@@ -101,3 +101,5 @@ matlab/clean_rawdata
 
 # for now excluded; may introduce for purposes of hard-locking dev deps
 uv.lock
+
+*.DS_Store
