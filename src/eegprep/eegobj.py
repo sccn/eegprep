@@ -20,9 +20,6 @@ class EEGobj:
         - If string: loads dataset with pop_loadset(path).
         - If dict: uses it directly.
         """
-
-    # Internal helper to resolve and call an eegprep function name
-    def _call_eegprep(self, fname, *args, **kwargs):
         if isinstance(EEG_or_path, str):
             EEG = pop_loadset(EEG_or_path)
         elif isinstance(EEG_or_path, dict):
