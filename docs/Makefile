@@ -28,6 +28,7 @@ help:
 clean:
 	@echo "Removing build artifacts..."
 	@rm -rf $(BUILDDIR)
+	@rm -rf $(SOURCEDIR)/auto_examples
 	@echo "Build artifacts removed successfully."
 
 # Build HTML documentation

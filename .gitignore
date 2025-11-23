@@ -103,3 +103,7 @@ matlab/clean_rawdata
 uv.lock
 
 *.DS_Store
+
+# Sphinx documentation
+docs/build/
+docs/source/auto_examples/
