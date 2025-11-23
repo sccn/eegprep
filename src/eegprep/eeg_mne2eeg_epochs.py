@@ -1,3 +1,5 @@
+"""MNE epochs to EEGLAB dataset conversion utilities."""
+
 # Example to export MNE epochs to EEGLAB dataset
 # Events are not handled correctly in this example but it works
 
@@ -11,7 +13,20 @@ from scipy.io import savemat
 
 # Load example data
 def eeg_mne2eeg_epochs(epochs, ica):
-    
+    """Convert MNE epochs with ICA to EEGLAB dataset format.
+
+    Parameters
+    ----------
+    epochs : mne.Epochs
+        MNE epochs object.
+    ica : mne.preprocessing.ICA
+        MNE ICA object.
+
+    Returns
+    -------
+    dict
+        EEGLAB-compatible dataset dictionary.
+    """
     # export to EEGLAB dataset
     data = epochs.get_data()  # Get the data from the epochs
     n_epochs, n_channels, n_times = data.shape
@@ -152,6 +167,7 @@ def eeg_mne2eeg_epochs(epochs, ica):
     #print("EEGLAB dataset saved successfully!")
     
 def test_eeg_mne2eeg_epochs():
+    """Test the eeg_mne2eeg_epochs function with sample MNE data."""
     sample_data_folder = mne.datasets.sample.data_path()
     sample_data_raw_file = (
         sample_data_folder / "MEG" / "sample" / "sample_audvis_filt-0-40_raw.fif"

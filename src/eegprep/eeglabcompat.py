@@ -1,3 +1,5 @@
+"""EEGLAB compatibility utilities."""
+
 # import sys
 # sys.path.insert(0, 'src/')
 
@@ -18,18 +20,43 @@ logger = logging.getLogger(__name__)
 default_runtime = 'OCT'
 
 # directory where temporary .set files are written
-temp_dir = os.path.abspath(os.path.dirname(__file__) + '../../../temp')
-if not os.path.exists(temp_dir):
-    os.makedirs(temp_dir, exist_ok=True)
+# use environment variable if it exists
+if 'TEMP_DIR' in os.environ:
+    temp_dir = os.environ['TEMP_DIR']
+elif 'TMPDIR' in os.environ:
+    temp_dir = os.environ['TMPDIR']
+else:
+    temp_dir = os.path.abspath(os.path.dirname(__file__) + '../../../temp')
+    if not os.path.exists(temp_dir):
+        os.makedirs(temp_dir, exist_ok=True)
 
 class MatlabWrapper:
     """MATLAB engine wrapper that round-trips calls involving the EEGLAB data structure through files."""
 
     def __init__(self, engine):
+        """Initialize the MatlabWrapper.
+
+        Parameters
+        ----------
+        engine : object
+            The MATLAB or Octave engine.
+        """
         self.engine = engine
 
     @staticmethod
     def marshal(a: Any) -> str:
+        """Marshal a value to string representation.
+
+        Parameters
+        ----------
+        a : Any
+            Value to marshal.
+
+        Returns
+        -------
+        str
+            String representation.
+        """
         if a is True:
             return 'true'
         elif a is False:
@@ -38,6 +65,18 @@ class MatlabWrapper:
             return repr(a)
 
     def __getattr__(self, name):
+        """Get attribute, returning a wrapper for MATLAB functions.
+
+        Parameters
+        ----------
+        name : str
+            Name of the attribute.
+
+        Returns
+        -------
+        callable
+            Wrapper function.
+        """
         def wrapper(*args, **kwargs):
             # arg list
             new_args = list(args)
@@ -156,17 +195,16 @@ class MatlabWrapper:
 
 # noinspection PyDefaultArgument
 def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = True, _cache={}):
-    """Get a reference to an EEGLAB namespace that is powered
-    by the specified runtime (Octave or MATLAB).
+    """Get a reference to an EEGLAB namespace that is powered by the specified runtime (Octave or MATLAB).
 
-    Args:
-        runtime: name of the runtime to use ('MAT' or 'OCT')
-        auto_file_roundtrip: if set to True (default), EEGLAB data structures
-          can be passed as arguments and returned by the engine. This is enabled
-          by implicitly performing pop_saveset/pop_loadset with a temporary file
-          whenever such a data structure is encountered.
-        _cache: reserved for internal use
-
+    Args
+    ----
+    runtime : name of the runtime to use ('MAT' or 'OCT')
+    auto_file_roundtrip : if set to True (default), EEGLAB data structures
+      can be passed as arguments and returned by the engine. This is enabled
+      by implicitly performing pop_saveset/pop_loadset with a temporary file
+      whenever such a data structure is encountered.
+    _cache : reserved for internal use
     """
     rt = runtime.lower()[:3]
 
@@ -247,14 +285,14 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
 
 
 def eeg_checkset(EEG, eeglab=None):
-    """Reference implementation of eeg_checkset()."""
+    """Check the EEG dataset."""
     if eeglab is None:
         eeglab = get_eeglab()
     return eeglab.eeg_checkset(EEG)
 
 
 def clean_drifts(EEG, Transition, Attenuation, eeglab=None):
-    """Reference implementation of clean_drifts()."""
+    """Remove drifts from EEG data."""
     if eeglab is None:
         eeglab = get_eeglab()
     return eeglab.clean_drifts(EEG, Transition, Attenuation)
@@ -276,6 +314,26 @@ def clean_drifts(EEG, Transition, Attenuation, eeglab=None):
 
 
 def pop_eegfiltnew(EEG, locutoff=None,hicutoff=None,revfilt=False,plotfreqz=False):
+    """Filter EEG data using EEGLAB's pop_eegfiltnew.
+
+    Parameters
+    ----------
+    EEG : dict
+        EEG data structure.
+    locutoff : float, optional
+        Low cutoff frequency.
+    hicutoff : float, optional
+        High cutoff frequency.
+    revfilt : bool, optional
+        Reverse filter.
+    plotfreqz : bool, optional
+        Plot frequency response.
+
+    Returns
+    -------
+    dict
+        Filtered EEG data.
+    """
     eeglab = get_eeglab(auto_file_roundtrip=False)
     # error if locutoff and hicutoff are none
     if locutoff==None and hicutoff==None:
@@ -293,6 +351,34 @@ def pop_eegfiltnew(EEG, locutoff=None,hicutoff=None,revfilt=False,plotfreqz=Fals
     return EEG4
 
 def clean_artifacts( EEG, ChannelCriterion=False, LineNoiseCriterion=False, FlatlineCriterion=False, BurstCriterion=False, BurstRejection=False, WindowCriterion=0, Highpass=[0.25, 0.75], WindowCriterionTolerances=[float('-inf'), 8]):
+    """Clean artifacts from EEG data using EEGLAB's clean_artifacts.
+
+    Parameters
+    ----------
+    EEG : dict
+        EEG data structure.
+    ChannelCriterion : bool or str, optional
+        Channel criterion.
+    LineNoiseCriterion : bool or str, optional
+        Line noise criterion.
+    FlatlineCriterion : bool or str, optional
+        Flatline criterion.
+    BurstCriterion : bool or str, optional
+        Burst criterion.
+    BurstRejection : bool or str, optional
+        Burst rejection.
+    WindowCriterion : float, optional
+        Window criterion.
+    Highpass : list or str, optional
+        Highpass filter.
+    WindowCriterionTolerances : list, optional
+        Window criterion tolerances.
+
+    Returns
+    -------
+    dict
+        Cleaned EEG data.
+    """
     eeglab = get_eeglab(auto_file_roundtrip=False)
     
     if ChannelCriterion == False or ChannelCriterion == 'off':
@@ -336,7 +422,7 @@ def clean_artifacts( EEG, ChannelCriterion=False, LineNoiseCriterion=False, Flat
 
 # sys.exit()
 def test_eeglab_compat():
-
+    """Test EEGLAB compatibility."""
     eeglab_file_path = '/System/Volumes/Data/data/matlab/eeglab/sample_data/eeglab_data_epochs_ica.set'
 
     EEG = pop_loadset(eeglab_file_path)

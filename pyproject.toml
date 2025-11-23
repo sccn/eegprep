@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "eegprep"
-version = "0.1.1"
+dynamic = ["version"]
 authors = [
   { name="Arnaud Delorme", email="adelorme@gmail.com" },
   { name="Young Truong", email="dt.young112@gmail.com" },
@@ -28,7 +28,7 @@ dependencies = [
   "matplotlib>=3.4.0",
   "mne>=1.10.0",
   "neo>=0.14.2",
-  "numpy<2",
+  "numpy>=1.20",
   "oct2py>=5.5.0",
   "psutil>=7.0.0",
   "pybids>=0.4",
@@ -41,18 +41,40 @@ dependencies = [
 
 [project.optional-dependencies]
 torch = [
-  "torch>=1.10.0",
+  "torch>=2.5.1"
 ]
 eeglabio = [
-  "eeglabio>=0.1.2",
+  "eeglabio>=0.1.2"
+]
+docs = [
+  "sphinx>=7.0",
+  "pydata-sphinx-theme>=0.14.0",
+  "sphinx-gallery>=0.14.0",
+  "sphinx-autodoc-typehints>=1.25.0",
+  "numpydoc>=1.6.0",
+  "sphinx-design>=0.5.0",
+  "myst-parser>=1.0.0",
+  "sphinx-copybutton>=0.5.0",
+  "sphinx-togglebutton>=0.3.0",
+  "sphinxcontrib-spelling>=7.1.0"
 ]
 all = [
-  "torch>=1.10.0",
+  "torch>=2.5.1",
   "eeglabio>=0.1.2",
+  "sphinx>=7.0",
+  "pydata-sphinx-theme>=0.14.0",
+  "sphinx-gallery>=0.14.0",
+  "sphinx-autodoc-typehints>=1.25.0",
+  "numpydoc>=1.6.0",
+  "sphinx-design>=0.5.0",
+  "myst-parser>=1.0.0",
+  "sphinx-copybutton>=0.5.0",
+  "sphinx-togglebutton>=0.3.0",
+  "sphinxcontrib-spelling>=7.1.0"
 ]
 
 [tool.setuptools]
-include-package-data = false
+include-package-data = true
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -62,12 +84,15 @@ exclude = ["eegprep.eeglab*"]
 "eegprep" = [
   "resources/montages/*.locs",
   "resources/montages/README.md",
-  "resources/*.m"
+  "resources/*.m",
+  "netICL.mat"
 ]
 
 [tool.setuptools.exclude-package-data]
 "eegprep" = ["eeglab/**"]
 
+[tool.setuptools.dynamic]
+version = { attr = "eegprep.__version__" }
 
 [project.urls]
 Homepage = "https://github.com/sccn/eegprep"

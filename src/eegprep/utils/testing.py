@@ -48,15 +48,17 @@ def compare_eeg(a, b, rtol=0, atol=1e-7, use_32_bit=default_32_bit, err_msg=''):
 
 class DebuggableTestCase(unittest.TestCase):
     """Base class for test cases where exceptions can be caught in the debugger.
+
     This is used as follows: add a if __name__ == '__main__' block to your test
     module, and for each test case, add a line like MyTestCase.debugTestCase()
     there. Then run the module not as a unit test (Python tests in ...) but
     instead create a launch configuration that runs the module as a regular Python
     module, and run that in the debugger.
-
     """
+
     @classmethod
     def debugTestCase(cls):
+        """Debug the test case."""
         loader = unittest.defaultTestLoader
         testSuite = loader.loadTestsFromTestCase(cls)
         testSuite.debug()
@@ -68,16 +70,16 @@ def is_debug():
 
 @contextmanager
 def use_64bit_eeg_options():
-    """Context manager to temporarily use EEG options that preserve
-    64-bit precision floating-point data. This can be used in unit tests that
-    compare vs. MATLAB outputs and ensure that these tests do not spuriously
+    """Context manager to temporarily use EEG options that preserve 64-bit precision floating-point data.
+
+    This can be used in unit tests that compare vs. MATLAB outputs and ensure that these tests do not spuriously
     fail due to regression to single-precision floats on the MATLAB side.
-    
+
     This context manager:
     - Backs up the user's ~/eeg_options.m file if it exists
     - Replaces it with the 64-bit version from resources/eeg_options_64bit.m
     - Restores the original file on cleanup (or removes it if it didn't exist)
-    
+
     Usage:
         with use_64bit_eeg_options():
             # Your code that needs 64-bit EEG options

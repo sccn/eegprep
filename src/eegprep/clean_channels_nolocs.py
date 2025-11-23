@@ -1,3 +1,5 @@
+"""EEG channel cleaning utilities without locations."""
+
 from typing import *
 import logging
 import traceback
@@ -48,10 +50,10 @@ def clean_channels_nolocs(
         aware manner. If enabled, the correlation measure will not be affected
         by the presence or absence of line noise (using a temporary notch filter).
 
-    Returns:
-      EEG: data set with bad channels removed
-      removed_channels: boolean array indicating which channels were removed
-
+    Returns
+    -------
+    EEG : data set with bad channels removed
+    removed_channels : boolean array indicating which channels were removed
     """
     Fs = EEG['srate']
     

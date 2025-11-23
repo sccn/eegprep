@@ -1,6 +1,11 @@
 # EEGPrep
 
+[![Documentation Status](https://github.com/sccn/eegprep/actions/workflows/docs.yml/badge.svg)](https://github.com/sccn/eegprep/actions/workflows/docs.yml)
+[![GitHub Pages](https://github.com/sccn/eegprep/actions/workflows/pages.yml/badge.svg)](https://sccn.github.io/eegprep/)
+
 EEGPrep is a Python package that reproduces the EEGLAB default preprocessing pipeline with numerical accuracy down to 1e-5 uV, including clean_rawdata and ICLabel, enabling MATLAB-to-Python equivalence for EEG analysis. It takes BIDS data as input and produces BIDS derivative dataset as output, which can then be reimported into other packages as needed (EEGLAB, Fieldtrip, Brainstorm, MNE). It does produce plots. The package will be fully documented for conversion, packaging, and testing workflows, with installation available via PyPI.
+
+**📚 [View Full Documentation](https://sccn.github.io/eegprep/)** | **🔧 [GitHub Pages Setup Guide](docs/GITHUB_PAGES_SETUP.md)**
 
 ## Pre-Release
 
@@ -29,20 +34,21 @@ The MATLAB and Python implementations were compared using the first two subjects
 
 <img width="1744" height="1049" alt="Screenshot 2025-10-02 at 11 43 03" src="https://github.com/user-attachments/assets/79c17151-e2e3-4acc-b144-accdf34ae4c5" />
 
+# versioning
+- Change version inside the file pyproject.toml
+- Change version inside the file main (for docker)
+- Run make_release in the script folder and tag with the version
+- Use the correct docker version when building (see below)
+
 # Docker (SCCN Power Users)
 
-## Build Docker
+```
+docker build -t eegprep:0.2.9 -f DOCKERFILE .
+docker tag eegprep:0.2.9 arnodelorme/eegprep:0.2.9
+docker push arnodelorme/eegprep:0.2.9
+```
 
-```
-docker run --rm -it -v $(pwd):/usr/src/project dtyoung/eegprep /bin/bash
-docker run -u root --rm -it -v $(pwd):/usr/src/project dtyoung/eegprep /bin/bash
-```
-
-## Remove Docker
-
-```
-docker rmi dtyoung/eegprep
-```
+Check the project on https://hub.docker.com/
 
 Mounted folder in /usr/src/project
 
@@ -125,7 +131,17 @@ pip install eegprep[all]
 
 ## Running Tests
 
-Install MATLAB interface `pip install /your/path/to/matlab/extern/engines/python`
+Install MATLAB interface `pip install /your/path/to/matlab/extern/engines/python` (for example on OSx `pip install /Applications/MATLAB_R2025a.app/extern/engines/python 
+Processing /Applications/MATLAB_R2025a.app/extern/engines/python`)
+
+Check installation
+
+```python
+import matlab.engine
+engine = matlab.engine.start_matlab()
+engine.eval("disp('hello world');", nargout=0)
+```
+
 Use tests/main_compare.m
 
 This project uses `unittest`. You can run tests from the project root via the command:

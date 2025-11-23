@@ -1,3 +1,5 @@
+"""Artifact Subspace Reconstruction (ASR) utilities."""
+
 import logging
 import math
 import numpy as np
@@ -58,9 +60,9 @@ def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
       max_dropout_fraction (float, optional): Maximum fraction (0-1) of windows subject to dropouts. Default: 0.1.
       min_clean_fraction (float, optional): Minimum fraction (0-1) of windows that must be clean. Default: 0.25.
       maxmem (int, optional): Maximum memory in MB (for very large data/many channels). Default: 64.
-      useriemannian (str, optional): Option to use a Riemannian ASR variant. Can be set to 'calib' to use a Riemannian estimate 
+      useriemannian (str, optional): Option to use a Riemannian ASR variant. Can be set to 'calib' to use a Riemannian estimate
             at calibration time; this make somewhat different statistical tradeoffs than the default, resulting in a potentially
-            different baseline rejection threshold; as a result it is suggested to visually check results and adjust 
+            different baseline rejection threshold; as a result it is suggested to visually check results and adjust
             the cutoff as needed. Default: None (disabled).
       compatibility (str, optional): MATLAB compatibility level.
         * 'standard' (default) aims for 5 significant digits compatibility and may apply
@@ -72,7 +74,8 @@ def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
           turn. Note the effects will mostly likely be miniscule and the MATLAB ASR
           implementation is known to be highly robust.
 
-    Returns:
+    Returns
+    -------
       dict: State dictionary containing calibration results ('M', 'T') and filter parameters ('B', 'A', 'sos', 'iir_state')
             needed for `asr_process`.
     """
@@ -305,7 +308,7 @@ def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
 
 
 def asr_process(data, srate, state, window_len=0.5, lookahead=None, step_size=32, max_dims=0.66, max_mem=None, use_gpu=False):
-    """Processing function for the Artifact Subspace Reconstruction (ASR) method.
+    """Process data using the Artifact Subspace Reconstruction (ASR) method.
 
     CleanedData, State = asr_process(Data, SamplingRate, State, WindowLength, LookAhead, StepSize, MaxDimensions, MaxMemory, UseGPU)
 
@@ -332,7 +335,8 @@ def asr_process(data, srate, state, window_len=0.5, lookahead=None, step_size=32
                                  Default: None.
         use_gpu (bool, optional): Whether to use GPU (not implemented). Default: False.
 
-    Returns:
+    Returns
+    -------
         tuple: (outdata, outstate)
             outdata (np.ndarray): Cleaned data chunk (delayed by lookahead).
             outstate (dict): Updated state dictionary for subsequent calls.

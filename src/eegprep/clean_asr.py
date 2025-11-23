@@ -1,3 +1,9 @@
+"""EEG ASR (Artifact Subspace Reconstruction) cleaning utilities.
+
+This module provides functions for running the Artifact Subspace Reconstruction method
+on EEG data to remove artifacts.
+"""
+
 import logging
 from typing import Dict, Any, Optional, Union, Tuple, Optional
 from copy import deepcopy
@@ -56,20 +62,21 @@ def clean_asr(
                                     for a channel to be considered 'bad' during calibration data selection. Default: (-3.5, 5.5). Use 'off' to disable.
         ref_wndlen (Union[float, str], optional): Window length in seconds for calibration data selection granularity. Default: 1.0. Use 'off' to disable.
         use_gpu (bool, optional): Whether to try using GPU (requires compatible hardware and libraries, currently ignored). Default: False.
-        useriemannian (str, optional): Option to use a Riemannian ASR variant. Can be set to 'calib' to use a Riemannian estimate 
-            at calibration time; this make somewhat different statistical tradeoffs than the default, resulting in a somewhat different 
+        useriemannian (str, optional): Option to use a Riemannian ASR variant. Can be set to 'calib' to use a Riemannian estimate
+            at calibration time; this make somewhat different statistical tradeoffs than the default, resulting in a somewhat different
             baseline rejection threshold; as a result it is suggested to visually check results and adjust the cutoff as needed. Default: None (disabled).
         maxmem (Optional[int], optional): Maximum memory in MB (passed to asr_calibrate/process, but chunking based on it is not implemented in Python port). Default: 64.
 
-    Returns:
-        Dict[str, Any]: The EEG dictionary with the 'data' field containing the cleaned data.
+    Returns
+    -------
+    Dict[str, Any] : The EEG dictionary with the 'data' field containing the cleaned data.
 
-    Raises:
-        NotImplementedError: If useriemannian is True.
-        ImportError: If automatic calibration data selection is needed (`ref_maxbadchannels` is float) but `clean_windows` cannot be imported.
-        ValueError: If input arguments are invalid or calibration fails critically.
+    Raises
+    ------
+    NotImplementedError : If useriemannian is True.
+    ImportError : If automatic calibration data selection is needed (`ref_maxbadchannels` is float) but `clean_windows` cannot be imported.
+    ValueError : If input arguments are invalid or calibration fails critically.
     """
-
     if 'data' not in EEG or 'srate' not in EEG or 'nbchan' not in EEG:
         raise ValueError("EEG dictionary must contain 'data', 'srate', and 'nbchan'.")
 

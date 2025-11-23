@@ -1,14 +1,15 @@
+"""ICLabel module for classifying independent components in EEG data."""
+
 from copy import deepcopy
 import os
 
 import numpy as np
 
 def iclabel(EEG, algorithm='default', engine=None):
-    """
-    Apply ICLabel to classify independent components.
-    
-    Parameters:
-    -----------
+    """Apply ICLabel to classify independent components.
+
+    Parameters
+    ----------
     EEG : dict
         EEGLAB EEG structure
     algorithm : str
@@ -19,9 +20,9 @@ def iclabel(EEG, algorithm='default', engine=None):
         - None: Use the default Python implementation
         - 'matlab': Use MATLAB engine
         - 'octave': Use Octave engine
-        
-    Returns:
-    --------
+
+    Returns
+    -------
     EEG : dict
         EEGLAB EEG structure with ICLabel classifications added
     """

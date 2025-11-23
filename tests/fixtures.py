@@ -5,9 +5,42 @@ across different test modules.
 """
 
 import os
+import unittest
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
+
+
+def matlab_engine_available():
+    """Check if MATLAB engine is available for Python.
+    
+    Returns:
+        bool: True if matlab.engine can be imported and started, False otherwise.
+    """
+    # Check if MATLAB tests should be skipped via environment variable
+    if os.environ.get('EEGPREP_SKIP_MATLAB', '0') == '1':
+        return False
+    
+    try:
+        import matlab.engine
+        return True
+    except ImportError:
+        return False
+
+
+def skip_without_matlab(test_func):
+    """Decorator to skip tests that require MATLAB engine.
+    
+    Usage:
+        @skip_without_matlab
+        def test_matlab_function(self):
+            # Test code that requires MATLAB
+            pass
+    """
+    return unittest.skipUnless(
+        matlab_engine_available(),
+        "MATLAB engine not available or skipped"
+    )(test_func)
 
 
 def mpl_use_agg():
@@ -69,7 +102,7 @@ def create_test_eeg(n_channels=32, n_samples=1000, srate=250.0, n_trials=1):
         'icawinv': None,
         'icasphere': None,
         'icaweights': None,
-        'icachansind': None,
+        'icachansind': np.arange(n_channels),
         'chanlocs': [],
         'urchanlocs': [],
         'chaninfo': {},
@@ -191,7 +224,7 @@ def cleanup_matplotlib():
     plt.cla()
 
 
-class TestFixtures:
+class TestFixturesContextManager:
     """Context manager for common test fixtures.
     
     Usage:

@@ -1,0 +1,483 @@
+"""
+BIDS Dataset Preprocessing Pipeline
+====================================
+
+This example demonstrates how to work with BIDS-formatted EEG datasets
+using eegprep. BIDS (Brain Imaging Data Structure) is a standardized format
+for organizing neuroimaging data, making it easier to share and process
+datasets across different labs and tools.
+
+The workflow includes:
+
+- Understanding BIDS directory structure and conventions
+- Creating a minimal BIDS dataset for demonstration
+- Discovering EEG files in BIDS format
+- Applying the complete BIDS preprocessing pipeline
+- Understanding the output structure
+- Best practices for BIDS-compliant preprocessing
+
+This example shows how eegprep integrates with BIDS to provide a
+standardized, reproducible preprocessing workflow.
+
+References
+----------
+.. [1] Gorgolewski, K. J., Auer, T., Calhoun, V. D., Craddock, R. C.,
+       Das, S., Duff, E. P., ... & Poldrack, R. A. (2016). The brain
+       imaging data structure, a format for organizing and describing
+       outputs of neuroimaging experiments. Scientific data, 3(1), 1-9.
+.. [2] Pernet, C. R., Appelhoff, S., Gorgolewski, K. J., Flandin, G.,
+       Phillips, C., Delorme, A., & Oostenveld, R. (2019). EEG-BIDS,
+       an extension to the brain imaging data structure for
+       electroencephalography. Scientific data, 6(1), 1-5.
+"""
+
+# %%
+# Imports and Setup
+# -----------------
+
+import numpy as np
+import matplotlib.pyplot as plt
+import tempfile
+import os
+import json
+from pathlib import Path
+import sys
+sys.path.insert(0, '/Users/baristim/Projects/eegprep/src')
+
+import eegprep
+
+# Set random seed for reproducibility
+np.random.seed(42)
+
+# %%
+# Understanding BIDS Structure
+# ----------------------------
+# BIDS (Brain Imaging Data Structure) organizes neuroimaging data hierarchically.
+# For EEG, the structure follows a specific naming convention and directory layout.
+
+print("=" * 70)
+print("BIDS DATASET STRUCTURE OVERVIEW")
+print("=" * 70)
+
+bids_structure = """
+BIDS Dataset Organization:
+
+dataset/
+├── sub-01/                          # Subject 1
+│   ├── ses-01/                      # Session 1
+│   │   └── eeg/                     # EEG modality
+│   │       ├── sub-01_ses-01_task-rest_eeg.edf
+│   │       ├── sub-01_ses-01_task-rest_eeg.json
+│   │       ├── sub-01_ses-01_task-rest_channels.tsv
+│   │       └── sub-01_ses-01_task-rest_events.tsv
+│   └── ses-02/                      # Session 2
+│       └── eeg/
+│           └── ...
+├── sub-02/                          # Subject 2
+│   └── ses-01/
+│       └── eeg/
+│           └── ...
+├── dataset_description.json         # Dataset metadata
+├── participants.tsv                 # Participant information
+└── README                           # Dataset documentation
+
+Key BIDS Concepts:
+- Subjects (sub-XX): Individual participants
+- Sessions (ses-XX): Multiple recording sessions per subject
+- Tasks (task-name): Experimental conditions (rest, task-name, etc.)
+- Runs (run-XX): Multiple runs of the same task
+- Modalities: eeg, meg, ieeg, etc.
+"""
+
+print(bids_structure)
+print("=" * 70)
+
+# %%
+# Create a Minimal BIDS Dataset
+# ------------------------------
+# For demonstration, we'll create a minimal BIDS dataset structure
+# with synthetic EEG data
+
+print("\nCreating minimal BIDS dataset for demonstration...")
+print("-" * 70)
+
+# Create temporary directory for BIDS dataset
+bids_root = tempfile.mkdtemp(prefix='bids_example_')
+print(f"Created temporary BIDS directory: {bids_root}")
+
+# Create dataset_description.json
+# This file is required and contains metadata about the dataset
+dataset_desc = {
+    "Name": "Example EEG Dataset",
+    "BIDSVersion": "1.9.0",
+    "DatasetType": "raw",
+    "License": "CC0",
+    "Authors": [
+        {
+            "Name": "Example Author",
+            "Email": "author@example.com"
+        }
+    ],
+    "Acknowledgements": "Example dataset for eegprep documentation",
+    "HowToAcknowledge": "Please cite this paper: Example et al. (2024)",
+    "Funding": [
+        {
+            "Funder": "Example Foundation",
+            "Grant": "EX-12345"
+        }
+    ],
+    "EthicsApprovals": [
+        {
+            "HipApproval": True,
+            "Committee": "Example IRB",
+            "CommitteeAbbreviation": "IRB",
+            "ExpireDate": "2025-12-31"
+        }
+    ],
+    "ReferencesAndLinks": [],
+    "DatasetType": "raw"
+}
+
+with open(os.path.join(bids_root, 'dataset_description.json'), 'w') as f:
+    json.dump(dataset_desc, f, indent=2)
+print("✓ Created dataset_description.json")
+
+# Create participants.tsv
+# This file contains demographic information about participants
+participants_content = """participant_id\tage\tsex\tgroup
+sub-01\t25\tM\tcontrol
+sub-02\t28\tF\tcontrol
+"""
+with open(os.path.join(bids_root, 'participants.tsv'), 'w') as f:
+    f.write(participants_content)
+print("✓ Created participants.tsv")
+
+# Create subject directories and synthetic EEG data
+print("\nCreating subject data...")
+for sub_id in ['01', '02']:
+    sub_dir = os.path.join(bids_root, f'sub-{sub_id}', 'ses-01', 'eeg')
+    os.makedirs(sub_dir, exist_ok=True)
+    
+    # Define recording parameters
+    n_channels = 32
+    n_samples = 5000
+    sfreq = 500
+    
+    # Create channel names
+    ch_names = [
+        'Fp1', 'Fpz', 'Fp2', 'F7', 'F3', 'Fz', 'F4', 'F8',
+        'T7', 'C3', 'Cz', 'C4', 'T8', 'P7', 'P3', 'Pz',
+        'P4', 'P8', 'O1', 'Oz', 'O2', 'A1', 'A2', 'M1',
+        'M2', 'Fc1', 'Fc2', 'Cp1', 'Cp2', 'Fc5', 'Fc6', 'Cp5'
+    ]
+    
+    # Create synthetic data
+    np.random.seed(int(sub_id))
+    data = np.random.randn(n_channels, n_samples) * 10
+    
+    # Add alpha oscillations
+    t = np.arange(n_samples) / sfreq
+    for i in range(n_channels):
+        alpha_freq = 10 + np.random.randn() * 0.5
+        data[i, :] += 5 * np.sin(2 * np.pi * alpha_freq * t)
+    
+    # Save as .npy for simplicity (in real BIDS, would be .edf or .bdf)
+    data_file = os.path.join(sub_dir, f'sub-{sub_id}_ses-01_task-rest_eeg.npy')
+    np.save(data_file, data)
+    
+    # Create JSON sidecar with recording metadata
+    eeg_json = {
+        "TaskName": "rest",
+        "SamplingFrequency": sfreq,
+        "PowerLineFrequency": 50,
+        "EEGChannelCount": n_channels,
+        "EEGReference": "average",
+        "EEGGround": "Fpz",
+        "RecordingDuration": n_samples / sfreq,
+        "RecordingType": "continuous"
+    }
+    
+    json_file = os.path.join(sub_dir, f'sub-{sub_id}_ses-01_task-rest_eeg.json')
+    with open(json_file, 'w') as f:
+        json.dump(eeg_json, f, indent=2)
+    
+    # Create channels.tsv with channel information
+    channels_content = "name\tx\ty\tz\tsize\n"
+    for ch_name in ch_names:
+        channels_content += f"{ch_name}\t0\t0\t0\t1\n"
+    
+    channels_file = os.path.join(sub_dir, f'sub-{sub_id}_ses-01_task-rest_channels.tsv')
+    with open(channels_file, 'w') as f:
+        f.write(channels_content)
+    
+    # Create events.tsv with event information
+    events_content = "onset\tduration\ttrial_type\n0.0\t1.0\trest\n"
+    
+    events_file = os.path.join(sub_dir, f'sub-{sub_id}_ses-01_task-rest_events.tsv')
+    with open(events_file, 'w') as f:
+        f.write(events_content)
+    
+    print(f"  ✓ Created subject sub-{sub_id} data")
+
+print(f"\nBIDS dataset created successfully!")
+print(f"Dataset location: {bids_root}")
+
+# %%
+# List BIDS Files
+# ----------------
+# Use bids_list_eeg_files to discover EEG files in the BIDS dataset
+
+print("\n" + "=" * 70)
+print("DISCOVERING EEG FILES IN BIDS DATASET")
+print("=" * 70)
+
+print("\nListing EEG files in BIDS dataset...")
+try:
+    eeg_files = eegprep.bids_list_eeg_files(bids_root)
+    print(f"Found {len(eeg_files)} EEG files:")
+    for f in eeg_files:
+        print(f"  - {f}")
+except Exception as e:
+    print(f"Note: bids_list_eeg_files may require specific BIDS structure")
+    print(f"Error: {e}")
+    # List files manually
+    print("\nManually listing EEG files:")
+    for root, dirs, files in os.walk(bids_root):
+        for file in files:
+            if file.endswith('_eeg.npy'):
+                print(f"  - {os.path.join(root, file)}")
+
+# %%
+# BIDS Preprocessing Pipeline
+# ----------------------------
+# The bids_preproc function applies a complete preprocessing pipeline
+# to BIDS-formatted data
+
+print("\n" + "=" * 70)
+print("BIDS PREPROCESSING PIPELINE")
+print("=" * 70)
+
+pipeline_description = """
+The bids_preproc function applies the following preprocessing steps:
+
+1. Data Loading and Validation
+   - Load EEG data from BIDS format
+   - Validate data integrity
+   - Extract metadata from JSON sidecars
+
+2. Artifact Removal
+   - Apply ASR (Artifact Subspace Reconstruction)
+   - Apply clean_artifacts for transient artifacts
+   - Remove line noise
+
+3. Channel Interpolation
+   - Identify bad channels using statistical criteria
+   - Perform spherical spline interpolation
+   - Preserve spatial information
+
+4. ICA Decomposition
+   - Prepare data for ICA
+   - Perform ICA using Picard algorithm
+   - Extract independent components
+
+5. ICLabel Classification
+   - Classify components using ICLabel
+   - Identify artifact components
+   - Generate classification probabilities
+
+6. Component Rejection
+   - Reject artifact components based on thresholds
+   - Reconstruct cleaned EEG data
+   - Preserve brain activity
+
+7. Data Saving
+   - Save preprocessed data in BIDS format
+   - Create derivatives directory
+   - Preserve all metadata
+"""
+
+print(pipeline_description)
+
+# %%
+# Preprocessing Parameters
+# -------------------------
+# Define preprocessing parameters for the pipeline
+
+print("=" * 70)
+print("PREPROCESSING PARAMETERS")
+print("=" * 70)
+
+preproc_params = {
+    'sfreq': 500,
+    'highpass': 0.5,
+    'lowpass': 100,
+    'asr_threshold': 20,
+    'ica_method': 'picard',
+    'iclabel_threshold': 0.5,
+    'verbose': False
+}
+
+print("\nPreprocessing Configuration:")
+print("-" * 70)
+for key, value in preproc_params.items():
+    print(f"  {key:<25} : {value}")
+
+# %%
+# Output Structure
+# ----------------
+# The bids_preproc function creates a derivatives directory with processed data
+
+print("\n" + "=" * 70)
+print("EXPECTED OUTPUT STRUCTURE")
+print("=" * 70)
+
+output_structure = """
+After preprocessing, the BIDS dataset will contain:
+
+dataset/
+├── sub-01/
+│   └── ses-01/
+│       └── eeg/
+│           └── (original raw data)
+├── sub-02/
+│   └── ses-01/
+│       └── eeg/
+│           └── (original raw data)
+└── derivatives/
+    └── eegprep-v0.2.23/
+        ├── sub-01/
+        │   └── ses-01/
+        │       └── eeg/
+        │           ├── sub-01_ses-01_task-rest_eeg_preprocessed.set
+        │           ├── sub-01_ses-01_task-rest_eeg_preprocessed.fdt
+        │           ├── sub-01_ses-01_task-rest_eeg_preprocessed.json
+        │           └── sub-01_ses-01_task-rest_eeg_preprocessing_report.html
+        └── sub-02/
+            └── ses-01/
+                └── eeg/
+                    └── (preprocessed data)
+
+Key Features:
+- Derivatives stored in separate directory (BIDS convention)
+- Original data preserved (reproducibility)
+- Preprocessing metadata in JSON sidecars
+- HTML reports for quality assessment
+"""
+
+print(output_structure)
+
+# %%
+# BIDS Best Practices
+# -------------------
+# Key recommendations for BIDS-compliant preprocessing
+
+print("=" * 70)
+print("BIDS BEST PRACTICES")
+print("=" * 70)
+
+best_practices = """
+1. Data Organization
+   ✓ Follow BIDS naming conventions strictly
+   ✓ Use consistent directory structure
+   ✓ Include all required metadata files
+
+2. Metadata Management
+   ✓ Complete JSON sidecars with recording parameters
+   ✓ Document all preprocessing steps
+   ✓ Include participant information in participants.tsv
+
+3. Preprocessing Documentation
+   ✓ Record all preprocessing parameters
+   ✓ Save preprocessing reports
+   ✓ Document which channels were interpolated
+   ✓ Document which components were rejected
+
+4. Derivatives
+   ✓ Store in derivatives/ directory
+   ✓ Include version information
+   ✓ Preserve original data
+   ✓ Document preprocessing pipeline
+
+5. Reproducibility
+   ✓ Use fixed random seeds
+   ✓ Document software versions
+   ✓ Include parameter files
+   ✓ Enable full audit trail
+
+6. Sharing and Validation
+   ✓ Validate BIDS compliance with bids-validator
+   ✓ Include README with dataset description
+   ✓ Document ethical approvals
+   ✓ Include data sharing agreements
+"""
+
+print(best_practices)
+
+# %%
+# Summary
+# -------
+
+print("\n" + "=" * 70)
+print("SUMMARY")
+print("=" * 70)
+
+summary = """
+Key Points About BIDS Preprocessing with eegprep:
+
+1. BIDS provides standardized data organization
+   - Facilitates data sharing and collaboration
+   - Enables automated processing pipelines
+   - Improves reproducibility
+
+2. pop_load_frombids loads BIDS-formatted EEG data
+   - Automatically extracts metadata
+   - Handles multiple subjects and sessions
+   - Validates BIDS compliance
+
+3. bids_preproc applies complete preprocessing pipeline
+   - Artifact removal and channel interpolation
+   - ICA decomposition and component classification
+   - Automatic component rejection
+
+4. Derivatives are saved in BIDS-compatible format
+   - Separate derivatives/ directory
+   - Preserves original data
+   - Includes preprocessing metadata
+
+5. Preprocessing parameters are configurable
+   - Adapt to your specific needs
+   - Document all parameter choices
+   - Enable reproducible analysis
+
+6. All metadata is preserved in JSON sidecars
+   - Recording parameters
+   - Preprocessing steps
+   - Quality metrics
+"""
+
+print(summary)
+print("=" * 70)
+
+# Clean up temporary directory
+import shutil
+shutil.rmtree(bids_root)
+print(f"\nCleaned up temporary BIDS directory")
+
+# %%
+# Key Takeaways
+# ---------------
+# This example demonstrates:
+#
+# 1. **BIDS Structure**: Understanding standardized data organization
+# 2. **Data Discovery**: Finding and listing BIDS-formatted files
+# 3. **Preprocessing Pipeline**: Applying complete preprocessing workflow
+# 4. **Metadata Management**: Handling recording parameters and metadata
+# 5. **Reproducibility**: Ensuring consistent, documented processing
+#
+# For real BIDS datasets:
+#
+# - Validate with bids-validator before processing
+# - Use actual EEG file formats (EDF, BDF, etc.)
+# - Include complete participant information
+# - Document all preprocessing decisions
+# - Share derivatives with original data

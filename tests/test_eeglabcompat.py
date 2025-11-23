@@ -5,6 +5,7 @@ This module tests the EEGLAB compatibility functions that provide
 Python interfaces to MATLAB/Octave EEGLAB functions.
 """
 
+import os
 import unittest
 import sys
 import numpy as np
@@ -112,6 +113,7 @@ class TestMatlabWrapper(DebuggableTestCase):
         self.assertTrue(callable(func))
 
 
+@unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestGetEeglab(DebuggableTestCase):
     """Test cases for get_eeglab function."""
 
@@ -205,6 +207,7 @@ class TestEegCheckset(DebuggableTestCase):
             self.skipTest(f"eeg_checkset not available: {e}")
 
 
+@unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestCleanDrifts(DebuggableTestCase):
     """Test cases for clean_drifts function."""
 
@@ -231,6 +234,7 @@ class TestCleanDrifts(DebuggableTestCase):
             self.skipTest(f"clean_drifts not available: {e}")
 
 
+@unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestPopEegfiltnew(DebuggableTestCase):
     """Test cases for pop_eegfiltnew function."""
 
@@ -395,6 +399,7 @@ class TestCleanArtifacts(DebuggableTestCase):
             self.skipTest(f"clean_artifacts not available: {e}")
 
 
+@unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestEeglabCompatIntegration(DebuggableTestCase):
     """Integration tests for eeglabcompat functions."""
 

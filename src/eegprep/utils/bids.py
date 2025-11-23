@@ -1,3 +1,5 @@
+"""BIDS utilities."""
+
 import os
 from typing import Sequence, Dict, Any, Optional
 
@@ -44,8 +46,7 @@ def query_for_adjacent_fpath(
         fn: str,
         **overrides
 ) -> Dict[str, Any]:
-    """Generate a quary dictionary (of entities) for a given file path in a BIDS dataset,
-    where we selectively apply overrides to the entities."""
+    """Generate a query dictionary (of entities) for a given file path in a BIDS dataset."""
     layout = layout_for_fpath(fn)
     query_entities = layout.parse_file_entities(fn).copy()
     query_entities.update(overrides)
@@ -62,14 +63,19 @@ def gen_derived_fpath(
 ) -> str:
     """Generate a file path for a derived EEG file in a BIDS dataset.
 
-    Args:
-        raw_fn: original raw filename
-        outputdir: output directory for derived files (e.g., 'derivatives/clean_artifacts')
-        keyword: optional keyword tag to splice into the filename (e.g., 'desc-cleaned')
-        suffix: optionally an override for the suffix (or '' to drop the existing suffix,
-          if any and if it's recognized as such)
-        extension: file extension for the newly generated file
-
+    Parameters
+    ----------
+    raw_fn : str
+        Original raw filename.
+    outputdir : str
+        Output directory for derived files (e.g., 'derivatives/clean_artifacts').
+    keyword : str
+        Optional keyword tag to splice into the filename (e.g., 'desc-cleaned').
+    suffix : str, optional
+        Optionally an override for the suffix (or '' to drop the existing suffix,
+        if any and if it's recognized as such).
+    extension : str
+        File extension for the newly generated file.
     """
     fn = raw_fn
     root = root_for_fpath(fn)
@@ -125,22 +131,28 @@ def layout_get_lenient(
         expect_one: bool = False,
         **filters,
 ) -> list:
-    """Wrapper for layout.get() that tolerates specific missing entities, in the
-    specified order of succession.
+    """Wrap layout.get() to tolerate specific missing entities in the specified order of succession.
 
-    Args:
-        layout: BIDSLayout object to query.
-        **kwargs: Query parameters for the layout.get() method.
-        return_type: Type of return value, e.g., 'filename', 'object', etc.
-          Defaults to 'filename'.
-        tolerate_missing: Sequence of entity names that can be missing in the query.
-          The method will progressively strip these entities from the query until
-          a match is found or there are no more candidates to strip.
-        expect_one: If True, expect exactly one result; if multiple are found,
-          this will try to winnow the list down using a few heuristics but when those
-          fail, it will still return all results.
+    Parameters
+    ----------
+    layout : bids.BIDSLayout
+        BIDSLayout object to query.
+    return_type : str
+        Type of return value, e.g., 'filename', 'object', etc. Defaults to 'filename'.
+    tolerate_missing : Sequence[str]
+        Sequence of entity names that can be missing in the query.
+        The method will progressively strip these entities from the query until
+        a match is found or there are no more candidates to strip.
+    expect_one : bool
+        If True, expect exactly one result; if multiple are found,
+        this will try to winnow the list down using a few heuristics but when those
+        fail, it will still return all results.
+    **filters
+        Query parameters for the layout.get() method.
 
-    Returns:
+    Returns
+    -------
+    list
         List of return values matching the query.
     """
     result = []

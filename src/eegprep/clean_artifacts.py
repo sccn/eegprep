@@ -1,3 +1,5 @@
+"""EEG artifact cleaning functions."""
+
 from typing import *
 import logging
 
@@ -32,7 +34,7 @@ def clean_artifacts(
     ChannelCriterionMaxBadTime: float = 0.5,
     BurstCriterionRefMaxBadChns: Union[float, str, None] = 0.075,
     BurstCriterionRefTolerances: Union[Tuple[float, float], str, None] = (-np.inf, 5.5),
-    BurstRejection: str = 'off',
+    BurstRejection: bool = False,
     WindowCriterionTolerances: Union[Tuple[float, float], str, None] = (-np.inf, 7),
     FlatlineCriterion: Union[float, str, None] = 5.0,
     NumSamples: int = 50,
@@ -46,82 +48,82 @@ def clean_artifacts(
     Channels_ignore: Optional[Sequence[str]] = None,
     availableRAM_GB: Optional[float] = None,
 ) -> Tuple[Dict[str, Any], Dict[str, Any], Dict[str, Any], np.ndarray]:
-    """
-    All-in-one artifact removal, port of MATLAB clean_artifacts.
+    """All-in-one artifact removal, port of MATLAB clean_artifacts.
 
     Removes flatline channels, low-frequency drifts, noisy channels, short-time bursts,
     and irrecoverable windows in sequence. Core parameters can be passed as None or 'off'
     to use defaults or disable stages.
 
-    Args:
-        EEG (Dict[str, Any]):
-            Raw continuous EEG dataset dict (must include 'data', 'srate', 'chanlocs', etc.).
-        ChannelCriterion (float or 'off'):
-            Minimum channel correlation threshold for channel cleaning; channels below
-            this value are considered bad. Pass 'off' to skip channel criterion. Default 0.8.
-        LineNoiseCriterion (float or 'off'):
-            Z-score threshold for line-noise contamination; channels exceeding this are
-            considered bad. 'off' disables line-noise check. Default 4.0.
-        BurstCriterion (float or 'off'):
-            ASR standard-deviation cutoff for high-amplitude bursts; values above this
-            relative to calibration data are repaired (or removed if BurstRejection='on').
-            'off' skips ASR. Default 5.0.
-        WindowCriterion (float or 'off'):
-            Fraction (0-1) or count of channels allowed to be bad per window; windows with
-            more bad channels are removed. 'off' disables final window removal. Default 0.25.
-        Highpass (tuple(float, float) or 'off'):
-            Transition band [low, high] in Hz for initial high-pass filtering. 'off' skips
-            drift removal. Default (0.25, 0.75).
-        ChannelCriterionMaxBadTime (float):
-            Maximum tolerated time (seconds or fraction of recording) a channel may be flagged
-            bad before being removed. Default 0.5.
-        BurstCriterionRefMaxBadChns (float or 'off'):
-            Maximum fraction of bad channels tolerated when selecting calibration data for ASR.
-            'off' uses all data for calibration. Default 0.075.
-        BurstCriterionRefTolerances (tuple(float, float) or 'off'):
-            Power Z-score tolerances for selecting calibration windows in ASR. 'off' uses
-            all data. Default (-inf, 5.5).
-        BurstRejection (str):
-            'on' to reject (drop) burst segments instead of reconstructing with ASR,
-            'off' to apply ASR repair. Default 'off'.
-        WindowCriterionTolerances (tuple(float, float) or 'off'):
-            Power Z-score bounds for final window removal. 'off' disables this stage.
-            Default (-inf, 7).
-        FlatlineCriterion (float or 'off'):
-            Maximum flatline duration in seconds; channels exceeding this are removed.
-            'off' disables flatline removal. Default 5.0.
-        NumSamples (int):
-            Number of RANSAC samples for channel cleaning. Default 50.
-        SubsetSize (float):
-            Size of channel subsets for RANSAC, as fraction (0-1) or count. Default 0.25.
-        NoLocsChannelCriterion (float):
-            Correlation threshold for fallback channel cleaning when no channel locations.
-            Default 0.45.
-        NoLocsChannelCriterionExcluded (float):
-            Fraction of channels excluded when assessing correlation in nolocs cleaning.
-            Default 0.1.
-        MaxMem (int):
-            Maximum memory in MB for ASR processing. Default 64.
-        Distance (str):
-            Distance metric for ASR processing ('euclidian'). Default 'euclidian'.
-        Channels (Sequence[str] or None):
-            List of channel labels to include before cleaning (pop_select). Default None.
-        Channels_ignore (Sequence[str] or None):
-            List of channel labels to exclude before cleaning. Default None.
-        availableRAM_GB (float or None):
-            Available system RAM in GB to adjust MaxMem. Default None.
+    Parameters
+    ----------
+    EEG : dict
+        Raw continuous EEG dataset dict (must include 'data', 'srate', 'chanlocs', etc.).
+    ChannelCriterion : float or 'off'
+        Minimum channel correlation threshold for channel cleaning; channels below
+        this value are considered bad. Pass 'off' to skip channel criterion. Default 0.8.
+    LineNoiseCriterion : float or 'off'
+        Z-score threshold for line-noise contamination; channels exceeding this are
+        considered bad. 'off' disables line-noise check. Default 4.0.
+    BurstCriterion : float or 'off'
+        ASR standard-deviation cutoff for high-amplitude bursts; values above this
+        relative to calibration data are repaired (or removed if BurstRejection='on').
+        'off' skips ASR. Default 5.0.
+    WindowCriterion : float or 'off'
+        Fraction (0-1) or count of channels allowed to be bad per window; windows with
+        more bad channels are removed. 'off' disables final window removal. Default 0.25.
+    Highpass : tuple(float, float) or 'off'
+        Transition band [low, high] in Hz for initial high-pass filtering. 'off' skips
+        drift removal. Default (0.25, 0.75).
+    ChannelCriterionMaxBadTime : float
+        Maximum tolerated time (seconds or fraction of recording) a channel may be flagged
+        bad before being removed. Default 0.5.
+    BurstCriterionRefMaxBadChns : float or 'off'
+        Maximum fraction of bad channels tolerated when selecting calibration data for ASR.
+        'off' uses all data for calibration. Default 0.075.
+    BurstCriterionRefTolerances : tuple(float, float) or 'off'
+        Power Z-score tolerances for selecting calibration windows in ASR. 'off' uses
+        all data. Default (-inf, 5.5).
+    BurstRejection : bool
+        'on' to reject (drop) burst segments instead of reconstructing with ASR,
+        'off' to apply ASR repair. Default 'off'.
+    WindowCriterionTolerances : tuple(float, float) or 'off'
+        Power Z-score bounds for final window removal. 'off' disables this stage.
+        Default (-inf, 7).
+    FlatlineCriterion : float or 'off'
+        Maximum flatline duration in seconds; channels exceeding this are removed.
+        'off' disables flatline removal. Default 5.0.
+    NumSamples : int
+        Number of RANSAC samples for channel cleaning. Default 50.
+    SubsetSize : float
+        Size of channel subsets for RANSAC, as fraction (0-1) or count. Default 0.25.
+    NoLocsChannelCriterion : float
+        Correlation threshold for fallback channel cleaning when no channel locations.
+        Default 0.45.
+    NoLocsChannelCriterionExcluded : float
+        Fraction of channels excluded when assessing correlation in nolocs cleaning.
+        Default 0.1.
+    MaxMem : int
+        Maximum memory in MB for ASR processing. Default 64.
+    Distance : str
+        Distance metric for ASR processing ('euclidian'). Default 'euclidian'.
+    Channels : sequence of str or None
+        List of channel labels to include before cleaning (pop_select). Default None.
+    Channels_ignore : sequence of str or None
+        List of channel labels to exclude before cleaning. Default None.
+    availableRAM_GB : float or None
+        Available system RAM in GB to adjust MaxMem. Default None.
 
-    Returns:
-        EEG (Dict[str, Any]):
-            Final cleaned EEG dataset.
-        HP (Dict[str, Any]):
-            EEG dataset after initial high-pass (drift removal).
-        BUR (Dict[str, Any]):
-            EEG dataset after ASR burst repair (before final window removal).
-        removed_channels (np.ndarray of bool):
-            Mask indicating which channels were removed during cleaning.
+    Returns
+    -------
+    EEG : dict
+        Final cleaned EEG dataset.
+    HP : dict
+        EEG dataset after initial high-pass (drift removal).
+    BUR : dict
+        EEG dataset after ASR burst repair (before final window removal).
+    removed_channels : ndarray of bool
+        Mask indicating which channels were removed during cleaning.
     """
-
     # ------------------------------------------------------------------
     #                Basic argument sanity / aliases
     # ------------------------------------------------------------------
@@ -250,7 +252,7 @@ def clean_artifacts(
                 maxmem=int(MaxMem),
             )
 
-        if BurstRejection.lower() == 'on':
+        if BurstRejection:
             # Determine unchanged samples after ASR repair
             sample_mask = np.sum(np.abs(EEG['data'] - BUR['data']), axis=0) < 1e-8
             # Convert to intervals (start,end) inclusive
@@ -307,4 +309,4 @@ def clean_artifacts(
     # re‑insertion of previously excluded channels for simplicity. Users can
     # merge channels back manually if needed.
 
-    return EEG, HP, BUR, removed_channels 
+    return EEG, HP, BUR, removed_channels

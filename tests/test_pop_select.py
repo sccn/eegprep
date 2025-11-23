@@ -1,4 +1,5 @@
 # test_pop_select.py
+import os
 import unittest
 import numpy as np
 import copy
@@ -32,6 +33,7 @@ def _chan_labels(EEG):
     return labs
 
 
+@unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestPopSelectParity(unittest.TestCase):
 
     def setUp(self):

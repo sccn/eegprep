@@ -1,27 +1,40 @@
+"""ICLabel neural network model loading utilities."""
+
 import scipy.io
 import torch
 import scipy
 import numpy as np
 
 class Reshape(torch.nn.Module):
-        def __init__(self, shape):
-            super().__init__()
-            self.shape = shape
+    """Reshape layer for PyTorch."""
 
-        def forward(self, x):
-            return x.view(x.shape[0], *self.shape)
+    def __init__(self, shape):
+        """Initialize reshape layer."""
+        super().__init__()
+        self.shape = shape
+
+    def forward(self, x):
+        """Forward pass for reshape."""
+        return x.view(x.shape[0], *self.shape)
 
 class Concatenate(torch.nn.Module):
+    """Concatenate layer for PyTorch."""
+
     def __init__(self, dim):
+        """Initialize concatenate layer."""
         super().__init__()
         self.dim = dim
     
     def forward(self, x: list):
+        """Forward pass for concatenate."""
         return torch.cat(x, dim=self.dim)
 
 
 class ICLabelNet(torch.nn.Module):
+    """ICLabel neural network model."""
+
     def __init__(self, mat_path):
+        """Initialize ICLabelNet from MATLAB file."""
         super().__init__()
         iclabel_matlab = scipy.io.loadmat(mat_path)
         params = iclabel_matlab['params'][0]
@@ -77,6 +90,7 @@ class ICLabelNet(torch.nn.Module):
         self.discriminator_softmax = torch.nn.Softmax(dim=1)
 
     def forward(self, image, psdmed, autocorr):
+        """Forward pass for ICLabelNet."""
         x_image = self.discriminator_image_layer1_conv(image)
         x_image = self.discriminator_image_layer1_relu(x_image)
         x_image = self.discriminator_image_layer2_conv(x_image)
@@ -134,4 +148,3 @@ if __name__ == "__main__":
     
     # save the output to a mat file
     scipy.io.savemat('output4_py.mat', {'output': output.detach().numpy()})
-    

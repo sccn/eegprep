@@ -1,10 +1,12 @@
 import os
+import unittest
 import numpy as np
 from eegprep import pop_loadset, clean_artifacts, eeg_picard, iclabel
 from eegprep.eeglabcompat import get_eeglab
 from eegprep.eeg_compare import eeg_compare
 from eegprep.utils.testing import compare_eeg
 
+@unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 def test_pipeline():
     """Test pipeline: clean_artifacts -> eeg_picard -> iclabel, comparing Python and MATLAB at each step."""
     # where the test resources
