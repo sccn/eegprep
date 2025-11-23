@@ -1,0 +1,994 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="./" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Frequently Asked Questions &#8212; eegprep 0.2.23 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="_static/togglebutton.css?v=13237357" />
+    <link rel="stylesheet" type="text/css" href="_static/sg_gallery.css?v=d2d258e8" />
+    <link rel="stylesheet" type="text/css" href="_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <link rel="stylesheet" type="text/css" href="_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="_static/custom.css?v=ee63c722" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="_static/documentation_options.js?v=171860b8"></script>
+    <script src="_static/doctools.js?v=9bcbadda"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="_static/copybutton.js?v=6dbb43f8"></script>
+    <script>let toggleHintShow = 'Click to show';</script>
+    <script>let toggleHintHide = 'Click to hide';</script>
+    <script>let toggleOpenOnPrint = 'true';</script>
+    <script src="_static/togglebutton.js?v=4a39c7ea"></script>
+    <script src="_static/design-tabs.js?v=f930bc37"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'faq';</script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="References and Citations" href="references.html" />
+    <link rel="prev" title="Development Setup" href="development.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="0.2.23" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search documentation..."
+         aria-label="Search documentation..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">eegprep</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="api/index.html">
+    API Reference
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="user_guide/index.html">
+    User Guide
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="examples/index.html">
+    Examples
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="contributing.html">
+    Contributing to EEGPrep
+  </a>
+</li>
+
+            <li class="nav-item dropdown">
+                <button class="btn dropdown-toggle nav-item" type="button"
+                data-bs-toggle="dropdown" aria-expanded="false"
+                aria-controls="pst-nav-more-links">
+                    More
+                </button>
+                <ul id="pst-nav-more-links" class="dropdown-menu">
+                    
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="development.html">
+    Development Setup
+  </a>
+</li>
+
+
+<li class=" current active">
+  <a class="nav-link dropdown-item nav-internal" href="#">
+    Frequently Asked Questions
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="references.html">
+    References and Citations
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="changelog.html">
+    Changelog
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="glossary.html">
+    Glossary
+  </a>
+</li>
+
+                </ul>
+            </li>
+            
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/sccn/eegprep" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fab fa-github-square fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+</ul></div>
+      
+    </div>
+    
+  </div>
+  
+  
+
+  
+    <button class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="api/index.html">
+    API Reference
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="user_guide/index.html">
+    User Guide
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="examples/index.html">
+    Examples
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="contributing.html">
+    Contributing to EEGPrep
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="development.html">
+    Development Setup
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="#">
+    Frequently Asked Questions
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="references.html">
+    References and Citations
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="changelog.html">
+    Changelog
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="glossary.html">
+    Glossary
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/sccn/eegprep" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fab fa-github-square fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+</ul></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+<nav class="bd-docs-nav bd-links"
+     aria-label="Section Navigation">
+  <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
+  <div class="bd-toc-item navbar-nav"></div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">Frequently Asked Questions</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="frequently-asked-questions">
+<span id="faq"></span><h1>Frequently Asked Questions<a class="headerlink" href="#frequently-asked-questions" title="Link to this heading">#</a></h1>
+<section id="installation-faq">
+<h2>Installation FAQ<a class="headerlink" href="#installation-faq" title="Link to this heading">#</a></h2>
+<section id="what-python-versions-does-eegprep-support">
+<h3>What Python versions does EEGPrep support?<a class="headerlink" href="#what-python-versions-does-eegprep-support" title="Link to this heading">#</a></h3>
+<p>EEGPrep supports Python 3.8 and higher. We recommend using Python 3.9 or 3.10 for the best compatibility with all dependencies.</p>
+</section>
+<section id="how-do-i-install-eegprep">
+<h3>How do I install EEGPrep?<a class="headerlink" href="#how-do-i-install-eegprep" title="Link to this heading">#</a></h3>
+<p>The easiest way is to use pip:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>eegprep
+</pre></div>
+</div>
+<p>For development installation from source:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/NeuroTechX/eegprep.git
+<span class="nb">cd</span><span class="w"> </span>eegprep
+pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;.[dev]&quot;</span>
+</pre></div>
+</div>
+</section>
+<section id="what-are-the-system-requirements">
+<h3>What are the system requirements?<a class="headerlink" href="#what-are-the-system-requirements" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><strong>Operating System</strong>: Linux, macOS, or Windows</p></li>
+<li><p><strong>Python</strong>: 3.8 or higher</p></li>
+<li><p><strong>RAM</strong>: Minimum 4GB (8GB+ recommended for large datasets)</p></li>
+<li><p><strong>Disk Space</strong>: 500MB for installation and dependencies</p></li>
+</ul>
+</section>
+<section id="can-i-use-eegprep-on-windows">
+<h3>Can I use EEGPrep on Windows?<a class="headerlink" href="#can-i-use-eegprep-on-windows" title="Link to this heading">#</a></h3>
+<p>Yes, EEGPrep works on Windows. However, some optional features may require additional setup. We recommend using Windows Subsystem for Linux (WSL) for better compatibility.</p>
+</section>
+<section id="what-if-i-get-dependency-conflicts">
+<h3>What if I get dependency conflicts?<a class="headerlink" href="#what-if-i-get-dependency-conflicts" title="Link to this heading">#</a></h3>
+<p>Try updating pip and reinstalling:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>--upgrade<span class="w"> </span>pip
+pip<span class="w"> </span>install<span class="w"> </span>--force-reinstall<span class="w"> </span>eegprep
+</pre></div>
+</div>
+<p>Or create a fresh virtual environment:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>-m<span class="w"> </span>venv<span class="w"> </span>venv
+<span class="nb">source</span><span class="w"> </span>venv/bin/activate
+pip<span class="w"> </span>install<span class="w"> </span>eegprep
+</pre></div>
+</div>
+</section>
+<section id="does-eegprep-support-gpu-acceleration">
+<h3>Does EEGPrep support GPU acceleration?<a class="headerlink" href="#does-eegprep-support-gpu-acceleration" title="Link to this heading">#</a></h3>
+<p>EEGPrep can leverage GPU acceleration through MNE-Python and PyTorch for ICA and other computations. Install GPU support:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>torch<span class="w">  </span><span class="c1"># For GPU support</span>
+pip<span class="w"> </span>install<span class="w"> </span>mne<span class="o">[</span>cuda<span class="o">]</span><span class="w">  </span><span class="c1"># For MNE GPU support</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="usage-faq">
+<h2>Usage FAQ<a class="headerlink" href="#usage-faq" title="Link to this heading">#</a></h2>
+<section id="how-do-i-load-eeg-data">
+<h3>How do I load EEG data?<a class="headerlink" href="#how-do-i-load-eeg-data" title="Link to this heading">#</a></h3>
+<p>EEGPrep supports multiple formats:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">eegprep</span>
+
+<span class="c1"># Load EEGLAB .set file</span>
+<span class="n">eeg</span> <span class="o">=</span> <span class="n">eegprep</span><span class="o">.</span><span class="n">EEGobj</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s1">&#39;data.set&#39;</span><span class="p">)</span>
+
+<span class="c1"># Load from BIDS dataset</span>
+<span class="n">eeg</span> <span class="o">=</span> <span class="n">eegprep</span><span class="o">.</span><span class="n">pop_load_frombids</span><span class="p">(</span><span class="s1">&#39;/path/to/bids&#39;</span><span class="p">,</span> <span class="s1">&#39;sub-001&#39;</span><span class="p">)</span>
+
+<span class="c1"># Load from MNE-Python</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">mne</span>
+<span class="n">raw</span> <span class="o">=</span> <span class="n">mne</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">read_raw_edf</span><span class="p">(</span><span class="s1">&#39;data.edf&#39;</span><span class="p">)</span>
+<span class="n">eeg</span> <span class="o">=</span> <span class="n">eegprep</span><span class="o">.</span><span class="n">eeg_mne2eeg</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="what-data-formats-are-supported">
+<h3>What data formats are supported?<a class="headerlink" href="#what-data-formats-are-supported" title="Link to this heading">#</a></h3>
+<p>EEGPrep supports:</p>
+<ul class="simple">
+<li><p><strong>EEGLAB</strong>: .set and .fdt files</p></li>
+<li><p><strong>BIDS</strong>: Brain Imaging Data Structure format</p></li>
+<li><p><strong>MNE-Python</strong>: Raw and Epochs objects</p></li>
+<li><p><strong>EDF</strong>: European Data Format</p></li>
+<li><p><strong>BrainVision</strong>: .vhdr, .vmrk, .eeg files</p></li>
+<li><p><strong>Neuroscan</strong>: .cnt files</p></li>
+</ul>
+</section>
+<section id="how-do-i-apply-preprocessing">
+<h3>How do I apply preprocessing?<a class="headerlink" href="#how-do-i-apply-preprocessing" title="Link to this heading">#</a></h3>
+<p>Apply preprocessing steps in sequence:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">eegprep</span>
+
+<span class="c1"># Load data</span>
+<span class="n">eeg</span> <span class="o">=</span> <span class="n">eegprep</span><span class="o">.</span><span class="n">EEGobj</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s1">&#39;data.set&#39;</span><span class="p">)</span>
+
+<span class="c1"># Apply preprocessing pipeline</span>
+<span class="n">eeg</span> <span class="o">=</span> <span class="n">eegprep</span><span class="o">.</span><span class="n">clean_flatlines</span><span class="p">(</span><span class="n">eeg</span><span class="p">)</span>
+<span class="n">eeg</span> <span class="o">=</span> <span class="n">eegprep</span><span class="o">.</span><span class="n">clean_channels</span><span class="p">(</span><span class="n">eeg</span><span class="p">)</span>
+<span class="n">eeg</span> <span class="o">=</span> <span class="n">eegprep</span><span class="o">.</span><span class="n">clean_artifacts</span><span class="p">(</span><span class="n">eeg</span><span class="p">)</span>
+<span class="n">eeg</span> <span class="o">=</span> <span class="n">eegprep</span><span class="o">.</span><span class="n">clean_drifts</span><span class="p">(</span><span class="n">eeg</span><span class="p">)</span>
+
+<span class="c1"># Save processed data</span>
+<span class="n">eeg</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s1">&#39;data_processed.set&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="how-do-i-save-processed-data">
+<h3>How do I save processed data?<a class="headerlink" href="#how-do-i-save-processed-data" title="Link to this heading">#</a></h3>
+<p>Save in EEGLAB format:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">eeg</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s1">&#39;data_processed.set&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Save in HDF5 format:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">eeg</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s1">&#39;data_processed.h5&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Export to MNE-Python:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">raw</span> <span class="o">=</span> <span class="n">eegprep</span><span class="o">.</span><span class="n">eeg_eeg2mne</span><span class="p">(</span><span class="n">eeg</span><span class="p">)</span>
+<span class="n">raw</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s1">&#39;data_processed_raw.fif&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="can-i-use-eegprep-with-mne-python">
+<h3>Can I use EEGPrep with MNE-Python?<a class="headerlink" href="#can-i-use-eegprep-with-mne-python" title="Link to this heading">#</a></h3>
+<p>Yes! EEGPrep integrates seamlessly with MNE-Python:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">eegprep</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">mne</span>
+
+<span class="c1"># Load with MNE</span>
+<span class="n">raw</span> <span class="o">=</span> <span class="n">mne</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">read_raw_edf</span><span class="p">(</span><span class="s1">&#39;data.edf&#39;</span><span class="p">)</span>
+
+<span class="c1"># Convert to EEGPrep</span>
+<span class="n">eeg</span> <span class="o">=</span> <span class="n">eegprep</span><span class="o">.</span><span class="n">eeg_mne2eeg</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span>
+
+<span class="c1"># Process with EEGPrep</span>
+<span class="n">eeg</span> <span class="o">=</span> <span class="n">eegprep</span><span class="o">.</span><span class="n">clean_artifacts</span><span class="p">(</span><span class="n">eeg</span><span class="p">)</span>
+
+<span class="c1"># Convert back to MNE</span>
+<span class="n">raw</span> <span class="o">=</span> <span class="n">eegprep</span><span class="o">.</span><span class="n">eeg_eeg2mne</span><span class="p">(</span><span class="n">eeg</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="how-do-i-work-with-bids-datasets">
+<h3>How do I work with BIDS datasets?<a class="headerlink" href="#how-do-i-work-with-bids-datasets" title="Link to this heading">#</a></h3>
+<p>Load and process BIDS data:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">eegprep</span>
+
+<span class="c1"># Load from BIDS</span>
+<span class="n">eeg</span> <span class="o">=</span> <span class="n">eegprep</span><span class="o">.</span><span class="n">pop_load_frombids</span><span class="p">(</span><span class="s1">&#39;/path/to/bids&#39;</span><span class="p">,</span> <span class="s1">&#39;sub-001&#39;</span><span class="p">,</span> <span class="s1">&#39;ses-01&#39;</span><span class="p">)</span>
+
+<span class="c1"># Process</span>
+<span class="n">eeg</span> <span class="o">=</span> <span class="n">eegprep</span><span class="o">.</span><span class="n">clean_artifacts</span><span class="p">(</span><span class="n">eeg</span><span class="p">)</span>
+
+<span class="c1"># Save back to BIDS</span>
+<span class="n">eeg</span><span class="o">.</span><span class="n">save_bids</span><span class="p">(</span><span class="s1">&#39;/path/to/bids&#39;</span><span class="p">,</span> <span class="s1">&#39;sub-001&#39;</span><span class="p">,</span> <span class="s1">&#39;ses-01&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="performance-faq">
+<h2>Performance FAQ<a class="headerlink" href="#performance-faq" title="Link to this heading">#</a></h2>
+<section id="why-is-preprocessing-slow">
+<h3>Why is preprocessing slow?<a class="headerlink" href="#why-is-preprocessing-slow" title="Link to this heading">#</a></h3>
+<p>Preprocessing speed depends on:</p>
+<ul class="simple">
+<li><p><strong>Data size</strong>: Larger datasets take longer</p></li>
+<li><p><strong>Sampling rate</strong>: Higher sampling rates require more computation</p></li>
+<li><p><strong>Number of channels</strong>: More channels = more computation</p></li>
+<li><p><strong>Algorithm complexity</strong>: Some algorithms (ICA, ASR) are computationally intensive</p></li>
+</ul>
+<p>To speed up processing:</p>
+<ol class="arabic simple">
+<li><p>Downsample data if appropriate</p></li>
+<li><p>Use GPU acceleration</p></li>
+<li><p>Process in parallel (for multiple subjects)</p></li>
+<li><p>Use faster algorithms (e.g., ASR instead of ICA)</p></li>
+</ol>
+</section>
+<section id="how-much-memory-does-eegprep-use">
+<h3>How much memory does EEGPrep use?<a class="headerlink" href="#how-much-memory-does-eegprep-use" title="Link to this heading">#</a></h3>
+<p>Memory usage depends on:</p>
+<ul class="simple">
+<li><p><strong>Data size</strong>: Roughly 8 bytes per sample per channel</p></li>
+<li><p><strong>Number of channels</strong>: More channels = more memory</p></li>
+<li><p><strong>Sampling rate</strong>: Higher rates = more samples = more memory</p></li>
+</ul>
+<p>Example: 64 channels, 500 Hz sampling, 1 hour of data ≈ 1.2 GB</p>
+<p>To reduce memory usage:</p>
+<ul class="simple">
+<li><p>Downsample data</p></li>
+<li><p>Process shorter segments</p></li>
+<li><p>Use memory-efficient algorithms</p></li>
+</ul>
+</section>
+<section id="can-i-process-data-in-parallel">
+<h3>Can I process data in parallel?<a class="headerlink" href="#can-i-process-data-in-parallel" title="Link to this heading">#</a></h3>
+<p>Yes, you can process multiple subjects in parallel:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">multiprocessing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Pool</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">eegprep</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">process_subject</span><span class="p">(</span><span class="n">subject_id</span><span class="p">):</span>
+    <span class="n">eeg</span> <span class="o">=</span> <span class="n">eegprep</span><span class="o">.</span><span class="n">pop_load_frombids</span><span class="p">(</span><span class="s1">&#39;/bids&#39;</span><span class="p">,</span> <span class="n">subject_id</span><span class="p">)</span>
+    <span class="n">eeg</span> <span class="o">=</span> <span class="n">eegprep</span><span class="o">.</span><span class="n">clean_artifacts</span><span class="p">(</span><span class="n">eeg</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">eeg</span>
+
+<span class="k">with</span> <span class="n">Pool</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">process_subject</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;sub-001&#39;</span><span class="p">,</span> <span class="s1">&#39;sub-002&#39;</span><span class="p">,</span> <span class="s1">&#39;sub-003&#39;</span><span class="p">])</span>
+</pre></div>
+</div>
+</section>
+<section id="how-can-i-optimize-preprocessing">
+<h3>How can I optimize preprocessing?<a class="headerlink" href="#how-can-i-optimize-preprocessing" title="Link to this heading">#</a></h3>
+<p>Tips for optimization:</p>
+<ol class="arabic simple">
+<li><p><strong>Choose appropriate parameters</strong>: Use defaults as starting point</p></li>
+<li><p><strong>Skip unnecessary steps</strong>: Only apply needed preprocessing</p></li>
+<li><p><strong>Use faster algorithms</strong>: ASR is faster than ICA</p></li>
+<li><p><strong>Downsample if appropriate</strong>: Reduces computation</p></li>
+<li><p><strong>Use GPU acceleration</strong>: For ICA and other algorithms</p></li>
+<li><p><strong>Process in batches</strong>: More efficient than one-by-one</p></li>
+</ol>
+</section>
+</section>
+<section id="troubleshooting-faq">
+<h2>Troubleshooting FAQ<a class="headerlink" href="#troubleshooting-faq" title="Link to this heading">#</a></h2>
+<section id="i-get-modulenotfounderror-no-module-named-eegprep">
+<h3>I get “ModuleNotFoundError: No module named ‘eegprep’”<a class="headerlink" href="#i-get-modulenotfounderror-no-module-named-eegprep" title="Link to this heading">#</a></h3>
+<p><strong>Solution</strong>: Install EEGPrep:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>eegprep
+</pre></div>
+</div>
+<p>Or if developing from source:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
+</pre></div>
+</div>
+</section>
+<section id="i-get-valueerror-data-shape-mismatch">
+<h3>I get “ValueError: Data shape mismatch”<a class="headerlink" href="#i-get-valueerror-data-shape-mismatch" title="Link to this heading">#</a></h3>
+<p><strong>Cause</strong>: Data dimensions don’t match expected format</p>
+<p><strong>Solution</strong>: Check data shape:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="n">eeg</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>  <span class="c1"># Should be (channels, samples)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">eeg</span><span class="o">.</span><span class="n">nbchan</span><span class="p">)</span>  <span class="c1"># Number of channels</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">eeg</span><span class="o">.</span><span class="n">pnts</span><span class="p">)</span>  <span class="c1"># Number of samples</span>
+</pre></div>
+</div>
+</section>
+<section id="i-get-runtimeerror-cuda-out-of-memory">
+<h3>I get “RuntimeError: CUDA out of memory”<a class="headerlink" href="#i-get-runtimeerror-cuda-out-of-memory" title="Link to this heading">#</a></h3>
+<p><strong>Cause</strong>: GPU memory exhausted</p>
+<p><strong>Solutions</strong>:</p>
+<ol class="arabic simple">
+<li><p>Use CPU instead:</p></li>
+</ol>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">eeg</span> <span class="o">=</span> <span class="n">eegprep</span><span class="o">.</span><span class="n">clean_artifacts</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="n">use_gpu</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</pre></div>
+</div>
+<ol class="arabic simple" start="2">
+<li><p>Process smaller segments</p></li>
+<li><p>Reduce batch size</p></li>
+<li><p>Upgrade GPU memory</p></li>
+</ol>
+</section>
+<section id="my-data-has-nan-values">
+<h3>My data has NaN values<a class="headerlink" href="#my-data-has-nan-values" title="Link to this heading">#</a></h3>
+<p><strong>Solution</strong>: Handle NaN values:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+<span class="c1"># Remove NaN values</span>
+<span class="n">eeg</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan_to_num</span><span class="p">(</span><span class="n">eeg</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+
+<span class="c1"># Or interpolate</span>
+<span class="n">eeg</span> <span class="o">=</span> <span class="n">eegprep</span><span class="o">.</span><span class="n">eeg_interp</span><span class="p">(</span><span class="n">eeg</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="how-do-i-debug-preprocessing-issues">
+<h3>How do I debug preprocessing issues?<a class="headerlink" href="#how-do-i-debug-preprocessing-issues" title="Link to this heading">#</a></h3>
+<p>Enable logging:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">)</span>
+
+<span class="c1"># Now run preprocessing with debug output</span>
+<span class="n">eeg</span> <span class="o">=</span> <span class="n">eegprep</span><span class="o">.</span><span class="n">clean_artifacts</span><span class="p">(</span><span class="n">eeg</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Check data at each step:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Original shape: </span><span class="si">{</span><span class="n">eeg</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="n">eeg</span> <span class="o">=</span> <span class="n">eegprep</span><span class="o">.</span><span class="n">clean_flatlines</span><span class="p">(</span><span class="n">eeg</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;After flatlines: </span><span class="si">{</span><span class="n">eeg</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="n">eeg</span> <span class="o">=</span> <span class="n">eegprep</span><span class="o">.</span><span class="n">clean_channels</span><span class="p">(</span><span class="n">eeg</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;After channels: </span><span class="si">{</span><span class="n">eeg</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="comparison-faq">
+<h2>Comparison FAQ<a class="headerlink" href="#comparison-faq" title="Link to this heading">#</a></h2>
+<section id="how-does-eegprep-compare-to-eeglab">
+<h3>How does EEGPrep compare to EEGLAB?<a class="headerlink" href="#how-does-eegprep-compare-to-eeglab" title="Link to this heading">#</a></h3>
+<p><strong>EEGPrep</strong>:</p>
+<ul class="simple">
+<li><p>Python-based (easier integration with modern tools)</p></li>
+<li><p>Open-source and actively maintained</p></li>
+<li><p>Scriptable and reproducible</p></li>
+<li><p>Good for batch processing</p></li>
+</ul>
+<p><strong>EEGLAB</strong>:</p>
+<ul class="simple">
+<li><p>MATLAB-based (established in neuroscience)</p></li>
+<li><p>Extensive GUI</p></li>
+<li><p>Large community and plugins</p></li>
+<li><p>Better for interactive exploration</p></li>
+</ul>
+<p><strong>Recommendation</strong>: Use EEGPrep for reproducible pipelines, EEGLAB for interactive exploration.</p>
+</section>
+<section id="how-does-eegprep-compare-to-mne-python">
+<h3>How does EEGPrep compare to MNE-Python?<a class="headerlink" href="#how-does-eegprep-compare-to-mne-python" title="Link to this heading">#</a></h3>
+<p><strong>EEGPrep</strong>:</p>
+<ul class="simple">
+<li><p>Specialized for EEG preprocessing</p></li>
+<li><p>EEGLAB-compatible</p></li>
+<li><p>Comprehensive artifact removal</p></li>
+<li><p>BIDS-native support</p></li>
+</ul>
+<p><strong>MNE-Python</strong>:</p>
+<ul class="simple">
+<li><p>General neuroimaging (EEG, MEG, fMRI)</p></li>
+<li><p>Extensive analysis tools</p></li>
+<li><p>Large community</p></li>
+<li><p>Better for source localization</p></li>
+</ul>
+<p><strong>Recommendation</strong>: Use EEGPrep for preprocessing, MNE for analysis.</p>
+</section>
+<section id="how-does-eegprep-compare-to-fieldtrip">
+<h3>How does EEGPrep compare to Fieldtrip?<a class="headerlink" href="#how-does-eegprep-compare-to-fieldtrip" title="Link to this heading">#</a></h3>
+<p><strong>EEGPrep</strong>:</p>
+<ul class="simple">
+<li><p>Python-based</p></li>
+<li><p>Modern, actively maintained</p></li>
+<li><p>Good for batch processing</p></li>
+<li><p>BIDS support</p></li>
+</ul>
+<p><strong>Fieldtrip</strong>:</p>
+<ul class="simple">
+<li><p>MATLAB-based</p></li>
+<li><p>Established in neuroscience</p></li>
+<li><p>Extensive documentation</p></li>
+<li><p>Good for MEG and EEG</p></li>
+</ul>
+<p><strong>Recommendation</strong>: Use EEGPrep for Python workflows, Fieldtrip for MATLAB workflows.</p>
+</section>
+</section>
+<section id="data-format-faq">
+<h2>Data Format FAQ<a class="headerlink" href="#data-format-faq" title="Link to this heading">#</a></h2>
+<section id="what-is-bids">
+<h3>What is BIDS?<a class="headerlink" href="#what-is-bids" title="Link to this heading">#</a></h3>
+<p>BIDS (Brain Imaging Data Structure) is a standard for organizing neuroimaging data. It ensures:</p>
+<ul class="simple">
+<li><p>Consistency across datasets</p></li>
+<li><p>Reproducibility</p></li>
+<li><p>Easy sharing</p></li>
+<li><p>Automated processing</p></li>
+</ul>
+<p>Learn more: <a class="reference external" href="https://bids-standard.github.io/">BIDS Documentation</a></p>
+</section>
+<section id="how-do-i-convert-data-to-bids">
+<h3>How do I convert data to BIDS?<a class="headerlink" href="#how-do-i-convert-data-to-bids" title="Link to this heading">#</a></h3>
+<p>Use the BIDS converter:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">eegprep</span>
+
+<span class="n">eeg</span> <span class="o">=</span> <span class="n">eegprep</span><span class="o">.</span><span class="n">EEGobj</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s1">&#39;data.set&#39;</span><span class="p">)</span>
+<span class="n">eeg</span><span class="o">.</span><span class="n">save_bids</span><span class="p">(</span><span class="s1">&#39;/path/to/bids&#39;</span><span class="p">,</span> <span class="s1">&#39;sub-001&#39;</span><span class="p">,</span> <span class="s1">&#39;ses-01&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="what-s-the-difference-between-set-and-fdt-files">
+<h3>What’s the difference between .set and .fdt files?<a class="headerlink" href="#what-s-the-difference-between-set-and-fdt-files" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><strong>.set</strong>: EEGLAB header file (contains metadata)</p></li>
+<li><p><strong>.fdt</strong>: EEGLAB data file (contains actual EEG data)</p></li>
+</ul>
+<p>Both are needed for complete EEGLAB datasets.</p>
+</section>
+<section id="can-i-use-eegprep-with-other-data-formats">
+<h3>Can I use EEGPrep with other data formats?<a class="headerlink" href="#can-i-use-eegprep-with-other-data-formats" title="Link to this heading">#</a></h3>
+<p>Yes, EEGPrep supports:</p>
+<ul class="simple">
+<li><p>EDF (European Data Format)</p></li>
+<li><p>BrainVision (.vhdr, .vmrk, .eeg)</p></li>
+<li><p>Neuroscan (.cnt)</p></li>
+<li><p>MNE-Python formats</p></li>
+</ul>
+<p>Convert between formats:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">eegprep</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">mne</span>
+
+<span class="c1"># Load from any MNE-supported format</span>
+<span class="n">raw</span> <span class="o">=</span> <span class="n">mne</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">read_raw</span><span class="p">(</span><span class="s1">&#39;data.edf&#39;</span><span class="p">)</span>
+
+<span class="c1"># Convert to EEGPrep</span>
+<span class="n">eeg</span> <span class="o">=</span> <span class="n">eegprep</span><span class="o">.</span><span class="n">eeg_mne2eeg</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span>
+
+<span class="c1"># Save in EEGLAB format</span>
+<span class="n">eeg</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s1">&#39;data.set&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="getting-help">
+<h2>Getting Help<a class="headerlink" href="#getting-help" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p>Check the <a class="reference internal" href="user_guide/index.html"><span class="doc">User Guide</span></a></p></li>
+<li><p>Review <a class="reference internal" href="examples/index.html"><span class="doc">Examples</span></a></p></li>
+<li><p>Search <a class="reference external" href="https://github.com/NeuroTechX/eegprep/issues">GitHub Issues</a></p></li>
+<li><p>Ask in GitHub Discussions</p></li>
+<li><p>Contact the maintainers</p></li>
+</ul>
+<p>Still have questions? Open an issue on GitHub!</p>
+</section>
+</section>
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="development.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Development Setup</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="references.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">References and Citations</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav class="bd-toc-nav page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#installation-faq">Installation FAQ</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#what-python-versions-does-eegprep-support">What Python versions does EEGPrep support?</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#how-do-i-install-eegprep">How do I install EEGPrep?</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#what-are-the-system-requirements">What are the system requirements?</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#can-i-use-eegprep-on-windows">Can I use EEGPrep on Windows?</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#what-if-i-get-dependency-conflicts">What if I get dependency conflicts?</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#does-eegprep-support-gpu-acceleration">Does EEGPrep support GPU acceleration?</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#usage-faq">Usage FAQ</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#how-do-i-load-eeg-data">How do I load EEG data?</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#what-data-formats-are-supported">What data formats are supported?</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#how-do-i-apply-preprocessing">How do I apply preprocessing?</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#how-do-i-save-processed-data">How do I save processed data?</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#can-i-use-eegprep-with-mne-python">Can I use EEGPrep with MNE-Python?</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#how-do-i-work-with-bids-datasets">How do I work with BIDS datasets?</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#performance-faq">Performance FAQ</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#why-is-preprocessing-slow">Why is preprocessing slow?</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#how-much-memory-does-eegprep-use">How much memory does EEGPrep use?</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#can-i-process-data-in-parallel">Can I process data in parallel?</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#how-can-i-optimize-preprocessing">How can I optimize preprocessing?</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting-faq">Troubleshooting FAQ</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#i-get-modulenotfounderror-no-module-named-eegprep">I get “ModuleNotFoundError: No module named ‘eegprep’”</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#i-get-valueerror-data-shape-mismatch">I get “ValueError: Data shape mismatch”</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#i-get-runtimeerror-cuda-out-of-memory">I get “RuntimeError: CUDA out of memory”</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#my-data-has-nan-values">My data has NaN values</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#how-do-i-debug-preprocessing-issues">How do I debug preprocessing issues?</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#comparison-faq">Comparison FAQ</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#how-does-eegprep-compare-to-eeglab">How does EEGPrep compare to EEGLAB?</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#how-does-eegprep-compare-to-mne-python">How does EEGPrep compare to MNE-Python?</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#how-does-eegprep-compare-to-fieldtrip">How does EEGPrep compare to Fieldtrip?</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-format-faq">Data Format FAQ</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#what-is-bids">What is BIDS?</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#how-do-i-convert-data-to-bids">How do I convert data to BIDS?</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#what-s-the-difference-between-set-and-fdt-files">What’s the difference between .set and .fdt files?</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#can-i-use-eegprep-with-other-data-formats">Can I use EEGPrep with other data formats?</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#getting-help">Getting Help</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2024 - , EEGPrep contributors.
+      <br/>
+    
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.2.3.
+    <br/>
+  </p>
+</div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>

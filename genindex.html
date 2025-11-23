@@ -1,0 +1,972 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="./" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Index &#8212; eegprep 0.2.23 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="_static/togglebutton.css?v=13237357" />
+    <link rel="stylesheet" type="text/css" href="_static/sg_gallery.css?v=d2d258e8" />
+    <link rel="stylesheet" type="text/css" href="_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <link rel="stylesheet" type="text/css" href="_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="_static/custom.css?v=ee63c722" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="_static/documentation_options.js?v=171860b8"></script>
+    <script src="_static/doctools.js?v=9bcbadda"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="_static/copybutton.js?v=6dbb43f8"></script>
+    <script>let toggleHintShow = 'Click to show';</script>
+    <script>let toggleHintHide = 'Click to hide';</script>
+    <script>let toggleOpenOnPrint = 'true';</script>
+    <script src="_static/togglebutton.js?v=4a39c7ea"></script>
+    <script src="_static/design-tabs.js?v=f930bc37"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'genindex';</script>
+    <link rel="index" title="Index" href="#" />
+    <link rel="search" title="Search" href="search.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="0.2.23" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search documentation..."
+         aria-label="Search documentation..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">eegprep</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="api/index.html">
+    API Reference
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="user_guide/index.html">
+    User Guide
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="examples/index.html">
+    Examples
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="contributing.html">
+    Contributing to EEGPrep
+  </a>
+</li>
+
+            <li class="nav-item dropdown">
+                <button class="btn dropdown-toggle nav-item" type="button"
+                data-bs-toggle="dropdown" aria-expanded="false"
+                aria-controls="pst-nav-more-links">
+                    More
+                </button>
+                <ul id="pst-nav-more-links" class="dropdown-menu">
+                    
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="development.html">
+    Development Setup
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="faq.html">
+    Frequently Asked Questions
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="references.html">
+    References and Citations
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="changelog.html">
+    Changelog
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="glossary.html">
+    Glossary
+  </a>
+</li>
+
+                </ul>
+            </li>
+            
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/sccn/eegprep" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fab fa-github-square fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+</ul></div>
+      
+    </div>
+    
+  </div>
+  
+  
+
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+        
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar hide-on-wide">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="api/index.html">
+    API Reference
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="user_guide/index.html">
+    User Guide
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="examples/index.html">
+    Examples
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="contributing.html">
+    Contributing to EEGPrep
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="development.html">
+    Development Setup
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="faq.html">
+    Frequently Asked Questions
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="references.html">
+    References and Citations
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="changelog.html">
+    Changelog
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="glossary.html">
+    Glossary
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/sccn/eegprep" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fab fa-github-square fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+</ul></div>
+        
+      </div>
+    
+  </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none"></div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+
+<h1 id="index">Index</h1>
+
+<div class="genindex-jumpbox">
+ <a href="#Symbols"><strong>Symbols</strong></a>
+ | <a href="#_"><strong>_</strong></a>
+ | <a href="#A"><strong>A</strong></a>
+ | <a href="#B"><strong>B</strong></a>
+ | <a href="#C"><strong>C</strong></a>
+ | <a href="#D"><strong>D</strong></a>
+ | <a href="#E"><strong>E</strong></a>
+ | <a href="#F"><strong>F</strong></a>
+ | <a href="#G"><strong>G</strong></a>
+ | <a href="#H"><strong>H</strong></a>
+ | <a href="#I"><strong>I</strong></a>
+ | <a href="#L"><strong>L</strong></a>
+ | <a href="#M"><strong>M</strong></a>
+ | <a href="#N"><strong>N</strong></a>
+ | <a href="#O"><strong>O</strong></a>
+ | <a href="#P"><strong>P</strong></a>
+ | <a href="#Q"><strong>Q</strong></a>
+ | <a href="#R"><strong>R</strong></a>
+ | <a href="#S"><strong>S</strong></a>
+ | <a href="#T"><strong>T</strong></a>
+ | <a href="#V"><strong>V</strong></a>
+ | <a href="#W"><strong>W</strong></a>
+ | <a href="#Z"><strong>Z</strong></a>
+ 
+</div>
+<h2 id="Symbols">Symbols</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="glossary.html#term-.fdt-file"><strong>.fdt file</strong></a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="glossary.html#term-.set-file"><strong>.set file</strong></a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="_">_</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/core.html#eegprep.EEGobj.__getattr__">__getattr__() (eegprep.EEGobj method)</a>, <a href="api/generated/eegprep.EEGobj.html#eegprep.EEGobj.__getattr__">[1]</a>
+</li>
+      <li><a href="api/core.html#eegprep.EEGobj.__init__">__init__() (eegprep.EEGobj method)</a>, <a href="api/generated/eegprep.EEGobj.html#eegprep.EEGobj.__init__">[1]</a>, <a href="api/generated/eegprep.EEGobj.html#id0">[2]</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/core.html#eegprep.EEGobj.__repr__">__repr__() (eegprep.EEGobj method)</a>, <a href="api/generated/eegprep.EEGobj.html#eegprep.EEGobj.__repr__">[1]</a>
+</li>
+      <li><a href="api/core.html#eegprep.EEGobj.__setattr__">__setattr__() (eegprep.EEGobj method)</a>, <a href="api/generated/eegprep.EEGobj.html#eegprep.EEGobj.__setattr__">[1]</a>
+</li>
+      <li><a href="api/core.html#eegprep.EEGobj.__str__">__str__() (eegprep.EEGobj method)</a>, <a href="api/generated/eegprep.EEGobj.html#eegprep.EEGobj.__str__">[1]</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="A">A</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="glossary.html#term-Amplitude"><strong>Amplitude</strong></a>
+</li>
+      <li><a href="glossary.html#term-Artifact"><strong>Artifact</strong></a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="glossary.html#term-Artifact-Detection-Threshold"><strong>Artifact Detection Threshold</strong></a>
+</li>
+      <li><a href="glossary.html#term-Artifact-Subspace-Reconstruction-ASR"><strong>Artifact Subspace Reconstruction (ASR)</strong></a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="B">B</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="glossary.html#term-Baseline"><strong>Baseline</strong></a>
+</li>
+      <li><a href="glossary.html#term-Baseline-Correction"><strong>Baseline Correction</strong></a>
+</li>
+      <li><a href="glossary.html#term-Batch-Processing"><strong>Batch Processing</strong></a>
+</li>
+      <li><a href="glossary.html#term-BIDS"><strong>BIDS</strong></a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/core.html#eegprep.bids_list_eeg_files">bids_list_eeg_files() (in module eegprep)</a>, <a href="api/generated/eegprep.bids_list_eeg_files.html#eegprep.bids_list_eeg_files">[1]</a>
+</li>
+      <li><a href="api/core.html#eegprep.bids_preproc">bids_preproc() (in module eegprep)</a>, <a href="api/generated/eegprep.bids_preproc.html#eegprep.bids_preproc">[1]</a>
+</li>
+      <li><a href="glossary.html#term-Blind-Source-Separation"><strong>Blind Source Separation</strong></a>
+</li>
+      <li><a href="api/utils.html#eegprep.utils.stats.block_geometric_median">block_geometric_median() (in module eegprep.utils.stats)</a>
+</li>
+      <li><a href="glossary.html#term-BrainVision"><strong>BrainVision</strong></a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="C">C</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/utils.html#eegprep.utils.coords.chanloc_has_coords">chanloc_has_coords() (in module eegprep.utils.coords)</a>
+</li>
+      <li><a href="api/utils.html#eegprep.utils.coords.chanlocs_to_coords">chanlocs_to_coords() (in module eegprep.utils.coords)</a>
+</li>
+      <li><a href="glossary.html#term-Channel"><strong>Channel</strong></a>
+</li>
+      <li><a href="api/generated/eegprep.clean_artifacts.html#eegprep.clean_artifacts">clean_artifacts() (in module eegprep)</a>, <a href="api/preprocessing.html#eegprep.clean_artifacts">[1]</a>
+</li>
+      <li><a href="api/generated/eegprep.clean_asr.html#eegprep.clean_asr">clean_asr() (in module eegprep)</a>, <a href="api/preprocessing.html#eegprep.clean_asr">[1]</a>
+</li>
+      <li><a href="api/generated/eegprep.clean_channels.html#eegprep.clean_channels">clean_channels() (in module eegprep)</a>, <a href="api/preprocessing.html#eegprep.clean_channels">[1]</a>
+</li>
+      <li><a href="api/generated/eegprep.clean_channels_nolocs.html#eegprep.clean_channels_nolocs">clean_channels_nolocs() (in module eegprep)</a>, <a href="api/preprocessing.html#eegprep.clean_channels_nolocs">[1]</a>
+</li>
+      <li><a href="api/generated/eegprep.clean_drifts.html#eegprep.clean_drifts">clean_drifts() (in module eegprep)</a>, <a href="api/preprocessing.html#eegprep.clean_drifts">[1]</a>
+</li>
+      <li><a href="api/generated/eegprep.clean_flatlines.html#eegprep.clean_flatlines">clean_flatlines() (in module eegprep)</a>, <a href="api/preprocessing.html#eegprep.clean_flatlines">[1]</a>
+</li>
+      <li><a href="api/generated/eegprep.clean_windows.html#eegprep.clean_windows">clean_windows() (in module eegprep)</a>, <a href="api/preprocessing.html#eegprep.clean_windows">[1]</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/utils.html#eegprep.utils.coords.clear_chanloc">clear_chanloc() (in module eegprep.utils.coords)</a>
+</li>
+      <li><a href="glossary.html#term-Coherence"><strong>Coherence</strong></a>
+</li>
+      <li><a href="glossary.html#term-Component"><strong>Component</strong></a>
+</li>
+      <li><a href="glossary.html#term-Convolution"><strong>Convolution</strong></a>
+</li>
+      <li><a href="api/utils.html#eegprep.utils.coords.coords_ALS_to_angular">coords_ALS_to_angular() (in module eegprep.utils.coords)</a>
+</li>
+      <li><a href="api/utils.html#eegprep.utils.coords.coords_any_to_RAS">coords_any_to_RAS() (in module eegprep.utils.coords)</a>
+</li>
+      <li><a href="api/utils.html#eegprep.utils.coords.coords_RAS_to_ALS">coords_RAS_to_ALS() (in module eegprep.utils.coords)</a>
+</li>
+      <li><a href="api/utils.html#eegprep.utils.coords.coords_to_mm">coords_to_mm() (in module eegprep.utils.coords)</a>
+</li>
+      <li><a href="glossary.html#term-Correlation"><strong>Correlation</strong></a>
+</li>
+      <li><a href="glossary.html#term-Covariance"><strong>Covariance</strong></a>
+</li>
+      <li><a href="glossary.html#term-Cutoff-Frequency"><strong>Cutoff Frequency</strong></a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="D">D</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/utils.html#eegprep.utils.sigproc.design_fir">design_fir() (in module eegprep.utils.sigproc)</a>
+</li>
+      <li><a href="api/utils.html#eegprep.utils.sigproc.design_kaiser">design_kaiser() (in module eegprep.utils.sigproc)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="glossary.html#term-Dipole"><strong>Dipole</strong></a>
+</li>
+      <li><a href="glossary.html#term-Downsampling"><strong>Downsampling</strong></a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="E">E</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="glossary.html#term-EDF"><strong>EDF</strong></a>
+</li>
+      <li><a href="api/generated/eegprep.eeg_autocorr.html#eegprep.eeg_autocorr">eeg_autocorr() (in module eegprep)</a>, <a href="api/signal_processing.html#eegprep.eeg_autocorr">[1]</a>
+</li>
+      <li><a href="api/generated/eegprep.eeg_autocorr_fftw.html#eegprep.eeg_autocorr_fftw">eeg_autocorr_fftw() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.eeg_autocorr_welch.html#eegprep.eeg_autocorr_welch">eeg_autocorr_welch() (in module eegprep)</a>, <a href="api/signal_processing.html#eegprep.eeg_autocorr_welch">[1]</a>
+</li>
+      <li><a href="api/core.html#eegprep.eeg_checkset">eeg_checkset() (in module eegprep)</a>, <a href="api/generated/eegprep.eeg_checkset.html#eegprep.eeg_checkset">[1]</a>
+</li>
+      <li><a href="api/generated/eegprep.eeg_compare.html#eegprep.eeg_compare">eeg_compare() (in module eegprep)</a>, <a href="api/utils.html#eegprep.eeg_compare">[1]</a>
+</li>
+      <li><a href="api/generated/eegprep.eeg_decodechan.html#eegprep.eeg_decodechan">eeg_decodechan() (in module eegprep)</a>, <a href="api/utils.html#eegprep.eeg_decodechan">[1]</a>
+</li>
+      <li><a href="api/generated/eegprep.eeg_eeg2mne.html#eegprep.eeg_eeg2mne">eeg_eeg2mne() (in module eegprep)</a>, <a href="api/io.html#eegprep.eeg_eeg2mne">[1]</a>
+</li>
+      <li><a href="api/generated/eegprep.eeg_eegrej.html#eegprep.eeg_eegrej">eeg_eegrej() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.eeg_interp.html#eegprep.eeg_interp">eeg_interp() (in module eegprep)</a>, <a href="api/preprocessing.html#eegprep.eeg_interp">[1]</a>
+</li>
+      <li><a href="api/generated/eegprep.eeg_lat2point.html#eegprep.eeg_lat2point">eeg_lat2point() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.eeg_mne2eeg.html#eegprep.eeg_mne2eeg">eeg_mne2eeg() (in module eegprep)</a>, <a href="api/io.html#eegprep.eeg_mne2eeg">[1]</a>
+</li>
+      <li><a href="api/generated/eegprep.eeg_mne2eeg_epochs.html#eegprep.eeg_mne2eeg_epochs">eeg_mne2eeg_epochs() (in module eegprep)</a>, <a href="api/io.html#eegprep.eeg_mne2eeg_epochs">[1]</a>
+</li>
+      <li><a href="api/generated/eegprep.EEG_OPTIONS.html#eegprep.EEG_OPTIONS">EEG_OPTIONS (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.eeg_picard.html#eegprep.eeg_picard">eeg_picard() (in module eegprep)</a>, <a href="api/ica.html#eegprep.eeg_picard">[1]</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/eegprep.eeg_point2lat.html#eegprep.eeg_point2lat">eeg_point2lat() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.eeg_rpsd.html#eegprep.eeg_rpsd">eeg_rpsd() (in module eegprep)</a>, <a href="api/signal_processing.html#eegprep.eeg_rpsd">[1]</a>
+</li>
+      <li><a href="glossary.html#term-EEGLAB"><strong>EEGLAB</strong></a>
+</li>
+      <li><a href="api/core.html#eegprep.EEGobj">EEGobj (class in eegprep)</a>, <a href="api/generated/eegprep.EEGobj.html#eegprep.EEGobj">[1]</a>
+</li>
+      <li>
+    eegprep.utils.coords
+
+      <ul>
+        <li><a href="api/utils.html#module-eegprep.utils.coords">module</a>
+</li>
+      </ul></li>
+      <li>
+    eegprep.utils.sigproc
+
+      <ul>
+        <li><a href="api/utils.html#module-eegprep.utils.sigproc">module</a>
+</li>
+      </ul></li>
+      <li>
+    eegprep.utils.spatial
+
+      <ul>
+        <li><a href="api/utils.html#module-eegprep.utils.spatial">module</a>
+</li>
+      </ul></li>
+      <li>
+    eegprep.utils.stats
+
+      <ul>
+        <li><a href="api/utils.html#module-eegprep.utils.stats">module</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/eegprep.eegrej.html#eegprep.eegrej">eegrej() (in module eegprep)</a>
+</li>
+      <li><a href="glossary.html#term-Electrode"><strong>Electrode</strong></a>
+</li>
+      <li><a href="glossary.html#term-Epoch"><strong>Epoch</strong></a>
+</li>
+      <li><a href="glossary.html#term-Event"><strong>Event</strong></a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="F">F</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="glossary.html#term-Fast-Fourier-Transform-FFT"><strong>Fast Fourier Transform (FFT)</strong></a>
+</li>
+      <li><a href="glossary.html#term-FastICA"><strong>FastICA</strong></a>
+</li>
+      <li><a href="glossary.html#term-FIF"><strong>FIF</strong></a>
+</li>
+      <li><a href="glossary.html#term-Filter"><strong>Filter</strong></a>
+</li>
+      <li><a href="glossary.html#term-Filter-Order"><strong>Filter Order</strong></a>
+</li>
+      <li><a href="glossary.html#term-Filtering"><strong>Filtering</strong></a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/utils.html#eegprep.utils.sigproc.filtfilt_fast">filtfilt_fast() (in module eegprep.utils.sigproc)</a>
+</li>
+      <li><a href="api/utils.html#eegprep.utils.sigproc.firws">firws() (in module eegprep.utils.sigproc)</a>
+</li>
+      <li><a href="api/utils.html#eegprep.utils.sigproc.firwsord">firwsord() (in module eegprep.utils.sigproc)</a>
+</li>
+      <li><a href="api/utils.html#eegprep.utils.stats.fit_eeg_distribution">fit_eeg_distribution() (in module eegprep.utils.stats)</a>
+</li>
+      <li><a href="glossary.html#term-Fourier-Transform"><strong>Fourier Transform</strong></a>
+</li>
+      <li><a href="glossary.html#term-Frequency-Band"><strong>Frequency Band</strong></a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="G">G</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/utils.html#eegprep.utils.stats.geometric_median">geometric_median() (in module eegprep.utils.stats)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="H">H</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="glossary.html#term-HDF5"><strong>HDF5</strong></a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="glossary.html#term-Hz-Hertz"><strong>Hz (Hertz)</strong></a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="I">I</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/eegprep.ICL_feature_extractor.html#eegprep.ICL_feature_extractor">ICL_feature_extractor() (in module eegprep)</a>, <a href="api/ica.html#eegprep.ICL_feature_extractor">[1]</a>
+</li>
+      <li><a href="api/generated/eegprep.iclabel.html#eegprep.iclabel">iclabel() (in module eegprep)</a>, <a href="api/ica.html#eegprep.iclabel">[1]</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="glossary.html#term-Independent-Component-Analysis-ICA"><strong>Independent Component Analysis (ICA)</strong></a>
+</li>
+      <li><a href="glossary.html#term-Infomax-ICA"><strong>Infomax ICA</strong></a>
+</li>
+      <li><a href="glossary.html#term-Interpolation"><strong>Interpolation</strong></a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="L">L</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="glossary.html#term-Latency"><strong>Latency</strong></a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/eegprep.loadset.html#eegprep.loadset">loadset() (in module eegprep)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="M">M</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/utils.html#eegprep.utils.stats.mad">mad() (in module eegprep.utils.stats)</a>
+</li>
+      <li><a href="glossary.html#term-Marker"><strong>Marker</strong></a>
+</li>
+      <li><a href="glossary.html#term-Mean"><strong>Mean</strong></a>
+</li>
+      <li><a href="glossary.html#term-Median"><strong>Median</strong></a>
+</li>
+      <li><a href="glossary.html#term-MNE"><strong>MNE</strong></a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li>
+    module
+
+      <ul>
+        <li><a href="api/utils.html#module-eegprep.utils.coords">eegprep.utils.coords</a>
+</li>
+        <li><a href="api/utils.html#module-eegprep.utils.sigproc">eegprep.utils.sigproc</a>
+</li>
+        <li><a href="api/utils.html#module-eegprep.utils.spatial">eegprep.utils.spatial</a>
+</li>
+        <li><a href="api/utils.html#module-eegprep.utils.stats">eegprep.utils.stats</a>
+</li>
+      </ul></li>
+      <li><a href="glossary.html#term-Montage"><strong>Montage</strong></a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="N">N</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="glossary.html#term-Neuroscan"><strong>Neuroscan</strong></a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="glossary.html#term-Noise"><strong>Noise</strong></a>
+</li>
+      <li><a href="glossary.html#term-Normalization"><strong>Normalization</strong></a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="O">O</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="glossary.html#term-Offline-Processing"><strong>Offline Processing</strong></a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="glossary.html#term-Outlier"><strong>Outlier</strong></a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="P">P</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="glossary.html#term-Parallel-Processing"><strong>Parallel Processing</strong></a>
+</li>
+      <li><a href="glossary.html#term-Phase"><strong>Phase</strong></a>
+</li>
+      <li><a href="glossary.html#term-Picard-ICA"><strong>Picard ICA</strong></a>
+</li>
+      <li><a href="glossary.html#term-Pipeline"><strong>Pipeline</strong></a>
+</li>
+      <li><a href="api/generated/eegprep.pop_eegfiltnew.html#eegprep.pop_eegfiltnew">pop_eegfiltnew() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_epoch.html#eegprep.pop_epoch">pop_epoch() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_load_frombids.html#eegprep.pop_load_frombids">pop_load_frombids() (in module eegprep)</a>, <a href="api/io.html#eegprep.pop_load_frombids">[1]</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_loadset.html#eegprep.pop_loadset">pop_loadset() (in module eegprep)</a>, <a href="api/io.html#eegprep.pop_loadset">[1]</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/eegprep.pop_loadset_h5.html#eegprep.pop_loadset_h5">pop_loadset_h5() (in module eegprep)</a>, <a href="api/io.html#eegprep.pop_loadset_h5">[1]</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_reref.html#eegprep.pop_reref">pop_reref() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_resample.html#eegprep.pop_resample">pop_resample() (in module eegprep)</a>, <a href="api/preprocessing.html#eegprep.pop_resample">[1]</a>, <a href="api/signal_processing.html#eegprep.pop_resample">[2]</a>
+</li>
+      <li><a href="api/preprocessing.html#eegprep.pop_rmbase">pop_rmbase() (in module eegprep)</a>, <a href="api/signal_processing.html#eegprep.pop_rmbase">[1]</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_saveset.html#eegprep.pop_saveset">pop_saveset() (in module eegprep)</a>, <a href="api/io.html#eegprep.pop_saveset">[1]</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_select.html#eegprep.pop_select">pop_select() (in module eegprep)</a>
+</li>
+      <li><a href="glossary.html#term-Power-Spectral-Density-PSD"><strong>Power Spectral Density (PSD)</strong></a>
+</li>
+      <li><a href="glossary.html#term-Preprocessing"><strong>Preprocessing</strong></a>
+</li>
+      <li><a href="glossary.html#term-Principal-Component-Analysis-PCA"><strong>Principal Component Analysis (PCA)</strong></a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="Q">Q</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="glossary.html#term-Quality-Assurance"><strong>Quality Assurance</strong></a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="R">R</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="glossary.html#term-Real-time-Processing"><strong>Real-time Processing</strong></a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="glossary.html#term-Reproducibility"><strong>Reproducibility</strong></a>
+</li>
+      <li><a href="glossary.html#term-Resampling"><strong>Resampling</strong></a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="S">S</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="glossary.html#term-Sampling-Rate"><strong>Sampling Rate</strong></a>
+</li>
+      <li><a href="glossary.html#term-Signal-to-Noise-Ratio-SNR"><strong>Signal-to-Noise Ratio (SNR)</strong></a>
+</li>
+      <li><a href="glossary.html#term-Spectrogram"><strong>Spectrogram</strong></a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/utils.html#eegprep.utils.spatial.sphericalSplineInterpolate">sphericalSplineInterpolate() (in module eegprep.utils.spatial)</a>
+</li>
+      <li><a href="glossary.html#term-Standard-Deviation"><strong>Standard Deviation</strong></a>
+</li>
+      <li><a href="glossary.html#term-Standardization"><strong>Standardization</strong></a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="T">T</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="glossary.html#term-Threshold"><strong>Threshold</strong></a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/eegprep.topoplot.html#eegprep.topoplot">topoplot() (in module eegprep)</a>, <a href="api/utils.html#eegprep.topoplot">[1]</a>
+</li>
+      <li><a href="glossary.html#term-Trial"><strong>Trial</strong></a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="V">V</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="glossary.html#term-Validation"><strong>Validation</strong></a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="glossary.html#term-Variance"><strong>Variance</strong></a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="W">W</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="glossary.html#term-Wavelet"><strong>Wavelet</strong></a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="glossary.html#term-Whitening"><strong>Whitening</strong></a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="Z">Z</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="glossary.html#term-Z-score"><strong>Z-score</strong></a>
+</li>
+  </ul></td>
+</tr></table>
+
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2024 - , EEGPrep contributors.
+      <br/>
+    
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.2.3.
+    <br/>
+  </p>
+</div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>

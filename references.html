@@ -1,0 +1,841 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="./" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>References and Citations &#8212; eegprep 0.2.23 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="_static/togglebutton.css?v=13237357" />
+    <link rel="stylesheet" type="text/css" href="_static/sg_gallery.css?v=d2d258e8" />
+    <link rel="stylesheet" type="text/css" href="_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <link rel="stylesheet" type="text/css" href="_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="_static/custom.css?v=ee63c722" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="_static/documentation_options.js?v=171860b8"></script>
+    <script src="_static/doctools.js?v=9bcbadda"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="_static/copybutton.js?v=6dbb43f8"></script>
+    <script>let toggleHintShow = 'Click to show';</script>
+    <script>let toggleHintHide = 'Click to hide';</script>
+    <script>let toggleOpenOnPrint = 'true';</script>
+    <script src="_static/togglebutton.js?v=4a39c7ea"></script>
+    <script src="_static/design-tabs.js?v=f930bc37"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'references';</script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Changelog" href="changelog.html" />
+    <link rel="prev" title="Frequently Asked Questions" href="faq.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="0.2.23" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search documentation..."
+         aria-label="Search documentation..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">eegprep</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="api/index.html">
+    API Reference
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="user_guide/index.html">
+    User Guide
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="examples/index.html">
+    Examples
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="contributing.html">
+    Contributing to EEGPrep
+  </a>
+</li>
+
+            <li class="nav-item dropdown">
+                <button class="btn dropdown-toggle nav-item" type="button"
+                data-bs-toggle="dropdown" aria-expanded="false"
+                aria-controls="pst-nav-more-links">
+                    More
+                </button>
+                <ul id="pst-nav-more-links" class="dropdown-menu">
+                    
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="development.html">
+    Development Setup
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="faq.html">
+    Frequently Asked Questions
+  </a>
+</li>
+
+
+<li class=" current active">
+  <a class="nav-link dropdown-item nav-internal" href="#">
+    References and Citations
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="changelog.html">
+    Changelog
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="glossary.html">
+    Glossary
+  </a>
+</li>
+
+                </ul>
+            </li>
+            
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/sccn/eegprep" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fab fa-github-square fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+</ul></div>
+      
+    </div>
+    
+  </div>
+  
+  
+
+  
+    <button class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="api/index.html">
+    API Reference
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="user_guide/index.html">
+    User Guide
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="examples/index.html">
+    Examples
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="contributing.html">
+    Contributing to EEGPrep
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="development.html">
+    Development Setup
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="faq.html">
+    Frequently Asked Questions
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="#">
+    References and Citations
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="changelog.html">
+    Changelog
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="glossary.html">
+    Glossary
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/sccn/eegprep" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fab fa-github-square fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+</ul></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+<nav class="bd-docs-nav bd-links"
+     aria-label="Section Navigation">
+  <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
+  <div class="bd-toc-item navbar-nav"></div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">References and Citations</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="references-and-citations">
+<span id="references"></span><h1>References and Citations<a class="headerlink" href="#references-and-citations" title="Link to this heading">#</a></h1>
+<section id="key-publications">
+<h2>Key Publications<a class="headerlink" href="#key-publications" title="Link to this heading">#</a></h2>
+<section id="eeg-preprocessing-methods">
+<h3>EEG Preprocessing Methods<a class="headerlink" href="#eeg-preprocessing-methods" title="Link to this heading">#</a></h3>
+<p>The following papers describe key preprocessing methods implemented in EEGPrep:</p>
+<p><strong>Artifact Removal and Cleaning</strong></p>
+<ul class="simple">
+<li><p>Delorme, A., &amp; Makeig, S. (2004). EEGLAB: an open source toolbox for analysis of single-trial EEG dynamics including independent component analysis. <em>Journal of Neuroscience Methods</em>, 134(1), 9-21.</p>
+<ul>
+<li><p>Foundational paper for EEGLAB and many preprocessing techniques</p></li>
+</ul>
+</li>
+<li><p>Kothe, C. A., &amp; Makeig, S. (2013). BCILAB: a platform for brain–computer interface development. <em>Journal of Neural Engineering</em>, 10(5), 056014.</p>
+<ul>
+<li><p>Describes ASR (Artifact Subspace Reconstruction) algorithm</p></li>
+</ul>
+</li>
+<li><p>Onton, J., Westerfield, M., Townsend, J., &amp; Makeig, S. (2006). Imaging human EEG dynamics using independent component analysis. <em>Neuroscience &amp; Biobehavioral Reviews</em>, 30(6), 808-822.</p>
+<ul>
+<li><p>ICA for EEG analysis</p></li>
+</ul>
+</li>
+</ul>
+<p><strong>Independent Component Analysis (ICA)</strong></p>
+<ul class="simple">
+<li><p>Hyvärinen, A., &amp; Oja, E. (2000). Independent component analysis: algorithms and applications. <em>Neural Networks</em>, 13(4-5), 411-430.</p>
+<ul>
+<li><p>Comprehensive ICA review</p></li>
+</ul>
+</li>
+<li><p>Bell, A. J., &amp; Sejnowski, T. J. (1995). An information-maximization approach to blind separation and blind deconvolution. <em>Neural Computation</em>, 7(6), 1129-1159.</p>
+<ul>
+<li><p>Infomax ICA algorithm</p></li>
+</ul>
+</li>
+</ul>
+<p><strong>ICLabel Component Classification</strong></p>
+<ul class="simple">
+<li><p>Pion-Tonachini, L., Kreutz-Delgado, K., &amp; Makeig, S. (2019). ICLabel: Automated electroencephalographic independent component classification, labeling and brain source estimation. <em>NeuroImage</em>, 198, 181-197.</p>
+<ul>
+<li><p>Deep learning-based IC classification</p></li>
+</ul>
+</li>
+</ul>
+<p><strong>BIDS Format</strong></p>
+<ul class="simple">
+<li><p>Gorgolewski, K. J., Auer, T., Calhoun, V. D., et al. (2016). The brain imaging data structure, a format for organizing and describing outputs of neuroimaging experiments. <em>Scientific Data</em>, 3, 160044.</p>
+<ul>
+<li><p>BIDS specification paper</p></li>
+</ul>
+</li>
+<li><p>Pernet, C. R., Appelhoff, S., Gorgolewski, K. J., et al. (2019). EEG-BIDS, an extension to the brain imaging data structure for electroencephalography. <em>Scientific Data</em>, 6, 103.</p>
+<ul>
+<li><p>EEG-BIDS extension</p></li>
+</ul>
+</li>
+</ul>
+<p><strong>Signal Processing</strong></p>
+<ul class="simple">
+<li><p>Widmann, A., Schröger, E., &amp; Maess, B. (2015). Digital filter design for electrophysiological data–a practical approach. <em>Journal of Neuroscience Methods</em>, 250, 34-46.</p>
+<ul>
+<li><p>Filter design for EEG</p></li>
+</ul>
+</li>
+</ul>
+</section>
+</section>
+<section id="related-tools">
+<h2>Related Tools<a class="headerlink" href="#related-tools" title="Link to this heading">#</a></h2>
+<section id="eeglab">
+<h3>EEGLAB<a class="headerlink" href="#eeglab" title="Link to this heading">#</a></h3>
+<p><strong>Website</strong>: <a class="reference external" href="https://sccn.ucsd.edu/eeglab/">https://sccn.ucsd.edu/eeglab/</a></p>
+<p><strong>Description</strong>: MATLAB-based EEG analysis toolbox with extensive preprocessing capabilities.</p>
+<p><strong>Key Features</strong>:</p>
+<ul class="simple">
+<li><p>Interactive GUI</p></li>
+<li><p>Comprehensive preprocessing tools</p></li>
+<li><p>ICA and component analysis</p></li>
+<li><p>Large plugin ecosystem</p></li>
+<li><p>Established in neuroscience community</p></li>
+</ul>
+<p><strong>When to use</strong>: Interactive exploration, MATLAB workflows, extensive plugin ecosystem</p>
+</section>
+<section id="mne-python">
+<h3>MNE-Python<a class="headerlink" href="#mne-python" title="Link to this heading">#</a></h3>
+<p><strong>Website</strong>: <a class="reference external" href="https://mne.tools/">https://mne.tools/</a></p>
+<p><strong>Description</strong>: Python package for MEG and EEG analysis.</p>
+<p><strong>Key Features</strong>:</p>
+<ul class="simple">
+<li><p>General neuroimaging (EEG, MEG, fMRI)</p></li>
+<li><p>Extensive analysis tools</p></li>
+<li><p>Source localization</p></li>
+<li><p>Time-frequency analysis</p></li>
+<li><p>Large community</p></li>
+</ul>
+<p><strong>When to use</strong>: Comprehensive analysis, source localization, Python workflows</p>
+</section>
+<section id="fieldtrip">
+<h3>Fieldtrip<a class="headerlink" href="#fieldtrip" title="Link to this heading">#</a></h3>
+<p><strong>Website</strong>: <a class="reference external" href="http://www.fieldtriptoolbox.org/">http://www.fieldtriptoolbox.org/</a></p>
+<p><strong>Description</strong>: MATLAB toolbox for MEG and EEG analysis.</p>
+<p><strong>Key Features</strong>:</p>
+<ul class="simple">
+<li><p>Comprehensive preprocessing</p></li>
+<li><p>Source analysis</p></li>
+<li><p>Statistical testing</p></li>
+<li><p>Good documentation</p></li>
+<li><p>Active community</p></li>
+</ul>
+<p><strong>When to use</strong>: MATLAB workflows, source analysis, statistical testing</p>
+</section>
+<section id="brainstorm">
+<h3>Brainstorm<a class="headerlink" href="#brainstorm" title="Link to this heading">#</a></h3>
+<p><strong>Website</strong>: <a class="reference external" href="https://neuroimage.usc.edu/brainstorm/">https://neuroimage.usc.edu/brainstorm/</a></p>
+<p><strong>Description</strong>: MATLAB-based neuroimaging software for MEG and EEG.</p>
+<p><strong>Key Features</strong>:</p>
+<ul class="simple">
+<li><p>Interactive visualization</p></li>
+<li><p>Source localization</p></li>
+<li><p>Preprocessing tools</p></li>
+<li><p>Good for clinical applications</p></li>
+<li><p>User-friendly interface</p></li>
+</ul>
+<p><strong>When to use</strong>: Interactive analysis, source localization, clinical applications</p>
+</section>
+</section>
+<section id="external-resources">
+<h2>External Resources<a class="headerlink" href="#external-resources" title="Link to this heading">#</a></h2>
+<section id="tutorials-and-documentation">
+<h3>Tutorials and Documentation<a class="headerlink" href="#tutorials-and-documentation" title="Link to this heading">#</a></h3>
+<p><strong>EEG Analysis Tutorials</strong></p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://mne.tools/stable/auto_tutorials/index.html">MNE-Python Tutorials</a> - Comprehensive EEG/MEG analysis tutorials</p></li>
+<li><p><a class="reference external" href="https://sccn.ucsd.edu/wiki/EEGLAB">EEGLAB Wiki</a> - EEGLAB documentation and tutorials</p></li>
+<li><p><a class="reference external" href="http://www.fieldtriptoolbox.org/tutorial/">Fieldtrip Tutorials</a> - Fieldtrip analysis tutorials</p></li>
+</ul>
+<p><strong>Signal Processing</strong></p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://en.wikipedia.org/wiki/Digital_signal_processing">Digital Signal Processing</a> - Wikipedia overview</p></li>
+<li><p><a class="reference external" href="https://docs.scipy.org/doc/scipy/reference/signal.html">Scipy Signal Processing</a> - Python signal processing library</p></li>
+</ul>
+<p><strong>Machine Learning</strong></p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://scikit-learn.org/">Scikit-learn Documentation</a> - Machine learning in Python</p></li>
+<li><p><a class="reference external" href="https://pytorch.org/docs/">PyTorch Documentation</a> - Deep learning framework</p></li>
+</ul>
+</section>
+<section id="forums-and-communities">
+<h3>Forums and Communities<a class="headerlink" href="#forums-and-communities" title="Link to this heading">#</a></h3>
+<p><strong>GitHub</strong></p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://github.com/NeuroTechX/eegprep/issues">EEGPrep Issues</a> - Report bugs and ask questions</p></li>
+<li><p><a class="reference external" href="https://github.com/NeuroTechX/eegprep/discussions">EEGPrep Discussions</a> - Community discussions</p></li>
+</ul>
+<p><strong>NeuroTalk</strong></p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://www.neurotalk.org/">NeuroTalk Forums</a> - Neuroscience discussion forums</p></li>
+<li><p>EEG and neuroimaging discussions</p></li>
+</ul>
+<p><strong>Stack Overflow</strong></p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://stackoverflow.com/questions/tagged/eeg">EEG Tag</a> - EEG-related questions</p></li>
+<li><p><a class="reference external" href="https://stackoverflow.com/questions/tagged/signal-processing">Signal Processing Tag</a> - Signal processing questions</p></li>
+</ul>
+<p><strong>Reddit</strong></p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://www.reddit.com/r/neuroscience/">r/neuroscience</a> - Neuroscience community</p></li>
+<li><p><a class="reference external" href="https://www.reddit.com/r/MachineLearning/">r/MachineLearning</a> - Machine learning discussions</p></li>
+</ul>
+</section>
+<section id="datasets">
+<h3>Datasets<a class="headerlink" href="#datasets" title="Link to this heading">#</a></h3>
+<p><strong>Public EEG Datasets</strong></p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://openneuro.org/">OpenNeuro</a> - Open neuroimaging datasets in BIDS format</p></li>
+<li><p><a class="reference external" href="https://physionet.org/">PhysioNet</a> - Biomedical signal databases</p></li>
+<li><p><a class="reference external" href="https://physionet.org/content/eegmmidb/1.0.0/">EEG Motor Movement/Imagery Dataset</a> - Motor imagery EEG data</p></li>
+</ul>
+</section>
+</section>
+<section id="citation-information">
+<h2>Citation Information<a class="headerlink" href="#citation-information" title="Link to this heading">#</a></h2>
+<section id="how-to-cite-eegprep">
+<h3>How to Cite EEGPrep<a class="headerlink" href="#how-to-cite-eegprep" title="Link to this heading">#</a></h3>
+<p>If you use EEGPrep in your research, please cite it as:</p>
+<p><strong>BibTeX</strong>:</p>
+<div class="highlight-bibtex notranslate"><div class="highlight"><pre><span></span><span class="nc">@software</span><span class="p">{</span><span class="nl">eegprep2024</span><span class="p">,</span>
+<span class="w">  </span><span class="na">title</span><span class="p">=</span><span class="s">{EEGPrep: A comprehensive Python EEG preprocessing pipeline}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">author</span><span class="p">=</span><span class="s">{EEGPrep Contributors}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">year</span><span class="p">=</span><span class="s">{2024}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">url</span><span class="p">=</span><span class="s">{https://github.com/NeuroTechX/eegprep}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>APA Format</strong>:</p>
+<p>EEGPrep Contributors. (2024). EEGPrep: A comprehensive Python EEG preprocessing pipeline. Retrieved from <a class="github reference external" href="https://github.com/NeuroTechX/eegprep">NeuroTechX/eegprep</a></p>
+<p><strong>Chicago Format</strong>:</p>
+<p>EEGPrep Contributors. “EEGPrep: A comprehensive Python EEG preprocessing pipeline.” Accessed 2024. <a class="github reference external" href="https://github.com/NeuroTechX/eegprep">NeuroTechX/eegprep</a>.</p>
+</section>
+<section id="citing-dependencies">
+<h3>Citing Dependencies<a class="headerlink" href="#citing-dependencies" title="Link to this heading">#</a></h3>
+<p>If you use specific algorithms, please also cite the original papers:</p>
+<p><strong>For ASR (Artifact Subspace Reconstruction)</strong>:</p>
+<div class="highlight-bibtex notranslate"><div class="highlight"><pre><span></span><span class="nc">@article</span><span class="p">{</span><span class="nl">kothe2013bcilab</span><span class="p">,</span>
+<span class="w">  </span><span class="na">title</span><span class="p">=</span><span class="s">{BCILAB: a platform for brain--computer interface development}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">author</span><span class="p">=</span><span class="s">{Kothe, Christian A and Makeig, Scott}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">journal</span><span class="p">=</span><span class="s">{Journal of Neural Engineering}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">volume</span><span class="p">=</span><span class="s">{10}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">number</span><span class="p">=</span><span class="s">{5}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">pages</span><span class="p">=</span><span class="s">{056014}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">year</span><span class="p">=</span><span class="s">{2013}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">publisher</span><span class="p">=</span><span class="s">{IOP Publishing}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>For ICLabel</strong>:</p>
+<div class="highlight-bibtex notranslate"><div class="highlight"><pre><span></span><span class="nc">@article</span><span class="p">{</span><span class="nl">pion2019iclabel</span><span class="p">,</span>
+<span class="w">  </span><span class="na">title</span><span class="p">=</span><span class="s">{ICLabel: Automated electroencephalographic independent component classification, labeling and brain source estimation}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">author</span><span class="p">=</span><span class="s">{Pion-Tonachini, Luca and Kreutz-Delgado, Kenneth and Makeig, Scott}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">journal</span><span class="p">=</span><span class="s">{NeuroImage}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">volume</span><span class="p">=</span><span class="s">{198}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">pages</span><span class="p">=</span><span class="s">{181--197}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">year</span><span class="p">=</span><span class="s">{2019}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">publisher</span><span class="p">=</span><span class="s">{Elsevier}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>For EEGLAB</strong>:</p>
+<div class="highlight-bibtex notranslate"><div class="highlight"><pre><span></span><span class="nc">@article</span><span class="p">{</span><span class="nl">delorme2004eeglab</span><span class="p">,</span>
+<span class="w">  </span><span class="na">title</span><span class="p">=</span><span class="s">{EEGLAB: an open source toolbox for analysis of single-trial EEG dynamics including independent component analysis}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">author</span><span class="p">=</span><span class="s">{Delorme, Arnaud and Makeig, Scott}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">journal</span><span class="p">=</span><span class="s">{Journal of Neuroscience Methods}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">volume</span><span class="p">=</span><span class="s">{134}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">number</span><span class="p">=</span><span class="s">{1}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">pages</span><span class="p">=</span><span class="s">{9--21}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">year</span><span class="p">=</span><span class="s">{2004}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">publisher</span><span class="p">=</span><span class="s">{Elsevier}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="acknowledgments">
+<h2>Acknowledgments<a class="headerlink" href="#acknowledgments" title="Link to this heading">#</a></h2>
+<section id="contributors">
+<h3>Contributors<a class="headerlink" href="#contributors" title="Link to this heading">#</a></h3>
+<p>EEGPrep is developed and maintained by the NeuroTechX community. We thank all contributors who have helped improve the project through code contributions, bug reports, and feedback.</p>
+</section>
+<section id="funding">
+<h3>Funding<a class="headerlink" href="#funding" title="Link to this heading">#</a></h3>
+<p>EEGPrep development has been supported by:</p>
+<ul class="simple">
+<li><p>NeuroTechX community</p></li>
+<li><p>Open-source software initiatives</p></li>
+<li><p>Academic institutions</p></li>
+</ul>
+</section>
+<section id="inspiration-and-acknowledgments">
+<h3>Inspiration and Acknowledgments<a class="headerlink" href="#inspiration-and-acknowledgments" title="Link to this heading">#</a></h3>
+<p>EEGPrep builds upon the excellent work of:</p>
+<ul class="simple">
+<li><p><strong>EEGLAB</strong>: For pioneering EEG preprocessing and analysis tools</p></li>
+<li><p><strong>MNE-Python</strong>: For comprehensive neuroimaging analysis</p></li>
+<li><p><strong>Fieldtrip</strong>: For robust signal processing methods</p></li>
+<li><p><strong>Brainstorm</strong>: For user-friendly neuroimaging software</p></li>
+</ul>
+<p>We acknowledge the neuroscience and signal processing communities for their contributions to EEG analysis methods.</p>
+</section>
+</section>
+<section id="related-publications-using-eegprep">
+<h2>Related Publications Using EEGPrep<a class="headerlink" href="#related-publications-using-eegprep" title="Link to this heading">#</a></h2>
+<p>If you’ve published research using EEGPrep, we’d love to hear about it! Please open an issue or discussion on GitHub to share your work.</p>
+</section>
+<section id="getting-help-with-references">
+<h2>Getting Help with References<a class="headerlink" href="#getting-help-with-references" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p>Check the <a class="reference internal" href="user_guide/index.html"><span class="doc">User Guide</span></a> for implementation details</p></li>
+<li><p>Review <a class="reference internal" href="examples/index.html"><span class="doc">Examples</span></a> for practical examples</p></li>
+<li><p>Search <a class="reference external" href="https://github.com/NeuroTechX/eegprep/issues">GitHub Issues</a> for related discussions</p></li>
+<li><p>Contact the maintainers for citation questions</p></li>
+</ul>
+<p>For more information about EEG analysis methods, see the <a class="reference internal" href="glossary.html"><span class="doc">Glossary</span></a> for terminology definitions.</p>
+</section>
+</section>
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="faq.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Frequently Asked Questions</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="changelog.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Changelog</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav class="bd-toc-nav page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#key-publications">Key Publications</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#eeg-preprocessing-methods">EEG Preprocessing Methods</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#related-tools">Related Tools</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#eeglab">EEGLAB</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#mne-python">MNE-Python</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#fieldtrip">Fieldtrip</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#brainstorm">Brainstorm</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#external-resources">External Resources</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tutorials-and-documentation">Tutorials and Documentation</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#forums-and-communities">Forums and Communities</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#datasets">Datasets</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#citation-information">Citation Information</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#how-to-cite-eegprep">How to Cite EEGPrep</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#citing-dependencies">Citing Dependencies</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#acknowledgments">Acknowledgments</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#contributors">Contributors</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#funding">Funding</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#inspiration-and-acknowledgments">Inspiration and Acknowledgments</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#related-publications-using-eegprep">Related Publications Using EEGPrep</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#getting-help-with-references">Getting Help with References</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2024 - , EEGPrep contributors.
+      <br/>
+    
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.2.3.
+    <br/>
+  </p>
+</div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>

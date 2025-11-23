@@ -1,0 +1,848 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Input/Output Functions &#8212; eegprep 0.2.23 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/togglebutton.css?v=13237357" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=d2d258e8" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=ee63c722" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="../_static/documentation_options.js?v=171860b8"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=6dbb43f8"></script>
+    <script>let toggleHintShow = 'Click to show';</script>
+    <script>let toggleHintHide = 'Click to hide';</script>
+    <script>let toggleOpenOnPrint = 'true';</script>
+    <script src="../_static/togglebutton.js?v=4a39c7ea"></script>
+    <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'api/io';</script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Utility Functions" href="utils.html" />
+    <link rel="prev" title="Signal Processing Functions" href="signal_processing.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="0.2.23" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search documentation..."
+         aria-label="Search documentation..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">eegprep</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="index.html">
+    API Reference
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../user_guide/index.html">
+    User Guide
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../examples/index.html">
+    Examples
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../contributing.html">
+    Contributing to EEGPrep
+  </a>
+</li>
+
+            <li class="nav-item dropdown">
+                <button class="btn dropdown-toggle nav-item" type="button"
+                data-bs-toggle="dropdown" aria-expanded="false"
+                aria-controls="pst-nav-more-links">
+                    More
+                </button>
+                <ul id="pst-nav-more-links" class="dropdown-menu">
+                    
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../development.html">
+    Development Setup
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../faq.html">
+    Frequently Asked Questions
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../references.html">
+    References and Citations
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../changelog.html">
+    Changelog
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../glossary.html">
+    Glossary
+  </a>
+</li>
+
+                </ul>
+            </li>
+            
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/sccn/eegprep" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fab fa-github-square fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+</ul></div>
+      
+    </div>
+    
+  </div>
+  
+  
+
+  
+    <button class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="index.html">
+    API Reference
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../user_guide/index.html">
+    User Guide
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../examples/index.html">
+    Examples
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../contributing.html">
+    Contributing to EEGPrep
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../development.html">
+    Development Setup
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../faq.html">
+    Frequently Asked Questions
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../references.html">
+    References and Citations
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../changelog.html">
+    Changelog
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../glossary.html">
+    Glossary
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/sccn/eegprep" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fab fa-github-square fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+</ul></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+<nav class="bd-docs-nav bd-links"
+     aria-label="Section Navigation">
+  <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
+  <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="core.html">Core Functions and Classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="preprocessing.html">Preprocessing Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ica.html">Independent Component Analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="signal_processing.html">Signal Processing Functions</a></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">Input/Output Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="utils.html">Utility Functions</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.EEGobj.html">eegprep.EEGobj</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_loadset.html">eegprep.pop_loadset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.loadset.html">eegprep.loadset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_loadset_h5.html">eegprep.pop_loadset_h5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_saveset.html">eegprep.pop_saveset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_load_frombids.html">eegprep.pop_load_frombids</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.clean_artifacts.html">eegprep.clean_artifacts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.clean_asr.html">eegprep.clean_asr</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.clean_flatlines.html">eegprep.clean_flatlines</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.clean_drifts.html">eegprep.clean_drifts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.clean_windows.html">eegprep.clean_windows</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.clean_channels.html">eegprep.clean_channels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.clean_channels_nolocs.html">eegprep.clean_channels_nolocs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_interp.html">eegprep.eeg_interp</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_reref.html">eegprep.pop_reref</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_resample.html">eegprep.pop_resample</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_eegfiltnew.html">eegprep.pop_eegfiltnew</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_picard.html">eegprep.eeg_picard</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.iclabel.html">eegprep.iclabel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.ICL_feature_extractor.html">eegprep.ICL_feature_extractor</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_rpsd.html">eegprep.eeg_rpsd</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_autocorr.html">eegprep.eeg_autocorr</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_autocorr_welch.html">eegprep.eeg_autocorr_welch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_autocorr_fftw.html">eegprep.eeg_autocorr_fftw</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_epoch.html">eegprep.pop_epoch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_select.html">eegprep.pop_select</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_eegrej.html">eegprep.eeg_eegrej</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eegrej.html">eegprep.eegrej</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.topoplot.html">eegprep.topoplot</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_mne2eeg.html">eegprep.eeg_mne2eeg</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_mne2eeg_epochs.html">eegprep.eeg_mne2eeg_epochs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_eeg2mne.html">eegprep.eeg_eeg2mne</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_checkset.html">eegprep.eeg_checkset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_compare.html">eegprep.eeg_compare</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_decodechan.html">eegprep.eeg_decodechan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_lat2point.html">eegprep.eeg_lat2point</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_point2lat.html">eegprep.eeg_point2lat</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.bids_list_eeg_files.html">eegprep.bids_list_eeg_files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.bids_preproc.html">eegprep.bids_preproc</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.bids_preproc.html">eegprep.bids_preproc</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.bids_list_eeg_files.html">eegprep.bids_list_eeg_files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_load_frombids.html">eegprep.pop_load_frombids</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.EEG_OPTIONS.html">eegprep.EEG_OPTIONS</a></li>
+</ul>
+</div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="index.html" class="nav-link">API Reference</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">Input/Output Functions</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="input-output-functions">
+<span id="api-io"></span><h1>Input/Output Functions<a class="headerlink" href="#input-output-functions" title="Link to this heading">#</a></h1>
+<p>This section documents the input/output functions for loading and saving EEG data in various formats.</p>
+<section id="bids-loading">
+<h2>BIDS Loading<a class="headerlink" href="#bids-loading" title="Link to this heading">#</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="eegprep.pop_load_frombids">
+<span class="sig-prename descclassname"><span class="pre">eegprep.</span></span><span class="sig-name descname"><span class="pre">pop_load_frombids</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bidsmetadata=True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bidschanloc=True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bidsevent='replace'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eventtype=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">infer_locations=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dtype=&lt;class</span> <span class="pre">'numpy.float32'&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">numeric_null=array([]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dtype=float64)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_report=False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose=True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.pop_load_frombids" title="Link to this definition">#</a></dt>
+<dd><p>Load an EEG data file of a supported format from a BIDS dataset.</p>
+<p>Supported formats are EDF, BrainVision, EEGLAB SET, BDF.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></a>], <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Tuple</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></a>], <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></a>]]]</span></p>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>filename</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>bidsmetadata</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+<li><p><strong>bidschanloc</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+<li><p><strong>bidsevent</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>eventtype</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>infer_locations</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>dtype</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.dtype.html#numpy.dtype" title="(in NumPy v2.3)"><em>dtype</em></a>)</p></li>
+<li><p><strong>numeric_null</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>)</p></li>
+<li><p><strong>return_report</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+<li><p><strong>verbose</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+</ul>
+</dd>
+</dl>
+<section id="parameters">
+<h3>Parameters<a class="headerlink" href="#parameters" title="Link to this heading">#</a></h3>
+<dl>
+<dt>filename<span class="classifier">str</span></dt><dd><p>Path to the EEG data file in a BIDS dataset.</p>
+</dd>
+<dt>bidsmetadata<span class="classifier">bool</span></dt><dd><blockquote>
+<div><p>Whether to override any metadata in the EEG file with</p>
+</div></blockquote>
+<p>metadata from BIDS.</p>
+</dd>
+<dt>bidschanloc<span class="classifier">bool</span></dt><dd><blockquote>
+<div><p>Whether to override any channel information (incl. locations)</p>
+</div></blockquote>
+<p>in the EEG file with channel information from BIDS.</p>
+</dd>
+<dt>bidsevent<span class="classifier">bool or str</span></dt><dd><blockquote>
+<div><p>Whether to load in and override any event data in the EEG file with</p>
+</div></blockquote>
+<p>event data from BIDS. Can be one of the following:
+* ‘replace’/True: replace events from EEG file with those from the BIDS event file
+* ‘merge’: selectively override events from EEG file with those from the BIDS event file
+* ‘append’: append events from the BIDS event file to those from the EEG file;</p>
+<blockquote>
+<div><p>WARNING: this mode can result in duplicate events; use with caution</p>
+</div></blockquote>
+<ul class="simple">
+<li><p>False/None: do not load events from BIDS, keep those from the EEG file</p></li>
+</ul>
+</dd>
+<dt>eventtype<span class="classifier">str or None</span></dt><dd><blockquote>
+<div><p>Optionally the column name in the BIDS events file to use for event</p>
+</div></blockquote>
+<p>types; if not set, will be inferred heuristically.</p>
+</dd>
+<dt>infer_locations<span class="classifier">bool or str or None</span></dt><dd><blockquote>
+<div><p>Whether to infer channel locations if necessary from the</p>
+</div></blockquote>
+<p>channel labels (if 10-20 labeling system).
+* True: infer locations from channel labels; override existing locations if any
+* False: leave locations as-is, even if missing
+* None: infer only if no channels have locations
+* str: filename of a locations file to infer locations from; see files in</p>
+<blockquote>
+<div><p>resources/montages directory (this can be used to disambiguate between
+alternative montages that use the same naming system)</p>
+</div></blockquote>
+</dd>
+<dt>dtype<span class="classifier">np.dtype</span></dt><dd><p>The data type to use for the EEG data.</p>
+</dd>
+<dt>numeric_null<span class="classifier">Any</span></dt><dd><blockquote>
+<div><p>The value to use for empty numeric fields in the EEG data.</p>
+</div></blockquote>
+<ul class="simple">
+<li><p>the default is np.array([]) for MATLAB/pop_loadset compatibility</p></li>
+</ul>
+</dd>
+<dt>return_report<span class="classifier">bool</span></dt><dd><p>whether to return an import report dictionary as a second output</p>
+</dd>
+<dt>verbose<span class="classifier">bool</span></dt><dd><p>whether to log verbose output</p>
+</dd>
+</dl>
+</section>
+<section id="returns">
+<h3>Returns<a class="headerlink" href="#returns" title="Link to this heading">#</a></h3>
+<dl class="simple">
+<dt>EEG<span class="classifier">dict</span></dt><dd><p>A dictionary containing the EEG data and metadata.</p>
+</dd>
+<dt>Report<span class="classifier">dict, optional</span></dt><dd><p>optionally the import report to return, if desired.</p>
+</dd>
+</dl>
+</section>
+</dd></dl>
+
+</section>
+<section id="eeglab-format">
+<h2>EEGLAB Format<a class="headerlink" href="#eeglab-format" title="Link to this heading">#</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="eegprep.pop_loadset">
+<span class="sig-prename descclassname"><span class="pre">eegprep.</span></span><span class="sig-name descname"><span class="pre">pop_loadset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.pop_loadset" title="Link to this definition">#</a></dt>
+<dd><p>Load EEGLAB dataset from .set or .mat file.</p>
+<section id="id1">
+<h3>Parameters<a class="headerlink" href="#id1" title="Link to this heading">#</a></h3>
+<dl class="simple">
+<dt>file_path<span class="classifier">str</span></dt><dd><p>Path to the EEGLAB .set file.</p>
+</dd>
+</dl>
+</section>
+<section id="id2">
+<h3>Returns<a class="headerlink" href="#id2" title="Link to this heading">#</a></h3>
+<dl class="simple">
+<dt>dict</dt><dd><p>EEGLAB dataset dictionary.</p>
+</dd>
+</dl>
+</section>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="eegprep.pop_loadset_h5">
+<span class="sig-prename descclassname"><span class="pre">eegprep.</span></span><span class="sig-name descname"><span class="pre">pop_loadset_h5</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.pop_loadset_h5" title="Link to this definition">#</a></dt>
+<dd><p>Load EEG data from HDF5 file.</p>
+<section id="id3">
+<h3>Parameters<a class="headerlink" href="#id3" title="Link to this heading">#</a></h3>
+<dl class="simple">
+<dt>file_name<span class="classifier">str</span></dt><dd><p>Path to the HDF5 file</p>
+</dd>
+</dl>
+</section>
+<section id="id4">
+<h3>Returns<a class="headerlink" href="#id4" title="Link to this heading">#</a></h3>
+<dl class="simple">
+<dt>EEG<span class="classifier">dict</span></dt><dd><p>EEG data structure</p>
+</dd>
+</dl>
+</section>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="eegprep.pop_saveset">
+<span class="sig-prename descclassname"><span class="pre">eegprep.</span></span><span class="sig-name descname"><span class="pre">pop_saveset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">EEG</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.pop_saveset" title="Link to this definition">#</a></dt>
+<dd><p>Save EEG data to file.</p>
+<section id="id5">
+<h3>Parameters<a class="headerlink" href="#id5" title="Link to this heading">#</a></h3>
+<dl class="simple">
+<dt>EEG<span class="classifier">dict</span></dt><dd><p>EEG data.</p>
+</dd>
+<dt>file_name<span class="classifier">str</span></dt><dd><p>File name.</p>
+</dd>
+</dl>
+</section>
+</dd></dl>
+
+</section>
+<section id="format-conversion">
+<h2>Format Conversion<a class="headerlink" href="#format-conversion" title="Link to this heading">#</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="eegprep.eeg_eeg2mne">
+<span class="sig-prename descclassname"><span class="pre">eegprep.</span></span><span class="sig-name descname"><span class="pre">eeg_eeg2mne</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">EEG</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.eeg_eeg2mne" title="Link to this definition">#</a></dt>
+<dd><p>Convert EEG data structure to MNE Raw object.</p>
+<section id="id6">
+<h3>Parameters<a class="headerlink" href="#id6" title="Link to this heading">#</a></h3>
+<dl class="simple">
+<dt>EEG<span class="classifier">dict</span></dt><dd><p>EEG data structure</p>
+</dd>
+</dl>
+</section>
+<section id="id7">
+<h3>Returns<a class="headerlink" href="#id7" title="Link to this heading">#</a></h3>
+<dl class="simple">
+<dt>raw<span class="classifier">mne.io.Raw</span></dt><dd><p>MNE Raw object</p>
+</dd>
+</dl>
+</section>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="eegprep.eeg_mne2eeg">
+<span class="sig-prename descclassname"><span class="pre">eegprep.</span></span><span class="sig-name descname"><span class="pre">eeg_mne2eeg</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">raw</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.eeg_mne2eeg" title="Link to this definition">#</a></dt>
+<dd><p>Convert MNE Raw object to EEG data structure.</p>
+<section id="id8">
+<h3>Parameters<a class="headerlink" href="#id8" title="Link to this heading">#</a></h3>
+<dl class="simple">
+<dt>raw<span class="classifier">mne.io.Raw</span></dt><dd><p>MNE Raw object</p>
+</dd>
+</dl>
+</section>
+<section id="id9">
+<h3>Returns<a class="headerlink" href="#id9" title="Link to this heading">#</a></h3>
+<dl class="simple">
+<dt>EEG<span class="classifier">dict</span></dt><dd><p>EEG data structure</p>
+</dd>
+</dl>
+</section>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="eegprep.eeg_mne2eeg_epochs">
+<span class="sig-prename descclassname"><span class="pre">eegprep.</span></span><span class="sig-name descname"><span class="pre">eeg_mne2eeg_epochs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">epochs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ica</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.eeg_mne2eeg_epochs" title="Link to this definition">#</a></dt>
+<dd><p>Convert MNE epochs with ICA to EEGLAB dataset format.</p>
+<section id="id10">
+<h3>Parameters<a class="headerlink" href="#id10" title="Link to this heading">#</a></h3>
+<dl class="simple">
+<dt>epochs<span class="classifier">mne.Epochs</span></dt><dd><p>MNE epochs object.</p>
+</dd>
+<dt>ica<span class="classifier">mne.preprocessing.ICA</span></dt><dd><p>MNE ICA object.</p>
+</dd>
+</dl>
+</section>
+<section id="id11">
+<h3>Returns<a class="headerlink" href="#id11" title="Link to this heading">#</a></h3>
+<dl class="simple">
+<dt>dict</dt><dd><p>EEGLAB-compatible dataset dictionary.</p>
+</dd>
+</dl>
+</section>
+</dd></dl>
+
+</section>
+</section>
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="signal_processing.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Signal Processing Functions</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="utils.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Utility Functions</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav class="bd-toc-nav page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#bids-loading">BIDS Loading</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.pop_load_frombids"><code class="docutils literal notranslate"><span class="pre">pop_load_frombids()</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#eeglab-format">EEGLAB Format</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.pop_loadset"><code class="docutils literal notranslate"><span class="pre">pop_loadset()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.pop_loadset_h5"><code class="docutils literal notranslate"><span class="pre">pop_loadset_h5()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.pop_saveset"><code class="docutils literal notranslate"><span class="pre">pop_saveset()</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#format-conversion">Format Conversion</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.eeg_eeg2mne"><code class="docutils literal notranslate"><span class="pre">eeg_eeg2mne()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.eeg_mne2eeg"><code class="docutils literal notranslate"><span class="pre">eeg_mne2eeg()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.eeg_mne2eeg_epochs"><code class="docutils literal notranslate"><span class="pre">eeg_mne2eeg_epochs()</span></code></a></li>
+</ul>
+</li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2024 - , EEGPrep contributors.
+      <br/>
+    
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.2.3.
+    <br/>
+  </p>
+</div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>

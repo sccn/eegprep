@@ -1,0 +1,730 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="./" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Glossary &#8212; eegprep 0.2.23 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="_static/togglebutton.css?v=13237357" />
+    <link rel="stylesheet" type="text/css" href="_static/sg_gallery.css?v=d2d258e8" />
+    <link rel="stylesheet" type="text/css" href="_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <link rel="stylesheet" type="text/css" href="_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="_static/custom.css?v=ee63c722" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="_static/documentation_options.js?v=171860b8"></script>
+    <script src="_static/doctools.js?v=9bcbadda"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="_static/copybutton.js?v=6dbb43f8"></script>
+    <script>let toggleHintShow = 'Click to show';</script>
+    <script>let toggleHintHide = 'Click to hide';</script>
+    <script>let toggleOpenOnPrint = 'true';</script>
+    <script src="_static/togglebutton.js?v=4a39c7ea"></script>
+    <script src="_static/design-tabs.js?v=f930bc37"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'glossary';</script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="Changelog" href="changelog.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="0.2.23" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search documentation..."
+         aria-label="Search documentation..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">eegprep</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="api/index.html">
+    API Reference
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="user_guide/index.html">
+    User Guide
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="examples/index.html">
+    Examples
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="contributing.html">
+    Contributing to EEGPrep
+  </a>
+</li>
+
+            <li class="nav-item dropdown">
+                <button class="btn dropdown-toggle nav-item" type="button"
+                data-bs-toggle="dropdown" aria-expanded="false"
+                aria-controls="pst-nav-more-links">
+                    More
+                </button>
+                <ul id="pst-nav-more-links" class="dropdown-menu">
+                    
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="development.html">
+    Development Setup
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="faq.html">
+    Frequently Asked Questions
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="references.html">
+    References and Citations
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="changelog.html">
+    Changelog
+  </a>
+</li>
+
+
+<li class=" current active">
+  <a class="nav-link dropdown-item nav-internal" href="#">
+    Glossary
+  </a>
+</li>
+
+                </ul>
+            </li>
+            
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/sccn/eegprep" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fab fa-github-square fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+</ul></div>
+      
+    </div>
+    
+  </div>
+  
+  
+
+  
+    <button class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="api/index.html">
+    API Reference
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="user_guide/index.html">
+    User Guide
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="examples/index.html">
+    Examples
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="contributing.html">
+    Contributing to EEGPrep
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="development.html">
+    Development Setup
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="faq.html">
+    Frequently Asked Questions
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="references.html">
+    References and Citations
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="changelog.html">
+    Changelog
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="#">
+    Glossary
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/sccn/eegprep" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fab fa-github-square fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+</ul></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+<nav class="bd-docs-nav bd-links"
+     aria-label="Section Navigation">
+  <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
+  <div class="bd-toc-item navbar-nav"></div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">Glossary</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="glossary">
+<span id="id1"></span><h1>Glossary<a class="headerlink" href="#glossary" title="Link to this heading">#</a></h1>
+<p>This glossary defines key terms used in EEG analysis and signal processing.</p>
+<section id="eeg-terminology">
+<h2>EEG Terminology<a class="headerlink" href="#eeg-terminology" title="Link to this heading">#</a></h2>
+<dl class="simple glossary">
+<dt id="term-Electrode">Electrode<a class="headerlink" href="#term-Electrode" title="Link to this term">#</a></dt><dd><p>A conductor used to record electrical activity from the brain. Electrodes are placed on the scalp to measure voltage differences between different brain regions.</p>
+</dd>
+<dt id="term-Channel">Channel<a class="headerlink" href="#term-Channel" title="Link to this term">#</a></dt><dd><p>A single recording from one electrode. An EEG recording typically has multiple channels (e.g., 64 channels from 64 electrodes).</p>
+</dd>
+<dt id="term-Montage">Montage<a class="headerlink" href="#term-Montage" title="Link to this term">#</a></dt><dd><p>The arrangement and labeling of electrodes on the scalp. Common montages include 10-20, 10-10, and 10-5 systems.</p>
+</dd>
+<dt id="term-Artifact">Artifact<a class="headerlink" href="#term-Artifact" title="Link to this term">#</a></dt><dd><p>Unwanted electrical activity in the EEG signal that does not originate from brain activity. Common artifacts include eye movements (EOG), muscle activity (EMG), and electrical noise.</p>
+</dd>
+<dt id="term-Epoch">Epoch<a class="headerlink" href="#term-Epoch" title="Link to this term">#</a></dt><dd><p>A segment of EEG data, typically time-locked to a stimulus or event. Epochs are used for event-related potential (ERP) analysis.</p>
+</dd>
+<dt id="term-Trial">Trial<a class="headerlink" href="#term-Trial" title="Link to this term">#</a></dt><dd><p>A single experimental event or stimulus presentation. Multiple trials are typically averaged to improve signal-to-noise ratio.</p>
+</dd>
+<dt id="term-Baseline">Baseline<a class="headerlink" href="#term-Baseline" title="Link to this term">#</a></dt><dd><p>A reference period of EEG activity, typically before stimulus presentation. Baseline correction removes the average baseline activity from each epoch.</p>
+</dd>
+<dt id="term-Event">Event<a class="headerlink" href="#term-Event" title="Link to this term">#</a></dt><dd><p>A marker in the EEG data indicating when something occurred (e.g., stimulus presentation, button press). Events are used to segment data into epochs.</p>
+</dd>
+<dt id="term-Marker">Marker<a class="headerlink" href="#term-Marker" title="Link to this term">#</a></dt><dd><p>A label or timestamp indicating an event in the EEG recording. Markers are used to align EEG data with experimental events.</p>
+</dd>
+<dt id="term-Sampling-Rate">Sampling Rate<a class="headerlink" href="#term-Sampling-Rate" title="Link to this term">#</a></dt><dd><p>The number of times per second that the EEG signal is measured. Common sampling rates are 250 Hz, 500 Hz, and 1000 Hz.</p>
+</dd>
+<dt id="term-Hz-Hertz">Hz (Hertz)<a class="headerlink" href="#term-Hz-Hertz" title="Link to this term">#</a></dt><dd><p>Unit of frequency, representing cycles per second. EEG sampling rates and frequency bands are measured in Hz.</p>
+</dd>
+<dt id="term-Frequency-Band">Frequency Band<a class="headerlink" href="#term-Frequency-Band" title="Link to this term">#</a></dt><dd><p>A range of frequencies in the EEG signal. Common bands include:</p>
+<ul class="simple">
+<li><p>Delta (0.5-4 Hz): Sleep and deep relaxation</p></li>
+<li><p>Theta (4-8 Hz): Drowsiness and meditation</p></li>
+<li><p>Alpha (8-12 Hz): Relaxation and idling</p></li>
+<li><p>Beta (12-30 Hz): Active thinking and concentration</p></li>
+<li><p>Gamma (30-100 Hz): High-level cognitive processing</p></li>
+</ul>
+</dd>
+<dt id="term-Power-Spectral-Density-PSD">Power Spectral Density (PSD)<a class="headerlink" href="#term-Power-Spectral-Density-PSD" title="Link to this term">#</a></dt><dd><p>The distribution of power across different frequencies in the EEG signal. Used to analyze frequency content and identify abnormalities.</p>
+</dd>
+<dt id="term-Coherence">Coherence<a class="headerlink" href="#term-Coherence" title="Link to this term">#</a></dt><dd><p>A measure of the correlation between EEG signals at different electrodes or frequencies. High coherence indicates synchronized activity.</p>
+</dd>
+<dt id="term-Phase">Phase<a class="headerlink" href="#term-Phase" title="Link to this term">#</a></dt><dd><p>The position of a wave in its cycle. Phase differences between channels can indicate functional connectivity.</p>
+</dd>
+<dt id="term-Amplitude">Amplitude<a class="headerlink" href="#term-Amplitude" title="Link to this term">#</a></dt><dd><p>The magnitude of the EEG signal, typically measured in microvolts (µV). Larger amplitudes indicate stronger electrical activity.</p>
+</dd>
+<dt id="term-Latency">Latency<a class="headerlink" href="#term-Latency" title="Link to this term">#</a></dt><dd><p>The time delay between a stimulus and a response in the EEG signal. Used to measure processing speed and neural efficiency.</p>
+</dd>
+<dt id="term-Component">Component<a class="headerlink" href="#term-Component" title="Link to this term">#</a></dt><dd><p>A distinct pattern or source of activity in the EEG signal. Components can be identified through ICA or other decomposition methods.</p>
+</dd>
+<dt id="term-Dipole">Dipole<a class="headerlink" href="#term-Dipole" title="Link to this term">#</a></dt><dd><p>A mathematical model of a neural source consisting of two opposite charges. Used to estimate the location of brain activity from EEG data.</p>
+</dd>
+</dl>
+</section>
+<section id="signal-processing-terms">
+<h2>Signal Processing Terms<a class="headerlink" href="#signal-processing-terms" title="Link to this heading">#</a></h2>
+<dl class="simple glossary">
+<dt id="term-Filter">Filter<a class="headerlink" href="#term-Filter" title="Link to this term">#</a></dt><dd><p>A mathematical operation that removes or attenuates certain frequencies from the signal. Common types include:</p>
+<ul class="simple">
+<li><p>Highpass: Removes low frequencies</p></li>
+<li><p>Lowpass: Removes high frequencies</p></li>
+<li><p>Bandpass: Keeps frequencies within a range</p></li>
+<li><p>Notch: Removes a specific frequency (e.g., 50/60 Hz line noise)</p></li>
+</ul>
+</dd>
+<dt id="term-Filtering">Filtering<a class="headerlink" href="#term-Filtering" title="Link to this term">#</a></dt><dd><p>The process of applying a filter to remove unwanted frequencies from the EEG signal.</p>
+</dd>
+<dt id="term-Cutoff-Frequency">Cutoff Frequency<a class="headerlink" href="#term-Cutoff-Frequency" title="Link to this term">#</a></dt><dd><p>The frequency at which a filter begins to attenuate the signal. For a highpass filter at 1 Hz, frequencies below 1 Hz are attenuated.</p>
+</dd>
+<dt id="term-Filter-Order">Filter Order<a class="headerlink" href="#term-Filter-Order" title="Link to this term">#</a></dt><dd><p>The steepness of the filter’s frequency response. Higher order filters have steeper slopes but may introduce more distortion.</p>
+</dd>
+<dt id="term-Convolution">Convolution<a class="headerlink" href="#term-Convolution" title="Link to this term">#</a></dt><dd><p>A mathematical operation used to apply filters to signals. Convolution combines the signal with a filter kernel.</p>
+</dd>
+<dt id="term-Fourier-Transform">Fourier Transform<a class="headerlink" href="#term-Fourier-Transform" title="Link to this term">#</a></dt><dd><p>A mathematical operation that converts a signal from the time domain to the frequency domain. Used to analyze the frequency content of EEG signals.</p>
+</dd>
+<dt id="term-Fast-Fourier-Transform-FFT">Fast Fourier Transform (FFT)<a class="headerlink" href="#term-Fast-Fourier-Transform-FFT" title="Link to this term">#</a></dt><dd><p>An efficient algorithm for computing the Fourier Transform. Commonly used for frequency analysis of EEG data.</p>
+</dd>
+<dt id="term-Wavelet">Wavelet<a class="headerlink" href="#term-Wavelet" title="Link to this term">#</a></dt><dd><p>A small oscillating wave used for time-frequency analysis. Wavelets can represent both time and frequency information simultaneously.</p>
+</dd>
+<dt id="term-Spectrogram">Spectrogram<a class="headerlink" href="#term-Spectrogram" title="Link to this term">#</a></dt><dd><p>A visual representation of the frequency content of a signal over time. Shows how the power in different frequency bands changes over time.</p>
+</dd>
+<dt id="term-Resampling">Resampling<a class="headerlink" href="#term-Resampling" title="Link to this term">#</a></dt><dd><p>Changing the sampling rate of a signal. Downsampling reduces the sampling rate (and data size), while upsampling increases it.</p>
+</dd>
+<dt id="term-Downsampling">Downsampling<a class="headerlink" href="#term-Downsampling" title="Link to this term">#</a></dt><dd><p>Reducing the sampling rate of a signal by removing samples. Used to reduce data size and computation time.</p>
+</dd>
+<dt id="term-Interpolation">Interpolation<a class="headerlink" href="#term-Interpolation" title="Link to this term">#</a></dt><dd><p>Estimating values between known data points. Used in downsampling and for estimating missing data.</p>
+</dd>
+<dt id="term-Artifact-Subspace-Reconstruction-ASR">Artifact Subspace Reconstruction (ASR)<a class="headerlink" href="#term-Artifact-Subspace-Reconstruction-ASR" title="Link to this term">#</a></dt><dd><p>An algorithm for removing artifacts by identifying and removing the subspace containing artifact activity. Effective for removing large amplitude artifacts.</p>
+</dd>
+<dt id="term-Independent-Component-Analysis-ICA">Independent Component Analysis (ICA)<a class="headerlink" href="#term-Independent-Component-Analysis-ICA" title="Link to this term">#</a></dt><dd><p>A blind source separation technique that decomposes the EEG signal into independent components. Used to identify and remove artifacts and neural sources.</p>
+</dd>
+<dt id="term-Principal-Component-Analysis-PCA">Principal Component Analysis (PCA)<a class="headerlink" href="#term-Principal-Component-Analysis-PCA" title="Link to this term">#</a></dt><dd><p>A dimensionality reduction technique that identifies the directions of maximum variance in the data. Often used as a preprocessing step for ICA.</p>
+</dd>
+<dt id="term-Blind-Source-Separation">Blind Source Separation<a class="headerlink" href="#term-Blind-Source-Separation" title="Link to this term">#</a></dt><dd><p>A technique for separating mixed signals into their original sources without knowing the mixing process. ICA is a type of blind source separation.</p>
+</dd>
+<dt id="term-Whitening">Whitening<a class="headerlink" href="#term-Whitening" title="Link to this term">#</a></dt><dd><p>A preprocessing step that removes correlations and normalizes the variance of the data. Often used before ICA.</p>
+</dd>
+<dt id="term-Infomax-ICA">Infomax ICA<a class="headerlink" href="#term-Infomax-ICA" title="Link to this term">#</a></dt><dd><p>An ICA algorithm that maximizes information flow through a neural network. Commonly used for EEG analysis.</p>
+</dd>
+<dt id="term-FastICA">FastICA<a class="headerlink" href="#term-FastICA" title="Link to this term">#</a></dt><dd><p>An efficient ICA algorithm based on fixed-point iteration. Faster than Infomax ICA but may be less stable.</p>
+</dd>
+<dt id="term-Picard-ICA">Picard ICA<a class="headerlink" href="#term-Picard-ICA" title="Link to this term">#</a></dt><dd><p>A robust ICA algorithm that combines advantages of Infomax and FastICA. Often provides better results than other ICA algorithms.</p>
+</dd>
+</dl>
+</section>
+<section id="data-format-terms">
+<h2>Data Format Terms<a class="headerlink" href="#data-format-terms" title="Link to this heading">#</a></h2>
+<dl class="simple glossary">
+<dt id="term-BIDS">BIDS<a class="headerlink" href="#term-BIDS" title="Link to this term">#</a></dt><dd><p>Brain Imaging Data Structure. A standardized format for organizing neuroimaging data. Ensures consistency and enables automated processing.</p>
+</dd>
+<dt id="term-EEGLAB">EEGLAB<a class="headerlink" href="#term-EEGLAB" title="Link to this term">#</a></dt><dd><p>A MATLAB toolbox for EEG analysis. EEGLAB format (.set and .fdt files) is widely used in neuroscience research.</p>
+</dd>
+<dt id="term-.set-file">.set file<a class="headerlink" href="#term-.set-file" title="Link to this term">#</a></dt><dd><p>EEGLAB header file containing metadata about the EEG recording (sampling rate, channel names, events, etc.).</p>
+</dd>
+<dt id="term-.fdt-file">.fdt file<a class="headerlink" href="#term-.fdt-file" title="Link to this term">#</a></dt><dd><p>EEGLAB data file containing the actual EEG signal data. Paired with a .set file.</p>
+</dd>
+<dt id="term-EDF">EDF<a class="headerlink" href="#term-EDF" title="Link to this term">#</a></dt><dd><p>European Data Format. A standard format for biomedical signals including EEG. Widely supported across different software packages.</p>
+</dd>
+<dt id="term-BrainVision">BrainVision<a class="headerlink" href="#term-BrainVision" title="Link to this term">#</a></dt><dd><p>A data format used by BrainVision Recorder software. Consists of three files: .vhdr (header), .vmrk (markers), and .eeg (data).</p>
+</dd>
+<dt id="term-MNE">MNE<a class="headerlink" href="#term-MNE" title="Link to this term">#</a></dt><dd><p>MNE-Python format for storing neuroimaging data. Includes Raw and Epochs objects for continuous and epoched data.</p>
+</dd>
+<dt id="term-HDF5">HDF5<a class="headerlink" href="#term-HDF5" title="Link to this term">#</a></dt><dd><p>Hierarchical Data Format 5. A flexible format for storing large amounts of data. Used by EEGPrep for efficient data storage.</p>
+</dd>
+<dt id="term-FIF">FIF<a class="headerlink" href="#term-FIF" title="Link to this term">#</a></dt><dd><p>Functional Image File. MNE-Python’s native format for storing neuroimaging data.</p>
+</dd>
+<dt id="term-Neuroscan">Neuroscan<a class="headerlink" href="#term-Neuroscan" title="Link to this term">#</a></dt><dd><p>A data format used by Neuroscan software. Typically stored in .cnt files.</p>
+</dd>
+</dl>
+</section>
+<section id="statistical-terms">
+<h2>Statistical Terms<a class="headerlink" href="#statistical-terms" title="Link to this heading">#</a></h2>
+<dl class="simple glossary">
+<dt id="term-Z-score">Z-score<a class="headerlink" href="#term-Z-score" title="Link to this term">#</a></dt><dd><p>A standardized score indicating how many standard deviations a value is from the mean. Used to identify outliers and normalize data.</p>
+</dd>
+<dt id="term-Threshold">Threshold<a class="headerlink" href="#term-Threshold" title="Link to this term">#</a></dt><dd><p>A cutoff value used to classify data points. Values above the threshold are classified as one category, below as another.</p>
+</dd>
+<dt id="term-Artifact-Detection-Threshold">Artifact Detection Threshold<a class="headerlink" href="#term-Artifact-Detection-Threshold" title="Link to this term">#</a></dt><dd><p>A threshold used to identify artifacts in the EEG signal. Data points exceeding this threshold are marked as artifacts.</p>
+</dd>
+<dt id="term-Variance">Variance<a class="headerlink" href="#term-Variance" title="Link to this term">#</a></dt><dd><p>A measure of how spread out data is from the mean. High variance indicates high variability in the signal.</p>
+</dd>
+<dt id="term-Standard-Deviation">Standard Deviation<a class="headerlink" href="#term-Standard-Deviation" title="Link to this term">#</a></dt><dd><p>The square root of variance. Indicates the typical deviation of data points from the mean.</p>
+</dd>
+<dt id="term-Mean">Mean<a class="headerlink" href="#term-Mean" title="Link to this term">#</a></dt><dd><p>The average value of a dataset. Calculated by summing all values and dividing by the number of values.</p>
+</dd>
+<dt id="term-Median">Median<a class="headerlink" href="#term-Median" title="Link to this term">#</a></dt><dd><p>The middle value in a sorted dataset. Less sensitive to outliers than the mean.</p>
+</dd>
+<dt id="term-Outlier">Outlier<a class="headerlink" href="#term-Outlier" title="Link to this term">#</a></dt><dd><p>A data point that is significantly different from other data points. Often indicates artifacts or errors.</p>
+</dd>
+<dt id="term-Correlation">Correlation<a class="headerlink" href="#term-Correlation" title="Link to this term">#</a></dt><dd><p>A measure of the linear relationship between two variables. Ranges from -1 (perfect negative correlation) to 1 (perfect positive correlation).</p>
+</dd>
+<dt id="term-Covariance">Covariance<a class="headerlink" href="#term-Covariance" title="Link to this term">#</a></dt><dd><p>A measure of how two variables change together. Related to correlation but not normalized.</p>
+</dd>
+<dt id="term-Signal-to-Noise-Ratio-SNR">Signal-to-Noise Ratio (SNR)<a class="headerlink" href="#term-Signal-to-Noise-Ratio-SNR" title="Link to this term">#</a></dt><dd><p>The ratio of signal power to noise power. Higher SNR indicates cleaner data.</p>
+</dd>
+<dt id="term-Noise">Noise<a class="headerlink" href="#term-Noise" title="Link to this term">#</a></dt><dd><p>Unwanted random fluctuations in the signal. Can come from electrical interference, electrode movement, or biological sources.</p>
+</dd>
+<dt id="term-Baseline-Correction">Baseline Correction<a class="headerlink" href="#term-Baseline-Correction" title="Link to this term">#</a></dt><dd><p>Subtracting the average baseline activity from each epoch to remove slow drifts and offsets.</p>
+</dd>
+<dt id="term-Normalization">Normalization<a class="headerlink" href="#term-Normalization" title="Link to this term">#</a></dt><dd><p>Scaling data to a standard range (e.g., 0-1 or -1 to 1). Used to make data comparable across different scales.</p>
+</dd>
+<dt id="term-Standardization">Standardization<a class="headerlink" href="#term-Standardization" title="Link to this term">#</a></dt><dd><p>Transforming data to have mean 0 and standard deviation 1. Also called z-score normalization.</p>
+</dd>
+</dl>
+</section>
+<section id="related-concepts">
+<h2>Related Concepts<a class="headerlink" href="#related-concepts" title="Link to this heading">#</a></h2>
+<dl class="simple glossary">
+<dt id="term-Preprocessing">Preprocessing<a class="headerlink" href="#term-Preprocessing" title="Link to this term">#</a></dt><dd><p>The process of cleaning and preparing raw EEG data for analysis. Includes filtering, artifact removal, and other data quality improvements.</p>
+</dd>
+<dt id="term-Pipeline">Pipeline<a class="headerlink" href="#term-Pipeline" title="Link to this term">#</a></dt><dd><p>A sequence of preprocessing and analysis steps applied to data in a specific order. Ensures reproducibility and consistency.</p>
+</dd>
+<dt id="term-Reproducibility">Reproducibility<a class="headerlink" href="#term-Reproducibility" title="Link to this term">#</a></dt><dd><p>The ability to obtain the same results when applying the same analysis to the same data. Important for scientific validity.</p>
+</dd>
+<dt id="term-Validation">Validation<a class="headerlink" href="#term-Validation" title="Link to this term">#</a></dt><dd><p>The process of checking that data meets quality criteria and that analysis methods are appropriate.</p>
+</dd>
+<dt id="term-Quality-Assurance">Quality Assurance<a class="headerlink" href="#term-Quality-Assurance" title="Link to this term">#</a></dt><dd><p>Systematic checking of data and analysis to ensure accuracy and reliability.</p>
+</dd>
+<dt id="term-Batch-Processing">Batch Processing<a class="headerlink" href="#term-Batch-Processing" title="Link to this term">#</a></dt><dd><p>Processing multiple datasets using the same pipeline. Efficient for analyzing large numbers of subjects.</p>
+</dd>
+<dt id="term-Parallel-Processing">Parallel Processing<a class="headerlink" href="#term-Parallel-Processing" title="Link to this term">#</a></dt><dd><p>Processing multiple datasets simultaneously using multiple processors or cores. Speeds up batch processing.</p>
+</dd>
+<dt id="term-Real-time-Processing">Real-time Processing<a class="headerlink" href="#term-Real-time-Processing" title="Link to this term">#</a></dt><dd><p>Processing data as it is being recorded, without waiting for the entire recording to complete.</p>
+</dd>
+<dt id="term-Offline-Processing">Offline Processing<a class="headerlink" href="#term-Offline-Processing" title="Link to this term">#</a></dt><dd><p>Processing data after it has been completely recorded. Allows for more sophisticated analysis but introduces latency.</p>
+</dd>
+</dl>
+</section>
+<section id="cross-references">
+<h2>Cross-References<a class="headerlink" href="#cross-references" title="Link to this heading">#</a></h2>
+<p>For more information on specific topics, see:</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="user_guide/index.html"><span class="doc">User Guide</span></a> - Detailed usage guides</p></li>
+<li><p><a class="reference internal" href="api/index.html"><span class="doc">API Reference</span></a> - API reference</p></li>
+<li><p><a class="reference internal" href="examples/index.html"><span class="doc">Examples</span></a> - Example scripts</p></li>
+<li><p><a class="reference internal" href="references.html"><span class="doc">References and Citations</span></a> - Key publications and resources</p></li>
+<li><p><a class="reference internal" href="faq.html"><span class="doc">Frequently Asked Questions</span></a> - Frequently asked questions</p></li>
+</ul>
+</section>
+<section id="additional-resources">
+<h2>Additional Resources<a class="headerlink" href="#additional-resources" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p><a class="reference external" href="https://sccn.ucsd.edu/wiki/EEGLAB">EEGLAB Wiki</a> - EEGLAB documentation</p></li>
+<li><p><a class="reference external" href="https://mne.tools/stable/glossary.html">MNE-Python Glossary</a> - MNE-Python glossary</p></li>
+<li><p><a class="reference external" href="https://en.wikipedia.org/wiki/Signal_processing">Signal Processing Basics</a> - Wikipedia overview</p></li>
+<li><p><a class="reference external" href="https://mne.tools/stable/auto_tutorials/index.html">EEG Analysis Tutorials</a> - MNE-Python tutorials</p></li>
+</ul>
+</section>
+</section>
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="changelog.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Changelog</p>
+      </div>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav class="bd-toc-nav page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#eeg-terminology">EEG Terminology</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#signal-processing-terms">Signal Processing Terms</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-format-terms">Data Format Terms</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#statistical-terms">Statistical Terms</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#related-concepts">Related Concepts</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#cross-references">Cross-References</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#additional-resources">Additional Resources</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2024 - , EEGPrep contributors.
+      <br/>
+    
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.2.3.
+    <br/>
+  </p>
+</div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>

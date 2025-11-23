@@ -1,0 +1,779 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>User Guide &#8212; eegprep 0.2.23 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/togglebutton.css?v=13237357" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=d2d258e8" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=ee63c722" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="../_static/documentation_options.js?v=171860b8"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=6dbb43f8"></script>
+    <script>let toggleHintShow = 'Click to show';</script>
+    <script>let toggleHintHide = 'Click to hide';</script>
+    <script>let toggleOpenOnPrint = 'true';</script>
+    <script src="../_static/togglebutton.js?v=4a39c7ea"></script>
+    <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'user_guide/index';</script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Installation" href="installation.html" />
+    <link rel="prev" title="eegprep.EEG_OPTIONS" href="../api/generated/eegprep.EEG_OPTIONS.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="0.2.23" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search documentation..."
+         aria-label="Search documentation..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">eegprep</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../api/index.html">
+    API Reference
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="#">
+    User Guide
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../examples/index.html">
+    Examples
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../contributing.html">
+    Contributing to EEGPrep
+  </a>
+</li>
+
+            <li class="nav-item dropdown">
+                <button class="btn dropdown-toggle nav-item" type="button"
+                data-bs-toggle="dropdown" aria-expanded="false"
+                aria-controls="pst-nav-more-links">
+                    More
+                </button>
+                <ul id="pst-nav-more-links" class="dropdown-menu">
+                    
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../development.html">
+    Development Setup
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../faq.html">
+    Frequently Asked Questions
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../references.html">
+    References and Citations
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../changelog.html">
+    Changelog
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../glossary.html">
+    Glossary
+  </a>
+</li>
+
+                </ul>
+            </li>
+            
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/sccn/eegprep" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fab fa-github-square fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+</ul></div>
+      
+    </div>
+    
+  </div>
+  
+  
+
+  
+    <button class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../api/index.html">
+    API Reference
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="#">
+    User Guide
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../examples/index.html">
+    Examples
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../contributing.html">
+    Contributing to EEGPrep
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../development.html">
+    Development Setup
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../faq.html">
+    Frequently Asked Questions
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../references.html">
+    References and Citations
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../changelog.html">
+    Changelog
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../glossary.html">
+    Glossary
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/sccn/eegprep" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fab fa-github-square fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+</ul></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+<nav class="bd-docs-nav bd-links"
+     aria-label="Section Navigation">
+  <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
+  <div class="bd-toc-item navbar-nav"><ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quick Start</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="preprocessing_pipeline.html">Preprocessing Pipeline</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="bids_workflow.html">BIDS Workflow</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="advanced_topics.html">Advanced Topics</a></li>
+</ul>
+</div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">User Guide</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="user-guide">
+<span id="id1"></span><h1>User Guide<a class="headerlink" href="#user-guide" title="Link to this heading">#</a></h1>
+<p>Welcome to the eegprep User Guide! This comprehensive guide provides practical documentation for using eegprep in your EEG research and analysis workflows.</p>
+<p>Whether you’re just getting started with eegprep or looking to master advanced preprocessing techniques, this guide has you covered. We’ve organized the documentation into logical sections to help you find what you need quickly.</p>
+<section id="learning-path">
+<h2>Learning Path<a class="headerlink" href="#learning-path" title="Link to this heading">#</a></h2>
+<p>We recommend following this learning path based on your experience level:</p>
+<dl class="simple">
+<dt><strong>Beginner</strong></dt><dd><ol class="arabic simple">
+<li><p>Start with <a class="reference internal" href="installation.html#installation"><span class="std std-ref">Installation</span></a> to set up eegprep</p></li>
+<li><p>Follow the <a class="reference internal" href="quickstart.html#quickstart"><span class="std std-ref">Quick Start</span></a> guide for a 5-minute introduction</p></li>
+<li><p>Read <a class="reference internal" href="preprocessing_pipeline.html#preprocessing-pipeline"><span class="std std-ref">Preprocessing Pipeline</span></a> to understand the preprocessing workflow</p></li>
+</ol>
+</dd>
+<dt><strong>Intermediate</strong></dt><dd><ol class="arabic simple">
+<li><p>Explore <a class="reference internal" href="configuration.html#configuration"><span class="std std-ref">Configuration</span></a> for parameter tuning</p></li>
+<li><p>Learn <a class="reference internal" href="bids_workflow.html#bids-workflow"><span class="std std-ref">BIDS Workflow</span></a> for batch processing</p></li>
+<li><p>Review <a class="reference internal" href="preprocessing_pipeline.html#preprocessing-pipeline"><span class="std std-ref">Preprocessing Pipeline</span></a> for detailed step-by-step information</p></li>
+</ol>
+</dd>
+<dt><strong>Advanced</strong></dt><dd><ol class="arabic simple">
+<li><p>Master <a class="reference internal" href="advanced_topics.html#advanced-topics"><span class="std std-ref">Advanced Topics</span></a> for custom pipelines</p></li>
+<li><p>Explore <a class="reference internal" href="configuration.html#configuration"><span class="std std-ref">Configuration</span></a> for advanced settings</p></li>
+<li><p>Integrate with <a class="reference internal" href="advanced_topics.html#advanced-topics"><span class="std std-ref">Advanced Topics</span></a> for MNE-Python and parallel processing</p></li>
+</ol>
+</dd>
+</dl>
+</section>
+<section id="getting-started">
+<h2>Getting Started<a class="headerlink" href="#getting-started" title="Link to this heading">#</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#system-requirements">System Requirements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#installation-methods">Installation Methods</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#optional-dependencies">Optional Dependencies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#verification">Verification</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#troubleshooting">Troubleshooting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#getting-help">Getting Help</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#next-steps">Next Steps</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quick Start</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#basic-preprocessing-5-minute-example">Basic Preprocessing (5-Minute Example)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#loading-eeg-data">Loading EEG Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#running-preprocessing">Running Preprocessing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#saving-results">Saving Results</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#visualization">Visualization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#complete-workflow-example">Complete Workflow Example</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#common-tasks">Common Tasks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#next-steps">Next Steps</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+<section id="core-concepts">
+<h2>Core Concepts<a class="headerlink" href="#core-concepts" title="Link to this heading">#</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="preprocessing_pipeline.html">Preprocessing Pipeline</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="preprocessing_pipeline.html#pipeline-overview">Pipeline Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="preprocessing_pipeline.html#pipeline-steps">Pipeline Steps</a></li>
+<li class="toctree-l2"><a class="reference internal" href="preprocessing_pipeline.html#pipeline-visualization">Pipeline Visualization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="preprocessing_pipeline.html#parameter-tuning">Parameter Tuning</a></li>
+<li class="toctree-l2"><a class="reference internal" href="preprocessing_pipeline.html#quality-control">Quality Control</a></li>
+<li class="toctree-l2"><a class="reference internal" href="preprocessing_pipeline.html#common-issues-and-solutions">Common Issues and Solutions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="preprocessing_pipeline.html#next-steps">Next Steps</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="configuration.html#eeg-options-overview">EEG_OPTIONS Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration.html#common-configuration-parameters">Common Configuration Parameters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration.html#creating-custom-preprocessing-chains">Creating Custom Preprocessing Chains</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration.html#advanced-settings">Advanced Settings</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration.html#configuration-files">Configuration Files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration.html#parameter-recommendations">Parameter Recommendations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration.html#troubleshooting-configuration">Troubleshooting Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration.html#next-steps">Next Steps</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+<section id="data-workflows">
+<h2>Data Workflows<a class="headerlink" href="#data-workflows" title="Link to this heading">#</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="bids_workflow.html">BIDS Workflow</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="bids_workflow.html#bids-dataset-structure">BIDS Dataset Structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="bids_workflow.html#loading-bids-data">Loading BIDS Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="bids_workflow.html#running-batch-preprocessing">Running Batch Preprocessing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="bids_workflow.html#output-structure">Output Structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="bids_workflow.html#integration-with-other-tools">Integration with Other Tools</a></li>
+<li class="toctree-l2"><a class="reference internal" href="bids_workflow.html#working-with-bids-metadata">Working with BIDS Metadata</a></li>
+<li class="toctree-l2"><a class="reference internal" href="bids_workflow.html#common-bids-workflows">Common BIDS Workflows</a></li>
+<li class="toctree-l2"><a class="reference internal" href="bids_workflow.html#troubleshooting-bids-workflows">Troubleshooting BIDS Workflows</a></li>
+<li class="toctree-l2"><a class="reference internal" href="bids_workflow.html#best-practices">Best Practices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="bids_workflow.html#next-steps">Next Steps</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+<section id="advanced-topics">
+<h2>Advanced Topics<a class="headerlink" href="#advanced-topics" title="Link to this heading">#</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="advanced_topics.html">Advanced Topics</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="advanced_topics.html#custom-preprocessing-chains">Custom Preprocessing Chains</a></li>
+<li class="toctree-l2"><a class="reference internal" href="advanced_topics.html#extending-the-pipeline">Extending the Pipeline</a></li>
+<li class="toctree-l2"><a class="reference internal" href="advanced_topics.html#integration-with-mne-python">Integration with MNE-Python</a></li>
+<li class="toctree-l2"><a class="reference internal" href="advanced_topics.html#parallel-processing">Parallel Processing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="advanced_topics.html#performance-optimization">Performance Optimization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="advanced_topics.html#best-practices">Best Practices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="advanced_topics.html#next-steps">Next Steps</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+<section id="quick-reference">
+<h2>Quick Reference<a class="headerlink" href="#quick-reference" title="Link to this heading">#</a></h2>
+<p><strong>Common Tasks</strong></p>
+<ul class="simple">
+<li><p><a class="reference internal" href="installation.html#installation"><span class="std std-ref">Installation</span></a> - Install eegprep</p></li>
+<li><p><a class="reference internal" href="quickstart.html#quickstart"><span class="std std-ref">Quick Start</span></a> - Load, preprocess, and save EEG data</p></li>
+<li><p><a class="reference internal" href="preprocessing_pipeline.html#preprocessing-pipeline"><span class="std std-ref">Preprocessing Pipeline</span></a> - Understand preprocessing steps</p></li>
+<li><p><a class="reference internal" href="bids_workflow.html#bids-workflow"><span class="std std-ref">BIDS Workflow</span></a> - Process BIDS datasets</p></li>
+<li><p><a class="reference internal" href="configuration.html#configuration"><span class="std std-ref">Configuration</span></a> - Configure preprocessing parameters</p></li>
+<li><p><a class="reference internal" href="advanced_topics.html#advanced-topics"><span class="std std-ref">Advanced Topics</span></a> - Create custom pipelines</p></li>
+</ul>
+<p><strong>Key Functions</strong></p>
+<ul class="simple">
+<li><p><a class="reference internal" href="../api/io.html#eegprep.pop_loadset" title="eegprep.pop_loadset"><code class="xref py py-func docutils literal notranslate"><span class="pre">eegprep.pop_loadset()</span></code></a> - Load EEG data</p></li>
+<li><p><a class="reference internal" href="../api/io.html#eegprep.pop_saveset" title="eegprep.pop_saveset"><code class="xref py py-func docutils literal notranslate"><span class="pre">eegprep.pop_saveset()</span></code></a> - Save EEG data</p></li>
+<li><p><a class="reference internal" href="../api/preprocessing.html#eegprep.clean_artifacts" title="eegprep.clean_artifacts"><code class="xref py py-func docutils literal notranslate"><span class="pre">eegprep.clean_artifacts()</span></code></a> - Comprehensive artifact removal</p></li>
+<li><p><a class="reference internal" href="../api/ica.html#eegprep.iclabel" title="eegprep.iclabel"><code class="xref py py-func docutils literal notranslate"><span class="pre">eegprep.iclabel()</span></code></a> - Classify ICA components</p></li>
+<li><p><a class="reference internal" href="../api/signal_processing.html#eegprep.pop_resample" title="eegprep.pop_resample"><code class="xref py py-func docutils literal notranslate"><span class="pre">eegprep.pop_resample()</span></code></a> - Resample data</p></li>
+<li><p><a class="reference internal" href="../api/generated/eegprep.pop_eegfiltnew.html#eegprep.pop_eegfiltnew" title="eegprep.pop_eegfiltnew"><code class="xref py py-func docutils literal notranslate"><span class="pre">eegprep.pop_eegfiltnew()</span></code></a> - Filter data</p></li>
+<li><p><a class="reference internal" href="../api/generated/eegprep.bids_preproc.html#eegprep.bids_preproc" title="eegprep.bids_preproc"><code class="xref py py-func docutils literal notranslate"><span class="pre">eegprep.bids_preproc()</span></code></a> - Batch process BIDS datasets</p></li>
+</ul>
+<p><strong>Configuration</strong></p>
+<ul class="simple">
+<li><p><a class="reference internal" href="../api/generated/eegprep.EEG_OPTIONS.html#eegprep.EEG_OPTIONS" title="eegprep.EEG_OPTIONS"><code class="xref py py-class docutils literal notranslate"><span class="pre">eegprep.EEG_OPTIONS</span></code></a> - Configuration object</p></li>
+<li><p>Preprocessing parameters</p></li>
+<li><p>Custom preprocessing chains</p></li>
+</ul>
+<p><strong>Integration</strong></p>
+<ul class="simple">
+<li><p>MNE-Python integration</p></li>
+<li><p>EEGLAB compatibility</p></li>
+<li><p>BIDS support</p></li>
+</ul>
+</section>
+<section id="documentation-structure">
+<h2>Documentation Structure<a class="headerlink" href="#documentation-structure" title="Link to this heading">#</a></h2>
+<dl class="simple">
+<dt><strong>Installation</strong></dt><dd><p>Complete installation guide covering system requirements, installation methods, optional dependencies, verification, and troubleshooting.</p>
+</dd>
+<dt><strong>Quick Start</strong></dt><dd><p>5-minute introduction to eegprep with practical examples covering loading data, preprocessing, saving results, and visualization.</p>
+</dd>
+<dt><strong>Preprocessing Pipeline</strong></dt><dd><p>Detailed overview of the preprocessing pipeline including all steps, parameter tuning, quality control, and common issues.</p>
+</dd>
+<dt><strong>BIDS Workflow</strong></dt><dd><p>Guide to working with BIDS-formatted datasets including loading, batch processing, output structure, and integration with other tools.</p>
+</dd>
+<dt><strong>Configuration</strong></dt><dd><p>Comprehensive guide to configuring eegprep including EEG_OPTIONS, common parameters, custom preprocessing chains, and advanced settings.</p>
+</dd>
+<dt><strong>Advanced Topics</strong></dt><dd><p>Advanced topics for experienced users including custom pipelines, extending the pipeline, MNE-Python integration, parallel processing, and performance optimization.</p>
+</dd>
+</dl>
+</section>
+<section id="key-concepts">
+<h2>Key Concepts<a class="headerlink" href="#key-concepts" title="Link to this heading">#</a></h2>
+<dl class="simple">
+<dt><strong>EEG Data Structure</strong></dt><dd><p>eegprep uses the EEGobj class to represent EEG data, which is compatible with EEGLAB format.</p>
+</dd>
+<dt><strong>Preprocessing Pipeline</strong></dt><dd><p>The preprocessing pipeline consists of sequential steps: channel selection, artifact removal, channel interpolation, resampling, filtering, ICA decomposition, and component classification.</p>
+</dd>
+<dt><strong>BIDS Format</strong></dt><dd><p>Brain Imaging Data Structure (BIDS) is a standardized format for organizing neuroimaging data, enabling consistent and reproducible analysis.</p>
+</dd>
+<dt><strong>ICA Decomposition</strong></dt><dd><p>Independent Component Analysis (ICA) decomposes EEG data into independent components, which can be classified as brain activity or artifacts.</p>
+</dd>
+<dt><strong>Component Classification</strong></dt><dd><p>ICLabel automatically classifies ICA components into categories such as brain, muscle, eye, heart, line noise, and channel noise.</p>
+</dd>
+</dl>
+</section>
+<section id="getting-help">
+<h2>Getting Help<a class="headerlink" href="#getting-help" title="Link to this heading">#</a></h2>
+<p>If you need help:</p>
+<ol class="arabic simple">
+<li><p>Check the relevant section in this guide</p></li>
+<li><p>Review the <a class="reference internal" href="../api/index.html#api-reference"><span class="std std-ref">API Reference</span></a> documentation</p></li>
+<li><p>Visit the <a class="reference external" href="https://github.com/sccn/eegprep/issues">GitHub Issues</a> page</p></li>
+<li><p>Check the <a class="reference external" href="https://github.com/sccn/eegprep/discussions">GitHub Discussions</a> page</p></li>
+</ol>
+</section>
+<section id="contributing">
+<h2>Contributing<a class="headerlink" href="#contributing" title="Link to this heading">#</a></h2>
+<p>We welcome contributions! If you find issues or have suggestions for improving the documentation, please:</p>
+<ol class="arabic simple">
+<li><p>Open an issue on <a class="reference external" href="https://github.com/sccn/eegprep/issues">GitHub</a></p></li>
+<li><p>Submit a pull request with improvements</p></li>
+<li><p>Share your feedback in <a class="reference external" href="https://github.com/sccn/eegprep/discussions">GitHub Discussions</a></p></li>
+</ol>
+</section>
+<section id="license">
+<h2>License<a class="headerlink" href="#license" title="Link to this heading">#</a></h2>
+<p>eegprep is released under the GNU General Public License v3.0. See the LICENSE file for details.</p>
+</section>
+<section id="citation">
+<h2>Citation<a class="headerlink" href="#citation" title="Link to this heading">#</a></h2>
+<p>If you use eegprep in your research, please cite:</p>
+<div class="highlight-bibtex notranslate"><div class="highlight"><pre><span></span><span class="nc">@software</span><span class="p">{</span><span class="nl">eegprep2024</span><span class="p">,</span>
+<span class="w">  </span><span class="na">title</span><span class="p">=</span><span class="s">{eegprep: A Python package for EEG preprocessing}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">author</span><span class="p">=</span><span class="s">{SCCN}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">year</span><span class="p">=</span><span class="s">{2024}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">url</span><span class="p">=</span><span class="s">{https://github.com/sccn/eegprep}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="acknowledgments">
+<h2>Acknowledgments<a class="headerlink" href="#acknowledgments" title="Link to this heading">#</a></h2>
+<p>eegprep is built on the foundations of EEGLAB and incorporates algorithms and methods from the EEG research community. We acknowledge the contributions of all researchers and developers who have contributed to EEG analysis methods.</p>
+</section>
+</section>
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="../api/generated/eegprep.EEG_OPTIONS.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">eegprep.EEG_OPTIONS</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="installation.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Installation</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav class="bd-toc-nav page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#learning-path">Learning Path</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#getting-started">Getting Started</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#core-concepts">Core Concepts</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-workflows">Data Workflows</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#advanced-topics">Advanced Topics</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#quick-reference">Quick Reference</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#documentation-structure">Documentation Structure</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#key-concepts">Key Concepts</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#getting-help">Getting Help</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#contributing">Contributing</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#license">License</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#citation">Citation</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#acknowledgments">Acknowledgments</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2024 - , EEGPrep contributors.
+      <br/>
+    
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.2.3.
+    <br/>
+  </p>
+</div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>

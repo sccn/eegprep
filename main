@@ -1,7 +1,0 @@
-#!/bin/bash
-#PBS -l nodes=1:ppn=8
-#PBS -l walltime=00:10:00
-
-# Author: Dung Truong and Arnaud Delorme
-
-singularity exec -e docker://arnodelorme/eegprep:0.2.22 python3 main.py

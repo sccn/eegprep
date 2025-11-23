@@ -1,0 +1,1032 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Core Functions and Classes &#8212; eegprep 0.2.23 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/togglebutton.css?v=13237357" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=d2d258e8" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=ee63c722" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="../_static/documentation_options.js?v=171860b8"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=6dbb43f8"></script>
+    <script>let toggleHintShow = 'Click to show';</script>
+    <script>let toggleHintHide = 'Click to hide';</script>
+    <script>let toggleOpenOnPrint = 'true';</script>
+    <script src="../_static/togglebutton.js?v=4a39c7ea"></script>
+    <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'api/core';</script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Preprocessing Functions" href="preprocessing.html" />
+    <link rel="prev" title="API Reference" href="index.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="0.2.23" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search documentation..."
+         aria-label="Search documentation..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">eegprep</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="index.html">
+    API Reference
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../user_guide/index.html">
+    User Guide
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../examples/index.html">
+    Examples
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../contributing.html">
+    Contributing to EEGPrep
+  </a>
+</li>
+
+            <li class="nav-item dropdown">
+                <button class="btn dropdown-toggle nav-item" type="button"
+                data-bs-toggle="dropdown" aria-expanded="false"
+                aria-controls="pst-nav-more-links">
+                    More
+                </button>
+                <ul id="pst-nav-more-links" class="dropdown-menu">
+                    
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../development.html">
+    Development Setup
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../faq.html">
+    Frequently Asked Questions
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../references.html">
+    References and Citations
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../changelog.html">
+    Changelog
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../glossary.html">
+    Glossary
+  </a>
+</li>
+
+                </ul>
+            </li>
+            
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/sccn/eegprep" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fab fa-github-square fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+</ul></div>
+      
+    </div>
+    
+  </div>
+  
+  
+
+  
+    <button class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="index.html">
+    API Reference
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../user_guide/index.html">
+    User Guide
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../examples/index.html">
+    Examples
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../contributing.html">
+    Contributing to EEGPrep
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../development.html">
+    Development Setup
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../faq.html">
+    Frequently Asked Questions
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../references.html">
+    References and Citations
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../changelog.html">
+    Changelog
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../glossary.html">
+    Glossary
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/sccn/eegprep" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fab fa-github-square fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+</ul></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+<nav class="bd-docs-nav bd-links"
+     aria-label="Section Navigation">
+  <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
+  <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">Core Functions and Classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="preprocessing.html">Preprocessing Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ica.html">Independent Component Analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="signal_processing.html">Signal Processing Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="io.html">Input/Output Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="utils.html">Utility Functions</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.EEGobj.html">eegprep.EEGobj</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_loadset.html">eegprep.pop_loadset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.loadset.html">eegprep.loadset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_loadset_h5.html">eegprep.pop_loadset_h5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_saveset.html">eegprep.pop_saveset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_load_frombids.html">eegprep.pop_load_frombids</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.clean_artifacts.html">eegprep.clean_artifacts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.clean_asr.html">eegprep.clean_asr</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.clean_flatlines.html">eegprep.clean_flatlines</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.clean_drifts.html">eegprep.clean_drifts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.clean_windows.html">eegprep.clean_windows</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.clean_channels.html">eegprep.clean_channels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.clean_channels_nolocs.html">eegprep.clean_channels_nolocs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_interp.html">eegprep.eeg_interp</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_reref.html">eegprep.pop_reref</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_resample.html">eegprep.pop_resample</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_eegfiltnew.html">eegprep.pop_eegfiltnew</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_picard.html">eegprep.eeg_picard</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.iclabel.html">eegprep.iclabel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.ICL_feature_extractor.html">eegprep.ICL_feature_extractor</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_rpsd.html">eegprep.eeg_rpsd</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_autocorr.html">eegprep.eeg_autocorr</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_autocorr_welch.html">eegprep.eeg_autocorr_welch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_autocorr_fftw.html">eegprep.eeg_autocorr_fftw</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_epoch.html">eegprep.pop_epoch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_select.html">eegprep.pop_select</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_eegrej.html">eegprep.eeg_eegrej</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eegrej.html">eegprep.eegrej</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.topoplot.html">eegprep.topoplot</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_mne2eeg.html">eegprep.eeg_mne2eeg</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_mne2eeg_epochs.html">eegprep.eeg_mne2eeg_epochs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_eeg2mne.html">eegprep.eeg_eeg2mne</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_checkset.html">eegprep.eeg_checkset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_compare.html">eegprep.eeg_compare</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_decodechan.html">eegprep.eeg_decodechan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_lat2point.html">eegprep.eeg_lat2point</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_point2lat.html">eegprep.eeg_point2lat</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.bids_list_eeg_files.html">eegprep.bids_list_eeg_files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.bids_preproc.html">eegprep.bids_preproc</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.bids_preproc.html">eegprep.bids_preproc</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.bids_list_eeg_files.html">eegprep.bids_list_eeg_files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_load_frombids.html">eegprep.pop_load_frombids</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.EEG_OPTIONS.html">eegprep.EEG_OPTIONS</a></li>
+</ul>
+</div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="index.html" class="nav-link">API Reference</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">Core Functions and Classes</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="core-functions-and-classes">
+<span id="api-core"></span><h1>Core Functions and Classes<a class="headerlink" href="#core-functions-and-classes" title="Link to this heading">#</a></h1>
+<p>This section documents the core functions and classes that form the foundation of eegprep.</p>
+<section id="main-pipeline">
+<h2>Main Pipeline<a class="headerlink" href="#main-pipeline" title="Link to this heading">#</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="eegprep.bids_preproc">
+<span class="sig-prename descclassname"><span class="pre">eegprep.</span></span><span class="sig-name descname"><span class="pre">bids_preproc</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">root</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ApplyChanlocs=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ApplyEvents=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ApplyMetadata=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">EventColumn=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Subjects=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Sessions=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Runs=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Tasks=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">SkipIfPresent=True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">NumJobs=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ReservePerJob=''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">UseHashes=False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ReturnData=False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">OutputDir=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">SamplingRate=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">OnlyChannelsWithPosition=True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">OnlyModalities=()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">WithInterp=False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">WithPicard=False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">WithICLabel=False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">WithReport=True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">CommonAverageReference=True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ChannelCriterion=0.8</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">LineNoiseCriterion=4.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">BurstCriterion=5.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">WindowCriterion=0.25</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Highpass=(0.25</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">0.75)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ChannelCriterionMaxBadTime=0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">BurstCriterionRefMaxBadChns=0.075</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">BurstCriterionRefTolerances=(-inf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">5.5)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">BurstRejection='off'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">WindowCriterionTolerances=(-inf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">7)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">FlatlineCriterion=5.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">NumSamples=50</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">NoLocsChannelCriterion=0.45</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">NoLocsChannelCriterionExcluded=0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">MaxMem=64</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Distance='euclidian'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Channels=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Channels_ignore=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">availableRAM_GB=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">EpochEvents=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">EpochLimits=(-1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">2)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">EpochBaseline=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">StageNames=('desc-cleaned'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">'desc-picard'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">'desc-iclabel'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">'desc-epoch')</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">MinimizeDiskUsage=True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bidschanloc=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bidsevent=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bidsmetadata=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eventtype=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subjects=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sessions=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">runs=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tasks=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outputdir=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_lock=&lt;contextlib.nullcontext</span> <span class="pre">object&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_n_skipped=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_k=0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_n_total=1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_n_jobs=1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_t0=1763867323.2111173</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.bids_preproc" title="Link to this definition">#</a></dt>
+<dd><p>Apply data cleaning to EEG files in a BIDS dataset.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></a>], <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></a>]], <a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></a>]</span></p>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>root</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>ApplyChanlocs</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>ApplyEvents</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>ApplyMetadata</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>EventColumn</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>Subjects</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.14)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>Sessions</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.14)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>Runs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.14)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>Tasks</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.14)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>SkipIfPresent</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+<li><p><strong>NumJobs</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>ReservePerJob</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>UseHashes</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+<li><p><strong>ReturnData</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+<li><p><strong>OutputDir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>SamplingRate</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>OnlyChannelsWithPosition</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+<li><p><strong>OnlyModalities</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.14)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em>)</p></li>
+<li><p><strong>WithInterp</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+<li><p><strong>WithPicard</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+<li><p><strong>WithICLabel</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+<li><p><strong>WithReport</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+<li><p><strong>CommonAverageReference</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+<li><p><strong>ChannelCriterion</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>LineNoiseCriterion</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>BurstCriterion</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>WindowCriterion</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>Highpass</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>]</em>)</p></li>
+<li><p><strong>ChannelCriterionMaxBadTime</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
+<li><p><strong>BurstCriterionRefMaxBadChns</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>BurstCriterionRefTolerances</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>BurstRejection</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>WindowCriterionTolerances</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>FlatlineCriterion</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>NumSamples</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
+<li><p><strong>NoLocsChannelCriterion</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
+<li><p><strong>NoLocsChannelCriterionExcluded</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
+<li><p><strong>MaxMem</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
+<li><p><strong>Distance</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>Channels</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.14)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>] </em><em>| </em><em>None</em>)</p></li>
+<li><p><strong>Channels_ignore</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.14)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>] </em><em>| </em><em>None</em>)</p></li>
+<li><p><strong>availableRAM_GB</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>EpochEvents</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.14)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>] </em><em>| </em><em>None</em>)</p></li>
+<li><p><strong>EpochLimits</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.14)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>]</em>)</p></li>
+<li><p><strong>EpochBaseline</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.14)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>] </em><em>| </em><em>None</em>)</p></li>
+<li><p><strong>StageNames</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.14)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em>)</p></li>
+<li><p><strong>MinimizeDiskUsage</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+<li><p><strong>bidschanloc</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>bidsevent</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>bidsmetadata</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>eventtype</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>subjects</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.14)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>sessions</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.14)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>runs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.14)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>tasks</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.14)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>outputdir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>_lock</strong> (<em>Lock</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>_n_skipped</strong> (<em>Value</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>_k</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
+<li><p><strong>_n_total</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
+<li><p><strong>_n_jobs</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
+<li><p><strong>_t0</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
+</ul>
+</dd>
+</dl>
+<section id="parameters">
+<h3>Parameters<a class="headerlink" href="#parameters" title="Link to this heading">#</a></h3>
+<dl class="simple">
+<dt>root<span class="classifier">str</span></dt><dd><p>The root directory containing BIDS data or a single EEG file path.</p>
+</dd>
+</dl>
+<p>(BIDS import stage parameters)</p>
+<dl class="simple">
+<dt>ApplyMetadata<span class="classifier">bool</span></dt><dd><p>Whether to apply metadata from BIDS sidecar files when loading raw EEG data.
+(default True)</p>
+</dd>
+<dt>ApplyEvents<span class="classifier">bool</span></dt><dd><p>Whether to apply events from BIDS sidecar files when loading raw EEG data.
+(default False)</p>
+</dd>
+<dt>ApplyChanlocs<span class="classifier">bool</span></dt><dd><p>Whether to apply channel locations from BIDS sidecar files when loading raw EEG data.
+(default True)</p>
+</dd>
+<dt>EventColumn<span class="classifier">str</span></dt><dd><p>Optionally the column name in the BIDS events file to use for event types; if not
+set, will be inferred heuristically.</p>
+</dd>
+<dt>Subjects<span class="classifier">Sequence[str | int], optional</span></dt><dd><p>A sequence of subject identifiers or (zero-based) indices to filter the files by.
+If empty, all subjects are included.</p>
+</dd>
+<dt>Sessions<span class="classifier">Sequence[str | int], optional</span></dt><dd><p>A sequence of session identifiers or (zero-based) indices to filter the files by.
+If empty, all sessions are included.</p>
+</dd>
+<dt>Runs<span class="classifier">Sequence[str | int], optional</span></dt><dd><p>A sequence of run numbers or identifiers to filter the files by. If empty, all runs
+are included. Note that zero-based indexing does not apply to runs, unlike
+subjects and sessions since runs are already integers.</p>
+</dd>
+<dt>Tasks<span class="classifier">Sequence[str] | str, optional</span></dt><dd><p>A sequence of task names or single task to filter the files by. If empty, all
+tasks are included (default is an empty sequence).</p>
+</dd>
+<dt>OutputDir<span class="classifier">str</span></dt><dd><p>The name of the subdirectory where cleaned files will be saved. This can start
+with the placeholder ‘{root}’ which will be replaced with the root path of
+the BIDS dataset. Defaults to ‘{root}/derivatives/eegprep’ if not specified.    (overall run configuration)</p>
+</dd>
+<dt>SkipIfPresent<span class="classifier">bool</span></dt><dd><p>skip processing files that already have a cleaned version present.</p>
+</dd>
+<dt>NumJobs<span class="classifier">int, optional</span></dt><dd><p>The number of jobs to run in parallel. If set to -1, this will default to the
+number of logical cores on the system. If the ReservePerJob clause is also
+specified, this will be treated as a maximum, otherwise as the <em>total</em>. If neither
+of the two parameters is specified, a single job will run.
+Note: as usual when running multiple processes in Python, you need to use the
+if __name__ == “__main__”: guard pattern in your main processing script.</p>
+</dd>
+<dt>ReservePerJob<span class="classifier">str</span></dt><dd><p>Optionally the resource amount and type to reserve per job, e.g. ‘4GB’ or ‘2CPU’;
+the run will then use as many jobs as fit within the system resources of the specified type.
+* You can also specify how much of a margin of the total system resources should
+be <em>withheld</em> for use by other programs on the computer, by following the amount
+by a : and then the margin, as in ‘4GB:10GB’ (always leave 10GB unused), ‘2CPU:10%’
+(always leave 10% of the total installed RAM unused). This also works with other metrics.
+* one may also specify a total or maximum number of jobs, as in ‘10total’ or ‘10max’.
+* Multiple criteria can be spefied in a comma-separated list of reservations, e.g.
+‘4GB:20%, 2CPU, 5max’.
+* If neither this nor NumJobs are specified, a single job will run. Note that the
+system will also run in serial when in debug mode and when on a platform that does
+not cleanly support multiprocessing.
+Tip: a good way to size this is to perform a serial run and to monitor how much
+peak RAM a single job takes, and then setting this to &lt;PeakUsage&gt;GB:&lt;YourMargin&gt;GB
+where YourMargin is however much you want to leave to other programs, e.g., 5GB
+(this will depend on what else you expect to be running on the machine).</p>
+</dd>
+<dt>UseHashes<span class="classifier">bool</span></dt><dd><p>Whether to bake hashes into intermediate file names; if you experiment
+with alternative preprocessing settings, it is recommended to enable this or disable
+the SkipIfPresent option since otherwise the routine may pick up a stale result.</p>
+</dd>
+<dt>ReturnData<span class="classifier">bool</span></dt><dd><p>Whether to return the final EEG data objects as a list. Note that this can use
+quite a lot of memory for large studies and it may be better to iterate over
+the preprocessed files in downstream analyses.</p>
+</dd>
+</dl>
+<p>(overall processing parameters)
+OnlyChannelsWithPosition : bool</p>
+<blockquote>
+<div><p>Whether to retain only channels for which positions were recorded or could be
+inferred. If this is not set, then OnlyModalities should be set so as to retain
+only modalities that should be preprocessed together.</p>
+</div></blockquote>
+<dl class="simple">
+<dt>OnlyModalities<span class="classifier">Sequence[str], optional</span></dt><dd><p>If set, retain only channels that have the associated modalities. If enabled, this
+is typically set to [‘EEG’] but may also include other ExG modalities such as
+EOG or EMG that have the same unit and scale as EEG. If non-electrophysiological
+modalities are included, some artifact removal steps may not function correctly.</p>
+</dd>
+<dt>SamplingRate<span class="classifier">float</span></dt><dd><p>Desired sampling rate for the preprocessed data. If not specified, will retain
+the original sampling rate.</p>
+</dd>
+<dt>WithInterp<span class="classifier">bool</span></dt><dd><p>Whether to reinterpolate dropped channels, thus retaining the same channel
+count as the raw data.</p>
+</dd>
+<dt>WithPicard<span class="classifier">bool</span></dt><dd><p>Whether to apply PICARD ICA decomposition after cleaning.</p>
+</dd>
+<dt>WithICLabel<span class="classifier">bool</span></dt><dd><p>Whether to apply ICLabel classification after ICA. Normally requires
+WithPicard=True.</p>
+</dd>
+<dt>CommonAverageReference<span class="classifier">bool</span></dt><dd><p>Whether to transform the EEG data to a common average referencing scheme;
+recommended for cross-study processing.</p>
+</dd>
+</dl>
+<p>(parameters for artifact removal - same as in clean_artifacts function)</p>
+<dl>
+<dt>ChannelCriterion<span class="classifier">float or ‘off’</span></dt><dd><p>Minimum channel correlation threshold for channel cleaning; channels below
+this value are considered bad. Pass ‘off’ to skip channel criterion. Default 0.8.</p>
+</dd>
+<dt>LineNoiseCriterion<span class="classifier">float or ‘off’</span></dt><dd><p>Z-score threshold for line-noise contamination; channels exceeding this are
+considered bad. ‘off’ disables line-noise check. Default 4.0.</p>
+</dd>
+<dt>BurstCriterion<span class="classifier">float or ‘off’</span></dt><dd><p>ASR standard-deviation cutoff for high-amplitude bursts; values above this
+relative to calibration data are repaired (or removed if BurstRejection=’on’).
+‘off’ skips ASR. Default 5.0.</p>
+</dd>
+<dt>WindowCriterion<span class="classifier">float or ‘off’</span></dt><dd><p>Fraction (0-1) or count of channels allowed to be bad per window; windows with
+more bad channels are removed. ‘off’ disables final window removal. Default 0.25.</p>
+</dd>
+<dt>Highpass<span class="classifier">tuple(float, float) or ‘off’</span></dt><dd><p>Transition band [low, high] in Hz for initial high-pass filtering. ‘off’ skips
+drift removal. Default (0.25, 0.75).</p>
+</dd>
+<dt>ChannelCriterionMaxBadTime<span class="classifier">float</span></dt><dd><p>Maximum tolerated time (seconds or fraction of recording) a channel may be flagged
+bad before being removed. Default 0.5.</p>
+</dd>
+<dt>BurstCriterionRefMaxBadChns<span class="classifier">float or ‘off’</span></dt><dd><p>Maximum fraction of bad channels tolerated when selecting calibration data for ASR.
+‘off’ uses all data for calibration. Default 0.075.</p>
+</dd>
+<dt>BurstCriterionRefTolerances<span class="classifier">tuple(float, float) or ‘off’</span></dt><dd><p>Power Z-score tolerances for selecting calibration windows in ASR. ‘off’ uses
+all data. Default (-inf, 5.5).</p>
+</dd>
+<dt>BurstRejection<span class="classifier">str</span></dt><dd><p>‘on’ to reject (drop) burst segments instead of reconstructing with ASR,
+‘off’ to apply ASR repair. Default ‘off’.</p>
+</dd>
+<dt>WindowCriterionTolerances<span class="classifier">tuple(float, float) or ‘off’</span></dt><dd><p>Power Z-score bounds for final window removal. ‘off’ disables this stage.
+Default (-inf, 7).</p>
+</dd>
+<dt>FlatlineCriterion<span class="classifier">float or ‘off’</span></dt><dd><p>Maximum flatline duration in seconds; channels exceeding this are removed.
+‘off’ disables flatline removal. Default 5.0.</p>
+</dd>
+<dt>NumSamples<span class="classifier">int</span></dt><dd><p>Number of RANSAC samples for channel cleaning. Default 50.</p>
+</dd>
+<dt>NoLocsChannelCriterion<span class="classifier">float</span></dt><dd><p>Correlation threshold for fallback channel cleaning when no channel locations.
+Default 0.45.</p>
+</dd>
+<dt>NoLocsChannelCriterionExcluded<span class="classifier">float</span></dt><dd><p>Fraction of channels excluded when assessing correlation in nolocs cleaning.
+Default 0.1.</p>
+</dd>
+<dt>MaxMem<span class="classifier">int</span></dt><dd><p>Maximum memory in MB for ASR processing. Default 64.</p>
+</dd>
+<dt>Distance<span class="classifier">str</span></dt><dd><p>Distance metric for ASR processing (‘euclidian’). Default ‘euclidian’.</p>
+</dd>
+<dt>Channels<span class="classifier">Sequence[str] or None</span></dt><dd><p>List of channel labels to include before cleaning (pop_select). Default None.</p>
+</dd>
+<dt>Channels_ignore<span class="classifier">Sequence[str] or None</span></dt><dd><p>List of channel labels to exclude before cleaning. Default None.</p>
+</dd>
+<dt>availableRAM_GB<span class="classifier">float or None</span></dt><dd><blockquote>
+<div><p>Available system RAM in GB to adjust MaxMem. Default None.</p>
+</div></blockquote>
+<p>(parameters for an optional epoching and baseline removal step)</p>
+</dd>
+<dt>EpochEvents<span class="classifier">str or Sequence[str] or None</span></dt><dd><p>Optionally a list of event types or regular expression matching event types
+at which to time-lock epochs. If None (default), no epoching is done. If [],
+will time-lock to every event in the data (warning, this can amplify the data
+if epochs overlap!)</p>
+</dd>
+<dt>EpochLimits<span class="classifier">Sequence[float]</span></dt><dd><p>The time limits in seconds relative to the event markers for epoching. Default (-1, 2).</p>
+</dd>
+<dt>EpochBaseline<span class="classifier">Sequence[float] or None</span></dt><dd><p>Optionally a time range in seconds relative to the event markers for baseline
+correction. If None (default), no baseline correction is applied. The special
+value None can be used to refer to the respective end of the epoch limits,
+as in (None, 0).</p>
+</dd>
+</dl>
+<p>(misc parameters)</p>
+<dl class="simple">
+<dt>StageNames<span class="classifier">Sequence[str]</span></dt><dd><p>list of file name parts for the preprocessing stages, in the order of cleaning,ica,iclabel;
+these can be adjusted when working with different preprocessed versions (e.g., using
+different parameters for cleaning). It is recommended that these start with ‘desc-‘.</p>
+</dd>
+<dt>MinimizeDiskUsage<span class="classifier">bool</span></dt><dd><p>whether to minimize disk usage by not saving some intermediate files (specifically
+the PICARD output if WithICLabel=False). Default True.</p>
+</dd>
+</dl>
+<p>(parameters retained for backwards compatibility with EEGLAB’s pop_importbids call signature)</p>
+<dl class="simple">
+<dt>bidsmetadata<span class="classifier">bool</span></dt><dd><p>alias for ApplyMetadata</p>
+</dd>
+<dt>bidsevent<span class="classifier">bool</span></dt><dd><p>alias for ApplyEvents</p>
+</dd>
+<dt>bidschanloc<span class="classifier">bool</span></dt><dd><p>alias for ApplyChanlocs</p>
+</dd>
+<dt>eventtype<span class="classifier">str</span></dt><dd><p>alias for EventColumn</p>
+</dd>
+<dt>subjects<span class="classifier">Sequence[str | int], optional</span></dt><dd><p>alias for Subjects</p>
+</dd>
+<dt>sessions<span class="classifier">Sequence[str | int], optional</span></dt><dd><p>alias for Sessions</p>
+</dd>
+<dt>runs<span class="classifier">Sequence[str | int], optional</span></dt><dd><p>alias for RUns</p>
+</dd>
+<dt>tasks<span class="classifier">Sequence[str] | str, optional</span></dt><dd><p>alias for Tasks</p>
+</dd>
+<dt>outputdir<span class="classifier">str</span></dt><dd><p>alias for OutputDir</p>
+</dd>
+</dl>
+</section>
+<section id="returns">
+<h3>Returns<a class="headerlink" href="#returns" title="Link to this heading">#</a></h3>
+<dl class="simple">
+<dt>result<span class="classifier">Dict[str,Any] | List[Dict[str, Any]] | None</span></dt><dd><p>Depending on ReturnData, either a list of EEG objects (if BIDS root folder was
+specified) or a single EEG object (if a single file was specified), otherwise None.</p>
+</dd>
+</dl>
+</section>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="eegprep.bids_list_eeg_files">
+<span class="sig-prename descclassname"><span class="pre">eegprep.</span></span><span class="sig-name descname"><span class="pre">bids_list_eeg_files</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">root</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subjects</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sessions</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">runs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tasks</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">()</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.bids_list_eeg_files" title="Link to this definition">#</a></dt>
+<dd><p>Return a list of all EEG raw-data files in a BIDS dataset.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]</span></p>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>root</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>subjects</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.14)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
+<li><p><strong>sessions</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.14)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
+<li><p><strong>runs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.14)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
+<li><p><strong>tasks</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.14)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
+</ul>
+</dd>
+</dl>
+<section id="id1">
+<h3>Parameters<a class="headerlink" href="#id1" title="Link to this heading">#</a></h3>
+<dl class="simple">
+<dt>root<span class="classifier">str</span></dt><dd><p>The root directory containing BIDS data.</p>
+</dd>
+<dt>subjects<span class="classifier">Sequence[str | int], optional</span></dt><dd><p>A sequence of subject identifiers or (zero-based) indices to filter the files by.
+If empty, all subjects are included.</p>
+</dd>
+<dt>sessions<span class="classifier">Sequence[str | int], optional</span></dt><dd><p>A sequence of session identifiers or (zero-based) indices to filter the files by.
+If empty, all sessions are included.</p>
+</dd>
+<dt>runs<span class="classifier">Sequence[str | int], optional</span></dt><dd><p>A sequence of run numbers or identifiers to filter the files by. If empty, all runs
+are included. Note that zero-based indexing does not apply to runs, unlike
+subjects and sessions since runs are already integers.</p>
+</dd>
+<dt>tasks<span class="classifier">Sequence[str] | str, optional</span></dt><dd><p>A sequence of task names or single task to filter the files by. If empty, all
+tasks are included (default is an empty sequence).</p>
+</dd>
+</dl>
+</section>
+<section id="id2">
+<h3>Returns<a class="headerlink" href="#id2" title="Link to this heading">#</a></h3>
+<dl class="simple">
+<dt>List[str]</dt><dd><p>A list of file paths to EEG files in the BIDS dataset.</p>
+</dd>
+</dl>
+</section>
+</dd></dl>
+
+</section>
+<section id="data-validation">
+<h2>Data Validation<a class="headerlink" href="#data-validation" title="Link to this heading">#</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="eegprep.eeg_checkset">
+<span class="sig-prename descclassname"><span class="pre">eegprep.</span></span><span class="sig-name descname"><span class="pre">eeg_checkset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">EEG</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">load_data</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.eeg_checkset" title="Link to this definition">#</a></dt>
+<dd><p>Validate and set up EEG dataset structure.</p>
+<p>Ensures EEG dict has required fields with correct types, computes ICA activations if
+possible, and loads data from file if specified.</p>
+</dd></dl>
+
+</section>
+<section id="object-oriented-interface">
+<h2>Object-Oriented Interface<a class="headerlink" href="#object-oriented-interface" title="Link to this heading">#</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="eegprep.EEGobj">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">eegprep.</span></span><span class="sig-name descname"><span class="pre">EEGobj</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">EEG_or_path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.EEGobj" title="Link to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Wrapper class for EEG datasets stored as dictionaries.</p>
+<p>Provides attribute access to EEG fields and method calls to eegprep functions.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="eegprep.EEGobj.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">EEG_or_path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.EEGobj.__init__" title="Link to this definition">#</a></dt>
+<dd><p>Initialize from an EEG dict or a file path string.</p>
+<ul class="simple">
+<li><p>If string: loads dataset with pop_loadset(path).</p></li>
+<li><p>If dict: uses it directly.</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eegprep.EEGobj.__getattr__">
+<span class="sig-name descname"><span class="pre">__getattr__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.EEGobj.__getattr__" title="Link to this definition">#</a></dt>
+<dd><p>Access EEG fields or eegprep functions.</p>
+<ul class="simple">
+<li><p>If ‘name’ is a key in EEG, return EEG[name] (convenience).</p></li>
+<li><p>If ‘name’ is a function in eegprep, return a wrapper that:
+self.EEG = func(deepcopy(self.EEG), …)
+and returns updated EEG for convenience.</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eegprep.EEGobj.__setattr__">
+<span class="sig-name descname"><span class="pre">__setattr__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.EEGobj.__setattr__" title="Link to this definition">#</a></dt>
+<dd><p>Set attributes on the underlying EEG dict when possible, else on the wrapper.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eegprep.EEGobj.__repr__">
+<span class="sig-name descname"><span class="pre">__repr__</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.EEGobj.__repr__" title="Link to this definition">#</a></dt>
+<dd><p>Multi-line, MNE-like summary of the EEG object.</p>
+<p>Shows key metadata, data shape, sampling info, time span, and brief
+events/channels info.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eegprep.EEGobj.__str__">
+<span class="sig-name descname"><span class="pre">__str__</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.EEGobj.__str__" title="Link to this definition">#</a></dt>
+<dd><p>Multi-line, MNE-like summary of the EEG object.</p>
+<p>Shows key metadata, data shape, sampling info, time span, and brief
+events/channels info.</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+</section>
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="index.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">API Reference</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="preprocessing.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Preprocessing Functions</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav class="bd-toc-nav page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#main-pipeline">Main Pipeline</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.bids_preproc"><code class="docutils literal notranslate"><span class="pre">bids_preproc()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.bids_list_eeg_files"><code class="docutils literal notranslate"><span class="pre">bids_list_eeg_files()</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-validation">Data Validation</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.eeg_checkset"><code class="docutils literal notranslate"><span class="pre">eeg_checkset()</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#object-oriented-interface">Object-Oriented Interface</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.EEGobj"><code class="docutils literal notranslate"><span class="pre">EEGobj</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.EEGobj.__init__"><code class="docutils literal notranslate"><span class="pre">EEGobj.__init__()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.EEGobj.__getattr__"><code class="docutils literal notranslate"><span class="pre">EEGobj.__getattr__()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.EEGobj.__setattr__"><code class="docutils literal notranslate"><span class="pre">EEGobj.__setattr__()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.EEGobj.__repr__"><code class="docutils literal notranslate"><span class="pre">EEGobj.__repr__()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.EEGobj.__str__"><code class="docutils literal notranslate"><span class="pre">EEGobj.__str__()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2024 - , EEGPrep contributors.
+      <br/>
+    
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.2.3.
+    <br/>
+  </p>
+</div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>

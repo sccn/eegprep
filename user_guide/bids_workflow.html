@@ -1,0 +1,1055 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>BIDS Workflow &#8212; eegprep 0.2.23 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/togglebutton.css?v=13237357" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=d2d258e8" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=ee63c722" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="../_static/documentation_options.js?v=171860b8"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=6dbb43f8"></script>
+    <script>let toggleHintShow = 'Click to show';</script>
+    <script>let toggleHintHide = 'Click to hide';</script>
+    <script>let toggleOpenOnPrint = 'true';</script>
+    <script src="../_static/togglebutton.js?v=4a39c7ea"></script>
+    <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'user_guide/bids_workflow';</script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Advanced Topics" href="advanced_topics.html" />
+    <link rel="prev" title="Configuration" href="configuration.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="0.2.23" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search documentation..."
+         aria-label="Search documentation..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">eegprep</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../api/index.html">
+    API Reference
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="index.html">
+    User Guide
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../examples/index.html">
+    Examples
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../contributing.html">
+    Contributing to EEGPrep
+  </a>
+</li>
+
+            <li class="nav-item dropdown">
+                <button class="btn dropdown-toggle nav-item" type="button"
+                data-bs-toggle="dropdown" aria-expanded="false"
+                aria-controls="pst-nav-more-links">
+                    More
+                </button>
+                <ul id="pst-nav-more-links" class="dropdown-menu">
+                    
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../development.html">
+    Development Setup
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../faq.html">
+    Frequently Asked Questions
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../references.html">
+    References and Citations
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../changelog.html">
+    Changelog
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../glossary.html">
+    Glossary
+  </a>
+</li>
+
+                </ul>
+            </li>
+            
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/sccn/eegprep" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fab fa-github-square fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+</ul></div>
+      
+    </div>
+    
+  </div>
+  
+  
+
+  
+    <button class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../api/index.html">
+    API Reference
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="index.html">
+    User Guide
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../examples/index.html">
+    Examples
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../contributing.html">
+    Contributing to EEGPrep
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../development.html">
+    Development Setup
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../faq.html">
+    Frequently Asked Questions
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../references.html">
+    References and Citations
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../changelog.html">
+    Changelog
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../glossary.html">
+    Glossary
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/sccn/eegprep" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fab fa-github-square fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+</ul></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+<nav class="bd-docs-nav bd-links"
+     aria-label="Section Navigation">
+  <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
+  <div class="bd-toc-item navbar-nav"><ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quick Start</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="preprocessing_pipeline.html">Preprocessing Pipeline</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
+</ul>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">BIDS Workflow</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="advanced_topics.html">Advanced Topics</a></li>
+</ul>
+</div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="index.html" class="nav-link">User Guide</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">BIDS Workflow</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="bids-workflow">
+<span id="id1"></span><h1>BIDS Workflow<a class="headerlink" href="#bids-workflow" title="Link to this heading">#</a></h1>
+<p>This guide covers working with Brain Imaging Data Structure (BIDS) formatted datasets in eegprep. BIDS is a standardized format for organizing neuroimaging data, making it easier to share and process datasets consistently.</p>
+<section id="bids-dataset-structure">
+<h2>BIDS Dataset Structure<a class="headerlink" href="#bids-dataset-structure" title="Link to this heading">#</a></h2>
+<p>A typical BIDS EEG dataset has the following structure:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>dataset/
+├── sub-01/
+│   ├── ses-01/
+│   │   └── eeg/
+│   │       ├── sub-01_ses-01_task-rest_eeg.set
+│   │       ├── sub-01_ses-01_task-rest_eeg.fdt
+│   │       ├── sub-01_ses-01_task-rest_channels.tsv
+│   │       ├── sub-01_ses-01_task-rest_eeg.json
+│   │       └── sub-01_ses-01_task-rest_events.tsv
+│   └── ses-02/
+│       └── eeg/
+│           └── ...
+├── sub-02/
+│   └── ses-01/
+│       └── eeg/
+│           └── ...
+├── derivatives/
+│   └── eegprep/
+│       ├── sub-01/
+│       │   └── ses-01/
+│       │       └── eeg/
+│       │           └── sub-01_ses-01_task-rest_eeg_preprocessed.set
+│       └── sub-02/
+│           └── ...
+├── README
+├── CHANGES
+├── dataset_description.json
+├── participants.tsv
+└── participants.json
+</pre></div>
+</div>
+<p>Key BIDS Files:</p>
+<ul class="simple">
+<li><p><strong>_eeg.set</strong>: EEGLAB format EEG data</p></li>
+<li><p><strong>_eeg.fdt</strong>: EEGLAB data file (binary)</p></li>
+<li><p><strong>_channels.tsv</strong>: Channel information (name, type, units)</p></li>
+<li><p><strong>_eeg.json</strong>: EEG metadata (sampling rate, reference, etc.)</p></li>
+<li><p><strong>_events.tsv</strong>: Event markers and timing</p></li>
+<li><p><strong>dataset_description.json</strong>: Dataset metadata</p></li>
+<li><p><strong>participants.tsv</strong>: Participant information</p></li>
+</ul>
+</section>
+<section id="loading-bids-data">
+<h2>Loading BIDS Data<a class="headerlink" href="#loading-bids-data" title="Link to this heading">#</a></h2>
+<section id="using-pop-load-frombids">
+<h3>Using pop_load_frombids<a class="headerlink" href="#using-pop-load-frombids" title="Link to this heading">#</a></h3>
+<p>Load a single file from a BIDS dataset:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_load_frombids</span>
+
+<span class="c1"># Load a specific file</span>
+<span class="n">eeg</span> <span class="o">=</span> <span class="n">pop_load_frombids</span><span class="p">(</span>
+    <span class="n">bids_root</span><span class="o">=</span><span class="s1">&#39;data/bids_dataset&#39;</span><span class="p">,</span>
+    <span class="n">subject</span><span class="o">=</span><span class="s1">&#39;01&#39;</span><span class="p">,</span>
+    <span class="n">session</span><span class="o">=</span><span class="s1">&#39;01&#39;</span><span class="p">,</span>
+    <span class="n">task</span><span class="o">=</span><span class="s1">&#39;rest&#39;</span>
+<span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loaded: </span><span class="si">{</span><span class="n">eeg</span><span class="o">.</span><span class="n">nbchan</span><span class="si">}</span><span class="s2"> channels, </span><span class="si">{</span><span class="n">eeg</span><span class="o">.</span><span class="n">pnts</span><span class="si">}</span><span class="s2"> samples&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Sampling rate: </span><span class="si">{</span><span class="n">eeg</span><span class="o">.</span><span class="n">srate</span><span class="si">}</span><span class="s2"> Hz&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Parameters</strong>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">bids_root</span></code>: Path to the BIDS dataset root directory</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">subject</span></code>: Subject ID (without ‘sub-’ prefix)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">session</span></code>: Session ID (optional, without ‘ses-’ prefix)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">task</span></code>: Task name (optional)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">run</span></code>: Run number (optional)</p></li>
+</ul>
+<section id="loading-with-additional-parameters">
+<h4>Loading with Additional Parameters<a class="headerlink" href="#loading-with-additional-parameters" title="Link to this heading">#</a></h4>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_load_frombids</span>
+
+<span class="c1"># Load with specific run and additional options</span>
+<span class="n">eeg</span> <span class="o">=</span> <span class="n">pop_load_frombids</span><span class="p">(</span>
+    <span class="n">bids_root</span><span class="o">=</span><span class="s1">&#39;data/bids_dataset&#39;</span><span class="p">,</span>
+    <span class="n">subject</span><span class="o">=</span><span class="s1">&#39;01&#39;</span><span class="p">,</span>
+    <span class="n">session</span><span class="o">=</span><span class="s1">&#39;01&#39;</span><span class="p">,</span>
+    <span class="n">task</span><span class="o">=</span><span class="s1">&#39;oddball&#39;</span><span class="p">,</span>
+    <span class="n">run</span><span class="o">=</span><span class="s1">&#39;01&#39;</span><span class="p">,</span>
+    <span class="n">preload</span><span class="o">=</span><span class="kc">True</span>  <span class="c1"># Load data into memory</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="listing-available-files">
+<h3>Listing Available Files<a class="headerlink" href="#listing-available-files" title="Link to this heading">#</a></h3>
+<p>Find all EEG files in a BIDS dataset:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">bids_list_eeg_files</span>
+
+<span class="c1"># List all EEG files</span>
+<span class="n">files</span> <span class="o">=</span> <span class="n">bids_list_eeg_files</span><span class="p">(</span><span class="s1">&#39;data/bids_dataset&#39;</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="n">file_info</span> <span class="ow">in</span> <span class="n">files</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Subject: </span><span class="si">{</span><span class="n">file_info</span><span class="p">[</span><span class="s1">&#39;subject&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Session: </span><span class="si">{</span><span class="n">file_info</span><span class="p">[</span><span class="s1">&#39;session&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Task: </span><span class="si">{</span><span class="n">file_info</span><span class="p">[</span><span class="s1">&#39;task&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;File: </span><span class="si">{</span><span class="n">file_info</span><span class="p">[</span><span class="s1">&#39;file&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">()</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="running-batch-preprocessing">
+<h2>Running Batch Preprocessing<a class="headerlink" href="#running-batch-preprocessing" title="Link to this heading">#</a></h2>
+<section id="using-bids-preproc">
+<h3>Using bids_preproc<a class="headerlink" href="#using-bids-preproc" title="Link to this heading">#</a></h3>
+<p>Process all files in a BIDS dataset with a single command:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">bids_preproc</span>
+
+<span class="c1"># Run preprocessing on entire dataset</span>
+<span class="n">bids_preproc</span><span class="p">(</span>
+    <span class="n">bids_root</span><span class="o">=</span><span class="s1">&#39;data/bids_dataset&#39;</span><span class="p">,</span>
+    <span class="n">output_dir</span><span class="o">=</span><span class="s1">&#39;data/bids_dataset/derivatives/eegprep&#39;</span><span class="p">,</span>
+    <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Parameters</strong>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">bids_root</span></code>: Path to BIDS dataset root</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">output_dir</span></code>: Output directory for preprocessed data</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">overwrite</span></code>: Whether to overwrite existing files</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">n_jobs</span></code>: Number of parallel jobs (default: 1)</p></li>
+</ul>
+<section id="batch-processing-with-custom-parameters">
+<h4>Batch Processing with Custom Parameters<a class="headerlink" href="#batch-processing-with-custom-parameters" title="Link to this heading">#</a></h4>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">bids_preproc</span>
+
+<span class="c1"># Custom preprocessing parameters</span>
+<span class="n">bids_preproc</span><span class="p">(</span>
+    <span class="n">bids_root</span><span class="o">=</span><span class="s1">&#39;data/bids_dataset&#39;</span><span class="p">,</span>
+    <span class="n">output_dir</span><span class="o">=</span><span class="s1">&#39;data/bids_dataset/derivatives/eegprep&#39;</span><span class="p">,</span>
+    <span class="n">preproc_params</span><span class="o">=</span><span class="p">{</span>
+        <span class="s1">&#39;flatline_criterion&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>
+        <span class="s1">&#39;highpass&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="s1">&#39;lowpass&#39;</span><span class="p">:</span> <span class="mi">100</span><span class="p">,</span>
+        <span class="s1">&#39;asr_criterion&#39;</span><span class="p">:</span> <span class="mi">20</span><span class="p">,</span>
+        <span class="s1">&#39;ica&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="s1">&#39;iclabel&#39;</span><span class="p">:</span> <span class="kc">True</span>
+    <span class="p">},</span>
+    <span class="n">n_jobs</span><span class="o">=</span><span class="mi">4</span>  <span class="c1"># Use 4 parallel jobs</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="parallel-processing">
+<h4>Parallel Processing<a class="headerlink" href="#parallel-processing" title="Link to this heading">#</a></h4>
+<p>Process multiple subjects in parallel:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">bids_preproc</span>
+
+<span class="c1"># Process with 8 parallel jobs</span>
+<span class="n">bids_preproc</span><span class="p">(</span>
+    <span class="n">bids_root</span><span class="o">=</span><span class="s1">&#39;data/bids_dataset&#39;</span><span class="p">,</span>
+    <span class="n">output_dir</span><span class="o">=</span><span class="s1">&#39;data/bids_dataset/derivatives/eegprep&#39;</span><span class="p">,</span>
+    <span class="n">n_jobs</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span>
+    <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Note</strong>: The number of jobs should not exceed the number of CPU cores available.</p>
+</section>
+<section id="processing-specific-subjects">
+<h4>Processing Specific Subjects<a class="headerlink" href="#processing-specific-subjects" title="Link to this heading">#</a></h4>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">bids_preproc</span>
+
+<span class="c1"># Process only specific subjects</span>
+<span class="n">bids_preproc</span><span class="p">(</span>
+    <span class="n">bids_root</span><span class="o">=</span><span class="s1">&#39;data/bids_dataset&#39;</span><span class="p">,</span>
+    <span class="n">output_dir</span><span class="o">=</span><span class="s1">&#39;data/bids_dataset/derivatives/eegprep&#39;</span><span class="p">,</span>
+    <span class="n">subjects</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;01&#39;</span><span class="p">,</span> <span class="s1">&#39;02&#39;</span><span class="p">,</span> <span class="s1">&#39;03&#39;</span><span class="p">]</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+</section>
+<section id="output-structure">
+<h2>Output Structure<a class="headerlink" href="#output-structure" title="Link to this heading">#</a></h2>
+<p>After running <a class="reference internal" href="../api/generated/eegprep.bids_preproc.html#eegprep.bids_preproc" title="eegprep.bids_preproc"><code class="xref py py-func docutils literal notranslate"><span class="pre">eegprep.bids_preproc()</span></code></a>, the output is organized in the derivatives directory:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>dataset/derivatives/eegprep/
+├── sub-01/
+│   ├── ses-01/
+│   │   └── eeg/
+│   │       ├── sub-01_ses-01_task-rest_eeg_preprocessed.set
+│   │       ├── sub-01_ses-01_task-rest_eeg_preprocessed.fdt
+│   │       ├── sub-01_ses-01_task-rest_channels.tsv
+│   │       └── sub-01_ses-01_task-rest_eeg.json
+│   └── ses-02/
+│       └── eeg/
+│           └── ...
+├── sub-02/
+│   └── ...
+├── dataset_description.json
+└── README
+</pre></div>
+</div>
+<section id="derivatives-format">
+<h3>Derivatives Format<a class="headerlink" href="#derivatives-format" title="Link to this heading">#</a></h3>
+<p>The derivatives directory follows BIDS format with:</p>
+<ul class="simple">
+<li><p><strong>_preprocessed.set</strong>: Preprocessed EEG data</p></li>
+<li><p><strong>_preprocessed.fdt</strong>: Preprocessed data file</p></li>
+<li><p><strong>channels.tsv</strong>: Updated channel information</p></li>
+<li><p><strong>eeg.json</strong>: Updated metadata</p></li>
+<li><p><strong>dataset_description.json</strong>: Derivatives dataset description</p></li>
+</ul>
+</section>
+<section id="loading-preprocessed-data">
+<h3>Loading Preprocessed Data<a class="headerlink" href="#loading-preprocessed-data" title="Link to this heading">#</a></h3>
+<p>Load preprocessed data from derivatives:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_load_frombids</span>
+
+<span class="c1"># Load preprocessed data</span>
+<span class="n">eeg</span> <span class="o">=</span> <span class="n">pop_load_frombids</span><span class="p">(</span>
+    <span class="n">bids_root</span><span class="o">=</span><span class="s1">&#39;data/bids_dataset/derivatives/eegprep&#39;</span><span class="p">,</span>
+    <span class="n">subject</span><span class="o">=</span><span class="s1">&#39;01&#39;</span><span class="p">,</span>
+    <span class="n">session</span><span class="o">=</span><span class="s1">&#39;01&#39;</span><span class="p">,</span>
+    <span class="n">task</span><span class="o">=</span><span class="s1">&#39;rest&#39;</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="integration-with-other-tools">
+<h2>Integration with Other Tools<a class="headerlink" href="#integration-with-other-tools" title="Link to this heading">#</a></h2>
+<section id="integration-with-mne-python">
+<h3>Integration with MNE-Python<a class="headerlink" href="#integration-with-mne-python" title="Link to this heading">#</a></h3>
+<p>Convert eegprep data to MNE format:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">eeg_eeg2mne</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">mne</span>
+
+<span class="c1"># Convert to MNE Raw object</span>
+<span class="n">raw</span> <span class="o">=</span> <span class="n">eeg_eeg2mne</span><span class="p">(</span><span class="n">eeg</span><span class="p">)</span>
+
+<span class="c1"># Now use MNE functions</span>
+<span class="n">raw</span><span class="o">.</span><span class="n">plot</span><span class="p">()</span>
+<span class="n">raw</span><span class="o">.</span><span class="n">compute_psd</span><span class="p">()</span><span class="o">.</span><span class="n">plot</span><span class="p">()</span>
+</pre></div>
+</div>
+<section id="converting-back-to-eegprep">
+<h4>Converting Back to eegprep<a class="headerlink" href="#converting-back-to-eegprep" title="Link to this heading">#</a></h4>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">eeg_mne2eeg</span>
+
+<span class="c1"># Convert MNE Raw back to eegprep format</span>
+<span class="n">eeg</span> <span class="o">=</span> <span class="n">eeg_mne2eeg</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="integration-with-eeglab">
+<h3>Integration with EEGLAB<a class="headerlink" href="#integration-with-eeglab" title="Link to this heading">#</a></h3>
+<p>Save preprocessed data in EEGLAB format:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_saveset</span>
+
+<span class="c1"># Save as EEGLAB .set file</span>
+<span class="n">pop_saveset</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="s1">&#39;preprocessed_data.set&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Load EEGLAB files:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_loadset</span>
+
+<span class="c1"># Load EEGLAB .set file</span>
+<span class="n">eeg</span> <span class="o">=</span> <span class="n">pop_loadset</span><span class="p">(</span><span class="s1">&#39;data.set&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="working-with-bids-metadata">
+<h2>Working with BIDS Metadata<a class="headerlink" href="#working-with-bids-metadata" title="Link to this heading">#</a></h2>
+<section id="accessing-channel-information">
+<h3>Accessing Channel Information<a class="headerlink" href="#accessing-channel-information" title="Link to this heading">#</a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_load_frombids</span>
+
+<span class="n">eeg</span> <span class="o">=</span> <span class="n">pop_load_frombids</span><span class="p">(</span>
+    <span class="n">bids_root</span><span class="o">=</span><span class="s1">&#39;data/bids_dataset&#39;</span><span class="p">,</span>
+    <span class="n">subject</span><span class="o">=</span><span class="s1">&#39;01&#39;</span><span class="p">,</span>
+    <span class="n">session</span><span class="o">=</span><span class="s1">&#39;01&#39;</span><span class="p">,</span>
+    <span class="n">task</span><span class="o">=</span><span class="s1">&#39;rest&#39;</span>
+<span class="p">)</span>
+
+<span class="c1"># Access channel information</span>
+<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">chan</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">eeg</span><span class="o">.</span><span class="n">chanlocs</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Channel </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">chan</span><span class="p">[</span><span class="s1">&#39;labels&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Type: </span><span class="si">{</span><span class="n">chan</span><span class="p">[</span><span class="s1">&#39;type&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Location: (</span><span class="si">{</span><span class="n">chan</span><span class="p">[</span><span class="s1">&#39;X&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">chan</span><span class="p">[</span><span class="s1">&#39;Y&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">chan</span><span class="p">[</span><span class="s1">&#39;Z&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="accessing-event-information">
+<h3>Accessing Event Information<a class="headerlink" href="#accessing-event-information" title="Link to this heading">#</a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Access events</span>
+<span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="s1">&#39;event&#39;</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">event</span> <span class="ow">in</span> <span class="n">eeg</span><span class="o">.</span><span class="n">event</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Event type: </span><span class="si">{</span><span class="n">event</span><span class="p">[</span><span class="s1">&#39;type&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Latency: </span><span class="si">{</span><span class="n">event</span><span class="p">[</span><span class="s1">&#39;latency&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> samples&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Duration: </span><span class="si">{</span><span class="n">event</span><span class="p">[</span><span class="s1">&#39;duration&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> samples&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="accessing-metadata">
+<h3>Accessing Metadata<a class="headerlink" href="#accessing-metadata" title="Link to this heading">#</a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Access BIDS metadata</span>
+<span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="s1">&#39;etc&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="s1">&#39;bids&#39;</span> <span class="ow">in</span> <span class="n">eeg</span><span class="o">.</span><span class="n">etc</span><span class="p">:</span>
+    <span class="n">bids_info</span> <span class="o">=</span> <span class="n">eeg</span><span class="o">.</span><span class="n">etc</span><span class="o">.</span><span class="n">bids</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Task: </span><span class="si">{</span><span class="n">bids_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;task&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Sampling rate: </span><span class="si">{</span><span class="n">bids_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;srate&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2"> Hz&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="common-bids-workflows">
+<h2>Common BIDS Workflows<a class="headerlink" href="#common-bids-workflows" title="Link to this heading">#</a></h2>
+<section id="complete-preprocessing-workflow">
+<h3>Complete Preprocessing Workflow<a class="headerlink" href="#complete-preprocessing-workflow" title="Link to this heading">#</a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">pop_load_frombids</span><span class="p">,</span>
+    <span class="n">clean_artifacts</span><span class="p">,</span>
+    <span class="n">iclabel</span><span class="p">,</span>
+    <span class="n">pop_saveset</span>
+<span class="p">)</span>
+
+<span class="c1"># 1. Load data</span>
+<span class="n">eeg</span> <span class="o">=</span> <span class="n">pop_load_frombids</span><span class="p">(</span>
+    <span class="n">bids_root</span><span class="o">=</span><span class="s1">&#39;data/bids_dataset&#39;</span><span class="p">,</span>
+    <span class="n">subject</span><span class="o">=</span><span class="s1">&#39;01&#39;</span><span class="p">,</span>
+    <span class="n">session</span><span class="o">=</span><span class="s1">&#39;01&#39;</span><span class="p">,</span>
+    <span class="n">task</span><span class="o">=</span><span class="s1">&#39;rest&#39;</span>
+<span class="p">)</span>
+
+<span class="c1"># 2. Preprocess</span>
+<span class="n">eeg</span> <span class="o">=</span> <span class="n">clean_artifacts</span><span class="p">(</span>
+    <span class="n">eeg</span><span class="p">,</span>
+    <span class="n">highpass</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+    <span class="n">lowpass</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span>
+    <span class="n">ica</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">iclabel</span><span class="o">=</span><span class="kc">True</span>
+<span class="p">)</span>
+
+<span class="c1"># 3. Save to derivatives</span>
+<span class="n">pop_saveset</span><span class="p">(</span>
+    <span class="n">eeg</span><span class="p">,</span>
+    <span class="s1">&#39;data/bids_dataset/derivatives/eegprep/sub-01/ses-01/eeg/sub-01_ses-01_task-rest_eeg_preprocessed.set&#39;</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="batch-processing-with-quality-control">
+<h3>Batch Processing with Quality Control<a class="headerlink" href="#batch-processing-with-quality-control" title="Link to this heading">#</a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">bids_preproc</span><span class="p">,</span> <span class="n">bids_list_eeg_files</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+
+<span class="c1"># 1. List all files</span>
+<span class="n">files</span> <span class="o">=</span> <span class="n">bids_list_eeg_files</span><span class="p">(</span><span class="s1">&#39;data/bids_dataset&#39;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Found </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">files</span><span class="p">)</span><span class="si">}</span><span class="s2"> EEG files&quot;</span><span class="p">)</span>
+
+<span class="c1"># 2. Run preprocessing</span>
+<span class="n">bids_preproc</span><span class="p">(</span>
+    <span class="n">bids_root</span><span class="o">=</span><span class="s1">&#39;data/bids_dataset&#39;</span><span class="p">,</span>
+    <span class="n">output_dir</span><span class="o">=</span><span class="s1">&#39;data/bids_dataset/derivatives/eegprep&#39;</span><span class="p">,</span>
+    <span class="n">n_jobs</span><span class="o">=</span><span class="mi">4</span>
+<span class="p">)</span>
+
+<span class="c1"># 3. Create processing report</span>
+<span class="n">report</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s1">&#39;total_files&#39;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">files</span><span class="p">),</span>
+    <span class="s1">&#39;preprocessing_date&#39;</span><span class="p">:</span> <span class="s1">&#39;2024-01-01&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;parameters&#39;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s1">&#39;highpass&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="s1">&#39;lowpass&#39;</span><span class="p">:</span> <span class="mi">100</span><span class="p">,</span>
+        <span class="s1">&#39;ica&#39;</span><span class="p">:</span> <span class="kc">True</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s1">&#39;preprocessing_report.json&#39;</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+    <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">report</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="troubleshooting-bids-workflows">
+<h2>Troubleshooting BIDS Workflows<a class="headerlink" href="#troubleshooting-bids-workflows" title="Link to this heading">#</a></h2>
+<section id="file-not-found">
+<h3>File Not Found<a class="headerlink" href="#file-not-found" title="Link to this heading">#</a></h3>
+<p><strong>Problem</strong>: <code class="docutils literal notranslate"><span class="pre">FileNotFoundError</span></code> when loading BIDS data</p>
+<p><strong>Solution</strong>:</p>
+<ol class="arabic simple">
+<li><p>Verify BIDS dataset structure</p></li>
+<li><p>Check subject and session IDs</p></li>
+<li><p>Use <a class="reference internal" href="../api/generated/eegprep.bids_list_eeg_files.html#eegprep.bids_list_eeg_files" title="eegprep.bids_list_eeg_files"><code class="xref py py-func docutils literal notranslate"><span class="pre">eegprep.bids_list_eeg_files()</span></code></a> to find available files</p></li>
+</ol>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">bids_list_eeg_files</span>
+
+<span class="n">files</span> <span class="o">=</span> <span class="n">bids_list_eeg_files</span><span class="p">(</span><span class="s1">&#39;data/bids_dataset&#39;</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">files</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;sub-</span><span class="si">{</span><span class="n">f</span><span class="p">[</span><span class="s1">&#39;subject&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">_ses-</span><span class="si">{</span><span class="n">f</span><span class="p">[</span><span class="s1">&#39;session&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">_task-</span><span class="si">{</span><span class="n">f</span><span class="p">[</span><span class="s1">&#39;task&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="invalid-bids-format">
+<h3>Invalid BIDS Format<a class="headerlink" href="#invalid-bids-format" title="Link to this heading">#</a></h3>
+<p><strong>Problem</strong>: Data doesn’t conform to BIDS standard</p>
+<p><strong>Solution</strong>:</p>
+<ol class="arabic simple">
+<li><p>Validate BIDS dataset using the BIDS Validator</p></li>
+<li><p>Check dataset_description.json</p></li>
+<li><p>Verify file naming conventions</p></li>
+</ol>
+</section>
+<section id="parallel-processing-errors">
+<h3>Parallel Processing Errors<a class="headerlink" href="#parallel-processing-errors" title="Link to this heading">#</a></h3>
+<p><strong>Problem</strong>: Errors when using <code class="docutils literal notranslate"><span class="pre">n_jobs</span> <span class="pre">&gt;</span> <span class="pre">1</span></code></p>
+<p><strong>Solution</strong>:</p>
+<ol class="arabic simple">
+<li><p>Start with <code class="docutils literal notranslate"><span class="pre">n_jobs=1</span></code> to identify the issue</p></li>
+<li><p>Check for file locking issues</p></li>
+<li><p>Ensure output directory is writable</p></li>
+<li><p>Reduce <code class="docutils literal notranslate"><span class="pre">n_jobs</span></code> if system resources are limited</p></li>
+</ol>
+</section>
+<section id="memory-issues">
+<h3>Memory Issues<a class="headerlink" href="#memory-issues" title="Link to this heading">#</a></h3>
+<p><strong>Problem</strong>: Out of memory errors during batch processing</p>
+<p><strong>Solution</strong>:</p>
+<ol class="arabic simple">
+<li><p>Reduce <code class="docutils literal notranslate"><span class="pre">n_jobs</span></code> to process fewer files in parallel</p></li>
+<li><p>Process subjects in smaller batches</p></li>
+<li><p>Increase available system RAM</p></li>
+<li><p>Use a machine with more memory</p></li>
+</ol>
+</section>
+</section>
+<section id="best-practices">
+<h2>Best Practices<a class="headerlink" href="#best-practices" title="Link to this heading">#</a></h2>
+<ol class="arabic simple">
+<li><p><strong>Validate BIDS format</strong>: Use the BIDS Validator before processing</p></li>
+<li><p><strong>Backup original data</strong>: Keep a copy of raw data before preprocessing</p></li>
+<li><p><strong>Document parameters</strong>: Record preprocessing parameters in a configuration file</p></li>
+<li><p><strong>Quality control</strong>: Visually inspect preprocessed data</p></li>
+<li><p><strong>Version control</strong>: Track eegprep version used for reproducibility</p></li>
+<li><p><strong>Parallel processing</strong>: Use <code class="docutils literal notranslate"><span class="pre">n_jobs</span></code> to speed up batch processing</p></li>
+<li><p><strong>Monitor progress</strong>: Use <code class="docutils literal notranslate"><span class="pre">verbose=True</span></code> to track processing status</p></li>
+</ol>
+</section>
+<section id="next-steps">
+<h2>Next Steps<a class="headerlink" href="#next-steps" title="Link to this heading">#</a></h2>
+<p>Now that you understand BIDS workflows:</p>
+<ol class="arabic simple">
+<li><p>Read the <a class="reference internal" href="preprocessing_pipeline.html#preprocessing-pipeline"><span class="std std-ref">Preprocessing Pipeline</span></a> guide for detailed preprocessing steps</p></li>
+<li><p>Explore the <a class="reference internal" href="configuration.html#configuration"><span class="std std-ref">Configuration</span></a> guide for parameter tuning</p></li>
+<li><p>Check the <a class="reference internal" href="advanced_topics.html#advanced-topics"><span class="std std-ref">Advanced Topics</span></a> for custom pipelines</p></li>
+<li><p>Review the <a class="reference internal" href="../api/index.html#api-reference"><span class="std std-ref">API Reference</span></a> for detailed function documentation</p></li>
+</ol>
+</section>
+</section>
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="configuration.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Configuration</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="advanced_topics.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Advanced Topics</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav class="bd-toc-nav page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#bids-dataset-structure">BIDS Dataset Structure</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#loading-bids-data">Loading BIDS Data</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#using-pop-load-frombids">Using pop_load_frombids</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#loading-with-additional-parameters">Loading with Additional Parameters</a></li>
+</ul>
+</li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#listing-available-files">Listing Available Files</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#running-batch-preprocessing">Running Batch Preprocessing</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#using-bids-preproc">Using bids_preproc</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#batch-processing-with-custom-parameters">Batch Processing with Custom Parameters</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#parallel-processing">Parallel Processing</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#processing-specific-subjects">Processing Specific Subjects</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#output-structure">Output Structure</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#derivatives-format">Derivatives Format</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#loading-preprocessed-data">Loading Preprocessed Data</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#integration-with-other-tools">Integration with Other Tools</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#integration-with-mne-python">Integration with MNE-Python</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#converting-back-to-eegprep">Converting Back to eegprep</a></li>
+</ul>
+</li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#integration-with-eeglab">Integration with EEGLAB</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#working-with-bids-metadata">Working with BIDS Metadata</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#accessing-channel-information">Accessing Channel Information</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#accessing-event-information">Accessing Event Information</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#accessing-metadata">Accessing Metadata</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#common-bids-workflows">Common BIDS Workflows</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#complete-preprocessing-workflow">Complete Preprocessing Workflow</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#batch-processing-with-quality-control">Batch Processing with Quality Control</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting-bids-workflows">Troubleshooting BIDS Workflows</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#file-not-found">File Not Found</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#invalid-bids-format">Invalid BIDS Format</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parallel-processing-errors">Parallel Processing Errors</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#memory-issues">Memory Issues</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#best-practices">Best Practices</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#next-steps">Next Steps</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2024 - , EEGPrep contributors.
+      <br/>
+    
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.2.3.
+    <br/>
+  </p>
+</div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>
