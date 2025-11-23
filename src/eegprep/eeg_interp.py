@@ -1,6 +1,4 @@
-
-"""
-EEG channel interpolation utilities.
+"""EEG channel interpolation utilities.
 
 This module provides functions for interpolating bad channels in EEG data using
 various methods including spherical spline interpolation.
@@ -23,9 +21,9 @@ import os
 data_path = '/Users/arno/Python/eegprep/data/' #os.path.abspath('data/')
 
 def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dtype='float32'):
-    """
-    Interpolate missing or bad EEG channels using spherical spline interpolation.
-    
+    """Interpolate missing or bad EEG channels using spherical spline
+    interpolation.
+
     Parameters:
     EEG : dict
         EEG data structure with 'data', 'chanlocs', 'nbchan', etc.
@@ -48,7 +46,7 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
         Optionally the precision in which to perform the computation;
         * 'float32' : matches MATLAB, but limits precision (default)
         * 'float64': operate at full precision; requires twice the memory
-        
+
     Returns:
     EEG : dict
         Updated EEG structure with interpolated channels
@@ -123,14 +121,13 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
 
     # extract Cartesian positions and normalize to unit sphere
     def _norm(ch_ids):
-        """
-        Normalize channel coordinates to unit sphere.
-        
+        """Normalize channel coordinates to unit sphere.
+
         Parameters
         ----------
         ch_ids : list
             List of channel indices.
-            
+
         Returns
         -------
         ndarray
@@ -177,9 +174,9 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
     return EEG
 
 def _handle_chanloc_interpolation(EEG, new_chanlocs):
-    """
-    Handle interpolation when bad_chans is provided as a list of chanloc structures.
-    
+    """Handle interpolation when bad_chans is provided as a list of chanloc
+    structures.
+
     Returns:
         EEG: potentially modified EEG structure
         bad_idx: list of indices to interpolate
@@ -313,9 +310,8 @@ def _handle_chanloc_interpolation(EEG, new_chanlocs):
         return EEG, bad_idx
 
 def spheric_spline(xelec, yelec, zelec, xbad, ybad, zbad, values, params, dtype='float32'):
-    """
-    Perform spherical spline interpolation.
-    
+    """Perform spherical spline interpolation.
+
     Parameters
     ----------
     xelec, yelec, zelec : array-like
@@ -328,7 +324,7 @@ def spheric_spline(xelec, yelec, zelec, xbad, ybad, zbad, values, params, dtype=
         Interpolation parameters (lambda, m, maxn).
     dtype : str or dtype, optional
         Data type for computation.
-        
+
     Returns
     -------
     ndarray
@@ -360,9 +356,8 @@ def spheric_spline(xelec, yelec, zelec, xbad, ybad, zbad, values, params, dtype=
     return allres
 
 def computeg(x, y, z, xelec, yelec, zelec, params):
-    """
-    Compute spherical spline basis functions.
-    
+    """Compute spherical spline basis functions.
+
     Parameters
     ----------
     x, y, z : array-like
@@ -371,7 +366,7 @@ def computeg(x, y, z, xelec, yelec, zelec, params):
         Coordinates of electrode positions.
     params : tuple
         Parameters (lambda, m, maxn).
-        
+
     Returns
     -------
     ndarray
@@ -392,8 +387,7 @@ def computeg(x, y, z, xelec, yelec, zelec, params):
 # Test functions moved to tests/test_eeg_interp.py
 
 def test_chanloc_interpolation():
-    """
-    Example usage of the new chanloc interpolation functionality.
+    """Example usage of the new chanloc interpolation functionality.
 
     This demonstrates the three different cases.
     """
@@ -455,11 +449,11 @@ def test_chanloc_interpolation():
     return result1, result2, result3
 
 def test_ica_indices_update():
-    """
-    Test that ICA channel indices are properly updated when channels are reordered.
+    """Test that ICA channel indices are properly updated when channels are
+    reordered.
 
-    Test that ICA channel indices are properly updated when channels are reordered
-    during interpolation with chanloc structures.
+    Test that ICA channel indices are properly updated when channels are
+    reordered during interpolation with chanloc structures.
     """
     # Create a sample EEG structure with ICA data
     EEG = {

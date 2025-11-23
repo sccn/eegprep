@@ -1,4 +1,3 @@
-
 """Module for loading EEG data from BIDS datasets."""
 
 
@@ -94,7 +93,6 @@ def pop_load_frombids(
         A dictionary containing the EEG data and metadata.
     Report : dict, optional
         optionally the import report to return, if desired.
-
     """
     from . import eeg_checkset
 

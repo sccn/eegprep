@@ -8,8 +8,7 @@ __all__ = ['get_git_commit_id']
 
 
 def get_git_commit_id(repo_path: str = None, shorten: int = 8) -> str | None:
-    """
-    Get the current commit ID (hash) of a Git repository.
+    """Get the current commit ID (hash) of a Git repository.
 
     Args:
         repo_path: The path to the Git repository. If None, it uses the

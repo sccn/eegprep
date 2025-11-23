@@ -1,4 +1,3 @@
-
 """Miscellaneous utility functions."""
 
 import sys
@@ -96,7 +95,8 @@ def get_nested(data: dict, key: str, default=_RAISE_KEYERROR, separator: str = '
 
 
 def num_cpus_from_reservation(ReservePerJob: str, *, default: int = 4) -> Optional[int]:
-    """Get the number of reserved CPUs per job from the reservation string, if set."""
+    """Get the number of reserved CPUs per job from the reservation string, if
+    set."""
     ReservePerJob = ReservePerJob.strip().replace(' ', '').upper()
     if ',' in ReservePerJob:
         # scan through multiple reservations, pick the first match
@@ -118,7 +118,8 @@ def num_cpus_from_reservation(ReservePerJob: str, *, default: int = 4) -> Option
 
 
 def num_jobs_from_reservation(ReservePerJob: str) -> int:
-    """Parse the job reservation string and calculate the number of jobs that can be run.
+    """Parse the job reservation string and calculate the number of jobs that
+    can be run.
 
     This is the resource amount and type to reserve per job, e.g. '4GB' or '2CPU';
     the run will then use as many jobs as possible without exceeding the available resources.
@@ -209,7 +210,8 @@ def humanize_seconds(sec: float) -> str:
 
 
 def canonicalize_signs(V):
-    """Canonicalize signs of column matrix V so that the largest absolute value is positive."""
+    """Canonicalize signs of column matrix V so that the largest absolute value
+    is positive."""
     # V: columns are eigenvectors
     idx = np.argmax(np.abs(V), axis=0)
     sgn = np.sign(V[idx, range(V.shape[1])])
@@ -274,7 +276,8 @@ class SkippableException(Exception):
 class ToolError(SkippableException):
     """An exception class to indicate an error in a third-party tool.
 
-    This error cannot be addressed in eegprep and will not stop processing in debug mode.
+    This error cannot be addressed in eegprep and will not stop processing in
+    debug mode.
     """
 
 

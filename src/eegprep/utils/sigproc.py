@@ -158,7 +158,7 @@ def filtfilt_fast(
 
 
 def moving_average(X, *, N=3, axis=-1, Z=None, inplace=False, transform=None, init=None):
-    """lfilter()-style moving average function with support for state.
+    """Lfilter()-style moving average function with support for state.
 
     Parameters
     ----------
@@ -406,7 +406,8 @@ def _fspecinv(b: np.ndarray) -> np.ndarray:
 
 
 def firwsord(wintype: str, fs: float, df: float, dev: Optional[float] = None) -> Tuple[int, float]:
-    """Estimate windowed sinc FIR filter order depending on window type and requested transition band width.
+    """Estimate windowed sinc FIR filter order depending on window type and
+    requested transition band width.
 
     Parameters
     ----------

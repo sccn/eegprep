@@ -6,8 +6,7 @@ def eeg_decodechan(
     field="labels",
     ignoremissing=False,
 ):
-    """
-    Resolve channel identifiers to 0-based indices and labels.
+    """Resolve channel identifiers to 0-based indices and labels.
 
     Supports:
       - chanlocs as a list-like of dicts, or a dict with key "chanlocs".

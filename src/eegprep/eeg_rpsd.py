@@ -5,8 +5,7 @@ from numpy.fft import fft
 from scipy.signal.windows import hamming
 
 def eeg_rpsd(EEG, nfreqs=None, pct_data=100):
-    """
-    Compute relative power spectral density for ICA components.
+    """Compute relative power spectral density for ICA components.
 
     Parameters
     ----------

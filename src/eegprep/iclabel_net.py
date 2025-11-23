@@ -1,8 +1,7 @@
-"""
-ICLabel neural network model for EEG artifact classification.
+"""ICLabel neural network model for EEG artifact classification.
 
-This module provides PyTorch implementations of the ICLabel neural network
-for classifying EEG components as brain or artifact sources.
+This module provides PyTorch implementations of the ICLabel neural network for
+classifying EEG components as brain or artifact sources.
 """
 
 import scipy.io
@@ -14,9 +13,8 @@ class Reshape(torch.nn.Module):
     """Custom reshape layer for PyTorch neural networks."""
     
     def __init__(self, shape):
-        """
-        Initialize reshape layer.
-        
+        """Initialize reshape layer.
+
         Parameters
         ----------
         shape : tuple
@@ -26,14 +24,13 @@ class Reshape(torch.nn.Module):
         self.shape = shape
 
     def forward(self, x):
-        """
-        Forward pass for reshaping.
-        
+        """Forward pass for reshaping.
+
         Parameters
         ----------
         x : torch.Tensor
             Input tensor.
-            
+
         Returns
         -------
         torch.Tensor
@@ -45,9 +42,8 @@ class Concatenate(torch.nn.Module):
     """Custom concatenation layer for PyTorch neural networks."""
     
     def __init__(self, dim):
-        """
-        Initialize concatenation layer.
-        
+        """Initialize concatenation layer.
+
         Parameters
         ----------
         dim : int
@@ -57,14 +53,13 @@ class Concatenate(torch.nn.Module):
         self.dim = dim
     
     def forward(self, x: list):
-        """
-        Forward pass for concatenation.
-        
+        """Forward pass for concatenation.
+
         Parameters
         ----------
         x : list
             List of tensors to concatenate.
-            
+
         Returns
         -------
         torch.Tensor
@@ -77,9 +72,8 @@ class ICLabelNet(torch.nn.Module):
     """ICLabel neural network for EEG component classification."""
     
     def __init__(self, mat_path):
-        """
-        Initialize ICLabel network from MATLAB weights.
-        
+        """Initialize ICLabel network from MATLAB weights.
+
         Parameters
         ----------
         mat_path : str
@@ -140,9 +134,8 @@ class ICLabelNet(torch.nn.Module):
         self.discriminator_softmax = torch.nn.Softmax(dim=1)
 
     def forward(self, image, psdmed, autocorr):
-        """
-        Forward pass through the ICLabel network.
-        
+        """Forward pass through the ICLabel network.
+
         Parameters
         ----------
         image : torch.Tensor
@@ -151,7 +144,7 @@ class ICLabelNet(torch.nn.Module):
             Power spectral density input.
         autocorr : torch.Tensor
             Autocorrelation input.
-            
+
         Returns
         -------
         torch.Tensor
@@ -284,4 +277,3 @@ class ICLabelNet(torch.nn.Module):
     
 #     # save the output to a mat file
 #     scipy.io.savemat('output4.mat', {'output': output.detach().numpy()})
-    

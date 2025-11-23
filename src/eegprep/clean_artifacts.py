@@ -48,8 +48,7 @@ def clean_artifacts(
     Channels_ignore: Optional[Sequence[str]] = None,
     availableRAM_GB: Optional[float] = None,
 ) -> Tuple[Dict[str, Any], Dict[str, Any], Dict[str, Any], np.ndarray]:
-    """
-    All-in-one artifact removal, port of MATLAB clean_artifacts.
+    """All-in-one artifact removal, port of MATLAB clean_artifacts.
 
     Removes flatline channels, low-frequency drifts, noisy channels, short-time bursts,
     and irrecoverable windows in sequence. Core parameters can be passed as None or 'off'
@@ -310,4 +309,4 @@ def clean_artifacts(
     # re‑insertion of previously excluded channels for simplicity. Users can
     # merge channels back manually if needed.
 
-    return EEG, HP, BUR, removed_channels 
+    return EEG, HP, BUR, removed_channels

@@ -4,8 +4,7 @@ import numpy as np
 import h5py
 
 def save_dict_to_hdf5(data, filename, dataset_name):
-    """
-    Save a dictionary to an HDF5 file as a structured dataset.
+    """Save a dictionary to an HDF5 file as a structured dataset.
 
     Parameters
     ----------

@@ -31,7 +31,8 @@ else:
         os.makedirs(temp_dir, exist_ok=True)
 
 class MatlabWrapper:
-    """MATLAB engine wrapper that round-trips calls involving the EEGLAB data structure through files."""
+    """MATLAB engine wrapper that round-trips calls involving the EEGLAB data
+    structure through files."""
 
     def __init__(self, engine):
         """Initialize the MatlabWrapper.
@@ -195,7 +196,8 @@ class MatlabWrapper:
 
 # noinspection PyDefaultArgument
 def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = True, _cache={}):
-    """Get a reference to an EEGLAB namespace that is powered by the specified runtime (Octave or MATLAB).
+    """Get a reference to an EEGLAB namespace that is powered by the specified
+    runtime (Octave or MATLAB).
 
     Args:
         runtime: name of the runtime to use ('MAT' or 'OCT')
@@ -204,7 +206,6 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
           by implicitly performing pop_saveset/pop_loadset with a temporary file
           whenever such a data structure is encountered.
         _cache: reserved for internal use
-
     """
     rt = runtime.lower()[:3]
 

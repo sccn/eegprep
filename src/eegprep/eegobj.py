@@ -9,15 +9,14 @@ from eegprep.pop_select import pop_select  # ensure availability via globals
 
 
 class EEGobj:
-    """
-    Wrapper class for EEG datasets stored as dictionaries.
+    """Wrapper class for EEG datasets stored as dictionaries.
 
-    Provides attribute access to EEG fields and method calls to eegprep functions.
+    Provides attribute access to EEG fields and method calls to eegprep
+    functions.
     """
 
     def __init__(self, EEG_or_path):
-        """
-        Initialize from an EEG dict or a file path string.
+        """Initialize from an EEG dict or a file path string.
 
         - If string: loads dataset with pop_loadset(path).
         - If dict: uses it directly.
@@ -100,8 +99,7 @@ class EEGobj:
         return self.EEG
 
     def __getattr__(self, name):
-        """
-        Access EEG fields or eegprep functions.
+        """Access EEG fields or eegprep functions.
 
         - If 'name' is a key in EEG, return EEG[name] (convenience).
         - If 'name' is a function in eegprep, return a wrapper that:
@@ -117,7 +115,8 @@ class EEGobj:
         return wrapper
 
     def __setattr__(self, name, value):
-        """Set attributes on the underlying EEG dict when possible, else on the wrapper."""
+        """Set attributes on the underlying EEG dict when possible, else on the
+        wrapper."""
         if name == 'EEG':
             object.__setattr__(self, name, value)
             return
@@ -128,10 +127,10 @@ class EEGobj:
             object.__setattr__(self, name, value)
 
     def __repr__(self):
-        """
-        Multi-line, MNE-like summary of the EEG object.
+        """Multi-line, MNE-like summary of the EEG object.
 
-        Shows key metadata, data shape, sampling info, time span, and brief events/channels info.
+        Shows key metadata, data shape, sampling info, time span, and brief
+        events/channels info.
         """
         eeg = self.EEG
         if not isinstance(eeg, dict):

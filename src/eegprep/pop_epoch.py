@@ -10,7 +10,8 @@ from eegprep.eeg_checkset import eeg_checkset
 
 
 def pop_epoch(EEG, types=None, lim=None, **kwargs):
-    """Convert a continuous EEG dataset to epoched data by extracting data epochs time locked to specified event types or event indices.
+    """Convert a continuous EEG dataset to epoched data by extracting data
+    epochs time locked to specified event types or event indices.
 
     May also sub-epoch an already epoched dataset.
 

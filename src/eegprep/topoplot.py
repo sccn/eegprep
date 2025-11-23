@@ -7,8 +7,8 @@ from scipy.interpolate import Rbf
 from scipy.spatial import cKDTree
 
 def griddata_v4(x, y, v, xq, yq):
-    """
-    Python version of MATLAB's GDATAV4 interpolation based on David T. Sandwell's biharmonic spline interpolation.
+    """Python version of MATLAB's GDATAV4 interpolation based on David T.
+    Sandwell's biharmonic spline interpolation.
 
     Parameters
     ----------
@@ -53,8 +53,7 @@ def griddata_v4(x, y, v, xq, yq):
     return vq
 
 def topoplot(datavector, chan_locs, **kwargs):
-    """
-    Plot a 2D topographic map of EEG data.
+    """Plot a 2D topographic map of EEG data.
 
     Parameters
     ----------
@@ -64,7 +63,7 @@ def topoplot(datavector, chan_locs, **kwargs):
         Channel location structures with 'labels', 'theta', and 'radius' fields.
     **kwargs : dict
         Additional keyword arguments for customization:
-        
+
         - noplot : str or tuple, default 'off'
         - plotgrid : str, default 'off'
         - plotchans : list, default []

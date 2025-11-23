@@ -5,8 +5,7 @@ import numpy as np
 from eegprep.eeg_checkset import eeg_checkset
 
 def pop_loadset_h5(file_name):
-    """
-    Load EEG data from HDF5 file.
+    """Load EEG data from HDF5 file.
 
     Parameters
     ----------

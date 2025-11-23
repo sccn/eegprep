@@ -18,7 +18,8 @@ logger = logging.getLogger(__name__)
 
 
 class ColoredWarningFormatter(logging.Formatter):
-    """A custom logging formatter that colors WARNING and ERROR/CRITICAL messages when outputting to a TTY.
+    """A custom logging formatter that colors WARNING and ERROR/CRITICAL
+    messages when outputting to a TTY.
 
     Uses colorama if available.
     """

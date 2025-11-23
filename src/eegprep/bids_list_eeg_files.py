@@ -20,8 +20,7 @@ def bids_list_eeg_files(
         runs: Sequence[str | int] | str | int = (),
         tasks: Sequence[str | int] | str | int = (),
 ) -> List[str]:
-    """
-    Return a list of all EEG raw-data files in a BIDS dataset.
+    """Return a list of all EEG raw-data files in a BIDS dataset.
 
     Parameters:
     root : str
@@ -40,7 +39,8 @@ def bids_list_eeg_files(
         A sequence of task names or single task to filter the files by. If empty, all
         tasks are included (default is an empty sequence).
 
-    Returns:
+    Returns
+    -------
     List[str]
         A list of file paths to EEG files in the BIDS dataset.
     """

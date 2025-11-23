@@ -13,8 +13,7 @@ from scipy.io import savemat
 
 # Load example data
 def eeg_mne2eeg_epochs(epochs, ica):
-    """
-    Convert MNE epochs with ICA to EEGLAB dataset format.
+    """Convert MNE epochs with ICA to EEGLAB dataset format.
 
     Parameters
     ----------

@@ -12,7 +12,8 @@ logger = logging.getLogger(__name__)
 
 def fit_eeg_distribution(X, min_clean_fraction=None, max_dropout_fraction=None,
                          quants=None, step_sizes=None, beta=None):
-    """Estimate the mean and standard deviation of clean EEG from contaminated data.
+    """Estimate the mean and standard deviation of clean EEG from contaminated
+    data.
 
     Mu,Sigma,Alpha,Beta = fit_eeg_distribution(X,MinCleanFraction,MaxDropoutFraction,FitQuantiles,StepSizes,ShapeRange)
 
@@ -384,8 +385,9 @@ def block_geometric_median(X, blocksize=1, tol=1.e-5, y=None, max_iter=500):
 
 
 def mad(X, axis=0, keepdims=False):
-    """Calculate the median absolute deviation from the median along a given axis.
-    
+    """Calculate the median absolute deviation from the median along a given
+    axis.
+
     Args:
         X : array-like
             Input data array.

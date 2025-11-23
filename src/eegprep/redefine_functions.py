@@ -1,15 +1,17 @@
-"""
-This module defines short wrapper functions that call their corresponding eeg_ or pop_ implementations.
+"""This module defines short wrapper functions that call their corresponding
+eeg_ or pop_ implementations.
 
-Each wrapper has the same signature and simply forwards all arguments to the original function.
+Each wrapper has the same signature and simply forwards all arguments to the
+original function.
 
-For example, checkset(x) calls eeg_checkset(x) and epoch(ev) calls pop_epoch(ev).
+For example, checkset(x) calls eeg_checkset(x) and epoch(ev) calls
+pop_epoch(ev).
 
-Wrappers let you use names without the eeg_ or pop_ prefix while returning the same results as the 
-originals. Available wrappers: checkset, compare, decodechan, eeg2mne, eegrej, findboundaries, 
-interp, lat2point, mne2eeg, mne2eeg_epochs, options, picard, point2lat, epoch, loadset,
-reref, resample, rmbase, saveset, select.
-
+Wrappers let you use names without the eeg_ or pop_ prefix while returning the
+same results as the originals. Available wrappers: checkset, compare,
+decodechan, eeg2mne, eegrej, findboundaries, interp, lat2point, mne2eeg,
+mne2eeg_epochs, options, picard, point2lat, epoch, loadset, reref, resample,
+rmbase, saveset, select.
 """
 
 from eegprep.eeg_checkset import eeg_checkset

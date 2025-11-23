@@ -1,5 +1,4 @@
-"""
-EEG data structure comparison utilities.
+"""EEG data structure comparison utilities.
 
 This module provides functions for comparing EEG data structures and reporting
 differences between them.
@@ -11,9 +10,8 @@ from collections.abc import Sequence
 import numpy as np
 
 def eeg_compare(eeg1, eeg2, verbose_level=0, trigger_error=False):
-    """
-    Compare two EEG-like structures, reporting differences to stderr.
-    
+    """Compare two EEG-like structures, reporting differences to stderr.
+
     Parameters
     ----------
     eeg1 : dict or object
@@ -24,7 +22,7 @@ def eeg_compare(eeg1, eeg2, verbose_level=0, trigger_error=False):
         Level of verbosity for output. Default 0.
     trigger_error : bool, optional
         Whether to raise an error if differences are found. Default False.
-        
+
     Returns
     -------
     bool

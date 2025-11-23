@@ -7,8 +7,7 @@ from numpy.linalg import pinv
 
 # Helper function (vectorized version of MATLAB's interpMx)
 def _interpMx(cosEE, order, tol):
-    """
-    Compute the interpolation matrix for a set of point pairs (vectorized).
+    """Compute the interpolation matrix for a set of point pairs (vectorized).
 
     Internal helper function for sphericalSplineInterpolate.
 
@@ -82,8 +81,8 @@ def _interpMx(cosEE, order, tol):
 
 # Main function mirroring the MATLAB sphericalSplineInterpolate
 def sphericalSplineInterpolate(src, dest, lambda_reg=1e-5, order=4, type='spline', tol=np.finfo(float).eps):
-    """
-    Interpolation matrix for spherical interpolation. Python port of Jason Farquhar's MATLAB code.
+    """Interpolation matrix for spherical interpolation. Python port of Jason
+    Farquhar's MATLAB code.
 
     Args:
         src (np.ndarray): Source electrode positions [3 x N]. Assumes coordinates are in columns.

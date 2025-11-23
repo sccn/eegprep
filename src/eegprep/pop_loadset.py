@@ -22,8 +22,7 @@ def loadset(file_path):
     return pop_loadset(file_path)
 
 def pop_loadset(file_path=None):
-    """
-    Load EEGLAB dataset from .set or .mat file.
+    """Load EEGLAB dataset from .set or .mat file.
 
     Parameters
     ----------
@@ -133,4 +132,4 @@ if __name__ == "__main__":
 # STILL OPEN QUESTION: Better to have empty MATLAB arrays as None for empty numpy arrays (current default).
 # The current default is to make it more MALTAB compatible. A lot of MATLAB function start indexing MATLAB
 # empty arrays to add values to them. This is not possible with None and would create more conversion and 
-# bugs. However, None is more pythonic. 
+# bugs. However, None is more pythonic.

@@ -31,7 +31,8 @@ __all__ = ['cov_mean', 'cov_logm', 'cov_expm', 'cov_powm', 'cov_sqrtm', 'cov_rsq
 
 
 def diag_nd(M):
-    """Like np.diag, but in case of a ...,N, returns a ...,N,N array of diag matrices."""
+    """Like np.diag, but in case of a ...,N, returns a ...,N,N array of diag
+    matrices."""
     *dims, N = M.shape
     if dims:
         cat = np.concatenate([np.diag(d) for d in M.reshape((-1, N))])
@@ -41,13 +42,15 @@ def diag_nd(M):
 
 
 def cov_logm(C):
-    """Calculate the matrix logarithm of a covariance matrix or ...,N,N array."""
+    """Calculate the matrix logarithm of a covariance matrix or ...,N,N
+    array."""
     D, V = np.linalg.eigh(C)
     return V @ diag_nd(np.log(D)) @ V.swapaxes(-2, -1)
 
 
 def cov_expm(C):
-    """Calculate the matrix exponent of a covariance matrix or ...,N,N array."""
+    """Calculate the matrix exponent of a covariance matrix or ...,N,N
+    array."""
     D, V = np.linalg.eigh(C)
     return V @ diag_nd(np.exp(D)) @ V.swapaxes(-2, -1)
 
@@ -59,19 +62,22 @@ def cov_powm(C, exp):
 
 
 def cov_sqrtm(C):
-    """Calculate the matrix square root of a covariance matrix or ...,N,N array."""
+    """Calculate the matrix square root of a covariance matrix or ...,N,N
+    array."""
     D, V = np.linalg.eigh(C)
     return V @ diag_nd(np.sqrt(D)) @ V.swapaxes(-2, -1)
 
 
 def cov_rsqrtm(C):
-    """Calculate the matrix reciprocal square root of a covariance matrix or ...,N,N array."""
+    """Calculate the matrix reciprocal square root of a covariance matrix or
+    ...,N,N array."""
     D, V = np.linalg.eigh(C)
     return V @ diag_nd(1./np.sqrt(D)) @ V.swapaxes(-2, -1)
 
 
 def cov_sqrtm2(C):
-    """Calculate the matrix square root, and its reciprocal, for a covariance matrix or ...,N,N array."""
+    """Calculate the matrix square root, and its reciprocal, for a covariance
+    matrix or ...,N,N array."""
     D, V = np.linalg.eigh(C)
     sqrtD = np.sqrt(D)
     return V @ diag_nd(sqrtD) @ V.swapaxes(-2, -1), V @ diag_nd(1./sqrtD) @ V.swapaxes(-2, -1)
@@ -79,7 +85,9 @@ def cov_sqrtm2(C):
 
 def cov_mean(X, *, weights=None, robust=False, iters=50, tol=1e-5, huber=0,
              nancheck=False, verbose=False):
-    """Calculate the (weighted) average of a set of covariance matrices on the manifold of SPD matrices, optionally robustly using the geometric median or Huber mean.
+    """Calculate the (weighted) average of a set of covariance matrices on the
+    manifold of SPD matrices, optionally robustly using the geometric median or
+    Huber mean.
 
     Args:
         X: a M,N,N array of covariance matrices
@@ -151,7 +159,8 @@ def cov_mean(X, *, weights=None, robust=False, iters=50, tol=1e-5, huber=0,
 
 
 def cov_shrinkage(cov, shrinkage=0, *, target='eye'):
-    """Regularize the given covariance matrix or stack of matrices using shrinkage.
+    """Regularize the given covariance matrix or stack of matrices using
+    shrinkage.
 
     Args:
         cov: the covariance matrix (N,N) or stack of matrices (...,N,N).

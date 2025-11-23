@@ -8,8 +8,7 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 def pop_reref(EEG, ref):
-    """
-    Re-reference EEG data to average reference.
+    """Re-reference EEG data to average reference.
 
     Parameters
     ----------

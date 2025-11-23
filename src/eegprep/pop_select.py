@@ -8,16 +8,17 @@ from eegprep.eeg_decodechan import eeg_decodechan
 from eegprep.eeg_eegrej import eeg_eegrej
 
 def pop_select(EEG, **kwargs):
-    """
-    Python port of EEGLAB's pop_select for dict-based EEG.
+    """Python port of EEGLAB's pop_select for dict-based EEG.
 
     Assumptions:
       - EEG is a dict (e.g., EEG['chanlocs'][0]['X'] for channel coordinates).
       - eeg_decodechan(EEG, query, mode, labels=True/type=True) exists and returns int indices (0-based).
       - eeg_eegrej(EEG, bad_point_ranges) exists and returns an updated EEG after removing samples
         from continuous data. bad_point_ranges is an (N,2) array of [start,end] sample indices (1-based like EEGLAB).
+
     Returns
-      EEG_out, com
+    -------
+    EEG_out, com
     """
     # shallow options with MATLAB-compatible aliases
     g = {

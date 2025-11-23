@@ -53,7 +53,6 @@ def clean_channels_nolocs(
     Returns:
       EEG: data set with bad channels removed
       removed_channels: boolean array indicating which channels were removed
-
     """
     Fs = EEG['srate']
     

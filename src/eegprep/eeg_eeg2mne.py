@@ -10,8 +10,7 @@ from .pop_saveset import pop_saveset # in development
 
 # write a funtion that converts a MNE raw object to an EEGLAB set file
 def eeg_eeg2mne(EEG):
-    """
-    Convert EEG data structure to MNE Raw object.
+    """Convert EEG data structure to MNE Raw object.
 
     Parameters
     ----------

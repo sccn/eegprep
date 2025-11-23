@@ -355,4 +355,3 @@ def test_pop_resample_local():
 if __name__ == '__main__':
     test_pop_resample_local()
     
-    

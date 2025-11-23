@@ -1,5 +1,4 @@
-"""
-EEG epoching utilities.
+"""EEG epoching utilities.
 
 This module provides functions for extracting epochs from continuous EEG data
 time-locked to specified events.

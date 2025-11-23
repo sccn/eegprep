@@ -4,8 +4,7 @@ from copy import deepcopy
 import numpy as np
 
 def ICL_feature_extractor(EEG, flag_autocorr=False):
-    """
-    Extract features for ICLabel classification.
+    """Extract features for ICLabel classification.
 
     Parameters
     ----------

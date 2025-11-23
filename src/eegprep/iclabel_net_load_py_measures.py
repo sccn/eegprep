@@ -148,4 +148,3 @@ if __name__ == "__main__":
     
     # save the output to a mat file
     scipy.io.savemat('output4_py.mat', {'output': output.detach().numpy()})
-    

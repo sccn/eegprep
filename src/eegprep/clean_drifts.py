@@ -29,9 +29,9 @@ def clean_drifts(
       attenuation: stop-band attenuation, in dB
       method: the method to use for filtering ('fft' or 'fir')
 
-    Returns:
-      EEG: the filtered EEG data structure
-
+    Returns
+    -------
+    EEG : the filtered EEG data structure
     """
     EEG['data'] = np.asarray(EEG['data'], dtype=np.float64)
 

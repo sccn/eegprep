@@ -1,5 +1,4 @@
-"""
-EEG data window cleaning utilities.
+"""EEG data window cleaning utilities.
 
 This module provides functions for removing periods with abnormally high-power
 content from continuous EEG data.
@@ -236,4 +235,4 @@ def clean_windows(
     else:
         etc['clean_sample_mask'] = sample_mask
 
-    return EEG, sample_mask 
+    return EEG, sample_mask

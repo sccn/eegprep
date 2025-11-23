@@ -14,12 +14,12 @@ def rand_sample(
         stream: np.random.RandomState
 ) -> np.ndarray:
     """Random sampling without replacement.
-    
+
     Args:
         n: number of items to sample from
         m: number of items to sample
         stream: random number generator
-    
+
     Returns:
         random_sample: array of sampled values
     """
@@ -40,8 +40,7 @@ def calc_projector(
         stream: Optional[np.random.RandomState] = None,
         subroutine: str = 'sphericalSplineInterpolate'
 ) -> np.ndarray:
-    """
-    Calculate a bag of reconstruction matrices from random channel subsets.
+    """Calculate a bag of reconstruction matrices from random channel subsets.
 
     Args:
         locs: Nx3 array of channel locations

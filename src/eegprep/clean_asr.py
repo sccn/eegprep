@@ -1,5 +1,4 @@
-"""
-EEG ASR (Artifact Subspace Reconstruction) cleaning utilities.
+"""EEG ASR (Artifact Subspace Reconstruction) cleaning utilities.
 
 This module provides functions for running the Artifact Subspace Reconstruction
 method on EEG data to remove artifacts.
@@ -63,8 +62,8 @@ def clean_asr(
                                     for a channel to be considered 'bad' during calibration data selection. Default: (-3.5, 5.5). Use 'off' to disable.
         ref_wndlen (Union[float, str], optional): Window length in seconds for calibration data selection granularity. Default: 1.0. Use 'off' to disable.
         use_gpu (bool, optional): Whether to try using GPU (requires compatible hardware and libraries, currently ignored). Default: False.
-        useriemannian (str, optional): Option to use a Riemannian ASR variant. Can be set to 'calib' to use a Riemannian estimate 
-            at calibration time; this make somewhat different statistical tradeoffs than the default, resulting in a somewhat different 
+        useriemannian (str, optional): Option to use a Riemannian ASR variant. Can be set to 'calib' to use a Riemannian estimate
+            at calibration time; this make somewhat different statistical tradeoffs than the default, resulting in a somewhat different
             baseline rejection threshold; as a result it is suggested to visually check results and adjust the cutoff as needed. Default: None (disabled).
         maxmem (Optional[int], optional): Maximum memory in MB (passed to asr_calibrate/process, but chunking based on it is not implemented in Python port). Default: 64.
 

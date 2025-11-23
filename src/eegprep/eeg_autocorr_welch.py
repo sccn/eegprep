@@ -1,8 +1,7 @@
-"""
-EEG autocorrelation computation using Welch method.
+"""EEG autocorrelation computation using Welch method.
 
-This module provides functions for computing autocorrelation of EEG ICA components
-using the Welch method for spectral estimation.
+This module provides functions for computing autocorrelation of EEG ICA
+components using the Welch method for spectral estimation.
 """
 
 import numpy as np
@@ -13,16 +12,15 @@ import numpy as np
 from numpy.fft import fft, ifft
 
 def eeg_autocorr_welch(EEG, pct_data=100):
-    """
-    Compute autocorrelation of EEG ICA components using Welch method.
-    
+    """Compute autocorrelation of EEG ICA components using Welch method.
+
     Parameters
     ----------
     EEG : dict
         EEG data structure with 'icaweights', 'icaact', 'pnts', 'srate' fields.
     pct_data : float, optional
         Percentage of data to use. Default 100.
-        
+
     Returns
     -------
     ndarray

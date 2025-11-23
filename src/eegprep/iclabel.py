@@ -6,9 +6,8 @@ import os
 import numpy as np
 
 def iclabel(EEG, algorithm='default', engine=None):
-    """
-    Apply ICLabel to classify independent components.
-    
+    """Apply ICLabel to classify independent components.
+
     Parameters
     ----------
     EEG : dict
@@ -21,7 +20,7 @@ def iclabel(EEG, algorithm='default', engine=None):
         - None: Use the default Python implementation
         - 'matlab': Use MATLAB engine
         - 'octave': Use Octave engine
-        
+
     Returns
     -------
     EEG : dict

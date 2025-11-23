@@ -10,8 +10,7 @@ from .eeglabcompat import temp_dir, MatlabWrapper
 from .pinv import pinv
 
 def eeg_picard(EEG, engine=None, posact='off', sortcomps='off', **kwargs):
-    """
-    Perform ICA decomposition using Picard algorithm.
+    """Perform ICA decomposition using Picard algorithm.
 
     This function can use either a Python implementation or an EEGLAB (via MATLAB or Octave) implementation.
 
