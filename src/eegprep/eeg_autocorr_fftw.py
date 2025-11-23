@@ -14,8 +14,6 @@ from .pop_reref import pop_reref
 def eeg_autocorr_fftw(EEG, pct_data=100):
     """Compute autocorrelation of EEG ICA components using FFT.
 
-    
-
     Parameters
     ----------
     EEG : dict

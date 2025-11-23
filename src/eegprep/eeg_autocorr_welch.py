@@ -14,8 +14,6 @@ from numpy.fft import fft, ifft
 def eeg_autocorr_welch(EEG, pct_data=100):
     """Compute autocorrelation of EEG ICA components using Welch method.
 
-    
-
     Parameters
     ----------
     EEG : dict

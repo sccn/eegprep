@@ -7,8 +7,6 @@ from numpy.fft import fft, ifft
 def eeg_autocorr(EEG, pct_data=None):
     """Compute autocorrelation of ICA components.
 
-    
-
     Parameters
     ----------
     EEG : dict

@@ -8,8 +8,6 @@ def eeg_decodechan(
 ):
     """Resolve channel identifiers to 0-based indices and labels.
 
-    
-
     Supports:
       - chanlocs as a list-like of dicts, or a dict with key "chanlocs".
       - chanstr as an iterable of strings and/or integers.

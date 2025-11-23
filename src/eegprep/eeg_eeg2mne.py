@@ -12,8 +12,6 @@ from .pop_saveset import pop_saveset # in development
 def eeg_eeg2mne(EEG):
     """Convert EEG data structure to MNE Raw object.
 
-    
-
     Parameters
     ----------
     EEG : dict

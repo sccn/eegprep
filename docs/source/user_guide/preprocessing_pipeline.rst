@@ -1,8 +1,8 @@
 .. _preprocessing_pipeline:
 
-====================
+======================
 Preprocessing Pipeline
-====================
+======================
 
 This guide provides a comprehensive overview of the eegprep preprocessing pipeline, including the order of operations, parameter tuning, and quality control.
 

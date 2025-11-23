@@ -31,9 +31,7 @@ __all__ = ['cov_mean', 'cov_logm', 'cov_expm', 'cov_powm', 'cov_sqrtm', 'cov_rsq
 
 
 def diag_nd(M):
-    """Like np.diag, but in case of a ...,N, returns a ...,N,N array of diag matrices.
-
-    """
+    """Like np.diag, but in case of a ...,N, returns a ...,N,N array of diag matrices."""
     *dims, N = M.shape
     if dims:
         cat = np.concatenate([np.diag(d) for d in M.reshape((-1, N))])
@@ -43,49 +41,37 @@ def diag_nd(M):
 
 
 def cov_logm(C):
-    """Calculate the matrix logarithm of a covariance matrix or ...,N,N array.
-
-    """
+    """Calculate the matrix logarithm of a covariance matrix or ...,N,N array."""
     D, V = np.linalg.eigh(C)
     return V @ diag_nd(np.log(D)) @ V.swapaxes(-2, -1)
 
 
 def cov_expm(C):
-    """Calculate the matrix exponent of a covariance matrix or ...,N,N array.
-
-    """
+    """Calculate the matrix exponent of a covariance matrix or ...,N,N array."""
     D, V = np.linalg.eigh(C)
     return V @ diag_nd(np.exp(D)) @ V.swapaxes(-2, -1)
 
 
 def cov_powm(C, exp):
-    """Calculate a matrix power of a covariance matrix or ...,N,N array.
-
-    """
+    """Calculate a matrix power of a covariance matrix or ...,N,N array."""
     D, V = np.linalg.eigh(C)
     return V @ diag_nd(D**exp) @ V.swapaxes(-2, -1)
 
 
 def cov_sqrtm(C):
-    """Calculate the matrix square root of a covariance matrix or ...,N,N array.
-
-    """
+    """Calculate the matrix square root of a covariance matrix or ...,N,N array."""
     D, V = np.linalg.eigh(C)
     return V @ diag_nd(np.sqrt(D)) @ V.swapaxes(-2, -1)
 
 
 def cov_rsqrtm(C):
-    """Calculate the matrix reciprocal square root of a covariance matrix or ...,N,N array.
-
-    """
+    """Calculate the matrix reciprocal square root of a covariance matrix or ...,N,N array."""
     D, V = np.linalg.eigh(C)
     return V @ diag_nd(1./np.sqrt(D)) @ V.swapaxes(-2, -1)
 
 
 def cov_sqrtm2(C):
-    """Calculate the matrix square root, and its reciprocal, for a covariance matrix or ...,N,N array.
-
-    """
+    """Calculate the matrix square root, and its reciprocal, for a covariance matrix or ...,N,N array."""
     D, V = np.linalg.eigh(C)
     sqrtD = np.sqrt(D)
     return V @ diag_nd(sqrtD) @ V.swapaxes(-2, -1), V @ diag_nd(1./sqrtD) @ V.swapaxes(-2, -1)
