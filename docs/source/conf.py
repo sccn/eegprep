@@ -56,9 +56,6 @@ html_theme_options = {
     # Logo configuration
     "logo": {
         "text": "eegprep",
-        "image_light": "_static/logo-light.png",
-        "image_dark": "_static/logo-dark.png",
-        "alt_text": "eegprep - EEG Preprocessing Pipeline",
     },
     # Navigation structure
     "navbar_start": ["navbar-logo"],
@@ -223,9 +220,6 @@ html_use_smartquotes = True
 html_show_sourcelink = True
 html_show_sphinx = True
 html_show_copyright = True
-
-# Favicon
-html_favicon = "_static/favicon.ico"
 
 # Additional CSS
 html_css_files = [
