@@ -1,3 +1,5 @@
+"""EEG preprocessing package for MATLAB EEGLAB compatibility."""
+
 import logging
 
 __version__ = "0.2.23"

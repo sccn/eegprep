@@ -1,3 +1,5 @@
+"""EEG data saving and loading utilities."""
+
 import scipy.io
 import numpy as np
 import os
@@ -14,6 +16,22 @@ import os
 default_empty = np.array([])
 
 def flatten_dict_sub(d, parent_key='', sep='_'):
+    """Flatten a nested dictionary.
+
+    Parameters
+    ----------
+    d : dict
+        Dictionary to flatten.
+    parent_key : str, optional
+        Parent key.
+    sep : str, optional
+        Separator.
+
+    Returns
+    -------
+    dict
+        Flattened dictionary.
+    """
     items = []
     for k, v in d.items():
         new_key = f"{parent_key}{sep}{k}" if parent_key else k
@@ -24,6 +42,18 @@ def flatten_dict_sub(d, parent_key='', sep='_'):
     return dict(items)
 
 def flatten_dict(data):
+    """Flatten dictionary data.
+
+    Parameters
+    ----------
+    data : list
+        List of dictionaries.
+
+    Returns
+    -------
+    np.recarray
+        Flattened data.
+    """
     # Flatten each dictionary and collect the fields and types
     flat_data = [flatten_dict_sub(item) for item in data]
     fields = list(flat_data[0].keys())
@@ -48,6 +78,20 @@ def flatten_dict(data):
     return rec_array
         
 def saveset(EEG, file_name):
+    """Save EEG data to file.
+
+    Parameters
+    ----------
+    EEG : dict
+        EEG data.
+    file_name : str
+        File name.
+
+    Returns
+    -------
+    dict
+        EEG data.
+    """
     return pop_saveset(EEG, file_name)
 
 # def dictlist_to_recarray(events):
@@ -84,6 +128,20 @@ def saveset(EEG, file_name):
 #     return rec_events
 
 def pop_saveset_old(EEG, file_path):
+    """Save EEG data to file (old version).
+
+    Parameters
+    ----------
+    EEG : dict
+        EEG data.
+    file_path : str
+        File path.
+
+    Returns
+    -------
+    dict
+        EEG data.
+    """
     # convert Events to structured array
     # if 'event' in EEG:
     #     EEG['event'] = flatten_dict(EEG['event'])    
@@ -112,7 +170,15 @@ import numpy as np
 from scipy.io import savemat
 
 def pop_saveset(EEG, file_name):
-    
+    """Save EEG data to file.
+
+    Parameters
+    ----------
+    EEG : dict
+        EEG data.
+    file_name : str
+        File name.
+    """
     eeglab_dict = {
         'setname'         : '',
         'filename'        : '',
@@ -240,6 +306,7 @@ def pop_saveset(EEG, file_name):
             raise
 
 def test_pop_saveset():
+    """Test pop_saveset function."""
     from eegprep.pop_loadset import pop_loadset
     file_path = './data/eeglab_data_with_ica_tmp.set'
     EEG = pop_loadset(file_path)
@@ -254,4 +321,4 @@ if __name__ == '__main__':
 # STILL OPEN QUESTION: Better to have empty MATLAB arrays as None for empty numpy arrays (current default).
 # The current default is to make it more MALTAB compatible. A lot of MATLAB function start indexing MATLAB
 # empty arrays to add values to them. This is not possible with None and would create more conversion and 
-# bugs. However, None is more pythonic. 
+# bugs. However, None is more pythonic.

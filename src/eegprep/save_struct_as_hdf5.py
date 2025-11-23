@@ -1,7 +1,20 @@
+"""Utilities for saving data structures to HDF5."""
+
 import numpy as np
 import h5py
 
 def save_dict_to_hdf5(data, filename, dataset_name):
+    """Save a dictionary to an HDF5 file as a structured dataset.
+
+    Parameters
+    ----------
+    data : dict
+        Dictionary to save.
+    filename : str
+        Path to the HDF5 file.
+    dataset_name : str
+        Name of the dataset in the HDF5 file.
+    """
     # Create a structured dtype from the dictionary keys and their corresponding types
     dtype = []
     for key, value in data.items():

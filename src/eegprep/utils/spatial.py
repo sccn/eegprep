@@ -1,3 +1,5 @@
+"""Spatial interpolation utilities."""
+
 from typing import *
 import numpy as np
 from numpy.linalg import pinv
@@ -5,8 +7,8 @@ from numpy.linalg import pinv
 
 # Helper function (vectorized version of MATLAB's interpMx)
 def _interpMx(cosEE, order, tol):
-    """
-    Compute the interpolation matrix for a set of point pairs (vectorized).
+    """Compute the interpolation matrix for a set of point pairs (vectorized).
+
     Internal helper function for sphericalSplineInterpolate.
 
     Args:
@@ -14,7 +16,8 @@ def _interpMx(cosEE, order, tol):
         order (int): Order of the polynomial interpolation.
         tol (float): Tolerance for the Legendre polynomial approximation convergence.
 
-    Returns:
+    Returns
+    -------
         tuple[np.ndarray, np.ndarray]: G and H matrices.
     """
     x = np.asarray(cosEE) # Ensure input is a numpy array
@@ -79,8 +82,7 @@ def _interpMx(cosEE, order, tol):
 
 # Main function mirroring the MATLAB sphericalSplineInterpolate
 def sphericalSplineInterpolate(src, dest, lambda_reg=1e-5, order=4, type='spline', tol=np.finfo(float).eps):
-    """
-    Interpolation matrix for spherical interpolation. Python port of Jason Farquhar's MATLAB code.
+    """Interpolation matrix for spherical interpolation. Python port of Jason Farquhar's MATLAB code.
 
     Args:
         src (np.ndarray): Source electrode positions [3 x N]. Assumes coordinates are in columns.
@@ -94,14 +96,16 @@ def sphericalSplineInterpolate(src, dest, lambda_reg=1e-5, order=4, type='spline
         tol (float, optional): Tolerance for the Legendre polynomial approximation convergence.
                                Defaults to machine epsilon for float.
 
-    Returns:
+    Returns
+    -------
         tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
             W: [M x N] linear mapping matrix between old and new coords.
             Gss: [N x N] interpolation matrix between source points.
             Gds: [M x N] interpolation matrix from source to destination points.
             Hds: [M x N] SLAP interpolation matrix from source to destination points.
 
-    Notes:
+    Notes
+    -----
         Based upon the paper: Perrin, F., Pernier, J., Bertrand, O., & Echallier, J. F. (1989).
         Spherical splines for scalp potential and current density mapping.
         Electroencephalography and clinical neurophysiology, 72(2), 184-187.

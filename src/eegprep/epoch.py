@@ -1,3 +1,9 @@
+"""EEG epoching utilities.
+
+This module provides functions for extracting epochs from continuous EEG data time-
+locked to specified events.
+"""
+
 import numpy as np
 
 from .utils.misc import round_mat
@@ -19,10 +25,10 @@ def epoch(data, events, lim, **kwargs):
         allevents: 1-D sequence of latencies for all events (same unit as events).
         alleventrange: [start, end] window relative to time-locking events (same unit as lim). Default lim.
 
-    Returns:
-        epochdat, newtime, indexes, alleventout, alllatencyout, reallim
+    Returns
+    -------
+    epochdat, newtime, indexes, alleventout, alllatencyout, reallim
     """
-
     # --- helpers to mimic MATLAB semantics ---
 
     def _as_1d(a):
@@ -151,3 +157,4 @@ def epoch(data, events, lim, **kwargs):
     reallim = reallim * g['srate']
 
     return epochdat, newtime, indexes, alleventout, alllatencyout, reallim
+

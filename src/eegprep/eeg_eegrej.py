@@ -1,9 +1,8 @@
-from copy import deepcopy
+"""EEG data rejection functions."""
 from typing import List, Dict, Optional, Tuple
-
 import numpy as np
+from copy import deepcopy
 from .utils.misc import round_mat
-
 
 def _is_boundary_event(event: Dict) -> bool:
     t = event.get("type")
@@ -17,23 +16,30 @@ def _is_boundary_event(event: Dict) -> bool:
     return False
 
 def _eegrej(indata, regions, timelength, events: Optional[List[Dict]] = None) -> Tuple[np.ndarray, float, List[Dict], np.ndarray]:
-    """
-    Remove [beg end] sample ranges (1-based, inclusive) from continuous data
-    and update events (list of dictionaries) in the MATLAB EEGLAB style.
+    """Remove [beg end] sample ranges (1-based, inclusive) from continuous data and update events.
 
-    Inputs
-      - indata: 2D array shaped (channels, frames)
-      - regions: array-like with shape (n_regions, 2), 1-based [beg end] per row
-      - timelength: total duration of the original data in seconds
-      - events: list of dicts with at least key 'latency'; optional keys include
-                'type' and 'duration'. If None or empty, boundary events will
-                still be inserted based on regions.
+    Parameters
+    ----------
+    indata : array-like
+        2D array shaped (channels, frames)
+    regions : array-like
+        Shape (n_regions, 2), 1-based [beg end] per row
+    timelength : float
+        Total duration of the original data in seconds
+    events : list of dict, optional
+        List of dicts with at least key 'latency'; optional keys include 'type' and 'duration'.
+        If None or empty, boundary events will still be inserted based on regions.
 
     Returns
-      - outdata: data with columns removed
-      - newt: new total time in seconds
-      - events_out: updated events list of dictionaries (with inserted boundaries)
-      - boundevents: boundary latencies (float, 1-based, with +0.5 convention)
+    -------
+    outdata : ndarray
+        Data with columns removed
+    newt : float
+        New total time in seconds
+    events_out : list of dict
+        Updated events list of dictionaries (with inserted boundaries)
+    boundevents : ndarray
+        Boundary latencies (float, 1-based, with +0.5 convention)
     """
     x = np.asarray(indata)
     if x.ndim != 2:
@@ -203,6 +209,20 @@ def _eegrej(indata, regions, timelength, events: Optional[List[Dict]] = None) ->
 
 
 def eeg_eegrej(EEG, regions):
+    """Reject EEG data segments specified by regions.
+
+    Parameters
+    ----------
+    EEG : dict
+        EEG data structure
+    regions : array-like
+        Regions to reject, shape (n_regions, 2) or (n_regions, 4)
+
+    Returns
+    -------
+    EEG : dict
+        Updated EEG data structure with rejected segments removed
+    """
     EEG = deepcopy(EEG)
     if regions is None or len(regions) == 0:
         return EEG

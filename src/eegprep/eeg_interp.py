@@ -1,3 +1,8 @@
+"""EEG channel interpolation utilities.
+
+This module provides functions for interpolating bad channels in EEG data using various
+methods including spherical spline interpolation.
+"""
 
 # to do, look at line 83 and 84 and try to see if the MATLAB array output match. Run code side by side.
 
@@ -16,11 +21,12 @@ import os
 data_path = '/Users/arno/Python/eegprep/data/' #os.path.abspath('data/')
 
 def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dtype='float32'):
-    """
-    Interpolate missing or bad EEG channels using spherical spline interpolation.
-    
-    Parameters:
-    -----------
+    """Interpolate missing or bad EEG channels using spherical spline.
+
+    interpolation.
+
+    Parameters
+    ----------
     EEG : dict
         EEG data structure with 'data', 'chanlocs', 'nbchan', etc.
     bad_chans : list, array-like, or list of dicts
@@ -42,9 +48,9 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
         Optionally the precision in which to perform the computation;
         * 'float32' : matches MATLAB, but limits precision (default)
         * 'float64': operate at full precision; requires twice the memory
-        
-    Returns:
-    --------
+
+    Returns
+    -------
     EEG : dict
         Updated EEG structure with interpolated channels
     """
@@ -118,7 +124,18 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
 
     # extract Cartesian positions and normalize to unit sphere
     def _norm(ch_ids):
+        """Normalize channel coordinates to unit sphere.
 
+        Parameters
+        ----------
+        ch_ids : list
+            List of channel indices.
+
+        Returns
+        -------
+        ndarray
+            Normalized XYZ coordinates (3, n_channels).
+        """
         xyz = np.vstack([ [locs[i][c] for i in ch_ids] for c in ('X','Y','Z') ])
         rad = np.linalg.norm(xyz, axis=0)
         return xyz / rad
@@ -160,12 +177,15 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
     return EEG
 
 def _handle_chanloc_interpolation(EEG, new_chanlocs):
-    """
-    Handle interpolation when bad_chans is provided as a list of chanloc structures.
-    
-    Returns:
-        EEG: potentially modified EEG structure
-        bad_idx: list of indices to interpolate
+    """Handle interpolation when bad_chans is provided as a list of chanloc.
+
+    structures.
+
+    Returns
+    -------
+    EEG : potentially modified EEG structure
+
+    bad_idx : list of indices to interpolate
     """
     current_locs = EEG['chanlocs']
     current_labels = [ch['labels'] for ch in current_locs]
@@ -296,6 +316,26 @@ def _handle_chanloc_interpolation(EEG, new_chanlocs):
         return EEG, bad_idx
 
 def spheric_spline(xelec, yelec, zelec, xbad, ybad, zbad, values, params, dtype='float32'):
+    """Perform spherical spline interpolation.
+
+    Parameters
+    ----------
+    xelec, yelec, zelec : array-like
+        Coordinates of good electrodes.
+    xbad, ybad, zbad : array-like
+        Coordinates of bad electrodes to interpolate.
+    values : ndarray
+        Data values at good electrodes.
+    params : tuple
+        Interpolation parameters (lambda, m, maxn).
+    dtype : str or dtype, optional
+        Data type for computation.
+
+    Returns
+    -------
+    ndarray
+        Interpolated values at bad electrode positions.
+    """
     dtype = np.dtype(dtype)
 
     # values: (n_good, n_points)
@@ -322,6 +362,22 @@ def spheric_spline(xelec, yelec, zelec, xbad, ybad, zbad, values, params, dtype=
     return allres
 
 def computeg(x, y, z, xelec, yelec, zelec, params):
+    """Compute spherical spline basis functions.
+
+    Parameters
+    ----------
+    x, y, z : array-like
+        Coordinates of points to evaluate.
+    xelec, yelec, zelec : array-like
+        Coordinates of electrode positions.
+    params : tuple
+        Parameters (lambda, m, maxn).
+
+    Returns
+    -------
+    ndarray
+        Basis function values.
+    """
     # x,y,z are points to interpolate; xelec,... electrode locations
     X = x.ravel()[:,None]; Y = y.ravel()[:,None]; Z = z.ravel()[:,None]
     E = 1 - np.sqrt((X - xelec[None,:])**2 + (Y - yelec[None,:])**2 + (Z - zelec[None,:])**2)
@@ -337,11 +393,10 @@ def computeg(x, y, z, xelec, yelec, zelec, params):
 # Test functions moved to tests/test_eeg_interp.py
 
 def test_chanloc_interpolation():
-    """
-    Example usage of the new chanloc interpolation functionality.
+    """Example usage of the new chanloc interpolation functionality.
+
     This demonstrates the three different cases.
     """
-    
     # Create a sample EEG structure
     EEG = {
         'data': np.random.randn(4, 100, 1),  # 4 channels, 100 time points, 1 trial
@@ -400,11 +455,14 @@ def test_chanloc_interpolation():
     return result1, result2, result3
 
 def test_ica_indices_update():
+    """Test that ICA channel indices are properly updated when channels are.
+
+    reordered.
+
+    Test that ICA channel indices are properly updated when channels are
+
+    reordered during interpolation with chanloc structures.
     """
-    Test that ICA channel indices are properly updated when channels are reordered
-    during interpolation with chanloc structures.
-    """
-    
     # Create a sample EEG structure with ICA data
     EEG = {
         'data': np.random.randn(4, 100, 1),  # 4 channels, 100 time points, 1 trial

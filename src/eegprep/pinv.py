@@ -1,12 +1,13 @@
+"""Matrix pseudoinverse computation utilities."""
+
 # create a pinv function that uses the pseudoinverse function from scipy
 
 import numpy as np
 from scipy.linalg import pinv as scipy_pinv
 
 def pinv(A, tol=None, method='scipy'):
-    """
-    Compute the Moore-Penrose pseudoinverse of a matrix.
-    
+    """Compute the Moore-Penrose pseudoinverse of a matrix.
+
     Parameters
     ----------
     A : array_like
@@ -19,7 +20,7 @@ def pinv(A, tol=None, method='scipy'):
         - 'scipy': Use scipy.linalg.pinv (default)
         - 'svd': Use explicit SVD decomposition for more control
         - 'gelsd': Use scipy.linalg.lstsq with gelsd driver
-        
+
     Returns
     -------
     ndarray

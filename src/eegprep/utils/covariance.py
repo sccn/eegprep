@@ -79,9 +79,7 @@ def cov_sqrtm2(C):
 
 def cov_mean(X, *, weights=None, robust=False, iters=50, tol=1e-5, huber=0,
              nancheck=False, verbose=False):
-    """Calculate the (weighted) average of a set of covariance matrices on the
-    manifold of SPD matrices, optionally robustly using the geometric median or
-    Huber mean.
+    """Calculate the (weighted) average of a set of covariance matrices on the manifold of SPD matrices, optionally robustly using the geometric median or Huber mean.
 
     Args:
         X: a M,N,N array of covariance matrices
@@ -96,7 +94,8 @@ def cov_mean(X, *, weights=None, robust=False, iters=50, tol=1e-5, huber=0,
         nancheck: check for NaNs
         verbose: generate verbose output (will print deviations in huber=None mode)
 
-    Returns:
+    Returns
+    -------
         the N,N mean covariance matrix
     """
     # This algorithm is based on:
@@ -166,7 +165,8 @@ def cov_shrinkage(cov, shrinkage=0, *, target='eye'):
             otherwise whitening will not have unit variance)
           'diag': the diagonal of the covariance matrix (diagonal shrinkage)
 
-    Returns:
+    Returns
+    -------
         the regularized covariance matrix or stack of matrices.
     """    
     if not shrinkage:        

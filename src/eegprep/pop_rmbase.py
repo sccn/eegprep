@@ -1,3 +1,5 @@
+"""EEG baseline removal utilities."""
+
 import numpy as np
 from typing import Iterable, List, Optional, Tuple
 
@@ -7,8 +9,8 @@ from .utils.misc import round_mat
 def _normalize_pointrange(
     pointrange: Optional[Iterable], pnts: int
 ) -> np.ndarray:
-    """
-    Normalize MATLAB-like pointrange into a 0-based numpy index vector within [0, pnts-1].
+    """Normalize MATLAB-like pointrange into a 0-based numpy index vector within [0, pnts-1].
+
     Accepts:
       - None or empty → full range
       - two-element iterable [start, end] inclusive (1-based or 0-based tolerated)
@@ -51,9 +53,7 @@ def _normalize_pointrange(
 
 
 def _indices_from_timerange(times: np.ndarray, timerange: Iterable[float]) -> np.ndarray:
-    """
-    Build 0-based indices from a millisecond timerange using EEG['times'] (ms).
-    """
+    """Build 0-based indices from a millisecond timerange using EEG['times'] (ms)."""
     tr = np.asarray(list(timerange), dtype=float)
     if tr.size != 2:
         raise ValueError('timerange must contain 2 elements [min_ms, max_ms]')
@@ -69,8 +69,8 @@ def _indices_from_timerange(times: np.ndarray, timerange: Iterable[float]) -> np
 
 
 def _subtract_mean_over_indices(data: np.ndarray, idx: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    Subtract mean over the provided indices from each channel for 2D data (chans x frames).
+    """Subtract mean over the provided indices from each channel for 2D data (chans x frames).
+
     Returns (data_out, means) where means is chans x 1.
     """
     if data.ndim != 2:
@@ -106,7 +106,6 @@ def pop_rmbase(
     EEG : dict
         Updated EEG structure with baseline removed. EEG['icaact'] is cleared.
     """
-
     if EEG is None or 'data' not in EEG or EEG['data'] is None or (hasattr(EEG['data'], 'size') and EEG['data'].size == 0):
         raise ValueError('pop_rmbase(): cannot remove baseline of an empty dataset')
 

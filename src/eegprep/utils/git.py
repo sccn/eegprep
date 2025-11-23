@@ -1,3 +1,5 @@
+"""Git utilities."""
+
 import subprocess
 import os
 
@@ -6,8 +8,7 @@ __all__ = ['get_git_commit_id']
 
 
 def get_git_commit_id(repo_path: str = None, shorten: int = 8) -> str | None:
-    """
-    Gets the current commit ID (hash) of a Git repository.
+    """Get the current commit ID (hash) of a Git repository.
 
     Args:
         repo_path: The path to the Git repository. If None, it uses the
@@ -15,9 +16,10 @@ def get_git_commit_id(repo_path: str = None, shorten: int = 8) -> str | None:
         shorten: The length to which the commit ID should be shortened.
                  If set to 0, the full commit ID is returned.
 
-    Returns:
-        The commit ID as a string, or None if it's not a Git repository
-        or an error occurs.
+    Returns
+    -------
+    The commit ID as a string, or None if it's not a Git repository
+    or an error occurs.
     """
     if repo_path is None:
         # If no path is specified, use the current working directory.

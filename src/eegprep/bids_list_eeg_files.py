@@ -1,7 +1,7 @@
-import os
+"""BIDS EEG file listing utilities."""
+
 import logging
 from typing import List, Sequence
-from types import NoneType
 from eegprep.utils.bids import layout_for_fpath
 
 logger = logging.getLogger(__name__)
@@ -18,11 +18,10 @@ def bids_list_eeg_files(
         runs: Sequence[str | int] | str | int = (),
         tasks: Sequence[str | int] | str | int = (),
 ) -> List[str]:
-    """
-    Return a list of all EEG raw-data files in a BIDS dataset.
+    """Return a list of all EEG raw-data files in a BIDS dataset.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     root : str
         The root directory containing BIDS data.
     subjects : Sequence[str | int], optional
@@ -39,9 +38,8 @@ def bids_list_eeg_files(
         A sequence of task names or single task to filter the files by. If empty, all
         tasks are included (default is an empty sequence).
 
-    Returns:
-    --------
-
+    Returns
+    -------
     List[str]
         A list of file paths to EEG files in the BIDS dataset.
     """
