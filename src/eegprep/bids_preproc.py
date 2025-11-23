@@ -1,3 +1,5 @@
+"""Module for BIDS preprocessing of EEG data."""
+
 import os
 import hashlib
 import json
@@ -62,8 +64,7 @@ def _copy_misc_root_files(root: str, dst: str, exclude: List[str]) -> None:
 
 
 def _legacy_override(new_and_name: Tuple[Any, str], old_and_name: Tuple[Any, str], default: Any):
-    """Handle overrides with values from legacy parameters and a default if both the new
-    and legacy parameter are None."""
+    """Handle overrides with values from legacy parameters and a default if both the new and legacy parameter are None."""
     new, new_name = new_and_name
     old, old_name = old_and_name
     if old is not None:
@@ -154,192 +155,206 @@ def bids_preproc(
     """
     Apply data cleaning to EEG files in a BIDS dataset.
 
-    Parameters:
-    -----------
-    root_or_fn : str
+    Parameters
+    ----------
+    root : str
         The root directory containing BIDS data or a single EEG file path.
 
     (BIDS import stage parameters)
-    ApplyMetadata (bool):
+
+    ApplyMetadata : bool
         Whether to apply metadata from BIDS sidecar files when loading raw EEG data.
         (default True)
-    ApplyEvents (bool):
+    ApplyEvents : bool
         Whether to apply events from BIDS sidecar files when loading raw EEG data.
         (default False)
-    ApplyChanlocs (bool):
+    ApplyChanlocs : bool
         Whether to apply channel locations from BIDS sidecar files when loading raw EEG data.
         (default True)
-    EventColumn (str):
+    EventColumn : str
         Optionally the column name in the BIDS events file to use for event types; if not
         set, will be inferred heuristically.
-    Subjects (Sequence[str | int], optional):
+    Subjects : Sequence[str | int], optional
         A sequence of subject identifiers or (zero-based) indices to filter the files by.
         If empty, all subjects are included.
-    Sessions (Sequence[str | int], optional):
+    Sessions : Sequence[str | int], optional
         A sequence of session identifiers or (zero-based) indices to filter the files by.
         If empty, all sessions are included.
-    Runs (Sequence[str | int], optional):
+    Runs : Sequence[str | int], optional
         A sequence of run numbers or identifiers to filter the files by. If empty, all runs
         are included. Note that zero-based indexing does not apply to runs, unlike
         subjects and sessions since runs are already integers.
-    Tasks (Sequence[str] | str, optional):
+    Tasks : Sequence[str] | str, optional
         A sequence of task names or single task to filter the files by. If empty, all
         tasks are included (default is an empty sequence).
-    OutputDir (str):
-      The name of the subdirectory where cleaned files will be saved. This can start
-      with the placeholder '{root}' which will be replaced with the root path of
-      the BIDS dataset. Defaults to '{root}/derivatives/eegprep' if not specified.
+    OutputDir : str
+        The name of the subdirectory where cleaned files will be saved. This can start
+        with the placeholder '{root}' which will be replaced with the root path of
+        the BIDS dataset. Defaults to '{root}/derivatives/eegprep' if not specified.    (overall run configuration)
 
-    (overall run configuration)
-    SkipIfPresent (bool):
-      skip processing files that already have a cleaned version present.
-    NumJobs (int, optional):
-      The number of jobs to run in parallel. If set to -1, this will default to the
-      number of logical cores on the system. If the ReservePerJob clause is also
-      specified, this will be treated as a maximum, otherwise as the *total*. If neither
-      of the two parameters is specified, a single job will run.
-      Note: as usual when running multiple processes in Python, you need to use the
-      if __name__ == "__main__": guard pattern in your main processing script.
-    ReservePerJob (str):
-      Optionally the resource amount and type to reserve per job, e.g. '4GB' or '2CPU';
-      the run will then use as many jobs as fit within the system resources of the specified type.
-      * You can also specify how much of a margin of the total system resources should
+    SkipIfPresent : bool
+        skip processing files that already have a cleaned version present.
+    NumJobs : int, optional
+        The number of jobs to run in parallel. If set to -1, this will default to the
+        number of logical cores on the system. If the ReservePerJob clause is also
+        specified, this will be treated as a maximum, otherwise as the *total*. If neither
+        of the two parameters is specified, a single job will run.
+        Note: as usual when running multiple processes in Python, you need to use the
+        if __name__ == "__main__": guard pattern in your main processing script.
+    ReservePerJob : str
+        Optionally the resource amount and type to reserve per job, e.g. '4GB' or '2CPU';
+        the run will then use as many jobs as fit within the system resources of the specified type.
+        * You can also specify how much of a margin of the total system resources should
         be *withheld* for use by other programs on the computer, by following the amount
         by a : and then the margin, as in '4GB:10GB' (always leave 10GB unused), '2CPU:10%'
         (always leave 10% of the total installed RAM unused). This also works with other metrics.
-      * one may also specify a total or maximum number of jobs, as in '10total' or '10max'.
-      * Multiple criteria can be spefied in a comma-separated list of reservations, e.g.
+        * one may also specify a total or maximum number of jobs, as in '10total' or '10max'.
+        * Multiple criteria can be spefied in a comma-separated list of reservations, e.g.
         '4GB:20%, 2CPU, 5max'.
-      * If neither this nor NumJobs are specified, a single job will run. Note that the
+        * If neither this nor NumJobs are specified, a single job will run. Note that the
         system will also run in serial when in debug mode and when on a platform that does
         not cleanly support multiprocessing.
-      Tip: a good way to size this is to perform a serial run and to monitor how much
+        Tip: a good way to size this is to perform a serial run and to monitor how much
         peak RAM a single job takes, and then setting this to <PeakUsage>GB:<YourMargin>GB
         where YourMargin is however much you want to leave to other programs, e.g., 5GB
         (this will depend on what else you expect to be running on the machine).
-    UseHashes (bool): Whether to bake hashes into intermediate file names; if you experiment
-      with alternative preprocessing settings, it is recommended to enable this or disable
-      the SkipIfPresent option since otherwise the routine may pick up a stale result.
-    ReturnData (bool):
-      Whether to return the final EEG data objects as a list. Note that this can use
-      quite a lot of memory for large studies and it may be better to iterate over
-      the preprocessed files in downstream analyses.
+    UseHashes : bool
+        Whether to bake hashes into intermediate file names; if you experiment
+        with alternative preprocessing settings, it is recommended to enable this or disable
+        the SkipIfPresent option since otherwise the routine may pick up a stale result.
+    ReturnData : bool
+        Whether to return the final EEG data objects as a list. Note that this can use
+        quite a lot of memory for large studies and it may be better to iterate over
+        the preprocessed files in downstream analyses.
 
     (overall processing parameters)
-    OnlyChannelsWithPosition (bool):
+    OnlyChannelsWithPosition : bool
         Whether to retain only channels for which positions were recorded or could be
         inferred. If this is not set, then OnlyModalities should be set so as to retain
         only modalities that should be preprocessed together.
-    OnlyModalities (Sequence[str], optional):
+    OnlyModalities : Sequence[str], optional
         If set, retain only channels that have the associated modalities. If enabled, this
         is typically set to ['EEG'] but may also include other ExG modalities such as
         EOG or EMG that have the same unit and scale as EEG. If non-electrophysiological
         modalities are included, some artifact removal steps may not function correctly.
-    SamplingRate (float):
+    SamplingRate : float
         Desired sampling rate for the preprocessed data. If not specified, will retain
         the original sampling rate.
-    WithInterp (bool):
+    WithInterp : bool
         Whether to reinterpolate dropped channels, thus retaining the same channel
         count as the raw data.
-    WithPicard (bool):
+    WithPicard : bool
         Whether to apply PICARD ICA decomposition after cleaning.
-    WithICLabel (bool):
+    WithICLabel : bool
         Whether to apply ICLabel classification after ICA. Normally requires
         WithPicard=True.
-    CommonAverageReference (bool):
+    CommonAverageReference : bool
         Whether to transform the EEG data to a common average referencing scheme;
         recommended for cross-study processing.
 
     (parameters for artifact removal - same as in clean_artifacts function)
-    ChannelCriterion (float or 'off'):
+
+    ChannelCriterion : float or 'off'
         Minimum channel correlation threshold for channel cleaning; channels below
         this value are considered bad. Pass 'off' to skip channel criterion. Default 0.8.
-    LineNoiseCriterion (float or 'off'):
+    LineNoiseCriterion : float or 'off'
         Z-score threshold for line-noise contamination; channels exceeding this are
         considered bad. 'off' disables line-noise check. Default 4.0.
-    BurstCriterion (float or 'off'):
+    BurstCriterion : float or 'off'
         ASR standard-deviation cutoff for high-amplitude bursts; values above this
         relative to calibration data are repaired (or removed if BurstRejection='on').
         'off' skips ASR. Default 5.0.
-    WindowCriterion (float or 'off'):
+    WindowCriterion : float or 'off'
         Fraction (0-1) or count of channels allowed to be bad per window; windows with
         more bad channels are removed. 'off' disables final window removal. Default 0.25.
-    Highpass (tuple(float, float) or 'off'):
+    Highpass : tuple(float, float) or 'off'
         Transition band [low, high] in Hz for initial high-pass filtering. 'off' skips
         drift removal. Default (0.25, 0.75).
-    ChannelCriterionMaxBadTime (float):
+    ChannelCriterionMaxBadTime : float
         Maximum tolerated time (seconds or fraction of recording) a channel may be flagged
         bad before being removed. Default 0.5.
-    BurstCriterionRefMaxBadChns (float or 'off'):
+    BurstCriterionRefMaxBadChns : float or 'off'
         Maximum fraction of bad channels tolerated when selecting calibration data for ASR.
         'off' uses all data for calibration. Default 0.075.
-    BurstCriterionRefTolerances (tuple(float, float) or 'off'):
+    BurstCriterionRefTolerances : tuple(float, float) or 'off'
         Power Z-score tolerances for selecting calibration windows in ASR. 'off' uses
         all data. Default (-inf, 5.5).
-    BurstRejection (str):
+    BurstRejection : str
         'on' to reject (drop) burst segments instead of reconstructing with ASR,
         'off' to apply ASR repair. Default 'off'.
-    WindowCriterionTolerances (tuple(float, float) or 'off'):
+    WindowCriterionTolerances : tuple(float, float) or 'off'
         Power Z-score bounds for final window removal. 'off' disables this stage.
         Default (-inf, 7).
-    FlatlineCriterion (float or 'off'):
+    FlatlineCriterion : float or 'off'
         Maximum flatline duration in seconds; channels exceeding this are removed.
         'off' disables flatline removal. Default 5.0.
-    NumSamples (int):
+    NumSamples : int
         Number of RANSAC samples for channel cleaning. Default 50.
-    NoLocsChannelCriterion (float):
+    NoLocsChannelCriterion : float
         Correlation threshold for fallback channel cleaning when no channel locations.
         Default 0.45.
-    NoLocsChannelCriterionExcluded (float):
+    NoLocsChannelCriterionExcluded : float
         Fraction of channels excluded when assessing correlation in nolocs cleaning.
         Default 0.1.
-    MaxMem (int):
+    MaxMem : int
         Maximum memory in MB for ASR processing. Default 64.
-    Distance (str):
+    Distance : str
         Distance metric for ASR processing ('euclidian'). Default 'euclidian'.
-    Channels (Sequence[str] or None):
+    Channels : Sequence[str] or None
         List of channel labels to include before cleaning (pop_select). Default None.
-    Channels_ignore (Sequence[str] or None):
+    Channels_ignore : Sequence[str] or None
         List of channel labels to exclude before cleaning. Default None.
-    availableRAM_GB (float or None):
+    availableRAM_GB : float or None
         Available system RAM in GB to adjust MaxMem. Default None.
 
-    (parameters for an optional epoching and baseline removal step)
-    EpochEvents (str or Sequence[str] or None):
+     (parameters for an optional epoching and baseline removal step)
+    EpochEvents : str or Sequence[str] or None
         Optionally a list of event types or regular expression matching event types
         at which to time-lock epochs. If None (default), no epoching is done. If [],
         will time-lock to every event in the data (warning, this can amplify the data
         if epochs overlap!)
-    EpochLimits (Sequence[float]):
+    EpochLimits : Sequence[float]
         The time limits in seconds relative to the event markers for epoching. Default (-1, 2).
-    EpochBaseline (Sequence[float] or None):
+    EpochBaseline : Sequence[float] or None
         Optionally a time range in seconds relative to the event markers for baseline
         correction. If None (default), no baseline correction is applied. The special
         value None can be used to refer to the respective end of the epoch limits,
         as in (None, 0).
 
     (misc parameters)
-    StageNames Sequence[str]:
+
+    StageNames : Sequence[str]
         list of file name parts for the preprocessing stages, in the order of cleaning,ica,iclabel;
         these can be adjusted when working with different preprocessed versions (e.g., using
         different parameters for cleaning). It is recommended that these start with 'desc-'.
-    MinimizeDiskUsage (bool):
+    MinimizeDiskUsage : bool
         whether to minimize disk usage by not saving some intermediate files (specifically
         the PICARD output if WithICLabel=False). Default True.
 
     (parameters retained for backwards compatibility with EEGLAB's pop_importbids call signature)
-    bidsmetadata (bool): alias for ApplyMetadata
-    bidsevent (bool): alias for ApplyEvents
-    bidschanloc (bool): alias for ApplyChanlocs
-    eventtype (str): alias for EventColumn
-    subjects (Sequence[str | int], optional): alias for Subjects
-    sessions (Sequence[str | int], optional): alias for Sessions
-    runs (Sequence[str | int], optional): alias for RUns
-    tasks (Sequence[str] | str, optional): alias for Tasks
-    outputdir (str): alias for OutputDir
 
-    Returns:
-    --------
+    bidsmetadata : bool
+        alias for ApplyMetadata
+    bidsevent : bool
+        alias for ApplyEvents
+    bidschanloc : bool
+        alias for ApplyChanlocs
+    eventtype : str
+        alias for EventColumn
+    subjects : Sequence[str | int], optional
+        alias for Subjects
+    sessions : Sequence[str | int], optional
+        alias for Sessions
+    runs : Sequence[str | int], optional
+        alias for RUns
+    tasks : Sequence[str] | str, optional
+        alias for Tasks
+    outputdir : str
+        alias for OutputDir
+
+    Returns
+    -------
+    result : Dict[str,Any] | List[Dict[str, Any]] | None
         Depending on ReturnData, either a list of EEG objects (if BIDS root folder was
         specified) or a single EEG object (if a single file was specified), otherwise None.
     """
@@ -353,8 +368,11 @@ def bids_preproc(
     from .utils.bids import gen_derived_fpath
 
     def hash_suffix(ignore: Optional[set] = None, *, prefix='#') -> str:
-        """Get a hash for all options that affect results minus the ones listed in ignore,
-        unless UseHashes is False (in which case an empty string is returned)."""
+        """
+        Get a hash for all options that affect results minus the ones listed in ignore.
+
+        Unless UseHashes is False (in which case an empty string is returned).
+        """
         if not UseHashes:
             return ''
         # set of options in kwargs that do NOT influence the processing result; all others

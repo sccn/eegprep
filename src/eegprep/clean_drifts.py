@@ -1,3 +1,5 @@
+"""EEG drift removal utilities."""
+
 from typing import *
 import logging
 
@@ -15,7 +17,7 @@ def clean_drifts(
         attenuation: float = 80.0,
         method: str = 'fft',
 ) -> Dict[str, Any]:
-    """Removes drifts from the data using a forward-backward high-pass filter.
+    """Remove drifts from the data using a forward-backward high-pass filter.
 
     This removes drifts from the data using a forward-backward (non-causal) filter.
     NOTE: If you are doing directed information flow analysis, do no use this filter but some other one.

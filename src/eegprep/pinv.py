@@ -1,3 +1,5 @@
+"""Matrix pseudoinverse computation utilities."""
+
 # create a pinv function that uses the pseudoinverse function from scipy
 
 import numpy as np

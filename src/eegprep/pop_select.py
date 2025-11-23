@@ -1,3 +1,5 @@
+"""EEG dataset selection utilities."""
+
 import numpy as np
 import copy
 from eegprep.eeg_lat2point import eeg_lat2point
@@ -8,6 +10,7 @@ from eegprep.eeg_eegrej import eeg_eegrej
 def pop_select(EEG, **kwargs):
     """
     Python port of EEGLAB's pop_select for dict-based EEG.
+
     Assumptions:
       - EEG is a dict (e.g., EEG['chanlocs'][0]['X'] for channel coordinates).
       - eeg_decodechan(EEG, query, mode, labels=True/type=True) exists and returns int indices (0-based).
@@ -16,7 +19,6 @@ def pop_select(EEG, **kwargs):
     Returns
       EEG_out, com
     """
-
     # shallow options with MATLAB-compatible aliases
     g = {
         'time':        kwargs.get('time',        []),   # seconds; can be Nx2 for continuous
@@ -40,7 +42,7 @@ def pop_select(EEG, **kwargs):
 
     # alias normalization
     def _has_content(x):
-        """Check if parameter has content (not None, not empty list/array)"""
+        """Check if parameter has content (not None, not empty list/array)."""
         if x is None:
             return False
         if isinstance(x, (list, tuple)) and len(x) == 0:

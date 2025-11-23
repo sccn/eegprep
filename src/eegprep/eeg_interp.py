@@ -20,7 +20,6 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
     Interpolate missing or bad EEG channels using spherical spline interpolation.
     
     Parameters:
-    -----------
     EEG : dict
         EEG data structure with 'data', 'chanlocs', 'nbchan', etc.
     bad_chans : list, array-like, or list of dicts
@@ -44,7 +43,6 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
         * 'float64': operate at full precision; requires twice the memory
         
     Returns:
-    --------
     EEG : dict
         Updated EEG structure with interpolated channels
     """

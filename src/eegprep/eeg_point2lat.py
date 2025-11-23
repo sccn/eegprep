@@ -1,25 +1,30 @@
+"""Module for converting event latencies from points to time units."""
+
 import numpy as np
 from .utils.misc import round_mat
 
 
 def eeg_point2lat(lat_array, epoch_array=None, srate=None, timewin=None, timeunit=1.0):
     """
-    Convert event latencies in data points to latencies in time units (default seconds),
-    following EEGLAB's eeg_point2lat.
+    Convert event latencies in data points to latencies in time units (default seconds).
+
+    Following EEGLAB's eeg_point2lat.
 
     Parameters
-    lat_array   : array-like
+    ----------
+    lat_array : array-like
         Event latencies in points, assuming concatenated epochs (1-based EEGLAB style).
     epoch_array : array-like or scalar or None
         Epoch index for each latency (1-based). If None, uses ones of same shape as lat_array.
-    srate       : float
+    srate : float
         Sampling rate in Hz.
-    timewin     : sequence of length 2
+    timewin : sequence of length 2
         [xmin xmax] in 'timeunit' units (e.g., seconds if timeunit=1, ms if timeunit=1e-3).
-    timeunit    : float
+    timeunit : float
         Time unit in seconds. Default 1.0, i.e. output in seconds. For milliseconds use 1e-3.
 
     Returns
+    -------
     newlat : ndarray
         Converted latencies in 'timeunit' units (per-epoch time).
     """

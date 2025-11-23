@@ -1,3 +1,5 @@
+"""BIDS EEG file listing utilities."""
+
 import os
 import logging
 from typing import List, Sequence
@@ -22,7 +24,6 @@ def bids_list_eeg_files(
     Return a list of all EEG raw-data files in a BIDS dataset.
 
     Parameters:
-    -----------
     root : str
         The root directory containing BIDS data.
     subjects : Sequence[str | int], optional
@@ -40,8 +41,6 @@ def bids_list_eeg_files(
         tasks are included (default is an empty sequence).
 
     Returns:
-    --------
-
     List[str]
         A list of file paths to EEG files in the BIDS dataset.
     """

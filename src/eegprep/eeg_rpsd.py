@@ -1,8 +1,27 @@
+"""EEG relative power spectral density computation."""
+
 import numpy as np
 from numpy.fft import fft
 from scipy.signal.windows import hamming
 
 def eeg_rpsd(EEG, nfreqs=None, pct_data=100):
+    """
+    Compute relative power spectral density for ICA components.
+
+    Parameters
+    ----------
+    EEG : dict
+        EEG data structure with ICA activations.
+    nfreqs : int, optional
+        Number of frequency bins. Default is Nyquist frequency.
+    pct_data : float, optional
+        Percentage of data to use. Default is 100.
+
+    Returns
+    -------
+    ndarray
+        Power spectral density in dB for each component.
+    """
     # clean input cutoff freq
     nyquist = EEG['srate'] // 2
     if nfreqs is None or nfreqs > nyquist:
@@ -50,6 +69,7 @@ def eeg_rpsd(EEG, nfreqs=None, pct_data=100):
     return psdmed
 
 def test_eeg_rpsd():
+    """Test the eeg_rpsd function with sample data."""
     EEG = {
         'srate': 256,
         'icaweights': np.random.randn(10, 256),

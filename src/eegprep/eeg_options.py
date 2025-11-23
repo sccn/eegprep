@@ -1,5 +1,5 @@
 """
-EEG_OPTIONS
+EEG options.
 
 This Python version mirrors the MATLAB key names and default values so you can
 configure options in Python pipelines or serialize them to JSON/YAML.
@@ -9,6 +9,8 @@ from dataclasses import dataclass, asdict
 
 @dataclass
 class EEGOptions:
+    """Configuration options for EEG processing, mirroring MATLAB EEGLAB options."""
+
     # STUDY and file options
     option_storedisk: int = 0           # keep at most one dataset in memory
     option_savetwofiles: int = 0        # save header and data as two files
@@ -41,6 +43,7 @@ class EEGOptions:
     option_cachesize: int = 500         # STUDY cache size in MB
 
     def to_dict(self):
+        """Convert the options to a dictionary."""
         return asdict(self)
 
 # Default options instance mirroring the MATLAB file

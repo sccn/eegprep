@@ -1,7 +1,24 @@
+"""ICLabel feature extraction functions."""
+
 from copy import deepcopy
 import numpy as np
 
 def ICL_feature_extractor(EEG, flag_autocorr=False):
+    """
+    Extract features for ICLabel classification.
+
+    Parameters
+    ----------
+    EEG : dict
+        EEG data structure with ICA
+    flag_autocorr : bool, optional
+        Whether to include autocorrelation features (default False)
+
+    Returns
+    -------
+    features : list
+        List of feature arrays
+    """
     from eegprep import topoplot
     from eegprep import eeg_rpsd
     from eegprep import eeg_autocorr_welch
@@ -87,6 +104,7 @@ def ICL_feature_extractor(EEG, flag_autocorr=False):
     return features
 
 def test_ICL_feature_extractor():
+    """Test the ICL_feature_extractor function."""
     flag_autocorr = True
     EEG = EEG2
     EEG['ref'] = 'averef'

@@ -1,3 +1,5 @@
+"""EEG data re-referencing functions."""
+
 from copy import deepcopy
 import logging
 
@@ -6,6 +8,21 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 def pop_reref(EEG, ref):
+    """
+    Re-reference EEG data to average reference.
+
+    Parameters
+    ----------
+    EEG : dict
+        EEG data structure
+    ref : list or None
+        Reference channels (must be empty or None for average reference)
+
+    Returns
+    -------
+    EEG : dict
+        Re-referenced EEG data structure
+    """
     EEG = deepcopy(EEG)
 
     # check if ref is not empty and not none

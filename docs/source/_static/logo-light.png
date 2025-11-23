@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- Background -->
+  <rect width="200" height="200" fill="#ffffff"/>
+  
+  <!-- Brain wave pattern -->
+  <path d="M 20 100 Q 40 80, 60 100 T 100 100 T 140 100 T 180 100" 
+        stroke="#1f77b4" stroke-width="3" fill="none" stroke-linecap="round"/>
+  
+  <!-- EEG electrodes -->
+  <circle cx="40" cy="100" r="4" fill="#1f77b4"/>
+  <circle cx="80" cy="100" r="4" fill="#1f77b4"/>
+  <circle cx="120" cy="100" r="4" fill="#1f77b4"/>
+  <circle cx="160" cy="100" r="4" fill="#1f77b4"/>
+  
+  <!-- Text -->
+  <text x="100" y="160" font-family="Arial, sans-serif" font-size="24" font-weight="bold" 
+        text-anchor="middle" fill="#1f77b4">eegprep</text>
+</svg>

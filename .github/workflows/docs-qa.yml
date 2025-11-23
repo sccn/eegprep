@@ -1,0 +1,292 @@
+name: Documentation Quality Assurance
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'docs/**'
+      - 'src/**'
+      - '.github/workflows/docs-qa.yml'
+      - 'requirements-docs.txt'
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'docs/**'
+      - 'src/**'
+      - '.github/workflows/docs-qa.yml'
+      - 'requirements-docs.txt'
+  schedule:
+    # Run weekly on Monday at 9 AM UTC
+    - cron: '0 9 * * 1'
+
+jobs:
+  docstring-validation:
+    name: Validate Docstrings
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pydocstyle flake8 flake8-docstrings
+      
+      - name: Check docstring style
+        run: |
+          pydocstyle src/eegprep --convention=google --match='(?!test_).*\.py' || true
+      
+      - name: Check docstring coverage
+        run: |
+          pip install interrogate
+          interrogate -vv src/eegprep -I -M -p -n -i || true
+
+  link-checking:
+    name: Check Documentation Links
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-docs.txt
+      
+      - name: Build documentation
+        run: |
+          cd docs
+          make clean
+          make html
+      
+      - name: Check internal links
+        run: |
+          cd docs
+          make linkcheck || true
+      
+      - name: Check external links
+        run: |
+          pip install linkchecker
+          linkchecker --check-extern docs/_build/html/ || true
+
+  spell-checking:
+    name: Check Spelling
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Install spell checker
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyspelling aspell aspell-en
+      
+      - name: Create spell check configuration
+        run: |
+          cat > .spellcheckrc << 'EOF'
+          matrix:
+            - name: markdown
+              sources:
+                - 'docs/**/*.md'
+                - 'docs/**/*.rst'
+              aspell:
+                lang: en
+              dictionary:
+                wordlists:
+                  - .spelling
+          EOF
+      
+      - name: Create custom dictionary
+        run: |
+          cat > .spelling << 'EOF'
+          eegprep
+          EEG
+          ICA
+          ASR
+          BIDS
+          MNE
+          NeuroTechX
+          ReadTheDocs
+          GitHub
+          Sphinx
+          PyPI
+          Butterworth
+          Welch
+          PICARD
+          ICLabel
+          RANSAC
+          PSD
+          FFT
+          FFTW
+          ndarray
+          scipy
+          numpy
+          matplotlib
+          preprocessing
+          artifact
+          decomposition
+          EOF
+      
+      - name: Run spell checker
+        run: |
+          pyspelling -c .spellcheckrc || true
+
+  build-verification:
+    name: Verify Documentation Build
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-docs.txt
+      
+      - name: Build documentation
+        run: |
+          cd docs
+          make clean
+          make html
+      
+      - name: Check for build warnings
+        run: |
+          cd docs
+          make html 2>&1 | tee build.log
+          if grep -i "warning" build.log; then
+            echo "Build warnings detected"
+            exit 1
+          fi
+      
+      - name: Validate HTML
+        run: |
+          pip install html5validator
+          html5validator docs/_build/html/ || true
+      
+      - name: Upload build artifacts
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: documentation-build
+          path: docs/_build/html/
+          retention-days: 7
+
+  example-validation:
+    name: Validate Code Examples
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-docs.txt
+          pip install -e .
+      
+      - name: Check example syntax
+        run: |
+          python -m py_compile docs/source/examples/*.py || true
+      
+      - name: Validate doctest examples
+        run: |
+          cd docs
+          python -m doctest -v ../src/eegprep/*.py || true
+
+  code-quality:
+    name: Check Code Quality
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 pylint black isort
+      
+      - name: Check code formatting with Black
+        run: |
+          black --check src/eegprep docs/source/examples || true
+      
+      - name: Check import sorting with isort
+        run: |
+          isort --check-only src/eegprep docs/source/examples || true
+      
+      - name: Lint with Flake8
+        run: |
+          flake8 src/eegprep --count --select=E9,F63,F7,F82 --show-source --statistics || true
+      
+      - name: Lint with Pylint
+        run: |
+          pylint src/eegprep --disable=all --enable=E,F || true
+
+  summary:
+    name: QA Summary
+    runs-on: ubuntu-latest
+    needs: [docstring-validation, link-checking, spell-checking, build-verification, example-validation, code-quality]
+    if: always()
+    
+    steps:
+      - name: Check job statuses
+        run: |
+          echo "Documentation QA Summary"
+          echo "========================"
+          echo "Docstring Validation: ${{ needs.docstring-validation.result }}"
+          echo "Link Checking: ${{ needs.link-checking.result }}"
+          echo "Spell Checking: ${{ needs.spell-checking.result }}"
+          echo "Build Verification: ${{ needs.build-verification.result }}"
+          echo "Example Validation: ${{ needs.example-validation.result }}"
+          echo "Code Quality: ${{ needs.code-quality.result }}"
+      
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "⚠️ Documentation QA checks failed"
+          echo "Please review the logs above for details"
+          exit 1
+      
+      - name: Notify on success
+        if: success()
+        run: |
+          echo "✅ All documentation QA checks passed"

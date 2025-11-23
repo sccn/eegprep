@@ -1,0 +1,2458 @@
+{
+ "EEG_cleaned": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "dict"
+  }
+ ],
+ "EEG_dict": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "dict"
+  }
+ ],
+ "EEG_interp_dict": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "dict"
+  }
+ ],
+ "EEG_interp_result": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "dict"
+  }
+ ],
+ "EpochsArray": [
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "mne.epochs",
+   "module_short": "mne",
+   "name": "EpochsArray"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "EpochsArray"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "mne.epochs",
+   "module_short": "mne",
+   "name": "BaseEpochs"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "BaseEpochs"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "mne._fiff.proj",
+   "module_short": "mne._fiff.proj",
+   "name": "ProjMixin"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "mne._fiff",
+   "module_short": "mne._fiff",
+   "name": "ProjMixin"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "ProjMixin"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "mne._fiff.meas_info",
+   "module_short": "mne._fiff.meas_info",
+   "name": "ContainsMixin"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "mne._fiff",
+   "module_short": "mne._fiff",
+   "name": "ContainsMixin"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "ContainsMixin"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "mne.channels.channels",
+   "module_short": "mne.channels.channels",
+   "name": "UpdateChannelsMixin"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "mne.channels",
+   "module_short": "mne.channels",
+   "name": "UpdateChannelsMixin"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "UpdateChannelsMixin"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "mne.channels.channels",
+   "module_short": "mne.channels.channels",
+   "name": "ReferenceMixin"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "mne.channels",
+   "module_short": "mne.channels",
+   "name": "ReferenceMixin"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "ReferenceMixin"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "mne._fiff.meas_info",
+   "module_short": "mne._fiff.meas_info",
+   "name": "SetChannelsMixin"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "mne._fiff",
+   "module_short": "mne._fiff",
+   "name": "SetChannelsMixin"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "SetChannelsMixin"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "mne.channels.channels",
+   "module_short": "mne.channels.channels",
+   "name": "InterpolationMixin"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "mne.channels",
+   "module_short": "mne.channels",
+   "name": "InterpolationMixin"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "InterpolationMixin"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "mne.filter",
+   "module_short": "mne.filter",
+   "name": "FilterMixin"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "FilterMixin"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "mne.utils.mixin",
+   "module_short": "mne.utils",
+   "name": "ExtendedTimeMixin"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "mne.utils",
+   "module_short": "mne.utils",
+   "name": "ExtendedTimeMixin"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "ExtendedTimeMixin"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "mne.utils.mixin",
+   "module_short": "mne.utils",
+   "name": "SizeMixin"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "mne.utils",
+   "module_short": "mne.utils",
+   "name": "SizeMixin"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "SizeMixin"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "mne.utils.mixin",
+   "module_short": "mne.utils",
+   "name": "GetEpochsMixin"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "mne.utils",
+   "module_short": "mne.utils",
+   "name": "GetEpochsMixin"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "GetEpochsMixin"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "mne.annotations",
+   "module_short": "mne.annotations",
+   "name": "EpochAnnotationsMixin"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "EpochAnnotationsMixin"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "mne.time_frequency.spectrum",
+   "module_short": "mne.time_frequency.spectrum",
+   "name": "SpectrumMixin"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "mne.time_frequency",
+   "module_short": "mne.time_frequency",
+   "name": "SpectrumMixin"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "SpectrumMixin"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "mne._fiff.meas_info",
+   "module_short": "mne._fiff.meas_info",
+   "name": "MontageMixin"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "mne._fiff",
+   "module_short": "mne._fiff",
+   "name": "MontageMixin"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "MontageMixin"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "mne.utils.mixin",
+   "module_short": "mne.utils",
+   "name": "TimeMixin"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "mne.utils",
+   "module_short": "mne.utils",
+   "name": "TimeMixin"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "TimeMixin"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "EpochsArray"
+  }
+ ],
+ "alpha_freq": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "float"
+  }
+ ],
+ "ax": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib.axes._axes",
+   "module_short": "matplotlib.axes",
+   "name": "Axes"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib.axes",
+   "module_short": "matplotlib.axes",
+   "name": "Axes"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib",
+   "module_short": "matplotlib",
+   "name": "Axes"
+  }
+ ],
+ "ax.grid": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib.axes._axes",
+   "module_short": "matplotlib.axes",
+   "name": "Axes.grid"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib.axes",
+   "module_short": "matplotlib.axes",
+   "name": "Axes.grid"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib",
+   "module_short": "matplotlib",
+   "name": "Axes.grid"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib.axes._base",
+   "module_short": "matplotlib.axes._base",
+   "name": "_AxesBase.grid"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib.axes",
+   "module_short": "matplotlib.axes",
+   "name": "_AxesBase.grid"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib",
+   "module_short": "matplotlib",
+   "name": "_AxesBase.grid"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib.artist",
+   "module_short": "matplotlib.artist",
+   "name": "Artist.grid"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib",
+   "module_short": "matplotlib",
+   "name": "Artist.grid"
+  }
+ ],
+ "ax.legend": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib.axes._axes",
+   "module_short": "matplotlib.axes",
+   "name": "Axes.legend"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib.axes",
+   "module_short": "matplotlib.axes",
+   "name": "Axes.legend"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib",
+   "module_short": "matplotlib",
+   "name": "Axes.legend"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib.axes._base",
+   "module_short": "matplotlib.axes._base",
+   "name": "_AxesBase.legend"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib.axes",
+   "module_short": "matplotlib.axes",
+   "name": "_AxesBase.legend"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib",
+   "module_short": "matplotlib",
+   "name": "_AxesBase.legend"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib.artist",
+   "module_short": "matplotlib.artist",
+   "name": "Artist.legend"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib",
+   "module_short": "matplotlib",
+   "name": "Artist.legend"
+  }
+ ],
+ "ax.plot": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib.axes._axes",
+   "module_short": "matplotlib.axes",
+   "name": "Axes.plot"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib.axes",
+   "module_short": "matplotlib.axes",
+   "name": "Axes.plot"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib",
+   "module_short": "matplotlib",
+   "name": "Axes.plot"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib.axes._base",
+   "module_short": "matplotlib.axes._base",
+   "name": "_AxesBase.plot"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib.axes",
+   "module_short": "matplotlib.axes",
+   "name": "_AxesBase.plot"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib",
+   "module_short": "matplotlib",
+   "name": "_AxesBase.plot"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib.artist",
+   "module_short": "matplotlib.artist",
+   "name": "Artist.plot"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib",
+   "module_short": "matplotlib",
+   "name": "Artist.plot"
+  }
+ ],
+ "ax.set_title": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib.axes._axes",
+   "module_short": "matplotlib.axes",
+   "name": "Axes.set_title"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib.axes",
+   "module_short": "matplotlib.axes",
+   "name": "Axes.set_title"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib",
+   "module_short": "matplotlib",
+   "name": "Axes.set_title"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib.axes._base",
+   "module_short": "matplotlib.axes._base",
+   "name": "_AxesBase.set_title"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib.axes",
+   "module_short": "matplotlib.axes",
+   "name": "_AxesBase.set_title"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib",
+   "module_short": "matplotlib",
+   "name": "_AxesBase.set_title"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib.artist",
+   "module_short": "matplotlib.artist",
+   "name": "Artist.set_title"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib",
+   "module_short": "matplotlib",
+   "name": "Artist.set_title"
+  }
+ ],
+ "ax.set_xlabel": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib.axes._axes",
+   "module_short": "matplotlib.axes",
+   "name": "Axes.set_xlabel"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib.axes",
+   "module_short": "matplotlib.axes",
+   "name": "Axes.set_xlabel"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib",
+   "module_short": "matplotlib",
+   "name": "Axes.set_xlabel"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib.axes._base",
+   "module_short": "matplotlib.axes._base",
+   "name": "_AxesBase.set_xlabel"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib.axes",
+   "module_short": "matplotlib.axes",
+   "name": "_AxesBase.set_xlabel"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib",
+   "module_short": "matplotlib",
+   "name": "_AxesBase.set_xlabel"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib.artist",
+   "module_short": "matplotlib.artist",
+   "name": "Artist.set_xlabel"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib",
+   "module_short": "matplotlib",
+   "name": "Artist.set_xlabel"
+  }
+ ],
+ "ax.set_xlim": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib.axes._axes",
+   "module_short": "matplotlib.axes",
+   "name": "Axes.set_xlim"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib.axes",
+   "module_short": "matplotlib.axes",
+   "name": "Axes.set_xlim"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib",
+   "module_short": "matplotlib",
+   "name": "Axes.set_xlim"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib.axes._base",
+   "module_short": "matplotlib.axes._base",
+   "name": "_AxesBase.set_xlim"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib.axes",
+   "module_short": "matplotlib.axes",
+   "name": "_AxesBase.set_xlim"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib",
+   "module_short": "matplotlib",
+   "name": "_AxesBase.set_xlim"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib.artist",
+   "module_short": "matplotlib.artist",
+   "name": "Artist.set_xlim"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib",
+   "module_short": "matplotlib",
+   "name": "Artist.set_xlim"
+  }
+ ],
+ "ax.set_ylabel": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib.axes._axes",
+   "module_short": "matplotlib.axes",
+   "name": "Axes.set_ylabel"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib.axes",
+   "module_short": "matplotlib.axes",
+   "name": "Axes.set_ylabel"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib",
+   "module_short": "matplotlib",
+   "name": "Axes.set_ylabel"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib.axes._base",
+   "module_short": "matplotlib.axes._base",
+   "name": "_AxesBase.set_ylabel"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib.axes",
+   "module_short": "matplotlib.axes",
+   "name": "_AxesBase.set_ylabel"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib",
+   "module_short": "matplotlib",
+   "name": "_AxesBase.set_ylabel"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib.artist",
+   "module_short": "matplotlib.artist",
+   "name": "Artist.set_ylabel"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib",
+   "module_short": "matplotlib",
+   "name": "Artist.set_ylabel"
+  }
+ ],
+ "axes": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "ndarray"
+  }
+ ],
+ "bad_ch_names": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "list"
+  }
+ ],
+ "bad_channels": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "ndarray"
+  }
+ ],
+ "ch_idx": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "int"
+  }
+ ],
+ "ch_name": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "str"
+  }
+ ],
+ "ch_names": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "list"
+  }
+ ],
+ "chanlocs": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "list"
+  }
+ ],
+ "chanlocs.append": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "builtin_function_or_method"
+  }
+ ],
+ "channels_to_plot": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "list"
+  }
+ ],
+ "cleaned_data": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "ndarray"
+  }
+ ],
+ "cleaned_data.shape": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "tuple"
+  }
+ ],
+ "cleaned_mean": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "float32"
+  }
+ ],
+ "cleaned_std": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "float32"
+  }
+ ],
+ "cleaned_var": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "float32"
+  }
+ ],
+ "color": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "str"
+  }
+ ],
+ "create_info": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "function"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "create_info"
+  }
+ ],
+ "data": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "ndarray"
+  }
+ ],
+ "data_epochs": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "ndarray"
+  }
+ ],
+ "duration": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "float"
+  }
+ ],
+ "eegprep.clean_artifacts": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "function"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "eegprep",
+   "module_short": "eegprep",
+   "name": "clean_artifacts"
+  }
+ ],
+ "eegprep.eeg_interp": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "function"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "eegprep",
+   "module_short": "eegprep",
+   "name": "eeg_interp"
+  }
+ ],
+ "epochs": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.epochs",
+   "module_short": "mne",
+   "name": "EpochsArray"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "EpochsArray"
+  }
+ ],
+ "epochs.ch_names": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.epochs",
+   "module_short": "mne",
+   "name": "EpochsArray.ch_names"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "EpochsArray.ch_names"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.epochs",
+   "module_short": "mne",
+   "name": "BaseEpochs.ch_names"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "BaseEpochs.ch_names"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne._fiff.proj",
+   "module_short": "mne._fiff.proj",
+   "name": "ProjMixin.ch_names"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne._fiff",
+   "module_short": "mne._fiff",
+   "name": "ProjMixin.ch_names"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "ProjMixin.ch_names"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne._fiff.meas_info",
+   "module_short": "mne._fiff.meas_info",
+   "name": "ContainsMixin.ch_names"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne._fiff",
+   "module_short": "mne._fiff",
+   "name": "ContainsMixin.ch_names"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "ContainsMixin.ch_names"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.channels.channels",
+   "module_short": "mne.channels.channels",
+   "name": "UpdateChannelsMixin.ch_names"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.channels",
+   "module_short": "mne.channels",
+   "name": "UpdateChannelsMixin.ch_names"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "UpdateChannelsMixin.ch_names"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.channels.channels",
+   "module_short": "mne.channels.channels",
+   "name": "ReferenceMixin.ch_names"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.channels",
+   "module_short": "mne.channels",
+   "name": "ReferenceMixin.ch_names"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "ReferenceMixin.ch_names"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne._fiff.meas_info",
+   "module_short": "mne._fiff.meas_info",
+   "name": "SetChannelsMixin.ch_names"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne._fiff",
+   "module_short": "mne._fiff",
+   "name": "SetChannelsMixin.ch_names"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "SetChannelsMixin.ch_names"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.channels.channels",
+   "module_short": "mne.channels.channels",
+   "name": "InterpolationMixin.ch_names"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.channels",
+   "module_short": "mne.channels",
+   "name": "InterpolationMixin.ch_names"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "InterpolationMixin.ch_names"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.filter",
+   "module_short": "mne.filter",
+   "name": "FilterMixin.ch_names"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "FilterMixin.ch_names"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.utils.mixin",
+   "module_short": "mne.utils.mixin",
+   "name": "ExtendedTimeMixin.ch_names"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.utils",
+   "module_short": "mne.utils",
+   "name": "ExtendedTimeMixin.ch_names"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "ExtendedTimeMixin.ch_names"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.utils.mixin",
+   "module_short": "mne.utils.mixin",
+   "name": "SizeMixin.ch_names"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.utils",
+   "module_short": "mne.utils",
+   "name": "SizeMixin.ch_names"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "SizeMixin.ch_names"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.utils.mixin",
+   "module_short": "mne.utils.mixin",
+   "name": "GetEpochsMixin.ch_names"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.utils",
+   "module_short": "mne.utils",
+   "name": "GetEpochsMixin.ch_names"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "GetEpochsMixin.ch_names"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.annotations",
+   "module_short": "mne.annotations",
+   "name": "EpochAnnotationsMixin.ch_names"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "EpochAnnotationsMixin.ch_names"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.time_frequency.spectrum",
+   "module_short": "mne.time_frequency.spectrum",
+   "name": "SpectrumMixin.ch_names"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.time_frequency",
+   "module_short": "mne.time_frequency",
+   "name": "SpectrumMixin.ch_names"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "SpectrumMixin.ch_names"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne._fiff.meas_info",
+   "module_short": "mne._fiff.meas_info",
+   "name": "MontageMixin.ch_names"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne._fiff",
+   "module_short": "mne._fiff",
+   "name": "MontageMixin.ch_names"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "MontageMixin.ch_names"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.utils.mixin",
+   "module_short": "mne.utils.mixin",
+   "name": "TimeMixin.ch_names"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.utils",
+   "module_short": "mne.utils",
+   "name": "TimeMixin.ch_names"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "TimeMixin.ch_names"
+  }
+ ],
+ "epochs.get_data": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.epochs",
+   "module_short": "mne",
+   "name": "EpochsArray.get_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "EpochsArray.get_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.epochs",
+   "module_short": "mne",
+   "name": "BaseEpochs.get_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "BaseEpochs.get_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne._fiff.proj",
+   "module_short": "mne._fiff.proj",
+   "name": "ProjMixin.get_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne._fiff",
+   "module_short": "mne._fiff",
+   "name": "ProjMixin.get_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "ProjMixin.get_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne._fiff.meas_info",
+   "module_short": "mne._fiff.meas_info",
+   "name": "ContainsMixin.get_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne._fiff",
+   "module_short": "mne._fiff",
+   "name": "ContainsMixin.get_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "ContainsMixin.get_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.channels.channels",
+   "module_short": "mne.channels.channels",
+   "name": "UpdateChannelsMixin.get_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.channels",
+   "module_short": "mne.channels",
+   "name": "UpdateChannelsMixin.get_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "UpdateChannelsMixin.get_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.channels.channels",
+   "module_short": "mne.channels.channels",
+   "name": "ReferenceMixin.get_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.channels",
+   "module_short": "mne.channels",
+   "name": "ReferenceMixin.get_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "ReferenceMixin.get_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne._fiff.meas_info",
+   "module_short": "mne._fiff.meas_info",
+   "name": "SetChannelsMixin.get_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne._fiff",
+   "module_short": "mne._fiff",
+   "name": "SetChannelsMixin.get_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "SetChannelsMixin.get_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.channels.channels",
+   "module_short": "mne.channels.channels",
+   "name": "InterpolationMixin.get_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.channels",
+   "module_short": "mne.channels",
+   "name": "InterpolationMixin.get_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "InterpolationMixin.get_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.filter",
+   "module_short": "mne.filter",
+   "name": "FilterMixin.get_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "FilterMixin.get_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.utils.mixin",
+   "module_short": "mne.utils.mixin",
+   "name": "ExtendedTimeMixin.get_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.utils",
+   "module_short": "mne.utils",
+   "name": "ExtendedTimeMixin.get_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "ExtendedTimeMixin.get_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.utils.mixin",
+   "module_short": "mne.utils.mixin",
+   "name": "SizeMixin.get_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.utils",
+   "module_short": "mne.utils",
+   "name": "SizeMixin.get_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "SizeMixin.get_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.utils.mixin",
+   "module_short": "mne.utils.mixin",
+   "name": "GetEpochsMixin.get_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.utils",
+   "module_short": "mne.utils",
+   "name": "GetEpochsMixin.get_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "GetEpochsMixin.get_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.annotations",
+   "module_short": "mne.annotations",
+   "name": "EpochAnnotationsMixin.get_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "EpochAnnotationsMixin.get_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.time_frequency.spectrum",
+   "module_short": "mne.time_frequency.spectrum",
+   "name": "SpectrumMixin.get_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.time_frequency",
+   "module_short": "mne.time_frequency",
+   "name": "SpectrumMixin.get_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "SpectrumMixin.get_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne._fiff.meas_info",
+   "module_short": "mne._fiff.meas_info",
+   "name": "MontageMixin.get_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne._fiff",
+   "module_short": "mne._fiff",
+   "name": "MontageMixin.get_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "MontageMixin.get_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.utils.mixin",
+   "module_short": "mne.utils.mixin",
+   "name": "TimeMixin.get_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.utils",
+   "module_short": "mne.utils",
+   "name": "TimeMixin.get_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "TimeMixin.get_data"
+  }
+ ],
+ "epochs.info": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne._fiff.meas_info",
+   "module_short": "mne._fiff.meas_info",
+   "name": "Info"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne._fiff",
+   "module_short": "mne._fiff",
+   "name": "Info"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "Info"
+  }
+ ],
+ "fig": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib.figure",
+   "module_short": "matplotlib.figure",
+   "name": "Figure"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib",
+   "module_short": "matplotlib",
+   "name": "Figure"
+  }
+ ],
+ "i": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "int"
+  }
+ ],
+ "info": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne._fiff.meas_info",
+   "module_short": "mne._fiff.meas_info",
+   "name": "Info"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne._fiff",
+   "module_short": "mne._fiff",
+   "name": "Info"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "Info"
+  }
+ ],
+ "info.set_montage": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne._fiff.meas_info",
+   "module_short": "mne._fiff.meas_info",
+   "name": "Info.set_montage"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne._fiff",
+   "module_short": "mne._fiff",
+   "name": "Info.set_montage"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "Info.set_montage"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne._fiff.meas_info",
+   "module_short": "mne._fiff.meas_info",
+   "name": "ValidatedDict.set_montage"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne._fiff",
+   "module_short": "mne._fiff",
+   "name": "ValidatedDict.set_montage"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "ValidatedDict.set_montage"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne._fiff.meas_info",
+   "module_short": "mne._fiff.meas_info",
+   "name": "SetChannelsMixin.set_montage"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne._fiff",
+   "module_short": "mne._fiff",
+   "name": "SetChannelsMixin.set_montage"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "SetChannelsMixin.set_montage"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne._fiff.meas_info",
+   "module_short": "mne._fiff.meas_info",
+   "name": "MontageMixin.set_montage"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne._fiff",
+   "module_short": "mne._fiff",
+   "name": "MontageMixin.set_montage"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "MontageMixin.set_montage"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne._fiff.meas_info",
+   "module_short": "mne._fiff.meas_info",
+   "name": "ContainsMixin.set_montage"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne._fiff",
+   "module_short": "mne._fiff",
+   "name": "ContainsMixin.set_montage"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "ContainsMixin.set_montage"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "dict.set_montage"
+  }
+ ],
+ "interp_mean": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "float32"
+  }
+ ],
+ "interp_std": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "float32"
+  }
+ ],
+ "interp_var": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "float32"
+  }
+ ],
+ "interpolated_data": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "ndarray"
+  }
+ ],
+ "interpolated_data.shape": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "tuple"
+  }
+ ],
+ "make_standard_montage": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "function"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.channels",
+   "module_short": "mne.channels",
+   "name": "make_standard_montage"
+  }
+ ],
+ "mean_var": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "float32"
+  }
+ ],
+ "montage": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.channels.montage",
+   "module_short": "mne.channels",
+   "name": "DigMontage"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.channels",
+   "module_short": "mne.channels",
+   "name": "DigMontage"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "DigMontage"
+  }
+ ],
+ "montage.ch_names": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "list"
+  }
+ ],
+ "montage.get_pos2d": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.channels.montage",
+   "module_short": "mne.channels",
+   "name": "DigMontage"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne.channels",
+   "module_short": "mne.channels",
+   "name": "DigMontage"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "mne",
+   "module_short": "mne",
+   "name": "DigMontage"
+  }
+ ],
+ "n_channels": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "int"
+  }
+ ],
+ "n_samples": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "int"
+  }
+ ],
+ "np.allclose": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "_ArrayFunctionDispatcher"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "allclose"
+  }
+ ],
+ "np.arange": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "builtin_function_or_method"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "arange"
+  }
+ ],
+ "np.array": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "builtin_function_or_method"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "array"
+  }
+ ],
+ "np.cos": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "ufunc"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "cos"
+  }
+ ],
+ "np.max": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "_ArrayFunctionDispatcher"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "max"
+  }
+ ],
+ "np.mean": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "_ArrayFunctionDispatcher"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "mean"
+  }
+ ],
+ "np.min": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "_ArrayFunctionDispatcher"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "min"
+  }
+ ],
+ "np.newaxis": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "NoneType"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "newaxis"
+  }
+ ],
+ "np.pi": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "float"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "pi"
+  }
+ ],
+ "np.random.randn": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "module.randn"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy.random",
+   "module_short": "numpy.random",
+   "name": "randn"
+  }
+ ],
+ "np.random.seed": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy.random",
+   "module_short": "numpy.random",
+   "name": "seed"
+  }
+ ],
+ "np.sin": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "ufunc"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "sin"
+  }
+ ],
+ "np.sqrt": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "ufunc"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "sqrt"
+  }
+ ],
+ "np.std": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "_ArrayFunctionDispatcher"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "std"
+  }
+ ],
+ "np.var": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "_ArrayFunctionDispatcher"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "var"
+  }
+ ],
+ "np.where": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "_ArrayFunctionDispatcher"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "where"
+  }
+ ],
+ "np.zeros": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "builtin_function_or_method"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "zeros"
+  }
+ ],
+ "offset": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "int"
+  }
+ ],
+ "original_mean": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "float64"
+  }
+ ],
+ "original_std": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "float64"
+  }
+ ],
+ "original_var": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "float64"
+  }
+ ],
+ "plt.show": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "function"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib.pyplot",
+   "module_short": "matplotlib.pyplot",
+   "name": "show"
+  }
+ ],
+ "plt.subplots": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "function"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib.pyplot",
+   "module_short": "matplotlib.pyplot",
+   "name": "subplots"
+  }
+ ],
+ "plt.tight_layout": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "function"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "matplotlib.pyplot",
+   "module_short": "matplotlib.pyplot",
+   "name": "tight_layout"
+  }
+ ],
+ "pos": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "ndarray"
+  }
+ ],
+ "raw_data": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "ndarray"
+  }
+ ],
+ "raw_data.shape": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "tuple"
+  }
+ ],
+ "result": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "tuple"
+  }
+ ],
+ "sfreq": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "int"
+  }
+ ],
+ "std_var": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "float32"
+  }
+ ],
+ "sys.path.insert": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "builtin_function_or_method"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "sys.path",
+   "module_short": "sys.path",
+   "name": "insert"
+  }
+ ],
+ "t": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "ndarray"
+  }
+ ],
+ "threshold": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "float32"
+  }
+ ],
+ "time_window": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "slice"
+  }
+ ],
+ "time_window.start": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "int"
+  }
+ ],
+ "time_window.stop": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "int"
+  }
+ ],
+ "var_reduction_clean": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "float64"
+  }
+ ],
+ "var_reduction_interp": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "float64"
+  }
+ ],
+ "variances": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "numpy",
+   "module_short": "numpy",
+   "name": "ndarray"
+  }
+ ]
+}

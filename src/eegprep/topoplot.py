@@ -1,3 +1,5 @@
+"""EEG topographic plotting functions."""
+
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.interpolate import griddata
@@ -7,14 +9,20 @@ from scipy.spatial import cKDTree
 def griddata_v4(x, y, v, xq, yq):
     """
     Python version of MATLAB's GDATAV4 interpolation based on David T. Sandwell's biharmonic spline interpolation.
-    
-    Parameters:
-    x, y : 1D arrays of coordinates for known points
-    v : 1D array of values at known points
-    xq, yq : 2D arrays of query points coordinates
-    
-    Returns:
-    vq : 2D array of interpolated values at query points
+
+    Parameters
+    ----------
+    x, y : 1D arrays
+        Coordinates for known points.
+    v : 1D array
+        Values at known points.
+    xq, yq : 2D arrays
+        Query points coordinates.
+
+    Returns
+    -------
+    vq : 2D array
+        Interpolated values at query points.
     """
     # Combine x and y into complex numbers for convenience
     xy = x + 1j * y
@@ -45,6 +53,32 @@ def griddata_v4(x, y, v, xq, yq):
     return vq
 
 def topoplot(datavector, chan_locs, **kwargs):
+    """
+    Plot a 2D topographic map of EEG data.
+
+    Parameters
+    ----------
+    datavector : array-like
+        Values to plot at each channel location.
+    chan_locs : list of dict
+        Channel location structures with 'labels', 'theta', and 'radius' fields.
+    **kwargs : dict
+        Additional keyword arguments for customization:
+        
+        - noplot : str or tuple, default 'off'
+        - plotgrid : str, default 'off'
+        - plotchans : list, default []
+        - ELECTRODES : str, default 'on'
+        - intrad : float, default nan
+        - plotrad : float, default nan
+        - headrad : float, default 0.5
+        - method : str, default 'rbf'
+
+    Returns
+    -------
+    handle : matplotlib.figure.Figure or None
+        Figure handle if plotted, None otherwise.
+    """
     # Set default values
     noplot = kwargs.get('noplot', 'off')
     plotgrid = kwargs.get('plotgrid', 'off')

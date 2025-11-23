@@ -1,3 +1,5 @@
+"""Helper script for re-referencing EEG data."""
+
 from .ICL_feature_extractor import ICL_feature_extractor
 from .pop_loadset import pop_loadset
 from .pop_saveset import pop_saveset

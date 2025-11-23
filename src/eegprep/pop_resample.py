@@ -23,7 +23,6 @@ def pop_resample(EEG, freq, engine=None):
     Resample EEG data to a new sampling rate.
     
     Parameters:
-    -----------
     EEG : dict
         EEGLAB EEG structure
     freq : float
@@ -36,7 +35,6 @@ def pop_resample(EEG, freq, engine=None):
         - 'octave': Use Octave engine
 
     Returns:
-    --------
     EEG : dict
         EEGLAB EEG structure with resampled data
     """

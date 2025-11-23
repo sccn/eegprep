@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Background -->
+  <rect width="64" height="64" fill="#1f77b4" rx="8"/>
+  
+  <!-- Brain wave pattern -->
+  <path d="M 8 32 Q 16 24, 24 32 T 40 32 T 56 32" 
+        stroke="#ffffff" stroke-width="2" fill="none" stroke-linecap="round"/>
+  
+  <!-- EEG electrodes -->
+  <circle cx="16" cy="32" r="2" fill="#ffffff"/>
+  <circle cx="32" cy="32" r="2" fill="#ffffff"/>
+  <circle cx="48" cy="32" r="2" fill="#ffffff"/>
+</svg>

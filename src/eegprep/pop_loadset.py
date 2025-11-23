@@ -1,3 +1,5 @@
+"""EEGLAB dataset loading utilities."""
+
 import scipy.io
 import numpy as np
 import os
@@ -16,9 +18,27 @@ default_empty = np.array([])
 #default_empty = None
 
 def loadset(file_path):
+    """Load EEGLAB dataset from file (alias for pop_loadset)."""
     return pop_loadset(file_path)
 
 def pop_loadset(file_path=None):
+    """
+    Load EEGLAB dataset from .set or .mat file.
+
+    Parameters
+    ----------
+    file_path : str
+        Path to the EEGLAB .set file.
+
+    Returns
+    -------
+    dict
+        EEGLAB dataset dictionary.
+    """
+    from eegprep.eeg_checkset import eeg_checkset
+
+    if file_path is None:
+        raise ValueError("file_path argument is required")
     from eegprep.eeg_checkset import eeg_checkset
 
     if file_path is None:
@@ -99,6 +119,7 @@ def pop_loadset(file_path=None):
     return EEG
 
 def test_pop_loadset():
+    """Test the pop_loadset function with a sample file."""
     file_path = './tmp2.set'
     file_path = '/System/Volumes/Data/data/data/STUDIES/STERN/S04/Memorize.set' #'./eeglab_data_with_ica_tmp.set'
     EEG = pop_loadset(file_path)

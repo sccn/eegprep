@@ -1,3 +1,5 @@
+"""EEG channel decoding functions."""
+
 def eeg_decodechan(
     chanlocs,
     chanstr,
@@ -14,14 +16,24 @@ def eeg_decodechan(
       - Numeric 0-based indices as input (returned directly after validation).
       - Empty chanlocs with purely numeric input (indices passthrough).
 
-    Returns:
-      (chaninds, chanlist_out)
-        chaninds: sorted list of 0-based indices
-        chanlist_out: list of labels/types from chanlocs for those indices
-                      or the indices themselves if chanlocs is empty
-    """
+    Parameters
+    ----------
+    chanlocs : list of dict or dict
+        Channel locations or {'chanlocs': [...]}
+    chanstr : iterable
+        Channel identifiers (strings or ints)
+    field : str, optional
+        Field to match on (default 'labels')
+    ignoremissing : bool, optional
+        Ignore missing channels (default False)
 
-    # Unwrap {"chanlocs": [...]}
+    Returns
+    -------
+    chaninds : list
+        Sorted list of 0-based indices
+    chanlist_out : list
+        List of labels/types from chanlocs for those indices or indices if empty
+    """
     if isinstance(chanlocs, dict) and "chanlocs" in chanlocs:
         chanlocs = chanlocs["chanlocs"]
 

@@ -1,0 +1,467 @@
+/* Custom CSS for eegprep documentation */
+
+/* ============================================================================
+   Color Scheme and Theme Customization
+   ============================================================================ */
+
+:root {
+  /* Primary colors */
+  --primary-color: #0066cc;
+  --primary-dark: #0052a3;
+  --primary-light: #3385d6;
+  
+  /* Secondary colors */
+  --secondary-color: #6c757d;
+  --secondary-light: #adb5bd;
+  
+  /* Accent colors */
+  --accent-color: #ff6b6b;
+  --accent-light: #ff8787;
+  
+  /* Success, warning, error colors */
+  --success-color: #28a745;
+  --warning-color: #ffc107;
+  --error-color: #dc3545;
+  
+  /* Neutral colors */
+  --text-dark: #212529;
+  --text-light: #6c757d;
+  --bg-light: #f8f9fa;
+  --bg-white: #ffffff;
+  --border-color: #dee2e6;
+}
+
+/* Dark mode color scheme */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --text-dark: #e9ecef;
+    --text-light: #adb5bd;
+    --bg-light: #343a40;
+    --bg-white: #212529;
+    --border-color: #495057;
+  }
+}
+
+/* ============================================================================
+   Font Customization
+   ============================================================================ */
+
+/* Import Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--text-dark);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-weight: 600;
+  line-height: 1.3;
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+}
+
+h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--primary-dark);
+}
+
+h2 {
+  font-size: 2rem;
+  color: var(--primary-dark);
+  border-bottom: 2px solid var(--primary-light);
+  padding-bottom: 0.5rem;
+}
+
+h3 {
+  font-size: 1.5rem;
+  color: var(--primary-color);
+}
+
+h4 {
+  font-size: 1.25rem;
+}
+
+h5 {
+  font-size: 1.1rem;
+}
+
+h6 {
+  font-size: 1rem;
+}
+
+/* ============================================================================
+   Code Block Styling
+   ============================================================================ */
+
+code, pre {
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 0.9em;
+}
+
+pre {
+  background-color: var(--bg-light);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 1rem;
+  overflow-x: auto;
+  line-height: 1.5;
+}
+
+pre code {
+  background-color: transparent;
+  border: none;
+  padding: 0;
+  color: var(--text-dark);
+}
+
+code {
+  background-color: var(--bg-light);
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  padding: 0.2em 0.4em;
+  color: var(--accent-color);
+}
+
+/* Syntax highlighting for code blocks */
+.highlight {
+  background-color: var(--bg-light);
+  border-radius: 6px;
+  padding: 1rem;
+}
+
+.highlight pre {
+  background-color: transparent;
+  border: none;
+  padding: 0;
+}
+
+/* ============================================================================
+   Links and Buttons
+   ============================================================================ */
+
+a {
+  color: var(--primary-color);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  color: var(--primary-dark);
+  text-decoration: underline;
+}
+
+a:visited {
+  color: var(--primary-dark);
+}
+
+button, .btn {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+button:hover, .btn:hover {
+  background-color: var(--primary-dark);
+}
+
+/* ============================================================================
+   Admonitions (Notes, Warnings, etc.)
+   ============================================================================ */
+
+.admonition {
+  border-left: 4px solid var(--border-color);
+  border-radius: 4px;
+  padding: 1rem;
+  margin: 1rem 0;
+  background-color: var(--bg-light);
+}
+
+.admonition.note {
+  border-left-color: var(--primary-color);
+  background-color: rgba(0, 102, 204, 0.05);
+}
+
+.admonition.warning {
+  border-left-color: var(--warning-color);
+  background-color: rgba(255, 193, 7, 0.05);
+}
+
+.admonition.danger, .admonition.error {
+  border-left-color: var(--error-color);
+  background-color: rgba(220, 53, 69, 0.05);
+}
+
+.admonition.tip, .admonition.hint {
+  border-left-color: var(--success-color);
+  background-color: rgba(40, 167, 69, 0.05);
+}
+
+.admonition-title {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+/* ============================================================================
+   Tables
+   ============================================================================ */
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1rem 0;
+}
+
+th {
+  background-color: var(--primary-light);
+  color: white;
+  padding: 0.75rem;
+  text-align: left;
+  font-weight: 600;
+}
+
+td {
+  border: 1px solid var(--border-color);
+  padding: 0.75rem;
+}
+
+tr:nth-child(even) {
+  background-color: var(--bg-light);
+}
+
+tr:hover {
+  background-color: rgba(0, 102, 204, 0.05);
+}
+
+/* ============================================================================
+   Lists
+   ============================================================================ */
+
+ul, ol {
+  margin: 1rem 0;
+  padding-left: 2rem;
+}
+
+li {
+  margin: 0.5rem 0;
+}
+
+/* ============================================================================
+   Responsive Design
+   ============================================================================ */
+
+/* Mobile devices */
+@media (max-width: 768px) {
+  body {
+    font-size: 14px;
+  }
+  
+  h1 {
+    font-size: 2rem;
+  }
+  
+  h2 {
+    font-size: 1.5rem;
+  }
+  
+  h3 {
+    font-size: 1.25rem;
+  }
+  
+  pre {
+    padding: 0.75rem;
+    font-size: 0.85em;
+  }
+  
+  table {
+    font-size: 0.9em;
+  }
+  
+  th, td {
+    padding: 0.5rem;
+  }
+}
+
+/* Tablets */
+@media (max-width: 1024px) {
+  body {
+    font-size: 15px;
+  }
+  
+  h1 {
+    font-size: 2.2rem;
+  }
+  
+  h2 {
+    font-size: 1.75rem;
+  }
+}
+
+/* ============================================================================
+   Dark Mode Support
+   ============================================================================ */
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: var(--bg-white);
+    color: var(--text-dark);
+  }
+  
+  pre {
+    background-color: var(--bg-light);
+    border-color: var(--border-color);
+  }
+  
+  code {
+    background-color: var(--bg-light);
+    border-color: var(--border-color);
+  }
+  
+  .highlight {
+    background-color: var(--bg-light);
+  }
+  
+  .admonition {
+    background-color: var(--bg-light);
+    border-color: var(--border-color);
+  }
+  
+  tr:nth-child(even) {
+    background-color: var(--bg-light);
+  }
+  
+  tr:hover {
+    background-color: rgba(0, 102, 204, 0.1);
+  }
+}
+
+/* ============================================================================
+   Sphinx-specific Styling
+   ============================================================================ */
+
+/* Sidebar styling */
+.sidebar {
+  background-color: var(--bg-light);
+  border-right: 1px solid var(--border-color);
+}
+
+/* Navigation styling */
+.nav-link {
+  color: var(--text-dark);
+  transition: color 0.2s ease;
+}
+
+.nav-link:hover {
+  color: var(--primary-color);
+}
+
+.nav-link.active {
+  color: var(--primary-color);
+  font-weight: 600;
+  border-left: 3px solid var(--primary-color);
+  padding-left: calc(1rem - 3px);
+}
+
+/* Breadcrumb styling */
+.breadcrumb {
+  background-color: var(--bg-light);
+  border-radius: 4px;
+  padding: 0.75rem 1rem;
+  margin: 1rem 0;
+}
+
+.breadcrumb-item {
+  color: var(--text-light);
+}
+
+.breadcrumb-item.active {
+  color: var(--text-dark);
+  font-weight: 600;
+}
+
+/* Search box styling */
+.search-box {
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 0.5rem;
+}
+
+.search-box:focus {
+  border-color: var(--primary-color);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+}
+
+/* ============================================================================
+   Utility Classes
+   ============================================================================ */
+
+.text-muted {
+  color: var(--text-light);
+}
+
+.text-primary {
+  color: var(--primary-color);
+}
+
+.text-success {
+  color: var(--success-color);
+}
+
+.text-warning {
+  color: var(--warning-color);
+}
+
+.text-danger {
+  color: var(--error-color);
+}
+
+.bg-light {
+  background-color: var(--bg-light);
+}
+
+.border {
+  border: 1px solid var(--border-color);
+}
+
+.rounded {
+  border-radius: 4px;
+}
+
+.shadow {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* ============================================================================
+   Print Styles
+   ============================================================================ */
+
+@media print {
+  body {
+    background-color: white;
+    color: black;
+  }
+  
+  a {
+    color: black;
+    text-decoration: underline;
+  }
+  
+  pre {
+    background-color: #f5f5f5;
+    border: 1px solid #ddd;
+  }
+  
+  .sidebar, .navbar {
+    display: none;
+  }
+}

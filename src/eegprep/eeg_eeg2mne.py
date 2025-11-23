@@ -1,3 +1,5 @@
+"""EEG to MNE conversion functions."""
+
 from .eeg_autocorr import eeg_autocorr
 from .pop_loadset import pop_loadset
 import mne
@@ -8,7 +10,19 @@ from .pop_saveset import pop_saveset # in development
 
 # write a funtion that converts a MNE raw object to an EEGLAB set file
 def eeg_eeg2mne(EEG):
-    
+    """
+    Convert EEG data structure to MNE Raw object.
+
+    Parameters
+    ----------
+    EEG : dict
+        EEG data structure
+
+    Returns
+    -------
+    raw : mne.io.Raw
+        MNE Raw object
+    """
     # Generate a temporary file name
     with tempfile.NamedTemporaryFile(delete=False) as temp_file:
         temp_file_path = temp_file.name    
@@ -28,6 +42,7 @@ def eeg_eeg2mne(EEG):
     return raw
 
 def test_eeg_eeg2mne():
+    """Test the eeg_eeg2mne function."""
     eeglab_file_path = './eeglab_data_with_ica_tmp.set'
     eeglab_file_path = '/System/Volumes/Data/data/matlab/eeglab/sample_data/eeglab_data_epochs_ica.set'
     EEG = pop_loadset(eeglab_file_path)

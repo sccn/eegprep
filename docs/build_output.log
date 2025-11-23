@@ -1,0 +1,533 @@
+make: Circular Makefile <- Makefile dependency dropped.
+WARNING: 
+examples/plot_basic_preprocessing.py unexpectedly failed to execute correctly:
+
+    Traceback (most recent call last):
+      File "/Users/baristim/Projects/eegprep/docs/source/examples/plot_basic_preprocessing.py", line 94, in <module>
+        info.set_montage(montage)
+        ~~~~~~~~~~~~~~~~^^^^^^^^^
+      File "<decorator-gen-44>", line 12, in set_montage
+      File "/Users/baristim/miniforge3/envs/eegprep/lib/python3.13/site-packages/mne/_fiff/meas_info.py", line 428, in set_montage
+        _set_montage(info, montage, match_case, match_alias, on_missing)
+        ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "/Users/baristim/miniforge3/envs/eegprep/lib/python3.13/site-packages/mne/channels/montage.py", line 1272, in _set_montage
+        _on_missing(on_missing, missing_coord_msg)
+        ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "/Users/baristim/miniforge3/envs/eegprep/lib/python3.13/site-packages/mne/utils/check.py", line 1221, in _on_missing
+        raise error_klass(msg)
+    ValueError: DigMontage is only a subset of info. There are 7 channel positions not present in the DigMontage. The channels missing from the montage are:
+
+    ['Fc1', 'Fc2', 'Cp1', 'Cp2', 'Fc5', 'Fc6', 'Cp5'].
+
+    Consider using inst.rename_channels to match the montage nomenclature, or inst.set_channel_types if these are not EEG channels, or use the on_missing parameter if the channel positions are allowed to be unknown in your analyses.
+
+WARNING: 
+examples/plot_ica_and_iclabel.py unexpectedly failed to execute correctly:
+
+    Traceback (most recent call last):
+      File "/Users/baristim/Projects/eegprep/docs/source/examples/plot_ica_and_iclabel.py", line 140, in <module>
+        data_prep = eegprep.clean_artifacts(
+            data.copy(),
+            sfreq=sfreq,
+            verbose=False
+        )
+    TypeError: clean_artifacts() got an unexpected keyword argument 'sfreq'
+
+WARNING: 
+examples/plot_channel_interpolation.py unexpectedly failed to execute correctly:
+
+    Traceback (most recent call last):
+      File "/Users/baristim/Projects/eegprep/docs/source/examples/plot_channel_interpolation.py", line 235, in <module>
+        info.set_montage(montage)
+        ~~~~~~~~~~~~~~~~^^^^^^^^^
+      File "<decorator-gen-44>", line 12, in set_montage
+      File "/Users/baristim/miniforge3/envs/eegprep/lib/python3.13/site-packages/mne/_fiff/meas_info.py", line 428, in set_montage
+        _set_montage(info, montage, match_case, match_alias, on_missing)
+        ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "/Users/baristim/miniforge3/envs/eegprep/lib/python3.13/site-packages/mne/channels/montage.py", line 1272, in _set_montage
+        _on_missing(on_missing, missing_coord_msg)
+        ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "/Users/baristim/miniforge3/envs/eegprep/lib/python3.13/site-packages/mne/utils/check.py", line 1221, in _on_missing
+        raise error_klass(msg)
+    ValueError: DigMontage is only a subset of info. There are 7 channel positions not present in the DigMontage. The channels missing from the montage are:
+
+    ['Fc1', 'Fc2', 'Cp1', 'Cp2', 'Fc5', 'Fc6', 'Cp5'].
+
+    Consider using inst.rename_channels to match the montage nomenclature, or inst.set_channel_types if these are not EEG channels, or use the on_missing parameter if the channel positions are allowed to be unknown in your analyses.
+
+WARNING: 
+examples/plot_artifact_removal.py unexpectedly failed to execute correctly:
+
+    Traceback (most recent call last):
+      File "/Users/baristim/Projects/eegprep/docs/source/examples/plot_artifact_removal.py", line 135, in <module>
+        cleaned_artifacts = eegprep.clean_artifacts(
+            data.copy(),
+            sfreq=sfreq,
+            verbose=False
+        )
+    TypeError: clean_artifacts() got an unexpected keyword argument 'sfreq'
+
+:10: (ERROR/3) Unexpected indentation.
+:12: (WARNING/2) Block quote ends without a blank line; unexpected unindent.
+:41: (ERROR/3) Unexpected indentation.
+:42: (WARNING/2) Block quote ends without a blank line; unexpected unindent.
+:53: (ERROR/3) Unexpected indentation.
+:56: (WARNING/2) Block quote ends without a blank line; unexpected unindent.
+:62: (WARNING/2) Bullet list ends without a blank line; unexpected unindent.
+:76: (ERROR/3) Unexpected indentation.
+:79: (WARNING/2) Block quote ends without a blank line; unexpected unindent.
+:101: (ERROR/3) Unexpected indentation.
+:103: (WARNING/2) Block quote ends without a blank line; unexpected unindent.
+:155: (ERROR/3) Unexpected indentation.
+:159: (WARNING/2) Block quote ends without a blank line; unexpected unindent.
+:169: (ERROR/3) Unexpected indentation.
+:172: (WARNING/2) Block quote ends without a blank line; unexpected unindent.
+:12: (WARNING/2) Definition list ends without a blank line; unexpected unindent.
+:12: (WARNING/2) Definition list ends without a blank line; unexpected unindent.
+/Users/baristim/Projects/eegprep/src/eegprep/bids_preproc.py:docstring of eegprep.bids_preproc.bids_preproc:12: ERROR: Unexpected indentation. [docutils]
+/Users/baristim/Projects/eegprep/src/eegprep/bids_preproc.py:docstring of eegprep.bids_preproc.bids_preproc:14: WARNING: Block quote ends without a blank line; unexpected unindent. [docutils]
+/Users/baristim/Projects/eegprep/src/eegprep/bids_preproc.py:docstring of eegprep.bids_preproc.bids_preproc:43: ERROR: Unexpected indentation. [docutils]
+/Users/baristim/Projects/eegprep/src/eegprep/bids_preproc.py:docstring of eegprep.bids_preproc.bids_preproc:44: WARNING: Block quote ends without a blank line; unexpected unindent. [docutils]
+/Users/baristim/Projects/eegprep/src/eegprep/bids_preproc.py:docstring of eegprep.bids_preproc.bids_preproc:55: ERROR: Unexpected indentation. [docutils]
+/Users/baristim/Projects/eegprep/src/eegprep/bids_preproc.py:docstring of eegprep.bids_preproc.bids_preproc:58: WARNING: Block quote ends without a blank line; unexpected unindent. [docutils]
+/Users/baristim/Projects/eegprep/src/eegprep/bids_preproc.py:docstring of eegprep.bids_preproc.bids_preproc:64: WARNING: Bullet list ends without a blank line; unexpected unindent. [docutils]
+/Users/baristim/Projects/eegprep/src/eegprep/bids_preproc.py:docstring of eegprep.bids_preproc.bids_preproc:78: ERROR: Unexpected indentation. [docutils]
+/Users/baristim/Projects/eegprep/src/eegprep/bids_preproc.py:docstring of eegprep.bids_preproc.bids_preproc:81: WARNING: Block quote ends without a blank line; unexpected unindent. [docutils]
+/Users/baristim/Projects/eegprep/src/eegprep/bids_preproc.py:docstring of eegprep.bids_preproc.bids_preproc:103: ERROR: Unexpected indentation. [docutils]
+/Users/baristim/Projects/eegprep/src/eegprep/bids_preproc.py:docstring of eegprep.bids_preproc.bids_preproc:105: WARNING: Block quote ends without a blank line; unexpected unindent. [docutils]
+/Users/baristim/Projects/eegprep/src/eegprep/bids_preproc.py:docstring of eegprep.bids_preproc.bids_preproc:157: ERROR: Unexpected indentation. [docutils]
+/Users/baristim/Projects/eegprep/src/eegprep/bids_preproc.py:docstring of eegprep.bids_preproc.bids_preproc:161: WARNING: Block quote ends without a blank line; unexpected unindent. [docutils]
+/Users/baristim/Projects/eegprep/src/eegprep/bids_preproc.py:docstring of eegprep.bids_preproc.bids_preproc:171: ERROR: Unexpected indentation. [docutils]
+/Users/baristim/Projects/eegprep/src/eegprep/bids_preproc.py:docstring of eegprep.bids_preproc.bids_preproc:174: WARNING: Block quote ends without a blank line; unexpected unindent. [docutils]
+/Users/baristim/Projects/eegprep/src/eegprep/eeg_picard.py:docstring of eegprep.eeg_picard.eeg_picard:15: WARNING: Inline strong start-string without end-string. [docutils]
+/Users/baristim/Projects/eegprep/docs/source/api/index.rst:22: ERROR: Unknown directive type "autosummary".
+
+.. autosummary::
+   :toctree: generated/
+
+   eegprep.EEGobj [docutils]
+/Users/baristim/Projects/eegprep/docs/source/api/index.rst:30: ERROR: Unknown directive type "autosummary".
+
+.. autosummary::
+   :toctree: generated/
+
+   eegprep.pop_loadset
+   eegprep.loadset
+   eegprep.pop_loadset_h5
+   eegprep.pop_saveset
+   eegprep.pop_load_frombids [docutils]
+/Users/baristim/Projects/eegprep/docs/source/api/index.rst:45: ERROR: Unknown directive type "autosummary".
+
+.. autosummary::
+   :toctree: generated/
+
+   eegprep.clean_artifacts
+   eegprep.clean_asr
+   eegprep.clean_flatlines
+   eegprep.clean_drifts
+   eegprep.clean_windows [docutils]
+/Users/baristim/Projects/eegprep/docs/source/api/index.rst:57: ERROR: Unknown directive type "autosummary".
+
+.. autosummary::
+   :toctree: generated/
+
+   eegprep.clean_channels
+   eegprep.clean_channels_nolocs
+   eegprep.eeg_interp
+   eegprep.pop_reref [docutils]
+/Users/baristim/Projects/eegprep/docs/source/api/index.rst:68: ERROR: Unknown directive type "autosummary".
+
+.. autosummary::
+   :toctree: generated/
+
+   eegprep.pop_resample
+   eegprep.pop_eegfiltnew
+   eegprep.eeg_picard [docutils]
+/Users/baristim/Projects/eegprep/docs/source/api/index.rst:78: ERROR: Unknown directive type "autosummary".
+
+.. autosummary::
+   :toctree: generated/
+
+   eegprep.iclabel
+   eegprep.ICL_feature_extractor [docutils]
+/Users/baristim/Projects/eegprep/docs/source/api/index.rst:87: ERROR: Unknown directive type "autosummary".
+
+.. autosummary::
+   :toctree: generated/
+
+   eegprep.eeg_rpsd
+   eegprep.eeg_autocorr
+   eegprep.eeg_autocorr_welch
+   eegprep.eeg_autocorr_fftw [docutils]
+/Users/baristim/Projects/eegprep/docs/source/api/index.rst:98: ERROR: Unknown directive type "autosummary".
+
+.. autosummary::
+   :toctree: generated/
+
+   eegprep.pop_epoch
+   eegprep.pop_select
+   eegprep.eeg_eegrej
+   eegprep.eegrej [docutils]
+/Users/baristim/Projects/eegprep/docs/source/api/index.rst:109: ERROR: Unknown directive type "autosummary".
+
+.. autosummary::
+   :toctree: generated/
+
+   eegprep.topoplot [docutils]
+/Users/baristim/Projects/eegprep/docs/source/api/index.rst:117: ERROR: Unknown directive type "autosummary".
+
+.. autosummary::
+   :toctree: generated/
+
+   eegprep.eeg_mne2eeg
+   eegprep.eeg_mne2eeg_epochs
+   eegprep.eeg_eeg2mne [docutils]
+/Users/baristim/Projects/eegprep/docs/source/api/index.rst:127: ERROR: Unknown directive type "autosummary".
+
+.. autosummary::
+   :toctree: generated/
+
+   eegprep.eeg_checkset
+   eegprep.eeg_compare
+   eegprep.eeg_decodechan
+   eegprep.eeg_lat2point
+   eegprep.eeg_point2lat
+   eegprep.bids_list_eeg_files
+   eegprep.bids_preproc [docutils]
+/Users/baristim/Projects/eegprep/docs/source/api/index.rst:141: ERROR: Unknown directive type "autosummary".
+
+.. autosummary::
+   :toctree: generated/
+
+   eegprep.bids_preproc
+   eegprep.bids_list_eeg_files
+   eegprep.pop_load_frombids [docutils]
+/Users/baristim/Projects/eegprep/docs/source/api/index.rst:151: ERROR: Unknown directive type "autosummary".
+
+.. autosummary::
+   :toctree: generated/
+
+   eegprep.EEG_OPTIONS [docutils]
+/Users/baristim/Projects/eegprep/src/eegprep/pop_load_frombids.py:docstring of eegprep.pop_load_frombids.pop_load_frombids:19: ERROR: Unexpected indentation. [docutils]
+/Users/baristim/Projects/eegprep/src/eegprep/pop_load_frombids.py:docstring of eegprep.pop_load_frombids.pop_load_frombids:20: WARNING: Block quote ends without a blank line; unexpected unindent. [docutils]
+/Users/baristim/Projects/eegprep/src/eegprep/pop_load_frombids.py:docstring of eegprep.pop_load_frombids.pop_load_frombids:31: ERROR: Unexpected indentation. [docutils]
+/Users/baristim/Projects/eegprep/src/eegprep/clean_artifacts.py:docstring of eegprep.clean_artifacts.clean_artifacts:87: ERROR: Unexpected indentation. [docutils]
+/Users/baristim/Projects/eegprep/src/eegprep/clean_artifacts.py:docstring of eegprep.clean_artifacts.clean_artifacts:88: WARNING: Block quote ends without a blank line; unexpected unindent. [docutils]
+/Users/baristim/Projects/eegprep/src/eegprep/eeg_interp.py:docstring of eegprep.eeg_interp.eeg_interp:12: ERROR: Unexpected indentation. [docutils]
+/Users/baristim/Projects/eegprep/src/eegprep/pop_rmbase.py:docstring of eegprep.pop_rmbase.pop_rmbase:14: WARNING: Definition list ends without a blank line; unexpected unindent. [docutils]
+/Users/baristim/Projects/eegprep/src/eegprep/pop_resample.py:docstring of eegprep.pop_resample.pop_resample:1: WARNING: duplicate object description of eegprep.pop_resample, other instance in api/preprocessing, use :no-index: for one of them
+/Users/baristim/Projects/eegprep/src/eegprep/pop_rmbase.py:docstring of eegprep.pop_rmbase.pop_rmbase:1: WARNING: duplicate object description of eegprep.pop_rmbase, other instance in api/preprocessing, use :no-index: for one of them
+/Users/baristim/Projects/eegprep/src/eegprep/pop_rmbase.py:docstring of eegprep.pop_rmbase.pop_rmbase:14: WARNING: Definition list ends without a blank line; unexpected unindent. [docutils]
+/Users/baristim/Projects/eegprep/src/eegprep/eeg_decodechan.py:docstring of eegprep.eeg_decodechan.eeg_decodechan:15: ERROR: Unexpected indentation. [docutils]
+/Users/baristim/Projects/eegprep/docs/source/auto_examples/plot_artifact_removal.rst:41: WARNING: Footnote [1] is not referenced. [ref.footnote]
+/Users/baristim/Projects/eegprep/docs/source/auto_examples/plot_artifact_removal.rst:44: WARNING: Footnote [2] is not referenced. [ref.footnote]
+/Users/baristim/Projects/eegprep/docs/source/auto_examples/plot_basic_preprocessing.rst:40: WARNING: Footnote [1] is not referenced. [ref.footnote]
+/Users/baristim/Projects/eegprep/docs/source/auto_examples/plot_basic_preprocessing.rst:43: WARNING: Footnote [2] is not referenced. [ref.footnote]
+/Users/baristim/Projects/eegprep/docs/source/auto_examples/plot_bids_pipeline.rst:43: WARNING: Footnote [1] is not referenced. [ref.footnote]
+/Users/baristim/Projects/eegprep/docs/source/auto_examples/plot_bids_pipeline.rst:47: WARNING: Footnote [2] is not referenced. [ref.footnote]
+/Users/baristim/Projects/eegprep/docs/source/auto_examples/plot_channel_interpolation.rst:50: WARNING: Footnote [1] is not referenced. [ref.footnote]
+/Users/baristim/Projects/eegprep/docs/source/auto_examples/plot_channel_interpolation.rst:53: WARNING: Footnote [2] is not referenced. [ref.footnote]
+/Users/baristim/Projects/eegprep/docs/source/auto_examples/plot_ica_and_iclabel.rst:45: WARNING: Footnote [1] is not referenced. [ref.footnote]
+/Users/baristim/Projects/eegprep/docs/source/auto_examples/plot_ica_and_iclabel.rst:48: WARNING: Footnote [2] is not referenced. [ref.footnote]
+/Users/baristim/Projects/eegprep/docs/source/examples/index.rst:11: WARNING: toctree contains reference to nonexisting document 'examples/auto_examples/index' [toc.not_readable]
+/Users/baristim/Projects/eegprep/docs/source/faq.rst:77: WARNING: Title underline too short.
+
+How do I load EEG data?
+---------------------- [docutils]
+/Users/baristim/Projects/eegprep/docs/source/faq.rst:262: WARNING: Title underline too short.
+
+I get "ModuleNotFoundError: No module named 'eegprep'"
+----------------------------------------------------- [docutils]
+/Users/baristim/Projects/eegprep/docs/source/references.rst:3: WARNING: Title overline too short.
+
+=======================
+References and Citations
+======================= [docutils]
+/Users/baristim/Projects/eegprep/docs/source/user_guide/preprocessing_pipeline.rst:3: WARNING: Title overline too short.
+
+====================
+Preprocessing Pipeline
+==================== [docutils]
+/Users/baristim/Projects/eegprep/docs/source/auto_examples/plot_artifact_removal.rst: WARNING: document isn't included in any toctree [toc.not_included]
+/Users/baristim/Projects/eegprep/docs/source/auto_examples/plot_basic_preprocessing.rst: WARNING: document isn't included in any toctree [toc.not_included]
+/Users/baristim/Projects/eegprep/docs/source/auto_examples/plot_bids_pipeline.rst: WARNING: document isn't included in any toctree [toc.not_included]
+/Users/baristim/Projects/eegprep/docs/source/auto_examples/plot_channel_interpolation.rst: WARNING: document isn't included in any toctree [toc.not_included]
+/Users/baristim/Projects/eegprep/docs/source/auto_examples/plot_ica_and_iclabel.rst: WARNING: document isn't included in any toctree [toc.not_included]
+/Users/baristim/Projects/eegprep/docs/source/user_guide/advanced_topics.rst:631: WARNING: undefined label: 'api' [ref.ref]
+/Users/baristim/Projects/eegprep/docs/source/user_guide/bids_workflow.rst:499: WARNING: undefined label: 'api' [ref.ref]
+/Users/baristim/Projects/eegprep/docs/source/user_guide/configuration.rst:612: WARNING: undefined label: 'api' [ref.ref]
+/Users/baristim/Projects/eegprep/docs/source/user_guide/index.rst:144: WARNING: undefined label: 'api' [ref.ref]
+/Users/baristim/Projects/eegprep/docs/source/user_guide/preprocessing_pipeline.rst:543: WARNING: undefined label: 'api' [ref.ref]
+/Users/baristim/Projects/eegprep/docs/source/user_guide/quickstart.rst:350: WARNING: undefined label: 'api' [ref.ref]
+
+Extension error!
+
+Versions
+========
+
+* Platform:         darwin; (macOS-15.7-arm64-arm-64bit-Mach-O)
+* Python version:   3.13.0 (CPython)
+* Sphinx version:   8.2.3
+* Docutils version: 0.21.2
+* Jinja2 version:   3.1.6
+* Pygments version: 2.19.2
+
+Last Messages
+=============
+
+    py-modindex
+    done
+    writing additional pages...
+    search
+    done
+    dumping search index in English (code: en)...
+    done
+    dumping object inventory...
+    done
+    
+Sphinx-Gallery successfully executed 1 out of 5 files subselected by:
+
+    gallery_conf["filename_pattern"] = '/plot_'
+    gallery_conf["ignore_pattern"]   = '__init__\\.py'
+
+after excluding 0 files that had previously been run (based on MD5).
+
+Loaded Extensions
+=================
+
+* sphinx.ext.mathjax (8.2.3)
+* alabaster (1.0.0)
+* sphinxcontrib.applehelp (2.0.0)
+* sphinxcontrib.devhelp (2.0.0)
+* sphinxcontrib.htmlhelp (2.1.0)
+* sphinxcontrib.serializinghtml (2.0.0)
+* sphinxcontrib.qthelp (2.0.0)
+* sphinx.ext.autodoc.preserve_defaults (8.2.3)
+* sphinx.ext.autodoc.type_comment (8.2.3)
+* sphinx.ext.autodoc.typehints (8.2.3)
+* sphinx.ext.autodoc (8.2.3)
+* sphinx.ext.napoleon (8.2.3)
+* sphinx.ext.intersphinx (8.2.3)
+* sphinx_gallery.gen_gallery (0.19.0)
+* sphinx_autodoc_typehints (unknown version)
+* myst_parser (4.0.1)
+* sphinx_design (0.6.1)
+* sphinx_copybutton (0.5.2)
+* sphinx_togglebutton (0.3.2)
+* pydata_sphinx_theme (unknown version)
+
+Traceback
+=========
+
+      File "/Users/baristim/miniforge3/envs/eegprep/lib/python3.13/site-packages/sphinx_gallery/gen_gallery.py", line 1558, in summarize_failing_examples
+        raise ExtensionError(fail_message)
+    sphinx.errors.ExtensionError: Here is a summary of the problems encountered when running the examples:
+    
+    Unexpected failing examples (4):
+    
+        examples/plot_channel_interpolation.py failed leaving traceback:
+    
+        Traceback (most recent call last):
+          File "/Users/baristim/Projects/eegprep/docs/source/examples/plot_channel_interpolation.py", line 235, in <module>
+            info.set_montage(montage)
+            ~~~~~~~~~~~~~~~~^^^^^^^^^
+          File "<decorator-gen-44>", line 12, in set_montage
+          File "/Users/baristim/miniforge3/envs/eegprep/lib/python3.13/site-packages/mne/_fiff/meas_info.py", line 428, in set_montage
+            _set_montage(info, montage, match_case, match_alias, on_missing)
+            ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+          File "/Users/baristim/miniforge3/envs/eegprep/lib/python3.13/site-packages/mne/channels/montage.py", line 1272, in _set_montage
+            _on_missing(on_missing, missing_coord_msg)
+            ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+          File "/Users/baristim/miniforge3/envs/eegprep/lib/python3.13/site-packages/mne/utils/check.py", line 1221, in _on_missing
+            raise error_klass(msg)
+        ValueError: DigMontage is only a subset of info. There are 7 channel positions not present in the DigMontage. The channels missing from the montage are:
+    
+        ['Fc1', 'Fc2', 'Cp1', 'Cp2', 'Fc5', 'Fc6', 'Cp5'].
+    
+        Consider using inst.rename_channels to match the montage nomenclature, or inst.set_channel_types if these are not EEG channels, or use the on_missing parameter if the channel positions are allowed to be unknown in your analyses.
+    
+        examples/plot_ica_and_iclabel.py failed leaving traceback:
+    
+        Traceback (most recent call last):
+          File "/Users/baristim/Projects/eegprep/docs/source/examples/plot_ica_and_iclabel.py", line 140, in <module>
+            data_prep = eegprep.clean_artifacts(
+                data.copy(),
+                sfreq=sfreq,
+                verbose=False
+            )
+        TypeError: clean_artifacts() got an unexpected keyword argument 'sfreq'
+    
+        examples/plot_basic_preprocessing.py failed leaving traceback:
+    
+        Traceback (most recent call last):
+          File "/Users/baristim/Projects/eegprep/docs/source/examples/plot_basic_preprocessing.py", line 94, in <module>
+            info.set_montage(montage)
+            ~~~~~~~~~~~~~~~~^^^^^^^^^
+          File "<decorator-gen-44>", line 12, in set_montage
+          File "/Users/baristim/miniforge3/envs/eegprep/lib/python3.13/site-packages/mne/_fiff/meas_info.py", line 428, in set_montage
+            _set_montage(info, montage, match_case, match_alias, on_missing)
+            ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+          File "/Users/baristim/miniforge3/envs/eegprep/lib/python3.13/site-packages/mne/channels/montage.py", line 1272, in _set_montage
+            _on_missing(on_missing, missing_coord_msg)
+            ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+          File "/Users/baristim/miniforge3/envs/eegprep/lib/python3.13/site-packages/mne/utils/check.py", line 1221, in _on_missing
+            raise error_klass(msg)
+        ValueError: DigMontage is only a subset of info. There are 7 channel positions not present in the DigMontage. The channels missing from the montage are:
+    
+        ['Fc1', 'Fc2', 'Cp1', 'Cp2', 'Fc5', 'Fc6', 'Cp5'].
+    
+        Consider using inst.rename_channels to match the montage nomenclature, or inst.set_channel_types if these are not EEG channels, or use the on_missing parameter if the channel positions are allowed to be unknown in your analyses.
+    
+        examples/plot_artifact_removal.py failed leaving traceback:
+    
+        Traceback (most recent call last):
+          File "/Users/baristim/Projects/eegprep/docs/source/examples/plot_artifact_removal.py", line 135, in <module>
+            cleaned_artifacts = eegprep.clean_artifacts(
+                data.copy(),
+                sfreq=sfreq,
+                verbose=False
+            )
+        TypeError: clean_artifacts() got an unexpected keyword argument 'sfreq'
+    
+    -------------------------------------------------------------------------------
+
+
+The full traceback has been saved in:
+/var/folders/jx/4wnm_rh57m701_crnjsdj8107mlkpj/T/sphinx-err-ofu4a75r.log
+
+To report this error to the developers, please open an issue at <https://github.com/sphinx-doc/sphinx/issues/>. Thanks!
+Please also report this if it was a user error, so that a better error message can be provided next time.
+make: *** [html] Error 2
+
+ERROR conda.cli.main_run:execute(125): `conda run make html` failed. (See above for error)
+Building HTML documentation...
+Running Sphinx v8.2.3
+loading translations [en]... done
+making output directory... done
+Using Sphinx-Gallery to convert rst text blocks to markdown for .ipynb files.
+loading intersphinx inventory 'python' from https://docs.python.org/3/objects.inv ...
+loading intersphinx inventory 'numpy' from https://numpy.org/doc/stable/objects.inv ...
+loading intersphinx inventory 'scipy' from https://docs.scipy.org/doc/scipy/objects.inv ...
+loading intersphinx inventory 'matplotlib' from https://matplotlib.org/stable/objects.inv ...
+loading intersphinx inventory 'mne' from https://mne.tools/stable/objects.inv ...
+generating gallery...
+generating gallery for auto_examples... [ 20%] plot_basic_preprocessing.py
+generating gallery for auto_examples... [ 40%] plot_ica_and_iclabel.py
+generating gallery for auto_examples... [ 60%] plot_bids_pipeline.py
+generating gallery for auto_examples... [ 80%] plot_channel_interpolation.py
+generating gallery for auto_examples... [100%] plot_artifact_removal.py
+
+computation time summary:
+    - examples/plot_bids_pipeline.py:           0.66 sec   0.0 MB
+    - examples/plot_channel_interpolation.py:   0.15 sec   0.0 MB
+    - examples/plot_ica_and_iclabel.py:         0.01 sec   0.0 MB
+    - examples/plot_artifact_removal.py:        0.01 sec   0.0 MB
+    - examples/plot_basic_preprocessing.py:     0.01 sec   0.0 MB
+myst v4.0.1: MdParserConfig(commonmark_only=False, gfm_only=False, enable_extensions={'dollarmath', 'colon_fence', 'deflist', 'amsmath', 'html_image'}, disable_syntax=[], all_links_external=False, links_external_new_tab=False, url_schemes=('http', 'https', 'mailto', 'ftp'), ref_domains=None, fence_as_directive=set(), number_code_blocks=[], title_to_header=False, heading_anchors=2, heading_slug_func=None, html_meta={}, footnote_sort=True, footnote_transition=True, words_per_minute=200, substitutions={}, linkify_fuzzy_links=True, dmath_allow_labels=True, dmath_allow_space=True, dmath_allow_digits=True, dmath_double_inline=False, update_mathjax=True, mathjax_classes='tex2jax_process|mathjax_process|math|output_area', enable_checkboxes=False, suppress_warnings=[], highlight_code_blocks=True)
+building [mo]: targets for 0 po files that are out of date
+writing output... 
+building [html]: targets for 29 source files that are out of date
+updating environment: [new config] 29 added, 0 changed, 0 removed
+reading sources... [  3%] api/core
+reading sources... [  7%] api/ica
+reading sources... [ 10%] api/index
+reading sources... [ 14%] api/io
+reading sources... [ 17%] api/preprocessing
+reading sources... [ 21%] api/signal_processing
+reading sources... [ 24%] api/utils
+reading sources... [ 28%] auto_examples/plot_artifact_removal
+reading sources... [ 31%] auto_examples/plot_basic_preprocessing
+reading sources... [ 34%] auto_examples/plot_bids_pipeline
+reading sources... [ 38%] auto_examples/plot_channel_interpolation
+reading sources... [ 41%] auto_examples/plot_ica_and_iclabel
+reading sources... [ 45%] auto_examples/sg_execution_times
+reading sources... [ 48%] changelog
+reading sources... [ 52%] contributing
+reading sources... [ 55%] development
+reading sources... [ 59%] examples/index
+reading sources... [ 62%] faq
+reading sources... [ 66%] glossary
+reading sources... [ 69%] index
+reading sources... [ 72%] references
+reading sources... [ 76%] sg_execution_times
+reading sources... [ 79%] user_guide/advanced_topics
+reading sources... [ 83%] user_guide/bids_workflow
+reading sources... [ 86%] user_guide/configuration
+reading sources... [ 90%] user_guide/index
+reading sources... [ 93%] user_guide/installation
+reading sources... [ 97%] user_guide/preprocessing_pipeline
+reading sources... [100%] user_guide/quickstart
+
+looking for now-outdated files... none found
+pickling environment... done
+checking consistency... done
+preparing documents... done
+copying assets... 
+copying downloadable files... [  7%] auto_examples/plot_artifact_removal.ipynb
+copying downloadable files... [ 13%] auto_examples/plot_artifact_removal.py
+copying downloadable files... [ 20%] auto_examples/plot_artifact_removal.zip
+copying downloadable files... [ 27%] auto_examples/plot_basic_preprocessing.ipynb
+copying downloadable files... [ 33%] auto_examples/plot_basic_preprocessing.py
+copying downloadable files... [ 40%] auto_examples/plot_basic_preprocessing.zip
+copying downloadable files... [ 47%] auto_examples/plot_bids_pipeline.ipynb
+copying downloadable files... [ 53%] auto_examples/plot_bids_pipeline.py
+copying downloadable files... [ 60%] auto_examples/plot_bids_pipeline.zip
+copying downloadable files... [ 67%] auto_examples/plot_channel_interpolation.ipynb
+copying downloadable files... [ 73%] auto_examples/plot_channel_interpolation.py
+copying downloadable files... [ 80%] auto_examples/plot_channel_interpolation.zip
+copying downloadable files... [ 87%] auto_examples/plot_ica_and_iclabel.ipynb
+copying downloadable files... [ 93%] auto_examples/plot_ica_and_iclabel.py
+copying downloadable files... [100%] auto_examples/plot_ica_and_iclabel.zip
+
+copying static files... 
+Writing evaluated template result to /Users/baristim/Projects/eegprep/docs/build/html/_static/basic.css
+Writing evaluated template result to /Users/baristim/Projects/eegprep/docs/build/html/_static/language_data.js
+Writing evaluated template result to /Users/baristim/Projects/eegprep/docs/build/html/_static/documentation_options.js
+Writing evaluated template result to /Users/baristim/Projects/eegprep/docs/build/html/_static/copybutton.js
+copying static files: done
+copying extra files... 
+copying extra files: done
+copying assets: done
+writing output... [  3%] api/core
+writing output... [  7%] api/ica
+writing output... [ 10%] api/index
+writing output... [ 14%] api/io
+writing output... [ 17%] api/preprocessing
+writing output... [ 21%] api/signal_processing
+writing output... [ 24%] api/utils
+writing output... [ 28%] auto_examples/plot_artifact_removal
+writing output... [ 31%] auto_examples/plot_basic_preprocessing
+writing output... [ 34%] auto_examples/plot_bids_pipeline
+writing output... [ 38%] auto_examples/plot_channel_interpolation
+writing output... [ 41%] auto_examples/plot_ica_and_iclabel
+writing output... [ 45%] auto_examples/sg_execution_times
+writing output... [ 48%] changelog
+writing output... [ 52%] contributing
+writing output... [ 55%] development
+writing output... [ 59%] examples/index
+writing output... [ 62%] faq
+writing output... [ 66%] glossary
+writing output... [ 69%] index
+writing output... [ 72%] references
+writing output... [ 76%] sg_execution_times
+writing output... [ 79%] user_guide/advanced_topics
+writing output... [ 83%] user_guide/bids_workflow
+writing output... [ 86%] user_guide/configuration
+writing output... [ 90%] user_guide/index
+writing output... [ 93%] user_guide/installation
+writing output... [ 97%] user_guide/preprocessing_pipeline
+writing output... [100%] user_guide/quickstart
+
+generating indices... genindex py-modindex done
+writing additional pages... search done
+dumping search index in English (code: en)... done
+dumping object inventory... done
+
+Sphinx-Gallery successfully executed 1 out of 5 files subselected by:
+
+    gallery_conf["filename_pattern"] = '/plot_'
+    gallery_conf["ignore_pattern"]   = '__init__\\.py'
+
+after excluding 0 files that had previously been run (based on MD5).
+
+

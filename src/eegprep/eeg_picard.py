@@ -1,3 +1,5 @@
+"""Module for performing ICA decomposition using the Picard algorithm."""
+
 from picard import picard
 import numpy as np
 import os

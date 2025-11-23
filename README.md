@@ -1,6 +1,11 @@
 # EEGPrep
 
+[![Documentation Status](https://github.com/sccn/eegprep/actions/workflows/docs.yml/badge.svg)](https://github.com/sccn/eegprep/actions/workflows/docs.yml)
+[![GitHub Pages](https://github.com/sccn/eegprep/actions/workflows/pages.yml/badge.svg)](https://sccn.github.io/eegprep/)
+
 EEGPrep is a Python package that reproduces the EEGLAB default preprocessing pipeline with numerical accuracy down to 1e-5 uV, including clean_rawdata and ICLabel, enabling MATLAB-to-Python equivalence for EEG analysis. It takes BIDS data as input and produces BIDS derivative dataset as output, which can then be reimported into other packages as needed (EEGLAB, Fieldtrip, Brainstorm, MNE). It does produce plots. The package will be fully documented for conversion, packaging, and testing workflows, with installation available via PyPI.
+
+**📚 [View Full Documentation](https://sccn.github.io/eegprep/)** | **🔧 [GitHub Pages Setup Guide](docs/GITHUB_PAGES_SETUP.md)**
 
 ## Pre-Release
 
