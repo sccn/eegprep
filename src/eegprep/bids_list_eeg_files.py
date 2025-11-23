@@ -1,9 +1,7 @@
 """BIDS EEG file listing utilities."""
 
-import os
 import logging
 from typing import List, Sequence
-from types import NoneType
 from eegprep.utils.bids import layout_for_fpath
 
 logger = logging.getLogger(__name__)

@@ -1,6 +1,5 @@
 """Module for loading EEG data from BIDS datasets."""
 
-
 import os
 import copy
 from typing import Dict, Any, Tuple, List, Union, Sequence, Optional

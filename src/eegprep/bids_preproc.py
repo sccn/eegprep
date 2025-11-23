@@ -1,4 +1,4 @@
-"""Module for BIDS preprocessing of EEG data."""
+"""Module for BIDS preprocessing of EEG."""
 
 import os
 import hashlib
