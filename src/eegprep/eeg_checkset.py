@@ -17,7 +17,8 @@ _strict_mode_var = contextvars.ContextVar('strict_mode', default=True)
 
 class DummyException(Exception):
     """Exception that should never be raised, used to disable exception
-    handling in strict mode."""
+    handling in strict mode.
+    """
 
     pass
 

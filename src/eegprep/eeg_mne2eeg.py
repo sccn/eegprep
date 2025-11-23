@@ -9,8 +9,7 @@ from mne.export import export_raw
 import numpy as np
 
 def _mne_events_to_eeglab_events(raw_or_epochs):
-    """Convert MNE Annotations or events to EEGLAB event structure (list of
-    dicts)."""
+    """Convert MNE Annotations or events to EEGLAB event structure (list of dicts)."""
     events = []
     sfreq = raw_or_epochs.info['sfreq']
     # Handle Annotations (Raw)

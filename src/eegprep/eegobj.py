@@ -116,7 +116,8 @@ class EEGobj:
 
     def __setattr__(self, name, value):
         """Set attributes on the underlying EEG dict when possible, else on the
-        wrapper."""
+        wrapper.
+        """
         if name == 'EEG':
             object.__setattr__(self, name, value)
             return

@@ -20,8 +20,9 @@ def rand_sample(
         m: number of items to sample
         stream: random number generator
 
-    Returns:
-        random_sample: array of sampled values
+    Returns
+    -------
+    random_sample : array of sampled values
     """
     pool = np.arange(n)
     result = np.zeros((m,), dtype=int)
@@ -49,8 +50,10 @@ def calc_projector(
         stream: optionally the random number generator to use;
           if not specified, will default to a fixed seed (435656)
         subroutine: which interpolation subroutine to use (for testing)
-    Returns:
-        P: combined projector matrix
+
+    Returns
+    -------
+    P : combined projector matrix
     """
     if stream is None:
         stream = np.random.RandomState(435656)

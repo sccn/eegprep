@@ -1,4 +1,5 @@
-"""This module defines short wrapper functions that call their corresponding
+"""Module that defines short wrapper functions that call their corresponding.
+
 eeg_ or pop_ implementations.
 
 Each wrapper has the same signature and simply forwards all arguments to the

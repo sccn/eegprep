@@ -75,7 +75,8 @@ def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
           turn. Note the effects will mostly likely be miniscule and the MATLAB ASR
           implementation is known to be highly robust.
 
-    Returns:
+    Returns
+    -------
       dict: State dictionary containing calibration results ('M', 'T') and filter parameters ('B', 'A', 'sos', 'iir_state')
             needed for `asr_process`.
     """
@@ -335,7 +336,8 @@ def asr_process(data, srate, state, window_len=0.5, lookahead=None, step_size=32
                                  Default: None.
         use_gpu (bool, optional): Whether to use GPU (not implemented). Default: False.
 
-    Returns:
+    Returns
+    -------
         tuple: (outdata, outstate)
             outdata (np.ndarray): Cleaned data chunk (delayed by lookahead).
             outstate (dict): Updated state dictionary for subsequent calls.

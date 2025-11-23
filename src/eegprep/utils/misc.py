@@ -96,7 +96,8 @@ def get_nested(data: dict, key: str, default=_RAISE_KEYERROR, separator: str = '
 
 def num_cpus_from_reservation(ReservePerJob: str, *, default: int = 4) -> Optional[int]:
     """Get the number of reserved CPUs per job from the reservation string, if
-    set."""
+    set.
+    """
     ReservePerJob = ReservePerJob.strip().replace(' ', '').upper()
     if ',' in ReservePerJob:
         # scan through multiple reservations, pick the first match
@@ -211,7 +212,8 @@ def humanize_seconds(sec: float) -> str:
 
 def canonicalize_signs(V):
     """Canonicalize signs of column matrix V so that the largest absolute value
-    is positive."""
+    is positive.
+    """
     # V: columns are eigenvectors
     idx = np.argmax(np.abs(V), axis=0)
     sgn = np.sign(V[idx, range(V.shape[1])])

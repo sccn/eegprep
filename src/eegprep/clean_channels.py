@@ -53,8 +53,9 @@ def clean_channels(
         for robust reconstruction,  as a number or fraction of the total number
         of channels.
 
-    Returns:
-      EEG: data set with bad channels removed
+    Returns
+    -------
+    EEG : data set with bad channels removed
     """
     EEG['data'] = np.asarray(EEG['data'], dtype=np.float64)
     C, S = EEG['data'].shape

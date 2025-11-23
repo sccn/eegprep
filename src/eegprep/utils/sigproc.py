@@ -426,6 +426,7 @@ def firwsord(wintype: str, fs: float, df: float, dev: Optional[float] = None) ->
         Estimated filter order.
     dev : float
         Maximum passband deviation/ripple.
+
     Notes
     -----
     Based on a MATLAB implementation by Andreas Widmann, University of Leipzig, 2005.

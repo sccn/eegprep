@@ -25,8 +25,9 @@ def epoch(data, events, lim, **kwargs):
         allevents: 1-D sequence of latencies for all events (same unit as events).
         alleventrange: [start, end] window relative to time-locking events (same unit as lim). Default lim.
 
-    Returns:
-        epochdat, newtime, indexes, alleventout, alllatencyout, reallim
+    Returns
+    -------
+    epochdat, newtime, indexes, alleventout, alllatencyout, reallim
     """
     # --- helpers to mimic MATLAB semantics ---
 

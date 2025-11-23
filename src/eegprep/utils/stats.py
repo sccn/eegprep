@@ -63,7 +63,8 @@ def fit_eeg_distribution(X, min_clean_fraction=None, max_dropout_fraction=None,
           Range that the clean EEG distribution's shape parameter beta may take
           (default: np.arange(1.7, 3.6, 0.15)).
 
-    Returns:
+    Returns
+    -------
       tuple:
           - mu (float): estimated mean of the clean EEG distribution.
           - sig (float): estimated standard deviation of the clean EEG distribution.
@@ -258,7 +259,8 @@ def geometric_median(X, tol=1.e-5, y=None, max_iter=500):
                                   Defaults to the coordinate-wise median of X.
         max_iter (int, optional): Maximum number of iterations. Defaults to 500.
 
-    Returns:
+    Returns
+    -------
         np.ndarray: The geometric median of X, shape (n_features,).
     """
     # Ensure X is a numpy array
@@ -336,10 +338,12 @@ def block_geometric_median(X, blocksize=1, tol=1.e-5, y=None, max_iter=500):
                                   Defaults to the coordinate-wise median of X.
         max_iter (int, optional): Maximum number of iterations. Defaults to 500.
 
-    Returns:
+    Returns
+    -------
         np.ndarray: Geometric median over X, scaled by 1/blocksize.
 
-    Notes:
+    Notes
+    -----
         This function is noticeably faster if the length of the data is divisible
         by the block size.
     """
@@ -399,7 +403,8 @@ def mad(X, axis=0, keepdims=False):
             but with the specified axis having size 1.
             Default is False.
 
-    Returns:
+    Returns
+    -------
         array-like:
             Median absolute deviation of the input data.
     """

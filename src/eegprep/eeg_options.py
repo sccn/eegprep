@@ -9,7 +9,8 @@ from dataclasses import dataclass, asdict
 @dataclass
 class EEGOptions:
     """Configuration options for EEG processing, mirroring MATLAB EEGLAB
-    options."""
+    options.
+    """
 
     # STUDY and file options
     option_storedisk: int = 0           # keep at most one dataset in memory

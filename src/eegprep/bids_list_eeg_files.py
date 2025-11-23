@@ -22,7 +22,8 @@ def bids_list_eeg_files(
 ) -> List[str]:
     """Return a list of all EEG raw-data files in a BIDS dataset.
 
-    Parameters:
+    Parameters
+    ----------
     root : str
         The root directory containing BIDS data.
     subjects : Sequence[str | int], optional

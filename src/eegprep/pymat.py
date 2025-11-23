@@ -268,7 +268,8 @@ def mat2py(obj):
     
 def test_py2mat():
     """Test the py2mat and mat2py conversion functions with various data
-    structures."""
+    structures.
+    """
     import scipy.io  
     
     # Test basic functionality

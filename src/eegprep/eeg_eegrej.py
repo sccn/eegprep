@@ -13,8 +13,7 @@ def _is_boundary_event(event: Dict) -> bool:
     return False
 
 def _eegrej(indata, regions, timelength, events: Optional[List[Dict]] = None) -> Tuple[np.ndarray, float, List[Dict], np.ndarray]:
-    """Remove [beg end] sample ranges (1-based, inclusive) from continuous data
-    and update events.
+    """Remove [beg end] sample ranges (1-based, inclusive) from continuous data and update events.
 
     Parameters
     ----------

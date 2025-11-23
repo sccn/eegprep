@@ -23,8 +23,9 @@ def clean_flatlines(EEG: Dict[str, Any], max_flatline_duration: float = 5.0, max
       max_allowed_jitter: maximum tolerated jitter during flatlines. As a
         multiple of epsilon.
 
-    Returns:
-      EEG: the EEG data structure with flatlined channels removed.
+    Returns
+    -------
+    EEG : the EEG data structure with flatlined channels removed.
 
     Example:
       EEG = clean_flatlines(EEG)

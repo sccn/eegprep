@@ -47,7 +47,8 @@ def query_for_adjacent_fpath(
         **overrides
 ) -> Dict[str, Any]:
     """Generate a query dictionary (of entities) for a given file path in a
-    BIDS dataset, where we selectively apply overrides to the entities."""
+    BIDS dataset, where we selectively apply overrides to the entities.
+    """
     layout = layout_for_fpath(fn)
     query_entities = layout.parse_file_entities(fn).copy()
     query_entities.update(overrides)

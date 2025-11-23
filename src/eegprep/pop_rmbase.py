@@ -55,7 +55,8 @@ def _normalize_pointrange(
 
 def _indices_from_timerange(times: np.ndarray, timerange: Iterable[float]) -> np.ndarray:
     """Build 0-based indices from a millisecond timerange using EEG['times']
-    (ms)."""
+    (ms).
+    """
     tr = np.asarray(list(timerange), dtype=float)
     if tr.size != 2:
         raise ValueError('timerange must contain 2 elements [min_ms, max_ms]')

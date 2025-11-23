@@ -21,10 +21,12 @@ import os
 data_path = '/Users/arno/Python/eegprep/data/' #os.path.abspath('data/')
 
 def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dtype='float32'):
-    """Interpolate missing or bad EEG channels using spherical spline
+    """Interpolate missing or bad EEG channels using spherical spline.
+
     interpolation.
 
-    Parameters:
+    Parameters
+    ----------
     EEG : dict
         EEG data structure with 'data', 'chanlocs', 'nbchan', etc.
     bad_chans : list, array-like, or list of dicts
@@ -47,7 +49,8 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
         * 'float32' : matches MATLAB, but limits precision (default)
         * 'float64': operate at full precision; requires twice the memory
 
-    Returns:
+    Returns
+    -------
     EEG : dict
         Updated EEG structure with interpolated channels
     """
@@ -174,12 +177,18 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
     return EEG
 
 def _handle_chanloc_interpolation(EEG, new_chanlocs):
-    """Handle interpolation when bad_chans is provided as a list of chanloc
+    """
+
+    Handle interpolation when bad_chans is provided as a list of chanloc.
+
     structures.
 
-    Returns:
-        EEG: potentially modified EEG structure
-        bad_idx: list of indices to interpolate
+    Returns
+    -------
+    EEG : potentially modified EEG structure
+
+    bad_idx : list of indices to interpolate
+
     """
     current_locs = EEG['chanlocs']
     current_labels = [ch['labels'] for ch in current_locs]
@@ -449,11 +458,14 @@ def test_chanloc_interpolation():
     return result1, result2, result3
 
 def test_ica_indices_update():
-    """Test that ICA channel indices are properly updated when channels are
+    """Test that ICA channel indices are properly updated when channels are.
+
     reordered.
 
     Test that ICA channel indices are properly updated when channels are
+
     reordered during interpolation with chanloc structures.
+
     """
     # Create a sample EEG structure with ICA data
     EEG = {
