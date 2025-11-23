@@ -16,9 +16,7 @@ __all__ = ['eeg_checkset', 'strict_mode']
 _strict_mode_var = contextvars.ContextVar('strict_mode', default=True)
 
 class DummyException(Exception):
-    """Exception that should never be raised, used to disable exception handling in strict mode.
-
-    """
+    """Exception that should never be raised, used to disable exception handling in strict mode."""
 
     pass
 

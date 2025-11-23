@@ -31,9 +31,7 @@ else:
         os.makedirs(temp_dir, exist_ok=True)
 
 class MatlabWrapper:
-    """MATLAB engine wrapper that round-trips calls involving the EEGLAB data structure through files.
-
-    """
+    """MATLAB engine wrapper that round-trips calls involving the EEGLAB data structure through files."""
 
     def __init__(self, engine):
         """Initialize the MatlabWrapper.
