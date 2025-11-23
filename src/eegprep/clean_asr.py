@@ -1,7 +1,7 @@
 """EEG ASR (Artifact Subspace Reconstruction) cleaning utilities.
 
-This module provides functions for running the Artifact Subspace Reconstruction
-method on EEG data to remove artifacts.
+This module provides functions for running the Artifact Subspace Reconstruction method
+on EEG data to remove artifacts.
 """
 
 import logging

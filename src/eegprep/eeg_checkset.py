@@ -16,8 +16,8 @@ __all__ = ['eeg_checkset', 'strict_mode']
 _strict_mode_var = contextvars.ContextVar('strict_mode', default=True)
 
 class DummyException(Exception):
-    """Exception that should never be raised, used to disable exception
-    handling in strict mode.
+    """Exception that should never be raised, used to disable exception handling in strict mode.
+
     """
 
     pass
@@ -45,8 +45,8 @@ def strict_mode(enabled: bool):
 def eeg_checkset(EEG, load_data=True):
     """Validate and set up EEG dataset structure.
 
-    Ensures EEG dict has required fields with correct types, computes ICA
-    activations if possible, and loads data from file if specified.
+    Ensures EEG dict has required fields with correct types, computes ICA activations if
+    possible, and loads data from file if specified.
     """
     # Get the exception type based on strict mode
     # In strict mode (True), we catch DummyException (never raised) so exceptions propagate

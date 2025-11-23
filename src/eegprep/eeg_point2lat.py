@@ -5,7 +5,8 @@ from .utils.misc import round_mat
 
 
 def eeg_point2lat(lat_array, epoch_array=None, srate=None, timewin=None, timeunit=1.0):
-    """Convert event latencies in data points to latencies in time units (default seconds).
+    """Convert event latencies in data points to latencies in time units (default
+    seconds).
 
     Following EEGLAB's eeg_point2lat.
 

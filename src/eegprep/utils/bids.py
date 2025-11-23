@@ -46,9 +46,8 @@ def query_for_adjacent_fpath(
         fn: str,
         **overrides
 ) -> Dict[str, Any]:
-    """Generate a query dictionary (of entities) for a given file path in a
-    BIDS dataset, where we selectively apply overrides to the entities.
-    """
+    """Generate a query dictionary (of entities) for a given file path in a BIDS
+    dataset, where we selectively apply overrides to the entities."""
     layout = layout_for_fpath(fn)
     query_entities = layout.parse_file_entities(fn).copy()
     query_entities.update(overrides)
@@ -133,8 +132,8 @@ def layout_get_lenient(
         expect_one: bool = False,
         **filters,
 ) -> list:
-    """Wrap layout.get() to tolerate specific missing entities in the specified
-    order of succession.
+    """Wrap layout.get() to tolerate specific missing entities in the specified order of
+    succession.
 
     Parameters
     ----------

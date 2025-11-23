@@ -37,6 +37,8 @@ def _mne_events_to_eeglab_events(raw_or_epochs):
 def eeg_mne2eeg(raw):
     """Convert MNE Raw object to EEG data structure.
 
+    
+
     Parameters
     ----------
     raw : mne.io.Raw

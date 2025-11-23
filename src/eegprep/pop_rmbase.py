@@ -9,8 +9,7 @@ from .utils.misc import round_mat
 def _normalize_pointrange(
     pointrange: Optional[Iterable], pnts: int
 ) -> np.ndarray:
-    """Normalize MATLAB-like pointrange into a 0-based numpy index vector
-    within [0, pnts-1].
+    """Normalize MATLAB-like pointrange into a 0-based numpy index vector within [0, pnts-1].
 
     Accepts:
       - None or empty → full range
@@ -54,8 +53,8 @@ def _normalize_pointrange(
 
 
 def _indices_from_timerange(times: np.ndarray, timerange: Iterable[float]) -> np.ndarray:
-    """Build 0-based indices from a millisecond timerange using EEG['times']
-    (ms).
+    """Build 0-based indices from a millisecond timerange using EEG['times'] (ms).
+
     """
     tr = np.asarray(list(timerange), dtype=float)
     if tr.size != 2:
@@ -72,8 +71,7 @@ def _indices_from_timerange(times: np.ndarray, timerange: Iterable[float]) -> np
 
 
 def _subtract_mean_over_indices(data: np.ndarray, idx: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-    """Subtract mean over the provided indices from each channel for 2D data
-    (chans x frames).
+    """Subtract mean over the provided indices from each channel for 2D data (chans x frames).
 
     Returns (data_out, means) where means is chans x 1.
     """

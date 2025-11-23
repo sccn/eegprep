@@ -7,8 +7,7 @@ from scipy.interpolate import Rbf
 from scipy.spatial import cKDTree
 
 def griddata_v4(x, y, v, xq, yq):
-    """Python version of MATLAB's GDATAV4 interpolation based on David T.
-    Sandwell's biharmonic spline interpolation.
+    """Python version of MATLAB's GDATAV4 interpolation based on David T. Sandwell's biharmonic spline interpolation.
 
     Parameters
     ----------

@@ -1,7 +1,7 @@
 """EEG epoching utilities.
 
-This module provides functions for extracting epochs from continuous EEG data
-time-locked to specified events.
+This module provides functions for extracting epochs from continuous EEG data time-
+locked to specified events.
 """
 
 import numpy as np

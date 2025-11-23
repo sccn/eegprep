@@ -8,8 +8,8 @@ __all__ = ['coords_to_mm', 'coords_any_to_RAS', 'coords_RAS_to_ALS', 'coords_ALS
 
 
 def coords_to_mm(coords: np.ndarray, unit: str) -> np.ndarray:
-    """Convert the given coordinates array from the specified unit to
-    millimeters.
+    """Convert the given coordinates array from the specified unit to millimeters.
+
     """
     if unit in ('mm', 'millimeters'):
         pass
@@ -24,8 +24,8 @@ def coords_to_mm(coords: np.ndarray, unit: str) -> np.ndarray:
 
 
 def coords_RAS_to_ALS(coords: np.ndarray) -> np.ndarray:
-    """Convert coordinates from RAS (Right-Anterior-Superior) to ALS (Anterior-
-    Left-Superior) convention.
+    """Convert coordinates from RAS (Right-Anterior-Superior) to ALS (Anterior- Left-
+    Superior) convention.
     """
     if coords.ndim == 1:
         coords = coords[np.newaxis, :]  # Ensure 2D array for consistent processing
@@ -37,8 +37,7 @@ def coords_RAS_to_ALS(coords: np.ndarray) -> np.ndarray:
 
 
 def coords_any_to_RAS(coords: np.ndarray, x: str, y: str, z: str) -> np.ndarray:
-    """Convert the given coordinates (Nx3 array) to the RAS (Right-Anterior-
-    Superior) system.
+    """Convert the given coordinates (Nx3 array) to the RAS (Right-Anterior-Superior) system.
 
     Parameters
     ----------
@@ -75,8 +74,7 @@ def coords_any_to_RAS(coords: np.ndarray, x: str, y: str, z: str) -> np.ndarray:
 
 
 def coords_ALS_to_angular(coords: np.ndarray) -> np.ndarray:
-    """Convert Cartesian coordinates to spherical coordinates (sph_theta,
-    sph_phi, sph_radius) and 2d polar coordinates (polar_theta, polar_radius).
+    """Convert Cartesian coordinates to spherical coordinates (sph_theta, sph_phi, sph_radius) and 2d polar coordinates (polar_theta, polar_radius).
 
     Parameters
     ----------
@@ -111,7 +109,8 @@ def coords_ALS_to_angular(coords: np.ndarray) -> np.ndarray:
 
 
 def clear_chanloc(ch: Dict[str, Any], numeric_null: Any) -> None:
-    """Clear a channel-location record for a single channel in-place."""
+    """Clear a channel-location record for a single channel in-place.
+    """
     ch['sph_radius'] = numeric_null
     ch['sph_theta'] = numeric_null
     ch['sph_phi'] = numeric_null
@@ -123,8 +122,8 @@ def clear_chanloc(ch: Dict[str, Any], numeric_null: Any) -> None:
 
 
 def chanloc_has_coords(ch: Dict[str, Any]) -> bool:
-    """Check if a given channel location record has valid (Cartesian)
-    coordinates.
+    """Check if a given channel location record has valid (Cartesian) coordinates.
+
     """
     if ch.get('X') is None or ch.get('Y') is None or ch.get('Z') is None:
         return False
@@ -140,7 +139,9 @@ def chanloc_has_coords(ch: Dict[str, Any]) -> bool:
 
 
 def chanlocs_to_coords(chanlocs: Sequence[Dict[str, Any]]) -> np.ndarray:
-    """Convert an EEGLAB chanlocs data structure to a Nx3 coordinates array."""
+    """Convert an EEGLAB chanlocs data structure to a Nx3 coordinates array.
+
+    """
     coords = np.array([[cl['X'], cl['Y'], cl['Z']]
                        if chanloc_has_coords(cl)
                        else [np.nan, np.nan, np.nan]

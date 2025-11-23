@@ -11,8 +11,7 @@ from eegprep.pop_select import pop_select  # ensure availability via globals
 class EEGobj:
     """Wrapper class for EEG datasets stored as dictionaries.
 
-    Provides attribute access to EEG fields and method calls to eegprep
-    functions.
+    Provides attribute access to EEG fields and method calls to eegprep functions.
     """
 
     def __init__(self, EEG_or_path):
@@ -115,9 +114,10 @@ class EEGobj:
         return wrapper
 
     def __setattr__(self, name, value):
-        """Set attributes on the underlying EEG dict when possible, else on the
-        wrapper.
+        """Set attributes on the underlying EEG dict when possible, else on the wrapper.
+
         """
+        if name == 'EEG':
         if name == 'EEG':
             object.__setattr__(self, name, value)
             return

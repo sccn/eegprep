@@ -1,7 +1,7 @@
 """EEG data window cleaning utilities.
 
-This module provides functions for removing periods with abnormally high-power
-content from continuous EEG data.
+This module provides functions for removing periods with abnormally high-power content
+from continuous EEG data.
 """
 
 import warnings

@@ -177,8 +177,8 @@ def py2mat(dicts):
 def mat2py(obj):
     """Convert MATLAB data structures to Python equivalents.
 
-    Recursively converts MATLAB structs, arrays, and other types to Python
-    dicts, lists, and arrays.
+    Recursively converts MATLAB structs, arrays, and other types to Python dicts, lists,
+    and arrays.
     """
     # check if obj is a dictionary and apply recursively the function to each object not changing the struture of the dictionary
     if isinstance(obj, dict):
@@ -267,8 +267,8 @@ def mat2py(obj):
         return obj
     
 def test_py2mat():
-    """Test the py2mat and mat2py conversion functions with various data
-    structures.
+    """Test the py2mat and mat2py conversion functions with various data structures.
+
     """
     import scipy.io  
     

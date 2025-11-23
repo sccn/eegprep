@@ -1,7 +1,7 @@
 """EEG channel interpolation utilities.
 
-This module provides functions for interpolating bad channels in EEG data using
-various methods including spherical spline interpolation.
+This module provides functions for interpolating bad channels in EEG data using various
+methods including spherical spline interpolation.
 """
 
 # to do, look at line 83 and 84 and try to see if the MATLAB array output match. Run code side by side.
@@ -177,9 +177,7 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
     return EEG
 
 def _handle_chanloc_interpolation(EEG, new_chanlocs):
-    """
-
-    Handle interpolation when bad_chans is provided as a list of chanloc.
+    """Handle interpolation when bad_chans is provided as a list of chanloc.
 
     structures.
 
@@ -188,7 +186,6 @@ def _handle_chanloc_interpolation(EEG, new_chanlocs):
     EEG : potentially modified EEG structure
 
     bad_idx : list of indices to interpolate
-
     """
     current_locs = EEG['chanlocs']
     current_labels = [ch['labels'] for ch in current_locs]
@@ -465,7 +462,6 @@ def test_ica_indices_update():
     Test that ICA channel indices are properly updated when channels are
 
     reordered during interpolation with chanloc structures.
-
     """
     # Create a sample EEG structure with ICA data
     EEG = {

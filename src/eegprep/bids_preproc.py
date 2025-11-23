@@ -31,7 +31,8 @@ eeg_extensions = ('.vhdr', '.edf', '.bdf', '.set')
 all_stages = ['Import', 'ChannelSelection', 'Resample', 'CleanArtifacts', 'ICA', 'ICLabel', 'ChannelInterp', 'Epoching', 'CommonAverageRef']
 
 def _copy_misc_root_files(root: str, dst: str, exclude: List[str]) -> None:
-    """Move miscellaneous description files from the study root to the target directory."""
+    """Move miscellaneous description files from the study root to the target
+    directory."""
     from bids import BIDSLayout
     from bids.layout.models import BIDSJSONFile
     layout: BIDSLayout = layout_for_fpath(root)
@@ -64,7 +65,8 @@ def _copy_misc_root_files(root: str, dst: str, exclude: List[str]) -> None:
 
 
 def _legacy_override(new_and_name: Tuple[Any, str], old_and_name: Tuple[Any, str], default: Any):
-    """Handle overrides with values from legacy parameters and a default if both the new and legacy parameter are None."""
+    """Handle overrides with values from legacy parameters and a default if both the new
+    and legacy parameter are None."""
     new, new_name = new_and_name
     old, old_name = old_and_name
     if old is not None:
@@ -367,7 +369,8 @@ def bids_preproc(
     from .utils.bids import gen_derived_fpath
 
     def hash_suffix(ignore: Optional[set] = None, *, prefix='#') -> str:
-        """Get a hash for all options that affect results minus the ones listed in ignore.
+        """Get a hash for all options that affect results minus the ones listed in
+        ignore.
 
         Unless UseHashes is False (in which case an empty string is returned).
         """
@@ -543,7 +546,8 @@ def bids_preproc(
             with thread_ctx:
 
                 def select_channels(EEG, report=None):
-                    """Apply channel selection, optionally update the provided report in-place."""
+                    """Apply channel selection, optionally update the provided report
+                    in-place."""
                     if report is None:
                         report = {}
                     keep = np.ones_like(EEG['chanlocs'], dtype=bool)

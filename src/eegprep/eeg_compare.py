@@ -12,6 +12,8 @@ import numpy as np
 def eeg_compare(eeg1, eeg2, verbose_level=0, trigger_error=False):
     """Compare two EEG-like structures, reporting differences to stderr.
 
+    
+
     Parameters
     ----------
     eeg1 : dict or object

@@ -406,8 +406,8 @@ def _fspecinv(b: np.ndarray) -> np.ndarray:
 
 
 def firwsord(wintype: str, fs: float, df: float, dev: Optional[float] = None) -> Tuple[int, float]:
-    """Estimate windowed sinc FIR filter order depending on window type and
-    requested transition band width.
+    """Estimate windowed sinc FIR filter order depending on window type and requested
+    transition band width.
 
     Parameters
     ----------

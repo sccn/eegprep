@@ -17,8 +17,7 @@ logger = logging.getLogger(__name__)
 def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
                   window_len=None, window_overlap=None, max_dropout_fraction=None,
                   min_clean_fraction=None, maxmem=None, useriemannian=None, compatibility=None):
-    """Calibration function for the Artifact Subspace Reconstruction (ASR)
-    method.
+    """Calibration function for the Artifact Subspace Reconstruction (ASR) method.
 
     State = asr_calibrate(Data, SamplingRate, Cutoff, BlockSize, FilterB, FilterA, WindowLength, WindowOverlap, MaxDropoutFraction, MinCleanFraction, MaxMemory)
 

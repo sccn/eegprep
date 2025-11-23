@@ -1,7 +1,7 @@
 """EEG autocorrelation computation using FFTW.
 
-This module provides functions for computing autocorrelation of EEG ICA
-components using fast Fourier transform methods.
+This module provides functions for computing autocorrelation of EEG ICA components using
+fast Fourier transform methods.
 """
 
 import numpy as np
@@ -13,6 +13,8 @@ from .pop_reref import pop_reref
 
 def eeg_autocorr_fftw(EEG, pct_data=100):
     """Compute autocorrelation of EEG ICA components using FFT.
+
+    
 
     Parameters
     ----------
