@@ -60,8 +60,8 @@ docs = [
 ]
 all = [
   "eegprep[torch]",
-  "eegprep[eeglabio]"
-  "eegprep[docs]"
+  "eegprep[eeglabio]",
+  "eegprep[docs]",
 ]
 
 [tool.setuptools]
