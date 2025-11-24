@@ -60,7 +60,7 @@ html_theme_options = {
     # Navigation structure
     "navbar_start": ["navbar-logo"],
     "navbar_center": ["navbar-nav"],
-    "navbar_end": ["navbar-icon-links"],
+    "navbar_end": ["search-button.html", "navbar-icon-links"],
     "navbar_persistent": [],
     "primary_sidebar_end": [],
     "footer_start": ["copyright"],
