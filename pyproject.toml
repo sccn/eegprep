@@ -59,18 +59,9 @@ docs = [
   "sphinxcontrib-spelling>=7.1.0"
 ]
 all = [
-  "torch>=2.5.1",
-  "eeglabio>=0.1.2",
-  "sphinx>=7.0",
-  "pydata-sphinx-theme>=0.14.0",
-  "sphinx-gallery>=0.14.0",
-  "sphinx-autodoc-typehints>=1.25.0",
-  "numpydoc>=1.6.0",
-  "sphinx-design>=0.5.0",
-  "myst-parser>=1.0.0",
-  "sphinx-copybutton>=0.5.0",
-  "sphinx-togglebutton>=0.3.0",
-  "sphinxcontrib-spelling>=7.1.0"
+  "eegprep[torch]",
+  "eegprep[eeglabio]"
+  "eegprep[docs]"
 ]
 
 [tool.setuptools]
