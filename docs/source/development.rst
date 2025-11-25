@@ -12,7 +12,7 @@ Prerequisites
 System Requirements
 -------------------
 
-- **Python**: 3.8 or higher
+- **Python**: 3.11 or higher
 - **Git**: For version control
 - **pip**: Python package manager
 - **Virtual environment**: venv or conda

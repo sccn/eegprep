@@ -10,7 +10,7 @@ Installation FAQ
 What Python versions does EEGPrep support?
 ------------------------------------------
 
-EEGPrep supports Python 3.8 and higher. We recommend using Python 3.9 or 3.10 for the best compatibility with all dependencies.
+EEGPrep supports Python 3.11 and higher. We recommend using Python 3.11 or 3.12 for the best compatibility with all dependencies, following the (https://scientific-python.org/specs/spec-0000/)[SPEC0] guidelines.
 
 How do I install EEGPrep?
 -------------------------
@@ -33,7 +33,7 @@ What are the system requirements?
 ---------------------------------
 
 - **Operating System**: Linux, macOS, or Windows
-- **Python**: 3.8 or higher
+- **Python**: 3.11 or higher
 - **RAM**: Minimum 4GB (8GB+ recommended for large datasets)
 - **Disk Space**: 500MB for installation and dependencies
 
