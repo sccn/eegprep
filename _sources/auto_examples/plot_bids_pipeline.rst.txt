@@ -321,7 +321,7 @@ with synthetic EEG data
 
     Creating minimal BIDS dataset for demonstration...
     ----------------------------------------------------------------------
-    Created temporary BIDS directory: /tmp/bids_example_aaajka9_
+    Created temporary BIDS directory: /tmp/bids_example_ls1rhma6
     ✓ Created dataset_description.json
     ✓ Created participants.tsv
 
@@ -330,7 +330,7 @@ with synthetic EEG data
       ✓ Created subject sub-02 data
 
     BIDS dataset created successfully!
-    Dataset location: /tmp/bids_example_aaajka9_
+    Dataset location: /tmp/bids_example_ls1rhma6
 
 
 
@@ -883,7 +883,7 @@ For real BIDS datasets:
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 0.759 seconds)
+   **Total running time of the script:** (0 minutes 0.335 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_bids_pipeline.py:
