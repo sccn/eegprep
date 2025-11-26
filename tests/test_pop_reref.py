@@ -46,12 +46,12 @@ class TestPopReref(DebuggableTestCase):
             })
         
         # Create ICA components equal to number of channels
-        icaweights = np.random.randn(nbchan, nbchan).astype(np.float32)
-        icawinv = np.linalg.pinv(icaweights).astype(np.float32)
-        icasphere = np.eye(nbchan).astype(np.float32)
+        icaweights = np.random.randn(nbchan, nbchan).astype(np.float64)
+        icawinv = np.linalg.pinv(icaweights).astype(np.float64)
+        icasphere = np.eye(nbchan).astype(np.float64)
         
         return {
-            'data': np.random.randn(nbchan, pnts, trials).astype(np.float32),
+            'data': np.random.randn(nbchan, pnts, trials).astype(np.float64),
             'nbchan': nbchan,
             'pnts': pnts,
             'trials': trials,

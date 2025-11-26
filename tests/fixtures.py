@@ -191,11 +191,11 @@ def cleanup_matplotlib():
     plt.cla()
 
 
-class TestFixtures:
+class EEGContext:
     """Context manager for common test fixtures.
-    
+
     Usage:
-        with TestFixtures(seed=42, mpl_backend='Agg') as fixtures:
+        with EEGContext(seed=42, mpl_backend='Agg') as fixtures:
             eeg = fixtures.create_eeg(n_channels=64)
             # ... run tests ...
     """
@@ -248,4 +248,5 @@ class TestFixtures:
 
 # Legacy functions for backward compatibility
 small_eeg = lambda: create_test_eeg(n_channels=8, n_samples=250)  # Small EEG for quick tests
+TestFixtures = EEGContext  # Backward compatibility alias
 
