@@ -70,11 +70,8 @@ class TestPopReref(DebuggableTestCase):
         original_data = EEG['data'].copy()
         
         result = pop_reref(EEG, ref=None)
-        
-        # Check that the function returns the modified EEG
-        self.assertIs(result, EEG)
-        
-        # Check that reference is set to 'average'
+
+        # Check that reference is set to 'average' (function returns a copy with deepcopy)
         self.assertEqual(result['ref'], 'average')
         
         # Check that all channel references are updated
@@ -94,9 +91,8 @@ class TestPopReref(DebuggableTestCase):
         original_data = EEG['data'].copy()
         
         result = pop_reref(EEG, ref=[])
-        
-        # Should behave the same as ref=None
-        self.assertIs(result, EEG)
+
+        # Should behave the same as ref=None (function returns a copy with deepcopy)
         self.assertEqual(result['ref'], 'average')
         
         # Check that data is modified (average subtracted)

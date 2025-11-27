@@ -15,7 +15,7 @@ import scipy.io
 logger = logging.getLogger(__name__)
 
 # can be either 'OCT' (for Oct2Py) or 'MAT' (MATLAB engine)
-default_runtime = 'OCT'
+default_runtime = 'MAT'
 
 # directory where temporary .set files are written
 # use environment variable if it exists

@@ -1,12 +1,11 @@
-from copy import deepcopy
 import logging
-
+from copy import deepcopy
 import numpy as np
 
 logger = logging.getLogger(__name__)
 
-def pop_reref(EEG, ref):
-    EEG = deepcopy(EEG)
+def pop_reref(EEGin, ref):
+    EEG = deepcopy(EEGin)
 
     # check if ref is not empty and not none
     if ref is not None and ref != []:
@@ -17,12 +16,8 @@ def pop_reref(EEG, ref):
 
     # Check if the number of channels in EEG['icachansind'] is the same as the number of channels in EEG['nbchan']
     if len(EEG['icachansind']) and (len(EEG['icachansind']) != EEG['nbchan']):
-        logger.error('Feature not implemented: The number of channels in EEG[''icachansind''] '
-                     'must be the same as the number of channels in EEG[''nbchan'']. Clearing ICA fields.')
-        EEG['icawinv'] = np.array([])
-        EEG['icaweights'] = np.array([])
-        EEG['icasphere'] = np.array([])
-        EEG['icaact'] = np.array([])
+        raise ValueError('Feature not implemented: The number of channels in EEG[\'icachansind\'] '
+                        'must be the same as the number of channels in EEG[\'nbchan\'].')
     elif len(EEG['icachansind']):
         #print(np.array2string(EEG['icaweights'][:10, :10], precision=3, suppress_small=True))
 
@@ -39,16 +34,16 @@ def pop_reref(EEG, ref):
 
         EEG['icasphere'] = np.eye(EEG['nbchan'])
 
-        # Compute the ICA activations        
+        # Compute the ICA activations
         # data = EEG['data'].reshape(EEG['data'].shape[0], -1)
         # EEG['icaact'] = np.dot(EEG['icaweights'], data)
         # EEG['icaact'] = EEG['icaact'].reshape(EEG['icaweights'].shape[0], EEG['pnts'], EEG['trials'])
-                
-        # Set EEG['ref'] to 'average'
+
+        # Set EEG['ref'] to 'average' (always, regardless of ICA status)
         EEG['ref'] = 'average'
-        
+
         # Update the reference for each channel in EEG['chanlocs']
         for iChan in range(len(EEG['chanlocs'])):
             EEG['chanlocs'][iChan]['ref'] = 'average'
-        
+
     return EEG
