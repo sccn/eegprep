@@ -135,13 +135,13 @@ class TestEEGMNE2EEGEpochs(unittest.TestCase):
         ch_names = [f'EEG{i:03d}' for i in range(n_channels)]
         info = mne.create_info(ch_names, sfreq, ch_types='eeg')
         
-        # Add channel locations
+        # Add channel locations (MNE requires exactly 12 elements)
         for i, ch in enumerate(info['chs']):
             ch['loc'] = np.array([
                 np.cos(i * np.pi / 4) * 0.1,  # x
                 np.sin(i * np.pi / 4) * 0.1,  # y
                 0.0,  # z
-                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0  # other fields
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0  # other fields (9 more = 12 total)
             ])
         
         data = np.random.randn(n_epochs, n_channels, n_times)
@@ -198,22 +198,21 @@ class TestEEGMNE2EEGEpochs(unittest.TestCase):
         event_id = {'event': 1}
         epochs = mne.EpochsArray(data, info, events, tmin=0, event_id=event_id)
         
-        # Test with custom reference applied
-        epochs.info['custom_ref_applied'] = True
-        
         # Create ICA object
         ica = ICA(n_components=8, random_state=42)
         ica.fit(epochs)
         
+        # Test with custom reference applied (use set_eeg_reference API)
+        epochs_with_ref = epochs.copy().set_eeg_reference('average', projection=False)
+        
         try:
-            result = eeg_mne2eeg_epochs(epochs, ica)
+            result = eeg_mne2eeg_epochs(epochs_with_ref, ica)
             
             # Check reference field
             self.assertIn('ref', result)
             self.assertEqual(result['ref'], 'common')
             
-            # Test without custom reference
-            epochs.info['custom_ref_applied'] = False
+            # Test without custom reference (fresh epochs)
             result2 = eeg_mne2eeg_epochs(epochs, ica)
             self.assertEqual(result2['ref'], 'average')
             
