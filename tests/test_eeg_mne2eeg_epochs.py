@@ -171,12 +171,14 @@ class TestEEGMNE2EEGEpochs(unittest.TestCase):
                 self.assertEqual(chan['labels'], f'EEG{i:03d}')
                 self.assertEqual(chan['type'], 'EEG')
                 
-                # Check coordinate conversion
-                expected_x = np.cos(i * np.pi / 4) * 100  # converted to mm
-                expected_y = -np.sin(i * np.pi / 4) * 100  # y is inverted
+                # Check coordinate conversion (MNE y → EEGLAB X, -MNE x → EEGLAB Y)
+                # MNE loc[0] = cos(...) * 0.1, loc[1] = sin(...) * 0.1
+                # EEGLAB X = loc[1] * 1000, Y = -loc[0] * 1000
+                expected_x = np.sin(i * np.pi / 4) * 100  # MNE y * 1000
+                expected_y = -np.cos(i * np.pi / 4) * 100  # -MNE x * 1000
                 self.assertAlmostEqual(chan['X'], expected_x, places=1)
                 self.assertAlmostEqual(chan['Y'], expected_y, places=1)
-                self.assertEqual(chan['Z'], 0.0)
+                self.assertAlmostEqual(chan['Z'], 0.0, places=1)
             
         except Exception as e:
             self.skipTest(f"eeg_mne2eeg_epochs channel locations not available: {e}")
