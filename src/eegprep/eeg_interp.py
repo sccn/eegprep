@@ -129,6 +129,9 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
     # reshape data to (n_chan, n_timepoints)
     d = EEG['data'].reshape(EEG['nbchan'], -1)
 
+    # Save original bad channel data before interpolation
+    original_bad_data = d[bad_idx,:].copy()
+
     # compute interpolated signals for bad channels
     bad_data = spheric_spline(
         xelec=xyz_good[0], yelec=xyz_good[1], zelec=xyz_good[2],
@@ -140,9 +143,38 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
 
     # restore original time range if needed
     if t_range != (EEG['xmin'], EEG['xmax']):
-        start, end = t_range
-        ts = np.arange(EEG['nbchan']) # dummy
-        # here you would mask out-of-range portions as in MATLAB
+        t_start, t_end = t_range
+        # Only apply for continuous data (trials=1), not epoched data (trials>1)
+        # MATLAB's length(size(tmpdata))==2 is true for continuous data because
+        # MATLAB drops trailing singleton dimensions
+        if EEG['trials'] == 1 and 'srate' in EEG:
+            # MATLAB convention: For continuous data, xmin is set to 0 by eeg_checkset,
+            # so time values are interpreted as absolute sample indices using time*srate
+            # times_2b_ignored = [1:floor(t_start*srate), floor(t_end*srate):floor(xmax*srate)]
+            # (MATLAB 1-based indexing)
+            # But empirically, MATLAB uses pnts-1 instead of floor(xmax*srate) for the upper bound
+
+            # Calculate sample indices using MATLAB convention (time*srate, not (time-xmin)*srate)
+            idx_start = int(np.floor(t_start * EEG['srate']))
+            idx_end = int(np.floor(t_end * EEG['srate']))
+            # Use pnts-1 as upper bound instead of floor(xmax*srate)
+            idx_upper = EEG['pnts'] - 1
+
+            # Build list of time indices to ignore (outside requested range)
+            # In MATLAB: [1:idx_start, idx_end:pnts] where pnts is the last index
+            # In Python (0-based): [0:max(0,idx_start), idx_end-1:pnts-2]
+            # MATLAB keeps indices [idx_end-1 : idx_upper-1] as original
+            times_to_ignore = []
+            if idx_start > 0:
+                times_to_ignore.extend(range(0, idx_start))
+            # MATLAB keeps indices [idx_end-1 : idx_upper-1] as original
+            # So we restore these indices
+            if idx_end - 1 < idx_upper:
+                times_to_ignore.extend(range(idx_end - 1, idx_upper))
+
+            # Restore original data for bad channels at these time points
+            if len(times_to_ignore) > 0:
+                bad_data[:, times_to_ignore] = original_bad_data[:, times_to_ignore]
 
     # assemble full data array
     full = np.zeros_like(d)
