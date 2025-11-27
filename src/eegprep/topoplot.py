@@ -49,6 +49,7 @@ def topoplot(datavector, chan_locs, **kwargs):
     noplot = kwargs.get('noplot', 'off')
     plotgrid = kwargs.get('plotgrid', 'off')
     plotchans = kwargs.get('plotchans', [])
+    gridscale = kwargs.get('gridscale', 67)  # Default to 67 (EEGLAB default)
     handle = None
     Zi = None
     chanval = np.nan
@@ -64,10 +65,10 @@ def topoplot(datavector, chan_locs, **kwargs):
     squeezefac = 1.0
     ContourVals = datavector
     method = kwargs.get('method', 'rbf')
-    
+
     # print method
     # print(f'method = {method}')
-    
+
     # Handle additional arguments
     if 'noplot' in kwargs:
         noplot = kwargs['noplot']
@@ -82,7 +83,7 @@ def topoplot(datavector, chan_locs, **kwargs):
     # Set colormap
     cmap = plt.get_cmap('jet')
     cmaplen = cmap.N
-    GRID_SCALE = 32  # 32 for ICL_feature_extractor parity, 67 is EEGLAB topoplot default
+    GRID_SCALE = gridscale
 
     if len(datavector) > MAXDEFAULTSHOWLOCS:
         ELECTRODES = 'off'

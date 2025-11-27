@@ -468,9 +468,9 @@ class TestTopoplot(unittest.TestCase):
         # Grid should be square
         self.assertEqual(xi.shape[0], xi.shape[1])
         self.assertEqual(yi.shape[0], yi.shape[1])
-        
-        # Grid should have reasonable resolution (GRID_SCALE = 32)
-        expected_size = 32
+
+        # Grid should have reasonable resolution (GRID_SCALE = 67, EEGLAB default)
+        expected_size = 67
         self.assertEqual(xi.shape[0], expected_size)
         
         # Grid should cover the plotting area
