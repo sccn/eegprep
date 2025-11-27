@@ -109,7 +109,7 @@ class TestEegPicardSimple(DebuggableTestCase):
         try:
             result = eeg_picard(
                 self.test_eeg.copy(),
-                maxiter=10,
+                max_iter=10,  # picard uses max_iter, not maxiter
                 verbose=False,
                 random_state=42
             )
@@ -250,8 +250,8 @@ class TestEegPicardSimple(DebuggableTestCase):
         """Test eeg_picard with maxiter parameter."""
         try:
             # Test with different maxiter values
-            result1 = eeg_picard(self.test_eeg.copy(), maxiter=5)
-            result2 = eeg_picard(self.test_eeg.copy(), maxiter=10)
+            result1 = eeg_picard(self.test_eeg.copy(), max_iter=5)
+            result2 = eeg_picard(self.test_eeg.copy(), max_iter=10)
             
             # Both should produce valid results
             self.assertIn('icaweights', result1)

@@ -18,16 +18,20 @@ from eegprep.utils.testing import DebuggableTestCase
 
 
 def create_test_eeg():
-    """Create a complete test EEG structure with all required fields."""
+    """Create a complete test EEG structure with all required fields.
+    
+    Note: clean_drifts expects continuous (2D) data, not epoched (3D) data.
+    """
+    n_pnts = 10000  # 20 seconds at 500 Hz
     return {
-        'data': np.random.randn(32, 1000, 10),
+        'data': np.random.randn(32, n_pnts),  # 2D continuous data
         'srate': 500.0,
         'nbchan': 32,
-        'pnts': 1000,
-        'trials': 10,
-        'xmin': -1.0,
-        'xmax': 1.0,
-        'times': np.linspace(-1.0, 1.0, 1000),
+        'pnts': n_pnts,
+        'trials': 1,
+        'xmin': 0.0,
+        'xmax': n_pnts / 500.0,
+        'times': np.linspace(0, n_pnts / 500.0, n_pnts),
         'icaact': [],
         'icawinv': [],
         'icasphere': [],
@@ -51,7 +55,7 @@ def create_test_eeg():
             for i in range(32)
         ],
         'urchanlocs': [],
-        'chaninfo': [],
+        'chaninfo': {'removedchans': []},
         'ref': 'common',
         'history': '',
         'saved': 'yes',
@@ -169,9 +173,9 @@ class TestCleanDriftsEdgeCases(DebuggableTestCase):
     def test_clean_drifts_single_channel(self):
         """Test clean_drifts with single channel data."""
         try:
-            # Create single channel data
+            # Create single channel data (2D continuous)
             single_channel_eeg = self.test_eeg.copy()
-            single_channel_eeg['data'] = np.random.randn(1, 1000, 10)
+            single_channel_eeg['data'] = np.random.randn(1, 10000)
             single_channel_eeg['nbchan'] = 1
             single_channel_eeg['chanlocs'] = [single_channel_eeg['chanlocs'][0]]
             
@@ -185,11 +189,11 @@ class TestCleanDriftsEdgeCases(DebuggableTestCase):
             self.skipTest(f"clean_drifts single channel not available: {e}")
 
     def test_clean_drifts_single_trial(self):
-        """Test clean_drifts with single trial data."""
+        """Test clean_drifts with continuous (single trial) data."""
         try:
-            # Create single trial data
+            # Create continuous data (2D - single trial is the normal case)
             single_trial_eeg = self.test_eeg.copy()
-            single_trial_eeg['data'] = np.random.randn(32, 1000, 1)
+            single_trial_eeg['data'] = np.random.randn(32, 10000)
             single_trial_eeg['trials'] = 1
             
             result = clean_drifts(single_trial_eeg)
@@ -223,7 +227,7 @@ class TestCleanDriftsEdgeCases(DebuggableTestCase):
         try:
             # Create float32 data
             float32_eeg = self.test_eeg.copy()
-            float32_eeg['data'] = np.random.randn(32, 1000, 10).astype(np.float32)
+            float32_eeg['data'] = np.random.randn(32, 10000).astype(np.float32)
             
             result = clean_drifts(float32_eeg)
             
@@ -239,7 +243,7 @@ class TestCleanDriftsEdgeCases(DebuggableTestCase):
         try:
             # Create float64 data
             float64_eeg = self.test_eeg.copy()
-            float64_eeg['data'] = np.random.randn(32, 1000, 10).astype(np.float64)
+            float64_eeg['data'] = np.random.randn(32, 10000).astype(np.float64)
             
             result = clean_drifts(float64_eeg)
             

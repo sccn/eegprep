@@ -284,8 +284,6 @@ class TestPopReref(DebuggableTestCase):
         mean_icawinv = np.mean(result['icawinv'], axis=0)
         self.assertTrue(np.all(np.abs(mean_icawinv) < 1e-6))
 
-    @unittest.skipUnless(hasattr(sys, '_called_from_test'), 
-                        "MATLAB tests require MATLAB environment")
     def test_parity_basic_reref(self):
         """Test parity with MATLAB for basic rereferencing."""
         if not self.matlab_available:
