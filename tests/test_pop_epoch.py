@@ -338,7 +338,7 @@ class TestPopEpochParity(unittest.TestCase):
         py_eeg, py_indices = pop_epoch(copy.deepcopy(self.EEG), types, lim)
         
         # Check that events have epoch field
-        if py_eeg['event']:
+        if py_eeg['event'] is not None and len(py_eeg['event']) > 0:
             for event in py_eeg['event']:
                 self.assertIn('epoch', event)
                 self.assertIsInstance(event['epoch'], int)
