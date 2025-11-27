@@ -82,8 +82,7 @@ def topoplot(datavector, chan_locs, **kwargs):
     # Set colormap
     cmap = plt.get_cmap('jet')
     cmaplen = cmap.N
-    GRID_SCALE = 32
-    # GRID_SCALE = 67 # 67 is the default value in EEGLAB
+    GRID_SCALE = 32  # 32 for ICL_feature_extractor parity, 67 is EEGLAB topoplot default
 
     if len(datavector) > MAXDEFAULTSHOWLOCS:
         ELECTRODES = 'off'
