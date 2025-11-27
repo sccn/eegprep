@@ -3,7 +3,7 @@ from .pop_loadset import pop_loadset
 import mne
 import tempfile
 import os
-from mne.export import export_raw
+from mne.export import export_raw, export_epochs
 import numpy as np
 
 def _mne_events_to_eeglab_events(raw_or_epochs):
@@ -33,8 +33,8 @@ def _mne_events_to_eeglab_events(raw_or_epochs):
             events.append({'latency': latency, 'type': event_type})
     return events
 
-# write a funtion that converts a MNE raw object to an EEGLAB set file
-def eeg_mne2eeg(raw):
+# write a funtion that converts a MNE raw or epochs object to an EEGLAB set file
+def eeg_mne2eeg(raw_or_epochs):
     # Generate a temporary file name
     with tempfile.NamedTemporaryFile(delete=False) as temp_file:
         temp_file_path = temp_file.name    
@@ -42,14 +42,17 @@ def eeg_mne2eeg(raw):
     base, _ = os.path.splitext(temp_file_path)
     new_temp_file_path = base + ".set"
 
-    # save the raw file as a new EEGLAB .set file using MNE EEGLAB writer
-    export_raw(new_temp_file_path, raw, fmt='eeglab')
+    # save the raw/epochs file as a new EEGLAB .set file using MNE EEGLAB writer
+    if isinstance(raw_or_epochs, mne.BaseEpochs):
+        export_epochs(new_temp_file_path, raw_or_epochs, fmt='eeglab')
+    else:
+        export_raw(new_temp_file_path, raw_or_epochs, fmt='eeglab')
 
     # load the EEGLAB set file
     EEG = pop_loadset(new_temp_file_path)
 
     # Inject events/annotations from MNE object into EEGLAB structure
-    eeglab_events = _mne_events_to_eeglab_events(raw)
+    eeglab_events = _mne_events_to_eeglab_events(raw_or_epochs)
     if eeglab_events:
         EEG['event'] = eeglab_events
     

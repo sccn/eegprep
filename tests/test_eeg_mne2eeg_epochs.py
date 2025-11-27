@@ -115,8 +115,8 @@ class TestEEGMNE2EEGEpochs(unittest.TestCase):
             
             # Check ICA field shapes
             self.assertEqual(result['icaact'].shape, (8, n_times, n_epochs))  # n_components x n_times x n_epochs
-            self.assertEqual(result['icawinv'].shape, (n_channels, 8))  # n_channels x n_components
-            self.assertEqual(result['icasphere'].shape, (8, n_channels))  # n_components x n_channels
+            self.assertEqual(result['icawinv'].shape, (8, n_channels))  # n_components x n_channels
+            self.assertEqual(result['icasphere'].shape, (n_channels, 8))  # n_channels x n_components
             self.assertEqual(result['icaweights'].shape, (n_channels, n_channels))  # identity matrix
             self.assertEqual(len(result['icachansind']), n_channels)  # channel indices
             
@@ -245,10 +245,10 @@ class TestEEGMNE2EEGEpochs(unittest.TestCase):
         try:
             result = eeg_mne2eeg_epochs(epochs, ica)
             
-            # Check data dimensions
+            # Check data dimensions (data is in MNE format: n_epochs x n_channels x n_times)
             self.assertEqual(result['trials'], 1)
-            self.assertEqual(result['data'].shape, (n_channels, n_times, 1))
-            self.assertEqual(result['icaact'].shape, (8, n_times, 1))
+            self.assertEqual(result['data'].shape, (n_epochs, n_channels, n_times))
+            self.assertEqual(result['icaact'].shape, (8, n_times, n_epochs))
             
         except Exception as e:
             self.skipTest(f"eeg_mne2eeg_epochs single epoch not available: {e}")
@@ -309,10 +309,10 @@ class TestEEGMNE2EEGEpochs(unittest.TestCase):
         try:
             result = eeg_mne2eeg_epochs(epochs, ica)
             
-            # Check data dimensions
+            # Check data dimensions (data is in MNE format: n_epochs x n_channels x n_times)
             self.assertEqual(result['pnts'], 10)
             self.assertEqual(result['trials'], 3)
-            self.assertEqual(result['data'].shape, (8, 10, 3))
+            self.assertEqual(result['data'].shape, (n_epochs, n_channels, n_times))
             
         except Exception as e:
             self.skipTest(f"eeg_mne2eeg_epochs short data not available: {e}")
@@ -404,13 +404,13 @@ class TestEEGMNE2EEGEpochs(unittest.TestCase):
         ch_names = [f'EEG{i:03d}' for i in range(n_channels)]
         info = mne.create_info(ch_names, sfreq, ch_types='eeg')
         
-        # Add realistic channel locations
+        # Add realistic channel locations (MNE requires exactly 12 elements)
         for i, ch in enumerate(info['chs']):
             ch['loc'] = np.array([
                 np.cos(i * np.pi / 16) * 0.1,  # x
                 np.sin(i * np.pi / 16) * 0.1,  # y
                 0.0,  # z
-                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0  # other fields
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0  # other fields (9 more = 12 total)
             ])
         
         data = np.random.randn(n_epochs, n_channels, n_times)
@@ -433,8 +433,8 @@ class TestEEGMNE2EEGEpochs(unittest.TestCase):
             
             # Check ICA properties
             self.assertEqual(result['icaact'].shape, (15, 200, 20))
-            self.assertEqual(result['icawinv'].shape, (32, 15))
-            self.assertEqual(result['icasphere'].shape, (15, 32))
+            self.assertEqual(result['icawinv'].shape, (15, 32))
+            self.assertEqual(result['icasphere'].shape, (32, 15))
             self.assertEqual(result['icaweights'].shape, (32, 32))
             self.assertEqual(len(result['icachansind']), 32)
             
