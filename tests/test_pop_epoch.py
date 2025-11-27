@@ -629,6 +629,11 @@ class TestPopEpochEdgeCases(unittest.TestCase):
         eeg_out, indices = pop_epoch(EEG, 'stimulus', [-0.2, 0.3])
         
         # Manually add boundary events to test removal
+        # Also add if eeg_out['event'] is a numpy array
+        if isinstance(eeg_out['event'], np.ndarray):
+            # Convert to list for appending
+            eeg_out['event'] = list(eeg_out['event'])
+            print("Converted eeg_out['event'] from numpy array to list for appending new event.")
         eeg_out['event'].append({
             'type': 'boundary',
             'latency': 25,  # Within first epoch
