@@ -363,9 +363,9 @@ class TestEEGMNE2EEGEpochs(unittest.TestCase):
         ch_names = [f'EEG{i:03d}' for i in range(n_channels)]
         info = mne.create_info(ch_names, sfreq, ch_types='eeg')
         
-        # Remove channel locations
+        # Set channel locations to zeros (MNE requires 12-element array, None not allowed)
         for ch in info['chs']:
-            ch['loc'] = None
+            ch['loc'] = np.zeros(12)
         
         data = np.random.randn(n_epochs, n_channels, n_times)
         events = np.array([[i, 0, 1] for i in range(n_epochs)])
