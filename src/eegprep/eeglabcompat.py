@@ -116,7 +116,10 @@ class MatlabWrapper:
                 self.engine.eval(eval_str, nargout=0)
                 
                 # output
-                if needs_roundtrip or name == 'pop_loadset':
+                # Functions that return numeric arrays instead of EEG structures
+                numeric_output_functions = ['eeg_autocorr', 'eeg_autocorr_fftw']
+                
+                if (needs_roundtrip or name == 'pop_loadset') and name not in numeric_output_functions:
                     # Always round-trip OUT for pop_loadset to get a proper Python EEG dict
                     self.engine.eval(f"pop_saveset(OUT, '{result_filename}');", nargout=0)
                     OUT = pop_loadset(result_filename)

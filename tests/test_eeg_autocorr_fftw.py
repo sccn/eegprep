@@ -335,8 +335,6 @@ class TestEegAutocorrFftw(DebuggableTestCase):
         # Should slice correctly to get exactly 100 samples
         self.assertEqual(result.shape[1], 100)
 
-    @unittest.skipUnless(hasattr(sys, '_called_from_test'), 
-                        "MATLAB tests require MATLAB environment")
     def test_parity_basic_autocorr_fftw(self):
         """Test parity with MATLAB for basic FFTW autocorrelation."""
         if not self.matlab_available:
@@ -356,8 +354,6 @@ class TestEegAutocorrFftw(DebuggableTestCase):
         self.assertEqual(py_result.shape, (5, 100))
         self.assertTrue(np.all(np.isfinite(py_result)))
 
-    @unittest.skipUnless(hasattr(sys, '_called_from_test'), 
-                        "MATLAB tests require MATLAB environment")
     def test_parity_different_srates_fftw(self):
         """Test parity with MATLAB for different sampling rates."""
         if not self.matlab_available:
