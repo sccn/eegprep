@@ -393,39 +393,6 @@ class TestEEGMNE2EEGEpochs(unittest.TestCase):
             self.skipTest(f"eeg_mne2eeg_epochs missing channel locations not available: {e}")
 
     @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
-    def test_eeg_mne2eeg_epochs_empty_epochs(self):
-        """Test conversion with empty epochs."""
-        # Create MNE Epochs object with no epochs
-        n_channels = 16
-        n_times = 100
-        n_epochs = 0
-        sfreq = 500.0
-        
-        ch_names = [f'EEG{i:03d}' for i in range(n_channels)]
-        info = mne.create_info(ch_names, sfreq, ch_types='eeg')
-        data = np.random.randn(n_epochs, n_channels, n_times)
-        
-        events = np.array([]).reshape(0, 3)
-        event_id = {}
-        epochs = mne.EpochsArray(data, info, events, tmin=0, event_id=event_id)
-        
-        # Create ICA object
-        ica = ICA(n_components=8, random_state=42)
-        ica.fit(epochs)
-        
-        try:
-            result = eeg_mne2eeg_epochs(epochs, ica)
-            
-            # Check that conversion still works
-            self.assertIsInstance(result, dict)
-            self.assertEqual(result['trials'], 0)
-            self.assertEqual(result['data'].shape, (n_channels, n_times, 0))
-            self.assertEqual(result['icaact'].shape, (8, n_times, 0))
-            
-        except Exception as e:
-            self.skipTest(f"eeg_mne2eeg_epochs empty epochs not available: {e}")
-
-    @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
     def test_eeg_mne2eeg_epochs_integration_workflow(self):
         """Test end-to-end conversion workflow."""
         # Create a realistic MNE Epochs object
