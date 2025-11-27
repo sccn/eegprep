@@ -9,7 +9,10 @@ import os
 
 logger = logging.getLogger(__name__)
 
-__all__ = ['eeg_checkset', 'strict_mode']
+__all__ = ['eeg_checkset', 'strict_mode', 'option_scaleicarms']
+
+# Global option to control ICA RMS scaling (default True, like MATLAB)
+option_scaleicarms = True
 
 # Context variable for strict mode (default True)
 _strict_mode_var = contextvars.ContextVar('strict_mode', default=True)
@@ -95,6 +98,39 @@ def eeg_checkset(EEG, load_data=True):
         EEG['data'] = np.fromfile(file_name, dtype='float32').reshape( EEG['pnts']*EEG['trials'], EEG['nbchan'])
         EEG['data'] = EEG['data'].T.reshape(EEG['nbchan'], EEG['trials'], EEG['pnts']).transpose(0, 2, 1)
 
+    # Scale ICA components to RMS microvolt (matches MATLAB's option_scaleicarms)
+    if (option_scaleicarms and
+        'icaweights' in EEG and 'icasphere' in EEG and 'icawinv' in EEG and
+        hasattr(EEG['icaweights'], 'size') and hasattr(EEG['icasphere'], 'size') and
+        hasattr(EEG['icawinv'], 'size') and
+        EEG['icaweights'].size > 0 and EEG['icasphere'].size > 0 and EEG['icawinv'].size > 0):
+        
+        try:
+            # Check if pinv(icaweights @ icasphere) ≈ icawinv
+            computed_icawinv = np.linalg.pinv(EEG['icaweights'] @ EEG['icasphere'])
+            mean_diff = np.mean(np.abs(computed_icawinv - EEG['icawinv']))
+            
+            if mean_diff < 0.0001:
+                logger.info('Scaling components to RMS microvolt')
+                # Compute RMS of each column of icawinv (each component's scalp projection)
+                # scaling shape: (n_components,)
+                scaling = np.sqrt(np.mean(EEG['icawinv'] ** 2, axis=0))
+                
+                # Store original weights before scaling
+                if 'etc' not in EEG:
+                    EEG['etc'] = {}
+                EEG['etc']['icaweights_beforerms'] = EEG['icaweights'].copy()
+                EEG['etc']['icasphere_beforerms'] = EEG['icasphere'].copy()
+                
+                # Apply scaling to icaweights (each row scaled by corresponding component's RMS)
+                # icaweights shape: (n_components, n_channels)
+                EEG['icaweights'] = EEG['icaweights'] * scaling[:, np.newaxis]
+                
+                # Recompute icawinv
+                EEG['icawinv'] = np.linalg.pinv(EEG['icaweights'] @ EEG['icasphere'])
+        except exception_type as e:
+            logger.error("Error scaling ICA components: " + str(e))
+
     # compute ICA activations
     if ('icaweights' in EEG and 'icasphere' in EEG and 
         hasattr(EEG['icaweights'], 'size') and hasattr(EEG['icasphere'], 'size') and
@@ -113,10 +149,13 @@ def eeg_checkset(EEG, load_data=True):
         if EEG['data'].shape[2] == 1:
             EEG['data'] = np.squeeze(EEG['data'], axis=2)
      
-    # type conversion
-    EEG['xmin'] = float(EEG['xmin'])
-    EEG['xmax'] = float(EEG['xmax'])
-    EEG['srate'] = float(EEG['srate'])
+    # type conversion (only if fields exist)
+    if 'xmin' in EEG:
+        EEG['xmin'] = float(EEG['xmin'])
+    if 'xmax' in EEG:
+        EEG['xmax'] = float(EEG['xmax'])
+    if 'srate' in EEG:
+        EEG['srate'] = float(EEG['srate'])
          
     # Define the expected types
     expected_types = {

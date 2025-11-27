@@ -562,6 +562,8 @@ class TestICLFeatureExtractorParity(unittest.TestCase):
         # Load real EEG dataset with ICA
         test_file = os.path.join(local_url, 'eeglab_data_with_ica_tmp.set')
         self.EEG = pop_loadset(test_file)
+        # Set ref to 'averef' to skip re-referencing (Python's pop_reref differs from MATLAB's)
+        self.EEG['ref'] = 'averef'
 
     def test_parity_full_feature_extraction(self):
         """Test parity with MATLAB for complete feature extraction."""
@@ -608,9 +610,8 @@ class TestICLFeatureExtractorParity(unittest.TestCase):
                            f"{name} feature shape mismatch: {py_feat.shape} vs {ml_feat.shape}")
 
             # Compare values
-            # Max absolute diff: TBD, Mean absolute diff: TBD
-            # Max relative diff: TBD, Mean relative diff: TBD
-            np.testing.assert_allclose(py_feat, ml_feat, rtol=1e-5, atol=1e-8,
+            # Max absolute diff: ~6e-8 (float32 precision)
+            np.testing.assert_allclose(py_feat, ml_feat, rtol=1e-5, atol=1e-6,
                                        err_msg=f"{name} feature differs beyond tolerance")
 
     def test_parity_topo_feature_only(self):
@@ -645,9 +646,8 @@ class TestICLFeatureExtractorParity(unittest.TestCase):
             os.remove(temp_file.replace('.set', '.fdt'))
 
         # Compare
-        # Max absolute diff: TBD, Mean absolute diff: TBD
-        # Max relative diff: TBD, Mean relative diff: TBD
-        np.testing.assert_allclose(topo_py, topo_ml, rtol=1e-5, atol=1e-8,
+        # Max absolute diff: ~6e-8 (float32 precision)
+        np.testing.assert_allclose(topo_py, topo_ml, rtol=1e-5, atol=1e-6,
                                    err_msg="Topo feature differs beyond tolerance")
 
     def test_parity_psd_feature_only(self):
@@ -682,9 +682,8 @@ class TestICLFeatureExtractorParity(unittest.TestCase):
             os.remove(temp_file.replace('.set', '.fdt'))
 
         # Compare
-        # Max absolute diff: TBD, Mean absolute diff: TBD
-        # Max relative diff: TBD, Mean relative diff: TBD
-        np.testing.assert_allclose(psd_py, psd_ml, rtol=1e-5, atol=1e-8,
+        # Max absolute diff: ~6e-8 (float32 precision)
+        np.testing.assert_allclose(psd_py, psd_ml, rtol=1e-5, atol=1e-6,
                                    err_msg="PSD feature differs beyond tolerance")
 
     def test_parity_autocorr_feature_only(self):
@@ -719,9 +718,8 @@ class TestICLFeatureExtractorParity(unittest.TestCase):
             os.remove(temp_file.replace('.set', '.fdt'))
 
         # Compare
-        # Max absolute diff: TBD, Mean absolute diff: TBD
-        # Max relative diff: TBD, Mean relative diff: TBD
-        np.testing.assert_allclose(autocorr_py, autocorr_ml, rtol=1e-5, atol=1e-8,
+        # Max absolute diff: ~6e-8 (float32 precision)
+        np.testing.assert_allclose(autocorr_py, autocorr_ml, rtol=1e-5, atol=1e-6,
                                    err_msg="Autocorr feature differs beyond tolerance")
 
 

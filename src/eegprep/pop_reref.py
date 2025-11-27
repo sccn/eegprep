@@ -1,6 +1,7 @@
 import logging
 from copy import deepcopy
 import numpy as np
+from eegprep.eeg_checkset import eeg_checkset
 
 logger = logging.getLogger(__name__)
 
@@ -58,5 +59,8 @@ def pop_reref(EEGin, ref, exclude=None):
         # Update the reference for each channel in EEG['chanlocs']
         for iChan in range(len(EEG['chanlocs'])):
             EEG['chanlocs'][iChan]['ref'] = 'average'
+
+    # Call eeg_checkset to perform RMS scaling (like MATLAB)
+    EEG = eeg_checkset(EEG)
 
     return EEG
