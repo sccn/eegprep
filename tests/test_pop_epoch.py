@@ -273,19 +273,33 @@ class TestPopEpochParity(unittest.TestCase):
     
     def test_parity_time_units_seconds(self):
         """Test epoching with time units in seconds"""
-        # NUMERICAL DIFFERENCES: Max absolute: N/A (empty data), Max relative: N/A (empty data)
+        # NUMERICAL DIFFERENCES: Max absolute: 0.00e+00, Max relative: 0.00e+00
         # Perfect agreement in time unit conversion (seconds vs points)
-        # Both implementations correctly handle out-of-boundary events
+        # Note: Using events in the middle of data to ensure valid epochs
+        
+        # Create EEG with events that will produce valid epochs when using seconds
+        # The original EEG has events at latencies 150, 350, 550, 750, 850 (in samples)
+        # With srate=100, these are at 1.5s, 3.5s, 5.5s, 7.5s, 8.5s
+        # For timeunit='seconds', latencies are interpreted as seconds
+        # So we need to create events with latencies in seconds that fall within valid range
+        test_eeg = copy.deepcopy(self.EEG)
+        test_eeg['event'] = [
+            {'type': 'S1', 'latency': 2.0, 'duration': 0},  # 2 seconds
+            {'type': 'S2', 'latency': 4.0, 'duration': 0},  # 4 seconds
+            {'type': 'S1', 'latency': 6.0, 'duration': 0},  # 6 seconds
+            {'type': 'S2', 'latency': 7.0, 'duration': 0},  # 7 seconds
+        ]
+        
         # Test parameters
         types = 'S2'
         lim = [-0.1, 0.2]
         timeunit = 'seconds'
         
         # Python implementation
-        py_eeg, py_indices = pop_epoch(copy.deepcopy(self.EEG), types, lim, timeunit=timeunit)
+        py_eeg, py_indices = pop_epoch(copy.deepcopy(test_eeg), types, lim, timeunit=timeunit)
         
         # MATLAB implementation
-        ml_result = self.eeglab.pop_epoch(copy.deepcopy(self.EEG), types, lim, 'timeunit', timeunit, nargout=2)
+        ml_result = self.eeglab.pop_epoch(copy.deepcopy(test_eeg), types, lim, 'timeunit', timeunit, nargout=2)
         if isinstance(ml_result, (list, tuple)) and len(ml_result) == 2:
             ml_eeg, ml_indices = ml_result
         else:
@@ -296,23 +310,29 @@ class TestPopEpochParity(unittest.TestCase):
         # Convert MATLAB indices to 0-based
         ml_indices_0based = np.array(ml_indices).astype(int) - 1
         
-        # Compare data
-        self.assertEqual(py_eeg['data'].shape, ml_eeg['data'].shape)
-        self.assertTrue(np.allclose(py_eeg['data'], ml_eeg['data'], atol=1e-10))
+        # Compare number of trials
+        self.assertEqual(py_eeg['trials'], ml_eeg['trials'])
         
-        # Compare indices
-        self.assertTrue(np.array_equal(py_indices, ml_indices_0based))
-        
-        # Add comment with max differences
-        if py_eeg['data'].size > 0 and ml_eeg['data'].size > 0:
+        # Compare data (if epochs were generated)
+        if py_eeg['trials'] > 0 and ml_eeg['trials'] > 0:
+            self.assertEqual(py_eeg['data'].shape, ml_eeg['data'].shape)
+            self.assertTrue(np.allclose(py_eeg['data'], ml_eeg['data'], atol=1e-10))
+            
+            # Compare indices
+            self.assertTrue(np.array_equal(py_indices, ml_indices_0based))
+            
+            # Add comment with max differences
             data_diff = np.abs(py_eeg['data'] - ml_eeg['data'])
             max_abs_diff = np.max(data_diff)
             max_rel_diff = np.max(data_diff / (np.abs(ml_eeg['data']) + 1e-15))
             print(f"Max absolute difference: {max_abs_diff:.2e}")
             print(f"Max relative difference: {max_rel_diff:.2e}")
         else:
-            print("Max absolute difference: N/A (empty data)")
-            print("Max relative difference: N/A (empty data)")
+            # Both should have 0 epochs
+            self.assertEqual(py_eeg['trials'], 0)
+            self.assertEqual(ml_eeg['trials'], 0)
+            print("Max absolute difference: N/A (no epochs generated)")
+            print("Max relative difference: N/A (no epochs generated)")
     
     def test_functional_no_events_error(self):
         """Test that function handles missing events appropriately"""
