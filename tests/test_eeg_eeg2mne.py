@@ -64,12 +64,12 @@ class TestEEGEEG2MNE(unittest.TestCase):
         try:
             result = eeg_eeg2mne(epoched_eeg)
             
-            # Check that result is an MNE Epochs object
-            self.assertIsInstance(result, mne.Epochs)
+            # Check that result is an MNE Epochs object (EpochsEEGLAB is a subclass of BaseEpochs)
+            self.assertIsInstance(result, mne.BaseEpochs)
             
             # Check that data dimensions match
-            self.assertEqual(result.n_channels, epoched_eeg['nbchan'])
-            self.assertEqual(result.n_times, epoched_eeg['pnts'])
+            self.assertEqual(result.info['nchan'], epoched_eeg['nbchan'])
+            self.assertEqual(len(result.times), epoched_eeg['pnts'])
             self.assertEqual(len(result), epoched_eeg['trials'])
             
         except Exception as e:
@@ -116,7 +116,7 @@ class TestEEGEEG2MNE(unittest.TestCase):
             
             # Check that result is an MNE object
             self.assertIsInstance(result, (mne.io.BaseRaw, mne.BaseEpochs))
-            self.assertEqual(result.n_channels, 1)
+            self.assertEqual(result.info['nchan'], 1)
             
         except Exception as e:
             self.skipTest(f"eeg_eeg2mne single channel conversion not available: {e}")
@@ -182,7 +182,7 @@ class TestEEGEEG2MNE(unittest.TestCase):
 
     @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
     def test_eeg_eeg2mne_empty_data(self):
-        """Test conversion with empty data."""
+        """Test conversion with empty data raises an error."""
         empty_eeg = self.test_eeg.copy()
         empty_eeg['data'] = np.array([])
         empty_eeg['nbchan'] = 0
@@ -190,11 +190,9 @@ class TestEEGEEG2MNE(unittest.TestCase):
         empty_eeg['trials'] = 0
         empty_eeg['chanlocs'] = []
         
-        try:
-            with self.assertRaises((ValueError, IndexError)):
-                eeg_eeg2mne(empty_eeg)
-        except Exception as e:
-            self.skipTest(f"eeg_eeg2mne empty data test not available: {e}")
+        # Empty data should raise an error (TypeError from MNE for 0 trials)
+        with self.assertRaises((ValueError, IndexError, RuntimeError, TypeError)):
+            eeg_eeg2mne(empty_eeg)
 
     @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
     def test_eeg_eeg2mne_missing_fields(self):
@@ -234,9 +232,9 @@ class TestEEGEEG2MNE(unittest.TestCase):
             
             # Check that result is an MNE object
             self.assertIsInstance(result, (mne.io.BaseRaw, mne.BaseEpochs))
-            self.assertEqual(result.n_channels, 64)
-            self.assertEqual(result.n_times, 5000)
-            if isinstance(result, mne.Epochs):
+            self.assertEqual(result.info['nchan'], 64)
+            self.assertEqual(len(result.times), 5000)
+            if isinstance(result, mne.BaseEpochs):
                 self.assertEqual(len(result), 20)
             
         except Exception as e:
@@ -245,12 +243,8 @@ class TestEEGEEG2MNE(unittest.TestCase):
     @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
     def test_eeg_eeg2mne_integration_workflow(self):
         """Test end-to-end conversion workflow."""
-        # Create a realistic EEG dataset
+        # Create a realistic EEG dataset (use fixture as-is to avoid time axis issues)
         realistic_eeg = create_test_eeg(n_samples=1000, n_trials=10, srate=500.0)
-        realistic_eeg['data'] = np.random.randn(32, 1000, 10)
-        realistic_eeg['xmin'] = -1.0
-        realistic_eeg['xmax'] = 1.0
-        realistic_eeg['times'] = np.linspace(-1.0, 1.0, 1000)
 
         # Add some additional events (already has epoch events from fixture)
         realistic_eeg['event'].extend([
@@ -265,9 +259,9 @@ class TestEEGEEG2MNE(unittest.TestCase):
             self.assertIsInstance(result, (mne.io.BaseRaw, mne.BaseEpochs))
             
             # Check basic properties
-            self.assertEqual(result.n_channels, 32)
-            self.assertEqual(result.n_times, 1000)
-            if isinstance(result, mne.Epochs):
+            self.assertEqual(result.info['nchan'], 32)
+            self.assertEqual(len(result.times), 1000)
+            if isinstance(result, mne.BaseEpochs):
                 self.assertEqual(len(result), 10)
             
         except Exception as e:
