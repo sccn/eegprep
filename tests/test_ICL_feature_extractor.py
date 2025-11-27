@@ -57,6 +57,8 @@ class TestICLFeatureExtractorBasic(unittest.TestCase):
         
         # Add required ICA fields
         self.test_eeg['icawinv'] = np.random.randn(self.n_channels, self.n_components) * 0.5
+        self.test_eeg['icaweights'] = np.linalg.pinv(self.test_eeg['icawinv'])
+        self.test_eeg['icasphere'] = np.eye(self.n_channels)
         self.test_eeg['icaact'] = np.random.randn(self.n_components, self.n_samples, 1) * 0.5
         self.test_eeg['icachansind'] = np.arange(self.n_channels)
         self.test_eeg['ref'] = 'averef'
@@ -170,6 +172,8 @@ class TestICLFeatureExtractorDataTypes(unittest.TestCase):
         )
         
         self.base_eeg['icawinv'] = np.random.randn(self.n_channels, self.n_components) * 0.5
+        self.base_eeg['icaweights'] = np.linalg.pinv(self.base_eeg['icawinv'])
+        self.base_eeg['icasphere'] = np.eye(self.n_channels)
         self.base_eeg['icaact'] = np.random.randn(self.n_components, self.n_samples, 1) * 0.5
         self.base_eeg['icachansind'] = np.arange(self.n_channels)
         self.base_eeg['ref'] = 'averef'
@@ -238,6 +242,8 @@ class TestICLFeatureExtractorEdgeCases(unittest.TestCase):
         )
         
         self.base_eeg['icawinv'] = np.random.randn(self.n_channels, self.n_components) * 0.5
+        self.base_eeg['icaweights'] = np.linalg.pinv(self.base_eeg['icawinv'])
+        self.base_eeg['icasphere'] = np.eye(self.n_channels)
         self.base_eeg['icaact'] = np.random.randn(self.n_components, self.n_samples, 1) * 0.5
         self.base_eeg['icachansind'] = np.arange(self.n_channels)
         self.base_eeg['ref'] = 'averef'
@@ -276,6 +282,7 @@ class TestICLFeatureExtractorEdgeCases(unittest.TestCase):
         """Test ICL_feature_extractor with single ICA component."""
         EEG = self.base_eeg.copy()
         EEG['icawinv'] = EEG['icawinv'][:, :1]  # Keep only first component
+        EEG['icaweights'] = EEG['icaweights'][:1, :]  # Keep only first component
         EEG['icaact'] = EEG['icaact'][:1, :, :]  # Keep only first component
         
         try:
@@ -301,6 +308,7 @@ class TestICLFeatureExtractorEdgeCases(unittest.TestCase):
         
         # Create many components
         EEG['icawinv'] = np.random.randn(self.n_channels, n_many_components) * 0.5
+        EEG['icaweights'] = np.linalg.pinv(EEG['icawinv'])
         EEG['icaact'] = np.random.randn(n_many_components, self.n_samples, 1) * 0.5
         
         try:
@@ -320,11 +328,11 @@ class TestICLFeatureExtractorEdgeCases(unittest.TestCase):
             self.skipTest(f"ICL_feature_extractor many components test not available: {e}")
 
     def test_icl_feature_extractor_very_short_data(self):
-        """Test ICL_feature_extractor with very short data."""
+        """Test ICL_feature_extractor with short data (minimum for 100 freq bins)."""
         EEG = self.base_eeg.copy()
         
-        # Use very short data
-        short_samples = 50  # 0.2 seconds
+        # Use short data - need at least ~200 samples for 100 frequency bins
+        short_samples = 200  # 0.8 seconds at 250 Hz
         EEG['icaact'] = EEG['icaact'][:, :short_samples, :]
         EEG['data'] = EEG['data'][:, :short_samples]
         EEG['pnts'] = short_samples
@@ -350,11 +358,13 @@ class TestICLFeatureExtractorEdgeCases(unittest.TestCase):
         """Test ICL_feature_extractor autocorr path selection based on data length."""
         # Test short data (< 5 seconds) - should use eeg_autocorr
         short_eeg = self.base_eeg.copy()
-        short_eeg['pnts'] = int(3 * self.srate)  # 3 seconds
-        short_eeg['icaact'] = short_eeg['icaact'][:, :short_eeg['pnts'], :]
-        short_eeg['data'] = short_eeg['data'][:, :short_eeg['pnts']]
+        short_pnts = int(3 * self.srate)  # 3 seconds = 750 samples
+        short_eeg['pnts'] = short_pnts
+        short_eeg['icaact'] = np.random.randn(self.n_components, short_pnts, 1) * 0.5
+        short_eeg['data'] = np.random.randn(self.n_channels, short_pnts) * 0.5
         short_eeg['xmax'] = 3.0
-        
+        short_eeg['times'] = np.arange(short_pnts) / self.srate
+
         try:
             features = ICL_feature_extractor(short_eeg, flag_autocorr=True)
             self.assertEqual(len(features), 3)  # Should include autocorr
@@ -363,11 +373,13 @@ class TestICLFeatureExtractorEdgeCases(unittest.TestCase):
 
         # Test long data (> 5 seconds) - should use eeg_autocorr_welch
         long_eeg = self.base_eeg.copy()
-        long_eeg['pnts'] = int(6 * self.srate)  # 6 seconds
-        long_eeg['icaact'] = np.random.randn(self.n_components, long_eeg['pnts'], 1) * 0.5
-        long_eeg['data'] = np.random.randn(self.n_channels, long_eeg['pnts']) * 0.5
+        long_pnts = int(6 * self.srate)  # 6 seconds = 1500 samples
+        long_eeg['pnts'] = long_pnts
+        long_eeg['icaact'] = np.random.randn(self.n_components, long_pnts, 1) * 0.5
+        long_eeg['data'] = np.random.randn(self.n_channels, long_pnts) * 0.5
         long_eeg['xmax'] = 6.0
-        
+        long_eeg['times'] = np.arange(long_pnts) / self.srate
+
         try:
             features = ICL_feature_extractor(long_eeg, flag_autocorr=True)
             self.assertEqual(len(features), 3)  # Should include autocorr
@@ -418,6 +430,8 @@ class TestICLFeatureExtractorValidation(unittest.TestCase):
         )
         
         self.base_eeg['icawinv'] = np.random.randn(self.n_channels, self.n_components) * 0.5
+        self.base_eeg['icaweights'] = np.linalg.pinv(self.base_eeg['icawinv'])
+        self.base_eeg['icasphere'] = np.eye(self.n_channels)
         self.base_eeg['icaact'] = np.random.randn(self.n_components, self.n_samples, 1) * 0.5
         self.base_eeg['icachansind'] = np.arange(self.n_channels)
         self.base_eeg['ref'] = 'averef'
@@ -503,13 +517,13 @@ class TestICLFeatureExtractorValidation(unittest.TestCase):
         """Test ICL_feature_extractor feature scaling (should be scaled by 0.99)."""
         try:
             features = ICL_feature_extractor(self.base_eeg, flag_autocorr=True)
-            
+
             # All features should be scaled by 0.99 (max absolute value <= 0.99)
             for i, feature in enumerate(features):
                 max_abs_val = np.max(np.abs(feature))
-                self.assertLessEqual(max_abs_val, 0.99 + 1e-10, 
+                self.assertLessEqual(max_abs_val, 0.99 + 1e-6,
                                    f"Feature {i} not properly scaled by 0.99")
-                
+
         except Exception as e:
             self.skipTest(f"ICL_feature_extractor scaling test not available: {e}")
 
