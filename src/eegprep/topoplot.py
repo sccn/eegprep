@@ -157,7 +157,7 @@ def topoplot(datavector, chan_locs, **kwargs):
     else:
         coords = np.array([intx.ravel(), inty.ravel()])
         values = intdatavector.ravel()
-            
+
         # find nan in values and remove values
         nanidx = np.where(np.isnan(values))[0]
         coords = np.delete(coords, nanidx, axis=1)

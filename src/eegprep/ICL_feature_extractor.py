@@ -19,9 +19,9 @@ def ICL_feature_extractor(EEG, flag_autocorr=False):
 
     # Assuming chanlocs are correct
     if EEG['ref'] != 'average' and EEG['ref'] != 'averef':
-        EEG = pop_reref(EEG, []) #, exclude=list(set(range(EEG.nbchan)) - set(EEG.icachansind)))
-        # raise ValueError('Data must be rereferenced to average to use ICLabel')
-        # EEG = pop_reref(EEG, [], exclude=list(set(range(EEG.nbchan)) - set(EEG.icachansind)))
+        # Exclude channels not used for ICA from re-referencing (to match MATLAB behavior)
+        exclude_chans = list(set(range(EEG['nbchan'])) - set(EEG['icachansind']))
+        EEG = pop_reref(EEG, [], exclude=exclude_chans)
 
     # Calculate ICA activations if missing and cast to double
     if EEG['icaact'] is None:
