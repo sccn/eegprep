@@ -117,7 +117,7 @@ class MatlabWrapper:
                 
                 # output
                 # Functions that return numeric arrays instead of EEG structures
-                numeric_output_functions = ['eeg_autocorr', 'eeg_autocorr_fftw']
+                numeric_output_functions = ['eeg_autocorr', 'eeg_autocorr_fftw', 'eeg_autocorr_welch']
                 
                 if (needs_roundtrip or name == 'pop_loadset') and name not in numeric_output_functions:
                     # Always round-trip OUT for pop_loadset to get a proper Python EEG dict

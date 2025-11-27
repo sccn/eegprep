@@ -1,6 +1,7 @@
 import unittest
 import numpy as np
 import warnings
+import os
 from unittest.mock import patch, MagicMock
 
 from eegprep.eeg_autocorr_welch import eeg_autocorr_welch
@@ -12,6 +13,18 @@ class TestEegAutocorrWelch(unittest.TestCase):
     Note: This function has some limitations/bugs with multi-trial data and 
     percentage sampling. Tests focus on functionality that actually works.
     """
+    
+    @classmethod
+    def setUpClass(cls):
+        """Set up MATLAB/Octave engine for parity testing."""
+        cls.matlab_available = False
+        cls.eeglab = None
+        try:
+            from eegprep.eeglabcompat import get_eeglab
+            cls.eeglab = get_eeglab()
+            cls.matlab_available = True
+        except Exception as e:
+            print(f"MATLAB not available for parity testing: {e}")
     
     def setUp(self):
         """Set up test fixtures with synthetic EEG data."""
@@ -328,6 +341,55 @@ class TestEegAutocorrWelch(unittest.TestCase):
         test_EEG['icaact'] = np.random.randn(*test_EEG['icaact'].shape) * 100
         result_large = eeg_autocorr_welch(test_EEG, pct_data=100)
         self.assertTrue(np.all(np.isfinite(result_large)))
+
+    def test_parity_basic_autocorr_welch(self):
+        """Test parity with MATLAB for basic autocorrelation using real ICA data."""
+        if not self.matlab_available:
+            self.skipTest("MATLAB not available")
+        
+        # Load real EEG dataset with ICA
+        from eegprep.pop_loadset import pop_loadset
+        
+        test_file = os.path.join(os.path.dirname(__file__), '..', 'data', 'eeglab_data_with_ica_tmp.set')
+        if not os.path.exists(test_file):
+            self.skipTest(f"Test file not found: {test_file}")
+        
+        EEG = pop_loadset(test_file)
+        
+        # Python result
+        py_result = eeg_autocorr_welch(EEG.copy())
+        
+        # MATLAB result
+        ml_result = self.eeglab.eeg_autocorr_welch(EEG.copy())
+        
+        # Compare results
+        self.assertEqual(py_result.shape, ml_result.shape)
+        np.testing.assert_allclose(py_result, ml_result, rtol=1e-5, atol=1e-8)
+
+    def test_parity_with_real_data_welch(self):
+        """Test parity with MATLAB using real ICA data.
+        
+        Note: Only tests pct_data=100 due to known bug in Python implementation
+        with pct_data < 100 (index out of bounds in segment selection).
+        """
+        if not self.matlab_available:
+            self.skipTest("MATLAB not available")
+        
+        # Load real EEG dataset with ICA
+        from eegprep.pop_loadset import pop_loadset
+        
+        test_file = os.path.join(os.path.dirname(__file__), '..', 'data', 'eeglab_data_with_ica_tmp.set')
+        if not os.path.exists(test_file):
+            self.skipTest(f"Test file not found: {test_file}")
+        
+        EEG = pop_loadset(test_file)
+        
+        # Only test with pct_data=100 (pct_data < 100 has a bug in Python implementation)
+        py_result = eeg_autocorr_welch(EEG.copy(), pct_data=100)
+        ml_result = self.eeglab.eeg_autocorr_welch(EEG.copy(), 100)
+        
+        self.assertEqual(py_result.shape, ml_result.shape)
+        np.testing.assert_allclose(py_result, ml_result, rtol=1e-5, atol=1e-8)
 
 
 if __name__ == '__main__':
