@@ -254,15 +254,15 @@ class TestEEGMNE2EEGEpochs(unittest.TestCase):
             self.skipTest(f"eeg_mne2eeg_epochs single epoch not available: {e}")
 
     @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
-    def test_eeg_mne2eeg_epochs_single_channel(self):
-        """Test conversion with single channel."""
-        # Create MNE Epochs object with single channel
-        n_channels = 1
+    def test_eeg_mne2eeg_epochs_minimal_channels(self):
+        """Test conversion with minimal channels (MNE ICA requires at least 2 components)."""
+        # Create MNE Epochs object with minimal channels
+        n_channels = 2  # MNE ICA requires at least 2 components
         n_times = 100
         n_epochs = 5
         sfreq = 500.0
         
-        ch_names = ['EEG001']
+        ch_names = ['EEG001', 'EEG002']
         info = mne.create_info(ch_names, sfreq, ch_types='eeg')
         data = np.random.randn(n_epochs, n_channels, n_times)
         
@@ -270,20 +270,20 @@ class TestEEGMNE2EEGEpochs(unittest.TestCase):
         event_id = {'event': 1}
         epochs = mne.EpochsArray(data, info, events, tmin=0, event_id=event_id)
         
-        # Create ICA object
-        ica = ICA(n_components=1, random_state=42)
+        # Create ICA object (minimum 2 components)
+        ica = ICA(n_components=2, random_state=42)
         ica.fit(epochs)
         
         try:
             result = eeg_mne2eeg_epochs(epochs, ica)
             
-            # Check data dimensions
-            self.assertEqual(result['nbchan'], 1)
-            self.assertEqual(result['data'].shape, (1, n_times, n_epochs))
-            self.assertEqual(result['icaact'].shape, (1, n_times, n_epochs))
+            # Check data dimensions (data is in MNE format: n_epochs x n_channels x n_times)
+            self.assertEqual(result['nbchan'], 2)
+            self.assertEqual(result['data'].shape, (n_epochs, n_channels, n_times))
+            self.assertEqual(result['icaact'].shape, (2, n_times, n_epochs))
             
         except Exception as e:
-            self.skipTest(f"eeg_mne2eeg_epochs single channel not available: {e}")
+            self.skipTest(f"eeg_mne2eeg_epochs minimal channels not available: {e}")
 
     @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
     def test_eeg_mne2eeg_epochs_short_data(self):
