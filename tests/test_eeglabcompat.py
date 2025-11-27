@@ -149,11 +149,14 @@ class TestGetEeglab(DebuggableTestCase):
             get_eeglab('INVALID')
 
     def test_get_eeglab_caching(self):
-        """Test that get_eeglab caches engine instances."""
+        """Test that get_eeglab caches underlying engine instances."""
         try:
             eeglab1 = get_eeglab('MAT')
             eeglab2 = get_eeglab('MAT')
-            self.assertIs(eeglab1, eeglab2)
+            # Wrappers are different instances, but underlying engines should be cached
+            self.assertIsInstance(eeglab1, MatlabWrapper)
+            self.assertIsInstance(eeglab2, MatlabWrapper)
+            self.assertIs(eeglab1.engine, eeglab2.engine)
         except Exception as e:
             self.skipTest(f"MATLAB not available: {e}")
 
