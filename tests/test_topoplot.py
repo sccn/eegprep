@@ -663,6 +663,48 @@ class TestTopoplotParity(unittest.TestCase):
         if os.path.exists(temp_file.replace('.set', '.fdt')):
             os.remove(temp_file.replace('.set', '.fdt'))
 
+    def test_parity_gridscale_32(self):
+        """Test parity with MATLAB for gridscale=32 (ICL_feature_extractor usage)."""
+        if not self.matlab_available:
+            self.skipTest("MATLAB not available")
+
+        # Get first IC weights
+        icawinv = self.EEG['icawinv']
+        datavector = icawinv[:, 0]  # First component
+        chanlocs = self.EEG['chanlocs']
+
+        # Python result with gridscale=32
+        _, Zi_py, _, _, _ = topoplot(datavector, chanlocs, noplot='on', gridscale=32)
+
+        # MATLAB result - need to specify gridscale
+        temp_file = tempfile.mktemp(suffix='.set')
+        pop_saveset(self.EEG, temp_file)
+
+        matlab_code = f"""
+        EEG = pop_loadset('{temp_file}');
+        datavector = EEG.icawinv(:, 1);
+        [~, Zi, ~, ~, ~] = topoplot(datavector, EEG.chanlocs, 'noplot', 'on', 'gridscale', 32);
+        save('{temp_file}.mat', 'Zi');
+        """
+        self.eeglab.eval(matlab_code, nargout=0)
+
+        # Load MATLAB result
+        mat_data = scipy.io.loadmat(temp_file + '.mat')
+        Zi_ml = mat_data['Zi']
+
+        # Clean up
+        os.remove(temp_file)
+        os.remove(temp_file + '.mat')
+        if os.path.exists(temp_file.replace('.set', '.fdt')):
+            os.remove(temp_file.replace('.set', '.fdt'))
+
+        # Compare results
+        # Max absolute diff: TBD
+        # Max relative diff: TBD
+        np.testing.assert_allclose(Zi_py, Zi_ml, rtol=1e-5, atol=1e-8,
+                                   err_msg="topoplot Zi results differ for gridscale=32",
+                                   equal_nan=True)
+
 
 if __name__ == '__main__':
     unittest.main()
