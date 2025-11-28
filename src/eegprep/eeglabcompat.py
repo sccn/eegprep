@@ -227,6 +227,7 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
         engine.addpath(path2eeglab + '/plugins/iclabel')
         engine.addpath(path2eeglab + '/plugins/EEG-BIDS')
         engine.addpath(path2eeglab + '/plugins/picard')
+        engine.addpath(path2eeglab + '/plugins/picard/matlab_octave')
         engine.addpath(path2eeglab + '/plugins/clean_rawdata')
         engine.addpath(path2eeglab + '/plugins/clean_rawdata2.10')
         engine.addpath(path2localmatlab)
