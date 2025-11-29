@@ -35,6 +35,8 @@ class TestBidsPreproc(DebuggableTestCase):
         # root path of all OpenNeuro datasets on this host
         if curhost == 'ck-carbon':
             self.root_path = os.path.expanduser('~/data/OpenNeuro')
+        elif curhost == 'MacBook-Pro-10.lan':
+            self.root_path = os.path.expanduser('~/GitHub/core_eeg/eeglab_testcases')
         else:
             self.root_path = None
             logger.warning(f"Skipping test TestBidsPreproc on unknown test host {curhost}; "
