@@ -227,7 +227,13 @@ def pop_loadset_h5(file_name):
                 # Keep as loaded; we'll fix orientation after the loop when nbchan/pnts are known
                 EEG[key] = np.array(EEG[key])
             else:
-                EEG[key] = np.array(EEG[key]).T
+                arr = np.array(EEG[key])
+                # Check if this is a null reference (MATLAB empty array stored as uint64 [0 0] or similar)
+                if arr.dtype == np.uint64 and arr.ndim == 1:
+                    # This is a reference to empty data - remove from EEG dict
+                    del EEG[key]
+                else:
+                    EEG[key] = arr.T
         
         # Apply scalar conversion
         if key in scalars and key in EEG:

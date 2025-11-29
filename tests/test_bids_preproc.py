@@ -18,10 +18,10 @@ from eegprep.utils.testing import DebuggableTestCase
 curhost = socket.gethostname()
 
 # add your host to this list if you want to run the (very) slow tests
-slow_tests_hosts_only = ['ck-carbon']
+slow_tests_hosts_only = ['ck-carbon', 'MacBook-Pro-10.lan']
 
 # add your host to this list if you want to run things in parallel
-if curhost in ['ck-carbon']:
+if curhost in ['ck-carbon', 'MacBook-Pro-10.lan']:
     reservation = '8GB'
 else:
     reservation = ''
