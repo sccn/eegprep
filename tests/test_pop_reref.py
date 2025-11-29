@@ -181,18 +181,22 @@ class TestPopReref(DebuggableTestCase):
         self.assertIn('Feature not implemented', str(context.exception))
 
     def test_error_icachansind_mismatch(self):
-        """Test error when icachansind length doesn't match nbchan."""
+        """Test graceful handling when icachansind length doesn't match nbchan."""
         EEG = self.create_test_eeg(nbchan=16, pnts=100)
-        
-        # Make icachansind have different length
+
+        # Make icachansind have different length (e.g., after channel removal)
         EEG['icachansind'] = list(range(8))  # Only 8 channels instead of 16
-        
-        with self.assertRaises(ValueError) as context:
-            pop_reref(EEG, ref=None)
-        
-        self.assertIn('Feature not implemented', str(context.exception))
-        self.assertIn('icachansind', str(context.exception))
-        self.assertIn('nbchan', str(context.exception))
+
+        # Should complete without error, but log a warning
+        with self.assertLogs('eegprep.pop_reref', level='WARNING') as cm:
+            result = pop_reref(EEG, ref=None)
+
+        # Check warning was logged
+        self.assertTrue(any('Skipping ICA re-referencing' in msg for msg in cm.output))
+
+        # Check data was still re-referenced
+        self.assertIsNotNone(result)
+        self.assertEqual(result['nbchan'], 16)
 
     def test_data_mean_subtraction(self):
         """Test that data has mean subtracted correctly."""

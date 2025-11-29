@@ -499,6 +499,10 @@ def pop_select(EEG, **kwargs):
                 cleaned.append(ev)
         EEG['event'] = cleaned
 
+    # Call eeg_checkset to ensure consistency after modifications
+    from eegprep.eeg_checkset import eeg_checkset
+    EEG = eeg_checkset(EEG)
+
     return EEG
 
 if __name__ == '__main__':

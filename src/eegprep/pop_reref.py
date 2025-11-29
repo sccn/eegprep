@@ -28,25 +28,28 @@ def pop_reref(EEGin, ref, exclude=None):
         # Subtract mean from all EEG data using broadcasting in NumPy
         EEG['data'] = EEG['data'] - np.mean(EEG['data'], axis=0)
 
-    # Check if the number of channels in EEG['icachansind'] is the same as the number of channels in EEG['nbchan']
-    if len(EEG['icachansind']) and (len(EEG['icachansind']) != EEG['nbchan']):
-        raise ValueError('Feature not implemented: The number of channels in EEG[\'icachansind\'] '
-                        'must be the same as the number of channels in EEG[\'nbchan\'].')
-    elif len(EEG['icachansind']):
-        #print(np.array2string(EEG['icaweights'][:10, :10], precision=3, suppress_small=True))
+    # Handle ICA re-referencing if ICA was performed
+    # icachansind indicates which channels were used for ICA
+    # After channel removal, len(icachansind) may be less than nbchan
+    if len(EEG['icachansind']) and EEG.get('icawinv') is not None and len(EEG['icawinv']) > 0:
+        # Check if all current channels were used for ICA
+        ica_all_chans = (len(EEG['icachansind']) == EEG['nbchan'] and
+                        set(EEG['icachansind']) == set(range(EEG['nbchan'])))
 
-        # Subtract mean from EEG icawinv using broadcasting in NumPy
-        EEG['icawinv'] = EEG['icawinv'] - np.mean(EEG['icawinv'], axis=0)
-        
-        # show the first 10 rows and columns of EEG['icawinv']
-        # print it pretty line by line with 4 digit after the decimal point
-        
-        # Compute the pseudoinverse of EEG['icawinv']
-        EEG['icaweights'] = np.linalg.pinv(EEG['icawinv'])
-        #print(' ')
-        #print(np.array2string(EEG['icaweights'][:10, :10], precision=3, suppress_small=True))
+        if ica_all_chans:
+            # All channels used for ICA - can do average reference on icawinv
+            # Subtract mean from EEG icawinv using broadcasting in NumPy
+            EEG['icawinv'] = EEG['icawinv'] - np.mean(EEG['icawinv'], axis=0)
 
-        EEG['icasphere'] = np.eye(EEG['nbchan'])
+            # Compute the pseudoinverse of EEG['icawinv']
+            EEG['icaweights'] = np.linalg.pinv(EEG['icawinv'])
+
+            EEG['icasphere'] = np.eye(EEG['nbchan'])
+        else:
+            # Only subset of channels used for ICA
+            # Re-reference not implemented for this case - skip ICA update
+            logger.warning(f"Skipping ICA re-referencing: ICA was done on {len(EEG['icachansind'])} channels "
+                          f"but current data has {EEG['nbchan']} channels")
 
         # Compute the ICA activations
         # data = EEG['data'].reshape(EEG['data'].shape[0], -1)
