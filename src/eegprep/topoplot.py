@@ -201,14 +201,14 @@ def topoplot(datavector, chan_locs, **kwargs):
 
     if noplot == 'off':
         # Rotate electrode positions by -90 degrees: (x, y) -> (y, -x)
-        x_rotated = y.copy()
-        y_rotated = -x.copy()
+        x_rotated = -y.copy()
+        y_rotated = x.copy()
         extent_rotated = (ymin, ymax, -xmax, -xmin)
         
-        plt.imshow(Zi_rotated, extent=extent_rotated, origin='lower', cmap=cmap)
+        plt.imshow(Zi, extent=extent_rotated, origin='lower', cmap=cmap)
         plt.colorbar()
         plt.scatter(x_rotated, y_rotated, c='k')
-        # Rotate head circle coordinates
+        # Rotate head circle coordinates to match electrode rotation
         theta = np.linspace(0, 2 * np.pi, 100)
         head_x = np.cos(theta) * rmax
         head_y = np.sin(theta) * rmax
