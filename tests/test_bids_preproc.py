@@ -61,6 +61,8 @@ class TestBidsPreproc(DebuggableTestCase):
         """End-to-end test vs MATLAB."""
         from eegprep import bids_preproc, pop_loadset, eeg_checkset_strict_mode
         from eegprep.eeglabcompat import get_eeglab
+        from eegprep.utils.stage_comparison import generate_comparison_table
+        import tempfile
 
         for study in self.studies:
             # subset of subjects/runs to compare
@@ -84,6 +86,11 @@ class TestBidsPreproc(DebuggableTestCase):
                 self.skipTest(f"Skipping test_end2end because neither {candidates} exist in {self.root_path}")
 
             study_path = os.path.join(self.root_path, retain[0])
+
+            # Create temporary directory for intermediate stage files
+            stage_dir = tempfile.mkdtemp(prefix='stage_comparison_')
+            print(f"Stage comparison directory: {stage_dir}")
+
             print(f"Running bids_preproc() on {study_path}...")
             ALLEEG_py = bids_preproc(
                 study_path,
@@ -102,6 +109,8 @@ class TestBidsPreproc(DebuggableTestCase):
                 EpochEvents=[], EpochLimits=[-0.2, 0.5], EpochBaseline=[-0.2, 0],
                 # temporarily disabled for quicker runs
                 WithPicard=True, WithICLabel=True,
+                # save intermediate stages for comparison
+                SaveIntermediateStages=True, IntermediateDir=stage_dir,
                 # return so we can compare things
                 ReturnData=True)
 
@@ -110,7 +119,10 @@ class TestBidsPreproc(DebuggableTestCase):
             result_paths = eeglab.bids_pipeline(
                 study_path,
                 [f'sub-{s}' for s in subjects],
-                [f'{r}' for r in runs])
+                [f'{r}' for r in runs],
+                100,
+                'SaveIntermediateStages', True,
+                'IntermediateDir', stage_dir)
 
             with eeg_checkset_strict_mode(False):
                 ALLEEG_mat = [pop_loadset(p.item()) for p in result_paths.flatten()]
@@ -141,6 +153,16 @@ class TestBidsPreproc(DebuggableTestCase):
                 # PICARD currently doesn't pass its unit test vs MATLAB, so disabling for now
                 # np.testing.assert_allclose(EEG_py['icaweights'], EEG_mat['icaweights'], rtol=0, atol=1e-5)
                 print("passed.")
+
+            # Generate and print stage-by-stage comparison table
+            print("\n" + "="*80)
+            print("Generating stage-by-stage comparison table...")
+            try:
+                comparison_table = generate_comparison_table(stage_dir)
+                print(comparison_table)
+            except Exception as e:
+                print(f"Could not generate comparison table: {e}")
+            print("="*80 + "\n")
 
     @unittest.skipIf(curhost not in slow_tests_hosts_only, f"Slow stress test skipped by default on hosts other than {slow_tests_hosts_only}")
     def test_crashability_slow(self):

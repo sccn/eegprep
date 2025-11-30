@@ -131,6 +131,8 @@ def bids_preproc(
         # Derived data parameters
         StageNames: Sequence[str] = ('desc-cleaned', 'desc-picard', 'desc-iclabel', 'desc-epoch'),
         MinimizeDiskUsage: bool = True,
+        SaveIntermediateStages: bool = False,
+        IntermediateDir: Optional[str] = None,
 
         # Legacy parameter names for compatibility with EEGLAB
         bidschanloc: Optional[bool] = None,
@@ -526,6 +528,20 @@ def bids_preproc(
             old_chanlocs = None
             with thread_ctx:
 
+                def save_stage(EEG, stage_num, stage_name):
+                    """Save intermediate stage if requested."""
+                    if SaveIntermediateStages and IntermediateDir:
+                        os.makedirs(IntermediateDir, exist_ok=True)
+                        # Extract subject/run info from filename for unique identifier
+                        base = os.path.basename(fn).replace('.set', '').replace('.vhdr', '').replace('.edf', '').replace('.bdf', '')
+                        stage_file = f'{base}_stage{stage_num:02d}_{stage_name}_py.set'
+                        stage_path = os.path.join(IntermediateDir, stage_file)
+                        try:
+                            pop_saveset(EEG, stage_path)
+                            logger.info(f"Saved stage {stage_num} ({stage_name}) to {stage_path}")
+                        except Exception as e:
+                            logger.error(f"Failed to save stage {stage_num} ({stage_name}): {e}")
+
                 def select_channels(EEG, report=None):
                     """Apply channel selection, optionally update the provided report in-place."""
                     if report is None:
@@ -584,6 +600,7 @@ def bids_preproc(
                         EEG['icaact'] = np.array([])
 
                     StagesToGo.remove('Import')
+                    save_stage(EEG, 1, 'import')
 
                     report["Import"] = {
                         "ApplyMetadata": ApplyMetadata,
@@ -606,6 +623,7 @@ def bids_preproc(
                     if OnlyChannelsWithPosition or OnlyModalities:
                         EEG = select_channels(EEG, report)
                         StagesToGo.remove('ChannelSelection')
+                        save_stage(EEG, 2, 'chansel')
 
                     if SamplingRate:
                         EEG = pop_resample(EEG, SamplingRate)
@@ -614,6 +632,7 @@ def bids_preproc(
                             "SamplingRate": SamplingRate,
                         }
                         StagesToGo.remove('Resample')
+                        save_stage(EEG, 3, 'resample')
                     else:
                         logger.info("No resampling requested, keeping original sampling rate.")
                         report["Resample"] = {
@@ -678,6 +697,7 @@ def bids_preproc(
 
                         # we always save out the cleaned EEG data
                         pop_saveset(EEG, fpath_cln)
+                        save_stage(EEG, 8, 'window')
 
                 if WithPicard:
                     if os.path.exists(fpath_picard) and SkipIfPresent:
@@ -694,6 +714,7 @@ def bids_preproc(
                             "Applied": True,
                         }
                         StagesToGo.remove('ICA')
+                        save_stage(EEG, 9, 'ica')
                 else:
                     report["ICA"] = {
                         "Applied": False,
@@ -710,6 +731,7 @@ def bids_preproc(
                             "Applied": True,
                         }
                         StagesToGo.remove('ICLabel')
+                        save_stage(EEG, 10, 'iclabel')
                 else:
                     report["ICLabel"] = {
                         "Applied": False,
@@ -768,6 +790,7 @@ def bids_preproc(
                             else:
                                 raise
                         StagesToGo.remove('ChannelInterp')
+                        save_stage(EEG, 11, 'interp')
                 else:
                     report["ChannelInterp"] = {
                         "Applied": False,
@@ -801,6 +824,10 @@ def bids_preproc(
                                     EEG = pop_rmbase(EEG, timerange=timerange)
 
                                 pop_saveset(EEG, fpath_epoch)
+                                if EpochBaseline is None:
+                                    save_stage(EEG, 12, 'epoch')
+                                else:
+                                    save_stage(EEG, 13, 'baseline')
 
                             report["Epoching"] = {
                                 "Applied": True,
@@ -827,6 +854,7 @@ def bids_preproc(
                     EEG = pop_reref(EEG, [])
                     StagesToGo.remove('CommonAverageRef')
                     report["CommonAverageReference"] = {"Applied": True}
+                    save_stage(EEG, 14, 'reref')
 
                 # optionally write out the final preprocessed file
                 if need_final:
