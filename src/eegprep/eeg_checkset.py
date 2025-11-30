@@ -144,6 +144,88 @@ def eeg_checkset(EEG, load_data=True):
             logger.error("Error computing ICA activations: " + str(e))
             EEG['icaact'] = np.array([])
     
+    # Build epoch structure from events (for epoched data)
+    # This matches MATLAB's eeg_checkset behavior (lines 611-670 in eeg_checkset.m)
+    try:
+        if EEG.get('trials', 1) > 1 and len(EEG.get('event', [])) > 0:
+            # Initialize epoch field if missing or wrong size
+            if 'epoch' not in EEG:
+                EEG['epoch'] = []
+
+            if len(EEG['epoch']) != EEG['trials']:
+                # Need to rebuild epoch structure
+                EEG['epoch'] = []
+            elif len(EEG['epoch']) > 0:
+                # Remove existing event-related fields from epoch structure
+                # (they will be regenerated from current events)
+                epoch_list = list(EEG['epoch'])
+                for i in range(len(epoch_list)):
+                    if isinstance(epoch_list[i], dict):
+                        keys_to_remove = [k for k in epoch_list[i].keys() if k.startswith('event')]
+                        for k in keys_to_remove:
+                            del epoch_list[i][k]
+                EEG['epoch'] = np.array(epoch_list, dtype=object)
+
+            # Build epoch structure from events
+            tmpevent = EEG['event']
+            eventepoch = np.array([e.get('epoch', 1) for e in tmpevent])
+
+            # Create list of event indices for each epoch
+            epochevent = []
+            for k in range(EEG['trials']):
+                epoch_num = k + 1  # 1-based epoch numbering
+                event_indices = np.where(eventepoch == epoch_num)[0]
+                epochevent.append(list(event_indices))
+
+            # Initialize epoch structure if empty
+            if len(EEG['epoch']) == 0:
+                EEG['epoch'] = np.array([{} for _ in range(EEG['trials'])], dtype=object)
+
+            # Set event field in each epoch
+            for k in range(EEG['trials']):
+                EEG['epoch'][k]['event'] = epochevent[k]
+
+            # Copy event information into the epoch array
+            # Skip 'epoch' field itself to avoid duplication
+            event_fields = []
+            if len(tmpevent) > 0:
+                # Get field names from first event
+                event_fields = [f for f in tmpevent[0].keys() if f != 'epoch']
+
+            for fname in event_fields:
+                # Build list of field values for each epoch
+                for k in range(EEG['trials']):
+                    event_idx_list = epochevent[k]
+                    if len(event_idx_list) == 0:
+                        # No events in this epoch
+                        field_values = []
+                    else:
+                        # Extract values from events for this epoch
+                        field_values = []
+                        for idx in event_idx_list:
+                            val = tmpevent[idx].get(fname, None)
+
+                            # Special handling for latency: convert to epoch-relative time in ms
+                            if fname == 'latency' and val is not None:
+                                # Convert from absolute sample to epoch-relative time in ms
+                                # Formula from MATLAB: eeg_point2lat(latency, epoch, srate, [xmin xmax]*1000, 1e-3)
+                                epoch_start_sample = k * EEG['pnts']
+                                rel_sample = val - epoch_start_sample - 1  # -1 because latencies are 1-based
+                                rel_time_ms = (rel_sample / EEG['srate']) * 1000 + EEG['xmin'] * 1000
+                                val = round(rel_time_ms * 1e8) / 1e8  # Round to match MATLAB precision
+
+                            # Special handling for duration: convert to ms
+                            elif fname == 'duration' and val is not None:
+                                val = val / EEG['srate'] * 1000
+
+                            field_values.append(val)
+
+                    # Store in epoch structure
+                    EEG['epoch'][k][f'event{fname}'] = field_values
+
+    except exception_type as e:
+        logger.warning(f"Could not build epoch structure: {e}")
+
     # check if EEG['data'] is 3D
     if 'data' in EEG and EEG['data'].ndim == 3:
         if EEG['data'].shape[2] == 1:

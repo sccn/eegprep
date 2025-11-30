@@ -84,15 +84,22 @@ def bids_list_eeg_files(
                 # data values might be some sort of mix of ints, strings, or None
                 # querying those strings by index (with integers)
                 if all(isinstance(v, int) for v in query_values):
-                    # index the applicable values (eg subjects) with integers, alphabetically
-                    # strip any missing candidates
-                    data_values = [dv for dv in data_values if dv is not None and dv != '']
-                    # normalize data values to strings
-                    data_values = [str(dv) for dv in data_values]
-                    # get unique values, sorted alphabetically
-                    uq_values = sorted(set(data_values))
-                    # rewrite the query values into the first k sorted unique strings
-                    query_values = [uq_values[i] for i in query_values if i < len(uq_values)]
+                    # Special case: runs should NOT use 0-based indexing since run numbers
+                    # are already integers (run-1, run-2, etc.)
+                    if key == 'run':
+                        # For runs, integer query values are run numbers, not indices
+                        # Convert to strings to match how BIDS stores them
+                        query_values = [str(v) for v in query_values]
+                    else:
+                        # index the applicable values (eg subjects) with integers, alphabetically
+                        # strip any missing candidates
+                        data_values = [dv for dv in data_values if dv is not None and dv != '']
+                        # normalize data values to strings
+                        data_values = [str(dv) for dv in data_values]
+                        # get unique values, sorted alphabetically
+                        uq_values = sorted(set(data_values))
+                        # rewrite the query values into the first k sorted unique strings
+                        query_values = [uq_values[i] for i in query_values if i < len(uq_values)]
                 if all(isinstance(v, str) for v in query_values):
                     # all query values are strings now, can do a direct lookup
                     eeg_files = [f for f in eeg_files if str(f.entities.get(key)) in query_values]

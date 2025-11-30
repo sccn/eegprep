@@ -348,7 +348,7 @@ def bids_preproc(
     del kwargs['root']  # we don't need the root here, only in the function body
     from scipy.io.matlab import loadmat
     from eegprep import (bids_list_eeg_files, clean_artifacts, pop_load_frombids, eeg_checkset,
-                         pop_saveset, eeg_picard, iclabel, pop_loadset, pop_resample,
+                         pop_saveset, eeg_runica, iclabel, pop_loadset, pop_resample,
                          eeg_interp, pop_select, eeg_checkset_strict_mode, pop_reref)
     from .utils.bids import gen_derived_fpath
 
@@ -573,6 +573,16 @@ def bids_preproc(
                         bidsevent=ApplyEvents,
                         eventtype=EventColumn,
                         return_report=True)
+
+                    # Clear any pre-existing ICA if we're going to compute fresh ICA with PICARD
+                    # This avoids shape mismatches after channel interpolation
+                    if WithPicard and 'icaweights' in EEG and EEG['icaweights'].size > 0:
+                        logger.info(f"Clearing pre-existing ICA from {fn} (will recompute with PICARD)")
+                        EEG['icaweights'] = np.array([])
+                        EEG['icasphere'] = np.array([])
+                        EEG['icawinv'] = np.array([])
+                        EEG['icaact'] = np.array([])
+
                     StagesToGo.remove('Import')
 
                     report["Import"] = {
@@ -674,7 +684,7 @@ def bids_preproc(
                         logger.info(f"Found {fpath_picard}, skipping PICARD stage.")
                         EEG = pop_loadset(fpath_picard)
                     else:
-                        EEG = eeg_picard(EEG, posact=True, sortcomps=True)
+                        EEG = eeg_runica(EEG, posact=True, sortcomps=True, rndreset='off')
                         EEG = eeg_checkset(EEG)
                         if not WithICLabel or not MinimizeDiskUsage:
                             # only save the PICARD output if we don't do ICLabel (to save disk space)
@@ -729,6 +739,19 @@ def bids_preproc(
                         # low-amplitude noise afterwards)
                         try:
                             EEG = eeg_interp(EEG, list(old_chanlocs))
+
+                            # Clear ICA after interpolation since ICA was computed on
+                            # fewer channels and is now incompatible with interpolated data
+                            if 'icaweights' in EEG and EEG['icaweights'].size > 0:
+                                if EEG['icaweights'].shape[1] != EEG['nbchan']:
+                                    logger.warning(f"Clearing ICA after interpolation: ICA was done on "
+                                                   f"{EEG['icaweights'].shape[1]} channels but data now has "
+                                                   f"{EEG['nbchan']} channels")
+                                    EEG['icaweights'] = np.array([])
+                                    EEG['icasphere'] = np.array([])
+                                    EEG['icawinv'] = np.array([])
+                                    EEG['icaact'] = np.array([])
+
                             report["ChannelInterp"] = {
                                 "Applied": True,
                                 "NumInterpolated": nDropped
@@ -925,7 +948,7 @@ def bids_preproc(
                 filter_names = {
                     'Resample': 'pop_resample',
                     'CleanArtifacts': 'clean_artifacts',
-                    'ICA': 'eeg_picard',
+                    'ICA': 'eeg_runica',
                     'ChannelInterp': 'eeg_interp',
                     'Epoching': 'pop_epoch+pop_rmbase' if EpochBaseline is not None else 'pop_epoch',
                     'CommonAverageReference': 'pop_reref'

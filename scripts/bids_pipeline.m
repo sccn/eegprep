@@ -35,12 +35,12 @@ if nargin < 2
     subjs = {'sub-001','sub-002'};
 end
 if nargin < 3
-    runs = {'1'}; end
+    runs = {'2'}; end
 if nargin < 4
     to_stage = 100; end
 
 % import BIDS
-[STUDY, ALLEEG] = pop_importbids(...    
+[STUDY, ALLEEG] = pop_importbids(...
     rootpath, ...
     'subjects', subjs, ...
     'runs', runs);
@@ -53,13 +53,15 @@ for idx=1:length(ALLEEG)
     chn_modalities = {EEG.chanlocs.type};
     keep = find(strcmp('EEG',chn_modalities));
     if to_stage >= 2
-        EEG = pop_select(EEG, 'channel', keep); end
+        EEG = pop_select(EEG, 'channel', keep);
+    end
 
     orig_chanlocs = EEG.chanlocs;
 
     % resampling
     if to_stage >= 3
-        EEG = pop_resample(EEG, 128); end
+        EEG = pop_resample(EEG, 128);
+    end
 
     % artifact removal
     if to_stage >= 4
@@ -74,20 +76,16 @@ for idx=1:length(ALLEEG)
             );
     end
 
-    % PICARD
+    % ICA with runica
     if to_stage >= 9
-        EEG = eeg_picard(EEG); 
-        % note: once eeg_picard is fixed to be equiv between MATLAB and
-        % Python, the below two steps are perhaps better disabled both here
-        % and in the eeg_picard call in bids_preproc, since it can
-        % amplify minor deviations
-        
+        EEG = pop_runica(EEG, 'icatype', 'runica', 'rndreset', 'no');
+
         % sort components by mean descending activation variance
         [~, windex] = sort(sum(EEG.icawinv.^2).*sum((EEG.icaact').^2), 'descend');
         EEG.icaact = EEG.icaact(windex, :, :);
         EEG.icaweights = EEG.icaweights(windex, :);
         EEG.icawinv = EEG.icawinv(:, windex);
-        
+
         % normalize components using the same rule as runica()
         [~, ix] = max(abs(EEG.icaact'));
         had_flips = 0;
@@ -105,15 +103,18 @@ for idx=1:length(ALLEEG)
 
     % ICLabel
     if to_stage >= 10
-        EEG = pop_iclabel(EEG, 'Default'); end
+        EEG = pop_iclabel(EEG, 'Default');
+    end
 
     % reinterpolate channels
     if to_stage >= 11
-        EEG = eeg_interp(EEG, orig_chanlocs); end
+        EEG = eeg_interp(EEG, orig_chanlocs);
+    end
 
     % epoching
-    if to_stage >= 12    
-        EEG = pop_epoch(EEG, {}, [-0.2, 0.5]); end
+    if to_stage >= 12
+        EEG = pop_epoch(EEG, {}, [-0.2, 0.5]);
+    end
 
     % baseline removal
     if to_stage >= 13    
