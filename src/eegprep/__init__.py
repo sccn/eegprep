@@ -4,6 +4,8 @@ from .utils.logs import setup_logging
 setup_logging(logging.INFO)
 
 from .iclabel import iclabel
+from .eeg_icflag import eeg_icflag
+from .pop_subcomp import pop_subcomp
 from .pop_saveset import pop_saveset
 from .pop_loadset import loadset, pop_loadset
 from .pop_loadset_h5 import pop_loadset_h5

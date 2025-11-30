@@ -149,6 +149,8 @@ for idx=1:n_datasets
     % ICLabel
     if to_stage >= 10 && resume_from_stage < 10
         EEG = pop_iclabel(EEG, 'Default');
+        EEG = pop_icflag( EEG,[NaN NaN;0.9 1;0.9 1;NaN NaN;NaN NaN;NaN NaN;NaN NaN]); % hard coded when comparing to Python in stage_comparison.py
+        EEG = pop_subcomp(EEG, [], 0); % remove pre-flagged bad components
         if save_intermediate, pop_saveset(EEG, 'filename', sprintf('%s_stage%02d_%s_mat.set', base_name, 10, stage_names{10}), 'filepath', intermediate_dir); end
     end
 

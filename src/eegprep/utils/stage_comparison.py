@@ -184,10 +184,11 @@ def compare_iclabel_classifications(py_file: str, mat_file: str, ica_reorder: Op
     # Compute probability differences
     prob_diff = np.abs(ic_py - ic_mat)
 
-    # Count flagged components (assuming brain class is first column, threshold 0.5)
-    brain_threshold = 0.5
-    flagged_py = np.sum(ic_py[:, 0] < brain_threshold)
-    flagged_mat = np.sum(ic_mat[:, 0] < brain_threshold)
+    # Count flagged components using pop_icflag criteria: [NaN NaN;0.9 1;0.9 1;NaN NaN;NaN NaN;NaN NaN;NaN NaN]
+    # Class order: Brain, Muscle, Eye, Heart, Line Noise, Channel Noise, Other
+    # Flag if Muscle > 0.9 OR Eye > 0.9
+    flagged_py = np.sum((ic_py[:, 1] > 0.9) | (ic_py[:, 2] > 0.9))
+    flagged_mat = np.sum((ic_mat[:, 1] > 0.9) | (ic_mat[:, 2] > 0.9))
 
     return {
         'avg_prob_diff': float(np.mean(prob_diff)),
@@ -213,8 +214,10 @@ def compute_data_after_component_removal(iclabel_file: str) -> np.ndarray:
         return EEG['data']
 
     ic_class = EEG['etc']['ic_classification']['ICLabel']['classifications']
-    brain_threshold = 0.5
-    keep_comps = ic_class[:, 0] >= brain_threshold  # Keep brain components
+    # Flag components using pop_icflag criteria: Muscle > 0.9 OR Eye > 0.9
+    # Class order: Brain, Muscle, Eye, Heart, Line Noise, Channel Noise, Other
+    flagged = (ic_class[:, 1] > 0.9) | (ic_class[:, 2] > 0.9)
+    keep_comps = ~flagged  # Keep non-flagged components
 
     # Remove flagged components from data
     if EEG.get('icaweights') is not None and EEG.get('icasphere') is not None:

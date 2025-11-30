@@ -351,7 +351,8 @@ def bids_preproc(
     from scipy.io.matlab import loadmat
     from eegprep import (bids_list_eeg_files, clean_artifacts, pop_load_frombids, eeg_checkset,
                          pop_saveset, eeg_runica, iclabel, pop_loadset, pop_resample,
-                         eeg_interp, pop_select, eeg_checkset_strict_mode, pop_reref)
+                         eeg_interp, pop_select, eeg_checkset_strict_mode, pop_reref,
+                         eeg_icflag, pop_subcomp)
     from .utils.bids import gen_derived_fpath
 
     def hash_suffix(ignore: Optional[set] = None, *, prefix='#') -> str:
@@ -726,6 +727,24 @@ def bids_preproc(
                         EEG = pop_loadset(fpath_iclabel)
                     else:
                         EEG = iclabel(EEG)
+
+                        # Flag components based on ICLabel classifications
+                        # Match MATLAB: pop_icflag([NaN NaN;0.9 1;0.9 1;NaN NaN;NaN NaN;NaN NaN;NaN NaN])
+                        # This flags Muscle > 0.9 OR Eye > 0.9
+                        thresholds = np.array([
+                            [np.nan, np.nan],  # Brain
+                            [0.9, 1.0],        # Muscle
+                            [0.9, 1.0],        # Eye
+                            [np.nan, np.nan],  # Heart
+                            [np.nan, np.nan],  # Line Noise
+                            [np.nan, np.nan],  # Channel Noise
+                            [np.nan, np.nan],  # Other
+                        ])
+                        EEG = eeg_icflag(EEG, thresholds)
+
+                        # Remove flagged components
+                        EEG = pop_subcomp(EEG)
+
                         pop_saveset(EEG, fpath_iclabel)
                         report["ICLabel"] = {
                             "Applied": True,
