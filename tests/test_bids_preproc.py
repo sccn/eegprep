@@ -61,8 +61,8 @@ class TestBidsPreproc(DebuggableTestCase):
         """End-to-end test vs MATLAB."""
         from eegprep import bids_preproc, pop_loadset, eeg_checkset_strict_mode
         from eegprep.eeglabcompat import get_eeglab
-        from eegprep.utils.stage_comparison import generate_comparison_table
-        import tempfile
+        from eegprep.utils.stage_comparison import generate_comparison_table, save_comparison_report
+        from datetime import datetime
 
         for study in self.studies:
             # subset of subjects/runs to compare
@@ -87,8 +87,11 @@ class TestBidsPreproc(DebuggableTestCase):
 
             study_path = os.path.join(self.root_path, retain[0])
 
-            # Create temporary directory for intermediate stage files
-            stage_dir = tempfile.mkdtemp(prefix='stage_comparison_')
+            # Create timestamped directory in project temp folder
+            timestamp = datetime.now().strftime('%y%m%d_%H%M')
+            project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            stage_dir = os.path.join(project_root, 'temp', f'stage_analysis_{timestamp}')
+            os.makedirs(stage_dir, exist_ok=True)
             print(f"Stage comparison directory: {stage_dir}")
 
             print(f"Running bids_preproc() on {study_path}...")
@@ -154,14 +157,17 @@ class TestBidsPreproc(DebuggableTestCase):
                 # np.testing.assert_allclose(EEG_py['icaweights'], EEG_mat['icaweights'], rtol=0, atol=1e-5)
                 print("passed.")
 
-            # Generate and print stage-by-stage comparison table
+            # Generate and save stage-by-stage comparison report
             print("\n" + "="*80)
-            print("Generating stage-by-stage comparison table...")
+            print("Generating stage-by-stage comparison report...")
             try:
                 comparison_table = generate_comparison_table(stage_dir)
                 print(comparison_table)
+                # Save as markdown report
+                save_comparison_report(stage_dir, comparison_table, studyname, subjects, runs)
+                print(f"Report saved to: {os.path.join(stage_dir, 'comparison_report.md')}")
             except Exception as e:
-                print(f"Could not generate comparison table: {e}")
+                print(f"Could not generate comparison report: {e}")
             print("="*80 + "\n")
 
     @unittest.skipIf(curhost not in slow_tests_hosts_only, f"Slow stress test skipped by default on hosts other than {slow_tests_hosts_only}")

@@ -200,12 +200,21 @@ def topoplot(datavector, chan_locs, **kwargs):
     Zi[~mask] = np.nan
 
     if noplot == 'off':
-        plt.imshow(Zi, extent=(xmin, xmax, ymin, ymax), origin='lower', cmap=cmap)
+        # Rotate electrode positions by -90 degrees: (x, y) -> (y, -x)
+        x_rotated = y.copy()
+        y_rotated = -x.copy()
+        extent_rotated = (ymin, ymax, -xmax, -xmin)
+        
+        plt.imshow(Zi_rotated, extent=extent_rotated, origin='lower', cmap=cmap)
         plt.colorbar()
-        plt.scatter(x, y, c='k')
-        plt.plot(np.cos(np.linspace(0, 2 * np.pi, 100)) * rmax, np.sin(np.linspace(0, 2 * np.pi, 100)) * rmax, 'k')
+        plt.scatter(x_rotated, y_rotated, c='k')
+        # Rotate head circle coordinates
+        theta = np.linspace(0, 2 * np.pi, 100)
+        head_x = np.cos(theta) * rmax
+        head_y = np.sin(theta) * rmax
+        plt.plot(head_x, head_y, 'k')
         for i, txt in enumerate(labels):
-            plt.annotate(txt, (x[i], y[i]), fontsize=8, ha='right')
+            plt.annotate(txt, (x_rotated[i], y_rotated[i]), fontsize=8, ha='right')
         plt.title('Topoplot')
         plt.axis('off')
         plt.show()
