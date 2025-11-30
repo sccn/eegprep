@@ -48,7 +48,9 @@ if nargin < 4
 result_paths = {};
 for idx=1:length(ALLEEG)
     EEG = ALLEEG(idx);
+    EEG = eeg_checkset(EEG, 'loaddata');
 
+    % temporarily disabled for quicker runs
     % keep only channels with EEG modality
     chn_modalities = {EEG.chanlocs.type};
     keep = find(strcmp('EEG',chn_modalities));

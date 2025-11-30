@@ -153,7 +153,7 @@ class TestPopSelectFunctional(unittest.TestCase):
             self.assertEqual(EEG_out['data'].shape[2], len(keep_trials))
 
         # Events, if present, must have valid latencies
-        if EEG_out.get('event'):
+        if EEG_out.get('event') is not None:
             total_pts = EEG_out['pnts'] * EEG_out['trials']
             for ev in EEG_out['event']:
                 if 'latency' in ev:

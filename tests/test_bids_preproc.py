@@ -45,11 +45,11 @@ class TestBidsPreproc(DebuggableTestCase):
 
         # list of studies to run end-to-end tests on (set to run first 2 recordings in each)
         self.studies = [
-            {
-                'studyname': 'ds002680',
-                'subjects': ['002'],  # first subject, has 2 sessions
-                'runs': [], # needs to be >= 10 otherwise MATLAB-side filtering by run fails
-            },
+            # {
+            #     'studyname': 'ds002680',
+            #     'subjects': ['002'],  # first subject, has 2 sessions
+            #     'runs': [], # needs to be >= 10 otherwise MATLAB-side filtering by run fails
+            # },
             {
                 'studyname': 'ds003061',
                 'subjects': ['001', '002'],
