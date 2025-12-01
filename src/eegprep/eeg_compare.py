@@ -4,6 +4,12 @@ from collections.abc import Sequence
 import numpy as np
 
 def eeg_compare(eeg1, eeg2, verbose_level=0, trigger_error=False):
+    """Compare two EEG-like structures, reporting differences.
+    
+    Returns:
+        str: Summary of differences, including numerical distance metrics for arrays
+    """
+    summary_parts = []
     
     def isequaln(a, b):
         """Treat None and NaN as equal, otherwise compare by value."""
@@ -55,6 +61,46 @@ def eeg_compare(eeg1, eeg2, verbose_level=0, trigger_error=False):
     
     # Collect differences for error reporting
     differences = []
+    # Check if both inputs are numpy arrays - if so, provide numerical distance summary
+    if isinstance(eeg1, np.ndarray) and isinstance(eeg2, np.ndarray):
+        if eeg1.shape != eeg2.shape:
+            summary = f"Array shape mismatch: {eeg1.shape} vs {eeg2.shape}"
+            print(summary, file=sys.stderr)
+            if trigger_error:
+                raise ValueError(summary)
+            return summary
+        
+        diff = eeg1 - eeg2
+        abs_diff = np.abs(diff)
+        max_abs_diff = np.max(abs_diff)
+        mean_abs_diff = np.mean(abs_diff)
+        rms_diff = np.sqrt(np.mean(diff**2))
+        
+        # Compute relative differences (avoid division by zero)
+        with np.errstate(divide='ignore', invalid='ignore'):
+            rel_diff = abs_diff / (np.abs(eeg1) + np.abs(eeg2) + 1e-10)
+        max_rel_diff = np.max(rel_diff)
+        mean_rel_diff = np.mean(rel_diff)
+        
+        mismatched = np.sum(abs_diff > 1e-10)
+        total_elements = diff.size
+        mismatch_pct = 100.0 * mismatched / total_elements if total_elements > 0 else 0.0
+        
+        summary_lines = [
+            f"Array Comparison Summary:",
+            f"  Shape: {eeg1.shape}",
+            f"  Total elements: {total_elements:,}",
+            f"  Mismatched elements (> 1e-10): {mismatched:,} ({mismatch_pct:.2f}%)",
+            f"  Max absolute difference: {max_abs_diff:.6e}",
+            f"  Mean absolute difference: {mean_abs_diff:.6e}",
+            f"  RMS difference: {rms_diff:.6e}",
+            f"  Max relative difference: {max_rel_diff:.6e}",
+            f"  Mean relative difference: {mean_rel_diff:.6e}",
+        ]
+        summary = "\n".join(summary_lines)
+        # Don't print here - let caller decide whether to print
+        return summary
+    
     # Handle both dictionary-like objects and objects with __dict__
     if hasattr(eeg1, 'keys'):
         # Dictionary-like object
@@ -100,9 +146,32 @@ def eeg_compare(eeg1, eeg2, verbose_level=0, trigger_error=False):
                     pass
                     # For complex nested structures, provide more detailed info
                 else:
-                    error_msg = f'Field {field} differs'
-                    print(f'    {error_msg}', file=sys.stderr)
-                    differences.append(error_msg)
+                    # For array fields, provide numerical distance metrics
+                    if isinstance(v1, np.ndarray) and isinstance(v2, np.ndarray):
+                        if v1.shape == v2.shape:
+                            diff = v1 - v2
+                            abs_diff = np.abs(diff)
+                            max_abs_diff = np.max(abs_diff)
+                            mean_abs_diff = np.mean(abs_diff)
+                            rms_diff = np.sqrt(np.mean(diff**2))
+                            
+                            with np.errstate(divide='ignore', invalid='ignore'):
+                                rel_diff = abs_diff / (np.abs(v1) + np.abs(v2) + 1e-10)
+                            max_rel_diff = np.max(rel_diff)
+                            
+                            error_msg = f'Field {field} differs (max_abs={max_abs_diff:.6e}, mean_abs={mean_abs_diff:.6e}, rms={rms_diff:.6e}, max_rel={max_rel_diff:.6e})'
+                            print(f'    {error_msg}', file=sys.stderr)
+                            differences.append(error_msg)
+                            summary_parts.append(f"  {field}: max_abs={max_abs_diff:.6e}, mean_abs={mean_abs_diff:.6e}, rms={rms_diff:.6e}")
+                        else:
+                            error_msg = f'Field {field} differs (shape mismatch: {v1.shape} vs {v2.shape})'
+                            print(f'    {error_msg}', file=sys.stderr)
+                            differences.append(error_msg)
+                            summary_parts.append(f"  {field}: shape mismatch")
+                    else:
+                        error_msg = f'Field {field} differs'
+                        print(f'    {error_msg}', file=sys.stderr)
+                        differences.append(error_msg)
     # compare xmin/xmax
     for attr in ('xmin', 'xmax'):
         x1 = get_val1(attr)
@@ -222,12 +291,38 @@ def eeg_compare(eeg1, eeg2, verbose_level=0, trigger_error=False):
     #         if all_ok:
     #             print('    All epoch and all epoch fields are OK')
 
+    # Build final summary
+    if summary_parts:
+        summary = "Numerical Distance Summary:\n" + "\n".join(summary_parts)
+        if differences:
+            summary += f"\n\nAlso found {len(differences)} other field differences (see details above)"
+    elif not differences:
+        summary = "All fields match (no differences found)"
+    else:
+        # Provide more detail about the types of differences
+        diff_types = {}
+        for diff in differences:
+            if 'shape' in diff.lower():
+                diff_types.setdefault('shape_mismatches', []).append(diff)
+            elif 'coordinate' in diff.lower() or 'channel' in diff.lower():
+                diff_types.setdefault('channel_differences', []).append(diff)
+            elif 'event' in diff.lower():
+                diff_types.setdefault('event_differences', []).append(diff)
+            else:
+                diff_types.setdefault('other', []).append(diff)
+        
+        summary_lines = [f"Found {len(differences)} total differences:"]
+        for diff_type, diff_list in diff_types.items():
+            summary_lines.append(f"  {diff_type}: {len(diff_list)}")
+        summary_lines.append("(See detailed output above for specifics)")
+        summary = "\n".join(summary_lines)
+    
     # Raise error if differences found and trigger_error is True
     if trigger_error and differences:
         error_message = f"EEG comparison failed with {len(differences)} differences:\n" + "\n".join(f"  - {diff}" for diff in differences)
         raise ValueError(error_message)
     
-    return True
+    return summary
 
 # add test data and compare with it
 
