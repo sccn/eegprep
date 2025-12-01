@@ -1,5 +1,6 @@
 import os
 import numpy as np
+from copy import deepcopy
 from eegprep import pop_loadset, clean_artifacts, eeg_picard, iclabel
 from eegprep.eeglabcompat import get_eeglab
 from eegprep.eeg_compare import eeg_compare
@@ -14,17 +15,19 @@ def test_pipeline():
 
     # --- Step 1: clean_artifacts (channel cleaning only) ---
     # Channel cleaning only: BurstCriterion='off'
-    EEG_py_ch, *_ = clean_artifacts(EEG, BurstCriterion='off', ChannelCriterion=0.8)
+    # Use deepcopy to ensure Python doesn't modify the original EEG
+    EEG_py_ch, *_ = clean_artifacts(deepcopy(EEG), BurstCriterion='off', ChannelCriterion=0.8)
     eeglab = get_eeglab('MAT')
-    EEG_mat_ch = eeglab.clean_artifacts(EEG, 'BurstCriterion', 'off', 'ChannelCriterion', 0.8)
+    # MATLAB also needs a fresh copy since it may modify the EEG structure
+    EEG_mat_ch = eeglab.clean_artifacts(deepcopy(EEG), 'BurstCriterion', 'off', 'ChannelCriterion', 0.8)
     # eeg_compare(EEG_py_ch, EEG_mat_ch)
     compare_eeg(EEG_py_ch['data'], EEG_mat_ch['data'], rtol=0.005, atol=1e-5, err_msg='clean_artifacts() channel cleaning Python vs MATLAB failed')
     print("clean_artifacts() channel cleaning Python vs MATLAB passed\n\n\n")
 
     # --- Step 1b: clean_artifacts (burst cleaning only, after channel cleaning) ---
     # Burst cleaning only: ChannelCriterion='off'
-    EEG_py = clean_artifacts(EEG_py_ch, ChannelCriterion='off')
-    EEG_mat = eeglab.clean_artifacts(EEG_mat_ch, ChannelCriterion='off', BurstCriterion=5.0)
+    EEG_py, *_ = clean_artifacts(EEG_py_ch, ChannelCriterion='off')
+    EEG_mat = eeglab.clean_artifacts(EEG_mat_ch, 'ChannelCriterion', 'off', 'BurstCriterion', 5.0)
     eeg_compare(EEG_py, EEG_mat)
     compare_eeg(EEG_py['data'], EEG_mat['data'], rtol=0.005, atol=1e-5, err_msg='clean_artifacts() burst cleaning Python vs MATLAB failed')
     print("clean_artifacts() burst cleaning Python vs MATLAB passed\n\n\n")
