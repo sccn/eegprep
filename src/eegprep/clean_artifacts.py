@@ -199,14 +199,18 @@ def clean_artifacts(
         chancorr_crit = 0.0 if ChannelCriterion in (None, 'off') else float(ChannelCriterion)
         line_crit = 100.0 if LineNoiseCriterion in (None, 'off') else float(LineNoiseCriterion)
         try:
+            # Match MATLAB clean_artifacts.m line 254:
+            # clean_channels(EEG,chancorr_crit,line_crit,[],channel_crit_maxbad_time, num_samples)
+            # MATLAB passes [] for window_len (uses default 5) and doesn't pass subset_size (uses default 0.25)
+            # Python: not passing window_len uses default 5, and we pass subset_size explicitly (default 0.25)
             EEG = clean_channels(
                 EEG,
                 corr_threshold=chancorr_crit,
                 noise_threshold=line_crit,
-                # use default window_len
+                # window_len not passed - uses default 5 (MATLAB passes [] which also uses default 5)
                 max_broken_time=float(ChannelCriterionMaxBadTime),
                 num_samples=int(NumSamples),
-                subset_size=SubsetSize,
+                subset_size=SubsetSize,  # Default 0.25, matches MATLAB default when not passed
             )
             removed_channels = ~EEG['etc']['clean_channel_mask']
         except Exception as e:
