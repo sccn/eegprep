@@ -742,15 +742,18 @@ def bids_preproc(
                         ])
                         EEG = eeg_icflag(EEG, thresholds)
 
+                        # Save stage 10 BEFORE component removal (for comparison)
+                        save_stage(EEG, 10, 'iclabel')
+
                         # Remove flagged components
                         EEG = pop_subcomp(EEG)
 
+                        # Save the final result after component removal
                         pop_saveset(EEG, fpath_iclabel)
                         report["ICLabel"] = {
                             "Applied": True,
                         }
                         StagesToGo.remove('ICLabel')
-                        save_stage(EEG, 10, 'iclabel')
                 else:
                     report["ICLabel"] = {
                         "Applied": False,

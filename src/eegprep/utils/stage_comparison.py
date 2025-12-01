@@ -158,10 +158,14 @@ def compare_ica_decompositions(py_file: str, mat_file: str, subject: str) -> Dic
 def compare_iclabel_classifications(py_file: str, mat_file: str, ica_reorder: Optional[np.ndarray] = None) -> Dict[str, any]:
     """Compare ICLabel classifications between Python and MATLAB.
 
-    Args:
-        ica_reorder: Component reordering from ICA comparison
+    Note: Stage 10 files may have different numbers of components if different
+    components were removed. In this case, we skip detailed probability comparison
+    and only report component counts.
 
-    Returns dict with: avg_prob_diff, max_prob_diff, n_flagged_py, n_flagged_mat
+    Args:
+        ica_reorder: Component reordering from ICA comparison (only used if component counts match)
+
+    Returns dict with: avg_prob_diff, max_prob_diff, n_flagged_py, n_flagged_mat, n_components_py, n_components_mat
     """
     from eegprep import pop_loadset, eeg_checkset_strict_mode
 
@@ -177,8 +181,24 @@ def compare_iclabel_classifications(py_file: str, mat_file: str, ica_reorder: Op
     ic_py = EEG_py['etc']['ic_classification']['ICLabel']['classifications']
     ic_mat = EEG_mat['etc']['ic_classification']['ICLabel']['classifications']
 
-    # Reorder Python classifications to match MATLAB
-    if ica_reorder is not None:
+    n_comps_py = ic_py.shape[0]
+    n_comps_mat = ic_mat.shape[0]
+
+    # Check if component counts match
+    if n_comps_py != n_comps_mat:
+        # Components were removed differently, can't do detailed comparison
+        # Note: Stage 10 is saved AFTER component removal, so different flagging leads to different counts
+        return {
+            'avg_prob_diff': None,
+            'max_prob_diff': None,
+            'n_components_py': int(n_comps_py),
+            'n_components_mat': int(n_comps_mat),
+            'note': f'Different component counts (Python={n_comps_py}, MATLAB={n_comps_mat}). Stage 10 saved after removal.'
+        }
+
+    # Same number of components - can do detailed comparison
+    # Reorder Python classifications to match MATLAB (only if counts match)
+    if ica_reorder is not None and len(ica_reorder) == n_comps_py:
         ic_py = ic_py[ica_reorder, :]
 
     # Compute probability differences
@@ -187,6 +207,7 @@ def compare_iclabel_classifications(py_file: str, mat_file: str, ica_reorder: Op
     # Count flagged components using pop_icflag criteria: [NaN NaN;0.9 1;0.9 1;NaN NaN;NaN NaN;NaN NaN;NaN NaN]
     # Class order: Brain, Muscle, Eye, Heart, Line Noise, Channel Noise, Other
     # Flag if Muscle > 0.9 OR Eye > 0.9
+    # Note: These are components that survived removal, so flagged count should be 0 for both
     flagged_py = np.sum((ic_py[:, 1] > 0.9) | (ic_py[:, 2] > 0.9))
     flagged_mat = np.sum((ic_mat[:, 1] > 0.9) | (ic_mat[:, 2] > 0.9))
 
@@ -195,7 +216,8 @@ def compare_iclabel_classifications(py_file: str, mat_file: str, ica_reorder: Op
         'max_prob_diff': float(np.max(prob_diff)),
         'n_flagged_py': int(flagged_py),
         'n_flagged_mat': int(flagged_mat),
-        'n_components': ic_py.shape[0]
+        'n_components_py': int(n_comps_py),
+        'n_components_mat': int(n_comps_mat)
     }
 
 
@@ -484,10 +506,19 @@ def generate_comparison_table(stage_dir: str, stages: List[int] = None) -> str:
                         ica_result.get('reorder_idx')
                     )
                     if icl_result:
-                        lines.append(f"    Avg prob diff: {icl_result['avg_prob_diff']:.3f}, "
-                                    f"Max prob diff: {icl_result['max_prob_diff']:.3f}")
-                        lines.append(f"    Flagged for removal: Python={icl_result['n_flagged_py']}, "
-                                    f"MATLAB={icl_result['n_flagged_mat']}")
+                        if icl_result['avg_prob_diff'] is not None:
+                            # Same component count - full comparison
+                            lines.append(f"    Avg prob diff: {icl_result['avg_prob_diff']:.3f}, "
+                                        f"Max prob diff: {icl_result['max_prob_diff']:.3f}")
+                            lines.append(f"    Components remaining: Python={icl_result['n_components_py']}, "
+                                        f"MATLAB={icl_result['n_components_mat']}")
+                            lines.append(f"    Flagged (should be 0): Python={icl_result['n_flagged_py']}, "
+                                        f"MATLAB={icl_result['n_flagged_mat']}")
+                        else:
+                            # Different component counts
+                            lines.append(f"    Components remaining: Python={icl_result['n_components_py']}, "
+                                        f"MATLAB={icl_result['n_components_mat']}")
+                            lines.append(f"    Note: {icl_result['note']}")
                     else:
                         lines.append("    No ICLabel data available")
                 except Exception as e:

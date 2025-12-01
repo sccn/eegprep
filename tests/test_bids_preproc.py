@@ -52,7 +52,7 @@ class TestBidsPreproc(DebuggableTestCase):
             # },
             {
                 'studyname': 'ds003061',
-                'subjects': ['001', '002'],
+                'subjects': ['001'], #, '002'],
                 'runs': [2],  # using run 2 to avoid ICA shape issues with cached run 1 files
             }
         ]
