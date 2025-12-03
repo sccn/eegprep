@@ -1,4 +1,6 @@
-# EEGPrep
+![eegprep](https://github.com/user-attachments/assets/d7230b12-7fb8-4abb-94a0-33c47286b019)
+
+# What is EEGPrep?
 
 [![Documentation Status](https://github.com/sccn/eegprep/actions/workflows/docs.yml/badge.svg)](https://github.com/sccn/eegprep/actions/workflows/docs.yml)
 [![GitHub Pages](https://github.com/sccn/eegprep/actions/workflows/pages.yml/badge.svg)](https://sccn.github.io/eegprep/)
