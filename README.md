@@ -1,4 +1,4 @@
-![eegprep](https://github.com/user-attachments/assets/d7230b12-7fb8-4abb-94a0-33c47286b019)
+<img src="https://github.com/user-attachments/assets/d7230b12-7fb8-4abb-94a0-33c47286b019" width="300">
 
 # What is EEGPrep?
 
