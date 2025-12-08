@@ -131,7 +131,7 @@ class TestPipeline(DebuggableTestCase):
         print(iclabel_summary)
         print("="*80 + "\n")
     
-    def test_full_pipeline(self):
+    def test_z_full_pipeline(self):
         """Test the complete pipeline end-to-end."""
         print("\n" + "="*80)
         print("Full Pipeline Test: clean_artifacts -> eeg_picard -> iclabel")
