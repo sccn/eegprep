@@ -133,8 +133,7 @@ pip install eegprep[all]
 
 ## Running Tests
 
-Install MATLAB interface `pip install /your/path/to/matlab/extern/engines/python` (for example on OSx `pip install /Applications/MATLAB_R2025a.app/extern/engines/python 
-Processing /Applications/MATLAB_R2025a.app/extern/engines/python`)
+Install MATLAB interface `pip install /your/path/to/matlab/extern/engines/python` (for example on OSx `pip install /Applications/MATLAB_R2025a.app/extern/engines/python`)
 
 Check installation
 
