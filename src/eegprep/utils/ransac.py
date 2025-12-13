@@ -7,17 +7,17 @@ from ..eeglabcompat import get_eeglab
 from .misc import round_mat
 
 def rand_sample(
-        n: int, 
-        m: int, 
+        n: int,
+        m: int,
         stream: np.random.RandomState
 ) -> np.ndarray:
     """Random sampling without replacement.
-    
+
     Args:
         n: number of items to sample from
         m: number of items to sample
         stream: random number generator
-    
+
     Returns:
         random_sample: array of sampled values
     """
@@ -29,6 +29,39 @@ def rand_sample(
         result[k] = pool[choice]
         pool = np.delete(pool, choice)
     return result
+
+
+def rand_permutation(
+        n: int,
+        stream: np.random.RandomState
+) -> np.ndarray:
+    """Random permutation with MATLAB parity.
+
+    This function produces the SAME permutation sequence as MATLAB's randperm()
+    when both use the same RNG seed (5489). It achieves parity by using rand()
+    (uniform distribution) + round_mat(), which match between Python and MATLAB,
+    instead of permutation() which differs.
+
+    This is equivalent to calling rand_sample(n, n, stream) but optimized
+    for the permutation use case.
+
+    Args:
+        n: number of items to permute (returns permutation of 0..n-1)
+        stream: random number generator (np.random.RandomState)
+
+    Returns:
+        permutation: array of indices 0..n-1 in random order
+
+    Example:
+        >>> rng = np.random.RandomState(5489)
+        >>> perm = rand_permutation(10, rng)
+        >>> # This will match MATLAB: rng(5489,'twister'); randperm(10) - 1
+
+    Note:
+        This function is critical for ICA parity between Python and MATLAB.
+        See test_parity_rng.py for verification tests.
+    """
+    return rand_sample(n, n, stream)
 
 
 def calc_projector(

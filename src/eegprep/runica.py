@@ -22,6 +22,7 @@ Reference:
 import numpy as np
 from scipy.linalg import sqrtm, pinv, eig
 from .utils.misc import round_mat
+from .utils.ransac import rand_permutation
 
 
 # Constants matching MATLAB defaults
@@ -628,21 +629,21 @@ def runica(data, **kwargs):
     # Phase 2: Core ICA Training Loop
     # =========================================================================
 
-    # Helper function for random permutation
+    # Helper function for random permutation with MATLAB parity
     def custom_randperm(n, rng_state):
         """
-        Random permutation compatible with ICA algorithm requirements.
+        Random permutation with MATLAB parity.
 
-        Note: This uses numpy's permutation which is faster and more reliable
-        than trying to exactly replicate MATLAB's randperm internal algorithm.
-        The ICA algorithm is stochastic by nature, so different permutations
-        will lead to slightly different convergence paths, but the final
-        solution quality should be similar.
+        This function produces the SAME permutation sequence as MATLAB's randperm()
+        by using rand() + round_mat() instead of permutation(). This achieves exact
+        parity because:
+        - rand() (uniform [0,1]) matches between Python and MATLAB
+        - round_mat() matches MATLAB's round() tie-breaking behavior
+        - permutation() uses different algorithms and does NOT match
 
-        For exact MATLAB parity in research contexts, set rndreset='off' to
-        use the same random seed in both MATLAB and Python.
+        For details see test_parity_rng.py and utils/ransac.py:rand_permutation()
         """
-        return rng_state.permutation(n)
+        return rand_permutation(n, rng_state)
 
     # Initialize step counters and tracking variables
     step = 0  # Training step counter (MATLAB line 795)
