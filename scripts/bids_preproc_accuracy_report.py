@@ -115,7 +115,7 @@ if __name__ == '__main__':
                 LineNoiseCriterion=4.0 if to_stage >= 6 else 'off',
                 BurstCriterion=5.0 if to_stage >= 7 else 'off',
                 WindowCriterion=0.25 if to_stage >= 8 else 'off',
-                WithPicard=to_stage >= 9,
+                WithICA=to_stage >= 9,
                 WithICLabel=to_stage >= 10,
                 WithInterp=to_stage >= 11,
                 EpochEvents=[] if to_stage >= 12 else None,

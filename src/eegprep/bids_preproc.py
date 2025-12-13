@@ -98,7 +98,9 @@ def bids_preproc(
         OnlyChannelsWithPosition: bool = True,
         OnlyModalities: Sequence[str] = (),
         WithInterp: bool = False,
+        WithICA: bool = False,
         WithPicard: bool = False,
+        ICAAlgorithm: str = 'runica',
         WithICLabel: bool = False,
         WithReport: bool = True,
         CommonAverageReference: bool = True,
@@ -243,11 +245,11 @@ def bids_preproc(
     WithInterp (bool):
         Whether to reinterpolate dropped channels, thus retaining the same channel
         count as the raw data.
-    WithPicard (bool):
+    WithICA (bool):
         Whether to apply PICARD ICA decomposition after cleaning.
     WithICLabel (bool):
         Whether to apply ICLabel classification after ICA. Normally requires
-        WithPicard=True.
+        WithICA=True.
     CommonAverageReference (bool):
         Whether to transform the EEG data to a common average referencing scheme;
         recommended for cross-study processing.
@@ -411,9 +413,12 @@ def bids_preproc(
     if len(StageNames) != 4:
         raise ValueError("StageNames, if given, must be a list of 4 strings, as in: "
                          "['desc-cleaned', 'desc-picard', 'desc-iclabel', 'desc-epoch'].")
-    if WithICLabel and not WithPicard:
-        logger.warning("WithICLabel=True implies WithPicard=True; setting WithPicard=True.")
-        WithPicard = True
+    if WithPicard:
+        ICAAlgorithm = 'picard'
+        WithICA = True
+    if WithICLabel and not WithICA:
+        logger.warning("WithICLabel=True implies WithICA=True; setting WithICA=True.")
+        WithICA = True
 
     if not os.path.isdir(root) and root.endswith(eeg_extensions):
         fn = root  # process a single file
@@ -421,7 +426,7 @@ def bids_preproc(
             _n_skipped = multiprocessing.Value('i', 0)
 
         late_opts = {'WithInterp', 'EpochLimits', 'EpochEvents', 'EpochBaseline', 'CommonAverageReference'}
-        fpath_cln = gen_derived_fpath(fn, outputdir=OutputDir, keyword=StageNames[0] + hash_suffix(ignore={'WithPicard', 'WithICLabel'} | late_opts))
+        fpath_cln = gen_derived_fpath(fn, outputdir=OutputDir, keyword=StageNames[0] + hash_suffix(ignore={'WithICA', 'WithICLabel'} | late_opts))
         fpath_picard = gen_derived_fpath(fn, outputdir=OutputDir, keyword=StageNames[1] + hash_suffix(ignore={'WithICLabel'} | late_opts))
         fpath_iclabel = gen_derived_fpath(fn, outputdir=OutputDir, keyword=StageNames[2] + hash_suffix(ignore=late_opts))
         fpath_epoch = gen_derived_fpath(fn, outputdir=OutputDir, keyword=StageNames[3] + hash_suffix(ignore={'CommonAverageReference'}))
@@ -465,7 +470,7 @@ def bids_preproc(
         if WithICLabel:
             needed_files += [fpath_cln, fpath_iclabel]
             StagesToGo += ['ICA', 'ICLabel']
-        elif WithPicard:
+        elif WithICA:
             needed_files += [fpath_cln, fpath_picard]
             StagesToGo += ['ICA']
         else:
@@ -593,7 +598,7 @@ def bids_preproc(
 
                     # Clear any pre-existing ICA if we're going to compute fresh ICA with PICARD
                     # This avoids shape mismatches after channel interpolation
-                    if WithPicard and 'icaweights' in EEG and EEG['icaweights'].size > 0:
+                    if WithICA and 'icaweights' in EEG and EEG['icaweights'].size > 0:
                         logger.info(f"Clearing pre-existing ICA from {fn} (will recompute with PICARD)")
                         EEG['icaweights'] = np.array([])
                         EEG['icasphere'] = np.array([])
@@ -700,12 +705,15 @@ def bids_preproc(
                         pop_saveset(EEG, fpath_cln)
                         save_stage(EEG, 8, 'window')
 
-                if WithPicard:
+                if WithICA:
                     if os.path.exists(fpath_picard) and SkipIfPresent:
                         logger.info(f"Found {fpath_picard}, skipping PICARD stage.")
                         EEG = pop_loadset(fpath_picard)
                     else:
-                        EEG = eeg_runica(EEG, posact=True, sortcomps=True, rndreset='off')
+                        if ICAAlgorithm == 'picard':
+                            EEG = eeg_picard(EEG)
+                        else:
+                            EEG = eeg_runica(EEG, posact=True, sortcomps=True, rndreset='off')
                         EEG = eeg_checkset(EEG)
                         if not WithICLabel or not MinimizeDiskUsage:
                             # only save the PICARD output if we don't do ICLabel (to save disk space)

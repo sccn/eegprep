@@ -303,33 +303,33 @@ def run_staged_pipeline_python(root: str, stage_dir: str, **kwargs) -> List[str]
     # Stage mapping: (output_file, stage_params)
     stages = [
         ('stage01_import_py.set', {'OnlyChannelsWithPosition': False, 'OnlyModalities': [],
-                                    'SamplingRate': None, 'WithInterp': False, 'WithPicard': False,
+                                    'SamplingRate': None, 'WithInterp': False, 'WithICA': False,
                                     'WithICLabel': False, 'EpochEvents': None, 'CommonAverageReference': False}),
         ('stage02_chansel_py.set', {'OnlyModalities': ['EEG'], 'SamplingRate': None, 'WithInterp': False,
-                                     'WithPicard': False, 'WithICLabel': False, 'EpochEvents': None, 'CommonAverageReference': False}),
+                                     'WithICA': False, 'WithICLabel': False, 'EpochEvents': None, 'CommonAverageReference': False}),
         ('stage03_resample_py.set', {'OnlyModalities': ['EEG'], 'SamplingRate': 128, 'WithInterp': False,
-                                      'WithPicard': False, 'WithICLabel': False, 'EpochEvents': None, 'CommonAverageReference': False}),
+                                      'WithICA': False, 'WithICLabel': False, 'EpochEvents': None, 'CommonAverageReference': False}),
         ('stage08_window_py.set', {'OnlyModalities': ['EEG'], 'SamplingRate': 128, 'WithInterp': False,
-                                    'WithPicard': False, 'WithICLabel': False, 'EpochEvents': None, 'CommonAverageReference': False}),
+                                    'WithICA': False, 'WithICLabel': False, 'EpochEvents': None, 'CommonAverageReference': False}),
         ('stage09_ica_py.set', {'OnlyModalities': ['EEG'], 'SamplingRate': 128, 'WithInterp': False,
-                                 'WithPicard': True, 'WithICLabel': False, 'EpochEvents': None, 'CommonAverageReference': False}),
+                                 'WithICA': True, 'WithICLabel': False, 'EpochEvents': None, 'CommonAverageReference': False}),
         ('stage10_iclabel_py.set', {'OnlyModalities': ['EEG'], 'SamplingRate': 128, 'WithInterp': False,
-                                     'WithPicard': True, 'WithICLabel': True, 'EpochEvents': None, 'CommonAverageReference': False}),
+                                     'WithICA': True, 'WithICLabel': True, 'EpochEvents': None, 'CommonAverageReference': False}),
         ('stage11_interp_py.set', {'OnlyModalities': ['EEG'], 'SamplingRate': 128, 'WithInterp': True,
-                                    'WithPicard': True, 'WithICLabel': True, 'EpochEvents': None, 'CommonAverageReference': False}),
+                                    'WithICA': True, 'WithICLabel': True, 'EpochEvents': None, 'CommonAverageReference': False}),
         ('stage12_epoch_py.set', {'OnlyModalities': ['EEG'], 'SamplingRate': 128, 'WithInterp': True,
-                                   'WithPicard': True, 'WithICLabel': True, 'EpochEvents': [], 'EpochLimits': [-0.2, 0.5], 'CommonAverageReference': False}),
+                                   'WithICA': True, 'WithICLabel': True, 'EpochEvents': [], 'EpochLimits': [-0.2, 0.5], 'CommonAverageReference': False}),
         ('stage13_baseline_py.set', {'OnlyModalities': ['EEG'], 'SamplingRate': 128, 'WithInterp': True,
-                                      'WithPicard': True, 'WithICLabel': True, 'EpochEvents': [], 'EpochLimits': [-0.2, 0.5],
+                                      'WithICA': True, 'WithICLabel': True, 'EpochEvents': [], 'EpochLimits': [-0.2, 0.5],
                                       'EpochBaseline': [-0.2, 0], 'CommonAverageReference': False}),
         ('stage14_reref_py.set', {'OnlyModalities': ['EEG'], 'SamplingRate': 128, 'WithInterp': True,
-                                   'WithPicard': True, 'WithICLabel': True, 'EpochEvents': [], 'EpochLimits': [-0.2, 0.5],
+                                   'WithICA': True, 'WithICLabel': True, 'EpochEvents': [], 'EpochLimits': [-0.2, 0.5],
                                    'EpochBaseline': [-0.2, 0], 'CommonAverageReference': True}),
     ]
 
     saved_files = []
     base_kwargs = {k: v for k, v in kwargs.items() if k not in ['OnlyChannelsWithPosition', 'OnlyModalities',
-                   'SamplingRate', 'WithInterp', 'WithPicard', 'WithICLabel', 'EpochEvents', 'EpochLimits',
+                   'SamplingRate', 'WithInterp', 'WithICA', 'WithICLabel', 'EpochEvents', 'EpochLimits',
                    'EpochBaseline', 'CommonAverageReference']}
 
     for stage_file, stage_params in stages:

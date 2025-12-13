@@ -47,6 +47,6 @@ if __name__ == '__main__':
             EpochEvents=[], 
             EpochLimits=[-0.2, 0.5], 
             EpochBaseline=[None, 0],
-            WithPicard=True, WithICLabel=True,
+            WithICA=True, WithICLabel=True,
             MinimizeDiskUsage=False,
             ReturnData=True)

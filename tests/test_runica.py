@@ -336,8 +336,7 @@ class TestRunicaParity(unittest.TestCase):
 
         matlab_code = f"""
         load('{temp_file}');
-        rng(5489, 'twister');
-        [w_ml, s_ml, ~, b_ml, ~, ~] = runica(data, 'maxsteps', 50, 'verbose', 'off');
+        [w_ml, s_ml, ~, b_ml, ~, ~] = runica(data, 'maxsteps', 50, 'verbose', 'off', 'pythoncompat', 'on');
         save('{temp_file}_out.mat', 'w_ml', 's_ml', 'b_ml');
         """
         self.eeglab.eval(matlab_code, nargout=0)
@@ -409,8 +408,7 @@ class TestRunicaParity(unittest.TestCase):
 
         matlab_code = f"""
         load('{temp_file}');
-        rng(5489, 'twister');
-        [w_ml, s_ml, ~, b_ml, sg_ml, ~] = runica(data, 'extended', 1, 'maxsteps', 50, 'verbose', 'off');
+        [w_ml, s_ml, ~, b_ml, sg_ml, ~] = runica(data, 'extended', 1, 'maxsteps', 50, 'verbose', 'off', 'pythoncompat', 'on');
         save('{temp_file}_out.mat', 'w_ml', 's_ml', 'b_ml', 'sg_ml');
         """
         self.eeglab.eval(matlab_code, nargout=0)
@@ -481,8 +479,7 @@ class TestRunicaParity(unittest.TestCase):
 
         matlab_code = f"""
         load('{temp_file}');
-        rng(5489, 'twister');
-        [w_ml, s_ml, ~, ~, ~, ~] = runica(data, 'pca', 5, 'maxsteps', 50, 'verbose', 'off');
+        [w_ml, s_ml, ~, ~, ~, ~] = runica(data, 'pca', 5, 'maxsteps', 50, 'verbose', 'off', 'pythoncompat', 'on');
         save('{temp_file}_out.mat', 'w_ml', 's_ml');
         """
         self.eeglab.eval(matlab_code, nargout=0)
@@ -541,8 +538,7 @@ class TestRunicaParity(unittest.TestCase):
 
         matlab_code = f"""
         load('{temp_file}');
-        rng(5489, 'twister');
-        [w_ml, s_ml, ~, ~, ~, ~] = runica(data, 'sphering', 'off', 'maxsteps', 50, 'verbose', 'off');
+        [w_ml, s_ml, ~, ~, ~, ~] = runica(data, 'sphering', 'off', 'maxsteps', 50, 'verbose', 'off', 'pythoncompat', 'on');
         save('{temp_file}_out.mat', 'w_ml', 's_ml');
         """
         self.eeglab.eval(matlab_code, nargout=0)
@@ -596,8 +592,7 @@ class TestRunicaParity(unittest.TestCase):
 
         matlab_code = f"""
         load('{temp_file}');
-        rng(5489, 'twister');
-        [w_ml, s_ml, ~, b_ml, ~, ~] = runica(data, 'bias', 'off', 'maxsteps', 50, 'verbose', 'off');
+        [w_ml, s_ml, ~, b_ml, ~, ~] = runica(data, 'bias', 'off', 'maxsteps', 50, 'verbose', 'off', 'pythoncompat', 'on');
         save('{temp_file}_out.mat', 'w_ml', 's_ml', 'b_ml');
         """
         self.eeglab.eval(matlab_code, nargout=0)
@@ -660,8 +655,7 @@ class TestRunicaParity(unittest.TestCase):
 
         matlab_code = f"""
         load('{temp_file}');
-        rng(5489, 'twister');
-        [w_ml, s_ml, ~, ~, ~, lr_ml] = runica(data, 'maxsteps', 200, 'verbose', 'off');
+        [w_ml, s_ml, ~, ~, ~, lr_ml] = runica(data, 'maxsteps', 200, 'verbose', 'off', 'pythoncompat', 'on');
         save('{temp_file}_out.mat', 'w_ml', 's_ml', 'lr_ml');
         """
         self.eeglab.eval(matlab_code, nargout=0)
