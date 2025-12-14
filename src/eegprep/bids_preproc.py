@@ -352,7 +352,7 @@ def bids_preproc(
     del kwargs['root']  # we don't need the root here, only in the function body
     from scipy.io.matlab import loadmat
     from eegprep import (bids_list_eeg_files, clean_artifacts, pop_load_frombids, eeg_checkset,
-                         pop_saveset, eeg_runica, iclabel, pop_loadset, pop_resample,
+                         pop_saveset, eeg_runica, eeg_picard, iclabel, pop_loadset, pop_resample,
                          eeg_interp, pop_select, eeg_checkset_strict_mode, pop_reref,
                          eeg_icflag, pop_subcomp)
     from .utils.bids import gen_derived_fpath

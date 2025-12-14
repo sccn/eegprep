@@ -111,7 +111,7 @@ class TestBidsPreproc(DebuggableTestCase):
                 # epoch around all events; short limits to reduce disk space
                 EpochEvents=[], EpochLimits=[-0.2, 0.5], EpochBaseline=[-0.2, 0],
                 # temporarily disabled for quicker runs
-                WithICA=True, WithICLabel=True,
+                WithICA=True, ICAAlgorithm='picard', WithICLabel=True,
                 # save intermediate stages for comparison
                 SaveIntermediateStages=True, IntermediateDir=stage_dir,
                 # return so we can compare things
