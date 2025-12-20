@@ -122,22 +122,28 @@ class TestRNGParity(unittest.TestCase):
         rng_py = np.random.RandomState(seed)
         py_sample = rand_sample(n, m, rng_py)
 
-        # MATLAB equivalent (manual implementation of rand_sample logic)
+        # MATLAB equivalent (Fisher-Yates shuffle to match Python implementation)
         temp_file = tempfile.mktemp(suffix='.mat')
         matlab_code = f"""
         rng({seed}, 'twister');
         n = {n};
         m = {m};
-        pool = 0:(n-1);  % MATLAB 0-indexed to match Python
-        result = zeros(1, m);
+        pool = 0:(n-1);  % 0-indexed to match Python
 
+        % Fisher-Yates shuffle (matches Python rand_sample implementation)
         for k = 1:m
-            choice = round((length(pool) - 1) * rand()) + 1;  % MATLAB 1-indexed
-            result(k) = pool(choice);
-            pool(choice) = [];
+            python_k = k - 1;  % Convert to 0-indexed
+            remaining = n - python_k;
+            choice = round((remaining - 1) * rand());
+            idx = k + choice;  % k is 1-indexed, choice is 0-indexed offset
+
+            % Swap pool(k) with pool(idx)
+            temp = pool(k);
+            pool(k) = pool(idx);
+            pool(idx) = temp;
         end
 
-        ml_sample = result;
+        ml_sample = pool(1:m);  % First m elements
         save('{temp_file}', 'ml_sample');
         """
         self.eeglab.eval(matlab_code, nargout=0)

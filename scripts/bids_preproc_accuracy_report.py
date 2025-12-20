@@ -26,28 +26,22 @@ compare_ica_results = False
 
 # list of studies and subsets thereof to run the statistics on
 studies = [
-    {
-        'studyname': 'ds003061',
-        'subjects': ['001', '002'],
-        'runs': [1],
-    },
-    {
-        'studyname': 'ds002680',
-        'subjects': ['002'],  # first subject, has 2 sessions
-        'runs': [10],  # needs to be >= 10 otherwise MATLAB-side filtering by run fails
-    }
+    # {
+    #     'studyname': 'ds003061',
+    #     'subjects': ['001', '002'],
+    #     'runs': [1],
+    # },
+   {
+       'studyname': 'ds002680',
+       'subjects': ['002'],  # first subject, has 2 sessions
+       'runs': [10],  # needs to be >= 10 otherwise MATLAB-side filtering by run fails
+   }
 ]
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     # root path of all OpenNeuro datasets on this host
-    if curhost == 'ck-carbon':
-        root_path = os.path.expanduser('~/data/OpenNeuro')
-    else:
-        root_path = None
-        raise ValueError(f"Skipping report generation on unknown test host {curhost}; "
-                         f"please add support for your hostname to the above list to "
-                         f"enable this test.")
+    root_path = os.path.expanduser('/mnt/v1/arno/eegprep/data/')
 
     # run up to and including the given numeric stage
     # (1=import, 2=select channels, 3=resample, ... up to and including 14=CAR)
@@ -115,7 +109,7 @@ if __name__ == '__main__':
                 LineNoiseCriterion=4.0 if to_stage >= 6 else 'off',
                 BurstCriterion=5.0 if to_stage >= 7 else 'off',
                 WindowCriterion=0.25 if to_stage >= 8 else 'off',
-                WithICA=to_stage >= 9,
+                WithPicard=to_stage >= 9,
                 WithICLabel=to_stage >= 10,
                 WithInterp=to_stage >= 11,
                 EpochEvents=[] if to_stage >= 12 else None,
