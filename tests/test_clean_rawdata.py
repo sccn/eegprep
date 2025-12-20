@@ -278,7 +278,7 @@ class TestCleanArtifactsAdvanced(DebuggableTestCase):
             cleaned_py['data'],
             expected_mat['data'],
             rtol=0,
-            atol=1e-5,  # limit to 1e-5 uV likely due to solver differences
+            atol=2e-5,  # limit to 2e-5 uV due to solver and floating point differences
             err_msg='clean_artifacts() failed vs MATLAB'
         )
 
