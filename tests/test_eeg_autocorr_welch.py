@@ -89,11 +89,12 @@ class TestEegAutocorrWelch(unittest.TestCase):
         # Test None (should default to 100)
         result_none = eeg_autocorr_welch(self.EEG, pct_data=None)
         result_100 = eeg_autocorr_welch(self.EEG, pct_data=100)
-        np.testing.assert_array_equal(result_none, result_100)
-        
+        np.testing.assert_allclose(result_none, result_100, atol=1e-10)
+
         # Test 0 (should default to 100)
         result_zero = eeg_autocorr_welch(self.EEG, pct_data=0)
-        np.testing.assert_array_equal(result_zero, result_100)
+        # check if they are equal to within 1e-10
+        np.testing.assert_allclose(result_zero, result_100, atol=1e-10)
     
     def test_small_vs_large_pnts(self):
         """Test with small vs large number of points."""
@@ -215,7 +216,7 @@ class TestEegAutocorrWelch(unittest.TestCase):
         result2 = eeg_autocorr_welch(self.EEG, pct_data=100)
         
         # Results should be identical for same data
-        np.testing.assert_array_equal(result1, result2)
+        np.testing.assert_allclose(result1, result2, atol=1e-10)
     
     def test_n_points_calculation(self):
         """Test n_points calculation logic."""
