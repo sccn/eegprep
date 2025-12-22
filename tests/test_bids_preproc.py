@@ -18,10 +18,10 @@ from eegprep.utils.testing import DebuggableTestCase
 curhost = socket.gethostname()
 
 # add your host to this list if you want to run the (very) slow tests
-slow_tests_hosts_only = ['ck-carbon', 'MacBook-Pro-10.local']
+slow_tests_hosts_only = ['ck-carbon', 'MacBook-Pro-10.local', 'jamming']
 
 # add your host to this list if you want to run things in parallel
-if curhost in ['ck-carbon', 'MacBook-Pro-10.local']:
+if curhost in ['ck-carbon', 'MacBook-Pro-10.local', 'jamming']:
     reservation = '8GB'
 else:
     reservation = ''
@@ -37,6 +37,8 @@ class TestBidsPreproc(DebuggableTestCase):
             self.root_path = os.path.expanduser('~/data/OpenNeuro')
         elif curhost == 'MacBook-Pro-10.local':
             self.root_path = os.path.expanduser('~/GitHub/core_eeg/eeglab_testcases')
+        elif curhost == 'jamming':
+            self.root_path = os.path.abspath(os.path.expanduser('data'))
         else:
             self.root_path = None
             logger.warning(f"Skipping test TestBidsPreproc on unknown test host {curhost}; "
