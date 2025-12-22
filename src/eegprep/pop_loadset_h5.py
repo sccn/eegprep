@@ -254,7 +254,12 @@ def pop_loadset_h5(file_name):
             if int(EEG['nbchan']) != data_arr.shape[0]:
                 data_arr = np.transpose(data_arr, (2, 1, 0))
         EEG['data'] = data_arr
-    
+
+    # subtract 1 to EEG['icachansind'] to make it 0-based (must be done before eeg_checkset)
+    # also flatten to ensure it's a 1D array for proper indexing
+    if 'icachansind' in EEG and EEG['icachansind'].size > 0:
+        EEG['icachansind'] = (EEG['icachansind'] - 1).flatten().astype(int)
+
     EEG = eeg_checkset(EEG)
 
     return EEG
