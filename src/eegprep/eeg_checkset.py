@@ -147,9 +147,18 @@ def eeg_checkset(EEG, load_data=True):
                 # If icachansind not set, assume all channels (default behavior)
                 ica_data = EEG['data']
 
-            EEG['icaact'] = np.dot(np.dot(EEG['icaweights'], EEG['icasphere']), ica_data.reshape(ica_data.shape[0], -1))
-            EEG['icaact'] = EEG['icaact'].astype(np.float32)
-            EEG['icaact'] = EEG['icaact'].reshape(EEG['icaweights'].shape[0], -1, int(EEG['trials']))
+            # Check dimension compatibility before matrix multiplication
+            expected_channels = EEG['icaweights'].shape[1]  # Number of input channels ICA expects
+            actual_channels = ica_data.shape[0]  # Number of channels in ica_data
+
+            if expected_channels != actual_channels:
+                logger.warning(f"ICA dimension mismatch: icaweights expects {expected_channels} channels "
+                             f"but ica_data has {actual_channels} channels. Skipping ICA activation computation.")
+                EEG['icaact'] = np.array([])
+            else:
+                EEG['icaact'] = np.dot(np.dot(EEG['icaweights'], EEG['icasphere']), ica_data.reshape(ica_data.shape[0], -1))
+                EEG['icaact'] = EEG['icaact'].astype(np.float32)
+                EEG['icaact'] = EEG['icaact'].reshape(EEG['icaweights'].shape[0], -1, int(EEG['trials']))
         except exception_type as e:
             logger.error("Error computing ICA activations: " + str(e))
             EEG['icaact'] = np.array([])

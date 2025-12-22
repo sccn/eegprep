@@ -212,6 +212,8 @@ class EEGobj:
 
         header = setname or fname or '<unnamed EEG>'
         fileline = os.path.join(fpath, fname) if (fpath and fname) else (fname or fpath or '—')
+        # Normalize path separators to forward slashes for cross-platform consistency
+        fileline = fileline.replace('\\', '/') if fileline != '—' else fileline
 
         lines = []
         lines.append(f"EEG | {header}")

@@ -1,11 +1,16 @@
 """Tests for test fixtures module."""
 
 import unittest
+import sys
+import os
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 
-from .fixtures import (
+# Add tests directory to path for fixtures import
+sys.path.insert(0, os.path.dirname(__file__))
+
+from fixtures import (
     mpl_use_agg, rng_seed, create_test_eeg, create_test_eeg_with_ica,
     create_test_events, cleanup_matplotlib, TestFixtures, small_eeg
 )
