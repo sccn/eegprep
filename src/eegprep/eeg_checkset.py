@@ -132,12 +132,22 @@ def eeg_checkset(EEG, load_data=True):
             logger.error("Error scaling ICA components: " + str(e))
 
     # compute ICA activations
-    if ('icaweights' in EEG and 'icasphere' in EEG and 
+    if ('icaweights' in EEG and 'icasphere' in EEG and
         hasattr(EEG['icaweights'], 'size') and hasattr(EEG['icasphere'], 'size') and
         EEG['icaweights'].size > 0 and EEG['icasphere'].size > 0):
-        
+
         try:
-            EEG['icaact'] = np.dot(np.dot(EEG['icaweights'], EEG['icasphere']), EEG['data'].reshape(int(EEG['nbchan']), -1))
+            # Use icachansind to select only channels ICA was trained on (matches MATLAB eeg_checkset.m:1030)
+            if ('icachansind' in EEG and EEG['icachansind'] is not None and
+                hasattr(EEG['icachansind'], '__len__') and len(EEG['icachansind']) > 0):
+                # Convert to numpy array if it's a list
+                icachansind = np.array(EEG['icachansind'], dtype=int)
+                ica_data = EEG['data'][icachansind, :]
+            else:
+                # If icachansind not set, assume all channels (default behavior)
+                ica_data = EEG['data']
+
+            EEG['icaact'] = np.dot(np.dot(EEG['icaweights'], EEG['icasphere']), ica_data.reshape(ica_data.shape[0], -1))
             EEG['icaact'] = EEG['icaact'].astype(np.float32)
             EEG['icaact'] = EEG['icaact'].reshape(EEG['icaweights'].shape[0], -1, int(EEG['trials']))
         except exception_type as e:
