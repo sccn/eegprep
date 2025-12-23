@@ -18,10 +18,10 @@ from eegprep.utils.testing import DebuggableTestCase
 curhost = socket.gethostname()
 
 # add your host to this list if you want to run the (very) slow tests
-slow_tests_hosts_only = ['ck-carbon', 'MacBook-Pro-10.local', 'jamming']
+slow_tests_hosts_only = ['ck-carbon', 'MacBook-Pro-10.local', 'MacBook-Pro-10.lan', 'sccn-delorme.ucsd.edu','jamming', 'DESKTOP-TGLFTPM']
 
 # add your host to this list if you want to run things in parallel
-if curhost in ['ck-carbon', 'MacBook-Pro-10.local', 'jamming']:
+if curhost in ['ck-carbon', 'MacBook-Pro-10.local', 'MacBook-Pro-10.lan', 'jamming', 'sccn-delorme.ucsd.edu']:
     reservation = '8GB'
 else:
     reservation = ''
@@ -35,9 +35,9 @@ class TestBidsPreproc(DebuggableTestCase):
         # root path of all OpenNeuro datasets on this host
         if curhost == 'ck-carbon':
             self.root_path = os.path.expanduser('~/data/OpenNeuro')
-        elif curhost == 'MacBook-Pro-10.local':
+        elif curhost in ['MacBook-Pro-10.local', 'MacBook-Pro-10.lan', 'sccn-delorme.ucsd.edu']:
             self.root_path = os.path.expanduser('~/GitHub/core_eeg/eeglab_testcases')
-        elif curhost == 'jamming':
+        elif curhost == 'jamming' or curhost == 'DESKTOP-TGLFTPM':
             self.root_path = os.path.abspath(os.path.expanduser('data'))
         else:
             self.root_path = None
@@ -47,16 +47,16 @@ class TestBidsPreproc(DebuggableTestCase):
 
         # list of studies to run end-to-end tests on (set to run first 2 recordings in each)
         self.studies = [
-            # {
-            #     'studyname': 'ds002680',
-            #     'subjects': ['002'],  # first subject, has 2 sessions
-            #     'runs': [], # needs to be >= 10 otherwise MATLAB-side filtering by run fails
-            # },
             {
-                'studyname': 'ds003061',
-                'subjects': ['001'], #, '002'],
-                'runs': [2],  # using run 2 to avoid ICA shape issues with cached run 1 files
-            }
+                'studyname': 'ds002680',
+                'subjects': ['002'],  # first subject, has 2 sessions
+                'runs': [], # needs to be >= 10 otherwise MATLAB-side filtering by run fails
+            },
+            # {
+            #     'studyname': 'ds003061',
+            #     'subjects': ['001'], #, '002'],
+            #     'runs': [2],  # using run 2 to avoid ICA shape issues with cached run 1 files
+            # }
         ]
 
     def test_end2end(self):
@@ -106,6 +106,8 @@ class TestBidsPreproc(DebuggableTestCase):
                 SkipIfPresent=True, UseHashes=True, MinimizeDiskUsage=False,
                 # parse events from BIDS, use value column
                 ApplyEvents=True, EventColumn='value', # <- needed for this study to match pop_importbids() in MATLAB
+                # channel selection - match MATLAB's default behavior
+                OnlyModalities=['EEG'],  # <- filter to EEG channels only, matching MATLAB
                 # resample
                 SamplingRate=128,
                 # reinterpolate

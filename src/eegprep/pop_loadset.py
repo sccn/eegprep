@@ -78,12 +78,13 @@ def pop_loadset(file_path=None):
         del EEG['__version__']
     if '__globals__' in EEG:
         del EEG['__globals__']
-    
-    EEG = eeg_checkset(EEG)
 
-    # subtract 1 to EEG['icachansind'] to make it 0-based
+    # subtract 1 to EEG['icachansind'] to make it 0-based BEFORE eeg_checkset
+    # (eeg_checkset uses icachansind to compute ICA activations)
     if 'icachansind' in EEG and EEG['icachansind'].size > 0:
         EEG['icachansind'] = EEG['icachansind'] - 1
+
+    EEG = eeg_checkset(EEG)
 
     # check if EEG['urchan'] is 0-based
     if len(EEG['chanlocs']) > 0 and 'urchan' in EEG['chanlocs'][0]:

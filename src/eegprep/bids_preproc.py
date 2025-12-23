@@ -557,7 +557,16 @@ def bids_preproc(
                         keep &= [chanloc_has_coords(ch) for ch in EEG['chanlocs']]
                     if OnlyModalities:
                         OM = [m.upper() for m in OnlyModalities]
-                        keep &= [ch.get('type', 'EEG').upper() in OM for ch in EEG['chanlocs']]
+                        def get_chan_type(ch):
+                            """Get channel type, handling nan and non-string types."""
+                            typ = ch.get('type')
+                            # Return None for nan or other non-string types (will be excluded)
+                            if typ is None or not isinstance(typ, str):
+                                return None
+                            if isinstance(typ, float) and np.isnan(typ):
+                                return None
+                            return typ.upper()
+                        keep &= [get_chan_type(ch) in OM for ch in EEG['chanlocs']]
                     retain = [ch['labels'] for ch, kp in zip(EEG['chanlocs'], keep) if kp]
                     if 0 < len(retain) < len(EEG['chanlocs']):
                         EEG = pop_select(EEG, channel=retain)
