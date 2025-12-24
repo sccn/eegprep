@@ -30,11 +30,11 @@ compare_ica_results = False
 
 # list of studies and subsets thereof to run the statistics on
 studies = [
-    {
-        'studyname': 'ds003061',
-        'subjects': ['001', '002'],
-        'runs': [],
-    },
+    # {
+    #     'studyname': 'ds003061',
+    #     'subjects': ['001', '002'],
+    #     'runs': [],
+    # },
    {
        'studyname': 'ds002680',
        'subjects': ['002'],  # first subject, has 2 sessions
