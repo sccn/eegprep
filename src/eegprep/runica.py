@@ -130,6 +130,11 @@ def runica(data, **kwargs):
             Reset the random seed based on time of day. Default 'off' means
             ICA will always return the SAME decomposition (deterministic).
 
+        seed : int, optional
+            Random seed for RNG initialization. If provided, overrides rndreset
+            behavior and uses this specific seed for reproducible but varied runs.
+            If None (default), behavior depends on rndreset parameter.
+
     Returns
     -------
     weights : ndarray, shape (ncomps, chans)
@@ -274,6 +279,7 @@ def runica(data, **kwargs):
     wts_blowup = 0
 
     reset_randomseed = kwargs_lower.get('rndreset', DEFAULT_RESETRANDOMSEED)
+    user_seed = kwargs_lower.get('seed', None)
 
     # Handle PCA parameter
     if 'pca' in kwargs_lower:
@@ -602,7 +608,10 @@ def runica(data, **kwargs):
 
     # Initialize random number generator using mechanism from test_parity_rng.py
     # MATLAB default seed is 5489, equivalent to rng('default')
-    if reset_randomseed:
+    if user_seed is not None:
+        # User provided explicit seed - use it for reproducible varied runs
+        rng = np.random.RandomState(user_seed)
+    elif reset_randomseed:
         # Set seed based on time (random state)
         # Use None to get time-based seed, similar to MATLAB's sum(100*clock)
         import time

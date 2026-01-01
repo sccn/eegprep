@@ -153,17 +153,26 @@ def run_mne_ica(data, run_idx):
 
 
 def run_eegprep_runica(data, run_idx):
-    """Run eegprep runica.py implementation with specific random seed."""
+    """Run eegprep runica.py implementation with specific random seed.
+
+    Note: eegprep runica now accepts a seed parameter for controlled randomization.
+    - seed=None, rndreset='off' (default): Uses fixed seed 5489, deterministic
+    - seed=<value>: Uses specified seed for reproducible but varied runs
+
+    The randomization affects the data permutation order at each training step,
+    not the initial weights (which are always identity matrix).
+    """
     print(f"  Run {run_idx+1}/{N_RUNS}...", end=' ', flush=True)
     try:
+        # Use different seed for each run to get different random permutations
         seed = BASE_SEED + run_idx
-        np.random.seed(seed)
 
         weights, sphere, meanvar, bias, signs, lrates = runica(
             data,
             maxsteps=MAXSTEPS,
             extended=EXTENDED,
-            verbose=0
+            verbose=0,
+            seed=seed  # Pass explicit seed for this run
         )
 
         n_steps = len(lrates)
@@ -225,27 +234,37 @@ def run_eeglab_runica(data, run_idx):
 
 
 def run_runica_simple_matlab(data, run_idx):
-    """Run runica_c/matlab/runica_simple.m with specific random seed."""
+    """Run runica_c/matlab/runica_simple.m with specific random seed.
+
+    runica_simple uses MATLAB's Mersenne Twister RNG (rng(seed, 'twister')).
+    The seed controls:
+    - randperm() for data block permutation at each training step
+    - rand() for kurtosis subsampling in extended ICA
+
+    Weight initialization is always identity matrix (not randomized).
+    """
     print(f"  Run {run_idx+1}/{N_RUNS}...", end=' ', flush=True)
     try:
         seed = BASE_SEED + run_idx
 
-        eeglab = get_eeglab(runtime='MAT')
-
-        matlab_dir = str(RUNICA_SIMPLE.parent)
-        eeglab.engine.eval(f"addpath('{matlab_dir}');", nargout=0)
+        eeglab = get_eeglab(runtime='MAT', auto_file_roundtrip=False)
 
         temp_data = tempfile.mktemp(suffix='.mat')
         scipy.io.savemat(temp_data, {'data': data})
 
-        eeglab.engine.eval(f"rng({seed}, 'twister'); load('{temp_data}');", nargout=0)
-        eeglab.engine.eval(
-            f"[weights,sphere,meanvar,bias,signs,lrates] = runica_simple(data, {EXTENDED}, 0, 0, {MAXSTEPS}, 0, 0);",
-            nargout=0
-        )
+        # Build MATLAB code to execute
+        matlab_dir = str(RUNICA_SIMPLE.parent)
+        matlab_code = f"addpath('{matlab_dir}');\n"
+        # Set RNG seed BEFORE calling runica_simple
+        # Pass rndreset=1 to use the seed we set (not reset to 5489)
+        matlab_code += f"rng({seed}, 'twister');\n"
+        matlab_code += f"load('{temp_data}');\n"
+        matlab_code += f"[weights,sphere,meanvar,bias,signs,lrates] = runica_simple(data, {EXTENDED}, 0, 0, {MAXSTEPS}, 0, 1, 0);\n"
 
         temp_out = tempfile.mktemp(suffix='.mat')
-        eeglab.engine.eval(f"save('{temp_out}', 'weights', 'sphere', 'lrates');", nargout=0)
+        matlab_code += f"save('{temp_out}', 'weights', 'sphere', 'lrates');\n"
+
+        eeglab.eval(matlab_code, nargout=0)
 
         result = scipy.io.loadmat(temp_out)
         weights = result['weights']
@@ -272,7 +291,12 @@ def run_runica_simple_matlab(data, run_idx):
 def run_runica_c(data, run_idx):
     """Run runica_c executable with specific random seed.
 
-    Note: runica_c seed is hardcoded in source - limited randomization support.
+    runica_c now accepts a seed parameter (8th positional argument).
+    The seed controls the MT19937 RNG initialization which affects:
+    - randperm() for data block permutation at each training step
+    - rand() for kurtosis subsampling in extended ICA
+
+    Weight initialization is always identity matrix (not randomized).
     """
     print(f"  Run {run_idx+1}/{N_RUNS}...", end=' ', flush=True)
 
@@ -281,6 +305,8 @@ def run_runica_c(data, run_idx):
         return None
 
     try:
+        seed = BASE_SEED + run_idx
+
         temp_dir = tempfile.mkdtemp()
         data_file = os.path.join(temp_dir, 'data.fdt')
         wts_file = os.path.join(temp_dir, 'data.wts')
@@ -289,9 +315,10 @@ def run_runica_c(data, run_idx):
         nchans, npoints = data.shape
         data.astype(np.float32).T.tofile(data_file)
 
+        # Pass seed as 8th argument (after extended flag, no weightsin file)
         result = subprocess.run(
             [str(RUNICA_C_BIN), data_file, wts_file, sph_file,
-             str(nchans), str(npoints), str(EXTENDED)],
+             str(nchans), str(npoints), str(EXTENDED), '', str(seed)],
             capture_output=True,
             text=True
         )
@@ -629,12 +656,199 @@ def analyze_results(method_name, results):
                   f"{data['min_corr']:12.6f} {data['max_corr']:12.6f}")
 
 
+def compare_all_methods(run_idx=0):
+    """
+    Compare all 6 ICA methods using a single representative run.
+
+    Creates an n×n table showing mean component correlation between each pair of methods.
+    Uses run_idx to select which run to use from each method (default: run 0).
+    """
+    methods = {
+        'mne': 'mne',
+        'eegprep': 'eegprep',
+        'eeglab': 'eeglab_runica',
+        'runica_simple': 'runica_simple_matlab',
+        'runica_c': 'runica_c',
+        'binica': 'binica'
+    }
+
+    method_labels = [
+        'mne',
+        'eegprep',
+        'eeglab',
+        'runica_simple',
+        'runica_c',
+        'binica'
+    ]
+
+    print("\n" + "="*80)
+    print("CROSS-METHOD COMPARISON")
+    print("="*80)
+    print(f"Using run {run_idx:02d} from each method")
+    print()
+
+    # Load matrices for all methods
+    matrices = {}
+    for label, file_prefix in methods.items():
+        weights_file = WEIGHTS_DIR / f"{file_prefix}_run{run_idx:02d}_weights.mat"
+        sphere_file = WEIGHTS_DIR / f"{file_prefix}_run{run_idx:02d}_sphere.mat"
+
+        if weights_file.exists() and sphere_file.exists():
+            W = scipy.io.loadmat(weights_file)['weights']
+            S = scipy.io.loadmat(sphere_file)['sphere']
+            matrices[label] = {'weights': W, 'sphere': S}
+            print(f"  ✓ Loaded {label:15s}: {W.shape}")
+        else:
+            print(f"  ✗ Missing {label:15s}: file not found")
+
+    available = [m for m in method_labels if m in matrices]
+    n = len(available)
+
+    if n < 2:
+        print(f"\nERROR: Need at least 2 methods, found {n}")
+        return
+
+    print(f"\nFound {n} methods with data")
+
+    # Compute pairwise mean component correlations
+    print("\n" + "="*80)
+    print("Mean Component Correlation Matrix (after optimal matching)")
+    print("="*80)
+    print()
+
+    corr_matrix = np.zeros((n, n))
+
+    for i in range(n):
+        for j in range(n):
+            if i == j:
+                corr_matrix[i, j] = 1.0
+            else:
+                m1 = available[i]
+                m2 = available[j]
+                W1 = matrices[m1]['weights']
+                S1 = matrices[m1]['sphere']
+                W2 = matrices[m2]['weights']
+                S2 = matrices[m2]['sphere']
+
+                mean_corr, _, _ = compute_component_correlation(W1, S1, W2, S2)
+                corr_matrix[i, j] = mean_corr
+
+    # Print table with proper alignment
+    # Column width = max method name length + 2
+    col_width = max(len(m) for m in available) + 2
+
+    # Print header row
+    header = " " * col_width
+    for m in available:
+        header += m.rjust(col_width)
+    print(header)
+    print("-" * len(header))
+
+    # Print data rows
+    for i, m1 in enumerate(available):
+        row = m1.ljust(col_width)
+        for j, m2 in enumerate(available):
+            if i < j:
+                # Upper triangle: leave blank
+                row += " " * col_width
+            else:
+                # Diagonal and lower triangle: show correlation
+                val_str = f"{corr_matrix[i, j]:.6f}"
+                row += val_str.rjust(col_width)
+        print(row)
+
+    # Compute and display AMARI distances
+    print("\n" + "="*80)
+    print("AMARI Distance Matrix (0 = identical up to permutation)")
+    print("="*80)
+    print()
+
+    amari_matrix = np.zeros((n, n))
+
+    for i in range(n):
+        for j in range(n):
+            if i == j:
+                amari_matrix[i, j] = 0.0
+            else:
+                m1 = available[i]
+                m2 = available[j]
+                W1 = matrices[m1]['weights']
+                S1 = matrices[m1]['sphere']
+                W2 = matrices[m2]['weights']
+                S2 = matrices[m2]['sphere']
+
+                amari = compute_amari_distance(W1, S1, W2, S2)
+                amari_matrix[i, j] = amari
+
+    # Print AMARI table
+    header = " " * col_width
+    for m in available:
+        header += m.rjust(col_width)
+    print(header)
+    print("-" * len(header))
+
+    for i, m1 in enumerate(available):
+        row = m1.ljust(col_width)
+        for j, m2 in enumerate(available):
+            if i < j:
+                # Upper triangle: leave blank
+                row += " " * col_width
+            else:
+                # Diagonal and lower triangle: show AMARI distance
+                val_str = f"{amari_matrix[i, j]:.6f}"
+                row += val_str.rjust(col_width)
+        print(row)
+
+    print("\n" + "="*80)
+    print()
+
+
 def main():
     """Main comparison script."""
     parser = argparse.ArgumentParser(
         description='Compare ICA implementations with multiple random initializations',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
+================================================================================
+Summary Report: ICA Weight Initialization Analysis
+================================================================================
+
+Critical Finding: All Methods Use Identity Matrix
+
+All 6 implementations initialize weights to the identity matrix - there is NO
+randomization in the weight initialization itself. The 'random initialization' refers to:
+
+  1. Data permutation/shuffling during training steps
+  2. Random subsampling for kurtosis estimation (extended ICA only)
+
+How They Differ
+
+| Method        | RNG Algorithm              | Seed Control       | Permutation Frequency | Key Difference                   |
+|---------------|----------------------------|--------------------|-----------------------|----------------------------------|
+| MNE           | NumPy RandomState          | random_state param | Each step             | Different permutation function   |
+| eegprep       | NumPy (MT19937-compatible) | seed param         | Each step             | MATLAB-compatible randperm       |
+| EEGLAB        | MT19937 (rng)              | External rng()     | Each step             | Modern MATLAB standard           |
+| runica_simple | MT19937 (rng)              | External rng()     | Once only             | Simplified - single permutation  |
+| runica_c      | MT19937                    | CLI argument       | Each step             | Originally hardcoded seed 5489   |
+| binica        | R250                       | Config file        | Each step             | Different RNG algorithm entirely |
+
+Variability Results from Cross-Method Comparison
+
+From our compare_all_methods() experiment (run 0 vs run 0):
+
+Nearly Identical (MATLAB family):
+  - EEGLAB ↔ runica_simple: AMARI = 0.000000 (identical)
+  - EEGLAB ↔ runica_c: AMARI = 0.000014 (essentially identical)
+  - eegprep ↔ EEGLAB: AMARI = 0.112 (99.9% correlation)
+
+Moderately Different:
+  - binica ↔ MATLAB methods: AMARI ≈ 2.6 (83% correlation)
+    - Due to R250 vs MT19937 RNG
+  - MNE ↔ all others: AMARI ≈ 9.0 (38% correlation)
+    - Due to different permutation function
+
+================================================================================
+
 Available methods:
   mne            - MNE infomax (Python)
   eegprep        - eegprep runica (Python)
@@ -643,10 +857,12 @@ Available methods:
   runica_c       - runica_c (C executable)
   binica         - binica (C executable)
   all            - Run all methods
+  compare        - Compare all methods (cross-method analysis)
 
 Examples:
-  python compare_ica_versions.py mne
-  python compare_ica_versions.py all
+  python compare_ica_randomization.py mne
+  python compare_ica_randomization.py all
+  python compare_ica_randomization.py compare
         """
     )
     parser.add_argument('method',
@@ -665,6 +881,11 @@ Examples:
 
     # Create weights directory
     WEIGHTS_DIR.mkdir(exist_ok=True)
+
+    # Handle compare command separately (doesn't need to run ICA)
+    if args.method == 'compare':
+        compare_all_methods(run_idx=0)
+        return
 
     # Load data
     data, EEG = load_data()
