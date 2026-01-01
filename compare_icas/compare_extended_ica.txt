@@ -1,0 +1,53 @@
+================================================================================
+AMARI Distance and Component Correlation Analysis - Extended ICA
+================================================================================
+
+Found 6 implementations
+
+================================================================================
+AMARI Distance Matrix (lower is better, 0 = identical up to permutation)
+================================================================================
+
+                         mne         eegprep     eeglab_runicarunica_simple_matlabrunica_c    binica      
+-------------------------------------------------------------------------------------------------
+mne                          0.000000    8.740802    8.603111    8.622071    8.622064    7.128107
+eegprep                      8.740802    0.000000    0.531297    0.482171    0.482172    5.564591
+eeglab_runica                8.603111    0.531297    0.000000    0.157260    0.157255    5.634173
+runica_simple_matlab         8.622071    0.482171    0.157260    0.000000    0.000013    5.592094
+runica_c                     8.622064    0.482172    0.157255    0.000013    0.000000    5.592097
+binica                       7.128107    5.564591    5.634173    5.592094    5.592097    0.000000
+
+================================================================================
+Component Correlation After Optimal Matching (higher is better)
+Format: (min - max)
+================================================================================
+
+                                        mne           eegprep     eeglab_runicarunica_simple_matlab          runica_c            binica
+-------------------------------------------------------------------------------------------------------------------------------------
+mne                           (1.000-1.000)     (0.110-0.814)     (0.170-0.815)     (0.072-0.818)     (0.072-0.818)     (0.160-0.810)
+eegprep                                         (1.000-1.000)     (0.858-1.000)     (0.856-1.000)     (0.856-1.000)     (0.398-0.997)
+eeglab_runica                                                     (1.000-1.000)     (0.988-1.000)     (0.988-1.000)     (0.262-0.997)
+runica_simple_matlab                                                                (1.000-1.000)     (1.000-1.000)     (0.257-0.997)
+runica_c                                                                                              (1.000-1.000)     (0.257-0.997)
+binica                                                                                                                  (1.000-1.000)
+
+================================================================================
+All Pairs Sorted by AMARI Distance (most similar first)
+================================================================================
+
+ 1. runica_simple_matlab      vs runica_c                 : 0.000013
+ 2. eeglab_runica             vs runica_c                 : 0.157255
+ 3. eeglab_runica             vs runica_simple_matlab     : 0.157260
+ 4. eegprep                   vs runica_simple_matlab     : 0.482171
+ 5. eegprep                   vs runica_c                 : 0.482172
+ 6. eegprep                   vs eeglab_runica            : 0.531297
+ 7. eegprep                   vs binica                   : 5.564591
+ 8. runica_simple_matlab      vs binica                   : 5.592094
+ 9. runica_c                  vs binica                   : 5.592097
+10. eeglab_runica             vs binica                   : 5.634173
+11. mne                       vs binica                   : 7.128107
+12. mne                       vs eeglab_runica            : 8.603111
+13. mne                       vs runica_c                 : 8.622064
+14. mne                       vs runica_simple_matlab     : 8.622071
+15. mne                       vs eegprep                  : 8.740802
+
