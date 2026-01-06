@@ -2,6 +2,7 @@
 Test suite for pipeline: clean_artifacts -> eeg_picard -> iclabel
 """
 import os
+import re
 import unittest
 import numpy as np
 from copy import deepcopy
