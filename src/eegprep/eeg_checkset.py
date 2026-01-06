@@ -91,7 +91,7 @@ def eeg_checkset(EEG, load_data=True):
         # get path from file_path
         file_name = EEG['filepath'] + os.sep + EEG['data']
         if not os.path.exists(file_name):
-            # try to use the sane name as the filename but with .fdt extension
+            # try to use the same name as the filename but with .fdt extension
             file_name = EEG['filepath'] + os.sep + EEG['filename'].replace('.set', '.fdt')
             if not os.path.exists(file_name):
                 raise FileNotFoundError(f"Data file {file_name} not found")

@@ -19,10 +19,13 @@ Reference:
     Information Processing Systems 8:145-151, MIT Press, Cambridge, MA (1996).
 """
 
+import logging
 import numpy as np
 from scipy.linalg import sqrtm, pinv, eig
 from .utils.misc import round_mat
 from .utils.ransac import rand_permutation
+
+logger = logging.getLogger(__name__)
 
 
 # Constants matching MATLAB defaults
@@ -324,7 +327,7 @@ def runica(data, **kwargs):
             elif kurtsize > frames:
                 kurtsize = frames
                 if kurtsize < MIN_KURTSIZE:
-                    print(f'runica() warning: kurtosis values inexact for << {MIN_KURTSIZE} points.')
+                    logger.warning(f'runica(): kurtosis values inexact for << {MIN_KURTSIZE} points.')
 
     # Handle verbose parameter
     if 'verbose' in kwargs_lower:
@@ -431,54 +434,54 @@ def runica(data, **kwargs):
     # =========================================================================
 
     if verbose:
-        print(f'\nInput data size [{chans},{frames}] = {chans} channels, {frames} frames')
+        logger.info(f'Input data size [{chans},{frames}] = {chans} channels, {frames} frames')
 
         if pcaflag == 'on':
-            print('After PCA dimension reduction,\n  finding ', end='')
+            pca_msg = 'After PCA dimension reduction, finding '
         else:
-            print('Finding ', end='')
+            pca_msg = 'Finding '
 
         if extended == 0:
-            print(f'{ncomps} ICA components using logistic ICA.')
+            logger.info(f'{pca_msg}{ncomps} ICA components using logistic ICA.')
         else:
-            print(f'{ncomps} ICA components using extended ICA.')
+            logger.info(f'{pca_msg}{ncomps} ICA components using extended ICA.')
             if extblocks > 0:
-                print(f'Kurtosis will be calculated initially every {extblocks} blocks using {kurtsize} data points.')
+                logger.info(f'Kurtosis will be calculated initially every {extblocks} blocks using {kurtsize} data points.')
             else:
-                print(f'Kurtosis will not be calculated. Exactly {nsub} sub-Gaussian components assumed.')
+                logger.info(f'Kurtosis will not be calculated. Exactly {nsub} sub-Gaussian components assumed.')
 
-        print(f'Decomposing {int(np.floor(frames/ncomps**2))} frames per ICA weight '
+        logger.info(f'Decomposing {int(np.floor(frames/ncomps**2))} frames per ICA weight '
               f'(({ncomps})^2 = {ncomps**2} weights, {frames} frames)')
-        print(f'Initial learning rate will be {lrate:g}, block size {block}.')
+        logger.info(f'Initial learning rate will be {lrate:g}, block size {block}.')
 
         if momentum > 0:
-            print(f'Momentum will be {momentum:g}.')
+            logger.info(f'Momentum will be {momentum:g}.')
 
-        print(f'Learning rate will be multiplied by {annealstep:g} whenever angledelta >= {annealdeg:g} deg.')
+        logger.info(f'Learning rate will be multiplied by {annealstep:g} whenever angledelta >= {annealdeg:g} deg.')
 
         if nochangeupdated:
-            print('More than 32 channels: default stopping weight change 1E-7')
+            logger.info('More than 32 channels: default stopping weight change 1E-7')
 
-        print(f'Training will end when wchange < {nochange:g} or after {maxsteps} steps.')
+        logger.info(f'Training will end when wchange < {nochange:g} or after {maxsteps} steps.')
 
         if biasflag:
-            print('Online bias adjustment will be used.')
+            logger.info('Online bias adjustment will be used.')
         else:
-            print('Online bias adjustment will not be used.')
+            logger.info('Online bias adjustment will not be used.')
 
     # =========================================================================
     # 6. DATA PREPROCESSING - REMOVE ROW MEANS
     # =========================================================================
 
     if verbose:
-        print('Removing mean of each channel ...')
+        logger.info('Removing mean of each channel ...')
 
     rowmeans = np.mean(data, axis=1)  # shape: (chans,)
     for i in range(data.shape[0]):
         data[i, :] = data[i, :] - rowmeans[i]
 
     if verbose:
-        print(f'Final training data range: {np.min(data):g} to {np.max(data):g}')
+        logger.info(f'Final training data range: {np.min(data):g} to {np.max(data):g}')
 
     # =========================================================================
     # 7. PCA DIMENSION REDUCTION (if requested)
@@ -486,7 +489,7 @@ def runica(data, **kwargs):
 
     if pcaflag == 'on':
         if verbose:
-            print(f'Reducing the data to {ncomps} principal dimensions...')
+            logger.info(f'Reducing the data to {ncomps} principal dimensions...')
 
         # Transpose and normalize
         PCdat2 = data.T  # shape: (frames, chans)
@@ -518,7 +521,7 @@ def runica(data, **kwargs):
 
     if sphering == 'on':
         if verbose:
-            print('Computing the sphering matrix...')
+            logger.info('Computing the sphering matrix...')
 
         # Compute sphering matrix: 2 * inv(sqrtm(cov(data')))
         sphere = 2.0 * np.linalg.inv(sqrtm(np.cov(data, rowvar=True)))
@@ -526,44 +529,44 @@ def runica(data, **kwargs):
 
         if wts_passed == 0:
             if verbose:
-                print('Starting weights are the identity matrix ...')
+                logger.info('Starting weights are the identity matrix ...')
             weights = np.eye(ncomps, chans)
         else:
             if verbose:
-                print('Using starting weights named on commandline ...')
+                logger.info('Using starting weights named on commandline ...')
 
         if verbose:
-            print('Sphering the data ...')
+            logger.info('Sphering the data ...')
         data = sphere @ data
 
     elif sphering == 'off':
         if wts_passed == 0:
             if verbose:
-                print('Using the sphering matrix as the starting weight matrix ...')
-                print('Returning the identity matrix in variable "sphere" ...')
+                logger.info('Using the sphering matrix as the starting weight matrix ...')
+                logger.info('Returning the identity matrix in variable "sphere" ...')
             sphere_temp = 2.0 * np.linalg.inv(sqrtm(np.cov(data, rowvar=True)))
             sphere_temp = sphere_temp.real
             weights = np.eye(ncomps, chans) @ sphere_temp
             sphere = np.eye(chans)
         else:
             if verbose:
-                print('Using starting weights from commandline ...')
-                print('Returning the identity matrix in variable "sphere" ...')
+                logger.info('Using starting weights from commandline ...')
+                logger.info('Returning the identity matrix in variable "sphere" ...')
             sphere = np.eye(chans)
 
     elif sphering == 'none':
         sphere = np.eye(chans, chans)
         if wts_passed == 0:
             if verbose:
-                print('Starting weights are the identity matrix ...')
-                print('Returning the identity matrix in variable "sphere" ...')
+                logger.info('Starting weights are the identity matrix ...')
+                logger.info('Returning the identity matrix in variable "sphere" ...')
             weights = np.eye(ncomps, chans)
         else:
             if verbose:
-                print('Using starting weights named on commandline ...')
-                print('Returning the identity matrix in variable "sphere" ...')
+                logger.info('Using starting weights named on commandline ...')
+                logger.info('Returning the identity matrix in variable "sphere" ...')
         if verbose:
-            print('Returned variable "sphere" will be the identity matrix.')
+            logger.info('Returned variable "sphere" will be the identity matrix.')
 
     # =========================================================================
     # 9. WEIGHT INITIALIZATION FOR TRAINING
@@ -590,10 +593,8 @@ def runica(data, **kwargs):
 
     if extended and extblocks < 0:
         if verbose:
-            print('Fixed extended-ICA sign assignments: ', end='')
-            for k in range(ncomps):
-                print(f'{int(signs[k])} ', end='')
-            print()
+            signs_str = ' '.join([str(int(signs[k])) for k in range(ncomps)])
+            logger.info(f'Fixed extended-ICA sign assignments: {signs_str}')
 
     signs = np.diag(signs)  # make diagonal matrix
     oldsigns = np.zeros_like(signs)
@@ -628,11 +629,10 @@ def runica(data, **kwargs):
     # - Random subset selection for kurtosis estimation
 
     if verbose:
-        print('Beginning ICA training ...', end='')
         if extended:
-            print(' first training step may be slow ...')
+            logger.info('Beginning ICA training ... first training step may be slow ...')
         else:
-            print()
+            logger.info('Beginning ICA training ...')
 
     # =========================================================================
     # Phase 2: Core ICA Training Loop
@@ -784,7 +784,7 @@ def runica(data, **kwargs):
             # Check for restart conditions (MATLAB lines 921-999)
             if wts_blowup or np.isnan(change) or np.isinf(change):
                 if verbose:
-                    print('')
+                    logger.info('')
 
                 # Restart training (MATLAB lines 923-945)
                 step = 0
@@ -816,14 +816,14 @@ def runica(data, **kwargs):
                     r = np.linalg.matrix_rank(data)
                     if r < ncomps:
                         if verbose:
-                            print(f'Data has rank {r}. Cannot compute {ncomps} components.')
+                            logger.warning(f'Data has rank {r}. Cannot compute {ncomps} components.')
                         break
                     else:
                         if verbose:
-                            print(f'Lowering learning rate to {lrate:g} and starting again.')
+                            logger.info(f'Lowering learning rate to {lrate:g} and starting again.')
                 else:
                     if verbose:
-                        print('runica(): QUITTING - weight matrix may not be invertible!')
+                        logger.error('runica(): QUITTING - weight matrix may not be invertible!')
                     break
 
             else:  # Weights in bounds (MATLAB line 961)
@@ -836,7 +836,7 @@ def runica(data, **kwargs):
 
                 # Print progress (MATLAB lines 968-970)
                 if verbose and (step % 10 == 0 or step < 5):
-                    print(f'step {step} - lrate {lrate:5f}, wchange {change:8.8f}, '
+                    logger.info(f'step {step} - lrate {lrate:5f}, wchange {change:8.8f}, '
                           f'angledelta {degconst*angledelta:4.1f} deg')
 
                 # Save current values (MATLAB lines 974-975)
@@ -932,7 +932,7 @@ def runica(data, **kwargs):
             # Check for restart conditions (MATLAB lines 1056-1085)
             if wts_blowup or np.isnan(change) or np.isinf(change):
                 if verbose:
-                    print('')
+                    logger.info('')
 
                 # Restart training (MATLAB lines 1058-1073)
                 step = 0
@@ -957,15 +957,15 @@ def runica(data, **kwargs):
                     r = np.linalg.matrix_rank(data)
                     if r < ncomps:
                         if verbose:
-                            print(f'Data has rank {r}. Cannot compute {ncomps} components.')
+                            logger.warning(f'Data has rank {r}. Cannot compute {ncomps} components.')
                         # Return current state
                         break
                     else:
                         if verbose:
-                            print(f'Lowering learning rate to {lrate:g} and starting again.')
+                            logger.info(f'Lowering learning rate to {lrate:g} and starting again.')
                 else:
                     if verbose:
-                        print('runica(): QUITTING - weight matrix may not be invertible!')
+                        logger.error('runica(): QUITTING - weight matrix may not be invertible!')
                     # Return current state
                     break
 
@@ -981,7 +981,7 @@ def runica(data, **kwargs):
 
                 # Print progress (MATLAB lines 1093-1095)
                 if verbose and (step % 10 == 0 or step < 5):
-                    print(f'step {step} - lrate {lrate:5f}, wchange {change:8.8f}, '
+                    logger.info(f'step {step} - lrate {lrate:5f}, wchange {change:8.8f}, '
                           f'angledelta {degconst*angledelta:4.1f} deg')
 
                 # Save current values (MATLAB lines 1099-1100)
@@ -1093,7 +1093,7 @@ def runica(data, **kwargs):
             # Check for restart conditions (MATLAB lines 1218-1256)
             if wts_blowup or np.isnan(change) or np.isinf(change):
                 if verbose:
-                    print('')
+                    logger.info('')
 
                 step = 0
                 change = nochange
@@ -1122,14 +1122,14 @@ def runica(data, **kwargs):
                     r = np.linalg.matrix_rank(data)
                     if r < ncomps:
                         if verbose:
-                            print(f'Data has rank {r}. Cannot compute {ncomps} components.')
+                            logger.warning(f'Data has rank {r}. Cannot compute {ncomps} components.')
                         break
                     else:
                         if verbose:
-                            print(f'Lowering learning rate to {lrate:g} and starting again.')
+                            logger.info(f'Lowering learning rate to {lrate:g} and starting again.')
                 else:
                     if verbose:
-                        print('runica(): QUITTING - weight matrix may not be invertible!')
+                        logger.error('runica(): QUITTING - weight matrix may not be invertible!')
                     break
 
             else:  # Weights in bounds
@@ -1142,7 +1142,7 @@ def runica(data, **kwargs):
 
                 # Print progress (MATLAB lines 1265-1266)
                 if verbose and (step % 10 == 0 or step < 5):
-                    print(f'step {step} - lrate {lrate:5f}, wchange {change:8.8f}, '
+                    logger.info(f'step {step} - lrate {lrate:5f}, wchange {change:8.8f}, '
                           f'angledelta {degconst*angledelta:4.1f} deg')
 
                 # Save current values (MATLAB lines 1270-1271)
@@ -1222,7 +1222,7 @@ def runica(data, **kwargs):
             # Check for restart conditions (MATLAB lines 1350-1383)
             if wts_blowup or np.isnan(change) or np.isinf(change):
                 if verbose:
-                    print('')
+                    logger.info('')
 
                 step = 0
                 change = nochange
@@ -1245,14 +1245,14 @@ def runica(data, **kwargs):
                     r = np.linalg.matrix_rank(data)
                     if r < ncomps:
                         if verbose:
-                            print(f'Data has rank {r}. Cannot compute {ncomps} components.')
+                            logger.warning(f'Data has rank {r}. Cannot compute {ncomps} components.')
                         break
                     else:
                         if verbose:
-                            print(f'Lowering learning rate to {lrate:g} and starting again.')
+                            logger.info(f'Lowering learning rate to {lrate:g} and starting again.')
                 else:
                     if verbose:
-                        print('runica(): QUITTING - weight matrix may not be invertible!')
+                        logger.error('runica(): QUITTING - weight matrix may not be invertible!')
                     break
 
             else:  # Weights in bounds
@@ -1265,7 +1265,7 @@ def runica(data, **kwargs):
 
                 # Print progress (MATLAB lines 1392-1393)
                 if verbose and (step % 10 == 0 or step < 5):
-                    print(f'step {step} - lrate {lrate:5f}, wchange {change:8.8f}, '
+                    logger.info(f'step {step} - lrate {lrate:5f}, wchange {change:8.8f}, '
                           f'angledelta {degconst*angledelta:4.1f} deg')
 
                 # Save current values (MATLAB lines 1397-1398)
@@ -1300,7 +1300,7 @@ def runica(data, **kwargs):
     lrates = lrates[:laststep]
 
     if verbose:
-        print(f'Training complete. Total steps: {laststep}')
+        logger.info(f'Training complete. Total steps: {laststep}')
 
     # =========================================================================
     # Compute activations (MATLAB lines 1439-1455)
@@ -1329,8 +1329,8 @@ def runica(data, **kwargs):
     # =========================================================================
     if pcaflag == 'on':
         if verbose:
-            print('Composing the eigenvector, weights, and sphere matrices')
-            print(f'  into a single rectangular weights matrix; sphere=eye({chans})')
+            logger.info('Composing the eigenvector, weights, and sphere matrices '
+                       f'into a single rectangular weights matrix; sphere=eye({chans})')
         weights = weights @ sphere @ eigenvectors[:, :ncomps].T
         sphere = np.eye(urchans)
 
@@ -1338,14 +1338,14 @@ def runica(data, **kwargs):
     # Sort components by descending mean projected variance (MATLAB lines 1470-1492)
     # =========================================================================
     if verbose:
-        print('Sorting components in descending order of mean projected variance ...')
+        logger.info('Sorting components in descending order of mean projected variance ...')
 
     # Compute inverse of unmixing matrix for backprojection (MATLAB lines 1477-1482)
     if ncomps == urchans:  # if weights are square
         winv = np.linalg.inv(weights @ sphere)
     else:
         if verbose:
-            print('Using pseudo-inverse of weight matrix to rank order component projections.')
+            logger.info('Using pseudo-inverse of weight matrix to rank order component projections.')
         winv = pinv(weights @ sphere)
 
     # Compute variances without backprojecting (MATLAB line 1486)
@@ -1361,7 +1361,7 @@ def runica(data, **kwargs):
     # Permute activations and reorder weights (MATLAB lines 1521-1528)
     # =========================================================================
     if verbose:
-        print('Permuting the activation wave forms ...')
+        logger.info('Permuting the activation wave forms ...')
 
     activations = activations_unsorted[windex, :]  # data is now activations (MATLAB line 1523)
     weights = weights[windex, :]  # reorder the weight matrix (MATLAB line 1527)
