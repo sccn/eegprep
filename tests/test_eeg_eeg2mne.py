@@ -5,23 +5,36 @@ This module tests the eeg_eeg2mne function that converts EEGLAB datasets to MNE 
 """
 
 import unittest
+import os
+
+if os.getenv('EEGPREP_SKIP_MATLAB') == '1':
+    raise unittest.SkipTest("MATLAB not available")
+
 import sys
 import numpy as np
 import tempfile
 import os
 import shutil
 
-# Add src to path for imports
-sys.path.insert(0, 'src')
+# Ensure tests dir is in path for unittest discovery
+test_dir = os.path.dirname(os.path.abspath(__file__))
+if test_dir not in sys.path:
+    sys.path.insert(0, test_dir)
 
 try:
     import mne
+    from mne.io.base import BaseRaw
     MNE_AVAILABLE = True
 except ImportError:
     MNE_AVAILABLE = False
+    BaseRaw = None
 
 from eegprep.eeg_eeg2mne import eeg_eeg2mne
-from tests.fixtures import create_test_eeg
+from eegprep.eeglabcompat import get_eeglab
+try:
+    from .fixtures import create_test_eeg
+except (ImportError, ValueError):
+    from fixtures import create_test_eeg
 
 
 class TestEEGEEG2MNE(unittest.TestCase):
@@ -46,13 +59,13 @@ class TestEEGEEG2MNE(unittest.TestCase):
         continuous_eeg['trials'] = 1
         
         result = eeg_eeg2mne(continuous_eeg)
-
+        
         # Check that result is an MNE Raw object (RawEEGLAB is a subclass of BaseRaw)
-        self.assertIsInstance(result, mne.io.BaseRaw)
-
+        self.assertIsInstance(result, BaseRaw)
+        
         # Check that data dimensions match
         self.assertEqual(result.info['nchan'], continuous_eeg['nbchan'])
-        self.assertEqual(result._data.shape[1], continuous_eeg['pnts'])
+        self.assertEqual(result.n_times, continuous_eeg['pnts'])
 
     @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
     def test_eeg_eeg2mne_epoched_data(self):
@@ -85,8 +98,8 @@ class TestEEGEEG2MNE(unittest.TestCase):
             result = eeg_eeg2mne(float32_eeg)
 
             # Check that result is an MNE object
-            self.assertIsInstance(result, (mne.io.BaseRaw, mne.BaseEpochs))
-
+            self.assertIsInstance(result, (BaseRaw, mne.Epochs))
+            
         except Exception as e:
             self.skipTest(f"eeg_eeg2mne float32 conversion not available: {e}")
 
@@ -100,7 +113,7 @@ class TestEEGEEG2MNE(unittest.TestCase):
             result = eeg_eeg2mne(float64_eeg)
             
             # Check that result is an MNE object
-            self.assertIsInstance(result, (mne.io.BaseRaw, mne.BaseEpochs))
+            self.assertIsInstance(result, (BaseRaw, mne.Epochs))
             
         except Exception as e:
             self.skipTest(f"eeg_eeg2mne float64 conversion not available: {e}")
@@ -115,8 +128,9 @@ class TestEEGEEG2MNE(unittest.TestCase):
             result = eeg_eeg2mne(single_channel_eeg)
             
             # Check that result is an MNE object
-            self.assertIsInstance(result, (mne.io.BaseRaw, mne.BaseEpochs))
-            self.assertEqual(result.info['nchan'], 1)
+            self.assertIsInstance(result, (BaseRaw, mne.Epochs))
+            n_channels = result.info['nchan'] if isinstance(result, BaseRaw) else result.info['nchan']
+            self.assertEqual(n_channels, 1)
             
         except Exception as e:
             self.skipTest(f"eeg_eeg2mne single channel conversion not available: {e}")
@@ -132,7 +146,7 @@ class TestEEGEEG2MNE(unittest.TestCase):
             result = eeg_eeg2mne(single_trial_eeg)
             
             # Check that result is an MNE object
-            self.assertIsInstance(result, (mne.io.BaseRaw, mne.BaseEpochs))
+            self.assertIsInstance(result, (BaseRaw, mne.Epochs))
             
         except Exception as e:
             self.skipTest(f"eeg_eeg2mne single trial conversion not available: {e}")
@@ -153,7 +167,7 @@ class TestEEGEEG2MNE(unittest.TestCase):
             result = eeg_eeg2mne(eeg_with_chanlocs)
             
             # Check that result is an MNE object
-            self.assertIsInstance(result, (mne.io.BaseRaw, mne.BaseEpochs))
+            self.assertIsInstance(result, (BaseRaw, mne.Epochs))
             
         except Exception as e:
             self.skipTest(f"eeg_eeg2mne with chanlocs conversion not available: {e}")
@@ -175,7 +189,7 @@ class TestEEGEEG2MNE(unittest.TestCase):
             result = eeg_eeg2mne(eeg_with_events)
             
             # Check that result is an MNE object
-            self.assertIsInstance(result, (mne.io.BaseRaw, mne.BaseEpochs))
+            self.assertIsInstance(result, (BaseRaw, mne.Epochs))
             
         except Exception as e:
             self.skipTest(f"eeg_eeg2mne with events conversion not available: {e}")
@@ -231,10 +245,11 @@ class TestEEGEEG2MNE(unittest.TestCase):
             result = eeg_eeg2mne(large_eeg)
             
             # Check that result is an MNE object
-            self.assertIsInstance(result, (mne.io.BaseRaw, mne.BaseEpochs))
-            self.assertEqual(result.info['nchan'], 64)
-            self.assertEqual(len(result.times), 5000)
-            if isinstance(result, mne.BaseEpochs):
+            self.assertIsInstance(result, (BaseRaw, mne.Epochs))
+            n_channels = result.info['nchan'] if isinstance(result, BaseRaw) else result.info['nchan']
+            self.assertEqual(n_channels, 64)
+            self.assertEqual(result.n_times, 5000)
+            if isinstance(result, mne.Epochs):
                 self.assertEqual(len(result), 20)
             
         except Exception as e:
@@ -256,12 +271,13 @@ class TestEEGEEG2MNE(unittest.TestCase):
             result = eeg_eeg2mne(realistic_eeg)
             
             # Check that result is an MNE object
-            self.assertIsInstance(result, (mne.io.BaseRaw, mne.BaseEpochs))
+            self.assertIsInstance(result, (BaseRaw, mne.Epochs))
             
             # Check basic properties
-            self.assertEqual(result.info['nchan'], 32)
-            self.assertEqual(len(result.times), 1000)
-            if isinstance(result, mne.BaseEpochs):
+            n_channels = result.info['nchan'] if isinstance(result, BaseRaw) else result.info['nchan']
+            self.assertEqual(n_channels, 32)
+            self.assertEqual(result.n_times, 1000)
+            if isinstance(result, mne.Epochs):
                 self.assertEqual(len(result), 10)
             
         except Exception as e:

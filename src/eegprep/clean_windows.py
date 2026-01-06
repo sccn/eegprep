@@ -1,3 +1,9 @@
+"""EEG data window cleaning utilities.
+
+This module provides functions for removing periods with abnormally high-power content
+from continuous EEG data.
+"""
+
 import warnings
 import logging
 from typing import *
@@ -69,7 +75,6 @@ def clean_windows(
         Boolean mask (length == original ``pnts``) indicating which samples are
         retained (``True``) or removed (``False``).
     """
-
     # ------------------------------------------------------------------
     #                           Input handling
     # ------------------------------------------------------------------
@@ -230,4 +235,4 @@ def clean_windows(
     else:
         etc['clean_sample_mask'] = sample_mask
 
-    return EEG, sample_mask 
+    return EEG, sample_mask

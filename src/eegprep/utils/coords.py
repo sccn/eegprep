@@ -1,3 +1,5 @@
+"""Coordinate system utilities."""
+
 from typing import Dict, Any, Sequence
 import numpy as np
 
@@ -20,8 +22,7 @@ def coords_to_mm(coords: np.ndarray, unit: str) -> np.ndarray:
 
 
 def coords_RAS_to_ALS(coords: np.ndarray) -> np.ndarray:
-    """Convert coordinates from RAS (Right-Anterior-Superior) to
-    ALS (Anterior-Left-Superior) convention."""
+    """Convert coordinates from RAS (Right-Anterior-Superior) to ALS (Anterior-Left-Superior) convention."""
     if coords.ndim == 1:
         coords = coords[np.newaxis, :]  # Ensure 2D array for consistent processing
     if coords.shape[1] != 3:
@@ -32,17 +33,23 @@ def coords_RAS_to_ALS(coords: np.ndarray) -> np.ndarray:
 
 
 def coords_any_to_RAS(coords: np.ndarray, x: str, y: str, z: str) -> np.ndarray:
-    """Convert the given coordinates (Nx3 array) to the RAS (Right-Anterior-Superior)
-    system.
+    """Convert the given coordinates (Nx3 array) to the RAS (Right-Anterior-Superior) system.
 
-    Args:
-        coords: Nx3 array of coordinates to convert
-        x: orientation of the X axis relative to the head in coords, e.g., 'front'
-        y: orientation of the Y axis relative to the head in coords, e.g., 'left'
-        z: orientation of the Z axis relative to the head in coords, e.g., 'up'
+    Parameters
+    ----------
+    coords : np.ndarray
+        Nx3 array of coordinates to convert.
+    x : str
+        Orientation of the X axis relative to the head in coords, e.g., 'front'.
+    y : str
+        Orientation of the Y axis relative to the head in coords, e.g., 'left'.
+    z : str
+        Orientation of the Z axis relative to the head in coords, e.g., 'up'.
 
-    Returns:
-        coords: the transformed coordinates
+    Returns
+    -------
+    coords : np.ndarray
+        The transformed coordinates.
     """
     coords = np.array(coords, copy=False, dtype=float)
     if x == 'front' and y == 'left' and z == 'up':
@@ -63,15 +70,25 @@ def coords_any_to_RAS(coords: np.ndarray, x: str, y: str, z: str) -> np.ndarray:
 
 
 def coords_ALS_to_angular(coords: np.ndarray) -> np.ndarray:
-    """Convert Cartesian coordinates to spherical coordinates (sph_theta, sph_phi, sph_radius)
-    and 2d polar coordinates (polar_theta, polar_radius).
+    """Convert Cartesian coordinates to spherical coordinates (sph_theta, sph_phi, sph_radius) and 2d polar coordinates (polar_theta, polar_radius).
 
-    Args:
-        coords: Nx3 array of Cartesian coordinates (x, y, z).
+    Parameters
+    ----------
+    coords : np.ndarray
+        Nx3 array of Cartesian coordinates (x, y, z).
 
-    Returns:
-        sph_theta, sph_phi, sph_radius: Nx1 arrays of spherical coordinates
-        polar_theta, polar_radius: 2d polar coordinates
+    Returns
+    -------
+    sph_theta : np.ndarray
+        Nx1 arrays of spherical coordinates.
+    sph_phi : np.ndarray
+        Nx1 arrays of spherical coordinates.
+    sph_radius : np.ndarray
+        Nx1 arrays of spherical coordinates.
+    polar_theta : np.ndarray
+        2d polar coordinates.
+    polar_radius : np.ndarray
+        2d polar coordinates.
     """
     x,y,z = coords.T
     hypotxy = np.hypot(x, y)
@@ -115,7 +132,7 @@ def chanloc_has_coords(ch: Dict[str, Any]) -> bool:
 
 
 def chanlocs_to_coords(chanlocs: Sequence[Dict[str, Any]]) -> np.ndarray:
-    """convert an EEGLAB chanlocs data structure to a Nx3 coordinates array."""
+    """Convert an EEGLAB chanlocs data structure to a Nx3 coordinates array."""
     coords = np.array([[cl['X'], cl['Y'], cl['Z']]
                        if chanloc_has_coords(cl)
                        else [np.nan, np.nan, np.nan]

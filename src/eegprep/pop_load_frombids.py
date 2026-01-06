@@ -1,3 +1,4 @@
+"""Module for loading EEG data from BIDS datasets."""
 
 import os
 import copy
@@ -45,39 +46,52 @@ def pop_load_frombids(
 
     Supported formats are EDF, BrainVision, EEGLAB SET, BDF.
 
-    Args:
-        filename: Path to the EEG data file in a BIDS dataset.
-        bidsmetadata: Whether to override any metadata in the EEG file with
-          metadata from BIDS.
-        bidschanloc: Whether to override any channel information (incl. locations)
-          in the EEG file with channel information from BIDS.
-        bidsevent: Whether to load in and override any event data in the EEG file with
-          event data from BIDS. Can be one of the following:
-          * 'replace'/True: replace events from EEG file with those from the BIDS event file
-          * 'merge': selectively override events from EEG file with those from the BIDS event file
-          * 'append': append events from the BIDS event file to those from the EEG file;
-              WARNING: this mode can result in duplicate events; use with caution
-          * False/None: do not load events from BIDS, keep those from the EEG file
-        eventtype: Optionally the column name in the BIDS events file to use for event
-          types; if not set, will be inferred heuristically.
-        infer_locations: Whether to infer channel locations if necessary from the
-          channel labels (if 10-20 labeling system).
-          * True: infer locations from channel labels; override existing locations if any
-          * False: leave locations as-is, even if missing
-          * None: infer only if no channels have locations
-          * str: filename of a locations file to infer locations from; see files in
-            resources/montages directory (this can be used to disambiguate between
-            alternative montages that use the same naming system)
-        dtype: The data type to use for the EEG data.
-        numeric_null: The value to use for empty numeric fields in the EEG data.
-          * the default is np.array([]) for MATLAB/pop_loadset compatibility
-        return_report: whether to return an import report dictionary as a second output
-        verbose: whether to log verbose output
+    Parameters
+    ----------
+    filename : str
+        Path to the EEG data file in a BIDS dataset.
+    bidsmetadata : bool
+        Whether to override any metadata in the EEG file with
+      metadata from BIDS.
+    bidschanloc : bool
+        Whether to override any channel information (incl. locations)
+      in the EEG file with channel information from BIDS.
+    bidsevent : bool or str
+        Whether to load in and override any event data in the EEG file with
+      event data from BIDS. Can be one of the following:
+      * 'replace'/True: replace events from EEG file with those from the BIDS event file
+      * 'merge': selectively override events from EEG file with those from the BIDS event file
+      * 'append': append events from the BIDS event file to those from the EEG file;
+          WARNING: this mode can result in duplicate events; use with caution
+      * False/None: do not load events from BIDS, keep those from the EEG file
+    eventtype : str or None
+        Optionally the column name in the BIDS events file to use for event
+      types; if not set, will be inferred heuristically.
+    infer_locations : bool or str or None
+        Whether to infer channel locations if necessary from the
+      channel labels (if 10-20 labeling system).
+      * True: infer locations from channel labels; override existing locations if any
+      * False: leave locations as-is, even if missing
+      * None: infer only if no channels have locations
+      * str: filename of a locations file to infer locations from; see files in
+        resources/montages directory (this can be used to disambiguate between
+        alternative montages that use the same naming system)
+    dtype : np.dtype
+        The data type to use for the EEG data.
+    numeric_null : Any
+        The value to use for empty numeric fields in the EEG data.
+      * the default is np.array([]) for MATLAB/pop_loadset compatibility
+    return_report : bool
+        whether to return an import report dictionary as a second output
+    verbose : bool
+        whether to log verbose output
 
-    Returns:
-        EEG: A dictionary containing the EEG data and metadata.
-        Report: optionally the import report to return, if desired.
-
+    Returns
+    -------
+    EEG : dict
+        A dictionary containing the EEG data and metadata.
+    Report : dict, optional
+        optionally the import report to return, if desired.
     """
     from . import eeg_checkset
 

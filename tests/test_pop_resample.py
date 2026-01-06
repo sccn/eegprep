@@ -1,5 +1,9 @@
 import os
 import unittest
+import os
+
+if os.getenv('EEGPREP_SKIP_MATLAB') == '1':
+    raise unittest.SkipTest("MATLAB not available")
 import numpy as np
 from eegprep import pop_loadset, pop_resample, pop_saveset  # Explicitly import pop_resample
 

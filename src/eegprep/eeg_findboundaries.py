@@ -1,8 +1,10 @@
+"""EEG boundary finding functions."""
+
 from eegprep.eeg_options import EEG_OPTIONS
 
 def eeg_findboundaries(*, EEG):
     """
-    EEG_FINDBOUNDARIES - return indices of boundary events
+    EEG_FINDBOUNDARIES - return indices of boundary events.
 
     Usage:
         boundaries = eeg_findboundaries(EEG)

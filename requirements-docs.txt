@@ -1,0 +1,42 @@
+# Documentation Dependencies for eegprep
+# 
+# Installation Instructions:
+# ========================
+# To install all documentation dependencies, run:
+#   pip install -r requirements-docs.txt
+#
+# Or install via pyproject.toml:
+#   pip install -e ".[docs]"
+#
+# These packages are required for building the Sphinx documentation
+# and are not needed for using the eegprep library itself.
+
+# Core Sphinx documentation generator
+sphinx>=7.0
+
+# Modern, responsive Sphinx theme from PyData ecosystem
+pydata-sphinx-theme>=0.14.0
+
+# Sphinx extension for building galleries of examples
+sphinx-gallery>=0.14.0
+
+# Sphinx extension for automatic type hints in API documentation
+sphinx-autodoc-typehints>=1.25.0
+
+# NumPy-style docstring support for Sphinx
+numpydoc>=1.6.0
+
+# Sphinx extension for designing beautiful documentation layouts
+sphinx-design>=0.5.0
+
+# Markdown support for Sphinx via MyST parser
+myst-parser>=1.0.0
+
+# Sphinx extension to add copy button to code blocks
+sphinx-copybutton>=0.5.0
+
+# Sphinx extension to toggle visibility of content blocks
+sphinx-togglebutton>=0.3.0
+
+# Sphinx extension for spell checking documentation
+sphinxcontrib-spelling>=7.1.0

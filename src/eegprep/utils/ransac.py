@@ -1,3 +1,5 @@
+"""RANSAC utilities for EEG data processing."""
+
 from typing import *
 
 import numpy as np
@@ -108,8 +110,7 @@ def calc_projector(
         stream: Optional[np.random.RandomState] = None,
         subroutine: str = 'sphericalSplineInterpolate'
 ) -> np.ndarray:
-    """
-    Calculate a bag of reconstruction matrices from random channel subsets.
+    """Calculate a bag of reconstruction matrices from random channel subsets.
 
     Args:
         locs: Nx3 array of channel locations
@@ -118,8 +119,10 @@ def calc_projector(
         stream: optionally the random number generator to use;
           if not specified, will default to a fixed seed (435656)
         subroutine: which interpolation subroutine to use (for testing)
-    Returns:
-        P: combined projector matrix
+
+    Returns
+    -------
+    P : combined projector matrix
     """
     if stream is None:
         stream = np.random.RandomState(435656)

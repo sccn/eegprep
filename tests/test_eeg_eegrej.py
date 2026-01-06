@@ -72,6 +72,7 @@ def _save_eeg(path, EEG):
 def _load_eeg(path):
     return np.load(path, allow_pickle=True).item()
 
+@unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestEEGEegrej(unittest.TestCase):
     def setUp(self):
         EEG = _make_continuous_eeg2()

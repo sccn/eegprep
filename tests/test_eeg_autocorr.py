@@ -25,6 +25,7 @@ from eegprep.eeglabcompat import get_eeglab
 from eegprep.utils.testing import DebuggableTestCase
 
 
+@unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestEegAutocorr(DebuggableTestCase):
     """Test cases for eeg_autocorr function."""
 

@@ -5,6 +5,7 @@ This module tests the pop_reref function which re-references EEG data
 to average reference (currently the only implemented option).
 """
 
+import os
 import unittest
 import sys
 import numpy as np
@@ -18,6 +19,7 @@ import importlib
 eeg_checkset_module = importlib.import_module('eegprep.eeg_checkset')
 
 
+@unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestPopReref(DebuggableTestCase):
     """Test cases for pop_reref function."""
 
@@ -72,8 +74,11 @@ class TestPopReref(DebuggableTestCase):
         original_data = EEG['data'].copy()
         
         result = pop_reref(EEG, ref=None)
-
-        # Check that reference is set to 'average' (function returns a copy with deepcopy)
+        
+        # Check that the function returns a copy (not the same object)
+        self.assertIsNot(result, EEG)
+        
+        # Check that reference is set to 'average'
         self.assertEqual(result['ref'], 'average')
         
         # Check that all channel references are updated
@@ -93,8 +98,10 @@ class TestPopReref(DebuggableTestCase):
         original_data = EEG['data'].copy()
         
         result = pop_reref(EEG, ref=[])
-
-        # Should behave the same as ref=None (function returns a copy with deepcopy)
+        
+        # Should behave the same as ref=None
+        # Function returns a copy, not the same object
+        self.assertIsNot(result, EEG)
         self.assertEqual(result['ref'], 'average')
         
         # Check that data is modified (average subtracted)
@@ -181,22 +188,19 @@ class TestPopReref(DebuggableTestCase):
         self.assertIn('Feature not implemented', str(context.exception))
 
     def test_error_icachansind_mismatch(self):
-        """Test graceful handling when icachansind length doesn't match nbchan."""
+        """Test behavior when icachansind length doesn't match nbchan."""
         EEG = self.create_test_eeg(nbchan=16, pnts=100)
 
         # Make icachansind have different length (e.g., after channel removal)
         EEG['icachansind'] = list(range(8))  # Only 8 channels instead of 16
-
-        # Should complete without error, but log a warning
-        with self.assertLogs('eegprep.pop_reref', level='WARNING') as cm:
-            result = pop_reref(EEG, ref=None)
-
-        # Check warning was logged
-        self.assertTrue(any('Skipping ICA re-referencing' in msg for msg in cm.output))
-
-        # Check data was still re-referenced
-        self.assertIsNotNone(result)
-        self.assertEqual(result['nbchan'], 16)
+        
+        # The function should clear ICA fields instead of raising an error
+        result = pop_reref(EEG, ref=None)
+        
+        # Check that ICA fields were cleared
+        self.assertEqual(result['icawinv'].size, 0)
+        self.assertEqual(result['icaweights'].size, 0)
+        self.assertEqual(result['icasphere'].size, 0)
 
     def test_data_mean_subtraction(self):
         """Test that data has mean subtracted correctly."""

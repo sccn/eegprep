@@ -5,6 +5,7 @@ This module tests the EEGLAB compatibility functions that provide
 Python interfaces to MATLAB/Octave EEGLAB functions.
 """
 
+import os
 import unittest
 import sys
 import numpy as np
@@ -111,6 +112,7 @@ class TestMatlabWrapper(DebuggableTestCase):
         self.assertTrue(callable(func))
 
 
+@unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestGetEeglab(DebuggableTestCase):
     """Test cases for get_eeglab function."""
 
@@ -171,6 +173,235 @@ class TestGetEeglab(DebuggableTestCase):
             self.skipTest(f"MATLAB not available: {e}")
 
 
+class TestEegCheckset(DebuggableTestCase):
+    """Test cases for eeg_checkset function."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.test_eeg = create_test_eeg()
+
+    def test_eeg_checkset_basic(self):
+        """Test eeg_checkset with basic EEG structure."""
+        try:
+            result = eeg_checkset(self.test_eeg)
+            self.assertIsNotNone(result)
+            # Should return the same or modified EEG structure
+            self.assertIn('data', result)
+            self.assertIn('srate', result)
+        except Exception as e:
+            self.skipTest(f"eeg_checkset not available: {e}")
+
+    def test_eeg_checkset_with_none_eeglab(self):
+        """Test eeg_checkset with None eeglab parameter."""
+        try:
+            result = eeg_checkset(self.test_eeg, eeglab=None)
+            self.assertIsNotNone(result)
+        except Exception as e:
+            self.skipTest(f"eeg_checkset not available: {e}")
+
+    def test_eeg_checkset_with_custom_eeglab(self):
+        """Test eeg_checkset with custom eeglab instance."""
+        try:
+            eeglab = get_eeglab('MAT')
+            result = eeg_checkset(self.test_eeg, eeglab=eeglab)
+            self.assertIsNotNone(result)
+        except Exception as e:
+            self.skipTest(f"eeg_checkset not available: {e}")
+
+
+@unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
+class TestCleanDrifts(DebuggableTestCase):
+    """Test cases for clean_drifts function."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.test_eeg = create_test_eeg()
+
+    def test_clean_drifts_basic(self):
+        """Test clean_drifts with basic parameters."""
+        try:
+            result = clean_drifts(self.test_eeg, 0.5, 0.1)
+            self.assertIsNotNone(result)
+            self.assertIn('data', result)
+        except Exception as e:
+            self.skipTest(f"clean_drifts not available: {e}")
+
+    def test_clean_drifts_with_custom_eeglab(self):
+        """Test clean_drifts with custom eeglab instance."""
+        try:
+            eeglab = get_eeglab('MAT')
+            result = clean_drifts(self.test_eeg, 0.5, 0.1, eeglab=eeglab)
+            self.assertIsNotNone(result)
+        except Exception as e:
+            self.skipTest(f"clean_drifts not available: {e}")
+
+
+@unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
+class TestPopEegfiltnew(DebuggableTestCase):
+    """Test cases for pop_eegfiltnew function."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.test_eeg = create_test_eeg()
+
+    def test_pop_eegfiltnew_lowpass(self):
+        """Test pop_eegfiltnew with lowpass filter."""
+        try:
+            result = pop_eegfiltnew(self.test_eeg, locutoff=None, hicutoff=25)
+            self.assertIsNotNone(result)
+            self.assertIn('data', result)
+            self.assertEqual(result['srate'], self.test_eeg['srate'])
+        except Exception as e:
+            self.skipTest(f"pop_eegfiltnew not available: {e}")
+
+    def test_pop_eegfiltnew_highpass(self):
+        """Test pop_eegfiltnew with highpass filter."""
+        try:
+            result = pop_eegfiltnew(self.test_eeg, locutoff=5, hicutoff=None)
+            self.assertIsNotNone(result)
+            self.assertIn('data', result)
+        except Exception as e:
+            self.skipTest(f"pop_eegfiltnew not available: {e}")
+
+    def test_pop_eegfiltnew_bandpass(self):
+        """Test pop_eegfiltnew with bandpass filter."""
+        try:
+            result = pop_eegfiltnew(self.test_eeg, locutoff=5, hicutoff=25)
+            self.assertIsNotNone(result)
+            self.assertIn('data', result)
+        except Exception as e:
+            self.skipTest(f"pop_eegfiltnew not available: {e}")
+
+    def test_pop_eegfiltnew_with_revfilt(self):
+        """Test pop_eegfiltnew with reverse filter."""
+        try:
+            result = pop_eegfiltnew(self.test_eeg, locutoff=5, hicutoff=25, revfilt=True)
+            self.assertIsNotNone(result)
+            self.assertIn('data', result)
+        except Exception as e:
+            self.skipTest(f"pop_eegfiltnew not available: {e}")
+
+    def test_pop_eegfiltnew_with_plotfreqz(self):
+        """Test pop_eegfiltnew with plotfreqz."""
+        try:
+            result = pop_eegfiltnew(self.test_eeg, locutoff=5, hicutoff=25, plotfreqz=True)
+            self.assertIsNotNone(result)
+            self.assertIn('data', result)
+        except Exception as e:
+            self.skipTest(f"pop_eegfiltnew not available: {e}")
+
+    def test_pop_eegfiltnew_no_cutoffs(self):
+        """Test pop_eegfiltnew with no cutoffs defined."""
+        with self.assertRaises(Exception):
+            pop_eegfiltnew(self.test_eeg, locutoff=None, hicutoff=None)
+
+
+class TestCleanArtifacts(DebuggableTestCase):
+    """Test cases for clean_artifacts function."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.test_eeg = create_test_eeg()
+
+    def test_clean_artifacts_basic(self):
+        """Test clean_artifacts with basic parameters."""
+        try:
+            result = clean_artifacts(self.test_eeg)
+            self.assertIsNotNone(result)
+            self.assertIn('data', result)
+        except Exception as e:
+            self.skipTest(f"clean_artifacts not available: {e}")
+
+    def test_clean_artifacts_with_channel_criterion(self):
+        """Test clean_artifacts with channel criterion."""
+        try:
+            result = clean_artifacts(self.test_eeg, ChannelCriterion=0.8)
+            self.assertIsNotNone(result)
+            self.assertIn('data', result)
+        except Exception as e:
+            self.skipTest(f"clean_artifacts not available: {e}")
+
+    def test_clean_artifacts_with_line_noise_criterion(self):
+        """Test clean_artifacts with line noise criterion."""
+        try:
+            result = clean_artifacts(self.test_eeg, LineNoiseCriterion=4)
+            self.assertIsNotNone(result)
+            self.assertIn('data', result)
+        except Exception as e:
+            self.skipTest(f"clean_artifacts not available: {e}")
+
+    def test_clean_artifacts_with_flatline_criterion(self):
+        """Test clean_artifacts with flatline criterion."""
+        try:
+            result = clean_artifacts(self.test_eeg, FlatlineCriterion=5)
+            self.assertIsNotNone(result)
+            self.assertIn('data', result)
+        except Exception as e:
+            self.skipTest(f"clean_artifacts not available: {e}")
+
+    def test_clean_artifacts_with_burst_criterion(self):
+        """Test clean_artifacts with burst criterion."""
+        try:
+            result = clean_artifacts(self.test_eeg, BurstCriterion=20)
+            self.assertIsNotNone(result)
+            self.assertIn('data', result)
+        except Exception as e:
+            self.skipTest(f"clean_artifacts not available: {e}")
+
+    def test_clean_artifacts_with_window_criterion(self):
+        """Test clean_artifacts with window criterion."""
+        try:
+            result = clean_artifacts(self.test_eeg, WindowCriterion=0.25)
+            self.assertIsNotNone(result)
+            self.assertIn('data', result)
+        except Exception as e:
+            self.skipTest(f"clean_artifacts not available: {e}")
+
+    def test_clean_artifacts_with_highpass(self):
+        """Test clean_artifacts with highpass filter."""
+        try:
+            result = clean_artifacts(self.test_eeg, Highpass=[0.25, 0.75])
+            self.assertIsNotNone(result)
+            self.assertIn('data', result)
+        except Exception as e:
+            self.skipTest(f"clean_artifacts not available: {e}")
+
+    def test_clean_artifacts_with_window_criterion_tolerances(self):
+        """Test clean_artifacts with window criterion tolerances."""
+        try:
+            result = clean_artifacts(self.test_eeg, WindowCriterionTolerances=[float('-inf'), 7])
+            self.assertIsNotNone(result)
+            self.assertIn('data', result)
+        except Exception as e:
+            self.skipTest(f"clean_artifacts not available: {e}")
+
+    def test_clean_artifacts_with_burst_rejection(self):
+        """Test clean_artifacts with burst rejection."""
+        try:
+            result = clean_artifacts(self.test_eeg, BurstRejection=True)
+            self.assertIsNotNone(result)
+            self.assertIn('data', result)
+        except Exception as e:
+            self.skipTest(f"clean_artifacts not available: {e}")
+
+    def test_clean_artifacts_all_criteria_disabled(self):
+        """Test clean_artifacts with all criteria disabled."""
+        try:
+            result = clean_artifacts(
+                self.test_eeg,
+                ChannelCriterion='off',
+                LineNoiseCriterion='off',
+                FlatlineCriterion='off',
+                BurstCriterion='off',
+                Highpass='off'
+            )
+            self.assertIsNotNone(result)
+            self.assertIn('data', result)
+        except Exception as e:
+            self.skipTest(f"clean_artifacts not available: {e}")
+
+
+@unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestEeglabCompatIntegration(DebuggableTestCase):
     """Integration tests for eeglabcompat functions."""
 

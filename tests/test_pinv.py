@@ -1,4 +1,5 @@
 # test_pinv.py
+import os
 import numpy as np
 import unittest
 
@@ -6,6 +7,7 @@ from eegprep.eeglabcompat import get_eeglab
 from eegprep.pinv import pinv
 
 
+@unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestPinvParity(unittest.TestCase):
     """Test parity between Python pinv and MATLAB pinv functions."""
 

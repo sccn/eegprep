@@ -1,8 +1,22 @@
+"""Load EEG data from HDF5 files."""
+
 import h5py
 import numpy as np
 from eegprep.eeg_checkset import eeg_checkset
 
 def pop_loadset_h5(file_name):
+    """Load EEG data from HDF5 file.
+
+    Parameters
+    ----------
+    file_name : str
+        Path to the HDF5 file
+
+    Returns
+    -------
+    EEG : dict
+        EEG data structure
+    """
     EEGTMP = h5py.File(file_name, 'r')
     EEG = {}
     

@@ -1,4 +1,5 @@
 # test_eeg_lat2point.py
+import os
 import numpy as np
 import unittest
 
@@ -6,6 +7,7 @@ from eegprep.eeglabcompat import get_eeglab
 from eegprep.eeg_lat2point import eeg_lat2point
 
 
+@unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestEegLat2PointParity(unittest.TestCase):
 
     def setUp(self):
