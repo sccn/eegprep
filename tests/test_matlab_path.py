@@ -12,30 +12,6 @@ import unittest
 class TestMatlabPath(unittest.TestCase):
     """Test MATLAB availability and path configuration."""
 
-    def test_matlab_in_path(self):
-        """Check if matlab executable is in PATH (informational only)."""
-        result = subprocess.run(['which', 'matlab'], capture_output=True, text=True)
-        if result.returncode != 0:
-            self.skipTest("MATLAB CLI not in PATH (not required - we use matlab.engine)")
-        print(f"which matlab: {result.stdout.strip()}")
-
-    def test_matlab_version(self):
-        """Try to run matlab -batch version (informational only)."""
-        result = subprocess.run(['which', 'matlab'], capture_output=True, text=True)
-        if result.returncode != 0:
-            self.skipTest("MATLAB CLI not in PATH (not required - we use matlab.engine)")
-
-        try:
-            result = subprocess.run(
-                ['matlab', '-batch', 'version'],
-                capture_output=True,
-                text=True,
-                timeout=30
-            )
-            print(f"matlab version output: {result.stdout}")
-        except subprocess.TimeoutExpired:
-            self.fail("MATLAB command timed out")
-
     def test_python_matlab_engine(self):
         """Test if Python MATLAB engine can be imported."""
         if os.getenv('EEGPREP_SKIP_MATLAB') == '1':
