@@ -337,21 +337,20 @@ def pop_eegfiltnew(EEG, locutoff=None,hicutoff=None,revfilt=False,plotfreqz=Fals
     dict
         Filtered EEG data.
     """
-    eeglab = get_eeglab(auto_file_roundtrip=False)
     # error if locutoff and hicutoff are none
-    if locutoff==None and hicutoff==None:
-        raise('Cannot have low cutoff and high cutoff not defined')
-    
-    pop_saveset(EEG, './tmp.set') # 0.8 seconds
-    EEG2 = eeglab.pop_loadset('./tmp.set') # 2 seconds
-    EEG3 = eeglab.pop_eegfiltnew(EEG2, 'locutoff',locutoff,'hicutoff',hicutoff,'revfilt',revfilt,'plotfreqz',plotfreqz)
-    eeglab.pop_saveset(EEG3, './tmp2.set') # 2.4 seconds
-    EEG4 = pop_loadset('./tmp2.set') # 0.2 seconds
-    
-    # delete temporary files
-    # os.remove('./tmp.set')
-    # os.remove('./tmp2.set')
-    return EEG4
+    if locutoff is None and hicutoff is None:
+        raise ValueError('Cannot have low cutoff and high cutoff not defined')
+
+    # Convert None to empty array for MATLAB
+    if locutoff is None:
+        locutoff = []
+    if hicutoff is None:
+        hicutoff = []
+
+    # Use wrapper which handles EEG struct conversion via file roundtrip
+    eeglab = get_eeglab(auto_file_roundtrip=True)
+    return eeglab.pop_eegfiltnew(EEG, 'locutoff', locutoff, 'hicutoff', hicutoff,
+                                  'revfilt', revfilt, 'plotfreqz', plotfreqz)
 
 def clean_artifacts( EEG, ChannelCriterion=False, LineNoiseCriterion=False, FlatlineCriterion=False, BurstCriterion=False, BurstRejection=False, WindowCriterion=0, Highpass=[0.25, 0.75], WindowCriterionTolerances=[float('-inf'), 8]):
     """Clean artifacts from EEG data using EEGLAB's clean_artifacts.
