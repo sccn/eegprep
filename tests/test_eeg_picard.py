@@ -471,7 +471,7 @@ class TestEegPicard(unittest.TestCase):
         print("Python and MATLAB ICA results match (accounting for permutation/sign).")
 
 if __name__ == '__main__':
-    unittest.main()
+    unittest.main(defaultTest='TestEegPicard.test_picard_engines')
 
 # MATLAB code for manual comparison of the results
 # EEG_python = pop_loadset('eeglab_data_picard_python.set');
