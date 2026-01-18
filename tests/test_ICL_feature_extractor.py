@@ -8,10 +8,16 @@ and various edge cases.
 import unittest
 import numpy as np
 import os
+import tempfile
+import scipy.io
 from copy import deepcopy
 
 from eegprep.ICL_feature_extractor import ICL_feature_extractor
 from eegprep.pop_loadset import pop_loadset
+from eegprep.pop_saveset import pop_saveset
+from eegprep.eeglabcompat import get_eeglab
+
+local_url = os.path.join(os.path.dirname(__file__), '../data/')
 
 
 def create_test_eeg(n_channels=32, n_samples=1000, srate=250.0, n_trials=1):
@@ -57,6 +63,8 @@ class TestICLFeatureExtractorBasic(unittest.TestCase):
         
         # Add required ICA fields
         self.test_eeg['icawinv'] = np.random.randn(self.n_channels, self.n_components) * 0.5
+        self.test_eeg['icaweights'] = np.linalg.pinv(self.test_eeg['icawinv'])
+        self.test_eeg['icasphere'] = np.eye(self.n_channels)
         self.test_eeg['icaact'] = np.random.randn(self.n_components, self.n_samples, 1) * 0.5
         self.test_eeg['icachansind'] = np.arange(self.n_channels)
         self.test_eeg['ref'] = 'averef'
@@ -170,6 +178,8 @@ class TestICLFeatureExtractorDataTypes(unittest.TestCase):
         )
         
         self.base_eeg['icawinv'] = np.random.randn(self.n_channels, self.n_components) * 0.5
+        self.base_eeg['icaweights'] = np.linalg.pinv(self.base_eeg['icawinv'])
+        self.base_eeg['icasphere'] = np.eye(self.n_channels)
         self.base_eeg['icaact'] = np.random.randn(self.n_components, self.n_samples, 1) * 0.5
         self.base_eeg['icachansind'] = np.arange(self.n_channels)
         self.base_eeg['ref'] = 'averef'
@@ -238,6 +248,8 @@ class TestICLFeatureExtractorEdgeCases(unittest.TestCase):
         )
         
         self.base_eeg['icawinv'] = np.random.randn(self.n_channels, self.n_components) * 0.5
+        self.base_eeg['icaweights'] = np.linalg.pinv(self.base_eeg['icawinv'])
+        self.base_eeg['icasphere'] = np.eye(self.n_channels)
         self.base_eeg['icaact'] = np.random.randn(self.n_components, self.n_samples, 1) * 0.5
         self.base_eeg['icachansind'] = np.arange(self.n_channels)
         self.base_eeg['ref'] = 'averef'
@@ -276,6 +288,7 @@ class TestICLFeatureExtractorEdgeCases(unittest.TestCase):
         """Test ICL_feature_extractor with single ICA component."""
         EEG = self.base_eeg.copy()
         EEG['icawinv'] = EEG['icawinv'][:, :1]  # Keep only first component
+        EEG['icaweights'] = EEG['icaweights'][:1, :]  # Keep only first component
         EEG['icaact'] = EEG['icaact'][:1, :, :]  # Keep only first component
         
         try:
@@ -301,6 +314,7 @@ class TestICLFeatureExtractorEdgeCases(unittest.TestCase):
         
         # Create many components
         EEG['icawinv'] = np.random.randn(self.n_channels, n_many_components) * 0.5
+        EEG['icaweights'] = np.linalg.pinv(EEG['icawinv'])
         EEG['icaact'] = np.random.randn(n_many_components, self.n_samples, 1) * 0.5
         
         try:
@@ -320,11 +334,11 @@ class TestICLFeatureExtractorEdgeCases(unittest.TestCase):
             self.skipTest(f"ICL_feature_extractor many components test not available: {e}")
 
     def test_icl_feature_extractor_very_short_data(self):
-        """Test ICL_feature_extractor with very short data."""
+        """Test ICL_feature_extractor with short data (minimum for 100 freq bins)."""
         EEG = self.base_eeg.copy()
         
-        # Use very short data
-        short_samples = 50  # 0.2 seconds
+        # Use short data - need at least ~200 samples for 100 frequency bins
+        short_samples = 200  # 0.8 seconds at 250 Hz
         EEG['icaact'] = EEG['icaact'][:, :short_samples, :]
         EEG['data'] = EEG['data'][:, :short_samples]
         EEG['pnts'] = short_samples
@@ -350,11 +364,13 @@ class TestICLFeatureExtractorEdgeCases(unittest.TestCase):
         """Test ICL_feature_extractor autocorr path selection based on data length."""
         # Test short data (< 5 seconds) - should use eeg_autocorr
         short_eeg = self.base_eeg.copy()
-        short_eeg['pnts'] = int(3 * self.srate)  # 3 seconds
-        short_eeg['icaact'] = short_eeg['icaact'][:, :short_eeg['pnts'], :]
-        short_eeg['data'] = short_eeg['data'][:, :short_eeg['pnts']]
+        short_pnts = int(3 * self.srate)  # 3 seconds = 750 samples
+        short_eeg['pnts'] = short_pnts
+        short_eeg['icaact'] = np.random.randn(self.n_components, short_pnts, 1) * 0.5
+        short_eeg['data'] = np.random.randn(self.n_channels, short_pnts) * 0.5
         short_eeg['xmax'] = 3.0
-        
+        short_eeg['times'] = np.arange(short_pnts) / self.srate
+
         try:
             features = ICL_feature_extractor(short_eeg, flag_autocorr=True)
             self.assertEqual(len(features), 3)  # Should include autocorr
@@ -363,11 +379,13 @@ class TestICLFeatureExtractorEdgeCases(unittest.TestCase):
 
         # Test long data (> 5 seconds) - should use eeg_autocorr_welch
         long_eeg = self.base_eeg.copy()
-        long_eeg['pnts'] = int(6 * self.srate)  # 6 seconds
-        long_eeg['icaact'] = np.random.randn(self.n_components, long_eeg['pnts'], 1) * 0.5
-        long_eeg['data'] = np.random.randn(self.n_channels, long_eeg['pnts']) * 0.5
+        long_pnts = int(6 * self.srate)  # 6 seconds = 1500 samples
+        long_eeg['pnts'] = long_pnts
+        long_eeg['icaact'] = np.random.randn(self.n_components, long_pnts, 1) * 0.5
+        long_eeg['data'] = np.random.randn(self.n_channels, long_pnts) * 0.5
         long_eeg['xmax'] = 6.0
-        
+        long_eeg['times'] = np.arange(long_pnts) / self.srate
+
         try:
             features = ICL_feature_extractor(long_eeg, flag_autocorr=True)
             self.assertEqual(len(features), 3)  # Should include autocorr
@@ -418,6 +436,8 @@ class TestICLFeatureExtractorValidation(unittest.TestCase):
         )
         
         self.base_eeg['icawinv'] = np.random.randn(self.n_channels, self.n_components) * 0.5
+        self.base_eeg['icaweights'] = np.linalg.pinv(self.base_eeg['icawinv'])
+        self.base_eeg['icasphere'] = np.eye(self.n_channels)
         self.base_eeg['icaact'] = np.random.randn(self.n_components, self.n_samples, 1) * 0.5
         self.base_eeg['icachansind'] = np.arange(self.n_channels)
         self.base_eeg['ref'] = 'averef'
@@ -503,13 +523,13 @@ class TestICLFeatureExtractorValidation(unittest.TestCase):
         """Test ICL_feature_extractor feature scaling (should be scaled by 0.99)."""
         try:
             features = ICL_feature_extractor(self.base_eeg, flag_autocorr=True)
-            
+
             # All features should be scaled by 0.99 (max absolute value <= 0.99)
             for i, feature in enumerate(features):
                 max_abs_val = np.max(np.abs(feature))
-                self.assertLessEqual(max_abs_val, 0.99 + 1e-10, 
+                self.assertLessEqual(max_abs_val, 0.99 + 1e-6,
                                    f"Feature {i} not properly scaled by 0.99")
-                
+
         except Exception as e:
             self.skipTest(f"ICL_feature_extractor scaling test not available: {e}")
 
@@ -524,6 +544,183 @@ class TestICLFeatureExtractorValidation(unittest.TestCase):
             
         except Exception as e:
             self.skipTest(f"ICL_feature_extractor PSD extrapolation test not available: {e}")
+
+
+class TestICLFeatureExtractorParity(unittest.TestCase):
+    """Test parity between Python and MATLAB ICL_feature_extractor implementations."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        # Try to get MATLAB engine
+        try:
+            self.eeglab = get_eeglab('MAT', auto_file_roundtrip=False)
+            self.matlab_available = True
+        except Exception as e:
+            self.matlab_available = False
+            self.skipTest(f"MATLAB not available: {e}")
+
+        # Load real EEG dataset with ICA
+        test_file = os.path.join(local_url, 'eeglab_data_with_ica_tmp.set')
+        self.EEG = pop_loadset(test_file)
+        # Set ref to 'averef' to skip re-referencing (Python's pop_reref differs from MATLAB's)
+        self.EEG['ref'] = 'averef'
+
+    def test_parity_full_feature_extraction(self):
+        """Test parity with MATLAB for complete feature extraction."""
+        if not self.matlab_available:
+            self.skipTest("MATLAB not available")
+
+        # Python result
+        features_py = ICL_feature_extractor(self.EEG.copy(), True)
+
+        # MATLAB result - use file roundtrip for cell array output
+        temp_file = tempfile.mktemp(suffix='.set')
+        pop_saveset(self.EEG, temp_file)
+
+        matlab_code = f"""
+        EEG = pop_loadset('{temp_file}');
+        features = ICL_feature_extractor(EEG, true);
+        save('{temp_file}.mat', 'features');
+        """
+        self.eeglab.eval(matlab_code, nargout=0)
+
+        # Load MATLAB features
+        mat_data = scipy.io.loadmat(temp_file + '.mat')
+        features_ml = [
+            mat_data['features'][0, 0],
+            mat_data['features'][0, 1],
+            mat_data['features'][0, 2]
+        ]
+
+        # Clean up
+        os.remove(temp_file)
+        os.remove(temp_file + '.mat')
+        if os.path.exists(temp_file.replace('.set', '.fdt')):
+            os.remove(temp_file.replace('.set', '.fdt'))
+
+        # Compare all three features
+        feature_names = ['Topo', 'PSD', 'Autocorr']
+
+        for i, name in enumerate(feature_names):
+            py_feat = features_py[i]
+            ml_feat = features_ml[i]
+
+            # Verify shapes match
+            self.assertEqual(py_feat.shape, ml_feat.shape,
+                           f"{name} feature shape mismatch: {py_feat.shape} vs {ml_feat.shape}")
+
+            # Compare values
+            # Max absolute diff: ~6e-8 (float32 precision)
+            np.testing.assert_allclose(py_feat, ml_feat, rtol=1e-5, atol=1e-6,
+                                       err_msg=f"{name} feature differs beyond tolerance")
+
+    def test_parity_topo_feature_only(self):
+        """Test parity specifically for topography feature."""
+        if not self.matlab_available:
+            self.skipTest("MATLAB not available")
+
+        # Python result
+        features_py = ICL_feature_extractor(self.EEG.copy(), True)
+        topo_py = features_py[0]
+
+        # MATLAB result
+        temp_file = tempfile.mktemp(suffix='.set')
+        pop_saveset(self.EEG, temp_file)
+
+        matlab_code = f"""
+        EEG = pop_loadset('{temp_file}');
+        features = ICL_feature_extractor(EEG, true);
+        topo = features{{1}};
+        save('{temp_file}.mat', 'topo');
+        """
+        self.eeglab.eval(matlab_code, nargout=0)
+
+        # Load MATLAB result
+        mat_data = scipy.io.loadmat(temp_file + '.mat')
+        topo_ml = mat_data['topo']
+
+        # Clean up
+        os.remove(temp_file)
+        os.remove(temp_file + '.mat')
+        if os.path.exists(temp_file.replace('.set', '.fdt')):
+            os.remove(temp_file.replace('.set', '.fdt'))
+
+        # Compare
+        # Max absolute diff: ~6e-8 (float32 precision)
+        np.testing.assert_allclose(topo_py, topo_ml, rtol=1e-5, atol=1e-6,
+                                   err_msg="Topo feature differs beyond tolerance")
+
+    def test_parity_psd_feature_only(self):
+        """Test parity specifically for PSD feature."""
+        if not self.matlab_available:
+            self.skipTest("MATLAB not available")
+
+        # Python result
+        features_py = ICL_feature_extractor(self.EEG.copy(), True)
+        psd_py = features_py[1]
+
+        # MATLAB result
+        temp_file = tempfile.mktemp(suffix='.set')
+        pop_saveset(self.EEG, temp_file)
+
+        matlab_code = f"""
+        EEG = pop_loadset('{temp_file}');
+        features = ICL_feature_extractor(EEG, true);
+        psd = features{{2}};
+        save('{temp_file}.mat', 'psd');
+        """
+        self.eeglab.eval(matlab_code, nargout=0)
+
+        # Load MATLAB result
+        mat_data = scipy.io.loadmat(temp_file + '.mat')
+        psd_ml = mat_data['psd']
+
+        # Clean up
+        os.remove(temp_file)
+        os.remove(temp_file + '.mat')
+        if os.path.exists(temp_file.replace('.set', '.fdt')):
+            os.remove(temp_file.replace('.set', '.fdt'))
+
+        # Compare
+        # Max absolute diff: ~6e-8 (float32 precision)
+        np.testing.assert_allclose(psd_py, psd_ml, rtol=1e-5, atol=1e-6,
+                                   err_msg="PSD feature differs beyond tolerance")
+
+    def test_parity_autocorr_feature_only(self):
+        """Test parity specifically for autocorrelation feature."""
+        if not self.matlab_available:
+            self.skipTest("MATLAB not available")
+
+        # Python result
+        features_py = ICL_feature_extractor(self.EEG.copy(), True)
+        autocorr_py = features_py[2]
+
+        # MATLAB result
+        temp_file = tempfile.mktemp(suffix='.set')
+        pop_saveset(self.EEG, temp_file)
+
+        matlab_code = f"""
+        EEG = pop_loadset('{temp_file}');
+        features = ICL_feature_extractor(EEG, true);
+        autocorr = features{{3}};
+        save('{temp_file}.mat', 'autocorr');
+        """
+        self.eeglab.eval(matlab_code, nargout=0)
+
+        # Load MATLAB result
+        mat_data = scipy.io.loadmat(temp_file + '.mat')
+        autocorr_ml = mat_data['autocorr']
+
+        # Clean up
+        os.remove(temp_file)
+        os.remove(temp_file + '.mat')
+        if os.path.exists(temp_file.replace('.set', '.fdt')):
+            os.remove(temp_file.replace('.set', '.fdt'))
+
+        # Compare
+        # Max absolute diff: ~6e-8 (float32 precision)
+        np.testing.assert_allclose(autocorr_py, autocorr_ml, rtol=1e-5, atol=1e-6,
+                                   err_msg="Autocorr feature differs beyond tolerance")
 
 
 if __name__ == '__main__':

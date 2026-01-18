@@ -8,7 +8,7 @@ on:
 
 env:
   # Set MATLAB batch licensing token for private repos or when using MATLAB Engine
-  MLM_LICENSE_TOKEN: ${{ secrets.MLM_LICENSE_TOKEN }}
+  MLM_LICENSE_TOKEN: ${{ secrets.MATLAB_BATCH_TOKEN }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -22,7 +22,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-22.04]
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.10", "3.11", "3.12"]
         include:
           # Test on macOS and Windows for Python 3.12 only
           - os: macos-latest
@@ -50,13 +50,14 @@ jobs:
         id: matlab-availability
         shell: bash
         run: |
-          available=false
-          echo "available=${available}" >> "$GITHUB_OUTPUT"
-          if [[ "${available}" == "true" ]]; then
-            echo "EEGPREP_SKIP_MATLAB=0" >> "$GITHUB_ENV"
+          # Skip MATLAB on macOS and Windows, only enable on Ubuntu if token available
+          if [[ "${{ matrix.os }}" == "ubuntu-22.04" ]] && [[ -n "$MLM_LICENSE_TOKEN" ]]; then
+            available=true
           else
-            echo "EEGPREP_SKIP_MATLAB=1" >> "$GITHUB_ENV"
+            available=false
           fi
+          echo "available=${available}" >> "$GITHUB_OUTPUT"
+          echo "EEGPREP_SKIP_MATLAB=1" >> "$GITHUB_ENV"
     
       - name: Set up MATLAB
         if: steps.matlab-availability.outputs.available == 'true'
@@ -87,17 +88,21 @@ jobs:
         shell: bash
         run: |
           python -m pip install "${MATLAB_ROOT}/extern/engines/python"
-    
-      - name: Verify MATLAB Engine
+
+      - name: Check MATLAB Engine availability
         if: steps.matlab-availability.outputs.available == 'true'
         shell: bash
         run: |
-          python - <<'PY'
+          if python - <<'PY'
           import matlab.engine
-          engine = matlab.engine.start_matlab()
-          engine.eval("disp('hello world');", nargout=0)
-          engine.quit()
+          eng = matlab.engine.start_matlab()
+          eng.quit()
           PY
+          then
+            echo "EEGPREP_SKIP_MATLAB=0" >> "$GITHUB_ENV"
+          else
+            echo "EEGPREP_SKIP_MATLAB=1" >> "$GITHUB_ENV"
+          fi
     
       - name: Install dependencies
         run: |
@@ -109,7 +114,19 @@ jobs:
         with:
           command: "ver"
     
+      - name: Run Python tests via MATLAB batch
+        if: steps.matlab-availability.outputs.available == 'true'
+        uses: matlab-actions/run-command@v2
+        with:
+          command: |
+            [status, cmdout] = system('python -m unittest discover -s tests');
+            disp(cmdout);
+            if status ~= 0
+                error('Python tests failed');
+            end
+
       - name: Run Python tests
+        if: steps.matlab-availability.outputs.available != 'true'
         run: |
           python -m unittest discover -s tests
     

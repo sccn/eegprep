@@ -35,9 +35,7 @@ def ICL_feature_extractor(EEG, flag_autocorr=False):
 
     # Assuming chanlocs are correct
     if EEG['ref'] != 'average' and EEG['ref'] != 'averef':
-        EEG = pop_reref(EEG, []) #, exclude=list(set(range(EEG.nbchan)) - set(EEG.icachansind)))
-        # raise ValueError('Data must be rereferenced to average to use ICLabel')
-        # EEG = pop_reref(EEG, [], exclude=list(set(range(EEG.nbchan)) - set(EEG.icachansind)))
+        EEG = pop_reref(EEG, [])
 
     # Calculate ICA activations if missing and cast to double
     if EEG['icaact'] is None:
@@ -53,7 +51,7 @@ def ICL_feature_extractor(EEG, flag_autocorr=False):
     topo = np.zeros((32, 32, 1, ncomp))
     for it in range(ncomp):
         tmp_chanlocs = [EEG['chanlocs'][i] for i in EEG['icachansind']]
-        _, temp_topo, _, _, _ = topoplot(EEG['icawinv'][:, it], tmp_chanlocs, noplot='on')
+        _, temp_topo, _, _, _ = topoplot(EEG['icawinv'][:, it], tmp_chanlocs, noplot='on', gridscale=32)
         temp_topo[np.isnan(temp_topo)] = 0
         topo[:, :, 0, it] = temp_topo / np.max(np.abs(temp_topo))
 

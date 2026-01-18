@@ -24,6 +24,7 @@ classifiers = [
 keywords = ["eeg", "preprocessing", "EEGLAB"]
 dependencies = [
   "colorama>=0.4.6",
+  "eeglabio>=0.1.2",
   "h5py>=3.3.0",
   "matplotlib>=3.4.0",
   "mne>=1.10.0",
@@ -73,6 +74,7 @@ exclude = ["eegprep.eeglab*"]
 
 [tool.setuptools.package-data]
 "eegprep" = [
+  "resources/eeglab/**/*",
   "resources/montages/*.locs",
   "resources/montages/README.md",
   "resources/*.m",

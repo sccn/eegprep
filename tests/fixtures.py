@@ -78,6 +78,43 @@ def create_test_eeg(n_channels=32, n_samples=1000, srate=250.0, n_trials=1):
     if n_trials == 1:
         data = data.squeeze(axis=2)  # Remove trial dimension for continuous data
     
+    # Create events and epoch info if epoched data
+    events = []
+    epochs = []
+    if n_trials > 1:
+        # Create one event per epoch
+        for i in range(n_trials):
+            events.append({
+                'type': 'epoch',
+                'latency': i * n_samples + 1,  # 1-based indexing for EEGLAB
+                'duration': 0,
+                'urevent': i + 1
+            })
+            epochs.append({
+                'event': [i],
+                'eventtype': ['epoch'],
+                'eventlatency': [0],
+                'eventduration': [0]
+            })
+
+    # Create basic channel locations
+    chanlocs = []
+    for i in range(n_channels):
+        chanlocs.append({
+            'labels': f'Ch{i+1}',
+            'type': 'EEG',
+            'theta': i * (360 / n_channels),
+            'radius': 0.5,
+            'X': 0.5 * np.cos(np.radians(i * (360 / n_channels))),
+            'Y': 0.5 * np.sin(np.radians(i * (360 / n_channels))),
+            'Z': 0.0,
+            'sph_theta': i * (360 / n_channels),
+            'sph_phi': 0.0,
+            'sph_radius': 1.0,
+            'urchan': i + 1,
+            'ref': ''
+        })
+
     # Create basic EEG structure
     eeg = {
         'data': data,
@@ -88,7 +125,7 @@ def create_test_eeg(n_channels=32, n_samples=1000, srate=250.0, n_trials=1):
         'xmin': 0.0,
         'xmax': (n_samples - 1) / srate,
         'times': np.arange(n_samples) / srate,
-        'event': [],
+        'event': events,
         'ref': 'unknown',
         'setname': 'test_dataset',
         'filename': '',
@@ -102,13 +139,19 @@ def create_test_eeg(n_channels=32, n_samples=1000, srate=250.0, n_trials=1):
         'icawinv': None,
         'icasphere': None,
         'icaweights': None,
-        'icachansind': np.arange(n_channels),
-        'chanlocs': [],
+        'icachansind': None,
+        'chanlocs': chanlocs,
         'urchanlocs': [],
-        'chaninfo': {},
+        'chaninfo': {
+            'filename': '',
+            'plotrad': [],
+            'shrink': [],
+            'nosedir': '+X',
+            'nodatchans': []
+        },
         'urevent': [],
         'eventdescription': {},
-        'epoch': [],
+        'epoch': epochs,
         'epochdescription': {},
         'reject': {},
         'stats': {},
@@ -124,7 +167,7 @@ def create_test_eeg(n_channels=32, n_samples=1000, srate=250.0, n_trials=1):
         'run': [],
         'roi': {}
     }
-    
+
     return eeg
 
 
@@ -226,9 +269,9 @@ def cleanup_matplotlib():
 
 class TestFixturesContextManager:
     """Context manager for common test fixtures.
-    
+
     Usage:
-        with TestFixtures(seed=42, mpl_backend='Agg') as fixtures:
+        with EEGContext(seed=42, mpl_backend='Agg') as fixtures:
             eeg = fixtures.create_eeg(n_channels=64)
             # ... run tests ...
     """
@@ -279,6 +322,9 @@ class TestFixturesContextManager:
         return create_test_events(**kwargs)
 
 
+# Backward compatibility alias for legacy references.
+EEGContext = TestFixturesContextManager
+
 # Legacy functions for backward compatibility
 small_eeg = lambda: create_test_eeg(n_channels=8, n_samples=250)  # Small EEG for quick tests
-
+TestFixtures = EEGContext  # Backward compatibility alias

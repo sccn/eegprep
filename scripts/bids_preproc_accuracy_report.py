@@ -15,10 +15,14 @@ logger = logging.getLogger(__name__)
 curhost = socket.gethostname()
 
 # add your host to this list if you want to run things in parallel
-if curhost in ['ck-carbon']:
+slow_tests_hosts_only = ['ck-carbon', 'MacBook-Pro-10.local', 'MacBook-Pro-10.lan', 'sccn-delorme.ucsd.edu','jamming', 'DESKTOP-TGLFTPM']
+
+# add your host to this list if you want to run things in parallel
+if curhost in ['ck-carbon', 'MacBook-Pro-10.local', 'MacBook-Pro-10.lan', 'jamming', 'sccn-delorme.ucsd.edu']:
     reservation = '8GB'
 else:
     reservation = ''
+
 
 # if enabled, comparison at the PICARD/ICLABEL stage will compare not the
 # data but icaweights and IC classification probabilities, respectively
@@ -26,16 +30,16 @@ compare_ica_results = False
 
 # list of studies and subsets thereof to run the statistics on
 studies = [
-    {
-        'studyname': 'ds003061',
-        'subjects': ['001', '002'],
-        'runs': [1],
-    },
-    {
-        'studyname': 'ds002680',
-        'subjects': ['002'],  # first subject, has 2 sessions
-        'runs': [10],  # needs to be >= 10 otherwise MATLAB-side filtering by run fails
-    }
+    # {
+    #     'studyname': 'ds003061',
+    #     'subjects': ['001', '002'],
+    #     'runs': [],
+    # },
+   {
+       'studyname': 'ds002680',
+       'subjects': ['002'],  # first subject, has 2 sessions
+       'runs': [],  # needs to be >= 10 otherwise MATLAB-side filtering by run fails
+   }
 ]
 
 if __name__ == '__main__':
@@ -43,11 +47,10 @@ if __name__ == '__main__':
     # root path of all OpenNeuro datasets on this host
     if curhost == 'ck-carbon':
         root_path = os.path.expanduser('~/data/OpenNeuro')
-    else:
-        root_path = None
-        raise ValueError(f"Skipping report generation on unknown test host {curhost}; "
-                         f"please add support for your hostname to the above list to "
-                         f"enable this test.")
+    elif curhost in ['MacBook-Pro-10.local', 'MacBook-Pro-10.lan', 'sccn-delorme.ucsd.edu']:
+        root_path = os.path.abspath(os.path.expanduser('data'))
+    elif curhost == 'jamming' or curhost == 'DESKTOP-TGLFTPM':
+        root_path = os.path.abspath(os.path.expanduser('data'))
 
     # run up to and including the given numeric stage
     # (1=import, 2=select channels, 3=resample, ... up to and including 14=CAR)

@@ -10,7 +10,10 @@ import os
 
 logger = logging.getLogger(__name__)
 
-__all__ = ['eeg_checkset', 'strict_mode']
+__all__ = ['eeg_checkset', 'strict_mode', 'option_scaleicarms']
+
+# Global option to control ICA RMS scaling (default True, like MATLAB)
+option_scaleicarms = True
 
 # Context variable for strict mode (default True)
 _strict_mode_var = contextvars.ContextVar('strict_mode', default=True)
@@ -95,35 +98,172 @@ def eeg_checkset(EEG, load_data=True):
         # get path from file_path
         file_name = EEG['filepath'] + os.sep + EEG['data']
         if not os.path.exists(file_name):
-            # try to use the sane name as the filename but with .fdt extension
+            # try to use the same name as the filename but with .fdt extension
             file_name = EEG['filepath'] + os.sep + EEG['filename'].replace('.set', '.fdt')
             if not os.path.exists(file_name):
                 raise FileNotFoundError(f"Data file {file_name} not found")
         EEG['data'] = np.fromfile(file_name, dtype='float32').reshape( EEG['pnts']*EEG['trials'], EEG['nbchan'])
         EEG['data'] = EEG['data'].T.reshape(EEG['nbchan'], EEG['trials'], EEG['pnts']).transpose(0, 2, 1)
 
-    # compute ICA activations
-    if ('icaweights' in EEG and 'icasphere' in EEG and 
+    # Scale ICA components to RMS microvolt (matches MATLAB's option_scaleicarms)
+    if (option_scaleicarms and
+        'icaweights' in EEG and 'icasphere' in EEG and 'icawinv' in EEG and
         hasattr(EEG['icaweights'], 'size') and hasattr(EEG['icasphere'], 'size') and
-        EEG['icaweights'].size > 0 and EEG['icasphere'].size > 0):
+        hasattr(EEG['icawinv'], 'size') and
+        EEG['icaweights'].size > 0 and EEG['icasphere'].size > 0 and EEG['icawinv'].size > 0):
         
         try:
-            EEG['icaact'] = np.dot(np.dot(EEG['icaweights'], EEG['icasphere']), EEG['data'].reshape(int(EEG['nbchan']), -1))
-            EEG['icaact'] = EEG['icaact'].astype(np.float32)
-            EEG['icaact'] = EEG['icaact'].reshape(EEG['icaweights'].shape[0], -1, int(EEG['trials']))
+            # Check if pinv(icaweights @ icasphere) ≈ icawinv
+            computed_icawinv = np.linalg.pinv(EEG['icaweights'] @ EEG['icasphere'])
+            mean_diff = np.mean(np.abs(computed_icawinv - EEG['icawinv']))
+            
+            if mean_diff < 0.0001:
+                logger.info('Scaling components to RMS microvolt')
+                # Compute RMS of each column of icawinv (each component's scalp projection)
+                # scaling shape: (n_components,)
+                scaling = np.sqrt(np.mean(EEG['icawinv'] ** 2, axis=0))
+                
+                # Store original weights before scaling
+                if 'etc' not in EEG:
+                    EEG['etc'] = {}
+                EEG['etc']['icaweights_beforerms'] = EEG['icaweights'].copy()
+                EEG['etc']['icasphere_beforerms'] = EEG['icasphere'].copy()
+                
+                # Apply scaling to icaweights (each row scaled by corresponding component's RMS)
+                # icaweights shape: (n_components, n_channels)
+                EEG['icaweights'] = EEG['icaweights'] * scaling[:, np.newaxis]
+                
+                # Recompute icawinv
+                EEG['icawinv'] = np.linalg.pinv(EEG['icaweights'] @ EEG['icasphere'])
+        except exception_type as e:
+            logger.error("Error scaling ICA components: " + str(e))
+
+    # compute ICA activations
+    if ('icaweights' in EEG and 'icasphere' in EEG and
+        hasattr(EEG['icaweights'], 'size') and hasattr(EEG['icasphere'], 'size') and
+        EEG['icaweights'].size > 0 and EEG['icasphere'].size > 0):
+
+        try:
+            # Use icachansind to select only channels ICA was trained on (matches MATLAB eeg_checkset.m:1030)
+            if ('icachansind' in EEG and EEG['icachansind'] is not None and
+                hasattr(EEG['icachansind'], '__len__') and len(EEG['icachansind']) > 0):
+                # Convert to numpy array if it's a list
+                icachansind = np.array(EEG['icachansind'], dtype=int)
+                ica_data = EEG['data'][icachansind, :]
+            else:
+                # If icachansind not set, assume all channels (default behavior)
+                ica_data = EEG['data']
+
+            # Check dimension compatibility before matrix multiplication
+            expected_channels = EEG['icaweights'].shape[1]  # Number of input channels ICA expects
+            actual_channels = ica_data.shape[0]  # Number of channels in ica_data
+
+            if expected_channels != actual_channels:
+                logger.warning(f"ICA dimension mismatch: icaweights expects {expected_channels} channels "
+                             f"but ica_data has {actual_channels} channels. Skipping ICA activation computation.")
+                EEG['icaact'] = np.array([])
+            else:
+                EEG['icaact'] = np.dot(np.dot(EEG['icaweights'], EEG['icasphere']), ica_data.reshape(ica_data.shape[0], -1))
+                EEG['icaact'] = EEG['icaact'].astype(np.float32)
+                EEG['icaact'] = EEG['icaact'].reshape(EEG['icaweights'].shape[0], -1, int(EEG['trials']))
         except exception_type as e:
             logger.error("Error computing ICA activations: " + str(e))
             EEG['icaact'] = np.array([])
     
+    # Build epoch structure from events (for epoched data)
+    # This matches MATLAB's eeg_checkset behavior (lines 611-670 in eeg_checkset.m)
+    try:
+        if EEG.get('trials', 1) > 1 and len(EEG.get('event', [])) > 0:
+            # Initialize epoch field if missing or wrong size
+            if 'epoch' not in EEG:
+                EEG['epoch'] = []
+
+            if len(EEG['epoch']) != EEG['trials']:
+                # Need to rebuild epoch structure
+                EEG['epoch'] = []
+            elif len(EEG['epoch']) > 0:
+                # Remove existing event-related fields from epoch structure
+                # (they will be regenerated from current events)
+                epoch_list = list(EEG['epoch'])
+                for i in range(len(epoch_list)):
+                    if isinstance(epoch_list[i], dict):
+                        keys_to_remove = [k for k in epoch_list[i].keys() if k.startswith('event')]
+                        for k in keys_to_remove:
+                            del epoch_list[i][k]
+                EEG['epoch'] = np.array(epoch_list, dtype=object)
+
+            # Build epoch structure from events
+            tmpevent = EEG['event']
+            eventepoch = np.array([e.get('epoch', 1) for e in tmpevent])
+
+            # Create list of event indices for each epoch
+            epochevent = []
+            for k in range(EEG['trials']):
+                epoch_num = k + 1  # 1-based epoch numbering
+                event_indices = np.where(eventepoch == epoch_num)[0]
+                epochevent.append(list(event_indices))
+
+            # Initialize epoch structure if empty
+            if len(EEG['epoch']) == 0:
+                EEG['epoch'] = np.array([{} for _ in range(EEG['trials'])], dtype=object)
+
+            # Set event field in each epoch
+            for k in range(EEG['trials']):
+                EEG['epoch'][k]['event'] = epochevent[k]
+
+            # Copy event information into the epoch array
+            # Skip 'epoch' field itself to avoid duplication
+            event_fields = []
+            if len(tmpevent) > 0:
+                # Get field names from first event
+                event_fields = [f for f in tmpevent[0].keys() if f != 'epoch']
+
+            for fname in event_fields:
+                # Build list of field values for each epoch
+                for k in range(EEG['trials']):
+                    event_idx_list = epochevent[k]
+                    if len(event_idx_list) == 0:
+                        # No events in this epoch
+                        field_values = []
+                    else:
+                        # Extract values from events for this epoch
+                        field_values = []
+                        for idx in event_idx_list:
+                            val = tmpevent[idx].get(fname, None)
+
+                            # Special handling for latency: convert to epoch-relative time in ms
+                            if fname == 'latency' and val is not None:
+                                # Convert from absolute sample to epoch-relative time in ms
+                                # Formula from MATLAB: eeg_point2lat(latency, epoch, srate, [xmin xmax]*1000, 1e-3)
+                                epoch_start_sample = k * EEG['pnts']
+                                rel_sample = val - epoch_start_sample - 1  # -1 because latencies are 1-based
+                                rel_time_ms = (rel_sample / EEG['srate']) * 1000 + EEG['xmin'] * 1000
+                                val = round(rel_time_ms * 1e8) / 1e8  # Round to match MATLAB precision
+
+                            # Special handling for duration: convert to ms
+                            elif fname == 'duration' and val is not None:
+                                val = val / EEG['srate'] * 1000
+
+                            field_values.append(val)
+
+                    # Store in epoch structure
+                    EEG['epoch'][k][f'event{fname}'] = field_values
+
+    except exception_type as e:
+        logger.warning(f"Could not build epoch structure: {e}")
+
     # check if EEG['data'] is 3D
     if 'data' in EEG and EEG['data'].ndim == 3:
         if EEG['data'].shape[2] == 1:
             EEG['data'] = np.squeeze(EEG['data'], axis=2)
      
-    # type conversion
-    EEG['xmin'] = float(EEG['xmin'])
-    EEG['xmax'] = float(EEG['xmax'])
-    EEG['srate'] = float(EEG['srate'])
+    # type conversion (only if fields exist)
+    if 'xmin' in EEG:
+        EEG['xmin'] = float(EEG['xmin'])
+    if 'xmax' in EEG:
+        EEG['xmax'] = float(EEG['xmax'])
+    if 'srate' in EEG:
+        EEG['srate'] = float(EEG['srate'])
          
     # Define the expected types
     expected_types = {

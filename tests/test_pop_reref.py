@@ -15,6 +15,8 @@ sys.path.insert(0, 'src')
 from eegprep.pop_reref import pop_reref
 from eegprep.eeglabcompat import get_eeglab
 from eegprep.utils.testing import DebuggableTestCase
+import importlib
+eeg_checkset_module = importlib.import_module('eegprep.eeg_checkset')
 
 
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
@@ -48,12 +50,12 @@ class TestPopReref(DebuggableTestCase):
             })
         
         # Create ICA components equal to number of channels
-        icaweights = np.random.randn(nbchan, nbchan).astype(np.float32)
-        icawinv = np.linalg.pinv(icaweights).astype(np.float32)
-        icasphere = np.eye(nbchan).astype(np.float32)
+        icaweights = np.random.randn(nbchan, nbchan).astype(np.float64)
+        icawinv = np.linalg.pinv(icaweights).astype(np.float64)
+        icasphere = np.eye(nbchan).astype(np.float64)
         
         return {
-            'data': np.random.randn(nbchan, pnts, trials).astype(np.float32),
+            'data': np.random.randn(nbchan, pnts, trials).astype(np.float64),
             'nbchan': nbchan,
             'pnts': pnts,
             'trials': trials,
@@ -132,18 +134,24 @@ class TestPopReref(DebuggableTestCase):
 
     def test_icawinv_average_subtraction(self):
         """Test that icawinv has average subtracted correctly."""
-        EEG = self.create_test_eeg(nbchan=8, pnts=128)
-        original_icawinv = EEG['icawinv'].copy()
-        
-        result = pop_reref(EEG, ref=None)
-        
-        # Check that the mean across channels (axis=0) was subtracted
-        expected_icawinv = original_icawinv - np.mean(original_icawinv, axis=0)
-        np.testing.assert_allclose(result['icawinv'], expected_icawinv, rtol=1e-6)
-        
-        # Check that the mean across channels is approximately zero
-        mean_across_channels = np.mean(result['icawinv'], axis=0)
-        np.testing.assert_allclose(mean_across_channels, 0, atol=1e-6)
+        # Disable RMS scaling for this test to check mean subtraction only
+        original_option = eeg_checkset_module.option_scaleicarms
+        eeg_checkset_module.option_scaleicarms = False
+        try:
+            EEG = self.create_test_eeg(nbchan=8, pnts=128)
+            original_icawinv = EEG['icawinv'].copy()
+            
+            result = pop_reref(EEG, ref=None)
+            
+            # Check that the mean across channels (axis=0) was subtracted
+            expected_icawinv = original_icawinv - np.mean(original_icawinv, axis=0)
+            np.testing.assert_allclose(result['icawinv'], expected_icawinv, rtol=1e-6)
+            
+            # Check that the mean across channels is approximately zero
+            mean_across_channels = np.mean(result['icawinv'], axis=0)
+            np.testing.assert_allclose(mean_across_channels, 0, atol=1e-6)
+        finally:
+            eeg_checkset_module.option_scaleicarms = original_option
 
     def test_channel_reference_update(self):
         """Test that all channel references are updated to 'average'."""
@@ -182,8 +190,8 @@ class TestPopReref(DebuggableTestCase):
     def test_error_icachansind_mismatch(self):
         """Test behavior when icachansind length doesn't match nbchan."""
         EEG = self.create_test_eeg(nbchan=16, pnts=100)
-        
-        # Make icachansind have different length
+
+        # Make icachansind have different length (e.g., after channel removal)
         EEG['icachansind'] = list(range(8))  # Only 8 channels instead of 16
         
         # The function should clear ICA fields instead of raising an error
@@ -196,14 +204,23 @@ class TestPopReref(DebuggableTestCase):
 
     def test_data_mean_subtraction(self):
         """Test that data has mean subtracted correctly."""
-        EEG = self.create_test_eeg(nbchan=4, pnts=100)
-        original_data = EEG['data'].copy()
-        
-        result = pop_reref(EEG, ref=None)
-        
-        # Check that the mean across channels (axis=0) was subtracted
-        expected_data = original_data - np.mean(original_data, axis=0)
-        np.testing.assert_allclose(result['data'], expected_data, rtol=1e-6)
+        # Disable RMS scaling for this test to check mean subtraction only
+        original_option = eeg_checkset_module.option_scaleicarms
+        eeg_checkset_module.option_scaleicarms = False
+        try:
+            EEG = self.create_test_eeg(nbchan=4, pnts=100)
+            original_data = EEG['data'].copy()
+            
+            result = pop_reref(EEG, ref=None)
+            
+            # Check that the mean across channels (axis=0) was subtracted
+            expected_data = original_data - np.mean(original_data, axis=0)
+            # eeg_checkset squeezes 3D data with 1 trial to 2D
+            if expected_data.ndim == 3 and expected_data.shape[2] == 1:
+                expected_data = np.squeeze(expected_data, axis=2)
+            np.testing.assert_allclose(result['data'], expected_data, rtol=1e-6)
+        finally:
+            eeg_checkset_module.option_scaleicarms = original_option
 
     def test_single_channel(self):
         """Test with single channel (edge case)."""
@@ -292,8 +309,6 @@ class TestPopReref(DebuggableTestCase):
         mean_icawinv = np.mean(result['icawinv'], axis=0)
         self.assertTrue(np.all(np.abs(mean_icawinv) < 1e-6))
 
-    @unittest.skipUnless(hasattr(sys, '_called_from_test'), 
-                        "MATLAB tests require MATLAB environment")
     def test_parity_basic_reref(self):
         """Test parity with MATLAB for basic rereferencing."""
         if not self.matlab_available:
@@ -313,6 +328,52 @@ class TestPopReref(DebuggableTestCase):
         self.assertEqual(py_result['ref'], 'average')
         mean_data = np.mean(py_result['data'], axis=0)
         self.assertTrue(np.all(np.abs(mean_data) < 1e-6))
+
+    def test_parity_data_reref_with_matlab(self):
+        """Test parity with MATLAB for data average re-referencing."""
+        if not self.matlab_available:
+            self.skipTest("MATLAB not available")
+        
+        import os
+        import tempfile
+        import scipy.io
+        from eegprep import pop_loadset, pop_saveset
+        
+        # Load real test data
+        local_url = os.path.join(os.path.dirname(__file__), '../data/')
+        test_file = os.path.join(local_url, 'eeglab_data_with_ica_tmp.set')
+        EEG = pop_loadset(test_file)
+        
+        # Python result
+        py_result = pop_reref(EEG.copy(), ref=None)
+        
+        # Save to file for MATLAB
+        temp_file = tempfile.mktemp(suffix='.set')
+        pop_saveset(EEG, temp_file)
+        
+        # MATLAB result
+        matlab_code = f'''
+        EEG = pop_loadset('{temp_file}');
+        [~, EEG] = evalc('pop_reref(EEG, []);');
+        data_ml = EEG.data;
+        save('{temp_file}.mat', 'data_ml');
+        '''
+        self.eeglab.engine.eval(matlab_code, nargout=0)
+        
+        # Load MATLAB result
+        mat_data = scipy.io.loadmat(temp_file + '.mat')
+        data_ml = mat_data['data_ml']
+        
+        # Clean up
+        os.remove(temp_file)
+        os.remove(temp_file + '.mat')
+        if os.path.exists(temp_file.replace('.set', '.fdt')):
+            os.remove(temp_file.replace('.set', '.fdt'))
+        
+        # Compare data (should match closely for average reference)
+        # Data re-referencing: max abs diff ~1e-4 due to float32/float64 precision
+        np.testing.assert_allclose(py_result['data'], data_ml, rtol=1e-3, atol=1e-3,
+                                   err_msg="Data re-referencing differs from MATLAB")
 
 
 if __name__ == '__main__':

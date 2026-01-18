@@ -1019,6 +1019,45 @@ def pop_load_frombids(
     except ImportError:
         print("eeg_checkchanlocs not available, skipping channel location check.")
 
+    # Assign channel types based on channel labels (matching MATLAB's eeg_getchantype behavior)
+    # Standard 10-20 channel names that should be classified as EEG
+    # From EEGLAB's Standard-10-20-Cap81.locs (exact copy)
+    standard_eeg_channels = [
+        'Fp1', 'Fpz', 'Fp2', 'Nz', 'AF9', 'AF7', 'AF3', 'AFz', 'AF4', 'AF8',
+        'AF10', 'F9', 'F7', 'F5', 'F3', 'F1', 'Fz', 'F2', 'F4', 'F6',
+        'F8', 'F10', 'FT9', 'FT7', 'FC5', 'FC3', 'FC1', 'FCz', 'FC2', 'FC4',
+        'FC6', 'FT8', 'FT10', 'T9', 'T7', 'C5', 'C3', 'C1', 'Cz', 'C2',
+        'C4', 'C6', 'T8', 'T10', 'TP9', 'TP7', 'CP5', 'CP3', 'CP1', 'CPz',
+        'CP2', 'CP4', 'CP6', 'TP8', 'TP10', 'P9', 'P7', 'P5', 'P3', 'P1',
+        'Pz', 'P2', 'P4', 'P6', 'P8', 'P10', 'PO9', 'PO7', 'PO3', 'POz',
+        'PO4', 'PO8', 'PO10', 'O1', 'Oz', 'O2', 'O9', 'O10', 'CB1', 'CB2',
+        'Iz'
+    ]
+    standard_eeg_channels_upper = [ch.upper() for ch in standard_eeg_channels]
+
+    # Channel type keywords (from BIDS specification)
+    type_keywords = ['EEG', 'MEG', 'MEGREF', 'SEEG', 'EMG', 'EOG', 'ECG', 'EKG', 'TRIG', 'GSR', 'PPG', 'MISC']
+
+    for i, ch in enumerate(EEG['chanlocs']):
+        label = ch.get('labels', '')
+        current_type = ch.get('type')
+
+        # Skip if type is already properly assigned (not nan, not 'n/a', not empty)
+        if isinstance(current_type, str) and current_type and current_type.lower() not in ['n/a', 'nan']:
+            continue
+
+        # Check if label contains any type keyword
+        assigned = False
+        for keyword in type_keywords:
+            if keyword.lower() in label.lower():
+                EEG['chanlocs'][i]['type'] = keyword
+                assigned = True
+                break
+
+        # If no keyword match, check if it's a standard 10-20 channel name
+        if not assigned and label.upper() in standard_eeg_channels_upper:
+            EEG['chanlocs'][i]['type'] = 'EEG'
+
     if return_report:
         return EEG, report
     else:
