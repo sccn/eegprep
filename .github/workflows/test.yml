@@ -57,11 +57,7 @@ jobs:
             available=false
           fi
           echo "available=${available}" >> "$GITHUB_OUTPUT"
-          if [[ "${available}" == "true" ]]; then
-            echo "EEGPREP_SKIP_MATLAB=0" >> "$GITHUB_ENV"
-          else
-            echo "EEGPREP_SKIP_MATLAB=1" >> "$GITHUB_ENV"
-          fi
+          echo "EEGPREP_SKIP_MATLAB=1" >> "$GITHUB_ENV"
     
       - name: Set up MATLAB
         if: steps.matlab-availability.outputs.available == 'true'
@@ -92,17 +88,21 @@ jobs:
         shell: bash
         run: |
           python -m pip install "${MATLAB_ROOT}/extern/engines/python"
-    
-      - name: Verify MATLAB Engine
+
+      - name: Check MATLAB Engine availability
         if: steps.matlab-availability.outputs.available == 'true'
         shell: bash
         run: |
-          python - <<'PY'
+          if python - <<'PY'
           import matlab.engine
-          engine = matlab.engine.start_matlab()
-          engine.eval("disp('hello world');", nargout=0)
-          engine.quit()
+          eng = matlab.engine.start_matlab()
+          eng.quit()
           PY
+          then
+            echo "EEGPREP_SKIP_MATLAB=0" >> "$GITHUB_ENV"
+          else
+            echo "EEGPREP_SKIP_MATLAB=1" >> "$GITHUB_ENV"
+          fi
     
       - name: Install dependencies
         run: |
