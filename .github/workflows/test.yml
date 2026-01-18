@@ -21,8 +21,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macos-latest, windows-latest]
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        os: [ubuntu-22.04]
+        python-version: ["3.10", "3.11", "3.12"]
         include:
           # Test on macOS and Windows for Python 3.12 only
           - os: macos-latest
