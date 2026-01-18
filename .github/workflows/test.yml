@@ -50,8 +50,8 @@ jobs:
         id: matlab-availability
         shell: bash
         run: |
-          # Enable MATLAB if batch license token is available
-          if [[ -n "$MLM_LICENSE_TOKEN" ]]; then
+          # Skip MATLAB on macOS and Windows, only enable on Ubuntu if token available
+          if [[ "${{ matrix.os }}" == "ubuntu-22.04" ]] && [[ -n "$MLM_LICENSE_TOKEN" ]]; then
             available=true
           else
             available=false
