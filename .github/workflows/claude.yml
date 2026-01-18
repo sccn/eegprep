@@ -2,18 +2,19 @@ name: Claude Code
 
 on:
   workflow_dispatch: # Temporarily disabled - can be manually triggered if needed
-  # issue_comment:
-  #   types: [created]
-  # pull_request_review_comment:
-  #   types: [created]
-  # issues:
-  #   types: [opened, assigned]
-  # pull_request_review:
-  #   types: [submitted]
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  issues:
+    types: [opened, assigned]
+  pull_request_review:
+    types: [submitted]
 
 jobs:
   claude:
     if: |
+      github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
@@ -48,4 +49,3 @@ jobs:
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
           # claude_args: '--allowed-tools Bash(gh pr:*)'
-
