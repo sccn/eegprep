@@ -108,7 +108,19 @@ jobs:
         with:
           command: "ver"
     
+      - name: Run Python tests via MATLAB batch
+        if: steps.matlab-availability.outputs.available == 'true'
+        uses: matlab-actions/run-command@v2
+        with:
+          command: |
+            [status, cmdout] = system('python -m unittest discover -s tests');
+            disp(cmdout);
+            if status ~= 0
+                error('Python tests failed');
+            end
+
       - name: Run Python tests
+        if: steps.matlab-availability.outputs.available != 'true'
         run: |
           python -m unittest discover -s tests
     
