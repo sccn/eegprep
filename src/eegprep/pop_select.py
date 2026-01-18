@@ -184,17 +184,17 @@ def pop_select(EEG, **kwargs):
     nopoint_mat = _normalize_range_matrix(g['nopoint'])
 
     if point_mat.size:
-        tmat = np.zeros_like(point_mat, dtype=float)
-        for i in range(point_mat.size):
-            tmat.flat[i] = eeg_point2lat(point_mat.flat[i], 1, srate, [xmin, xmax])
-        g['time'] = tmat
+        points_flat = point_mat.reshape(-1)
+        epochs_flat = np.ones(points_flat.shape, dtype=float)
+        tflat = eeg_point2lat(points_flat, epochs_flat, srate, [xmin, xmax])
+        g['time'] = np.asarray(tflat, dtype=float).reshape(point_mat.shape)
         g['notime'] = np.array([]).reshape(0, 2)
 
     if nopoint_mat.size:
-        tmat = np.zeros_like(nopoint_mat, dtype=float)
-        for i in range(nopoint_mat.size):
-            tmat.flat[i] = eeg_point2lat(nopoint_mat.flat[i], 1, srate, [xmin, xmax])
-        g['notime'] = tmat
+        points_flat = nopoint_mat.reshape(-1)
+        epochs_flat = np.ones(points_flat.shape, dtype=float)
+        tflat = eeg_point2lat(points_flat, epochs_flat, srate, [xmin, xmax])
+        g['notime'] = np.asarray(tflat, dtype=float).reshape(nopoint_mat.shape)
         g['time'] = np.array([]).reshape(0, 2)
 
     time_mat   = _normalize_range_matrix(g['time'])

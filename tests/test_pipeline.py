@@ -28,6 +28,7 @@ def test_pipeline():
     compare_eeg(EEG_py_ch['data'], EEG_mat_ch['data'], rtol=0.005, atol=1e-5, err_msg='clean_artifacts() channel cleaning Python vs MATLAB failed')
     print("clean_artifacts() channel cleaning Python vs MATLAB passed\n\n\n")
 
+@unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestPipeline(DebuggableTestCase):
     """Test pipeline: clean_artifacts -> eeg_picard -> iclabel, comparing Python and MATLAB at each step."""
     
