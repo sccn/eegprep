@@ -8,7 +8,7 @@ on:
 
 env:
   # Set MATLAB batch licensing token for private repos or when using MATLAB Engine
-  MLM_LICENSE_TOKEN: ${{ secrets.MLM_LICENSE_TOKEN }}
+  MLM_LICENSE_TOKEN: ${{ secrets.MATLAB_BATCH_TOKEN }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -50,7 +50,12 @@ jobs:
         id: matlab-availability
         shell: bash
         run: |
-          available=false
+          # Enable MATLAB if batch license token is available
+          if [[ -n "$MLM_LICENSE_TOKEN" ]]; then
+            available=true
+          else
+            available=false
+          fi
           echo "available=${available}" >> "$GITHUB_OUTPUT"
           if [[ "${available}" == "true" ]]; then
             echo "EEGPREP_SKIP_MATLAB=0" >> "$GITHUB_ENV"
