@@ -5,10 +5,14 @@ import os
 import numpy as np
 from typing import Dict, List, Tuple, Optional
 import tempfile
+from scipy.optimize import linear_sum_assignment
 
 
 def _match_components_by_scalp_maps(icawinv_py: np.ndarray, icawinv_mat: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     """Match Python components to MATLAB by maximizing scalp map correlations.
+
+    Uses the Hungarian algorithm (Kuhn, 1955) for optimal bipartite matching
+    on the absolute correlation matrix between all pairs of components.
 
     Returns:
         reorder_idx: Indices to reorder Python components to match MATLAB
@@ -17,27 +21,21 @@ def _match_components_by_scalp_maps(icawinv_py: np.ndarray, icawinv_mat: np.ndar
     n_comps = min(icawinv_py.shape[1], icawinv_mat.shape[1])
 
     # Compute correlation matrix between all pairs
+    # Rows = Python components, Columns = MATLAB components
     corr_matrix = np.zeros((n_comps, n_comps))
     for i in range(n_comps):
         for j in range(n_comps):
             corr_matrix[i, j] = abs(np.corrcoef(icawinv_py[:, i], icawinv_mat[:, j])[0, 1])
 
-    # Greedy matching: for each MATLAB component, find best Python match
+    # Hungarian algorithm for optimal bipartite matching (maximize correlation)
+    py_idx, mat_idx = linear_sum_assignment(-corr_matrix)
+
+    # Build reorder index: for each MATLAB component, which Python component matches
     reorder_idx = np.zeros(n_comps, dtype=int)
     correlations = np.zeros(n_comps)
-    used = set()
-
-    for mat_idx in range(n_comps):
-        # Find best unused Python component
-        best_py_idx = -1
-        best_corr = -1
-        for py_idx in range(n_comps):
-            if py_idx not in used and corr_matrix[py_idx, mat_idx] > best_corr:
-                best_corr = corr_matrix[py_idx, mat_idx]
-                best_py_idx = py_idx
-        reorder_idx[mat_idx] = best_py_idx
-        correlations[mat_idx] = best_corr
-        used.add(best_py_idx)
+    for p, m in zip(py_idx, mat_idx):
+        reorder_idx[m] = p
+        correlations[m] = corr_matrix[p, m]
 
     return reorder_idx, correlations
 

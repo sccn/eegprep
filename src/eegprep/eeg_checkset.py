@@ -149,7 +149,14 @@ def eeg_checkset(EEG, load_data=True):
                 hasattr(EEG['icachansind'], '__len__') and len(EEG['icachansind']) > 0):
                 # Convert to numpy array if it's a list
                 icachansind = np.array(EEG['icachansind'], dtype=int)
-                ica_data = EEG['data'][icachansind, :]
+                # Validate indices are within bounds
+                n_channels = EEG['data'].shape[0]
+                if np.any(icachansind < 0) or np.any(icachansind >= n_channels):
+                    logger.warning(f"icachansind contains out-of-bounds indices (valid range: 0-{n_channels-1}). "
+                                 "Using all channels instead.")
+                    ica_data = EEG['data']
+                else:
+                    ica_data = EEG['data'][icachansind, :]
             else:
                 # If icachansind not set, assume all channels (default behavior)
                 ica_data = EEG['data']
@@ -315,7 +322,7 @@ def eeg_checkset(EEG, load_data=True):
     # Iterate through expected types and check input dictionary
     for field, expected_type in expected_types.items():
         if field not in EEG:
-            print(f"Field '{field}' is missing from the EEG dictionnary, adding it.")
+            logger.debug(f"Field '{field}' is missing from the EEG dictionary, adding it.")
             
             # add default values
             if expected_type == str:
@@ -337,18 +344,18 @@ def eeg_checkset(EEG, load_data=True):
         # Special cases for numpy arrays with specific content types
         if isinstance(expected_type, type) and expected_type == np.ndarray:
             if not isinstance(value, np.ndarray):
-                print(f"Field '{field}' is expected to be a numpy array but is of type {type(value).__name__}.")
+                logger.warning(f"Field '{field}' is expected to be a numpy array but is of type {type(value).__name__}.")
                 continue
             # Further checks for numpy array content types
             if field in ['times', 'data', 'icaact', 'icawinv', 'icasphere', 'icaweights']:
                 if not np.issubdtype(value.dtype, np.floating):
-                    print(f"Field '{field}' is expected to be a numpy array of floats but has dtype {value.dtype}.")
+                    logger.warning(f"Field '{field}' is expected to be a numpy array of floats but has dtype {value.dtype}.")
             elif field in ['icachansind']:
                 if not np.issubdtype(value.dtype, np.integer):
-                    print(f"Field '{field}' is expected to be a numpy array of integers but has dtype {value.dtype}.")
+                    logger.warning(f"Field '{field}' is expected to be a numpy array of integers but has dtype {value.dtype}.")
             elif field in ['chanlocs', 'urchanlocs', 'event', 'urevent', 'epoch']:
                 if not all(isinstance(item, dict) for item in value):
-                    print(f"Field '{field}' is expected to be a numpy array of dictionaries but contains other types.")
+                    logger.warning(f"Field '{field}' is expected to be a numpy array of dictionaries but contains other types.")
             # elif field in ['eventdescription', 'epochdescription']:
             #     if not all(isinstance(item, str) for item in value):
             #         print(f"Field '{field}' is expected to be a numpy array of strings but contains other types.")
@@ -358,7 +365,7 @@ def eeg_checkset(EEG, load_data=True):
                 # check for empty Ndarray
                 if isinstance(value, np.ndarray) and value.size == 0:
                     continue
-                print(f"Field '{field}' is expected to be of type {expected_type} but is of type {type(value).__name__}.")  
+                logger.warning(f"Field '{field}' is expected to be of type {expected_type} but is of type {type(value).__name__}.")  
     
     return EEG
 
@@ -368,7 +375,7 @@ def test_eeg_checkset():
     eeglab_file_path = './data/eeglab_data_with_ica_tmp_out2.set'
     EEG = pop_loadset(eeglab_file_path)
     EEG = eeg_checkset(EEG)
-    print('Checkset done')
+    logger.info('Checkset done')
 
 if __name__ == '__main__':
     test_eeg_checkset()

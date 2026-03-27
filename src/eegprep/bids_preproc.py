@@ -576,10 +576,13 @@ def bids_preproc(
                         def get_chan_type(ch):
                             """Get channel type, handling nan and non-string types."""
                             typ = ch.get('type')
-                            # Return None for nan or other non-string types (will be excluded)
-                            if typ is None or not isinstance(typ, str):
+                            # Return None for nan, None, or other non-string types (will be excluded)
+                            # Check for float/nan first since nan is not a string but isinstance check alone misses it
+                            if typ is None:
                                 return None
                             if isinstance(typ, float) and np.isnan(typ):
+                                return None
+                            if not isinstance(typ, str):
                                 return None
                             return typ.upper()
                         keep &= [get_chan_type(ch) in OM for ch in EEG['chanlocs']]

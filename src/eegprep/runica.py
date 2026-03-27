@@ -722,11 +722,8 @@ def runica(data, **kwargs):
                         # Random subset selection or whole data (MATLAB lines 868-879)
                         if kurtsize < frames:
                             # Pick random subset (MATLAB lines 869-876)
-                            rp = (rng.rand(kurtsize) * datalength).astype(int)
-                            # Account for possibility of 0 generation (MATLAB lines 870-875)
-                            while np.any(rp == 0):
-                                ou = np.where(rp == 0)[0]
-                                rp[ou] = (rng.rand(len(ou)) * datalength).astype(int)
+                            # Use randint to avoid index overflow (rand() * datalength could equal datalength)
+                            rp = rng.randint(1, datalength, size=kurtsize)
                             partact = weights @ data[:, rp[:kurtsize]]
                         else:
                             # For small data sets, use whole data (MATLAB lines 877-878)
@@ -735,7 +732,8 @@ def runica(data, **kwargs):
                         # Compute kurtosis (MATLAB lines 880-882)
                         m2 = np.mean(partact**2, axis=1)**2
                         m4 = np.mean(partact**4, axis=1)
-                        kk = (m4 / m2) - 3.0  # kurtosis estimates
+                        # Add epsilon to prevent division by zero for near-zero variance components
+                        kk = (m4 / (m2 + 1e-10)) - 3.0  # kurtosis estimates
 
                         # Apply momentum to kurtosis (MATLAB lines 883-886)
                         if extmomentum:
@@ -1046,17 +1044,16 @@ def runica(data, **kwargs):
                 if not wts_blowup:
                     if extblocks > 0 and blockno % extblocks == 0:
                         if kurtsize < frames:
-                            rp = (rng.rand(kurtsize) * datalength).astype(int)
-                            while np.any(rp == 0):
-                                ou = np.where(rp == 0)[0]
-                                rp[ou] = (rng.rand(len(ou)) * datalength).astype(int)
+                            # Use randint to avoid index overflow (rand() * datalength could equal datalength)
+                            rp = rng.randint(1, datalength, size=kurtsize)
                             partact = weights @ data[:, rp[:kurtsize]]
                         else:
                             partact = weights @ data
 
                         m2 = np.mean(partact**2, axis=1)**2
                         m4 = np.mean(partact**4, axis=1)
-                        kk = (m4 / m2) - 3.0
+                        # Add epsilon to prevent division by zero for near-zero variance components
+                        kk = (m4 / (m2 + 1e-10)) - 3.0
 
                         if extmomentum:
                             kk = extmomentum * old_kk + (1.0 - extmomentum) * kk
