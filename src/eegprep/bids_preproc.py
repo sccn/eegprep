@@ -102,6 +102,7 @@ def bids_preproc(
         WithICA: bool = False,
         WithPicard: bool = False,
         ICAAlgorithm: str = 'runica',
+        AmicaArgs: dict | None = None,
         WithICLabel: bool = False,
         WithReport: bool = True,
         CommonAverageReference: bool = True,
@@ -248,6 +249,9 @@ def bids_preproc(
         count as the raw data.
     WithICA (bool):
         Whether to apply PICARD ICA decomposition after cleaning.
+    AmicaArgs : dict or None
+        Additional keyword arguments for AMICA when ICAAlgorithm='amica',
+        e.g. {'num_models': 2, 'max_iter': 500}.
     WithICLabel : bool
         Whether to apply ICLabel classification after ICA. Normally requires
         WithICA=True.
@@ -369,6 +373,7 @@ def bids_preproc(
                          pop_saveset, eeg_runica, eeg_picard, iclabel, pop_loadset, pop_resample,
                          eeg_interp, pop_select, eeg_checkset_strict_mode, pop_reref,
                          eeg_icflag, pop_subcomp)
+    from eegprep.eeg_amica import eeg_amica
     from .utils.bids import gen_derived_fpath
 
     def hash_suffix(ignore: Optional[set] = None, *, prefix='#') -> str:
@@ -740,6 +745,8 @@ def bids_preproc(
                     else:
                         if ICAAlgorithm == 'picard':
                             EEG = eeg_picard(EEG)
+                        elif ICAAlgorithm == 'amica':
+                            EEG = eeg_amica(EEG, posact=True, sortcomps=True, **(AmicaArgs or {}))
                         else:
                             EEG = eeg_runica(EEG, posact=True, sortcomps=True, rndreset='off')
                         EEG = eeg_checkset(EEG)
@@ -747,7 +754,7 @@ def bids_preproc(
                             # only save the PICARD output if we don't do ICLabel (to save disk space)
                             pop_saveset(EEG, fpath_picard)
                         report["ICA"] = {
-                            "Type": "PICARD",
+                            "Type": ICAAlgorithm.upper(),
                             "Applied": True,
                         }
                         StagesToGo.remove('ICA')

@@ -261,6 +261,9 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
         engine.addpath(path2eeglab + '/plugins/picard')
         engine.addpath(path2eeglab + '/plugins/picard/matlab_octave')
         engine.addpath(path2eeglab + '/plugins/clean_rawdata')
+        amica_path = path2eeglab + '/plugins/amica'
+        if os.path.isdir(amica_path):
+            engine.addpath(amica_path, nargout=0)
         engine.addpath(path2localmatlab)
         engine.addpath(scripts_dir)
         engine.cd(path2eeglab + '/plugins/clean_rawdata/private')  # to grant access to util funcs for unit testing
