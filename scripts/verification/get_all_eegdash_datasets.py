@@ -75,3 +75,12 @@ if __name__ == "__main__":
 
     with open("eegdash_stats.json", "w") as f:
         json.dump(modality_stats, f, indent=4)
+
+    with open("eegdash_datasets.txt", "w") as f:
+        for modality, stats in sorted(modality_stats.items()):
+            if not len(stats):
+                continue
+
+            for dataset_id, file_types in stats.items():
+                if len(file_types):
+                    f.write(f"{dataset_id}\n")

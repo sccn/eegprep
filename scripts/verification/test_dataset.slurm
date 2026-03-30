@@ -7,9 +7,9 @@
 #SBATCH --mem=128G
 #SBATCH --time=06:00:00
 #SBATCH --account=csd403
-#SBATCH --array=1-549
-#SBATCH --output=/expanse/projects/nemar/aman/eegprep_slurm/output/%A_%a.out
-#SBATCH --error=/expanse/projects/nemar/aman/eegprep_slurm/error/%A_%a.err
+#SBATCH --array=1-433%25
+#SBATCH --output=/expanse/projects/nemar/aman/eegprep/eegprep_slurm/output/%A_%a.out
+#SBATCH --error=/expanse/projects/nemar/aman/eegprep/eegprep_slurm/error/%A_%a.err
 
 # One array task per line in eegdash_dataset.txt; runs scripts/verification/test_dataset.py
 # Node assumed: 32 CPUs, 128GB — ReservePerJob 4GB,1CPU caps parallel workers by RAM + CPU.
@@ -17,8 +17,8 @@ export OMP_NUM_THREADS="${OMP_NUM_THREADS:-1}"
 export MKL_NUM_THREADS="${MKL_NUM_THREADS:-1}"
 export OPENBLAS_NUM_THREADS="${OPENBLAS_NUM_THREADS:-1}"
 
-mkdir -p /expanse/projects/nemar/aman/eegprep_slurm/output
-mkdir -p /expanse/projects/nemar/aman/eegprep_slurm/error
+mkdir -p /expanse/projects/nemar/aman/eegprep/eegprep_slurm/output
+mkdir -p /expanse/projects/nemar/aman/eegprep/eegprep_slurm/error
 
 echo "Job started at $(date)"
 echo "Running on node: $(hostname)"
@@ -45,7 +45,7 @@ echo "Processing dataset: ${dataset}"
 python3 scripts/verification/test_dataset.py \
   --dataset-name "${dataset}" \
   --dataset-root /expanse/projects/nemar/openneuro \
-  --output-root /expanse/projects/nemar/aman/eegprep_test \
+  --output-root /expanse/projects/nemar/aman/eegprep/eegprep_test \
   --reserve-per-job "${RESERVE_PER_JOB:-4GB,1CPU}"
 
 echo "Finished ${dataset} at $(date)"
