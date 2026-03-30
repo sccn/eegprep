@@ -18,8 +18,11 @@ def _scan_dataset_for_eegprep_extensions(
         return dataset_id, None
 
     counts = defaultdict(int)
-    for _, _, files in os.walk(dataset_dir):
+    for root, dirs, files in os.walk(dataset_dir):
+        dirs[:] = [d for d in dirs if not d.startswith(".")]
         for name in files:
+            if name.startswith("."):
+                continue
             ext = os.path.splitext(name)[1].lower()
             if ext in valid_extensions:
                 counts[ext] += 1
@@ -76,7 +79,7 @@ if __name__ == "__main__":
     with open("eegdash_stats.json", "w") as f:
         json.dump(modality_stats, f, indent=4)
 
-    with open("eegdash_datasets.txt", "w") as f:
+    with open("eegdash_dataset.txt", "w") as f:
         for modality, stats in sorted(modality_stats.items()):
             if not len(stats):
                 continue
