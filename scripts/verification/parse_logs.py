@@ -79,9 +79,14 @@ if __name__ == "__main__":
                             dataset_dict['processed'] = processed
                             dataset_dict['skipped'] = skipped
                             if processed + skipped:
-                                dataset_dict['status'] = 'ok' if processed in file_type_counts and processed != 0 else 'partial'
+                                if processed in file_type_counts and processed != 0:
+                                    dataset_dict['status'] = 'ok'
+                                elif skipped in file_type_counts and skipped != 0:
+                                    dataset_dict['status'] = 'skipped'
+                                else:
+                                    dataset_dict['status'] = 'partial'
                             else:
-                                dataset_dict['status'] = 'skipped'
+                                dataset_dict['status'] = 'ignored'
                             break
                 
                 if 'status' not in dataset_dict:

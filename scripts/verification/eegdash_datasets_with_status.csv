@@ -1,493 +1,493 @@
-dataset_id, modality, .set, .edf , .bdf, .vhdr, status         , processed, skipped
-ds004229  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds004398  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds000246  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds004276  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds006035  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds002885  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds004738  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds003392  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds003082  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds006629  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds002312  , meg     ,    0,    37,    0,     0, skipped        ,         0,       0
-ds004107  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds003694  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds003352  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds003483  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds005241  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds000247  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds003922  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds004837  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds006012  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds002712  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds004998  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds004012  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds006720  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds004330  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds005356  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds002908  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds004346  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds004483  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds003703  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds004278  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds003104  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds005346  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds006334  , meg     ,    0,    28,    0,     0, skipped        ,         0,       0
-ds002001  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds006468  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds000248  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds005279  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds000117  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds002761  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds005065  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds003682  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds003568  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds006502  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds004011  , meg     ,    0,    22,    0,     0, skipped        ,         0,       0
-ds003633  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds002550  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds004078  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds004212  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds005752  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds005261  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds005810  , meg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds002578  , eeg     ,    2,     0,    0,     0, ok             ,         2,       0
-ds001785  , eeg     ,   72,     0,    0,     0, partial        ,         0,      54
-ds003195  , eeg     ,    0,    20,    0,     0, partial        ,         0,      20
-ds002691  , eeg     ,   20,     0,    0,     0, partial        ,         0,      20
-ds002218  , eeg     ,   18,     0,    0,     0, nfs_slurm_error,         0,       0
-ds003194  , eeg     ,    0,    29,    0,     0, partial        ,         0,      29
-ds003039  , eeg     ,   16,     0,    0,     0, nfs_slurm_error,         0,       0
-ds002723  , eeg     ,    0,    44,    0,     0, partial        ,         0,      44
-ds003805  , eeg     ,    1,     0,    0,     0, partial        ,         0,       1
-ds003061  , eeg     ,   39,     0,    0,     0, ok             ,        39,       0
-ds003810  , eeg     ,    0,    50,    0,     0, partial        ,         0,      50
-ds003343  , eeg     ,    0,     0,   59,     0, partial        ,         0,      59
-ds003004  , eeg     ,   34,     0,    0,     0, nfs_slurm_error,         0,       0
-ds003458  , eeg     ,   23,     0,    0,     0, partial        ,         0,      23
-ds002778  , eeg     ,    0,     0,   46,     0, partial        ,         0,      46
-ds001787  , eeg     ,    0,     0,   40,     0, partial        ,         0,      40
-ds003801  , eeg     ,   20,     0,    0,     0, partial        ,         0,      20
-ds003574  , eeg     ,    0,    18,    0,     0, partial        ,         0,      18
-ds003570  , eeg     ,   40,     0,    0,     0, partial        ,        28,      12
-ds003800  , eeg     ,   24,     0,    0,     0, partial        ,        11,      13
-ds003751  , eeg     ,   38,     0,    0,     0, partial        ,         1,      37
-ds003519  , eeg     ,   54,     0,    0,     0, partial        ,         0,      54
-ds002893  , eeg     ,   52,     0,    0,     0, partial        ,         0,      52
-ds004010  , eeg     ,   24,     0,    0,     0, partial        ,         0,      24
-ds003710  , eeg     ,    0,     0,    0,    48, partial        ,         0,      48
-ds002034  , eeg     ,    0,   167,    0,     0, partial        ,         0,     167
-ds003516  , eeg     ,   46,     0,    0,     0, partial        ,         0,      25
-ds002720  , eeg     ,    0,   165,    0,     0, partial        ,         0,     165
-ds002721  , eeg     ,    0,   185,    0,     0, partial        ,         0,     185
-ds001849  , eeg     ,  120,     0,    0,     0, partial        ,         0,     120
-ds003490  , eeg     ,   75,     0,    0,     0, partial        ,         0,      75
-ds002833  , eeg     ,    0,     0,    0,    80, partial        ,         0,      80
-ds002791  , eeg     ,    0,     0,    0,    92, partial        ,         0,      92
-ds004022  , eeg     ,   21,     0,    0,     0, error          ,         0,       0
-ds003947  , eeg     ,    0,     0,    0,    61, partial        ,         0,      61
-ds004015  , eeg     ,   36,     0,    0,     0, partial        ,         0,      36
-ds004040  , eeg     ,   26,     0,    0,     0, ok             ,        26,       0
-ds002094  , eeg     ,    0,     0,    0,    43, partial        ,         0,      43
-ds004019  , eeg     ,   62,     0,    0,     0, ok             ,        62,       0
-ds002722  , eeg     ,    0,    94,    0,     0, partial        ,         0,      94
-ds003626  , eeg     ,    0,     0,   30,     0, partial        ,         0,      30
-ds003944  , eeg     ,    0,     0,    0,    82, partial        ,         0,      82
-ds003739  , eeg     ,  120,     0,    0,     0, partial        ,         0,     120
-ds003822  , eeg     ,   25,     0,    0,     0, partial        ,         0,      25
-ds004033  , eeg     ,   36,     0,    0,     0, nfs_slurm_error,         0,       0
-ds003846  , eeg     ,    0,     0,    0,    60, partial        ,         0,      60
-ds004105  , eeg     ,   34,     0,    0,     0, partial        ,         0,      34
-ds004106  , eeg     ,   29,     0,    0,     0, nfs_slurm_error,         0,       0
-ds003517  , eeg     ,   34,     0,    0,     0, partial        ,         0,      34
-ds004119  , eeg     ,   22,     0,    0,     0, partial        ,         0,      22
-ds002181  , eeg     ,  226,     0,    0,     0, partial        ,         0,     226
-ds004252  , eeg     ,    0,     0,    0,     1, ok             ,         1,       0
-ds004000  , eeg     ,    0,     0,    0,    86, partial        ,         0,      86
-ds004147  , eeg     ,    0,     0,    0,    12, error          ,         0,       0
-ds003474  , eeg     ,  122,     0,    0,     0, partial        ,       121,       1
-ds004123  , eeg     ,   30,     0,    0,     0, partial        ,         0,      30
-ds004121  , eeg     ,   60,     0,    0,     0, partial        ,         0,      60
-ds003655  , eeg     ,  156,     0,    0,     0, partial        ,         0,     156
-ds004196  , eeg     ,    0,     0,    4,     0, partial        ,         0,       4
-ds002724  , eeg     ,    0,    96,    0,     0, partial        ,         0,      96
-ds004122  , eeg     ,   63,     0,    0,     0, partial        ,         0,      63
-ds003774  , eeg     ,  240,     0,    0,     0, partial        ,         0,     240
-ds004152  , eeg     ,    0,     0,    0,    21, partial        ,         0,      21
-ds004151  , eeg     ,   57,     0,    0,     0, partial        ,        56,       1
-ds004043  , eeg     ,   20,     0,    0,    20, ok             ,        20,       0
-ds004200  , eeg     ,   20,     0,    0,     0, partial        ,        14,       6
-ds002725  , eeg     ,    0,   105,    0,     0, partial        ,         0,     105
-ds003825  , eeg     ,   50,     0,    0,    50, nfs_slurm_error,         0,       0
-ds002336  , eeg     ,    0,     0,    0,   107, partial        ,         0,      54
-ds003555  , eeg     ,    0,   257,    0,     0, partial        ,         0,      30
-ds003775  , eeg     ,  153,   153,    0,     0, partial        ,         0,     153
-ds004324  , eeg     ,    0,    26,    0,     0, ok             ,        26,       0
-ds004262  , eeg     ,    0,     0,    0,    21, partial        ,         0,      21
-ds003506  , eeg     ,   84,     0,    0,     0, partial        ,         0,      84
-ds004264  , eeg     ,    0,     0,    0,    21, partial        ,         0,      21
-ds002718  , eeg     ,   18,     0,    0,     0, ok             ,        18,       0
-ds003420  , eeg     ,    0,     0,    0,    92, partial        ,         0,      92
-ds004284  , eeg     ,    0,     0,    0,    18, partial        ,        17,       1
-ds004017  , eeg     ,    0,     0,   63,    63, partial        ,         0,      63
-ds004117  , eeg     ,   85,     0,    0,     0, partial        ,         0,      85
-ds003478  , eeg     ,  243,     0,    0,     0, partial        ,       239,       4
-ds004279  , eeg     ,    0,    60,    0,     0, partial        ,         0,      60
-ds003753  , eeg     ,   25,     0,    0,     0, partial        ,         0,      25
-ds004067  , eeg     ,    0,     0,    0,    84, partial        ,         0,      84
-ds003969  , eeg     ,    0,     0,  392,     0, partial        ,         0,     392
-ds003702  , eeg     ,    0,     0,    0,    47, partial        ,         0,      47
-ds004295  , eeg     ,   26,     0,    0,     0, partial        ,         0,      26
-ds004477  , eeg     ,    0,     0,    9,     0, ok             ,         9,       0
-ds004367  , eeg     ,   40,     0,    0,     0, partial        ,         0,      40
-ds004075  , eeg     ,    0,     0,    0,   116, partial        ,         0,     116
-ds004018  , eeg     ,    0,     0,    0,    32, ok             ,        32,       0
-ds003690  , eeg     ,  375,     0,    0,     0, ok             ,       375,       0
-ds004357  , eeg     ,    0,     0,    0,    16, ok             ,        16,       0
-ds004256  , eeg     ,    0,     0,    0,    53, partial        ,         1,      52
-ds003522  , eeg     ,  200,     0,    0,     0, partial        ,         0,     200
-ds004368  , eeg     ,   40,     0,    0,     0, partial        ,         0,      40
-ds004317  , eeg     ,   50,     0,    0,     0, partial        ,         0,      50
-ds004347  , eeg     ,   24,     0,   24,     0, partial        ,         0,      24
-ds004120  , eeg     ,  131,     0,    0,     0, nfs_slurm_error,         0,       0
-ds003518  , eeg     ,  137,     0,    0,     0, partial        ,         0,     137
-ds003987  , eeg     ,   69,     0,    0,     0, partial        ,        67,       2
-ds004554  , eeg     ,   16,     0,    0,     0, partial        ,         0,      16
-ds004369  , eeg     ,   41,     0,    0,     0, partial        ,         0,      41
-ds004517  , eeg     ,    0,     0,    7,     0, partial        ,         0,       7
-ds001971  , eeg     ,  273,     0,    0,     0, ok             ,       273,       0
-ds004514  , eeg     ,    0,     0,   12,     0, partial        ,         0,      12
-ds004348  , eeg     ,   18,    18,    0,     0, partial        ,         0,      18
-ds003838  , eeg     ,  296,     0,    0,     0, error          ,         0,       0
-ds004520  , eeg     ,   33,     0,    0,     0, partial        ,         0,      33
-ds003421  , eeg     ,    0,     0,    0,    80, partial        ,         0,      80
-ds004521  , eeg     ,   34,     0,    0,     0, partial        ,         0,      34
-ds004519  , eeg     ,   40,     0,    0,     0, partial        ,         0,      40
-ds004315  , eeg     ,   50,     0,    0,     0, partial        ,         0,      50
-ds004598  , eeg     ,    0,    20,    0,     0, partial        ,         0,      20
-ds003638  , eeg     ,    0,     0,   57,     0, ok             ,        57,       0
-ds004502  , eeg     ,   10,     0,    0,    38, nfs_slurm_error,         0,       0
-ds002338  , eeg     ,    0,     0,    0,   169, partial        ,         0,      85
-ds004475  , eeg     ,   30,     0,    0,     0, partial        ,         0,      30
-ds004745  , eeg     ,    6,     0,    0,     0, partial        ,         0,       6
-ds004661  , eeg     ,   17,     0,    0,     0, partial        ,        16,       1
-ds003670  , eeg     ,   62,     0,    0,     0, nfs_slurm_error,         0,       0
-ds003887  , eeg     ,   24,     0,    0,    24, ok             ,        24,       0
-ds003885  , eeg     ,   24,     0,    0,    24, ok             ,        24,       0
-ds004118  , eeg     ,  247,     0,    0,     0, partial        ,         0,     247
-ds004460  , eeg     ,    0,     0,    0,    40, partial        ,         0,      40
-ds002158  , eeg     ,   20,     0,    0,   119, partial        ,         0,     119
-ds004785  , eeg     ,   17,     0,    0,     0, partial        ,         0,      17
-ds004561  , eeg     ,    0,     0,    0,    23, nfs_slurm_error,         0,       0
-ds004660  , eeg     ,   42,     0,    0,     0, partial        ,         0,      42
-ds003620  , eeg     ,  250,     0,    0,   116, partial        ,         0,      56
-ds003523  , eeg     ,  221,     0,    0,     0, partial        ,         0,     221
-ds004626  , eeg     ,   52,     0,    0,     0, partial        ,         0,      52
-ds004849  , eeg     ,    1,     0,    0,     0, ok             ,         1,       0
-ds004850  , eeg     ,    1,     0,    0,     0, ok             ,         1,       0
-ds004851  , eeg     ,    1,     0,    0,     0, ok             ,         1,       0
-ds004852  , eeg     ,    1,     0,    0,     0, ok             ,         1,       0
-ds004853  , eeg     ,    1,     0,    0,     0, ok             ,         1,       0
-ds004854  , eeg     ,    1,     0,    0,     0, ok             ,         1,       0
-ds004855  , eeg     ,    1,     0,    0,     0, ok             ,         1,       0
-ds004504  , eeg     ,  176,     0,    0,     0, partial        ,        88,       0
-ds003645  , eeg     ,  108,     0,    0,     0, partial        ,         0,     108
-ds004166  , eeg     ,  213,     0,    0,     0, error          ,         0,       0
-ds004940  , eeg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds004635  , eeg     ,  110,     0,    0,     0, partial        ,         0,      55
-ds004588  , eeg     ,   84,     0,    0,     0, partial        ,         0,      42
-ds004511  , eeg     ,    0,   134,    0,     0, partial        ,         0,     134
-ds004840  , eeg     ,    0,    51,    0,     0, nfs_slurm_error,         0,       0
-ds004860  , eeg     ,    0,     0,   31,     0, partial        ,         0,      31
-ds004603  , eeg     ,    0,     0,    0,    37, nfs_slurm_error,         0,       0
-ds004771  , eeg     ,   61,     0,    0,     0, partial        ,         0,      61
-ds003766  , eeg     ,  248,     0,    0,     0, partial        ,         0,     124
-ds004446  , eeg     ,    0,   237,    0,     0, partial        ,         0,     237
-ds004816  , eeg     ,   20,     0,    0,    20, ok             ,        20,       0
-ds005087  , eeg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds004595  , eeg     ,   53,     0,    0,     0, partial        ,         0,      53
-ds004817  , eeg     ,   20,     0,    0,    20, ok             ,        20,       0
-ds004980  , eeg     ,    0,     0,    0,    17, partial        ,         0,      17
-ds004306  , eeg     ,   15,     0,    0,     0, partial        ,         0,      15
-ds004752  , eeg     ,    0,   136,    0,     0, partial        ,         0,      68
-ds004951  , eeg     ,    0,     0,    0,    23, ok             ,        23,       0
-ds004448  , eeg     ,    0,   280,    0,     0, partial        ,         0,     280
-ds004584  , eeg     ,  149,     0,    0,     0, ok             ,       149,       0
-ds004577  , eeg     ,    0,   130,    0,     0, partial        ,       125,       5
-ds004579  , eeg     ,  139,     0,    0,     0, partial        ,         0,     139
-ds004995  , eeg     ,    0,     0,    0,    20, ok             ,        20,       0
-ds004844  , eeg     ,   68,     0,    0,     0, partial        ,         0,      68
-ds005079  , eeg     ,   60,     0,    0,     0, partial        ,        12,      48
-ds004356  , eeg     ,    0,     0,    0,    24, nfs_slurm_error,         0,       0
-ds004657  , eeg     ,  119,     0,    0,     0, partial        ,         0,     119
-ds004843  , eeg     ,   92,     0,    0,     0, partial        ,         0,      92
-ds005048  , eeg     ,   35,     0,    0,     0, partial        ,         0,      35
-ds005089  , eeg     ,   36,     0,    0,     0, nfs_slurm_error,         0,       0
-ds004582  , eeg     ,    0,     0,    0,    73, nfs_slurm_error,         0,       0
-ds004842  , eeg     ,  102,     0,    0,     0, partial        ,         0,     102
-ds004350  , eeg     ,  241,     0,  246,     0, partial        ,       238,       2
-ds004942  , eeg     ,   62,     0,    0,     0, partial        ,        61,       1
-ds005293  , eeg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds004574  , eeg     ,  146,     0,    0,     0, partial        ,         0,     146
-ds004784  , eeg     ,   64,     0,    0,     0, partial        ,         6,       0
-ds004580  , eeg     ,  147,     0,    0,     0, partial        ,         0,     147
-ds005034  , eeg     ,  100,     0,    0,     0, partial        ,         0,     100
-ds003509  , eeg     ,   84,     0,    0,     0, partial        ,         0,      84
-ds004841  , eeg     ,  147,     0,    0,     0, partial        ,         4,     143
-ds005121  , eeg     ,    0,     0,    0,    39, partial        ,         0,      39
-ds005274  , eeg     ,    0,     0,    0,    22, partial        ,         0,      22
-ds004381  , eeg     ,    0,   770,    0,     0, partial        ,         0,     437
-ds005021  , eeg     ,   36,     0,   43,     0, partial        ,         0,      36
-ds005028  , eeg     ,    0,   105,    0,     0, partial        ,         0,     105
-ds003190  , eeg     ,    0,     0,    0,   384, partial        ,         0,     384
-ds005342  , eeg     ,   32,     0,    0,     0, partial        ,         0,      32
-ds005095  , eeg     ,    0,     0,    0,    48, ok             ,        48,       0
-ds004532  , eeg     ,  137,     0,    0,     2, partial        ,         0,     137
-ds005273  , eeg     ,    0,     0,    0,    33, partial        ,        29,       4
-ds004389  , eeg     ,  260,     0,    0,     0, partial        ,       252,       8
-ds005189  , eeg     ,    0,    30,    0,    30, partial        ,         0,      30
-ds004802  , eeg     ,    0,   116,   41,     0, partial        ,         0,      38
-ds003768  , eeg     ,    0,     0,    0,   255, partial        ,         0,     255
-ds004447  , eeg     ,    0,   418,    0,     0, partial        ,         0,     418
-ds005296  , eeg     ,   62,     0,    0,     0, ok             ,        62,       0
-ds005343  , eeg     ,   86,     0,    0,     0, partial        ,         0,      43
-ds005131  , eeg     ,    0,     0,    0,    63, partial        ,         0,      63
-ds005416  , eeg     ,   23,     0,    0,     0, partial        ,         0,      23
-ds004444  , eeg     ,    0,   465,    0,     0, partial        ,         0,     465
-ds004706  , eeg     ,    0,     0,  298,     0, error          ,         0,       0
-ds005406  , eeg     ,    0,     0,    0,    29, ok             ,        29,       0
-ds004563  , eeg     ,   73,     0,  119,     0, partial        ,         0,     119
-ds005284  , eeg     ,   78,     0,   26,     0, partial        ,         0,      26
-ds004515  , eeg     ,   54,     0,    0,     0, partial        ,         0,      54
-ds005420  , eeg     ,    0,    72,    0,     0, partial        ,         0,      72
-ds004587  , eeg     ,    0,     0,    0,   114, partial        ,       112,       2
-ds005397  , eeg     ,    0,     0,    0,    26, partial        ,         0,      26
-ds005410  , eeg     ,   81,     0,    0,     0, partial        ,         5,      76
-ds005363  , eeg     ,    0,     0,    0,    43, partial        ,         0,      43
-ds005286  , eeg     ,   90,     0,    0,    30, partial        ,         0,      30
-ds005307  , eeg     ,    0,     0,    0,    73, partial        ,         0,      73
-ds004917  , eeg     ,    0,     0,    0,    24, partial        ,         0,      24
-ds004902  , eeg     ,  218,     0,    0,     0, partial        ,         0,     218
-ds005565  , eeg     ,   24,     0,    0,     0, ok             ,        24,       0
-ds005594  , eeg     ,    0,     0,    0,    16, partial        ,         0,      16
-ds005586  , eeg     ,    0,     0,    0,    23, partial        ,        22,       1
-ds005207  , eeg     ,   57,    55,   19,     0, partial        ,         0,      39
-ds005672  , eeg     ,    3,     0,    0,     0, partial        ,         0,       3
-ds005106  , eeg     ,   42,     0,    0,     0, partial        ,         1,      41
-ds005285  , eeg     ,  203,     0,    0,     0, partial        ,       115,       1
-ds005642  , eeg     ,   21,     0,   22,     0, partial        ,         0,      21
-ds003602  , eeg     ,  699,     0,    0,     0, partial        ,         0,     699
-ds005429  , eeg     ,    0,     0,    0,    61, ok             ,        61,       0
-ds005530  , eeg     ,    0,     0,    0,    21, partial        ,         0,      21
-ds004388  , eeg     ,  399,     0,    0,     0, nfs_slurm_error,         0,       0
-ds005473  , eeg     ,   87,     0,    0,    58, partial        ,         0,      58
-ds004718  , eeg     ,  102,     0,    0,     0, partial        ,        45,       6
-ds004621  , eeg     ,    0,     0,    0,   167, partial        ,         0,     167
-ds005262  , eeg     ,    0,     0,    0,   186, partial        ,         0,     186
-ds005872  , eeg     ,    0,     1,    0,     0, ok             ,         1,       0
-ds005692  , eeg     ,    0,     0,    0,    59, nfs_slurm_error,         0,       0
-ds005662  , eeg     ,    0,     0,   80,     0, partial        ,         0,      80
-ds005520  , eeg     ,   71,     0,    0,    69, partial        ,         0,      69
-ds005114  , eeg     ,  223,     0,    0,     0, partial        ,         0,     223
-ds005571  , eeg     ,    0,     0,    0,    45, nfs_slurm_error,         0,       0
-ds005291  , eeg     ,  195,     0,    0,    65, partial        ,         0,      65
-ds005345  , eeg     ,    0,     0,    0,    26, partial        ,         0,      26
-ds005178  , eeg     ,  140,    20,    0,     0, partial        ,         0,     140
-ds005688  , eeg     ,    0,     0,    0,    89, partial        ,         0,      89
-ds005403  , eeg     ,    0,     0,    0,    34, partial        ,        31,       1
-ds005555  , eeg     ,    0,   256,    0,     0, partial        ,         0,     256
-ds006033  , eeg     ,    0,     0,    0,     5, partial        ,         3,       2
-ds005868  , eeg     ,   48,     0,    0,     0, partial        ,        40,       8
-ds005866  , eeg     ,   60,     0,    0,     0, partial        ,        43,      17
-ds005907  , eeg     ,   53,     0,    0,     0, partial        ,         0,      53
-ds005932  , eeg     ,   29,     0,    0,     0, ok             ,        29,       0
-ds005960  , eeg     ,   41,     0,    0,     0, nfs_slurm_error,         0,       0
-ds005628  , eeg     ,  306,     0,    0,     0, partial        ,       150,     156
-ds005946  , eeg     ,   39,     0,    0,     0, partial        ,         0,      39
-ds005857  , eeg     ,    0,     0,  110,     0, error          ,         0,       0
-ds005795  , eeg     ,    0,     0,    0,    39, partial        ,        35,       4
-ds005841  , eeg     ,    0,     0,  288,     0, partial        ,         0,     288
-ds006317  , eeg     ,    0,    64,    0,     0, partial        ,         0,      64
-ds006269  , eeg     ,    0,     0,    0,    40, partial        ,         0,      40
-ds004602  , eeg     ,  546,     0,    0,     0, partial        ,         0,     546
-ds004408  , eeg     ,    0,     0,    0,   380, partial        ,         0,     380
-ds006465  , eeg     ,    0,     0,    0,     0, no_files       ,         0,       0
-ds006142  , eeg     ,    0,    27,    0,     0, partial        ,         0,      27
-ds006104  , eeg     ,   24,    56,    0,     0, partial        ,         0,      56
-ds005340  , eeg     ,    0,     0,    0,    15, partial        ,         0,      15
-ds006171  , eeg     ,    0,     0,  104,     0, partial        ,         0,     104
-ds005697  , eeg     ,   51,     0,    0,     0, partial        ,         0,      51
-ds004024  , eeg     ,    0,     0,    0,   497, nfs_slurm_error,         0,       0
-ds006446  , eeg     ,    0,    29,    0,     0, partial        ,         0,      29
-ds001810  , eeg     ,    0,     0,  264,   263, partial        ,         0,     263
-ds006563  , eeg     ,   12,     0,    0,     0, partial        ,         0,      12
-ds005815  , eeg     ,    0,     0,    0,   137, partial        ,         0,     137
-ds005876  , eeg     ,   29,     0,    0,     0, partial        ,         0,      29
-ds005289  , eeg     ,  117,     0,    0,   195, partial        ,         0,     195
-ds004883  , eeg     ,  516,     0,    0,     0, partial        ,         0,     516
-ds006394  , eeg     ,   60,     0,    0,     0, partial        ,         2,      58
-ds006367  , eeg     ,   52,     0,    0,     0, partial        ,         0,      52
-ds006525  , eeg     ,   34,     0,    0,     0, partial        ,         0,      34
-ds006695  , eeg     ,   19,     0,    0,     0, partial        ,         0,      19
-ds006480  , eeg     ,   68,     0,    0,     0, nfs_slurm_error,         0,       0
-ds006437  , eeg     ,   63,     0,    0,     0, partial        ,        35,      28
-ds006366  , eeg     ,    0,   148,    0,     0, partial        ,         0,     148
-ds006647  , eeg     ,    4,     0,    0,     0, partial        ,         0,       4
-ds006036  , eeg     ,  176,     0,    0,     0, partial        ,         0,      88
-ds006370  , eeg     ,   56,     0,    0,     0, partial        ,         0,      56
-ds006547  , eeg     ,    0,     0,    0,    31, ok             ,        31,       0
-ds006554  , eeg     ,   47,     0,    0,     0, partial        ,         0,      47
-ds006761  , eeg     ,    0,     0,   31,     0, partial        ,         0,      31
-ds004505  , eeg     ,   50,     0,    0,   100, partial        ,         0,      25
-ds006593  , eeg     ,    0,     0,    0,    21, partial        ,        20,       1
-ds006126  , eeg     ,    0,     0,    0,    90, partial        ,         0,      90
-ds006735  , eeg     ,    0,     0,    0,    27, nfs_slurm_error,         0,       0
-ds006802  , eeg     ,    0,     0,   24,     0, partial        ,         0,      24
-ds005620  , eeg     ,    0,     0,    0,   202, partial        ,         0,     202
-ds006648  , eeg     ,   47,     0,    0,     0, partial        ,         0,      47
-ds005648  , eeg     ,    0,     0,    1,     0, partial        ,         0,       1
-ds005170  , eeg     ,    0,   225,    0,     0, partial        ,         0,     225
-ds006963  , eeg     ,   32,     0,    0,     0, partial        ,         0,      32
-ds004625  , eeg     ,  543,     0,    0,     0, partial        ,       531,      12
-ds006801  , eeg     ,    0,     0,    0,    42, ok             ,        42,       0
-ds007028  , eeg     ,    0,     0,    0,     3, partial        ,         0,       3
-ds006817  , eeg     ,    0,    34,    0,     0, partial        ,         0,      34
-ds007006  , eeg     ,   50,     0,    0,     0, partial        ,         0,      50
-ds007081  , eeg     ,   41,     0,    0,     0, partial        ,         0,      41
-ds006921  , eeg     ,  152,     0,    0,     0, partial        ,        28,     124
-ds006848  , eeg     ,    0,     0,    0,    52, ok             ,        52,       0
-ds006945  , eeg     ,    0,     0,    0,    14, partial        ,         0,      14
-ds003380  , eeg     ,    0,     1,    0,     0, partial        ,         0,       1
-ds007180  , eeg     ,    0,     0,    0,    25, partial        ,         0,      25
-ds007338  , eeg     ,    0,     1,    0,     0, ok             ,         1,       0
-ds007315  , eeg     ,   14,     0,    0,     0, partial        ,         0,      14
-ds007262  , eeg     ,    0,     0,    0,    18, partial        ,         0,      18
-ds006260  , eeg     ,  366,     0,    0,     0, partial        ,         0,     366
-ds005779  , eeg     ,    0,     0,    0,   250, partial        ,         0,     250
-ds007169  , eeg     ,    0,     0,    0,    18, partial        ,         0,      18
-ds006434  , eeg     ,    0,     0,    0,   118, partial        ,         0,     118
-ds007181  , eeg     ,    0,    59,    0,     0, partial        ,         0,      59
-ds006979  , eeg     ,    0,     1,    0,    53, partial        ,        52,       2
-ds007176  , eeg     ,    0,     0,    0,    86, partial        ,         0,      86
-ds004572  , eeg     ,    0,     0,    0,   516, partial        ,         0,     516
-ds007175  , eeg     ,    0,     0,    0,    41, nfs_slurm_error,         0,       0
-ds006866  , eeg     ,  148,     0,    0,     0, partial        ,         0,     148
-ds007020  , eeg     ,    0,     0,    0,    94, ok             ,        94,       0
-ds005540  , eeg     ,    0,   103,    0,     0, partial        ,         0,     103
-ds006839  , eeg     ,    0,     0,    0,   144, ok             ,       144,       0
-ds006850  , eeg     ,    0,     0,    0,   126, partial        ,         0,     126
-ds006803  , eeg     ,  126,     0,    0,     0, partial        ,       124,       2
-ds004796  , eeg     ,    0,     0,    0,   235, partial        ,       234,       1
-ds007162  , eeg     ,    0,     0,    0,    69, nfs_slurm_error,         0,       0
-ds005292  , eeg     ,  426,     0,  426,     0, partial        ,         0,     426
-ds006768  , eeg     ,    0,   210,    0,     0, partial        ,         0,     210
-ds005863  , eeg     ,    0,     0,    0,   357, ok             ,       357,       0
-ds006861  , eeg     ,  239,     0,    0,     0, partial        ,         0,     239
-ds005510  , eeg     , 1227,     0,    0,     0, partial        ,         0,    1227
-ds002680  , eeg     ,  350,     0,    0,     0, ok             ,       350,       0
-ds006018  , eeg     ,    0,     0,    0,   357, ok             ,       357,       0
-ds005505  , eeg     , 1342,     0,    0,     0, partial        ,         0,    1342
-ds005486  , eeg     ,    0,     0,    0,   445, nfs_slurm_error,         0,       0
-ds006840  , eeg     ,    0,     0,    0,   128, partial        ,       127,       1
-ds005506  , eeg     , 1405,     0,    0,     0, partial        ,         0,    1405
-ds005408  , eeg     ,    0,     0,    0,    29, partial        ,         0,      29
-ds005407  , eeg     ,    0,     0,    0,    29, partial        ,         0,      29
-ds005383  , eeg     ,  480,   240,  480,     0, ok             ,       240,       0
-ds005507  , eeg     , 1812,     0,    0,     0, partial        ,         0,    1812
-ds007172  , eeg     ,    0,     0,    0,   501, partial        ,       496,       5
-ds006576  , eeg     ,    0,     0,    0,    48, partial        ,         0,      48
-ds004148  , eeg     ,  900,     0,    0,   900, partial        ,         0,     900
-ds005185  , eeg     ,  356,   160,    0,     0, partial        ,         0,     356
-ds006374  , eeg     ,    0,     0,    0,   394, partial        ,         0,     358
-ds005512  , eeg     , 2320,     0,    0,     0, partial        ,         0,    2320
-ds005515  , eeg     , 2516,     0,    0,     0, partial        ,         0,    2516
-ds006923  , eeg     ,  280,     0,    0,     0, partial        ,         0,     280
-ds005280  , eeg     ,  669,     0,    0,   669, partial        ,         0,     669
-ds006466  , eeg     , 1257,     0,    0,     0, partial        ,         1,    1256
-ds006095  , eeg     , 1182,     0,    0,     0, partial        ,      1143,      39
-ds005514  , eeg     , 2885,     0,    0,     0, partial        ,         0,    2885
-ds003816  , eeg     ,    0,     0,    0,  1077, partial        ,         0,    1077
-ds005305  , eeg     ,  165,     0,    0,     0, partial        ,         0,     165
-ds004362  , eeg     , 1526,  1526,    0,     0, partial        ,      1522,       4
-ds005385  , eeg     ,    0,  3264,    0,     0, partial        ,         0,    3264
-ds005508  , eeg     , 3342,     0,    0,     0, nfs_slurm_error,         0,       0
-ds005509  , eeg     , 3326,     0,    0,     0, nfs_slurm_error,         0,       0
-ds005516  , eeg     , 3397,     0,    0,     0, partial        ,         0,    3397
-ds004952  , eeg     ,    0,     0,    0,  1196, partial        ,       236,       9
-ds006940  , eeg     ,    0,   935,    0,     0, partial        ,         0,     935
-nm000103  , eeg     , 3522,     0,    0,     0, nfs_slurm_error,         0,       0
-ds003505  , eeg     ,   37,     0,   37,     0, partial        ,         0,      37
-ds006040  , eeg     , 1065,     0,    0,     0, partial        ,         0,     392
-ds004395  , eeg     ,    0,  4978, 1505,     0, error          ,         0,       0
-ds005873  , eeg     ,    0, 11009,    0,     0, partial        ,         0,    2850
-ds002814  , eeg     ,  168,     0,    0,     0, partial        ,         0,     168
-ds005811  , eeg     ,  448,     0,    0,     0, partial        ,         0,     448
-ds003078  , ieeg    ,   72,     0,    0,     0, skipped        ,         0,       0
-ds005670  , ieeg    ,    0,     2,    0,     0, skipped        ,         0,       0
-ds004859  , ieeg    ,    0,     9,    0,     0, skipped        ,         0,       0
-ds003374  , ieeg    ,    0,     9,    0,     9, skipped        ,         0,       0
-ds004819  , ieeg    ,    0,     8,    0,     0, skipped        ,         0,       0
-ds004642  , ieeg    ,    0,    10,    0,     0, skipped        ,         0,       0
-ds005691  , ieeg    ,    0,     0,    0,     8, skipped        ,         0,       0
-ds005931  , ieeg    ,    0,    16,    0,     0, skipped        ,         0,       0
-ds004770  , ieeg    ,    0,    22,    0,     0, skipped        ,         0,       0
-ds005558  , ieeg    ,    0,    22,    0,     0, error          ,         0,       0
-ds004993  , ieeg    ,    0,     3,    0,     0, skipped        ,         0,       0
-ds005007  , ieeg    ,    0,    42,    0,     0, skipped        ,         0,       0
-ds005491  , ieeg    ,    0,    51,    0,     0, error          ,         0,       0
-ds005494  , ieeg    ,    0,    51,    0,     0, error          ,         0,       0
-ds004370  , ieeg    ,    0,     0,    0,    15, skipped        ,         0,       0
-ds005557  , ieeg    ,    0,    58,    0,     0, error          ,         0,       0
-ds005574  , ieeg    ,    0,     9,    0,     0, skipped        ,         0,       0
-ds003844  , ieeg    ,    0,     0,    0,    38, skipped        ,         0,       0
-ds007120  , ieeg    ,    0,    70,    0,     0, skipped        ,         0,       0
-ds006065  , ieeg    ,    0,     0,    0,    45, skipped        ,         0,       0
-ds005448  , ieeg    ,    0,     0,    0,    18, skipped        ,         0,       0
-ds007118  , ieeg    ,    0,    82,    0,     0, skipped        ,         0,       0
-ds003029  , ieeg    ,    0,     0,    0,   106, skipped        ,         0,       0
-ds005624  , ieeg    ,    0,     0,    0,    35, skipped        ,         0,       0
-ds006519  , ieeg    ,    0,     0,    0,    35, skipped        ,         0,       0
-ds007119  , ieeg    ,    0,   106,    0,     0, skipped        ,         0,       0
-ds005953  , ieeg    ,    0,     0,    0,     3, skipped        ,         0,       0
-ds004703  , ieeg    ,    0,    11,    0,     0, skipped        ,         0,       0
-ds004127  , ieeg    ,    0,     0,    0,    73, skipped        ,         0,       0
-ds005523  , ieeg    ,    0,   102,    0,     0, error          ,         0,       0
-ds005489  , ieeg    ,    0,   154,    0,     0, error          ,         0,       0
-ds006914  , ieeg    ,    0,   353,    0,     0, skipped        ,         0,       0
-ds004944  , ieeg    ,    0,    44,    0,     0, skipped        ,         0,       0
-ds003876  , ieeg    ,    0,    54,    0,     0, skipped        ,         0,       0
-ds005411  , ieeg    ,    0,   193,    0,     0, error          ,         0,       0
-ds004865  , ieeg    ,    0,   172,    0,     0, error          ,         0,       0
-ds006107  , ieeg    ,    0,   167,    0,     0, skipped        ,         0,       0
-ds003708  , ieeg    ,    0,     0,    0,     0, no_files       ,         0,       0
-ds004100  , ieeg    ,    0,   319,    0,     0, skipped        ,         0,       0
-ds005169  , ieeg    ,    0,     0,    0,   112, skipped        ,         0,       0
-ds004551  , ieeg    ,    0,   125,    0,     0, skipped        ,         0,       0
-ds005522  , ieeg    ,    0,   176,    0,     0, error          ,         0,       0
-ds004080  , ieeg    ,    0,     0,    0,   117, skipped        ,         0,       0
-ds005059  , ieeg    ,    0,   282,    0,     0, error          ,         0,       0
-ds005545  , ieeg    ,    0,   336,    0,     0, skipped        ,         0,       0
-ds006233  , ieeg    ,    0,   347,    0,     0, skipped        ,         0,       0
-ds005398  , ieeg    ,    0,   185,    0,     0, skipped        ,         0,       0
-ds006910  , ieeg    ,    0,   384,    0,     0, skipped        ,         0,       0
-ds006234  , ieeg    ,    0,   378,    0,     0, skipped        ,         0,       0
-ds006392  , ieeg    ,    0,     0,    0,     0, no_files       ,         0,       0
-ds003688  , ieeg    ,    0,     0,    0,   107, skipped        ,         0,       0
-ds006890  , ieeg    ,    0,   870,    0,     0, skipped        ,         0,       0
-ds003498  , ieeg    ,    0,     0,    0,   385, skipped        ,         0,       0
-ds004624  , ieeg    ,    0,     0,    0,     0, no_files       ,         0,       0
-ds004809  , ieeg    ,    0,   889,    0,     0, error          ,         0,       0
-ds004789  , ieeg    ,    0,   983,    0,     0, error          ,         0,       0
-ds003848  , ieeg    ,    0,     0,    0,    22, skipped        ,         0,       0
-ds004473  , ieeg    ,    0,     8,    0,     0, skipped        ,         0,       0
-ds004774  , ieeg    ,    0,     0,    0,     9, skipped        ,         0,       0
-ds004457  , ieeg    ,    0,     0,    0,     0, no_files       ,         0,       0
-ds005415  , ieeg    ,    0,    13,    0,     0, skipped        ,         0,       0
-ds004977  , ieeg    ,    0,     0,    0,     0, no_files       ,         0,       0
-ds004696  , ieeg    ,    0,     0,    0,     0, no_files       ,         0,       0
-ds007095  , ieeg    ,    0,  6019,    0,     0, skipped        ,         0,       0
-ds004194  , ieeg    ,    0,     0,    0,   627, skipped        ,         0,       0
-nm000105  , emg     ,    0,     0,  100,     0, skipped        ,         0,       0
-nm000107  , emg     ,    0,     0,  182,     0, skipped        ,         0,       0
-nm000106  , emg     ,    0,     0,  807,     0, skipped        ,         0,       0
-nm000104  , emg     ,    0,     0, 1135,     0, skipped        ,         0,       0
+dataset_id,modality,.set,.edf,.bdf,.vhdr,status,processed,skipped
+ds004229,meg,0,0,0,0,no_files,0,0
+ds004398,meg,0,0,0,0,no_files,0,0
+ds000246,meg,0,0,0,0,no_files,0,0
+ds004276,meg,0,0,0,0,no_files,0,0
+ds006035,meg,0,0,0,0,no_files,0,0
+ds002885,meg,0,0,0,0,no_files,0,0
+ds004738,meg,0,0,0,0,no_files,0,0
+ds003392,meg,0,0,0,0,no_files,0,0
+ds003082,meg,0,0,0,0,no_files,0,0
+ds006629,meg,0,0,0,0,no_files,0,0
+ds002312,meg,0,37,0,0,ignored,0,0
+ds004107,meg,0,0,0,0,no_files,0,0
+ds003694,meg,0,0,0,0,no_files,0,0
+ds003352,meg,0,0,0,0,no_files,0,0
+ds003483,meg,0,0,0,0,no_files,0,0
+ds005241,meg,0,0,0,0,no_files,0,0
+ds000247,meg,0,0,0,0,no_files,0,0
+ds003922,meg,0,0,0,0,no_files,0,0
+ds004837,meg,0,0,0,0,no_files,0,0
+ds006012,meg,0,0,0,0,no_files,0,0
+ds002712,meg,0,0,0,0,no_files,0,0
+ds004998,meg,0,0,0,0,no_files,0,0
+ds004012,meg,0,0,0,0,no_files,0,0
+ds006720,meg,0,0,0,0,no_files,0,0
+ds004330,meg,0,0,0,0,no_files,0,0
+ds005356,meg,0,0,0,0,no_files,0,0
+ds002908,meg,0,0,0,0,no_files,0,0
+ds004346,meg,0,0,0,0,no_files,0,0
+ds004483,meg,0,0,0,0,no_files,0,0
+ds003703,meg,0,0,0,0,no_files,0,0
+ds004278,meg,0,0,0,0,no_files,0,0
+ds003104,meg,0,0,0,0,no_files,0,0
+ds005346,meg,0,0,0,0,no_files,0,0
+ds006334,meg,0,28,0,0,ignored,0,0
+ds002001,meg,0,0,0,0,no_files,0,0
+ds006468,meg,0,0,0,0,no_files,0,0
+ds000248,meg,0,0,0,0,no_files,0,0
+ds005279,meg,0,0,0,0,no_files,0,0
+ds000117,meg,0,0,0,0,no_files,0,0
+ds002761,meg,0,0,0,0,no_files,0,0
+ds005065,meg,0,0,0,0,no_files,0,0
+ds003682,meg,0,0,0,0,no_files,0,0
+ds003568,meg,0,0,0,0,no_files,0,0
+ds006502,meg,0,0,0,0,no_files,0,0
+ds004011,meg,0,22,0,0,ignored,0,0
+ds003633,meg,0,0,0,0,no_files,0,0
+ds002550,meg,0,0,0,0,no_files,0,0
+ds004078,meg,0,0,0,0,no_files,0,0
+ds004212,meg,0,0,0,0,no_files,0,0
+ds005752,meg,0,0,0,0,no_files,0,0
+ds005261,meg,0,0,0,0,no_files,0,0
+ds005810,meg,0,0,0,0,no_files,0,0
+ds002578,eeg,2,0,0,0,ok,2,0
+ds001785,eeg,72,0,0,0,partial,0,54
+ds003195,eeg,0,20,0,0,skipped,0,20
+ds002691,eeg,20,0,0,0,skipped,0,20
+ds002218,eeg,18,0,0,0,nfs_slurm_error,0,0
+ds003194,eeg,0,29,0,0,skipped,0,29
+ds003039,eeg,16,0,0,0,nfs_slurm_error,0,0
+ds002723,eeg,0,44,0,0,skipped,0,44
+ds003805,eeg,1,0,0,0,skipped,0,1
+ds003061,eeg,39,0,0,0,ok,39,0
+ds003810,eeg,0,50,0,0,skipped,0,50
+ds003343,eeg,0,0,59,0,skipped,0,59
+ds003004,eeg,34,0,0,0,nfs_slurm_error,0,0
+ds003458,eeg,23,0,0,0,skipped,0,23
+ds002778,eeg,0,0,46,0,skipped,0,46
+ds001787,eeg,0,0,40,0,skipped,0,40
+ds003801,eeg,20,0,0,0,skipped,0,20
+ds003574,eeg,0,18,0,0,skipped,0,18
+ds003570,eeg,40,0,0,0,partial,28,12
+ds003800,eeg,24,0,0,0,partial,11,13
+ds003751,eeg,38,0,0,0,partial,1,37
+ds003519,eeg,54,0,0,0,skipped,0,54
+ds002893,eeg,52,0,0,0,skipped,0,52
+ds004010,eeg,24,0,0,0,skipped,0,24
+ds003710,eeg,0,0,0,48,skipped,0,48
+ds002034,eeg,0,167,0,0,skipped,0,167
+ds003516,eeg,46,0,0,0,partial,0,25
+ds002720,eeg,0,165,0,0,skipped,0,165
+ds002721,eeg,0,185,0,0,skipped,0,185
+ds001849,eeg,120,0,0,0,skipped,0,120
+ds003490,eeg,75,0,0,0,skipped,0,75
+ds002833,eeg,0,0,0,80,skipped,0,80
+ds002791,eeg,0,0,0,92,skipped,0,92
+ds004022,eeg,21,0,0,0,error,0,0
+ds003947,eeg,0,0,0,61,skipped,0,61
+ds004015,eeg,36,0,0,0,skipped,0,36
+ds004040,eeg,26,0,0,0,ok,26,0
+ds002094,eeg,0,0,0,43,skipped,0,43
+ds004019,eeg,62,0,0,0,ok,62,0
+ds002722,eeg,0,94,0,0,skipped,0,94
+ds003626,eeg,0,0,30,0,skipped,0,30
+ds003944,eeg,0,0,0,82,skipped,0,82
+ds003739,eeg,120,0,0,0,skipped,0,120
+ds003822,eeg,25,0,0,0,skipped,0,25
+ds004033,eeg,36,0,0,0,nfs_slurm_error,0,0
+ds003846,eeg,0,0,0,60,skipped,0,60
+ds004105,eeg,34,0,0,0,skipped,0,34
+ds004106,eeg,29,0,0,0,nfs_slurm_error,0,0
+ds003517,eeg,34,0,0,0,skipped,0,34
+ds004119,eeg,22,0,0,0,skipped,0,22
+ds002181,eeg,226,0,0,0,skipped,0,226
+ds004252,eeg,0,0,0,1,ok,1,0
+ds004000,eeg,0,0,0,86,skipped,0,86
+ds004147,eeg,0,0,0,12,error,0,0
+ds003474,eeg,122,0,0,0,partial,121,1
+ds004123,eeg,30,0,0,0,skipped,0,30
+ds004121,eeg,60,0,0,0,skipped,0,60
+ds003655,eeg,156,0,0,0,skipped,0,156
+ds004196,eeg,0,0,4,0,skipped,0,4
+ds002724,eeg,0,96,0,0,skipped,0,96
+ds004122,eeg,63,0,0,0,skipped,0,63
+ds003774,eeg,240,0,0,0,skipped,0,240
+ds004152,eeg,0,0,0,21,skipped,0,21
+ds004151,eeg,57,0,0,0,partial,56,1
+ds004043,eeg,20,0,0,20,ok,20,0
+ds004200,eeg,20,0,0,0,partial,14,6
+ds002725,eeg,0,105,0,0,skipped,0,105
+ds003825,eeg,50,0,0,50,nfs_slurm_error,0,0
+ds002336,eeg,0,0,0,107,partial,0,54
+ds003555,eeg,0,257,0,0,partial,0,30
+ds003775,eeg,153,153,0,0,skipped,0,153
+ds004324,eeg,0,26,0,0,ok,26,0
+ds004262,eeg,0,0,0,21,skipped,0,21
+ds003506,eeg,84,0,0,0,skipped,0,84
+ds004264,eeg,0,0,0,21,skipped,0,21
+ds002718,eeg,18,0,0,0,ok,18,0
+ds003420,eeg,0,0,0,92,skipped,0,92
+ds004284,eeg,0,0,0,18,partial,17,1
+ds004017,eeg,0,0,63,63,skipped,0,63
+ds004117,eeg,85,0,0,0,skipped,0,85
+ds003478,eeg,243,0,0,0,partial,239,4
+ds004279,eeg,0,60,0,0,skipped,0,60
+ds003753,eeg,25,0,0,0,skipped,0,25
+ds004067,eeg,0,0,0,84,skipped,0,84
+ds003969,eeg,0,0,392,0,skipped,0,392
+ds003702,eeg,0,0,0,47,skipped,0,47
+ds004295,eeg,26,0,0,0,skipped,0,26
+ds004477,eeg,0,0,9,0,ok,9,0
+ds004367,eeg,40,0,0,0,skipped,0,40
+ds004075,eeg,0,0,0,116,skipped,0,116
+ds004018,eeg,0,0,0,32,ok,32,0
+ds003690,eeg,375,0,0,0,ok,375,0
+ds004357,eeg,0,0,0,16,ok,16,0
+ds004256,eeg,0,0,0,53,partial,1,52
+ds003522,eeg,200,0,0,0,skipped,0,200
+ds004368,eeg,40,0,0,0,skipped,0,40
+ds004317,eeg,50,0,0,0,skipped,0,50
+ds004347,eeg,24,0,24,0,skipped,0,24
+ds004120,eeg,131,0,0,0,nfs_slurm_error,0,0
+ds003518,eeg,137,0,0,0,skipped,0,137
+ds003987,eeg,69,0,0,0,partial,67,2
+ds004554,eeg,16,0,0,0,skipped,0,16
+ds004369,eeg,41,0,0,0,skipped,0,41
+ds004517,eeg,0,0,7,0,skipped,0,7
+ds001971,eeg,273,0,0,0,ok,273,0
+ds004514,eeg,0,0,12,0,skipped,0,12
+ds004348,eeg,18,18,0,0,skipped,0,18
+ds003838,eeg,296,0,0,0,error,0,0
+ds004520,eeg,33,0,0,0,skipped,0,33
+ds003421,eeg,0,0,0,80,skipped,0,80
+ds004521,eeg,34,0,0,0,skipped,0,34
+ds004519,eeg,40,0,0,0,skipped,0,40
+ds004315,eeg,50,0,0,0,skipped,0,50
+ds004598,eeg,0,20,0,0,skipped,0,20
+ds003638,eeg,0,0,57,0,ok,57,0
+ds004502,eeg,10,0,0,38,nfs_slurm_error,0,0
+ds002338,eeg,0,0,0,169,partial,0,85
+ds004475,eeg,30,0,0,0,skipped,0,30
+ds004745,eeg,6,0,0,0,skipped,0,6
+ds004661,eeg,17,0,0,0,partial,16,1
+ds003670,eeg,62,0,0,0,nfs_slurm_error,0,0
+ds003887,eeg,24,0,0,24,ok,24,0
+ds003885,eeg,24,0,0,24,ok,24,0
+ds004118,eeg,247,0,0,0,skipped,0,247
+ds004460,eeg,0,0,0,40,skipped,0,40
+ds002158,eeg,20,0,0,119,skipped,0,119
+ds004785,eeg,17,0,0,0,skipped,0,17
+ds004561,eeg,0,0,0,23,nfs_slurm_error,0,0
+ds004660,eeg,42,0,0,0,skipped,0,42
+ds003620,eeg,250,0,0,116,partial,0,56
+ds003523,eeg,221,0,0,0,skipped,0,221
+ds004626,eeg,52,0,0,0,skipped,0,52
+ds004849,eeg,1,0,0,0,ok,1,0
+ds004850,eeg,1,0,0,0,ok,1,0
+ds004851,eeg,1,0,0,0,ok,1,0
+ds004852,eeg,1,0,0,0,ok,1,0
+ds004853,eeg,1,0,0,0,ok,1,0
+ds004854,eeg,1,0,0,0,ok,1,0
+ds004855,eeg,1,0,0,0,ok,1,0
+ds004504,eeg,176,0,0,0,partial,88,0
+ds003645,eeg,108,0,0,0,skipped,0,108
+ds004166,eeg,213,0,0,0,error,0,0
+ds004940,eeg,0,0,0,0,no_files,0,0
+ds004635,eeg,110,0,0,0,partial,0,55
+ds004588,eeg,84,0,0,0,partial,0,42
+ds004511,eeg,0,134,0,0,skipped,0,134
+ds004840,eeg,0,51,0,0,nfs_slurm_error,0,0
+ds004860,eeg,0,0,31,0,skipped,0,31
+ds004603,eeg,0,0,0,37,nfs_slurm_error,0,0
+ds004771,eeg,61,0,0,0,skipped,0,61
+ds003766,eeg,248,0,0,0,partial,0,124
+ds004446,eeg,0,237,0,0,skipped,0,237
+ds004816,eeg,20,0,0,20,ok,20,0
+ds005087,eeg,0,0,0,0,no_files,0,0
+ds004595,eeg,53,0,0,0,skipped,0,53
+ds004817,eeg,20,0,0,20,ok,20,0
+ds004980,eeg,0,0,0,17,skipped,0,17
+ds004306,eeg,15,0,0,0,skipped,0,15
+ds004752,eeg,0,136,0,0,partial,0,68
+ds004951,eeg,0,0,0,23,ok,23,0
+ds004448,eeg,0,280,0,0,skipped,0,280
+ds004584,eeg,149,0,0,0,ok,149,0
+ds004577,eeg,0,130,0,0,partial,125,5
+ds004579,eeg,139,0,0,0,skipped,0,139
+ds004995,eeg,0,0,0,20,ok,20,0
+ds004844,eeg,68,0,0,0,skipped,0,68
+ds005079,eeg,60,0,0,0,partial,12,48
+ds004356,eeg,0,0,0,24,nfs_slurm_error,0,0
+ds004657,eeg,119,0,0,0,skipped,0,119
+ds004843,eeg,92,0,0,0,skipped,0,92
+ds005048,eeg,35,0,0,0,skipped,0,35
+ds005089,eeg,36,0,0,0,nfs_slurm_error,0,0
+ds004582,eeg,0,0,0,73,nfs_slurm_error,0,0
+ds004842,eeg,102,0,0,0,skipped,0,102
+ds004350,eeg,241,0,246,0,partial,238,2
+ds004942,eeg,62,0,0,0,partial,61,1
+ds005293,eeg,0,0,0,0,no_files,0,0
+ds004574,eeg,146,0,0,0,skipped,0,146
+ds004784,eeg,64,0,0,0,partial,6,0
+ds004580,eeg,147,0,0,0,skipped,0,147
+ds005034,eeg,100,0,0,0,skipped,0,100
+ds003509,eeg,84,0,0,0,skipped,0,84
+ds004841,eeg,147,0,0,0,partial,4,143
+ds005121,eeg,0,0,0,39,skipped,0,39
+ds005274,eeg,0,0,0,22,skipped,0,22
+ds004381,eeg,0,770,0,0,partial,0,437
+ds005021,eeg,36,0,43,0,skipped,0,36
+ds005028,eeg,0,105,0,0,skipped,0,105
+ds003190,eeg,0,0,0,384,skipped,0,384
+ds005342,eeg,32,0,0,0,skipped,0,32
+ds005095,eeg,0,0,0,48,ok,48,0
+ds004532,eeg,137,0,0,2,skipped,0,137
+ds005273,eeg,0,0,0,33,partial,29,4
+ds004389,eeg,260,0,0,0,partial,252,8
+ds005189,eeg,0,30,0,30,skipped,0,30
+ds004802,eeg,0,116,41,0,partial,0,38
+ds003768,eeg,0,0,0,255,skipped,0,255
+ds004447,eeg,0,418,0,0,skipped,0,418
+ds005296,eeg,62,0,0,0,ok,62,0
+ds005343,eeg,86,0,0,0,partial,0,43
+ds005131,eeg,0,0,0,63,skipped,0,63
+ds005416,eeg,23,0,0,0,skipped,0,23
+ds004444,eeg,0,465,0,0,skipped,0,465
+ds004706,eeg,0,0,298,0,error,0,0
+ds005406,eeg,0,0,0,29,ok,29,0
+ds004563,eeg,73,0,119,0,skipped,0,119
+ds005284,eeg,78,0,26,0,skipped,0,26
+ds004515,eeg,54,0,0,0,skipped,0,54
+ds005420,eeg,0,72,0,0,skipped,0,72
+ds004587,eeg,0,0,0,114,partial,112,2
+ds005397,eeg,0,0,0,26,skipped,0,26
+ds005410,eeg,81,0,0,0,partial,5,76
+ds005363,eeg,0,0,0,43,skipped,0,43
+ds005286,eeg,90,0,0,30,skipped,0,30
+ds005307,eeg,0,0,0,73,skipped,0,73
+ds004917,eeg,0,0,0,24,skipped,0,24
+ds004902,eeg,218,0,0,0,skipped,0,218
+ds005565,eeg,24,0,0,0,ok,24,0
+ds005594,eeg,0,0,0,16,skipped,0,16
+ds005586,eeg,0,0,0,23,partial,22,1
+ds005207,eeg,57,55,19,0,partial,0,39
+ds005672,eeg,3,0,0,0,skipped,0,3
+ds005106,eeg,42,0,0,0,partial,1,41
+ds005285,eeg,203,0,0,0,partial,115,1
+ds005642,eeg,21,0,22,0,skipped,0,21
+ds003602,eeg,699,0,0,0,skipped,0,699
+ds005429,eeg,0,0,0,61,ok,61,0
+ds005530,eeg,0,0,0,21,skipped,0,21
+ds004388,eeg,399,0,0,0,nfs_slurm_error,0,0
+ds005473,eeg,87,0,0,58,skipped,0,58
+ds004718,eeg,102,0,0,0,partial,45,6
+ds004621,eeg,0,0,0,167,skipped,0,167
+ds005262,eeg,0,0,0,186,skipped,0,186
+ds005872,eeg,0,1,0,0,ok,1,0
+ds005692,eeg,0,0,0,59,nfs_slurm_error,0,0
+ds005662,eeg,0,0,80,0,skipped,0,80
+ds005520,eeg,71,0,0,69,skipped,0,69
+ds005114,eeg,223,0,0,0,skipped,0,223
+ds005571,eeg,0,0,0,45,nfs_slurm_error,0,0
+ds005291,eeg,195,0,0,65,skipped,0,65
+ds005345,eeg,0,0,0,26,skipped,0,26
+ds005178,eeg,140,20,0,0,skipped,0,140
+ds005688,eeg,0,0,0,89,skipped,0,89
+ds005403,eeg,0,0,0,34,partial,31,1
+ds005555,eeg,0,256,0,0,skipped,0,256
+ds006033,eeg,0,0,0,5,partial,3,2
+ds005868,eeg,48,0,0,0,partial,40,8
+ds005866,eeg,60,0,0,0,partial,43,17
+ds005907,eeg,53,0,0,0,skipped,0,53
+ds005932,eeg,29,0,0,0,ok,29,0
+ds005960,eeg,41,0,0,0,nfs_slurm_error,0,0
+ds005628,eeg,306,0,0,0,partial,150,156
+ds005946,eeg,39,0,0,0,skipped,0,39
+ds005857,eeg,0,0,110,0,error,0,0
+ds005795,eeg,0,0,0,39,partial,35,4
+ds005841,eeg,0,0,288,0,skipped,0,288
+ds006317,eeg,0,64,0,0,skipped,0,64
+ds006269,eeg,0,0,0,40,skipped,0,40
+ds004602,eeg,546,0,0,0,skipped,0,546
+ds004408,eeg,0,0,0,380,skipped,0,380
+ds006465,eeg,0,0,0,0,no_files,0,0
+ds006142,eeg,0,27,0,0,skipped,0,27
+ds006104,eeg,24,56,0,0,skipped,0,56
+ds005340,eeg,0,0,0,15,skipped,0,15
+ds006171,eeg,0,0,104,0,skipped,0,104
+ds005697,eeg,51,0,0,0,skipped,0,51
+ds004024,eeg,0,0,0,497,nfs_slurm_error,0,0
+ds006446,eeg,0,29,0,0,skipped,0,29
+ds001810,eeg,0,0,264,263,skipped,0,263
+ds006563,eeg,12,0,0,0,skipped,0,12
+ds005815,eeg,0,0,0,137,skipped,0,137
+ds005876,eeg,29,0,0,0,skipped,0,29
+ds005289,eeg,117,0,0,195,skipped,0,195
+ds004883,eeg,516,0,0,0,skipped,0,516
+ds006394,eeg,60,0,0,0,partial,2,58
+ds006367,eeg,52,0,0,0,skipped,0,52
+ds006525,eeg,34,0,0,0,skipped,0,34
+ds006695,eeg,19,0,0,0,skipped,0,19
+ds006480,eeg,68,0,0,0,nfs_slurm_error,0,0
+ds006437,eeg,63,0,0,0,partial,35,28
+ds006366,eeg,0,148,0,0,skipped,0,148
+ds006647,eeg,4,0,0,0,skipped,0,4
+ds006036,eeg,176,0,0,0,partial,0,88
+ds006370,eeg,56,0,0,0,skipped,0,56
+ds006547,eeg,0,0,0,31,ok,31,0
+ds006554,eeg,47,0,0,0,skipped,0,47
+ds006761,eeg,0,0,31,0,skipped,0,31
+ds004505,eeg,50,0,0,100,partial,0,25
+ds006593,eeg,0,0,0,21,partial,20,1
+ds006126,eeg,0,0,0,90,skipped,0,90
+ds006735,eeg,0,0,0,27,nfs_slurm_error,0,0
+ds006802,eeg,0,0,24,0,skipped,0,24
+ds005620,eeg,0,0,0,202,skipped,0,202
+ds006648,eeg,47,0,0,0,skipped,0,47
+ds005648,eeg,0,0,1,0,skipped,0,1
+ds005170,eeg,0,225,0,0,skipped,0,225
+ds006963,eeg,32,0,0,0,skipped,0,32
+ds004625,eeg,543,0,0,0,partial,531,12
+ds006801,eeg,0,0,0,42,ok,42,0
+ds007028,eeg,0,0,0,3,skipped,0,3
+ds006817,eeg,0,34,0,0,skipped,0,34
+ds007006,eeg,50,0,0,0,skipped,0,50
+ds007081,eeg,41,0,0,0,skipped,0,41
+ds006921,eeg,152,0,0,0,partial,28,124
+ds006848,eeg,0,0,0,52,ok,52,0
+ds006945,eeg,0,0,0,14,skipped,0,14
+ds003380,eeg,0,1,0,0,skipped,0,1
+ds007180,eeg,0,0,0,25,skipped,0,25
+ds007338,eeg,0,1,0,0,ok,1,0
+ds007315,eeg,14,0,0,0,skipped,0,14
+ds007262,eeg,0,0,0,18,skipped,0,18
+ds006260,eeg,366,0,0,0,skipped,0,366
+ds005779,eeg,0,0,0,250,skipped,0,250
+ds007169,eeg,0,0,0,18,skipped,0,18
+ds006434,eeg,0,0,0,118,skipped,0,118
+ds007181,eeg,0,59,0,0,skipped,0,59
+ds006979,eeg,0,1,0,53,partial,52,2
+ds007176,eeg,0,0,0,86,skipped,0,86
+ds004572,eeg,0,0,0,516,skipped,0,516
+ds007175,eeg,0,0,0,41,nfs_slurm_error,0,0
+ds006866,eeg,148,0,0,0,skipped,0,148
+ds007020,eeg,0,0,0,94,ok,94,0
+ds005540,eeg,0,103,0,0,skipped,0,103
+ds006839,eeg,0,0,0,144,ok,144,0
+ds006850,eeg,0,0,0,126,skipped,0,126
+ds006803,eeg,126,0,0,0,partial,124,2
+ds004796,eeg,0,0,0,235,partial,234,1
+ds007162,eeg,0,0,0,69,nfs_slurm_error,0,0
+ds005292,eeg,426,0,426,0,skipped,0,426
+ds006768,eeg,0,210,0,0,skipped,0,210
+ds005863,eeg,0,0,0,357,ok,357,0
+ds006861,eeg,239,0,0,0,skipped,0,239
+ds005510,eeg,1227,0,0,0,skipped,0,1227
+ds002680,eeg,350,0,0,0,ok,350,0
+ds006018,eeg,0,0,0,357,ok,357,0
+ds005505,eeg,1342,0,0,0,skipped,0,1342
+ds005486,eeg,0,0,0,445,nfs_slurm_error,0,0
+ds006840,eeg,0,0,0,128,partial,127,1
+ds005506,eeg,1405,0,0,0,skipped,0,1405
+ds005408,eeg,0,0,0,29,skipped,0,29
+ds005407,eeg,0,0,0,29,skipped,0,29
+ds005383,eeg,480,240,480,0,ok,240,0
+ds005507,eeg,1812,0,0,0,skipped,0,1812
+ds007172,eeg,0,0,0,501,partial,496,5
+ds006576,eeg,0,0,0,48,skipped,0,48
+ds004148,eeg,900,0,0,900,skipped,0,900
+ds005185,eeg,356,160,0,0,skipped,0,356
+ds006374,eeg,0,0,0,394,partial,0,358
+ds005512,eeg,2320,0,0,0,skipped,0,2320
+ds005515,eeg,2516,0,0,0,skipped,0,2516
+ds006923,eeg,280,0,0,0,skipped,0,280
+ds005280,eeg,669,0,0,669,skipped,0,669
+ds006466,eeg,1257,0,0,0,partial,1,1256
+ds006095,eeg,1182,0,0,0,partial,1143,39
+ds005514,eeg,2885,0,0,0,skipped,0,2885
+ds003816,eeg,0,0,0,1077,skipped,0,1077
+ds005305,eeg,165,0,0,0,skipped,0,165
+ds004362,eeg,1526,1526,0,0,partial,1522,4
+ds005385,eeg,0,3264,0,0,skipped,0,3264
+ds005508,eeg,3342,0,0,0,nfs_slurm_error,0,0
+ds005509,eeg,3326,0,0,0,nfs_slurm_error,0,0
+ds005516,eeg,3397,0,0,0,skipped,0,3397
+ds004952,eeg,0,0,0,1196,partial,236,9
+ds006940,eeg,0,935,0,0,skipped,0,935
+nm000103,eeg,3522,0,0,0,nfs_slurm_error,0,0
+ds003505,eeg,37,0,37,0,skipped,0,37
+ds006040,eeg,1065,0,0,0,partial,0,392
+ds004395,eeg,0,4978,1505,0,error,0,0
+ds005873,eeg,0,11009,0,0,partial,0,2850
+ds002814,eeg,168,0,0,0,skipped,0,168
+ds005811,eeg,448,0,0,0,skipped,0,448
+ds003078,ieeg,72,0,0,0,ignored,0,0
+ds005670,ieeg,0,2,0,0,ignored,0,0
+ds004859,ieeg,0,9,0,0,ignored,0,0
+ds003374,ieeg,0,9,0,9,ignored,0,0
+ds004819,ieeg,0,8,0,0,ignored,0,0
+ds004642,ieeg,0,10,0,0,ignored,0,0
+ds005691,ieeg,0,0,0,8,ignored,0,0
+ds005931,ieeg,0,16,0,0,ignored,0,0
+ds004770,ieeg,0,22,0,0,ignored,0,0
+ds005558,ieeg,0,22,0,0,error,0,0
+ds004993,ieeg,0,3,0,0,ignored,0,0
+ds005007,ieeg,0,42,0,0,ignored,0,0
+ds005491,ieeg,0,51,0,0,error,0,0
+ds005494,ieeg,0,51,0,0,error,0,0
+ds004370,ieeg,0,0,0,15,ignored,0,0
+ds005557,ieeg,0,58,0,0,error,0,0
+ds005574,ieeg,0,9,0,0,ignored,0,0
+ds003844,ieeg,0,0,0,38,ignored,0,0
+ds007120,ieeg,0,70,0,0,ignored,0,0
+ds006065,ieeg,0,0,0,45,ignored,0,0
+ds005448,ieeg,0,0,0,18,ignored,0,0
+ds007118,ieeg,0,82,0,0,ignored,0,0
+ds003029,ieeg,0,0,0,106,ignored,0,0
+ds005624,ieeg,0,0,0,35,ignored,0,0
+ds006519,ieeg,0,0,0,35,ignored,0,0
+ds007119,ieeg,0,106,0,0,ignored,0,0
+ds005953,ieeg,0,0,0,3,ignored,0,0
+ds004703,ieeg,0,11,0,0,ignored,0,0
+ds004127,ieeg,0,0,0,73,ignored,0,0
+ds005523,ieeg,0,102,0,0,error,0,0
+ds005489,ieeg,0,154,0,0,error,0,0
+ds006914,ieeg,0,353,0,0,ignored,0,0
+ds004944,ieeg,0,44,0,0,ignored,0,0
+ds003876,ieeg,0,54,0,0,ignored,0,0
+ds005411,ieeg,0,193,0,0,error,0,0
+ds004865,ieeg,0,172,0,0,error,0,0
+ds006107,ieeg,0,167,0,0,ignored,0,0
+ds003708,ieeg,0,0,0,0,no_files,0,0
+ds004100,ieeg,0,319,0,0,ignored,0,0
+ds005169,ieeg,0,0,0,112,ignored,0,0
+ds004551,ieeg,0,125,0,0,ignored,0,0
+ds005522,ieeg,0,176,0,0,error,0,0
+ds004080,ieeg,0,0,0,117,ignored,0,0
+ds005059,ieeg,0,282,0,0,error,0,0
+ds005545,ieeg,0,336,0,0,ignored,0,0
+ds006233,ieeg,0,347,0,0,ignored,0,0
+ds005398,ieeg,0,185,0,0,ignored,0,0
+ds006910,ieeg,0,384,0,0,ignored,0,0
+ds006234,ieeg,0,378,0,0,ignored,0,0
+ds006392,ieeg,0,0,0,0,no_files,0,0
+ds003688,ieeg,0,0,0,107,ignored,0,0
+ds006890,ieeg,0,870,0,0,ignored,0,0
+ds003498,ieeg,0,0,0,385,ignored,0,0
+ds004624,ieeg,0,0,0,0,no_files,0,0
+ds004809,ieeg,0,889,0,0,error,0,0
+ds004789,ieeg,0,983,0,0,error,0,0
+ds003848,ieeg,0,0,0,22,ignored,0,0
+ds004473,ieeg,0,8,0,0,ignored,0,0
+ds004774,ieeg,0,0,0,9,ignored,0,0
+ds004457,ieeg,0,0,0,0,no_files,0,0
+ds005415,ieeg,0,13,0,0,ignored,0,0
+ds004977,ieeg,0,0,0,0,no_files,0,0
+ds004696,ieeg,0,0,0,0,no_files,0,0
+ds007095,ieeg,0,6019,0,0,ignored,0,0
+ds004194,ieeg,0,0,0,627,ignored,0,0
+nm000105,emg,0,0,100,0,ignored,0,0
+nm000107,emg,0,0,182,0,ignored,0,0
+nm000106,emg,0,0,807,0,ignored,0,0
+nm000104,emg,0,0,1135,0,ignored,0,0
