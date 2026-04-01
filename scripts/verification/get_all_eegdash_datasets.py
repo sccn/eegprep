@@ -1,11 +1,10 @@
-import json
 import os
-from collections import defaultdict
-
-from joblib import Parallel, delayed
+import json
+import pandas as pd
 from tqdm import tqdm
 from eegdash import EEGDash
-
+from collections import defaultdict
+from joblib import Parallel, delayed
 
 def _scan_dataset_for_eegprep_extensions(
     dataset_root: str,
@@ -78,6 +77,22 @@ if __name__ == "__main__":
 
     with open("eegdash_stats.json", "w") as f:
         json.dump(modality_stats, f, indent=4)
+
+    #invert the dictionary to get a csv file with the dataset_id and the file types
+    datasets = []
+    for modality, stats in modality_stats.items():
+        for dataset_id, file_types in stats.items():
+            datasets.append({
+                "dataset_id": dataset_id,
+                "modality": modality,
+                ".set": file_types.get(".set", 0),
+                ".edf": file_types.get(".edf", 0),
+                ".bdf": file_types.get(".bdf", 0),
+                ".vhdr": file_types.get(".vhdr", 0),
+            })
+
+    df = pd.DataFrame(datasets)
+    df.to_csv("eegdash_datasets.csv", index=False)
 
     with open("eegdash_dataset.txt", "w") as f:
         for modality, stats in sorted(modality_stats.items()):
