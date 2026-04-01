@@ -15,14 +15,14 @@ if __name__ == "__main__":
 
     assert len(os.listdir(error_logs)) == len(os.listdir(output_logs)), "Number of error and output logs do not match"
 
-    # print('Renaming files before parsing...')
-    # for output_log in tqdm(glob.glob(os.path.join(output_logs, "*_*.out"))):
-    #     basename = os.path.basename(output_log)
-    #     with open(output_log, "r") as f:
-    #         lines = f.readlines()
-    #         dataset_name = lines[6].strip().split(" ")[-1]
-    #         os.rename(output_log, os.path.join(output_logs, "{}.out".format(dataset_name)))
-    #         os.rename(os.path.join(error_logs, basename.replace(".out", ".err")), os.path.join(error_logs, "{}.err".format(dataset_name)))
+    print('Renaming files before parsing...')
+    for output_log in tqdm(glob.glob(os.path.join(output_logs, "*_*.out"))):
+        basename = os.path.basename(output_log)
+        with open(output_log, "r") as f:
+            lines = f.readlines()
+            dataset_name = lines[6].strip().split(" ")[-1]
+            os.rename(output_log, os.path.join(output_logs, "{}.out".format(dataset_name)))
+            os.rename(os.path.join(error_logs, basename.replace(".out", ".err")), os.path.join(error_logs, "{}.err".format(dataset_name)))
 
 
     print('Found {} logs'.format(len(glob.glob(os.path.join(output_logs, "*.out")))))
@@ -41,9 +41,9 @@ if __name__ == "__main__":
 
     if len(nfs_slurm_issues) > 0:
         print('Found {} NFS and slurm issues'.format(len(nfs_slurm_issues)))
-        # with open('nfs_slurm_issues.txt', 'w') as f:
-        #     for issue in nfs_slurm_issues:
-        #         f.write(issue + '\n')
+        with open('nfs_slurm_issues.txt', 'w') as f:
+            for issue in nfs_slurm_issues:
+                f.write(issue + '\n')
     else:
         print('No NFS and slurm issues found')
 
