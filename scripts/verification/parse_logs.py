@@ -48,7 +48,7 @@ if __name__ == "__main__":
         print('No NFS and slurm issues found')
 
     
-    df = pd.read_csv('eegdash_datasets.csv')
+    df = pd.read_csv('reports/eegdash_datasets.csv')
     dataset_dicts = df.to_dict(orient='records')
 
     print('Parsing logs...')
@@ -95,4 +95,4 @@ if __name__ == "__main__":
                     dataset_dict['skipped'] = 0
 
     df = pd.DataFrame(dataset_dicts)
-    df.to_csv('eegdash_datasets_with_status.csv', index=False)
+    df.to_csv('reports/eegdash_datasets_with_status.csv', index=False)

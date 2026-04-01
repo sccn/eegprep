@@ -32,7 +32,7 @@ echo ""
 
 cd /home/ajaiswal4/github/eegprep
 
-DATASET_LIST=/home/ajaiswal4/github/eegprep/scripts/verification/eegdash_dataset.txt
+DATASET_LIST=/home/ajaiswal4/github/eegprep/scripts/verification/reports/eegdash_datasets.txt
 dataset=$(sed -n "${SLURM_ARRAY_TASK_ID}p" "${DATASET_LIST}")
 
 if [[ -z "${dataset}" ]]; then

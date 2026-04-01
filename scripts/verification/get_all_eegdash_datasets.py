@@ -75,7 +75,7 @@ if __name__ == "__main__":
             dataset_file_types[dataset_id] = file_types
         modality_stats[modality] = dataset_file_types
 
-    with open("eegdash_stats.json", "w") as f:
+    with open("reports/eegdash_stats.json", "w") as f:
         json.dump(modality_stats, f, indent=4)
 
     #invert the dictionary to get a csv file with the dataset_id and the file types
@@ -92,9 +92,9 @@ if __name__ == "__main__":
             })
 
     df = pd.DataFrame(datasets)
-    df.to_csv("eegdash_datasets.csv", index=False)
+    df.to_csv("reports/eegdash_datasets.csv", index=False)
 
-    with open("eegdash_dataset.txt", "w") as f:
+    with open("reports/eegdash_datasets.txt", "w") as f:
         for modality, stats in sorted(modality_stats.items()):
             if not len(stats):
                 continue
