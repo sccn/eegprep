@@ -12,7 +12,7 @@ The workflow is designed for the Expanse environment paths currently used in the
 Link to the Google Sheets:
 https://docs.google.com/spreadsheets/d/1HROV8je_9HjcZTYWtB-paMWHowcIrdWg6_lsrmz9jFY/edit?usp=sharing
 
-<img src="Screenshot%202026-04-01%20at%207.41.08%E2%80%AFAM.png" alt="Slurm Job Screenshot" width="700" />
+<img src="reports/Screenshot%202026-04-01%20at%207.41.08%E2%80%AFAM.png" alt="Slurm Job Screenshot" width="700" />
 
 
 
