@@ -7,7 +7,7 @@
 #SBATCH --mem=128G
 #SBATCH --time=06:00:00
 #SBATCH --account=csd403
-#SBATCH --array=1-433%25
+#SBATCH --array=1-433%50
 #SBATCH --output=/expanse/projects/nemar/aman/eegprep/eegprep_slurm/output/%A_%a.out
 #SBATCH --error=/expanse/projects/nemar/aman/eegprep/eegprep_slurm/error/%A_%a.err
 
@@ -47,5 +47,7 @@ python3 scripts/verification/test_dataset.py \
   --dataset-root /expanse/projects/nemar/openneuro \
   --output-root /expanse/projects/nemar/aman/eegprep/eegprep_test \
   --reserve-per-job "${RESERVE_PER_JOB:-4GB,1CPU}"
+
+rm -r /expanse/projects/nemar/aman/eegprep/eegprep_test/${dataset}
 
 echo "Finished ${dataset} at $(date)"
