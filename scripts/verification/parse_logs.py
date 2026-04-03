@@ -41,7 +41,7 @@ if __name__ == "__main__":
 
     if len(nfs_slurm_issues) > 0:
         print('Found {} NFS and slurm issues'.format(len(nfs_slurm_issues)))
-        with open('nfs_slurm_issues.txt', 'w') as f:
+        with open('reports/nfs_slurm_issues.txt', 'w') as f:
             for issue in nfs_slurm_issues:
                 f.write(issue + '\n')
     else:
