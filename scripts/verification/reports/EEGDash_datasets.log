@@ -1,0 +1,182 @@
+2026-04-06 20:57:57 INFO [__main__] --------------------------------
+2026-04-06 20:57:58 INFO [__main__] Found 719 datasets
+2026-04-06 20:57:58 INFO [__main__] eeg: 561
+2026-04-06 20:57:58 INFO [__main__] eeg_emg: 1
+2026-04-06 20:57:58 INFO [__main__] eeg_fnirs: 3
+2026-04-06 20:57:58 INFO [__main__] eeg_ieeg: 1
+2026-04-06 20:57:58 INFO [__main__] eeg_meg: 2
+2026-04-06 20:57:58 INFO [__main__] emg: 5
+2026-04-06 20:57:58 INFO [__main__] fnirs: 21
+2026-04-06 20:57:58 INFO [__main__] ieeg: 70
+2026-04-06 20:57:58 INFO [__main__] meg: 55
+2026-04-06 20:57:58 INFO [__main__] --------------------------------
+2026-04-06 20:58:23 WARNING [__main__] Failed to download dataset ds007221: Command '['s5cmd', '--no-sign-request', 'cp', 's3://openneuro.org/ds007221/*', '/expanse/projects/nemar/aman/openneuro/ds007221/']' returned non-zero exit status 1.
+2026-04-06 20:58:27 WARNING [__main__] Failed to download dataset ds007420: Command '['s5cmd', '--no-sign-request', 'cp', 's3://openneuro.org/ds007420/*', '/expanse/projects/nemar/aman/openneuro/ds007420/']' returned non-zero exit status 1.
+2026-04-06 20:58:30 WARNING [__main__] Failed to download dataset ds007445: Command '['s5cmd', '--no-sign-request', 'cp', 's3://openneuro.org/ds007445/*', '/expanse/projects/nemar/aman/openneuro/ds007445/']' returned non-zero exit status 1.
+2026-04-06 20:58:34 WARNING [__main__] Failed to download dataset ds007454: Command '['s5cmd', '--no-sign-request', 'cp', 's3://openneuro.org/ds007454/*', '/expanse/projects/nemar/aman/openneuro/ds007454/']' returned non-zero exit status 1.
+2026-04-06 20:58:37 WARNING [__main__] Failed to download dataset ds007558: Command '['s5cmd', '--no-sign-request', 'cp', 's3://openneuro.org/ds007558/*', '/expanse/projects/nemar/aman/openneuro/ds007558/']' returned non-zero exit status 1.
+2026-04-06 20:58:43 WARNING [__main__] Failed to download dataset ds007615: Command '['s5cmd', '--no-sign-request', 'cp', 's3://openneuro.org/ds007615/*', '/expanse/projects/nemar/aman/openneuro/ds007615/']' returned non-zero exit status 1.
+2026-04-06 21:08:41 WARNING [__main__] Dataset EEG2025r1 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset EEG2025r10 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset EEG2025r10mini does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset EEG2025r11 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset EEG2025r11mini does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset EEG2025r1mini does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset EEG2025r2 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset EEG2025r2mini does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset EEG2025r3 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset EEG2025r3mini does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset EEG2025r4 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset EEG2025r4mini does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset EEG2025r5 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset EEG2025r5mini does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset EEG2025r6 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset EEG2025r6mini does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset EEG2025r7 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset EEG2025r7mini does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset EEG2025r8 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset EEG2025r8mini does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset EEG2025r9 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset EEG2025r9mini does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset ds007221 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset ds007420 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset ds007445 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset ds007454 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset ds007558 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset ds007615 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000118 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000119 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000120 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000121 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000122 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000123 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000124 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000125 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000126 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000127 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000128 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000129 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000130 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000131 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000135 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000136 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000137 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000138 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000139 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000140 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000141 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000142 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000143 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000144 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000145 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000146 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000147 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000148 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000149 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000150 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000151 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000152 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000156 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000158 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000160 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000161 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000162 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000163 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000167 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000168 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000169 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000170 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000171 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000172 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000173 does not exist in any of the data paths
+2026-04-06 21:08:41 WARNING [__main__] Dataset nm000176 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000186 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000187 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000188 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000189 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000190 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000191 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000192 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000193 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000194 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000195 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000196 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000197 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000198 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000199 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000200 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000201 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000202 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000203 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000204 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000205 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000206 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000207 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000208 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000209 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000210 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000211 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000212 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000213 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000214 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000215 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000216 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000217 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000218 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000219 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000221 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000222 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000223 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000227 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000230 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000231 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000234 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000235 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000236 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000237 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000239 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000240 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000242 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000243 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000244 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000245 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000246 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000247 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000248 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000249 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000250 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000259 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000260 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000264 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000265 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000266 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000267 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000268 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000270 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000271 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000272 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000277 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000301 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000303 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000310 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000313 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000321 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000323 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000326 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000329 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000334 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000336 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000338 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000339 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000340 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000341 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000342 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000343 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000344 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000345 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000346 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000347 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000348 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000349 does not exist in any of the data paths
+2026-04-06 21:08:42 WARNING [__main__] Dataset nm000351 does not exist in any of the data paths
+2026-04-06 21:08:42 INFO [__main__] --------------------------------

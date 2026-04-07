@@ -18,7 +18,7 @@ def parse_args():
         description="Run bids_preproc on one BIDS dataset under dataset-root."
     )
     parser.add_argument("--dataset-name", "-d", type=str, required=True)
-    parser.add_argument("--dataset-root", "-p", type=str, required=True)
+    parser.add_argument("--dataset-root", "-p", type=str, nargs="+", required=True)
     parser.add_argument("--output-root", "-o", type=str, required=True)
     parser.add_argument(
         "--reserve-per-job",
@@ -36,9 +36,14 @@ def parse_args():
 def test_eegprep(dataset_name, dataset_root, output_root, reserve_per_job: str):
     print(f"Testing {dataset_name} from {dataset_root}")
 
-    dataset_dir = os.path.join(dataset_root, dataset_name)
-    if not os.path.exists(dataset_dir):
-        raise FileNotFoundError(f"Dataset directory {dataset_dir} does not exist")
+    dataset_dir = None
+    for root in dataset_root:
+        if os.path.exists(os.path.join(root, dataset_name)):
+            dataset_dir = os.path.join(root, dataset_name)
+            break
+    
+    if dataset_dir is None:
+        raise FileNotFoundError(f"Dataset directory {dataset_name} does not exist in any of the dataset roots")
 
     output_dir = os.path.join(output_root, dataset_name)
     os.makedirs(output_dir, exist_ok=True)
