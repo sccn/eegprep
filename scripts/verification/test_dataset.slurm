@@ -50,4 +50,7 @@ python3 scripts/verification/test_dataset.py \
 
 rm -r /expanse/projects/nemar/aman/eegprep/eegprep_test/${dataset}
 
+mv /expanse/projects/nemar/aman/eegprep/eegprep_slurm/output/${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}.out /expanse/projects/nemar/aman/eegprep/eegprep_slurm/output/${dataset}.out
+mv /expanse/projects/nemar/aman/eegprep/eegprep_slurm/error/${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}.err /expanse/projects/nemar/aman/eegprep/eegprep_slurm/error/${dataset}.err
+
 echo "Finished ${dataset} at $(date)"

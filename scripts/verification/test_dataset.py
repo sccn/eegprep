@@ -41,9 +41,11 @@ def test_eegprep(dataset_name, dataset_root, output_root, reserve_per_job: str):
         if os.path.exists(os.path.join(root, dataset_name)):
             dataset_dir = os.path.join(root, dataset_name)
             break
-    
+
     if dataset_dir is None:
-        raise FileNotFoundError(f"Dataset directory {dataset_name} does not exist in any of the dataset roots")
+        raise FileNotFoundError(
+            f"Dataset directory {dataset_name} does not exist in any of the dataset roots"
+        )
 
     output_dir = os.path.join(output_root, dataset_name)
     os.makedirs(output_dir, exist_ok=True)
