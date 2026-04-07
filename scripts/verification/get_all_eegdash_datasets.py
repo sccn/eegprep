@@ -188,11 +188,11 @@ if __name__ == "__main__":
     logger.info("--------------------------------")
     # Write the dataset IDs of the eegprep-compatible datasets to a text file
 
-    with open(os.path.join(args.save_dir, "eegprep_compatible_datasets.txt"), "w") as f:
-        for idx, row in df.iterrows():
-            if (
-                not row["missing"]
-                and "eeg" in row["recorded_modality"].split("_")
-                and sum(row[col] for col in args.valid_extensions) > 0
-            ):
-                f.write(row["dataset_id"] + "\n")
+with open(os.path.join(args.save_dir, "eegprep_compatible_datasets.txt"), "w") as f:
+    for idx, row in df.iterrows():
+        if (
+            not row["missing"]
+            and "eeg" in row["recorded_modality"].split("_")
+            and sum(row[col] for col in args.valid_extensions) > 0
+        ):
+            f.write(row["dataset_id"] + "\n")
