@@ -1005,12 +1005,14 @@ def bids_preproc(
                 content['ECGChannelCount'] = n_ecg = sum(lab == 'ecg' for lab in labels)
                 content['EMGChannelCount'] = n_emg = sum(lab == 'emg' for lab in labels)
                 content['EOGChannelCount'] = n_eog = sum(lab == 'eog' for lab in labels)
-                content['TriggerChannelCount'] = n_trig = sum(lab == 'trig' for lab in labels)
-                content['MISCChannelCount'] = len(EEG['chanlocs']) - (n_eeg+n_ecg+n_emg+n_eog+n_trig)
+                n_trig = sum(lab == 'trig' for lab in labels)
+                content['MiscChannelCount'] = len(EEG['chanlocs']) - (n_eeg+n_ecg+n_emg+n_eog+n_trig)
 
                 # remove misnamed field that may be present from prior json file
-                if 'MiscChannelCount' in content:
-                    del content['MiscChannelCount']
+                if 'MISCChannelCount' in content:
+                    del content['MISCChannelCount']
+                if 'TriggerChannelCount' in content:
+                    del content['TriggerChannelCount']
 
                 # other things that likely changed as a result of preprocessing
                 is_epoched = EEG['data'].ndim == 3
@@ -1027,8 +1029,12 @@ def bids_preproc(
                     content['RecordingType'] = 'continuous'
 
                 # complete a few fields that may be missing
+                # Note: EEGPlacementScheme is not in the BIDS schema but is
+                # commonly used; only add it if already present in source sidecar
                 if 'EEGPlacementScheme' not in content:
-                    content['EEGPlacementScheme'] = EEG['etc'].get('labelscheme', 'unknown')
+                    labelscheme = EEG['etc'].get('labelscheme')
+                    if labelscheme and labelscheme != 'unknown':
+                        content['EEGPlacementScheme'] = labelscheme
 
                 # write information about the applied filters
                 if ('SoftwareFilters' not in content) or not isinstance(content['SoftwareFilters'], dict):
@@ -1050,9 +1056,19 @@ def bids_preproc(
                     if (flt := filter_report.get(in_report, {'Applied': False})).pop('Applied'):
                         sw_filts[in_filters] = flt
 
-                # write the updated content back
+                # write the updated content back (ensure JSON-safe values)
+                def _json_safe(obj):
+                    """Replace non-finite floats with strings for JSON compliance."""
+                    if isinstance(obj, float) and not np.isfinite(obj):
+                        return str(obj)  # "-inf" / "inf" / "nan"
+                    if isinstance(obj, dict):
+                        return {k: _json_safe(v) for k, v in obj.items()}
+                    if isinstance(obj, (list, tuple)):
+                        return [_json_safe(v) for v in obj]
+                    return obj
+
                 with open(fpath_eeg, 'w') as fp:
-                    json.dump(content, fp, indent=4)
+                    json.dump(_json_safe(content), fp, indent=4)
 
             return EEG if ReturnData else None
         except ExceptionUnlessDebug as e:
