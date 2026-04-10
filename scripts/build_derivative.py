@@ -12,6 +12,7 @@ Usage:
 
 import argparse
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -225,6 +226,39 @@ python bids_minimal_preproc.py --input /path/to/{os.path.basename(bids_root)}
     print(f'  code/ folder ready: {code_dir}')
 
 
+def prepend_readme_notice(deriv_dir):
+    """Prepend a data availability notice to the derivative README."""
+    readme_path = os.path.join(deriv_dir, 'README.md')
+    # fall back to README (no extension) if .md doesn't exist
+    if not os.path.exists(readme_path):
+        readme_path = os.path.join(deriv_dir, 'README')
+    notice = """## Data Availability and Regeneration Instructions
+
+This is a derivative dataset. If any data are missing, you can use the
+instructions in the code folder to download the raw data and regenerate
+the derivatives.
+
+Below is the README file of the raw data.
+
+----------------------------------------
+
+"""
+    if os.path.exists(readme_path):
+        with open(readme_path, 'r') as f:
+            existing = f.read()
+        # don't prepend twice
+        if 'Data Availability and Regeneration Instructions' not in existing:
+            with open(readme_path, 'w') as f:
+                f.write(notice + existing)
+        else:
+            with open(readme_path, 'w') as f:
+                f.write(existing)
+    else:
+        with open(readme_path, 'w') as f:
+            f.write(notice)
+    print(f'  Updated {readme_path} with regeneration notice')
+
+
 def add_bidsignore(deriv_dir):
     """Add .bidsignore for derivative-specific files."""
     path = os.path.join(deriv_dir, '.bidsignore')
@@ -287,6 +321,9 @@ def main():
 
     # Add .bidsignore
     add_bidsignore(deriv_dir)
+
+    # Prepend regeneration notice to derivative README
+    prepend_readme_notice(deriv_dir)
 
     # Copy reproducibility files
     copy_code_folder(bids_root, deriv_dir, args.srate, args.highpass)
