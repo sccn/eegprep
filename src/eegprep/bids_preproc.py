@@ -15,7 +15,7 @@ import numpy as np
 
 from .utils import ExceptionUnlessDebug, num_jobs_from_reservation, is_debug, \
     humanize_seconds, num_cpus_from_reservation, ToolError
-from .utils.bids import layout_for_fpath
+from .utils.bids import layout_for_fpath, root_for_fpath
 from .utils.coords import chanloc_has_coords
 from .utils.git import get_git_commit_id
 
@@ -134,6 +134,8 @@ def bids_preproc(
         EpochBaseline: Optional[Sequence[float]] = None,
         # Derived data parameters
         StageNames: Sequence[str] = ('desc-cleaned', 'desc-picard', 'desc-iclabel', 'desc-epoch'),
+        FinalDesc: Optional[str] = None,
+        ReportDir: Optional[str] = None,
         MinimizeDiskUsage: bool = True,
         SaveIntermediateStages: bool = False,
         IntermediateDir: Optional[str] = None,
@@ -334,6 +336,14 @@ def bids_preproc(
         list of file name parts for the preprocessing stages, in the order of cleaning,ica,iclabel;
         these can be adjusted when working with different preprocessed versions (e.g., using
         different parameters for cleaning). It is recommended that these start with 'desc-'.
+    FinalDesc : str or None
+        Optional desc- label for the final output file. If None (default), uses the last
+        stage name from StageNames. If empty string '', the output file has no desc- label
+        (e.g., sub-01_task-rest_eeg.set instead of sub-01_task-rest_desc-cleaned_eeg.set).
+    ReportDir : str or None
+        Optional directory for report JSON files. If None (default), reports are saved
+        alongside the data files. If set (e.g., 'code/reports'), reports are saved there
+        relative to the output directory.
     MinimizeDiskUsage : bool
         whether to minimize disk usage by not saving some intermediate files (specifically
         the PICARD output if WithICLabel=False). Default True.
@@ -434,6 +444,17 @@ def bids_preproc(
     if len(StageNames) != 4:
         raise ValueError("StageNames, if given, must be a list of 4 strings, as in: "
                          "['desc-cleaned', 'desc-picard', 'desc-iclabel', 'desc-epoch'].")
+    # apply FinalDesc override to the last active stage name
+    if FinalDesc is not None:
+        StageNames = list(StageNames)
+        if EpochEvents is not None:
+            StageNames[3] = FinalDesc
+        elif WithICLabel:
+            StageNames[2] = FinalDesc
+        elif WithICA:
+            StageNames[1] = FinalDesc
+        else:
+            StageNames[0] = FinalDesc
     if WithPicard:
         ICAAlgorithm = 'picard'
         WithICA = True
@@ -453,6 +474,11 @@ def bids_preproc(
         fpath_epoch = gen_derived_fpath(fn, outputdir=OutputDir, keyword=StageNames[3] + hash_suffix(ignore={'CommonAverageReference'}))
         fpath_final = gen_derived_fpath(fn, outputdir=OutputDir, keyword=f'desc-final' + hash_suffix())
         fpath_report = gen_derived_fpath(fn, outputdir=OutputDir, keyword='desc-report' + hash_suffix(), extension='.json')
+        if ReportDir is not None:
+            # redirect report to a separate directory (e.g., 'code/reports')
+            report_base = os.path.basename(fpath_report)
+            resolved_output = OutputDir.format(root=root_for_fpath(fn)) if '{root}' in OutputDir else OutputDir
+            fpath_report = os.path.join(resolved_output, ReportDir, report_base)
 
         # JSON report file
         if os.path.exists(fpath_report):
@@ -1153,27 +1179,29 @@ def bids_preproc(
 
         orig_doi = desc.get("DatasetDOI", "")
 
-        # determine the dataset URL
-        if '/openneuro.ds' in orig_doi:
-            # infer from doi
+        # determine the dataset URL: prefer existing SourceDatasets URL, then infer
+        existing_url = ""
+        for src in desc.get("SourceDatasets", []):
+            if src.get("URL"):
+                existing_url = src["URL"]
+                break
+        if existing_url:
+            dataset_url = existing_url
+        elif '/openneuro.ds' in orig_doi:
             ds_name = orig_doi.split('/')[1].split('.')[1]
-        else:
-            # guess from folder name, if conforming to openneuro convention
-            folder_name = os.path.basename(root)
-            if folder_name.startswith('ds') and folder_name[2:8].isdigit():
-                ds_name = folder_name[:8]
-            else:
-                ds_name = ''
-        if ds_name:
             dataset_url = f"https://openneuro.org/datasets/{ds_name}"
         else:
-            dataset_url = ""
-        desc["SourceDatasets"] = [
-            {
-                "URL": dataset_url,
-                "DOI": orig_doi
-            }
-        ]
+            folder_name = os.path.basename(root)
+            if folder_name.startswith('ds') and folder_name[2:8].isdigit():
+                dataset_url = f"https://openneuro.org/datasets/{folder_name[:8]}"
+            else:
+                dataset_url = ""
+        source_entry = {}
+        if dataset_url:
+            source_entry["URL"] = dataset_url
+        if orig_doi:
+            source_entry["DOI"] = orig_doi
+        desc["SourceDatasets"] = [source_entry] if source_entry else []
         # note that the actual epoched data *can* be absent if there were no matching 
         # event markers in any study file, which we can't determine at this point
         desc['IsEpoched'] = EpochEvents is not None
