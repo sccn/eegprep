@@ -1,6 +1,8 @@
 """Tests for test fixtures module."""
 
 import unittest
+import sys
+import os
 import numpy as np
 import os
 import sys

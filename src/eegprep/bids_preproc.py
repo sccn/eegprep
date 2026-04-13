@@ -15,7 +15,7 @@ import numpy as np
 
 from .utils import ExceptionUnlessDebug, num_jobs_from_reservation, is_debug, \
     humanize_seconds, num_cpus_from_reservation, ToolError
-from .utils.bids import layout_for_fpath
+from .utils.bids import layout_for_fpath, root_for_fpath
 from .utils.coords import chanloc_has_coords
 from .utils.git import get_git_commit_id
 
@@ -99,7 +99,10 @@ def bids_preproc(
         OnlyChannelsWithPosition: bool = True,
         OnlyModalities: Sequence[str] = (),
         WithInterp: bool = False,
+        WithICA: bool = False,
         WithPicard: bool = False,
+        ICAAlgorithm: str = 'runica',
+        AmicaArgs: dict | None = None,
         WithICLabel: bool = False,
         WithReport: bool = True,
         CommonAverageReference: bool = True,
@@ -131,7 +134,11 @@ def bids_preproc(
         EpochBaseline: Optional[Sequence[float]] = None,
         # Derived data parameters
         StageNames: Sequence[str] = ('desc-cleaned', 'desc-picard', 'desc-iclabel', 'desc-epoch'),
+        FinalDesc: Optional[str] = None,
+        ReportDir: Optional[str] = None,
         MinimizeDiskUsage: bool = True,
+        SaveIntermediateStages: bool = False,
+        IntermediateDir: Optional[str] = None,
 
         # Legacy parameter names for compatibility with EEGLAB
         bidschanloc: Optional[bool] = None,
@@ -242,12 +249,15 @@ def bids_preproc(
     WithInterp : bool
         Whether to reinterpolate dropped channels, thus retaining the same channel
         count as the raw data.
-    WithPicard : bool
+    WithICA (bool):
         Whether to apply PICARD ICA decomposition after cleaning.
+    AmicaArgs : dict or None
+        Additional keyword arguments for AMICA when ICAAlgorithm='amica',
+        e.g. {'num_models': 2, 'max_iter': 500}.
     WithICLabel : bool
         Whether to apply ICLabel classification after ICA. Normally requires
-        WithPicard=True.
-    CommonAverageReference : bool
+        WithICA=True.
+    CommonAverageReference (bool):
         Whether to transform the EEG data to a common average referencing scheme;
         recommended for cross-study processing.
 
@@ -326,6 +336,14 @@ def bids_preproc(
         list of file name parts for the preprocessing stages, in the order of cleaning,ica,iclabel;
         these can be adjusted when working with different preprocessed versions (e.g., using
         different parameters for cleaning). It is recommended that these start with 'desc-'.
+    FinalDesc : str or None
+        Optional desc- label for the final output file. If None (default), uses the last
+        stage name from StageNames. If empty string '', the output file has no desc- label
+        (e.g., sub-01_task-rest_eeg.set instead of sub-01_task-rest_desc-cleaned_eeg.set).
+    ReportDir : str or None
+        Optional directory for report JSON files. If None (default), reports are saved
+        alongside the data files. If set (e.g., 'code/reports'), reports are saved there
+        relative to the output directory.
     MinimizeDiskUsage : bool
         whether to minimize disk usage by not saving some intermediate files (specifically
         the PICARD output if WithICLabel=False). Default True.
@@ -362,8 +380,10 @@ def bids_preproc(
     del kwargs['root']  # we don't need the root here, only in the function body
     from scipy.io.matlab import loadmat
     from eegprep import (bids_list_eeg_files, clean_artifacts, pop_load_frombids, eeg_checkset,
-                         pop_saveset, eeg_picard, iclabel, pop_loadset, pop_resample,
-                         eeg_interp, pop_select, eeg_checkset_strict_mode, pop_reref)
+                         pop_saveset, eeg_runica, eeg_picard, iclabel, pop_loadset, pop_resample,
+                         eeg_interp, pop_select, eeg_checkset_strict_mode, pop_reref,
+                         eeg_icflag, pop_subcomp)
+    from eegprep.eeg_amica import eeg_amica
     from .utils.bids import gen_derived_fpath
 
     def hash_suffix(ignore: Optional[set] = None, *, prefix='#') -> str:
@@ -424,9 +444,23 @@ def bids_preproc(
     if len(StageNames) != 4:
         raise ValueError("StageNames, if given, must be a list of 4 strings, as in: "
                          "['desc-cleaned', 'desc-picard', 'desc-iclabel', 'desc-epoch'].")
-    if WithICLabel and not WithPicard:
-        logger.warning("WithICLabel=True implies WithPicard=True; setting WithPicard=True.")
-        WithPicard = True
+    # apply FinalDesc override to the last active stage name
+    if FinalDesc is not None:
+        StageNames = list(StageNames)
+        if EpochEvents is not None:
+            StageNames[3] = FinalDesc
+        elif WithICLabel:
+            StageNames[2] = FinalDesc
+        elif WithICA:
+            StageNames[1] = FinalDesc
+        else:
+            StageNames[0] = FinalDesc
+    if WithPicard:
+        ICAAlgorithm = 'picard'
+        WithICA = True
+    if WithICLabel and not WithICA:
+        logger.warning("WithICLabel=True implies WithICA=True; setting WithICA=True.")
+        WithICA = True
 
     if not os.path.isdir(root) and root.endswith(eeg_extensions):
         fn = root  # process a single file
@@ -434,12 +468,17 @@ def bids_preproc(
             _n_skipped = multiprocessing.Value('i', 0)
 
         late_opts = {'WithInterp', 'EpochLimits', 'EpochEvents', 'EpochBaseline', 'CommonAverageReference'}
-        fpath_cln = gen_derived_fpath(fn, outputdir=OutputDir, keyword=StageNames[0] + hash_suffix(ignore={'WithPicard', 'WithICLabel'} | late_opts))
+        fpath_cln = gen_derived_fpath(fn, outputdir=OutputDir, keyword=StageNames[0] + hash_suffix(ignore={'WithICA', 'WithICLabel'} | late_opts))
         fpath_picard = gen_derived_fpath(fn, outputdir=OutputDir, keyword=StageNames[1] + hash_suffix(ignore={'WithICLabel'} | late_opts))
         fpath_iclabel = gen_derived_fpath(fn, outputdir=OutputDir, keyword=StageNames[2] + hash_suffix(ignore=late_opts))
         fpath_epoch = gen_derived_fpath(fn, outputdir=OutputDir, keyword=StageNames[3] + hash_suffix(ignore={'CommonAverageReference'}))
         fpath_final = gen_derived_fpath(fn, outputdir=OutputDir, keyword=f'desc-final' + hash_suffix())
         fpath_report = gen_derived_fpath(fn, outputdir=OutputDir, keyword='desc-report' + hash_suffix(), extension='.json')
+        if ReportDir is not None:
+            # redirect report to a separate directory (e.g., 'code/reports')
+            report_base = os.path.basename(fpath_report)
+            resolved_output = OutputDir.format(root=root_for_fpath(fn)) if '{root}' in OutputDir else OutputDir
+            fpath_report = os.path.join(resolved_output, ReportDir, report_base)
 
         # JSON report file
         if os.path.exists(fpath_report):
@@ -478,7 +517,7 @@ def bids_preproc(
         if WithICLabel:
             needed_files += [fpath_cln, fpath_iclabel]
             StagesToGo += ['ICA', 'ICLabel']
-        elif WithPicard:
+        elif WithICA:
             needed_files += [fpath_cln, fpath_picard]
             StagesToGo += ['ICA']
         else:
@@ -542,6 +581,20 @@ def bids_preproc(
             old_chanlocs = None
             with thread_ctx:
 
+                def save_stage(EEG, stage_num, stage_name):
+                    """Save intermediate stage if requested."""
+                    if SaveIntermediateStages and IntermediateDir:
+                        os.makedirs(IntermediateDir, exist_ok=True)
+                        # Extract subject/run info from filename for unique identifier
+                        base = os.path.basename(fn).replace('.set', '').replace('.vhdr', '').replace('.edf', '').replace('.bdf', '')
+                        stage_file = f'{base}_stage{stage_num:02d}_{stage_name}_py.set'
+                        stage_path = os.path.join(IntermediateDir, stage_file)
+                        try:
+                            pop_saveset(EEG, stage_path)
+                            logger.info(f"Saved stage {stage_num} ({stage_name}) to {stage_path}")
+                        except Exception as e:
+                            logger.error(f"Failed to save stage {stage_num} ({stage_name}): {e}")
+
                 def select_channels(EEG, report=None):
                     """Apply channel selection, optionally update the provided report in-place."""
                     if report is None:
@@ -551,7 +604,19 @@ def bids_preproc(
                         keep &= [chanloc_has_coords(ch) for ch in EEG['chanlocs']]
                     if OnlyModalities:
                         OM = [m.upper() for m in OnlyModalities]
-                        keep &= [ch.get('type', 'EEG').upper() in OM for ch in EEG['chanlocs']]
+                        def get_chan_type(ch):
+                            """Get channel type, handling nan and non-string types."""
+                            typ = ch.get('type')
+                            # Return None for nan, None, or other non-string types (will be excluded)
+                            # Check for float/nan first since nan is not a string but isinstance check alone misses it
+                            if typ is None:
+                                return None
+                            if isinstance(typ, float) and np.isnan(typ):
+                                return None
+                            if not isinstance(typ, str):
+                                return None
+                            return typ.upper()
+                        keep &= [get_chan_type(ch) in OM for ch in EEG['chanlocs']]
                     retain = [ch['labels'] for ch, kp in zip(EEG['chanlocs'], keep) if kp]
                     if 0 < len(retain) < len(EEG['chanlocs']):
                         EEG = pop_select(EEG, channel=retain)
@@ -589,7 +654,18 @@ def bids_preproc(
                         bidsevent=ApplyEvents,
                         eventtype=EventColumn,
                         return_report=True)
+
+                    # Clear any pre-existing ICA if we're going to compute fresh ICA with PICARD
+                    # This avoids shape mismatches after channel interpolation
+                    if WithICA and 'icaweights' in EEG and EEG['icaweights'].size > 0:
+                        logger.info(f"Clearing pre-existing ICA from {fn} (will recompute with PICARD)")
+                        EEG['icaweights'] = np.array([])
+                        EEG['icasphere'] = np.array([])
+                        EEG['icawinv'] = np.array([])
+                        EEG['icaact'] = np.array([])
+
                     StagesToGo.remove('Import')
+                    save_stage(EEG, 1, 'import')
 
                     report["Import"] = {
                         "ApplyMetadata": ApplyMetadata,
@@ -612,6 +688,7 @@ def bids_preproc(
                     if OnlyChannelsWithPosition or OnlyModalities:
                         EEG = select_channels(EEG, report)
                         StagesToGo.remove('ChannelSelection')
+                        save_stage(EEG, 2, 'chansel')
 
                     if SamplingRate:
                         EEG = pop_resample(EEG, SamplingRate)
@@ -620,6 +697,7 @@ def bids_preproc(
                             "SamplingRate": SamplingRate,
                         }
                         StagesToGo.remove('Resample')
+                        save_stage(EEG, 3, 'resample')
                     else:
                         logger.info("No resampling requested, keeping original sampling rate.")
                         report["Resample"] = {
@@ -684,22 +762,29 @@ def bids_preproc(
 
                         # we always save out the cleaned EEG data
                         pop_saveset(EEG, fpath_cln)
+                        save_stage(EEG, 8, 'window')
 
-                if WithPicard:
+                if WithICA:
                     if os.path.exists(fpath_picard) and SkipIfPresent:
                         logger.info(f"Found {fpath_picard}, skipping PICARD stage.")
                         EEG = pop_loadset(fpath_picard)
                     else:
-                        EEG = eeg_picard(EEG, posact=True, sortcomps=True)
+                        if ICAAlgorithm == 'picard':
+                            EEG = eeg_picard(EEG)
+                        elif ICAAlgorithm == 'amica':
+                            EEG = eeg_amica(EEG, posact=True, sortcomps=True, **(AmicaArgs or {}))
+                        else:
+                            EEG = eeg_runica(EEG, posact=True, sortcomps=True, rndreset='off')
                         EEG = eeg_checkset(EEG)
                         if not WithICLabel or not MinimizeDiskUsage:
                             # only save the PICARD output if we don't do ICLabel (to save disk space)
                             pop_saveset(EEG, fpath_picard)
                         report["ICA"] = {
-                            "Type": "PICARD",
+                            "Type": ICAAlgorithm.upper(),
                             "Applied": True,
                         }
                         StagesToGo.remove('ICA')
+                        save_stage(EEG, 9, 'ica')
                 else:
                     report["ICA"] = {
                         "Applied": False,
@@ -711,6 +796,28 @@ def bids_preproc(
                         EEG = pop_loadset(fpath_iclabel)
                     else:
                         EEG = iclabel(EEG)
+
+                        # Flag components based on ICLabel classifications
+                        # Match MATLAB: pop_icflag([NaN NaN;0.9 1;0.9 1;NaN NaN;NaN NaN;NaN NaN;NaN NaN])
+                        # This flags Muscle > 0.9 OR Eye > 0.9
+                        thresholds = np.array([
+                            [np.nan, np.nan],  # Brain
+                            [0.9, 1.0],        # Muscle
+                            [0.9, 1.0],        # Eye
+                            [np.nan, np.nan],  # Heart
+                            [np.nan, np.nan],  # Line Noise
+                            [np.nan, np.nan],  # Channel Noise
+                            [np.nan, np.nan],  # Other
+                        ])
+                        EEG = eeg_icflag(EEG, thresholds)
+
+                        # Save stage 10 BEFORE component removal (for comparison)
+                        save_stage(EEG, 10, 'iclabel')
+
+                        # Remove flagged components
+                        EEG = pop_subcomp(EEG)
+
+                        # Save the final result after component removal
                         pop_saveset(EEG, fpath_iclabel)
                         report["ICLabel"] = {
                             "Applied": True,
@@ -745,6 +852,19 @@ def bids_preproc(
                         # low-amplitude noise afterwards)
                         try:
                             EEG = eeg_interp(EEG, list(old_chanlocs))
+
+                            # Clear ICA after interpolation since ICA was computed on
+                            # fewer channels and is now incompatible with interpolated data
+                            if 'icaweights' in EEG and EEG['icaweights'].size > 0:
+                                if EEG['icaweights'].shape[1] != EEG['nbchan']:
+                                    logger.warning(f"Clearing ICA after interpolation: ICA was done on "
+                                                   f"{EEG['icaweights'].shape[1]} channels but data now has "
+                                                   f"{EEG['nbchan']} channels")
+                                    EEG['icaweights'] = np.array([])
+                                    EEG['icasphere'] = np.array([])
+                                    EEG['icawinv'] = np.array([])
+                                    EEG['icaact'] = np.array([])
+
                             report["ChannelInterp"] = {
                                 "Applied": True,
                                 "NumInterpolated": nDropped
@@ -761,6 +881,7 @@ def bids_preproc(
                             else:
                                 raise
                         StagesToGo.remove('ChannelInterp')
+                        save_stage(EEG, 11, 'interp')
                 else:
                     report["ChannelInterp"] = {
                         "Applied": False,
@@ -794,6 +915,10 @@ def bids_preproc(
                                     EEG = pop_rmbase(EEG, timerange=timerange)
 
                                 pop_saveset(EEG, fpath_epoch)
+                                if EpochBaseline is None:
+                                    save_stage(EEG, 12, 'epoch')
+                                else:
+                                    save_stage(EEG, 13, 'baseline')
 
                             report["Epoching"] = {
                                 "Applied": True,
@@ -820,6 +945,7 @@ def bids_preproc(
                     EEG = pop_reref(EEG, [])
                     StagesToGo.remove('CommonAverageRef')
                     report["CommonAverageReference"] = {"Applied": True}
+                    save_stage(EEG, 14, 'reref')
 
                 # optionally write out the final preprocessed file
                 if need_final:
@@ -905,12 +1031,14 @@ def bids_preproc(
                 content['ECGChannelCount'] = n_ecg = sum(lab == 'ecg' for lab in labels)
                 content['EMGChannelCount'] = n_emg = sum(lab == 'emg' for lab in labels)
                 content['EOGChannelCount'] = n_eog = sum(lab == 'eog' for lab in labels)
-                content['TriggerChannelCount'] = n_trig = sum(lab == 'trig' for lab in labels)
-                content['MISCChannelCount'] = len(EEG['chanlocs']) - (n_eeg+n_ecg+n_emg+n_eog+n_trig)
+                n_trig = sum(lab == 'trig' for lab in labels)
+                content['MiscChannelCount'] = len(EEG['chanlocs']) - (n_eeg+n_ecg+n_emg+n_eog+n_trig)
 
                 # remove misnamed field that may be present from prior json file
-                if 'MiscChannelCount' in content:
-                    del content['MiscChannelCount']
+                if 'MISCChannelCount' in content:
+                    del content['MISCChannelCount']
+                if 'TriggerChannelCount' in content:
+                    del content['TriggerChannelCount']
 
                 # other things that likely changed as a result of preprocessing
                 is_epoched = EEG['data'].ndim == 3
@@ -927,8 +1055,12 @@ def bids_preproc(
                     content['RecordingType'] = 'continuous'
 
                 # complete a few fields that may be missing
+                # Note: EEGPlacementScheme is not in the BIDS schema but is
+                # commonly used; only add it if already present in source sidecar
                 if 'EEGPlacementScheme' not in content:
-                    content['EEGPlacementScheme'] = EEG['etc'].get('labelscheme', 'unknown')
+                    labelscheme = EEG['etc'].get('labelscheme')
+                    if labelscheme and labelscheme != 'unknown':
+                        content['EEGPlacementScheme'] = labelscheme
 
                 # write information about the applied filters
                 if ('SoftwareFilters' not in content) or not isinstance(content['SoftwareFilters'], dict):
@@ -941,7 +1073,7 @@ def bids_preproc(
                 filter_names = {
                     'Resample': 'pop_resample',
                     'CleanArtifacts': 'clean_artifacts',
-                    'ICA': 'eeg_picard',
+                    'ICA': 'eeg_runica',
                     'ChannelInterp': 'eeg_interp',
                     'Epoching': 'pop_epoch+pop_rmbase' if EpochBaseline is not None else 'pop_epoch',
                     'CommonAverageReference': 'pop_reref'
@@ -950,9 +1082,19 @@ def bids_preproc(
                     if (flt := filter_report.get(in_report, {'Applied': False})).pop('Applied'):
                         sw_filts[in_filters] = flt
 
-                # write the updated content back
+                # write the updated content back (ensure JSON-safe values)
+                def _json_safe(obj):
+                    """Replace non-finite floats with strings for JSON compliance."""
+                    if isinstance(obj, float) and not np.isfinite(obj):
+                        return str(obj)  # "-inf" / "inf" / "nan"
+                    if isinstance(obj, dict):
+                        return {k: _json_safe(v) for k, v in obj.items()}
+                    if isinstance(obj, (list, tuple)):
+                        return [_json_safe(v) for v in obj]
+                    return obj
+
                 with open(fpath_eeg, 'w') as fp:
-                    json.dump(content, fp, indent=4)
+                    json.dump(_json_safe(content), fp, indent=4)
 
             return EEG if ReturnData else None
         except ExceptionUnlessDebug as e:
@@ -1037,27 +1179,29 @@ def bids_preproc(
 
         orig_doi = desc.get("DatasetDOI", "")
 
-        # determine the dataset URL
-        if '/openneuro.ds' in orig_doi:
-            # infer from doi
+        # determine the dataset URL: prefer existing SourceDatasets URL, then infer
+        existing_url = ""
+        for src in desc.get("SourceDatasets", []):
+            if src.get("URL"):
+                existing_url = src["URL"]
+                break
+        if existing_url:
+            dataset_url = existing_url
+        elif '/openneuro.ds' in orig_doi:
             ds_name = orig_doi.split('/')[1].split('.')[1]
-        else:
-            # guess from folder name, if conforming to openneuro convention
-            folder_name = os.path.basename(root)
-            if folder_name.startswith('ds') and folder_name[2:8].isdigit():
-                ds_name = folder_name[:8]
-            else:
-                ds_name = ''
-        if ds_name:
             dataset_url = f"https://openneuro.org/datasets/{ds_name}"
         else:
-            dataset_url = ""
-        desc["SourceDatasets"] = [
-            {
-                "URL": dataset_url,
-                "DOI": orig_doi
-            }
-        ]
+            folder_name = os.path.basename(root)
+            if folder_name.startswith('ds') and folder_name[2:8].isdigit():
+                dataset_url = f"https://openneuro.org/datasets/{folder_name[:8]}"
+            else:
+                dataset_url = ""
+        source_entry = {}
+        if dataset_url:
+            source_entry["URL"] = dataset_url
+        if orig_doi:
+            source_entry["DOI"] = orig_doi
+        desc["SourceDatasets"] = [source_entry] if source_entry else []
         # note that the actual epoched data *can* be absent if there were no matching 
         # event markers in any study file, which we can't determine at this point
         desc['IsEpoched'] = EpochEvents is not None

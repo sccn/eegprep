@@ -1,4 +1,6 @@
-# EEGPrep
+<img src="https://github.com/user-attachments/assets/d7230b12-7fb8-4abb-94a0-33c47286b019" width="300">
+
+# What is EEGPrep?
 
 [![Documentation Status](https://github.com/sccn/eegprep/actions/workflows/docs.yml/badge.svg)](https://github.com/sccn/eegprep/actions/workflows/docs.yml)
 [![GitHub Pages](https://github.com/sccn/eegprep/actions/workflows/pages.yml/badge.svg)](https://sccn.github.io/eegprep/)
@@ -131,8 +133,7 @@ pip install eegprep[all]
 
 ## Running Tests
 
-Install MATLAB interface `pip install /your/path/to/matlab/extern/engines/python` (for example on OSx `pip install /Applications/MATLAB_R2025a.app/extern/engines/python 
-Processing /Applications/MATLAB_R2025a.app/extern/engines/python`)
+Install MATLAB interface `pip install /your/path/to/matlab/extern/engines/python` (for example on OSx `pip install /Applications/MATLAB_R2025a.app/extern/engines/python`)
 
 Check installation
 

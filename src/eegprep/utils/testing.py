@@ -22,7 +22,11 @@ default_32_bit = True
 flatten_to_2d = True
 
 def compare_eeg(a, b, rtol=0, atol=1e-7, use_32_bit=default_32_bit, err_msg=''):
-    """Compare EEG time series data, with optional 32-bit precision."""
+    """Compare EEG time series data, with optional 32-bit precision.
+    
+    Returns:
+        str: Summary of differences between a and b
+    """
     if use_32_bit:
         a = a.astype(np.float32)
         b = b.astype(np.float32)
@@ -36,14 +40,58 @@ def compare_eeg(a, b, rtol=0, atol=1e-7, use_32_bit=default_32_bit, err_msg=''):
     if a.shape != b.shape:
         raise ValueError(f"a and b have different shapes: {a.shape} != {b.shape}")
     
-    # compute and show actual differences even for 2D arrays
-    if a.ndim == 2:
-        a = a.flatten()
-        b = b.flatten()
-    actual_rtol = np.max(np.abs(a - b) / (np.abs(a) + np.abs(b)))
-    actual_atol = np.max(np.abs(a - b))
-    print(f"Actual differences: rtol: {actual_rtol}, atol: {actual_atol}")
-    np.testing.assert_allclose(a, b, rtol=rtol, atol=atol, err_msg=err_msg)
+    # Store original shape for summary
+    original_shape = a.shape
+    
+    # Flatten for comparison
+    a_flat = a.flatten()
+    b_flat = b.flatten()
+    
+    diff = a_flat - b_flat
+    abs_diff = np.abs(diff)
+    
+    # Compute statistics
+    max_abs_diff = np.max(abs_diff)
+    mean_abs_diff = np.mean(abs_diff)
+    rms_diff = np.sqrt(np.mean(diff**2))
+    
+    # Compute relative differences (avoid division by zero)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        rel_diff = abs_diff / (np.abs(a_flat) + np.abs(b_flat) + 1e-10)
+    max_rel_diff = np.max(rel_diff)
+    mean_rel_diff = np.mean(rel_diff)
+    
+    # Count mismatched elements
+    mismatched = np.sum(abs_diff > atol)
+    total_elements = diff.size
+    mismatch_pct = 100.0 * mismatched / total_elements if total_elements > 0 else 0.0
+    
+    # Build summary string
+    summary_lines = [
+        f"Comparison Summary:",
+        f"  Shape: {original_shape}",
+        f"  Total elements: {total_elements:,}",
+        f"  Mismatched elements (> {atol}): {mismatched:,} ({mismatch_pct:.2f}%)",
+        f"  Max absolute difference: {max_abs_diff:.6e}",
+        f"  Mean absolute difference: {mean_abs_diff:.6e}",
+        f"  RMS difference: {rms_diff:.6e}",
+        f"  Max relative difference: {max_rel_diff:.6e}",
+        f"  Mean relative difference: {mean_rel_diff:.6e}",
+        f"  Tolerance: rtol={rtol}, atol={atol}",
+    ]
+    
+    summary = "\n".join(summary_lines)
+    print(f"Actual differences: rtol: {max_rel_diff}, atol: {max_abs_diff}")
+    
+    # Perform the assertion
+    try:
+        np.testing.assert_allclose(a_flat, b_flat, rtol=rtol, atol=atol, err_msg=err_msg)
+        summary += "\n  Status: PASSED"
+    except AssertionError as e:
+        summary += f"\n  Status: FAILED\n  Error: {str(e)}"
+        raise
+    
+    return summary
 
 
 class DebuggableTestCase(unittest.TestCase):

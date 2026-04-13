@@ -19,16 +19,20 @@ from eegprep.utils.testing import DebuggableTestCase
 
 
 def create_test_eeg():
-    """Create a complete test EEG structure with all required fields."""
+    """Create a complete test EEG structure with all required fields.
+    
+    Note: clean_artifacts expects continuous (2D) data, not epoched (3D) data.
+    """
+    n_pnts = 10000  # 20 seconds at 500 Hz
     return {
-        'data': np.random.randn(32, 1000, 10),
+        'data': np.random.randn(32, n_pnts),  # 2D continuous data
         'srate': 500.0,
         'nbchan': 32,
-        'pnts': 1000,
-        'trials': 10,
-        'xmin': -1.0,
-        'xmax': 1.0,
-        'times': np.linspace(-1.0, 1.0, 1000),
+        'pnts': n_pnts,
+        'trials': 1,
+        'xmin': 0.0,
+        'xmax': n_pnts / 500.0,
+        'times': np.linspace(0, n_pnts / 500.0, n_pnts),
         'icaact': [],
         'icawinv': [],
         'icasphere': [],
@@ -52,7 +56,7 @@ def create_test_eeg():
             for i in range(32)
         ],
         'urchanlocs': [],
-        'chaninfo': [],
+        'chaninfo': {'removedchans': []},
         'ref': 'common',
         'history': '',
         'saved': 'yes',
@@ -61,7 +65,13 @@ def create_test_eeg():
         'epoch': [],
         'setname': 'test_dataset',
         'filename': 'test.set',
-        'filepath': '/tmp'
+        'filepath': '/tmp',
+        'specdata': [],
+        'specicaact': [],
+        'reject': [],
+        'stats': [],
+        'dipfit': [],
+        'roi': []
     }
 
 
@@ -255,8 +265,10 @@ class TestCleanArtifactsFlatline(DebuggableTestCase):
         try:
             # Create some flatline channels
             eeg_with_flatlines = self.test_eeg.copy()
-            eeg_with_flatlines['data'][5, :, :] = 0.0  # Flatline channel
-            eeg_with_flatlines['data'][10, :, :] = 1.0  # Another flatline channel
+            eeg_with_flatlines['data'] = self.test_eeg['data'].copy()
+            eeg_with_flatlines['data'][5, :] = 0.0  # Flatline channel (2D data)
+            eeg_with_flatlines['data'][10, :] = 1.0  # Another flatline channel
+            original_nbchan = eeg_with_flatlines['nbchan']
             
             EEG, HP, BUR, removed_channels = clean_artifacts(
                 eeg_with_flatlines,
@@ -269,7 +281,7 @@ class TestCleanArtifactsFlatline(DebuggableTestCase):
             )
             
             # Should have removed some channels
-            self.assertLess(EEG['nbchan'], eeg_with_flatlines['nbchan'])
+            self.assertLess(EEG['nbchan'], original_nbchan)
             
         except Exception as e:
             self.skipTest(f"clean_artifacts flatline removal not available: {e}")
@@ -279,7 +291,8 @@ class TestCleanArtifactsFlatline(DebuggableTestCase):
         try:
             # Create some flatline channels
             eeg_with_flatlines = self.test_eeg.copy()
-            eeg_with_flatlines['data'][5, :, :] = 0.0  # Flatline channel
+            eeg_with_flatlines['data'] = self.test_eeg['data'].copy()
+            eeg_with_flatlines['data'][5, :] = 0.0  # Flatline channel (2D data)
             
             EEG, HP, BUR, removed_channels = clean_artifacts(
                 eeg_with_flatlines,
@@ -308,6 +321,8 @@ class TestCleanArtifactsHighpass(DebuggableTestCase):
     def test_clean_artifacts_highpass_filtering(self):
         """Test highpass filtering."""
         try:
+            original_data = self.test_eeg['data'].copy()  # Save before call
+            
             EEG, HP, BUR, removed_channels = clean_artifacts(
                 self.test_eeg,
                 Highpass=(0.5, 1.0),
@@ -323,7 +338,7 @@ class TestCleanArtifactsHighpass(DebuggableTestCase):
             self.assertIn('data', HP)
             
             # Data should be different after filtering
-            self.assertFalse(np.array_equal(HP['data'], self.test_eeg['data']))
+            self.assertFalse(np.array_equal(HP['data'], original_data))
             
         except Exception as e:
             self.skipTest(f"clean_artifacts highpass filtering not available: {e}")
@@ -559,6 +574,7 @@ class TestCleanArtifactsChannelSelection(DebuggableTestCase):
         """Test channel exclusion."""
         try:
             channels_to_ignore = ['EEG001', 'EEG002']
+            original_nbchan = self.test_eeg['nbchan']  # Save before call
             
             EEG, HP, BUR, removed_channels = clean_artifacts(
                 self.test_eeg,
@@ -572,7 +588,7 @@ class TestCleanArtifactsChannelSelection(DebuggableTestCase):
             )
             
             # Should have fewer channels
-            self.assertEqual(EEG['nbchan'], self.test_eeg['nbchan'] - len(channels_to_ignore))
+            self.assertEqual(EEG['nbchan'], original_nbchan - len(channels_to_ignore))
             
         except Exception as e:
             self.skipTest(f"clean_artifacts channels ignore not available: {e}")

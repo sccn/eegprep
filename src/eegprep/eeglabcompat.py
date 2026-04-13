@@ -17,7 +17,7 @@ import scipy.io
 logger = logging.getLogger(__name__)
 
 # can be either 'OCT' (for Oct2Py) or 'MAT' (MATLAB engine)
-default_runtime = 'OCT'
+default_runtime = 'MAT'
 
 # directory where temporary .set files are written
 # use environment variable if it exists
@@ -149,7 +149,10 @@ class MatlabWrapper:
                 self.engine.eval(eval_str, nargout=0)
                 
                 # output
-                if needs_roundtrip or name == 'pop_loadset':
+                # Functions that return numeric arrays instead of EEG structures
+                numeric_output_functions = ['eeg_autocorr', 'eeg_autocorr_fftw', 'eeg_autocorr_welch']
+                
+                if (needs_roundtrip or name == 'pop_loadset') and name not in numeric_output_functions:
                     # Always round-trip OUT for pop_loadset to get a proper Python EEG dict
                     self.engine.eval(f"pop_saveset(OUT, '{result_filename}');", nargout=0)
                     OUT = pop_loadset(result_filename)
@@ -253,11 +256,14 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
         engine.addpath(path2eeglab + '/functions/sigprocfunc')
         engine.addpath(path2eeglab + '/functions/miscfunc')
         engine.addpath(path2eeglab + '/plugins/dipfit')
-        engine.addpath(path2eeglab + '/plugins/iclabel')
+        engine.addpath(path2eeglab + '/plugins/ICLabel')
         engine.addpath(path2eeglab + '/plugins/EEG-BIDS')
         engine.addpath(path2eeglab + '/plugins/picard')
+        engine.addpath(path2eeglab + '/plugins/picard/matlab_octave')
         engine.addpath(path2eeglab + '/plugins/clean_rawdata')
-        engine.addpath(path2eeglab + '/plugins/clean_rawdata2.10')
+        amica_path = path2eeglab + '/plugins/amica'
+        if os.path.isdir(amica_path):
+            engine.addpath(amica_path, nargout=0)
         engine.addpath(path2localmatlab)
         engine.addpath(scripts_dir)
         engine.cd(path2eeglab + '/plugins/clean_rawdata/private')  # to grant access to util funcs for unit testing
@@ -334,21 +340,20 @@ def pop_eegfiltnew(EEG, locutoff=None,hicutoff=None,revfilt=False,plotfreqz=Fals
     dict
         Filtered EEG data.
     """
-    eeglab = get_eeglab(auto_file_roundtrip=False)
     # error if locutoff and hicutoff are none
-    if locutoff==None and hicutoff==None:
-        raise('Cannot have low cutoff and high cutoff not defined')
-    
-    pop_saveset(EEG, './tmp.set') # 0.8 seconds
-    EEG2 = eeglab.pop_loadset('./tmp.set') # 2 seconds
-    EEG3 = eeglab.pop_eegfiltnew(EEG2, 'locutoff',locutoff,'hicutoff',hicutoff,'revfilt',revfilt,'plotfreqz',plotfreqz)
-    eeglab.pop_saveset(EEG3, './tmp2.set') # 2.4 seconds
-    EEG4 = pop_loadset('./tmp2.set') # 0.2 seconds
-    
-    # delete temporary files
-    # os.remove('./tmp.set')
-    # os.remove('./tmp2.set')
-    return EEG4
+    if locutoff is None and hicutoff is None:
+        raise ValueError('Cannot have low cutoff and high cutoff not defined')
+
+    # Convert None to empty array for MATLAB
+    if locutoff is None:
+        locutoff = []
+    if hicutoff is None:
+        hicutoff = []
+
+    # Use wrapper which handles EEG struct conversion via file roundtrip
+    eeglab = get_eeglab(auto_file_roundtrip=True)
+    return eeglab.pop_eegfiltnew(EEG, 'locutoff', locutoff, 'hicutoff', hicutoff,
+                                  'revfilt', revfilt, 'plotfreqz', plotfreqz)
 
 def clean_artifacts( EEG, ChannelCriterion=False, LineNoiseCriterion=False, FlatlineCriterion=False, BurstCriterion=False, BurstRejection=False, WindowCriterion=0, Highpass=[0.25, 0.75], WindowCriterionTolerances=[float('-inf'), 8]):
     """Clean artifacts from EEG data using EEGLAB's clean_artifacts.

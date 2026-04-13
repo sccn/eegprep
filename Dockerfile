@@ -1,55 +1,45 @@
-# ---------------------------------------------------------
-# Base image
-# ---------------------------------------------------------
-    #    FROM ubuntu:latest
-    FROM --platform=linux/amd64 ubuntu:22.04
+# =============================================================
+# EEGPrep minimal preprocessing — slim multi-stage Docker image
+# Supports: linux/amd64 (Intel/AMD) and linux/arm64 (Apple Silicon, AWS Graviton)
+#
+# Base image pinned for long-term reproducibility:
+#   python:3.12-slim @ sha256:804ddf3251a60bbf9c92e73b7566c40428d54d0e79d3428194edf40da6521286
+# =============================================================
 
-    # python:3.10-slim
-    # Avoid interactive prompts
-    ENV DEBIAN_FRONTEND=noninteractive
-    ENV TMPDIR=/tmp
-    
-    # ---------------------------------------------------------
-    # System dependencies
-    # ---------------------------------------------------------
-    RUN apt-get update && apt-get install -y --no-install-recommends \
-        git \
-        ca-certificates \
-        build-essential \
-        libhdf5-dev \
-        liblapack-dev \
-        libblas-dev \
-        libx11-6 \
-        python3 \
-        python3-pip \
-        python3-venv \
-        && update-ca-certificates \
-        && rm -rf /var/lib/apt/lists/*
-        
-    # ---------------------------------------------------------
-    # Create working directory
-    # ---------------------------------------------------------
-    WORKDIR /usr/src/eegprep
-    # ---------------------------------------------------------
-    # Clone EEGPrep from GitHub
-    # ---------------------------------------------------------
-    RUN python3 -m pip install --upgrade pip
+# ----- Stage 1: build (has compilers and dev headers) --------
+FROM python:3.12-slim AS builder
 
-    # ---------------------------------------------------------
-    # Install EEGPrep from source
-    # Choose ONE of the 2 installation lines below
-    # ---------------------------------------------------------
-    # Full install including ICLabel (~7GB on Linux)
-    # RUN pip install --no-cache-dir ".[all]"
-    # Lean install (no ICLabel heavy models)
-    RUN git clone https://github.com/sccn/eegprep.git . 
-    RUN python3 -m pip install torch --index-url https://download.pytorch.org/whl/cpu
-    RUN python3 -m pip install .
+ENV DEBIAN_FRONTEND=noninteractive
 
-    # RUN python3 -m pip install --no-cache-dir eegprep@git+https://github.com/sccn/eegprep.git
-    # RUN python3 -m pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
-    #RUN python3 -c "import eegprep; print(eegprep.__version__)"
-    # ---------------------------------------------------------
-    # Set entrypoint
-    # ---------------------------------------------------------
-    ENTRYPOINT ["/bin/bash"]
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential pkg-config \
+    libhdf5-dev liblapack-dev libblas-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+
+# Copy local source and install (no PyTorch, no optional extras)
+COPY src/ src/
+COPY pyproject.toml LICENSE README.md ./
+RUN pip install --no-cache-dir --prefix=/install .
+
+# ----- Stage 2: runtime (no compilers, no dev headers) -------
+FROM python:3.12-slim
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Only runtime shared libs needed by numpy/scipy/h5py
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libhdf5-310 liblapack3 libblas3 libgomp1 \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Copy installed Python packages from builder
+COPY --from=builder /install /usr/local
+
+# Copy processing script
+COPY scripts/bids_minimal_preproc.py /usr/local/bin/bids_minimal_preproc.py
+
+# Default: process BIDS dataset mounted at /data
+# Override with: docker run eegprep-minimal --srate 200 --highpass 1.0
+ENTRYPOINT ["python", "/usr/local/bin/bids_minimal_preproc.py", "--input", "/data"]
