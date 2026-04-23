@@ -1,15 +1,15 @@
+"""MNE to EEG conversion functions."""
+
 from .eeg_autocorr import eeg_autocorr
 from .pop_loadset import pop_loadset
 import mne
 import tempfile
 import os
-from mne.export import export_raw
+from mne.export import export_raw, export_epochs
 import numpy as np
 
 def _mne_events_to_eeglab_events(raw_or_epochs):
-    """
-    Convert MNE Annotations or events to EEGLAB event structure (list of dicts).
-    """
+    """Convert MNE Annotations or events to EEGLAB event structure (list of dicts)."""
     events = []
     sfreq = raw_or_epochs.info['sfreq']
     # Handle Annotations (Raw)
@@ -35,6 +35,18 @@ def _mne_events_to_eeglab_events(raw_or_epochs):
 
 # write a funtion that converts a MNE raw object to an EEGLAB set file
 def eeg_mne2eeg(raw):
+    """Convert MNE Raw object to EEG data structure.
+
+    Parameters
+    ----------
+    raw : mne.io.Raw
+        MNE Raw object
+
+    Returns
+    -------
+    EEG : dict
+        EEG data structure
+    """
     # Generate a temporary file name
     with tempfile.NamedTemporaryFile(delete=False) as temp_file:
         temp_file_path = temp_file.name    
@@ -42,20 +54,24 @@ def eeg_mne2eeg(raw):
     base, _ = os.path.splitext(temp_file_path)
     new_temp_file_path = base + ".set"
 
-    # save the raw file as a new EEGLAB .set file using MNE EEGLAB writer
-    export_raw(new_temp_file_path, raw, fmt='eeglab')
+    # save the raw/epochs file as a new EEGLAB .set file using MNE EEGLAB writer
+    if isinstance(raw_or_epochs, mne.BaseEpochs):
+        export_epochs(new_temp_file_path, raw_or_epochs, fmt='eeglab')
+    else:
+        export_raw(new_temp_file_path, raw_or_epochs, fmt='eeglab')
 
     # load the EEGLAB set file
     EEG = pop_loadset(new_temp_file_path)
 
     # Inject events/annotations from MNE object into EEGLAB structure
-    eeglab_events = _mne_events_to_eeglab_events(raw)
+    eeglab_events = _mne_events_to_eeglab_events(raw_or_epochs)
     if eeglab_events:
         EEG['event'] = eeglab_events
     
     return EEG
 
 def test_eeg_mne2eeg():
+    """Test the eeg_mne2eeg function."""
     eeglab_file_path = './eeglab_data_with_ica_tmp.set'
     eeglab_file_path = '/System/Volumes/Data/data/matlab/eeglab/sample_data/eeglab_data_epochs_ica.set'
     EEG = pop_loadset(eeglab_file_path)

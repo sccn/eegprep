@@ -5,9 +5,42 @@ across different test modules.
 """
 
 import os
+import unittest
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
+
+
+def matlab_engine_available():
+    """Check if MATLAB engine is available for Python.
+    
+    Returns:
+        bool: True if matlab.engine can be imported and started, False otherwise.
+    """
+    # Check if MATLAB tests should be skipped via environment variable
+    if os.environ.get('EEGPREP_SKIP_MATLAB', '0') == '1':
+        return False
+    
+    try:
+        import matlab.engine
+        return True
+    except ImportError:
+        return False
+
+
+def skip_without_matlab(test_func):
+    """Decorator to skip tests that require MATLAB engine.
+    
+    Usage:
+        @skip_without_matlab
+        def test_matlab_function(self):
+            # Test code that requires MATLAB
+            pass
+    """
+    return unittest.skipUnless(
+        matlab_engine_available(),
+        "MATLAB engine not available or skipped"
+    )(test_func)
 
 
 def mpl_use_agg():
@@ -45,6 +78,43 @@ def create_test_eeg(n_channels=32, n_samples=1000, srate=250.0, n_trials=1):
     if n_trials == 1:
         data = data.squeeze(axis=2)  # Remove trial dimension for continuous data
     
+    # Create events and epoch info if epoched data
+    events = []
+    epochs = []
+    if n_trials > 1:
+        # Create one event per epoch
+        for i in range(n_trials):
+            events.append({
+                'type': 'epoch',
+                'latency': i * n_samples + 1,  # 1-based indexing for EEGLAB
+                'duration': 0,
+                'urevent': i + 1
+            })
+            epochs.append({
+                'event': [i],
+                'eventtype': ['epoch'],
+                'eventlatency': [0],
+                'eventduration': [0]
+            })
+
+    # Create basic channel locations
+    chanlocs = []
+    for i in range(n_channels):
+        chanlocs.append({
+            'labels': f'Ch{i+1}',
+            'type': 'EEG',
+            'theta': i * (360 / n_channels),
+            'radius': 0.5,
+            'X': 0.5 * np.cos(np.radians(i * (360 / n_channels))),
+            'Y': 0.5 * np.sin(np.radians(i * (360 / n_channels))),
+            'Z': 0.0,
+            'sph_theta': i * (360 / n_channels),
+            'sph_phi': 0.0,
+            'sph_radius': 1.0,
+            'urchan': i + 1,
+            'ref': ''
+        })
+
     # Create basic EEG structure
     eeg = {
         'data': data,
@@ -55,7 +125,7 @@ def create_test_eeg(n_channels=32, n_samples=1000, srate=250.0, n_trials=1):
         'xmin': 0.0,
         'xmax': (n_samples - 1) / srate,
         'times': np.arange(n_samples) / srate,
-        'event': [],
+        'event': events,
         'ref': 'unknown',
         'setname': 'test_dataset',
         'filename': '',
@@ -70,12 +140,18 @@ def create_test_eeg(n_channels=32, n_samples=1000, srate=250.0, n_trials=1):
         'icasphere': None,
         'icaweights': None,
         'icachansind': None,
-        'chanlocs': [],
+        'chanlocs': chanlocs,
         'urchanlocs': [],
-        'chaninfo': {},
+        'chaninfo': {
+            'filename': '',
+            'plotrad': [],
+            'shrink': [],
+            'nosedir': '+X',
+            'nodatchans': []
+        },
         'urevent': [],
         'eventdescription': {},
-        'epoch': [],
+        'epoch': epochs,
         'epochdescription': {},
         'reject': {},
         'stats': {},
@@ -91,7 +167,7 @@ def create_test_eeg(n_channels=32, n_samples=1000, srate=250.0, n_trials=1):
         'run': [],
         'roi': {}
     }
-    
+
     return eeg
 
 
@@ -191,11 +267,11 @@ def cleanup_matplotlib():
     plt.cla()
 
 
-class TestFixtures:
+class TestFixturesContextManager:
     """Context manager for common test fixtures.
-    
+
     Usage:
-        with TestFixtures(seed=42, mpl_backend='Agg') as fixtures:
+        with EEGContext(seed=42, mpl_backend='Agg') as fixtures:
             eeg = fixtures.create_eeg(n_channels=64)
             # ... run tests ...
     """
@@ -248,4 +324,5 @@ class TestFixtures:
 
 # Legacy functions for backward compatibility
 small_eeg = lambda: create_test_eeg(n_channels=8, n_samples=250)  # Small EEG for quick tests
+TestFixtures = EEGContext  # Backward compatibility alias
 

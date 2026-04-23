@@ -1,3 +1,5 @@
+"""Module for performing ICA decomposition using the Picard algorithm."""
+
 from picard import picard
 import numpy as np
 import os
@@ -8,8 +10,7 @@ from .eeglabcompat import temp_dir, MatlabWrapper
 from .pinv import pinv
 
 def eeg_picard(EEG, engine=None, posact='off', sortcomps='off', **kwargs):
-    """
-    Perform ICA decomposition using Picard algorithm.
+    """Perform ICA decomposition using Picard algorithm.
 
     This function can use either a Python implementation or an EEGLAB (via MATLAB or Octave) implementation.
 
@@ -34,20 +35,24 @@ def eeg_picard(EEG, engine=None, posact='off', sortcomps='off', **kwargs):
     """
     if engine is None:
         # Assuming EEG['data'] contains the EEG data as a numpy array of shape (channels, timepoints)
-        # Assuming EEG['data'] contains the EEG data as a numpy array of shape (channels, timepoints)
         data = EEG['data'].astype('float64')
-        
+
         # reshape from 3D to 2D
         data = data.reshape(data.shape[0], -1)
-        
-        # Parameters to match MATLAB defaults, can be overriden by user kwargs
+
+        # Parameters to match MATLAB picard defaults for reproducible parity
+        # Using identity w_init ensures deterministic results matching MATLAB
         params = {
-            'ortho': False,
+            'ortho': False,           # Use standard Picard (not Picard-O)
+            'fun': 'tanh',            # Score function (matches MATLAB 'logcosh')
             'verbose': True,
-            'random_state': 5489,
-            'm': 10
+            'm': 10,                  # L-BFGS memory size
+            'max_iter': 512,          # Match MATLAB python_defaults
+            'tol': 1e-7,              # Match MATLAB python_defaults
+            'centering': True,        # Center data before ICA
+            'whiten': True,           # Whiten data (PCA)
+            'w_init': np.eye(data.shape[0]),  # Identity init for reproducibility
         }
-#            'w_init': np.eye(data.shape[0]),
         params.update(kwargs)
         
         weighting_matrix, unmixing_matrix, sources = picard(data, **params)

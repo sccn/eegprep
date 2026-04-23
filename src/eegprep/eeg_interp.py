@@ -1,3 +1,8 @@
+"""EEG channel interpolation utilities.
+
+This module provides functions for interpolating bad channels in EEG data using various
+methods including spherical spline interpolation.
+"""
 
 # to do, look at line 83 and 84 and try to see if the MATLAB array output match. Run code side by side.
 
@@ -16,11 +21,12 @@ import os
 data_path = '/Users/arno/Python/eegprep/data/' #os.path.abspath('data/')
 
 def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dtype='float32'):
-    """
-    Interpolate missing or bad EEG channels using spherical spline interpolation.
-    
-    Parameters:
-    -----------
+    """Interpolate missing or bad EEG channels using spherical spline.
+
+    interpolation.
+
+    Parameters
+    ----------
     EEG : dict
         EEG data structure with 'data', 'chanlocs', 'nbchan', etc.
     bad_chans : list, array-like, or list of dicts
@@ -42,9 +48,9 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
         Optionally the precision in which to perform the computation;
         * 'float32' : matches MATLAB, but limits precision (default)
         * 'float64': operate at full precision; requires twice the memory
-        
-    Returns:
-    --------
+
+    Returns
+    -------
     EEG : dict
         Updated EEG structure with interpolated channels
     """
@@ -118,7 +124,18 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
 
     # extract Cartesian positions and normalize to unit sphere
     def _norm(ch_ids):
+        """Normalize channel coordinates to unit sphere.
 
+        Parameters
+        ----------
+        ch_ids : list
+            List of channel indices.
+
+        Returns
+        -------
+        ndarray
+            Normalized XYZ coordinates (3, n_channels).
+        """
         xyz = np.vstack([ [locs[i][c] for i in ch_ids] for c in ('X','Y','Z') ])
         rad = np.linalg.norm(xyz, axis=0)
         return xyz / rad
@@ -128,6 +145,9 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
 
     # reshape data to (n_chan, n_timepoints)
     d = EEG['data'].reshape(EEG['nbchan'], -1)
+
+    # Save original bad channel data before interpolation
+    original_bad_data = d[bad_idx,:].copy()
 
     # compute interpolated signals for bad channels
     bad_data = spheric_spline(
@@ -140,9 +160,38 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
 
     # restore original time range if needed
     if t_range != (EEG['xmin'], EEG['xmax']):
-        start, end = t_range
-        ts = np.arange(EEG['nbchan']) # dummy
-        # here you would mask out-of-range portions as in MATLAB
+        t_start, t_end = t_range
+        # Only apply for continuous data (trials=1), not epoched data (trials>1)
+        # MATLAB's length(size(tmpdata))==2 is true for continuous data because
+        # MATLAB drops trailing singleton dimensions
+        if EEG['trials'] == 1 and 'srate' in EEG:
+            # MATLAB convention: For continuous data, xmin is set to 0 by eeg_checkset,
+            # so time values are interpreted as absolute sample indices using time*srate
+            # times_2b_ignored = [1:floor(t_start*srate), floor(t_end*srate):floor(xmax*srate)]
+            # (MATLAB 1-based indexing)
+            # But empirically, MATLAB uses pnts-1 instead of floor(xmax*srate) for the upper bound
+
+            # Calculate sample indices using MATLAB convention (time*srate, not (time-xmin)*srate)
+            idx_start = int(np.floor(t_start * EEG['srate']))
+            idx_end = int(np.floor(t_end * EEG['srate']))
+            # Use pnts-1 as upper bound instead of floor(xmax*srate)
+            idx_upper = EEG['pnts'] - 1
+
+            # Build list of time indices to ignore (outside requested range)
+            # In MATLAB: [1:idx_start, idx_end:pnts] where pnts is the last index
+            # In Python (0-based): [0:max(0,idx_start), idx_end-1:pnts-2]
+            # MATLAB keeps indices [idx_end-1 : idx_upper-1] as original
+            times_to_ignore = []
+            if idx_start > 0:
+                times_to_ignore.extend(range(0, idx_start))
+            # MATLAB keeps indices [idx_end-1 : idx_upper-1] as original
+            # So we restore these indices
+            if idx_end - 1 < idx_upper:
+                times_to_ignore.extend(range(idx_end - 1, idx_upper))
+
+            # Restore original data for bad channels at these time points
+            if len(times_to_ignore) > 0:
+                bad_data[:, times_to_ignore] = original_bad_data[:, times_to_ignore]
 
     # assemble full data array
     full = np.zeros_like(d)
@@ -160,12 +209,15 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
     return EEG
 
 def _handle_chanloc_interpolation(EEG, new_chanlocs):
-    """
-    Handle interpolation when bad_chans is provided as a list of chanloc structures.
-    
-    Returns:
-        EEG: potentially modified EEG structure
-        bad_idx: list of indices to interpolate
+    """Handle interpolation when bad_chans is provided as a list of chanloc.
+
+    structures.
+
+    Returns
+    -------
+    EEG : potentially modified EEG structure
+
+    bad_idx : list of indices to interpolate
     """
     current_locs = EEG['chanlocs']
     current_labels = [ch['labels'] for ch in current_locs]
@@ -296,6 +348,26 @@ def _handle_chanloc_interpolation(EEG, new_chanlocs):
         return EEG, bad_idx
 
 def spheric_spline(xelec, yelec, zelec, xbad, ybad, zbad, values, params, dtype='float32'):
+    """Perform spherical spline interpolation.
+
+    Parameters
+    ----------
+    xelec, yelec, zelec : array-like
+        Coordinates of good electrodes.
+    xbad, ybad, zbad : array-like
+        Coordinates of bad electrodes to interpolate.
+    values : ndarray
+        Data values at good electrodes.
+    params : tuple
+        Interpolation parameters (lambda, m, maxn).
+    dtype : str or dtype, optional
+        Data type for computation.
+
+    Returns
+    -------
+    ndarray
+        Interpolated values at bad electrode positions.
+    """
     dtype = np.dtype(dtype)
 
     # values: (n_good, n_points)
@@ -322,6 +394,22 @@ def spheric_spline(xelec, yelec, zelec, xbad, ybad, zbad, values, params, dtype=
     return allres
 
 def computeg(x, y, z, xelec, yelec, zelec, params):
+    """Compute spherical spline basis functions.
+
+    Parameters
+    ----------
+    x, y, z : array-like
+        Coordinates of points to evaluate.
+    xelec, yelec, zelec : array-like
+        Coordinates of electrode positions.
+    params : tuple
+        Parameters (lambda, m, maxn).
+
+    Returns
+    -------
+    ndarray
+        Basis function values.
+    """
     # x,y,z are points to interpolate; xelec,... electrode locations
     X = x.ravel()[:,None]; Y = y.ravel()[:,None]; Z = z.ravel()[:,None]
     E = 1 - np.sqrt((X - xelec[None,:])**2 + (Y - yelec[None,:])**2 + (Z - zelec[None,:])**2)
@@ -337,11 +425,10 @@ def computeg(x, y, z, xelec, yelec, zelec, params):
 # Test functions moved to tests/test_eeg_interp.py
 
 def test_chanloc_interpolation():
-    """
-    Example usage of the new chanloc interpolation functionality.
+    """Example usage of the new chanloc interpolation functionality.
+
     This demonstrates the three different cases.
     """
-    
     # Create a sample EEG structure
     EEG = {
         'data': np.random.randn(4, 100, 1),  # 4 channels, 100 time points, 1 trial
@@ -400,11 +487,14 @@ def test_chanloc_interpolation():
     return result1, result2, result3
 
 def test_ica_indices_update():
+    """Test that ICA channel indices are properly updated when channels are.
+
+    reordered.
+
+    Test that ICA channel indices are properly updated when channels are
+
+    reordered during interpolation with chanloc structures.
     """
-    Test that ICA channel indices are properly updated when channels are reordered
-    during interpolation with chanloc structures.
-    """
-    
     # Create a sample EEG structure with ICA data
     EEG = {
         'data': np.random.randn(4, 100, 1),  # 4 channels, 100 time points, 1 trial

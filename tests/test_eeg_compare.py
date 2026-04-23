@@ -5,6 +5,7 @@ This module tests the eeg_compare function which compares two EEG datasets
 and reports differences in structure and data.
 """
 
+import os
 import unittest
 import sys
 import io
@@ -20,6 +21,7 @@ from eegprep.eeglabcompat import get_eeglab
 from eegprep.utils.testing import DebuggableTestCase
 
 
+@unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestEegCompare(DebuggableTestCase):
     """Test cases for eeg_compare function."""
 

@@ -1,4 +1,5 @@
 # test_eegrej_unittest.py
+import os
 import unittest
 import numpy as np
 from eegprep.eeg_eegrej import _eegrej  # replace with the actual module name
@@ -63,7 +64,8 @@ class TestEEGRej(unittest.TestCase):
         # 18–20 is 3 samples; boundary latency before removal is (18-1)=17 -> 17.5
         # After removal, newn=17, so boundevents=17.5 remains
         self.assertTrue((boundevents == [17.5]).all())
-        
+    
+    @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
     def test_compare_to_eeglab(self):
         # compare to eeglab
         events = [{"latency": 5.0}, {"latency": 10.0}]

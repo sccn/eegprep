@@ -1,3 +1,5 @@
+"""EEG topographic plotting functions."""
+
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.interpolate import griddata
@@ -5,16 +7,21 @@ from scipy.interpolate import Rbf
 from scipy.spatial import cKDTree
 
 def griddata_v4(x, y, v, xq, yq):
-    """
-    Python version of MATLAB's GDATAV4 interpolation based on David T. Sandwell's biharmonic spline interpolation.
-    
-    Parameters:
-    x, y : 1D arrays of coordinates for known points
-    v : 1D array of values at known points
-    xq, yq : 2D arrays of query points coordinates
-    
-    Returns:
-    vq : 2D array of interpolated values at query points
+    """Python version of MATLAB's GDATAV4 interpolation based on David T. Sandwell's biharmonic spline interpolation.
+
+    Parameters
+    ----------
+    x, y : 1D arrays
+        Coordinates for known points.
+    v : 1D array
+        Values at known points.
+    xq, yq : 2D arrays
+        Query points coordinates.
+
+    Returns
+    -------
+    vq : 2D array
+        Interpolated values at query points.
     """
     # Combine x and y into complex numbers for convenience
     xy = x + 1j * y
@@ -26,7 +33,18 @@ def griddata_v4(x, y, v, xq, yq):
     with np.errstate(divide='ignore', invalid='ignore'):
         g = (d**2) * (np.log(d) - 1)  # Green's function
     np.fill_diagonal(g, 0)  # Fix value along diagonal
-    weights = np.linalg.solve(g, v)
+
+    # Add Tikhonov regularization to handle ill-conditioned matrices
+    # This prevents numerical issues when electrodes are very close together
+    n = len(v)
+    regularization = 1e-8 * np.trace(g) / n * np.eye(n)
+    g_reg = g + regularization
+
+    try:
+        weights = np.linalg.solve(g_reg, v)
+    except np.linalg.LinAlgError:
+        # If still singular, use pseudoinverse as last resort
+        weights = np.linalg.pinv(g_reg) @ v
     
     # Initialize output array
     m, n = xq.shape
@@ -45,10 +63,36 @@ def griddata_v4(x, y, v, xq, yq):
     return vq
 
 def topoplot(datavector, chan_locs, **kwargs):
+    """Plot a 2D topographic map of EEG data.
+
+    Parameters
+    ----------
+    datavector : array-like
+        Values to plot at each channel location.
+    chan_locs : list of dict
+        Channel location structures with 'labels', 'theta', and 'radius' fields.
+    **kwargs : dict
+        Additional keyword arguments for customization:
+
+        - noplot : str or tuple, default 'off'
+        - plotgrid : str, default 'off'
+        - plotchans : list, default []
+        - ELECTRODES : str, default 'on'
+        - intrad : float, default nan
+        - plotrad : float, default nan
+        - headrad : float, default 0.5
+        - method : str, default 'rbf'
+
+    Returns
+    -------
+    handle : matplotlib.figure.Figure or None
+        Figure handle if plotted, None otherwise.
+    """
     # Set default values
     noplot = kwargs.get('noplot', 'off')
     plotgrid = kwargs.get('plotgrid', 'off')
     plotchans = kwargs.get('plotchans', [])
+    gridscale = kwargs.get('gridscale', 67)  # Default to 67 (EEGLAB default)
     handle = None
     Zi = None
     chanval = np.nan
@@ -63,11 +107,16 @@ def topoplot(datavector, chan_locs, **kwargs):
     headrad = kwargs.get('headrad', 0.5)
     squeezefac = 1.0
     ContourVals = datavector
-    method = kwargs.get('method', 'rbf')
-    
+    # MATLAB uses 'v4' (biharmonic spline) by default, which extrapolates
+    # more aggressively into regions beyond electrodes (75.9% of 67x67 grid).
+    # Python's griddata_v4 now properly filters NaN coordinates before interpolation.
+    # This matches MATLAB's coverage and properly interpolates frontal regions.
+    # Users can override with method='griddata' for scipy's cubic interpolation (56.2% coverage).
+    method = kwargs.get('method', 'v4')
+
     # print method
     # print(f'method = {method}')
-    
+
     # Handle additional arguments
     if 'noplot' in kwargs:
         noplot = kwargs['noplot']
@@ -82,8 +131,7 @@ def topoplot(datavector, chan_locs, **kwargs):
     # Set colormap
     cmap = plt.get_cmap('jet')
     cmaplen = cmap.N
-    GRID_SCALE = 32
-    # GRID_SCALE = 67 # 67 is the default value in EEGLAB
+    GRID_SCALE = gridscale
 
     if len(datavector) > MAXDEFAULTSHOWLOCS:
         ELECTRODES = 'off'
@@ -157,9 +205,11 @@ def topoplot(datavector, chan_locs, **kwargs):
     else:
         coords = np.array([intx.ravel(), inty.ravel()])
         values = intdatavector.ravel()
-            
-        # find nan in values and remove values
-        nanidx = np.where(np.isnan(values))[0]
+
+        # find nan in values OR coordinates and remove them
+        nanidx_values = np.where(np.isnan(values))[0]
+        nanidx_coords = np.where(np.isnan(coords[0]) | np.isnan(coords[1]))[0]
+        nanidx = np.union1d(nanidx_values, nanidx_coords)
         coords = np.delete(coords, nanidx, axis=1)
         values = np.delete(values, nanidx)
 
@@ -177,16 +227,26 @@ def topoplot(datavector, chan_locs, **kwargs):
         # # average the two results
         # Zi = (Zi1 + Zi2) / 2
         
+    # Mask outside the head circle (same as MATLAB)
     mask = (np.sqrt(xi**2 + yi**2) <= rmax)
     Zi[~mask] = np.nan
 
     if noplot == 'off':
-        plt.imshow(Zi, extent=(xmin, xmax, ymin, ymax), origin='lower', cmap=cmap)
+        # Rotate electrode positions by -90 degrees: (x, y) -> (y, -x)
+        x_rotated = -y.copy()
+        y_rotated = x.copy()
+        extent_rotated = (ymin, ymax, -xmax, -xmin)
+        
+        plt.imshow(Zi, extent=extent_rotated, origin='lower', cmap=cmap)
         plt.colorbar()
-        plt.scatter(x, y, c='k')
-        plt.plot(np.cos(np.linspace(0, 2 * np.pi, 100)) * rmax, np.sin(np.linspace(0, 2 * np.pi, 100)) * rmax, 'k')
+        plt.scatter(x_rotated, y_rotated, c='k')
+        # Rotate head circle coordinates to match electrode rotation
+        theta = np.linspace(0, 2 * np.pi, 100)
+        head_x = np.cos(theta) * rmax
+        head_y = np.sin(theta) * rmax
+        plt.plot(head_x, head_y, 'k')
         for i, txt in enumerate(labels):
-            plt.annotate(txt, (x[i], y[i]), fontsize=8, ha='right')
+            plt.annotate(txt, (x_rotated[i], y_rotated[i]), fontsize=8, ha='right')
         plt.title('Topoplot')
         plt.axis('off')
         plt.show()

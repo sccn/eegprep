@@ -1,3 +1,5 @@
+"""Module for BIDS preprocessing of EEG."""
+
 import os
 import hashlib
 import json
@@ -13,7 +15,7 @@ import numpy as np
 
 from .utils import ExceptionUnlessDebug, num_jobs_from_reservation, is_debug, \
     humanize_seconds, num_cpus_from_reservation, ToolError
-from .utils.bids import layout_for_fpath
+from .utils.bids import layout_for_fpath, root_for_fpath
 from .utils.coords import chanloc_has_coords
 from .utils.git import get_git_commit_id
 
@@ -62,8 +64,7 @@ def _copy_misc_root_files(root: str, dst: str, exclude: List[str]) -> None:
 
 
 def _legacy_override(new_and_name: Tuple[Any, str], old_and_name: Tuple[Any, str], default: Any):
-    """Handle overrides with values from legacy parameters and a default if both the new
-    and legacy parameter are None."""
+    """Handle overrides with values from legacy parameters and a default if both the new and legacy parameter are None."""
     new, new_name = new_and_name
     old, old_name = old_and_name
     if old is not None:
@@ -98,7 +99,10 @@ def bids_preproc(
         OnlyChannelsWithPosition: bool = True,
         OnlyModalities: Sequence[str] = (),
         WithInterp: bool = False,
+        WithICA: bool = False,
         WithPicard: bool = False,
+        ICAAlgorithm: str = 'runica',
+        AmicaArgs: dict | None = None,
         WithICLabel: bool = False,
         WithReport: bool = True,
         CommonAverageReference: bool = True,
@@ -130,7 +134,11 @@ def bids_preproc(
         EpochBaseline: Optional[Sequence[float]] = None,
         # Derived data parameters
         StageNames: Sequence[str] = ('desc-cleaned', 'desc-picard', 'desc-iclabel', 'desc-epoch'),
+        FinalDesc: Optional[str] = None,
+        ReportDir: Optional[str] = None,
         MinimizeDiskUsage: bool = True,
+        SaveIntermediateStages: bool = False,
+        IntermediateDir: Optional[str] = None,
 
         # Legacy parameter names for compatibility with EEGLAB
         bidschanloc: Optional[bool] = None,
@@ -151,195 +159,219 @@ def bids_preproc(
         _n_jobs: int = 1,
         _t0: float = now(),
 ) -> Dict[str,Any] | List[Dict[str, Any]] | None:
-    """
-    Apply data cleaning to EEG files in a BIDS dataset.
+    """Apply data cleaning to EEG files in a BIDS dataset.
 
-    Parameters:
-    -----------
-    root_or_fn : str
+    Parameters
+    ----------
+    root : str
         The root directory containing BIDS data or a single EEG file path.
 
     (BIDS import stage parameters)
-    ApplyMetadata (bool):
+
+    ApplyMetadata : bool
         Whether to apply metadata from BIDS sidecar files when loading raw EEG data.
         (default True)
-    ApplyEvents (bool):
+    ApplyEvents : bool
         Whether to apply events from BIDS sidecar files when loading raw EEG data.
         (default False)
-    ApplyChanlocs (bool):
+    ApplyChanlocs : bool
         Whether to apply channel locations from BIDS sidecar files when loading raw EEG data.
         (default True)
-    EventColumn (str):
+    EventColumn : str
         Optionally the column name in the BIDS events file to use for event types; if not
         set, will be inferred heuristically.
-    Subjects (Sequence[str | int], optional):
+    Subjects : Sequence[str | int], optional
         A sequence of subject identifiers or (zero-based) indices to filter the files by.
         If empty, all subjects are included.
-    Sessions (Sequence[str | int], optional):
+    Sessions : Sequence[str | int], optional
         A sequence of session identifiers or (zero-based) indices to filter the files by.
         If empty, all sessions are included.
-    Runs (Sequence[str | int], optional):
+    Runs : Sequence[str | int], optional
         A sequence of run numbers or identifiers to filter the files by. If empty, all runs
         are included. Note that zero-based indexing does not apply to runs, unlike
         subjects and sessions since runs are already integers.
-    Tasks (Sequence[str] | str, optional):
+    Tasks : Sequence[str] | str, optional
         A sequence of task names or single task to filter the files by. If empty, all
         tasks are included (default is an empty sequence).
-    OutputDir (str):
-      The name of the subdirectory where cleaned files will be saved. This can start
-      with the placeholder '{root}' which will be replaced with the root path of
-      the BIDS dataset. Defaults to '{root}/derivatives/eegprep' if not specified.
+    OutputDir : str
+        The name of the subdirectory where cleaned files will be saved. This can start
+        with the placeholder '{root}' which will be replaced with the root path of
+        the BIDS dataset. Defaults to '{root}/derivatives/eegprep' if not specified.    (overall run configuration)
 
-    (overall run configuration)
-    SkipIfPresent (bool):
-      skip processing files that already have a cleaned version present.
-    NumJobs (int, optional):
-      The number of jobs to run in parallel. If set to -1, this will default to the
-      number of logical cores on the system. If the ReservePerJob clause is also
-      specified, this will be treated as a maximum, otherwise as the *total*. If neither
-      of the two parameters is specified, a single job will run.
-      Note: as usual when running multiple processes in Python, you need to use the
-      if __name__ == "__main__": guard pattern in your main processing script.
-    ReservePerJob (str):
-      Optionally the resource amount and type to reserve per job, e.g. '4GB' or '2CPU';
-      the run will then use as many jobs as fit within the system resources of the specified type.
-      * You can also specify how much of a margin of the total system resources should
+    SkipIfPresent : bool
+        skip processing files that already have a cleaned version present.
+    NumJobs : int, optional
+        The number of jobs to run in parallel. If set to -1, this will default to the
+        number of logical cores on the system. If the ReservePerJob clause is also
+        specified, this will be treated as a maximum, otherwise as the *total*. If neither
+        of the two parameters is specified, a single job will run.
+        Note: as usual when running multiple processes in Python, you need to use the
+        if __name__ == "__main__": guard pattern in your main processing script.
+    ReservePerJob : str
+        Optionally the resource amount and type to reserve per job, e.g. '4GB' or '2CPU';
+        the run will then use as many jobs as fit within the system resources of the specified type.
+        * You can also specify how much of a margin of the total system resources should
         be *withheld* for use by other programs on the computer, by following the amount
         by a : and then the margin, as in '4GB:10GB' (always leave 10GB unused), '2CPU:10%'
         (always leave 10% of the total installed RAM unused). This also works with other metrics.
-      * one may also specify a total or maximum number of jobs, as in '10total' or '10max'.
-      * Multiple criteria can be spefied in a comma-separated list of reservations, e.g.
+        * one may also specify a total or maximum number of jobs, as in '10total' or '10max'.
+        * Multiple criteria can be spefied in a comma-separated list of reservations, e.g.
         '4GB:20%, 2CPU, 5max'.
-      * If neither this nor NumJobs are specified, a single job will run. Note that the
+        * If neither this nor NumJobs are specified, a single job will run. Note that the
         system will also run in serial when in debug mode and when on a platform that does
         not cleanly support multiprocessing.
-      Tip: a good way to size this is to perform a serial run and to monitor how much
+        Tip: a good way to size this is to perform a serial run and to monitor how much
         peak RAM a single job takes, and then setting this to <PeakUsage>GB:<YourMargin>GB
         where YourMargin is however much you want to leave to other programs, e.g., 5GB
         (this will depend on what else you expect to be running on the machine).
-    UseHashes (bool): Whether to bake hashes into intermediate file names; if you experiment
-      with alternative preprocessing settings, it is recommended to enable this or disable
-      the SkipIfPresent option since otherwise the routine may pick up a stale result.
-    ReturnData (bool):
-      Whether to return the final EEG data objects as a list. Note that this can use
-      quite a lot of memory for large studies and it may be better to iterate over
-      the preprocessed files in downstream analyses.
+    UseHashes : bool
+        Whether to bake hashes into intermediate file names; if you experiment
+        with alternative preprocessing settings, it is recommended to enable this or disable
+        the SkipIfPresent option since otherwise the routine may pick up a stale result.
+    ReturnData : bool
+        Whether to return the final EEG data objects as a list. Note that this can use
+        quite a lot of memory for large studies and it may be better to iterate over
+        the preprocessed files in downstream analyses.
 
     (overall processing parameters)
-    OnlyChannelsWithPosition (bool):
+    OnlyChannelsWithPosition : bool
         Whether to retain only channels for which positions were recorded or could be
         inferred. If this is not set, then OnlyModalities should be set so as to retain
         only modalities that should be preprocessed together.
-    OnlyModalities (Sequence[str], optional):
+    OnlyModalities : Sequence[str], optional
         If set, retain only channels that have the associated modalities. If enabled, this
         is typically set to ['EEG'] but may also include other ExG modalities such as
         EOG or EMG that have the same unit and scale as EEG. If non-electrophysiological
         modalities are included, some artifact removal steps may not function correctly.
-    SamplingRate (float):
+    SamplingRate : float
         Desired sampling rate for the preprocessed data. If not specified, will retain
         the original sampling rate.
-    WithInterp (bool):
+    WithInterp : bool
         Whether to reinterpolate dropped channels, thus retaining the same channel
         count as the raw data.
-    WithPicard (bool):
+    WithICA (bool):
         Whether to apply PICARD ICA decomposition after cleaning.
-    WithICLabel (bool):
+    AmicaArgs : dict or None
+        Additional keyword arguments for AMICA when ICAAlgorithm='amica',
+        e.g. {'num_models': 2, 'max_iter': 500}.
+    WithICLabel : bool
         Whether to apply ICLabel classification after ICA. Normally requires
-        WithPicard=True.
+        WithICA=True.
     CommonAverageReference (bool):
         Whether to transform the EEG data to a common average referencing scheme;
         recommended for cross-study processing.
 
     (parameters for artifact removal - same as in clean_artifacts function)
-    ChannelCriterion (float or 'off'):
+
+    ChannelCriterion : float or 'off'
         Minimum channel correlation threshold for channel cleaning; channels below
         this value are considered bad. Pass 'off' to skip channel criterion. Default 0.8.
-    LineNoiseCriterion (float or 'off'):
+    LineNoiseCriterion : float or 'off'
         Z-score threshold for line-noise contamination; channels exceeding this are
         considered bad. 'off' disables line-noise check. Default 4.0.
-    BurstCriterion (float or 'off'):
+    BurstCriterion : float or 'off'
         ASR standard-deviation cutoff for high-amplitude bursts; values above this
         relative to calibration data are repaired (or removed if BurstRejection='on').
         'off' skips ASR. Default 5.0.
-    WindowCriterion (float or 'off'):
+    WindowCriterion : float or 'off'
         Fraction (0-1) or count of channels allowed to be bad per window; windows with
         more bad channels are removed. 'off' disables final window removal. Default 0.25.
-    Highpass (tuple(float, float) or 'off'):
+    Highpass : tuple(float, float) or 'off'
         Transition band [low, high] in Hz for initial high-pass filtering. 'off' skips
         drift removal. Default (0.25, 0.75).
-    ChannelCriterionMaxBadTime (float):
+    ChannelCriterionMaxBadTime : float
         Maximum tolerated time (seconds or fraction of recording) a channel may be flagged
         bad before being removed. Default 0.5.
-    BurstCriterionRefMaxBadChns (float or 'off'):
+    BurstCriterionRefMaxBadChns : float or 'off'
         Maximum fraction of bad channels tolerated when selecting calibration data for ASR.
         'off' uses all data for calibration. Default 0.075.
-    BurstCriterionRefTolerances (tuple(float, float) or 'off'):
+    BurstCriterionRefTolerances : tuple(float, float) or 'off'
         Power Z-score tolerances for selecting calibration windows in ASR. 'off' uses
         all data. Default (-inf, 5.5).
-    BurstRejection (str):
+    BurstRejection : str
         'on' to reject (drop) burst segments instead of reconstructing with ASR,
         'off' to apply ASR repair. Default 'off'.
-    WindowCriterionTolerances (tuple(float, float) or 'off'):
+    WindowCriterionTolerances : tuple(float, float) or 'off'
         Power Z-score bounds for final window removal. 'off' disables this stage.
         Default (-inf, 7).
-    FlatlineCriterion (float or 'off'):
+    FlatlineCriterion : float or 'off'
         Maximum flatline duration in seconds; channels exceeding this are removed.
         'off' disables flatline removal. Default 5.0.
-    NumSamples (int):
+    NumSamples : int
         Number of RANSAC samples for channel cleaning. Default 50.
-    NoLocsChannelCriterion (float):
+    NoLocsChannelCriterion : float
         Correlation threshold for fallback channel cleaning when no channel locations.
         Default 0.45.
-    NoLocsChannelCriterionExcluded (float):
+    NoLocsChannelCriterionExcluded : float
         Fraction of channels excluded when assessing correlation in nolocs cleaning.
         Default 0.1.
-    MaxMem (int):
+    MaxMem : int
         Maximum memory in MB for ASR processing. Default 64.
-    Distance (str):
+    Distance : str
         Distance metric for ASR processing ('euclidian'). Default 'euclidian'.
-    Channels (Sequence[str] or None):
+    Channels : Sequence[str] or None
         List of channel labels to include before cleaning (pop_select). Default None.
-    Channels_ignore (Sequence[str] or None):
+    Channels_ignore : Sequence[str] or None
         List of channel labels to exclude before cleaning. Default None.
-    availableRAM_GB (float or None):
+    availableRAM_GB : float or None
         Available system RAM in GB to adjust MaxMem. Default None.
 
-    (parameters for an optional epoching and baseline removal step)
-    EpochEvents (str or Sequence[str] or None):
+     (parameters for an optional epoching and baseline removal step)
+    EpochEvents : str or Sequence[str] or None
         Optionally a list of event types or regular expression matching event types
         at which to time-lock epochs. If None (default), no epoching is done. If [],
         will time-lock to every event in the data (warning, this can amplify the data
         if epochs overlap!)
-    EpochLimits (Sequence[float]):
+    EpochLimits : Sequence[float]
         The time limits in seconds relative to the event markers for epoching. Default (-1, 2).
-    EpochBaseline (Sequence[float] or None):
+    EpochBaseline : Sequence[float] or None
         Optionally a time range in seconds relative to the event markers for baseline
         correction. If None (default), no baseline correction is applied. The special
         value None can be used to refer to the respective end of the epoch limits,
         as in (None, 0).
 
     (misc parameters)
-    StageNames Sequence[str]:
+
+    StageNames : Sequence[str]
         list of file name parts for the preprocessing stages, in the order of cleaning,ica,iclabel;
         these can be adjusted when working with different preprocessed versions (e.g., using
         different parameters for cleaning). It is recommended that these start with 'desc-'.
-    MinimizeDiskUsage (bool):
+    FinalDesc : str or None
+        Optional desc- label for the final output file. If None (default), uses the last
+        stage name from StageNames. If empty string '', the output file has no desc- label
+        (e.g., sub-01_task-rest_eeg.set instead of sub-01_task-rest_desc-cleaned_eeg.set).
+    ReportDir : str or None
+        Optional directory for report JSON files. If None (default), reports are saved
+        alongside the data files. If set (e.g., 'code/reports'), reports are saved there
+        relative to the output directory.
+    MinimizeDiskUsage : bool
         whether to minimize disk usage by not saving some intermediate files (specifically
         the PICARD output if WithICLabel=False). Default True.
 
     (parameters retained for backwards compatibility with EEGLAB's pop_importbids call signature)
-    bidsmetadata (bool): alias for ApplyMetadata
-    bidsevent (bool): alias for ApplyEvents
-    bidschanloc (bool): alias for ApplyChanlocs
-    eventtype (str): alias for EventColumn
-    subjects (Sequence[str | int], optional): alias for Subjects
-    sessions (Sequence[str | int], optional): alias for Sessions
-    runs (Sequence[str | int], optional): alias for RUns
-    tasks (Sequence[str] | str, optional): alias for Tasks
-    outputdir (str): alias for OutputDir
 
-    Returns:
-    --------
+    bidsmetadata : bool
+        alias for ApplyMetadata
+    bidsevent : bool
+        alias for ApplyEvents
+    bidschanloc : bool
+        alias for ApplyChanlocs
+    eventtype : str
+        alias for EventColumn
+    subjects : Sequence[str | int], optional
+        alias for Subjects
+    sessions : Sequence[str | int], optional
+        alias for Sessions
+    runs : Sequence[str | int], optional
+        alias for RUns
+    tasks : Sequence[str] | str, optional
+        alias for Tasks
+    outputdir : str
+        alias for OutputDir
+
+    Returns
+    -------
+    result : Dict[str,Any] | List[Dict[str, Any]] | None
         Depending on ReturnData, either a list of EEG objects (if BIDS root folder was
         specified) or a single EEG object (if a single file was specified), otherwise None.
     """
@@ -348,13 +380,17 @@ def bids_preproc(
     del kwargs['root']  # we don't need the root here, only in the function body
     from scipy.io.matlab import loadmat
     from eegprep import (bids_list_eeg_files, clean_artifacts, pop_load_frombids, eeg_checkset,
-                         pop_saveset, eeg_picard, iclabel, pop_loadset, pop_resample,
-                         eeg_interp, pop_select, eeg_checkset_strict_mode, pop_reref)
+                         pop_saveset, eeg_runica, eeg_picard, iclabel, pop_loadset, pop_resample,
+                         eeg_interp, pop_select, eeg_checkset_strict_mode, pop_reref,
+                         eeg_icflag, pop_subcomp)
+    from eegprep.eeg_amica import eeg_amica
     from .utils.bids import gen_derived_fpath
 
     def hash_suffix(ignore: Optional[set] = None, *, prefix='#') -> str:
-        """Get a hash for all options that affect results minus the ones listed in ignore,
-        unless UseHashes is False (in which case an empty string is returned)."""
+        """Get a hash for all options that affect results minus the ones listed in ignore.
+
+        Unless UseHashes is False (in which case an empty string is returned).
+        """
         if not UseHashes:
             return ''
         # set of options in kwargs that do NOT influence the processing result; all others
@@ -408,9 +444,23 @@ def bids_preproc(
     if len(StageNames) != 4:
         raise ValueError("StageNames, if given, must be a list of 4 strings, as in: "
                          "['desc-cleaned', 'desc-picard', 'desc-iclabel', 'desc-epoch'].")
-    if WithICLabel and not WithPicard:
-        logger.warning("WithICLabel=True implies WithPicard=True; setting WithPicard=True.")
-        WithPicard = True
+    # apply FinalDesc override to the last active stage name
+    if FinalDesc is not None:
+        StageNames = list(StageNames)
+        if EpochEvents is not None:
+            StageNames[3] = FinalDesc
+        elif WithICLabel:
+            StageNames[2] = FinalDesc
+        elif WithICA:
+            StageNames[1] = FinalDesc
+        else:
+            StageNames[0] = FinalDesc
+    if WithPicard:
+        ICAAlgorithm = 'picard'
+        WithICA = True
+    if WithICLabel and not WithICA:
+        logger.warning("WithICLabel=True implies WithICA=True; setting WithICA=True.")
+        WithICA = True
 
     if not os.path.isdir(root) and root.endswith(eeg_extensions):
         fn = root  # process a single file
@@ -418,12 +468,17 @@ def bids_preproc(
             _n_skipped = multiprocessing.Value('i', 0)
 
         late_opts = {'WithInterp', 'EpochLimits', 'EpochEvents', 'EpochBaseline', 'CommonAverageReference'}
-        fpath_cln = gen_derived_fpath(fn, outputdir=OutputDir, keyword=StageNames[0] + hash_suffix(ignore={'WithPicard', 'WithICLabel'} | late_opts))
+        fpath_cln = gen_derived_fpath(fn, outputdir=OutputDir, keyword=StageNames[0] + hash_suffix(ignore={'WithICA', 'WithICLabel'} | late_opts))
         fpath_picard = gen_derived_fpath(fn, outputdir=OutputDir, keyword=StageNames[1] + hash_suffix(ignore={'WithICLabel'} | late_opts))
         fpath_iclabel = gen_derived_fpath(fn, outputdir=OutputDir, keyword=StageNames[2] + hash_suffix(ignore=late_opts))
         fpath_epoch = gen_derived_fpath(fn, outputdir=OutputDir, keyword=StageNames[3] + hash_suffix(ignore={'CommonAverageReference'}))
         fpath_final = gen_derived_fpath(fn, outputdir=OutputDir, keyword=f'desc-final' + hash_suffix())
         fpath_report = gen_derived_fpath(fn, outputdir=OutputDir, keyword='desc-report' + hash_suffix(), extension='.json')
+        if ReportDir is not None:
+            # redirect report to a separate directory (e.g., 'code/reports')
+            report_base = os.path.basename(fpath_report)
+            resolved_output = OutputDir.format(root=root_for_fpath(fn)) if '{root}' in OutputDir else OutputDir
+            fpath_report = os.path.join(resolved_output, ReportDir, report_base)
 
         # JSON report file
         if os.path.exists(fpath_report):
@@ -462,7 +517,7 @@ def bids_preproc(
         if WithICLabel:
             needed_files += [fpath_cln, fpath_iclabel]
             StagesToGo += ['ICA', 'ICLabel']
-        elif WithPicard:
+        elif WithICA:
             needed_files += [fpath_cln, fpath_picard]
             StagesToGo += ['ICA']
         else:
@@ -526,6 +581,20 @@ def bids_preproc(
             old_chanlocs = None
             with thread_ctx:
 
+                def save_stage(EEG, stage_num, stage_name):
+                    """Save intermediate stage if requested."""
+                    if SaveIntermediateStages and IntermediateDir:
+                        os.makedirs(IntermediateDir, exist_ok=True)
+                        # Extract subject/run info from filename for unique identifier
+                        base = os.path.basename(fn).replace('.set', '').replace('.vhdr', '').replace('.edf', '').replace('.bdf', '')
+                        stage_file = f'{base}_stage{stage_num:02d}_{stage_name}_py.set'
+                        stage_path = os.path.join(IntermediateDir, stage_file)
+                        try:
+                            pop_saveset(EEG, stage_path)
+                            logger.info(f"Saved stage {stage_num} ({stage_name}) to {stage_path}")
+                        except Exception as e:
+                            logger.error(f"Failed to save stage {stage_num} ({stage_name}): {e}")
+
                 def select_channels(EEG, report=None):
                     """Apply channel selection, optionally update the provided report in-place."""
                     if report is None:
@@ -535,7 +604,19 @@ def bids_preproc(
                         keep &= [chanloc_has_coords(ch) for ch in EEG['chanlocs']]
                     if OnlyModalities:
                         OM = [m.upper() for m in OnlyModalities]
-                        keep &= [ch.get('type', 'EEG').upper() in OM for ch in EEG['chanlocs']]
+                        def get_chan_type(ch):
+                            """Get channel type, handling nan and non-string types."""
+                            typ = ch.get('type')
+                            # Return None for nan, None, or other non-string types (will be excluded)
+                            # Check for float/nan first since nan is not a string but isinstance check alone misses it
+                            if typ is None:
+                                return None
+                            if isinstance(typ, float) and np.isnan(typ):
+                                return None
+                            if not isinstance(typ, str):
+                                return None
+                            return typ.upper()
+                        keep &= [get_chan_type(ch) in OM for ch in EEG['chanlocs']]
                     retain = [ch['labels'] for ch, kp in zip(EEG['chanlocs'], keep) if kp]
                     if 0 < len(retain) < len(EEG['chanlocs']):
                         EEG = pop_select(EEG, channel=retain)
@@ -573,7 +654,18 @@ def bids_preproc(
                         bidsevent=ApplyEvents,
                         eventtype=EventColumn,
                         return_report=True)
+
+                    # Clear any pre-existing ICA if we're going to compute fresh ICA with PICARD
+                    # This avoids shape mismatches after channel interpolation
+                    if WithICA and 'icaweights' in EEG and EEG['icaweights'].size > 0:
+                        logger.info(f"Clearing pre-existing ICA from {fn} (will recompute with PICARD)")
+                        EEG['icaweights'] = np.array([])
+                        EEG['icasphere'] = np.array([])
+                        EEG['icawinv'] = np.array([])
+                        EEG['icaact'] = np.array([])
+
                     StagesToGo.remove('Import')
+                    save_stage(EEG, 1, 'import')
 
                     report["Import"] = {
                         "ApplyMetadata": ApplyMetadata,
@@ -596,6 +688,7 @@ def bids_preproc(
                     if OnlyChannelsWithPosition or OnlyModalities:
                         EEG = select_channels(EEG, report)
                         StagesToGo.remove('ChannelSelection')
+                        save_stage(EEG, 2, 'chansel')
 
                     if SamplingRate:
                         EEG = pop_resample(EEG, SamplingRate)
@@ -604,6 +697,7 @@ def bids_preproc(
                             "SamplingRate": SamplingRate,
                         }
                         StagesToGo.remove('Resample')
+                        save_stage(EEG, 3, 'resample')
                     else:
                         logger.info("No resampling requested, keeping original sampling rate.")
                         report["Resample"] = {
@@ -668,22 +762,29 @@ def bids_preproc(
 
                         # we always save out the cleaned EEG data
                         pop_saveset(EEG, fpath_cln)
+                        save_stage(EEG, 8, 'window')
 
-                if WithPicard:
+                if WithICA:
                     if os.path.exists(fpath_picard) and SkipIfPresent:
                         logger.info(f"Found {fpath_picard}, skipping PICARD stage.")
                         EEG = pop_loadset(fpath_picard)
                     else:
-                        EEG = eeg_picard(EEG, posact=True, sortcomps=True)
+                        if ICAAlgorithm == 'picard':
+                            EEG = eeg_picard(EEG)
+                        elif ICAAlgorithm == 'amica':
+                            EEG = eeg_amica(EEG, posact=True, sortcomps=True, **(AmicaArgs or {}))
+                        else:
+                            EEG = eeg_runica(EEG, posact=True, sortcomps=True, rndreset='off')
                         EEG = eeg_checkset(EEG)
                         if not WithICLabel or not MinimizeDiskUsage:
                             # only save the PICARD output if we don't do ICLabel (to save disk space)
                             pop_saveset(EEG, fpath_picard)
                         report["ICA"] = {
-                            "Type": "PICARD",
+                            "Type": ICAAlgorithm.upper(),
                             "Applied": True,
                         }
                         StagesToGo.remove('ICA')
+                        save_stage(EEG, 9, 'ica')
                 else:
                     report["ICA"] = {
                         "Applied": False,
@@ -695,6 +796,28 @@ def bids_preproc(
                         EEG = pop_loadset(fpath_iclabel)
                     else:
                         EEG = iclabel(EEG)
+
+                        # Flag components based on ICLabel classifications
+                        # Match MATLAB: pop_icflag([NaN NaN;0.9 1;0.9 1;NaN NaN;NaN NaN;NaN NaN;NaN NaN])
+                        # This flags Muscle > 0.9 OR Eye > 0.9
+                        thresholds = np.array([
+                            [np.nan, np.nan],  # Brain
+                            [0.9, 1.0],        # Muscle
+                            [0.9, 1.0],        # Eye
+                            [np.nan, np.nan],  # Heart
+                            [np.nan, np.nan],  # Line Noise
+                            [np.nan, np.nan],  # Channel Noise
+                            [np.nan, np.nan],  # Other
+                        ])
+                        EEG = eeg_icflag(EEG, thresholds)
+
+                        # Save stage 10 BEFORE component removal (for comparison)
+                        save_stage(EEG, 10, 'iclabel')
+
+                        # Remove flagged components
+                        EEG = pop_subcomp(EEG)
+
+                        # Save the final result after component removal
                         pop_saveset(EEG, fpath_iclabel)
                         report["ICLabel"] = {
                             "Applied": True,
@@ -729,6 +852,19 @@ def bids_preproc(
                         # low-amplitude noise afterwards)
                         try:
                             EEG = eeg_interp(EEG, list(old_chanlocs))
+
+                            # Clear ICA after interpolation since ICA was computed on
+                            # fewer channels and is now incompatible with interpolated data
+                            if 'icaweights' in EEG and EEG['icaweights'].size > 0:
+                                if EEG['icaweights'].shape[1] != EEG['nbchan']:
+                                    logger.warning(f"Clearing ICA after interpolation: ICA was done on "
+                                                   f"{EEG['icaweights'].shape[1]} channels but data now has "
+                                                   f"{EEG['nbchan']} channels")
+                                    EEG['icaweights'] = np.array([])
+                                    EEG['icasphere'] = np.array([])
+                                    EEG['icawinv'] = np.array([])
+                                    EEG['icaact'] = np.array([])
+
                             report["ChannelInterp"] = {
                                 "Applied": True,
                                 "NumInterpolated": nDropped
@@ -745,6 +881,7 @@ def bids_preproc(
                             else:
                                 raise
                         StagesToGo.remove('ChannelInterp')
+                        save_stage(EEG, 11, 'interp')
                 else:
                     report["ChannelInterp"] = {
                         "Applied": False,
@@ -778,6 +915,10 @@ def bids_preproc(
                                     EEG = pop_rmbase(EEG, timerange=timerange)
 
                                 pop_saveset(EEG, fpath_epoch)
+                                if EpochBaseline is None:
+                                    save_stage(EEG, 12, 'epoch')
+                                else:
+                                    save_stage(EEG, 13, 'baseline')
 
                             report["Epoching"] = {
                                 "Applied": True,
@@ -804,6 +945,7 @@ def bids_preproc(
                     EEG = pop_reref(EEG, [])
                     StagesToGo.remove('CommonAverageRef')
                     report["CommonAverageReference"] = {"Applied": True}
+                    save_stage(EEG, 14, 'reref')
 
                 # optionally write out the final preprocessed file
                 if need_final:
@@ -889,12 +1031,14 @@ def bids_preproc(
                 content['ECGChannelCount'] = n_ecg = sum(lab == 'ecg' for lab in labels)
                 content['EMGChannelCount'] = n_emg = sum(lab == 'emg' for lab in labels)
                 content['EOGChannelCount'] = n_eog = sum(lab == 'eog' for lab in labels)
-                content['TriggerChannelCount'] = n_trig = sum(lab == 'trig' for lab in labels)
-                content['MISCChannelCount'] = len(EEG['chanlocs']) - (n_eeg+n_ecg+n_emg+n_eog+n_trig)
+                n_trig = sum(lab == 'trig' for lab in labels)
+                content['MiscChannelCount'] = len(EEG['chanlocs']) - (n_eeg+n_ecg+n_emg+n_eog+n_trig)
 
                 # remove misnamed field that may be present from prior json file
-                if 'MiscChannelCount' in content:
-                    del content['MiscChannelCount']
+                if 'MISCChannelCount' in content:
+                    del content['MISCChannelCount']
+                if 'TriggerChannelCount' in content:
+                    del content['TriggerChannelCount']
 
                 # other things that likely changed as a result of preprocessing
                 is_epoched = EEG['data'].ndim == 3
@@ -911,8 +1055,12 @@ def bids_preproc(
                     content['RecordingType'] = 'continuous'
 
                 # complete a few fields that may be missing
+                # Note: EEGPlacementScheme is not in the BIDS schema but is
+                # commonly used; only add it if already present in source sidecar
                 if 'EEGPlacementScheme' not in content:
-                    content['EEGPlacementScheme'] = EEG['etc'].get('labelscheme', 'unknown')
+                    labelscheme = EEG['etc'].get('labelscheme')
+                    if labelscheme and labelscheme != 'unknown':
+                        content['EEGPlacementScheme'] = labelscheme
 
                 # write information about the applied filters
                 if ('SoftwareFilters' not in content) or not isinstance(content['SoftwareFilters'], dict):
@@ -925,7 +1073,7 @@ def bids_preproc(
                 filter_names = {
                     'Resample': 'pop_resample',
                     'CleanArtifacts': 'clean_artifacts',
-                    'ICA': 'eeg_picard',
+                    'ICA': 'eeg_runica',
                     'ChannelInterp': 'eeg_interp',
                     'Epoching': 'pop_epoch+pop_rmbase' if EpochBaseline is not None else 'pop_epoch',
                     'CommonAverageReference': 'pop_reref'
@@ -934,9 +1082,19 @@ def bids_preproc(
                     if (flt := filter_report.get(in_report, {'Applied': False})).pop('Applied'):
                         sw_filts[in_filters] = flt
 
-                # write the updated content back
+                # write the updated content back (ensure JSON-safe values)
+                def _json_safe(obj):
+                    """Replace non-finite floats with strings for JSON compliance."""
+                    if isinstance(obj, float) and not np.isfinite(obj):
+                        return str(obj)  # "-inf" / "inf" / "nan"
+                    if isinstance(obj, dict):
+                        return {k: _json_safe(v) for k, v in obj.items()}
+                    if isinstance(obj, (list, tuple)):
+                        return [_json_safe(v) for v in obj]
+                    return obj
+
                 with open(fpath_eeg, 'w') as fp:
-                    json.dump(content, fp, indent=4)
+                    json.dump(_json_safe(content), fp, indent=4)
 
             return EEG if ReturnData else None
         except ExceptionUnlessDebug as e:
@@ -1021,27 +1179,29 @@ def bids_preproc(
 
         orig_doi = desc.get("DatasetDOI", "")
 
-        # determine the dataset URL
-        if '/openneuro.ds' in orig_doi:
-            # infer from doi
+        # determine the dataset URL: prefer existing SourceDatasets URL, then infer
+        existing_url = ""
+        for src in desc.get("SourceDatasets", []):
+            if src.get("URL"):
+                existing_url = src["URL"]
+                break
+        if existing_url:
+            dataset_url = existing_url
+        elif '/openneuro.ds' in orig_doi:
             ds_name = orig_doi.split('/')[1].split('.')[1]
-        else:
-            # guess from folder name, if conforming to openneuro convention
-            folder_name = os.path.basename(root)
-            if folder_name.startswith('ds') and folder_name[2:8].isdigit():
-                ds_name = folder_name[:8]
-            else:
-                ds_name = ''
-        if ds_name:
             dataset_url = f"https://openneuro.org/datasets/{ds_name}"
         else:
-            dataset_url = ""
-        desc["SourceDatasets"] = [
-            {
-                "URL": dataset_url,
-                "DOI": orig_doi
-            }
-        ]
+            folder_name = os.path.basename(root)
+            if folder_name.startswith('ds') and folder_name[2:8].isdigit():
+                dataset_url = f"https://openneuro.org/datasets/{folder_name[:8]}"
+            else:
+                dataset_url = ""
+        source_entry = {}
+        if dataset_url:
+            source_entry["URL"] = dataset_url
+        if orig_doi:
+            source_entry["DOI"] = orig_doi
+        desc["SourceDatasets"] = [source_entry] if source_entry else []
         # note that the actual epoched data *can* be absent if there were no matching 
         # event markers in any study file, which we can't determine at this point
         desc['IsEpoched'] = EpochEvents is not None

@@ -1,4 +1,5 @@
 # test_pop_select.py
+import os
 import unittest
 import numpy as np
 import copy
@@ -32,6 +33,7 @@ def _chan_labels(EEG):
     return labs
 
 
+@unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestPopSelectParity(unittest.TestCase):
 
     def setUp(self):
@@ -153,7 +155,7 @@ class TestPopSelectFunctional(unittest.TestCase):
             self.assertEqual(EEG_out['data'].shape[2], len(keep_trials))
 
         # Events, if present, must have valid latencies
-        if EEG_out.get('event'):
+        if EEG_out.get('event') is not None:
             total_pts = EEG_out['pnts'] * EEG_out['trials']
             for ev in EEG_out['event']:
                 if 'latency' in ev:

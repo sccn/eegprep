@@ -1,3 +1,5 @@
+"""EEG channel cleaning utilities."""
+
 from typing import *
 import logging
 import traceback
@@ -32,28 +34,28 @@ def clean_channels(
     Args:
       EEG: Continuous data set, assumed to be appropriately high-passed
         (e.g. >0.5Hz or with a 0.5Hz - 2.0Hz transition band).
-      corr_threshold: Correlation threshold. If a channel is correlated at 
-        less than this value to its robust estimate (based on other channels), 
-        it is considered abnormal in the given time window. 
-      noise_threshold: If a channel has more (high-frequency) noise relative to its signal 
-        than this value, in standard deviations from the channel population mean, 
-        it is considered abnormal. 
+      corr_threshold: Correlation threshold. If a channel is correlated at
+        less than this value to its robust estimate (based on other channels),
+        it is considered abnormal in the given time window.
+      noise_threshold: If a channel has more (high-frequency) noise relative to its signal
+        than this value, in standard deviations from the channel population mean,
+        it is considered abnormal.
       window_len: Length of the windows (in seconds) for which correlation is computed; ideally
-        short enough to reasonably capture periods of global artifacts or intermittent 
+        short enough to reasonably capture periods of global artifacts or intermittent
         sensor dropouts, but not shorter (for statistical reasons).
       max_broken_time: Maximum time (either in seconds or as fraction of the recording)
-        during which a channel is allowed to have artifacts. Reasonable range: 
-        0.1 (very aggressive) to 0.6 very lax). 
-      num_samples: Number of samples generated for a RANSAC reconstruction. This is the 
-        number of samples to generate in the random sampling consensus process. The larger 
-        this value, the more robust but also slower the processing will be. 
-      subset_size: Subset size. This is the size of the channel subsets to use 
-        for robust reconstruction,  as a number or fraction of the total number 
+        during which a channel is allowed to have artifacts. Reasonable range:
+        0.1 (very aggressive) to 0.6 very lax).
+      num_samples: Number of samples generated for a RANSAC reconstruction. This is the
+        number of samples to generate in the random sampling consensus process. The larger
+        this value, the more robust but also slower the processing will be.
+      subset_size: Subset size. This is the size of the channel subsets to use
+        for robust reconstruction,  as a number or fraction of the total number
         of channels.
 
-    Returns:
-      EEG: data set with bad channels removed
-
+    Returns
+    -------
+    EEG : data set with bad channels removed
     """
     EEG['data'] = np.asarray(EEG['data'], dtype=np.float64)
     C, S = EEG['data'].shape
