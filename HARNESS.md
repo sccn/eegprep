@@ -101,8 +101,39 @@ This keeps the project compatible with the existing suite while establishing `py
 
 Updated `src/eegprep/__init__.py` so the new parity utilities are available from the top-level package namespace where that is convenient for tests and tooling.
 
+### 7. Added MATLAB MCP support for parity work
+
+Downloaded and configured `neuromechanist/matlab-mcp-tools` for EEGPREP under:
+
+- `/data/projects/suraj/repos/matlab-mcp-tools`
+- `/data/projects/suraj/repos/matlab-mcp-tools/run-matlab-mcp-eegprep.sh`
+- `/home/suraj/.mcp/matlab/scripts/eegprep_bootstrap.m`
+
+The MCP server is registered with Codex as `matlab-eegprep` and is project-pinned to:
+
+- `EEGPREP_ROOT=/data/projects/suraj/eeglab/eegprep`
+- `EEGLAB_ROOT=/data/projects/suraj/eeglab`
+- `MATLAB_PATH=/usr/common/pkgs/MATLAB/R2024a`
+- Python environment `/data/projects/suraj/.miniforge3/envs/eegprep-dev`
+
+The wrapper preloads the conda `libstdc++.so.6` because the MATLAB R2024a Python engine fails on this host without that runtime library. The local MCP checkout was also patched so startup lifecycle logs go to stderr instead of stdout, preserving stdio MCP protocol cleanliness.
+
+The bootstrap script should be the first MATLAB script executed in an MCP parity session. It changes to the EEGPREP root, adds EEGLAB to the MATLAB path, runs `eeglab('nogui')`, and asserts that core EEGLAB functions such as `pop_loadset` and `eeg_checkset` are available.
+
+Recommended MCP workflow for parity debugging:
+
+- Run `eegprep_bootstrap.m` once at session start with `execute_script`.
+- Use `execute_script` or `execute_section_by_title` to run focused EEGLAB oracle snippets.
+- Use `get_variable`, `get_struct_info`, and `list_workspace_variables` to inspect `EEG`, `ALLEEG`, `STUDY`, stage outputs, and intermediate values without adding throwaway MATLAB files.
+- Use `get_figure_metadata`, `get_plot_data`, and `analyze_figure` for visual parity investigations such as `topoplot`, ERP plots, channel layouts, and GUI-adjacent plot behavior.
+- Use `matlab_lint` on generated oracle scripts and MATLAB bridge scripts before promoting them into the artifact or CI harness.
+
+The MCP server is intended as an agent/developer workbench for creating, debugging, and explaining parity oracles. The automated harness should continue to use manifest-driven pytest checks, artifact-backed references, and MATLAB batch/engine runners for repeatable CI gates. Once an MCP investigation produces a stable oracle, promote the script and expected outputs into the manifest-controlled harness rather than depending on MCP-only state.
+
 ## Notes
 
 - The current harness foundation is focused on parity plumbing and governance, not yet on full coverage of all EEGLAB functionality.
 - Existing ad hoc parity tests still exist and can be migrated incrementally onto the new parity package over time.
 - GUI-level parity is still a future layer; the current harness covers APIs, workflows, saved datasets, and plot outputs.
+- Newly registered Codex MCP servers are normally available to fresh Codex sessions; the current session may need a restart before the `matlab-eegprep` tools appear in the tool list.
+- EEGLAB may print plugin-version/update notices during `eeglab('nogui')` startup depending on the active user `eeg_options.m`; these notices are startup noise and should not be treated as parity output.
