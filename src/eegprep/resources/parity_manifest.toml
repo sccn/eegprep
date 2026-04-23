@@ -1,0 +1,85 @@
+version = 1
+default_backend = "artifact_oracle"
+
+[tolerances.tight_numeric]
+rtol = 0.0
+atol = 1e-7
+equal_nan = true
+note = "Default deterministic tolerance for scalar and array parity."
+
+[tolerances.pipeline_numeric]
+rtol = 0.0
+atol = 1e-5
+equal_nan = true
+note = "Used for stage-by-stage pipeline comparisons on saved datasets."
+
+[tolerances.visual_strict]
+rtol = 0.0
+atol = 1e-8
+equal_nan = true
+note = "Strict image tolerance for deterministic topography renders."
+
+[[cases]]
+id = "rng.uniform_sequence"
+surface = "numerics"
+tiers = ["tier1", "fast", "matlab", "nightly"]
+oracle = "live_matlab_engine"
+comparison = "numeric"
+tolerance = "tight_numeric"
+datasets = []
+owner = "core"
+module = "tests/test_parity_rng.py"
+blocking = "pr"
+notes = "Validates the shared RNG contract used for MATLAB-compatible random sampling."
+
+[[cases]]
+id = "topoplot.single_component"
+surface = "visual"
+tiers = ["tier1", "visual", "matlab", "nightly"]
+oracle = "live_matlab_engine"
+comparison = "visual_output"
+tolerance = "visual_strict"
+datasets = ["data/eeglab_data_with_ica_tmp.set"]
+owner = "core"
+module = "tests/test_topoplot.py"
+blocking = "nightly"
+workflow_paths = ["plot/topography"]
+
+[[cases]]
+id = "pop_reref.average_reference"
+surface = "workflow"
+tiers = ["tier1", "workflow", "matlab", "nightly"]
+oracle = "live_matlab_engine"
+comparison = "eeg_struct"
+tolerance = "tight_numeric"
+datasets = ["data/eeglab_data_with_ica_tmp.set"]
+owner = "core"
+module = "tests/test_pop_reref.py"
+blocking = "pr"
+workflow_paths = ["preprocess/reref"]
+
+[[cases]]
+id = "pipeline.stage_outputs"
+surface = "pipeline"
+tiers = ["tier3", "workflow", "artifact", "nightly", "release"]
+oracle = "artifact_oracle"
+comparison = "stage_outputs"
+tolerance = "pipeline_numeric"
+datasets = ["ds002680", "ds003061"]
+owner = "pipeline"
+module = "tests/test_bids_preproc.py"
+blocking = "release"
+workflow_paths = ["bids/import", "bids/preprocess", "bids/export"]
+
+[[cases]]
+id = "workflow.clean_artifacts_to_iclabel"
+surface = "workflow"
+tiers = ["tier2", "workflow", "matlab", "nightly"]
+oracle = "live_matlab_engine"
+comparison = "workflow_trace"
+tolerance = "pipeline_numeric"
+datasets = ["data/eeglab_data_with_ica_tmp.set"]
+owner = "pipeline"
+module = "tests/test_pipeline.py"
+blocking = "nightly"
+workflow_paths = ["clean_artifacts", "ica", "iclabel"]

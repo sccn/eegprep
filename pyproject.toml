@@ -37,6 +37,7 @@ dependencies = [
   "python-picard>=0.8,<0.9",
   "scipy>=1.7.0",
   "sympy>=1.14.0",
+  "tomli>=2.0.1; python_version < '3.11'",
   "threadpoolctl>=3.6.0",
 ]
 
@@ -59,6 +60,9 @@ docs = [
   "sphinx-togglebutton>=0.3.0",
   "sphinxcontrib-spelling>=7.1.0"
 ]
+tests = [
+  "pytest>=8.0",
+]
 all = [
   "eegprep[torch]",
   "eegprep[eeglabio]",
@@ -78,6 +82,7 @@ exclude = ["eegprep.eeglab*"]
   "resources/montages/*.locs",
   "resources/montages/README.md",
   "resources/*.m",
+  "resources/*.toml",
   "netICL.mat"
 ]
 

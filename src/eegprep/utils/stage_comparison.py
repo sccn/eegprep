@@ -268,21 +268,16 @@ def compare_eeg_data(py_file: str, mat_file: str) -> Dict[str, float]:
     Returns:
         Dictionary with difference metrics
     """
-    from eegprep import pop_loadset, eeg_checkset_strict_mode
+    from eegprep.parity import compare_stage_outputs
 
-    with eeg_checkset_strict_mode(False):
-        EEG_py = pop_loadset(py_file)
-        EEG_mat = pop_loadset(mat_file)
-
-    # Compute difference metrics on data
-    diff = EEG_py['data'] - EEG_mat['data']
-
+    result = compare_stage_outputs(py_file, mat_file)
+    data_metrics = result.children[0].metrics if result.children else {}
     return {
-        'max_abs': float(np.max(np.abs(diff))),
-        'mean_abs': float(np.mean(np.abs(diff))),
-        'rms': float(np.sqrt(np.mean(diff**2))),
-        'shape_py': EEG_py['data'].shape,
-        'shape_mat': EEG_mat['data'].shape,
+        'max_abs': float(data_metrics.get('max_abs_diff', 0.0)),
+        'mean_abs': float(data_metrics.get('mean_abs_diff', 0.0)),
+        'rms': float(data_metrics.get('rms_diff', 0.0)),
+        'shape_py': data_metrics.get('expected_shape'),
+        'shape_mat': data_metrics.get('actual_shape'),
     }
 
 

@@ -1,0 +1,20 @@
+[[deviations]]
+id = "runica_component_permutation"
+case_id = "pipeline.stage_outputs"
+issue = "https://github.com/sccn/eegprep/issues/ica-permutation-parity"
+owner = "pipeline"
+reason = "ICA decomposition is scientifically equivalent after component matching but may differ by sign or permutation before canonicalization."
+scope = "ICA-related metadata and direct component ordering in pipeline artifacts."
+expires_on = "2026-12-31"
+blocking = "nightly"
+max_atol = 200.0
+
+[[deviations]]
+id = "ui_surface_placeholder"
+case_id = "workflow.clean_artifacts_to_iclabel"
+issue = "https://github.com/sccn/eegprep/issues/python-ui-parity"
+owner = "product"
+reason = "The Python desktop UI surface does not yet exist, so the harness currently gates API workflow traces instead of end-to-end GUI interactions."
+scope = "GUI-level interaction parity only."
+expires_on = "2026-12-31"
+blocking = "release"
