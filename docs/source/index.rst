@@ -34,33 +34,15 @@ A comprehensive Python EEG preprocessing pipeline for neuroscience research.
 Quick Start
 ===========
 
-Installation
-------------
-
-Install eegprep using pip:
-
-.. code-block:: bash
-
-   pip install eegprep
-
-Basic Usage
------------
+See the :ref:`quickstart` guide for a full walk-through of loading, preprocessing, and saving EEG data. A minimal example:
 
 .. code-block:: python
 
-   import eegprep
-   from eegprep import EEGobj
+   from eegprep import pop_loadset, pop_saveset, clean_artifacts
 
-   # Load EEG data
-   eeg = EEGobj.load('data.set')
-
-   # Apply preprocessing pipeline
-   eeg = eegprep.clean_artifacts(eeg)
-   eeg = eegprep.clean_flatlines(eeg)
-   eeg = eegprep.clean_channels(eeg)
-
-   # Save processed data
-   eeg.save('data_processed.set')
+   eeg = pop_loadset('sample_data.set')
+   eeg = clean_artifacts(eeg)
+   pop_saveset(eeg, 'sample_data_preprocessed.set')
 
 Features
 ========
@@ -84,7 +66,7 @@ Quick Links
 - :doc:`References <references>` - Key publications and related tools
 - :doc:`Changelog <changelog>` - Version history and release notes
 - :doc:`Glossary <glossary>` - EEG and signal processing terminology
-- `GitHub Repository <https://github.com/NeuroTechX/eegprep>`_ - Source code and issue tracker
+- `GitHub Repository <https://github.com/sccn/eegprep>`_ - Source code and issue tracker
 
 Indices and tables
 ==================
