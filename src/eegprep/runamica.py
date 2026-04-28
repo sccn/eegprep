@@ -276,12 +276,12 @@ def _write_param_file(outdir, params):
 
 
 def _amica_subprocess_kwargs():
-    """Build env / preexec kwargs that keep AMICA from segfaulting.
+    """Build env / preexec kwargs for invoking the AMICA binary.
 
-    The vendored AMICA binary is built with Intel Fortran + OpenMP. On
-    systems with a small default thread stack (e.g. 8 MiB on Linux CI
-    runners) it crashes with `forrtl: severe (174): SIGSEGV`. Bumping
-    OMP_STACKSIZE / KMP_STACKSIZE and lifting RLIMIT_STACK avoids that.
+    Bumps OMP_STACKSIZE / KMP_STACKSIZE and lifts RLIMIT_STACK so AMICA's
+    OpenMP threads have enough stack on systems with a small default
+    (e.g. 8 MiB on Linux CI runners). Cheap insurance: AMICA also requires
+    AVX-512 in some builds, which this won't fix — see is_amica_available().
     """
     env = {**os.environ}
     env.setdefault('OMP_STACKSIZE', '512M')
@@ -299,6 +299,48 @@ def _amica_subprocess_kwargs():
                 pass
         kwargs['preexec_fn'] = _raise_stack
     return kwargs
+
+
+_amica_works_cache = None
+
+
+def is_amica_available():
+    """Return True iff the AMICA binary can launch on this system.
+
+    Verifies more than just file presence: the vendored Linux build uses
+    AVX-512 instructions, and the Windows build requires the Intel Fortran
+    runtime DLLs. On hosts that lack either (e.g. AMD EPYC without
+    AVX-512, vanilla Windows runners), the binary segfaults on launch.
+    Smoke-tests by invoking with a bogus param file: a healthy binary
+    exits gracefully with a file-not-found error, while a broken one
+    returns 174 (Intel Fortran severe) or is killed by signal.
+    """
+    global _amica_works_cache
+    if _amica_works_cache is not None:
+        return _amica_works_cache
+    try:
+        binary = _find_amica_binary()
+    except FileNotFoundError:
+        _amica_works_cache = False
+        return False
+    try:
+        result = subprocess.run(
+            [binary, '/nonexistent/eegprep/amica/probe.param'],
+            timeout=15,
+            capture_output=True,
+            **_amica_subprocess_kwargs(),
+        )
+    except (subprocess.TimeoutExpired, OSError):
+        _amica_works_cache = False
+        return False
+    rc = result.returncode
+    # 174 = Intel Fortran "severe" (SIGSEGV/SIGILL/etc); 3221225781 =
+    # 0xC0000135 STATUS_DLL_NOT_FOUND on Windows; negative rc = signal kill.
+    if rc < 0 or rc == 174 or rc == 3221225781:
+        _amica_works_cache = False
+        return False
+    _amica_works_cache = True
+    return True
 
 
 def _run_amica(binary, param_file):

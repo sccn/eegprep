@@ -22,17 +22,9 @@ from eegprep.runamica import (
     _load_amica_output,
     _write_data_file,
     _write_param_file,
+    is_amica_available,
     runamica,
 )
-
-
-def _amica_binary_available():
-    """Return True if the AMICA binary is available and executable."""
-    try:
-        _find_amica_binary()
-        return True
-    except FileNotFoundError:
-        return False
 
 
 def _make_synthetic_sources(n_channels, n_samples, seed=42):
@@ -273,8 +265,8 @@ class TestFindAmicaBinary(unittest.TestCase):
             _find_amica_binary('/nonexistent/path/amica15')
 
 
-@unittest.skipUnless(_amica_binary_available(),
-                     "AMICA binary not available or not executable")
+@unittest.skipUnless(is_amica_available(),
+                     "AMICA binary not functional on this platform")
 class TestRunamicaIntegration(unittest.TestCase):
     """Integration test: run AMICA binary on small synthetic data."""
 
