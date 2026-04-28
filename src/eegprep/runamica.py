@@ -275,6 +275,32 @@ def _write_param_file(outdir, params):
     return param_path
 
 
+def _amica_subprocess_kwargs():
+    """Build env / preexec kwargs that keep AMICA from segfaulting.
+
+    The vendored AMICA binary is built with Intel Fortran + OpenMP. On
+    systems with a small default thread stack (e.g. 8 MiB on Linux CI
+    runners) it crashes with `forrtl: severe (174): SIGSEGV`. Bumping
+    OMP_STACKSIZE / KMP_STACKSIZE and lifting RLIMIT_STACK avoids that.
+    """
+    env = {**os.environ}
+    env.setdefault('OMP_STACKSIZE', '512M')
+    env.setdefault('KMP_STACKSIZE', '512M')
+
+    kwargs = {'env': env}
+    if os.name == 'posix':
+        import resource
+        def _raise_stack():
+            try:
+                resource.setrlimit(
+                    resource.RLIMIT_STACK,
+                    (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
+            except (OSError, ValueError):
+                pass
+        kwargs['preexec_fn'] = _raise_stack
+    return kwargs
+
+
 def _run_amica(binary, param_file):
     """Run the AMICA binary.
 
@@ -297,6 +323,7 @@ def _run_amica(binary, param_file):
             check=True,
             capture_output=True,
             text=True,
+            **_amica_subprocess_kwargs(),
         )
         if result.stdout:
             logger.info("AMICA stdout:\n%s", result.stdout)
