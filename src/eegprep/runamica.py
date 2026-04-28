@@ -278,14 +278,22 @@ def _write_param_file(outdir, params):
 def _amica_subprocess_kwargs():
     """Build env / preexec kwargs for invoking the AMICA binary.
 
-    Bumps OMP_STACKSIZE / KMP_STACKSIZE and lifts RLIMIT_STACK so AMICA's
-    OpenMP threads have enough stack on systems with a small default
-    (e.g. 8 MiB on Linux CI runners). Cheap insurance: AMICA also requires
-    AVX-512 in some builds, which this won't fix — see is_amica_available().
+    The Linux build of AMICA statically links MPICH and unconditionally
+    calls MPI_Init at startup. Without an external launcher (mpiexec /
+    hydra_pmi_proxy), MPICH falls back to "singleton init" which tries to
+    spawn a hydra process and segfaults when it can't find one. Setting
+    PMI_RANK=0 / PMI_SIZE=1 makes MPICH believe it is already running
+    inside a 1-process job and skip the spawn entirely.
+
+    OMP_STACKSIZE / KMP_STACKSIZE and a relaxed RLIMIT_STACK keep AMICA's
+    OpenMP threads from running out of stack on hosts with a small default
+    (e.g. 8 MiB on Linux CI runners).
     """
     env = {**os.environ}
     env.setdefault('OMP_STACKSIZE', '512M')
     env.setdefault('KMP_STACKSIZE', '512M')
+    env.setdefault('PMI_RANK', '0')
+    env.setdefault('PMI_SIZE', '1')
 
     kwargs = {'env': env}
     if os.name == 'posix':
