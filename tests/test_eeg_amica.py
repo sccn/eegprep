@@ -17,16 +17,7 @@ import unittest
 import numpy as np
 
 from eegprep.eeg_amica import eeg_amica, load_amica_model
-from eegprep.runamica import _find_amica_binary
-
-
-def _amica_binary_available():
-    """Return True if the AMICA binary is available and executable."""
-    try:
-        _find_amica_binary()
-        return True
-    except FileNotFoundError:
-        return False
+from eegprep.runamica import is_amica_available
 
 
 def _make_test_eeg(n_channels=4, n_samples=2000, n_trials=1, srate=250.0,
@@ -93,8 +84,8 @@ def _make_test_eeg(n_channels=4, n_samples=2000, n_trials=1, srate=250.0,
     return EEG
 
 
-@unittest.skipUnless(_amica_binary_available(),
-                     "AMICA binary not available or not executable")
+@unittest.skipUnless(is_amica_available(),
+                     "AMICA binary not functional on this platform")
 class TestEegAmicaBasic(unittest.TestCase):
     """Basic eeg_amica tests with continuous data."""
 
@@ -138,8 +129,8 @@ class TestEegAmicaBasic(unittest.TestCase):
         self.assertTrue(np.all(np.isfinite(result['icaact'])))
 
 
-@unittest.skipUnless(_amica_binary_available(),
-                     "AMICA binary not available or not executable")
+@unittest.skipUnless(is_amica_available(),
+                     "AMICA binary not functional on this platform")
 class TestEegAmicaOutputShapes(unittest.TestCase):
     """Test output shapes with 3D (epoched) data."""
 
@@ -158,8 +149,8 @@ class TestEegAmicaOutputShapes(unittest.TestCase):
         self.assertEqual(result['icawinv'].shape[1], ncomps)
 
 
-@unittest.skipUnless(_amica_binary_available(),
-                     "AMICA binary not available or not executable")
+@unittest.skipUnless(is_amica_available(),
+                     "AMICA binary not functional on this platform")
 class TestEegAmicaReconstruction(unittest.TestCase):
     """Test data reconstruction from ICA decomposition."""
 
@@ -187,8 +178,8 @@ class TestEegAmicaReconstruction(unittest.TestCase):
         )
 
 
-@unittest.skipUnless(_amica_binary_available(),
-                     "AMICA binary not available or not executable")
+@unittest.skipUnless(is_amica_available(),
+                     "AMICA binary not functional on this platform")
 class TestEegAmicaEtcStored(unittest.TestCase):
     """Test that full AMICA output is stored in EEG['etc']['amica']."""
 
@@ -212,8 +203,8 @@ class TestEegAmicaEtcStored(unittest.TestCase):
         self.assertEqual(mods['num_pcs'], 4)
 
 
-@unittest.skipUnless(_amica_binary_available(),
-                     "AMICA binary not available or not executable")
+@unittest.skipUnless(is_amica_available(),
+                     "AMICA binary not functional on this platform")
 class TestEegAmicaSortcomps(unittest.TestCase):
     """Test component sorting by variance."""
 
@@ -238,8 +229,8 @@ class TestEegAmicaSortcomps(unittest.TestCase):
             )
 
 
-@unittest.skipUnless(_amica_binary_available(),
-                     "AMICA binary not available or not executable")
+@unittest.skipUnless(is_amica_available(),
+                     "AMICA binary not functional on this platform")
 class TestEegAmicaPosact(unittest.TestCase):
     """Test positive activation sign normalization."""
 
@@ -259,8 +250,8 @@ class TestEegAmicaPosact(unittest.TestCase):
             )
 
 
-@unittest.skipUnless(_amica_binary_available(),
-                     "AMICA binary not available or not executable")
+@unittest.skipUnless(is_amica_available(),
+                     "AMICA binary not functional on this platform")
 class TestLoadAmicaModel(unittest.TestCase):
     """Test load_amica_model() for model switching."""
 

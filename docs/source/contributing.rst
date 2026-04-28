@@ -53,7 +53,7 @@ Install the package in editable mode with development dependencies:
 .. code-block:: bash
 
     pip install -e ".[dev]"
-    pip install -r requirements-docs.txt
+    pip install -e ".[docs]"
 
 This installs:
 
