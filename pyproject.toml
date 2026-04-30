@@ -37,7 +37,6 @@ dependencies = [
   "python-picard>=0.8,<0.9",
   "scipy>=1.7.0",
   "sympy>=1.14.0",
-  "tomli>=2.0.1; python_version < '3.11'",
   "threadpoolctl>=3.6.0",
 ]
 
@@ -62,6 +61,7 @@ docs = [
 ]
 tests = [
   "pytest>=8.0",
+  "tomli>=2.0.1; python_version < '3.11'",
 ]
 all = [
   "eegprep[torch]",

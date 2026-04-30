@@ -159,6 +159,7 @@ def test_compare_eeg_data_raises_on_shape_mismatch(monkeypatch):
     from eegprep.utils.stage_comparison import compare_eeg_data
     import eegprep.parity as parity_module
 
+    metadata_child = ComparisonResult(label="stage.metadata", passed=True)
     failed_data = ComparisonResult(
         label="stage.data",
         passed=False,
@@ -168,7 +169,7 @@ def test_compare_eeg_data_raises_on_shape_mismatch(monkeypatch):
     failed_stage = ComparisonResult(
         label="stage_outputs",
         passed=False,
-        children=[failed_data],
+        children=[metadata_child, failed_data],
         failures=list(failed_data.failures),
     )
     monkeypatch.setattr(parity_module, "compare_stage_outputs", lambda *_args, **_kwargs: failed_stage)

@@ -273,7 +273,9 @@ def compare_eeg_data(py_file: str, mat_file: str) -> Dict[str, float]:
     result = compare_stage_outputs(py_file, mat_file)
     if not result.children:
         raise ValueError("stage comparison did not produce a data comparison result")
-    data_result = result.children[0]
+    data_result = next((child for child in result.children if child.label == "stage.data"), None)
+    if data_result is None:
+        raise ValueError("stage comparison did not include a stage.data comparison result")
     data_metrics = data_result.metrics
     required_metrics = ("max_abs_diff", "mean_abs_diff", "rms_diff")
     if any(metric not in data_metrics or data_metrics[metric] is None for metric in required_metrics):

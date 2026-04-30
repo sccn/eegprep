@@ -9,7 +9,7 @@ from typing import Any, Iterable, Mapping
 try:
     import tomllib
 except ModuleNotFoundError:  # pragma: no cover - Python < 3.11
-    import tomli as tomllib  # type: ignore[no-redef]
+    tomllib = None  # type: ignore[assignment]
 
 
 @dataclass(frozen=True)
@@ -118,8 +118,17 @@ def default_deviations_path() -> Path:
 
 
 def _load_toml(path: Path) -> dict[str, Any]:
+    parser = tomllib
+    if parser is None:  # pragma: no cover - Python < 3.11 without test/dev extras
+        try:
+            import tomli as parser
+        except ModuleNotFoundError as exc:
+            raise RuntimeError(
+                "Loading parity TOML manifests on Python <3.11 requires tomli; "
+                "install eegprep[tests] or eegprep[dev]."
+            ) from exc
     with path.open("rb") as handle:
-        return tomllib.load(handle)
+        return parser.load(handle)
 
 
 def _load_tolerances(raw: Mapping[str, Mapping[str, Any]]) -> dict[str, ToleranceProfile]:
