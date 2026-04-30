@@ -263,8 +263,6 @@ def cleanup_matplotlib():
     memory leaks and interference between tests.
     """
     plt.close('all')
-    plt.clf()
-    plt.cla()
 
 
 class TestFixturesContextManager:
