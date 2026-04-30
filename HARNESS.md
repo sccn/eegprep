@@ -97,26 +97,29 @@ Updated CI to:
 
 This keeps the project compatible with the existing suite while establishing `pytest` as the top-level runner for the harness going forward.
 
-### 6. Exported parity APIs from `eegprep`
+### 6. Kept parity APIs scoped to `eegprep.parity`
 
-Updated `src/eegprep/__init__.py` so the new parity utilities are available from the top-level package namespace where that is convenient for tests and tooling.
+The parity harness is intentionally exposed through `eegprep.parity`, not the top-level `eegprep` namespace. This keeps testing infrastructure separate from the signal-processing public API and avoids eager parity imports during ordinary `import eegprep`.
 
 ### 7. Added MATLAB MCP support for parity work
 
-Downloaded and configured `neuromechanist/matlab-mcp-tools` for EEGPREP under:
+Downloaded and configured `neuromechanist/matlab-mcp-tools` as an optional developer workbench for EEGPREP parity debugging. Shared project docs should use placeholders rather than machine-specific paths:
 
-- `/data/projects/suraj/repos/matlab-mcp-tools`
-- `/data/projects/suraj/repos/matlab-mcp-tools/run-matlab-mcp-eegprep.sh`
-- `/home/suraj/.mcp/matlab/scripts/eegprep_bootstrap.m`
+- `MATLAB_MCP_TOOLS_ROOT`: checkout of `neuromechanist/matlab-mcp-tools`
+- `MATLAB_MCP_BOOTSTRAP`: bootstrap script that initializes the EEGPREP/EEGLAB MATLAB path
+- `EEGPREP_ROOT`: local EEGPREP checkout
+- `EEGLAB_ROOT`: local EEGLAB checkout
+- `MATLAB_PATH`: MATLAB installation root or executable location
+- `EEGPREP_PYTHON`: Python environment used for EEGPREP development
 
-The MCP server is registered with Codex as `matlab-eegprep` and is project-pinned to:
+Example project-pinned MCP environment:
 
-- `EEGPREP_ROOT=/data/projects/suraj/eeglab/eegprep`
-- `EEGLAB_ROOT=/data/projects/suraj/eeglab`
-- `MATLAB_PATH=/usr/common/pkgs/MATLAB/R2024a`
-- Python environment `/data/projects/suraj/.miniforge3/envs/eegprep-dev`
+- `EEGPREP_ROOT=/path/to/eegprep`
+- `EEGLAB_ROOT=/path/to/eeglab`
+- `MATLAB_PATH=/path/to/MATLAB/R20XXx`
+- `EEGPREP_PYTHON=/path/to/python`
 
-The wrapper preloads the conda `libstdc++.so.6` because the MATLAB R2024a Python engine fails on this host without that runtime library. The local MCP checkout was also patched so startup lifecycle logs go to stderr instead of stdout, preserving stdio MCP protocol cleanliness.
+Some hosts may need to preload the Python environment `libstdc++.so.6` for MATLAB engine compatibility. If needed, put that in the local wrapper script rather than hardcoding it into shared harness code. MCP lifecycle logs must go to stderr so stdout remains valid stdio MCP protocol traffic.
 
 The bootstrap script should be the first MATLAB script executed in an MCP parity session. It changes to the EEGPREP root, adds EEGLAB to the MATLAB path, runs `eeglab('nogui')`, and asserts that core EEGLAB functions such as `pop_loadset` and `eeg_checkset` are available.
 

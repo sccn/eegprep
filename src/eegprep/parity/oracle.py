@@ -8,7 +8,7 @@ import subprocess
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 
 class OracleBackend(str, Enum):
@@ -33,7 +33,7 @@ class MatlabEngineOracle:
 
     backend_name = OracleBackend.LIVE_MATLAB_ENGINE
 
-    def __init__(self, engine: Optional[Any] = None):
+    def __init__(self, engine: Any | None = None):
         if engine is None:
             import matlab.engine
 
@@ -50,12 +50,18 @@ class MatlabBatchOracle:
 
     backend_name = OracleBackend.LIVE_MATLAB_BATCH
 
-    def __init__(self, executable: Optional[str] = None):
+    def __init__(self, executable: str | None = None):
         self.executable = executable or shutil.which("matlab")
         if not self.executable:
             raise RuntimeError("MATLAB CLI not found on PATH")
 
-    def run(self, command: str, *, cwd: Optional[str | Path] = None, timeout: Optional[int] = None) -> subprocess.CompletedProcess[str]:
+    def run(
+        self,
+        command: str,
+        *,
+        cwd: str | Path | None = None,
+        timeout: int | None = None,
+    ) -> subprocess.CompletedProcess[str]:
         """Run a MATLAB batch command."""
         cmd = [self.executable, "-batch", command]
         return subprocess.run(
@@ -92,11 +98,11 @@ class ArtifactOracle:
 
     def load_text(self, relative_path: str | Path) -> str:
         """Load a text artifact."""
-        return self.resolve(relative_path).read_text()
+        return self.resolve(relative_path).read_text(encoding="utf-8")
 
     def load_json(self, relative_path: str | Path) -> Any:
         """Load a JSON artifact."""
-        return json.loads(self.resolve(relative_path).read_text())
+        return json.loads(self.resolve(relative_path).read_text(encoding="utf-8"))
 
 
 def _coerce_backend(value: str | OracleBackend) -> OracleBackend:
@@ -108,7 +114,7 @@ def _coerce_backend(value: str | OracleBackend) -> OracleBackend:
         raise ValueError(f"Unknown oracle backend {value!r}; expected one of: {valid}") from exc
 
 
-def detect_oracle_backends(*, artifact_root: Optional[str | Path] = None) -> dict[OracleBackend, BackendAvailability]:
+def detect_oracle_backends(*, artifact_root: str | Path | None = None) -> dict[OracleBackend, BackendAvailability]:
     """Detect which oracle backends are available in the current environment."""
     results: dict[OracleBackend, BackendAvailability] = {}
 
@@ -151,9 +157,9 @@ def detect_oracle_backends(*, artifact_root: Optional[str | Path] = None) -> dic
 
 
 def resolve_oracle_backend(
-    preferred: Optional[str | OracleBackend] = None,
+    preferred: str | OracleBackend | None = None,
     *,
-    artifact_root: Optional[str | Path] = None,
+    artifact_root: str | Path | None = None,
 ) -> Any:
     """Return an oracle backend instance using the preferred or best available backend."""
     availability = detect_oracle_backends(artifact_root=artifact_root)
@@ -172,7 +178,11 @@ def resolve_oracle_backend(
             return MatlabEngineOracle()
         if backend_name == OracleBackend.LIVE_MATLAB_BATCH and availability[backend_name].available:
             return MatlabBatchOracle()
-        if backend_name == OracleBackend.ARTIFACT_ORACLE and availability[backend_name].available and artifact_root is not None:
+        if (
+            backend_name == OracleBackend.ARTIFACT_ORACLE
+            and availability[backend_name].available
+            and artifact_root is not None
+        ):
             return ArtifactOracle(artifact_root)
     if artifact_root is not None:
         return ArtifactOracle(artifact_root)

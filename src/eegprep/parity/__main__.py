@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
+from dataclasses import asdict
 
 from .config import load_manifest
 from .oracle import detect_oracle_backends
@@ -17,11 +19,15 @@ def main() -> int:
     parser.add_argument("--artifact-root", help="Reference artifact root to include in backend availability.")
     args = parser.parse_args()
 
-    manifest = load_manifest(args.manifest, deviations_path=args.deviations)
+    try:
+        manifest = load_manifest(args.manifest, deviations_path=args.deviations)
+    except (FileNotFoundError, KeyError, ValueError) as exc:
+        print(f"error: failed to load parity manifest: {exc}", file=sys.stderr)
+        return 2
     backends = detect_oracle_backends(artifact_root=args.artifact_root)
     payload = {
         "manifest": manifest.summary(),
-        "backends": {backend.value: info.__dict__ for backend, info in backends.items()},
+        "backends": {backend.value: asdict(info) for backend, info in backends.items()},
     }
     if args.format == "json":
         print(json.dumps(payload, indent=2, sort_keys=True))

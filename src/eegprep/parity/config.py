@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Iterable, Mapping, Optional
+from typing import Any, Iterable, Mapping
 
 try:
     import tomllib
@@ -53,8 +53,8 @@ class ParityDeviation:
     scope: str = ""
     expires_on: str = ""
     blocking: str = "nightly"
-    max_rtol: Optional[float] = None
-    max_atol: Optional[float] = None
+    max_rtol: float | None = None
+    max_atol: float | None = None
 
 
 @dataclass(frozen=True)
@@ -63,7 +63,7 @@ class ParityManifest:
 
     version: int
     default_backend: str
-    tolerances: Dict[str, ToleranceProfile]
+    tolerances: dict[str, ToleranceProfile]
     cases: tuple[ParityCase, ...]
     deviations: tuple[ParityDeviation, ...] = ()
 
@@ -85,10 +85,10 @@ class ParityManifest:
         """Return approved deviations for a parity case."""
         return tuple(dev for dev in self.deviations if dev.case_id == case_id)
 
-    def summary(self) -> Dict[str, Any]:
+    def summary(self) -> dict[str, Any]:
         """Return a machine-readable coverage summary."""
-        tier_counts: Dict[str, int] = {}
-        surface_counts: Dict[str, int] = {}
+        tier_counts: dict[str, int] = {}
+        surface_counts: dict[str, int] = {}
         for case in self.cases:
             surface_counts[case.surface] = surface_counts.get(case.surface, 0) + 1
             for tier in case.tiers:
@@ -117,13 +117,13 @@ def default_deviations_path() -> Path:
     return _resource_path("parity_known_deviations.toml")
 
 
-def _load_toml(path: Path) -> Dict[str, Any]:
+def _load_toml(path: Path) -> dict[str, Any]:
     with path.open("rb") as handle:
         return tomllib.load(handle)
 
 
-def _load_tolerances(raw: Mapping[str, Mapping[str, Any]]) -> Dict[str, ToleranceProfile]:
-    tolerances: Dict[str, ToleranceProfile] = {}
+def _load_tolerances(raw: Mapping[str, Mapping[str, Any]]) -> dict[str, ToleranceProfile]:
+    tolerances: dict[str, ToleranceProfile] = {}
     for name, data in raw.items():
         tolerances[name] = ToleranceProfile(
             name=name,
@@ -177,7 +177,7 @@ def _load_deviations(raw_deviations: Iterable[Mapping[str, Any]]) -> tuple[Parit
     return tuple(deviations)
 
 
-def load_deviations(path: Optional[Path | str] = None) -> tuple[ParityDeviation, ...]:
+def load_deviations(path: Path | str | None = None) -> tuple[ParityDeviation, ...]:
     """Load the known-deviations registry."""
     source = Path(path) if path is not None else default_deviations_path()
     data = _load_toml(source)
@@ -185,9 +185,9 @@ def load_deviations(path: Optional[Path | str] = None) -> tuple[ParityDeviation,
 
 
 def load_manifest(
-    path: Optional[Path | str] = None,
+    path: Path | str | None = None,
     *,
-    deviations_path: Optional[Path | str] = None,
+    deviations_path: Path | str | None = None,
 ) -> ParityManifest:
     """Load the parity manifest and attach known deviations."""
     source = Path(path) if path is not None else default_manifest_path()

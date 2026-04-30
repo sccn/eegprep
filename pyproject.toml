@@ -68,6 +68,9 @@ all = [
   "eegprep[eeglabio]",
   "eegprep[docs]",
 ]
+dev = [
+  "eegprep[all,tests]",
+]
 
 [tool.setuptools]
 include-package-data = true

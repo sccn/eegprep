@@ -49,25 +49,3 @@ from .eeg_lat2point import eeg_lat2point
 from .eeg_point2lat import eeg_point2lat
 from .eeg_options import EEG_OPTIONS
 from .eeg_checkset import eeg_checkset, strict_mode as eeg_checkset_strict_mode
-from .parity import (
-    ArtifactOracle,
-    MatlabBatchOracle,
-    MatlabEngineOracle,
-    OracleBackend,
-    ComparisonResult,
-    compare_eeg_struct,
-    compare_events_epochs,
-    compare_numeric,
-    compare_stage_outputs,
-    compare_visual_output,
-    compare_workflow_trace,
-    default_deviations_path,
-    default_manifest_path,
-    detect_oracle_backends,
-    load_deviations,
-    load_manifest,
-    render_markdown_report,
-    resolve_oracle_backend,
-    write_json_report,
-    write_markdown_report,
-)

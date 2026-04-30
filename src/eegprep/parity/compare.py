@@ -80,27 +80,44 @@ def compare_numeric(
         return ComparisonResult(
             label=label,
             passed=False,
-            metrics={"expected_shape": exp.shape, "actual_shape": act.shape},
+            metrics={
+                "expected_shape": exp.shape,
+                "actual_shape": act.shape,
+                "max_abs_diff": None,
+                "mean_abs_diff": None,
+                "rms_diff": None,
+                "mismatch_count": None,
+                "total_count": None,
+            },
             failures=[f"shape mismatch: expected {exp.shape}, actual {act.shape}"],
         )
 
     mismatched = ~np.isclose(exp, act, rtol=rtol, atol=atol, equal_nan=equal_nan)
-    diff = exp - act
-    abs_diff = np.abs(diff)
-    if equal_nan and np.issubdtype(diff.dtype, np.floating):
-        valid_metric_mask = ~(np.isnan(exp) & np.isnan(act))
+    if np.issubdtype(exp.dtype, np.complexfloating) or np.issubdtype(act.dtype, np.complexfloating):
+        diff = exp.astype(np.complex128, copy=False) - act.astype(np.complex128, copy=False)
     else:
-        valid_metric_mask = np.ones(exp.shape, dtype=bool)
-    valid_diff = diff[valid_metric_mask]
+        diff = exp.astype(np.float64, copy=False) - act.astype(np.float64, copy=False)
+    abs_diff = np.abs(diff)
+    valid_metric_mask = np.isfinite(abs_diff)
     valid_abs_diff = abs_diff[valid_metric_mask]
+    no_finite_diffs = not valid_abs_diff.size
+    zero_metrics = exp.size == 0 or (not np.count_nonzero(mismatched) and no_finite_diffs)
+    max_abs_diff = float(np.max(valid_abs_diff)) if valid_abs_diff.size else (0.0 if zero_metrics else None)
+    mean_abs_diff = float(np.mean(valid_abs_diff)) if valid_abs_diff.size else (0.0 if zero_metrics else None)
+    rms_diff = (
+        float(np.sqrt(np.mean(np.square(valid_abs_diff))))
+        if valid_abs_diff.size
+        else (0.0 if zero_metrics else None)
+    )
     metrics = {
         "expected_shape": exp.shape,
         "actual_shape": act.shape,
         "mismatch_count": int(np.count_nonzero(mismatched)),
         "total_count": int(exp.size),
-        "max_abs_diff": float(np.max(valid_abs_diff)) if valid_abs_diff.size else 0.0,
-        "mean_abs_diff": float(np.mean(valid_abs_diff)) if valid_abs_diff.size else 0.0,
-        "rms_diff": float(np.sqrt(np.mean(np.square(valid_diff)))) if valid_diff.size else 0.0,
+        "max_abs_diff": max_abs_diff,
+        "mean_abs_diff": mean_abs_diff,
+        "rms_diff": rms_diff,
+        "nonfinite_diff_count": int(exp.size - np.count_nonzero(valid_metric_mask)),
         "rtol": float(rtol),
         "atol": float(atol),
     }
@@ -125,6 +142,15 @@ def compare_workflow_trace(
     failures = []
     if exp != act:
         failures.append(f"trace mismatch: expected {len(exp)} entries, actual {len(act)}")
+        mismatches = [
+            f"{index}: expected={left!r} actual={right!r}"
+            for index, (left, right) in enumerate(zip(exp, act))
+            if left != right
+        ]
+        if mismatches:
+            failures.append("first mismatches: " + "; ".join(mismatches[:5]))
+        if len(exp) != len(act):
+            failures.append(f"trace length differs after {min(len(exp), len(act))} shared positions")
     metrics = {
         "expected_steps": len(exp),
         "actual_steps": len(act),
@@ -189,7 +215,7 @@ def _compare_mapping(
         )
         children.append(child)
         if not child.passed:
-            failures.extend(child.failures)
+            failures.append(f"child comparison failed: {child.label}")
     return ComparisonResult(
         label=label or "mapping",
         passed=not failures,
@@ -231,7 +257,7 @@ def _compare_sequence(
         )
         children.append(child)
         if not child.passed:
-            failures.extend(child.failures)
+            failures.append(f"child comparison failed: {child.label}")
     return ComparisonResult(
         label=label or "sequence",
         passed=not failures,
@@ -332,7 +358,8 @@ def compare_stage_outputs(
     equal_nan: bool = True,
 ) -> ComparisonResult:
     """Compare two saved EEG stage outputs."""
-    from eegprep import eeg_checkset_strict_mode, pop_loadset
+    from eegprep.eeg_checkset import strict_mode as eeg_checkset_strict_mode
+    from eegprep.pop_loadset import pop_loadset
 
     with eeg_checkset_strict_mode(False):
         py_eeg = pop_loadset(str(py_file))
@@ -371,12 +398,12 @@ def compare_stage_outputs(
         label="stage.epochs",
     )
     children = [data_result, struct_result, event_result, epoch_result]
-    failures = [failure for child in children for failure in child.failures]
+    failures = [f"child comparison failed: {child.label}" for child in children if not child.passed]
     metrics = {
         "py_file": str(py_file),
         "mat_file": str(mat_file),
-        "data_max_abs_diff": data_result.metrics.get("max_abs_diff", 0.0),
-        "data_mismatch_count": data_result.metrics.get("mismatch_count", 0),
+        "data_max_abs_diff": data_result.metrics.get("max_abs_diff"),
+        "data_mismatch_count": data_result.metrics.get("mismatch_count"),
     }
     return ComparisonResult(
         label="stage_outputs",

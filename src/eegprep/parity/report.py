@@ -52,12 +52,15 @@ def write_markdown_report(
 ) -> Path:
     """Write a markdown report to disk."""
     target = Path(path)
-    target.write_text(render_markdown_report(title=title, manifest=manifest, result=result, backend=backend))
+    target.write_text(
+        render_markdown_report(title=title, manifest=manifest, result=result, backend=backend),
+        encoding="utf-8",
+    )
     return target
 
 
 def write_json_report(path: str | Path, result: ComparisonResult | Mapping[str, Any]) -> Path:
     """Write a machine-readable JSON report to disk."""
     target = Path(path)
-    target.write_text(json.dumps(_result_payload(result), indent=2, sort_keys=True))
+    target.write_text(json.dumps(_result_payload(result), indent=2, sort_keys=True), encoding="utf-8")
     return target

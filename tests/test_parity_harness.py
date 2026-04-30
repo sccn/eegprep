@@ -3,7 +3,6 @@ import json
 import numpy as np
 import pytest
 
-from eegprep import OracleBackend as TopLevelOracleBackend
 from eegprep.parity import (
     ArtifactOracle,
     ComparisonResult,
@@ -19,6 +18,8 @@ from eegprep.parity import (
     resolve_oracle_backend,
     write_json_report,
 )
+
+pytestmark = pytest.mark.fast
 
 
 def test_default_manifest_loads():
@@ -52,6 +53,7 @@ def test_compare_numeric_shape_mismatch_fails():
     result = compare_numeric(np.array([1.0]), np.array([[1.0]]))
     assert not result.passed
     assert "shape mismatch" in result.failures[0]
+    assert result.metrics.get("max_abs_diff") is None
 
 
 def test_compare_numeric_equal_nan_keeps_finite_metrics():
@@ -65,6 +67,23 @@ def test_compare_numeric_equal_nan_keeps_finite_metrics():
     assert result.metrics["max_abs_diff"] == 0.0
     assert result.metrics["mean_abs_diff"] == 0.0
     assert result.metrics["rms_diff"] == 0.0
+
+
+def test_compare_numeric_unequal_nan_uses_sentinel_metrics():
+    result = compare_numeric(
+        np.array([1.0, np.nan]),
+        np.array([1.0, 2.0]),
+        equal_nan=False,
+    )
+    assert not result.passed
+    assert result.metrics["max_abs_diff"] == 0.0
+    assert result.metrics["nonfinite_diff_count"] == 1
+
+
+def test_compare_numeric_handles_bool_arrays():
+    result = compare_numeric(np.array([True, False]), np.array([True, True]))
+    assert not result.passed
+    assert result.metrics["max_abs_diff"] == 1.0
 
 
 def test_compare_eeg_struct_ignores_default_path_fields():
@@ -81,14 +100,17 @@ def test_compare_workflow_trace_normalizes_whitespace():
     assert result.passed
 
 
+def test_compare_workflow_trace_reports_first_mismatch():
+    result = compare_workflow_trace(["load", "filter"], ["load", "epoch"])
+    assert not result.passed
+    assert "first mismatches" in result.failures[1]
+    assert "filter" in result.failures[1]
+
+
 def test_compare_visual_output_supports_arrays():
     img = np.ones((4, 4, 3), dtype=np.float64)
     result = compare_visual_output(img, img.copy(), atol=0.0)
     assert result.passed
-
-
-def test_oracle_backend_is_top_level_exported():
-    assert TopLevelOracleBackend.ARTIFACT_ORACLE == OracleBackend.ARTIFACT_ORACLE
 
 
 def test_detect_oracle_backends_reports_all_keys(tmp_path):
@@ -125,6 +147,14 @@ def test_artifact_oracle_rejects_path_traversal(tmp_path):
         oracle.resolve(tmp_path / "absolute.json")
 
 
+def test_artifact_oracle_loads_text_and_json_utf8(tmp_path):
+    (tmp_path / "artifact.txt").write_text("µV", encoding="utf-8")
+    (tmp_path / "artifact.json").write_text('{"unit": "µV"}', encoding="utf-8")
+    oracle = ArtifactOracle(tmp_path)
+    assert oracle.load_text("artifact.txt") == "µV"
+    assert oracle.load_json("artifact.json") == {"unit": "µV"}
+
+
 def test_compare_eeg_data_raises_on_shape_mismatch(monkeypatch):
     from eegprep.utils.stage_comparison import compare_eeg_data
     import eegprep.parity as parity_module
@@ -157,7 +187,11 @@ def test_resolve_prefers_batch_when_engine_unavailable(monkeypatch):
         lambda artifact_root=None: {
             OracleBackend.LIVE_MATLAB_ENGINE: type("Avail", (), {"available": False, "detail": "missing"})(),
             OracleBackend.LIVE_MATLAB_BATCH: type("Avail", (), {"available": True, "detail": "/usr/bin/matlab"})(),
-            OracleBackend.ARTIFACT_ORACLE: type("Avail", (), {"available": False, "detail": "artifact_root not provided"})(),
+            OracleBackend.ARTIFACT_ORACLE: type(
+                "Avail",
+                (),
+                {"available": False, "detail": "artifact_root not provided"},
+            )(),
         },
     )
     oracle = resolve_oracle_backend(OracleBackend.LIVE_MATLAB_BATCH)
@@ -181,5 +215,14 @@ def test_markdown_report_contains_backend_and_result():
 def test_json_report_writes_file(tmp_path):
     result = compare_numeric(np.array([1.0]), np.array([1.0]))
     target = write_json_report(tmp_path / "report.json", result)
-    payload = json.loads(target.read_text())
+    payload = json.loads(target.read_text(encoding="utf-8"))
     assert payload["passed"]
+
+
+def test_cli_returns_nonzero_on_missing_manifest(monkeypatch, tmp_path, capsys):
+    from eegprep.parity.__main__ import main
+
+    missing = tmp_path / "missing.toml"
+    monkeypatch.setattr("sys.argv", ["eegprep-parity", "--manifest", str(missing)])
+    assert main() == 2
+    assert "failed to load parity manifest" in capsys.readouterr().err
