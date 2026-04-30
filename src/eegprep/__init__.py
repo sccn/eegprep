@@ -53,6 +53,7 @@ from .parity import (
     ArtifactOracle,
     MatlabBatchOracle,
     MatlabEngineOracle,
+    OracleBackend,
     ComparisonResult,
     compare_eeg_struct,
     compare_events_epochs,

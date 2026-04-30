@@ -8,7 +8,6 @@ from typing import Any, Iterable, Sequence
 import re
 
 import numpy as np
-from matplotlib import image as mpimg
 
 
 @dataclass
@@ -85,17 +84,23 @@ def compare_numeric(
             failures=[f"shape mismatch: expected {exp.shape}, actual {act.shape}"],
         )
 
+    mismatched = ~np.isclose(exp, act, rtol=rtol, atol=atol, equal_nan=equal_nan)
     diff = exp - act
     abs_diff = np.abs(diff)
-    mismatched = ~np.isclose(exp, act, rtol=rtol, atol=atol, equal_nan=equal_nan)
+    if equal_nan and np.issubdtype(diff.dtype, np.floating):
+        valid_metric_mask = ~(np.isnan(exp) & np.isnan(act))
+    else:
+        valid_metric_mask = np.ones(exp.shape, dtype=bool)
+    valid_diff = diff[valid_metric_mask]
+    valid_abs_diff = abs_diff[valid_metric_mask]
     metrics = {
         "expected_shape": exp.shape,
         "actual_shape": act.shape,
         "mismatch_count": int(np.count_nonzero(mismatched)),
         "total_count": int(exp.size),
-        "max_abs_diff": float(np.max(abs_diff)) if abs_diff.size else 0.0,
-        "mean_abs_diff": float(np.mean(abs_diff)) if abs_diff.size else 0.0,
-        "rms_diff": float(np.sqrt(np.mean(np.square(diff)))) if diff.size else 0.0,
+        "max_abs_diff": float(np.max(valid_abs_diff)) if valid_abs_diff.size else 0.0,
+        "mean_abs_diff": float(np.mean(valid_abs_diff)) if valid_abs_diff.size else 0.0,
+        "rms_diff": float(np.sqrt(np.mean(np.square(valid_diff)))) if valid_diff.size else 0.0,
         "rtol": float(rtol),
         "atol": float(atol),
     }
@@ -130,6 +135,8 @@ def compare_workflow_trace(
 
 def _visual_array(image: Any) -> np.ndarray:
     if isinstance(image, (str, Path)):
+        from matplotlib import image as mpimg
+
         arr = mpimg.imread(image)
     else:
         arr = np.asarray(image)

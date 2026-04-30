@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterable, Mapping, Optional
 
@@ -65,7 +65,7 @@ class ParityManifest:
     default_backend: str
     tolerances: Dict[str, ToleranceProfile]
     cases: tuple[ParityCase, ...]
-    deviations: tuple[ParityDeviation, ...] = field(default_factory=tuple)
+    deviations: tuple[ParityDeviation, ...] = ()
 
     def get_tolerance(self, name: str) -> ToleranceProfile:
         """Return a named tolerance profile."""
