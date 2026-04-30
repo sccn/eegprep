@@ -35,10 +35,8 @@ class TestCart2Topo(unittest.TestCase):
     def test_matrix_input(self):
         theta, radius = cart2topo(np.array([[1.0, 1.0, 1.0], [1.0, -1.0, 0.0]]))
 
-        expected_theta = -np.degrees(np.arctan2([1.0, -1.0], [1.0, 1.0]))
-        expected_radius = 0.5 - np.degrees(np.arctan2([1.0, 0.0], [np.sqrt(2.0), np.sqrt(2.0)])) / 180
-        np.testing.assert_allclose(theta, expected_theta, atol=1e-12)
-        np.testing.assert_allclose(radius, expected_radius, atol=1e-12)
+        np.testing.assert_allclose(theta, [-45.0, 45.0], atol=1e-12)
+        np.testing.assert_allclose(radius, [0.3040867239846964, 0.5], atol=1e-12)
 
     def test_separate_coordinate_vectors(self):
         theta, radius = cart2topo([1.0, 0.0], [0.0, 1.0], [0.0, 0.0])
@@ -68,6 +66,12 @@ class TestCart2Topo(unittest.TestCase):
         self.assertTrue(np.isnan(theta[0]))
         self.assertTrue(np.isnan(radius[0]))
 
+    def test_zero_vector_matches_eeglab_convention(self):
+        theta, radius = cart2topo([0.0, 0.0, 0.0])
+
+        np.testing.assert_allclose(theta, [0.0], atol=1e-12)
+        np.testing.assert_allclose(radius, [0.5], atol=1e-12)
+
     def test_top_level_export(self):
         from eegprep import cart2topo as exported_cart2topo
 
@@ -85,26 +89,26 @@ class TestCart2TopoParity(unittest.TestCase):
             self.skipTest(f"MATLAB not available: {exc}")
 
     def _matlab_cart2topo(self, xyz):
-        input_file = tempfile.NamedTemporaryFile(suffix=".mat", delete=False)
-        output_file = tempfile.NamedTemporaryFile(suffix=".mat", delete=False)
-        input_file.close()
-        output_file.close()
+        with tempfile.NamedTemporaryFile(suffix=".mat", delete=False) as input_file:
+            input_path = input_file.name
+        with tempfile.NamedTemporaryFile(suffix=".mat", delete=False) as output_file:
+            output_path = output_file.name
         try:
-            scipy.io.savemat(input_file.name, {"xyz": xyz})
+            scipy.io.savemat(input_path, {"xyz": xyz})
             self.eeglab.engine.eval(
                 (
-                    f"args = load('{input_file.name}'); "
+                    f"args = load('{input_path}'); "
                     "[theta, radius] = cart2topo(args.xyz); "
-                    f"save('-mat', '{output_file.name}', 'theta', 'radius');"
+                    f"save('-mat', '{output_path}', 'theta', 'radius');"
                 ),
                 nargout=0,
             )
-            out = scipy.io.loadmat(output_file.name)
+            out = scipy.io.loadmat(output_path)
             theta = np.asarray(out["theta"], dtype=float).reshape(-1)
             radius = np.asarray(out["radius"], dtype=float).reshape(-1)
             return theta, radius
         finally:
-            for filename in (input_file.name, output_file.name):
+            for filename in (input_path, output_path):
                 try:
                     os.remove(filename)
                 except OSError:
@@ -124,6 +128,17 @@ class TestCart2TopoParity(unittest.TestCase):
         )
 
         theta_py, radius_py = cart2topo(xyz)
+        theta_ml, radius_ml = self._matlab_cart2topo(xyz)
+        np.testing.assert_allclose(theta_py, theta_ml, atol=1e-12, rtol=0)
+        np.testing.assert_allclose(radius_py, radius_ml, atol=1e-12, rtol=0)
+
+    def test_parity_with_eeglab_separate_vector_input(self):
+        x = np.array([1.0, 0.0, 0.3], dtype=float)
+        y = np.array([0.0, 1.0, -0.4], dtype=float)
+        z = np.array([0.0, 0.0, -0.5], dtype=float)
+        xyz = np.column_stack([x, y, z])
+
+        theta_py, radius_py = cart2topo(x, y, z)
         theta_ml, radius_ml = self._matlab_cart2topo(xyz)
         np.testing.assert_allclose(theta_py, theta_ml, atol=1e-12, rtol=0)
         np.testing.assert_allclose(radius_py, radius_ml, atol=1e-12, rtol=0)

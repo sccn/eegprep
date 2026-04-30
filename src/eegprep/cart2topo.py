@@ -52,6 +52,10 @@ def cart2topo(x, y=None, z=None) -> tuple[np.ndarray, np.ndarray]:
     -------
     theta, radius : tuple[np.ndarray, np.ndarray]
         EEGLAB topoplot angle in degrees and radius by topoplot convention.
+        ``theta`` is the negated spherical azimuth in degrees. ``radius`` is
+        ``0.5 - elevation_deg / 180``: 0 is the top of the head, 0.5 is the
+        equator, and 1 is the bottom. As in EEGLAB, the zero vector maps to
+        ``theta=0`` and ``radius=0.5``.
     """
     x_arr, y_arr, z_arr = _coerce_xyz(x, y, z)
     hypot_xy = np.hypot(x_arr, y_arr)
@@ -60,4 +64,4 @@ def cart2topo(x, y=None, z=None) -> tuple[np.ndarray, np.ndarray]:
 
     theta = -sph_theta
     radius = 0.5 - sph_phi / 180.0
-    return theta.astype(np.float64, copy=False), radius.astype(np.float64, copy=False)
+    return theta, radius
