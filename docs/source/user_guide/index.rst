@@ -53,6 +53,7 @@ Data Workflows
    :maxdepth: 2
 
    bids_workflow
+   gui
 
 Advanced Topics
 ===============

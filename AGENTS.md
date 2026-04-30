@@ -6,6 +6,7 @@
 - Existing EEGPREP patterns win over new architecture ideas. Inspect current code/tests before changing conventions.
 - Use EEGLAB data-structure docs as a reference when touching EEG/ALLEEG/STUDY-style fields: https://eeglab.org/tutorials/ConceptsGuide/Data_Structures.html
 - When adding or changing public behavior, update Sphinx docs in the same pass unless there is a clear reason not to.
+- For GUI work, follow `docs/gui_porting_principles.md`; keep GUI behavior familiar to EEGLAB users, keep Qt optional/lazy, and update Sphinx docs for user-visible GUI behavior.
 - Canonical EEG state is still dict-shaped for EEGLAB parity. `EEGobj` wraps that dict at `.EEG`; fields proxy via `obj.nbchan`/`obj.srate`, assignment writes into `.EEG`, and method calls deep-copy `.EEG`, call an eegprep function, then update `.EEG`. Do not treat `EEGobj` as a full `dict`/`MutableMapping` unless that is explicitly implemented.
 - Preserve EEGLAB data axis order: channels x timepoints x epochs. Do not switch core code to epochs-first. Existing continuous 2-D data must remain accepted unless a tested migration changes it.
 - Preserve separate `event` and `urevent` semantics. Event `latency` is an EEGLAB-style 1-based floating sample position by convention, not a Python array index.
