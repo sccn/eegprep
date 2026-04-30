@@ -47,5 +47,6 @@ from .eeg_mne2eeg import eeg_mne2eeg
 from .eeg_mne2eeg_epochs import eeg_mne2eeg_epochs
 from .eeg_lat2point import eeg_lat2point
 from .eeg_point2lat import eeg_point2lat
+from .cart2topo import cart2topo
 from .eeg_options import EEG_OPTIONS
 from .eeg_checkset import eeg_checkset, strict_mode as eeg_checkset_strict_mode
