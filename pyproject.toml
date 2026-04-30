@@ -59,6 +59,9 @@ docs = [
   "sphinx-togglebutton>=0.3.0",
   "sphinxcontrib-spelling>=7.1.0"
 ]
+gui = [
+  "PySide6>=6.5",
+]
 # `tests` is only the lightweight test runner/TOML parser layer. Use
 # `eegprep[dev]` or `eegprep[all,tests]` for parity tests that import full EEGPREP extras.
 tests = [

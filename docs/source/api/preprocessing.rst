@@ -28,6 +28,11 @@ Channel Operations
 
 .. autofunction:: eegprep.eeg_interp
 
+Event Operations
+================
+
+.. autofunction:: eegprep.pop_adjustevents
+
 Signal Processing
 =================
 

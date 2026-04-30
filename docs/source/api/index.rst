@@ -100,6 +100,7 @@ Epoching and Selection
 
    eegprep.pop_epoch
    eegprep.pop_select
+   eegprep.pop_adjustevents
    eegprep.eeg_eegrej
    eegprep.eegrej
 
