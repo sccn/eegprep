@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from datetime import date
 from dataclasses import dataclass
+from importlib.abc import Traversable
+from importlib.resources import files
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
@@ -85,10 +88,23 @@ class ParityManifest:
         """Return approved deviations for a parity case."""
         return tuple(dev for dev in self.deviations if dev.case_id == case_id)
 
+    def expired_deviations(self, as_of: date | str | None = None) -> tuple[ParityDeviation, ...]:
+        """Return deviations whose ISO expiry date is before the reference date."""
+        reference = _coerce_date(as_of)
+        expired = []
+        for deviation in self.deviations:
+            if not deviation.expires_on:
+                continue
+            expiry = date.fromisoformat(deviation.expires_on)
+            if expiry < reference:
+                expired.append(deviation)
+        return tuple(expired)
+
     def summary(self) -> dict[str, Any]:
         """Return a machine-readable coverage summary."""
         tier_counts: dict[str, int] = {}
         surface_counts: dict[str, int] = {}
+        expired_deviations = self.expired_deviations()
         for case in self.cases:
             surface_counts[case.surface] = surface_counts.get(case.surface, 0) + 1
             for tier in case.tiers:
@@ -98,26 +114,36 @@ class ParityManifest:
             "default_backend": self.default_backend,
             "case_count": len(self.cases),
             "deviation_count": len(self.deviations),
+            "expired_deviation_count": len(expired_deviations),
+            "expired_deviations": [deviation.id for deviation in expired_deviations],
             "tiers": tier_counts,
             "surfaces": surface_counts,
         }
 
 
-def _resource_path(filename: str) -> Path:
-    return Path(__file__).resolve().parent.parent / "resources" / filename
+def _coerce_date(value: date | str | None) -> date:
+    if value is None:
+        return date.today()
+    if isinstance(value, date):
+        return value
+    return date.fromisoformat(value)
 
 
-def default_manifest_path() -> Path:
+def _resource_path(filename: str) -> Traversable:
+    return files("eegprep") / "resources" / filename
+
+
+def default_manifest_path() -> Traversable:
     """Return the packaged default parity manifest."""
     return _resource_path("parity_manifest.toml")
 
 
-def default_deviations_path() -> Path:
+def default_deviations_path() -> Traversable:
     """Return the packaged default known-deviations registry."""
     return _resource_path("parity_known_deviations.toml")
 
 
-def _load_toml(path: Path) -> dict[str, Any]:
+def _load_toml(path: Path | Traversable) -> dict[str, Any]:
     parser = tomllib
     if parser is None:  # pragma: no cover - Python < 3.11 without test/dev extras
         try:

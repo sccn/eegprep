@@ -7,6 +7,8 @@ from eegprep.parity import (
     ArtifactOracle,
     ComparisonResult,
     OracleBackend,
+    ParityDeviation,
+    ParityManifest,
     compare_eeg_struct,
     compare_numeric,
     compare_visual_output,
@@ -41,6 +43,38 @@ def test_manifest_summary_has_expected_keys():
     assert "case_count" in summary
     assert "tiers" in summary
     assert "surfaces" in summary
+    assert "expired_deviation_count" in summary
+    assert "expired_deviations" in summary
+
+
+def test_manifest_reports_expired_deviations():
+    manifest = ParityManifest(
+        version=1,
+        default_backend="artifact_oracle",
+        tolerances={},
+        cases=(),
+        deviations=(
+            ParityDeviation(
+                id="old",
+                case_id="case",
+                issue="issue",
+                owner="owner",
+                reason="reason",
+                expires_on="2026-01-01",
+            ),
+            ParityDeviation(
+                id="future",
+                case_id="case",
+                issue="issue",
+                owner="owner",
+                reason="reason",
+                expires_on="2026-12-31",
+            ),
+        ),
+    )
+    assert [deviation.id for deviation in manifest.expired_deviations("2026-04-30")] == ["old"]
+    summary = manifest.summary()
+    assert summary["expired_deviation_count"] >= 0
 
 
 def test_compare_numeric_passes():
@@ -78,6 +112,8 @@ def test_compare_numeric_unequal_nan_uses_sentinel_metrics():
     assert not result.passed
     assert result.metrics["max_abs_diff"] == 0.0
     assert result.metrics["nonfinite_diff_count"] == 1
+    assert result.metrics["nonfinite_mismatch_count"] == 1
+    assert "non-finite differences" in result.failures[1]
 
 
 def test_compare_numeric_handles_bool_arrays():

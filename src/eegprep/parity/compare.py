@@ -100,6 +100,7 @@ def compare_numeric(
     abs_diff = np.abs(diff)
     valid_metric_mask = np.isfinite(abs_diff)
     valid_abs_diff = abs_diff[valid_metric_mask]
+    nonfinite_mismatch_count = int(np.count_nonzero(mismatched & ~valid_metric_mask))
     no_finite_diffs = not valid_abs_diff.size
     zero_metrics = exp.size == 0 or (not np.count_nonzero(mismatched) and no_finite_diffs)
     max_abs_diff = float(np.max(valid_abs_diff)) if valid_abs_diff.size else (0.0 if zero_metrics else None)
@@ -118,6 +119,7 @@ def compare_numeric(
         "mean_abs_diff": mean_abs_diff,
         "rms_diff": rms_diff,
         "nonfinite_diff_count": int(exp.size - np.count_nonzero(valid_metric_mask)),
+        "nonfinite_mismatch_count": nonfinite_mismatch_count,
         "rtol": float(rtol),
         "atol": float(atol),
     }
@@ -126,6 +128,11 @@ def compare_numeric(
         failures.append(
             f"{metrics['mismatch_count']} / {metrics['total_count']} values exceeded "
             f"rtol={rtol} atol={atol}"
+        )
+    if nonfinite_mismatch_count:
+        failures.append(
+            f"{nonfinite_mismatch_count} mismatches had non-finite differences; "
+            "finite-difference metrics exclude those positions"
         )
     return ComparisonResult(label=label, passed=not failures, metrics=metrics, failures=failures)
 

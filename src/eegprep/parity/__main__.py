@@ -21,12 +21,13 @@ def main() -> int:
 
     try:
         manifest = load_manifest(args.manifest, deviations_path=args.deviations)
-    except (FileNotFoundError, KeyError, ValueError) as exc:
+        manifest_summary = manifest.summary()
+    except (FileNotFoundError, KeyError, RuntimeError, ValueError) as exc:
         print(f"error: failed to load parity manifest: {exc}", file=sys.stderr)
         return 2
     backends = detect_oracle_backends(artifact_root=args.artifact_root)
     payload = {
-        "manifest": manifest.summary(),
+        "manifest": manifest_summary,
         "backends": {backend.value: asdict(info) for backend, info in backends.items()},
     }
     if args.format == "json":
@@ -34,11 +35,13 @@ def main() -> int:
     else:
         print("Parity Manifest Summary")
         print("=======================")
-        manifest_summary = payload["manifest"]
         print(f"Version: {manifest_summary['version']}")
         print(f"Default backend: {manifest_summary['default_backend']}")
         print(f"Cases: {manifest_summary['case_count']}")
         print(f"Known deviations: {manifest_summary['deviation_count']}")
+        print(f"Expired deviations: {manifest_summary['expired_deviation_count']}")
+        for deviation_id in manifest_summary["expired_deviations"]:
+            print(f"  expired: {deviation_id}")
         print("Tiers:")
         for tier, count in sorted(manifest_summary["tiers"].items()):
             print(f"  {tier}: {count}")
