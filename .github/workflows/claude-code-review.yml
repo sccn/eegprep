@@ -60,7 +60,7 @@ jobs:
             EEGLAB context:
             - EEGLAB repo: https://github.com/sccn/eeglab
             - EEGLAB data structures guide: https://eeglab.org/tutorials/ConceptsGuide/Data_Structures.html
-            - Prefer conventions that make EEGPrep feel familiar to EEGLAB users, especially around naming, data structures, workflow order, GUI expectations, and user-facing behavior.
+            - Prefer conventions that make EEGPrep feel familiar to EEGLAB users, especially around naming, code modularization, data structures, GUI, and user experience.
             - Do not force MATLAB style blindly where idiomatic Python or existing EEGPrep style is clearly better. If there is a tradeoff, explain it.
             
             Repository conventions:
