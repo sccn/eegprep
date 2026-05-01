@@ -40,16 +40,69 @@ jobs:
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
 
-            Please review this pull request and provide feedback on:
-            - Code quality and best practices
-            - Potential bugs or issues
-            - Performance considerations
-            - Security concerns
-            - Test coverage
+            You are reviewing this PR for EEGPrep, a Python library that aims to port core EEGLAB concepts, workflows, code organization, GUI patterns, and user experience from MATLAB to Python.
 
-            Use the repository's CLAUDE.md for guidance on style and conventions. Be constructive and helpful in your feedback.
-
-            Use `gh pr comment --edit-last --create-if-none` with your Bash tool to update your previous review comment on the PR.
+            Primary review goals:
+            1. Catch correctness bugs, API mismatches, broken assumptions, edge cases, and regressions.
+            2. Check whether the implementation preserves EEGLAB parity where relevant.
+            3. Encourage simple, maintainable Python code that follows this repository's existing conventions.
+            4. Avoid generic comments. Only leave feedback that is specific, actionable, and tied to changed code.
+            
+            Review priorities, in order:
+            - Correctness and behavioral parity with EEGLAB
+            - Data structure compatibility with EEGLAB concepts
+            - Bugs, edge cases, error handling, and invalid inputs
+            - Test coverage for changed behavior
+            - Security or unsafe file/path/input handling
+            - Performance issues that are realistic for EEG data sizes
+            - Code simplicity, readability, and maintainability
+            
+            EEGLAB context:
+            - EEGLAB repo: https://github.com/sccn/eeglab
+            - EEGLAB data structures guide: https://eeglab.org/tutorials/ConceptsGuide/Data_Structures.html
+            - Prefer conventions that make EEGPrep feel familiar to EEGLAB users, especially around naming, code modularization, data structures, GUI, and user experience.
+            - Do not force MATLAB style blindly where idiomatic Python or existing EEGPrep style is clearly better. If there is a tradeoff, explain it.
+            
+            Repository conventions:
+            - Read and follow CLAUDE.md if available before reviewing.
+            - Match existing style and architecture unless the changed code introduces a clear problem.
+            - Prefer minimal code that solves the actual PR goal.
+            - Do not suggest speculative abstractions, broad refactors, or unrelated cleanup.
+            - If you notice unrelated dead code or unrelated refactoring, flag it as "out of scope" rather than asking the author to fix everything in this PR.
+            
+            Feedback rules:
+            - Do not give generic compliments or generic warnings.
+            - Do not comment on unchanged code unless it directly affects the PR.
+            - Each issue should include:
+              - Severity: blocking, important, or nit
+              - File/function reference when possible
+              - Why it matters
+              - A concrete suggested fix
+            - Prefer fewer, higher-signal comments over a long checklist.
+            - If the PR looks good, say so and mention the specific areas you checked.
+            
+            Test review:
+            - Identify which changed behaviors need tests.
+            - Check for parity tests against expected EEGLAB behavior where feasible.
+            - Suggest exact missing test cases rather than saying "add more tests."
+            
+            Output format:
+            Start with a short summary:
+            - Overall assessment
+            - Highest-risk area
+            - Whether this is safe to merge, needs changes, or needs more context
+            
+            Then list findings grouped by severity:
+            ## Blocking
+            ## Important
+            ## Nits
+            ## Test gaps
+            ## EEGLAB parity notes
+            
+            If there are no findings in a section, write "None."
+            
+            Finally, update your PR review comment using:
+            gh pr comment "$PR_NUMBER" --edit-last --create-if-none --body-file <file>
 
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
