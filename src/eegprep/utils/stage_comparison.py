@@ -266,21 +266,25 @@ def compare_eeg_data(py_file: str, mat_file: str) -> Dict[str, float]:
     Returns:
         Dictionary with difference metrics
     """
-    from eegprep import pop_loadset, eeg_checkset_strict_mode
+    from eegprep.parity import compare_stage_outputs
 
-    with eeg_checkset_strict_mode(False):
-        EEG_py = pop_loadset(py_file)
-        EEG_mat = pop_loadset(mat_file)
-
-    # Compute difference metrics on data
-    diff = EEG_py['data'] - EEG_mat['data']
-
+    result = compare_stage_outputs(py_file, mat_file)
+    if not result.children:
+        raise ValueError("stage comparison did not produce a data comparison result")
+    data_result = next((child for child in result.children if child.label == "stage.data"), None)
+    if data_result is None:
+        raise ValueError("stage comparison did not include a stage.data comparison result")
+    data_metrics = data_result.metrics
+    required_metrics = ("max_abs_diff", "mean_abs_diff", "rms_diff")
+    if any(metric not in data_metrics or data_metrics[metric] is None for metric in required_metrics):
+        data_result.raise_if_failed()
+        raise ValueError("stage data comparison did not produce numeric difference metrics")
     return {
-        'max_abs': float(np.max(np.abs(diff))),
-        'mean_abs': float(np.mean(np.abs(diff))),
-        'rms': float(np.sqrt(np.mean(diff**2))),
-        'shape_py': EEG_py['data'].shape,
-        'shape_mat': EEG_mat['data'].shape,
+        'max_abs': float(data_metrics['max_abs_diff']),
+        'mean_abs': float(data_metrics['mean_abs_diff']),
+        'rms': float(data_metrics['rms_diff']),
+        'shape_py': data_metrics.get('expected_shape'),
+        'shape_mat': data_metrics.get('actual_shape'),
     }
 
 

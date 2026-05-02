@@ -26,6 +26,13 @@ To install the lean version:
 pip install eegprep
 ```
 
+For development and parity-harness work, install the full development extras:
+```
+pip install -e ".[dev]"
+```
+
+The `tests` extra only adds the lightweight test runner and TOML parser; parity tests also import the full EEGPREP stack, so use `.[dev]` or `.[all,tests]` rather than `.[tests]` alone.
+
 You can then manually install a lightweight CPU-only version of PyTorch if desired by 
 your operating system.
 
