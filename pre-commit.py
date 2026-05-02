@@ -105,12 +105,7 @@ BINARY_PATTERNS = [
 ]
 
 PYTHON_PATTERNS = [
-    "src/**/*.py",
-    "tests/**/*.py",
-    "tests_matlab/**/*.py",
-    "docs/source/**/*.py",
-    "scripts/**/*.py",
-    "pre-commit.py",
+    "**/*.py",
 ]
 
 PYTHON_EXCLUDE_PATTERNS = [
