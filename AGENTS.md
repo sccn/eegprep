@@ -5,7 +5,6 @@ EEGPREP is a Python port of core EEGLAB preprocessing concepts, workflows, file 
 Primary references:
 - EEGLAB source: https://github.com/sccn/eeglab
 - EEGLAB data structures: https://eeglab.org/tutorials/ConceptsGuide/Data_Structures.html
-- Bundled EEGLAB reference tree: `src/eegprep/eeglab/`
 
 ## Repo Map
 

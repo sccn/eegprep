@@ -1,7 +1,3 @@
-#!/usr/bin/env python3
-# Copyright (c) 2025, Swartz Center for Computational Neuroscience
-# SPDX-License-Identifier: BSD-2-Clause
-
 # /// script
 # requires-python = ">=3.10"
 # dependencies = [
