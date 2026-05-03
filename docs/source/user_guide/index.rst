@@ -53,6 +53,7 @@ Data Workflows
    :maxdepth: 2
 
    bids_workflow
+   visual_parity
 
 Advanced Topics
 ===============
@@ -71,6 +72,7 @@ Quick Reference
 - :ref:`quickstart` - Load, preprocess, and save EEG data
 - :ref:`preprocessing_pipeline` - Understand preprocessing steps
 - :ref:`bids_workflow` - Process BIDS datasets
+- :ref:`visual_parity` - Compare future EEGPREP UI states against EEGLAB
 - :ref:`configuration` - Configure preprocessing parameters
 - :ref:`advanced_topics` - Create custom pipelines
 

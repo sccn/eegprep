@@ -21,6 +21,7 @@ Primary references:
 ## Before Coding
 
 - Check whether a matching skill exists. Skills are task-focused playbooks in `.agents/skills/` and are also accessible as `.claude/skills/`. Before starting any non-trivial task, scan the skill descriptions in your system prompt; if one matches, invoke it via the Skill tool instead of using ad-hoc commands.
+- Use `.agents/skills/eeglab-gui-visual-parity/SKILL.md` when building or iterating on EEGPrep GUI features, especially `pop_*` dialogs that should match EEGLAB screenshots through the visual parity capture loop.
 - State assumptions before implementing. If the request has multiple plausible interpretations, present them.
 - If something is unclear, stop and ask. Do not hide confusion in code.
 - If a simpler approach exists, say so. Push back on speculative features, compatibility shims, or unnecessary abstractions.
@@ -101,7 +102,9 @@ Primary references:
 - NEVER SAY "You're absolutely right!"
 - Never credit yourself or AI tools in commits. No `Co-authored-by` or generated-by trailers unless the user explicitly asks.
 - Keep commits scoped to one logical change with concise messages.
-- When an agent creates a PR or issue, add the `agent-generated` label.
+- Add the `agent-generated` label only when a repository automation workflow
+  creates the PR or issue. Do not add it when a human asks an agent to open or
+  update a PR from an interactive session.
 - Agent comments on PRs/issues must begin with `🤖` unless the exact text was explicitly approved by the user.
 - When using `gh` to inspect issues or PRs, prefer `--json <fields>` or explicit narrow flags such as `--comments`; avoid plain `gh issue view` or `gh pr view`, which can fail on this repo because GitHub classic project fields are deprecated.
 - If you notice unrelated dead code or unrelated cleanup, mention it separately instead of changing it.
