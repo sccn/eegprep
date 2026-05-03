@@ -61,8 +61,6 @@ env/
 *~
 
 # Project-specific
-.claude
-CLAUDE.md
 data/eeglab_data.fdt
 data/eeglab_data.set
 scripts/data
