@@ -1,0 +1,89 @@
+{
+  "defaults": {
+    "window_size": [1100, 750],
+    "timeout_seconds": 90
+  },
+  "cases": [
+    {
+      "id": "main_window",
+      "description": "Main EEGLAB-style application window after startup.",
+      "targets": {
+        "eeglab": {
+          "type": "matlab_figure",
+          "matlab_command": "eeglab;"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "main_window"
+        }
+      }
+    },
+    {
+      "id": "adjust_events_dialog",
+      "description": "Adjust event latencies dialog opened from pop_adjustevents.",
+      "window_size": [858, 169],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_adjustevents"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "adjust_events_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.gui.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "file_menu",
+      "description": "Top-level File menu opened from the main window.",
+      "targets": {
+        "eeglab": {
+          "type": "command",
+          "action": "open_menu:File"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "open_menu:File"
+        }
+      }
+    },
+    {
+      "id": "tools_menu",
+      "description": "Top-level Tools menu opened from the main window.",
+      "targets": {
+        "eeglab": {
+          "type": "command",
+          "action": "open_menu:Tools"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "open_menu:Tools"
+        }
+      }
+    },
+    {
+      "id": "plot_menu",
+      "description": "Top-level Plot menu opened from the main window.",
+      "targets": {
+        "eeglab": {
+          "type": "command",
+          "action": "open_menu:Plot"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "open_menu:Plot"
+        }
+      }
+    }
+  ]
+}

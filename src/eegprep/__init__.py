@@ -13,6 +13,7 @@ from .pop_subcomp import pop_subcomp
 from .pop_saveset import pop_saveset
 from .pop_loadset import loadset, pop_loadset
 from .pop_loadset_h5 import pop_loadset_h5
+from .pop_adjustevents import pop_adjustevents
 from .pop_resample import pop_resample
 from .eeg_checkset import eeg_checkset
 from .eeglabcompat import pop_eegfiltnew

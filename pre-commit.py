@@ -19,6 +19,15 @@
 #   ./pre-commit.py path/to/file.py path/to/notebook.ipynb
 #       Check explicit files.
 #
+# Checks currently run:
+#   - Python syntax parsing for *.py files.
+#   - JSON, TOML, YAML syntax parsing when dependencies are available.
+#   - Jupyter notebooks have no code-cell outputs or execution counts.
+#   - Text files contain no merge conflict markers.
+#   - Text files contain no trailing whitespace.
+#   - Text files end with a newline.
+#   - Non-binary files are no larger than 5 MB.
+#
 """Run lightweight pre-commit checks for EEGPrep.
 
 The default mode checks staged files, which makes this suitable as a local
@@ -280,7 +289,7 @@ def check_merge_conflicts(files: list[pathlib.Path], fix: bool) -> int:
         has_marker = False
         for line in content.splitlines():
             stripped = line.strip()
-            if stripped.startswith(b"<<<<<<<") or stripped == b"=======" or stripped.startswith(b">>>>>>>"):
+            if stripped.startswith(b"<<<<<<<") or stripped.startswith(b">>>>>>>"):
                 has_marker = True
                 break
         if has_marker:

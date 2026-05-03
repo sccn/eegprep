@@ -21,6 +21,7 @@ Primary references:
 ## Before Coding
 
 - Check whether a matching skill exists. Skills are task-focused playbooks in `.agents/skills/` and are also accessible as `.claude/skills/`. Before starting any non-trivial task, scan the skill descriptions in your system prompt; if one matches, invoke it via the Skill tool instead of using ad-hoc commands.
+- Use `.agents/skills/eeglab-gui-visual-parity/SKILL.md` when building or iterating on EEGPrep GUI features, especially `pop_*` dialogs that should match EEGLAB screenshots through the visual parity capture loop.
 - State assumptions before implementing. If the request has multiple plausible interpretations, present them.
 - If something is unclear, stop and ask. Do not hide confusion in code.
 - If a simpler approach exists, say so. Push back on speculative features, compatibility shims, or unnecessary abstractions.

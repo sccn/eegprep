@@ -1,0 +1,4 @@
+interface:
+  display_name: "EEGLAB GUI Visual Parity"
+  short_description: "Build EEGPrep GUI features with EEGLAB screenshot parity."
+  default_prompt: "Use this skill to implement or iterate on an EEGPrep GUI component while matching the corresponding EEGLAB MATLAB UI with the visual parity capture and compare loop."

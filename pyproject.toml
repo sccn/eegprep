@@ -47,6 +47,9 @@ torch = [
 eeglabio = [
   "eeglabio>=0.1.2"
 ]
+gui = [
+  "PySide6>=6.6"
+]
 docs = [
   "sphinx>=7.0",
   "pydata-sphinx-theme>=0.14.0",
@@ -62,6 +65,7 @@ docs = [
 all = [
   "eegprep[torch]",
   "eegprep[eeglabio]",
+  "eegprep[gui]",
   "eegprep[docs]",
 ]
 
