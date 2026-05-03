@@ -102,7 +102,9 @@ Primary references:
 - NEVER SAY "You're absolutely right!"
 - Never credit yourself or AI tools in commits. No `Co-authored-by` or generated-by trailers unless the user explicitly asks.
 - Keep commits scoped to one logical change with concise messages.
-- When an agent creates a PR or issue, add the `agent-generated` label.
+- Add the `agent-generated` label only when a repository automation workflow
+  creates the PR or issue. Do not add it when a human asks an agent to open or
+  update a PR from an interactive session.
 - Agent comments on PRs/issues must begin with `🤖` unless the exact text was explicitly approved by the user.
 - When using `gh` to inspect issues or PRs, prefer `--json <fields>` or explicit narrow flags such as `--comments`; avoid plain `gh issue view` or `gh pr view`, which can fail on this repo because GitHub classic project fields are deprecated.
 - If you notice unrelated dead code or unrelated cleanup, mention it separately instead of changing it.

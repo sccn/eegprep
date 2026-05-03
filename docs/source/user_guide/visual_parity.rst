@@ -115,11 +115,9 @@ The comparison writes artifacts under ``.visual-parity/<case>/``:
 Use ``report.md`` as the high-signal prompt for a visual review model. The
 pixel metrics are useful for spotting large differences, but menu labels,
 ordering, enabled state, and dialog layout are more important than exact pixels.
-
-Example ``adjust_events_dialog`` side-by-side output:
-
-.. image:: ../_static/visual_parity/adjust_events_dialog_side_by_side.png
-   :alt: EEGLAB and EEGPREP adjust event latencies dialog side by side
+Keep generated screenshots and side-by-side images out of committed docs unless
+the project explicitly asks for a durable reference image. For PR reviews, attach
+or link the generated ``side_by_side.png`` in the PR comment instead.
 
 Compare Menu Structure
 ======================
