@@ -250,6 +250,8 @@ def _run_gui(EEG: dict, renderer: Any | None = None) -> dict[str, Any] | None:
         return None
     addms = _empty_to_none(result.get("edit_time"))
     addsamples = _empty_to_none(result.get("edit_samples"))
+    if addms is not None:
+        addsamples = None
     eventtypes = result.get("events", "")
     force = "on" if result.get("force") else "off"
     return {"addms": addms, "addsamples": addsamples, "eventtypes": eventtypes, "force": force}

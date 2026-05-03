@@ -104,6 +104,17 @@ class PopAdjustEventsTests(unittest.TestCase):
         self.assertEqual(renderer.spec.title, "Adjust event latencies - pop_adjustevents()")
         self.assertEqual([event["latency"] for event in events(out)], [105.0, 350.0, 705.0])
 
+    def test_gui_path_prioritizes_time_when_callback_syncs_samples(self):
+        class Renderer:
+            def run(self, spec, initial_values=None):
+                return {"events": "stim", "edit_time": "20", "edit_samples": "5000", "force": False}
+
+        out, com = pop_adjustevents(demo_eeg(), gui=True, renderer=Renderer(), return_com=True)
+
+        self.assertEqual([event["latency"] for event in events(out)], [105.0, 350.0, 705.0])
+        self.assertIn("'addms', 20", com)
+        self.assertNotIn("'addsamples'", com)
+
     def test_gui_cancel_returns_original_dataset(self):
         class Renderer:
             def run(self, spec, initial_values=None):

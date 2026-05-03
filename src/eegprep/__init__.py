@@ -5,7 +5,7 @@ import logging
 __version__ = "0.2.23"
 
 from .utils.logs import setup_logging
-setup_logging(logging.INFO)
+setup_logging(logging.WARNING)
 
 from .iclabel import iclabel
 from .eeg_icflag import eeg_icflag
