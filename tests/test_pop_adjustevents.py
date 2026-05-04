@@ -108,7 +108,7 @@ class PopAdjustEventsTests(unittest.TestCase):
         try:
             EEG_OPTIONS["option_boundary99"] = 1
             eeg = demo_eeg()
-            eeg["event"].append({"type": 99, "latency": 800.0, "duration": 1.0})
+            eeg["event"].append({"type": -99, "latency": 800.0, "duration": 1.0})
 
             with self.assertRaisesRegex(ValueError, "boundary events"):
                 pop_adjustevents(eeg, addsamples=1, force="off")
@@ -149,6 +149,16 @@ class PopAdjustEventsTests(unittest.TestCase):
 
         self.assertIs(out, eeg)
         self.assertEqual(out, eeg)
+
+    def test_gui_ok_with_no_values_returns_original_dataset_like_eeglab(self):
+        class Renderer:
+            def run(self, spec, initial_values=None):
+                return {"events": "", "edit_time": "", "edit_samples": "", "force": False}
+
+        eeg = demo_eeg()
+        out = pop_adjustevents(eeg, gui=True, renderer=Renderer())
+
+        self.assertIs(out, eeg)
 
 
 if __name__ == "__main__":

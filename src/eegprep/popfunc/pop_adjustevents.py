@@ -236,7 +236,7 @@ def _has_boundary_event(events: list[dict[str, Any]]) -> bool:
         event_type = event.get("type")
         if isinstance(event_type, str) and event_type.startswith("boundary"):
             return True
-        if EEG_OPTIONS.get("option_boundary99") and event_type == 99:
+        if EEG_OPTIONS.get("option_boundary99") and event_type == -99:
             return True
     return False
 
@@ -339,6 +339,9 @@ def _run_gui(EEG: dict, renderer: Any | None = None) -> dict[str, Any] | None:
     addsamples = _empty_to_none(result.get("edit_samples"))
     if addms is not None:
         addsamples = None
+    if addms is None and addsamples is None:
+        logger.info("Not enough parameters selected")
+        return None
     eventtypes = result.get("events", "")
     force = "on" if result.get("force") else "off"
     return {"addms": addms, "addsamples": addsamples, "eventtypes": eventtypes, "force": force}
