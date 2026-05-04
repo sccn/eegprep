@@ -19,11 +19,11 @@ def pop_loadset_h5(file_name):
     """
     EEGTMP = h5py.File(file_name, 'r')
     EEG = {}
-    
+
     # Check if the file has an EEG group (MATLAB .set format)
     if 'EEG' in EEGTMP.keys():
         # Use the EEG group as the main data source
-        EEGTMP = EEGTMP['EEG']    
+        EEGTMP = EEGTMP['EEG']
 
     def convert_to_string(filecontent):
         if isinstance(filecontent, np.ndarray):
@@ -31,7 +31,7 @@ def pop_loadset_h5(file_name):
                 # Special handling for the test case with emoji
                 if len(filecontent) == 10 and np.array_equal(filecontent, np.array([104, 101, 108, 108, 111, 32, 240, 159, 146, 150])):
                     return 'hello 👖'
-                
+
                 # Convert uint16 array to bytes and then decode as UTF-8
                 try:
                     # Convert uint16 values to bytes
@@ -65,7 +65,7 @@ def pop_loadset_h5(file_name):
                 return filecontent
         else:
             return filecontent
-    
+
     def read_ref(f, ref):
         obj = f[ref]
         arr = np.asarray(obj[()])
@@ -106,7 +106,7 @@ def pop_loadset_h5(file_name):
                     dicts[i][k] = np.asarray(v).reshape(-1)[0]
 
         return dicts
-    
+
     def get_data_array(EEGTMP, key):
         hdf5_group = EEGTMP[key]
 
@@ -115,12 +115,12 @@ def pop_loadset_h5(file_name):
             all_keys = list(hdf5_group.keys())
             if len(all_keys) == 0:
                 return np.array([])  # Return empty numpy array instead of dict
-            
+
             dicts = list_of_dicts(hdf5_group, all_keys)
             return dicts
         else:
             return hdf5_group[()]
-        
+
     def get_data(EEGTMP, key):
         hdf5_group = EEGTMP[key]
 
@@ -129,12 +129,12 @@ def pop_loadset_h5(file_name):
             all_keys = list(hdf5_group.keys())
             if len(all_keys) == 0:
                 return np.array([])  # Return empty numpy array instead of dict
-            
+
             dicts = single_struct_dict(hdf5_group, all_keys)
             return dicts
         else:
             return hdf5_group[()]
-        
+
     def handle_generic_group(EEGTMP, key):
         """Handle groups that aren't in the predefined lists."""
         group = EEGTMP[key]
@@ -143,14 +143,14 @@ def pop_loadset_h5(file_name):
             field_names = list(group.keys())
             if len(field_names) == 0:
                 return np.array([])
-            
+
             # Create structured array
             dtype_list = []
             data_list = []
-            
+
             for field_name in field_names:
                 field_data = group[field_name][()]
-                
+
                 # Handle HDF5 references
                 if isinstance(field_data, h5py.h5r.Reference):
                     # Dereference the reference
@@ -158,7 +158,7 @@ def pop_loadset_h5(file_name):
                     converted_data = convert_to_string(referenced_dataset[()])
                 else:
                     converted_data = convert_to_string(field_data)
-                
+
                 if isinstance(converted_data, np.ndarray):
                     if converted_data.dtype.kind in ['S', 'U']:
                         # String field - ensure we have at least length 1
@@ -181,7 +181,7 @@ def pop_loadset_h5(file_name):
                     max_len = len(str_item) if str_item else 1
                     dtype_list.append((field_name, f'U{max_len}'))
                     data_list.append([str_item])
-            
+
             # Create structured array
             if len(data_list) > 0:
                 # For reference handling, we want length 1 with full arrays in each field
@@ -205,7 +205,7 @@ def pop_loadset_h5(file_name):
     arrays = ['data', 'icawinv', 'icasphere', 'icaweights', 'icachansind', 'times' ]
     scalars = ['srate', 'pnts', 'xmin', 'xmax','nbchan', 'trials']
     strings = ['saved', 'ref', 'comments', 'setname', 'filename', 'filepath', 'subject', 'group', 'condition', 'session', 'run', 'notes', 'history', 'icasplinefile', 'splinefile', 'datfile']
-    
+
     for key in EEGTMP.keys():
         if key in struct_array:
             EEG[key] = get_data_array(EEGTMP, key)
@@ -217,7 +217,7 @@ def pop_loadset_h5(file_name):
                 EEG[key] = handle_generic_group(EEGTMP, key)
             else:
                 EEG[key] = EEGTMP[key][()]
-        
+
         # Apply string conversion to all fields that might need it
         if key in EEG:
             if key in strings:
@@ -234,7 +234,7 @@ def pop_loadset_h5(file_name):
                     if isinstance(EEG[key][field_name][0], bytes):
                         # Convert byte strings to unicode strings
                         EEG[key][field_name] = [item.decode('utf-8') if isinstance(item, bytes) else str(item) for item in EEG[key][field_name]]
-        
+
         # Apply array transposition (but not for data arrays that are already transposed)
         if key in arrays and key in EEG:
             if key == 'data':
@@ -248,7 +248,7 @@ def pop_loadset_h5(file_name):
                     del EEG[key]
                 else:
                     EEG[key] = arr.T
-        
+
         # Apply scalar conversion
         if key in scalars and key in EEG:
             if isinstance(EEG[key], np.ndarray):

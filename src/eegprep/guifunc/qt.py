@@ -16,54 +16,22 @@ class QtDialogRenderer:
         spec: DialogSpec,
         initial_values: Mapping[str, Any] | None = None,
     ) -> dict[str, Any] | None:
+        app, dialog, widgets = self.build_dialog(spec, initial_values=initial_values)
+        app.processEvents()
+        if dialog.exec() != self._QDialog().Accepted:
+            return None
+        return {tag: self._read_widget(widget) for tag, widget in widgets.items()}
+
+    @staticmethod
+    def _QDialog() -> Any:
         try:
-            from PySide6 import QtCore, QtWidgets
+            from PySide6.QtWidgets import QDialog
         except ImportError as exc:  # pragma: no cover - depends on optional extra
             raise RuntimeError(
                 "PySide6 is required for EEGPrep GUI dialogs. Install it with "
                 "`pip install -e .[gui]` or `pip install eegprep[gui]`."
             ) from exc
-
-        app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
-        dialog = QtWidgets.QDialog()
-        dialog.setWindowTitle(spec.title)
-        self._apply_eeglab_style(dialog)
-        layout = QtWidgets.QGridLayout(dialog)
-        layout.setContentsMargins(42, 17, 42, 13)
-        layout.setHorizontalSpacing(8)
-        layout.setVerticalSpacing(4)
-
-        initial_values = initial_values or {}
-        widgets: dict[str, Any] = {}
-        index = 0
-        for row, row_geometry in enumerate(spec.geometry):
-            row_width = self._row_width(spec.geometry, row)
-            for column in range(row_width):
-                if index >= len(spec.controls):
-                    break
-                control = spec.controls[index]
-                widget = self._build_widget(QtWidgets, control, initial_values)
-                if control.tag:
-                    widgets[control.tag] = widget
-                column_span = 1
-                if isinstance(row_geometry, (int, float)) and row_geometry == 1 and row_width == 1:
-                    column_span = max(1, len(spec.geometry[0]) if spec.geometry else 1)
-                self._add_widget(QtCore, layout, widget, control, row, column, column_span)
-                index += 1
-
-        self._apply_column_stretches(layout, spec)
-        for control in spec.controls:
-            self._connect_callback(control.callback, widgets)
-
-        self._add_buttons(QtWidgets, layout, spec, dialog)
-
-        dialog.adjustSize()
-        self._apply_spec_size(dialog, spec)
-        app.processEvents()
-        if dialog.exec() != QtWidgets.QDialog.Accepted:
-            return None
-
-        return {tag: self._read_widget(widget) for tag, widget in widgets.items()}
+        return QDialog
 
     @staticmethod
     def _row_width(geometry: tuple[Any, ...], row: int) -> int:
@@ -141,25 +109,26 @@ class QtDialogRenderer:
             QLineEdit {
                 background: white;
                 border: 1px solid #7f7f7f;
-                min-width: 215px;
-                max-width: 215px;
-                min-height: 16px;
-                max-height: 16px;
+                min-width: 217px;
+                max-width: 217px;
+                min-height: 18px;
+                max-height: 18px;
+                margin-left: 1px;
                 padding: 0 3px;
             }
             QPushButton {
                 background: #eeeeee;
                 border: 1px solid #7f7f7f;
-                min-width: 81px;
-                max-width: 81px;
-                min-height: 20px;
-                max-height: 20px;
+                min-width: 79px;
+                max-width: 79px;
+                min-height: 18px;
+                max-height: 18px;
                 padding: 0 10px;
                 color: #000066;
             }
             QPushButton#events_button {
-                min-width: 132px;
-                max-width: 132px;
+                min-width: 130px;
+                max-width: 130px;
             }
             QCheckBox {
                 spacing: 4px;
@@ -187,7 +156,7 @@ class QtDialogRenderer:
     def _add_buttons(QtWidgets: Any, layout: Any, spec: DialogSpec, dialog: Any) -> None:
         button_container = QtWidgets.QWidget()
         button_layout = QtWidgets.QHBoxLayout(button_container)
-        button_layout.setContentsMargins(0, 17, 0, 0)
+        button_layout.setContentsMargins(0, 18, 0, 0)
         button_layout.setSpacing(16)
         button_layout.addStretch(1)
         cancel_button = QtWidgets.QPushButton("Cancel")

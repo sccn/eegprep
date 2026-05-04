@@ -40,6 +40,11 @@ class PopAdjustEventsTests(unittest.TestCase):
         self.assertEqual([event["latency"] for event in eeg["event"]], [100.0, 350.0, 700.0])
         self.assertIn("'addsamples', 10", com)
 
+    def test_force_key_value_arg_is_not_treated_as_duplicate(self):
+        out = pop_adjustevents(demo_eeg(), "addsamples", 1, "force", "on")
+
+        self.assertEqual([event["latency"] for event in events(out)], [101.0, 351.0, 701.0])
+
     def test_addms_uses_sampling_rate(self):
         out = pop_adjustevents(demo_eeg(), addms=20)
 
@@ -72,12 +77,31 @@ class PopAdjustEventsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "data epochs"):
             pop_adjustevents(eeg, addsamples=1, force="off")
 
+    def test_cli_default_force_auto_allows_epoched_data_like_eeglab(self):
+        eeg = demo_eeg()
+        eeg["trials"] = 2
+
+        out = pop_adjustevents(eeg, addsamples=1)
+
+        self.assertEqual([event["latency"] for event in events(out)], [101.0, 351.0, 701.0])
+
     def test_force_off_rejects_boundary_events(self):
         eeg = demo_eeg()
         eeg["event"].append({"type": "boundary", "latency": 800.0, "duration": 1.0})
 
         with self.assertRaisesRegex(ValueError, "boundary events"):
             pop_adjustevents(eeg, addsamples=1, force="off")
+
+    def test_cli_default_force_auto_allows_boundary_events_like_eeglab(self):
+        eeg = demo_eeg()
+        eeg["event"].append({"type": "boundary", "latency": 800.0, "duration": 1.0})
+
+        out = pop_adjustevents(eeg, addsamples=1)
+
+        self.assertEqual(
+            [event["latency"] for event in events(out)],
+            [101.0, 351.0, 701.0, 801.0],
+        )
 
     def test_numeric_boundary99_respects_option(self):
         old_value = EEG_OPTIONS["option_boundary99"]

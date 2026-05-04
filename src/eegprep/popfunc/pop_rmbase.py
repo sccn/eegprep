@@ -4,7 +4,7 @@ import numpy as np
 from typing import Iterable, List, Optional, Tuple
 
 from eegprep.eeg_findboundaries import eeg_findboundaries
-from .utils.misc import round_mat
+from eegprep.utils.misc import round_mat
 
 def _normalize_pointrange(
     pointrange: Optional[Iterable], pnts: int
@@ -178,41 +178,41 @@ def pop_rmbase(
                         boundary_lats.append(lat)
                 except Exception:
                     continue
-            
+
             # Convert to MATLAB's boundary indices (relative to baseline start)
             # MATLAB formula: round(lat - 0.5 - pointrange(1) + 1)
             boundaries = []
             for lat in boundary_lats:
                 boundary_idx = int(round_mat(lat - 0.5 - pr[0] + 1))
                 boundaries.append(boundary_idx)
-            
+
             # Filter boundaries to be within the baseline range
             # MATLAB: boundaries(boundaries>=pointrange(end)-pointrange(1)) = [];
             #         boundaries(boundaries<1) = [];
             baseline_len = pr[-1] - pr[0] + 1  # pointrange(end) - pointrange(1) + 1
             boundaries = [b for b in boundaries if 1 <= b < baseline_len]
-            
+
             # Add start and end boundaries
             # MATLAB: boundaries = [0 boundaries pointrange(end)-pointrange(1)+1];
             boundaries = [0] + sorted(boundaries) + [baseline_len]
-            
+
             # Process each segment
             for index in range(len(boundaries) - 1):
                 # MATLAB: tmprange = [boundaries(index)+1:boundaries(index+1)];
                 start_idx = boundaries[index] + 1  # 1-based in MATLAB
                 end_idx = boundaries[index + 1]    # 1-based in MATLAB
-                
+
                 # Convert to 0-based Python indices within baseline range
                 # pr[0] is 1-based MATLAB index, convert to 0-based Python index
                 baseline_start_py = pr[0] - 1
                 py_start = baseline_start_py + start_idx - 1  # start_idx is 1-based MATLAB
                 py_end = baseline_start_py + end_idx - 1      # end_idx is 1-based MATLAB
-                
+
                 tmprange_len = end_idx - start_idx + 1
-                
+
                 if py_start < 0 or py_end < py_start:
                     continue
-                    
+
                 if tmprange_len > 1:
                     # Subtract mean of this segment
                     seg = EEG['data'][chanlist, py_start:py_end+1]
@@ -236,5 +236,3 @@ def pop_rmbase(
     EEG['icaact'] = []
 
     return EEG
-
-

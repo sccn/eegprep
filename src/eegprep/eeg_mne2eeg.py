@@ -1,7 +1,7 @@
 """MNE to EEG conversion functions."""
 
 from .eeg_autocorr import eeg_autocorr
-from .pop_loadset import pop_loadset
+from .popfunc.pop_loadset import pop_loadset
 import mne
 import tempfile
 import os
@@ -49,8 +49,8 @@ def eeg_mne2eeg(raw):
     """
     # Generate a temporary file name
     with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-        temp_file_path = temp_file.name    
-    
+        temp_file_path = temp_file.name
+
     base, _ = os.path.splitext(temp_file_path)
     new_temp_file_path = base + ".set"
 
@@ -67,7 +67,7 @@ def eeg_mne2eeg(raw):
     eeglab_events = _mne_events_to_eeglab_events(raw_or_epochs)
     if eeglab_events:
         EEG['event'] = eeglab_events
-    
+
     return EEG
 
 def test_eeg_mne2eeg():
@@ -84,9 +84,9 @@ def test_eeg_mne2eeg():
         raw = mne.EpochsArray(EEG['data'].transpose(2,0,1), info, events, tmin=0, event_id=event_id)
     else:
         raw = mne.io.RawArray(EEG['data'], info)
-    
+
     EEG2 = eeg_mne2eeg(raw)
-    
+
     # print the keys of the EEG dictionary
     print(EEG2.keys())
 

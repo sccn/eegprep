@@ -8,7 +8,9 @@ Primary references:
 
 ## Repo Map
 
-- `src/eegprep/*.py`: public EEGLAB-style ports and pipeline entry points. Prefer one file per EEGLAB function name, e.g. `pop_epoch.py`, `eeg_checkset.py`, `clean_artifacts.py`.
+- `src/eegprep/popfunc/`: EEGLAB-style `pop_*` user-facing wrappers. Keep each pop function in a `pop_<name>.py` module that mirrors `functions/popfunc/` in EEGLAB.
+- `src/eegprep/guifunc/`: EEGLAB-style GUI helpers such as `inputgui`, dialog specs, and Qt rendering. Keep GUI infrastructure parallel to `functions/guifunc/` in EEGLAB.
+- `src/eegprep/*.py`: public non-pop EEGLAB-style ports and pipeline entry points. Prefer one file per EEGLAB function name, e.g. `eeg_checkset.py`, `clean_artifacts.py`.
 - `src/eegprep/utils/`: shared concrete helpers. Search here before adding utility code.
 - `src/eegprep/resources/`: MATLAB option files, montages, package data.
 - `src/eegprep/eeglab/`: vendored EEGLAB reference code and sample data. Treat as reference input; do not edit unless explicitly updating the bundled reference.
@@ -30,7 +32,7 @@ Primary references:
 
 ## EEGLAB Parity
 
-- Keep naming and directory structure as close to EEGLAB as practical. Use `pop_*` for user-facing wrappers, `eeg_*` for EEG-structure operations, `clean_*` for clean_rawdata-style operations, and existing plugin names such as `ICLabel` where already established.
+- Keep naming and directory structure as close to EEGLAB as practical. Put `pop_*` wrappers in `popfunc`, GUI helpers in `guifunc`, `eeg_*` operations at the package level unless a closer EEGLAB folder already exists, `clean_*` for clean_rawdata-style operations, and existing plugin names such as `ICLabel` where already established.
 - Before porting or changing behavior, inspect the matching MATLAB file under `src/eegprep/eeglab/functions/` or `src/eegprep/eeglab/plugins/`.
 - Preserve EEG dict semantics unless the user asks for a new abstraction. Core fields include `data`, `nbchan`, `pnts`, `trials`, `srate`, `xmin`, `xmax`, `times`, `chanlocs`, `event`, `urevent`, `epoch`, `history`, `icaact`, `icawinv`, `icasphere`, `icaweights`, and `icachansind`.
 - Data is channel-major: continuous data is usually `(nbchan, pnts)`, epoched data is usually `(nbchan, pnts, trials)`.

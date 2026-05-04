@@ -1,8 +1,8 @@
 import unittest
 
-from eegprep.gui.qt import QtDialogRenderer
-from eegprep.gui.spec import controls_by_tag
-from eegprep.gui.specs.pop_adjustevents import pop_adjustevents_dialog_spec
+from eegprep.guifunc.qt import QtDialogRenderer
+from eegprep.guifunc.spec import controls_by_tag
+from eegprep.popfunc.pop_adjustevents import pop_adjustevents_dialog_spec
 
 
 class PopAdjustEventsGuiSpecTests(unittest.TestCase):

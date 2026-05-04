@@ -12,6 +12,7 @@ import numpy as np
 
 from eegprep.eeg_checkset import eeg_checkset
 from eegprep.eeg_options import EEG_OPTIONS
+from eegprep.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +27,7 @@ def pop_adjustevents(
     addsamples: float | None = None,
     eventtypes: Any = None,
     eventtype: Any = None,
-    force: str = "auto",
+    force: str | None = None,
     gui: bool | None = None,
     renderer: Any | None = None,
     return_com: bool = False,
@@ -133,6 +134,7 @@ def _normalize_options(
     force: Any,
     gui: bool,
 ) -> dict[str, Any]:
+    force = "auto" if force is None else force
     force_value = str(force).lower()
     if force_value not in _VALID_FORCE:
         raise ValueError("force must be one of 'on', 'off', or 'auto'")
@@ -239,9 +241,94 @@ def _has_boundary_event(events: list[dict[str, Any]]) -> bool:
     return False
 
 
+def _unique_event_types(events: list[dict[str, Any]]) -> list[Any]:
+    values: list[Any] = []
+    for event in events:
+        value = event.get("type")
+        if value not in values:
+            values.append(value)
+    return values
+
+
+def pop_adjustevents_dialog_spec(srate: float, event_types: Iterable[object] = ()) -> DialogSpec:
+    """Return the EEGLAB-like dialog spec for ``pop_adjustevents``."""
+    event_types = tuple(event_types)
+    return DialogSpec(
+        title="Adjust event latencies - pop_adjustevents()",
+        function_name="pop_adjustevents",
+        eeglab_source="functions/popfunc/pop_adjustevents.m",
+        size=(858, 169),
+        geometry=((1, 0.7, 0.5), (1, 0.7, 0.5), (1, 0.7, 0.5), 1),
+        known_differences=(
+            "Python callback code is explicit; original MATLAB callback strings are kept as metadata.",
+        ),
+        controls=(
+            ControlSpec("text", "Event type(s) to adjust (all by default): "),
+            ControlSpec("edit", tag="events", value=""),
+            ControlSpec(
+                "pushbutton",
+                "...",
+                tag="events_button",
+                callback=CallbackSpec(
+                    "select_event_types",
+                    params={
+                        "button": "events_button",
+                        "target": "events",
+                        "event_types": event_types,
+                    },
+                    matlab_callback="pop_chansel(unique({ tmpevent.type }))",
+                ),
+            ),
+            ControlSpec("text", "Add in milliseconds (can be negative)"),
+            ControlSpec(
+                "edit",
+                tag="edit_time",
+                value="",
+                callback=CallbackSpec(
+                    "sync_time_to_samples",
+                    params={
+                        "source": "edit_time",
+                        "target": "edit_samples",
+                        "srate": float(srate),
+                    },
+                    matlab_callback=(
+                        "set(findobj('tag','edit_samples'),'string',"
+                        "num2str(str2num(get(gcbo,'string'))*srate))"
+                    ),
+                ),
+            ),
+            ControlSpec("spacer"),
+            ControlSpec("text", "Or add in samples"),
+            ControlSpec(
+                "edit",
+                tag="edit_samples",
+                value="",
+                callback=CallbackSpec(
+                    "sync_samples_to_time",
+                    params={
+                        "source": "edit_samples",
+                        "target": "edit_time",
+                        "srate": float(srate),
+                    },
+                    matlab_callback=(
+                        "set(findobj('tag','edit_time'),'string',"
+                        "num2str(str2num(get(gcbo,'string'))/srate))"
+                    ),
+                ),
+            ),
+            ControlSpec("spacer"),
+            ControlSpec(
+                "checkbox",
+                "Force adjustment even when boundaries are present",
+                tag="force",
+                value=False,
+            ),
+        ),
+    )
+
+
 def _run_gui(EEG: dict, renderer: Any | None = None) -> dict[str, Any] | None:
-    from eegprep.gui.inputgui import inputgui
-    from eegprep.gui.specs.pop_adjustevents import pop_adjustevents_dialog_spec
+    from eegprep.guifunc.inputgui import inputgui
 
     events = _events_as_list(EEG.get("event", []))
     spec = pop_adjustevents_dialog_spec(float(EEG.get("srate", 1.0)), _unique_event_types(events))
@@ -255,15 +342,6 @@ def _run_gui(EEG: dict, renderer: Any | None = None) -> dict[str, Any] | None:
     eventtypes = result.get("events", "")
     force = "on" if result.get("force") else "off"
     return {"addms": addms, "addsamples": addsamples, "eventtypes": eventtypes, "force": force}
-
-
-def _unique_event_types(events: list[dict[str, Any]]) -> list[Any]:
-    values: list[Any] = []
-    for event in events:
-        value = event.get("type")
-        if value not in values:
-            values.append(value)
-    return values
 
 
 def _history_command(options: dict[str, Any]) -> str:

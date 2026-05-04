@@ -13,8 +13,8 @@ test_dir = os.path.dirname(os.path.abspath(__file__))
 if test_dir not in sys.path:
     sys.path.insert(0, test_dir)
 
-from eegprep.pop_rmbase import pop_rmbase
-from eegprep.pop_loadset import pop_loadset
+from eegprep.popfunc.pop_rmbase import pop_rmbase
+from eegprep.popfunc.pop_loadset import pop_loadset
 from eegprep.eeglabcompat import get_eeglab
 try:
     from .fixtures import create_test_eeg
@@ -143,12 +143,12 @@ class TestPopRmbaseParity(unittest.TestCase):
         nbchan = int(self.EEG['nbchan'])
         chanlist = list(range(0, min(5, nbchan)))
 
-        
+
         EEG_py = pop_rmbase(self.EEG.copy(), pointrange=pr, chanlist=chanlist)
         EEG_ml = self.eeglab.pop_rmbase(self.EEG.copy(), [], pr, np.array(chanlist) + 1)  # MATLAB 1-based
 
         self.assertEqual(EEG_py['data'].shape, EEG_ml['data'].shape)
-        
+
         self.assertTrue(np.allclose(EEG_py['data'], EEG_ml['data'], atol=3.0, rtol=15.0))
 
 

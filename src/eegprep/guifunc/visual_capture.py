@@ -8,8 +8,8 @@ import sys
 
 import numpy as np
 
-from eegprep.gui.qt import QtDialogRenderer
-from eegprep.gui.specs.pop_adjustevents import pop_adjustevents_dialog_spec
+from eegprep.guifunc.qt import QtDialogRenderer
+from eegprep.popfunc.pop_adjustevents import pop_adjustevents_dialog_spec
 
 
 def _demo_eeg() -> dict:

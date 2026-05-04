@@ -4,7 +4,7 @@ import scipy.io
 import numpy as np
 import os
 import h5py
-from eegprep.pop_loadset_h5 import pop_loadset_h5
+from eegprep.popfunc.pop_loadset_h5 import pop_loadset_h5
 # Allows access using . notation
 # class EEG:
 #     def __init__(self, **kwargs):
@@ -42,7 +42,7 @@ def pop_loadset(file_path=None):
 
     if file_path is None:
         raise ValueError("file_path argument is required")
-    
+
     def new_check(obj):
         # check if obj is a dictionary and apply recursively the function to each object not changing the struture of the dictionary
         if isinstance(obj, dict):
@@ -85,7 +85,7 @@ def pop_loadset(file_path=None):
         if 'EEG' in EEG:
             EEG = EEG['EEG']
     except Exception as e:
-        EEG = pop_loadset_h5(file_path)    
+        EEG = pop_loadset_h5(file_path)
 
     EEG['filepath'] = os.path.dirname(file_path)
     EEG['filename'] = os.path.basename(file_path)
@@ -107,14 +107,14 @@ def pop_loadset(file_path=None):
     # check if EEG['urchan'] is 0-based
     if len(EEG['chanlocs']) > 0 and 'urchan' in EEG['chanlocs'][0]:
         for i in range(len(EEG['chanlocs'])):
-            EEG['chanlocs'][i]['urchan'] = EEG['chanlocs'][i]['urchan'] - 1        
+            EEG['chanlocs'][i]['urchan'] = EEG['chanlocs'][i]['urchan'] - 1
 
     # check if EEG['chanlocs'][i]['urevent'] is 0-based
     if len(EEG['event']) > 0 and 'urevent' in EEG['event'][0]:
         for i in range(len(EEG['event'])):
             if 'urevent' in EEG['event'][i] and EEG['event'][i]['urevent'] is not None:
                 EEG['event'][i]['urevent'] = EEG['event'][i]['urevent'] - 1
-    
+
     return EEG
 
 def test_pop_loadset():
@@ -122,14 +122,14 @@ def test_pop_loadset():
     file_path = './tmp2.set'
     file_path = '/System/Volumes/Data/data/data/STUDIES/STERN/S04/Memorize.set' #'./eeglab_data_with_ica_tmp.set'
     EEG = pop_loadset(file_path)
-    
+
     # print the keys of the EEG dictionary
     print(EEG.keys())
-    
+
 if __name__ == "__main__":
     test_pop_loadset()
 
 # STILL OPEN QUESTION: Better to have empty MATLAB arrays as None for empty numpy arrays (current default).
 # The current default is to make it more MALTAB compatible. A lot of MATLAB function start indexing MATLAB
-# empty arrays to add values to them. This is not possible with None and would create more conversion and 
+# empty arrays to add values to them. This is not possible with None and would create more conversion and
 # bugs. However, None is more pythonic.

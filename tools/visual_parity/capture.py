@@ -51,6 +51,36 @@ def _matlab_run_expression(script_path: pathlib.Path) -> str:
     )
 
 
+def _matlab_capture_helper() -> list[str]:
+    return [
+        "function write_figure_capture(fig, output_file)",
+        "set(fig, 'Units', 'pixels');",
+        "drawnow;",
+        "pause(0.2);",
+        "try",
+        "    frame = getframe(fig);",
+        "    imwrite(frame.cdata, output_file);",
+        "catch getframe_error",
+        "    try",
+        "        pos = get(fig, 'Position');",
+        "        screen_size = java.awt.Toolkit.getDefaultToolkit().getScreenSize();",
+        "        x = max(0, round(pos(1)));",
+        "        y = max(0, round(screen_size.getHeight() - pos(2) - pos(4)));",
+        "        w = max(1, round(pos(3)));",
+        "        h = max(1, round(pos(4)));",
+        "        robot = java.awt.Robot;",
+        "        rect = java.awt.Rectangle(x, y, w, h);",
+        "        img = robot.createScreenCapture(rect);",
+        "        javax.imageio.ImageIO.write(img, 'png', java.io.File(output_file));",
+        "    catch robot_error",
+        "        error('Figure capture failed. getframe: %s Robot: %s', getframe_error.message, robot_error.message);",
+        "    end",
+        "end",
+        "end",
+        "",
+    ]
+
+
 def _command_values(case: VisualCase, target_name: str, output_path: pathlib.Path) -> dict[str, str]:
     width, height = case.window_size
     return {
@@ -117,14 +147,14 @@ def _write_matlab_figure_script(case: VisualCase, target: TargetSpec, output_pat
                 f"set(fig, 'Units', 'pixels', 'Position', [100 100 {width} {height}]);",
                 "drawnow;",
                 "pause(0.5);",
-                "frame = getframe(fig);",
-                "imwrite(frame.cdata, output_file);",
+                "write_figure_capture(fig, output_file);",
                 "exit(0);",
                 "catch ME",
                 "disp(getReport(ME, 'extended'));",
                 "exit(1);",
                 "end",
                 "end",
+                *_matlab_capture_helper(),
                 "eegprep_visual_capture();",
                 "",
             ]
@@ -198,13 +228,13 @@ def _write_matlab_adjustevents_dialog_script(case: VisualCase, output_path: path
                 "set(fig, 'Units', 'pixels');",
                 "drawnow;",
                 "pause(0.2);",
-                "frame = getframe(fig);",
-                "imwrite(frame.cdata, output_file);",
+                "write_figure_capture(fig, output_file);",
                 "set(ok_button, 'userdata', 'retuninginputui');",
                 "stop(timer_obj);",
                 "delete(timer_obj);",
                 "end",
                 "",
+                *_matlab_capture_helper(),
                 "eegprep_visual_capture();",
                 "",
             ]
