@@ -707,7 +707,7 @@ def pop_load_frombids(
                 ev_lats = ev_lats + 1
 
                 try:
-                    durations = events['duration'].to_numpy(dtype=float)
+                    durations = events['duration'].to_numpy(dtype=float).copy()
                     durations[np.isnan(durations)] = 0.0  # replace NaNs with zero
                 except KeyError:
                     # fall back to zero duration
@@ -895,11 +895,9 @@ def pop_load_frombids(
             filenames = sorted(os.listdir(montage_path))
 
         for filename in filenames:
-            # check if it is not the README.md file
-            if not filename.endswith('.locs') and filename != 'README.md':
-                raise ValueError(f"Only montage files with the .locs extension are supported, "
-                                 f"but found {filename}. These are MATLAB v7 .mat files; "
-                                 f"please convert your montage into the appropriate format.")
+            # skip non-montage files
+            if not filename.endswith('.locs'):
+                continue
             try:
                 data = loadmat(os.path.join(montage_path, filename),
                                squeeze_me=True)
