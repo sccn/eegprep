@@ -84,11 +84,11 @@ def clean_channels(
         X = np.zeros((S, C))
         for c in range(C):
             X[:, c] = filtfilt_fast(B, 1, EEG['data'][c, :])
-        
+
         # determine z-scored level of EM noise-to-signal ratio for each channel
         noisiness = mad(EEG['data'].T - X) / mad(X)
         znoise = (noisiness - np.median(noisiness)) / (mad(noisiness) * 1.4826)
-        
+
         # trim channels based on that
         noise_mask = znoise > noise_threshold
     else:
@@ -105,7 +105,7 @@ def clean_channels(
         raise ValueError(
             'To use this function most of your channels should have X,Y,Z location measurements.')
     usable_channels = np.where(~np.any(np.isnan(xyz), axis=0))[0]
-    
+
     locs = xyz[:, usable_channels].T
     X = np.asarray(X[:, usable_channels])
 
@@ -119,7 +119,7 @@ def clean_channels(
     for o in range(W):
         import time
         start_time = time.time()
-        
+
         XX = X[offsets[o] + wnd, :]
         YY = np.sort(np.reshape((XX @ P).T, (num_samples, -1)), axis=0)
         YY = np.reshape(YY[int(round_mat(num_samples / 2)) - 1, :], (-1, window_len)).T
@@ -129,20 +129,20 @@ def clean_channels(
             numerator = np.sum(XX[:, c] * YY[:, c])
             denominator = np.sqrt(np.sum(XX[:, c]**2)) * np.sqrt(np.sum(YY[:, c]**2))
             corrs[c, o] = numerator / denominator
-        
+
         time_passed_list[o] = time.time() - start_time
         median_time_passed = np.median(time_passed_list[:o+1])
         if o % 50 == 0:
             logger.info(f'{o+1:3d}/{W} blocks, {median_time_passed*(W-o-1)/60:.1f} minutes remaining.')
 
     flagged = corrs < corr_threshold
-    
+
     # mark all channels for removal which have more flagged samples than the maximum number of
     # ignored samples
     removed_channels = np.zeros(C, dtype=bool)
     removed_channels[usable_channels] = np.sum(flagged, axis=1) * window_len > max_broken_time
     removed_channels = removed_channels | noise_mask
-    
+
     # apply removal
     if np.mean(removed_channels) > 0.75:
         raise ValueError('More than 75% of your channels were removed -- this is probably caused by incorrect channel location measurements (e.g., wrong cap design).')
@@ -156,7 +156,7 @@ def clean_channels(
             else:
                 logger.error("Could not select channels using EEGLAB's pop_select(); details: %s", str(e))
                 logger.debug("Exception traceback:", exc_info=True)
-            
+
             logger.info(f'Removing {np.sum(removed_channels)} channels and dropping signal meta-data.')
             if len(EEG['chanlocs']) == EEG['data'].shape[0]:
                 EEG['chanlocs'] = np.asarray([ch for i, ch in enumerate(EEG['chanlocs']) if not removed_channels[i]])
@@ -164,12 +164,12 @@ def clean_channels(
             EEG['data'] = np.asarray(EEG['data'], dtype=np.float32)
             EEG['data'] = EEG['data'][~removed_channels, :]
             EEG['nbchan'] = EEG['data'].shape[0]
-            
+
             # Clear other fields
             for field in ['icawinv', 'icasphere', 'icaweights', 'icaact', 'stats', 'specdata', 'specicaact']:
                 if field in EEG:
                     EEG[field] = np.array([])
-        
+
         # Update clean_channel_mask
         if 'etc' in EEG and 'clean_channel_mask' in EEG['etc']:
             EEG['etc']['clean_channel_mask'][EEG['etc']['clean_channel_mask']] = ~removed_channels
@@ -177,5 +177,5 @@ def clean_channels(
             if 'etc' not in EEG:
                 EEG['etc'] = {}
             EEG['etc']['clean_channel_mask'] = ~removed_channels
-    
+
     return EEG

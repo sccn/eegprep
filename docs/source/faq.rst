@@ -81,13 +81,13 @@ EEGPrep supports multiple formats:
 .. code-block:: python
 
     import eegprep
-    
+
     # Load EEGLAB .set file
     eeg = eegprep.EEGobj.load('data.set')
-    
+
     # Load from BIDS dataset
     eeg = eegprep.pop_load_frombids('/path/to/bids', 'sub-001')
-    
+
     # Load from MNE-Python
     import mne
     raw = mne.io.read_raw_edf('data.edf')
@@ -113,16 +113,16 @@ Apply preprocessing steps in sequence:
 .. code-block:: python
 
     import eegprep
-    
+
     # Load data
     eeg = eegprep.EEGobj.load('data.set')
-    
+
     # Apply preprocessing pipeline
     eeg = eegprep.clean_flatlines(eeg)
     eeg = eegprep.clean_channels(eeg)
     eeg = eegprep.clean_artifacts(eeg)
     eeg = eegprep.clean_drifts(eeg)
-    
+
     # Save processed data
     eeg.save('data_processed.set')
 
@@ -157,16 +157,16 @@ Yes! EEGPrep integrates seamlessly with MNE-Python:
 
     import eegprep
     import mne
-    
+
     # Load with MNE
     raw = mne.io.read_raw_edf('data.edf')
-    
+
     # Convert to EEGPrep
     eeg = eegprep.eeg_mne2eeg(raw)
-    
+
     # Process with EEGPrep
     eeg = eegprep.clean_artifacts(eeg)
-    
+
     # Convert back to MNE
     raw = eegprep.eeg_eeg2mne(eeg)
 
@@ -178,13 +178,13 @@ Load and process BIDS data:
 .. code-block:: python
 
     import eegprep
-    
+
     # Load from BIDS
     eeg = eegprep.pop_load_frombids('/path/to/bids', 'sub-001', 'ses-01')
-    
+
     # Process
     eeg = eegprep.clean_artifacts(eeg)
-    
+
     # Save back to BIDS
     eeg.save_bids('/path/to/bids', 'sub-001', 'ses-01')
 
@@ -234,12 +234,12 @@ Yes, you can process multiple subjects in parallel:
 
     from multiprocessing import Pool
     import eegprep
-    
+
     def process_subject(subject_id):
         eeg = eegprep.pop_load_frombids('/bids', subject_id)
         eeg = eegprep.clean_artifacts(eeg)
         return eeg
-    
+
     with Pool(4) as p:
         results = p.map(process_subject, ['sub-001', 'sub-002', 'sub-003'])
 
@@ -311,10 +311,10 @@ My data has NaN values
 .. code-block:: python
 
     import numpy as np
-    
+
     # Remove NaN values
     eeg.data = np.nan_to_num(eeg.data)
-    
+
     # Or interpolate
     eeg = eegprep.eeg_interp(eeg)
 
@@ -327,7 +327,7 @@ Enable logging:
 
     import logging
     logging.basicConfig(level=logging.DEBUG)
-    
+
     # Now run preprocessing with debug output
     eeg = eegprep.clean_artifacts(eeg)
 
@@ -424,7 +424,7 @@ Use the BIDS converter:
 .. code-block:: python
 
     import eegprep
-    
+
     eeg = eegprep.EEGobj.load('data.set')
     eeg.save_bids('/path/to/bids', 'sub-001', 'ses-01')
 
@@ -452,13 +452,13 @@ Convert between formats:
 
     import eegprep
     import mne
-    
+
     # Load from any MNE-supported format
     raw = mne.io.read_raw('data.edf')
-    
+
     # Convert to EEGPrep
     eeg = eegprep.eeg_mne2eeg(raw)
-    
+
     # Save in EEGLAB format
     eeg.save('data.set')
 

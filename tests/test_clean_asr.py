@@ -19,12 +19,12 @@ class TestCleanASRBasic(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures with synthetic EEG data."""
         np.random.seed(42)  # For reproducible tests
-        
+
         # Create synthetic EEG data
         self.n_channels = 8
         self.n_samples = 1000  # 4 seconds at 250 Hz
         self.srate = 250.0
-        
+
         self.test_eeg = {
             'data': np.random.randn(self.n_channels, self.n_samples) * 0.5,
             'srate': self.srate,
@@ -59,14 +59,14 @@ class TestCleanASRBasic(unittest.TestCase):
         """Test basic clean_asr functionality without mocking (may skip if ASR fails)."""
         try:
             result = clean_asr(self.test_eeg, cutoff=20.0)  # Very conservative cutoff
-            
+
             # Verify result structure
             self.assertIsInstance(result, dict)
             self.assertIn('data', result)
             self.assertEqual(result['data'].shape, self.test_eeg['data'].shape)
             self.assertEqual(result['srate'], self.test_eeg['srate'])
             self.assertEqual(result['nbchan'], self.test_eeg['nbchan'])
-            
+
         except Exception as e:
             self.skipTest(f"clean_asr basic functionality not available: {e}")
 
@@ -94,7 +94,7 @@ class TestCleanASRParameters(unittest.TestCase):
         self.n_channels = 4  # Smaller for faster testing
         self.n_samples = 500  # Shorter for faster testing
         self.srate = 250.0
-        
+
         self.test_eeg = {
             'data': np.random.randn(self.n_channels, self.n_samples) * 0.5,
             'srate': self.srate,
@@ -115,7 +115,7 @@ class TestCleanASRParameters(unittest.TestCase):
             {'maxmem': 128},
             {'useriemannian': 'calib'},
         ]
-        
+
         for params in test_cases:
             try:
                 result = clean_asr(self.test_eeg, **params)
@@ -134,7 +134,7 @@ class TestCleanASRCalibrationData(unittest.TestCase):
         self.n_channels = 4  # Smaller for faster testing
         self.n_samples = 500  # Shorter for faster testing
         self.srate = 250.0
-        
+
         self.test_eeg = {
             'data': np.random.randn(self.n_channels, self.n_samples) * 0.5,
             'srate': self.srate,
@@ -194,14 +194,14 @@ class TestCleanASRCalibrationData(unittest.TestCase):
         """Test clean_asr with invalid user-supplied calibration data shape."""
         # Wrong shape (1D instead of 2D)
         invalid_calib_data = np.random.randn(100)
-        
+
         with self.assertRaises(ValueError) as cm:
             clean_asr(self.test_eeg, ref_maxbadchannels=invalid_calib_data)
         self.assertIn('must be a 2D array', str(cm.exception))
 
         # Wrong number of channels
         invalid_calib_data = np.random.randn(5, 500)  # 5 channels instead of 8
-        
+
         with self.assertRaises(ValueError) as cm:
             clean_asr(self.test_eeg, ref_maxbadchannels=invalid_calib_data)
         self.assertIn('must be a 2D array with shape', str(cm.exception))
@@ -226,7 +226,7 @@ class TestCleanASRCalibrationFailure(unittest.TestCase):
         self.n_channels = 4
         self.n_samples = 100  # Very short data to potentially trigger failures
         self.srate = 250.0
-        
+
         self.test_eeg = {
             'data': np.random.randn(self.n_channels, self.n_samples) * 0.5,
             'srate': self.srate,
@@ -241,7 +241,7 @@ class TestCleanASRCalibrationFailure(unittest.TestCase):
         short_eeg = self.test_eeg.copy()
         short_eeg['data'] = np.random.randn(self.n_channels, 10) * 0.5  # Only 10 samples
         short_eeg['pnts'] = 10
-        
+
         with self.assertRaises(ValueError) as cm:
             clean_asr(short_eeg, cutoff=5.0)
         # Should contain "ASR calibration failed" in the error message
@@ -280,7 +280,7 @@ class TestCleanASRSignalExtrapolation(unittest.TestCase):
         self.n_channels = 4
         self.n_samples = 500
         self.srate = 250.0
-        
+
         self.test_eeg = {
             'data': np.random.randn(self.n_channels, self.n_samples) * 0.5,
             'srate': self.srate,
@@ -292,15 +292,15 @@ class TestCleanASRSignalExtrapolation(unittest.TestCase):
     def test_clean_asr_with_different_window_lengths(self):
         """Test clean_asr with different window lengths that affect extrapolation."""
         window_lengths = [0.2, 0.5, 1.0]
-        
+
         for window_len in window_lengths:
             try:
                 result = clean_asr(self.test_eeg, window_len=window_len, cutoff=20.0)
-                
+
                 # Should preserve original data shape
                 self.assertEqual(result['data'].shape, self.test_eeg['data'].shape)
                 self.assertIsInstance(result, dict)
-                
+
             except Exception as e:
                 self.skipTest(f"clean_asr window_len={window_len} test not available: {e}")
 
@@ -334,7 +334,7 @@ class TestCleanASREdgeCases(unittest.TestCase):
         self.n_channels = 4
         self.n_samples = 500
         self.srate = 250.0
-        
+
         self.test_eeg = {
             'data': np.random.randn(self.n_channels, self.n_samples) * 0.5,
             'srate': self.srate,
@@ -397,7 +397,7 @@ class TestCleanASREdgeCases(unittest.TestCase):
     def test_clean_asr_extreme_cutoff_values(self):
         """Test clean_asr with extreme cutoff values."""
         extreme_cutoffs = [1.0, 50.0]  # Very aggressive and very conservative
-        
+
         for cutoff in extreme_cutoffs:
             try:
                 result = clean_asr(self.test_eeg, cutoff=cutoff)

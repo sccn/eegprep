@@ -9,20 +9,20 @@
   --primary-color: #0066cc;
   --primary-dark: #0052a3;
   --primary-light: #3385d6;
-  
+
   /* Secondary colors */
   --secondary-color: #6c757d;
   --secondary-light: #adb5bd;
-  
+
   /* Accent colors */
   --accent-color: #ff6b6b;
   --accent-light: #ff8787;
-  
+
   /* Success, warning, error colors */
   --success-color: #28a745;
   --warning-color: #ffc107;
   --error-color: #dc3545;
-  
+
   /* Neutral colors */
   --text-dark: #212529;
   --text-light: #6c757d;
@@ -264,28 +264,28 @@ li {
   body {
     font-size: 14px;
   }
-  
+
   h1 {
     font-size: 2rem;
   }
-  
+
   h2 {
     font-size: 1.5rem;
   }
-  
+
   h3 {
     font-size: 1.25rem;
   }
-  
+
   pre {
     padding: 0.75rem;
     font-size: 0.85em;
   }
-  
+
   table {
     font-size: 0.9em;
   }
-  
+
   th, td {
     padding: 0.5rem;
   }
@@ -296,11 +296,11 @@ li {
   body {
     font-size: 15px;
   }
-  
+
   h1 {
     font-size: 2.2rem;
   }
-  
+
   h2 {
     font-size: 1.75rem;
   }
@@ -315,30 +315,30 @@ li {
     background-color: var(--bg-white);
     color: var(--text-dark);
   }
-  
+
   pre {
     background-color: var(--bg-light);
     border-color: var(--border-color);
   }
-  
+
   code {
     background-color: var(--bg-light);
     border-color: var(--border-color);
   }
-  
+
   .highlight {
     background-color: var(--bg-light);
   }
-  
+
   .admonition {
     background-color: var(--bg-light);
     border-color: var(--border-color);
   }
-  
+
   tr:nth-child(even) {
     background-color: var(--bg-light);
   }
-  
+
   tr:hover {
     background-color: rgba(0, 102, 204, 0.1);
   }
@@ -464,17 +464,17 @@ li {
     background-color: white;
     color: black;
   }
-  
+
   a {
     color: black;
     text-decoration: underline;
   }
-  
+
   pre {
     background-color: #f5f5f5;
     border: 1px solid #ddd;
   }
-  
+
   .sidebar, .navbar {
     display: none;
   }

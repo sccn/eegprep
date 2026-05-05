@@ -158,7 +158,7 @@ for i, ch_name in enumerate(ch_names):
         theta = (i / len(ch_names)) * 2 * np.pi
         phi = np.pi / 4
         pos = np.array([np.sin(phi) * np.cos(theta), np.sin(phi) * np.sin(theta), np.cos(phi)])
-    
+
     chanlocs.append({
         'labels': ch_name,
         'X': float(pos[0]),
@@ -206,7 +206,7 @@ try:
         sfreq=sfreq,
         verbose=False
     )
-    
+
     # Extract ICA components and mixing matrix
     if isinstance(ica_result, dict):
         ica_components = ica_result.get('components', None)
@@ -214,7 +214,7 @@ try:
     else:
         ica_components = ica_result
         ica_mixing = None
-    
+
     if ica_components is not None:
         n_components = ica_components.shape[0]
         print(f"ICA decomposition successful!")
@@ -226,7 +226,7 @@ try:
         n_components = min(n_channels, 20)
         ica_components = np.random.randn(n_components, n_samples)
         print(f"  Using dummy components for demonstration: {n_components} components")
-        
+
 except Exception as e:
     print(f"Note: ICA decomposition encountered an issue: {e}")
     print("Using dummy components for demonstration...")
@@ -246,14 +246,14 @@ try:
     # Create classification probabilities
     # In practice, iclabel would classify components using a neural network
     n_classes = 7  # ICLabel has 7 classes
-    
+
     # Create realistic classification probabilities
     # (in practice, these come from the ICLabel neural network)
     iclabel_probs = np.random.dirichlet(np.ones(n_classes), size=n_components)
-    
+
     # Get predicted class for each component
     iclabel_classes = np.argmax(iclabel_probs, axis=1)
-    
+
     # Class names (ICLabel standard)
     class_names = [
         'Brain',
@@ -264,11 +264,11 @@ try:
         'Channel Noise',
         'Other'
     ]
-    
+
     print(f"ICLabel classification complete!")
     print(f"  Number of components classified: {n_components}")
     print(f"  Number of classes: {n_classes}")
-    
+
     # Print component classifications
     print("\nComponent Classifications (first 10):")
     print("-" * 70)
@@ -279,10 +279,10 @@ try:
         confidence = iclabel_probs[i, iclabel_classes[i]]
         probs_str = ', '.join([f'{p:.2f}' for p in iclabel_probs[i, :3]])
         print(f"{i:<6} {pred_class:<15} {confidence:<12.3f} [{probs_str}, ...]")
-    
+
     if n_components > 10:
         print(f"... and {n_components - 10} more components")
-    
+
 except Exception as e:
     print(f"Note: ICLabel classification encountered an issue: {e}")
     print("Using dummy classifications for demonstration...")
@@ -350,26 +350,26 @@ for class_idx in range(min(4, n_classes)):
 for plot_idx, comp_idx in enumerate(component_indices):
     if plot_idx >= 4:
         break
-    
+
     ax = axes[plot_idx]
-    
+
     # Compute power spectral density using Welch's method
     freqs, psd = signal.welch(
         ica_components[comp_idx, :],
         sfreq,
         nperseg=min(1024, n_samples // 4)
     )
-    
+
     # Plot spectrum
     ax.semilogy(freqs, psd, linewidth=2, color='steelblue')
     ax.set_xlabel('Frequency (Hz)', fontsize=10)
     ax.set_ylabel('Power (µV²/Hz)', fontsize=10)
-    
+
     pred_class = class_names[iclabel_classes[comp_idx]]
     confidence = iclabel_probs[comp_idx, iclabel_classes[comp_idx]]
     ax.set_title(f'Component {comp_idx}: {pred_class} (conf: {confidence:.3f})',
                  fontsize=11, fontweight='bold')
-    
+
     ax.set_xlim([0, 100])
     ax.grid(True, alpha=0.3, which='both')
 
@@ -413,7 +413,7 @@ if len(components_to_reject) > 0:
         pred_class = class_names[iclabel_classes[comp_idx]]
         confidence = iclabel_probs[comp_idx, iclabel_classes[comp_idx]]
         print(f"{comp_idx:<6} {pred_class:<15} {confidence:<12.3f}")
-    
+
     if len(components_to_reject) > 10:
         print(f"... and {len(components_to_reject) - 10} more")
 else:

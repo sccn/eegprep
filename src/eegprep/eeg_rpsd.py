@@ -26,10 +26,10 @@ def eeg_rpsd(EEG, nfreqs=None, pct_data=100):
     if nfreqs is None or nfreqs > nyquist:
         nfreqs = nyquist
     nfreqs = int(nfreqs)
-    
+
     # setup constants
     ncomp = EEG['icaweights'].shape[0]
-    
+
     # Hamming window
     n_points = min(EEG['pnts'], EEG['srate'])
     m = n_points
@@ -38,21 +38,21 @@ def eeg_rpsd(EEG, nfreqs=None, pct_data=100):
         x = np.arange(0, (m - 1) / 2 + 1) / (m - 1)
     else:
         x = np.arange(0, m / 2) / (m - 1)
-    
+
     a = 0.54
     window = a - (1 - a) * np.cos(2 * np.pi * x)
     if isOddLength:
         window = np.concatenate([window, window[-2::-1]])
     else:
         window = np.concatenate([window, window[::-1]])
-    
+
     cutoff = (EEG['pnts'] // n_points) * n_points
     index = np.add.outer(np.ceil(np.arange(0, cutoff - n_points + 1, n_points/2)).astype(int), np.arange(0, n_points)).astype(int).transpose()
 
     np.random.seed(0)  # rng('default') in MATLAB
     n_seg = index.shape[1] * EEG['trials']
     subset = np.random.permutation(n_seg)[:int(n_seg * pct_data / 100)]
-    
+
     # calculate windowed spectrums
     psdmed = np.zeros((ncomp, nfreqs))
     for it in range(ncomp):
@@ -64,7 +64,7 @@ def eeg_rpsd(EEG, nfreqs=None, pct_data=100):
         if nfreqs == nyquist:
             temp[:, -1, :] /= 2
         psdmed[it, :] = 20 * np.log10(np.median(temp, axis=2))
-    
+
     return psdmed
 
 def test_eeg_rpsd():
@@ -76,7 +76,7 @@ def test_eeg_rpsd():
         'trials': 5,
         'icaact': np.random.randn(10, 1000, 5)
     }
-    
+
     psdmed = eeg_rpsd(EEG, 100)
     assert psdmed.shape == (10, 100)
     assert np.all(np.isfinite(psdmed))

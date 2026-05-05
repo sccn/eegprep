@@ -154,7 +154,7 @@ for i, ch_name in enumerate(ch_names):
         theta = (i / len(ch_names)) * 2 * np.pi
         phi = np.pi / 4
         pos = np.array([np.sin(phi) * np.cos(theta), np.sin(phi) * np.sin(theta), np.cos(phi)])
-    
+
     chanlocs.append({
         'labels': ch_name,
         'X': float(pos[0]),

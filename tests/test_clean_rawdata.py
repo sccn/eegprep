@@ -74,7 +74,7 @@ class TestUtilFuncs(DebuggableTestCase):
         from eegprep.utils import design_kaiser
         observed = design_kaiser(0.06, 0.08, 75, True)
         expected = np.asarray(self.eeglab.design_kaiser(0.06, 0.08, 75.0, True))
-        np.testing.assert_almost_equal(observed.flatten(), expected.flatten(), 
+        np.testing.assert_almost_equal(observed.flatten(), expected.flatten(),
                                        err_msg='design_kaiser() test failed')
 
     def test_design_fir_default_wnd(self):
@@ -107,7 +107,7 @@ class TestUtilFuncs(DebuggableTestCase):
         expected = np.asarray(self.eeglab.block_geometric_median(X, 10.0))
         np.testing.assert_almost_equal(observed.flatten(), expected.flatten(),
                                        err_msg='block_geometric_median() test failed')
-        
+
     def test_fit_eeg_distribution(self):
         from eegprep.utils.stats import fit_eeg_distribution
         from scipy.stats import genextreme
@@ -129,14 +129,14 @@ class TestCleanDrifts(DebuggableTestCase):
         # compare vs MATLAB
         expected = eeglab.clean_drifts(self.EEG, [3, 4], 75)
         cleaned1 = clean_drifts(deepcopy(self.EEG), [3, 4], 75, method='fir')
-        compare_eeg(cleaned1['data'], expected['data'], 
+        compare_eeg(cleaned1['data'], expected['data'],
                     err_msg='clean_drifts() failed')
-        
+
         # compare FFT vs FIR
         cleaned2 = clean_drifts(deepcopy(self.EEG), [3, 4], 75, method='fft')
-        compare_eeg(cleaned1['data'], cleaned2['data'], 
+        compare_eeg(cleaned1['data'], cleaned2['data'],
                     err_msg='clean_drifts() FFT mode test failed',atol=2e-7)
-        
+
 
 class TestCleanChannels(DebuggableTestCase):
 
@@ -167,7 +167,7 @@ class TestCleanASR(DebuggableTestCase):
         cleaned = clean_asr(deepcopy(self.EEG), ref_maxbadchannels='off')
         eeglab = eeglabcompat.get_eeglab('MAT')
         expected = eeglab.clean_asr(self.EEG, [],[],[],[], 'off')
-        compare_eeg(cleaned['data'], expected['data'], 
+        compare_eeg(cleaned['data'], expected['data'],
                     atol=0, rtol=1e-6, # because of eigh() precision differences
                     err_msg='clean_asr() failed vs MATLAB')
 
@@ -223,7 +223,7 @@ class TestCleanWindows(DebuggableTestCase):
         cleaned, _ = clean_windows(deepcopy(self.EEG))
         eeglab = eeglabcompat.get_eeglab('MAT')
         expected = eeglab.clean_windows(self.EEG)
-        compare_eeg(cleaned['data'], expected['data'], 
+        compare_eeg(cleaned['data'], expected['data'],
                     err_msg='clean_windows() failed vs MATLAB')
 
 
@@ -298,4 +298,4 @@ if __name__ == "__main__":
         TestCleanASR.debugTestCase()
     else:
         unittest.main()
-    
+

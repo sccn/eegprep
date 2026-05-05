@@ -230,7 +230,7 @@ def eeg_eegrej(EEG, regions):
     # Round first like MATLAB, then convert to int
     regions = np.asarray(regions, dtype=float)
     regions = round_mat(regions).astype(np.int64)
-    
+
     # sort rows like MATLAB
     if regions.shape[1] > 2:
         regions = regions[np.argsort(regions[:, 2])]

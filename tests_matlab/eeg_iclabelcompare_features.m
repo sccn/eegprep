@@ -48,7 +48,7 @@ res.topoplotdiff = squeeze(nanmean(nanmean(nanmean(nanmean(abs((featurespy{1} - 
 res.psddiff      = squeeze(nanmean(nanmean(nanmean(nanmean(abs((featurespy{2} - features{2})./features{2}),1),2),3),3))';
 res.autocorrdiff = squeeze(nanmean(nanmean(nanmean(nanmean(abs((featurespy{3} - features{3})./features{3}),1),2),3),3))';
 
-% comp = 1; figure; subplot(1,2,1); imagesc(featurespy{1}(:,:,1,comp)); caxis([-1 1]); subplot(1,2,2); imagesc(features{1}(:,:,1,comp)); caxis([-1 1]); 
+% comp = 1; figure; subplot(1,2,1); imagesc(featurespy{1}(:,:,1,comp)); caxis([-1 1]); subplot(1,2,2); imagesc(features{1}(:,:,1,comp)); caxis([-1 1]);
 
 res.misclassified     = sum(misclassified);
 res.misclassifiedmax  = max(max(labels_mat(misclassified,:), [], 2));

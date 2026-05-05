@@ -29,7 +29,7 @@ class TestMatlabWrapper(DebuggableTestCase):
         # Test True
         result = MatlabWrapper.marshal(True)
         self.assertEqual(result, 'true')
-        
+
         # Test False
         result = MatlabWrapper.marshal(False)
         self.assertEqual(result, 'false')
@@ -39,11 +39,11 @@ class TestMatlabWrapper(DebuggableTestCase):
         # Test string
         result = MatlabWrapper.marshal("test_string")
         self.assertEqual(result, "'test_string'")
-        
+
         # Test number
         result = MatlabWrapper.marshal(42)
         self.assertEqual(result, '42')
-        
+
         # Test list
         result = MatlabWrapper.marshal([1, 2, 3])
         self.assertEqual(result, '[1, 2, 3]')
@@ -53,7 +53,7 @@ class TestMatlabWrapper(DebuggableTestCase):
         class MockEngine:
             def eval(self, cmd, nargout=0):
                 pass
-        
+
         engine = MockEngine()
         wrapper = MatlabWrapper(engine)
         self.assertIsInstance(wrapper, MatlabWrapper)
@@ -64,10 +64,10 @@ class TestMatlabWrapper(DebuggableTestCase):
         class MockEngine:
             def eval(self, cmd, nargout=0):
                 pass
-        
+
         engine = MockEngine()
         wrapper = MatlabWrapper(engine)
-        
+
         # Test that getting an attribute returns a callable
         func = wrapper.some_function
         self.assertTrue(callable(func))
@@ -284,23 +284,23 @@ class TestEeglabCompatIntegration(DebuggableTestCase):
     def test_eeglab_runtime_availability(self):
         """Test that at least one EEGLAB runtime is available."""
         runtimes_available = []
-        
+
         # Test MATLAB runtime
         try:
             eeglab = get_eeglab('MAT')
             runtimes_available.append('MAT')
         except Exception:
             pass
-        
+
         # Test Octave runtime
         try:
             eeglab = get_eeglab('OCT')
             runtimes_available.append('OCT')
         except Exception:
             pass
-        
+
         # At least one runtime should be available for testing
-        self.assertGreater(len(runtimes_available), 0, 
+        self.assertGreater(len(runtimes_available), 0,
                           "No EEGLAB runtime available for testing")
 
 

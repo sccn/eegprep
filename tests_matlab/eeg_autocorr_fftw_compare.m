@@ -24,13 +24,13 @@ temp2 = eeg_autocorr_fftw(EEG, 100);
 %% compare the two
 figure('position', [924   752   912   565])
 subplot(2,2,1);
-imagesc(temp2); 
+imagesc(temp2);
 cl = clim;
 ylabel('Component index')
 title('MATLAB');
 
 subplot(2,2,3);
-imagesc(res.grid); 
+imagesc(res.grid);
 xlabel('Frequency (Hz)')
 ylabel('Component index')
 clim(cl)
@@ -38,14 +38,14 @@ title('Python');
 cbar;
 
 subplot(2,2,2);
-imagesc(temp2-res.grid); 
+imagesc(temp2-res.grid);
 % ylabel('Component index')
 clim(cl-mean(cl))
 title('Difference');
 cbar;
 
 subplot(2,2,4);
-imagesc(temp2-res.grid); 
+imagesc(temp2-res.grid);
 xlabel('Frequency (Hz)')
 % ylabel('Component index')
 cl = clim;

@@ -57,12 +57,12 @@ class TestEEGEEG2MNE(unittest.TestCase):
         continuous_eeg = self.test_eeg.copy()
         continuous_eeg['data'] = np.random.randn(32, 1000)
         continuous_eeg['trials'] = 1
-        
+
         result = eeg_eeg2mne(continuous_eeg)
-        
+
         # Check that result is an MNE Raw object (RawEEGLAB is a subclass of BaseRaw)
         self.assertIsInstance(result, BaseRaw)
-        
+
         # Check that data dimensions match
         self.assertEqual(result.info['nchan'], continuous_eeg['nbchan'])
         self.assertEqual(result.n_times, continuous_eeg['pnts'])
@@ -73,18 +73,18 @@ class TestEEGEEG2MNE(unittest.TestCase):
         # Create epoched EEG data
         epoched_eeg = create_test_eeg(n_channels=32, n_samples=100, n_trials=10)
         epoched_eeg['data'] = np.random.randn(32, 100, 10)  # 10 epochs
-        
+
         try:
             result = eeg_eeg2mne(epoched_eeg)
-            
+
             # Check that result is an MNE Epochs object (EpochsEEGLAB is a subclass of BaseEpochs)
             self.assertIsInstance(result, mne.BaseEpochs)
-            
+
             # Check that data dimensions match
             self.assertEqual(result.info['nchan'], epoched_eeg['nbchan'])
             self.assertEqual(len(result.times), epoched_eeg['pnts'])
             self.assertEqual(len(result), epoched_eeg['trials'])
-            
+
         except Exception as e:
             self.skipTest(f"eeg_eeg2mne epoched conversion not available: {e}")
 
@@ -99,7 +99,7 @@ class TestEEGEEG2MNE(unittest.TestCase):
 
             # Check that result is an MNE object
             self.assertIsInstance(result, (BaseRaw, mne.Epochs))
-            
+
         except Exception as e:
             self.skipTest(f"eeg_eeg2mne float32 conversion not available: {e}")
 
@@ -108,13 +108,13 @@ class TestEEGEEG2MNE(unittest.TestCase):
         """Test conversion with float64 data."""
         float64_eeg = create_test_eeg(n_trials=3)
         float64_eeg['data'] = np.random.randn(32, 1000, 3).astype(np.float64)
-        
+
         try:
             result = eeg_eeg2mne(float64_eeg)
-            
+
             # Check that result is an MNE object
             self.assertIsInstance(result, (BaseRaw, mne.Epochs))
-            
+
         except Exception as e:
             self.skipTest(f"eeg_eeg2mne float64 conversion not available: {e}")
 
@@ -123,15 +123,15 @@ class TestEEGEEG2MNE(unittest.TestCase):
         """Test conversion with single channel data."""
         single_channel_eeg = create_test_eeg(n_channels=1, n_trials=2)
         single_channel_eeg['data'] = np.random.randn(1, 1000, 2)
-        
+
         try:
             result = eeg_eeg2mne(single_channel_eeg)
-            
+
             # Check that result is an MNE object
             self.assertIsInstance(result, (BaseRaw, mne.Epochs))
             n_channels = result.info['nchan'] if isinstance(result, BaseRaw) else result.info['nchan']
             self.assertEqual(n_channels, 1)
-            
+
         except Exception as e:
             self.skipTest(f"eeg_eeg2mne single channel conversion not available: {e}")
 
@@ -141,13 +141,13 @@ class TestEEGEEG2MNE(unittest.TestCase):
         single_trial_eeg = self.test_eeg.copy()
         single_trial_eeg['data'] = np.random.randn(32, 1000, 1)
         single_trial_eeg['trials'] = 1
-        
+
         try:
             result = eeg_eeg2mne(single_trial_eeg)
-            
+
             # Check that result is an MNE object
             self.assertIsInstance(result, (BaseRaw, mne.Epochs))
-            
+
         except Exception as e:
             self.skipTest(f"eeg_eeg2mne single trial conversion not available: {e}")
 
@@ -162,13 +162,13 @@ class TestEEGEEG2MNE(unittest.TestCase):
             chan['X'] = np.cos(i * np.pi / 16) * 10
             chan['Y'] = np.sin(i * np.pi / 16) * 10
             chan['Z'] = 0.0
-        
+
         try:
             result = eeg_eeg2mne(eeg_with_chanlocs)
-            
+
             # Check that result is an MNE object
             self.assertIsInstance(result, (BaseRaw, mne.Epochs))
-            
+
         except Exception as e:
             self.skipTest(f"eeg_eeg2mne with chanlocs conversion not available: {e}")
 
@@ -184,13 +184,13 @@ class TestEEGEEG2MNE(unittest.TestCase):
             {'latency': 50, 'type': 'event2', 'duration': 0, 'urevent': 101},
             {'latency': 100, 'type': 'event3', 'duration': 0, 'urevent': 102},
         ])
-        
+
         try:
             result = eeg_eeg2mne(eeg_with_events)
-            
+
             # Check that result is an MNE object
             self.assertIsInstance(result, (BaseRaw, mne.Epochs))
-            
+
         except Exception as e:
             self.skipTest(f"eeg_eeg2mne with events conversion not available: {e}")
 
@@ -203,7 +203,7 @@ class TestEEGEEG2MNE(unittest.TestCase):
         empty_eeg['pnts'] = 0
         empty_eeg['trials'] = 0
         empty_eeg['chanlocs'] = []
-        
+
         # Empty data should raise an error (TypeError from MNE for 0 trials)
         with self.assertRaises((ValueError, IndexError, RuntimeError, TypeError)):
             eeg_eeg2mne(empty_eeg)
@@ -216,7 +216,7 @@ class TestEEGEEG2MNE(unittest.TestCase):
             'srate': 500.0,
             # Missing nbchan, pnts, trials, chanlocs
         }
-        
+
         try:
             with self.assertRaises((KeyError, AttributeError)):
                 eeg_eeg2mne(incomplete_eeg)
@@ -228,7 +228,7 @@ class TestEEGEEG2MNE(unittest.TestCase):
         """Test conversion with corrupted data."""
         corrupted_eeg = self.test_eeg.copy()
         corrupted_eeg['data'] = None
-        
+
         try:
             with self.assertRaises((TypeError, AttributeError)):
                 eeg_eeg2mne(corrupted_eeg)
@@ -240,10 +240,10 @@ class TestEEGEEG2MNE(unittest.TestCase):
         """Test conversion with large dataset."""
         large_eeg = create_test_eeg(n_channels=64, n_samples=5000, n_trials=20)
         large_eeg['data'] = np.random.randn(64, 5000, 20)  # Large dataset
-        
+
         try:
             result = eeg_eeg2mne(large_eeg)
-            
+
             # Check that result is an MNE object
             self.assertIsInstance(result, (BaseRaw, mne.Epochs))
             n_channels = result.info['nchan'] if isinstance(result, BaseRaw) else result.info['nchan']
@@ -251,7 +251,7 @@ class TestEEGEEG2MNE(unittest.TestCase):
             self.assertEqual(result.n_times, 5000)
             if isinstance(result, mne.Epochs):
                 self.assertEqual(len(result), 20)
-            
+
         except Exception as e:
             self.skipTest(f"eeg_eeg2mne large dataset conversion not available: {e}")
 
@@ -266,20 +266,20 @@ class TestEEGEEG2MNE(unittest.TestCase):
             {'latency': 1, 'type': 'stimulus', 'duration': 0, 'urevent': 100},
             {'latency': 500, 'type': 'response', 'duration': 0, 'urevent': 101},
         ])
-        
+
         try:
             result = eeg_eeg2mne(realistic_eeg)
-            
+
             # Check that result is an MNE object
             self.assertIsInstance(result, (BaseRaw, mne.Epochs))
-            
+
             # Check basic properties
             n_channels = result.info['nchan'] if isinstance(result, BaseRaw) else result.info['nchan']
             self.assertEqual(n_channels, 32)
             self.assertEqual(result.n_times, 1000)
             if isinstance(result, mne.Epochs):
                 self.assertEqual(len(result), 10)
-            
+
         except Exception as e:
             self.skipTest(f"eeg_eeg2mne integration workflow not available: {e}")
 

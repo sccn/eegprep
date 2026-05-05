@@ -26,37 +26,37 @@ Major Features
 
 - **Comprehensive Preprocessing Pipeline**: Complete suite of preprocessing tools for EEG data
 - **Artifact Removal**: Multiple algorithms for detecting and removing artifacts
-  
+
   - ASR (Artifact Subspace Reconstruction)
   - ICA-based artifact removal
   - Automatic artifact detection
 
 - **Channel Management**: Tools for channel interpolation and quality assessment
-  
+
   - Flat-line detection and removal
   - Channel interpolation using spherical spline
   - Channel quality assessment
 
 - **ICA and Component Classification**: Independent Component Analysis with automatic labeling
-  
+
   - FastICA and Infomax ICA implementations
   - ICLabel for automatic component classification
   - Component visualization and inspection
 
 - **BIDS Support**: Native support for Brain Imaging Data Structure format
-  
+
   - Load BIDS-formatted datasets
   - Save processed data in BIDS format
   - BIDS validation
 
 - **MNE Integration**: Seamless conversion between EEGPrep and MNE-Python
-  
+
   - Convert MNE Raw objects to EEGPrep
   - Convert EEGPrep to MNE format
   - Compatible with MNE analysis tools
 
 - **Data Format Support**: Multiple input/output formats
-  
+
   - EEGLAB (.set, .fdt)
   - EDF (European Data Format)
   - BrainVision (.vhdr, .vmrk, .eeg)
@@ -64,7 +64,7 @@ Major Features
   - HDF5
 
 - **Comprehensive Documentation**: Extensive user guides and API documentation
-  
+
   - User guide with tutorials
   - API reference
   - Example scripts

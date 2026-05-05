@@ -28,21 +28,21 @@ compare_variables(labels_py4, labels_mat);
 %% compare the two
 figure('position', [924   752   912   565])
 subplot(1,3,1);
-imagesc(labels_mat); 
+imagesc(labels_mat);
 cl = clim;
 ylabel('Component index')
 xlabel('Label category')
 title('MATLAB');
 
 subplot(1,3,2);
-imagesc(labels_py4); 
+imagesc(labels_py4);
 xlabel('Label category')
 clim(cl)
 title('Python');
 cbar;
 
 subplot(1,3,3);
-imagesc(labels_mat-labels_py4); 
+imagesc(labels_mat-labels_py4);
 % ylabel('Component index')
 clim([-1 1])
 xlabel('Label category')

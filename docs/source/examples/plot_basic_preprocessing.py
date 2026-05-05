@@ -79,7 +79,7 @@ for i in range(n_channels):
     data[i, :] = 10 * np.sin(2 * np.pi * alpha_freq * t)
     # Add background noise (typical EEG noise level ~2 µV)
     data[i, :] += np.random.randn(n_samples) * 2
-    
+
     # Introduce artifacts in specific channels to demonstrate cleaning
     # These simulate realistic artifacts that would be removed
     if i in [5, 15]:  # Channels Fz and Pz
@@ -144,7 +144,7 @@ for i, ch_name in enumerate(ch_names):
         theta = (i / len(ch_names)) * 2 * np.pi
         phi = np.pi / 4
         pos = np.array([np.sin(phi) * np.cos(theta), np.sin(phi) * np.sin(theta), np.cos(phi)])
-    
+
     chanlocs.append({
         'labels': ch_name,
         'X': float(pos[0]),

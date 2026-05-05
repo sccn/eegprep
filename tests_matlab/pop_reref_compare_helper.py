@@ -19,7 +19,7 @@ if len(sys.argv) > 1:
 else:
     file_name = '../data/eeglab_data_with_ica_tmp.set'
     # raise("Provide the name of a file containing EEG (full path) as the first parameter.")
-    
+
 # check if file name exists on disk
 if not os.path.isfile(file_name):
     raise(f"File {file_name} does not exist.")

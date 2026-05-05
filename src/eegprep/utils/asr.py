@@ -96,7 +96,7 @@ def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
     if min_clean_fraction is None: min_clean_fraction = 0.25
     if compatibility is None: compatibility = 'standard'
 
-    # there's no record of when or how this formula crept into the MATLAB code, but 
+    # there's no record of when or how this formula crept into the MATLAB code, but
     # to match it, we'll have to use it here as well
     blocksize = max(blocksize, math.ceil((C*C*S*8*3*2)/(maxmem*(2**21))))
 
@@ -165,7 +165,7 @@ def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
     # Calculate the sample covariance matrices U (averaged in blocks of blocksize successive samples)
     # U will be shape (C, C, num_blocks)
     logger.info("Calculating blockwise covariances...")
-    
+
     # Determine the number of blocks
     num_blocks = int(np.ceil(S / blocksize))
     U = np.zeros((C, C, num_blocks))
@@ -179,10 +179,10 @@ def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
 
         # Extract data for these indices
         X_k = Xf[:, range_indices]
-        
+
         # Calculate and accumulate outer products
         outer_products = np.reshape(X_k, (C, 1, -1)) * np.reshape(X_k, (1, C, -1))
-        
+
         # Add to U, ensuring shape alignment
         if outer_products.shape[2] < U.shape[2]:
             U[:, :, :outer_products.shape[2]] += outer_products
@@ -193,7 +193,7 @@ def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
     U /= blocksize
 
     # compute a robust average of the covariance matrices
-    med = None    
+    med = None
     if useriemannian in ('calib', 'all', True):
         logger.info("Calculating Riemannian geometric median covariance...")
         U = U.transpose(2, 0, 1)
@@ -225,7 +225,7 @@ def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
         raise ValueError(f'Not enough calibration data. Need at least {N} samples, got {S}.')
 
     logger.info('Determining per-component thresholds...')
-    
+
     # Eigendecomposition of M plus some massaging
     # to ensure reproducibility across platforms
     M = 0.5 * (M + M.T)  # Ensure symmetry
@@ -234,28 +234,28 @@ def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
 
     # Transform data into component space (using eigenvectors)
     X_transformed = np.abs(Xf.T @ V)  # Shape: (S, C)
-    
+
     # Calculate window indices for RMS calculation
     step = N * (1.0 - window_overlap)
     if step <= 0:
         logger.warning("Window overlap >= 1, using step=1")
         step = 1
     window_starts = round_mat(np.arange(0, S - N, step)).astype(int)
-    
+
     if len(window_starts) <= 1:
         raise ValueError(f'Not enough windows possible. Need length > {N}, got {S}.')
-    
+
     # Create window indices matrix
     window_indices = window_starts[:, None] + np.arange(N)
-    
+
     # Initialize arrays for mu and sigma
     mu = np.zeros(C)
     sig = np.zeros(C)
-    
+
     # Calculate thresholds for each component
     for c in reversed(range(C)):
         comp_data = X_transformed[:, c]**2
-        
+
         # Calculate RMS amplitude for each window
         rms_windows = np.sqrt(np.mean(comp_data[window_indices], axis=1))
 
@@ -272,26 +272,26 @@ def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
             logger.warning(f"Distribution fitting failed for component {c}: {e}")
             mu[c] = np.nan
             sig[c] = np.nan
-    
+
     # Check for NaN values and provide warning
     if np.any(np.isnan(mu)) or np.any(np.isnan(sig)):
         logger.warning("NaN values in threshold calculation. Results may be unreliable.")
         # Replace NaNs with reasonable values
         mu = np.nan_to_num(mu, nan=np.nanmedian(mu) if np.any(~np.isnan(mu)) else 1.0)
         sig = np.nan_to_num(sig, nan=np.nanmedian(sig) if np.any(~np.isnan(sig)) else 0.5)
-    
+
     # Ensure sigma is non-negative
     sig = np.maximum(sig, 0)
-    
+
     # Calculate threshold matrix T
     T = np.diag(mu + cutoff * sig) @ V.T
-    
+
     logger.info('Thresholds calculation complete.')
-    
+
     # Return the state dictionary
     state = {
         'M': M,                 # Mixing matrix
-        'T': T,                 # Threshold matrix 
+        'T': T,                 # Threshold matrix
         'B': B,                 # Original filter coefficients (for reference)
         'A': A,
         'sos': sos,             # SOS filter representation for processing (None if compatibility='max')
@@ -303,7 +303,7 @@ def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
         'useriemannian': useriemannian, # Riemannian ASR variant option
         'compatibility': compatibility,  # Compatibility mode for IIR filtering
     }
-    
+
     return state
 
 
@@ -346,10 +346,10 @@ def asr_process(data, srate, state, window_len=0.5, lookahead=None, step_size=32
     if data.ndim != 2:
         raise ValueError("Input data must be a 2D array (channels x samples).")
     C, S = data.shape
-    
+
     if S == 0:
         return data, state  # Return empty data as is
-    
+
     # Parameter handling
     if lookahead is None:
         lookahead = window_len / 2
@@ -360,20 +360,20 @@ def asr_process(data, srate, state, window_len=0.5, lookahead=None, step_size=32
 
     # Ensure window length is adequate
     window_len = max(window_len, 1.5 * C / srate)
-    
+
     # Convert max_dims to actual number if given as fraction
     if max_dims < 1:
         max_dims_num = int(round_mat(C * max_dims))
     else:
         max_dims_num = int(max_dims)
-    
+
     # Number of samples in sliding window and lookahead
     N = int(round_mat(window_len * srate))
     P = int(round_mat(lookahead * srate))
-    
+
     # Fix NaN and Inf values
     data[~np.isfinite(data)] = 0
-    
+
     # Extract state variables
     M = state['M']                  # Mixing matrix
     T = state['T']                  # Threshold matrix
@@ -389,15 +389,15 @@ def asr_process(data, srate, state, window_len=0.5, lookahead=None, step_size=32
         cov = None
     last_R = state.get('last_R')    # Last reconstruction matrix
     last_trivial = state.get('last_trivial', True)  # Was last step trivial (no artifacts)
-    
+
     # Initialize prior filter state by extrapolating available data into the past
     if carry is None:
         ind = np.mod(np.arange(P + 1, 1, -1) - 1, S)
         carry = 2 * data[:, [0]] - data[:, ind]
-    
+
     # Prepend the carry buffer to the data
     X = np.concatenate((carry, data), axis=1)
-    
+
     # Calculate number of splits for memory management
 
     if max_mem*1024*1024 - C*C*P*8*3 < 0:
@@ -409,36 +409,36 @@ def asr_process(data, srate, state, window_len=0.5, lookahead=None, step_size=32
             raise RuntimeError('Not enough memory')
 
     # Calculate memory bytes needed (following reference implementation formula)
-    bytes_needed = (C * C * S * 8 * 8 + 
-                    C * C * 8 * S / step_size + 
-                    C * S * 8 * 2 + 
+    bytes_needed = (C * C * S * 8 * 8 +
+                    C * C * 8 * S / step_size +
+                    C * S * 8 * 2 +
                     S * 8 * 5)
-    
+
     # Available memory in bytes (subtract fixed overhead)
     mem_available = max_mem * 1024**2 - C * C * P * 8 * 3
     mem_available = max(mem_available, 1)  # Ensure positive
-    
+
     # Number of splits needed
     splits = int(np.ceil(bytes_needed / mem_available))
     # Cap at reasonable value
     splits = min(splits, 10000)
-    
+
     if splits > 1:
         logger.info(f'Cleaning data in {splits} blocks')
-    
+
     # Process data in chunks
     for k in range(splits):
         # Calculate range for this chunk in the original data space
         chunk_start = int(np.floor(k * S / splits))
         chunk_end = int(min(S, np.floor((k + 1) * S / splits)))
         range_ = np.arange(chunk_start, chunk_end)
-        
+
         if len(range_) == 0:
             continue
-        
+
         # Get spectrally shaped data for statistics computation (range shifted by lookahead)
         Xraw = X[:, range_ + P]
-        
+
         # Filter the data window based on compatibility mode
         if compatibility == 'max':
             # Maximum MATLAB compatibility: use B/A form with lfilter
@@ -446,7 +446,7 @@ def asr_process(data, srate, state, window_len=0.5, lookahead=None, step_size=32
         else:
             # Standard mode: use SOS form
             Xfilt, iir_state = scipy.signal.sosfilt(sos, Xraw, axis=1, zi=iir_state)
-        
+
         # Calculate per‑sample covariance vectors and compute the running mean
         # covariance using the stateful `moving_average` implementation that
         # replicates MATLAB's `moving_average` helper. This yields a smoothed
@@ -459,22 +459,22 @@ def asr_process(data, srate, state, window_len=0.5, lookahead=None, step_size=32
 
         # Running mean over a window of N samples (along the last / time axis)
         Xcov_filtered, cov = moving_average(Xcov_sample, N=N, axis=1, Z=cov, init=0)
-        
+
         # Determine points at which to update the reconstruction matrix
         update_at = np.arange(step_size, Xfilt.shape[1] + step_size - 1, step_size, dtype=int)
         update_at = np.minimum(update_at, Xfilt.shape[1])
-        
+
         # If there is no previous R, initialize at first sample
         if last_R is None:
             update_at = np.insert(update_at, 0, 1)
             last_R = np.eye(C)
-        
+
         update_at -= 1 # prepare for 0-based indexing
 
         # Extract the covariance matrices at our update points (already
         # averaged by the moving window) and reshape to C × C × #updates.
         Xcov_matrices = np.reshape(Xcov_filtered[:, update_at], (C, C, len(update_at)))
-        
+
         # Process each update point
         last_n = -1  # MATLAB uses 1‑based indexing; align so first sample is included
         for j, n in enumerate(update_at):
@@ -487,7 +487,7 @@ def asr_process(data, srate, state, window_len=0.5, lookahead=None, step_size=32
                 # Fallback if eigendecomposition fails
                 logger.warning(f"Eigendecomposition failed at update point {j}. Using identity matrix.")
                 D, V = np.ones(C), np.eye(C)
-            
+
             # Determine which components to keep (variance below threshold or not admissible for rejection)
             try:
                 thresholds = np.sum((T @ V)**2, axis=0)
@@ -497,7 +497,7 @@ def asr_process(data, srate, state, window_len=0.5, lookahead=None, step_size=32
                 logger.error(f"Error in component selection: {e}")
                 keep = np.ones(C, dtype=bool)
                 trivial = True
-            
+
             # Update the reconstruction matrix R
             if not trivial:
                 try:
@@ -507,7 +507,7 @@ def asr_process(data, srate, state, window_len=0.5, lookahead=None, step_size=32
                     A = V.T @ M  # V.T × M
                     masked_A_T = keep_mask * A.T  # Zero out rows where keep is False
                     Q = masked_A_T.T  # Back to original orientation
-                    
+
                     # Calculate reconstruction matrix
                     Z = np.linalg.pinv(Q)
                     R = np.real(M @ Z @ V.T)
@@ -517,7 +517,7 @@ def asr_process(data, srate, state, window_len=0.5, lookahead=None, step_size=32
                     trivial = True
             else:
                 R = np.eye(C)
-            
+
             # Apply reconstruction to data
             if not trivial or not last_trivial:
                 # Get subrange of data to process
@@ -525,15 +525,15 @@ def asr_process(data, srate, state, window_len=0.5, lookahead=None, step_size=32
                 if len(subrange) > 0:
                     # Calculate blend coefficients (raised cosine)
                     blend = (1 - np.cos(np.pi * np.arange(1, len(subrange) + 1) / len(subrange))) / 2
-                    
+
                     # Extract data segment to process (from extended data X)
                     idx_in_X = range_[subrange]
                     segment = X[:, idx_in_X]
-                    
+
                     # Apply blended reconstruction
-                    X[:, idx_in_X] = (blend * (R @ segment) + 
+                    X[:, idx_in_X] = (blend * (R @ segment) +
                                       (1 - blend) * (last_R @ segment))
-            
+
             # Update state for next iteration
             last_n = n
             last_R = R
@@ -541,16 +541,16 @@ def asr_process(data, srate, state, window_len=0.5, lookahead=None, step_size=32
 
         if splits > 1 and k % 10 == 0:
             logger.debug(f'Processing block {k+1}/{splits}')
-    
+
     if splits > 1:
         logger.info('Finished cleaning.')
-    
+
     # Update the carry buffer for next call (last P samples)
     new_carry = X[:, -P:] if X.shape[1] >= P else X
-    
+
     # Return cleaned data (without the lookahead portion)
     outdata = X[:, P:P+S]
-    
+
     # Update state dictionary
     outstate = {
         'M': M,
@@ -567,6 +567,6 @@ def asr_process(data, srate, state, window_len=0.5, lookahead=None, step_size=32
         'compatibility': compatibility,
         'useriemannian': state.get('useriemannian')
     }
-    
+
     return outdata, outstate
 

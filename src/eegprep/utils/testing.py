@@ -23,7 +23,7 @@ flatten_to_2d = True
 
 def compare_eeg(a, b, rtol=0, atol=1e-7, use_32_bit=default_32_bit, err_msg=''):
     """Compare EEG time series data, with optional 32-bit precision.
-    
+
     Returns:
         str: Summary of differences between a and b
     """
@@ -39,33 +39,33 @@ def compare_eeg(a, b, rtol=0, atol=1e-7, use_32_bit=default_32_bit, err_msg=''):
     # check if a and b are the same shape
     if a.shape != b.shape:
         raise ValueError(f"a and b have different shapes: {a.shape} != {b.shape}")
-    
+
     # Store original shape for summary
     original_shape = a.shape
-    
+
     # Flatten for comparison
     a_flat = a.flatten()
     b_flat = b.flatten()
-    
+
     diff = a_flat - b_flat
     abs_diff = np.abs(diff)
-    
+
     # Compute statistics
     max_abs_diff = np.max(abs_diff)
     mean_abs_diff = np.mean(abs_diff)
     rms_diff = np.sqrt(np.mean(diff**2))
-    
+
     # Compute relative differences (avoid division by zero)
     with np.errstate(divide='ignore', invalid='ignore'):
         rel_diff = abs_diff / (np.abs(a_flat) + np.abs(b_flat) + 1e-10)
     max_rel_diff = np.max(rel_diff)
     mean_rel_diff = np.mean(rel_diff)
-    
+
     # Count mismatched elements
     mismatched = np.sum(abs_diff > atol)
     total_elements = diff.size
     mismatch_pct = 100.0 * mismatched / total_elements if total_elements > 0 else 0.0
-    
+
     # Build summary string
     summary_lines = [
         f"Comparison Summary:",
@@ -79,10 +79,10 @@ def compare_eeg(a, b, rtol=0, atol=1e-7, use_32_bit=default_32_bit, err_msg=''):
         f"  Mean relative difference: {mean_rel_diff:.6e}",
         f"  Tolerance: rtol={rtol}, atol={atol}",
     ]
-    
+
     summary = "\n".join(summary_lines)
     print(f"Actual differences: rtol: {max_rel_diff}, atol: {max_abs_diff}")
-    
+
     # Perform the assertion
     try:
         np.testing.assert_allclose(a_flat, b_flat, rtol=rtol, atol=atol, err_msg=err_msg)
@@ -90,7 +90,7 @@ def compare_eeg(a, b, rtol=0, atol=1e-7, use_32_bit=default_32_bit, err_msg=''):
     except AssertionError as e:
         summary += f"\n  Status: FAILED\n  Error: {str(e)}"
         raise
-    
+
     return summary
 
 
@@ -137,25 +137,25 @@ def use_64bit_eeg_options():
     homedir = Path.home()
     eeg_options_path = homedir / 'eeg_options.m'
     backup_path = homedir / 'eeg_options.m.backup'
-    
+
     # Find the source file in the package resources (works for both installed and dev)
     package_root = Path(__file__).resolve().parent.parent
     source_path = package_root / 'resources' / 'eeg_options_64bit.m'
-    
+
     # Check if source file exists
     if not source_path.exists():
         raise FileNotFoundError(f"Source file not found: {source_path}")
-    
+
     # Track whether the file existed before
     file_existed_before = eeg_options_path.exists()
-    
+
     # Backup existing file if present
     if file_existed_before:
         shutil.copy2(eeg_options_path, backup_path)
-    
+
     # Copy the 64-bit options file
     shutil.copy2(source_path, eeg_options_path)
-    
+
     try:
         yield
     finally:

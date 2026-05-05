@@ -182,7 +182,7 @@ for idx=1:n_datasets
     tmp_path = [tempname(), '.set'];
     pop_saveset(EEG, 'filename', tmp_path);
     result_paths{end+1} = tmp_path;
-    
+
 end
 
 return
