@@ -223,13 +223,16 @@ def pop_epoch(EEG, types=None, lim=None, **kwargs):
         epochdat, tmptime, indices, alleventout, alllatencyout, reallim = result
         tmptime = tmptime / EEG['srate']
     elif g['timeunit'].lower() == 'seconds':
+        # Convert latencies from samples to seconds for epoch()
+        alllatencies_sec = [lat / EEG['srate'] for lat in alllatencies]
+        tmpeventlatency_sec = [lat / EEG['srate'] for lat in tmpeventlatency]
         result = epoch(
-            EEG['data'], 
-            alllatencies, 
-            lim, 
-            valuelim=g['valuelim'], 
-            srate=EEG['srate'], 
-            allevents=tmpeventlatency,
+            EEG['data'],
+            alllatencies_sec,
+            lim,
+            valuelim=g['valuelim'],
+            srate=EEG['srate'],
+            allevents=tmpeventlatency_sec,
             verbose='off' if g['verbose'] == 'off' else 'on'
         )
         epochdat, tmptime, indices, alleventout, alllatencyout, reallim = result
