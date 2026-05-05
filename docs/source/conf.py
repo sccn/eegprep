@@ -53,8 +53,9 @@ html_theme = "pydata_sphinx_theme"
 html_static_path = ["_static"]
 
 html_theme_options = {
-    # Logo configuration
     "logo": {
+        "image_light": "logo.jpg",
+        "image_dark": "logo.jpg",
         "text": "eegprep",
     },
     # Navigation structure

@@ -85,7 +85,7 @@ Install Documentation Dependencies
 
 .. code-block:: bash
 
-    pip install -r requirements-docs.txt
+    pip install -e ".[docs]"
 
 This includes:
 
@@ -438,7 +438,7 @@ Documentation Build Errors
 
 .. code-block:: bash
 
-    pip install -r requirements-docs.txt
+    pip install -e ".[docs]"
 
 Git Conflicts
 -------------
