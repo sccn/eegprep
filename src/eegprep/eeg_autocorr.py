@@ -51,7 +51,7 @@ def eeg_autocorr(EEG, pct_data=None):
     # print the size of the second dim of ac
     ac = resample_poly(ac.T, up=100, down=EEG['srate']).T
     ac = ac[:, 1:]
-    
+
     return ac
 
 def test_eeg_autocorr():
@@ -63,15 +63,15 @@ def test_eeg_autocorr():
         'trials': 5,
         'icaact': np.random.randn(10, 1000, 5)
     }
-    
+
     psdmed = eeg_autocorr(EEG, 100)
-    
+
     # print information about psdmed
     # print(psdmed.shape)
-    
+
     #print(psdmed)
-    
-    
+
+
     #assert psdmed.shape == (10, 100)
     #assert np.all(np.isfinite(psdmed))
 

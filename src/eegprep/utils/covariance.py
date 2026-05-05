@@ -168,8 +168,8 @@ def cov_shrinkage(cov, shrinkage=0, *, target='eye'):
     Returns
     -------
         the regularized covariance matrix or stack of matrices.
-    """    
-    if not shrinkage:        
+    """
+    if not shrinkage:
         return cov  # early exit
 
     N = cov.shape[-1]
@@ -187,11 +187,11 @@ def cov_shrinkage(cov, shrinkage=0, *, target='eye'):
         # create a base stack of identity matrices
         eye_base = np.zeros_like(cov)
         eye_base[..., range(N), range(N)] = 1
-        
+
         # apply scaling
         scale_val = scale
         if cov.ndim > 2:
-            scale_val = scale[..., np.newaxis, np.newaxis]        
+            scale_val = scale[..., np.newaxis, np.newaxis]
         eye_target = eye_base * scale_val
     elif target == 'diag':
         # get the main diagonal of each matrix in the stack

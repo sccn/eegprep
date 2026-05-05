@@ -51,7 +51,7 @@ for i = 1:n_comps
         title(sprintf('MAT IC%d', i), 'FontSize', 10);
     end
     axis off;
-    
+
     % Python scalp map (bottom row)
     subplot(2, n_comps, n_comps + i);
     topoplot(EEG_py.icawinv(:, i), EEG_py.chanlocs, 'noplot', 'off', 'electrodes', 'off');

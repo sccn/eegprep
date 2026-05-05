@@ -108,7 +108,7 @@ def flatten_dict(data):
 
     rec_array = np.array(data_tuples, dtype=dtype).view(np.recarray)
     return rec_array
-        
+
 def saveset(EEG, file_name):
     """Save EEG data to file.
 
@@ -176,20 +176,20 @@ def pop_saveset_old(EEG, file_path):
     """
     # convert Events to structured array
     # if 'event' in EEG:
-    #     EEG['event'] = flatten_dict(EEG['event'])    
-        
+    #     EEG['event'] = flatten_dict(EEG['event'])
+
     # add 1 to EEG['icachansind'] to make it 1-based
     if 'icachansind' in EEG and EEG['icachansind'].size > 0:
-        EEG['icachansind'] = EEG['icachansind'] + 1 
-        
+        EEG['icachansind'] = EEG['icachansind'] + 1
+
     # search for array of dictionaries and convert them to flatten_dicts
     for key in EEG:
         if isinstance(EEG[key], np.ndarray) and len(EEG[key]) > 0 and isinstance(EEG[key][0], dict):
             EEG[key] = flatten_dict(EEG[key])
 
-    EEG['icaact'] = default_empty 
+    EEG['icaact'] = default_empty
     scipy.io.savemat(file_path, EEG)
-            
+
     return EEG
 
 
@@ -260,18 +260,19 @@ def pop_saveset(EEG, file_name):
     if isinstance(eeglab_dict['icachansind'], list):
         eeglab_dict['icachansind'] = np.array(eeglab_dict['icachansind'])
     if 'icachansind' in eeglab_dict and eeglab_dict['icachansind'].size > 0:
-        eeglab_dict['icachansind'] = eeglab_dict['icachansind'] + 1 
+        eeglab_dict['icachansind'] = eeglab_dict['icachansind'] + 1
 
     # check if EEG['urchan'] is 0-based
     if len(eeglab_dict['chanlocs']) > 0 and 'urchan' in eeglab_dict['chanlocs'][0]:
         for i in range(len(eeglab_dict['chanlocs'])):
-            eeglab_dict['chanlocs'][i]['urchan'] = eeglab_dict['chanlocs'][i]['urchan'] + 1        
-            
+            eeglab_dict['chanlocs'][i]['urchan'] = eeglab_dict['chanlocs'][i]['urchan'] + 1
+
     # check if EEG['event'][i]['urevent'] is 0-based
     if len(eeglab_dict['event']) > 0 and 'urevent' in eeglab_dict['event'][0]:
         for i in range(len(eeglab_dict['event'])):
             eeglab_dict['event'][i]['urevent'] = eeglab_dict['event'][i]['urevent'] + 1
-                   
+
+
     # Create the list of dictionaries with a string field
     if 'chanlocs' in EEG and len(EEG['chanlocs']) > 0:
         matlab_null = np.array([])
@@ -313,10 +314,10 @@ def pop_saveset(EEG, file_name):
             tuple(item[fld] for fld in retain_fields)
             for item in d_list
         ], dtype=dtype)
-    
+
     if isinstance(eeglab_dict['event'], list):
         eeglab_dict['event'] = np.array(eeglab_dict['event'])
-        
+
     for key in eeglab_dict:
         if isinstance(eeglab_dict[key], np.ndarray) and len(eeglab_dict[key]) > 0 and isinstance(eeglab_dict[key][0], dict):
             eeglab_dict[key] = flatten_dict(eeglab_dict[key])
@@ -339,18 +340,18 @@ def pop_saveset(EEG, file_name):
 
 def test_pop_saveset():
     """Test pop_saveset function."""
-    from eegprep.pop_loadset import pop_loadset
+    from eegprep.popfunc.pop_loadset import pop_loadset
     file_path = './data/eeglab_data_with_ica_tmp.set'
     EEG = pop_loadset(file_path)
     pop_saveset( EEG, '/Users/arno/Python/eegprep/data/tmp.set')
     pop_saveset_old(EEG, '/Users/arno/Python/eegprep/data/tmp2.set') # does not do events and function above is better
     # print the keys of the EEG dictionary
     print(EEG.keys())
-    
+
 if __name__ == '__main__':
     test_pop_saveset()
 
 # STILL OPEN QUESTION: Better to have empty MATLAB arrays as None for empty numpy arrays (current default).
 # The current default is to make it more MALTAB compatible. A lot of MATLAB function start indexing MATLAB
-# empty arrays to add values to them. This is not possible with None and would create more conversion and 
+# empty arrays to add values to them. This is not possible with None and would create more conversion and
 # bugs. However, None is more pythonic.

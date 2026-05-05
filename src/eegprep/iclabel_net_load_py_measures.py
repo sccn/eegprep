@@ -24,7 +24,7 @@ class Concatenate(torch.nn.Module):
         """Initialize concatenate layer."""
         super().__init__()
         self.dim = dim
-    
+
     def forward(self, x: list):
         """Forward pass for concatenate."""
         return torch.cat(x, dim=self.dim)
@@ -127,9 +127,9 @@ class ICLabelNet(torch.nn.Module):
         # subtract max value to avoid overflow
         x = x - torch.max(x, dim=1, keepdim=True).values
         x = self.discriminator_softmax(x)
-        
+
         return x
-    
+
 if __name__ == "__main__":
     model = ICLabelNet('../../data/netICL.mat')
     data = scipy.io.loadmat('python_temp_reformated.mat')
@@ -145,6 +145,6 @@ if __name__ == "__main__":
     print('autocorr shape', autocorr.shape)
     output = model(image, psdmed, autocorr)
     print(output.shape)
-    
+
     # save the output to a mat file
     scipy.io.savemat('output4_py.mat', {'output': output.detach().numpy()})

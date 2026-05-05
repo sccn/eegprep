@@ -8,8 +8,9 @@ import tempfile
 import sys
 sys.path.insert(0, '/Users/arno/Python/eegprep/src/')
 sys.path.insert(0, '/usr/src/project/src/')
-from eegprep import pop_loadset, pop_saveset
 from eegprep.eeglabcompat import get_eeglab
+from eegprep.popfunc.pop_loadset import pop_loadset
+from eegprep.popfunc.pop_saveset import pop_saveset
 from eegprep.utils import aslist
 
 # TO DO TO ADDRESS DIFFERENCES BETWEEN MATLAB AND PYTHON
@@ -140,7 +141,7 @@ def resample_eeg(EEG, freq, method='poly', fc=0.9, df=0.2):
 
     if method == 'poly':
         # use scipy's resample_poly() function
-        from .utils.sigproc import firwsord, firws
+        from eegprep.utils.sigproc import firwsord, firws
         from scipy.signal.windows import kaiser
         nyq = 1 / np.maximum(p, q)
         fc *= nyq
@@ -354,4 +355,3 @@ def test_pop_resample_local():
 
 if __name__ == '__main__':
     test_pop_resample_local()
-    

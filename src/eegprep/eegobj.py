@@ -4,8 +4,8 @@ import copy
 import os
 import importlib
 
-from eegprep.pop_loadset import pop_loadset
-from eegprep.pop_select import pop_select  # ensure availability via globals
+from eegprep.popfunc.pop_loadset import pop_loadset
+from eegprep.popfunc.pop_select import pop_select  # ensure availability via globals
 
 class EEGobj:
     """Wrapper class for EEG datasets stored as dictionaries.

@@ -26,7 +26,7 @@ To install the lean version:
 pip install eegprep
 ```
 
-You can then manually install a lightweight CPU-only version of PyTorch if desired by 
+You can then manually install a lightweight CPU-only version of PyTorch if desired by
 your operating system.
 
 
@@ -96,8 +96,8 @@ If you need to release manually:
 
 **2. Test release (staging):**
 
-> **Note:** A former maintainer owns the `eegprep` package name on TestPyPI, so you will not be able to post a 
-> package named `eegprep` there at this time. 
+> **Note:** A former maintainer owns the `eegprep` package name on TestPyPI, so you will not be able to post a
+> package named `eegprep` there at this time.
 > To work around this when performing the build manually (note the `make_release.py` script handles this for you), temporarily change the package name to `eegprep_test` in `pyproject.toml` before building.
 > Remember to change it back to `eegprep` after uploading!
 

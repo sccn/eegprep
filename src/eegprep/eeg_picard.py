@@ -4,8 +4,8 @@ from picard import picard
 import numpy as np
 import os
 import tempfile
-from .pop_saveset import pop_saveset
-from .pop_loadset import pop_loadset
+from .popfunc.pop_saveset import pop_saveset
+from .popfunc.pop_loadset import pop_loadset
 from .eeglabcompat import temp_dir, MatlabWrapper
 from .pinv import pinv
 
@@ -54,7 +54,7 @@ def eeg_picard(EEG, engine=None, posact='off', sortcomps='off', **kwargs):
             'w_init': np.eye(data.shape[0]),  # Identity init for reproducibility
         }
         params.update(kwargs)
-        
+
         weighting_matrix, unmixing_matrix, sources = picard(data, **params)
 
         # Update EEG['icaweights'] with the separating (unmixing) matrix

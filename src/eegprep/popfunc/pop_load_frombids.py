@@ -6,10 +6,10 @@ from typing import Dict, Any, Tuple, List, Union, Sequence, Optional
 import logging
 import warnings
 import contextlib
-from .utils.bids import layout_for_fpath, layout_get_lenient, query_for_adjacent_fpath, \
+from eegprep.utils.bids import layout_for_fpath, layout_get_lenient, query_for_adjacent_fpath, \
     root_for_fpath
-from .utils.coords import *
-from .utils import ExceptionUnlessDebug, ToolError, round_mat
+from eegprep.utils.coords import *
+from eegprep.utils import ExceptionUnlessDebug, ToolError, round_mat
 
 import numpy as np
 
@@ -28,7 +28,7 @@ def _strip_matching_quotes(name: str) -> str:
     while len(name) >= 2 and name[0] == name[-1] and name[0] in ("'", '"'):
         name = name[1:-1]
     return name
-        
+
 def pop_load_frombids(
         filename: str,
         *,
@@ -93,7 +93,7 @@ def pop_load_frombids(
     Report : dict, optional
         optionally the import report to return, if desired.
     """
-    from . import eeg_checkset
+    from eegprep.eeg_checkset import eeg_checkset
 
     report = {
         'Warnings': [],
@@ -117,7 +117,8 @@ def pop_load_frombids(
         logger.info(f"Loading EEG data from {filename}...")
     basename = os.path.basename(filename)
     if ext == '.set':
-        from . import pop_loadset
+        from .pop_loadset import pop_loadset
+
         EEG = pop_loadset(filename)
         EEG['data'] = EEG['data'].astype(dtype)
         report['ImporterUsed'] = 'pop_loadset'
@@ -797,7 +798,7 @@ def pop_load_frombids(
                         }
                         # append extra event columns
                         events_soa.update(ev_extra)
-                        
+
                         # convert from structure-of-arrays to array-of-structures and filter by keep
                         new_events = [
                             {key: values[i] for key, values in events_soa.items()}
@@ -826,7 +827,7 @@ def pop_load_frombids(
                         # rewrite urevent itself
                         EEG['urevent'] = copy.deepcopy(EEG['event'])
 
-                        logger.info(f"Merged {count} events from the BIDS events file {fo.filename} " 
+                        logger.info(f"Merged {count} events from the BIDS events file {fo.filename} "
                                     f"into the EEG file {basename}.")
 
                     report["NumEventsFromEEGFile"] = len(EEG['event']) - int(np.sum(keep))
@@ -857,29 +858,29 @@ def pop_load_frombids(
         # that covers the cap since sometimes there's one that has a superset
         # of the names, but with different locations, e.g., 128ch vs 256ch)
         datalabels = [cl['labels'].lower() for cl in EEG['chanlocs']]
-        
+
         # remove channel prefixes if any
         chanprefixes = ['brainvision rda_','rda_','eeg ','eeg-','eeg']
         for prefix in chanprefixes:
             datalabels = [l.replace(prefix, '') for l in datalabels]
-            
+
         # remove suffixes after minus sign (if reference is present in the channel label)
         datalabels = [l.split('-')[0] for l in datalabels]
         datalabels = [_strip_matching_quotes(l) for l in datalabels]
-        
+
         opt_score, best_data, best_cap = (0, 0), None, '(not set)'
         fractions = []
         caplabels = []
-        
+
         # Determine montage path and files to check
         # Resources are now always in the package directory
         montage_path = os.path.join(os.path.dirname(__file__), 'resources', 'montages')
-        
+
         if not os.path.isdir(montage_path):
             raise RuntimeError(
                 f"Could not find montages directory at {montage_path}. "
                 f"This may indicate a corrupted installation.")
-        
+
         if isinstance(infer_locations, str):
             # Custom montage file specified
             if os.path.isabs(infer_locations):
@@ -892,7 +893,7 @@ def pop_load_frombids(
         else:
             # Use all available montage files
             filenames = sorted(os.listdir(montage_path))
-        
+
         for filename in filenames:
             # skip non-montage files
             if not filename.endswith('.locs'):

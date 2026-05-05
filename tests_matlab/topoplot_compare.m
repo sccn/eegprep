@@ -10,13 +10,13 @@ end
 EEG = pop_loadset(dataset);
 
 for compInd = 0:31
-    
+
     % call Python function
     system([ pythonFunc ' topoplot_compare_helper.py ' dataset ' ' int2str(compInd) ]);
-    
+
     res = load('topoplot_data.mat')
     %delete('topoplot_data.mat')
-    
+
     % call EEGLAB function
     if ~exist('pop_loadset.m')
         addpath('~/eeglab');
@@ -40,19 +40,19 @@ set(im, 'AlphaData', ~isnan(temp2)); % Apply transparency
 clim([0.37 1.82]);
 
 subplot(2,2,3);
-im = imagesc(res.grid); title('Python'); axis square;  axis off; 
+im = imagesc(res.grid); title('Python'); axis square;  axis off;
 set(im, 'AlphaData', ~isnan(res.grid)); % Apply transparency
 clim([0.37 1.82]);
 cbar;
 
 subplot(2,2,2);
-im = imagesc(temp2-res.grid); title('Difference'); axis square; axis off; 
+im = imagesc(temp2-res.grid); title('Difference'); axis square; axis off;
 set(im, 'AlphaData', ~isnan(res.grid)); % Apply transparency
 clim(([0.37 1.82]-mean([0.37 1.82])));
 cbar;
 
 subplot(2,2,4);
-im = imagesc(temp2-res.grid); title('Magnified difference'); axis square; axis off; 
+im = imagesc(temp2-res.grid); title('Magnified difference'); axis square; axis off;
 set(im, 'AlphaData', ~isnan(res.grid)); % Apply transparency
 clim(([0.37 1.82]-mean([0.37 1.82]))/5);
 cbar;

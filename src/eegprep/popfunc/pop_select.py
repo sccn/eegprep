@@ -51,10 +51,10 @@ def pop_select(EEG, **kwargs):
         if isinstance(x, np.ndarray) and x.size == 0:
             return False
         return True
-    
+
     # Track whether notime came directly from rmtime (to match MATLAB boundary adjustment logic)
     notime_from_rmtime = _has_content(g['rmtime'])
-    
+
     if _has_content(g['rmtrial']):   g['notrial']  = g['rmtrial']
     if _has_content(g['rmtime']):    g['notime']   = g['rmtime']
     if _has_content(g['rmpoint']):   g['nopoint']  = g['rmpoint']
@@ -144,7 +144,7 @@ def pop_select(EEG, **kwargs):
         if _decode_list(g['nochannel']):
             inds, _ = eeg_decodechan(EEG, g['nochannel'], 'labels', True)
             chan_selected_flag[np.array(inds, dtype=int)] = False
-            # show warning if not all channels are found and error if no channels are found 
+            # show warning if not all channels are found and error if no channels are found
             if len(inds) != len(g['nochannel']):
                 print(f"Warning: {len(g['nochannel'])-len(inds)} channels not found")
 
@@ -446,7 +446,7 @@ def pop_select(EEG, **kwargs):
                 newinds.append(chan_idx_list.index(ch))
         EEG['icachansind'] = newinds
     else:
-        if EEG['icasphere'] is not None and len(EEG['icasphere']) > 0:  
+        if EEG['icasphere'] is not None and len(EEG['icasphere']) > 0:
             icachans = range(EEG['icasphere'].shape[1])
         else:
             icachans = 0
@@ -464,7 +464,7 @@ def pop_select(EEG, **kwargs):
                 EEG['icasphere']  = np.eye(EEG['icaweights'].shape[1])
 
     if EEG['specicaact'] is not None and len(EEG['specicaact']) > 0:
-        EEG['specicaact'] = np.array([]) 
+        EEG['specicaact'] = np.array([])
    # specdata/specicaact handling
     if EEG['specdata'] is not None and len(EEG['specdata']) > 0:
         EEG['specdata'] = np.array([])
@@ -509,7 +509,7 @@ def pop_select(EEG, **kwargs):
     return EEG
 
 if __name__ == '__main__':
-    from eegprep.pop_loadset import pop_loadset
+    from eegprep.popfunc.pop_loadset import pop_loadset
     EEG = pop_loadset('data/eeglab_data.set')
     EEG2 = pop_select(EEG, channel=['FP1', 'FP2'])
     print(EEG2)

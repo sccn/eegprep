@@ -19,20 +19,20 @@ def py2mat(dicts):
     """
     if dicts is None:
         return np.array([], dtype=object)
-    
+
     # Handle single dictionary input by wrapping in a list
     if isinstance(dicts, dict):
         dicts = [dicts]
-        
+
     if not isinstance(dicts, (list, tuple)):
         return dicts
-    
+
     # Check if this is a list of dictionaries (the expected input)
     if dicts and not all(isinstance(item, dict) for item in dicts):
         # If it's a mixed list, we can't convert it to a struct array
         # Return it as an object array instead
         return np.array(dicts, dtype=object)
-    
+
     def process_value(value):
         """Recursively process values, converting nested structures."""
         if value is None:
@@ -75,19 +75,19 @@ def py2mat(dicts):
                 return np.array(value, dtype=object)
         else:
             return value
-    
+
     # Collect all unique keys and determine their types and sizes
     all_keys = set()
     key_types = {}
     key_max_lengths = {}
-    
+
     for d in dicts:
         for k, v in d.items():
             all_keys.add(k)
-            
+
             # Process the value recursively
             processed_v = process_value(v)
-            
+
             # Determine the appropriate NumPy dtype for this value
             if isinstance(processed_v, str):
                 # For strings, we need to track the maximum length
@@ -121,7 +121,7 @@ def py2mat(dicts):
             else:
                 # For other types, use object
                 key_types[k] = object
-    
+
     # Create dtype from all keys
     dtype_list = []
     for k in sorted(all_keys):
@@ -131,18 +131,18 @@ def py2mat(dicts):
             dtype_list.append((k, f'U{max_len}'))
         else:
             dtype_list.append((k, key_types[k]))
-    
+
     dtype = np.dtype(dtype_list)
-    
+
     # Create structured array
     struct_array = np.empty(len(dicts), dtype=dtype)
-    
+
     # Fill the array
     for i, d in enumerate(dicts):
         for k in all_keys:
             value = d.get(k, None)
             processed_value = process_value(value)
-            
+
             if processed_value is None:
                 # Handle None values based on the field type
                 if key_types[k] == 'U':
@@ -162,7 +162,7 @@ def py2mat(dicts):
                     struct_array[i][k] = np.array([], dtype=object)
             else:
                 struct_array[i][k] = processed_value
-    
+
     return struct_array
 
 # def mat2py(mat_dict):
@@ -265,11 +265,11 @@ def mat2py(obj):
     else:
         # Fallback: return the object as-is if no conversion rule applies
         return obj
-    
+
 def test_py2mat():
     """Test the py2mat and mat2py conversion functions with various data structures."""
-    import scipy.io  
-    
+    import scipy.io
+
     # Test basic functionality
     print("=== Basic Test ===")
     dicts = [
@@ -297,7 +297,7 @@ def test_py2mat():
             'tags': ['tag1', 'tag2']
         },
         {
-            'name': 'item2', 
+            'name': 'item2',
             'value': 20.3,
             'config': {'enabled': False, 'threshold': 0.9},
             'tags': ['tag3']
@@ -352,30 +352,30 @@ def test_py2mat():
     single_dict2 = mat2py(single_struct2)
     print("Original: ", single_dict)
     print("Converted: ", single_dict2)
-    
-    
+
+
     # Test numpy array of dictionaries
     print("\n=== NumPy Array of Dictionaries Test ===")
     dict_array = np.array([
         {'name': 'sensor1', 'value': 1.1},
         {'name': 'sensor2', 'value': 2.2},
         {'name': 'sensor3', 'value': 3.3}
-    ], dtype=object) 
-    
+    ], dtype=object)
+
     array_dict_data = [
         {
             'id': 'device1',
             'sensors': dict_array
         },
         {
-            'id': 'device2', 
+            'id': 'device2',
             'sensors': np.array([
                 {'name': 'sensorA', 'value': 4.4},
                 {'name': 'sensorB', 'value': 5.5}
             ], dtype=object)
         }
     ]
-    
+
     array_dict_struct = py2mat(array_dict_data)
     scipy.io.savemat('test5.mat', {'array_dict_struct': array_dict_struct})
     array_dict_struct2 = scipy.io.loadmat('test5.mat')
@@ -383,7 +383,7 @@ def test_py2mat():
     array_dict_data2 = mat2py(array_dict_struct2)
     print("Original: ", array_dict_data)
     print("Converted: ", array_dict_data2) # Numpy array gets converted to a list of dicts
-    
+
     params = [np.vstack([np.arange(1, 21), np.arange(101, 121)]), [[5, 8]], 10.0, [{'latency': 5.0}, {'latency': 10.0}]]
     params_struct = py2mat(params)
     scipy.io.savemat('test6.mat', {'params_struct': params_struct})
@@ -392,29 +392,29 @@ def test_py2mat():
     params_data2 = mat2py(params_struct2)
     print("Original: ", params)
     print("Converted: ", params_data2)
-    
-    # EEGLAB dataset    
+
+    # EEGLAB dataset
     eeglab_file_path = '/System/Volumes/Data/data/matlab/eeglab/sample_data/eeglab_data_epochs_ica.set'
-    from eegprep.pop_loadset import pop_loadset
+    from eegprep.popfunc.pop_loadset import pop_loadset
     EEG_LOADSET = pop_loadset(eeglab_file_path)
-    
+
     # pop_loadset wihtout index adjustment
     EEG_LOADMAT = scipy.io.loadmat(eeglab_file_path)
     EEG_LOADMAT = mat2py(EEG_LOADMAT['EEG'][0])
-    
+
     # pop_saveset without index adjustment
     EEG_TMP = EEG_LOADMAT.copy()
     EEG_TMP = py2mat(EEG_TMP)
     scipy.io.savemat('test7.set', {'EEG': EEG_TMP})
-    
+
     # load again
     EEG_LOADMAT2 = scipy.io.loadmat('test7.set')
     EEG_LOADMAT2 = mat2py(EEG_LOADMAT2['EEG'][0])
-        
+
     # Limitations
     print("\n=== Limitations ===")
     print("- Conversion back: py2mat then mat2py does not always work for nested structures (works when the file is saved as a .mat file)")
     print("- Numpy arrays of dicts are converted to lists of dicts (an intented feature)")
 
 if __name__ == "__main__":
-    test_py2mat()    
+    test_py2mat()

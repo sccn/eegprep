@@ -1,10 +1,10 @@
 
 if __name__ == '__main__':
     from eegprep import pop_resample, pop_loadset
-    
+
     eeglab_file_path = '/Users/arno/Python/eegprep/tmp.set'
     EEG = pop_loadset(eeglab_file_path)
-    
+
     # Test with different engines
     # EEG_python = pop_resample(EEG, 100, engine=None)
     # EEG_matlab = pop_resample(EEG, 100, engine='matlab')

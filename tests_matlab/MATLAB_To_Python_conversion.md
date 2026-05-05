@@ -23,8 +23,8 @@ Create a test case for this function using the template from another function be
 ```
 Please fix the issue. You can find the Python environment in .venv folder if you need to run Python code. Remember that function @x.py has the equivalent @x.m, which you can also modify to add a comment that will be visible when you run the test cases.
 ```
-   
-10. Have 4 run automatically, then make a diff on the difference. Commit if relevant and revert if not. 
+
+10. Have 4 run automatically, then make a diff on the difference. Commit if relevant and revert if not.
 
 11. Iterate to fix all MATLAB cases. Make sure you have 90% code coverage.
 

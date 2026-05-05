@@ -98,6 +98,7 @@ Epoching and Selection
 .. autosummary::
    :toctree: generated/
 
+   eegprep.pop_adjustevents
    eegprep.pop_epoch
    eegprep.pop_select
    eegprep.eeg_eegrej

@@ -5,18 +5,17 @@
 
 .. autoclass:: EEGobj
 
-   
+
    .. automethod:: __init__
 
-   
+
    .. rubric:: Methods
 
    .. autosummary::
-   
-      ~EEGobj.__init__
-   
-   
 
-   
-   
-   
+      ~EEGobj.__init__
+
+
+
+
+

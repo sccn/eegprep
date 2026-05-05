@@ -9,8 +9,8 @@ def compute():
 
 if __name__ == '__main__':
     app.run(port=5000)
-    
-    
+
+
 # In MATLAB use
 # url = 'http://127.0.0.1:5000/compute';
 # data = jsonencode(struct('x', 4));

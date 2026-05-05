@@ -8,7 +8,7 @@ from eegprep import pop_loadset
 import sys
 
 print('Topoplot compare helper')
-    
+
 # need 2 arguments or error
 if len(sys.argv) != 3:
     print(f'len(sys.argv) = {len(sys.argv)}')
@@ -31,4 +31,3 @@ grid = res[1]
 import scipy.io
 scipy.io.savemat('topoplot_data.mat', {'grid': grid})
 print('Saved topoplot_data.mat')
-    

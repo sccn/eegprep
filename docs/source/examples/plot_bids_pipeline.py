@@ -157,12 +157,12 @@ print("\nCreating subject data...")
 for sub_id in ['01', '02']:
     sub_dir = os.path.join(bids_root, f'sub-{sub_id}', 'ses-01', 'eeg')
     os.makedirs(sub_dir, exist_ok=True)
-    
+
     # Define recording parameters
     n_channels = 32
     n_samples = 5000
     sfreq = 500
-    
+
     # Create channel names
     ch_names = [
         'Fp1', 'Fpz', 'Fp2', 'F7', 'F3', 'Fz', 'F4', 'F8',
@@ -170,21 +170,21 @@ for sub_id in ['01', '02']:
         'P4', 'P8', 'O1', 'Oz', 'O2', 'A1', 'A2', 'M1',
         'M2', 'Fc1', 'Fc2', 'Cp1', 'Cp2', 'Fc5', 'Fc6', 'Cp5'
     ]
-    
+
     # Create synthetic data
     np.random.seed(int(sub_id))
     data = np.random.randn(n_channels, n_samples) * 10
-    
+
     # Add alpha oscillations
     t = np.arange(n_samples) / sfreq
     for i in range(n_channels):
         alpha_freq = 10 + np.random.randn() * 0.5
         data[i, :] += 5 * np.sin(2 * np.pi * alpha_freq * t)
-    
+
     # Save as .npy for simplicity (in real BIDS, would be .edf or .bdf)
     data_file = os.path.join(sub_dir, f'sub-{sub_id}_ses-01_task-rest_eeg.npy')
     np.save(data_file, data)
-    
+
     # Create JSON sidecar with recording metadata
     eeg_json = {
         "TaskName": "rest",
@@ -196,27 +196,27 @@ for sub_id in ['01', '02']:
         "RecordingDuration": n_samples / sfreq,
         "RecordingType": "continuous"
     }
-    
+
     json_file = os.path.join(sub_dir, f'sub-{sub_id}_ses-01_task-rest_eeg.json')
     with open(json_file, 'w') as f:
         json.dump(eeg_json, f, indent=2)
-    
+
     # Create channels.tsv with channel information
     channels_content = "name\tx\ty\tz\tsize\n"
     for ch_name in ch_names:
         channels_content += f"{ch_name}\t0\t0\t0\t1\n"
-    
+
     channels_file = os.path.join(sub_dir, f'sub-{sub_id}_ses-01_task-rest_channels.tsv')
     with open(channels_file, 'w') as f:
         f.write(channels_content)
-    
+
     # Create events.tsv with event information
     events_content = "onset\tduration\ttrial_type\n0.0\t1.0\trest\n"
-    
+
     events_file = os.path.join(sub_dir, f'sub-{sub_id}_ses-01_task-rest_events.tsv')
     with open(events_file, 'w') as f:
         f.write(events_content)
-    
+
     print(f"  ✓ Created subject sub-{sub_id} data")
 
 print(f"\nBIDS dataset created successfully!")

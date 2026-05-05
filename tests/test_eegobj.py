@@ -4,7 +4,7 @@ import os
 import tempfile
 import shutil
 from eegprep.eegobj import EEGobj
-from eegprep.pop_select import pop_select # Import pop_select for direct testing if needed
+from eegprep.popfunc.pop_select import pop_select # Import pop_select for direct testing if needed
 from eegprep.eeg_checkset import eeg_checkset
 import copy
 
@@ -99,15 +99,15 @@ class TestEEGobj(unittest.TestCase):
         """Test method forwarding with normalized plural keys."""
         eeg = create_test_eeg(n_channels=4, n_samples=50, srate=100.0, n_trials=5)
         obj = EEGobj(eeg)
-        
+
         # Test 'trials' -> 'trial'
         out = obj.pop_select(trials=[1, 2, 3])
         self.assertEqual(out['trials'], 3)
-        
+
         # Test 'channels' -> 'channel'
         out = obj.pop_select(channels=[0, 1])
         self.assertEqual(out['nbchan'], 2)
-        
+
         # Test 'points' -> 'point' - this selects specific time points
         out = obj.pop_select(points=[0, 10, 20])
         # The behavior depends on how pop_select handles point selection
@@ -119,7 +119,7 @@ class TestEEGobj(unittest.TestCase):
         """Test method forwarding with bytes keys."""
         eeg = create_test_eeg(n_channels=4, n_samples=50, srate=100.0, n_trials=3)
         obj = EEGobj(eeg)
-        
+
         # Test with bytes key
         out = obj.pop_select(b'channel', [0, 1])
         self.assertEqual(out['nbchan'], 2)
@@ -128,11 +128,11 @@ class TestEEGobj(unittest.TestCase):
         """Test method forwarding with invalid key-value pairs."""
         eeg = create_test_eeg()
         obj = EEGobj(eeg)
-        
+
         # Test odd number of arguments
         with self.assertRaises(ValueError):
             obj.pop_select('channel', [0, 1], 'extra_arg')
-        
+
         # Test non-string key - this should fail at the function level
         with self.assertRaises((TypeError, ValueError)):
             obj.pop_select(123, [0, 1])
@@ -141,7 +141,7 @@ class TestEEGobj(unittest.TestCase):
         """Test method forwarding with non-existent function."""
         eeg = create_test_eeg()
         obj = EEGobj(eeg)
-        
+
         with self.assertRaises(AttributeError):
             obj.nonexistent_function()
 
@@ -149,11 +149,11 @@ class TestEEGobj(unittest.TestCase):
         """Test method forwarding with function returning tuple."""
         eeg = create_test_eeg()
         obj = EEGobj(eeg)
-        
+
         # Test with a function that actually returns a tuple
         # We'll use a simple test that doesn't interfere with pop_select
         original_eeg = copy.deepcopy(eeg)
-        
+
         # The test verifies that tuple return values are handled correctly
         # by checking that the object is updated properly
         result = obj.pop_select(channel=[0, 1])
@@ -164,11 +164,11 @@ class TestEEGobj(unittest.TestCase):
         """Test method forwarding with function returning None."""
         eeg = create_test_eeg()
         obj = EEGobj(eeg)
-        
+
         # Test with a function that returns None
         # We'll use a simple test that doesn't interfere with pop_select
         original_eeg = copy.deepcopy(eeg)
-        
+
         # The test verifies that None return values are handled correctly
         # by checking that the object is updated properly
         result = obj.pop_select(channel=[0, 1])
@@ -179,7 +179,7 @@ class TestEEGobj(unittest.TestCase):
         """Test __getattr__ for EEG dictionary fields."""
         eeg = create_test_eeg()
         obj = EEGobj(eeg)
-        
+
         # Test accessing EEG fields
         self.assertEqual(obj.nbchan, eeg['nbchan'])
         self.assertEqual(obj.srate, eeg['srate'])
@@ -190,12 +190,12 @@ class TestEEGobj(unittest.TestCase):
         """Test __setattr__ for EEG dictionary fields."""
         eeg = create_test_eeg()
         obj = EEGobj(eeg)
-        
+
         # Test setting EEG fields
         obj.nbchan = 64
         self.assertEqual(obj.EEG['nbchan'], 64)
         self.assertEqual(obj.nbchan, 64)
-        
+
         obj.srate = 500.0
         self.assertEqual(obj.EEG['srate'], 500.0)
         self.assertEqual(obj.srate, 500.0)
@@ -204,7 +204,7 @@ class TestEEGobj(unittest.TestCase):
         """Test __setattr__ for EEG attribute itself."""
         eeg = create_test_eeg()
         obj = EEGobj(eeg)
-        
+
         # Test setting EEG attribute
         new_eeg = {'data': np.random.rand(16, 100, 1), 'nbchan': 16}
         obj.EEG = new_eeg
@@ -222,7 +222,7 @@ class TestEEGobj(unittest.TestCase):
         }
         obj = EEGobj(eeg)
         repr_str = repr(obj)
-        
+
         # Should handle missing fields gracefully
         self.assertIn("EEG |", repr_str)
         self.assertIn("Data shape", repr_str)
@@ -231,22 +231,22 @@ class TestEEGobj(unittest.TestCase):
     def test_repr_with_numpy_arrays(self):
         """Test __repr__ with numpy arrays in event/chanlocs."""
         eeg = create_test_eeg()
-        
+
         # Add numpy array events
         eeg['event'] = np.array([
             {'latency': 1, 'type': 'event1'},
             {'latency': 50, 'type': 'event2'}
         ])
-        
+
         # Add numpy array chanlocs
         eeg['chanlocs'] = np.array([
             {'labels': 'Ch1', 'type': 'EEG'},
             {'labels': 'Ch2', 'type': 'EEG'}
         ])
-        
+
         obj = EEGobj(eeg)
         repr_str = repr(obj)
-        
+
         # Should handle numpy arrays gracefully
         self.assertIn("EEG |", repr_str)
         self.assertIn("Events", repr_str)
@@ -254,21 +254,21 @@ class TestEEGobj(unittest.TestCase):
     def test_repr_with_bytes_strings(self):
         """Test __repr__ with bytes strings."""
         eeg = create_test_eeg()
-        
+
         # Add bytes strings
         eeg['event'] = [
             {'latency': 1, 'type': b'event1'},
             {'latency': 50, 'type': b'event2'}
         ]
-        
+
         eeg['chanlocs'] = [
             {'labels': b'Ch1', 'type': b'EEG'},
             {'labels': b'Ch2', 'type': b'EEG'}
         ]
-        
+
         obj = EEGobj(eeg)
         repr_str = repr(obj)
-        
+
         # Should handle bytes strings gracefully
         self.assertIn("EEG |", repr_str)
         self.assertIn("Events", repr_str)
@@ -278,10 +278,10 @@ class TestEEGobj(unittest.TestCase):
         eeg = create_test_eeg()
         eeg['event'] = []
         eeg['chanlocs'] = []
-        
+
         obj = EEGobj(eeg)
         repr_str = repr(obj)
-        
+
         # Should handle empty arrays gracefully
         self.assertIn("EEG |", repr_str)
         self.assertIn("Events", repr_str)
@@ -294,10 +294,10 @@ class TestEEGobj(unittest.TestCase):
         eeg['setname'] = None
         eeg['filename'] = None
         eeg['filepath'] = None
-        
+
         obj = EEGobj(eeg)
         repr_str = repr(obj)
-        
+
         # Should handle None values gracefully
         self.assertIn("EEG |", repr_str)
         self.assertIn("Data shape", repr_str)
@@ -316,10 +316,10 @@ class TestEEGobj(unittest.TestCase):
         eeg['chanlocs'] = [
             {'labels': f'EEG{i:03d}', 'type': 'EEG'} for i in range(64)
         ]
-        
+
         obj = EEGobj(eeg)
         repr_str = repr(obj)
-        
+
         # Should display comprehensive information
         self.assertIn("EEG | complex_dataset", repr_str)
         self.assertIn("Data shape      : 64 x 2000 x 10", repr_str)
@@ -335,7 +335,7 @@ class TestEEGobj(unittest.TestCase):
         """Test __str__ method."""
         eeg = create_test_eeg()
         obj = EEGobj(eeg)
-        
+
         # __str__ should be the same as __repr__
         self.assertEqual(str(obj), repr(obj))
 
@@ -343,14 +343,14 @@ class TestEEGobj(unittest.TestCase):
         """Test that method forwarding uses deep copy."""
         eeg = create_test_eeg()
         obj = EEGobj(eeg)
-        
+
         # Store original data
         original_data = obj.EEG['data'].copy()
         original_nbchan = obj.EEG['nbchan']
-        
+
         # Call a method that modifies data
         result = obj.pop_select(channel=[0, 1])
-        
+
         # The object should be updated (not preserved)
         self.assertEqual(obj.EEG['nbchan'], 2)
         self.assertEqual(result['nbchan'], 2)
@@ -360,13 +360,13 @@ class TestEEGobj(unittest.TestCase):
     def test_error_handling_in_repr(self):
         """Test error handling in __repr__ method."""
         eeg = create_test_eeg()
-        
+
         # Create problematic data that might cause errors
         eeg['event'] = [{'latency': 1, 'type': np.array([1, 2, 3])}]  # Non-serializable type
         eeg['chanlocs'] = [{'labels': 'Ch1', 'type': lambda x: x}]  # Function object
-        
+
         obj = EEGobj(eeg)
-        
+
         # Should not crash
         try:
             repr_str = repr(obj)
@@ -378,7 +378,7 @@ class TestEEGobj(unittest.TestCase):
         """Test lazy import fallback behavior."""
         eeg = create_test_eeg()
         obj = EEGobj(eeg)
-        
+
         # Test that function resolution works with different import strategies
         # This is mostly testing the _resolve function in _call_eegprep
         try:

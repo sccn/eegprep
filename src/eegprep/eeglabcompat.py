@@ -6,8 +6,8 @@
 import tempfile
 from typing import *
 
-from .pop_loadset import pop_loadset
-from .pop_saveset import pop_saveset
+from .popfunc.pop_loadset import pop_loadset
+from .popfunc.pop_saveset import pop_saveset
 import logging
 import os
 import numpy as np
@@ -83,12 +83,12 @@ class MatlabWrapper:
             kwargs_list = []
             for key, value in kwargs.items():
                 kwargs_list.append(f'{key}')
-                kwargs_list.append(value)      
+                kwargs_list.append(value)
             new_args.extend(kwargs_list)
 
             # issue error if kwargs are passed unless it is "nargout"
             needs_roundtrip = False
-            
+
             # Special case for functions that return multiple outputs
             if name == 'epoch':
                 eval_str = f"if iscell(args.args), [OUT1,OUT2,OUT3,OUT4,OUT5,OUT6] = {name}(args.args{{:}}); else, [OUT1,OUT2,OUT3,OUT4,OUT5,OUT6] = {name}(args.args); end; OUT = {{OUT1,OUT2,OUT3,OUT4,OUT5,OUT6}};"
@@ -96,7 +96,7 @@ class MatlabWrapper:
                 eval_str = f"if iscell(args.args), [OUT1,OUT2,OUT3,OUT4] = {name}(args.args{{:}}); else, [OUT1,OUT2,OUT3,OUT4] = {name}(args.args); end; OUT = {{OUT1,OUT2,OUT3,OUT4}};"
             else:
                 eval_str = f"if iscell(args.args), OUT = {name}(args.args{{:}}); else, OUT = {name}(args.args); end;"
-                
+
             if len(args) > 0:
                 if isinstance(args[0], dict) and args[0].get('trials') is not None:
                     needs_roundtrip = True
@@ -107,7 +107,7 @@ class MatlabWrapper:
                         eval_str = f"if iscell(args.args), [OUT1,OUT2,OUT3,OUT4] = {name}(EEG,args.args{{:}}); else, [OUT1,OUT2,OUT3,OUT4] = {name}(EEG,args.args); end; OUT = {{OUT1,OUT2,OUT3,OUT4}};"
                     else:
                         eval_str = f"if iscell(args.args), OUT = {name}(EEG,args.args{{:}}); else, OUT = {name}(EEG,args.args); end;"
-            
+
             # convert numerical list arguments to numpy arrays
             for i, arg in enumerate(new_args):
                 if isinstance(arg, list) and all(isinstance(x, (int, float, np.integer, np.floating)) for x in arg):
@@ -139,19 +139,19 @@ class MatlabWrapper:
                     self.engine.eval(f"args = load('{temp_filename2}');", nargout=0)
                 else:
                     self.engine.eval("args.args = {};", nargout=0)
-                        
+
                 if needs_roundtrip:
                     # passage data through a file
                     pop_saveset(args[0], temp_filename1)
                     self.engine.eval(f"EEG = pop_loadset('{temp_filename1}');", nargout=0)
-                    
+
                 print(f"Running in MATLAB/Octave: {eval_str}")
                 self.engine.eval(eval_str, nargout=0)
-                
+
                 # output
                 # Functions that return numeric arrays instead of EEG structures
                 numeric_output_functions = ['eeg_autocorr', 'eeg_autocorr_fftw', 'eeg_autocorr_welch']
-                
+
                 if (needs_roundtrip or name == 'pop_loadset') and name not in numeric_output_functions:
                     # Always round-trip OUT for pop_loadset to get a proper Python EEG dict
                     self.engine.eval(f"pop_saveset(OUT, '{result_filename}');", nargout=0)
@@ -160,7 +160,7 @@ class MatlabWrapper:
                 else:
                     self.engine.eval(f"save('-mat', '{result_filename}', 'OUT');", nargout=0)
                     OUT = scipy.io.loadmat(result_filename)['OUT']
-                    
+
                     # Special handling for functions that return multiple outputs
                     if name == 'epoch' and isinstance(OUT, np.ndarray) and OUT.dtype == 'object':
                         # Convert MATLAB cell array to Python tuple
@@ -193,7 +193,7 @@ class MatlabWrapper:
             # else:
             #     # run it directly
             #     return getattr(self.engine, name)(*args)
-        
+
         return wrapper
 
 # noinspection PyDefaultArgument
@@ -238,9 +238,9 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
                     To do that, make sure you have the pip executable for this python environment
                     on the path, and then run:
                     pip install /your/path/to/matlab/extern/engines/python
-                                  
+
                     This will insert a wrapper package in the python environment that forwards
-                    calls to the MATLAB runtime.                                  
+                    calls to the MATLAB runtime.
                     """)
             engine = matlab.engine.start_matlab()
             # engine.cd(path2eeglab)
@@ -267,7 +267,7 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
         engine.addpath(path2localmatlab)
         engine.addpath(scripts_dir)
         engine.cd(path2eeglab + '/plugins/clean_rawdata/private')  # to grant access to util funcs for unit testing
-        
+
         # path2eeglab = 'eeglab' # init >10 seconds
         #res = eeglab.version()
         #print('Running EEGLAB commands in compatibility mode with Octave ' + res)
@@ -306,13 +306,13 @@ def clean_drifts(EEG, Transition, Attenuation, eeglab=None):
 
 # def pop_resample( EEG, freq): # 2 additional parameters in MATLAB (never used)
 #     eeglab = get_eeglab(auto_file_roundtrip=False)
-    
+
 #     pop_saveset(EEG, './tmp.set') # 0.8 seconds
 #     EEG2 = eeglab.pop_loadset('./tmp.set') # 2 seconds
 #     EEG2 = eeglab.pop_resample(EEG2, freq) # 2.4 seconds
 #     eeglab.pop_saveset(EEG2, './tmp2.set') # 2.4 seconds
 #     EEG3 = pop_loadset('./tmp2.set') # 0.2 seconds
-    
+
 #     # delete temporary files
 #     os.remove('./tmp.set')
 #     os.remove('./tmp2.set')
@@ -385,13 +385,13 @@ def clean_artifacts( EEG, ChannelCriterion=False, LineNoiseCriterion=False, Flat
         Cleaned EEG data.
     """
     eeglab = get_eeglab(auto_file_roundtrip=False)
-    
+
     if ChannelCriterion == False or ChannelCriterion == 'off':
         ChannelCriterion='off'
-        
+
     if LineNoiseCriterion == False or LineNoiseCriterion == 'off':
         LineNoiseCriterion='off'
-    
+
     if FlatlineCriterion == False or FlatlineCriterion == 'off':
         FlatlineCriterion='off'
 
@@ -402,7 +402,7 @@ def clean_artifacts( EEG, ChannelCriterion=False, LineNoiseCriterion=False, Flat
         Highpass='off'
 
     if BurstRejection == False or BurstRejection == 'off':
-        BurstRejection='off'           
+        BurstRejection='off'
     else:
         BurstRejection='on'
 
@@ -419,7 +419,7 @@ def clean_artifacts( EEG, ChannelCriterion=False, LineNoiseCriterion=False, Flat
         'WindowCriterionTolerances', WindowCriterionTolerances)
     eeglab.pop_saveset(EEG3, './tmp2.set') # 2.4 seconds
     EEG4 = pop_loadset('./tmp2.set') # 0.2 seconds
-    
+
     # delete temporary files
     os.remove('./tmp.set')
     os.remove('./tmp2.set')
@@ -433,10 +433,10 @@ def test_eeglab_compat():
     EEG = pop_loadset(eeglab_file_path)
     EEG = pop_eegfiltnew(EEG, locutoff=5,hicutoff=25,revfilt=True,plotfreqz=False)
     EEG = clean_artifacts(EEG, FlatlineCriterion=5,ChannelCriterion=0.87, LineNoiseCriterion=4,Highpass=False,BurstCriterion= 20, WindowCriterion=0.25, BurstRejection=False, WindowCriterionTolerances=[float('-inf'), 7])
-        
+
     # EEG = eeglab.pop_loadset(eeglab_file_path)
     # TMPEEG = eeglab.pop_eegfiltnew(EEG, 'locutoff',5,'hicutoff',25,'revfilt',1,'plotfreqz',0)
-    # CLEANEDEEG = eeglab.clean_artifacts(TMPEEG, 'ChannelCriterion', 'off', 
+    # CLEANEDEEG = eeglab.clean_artifacts(TMPEEG, 'ChannelCriterion', 'off',
     #     'LineNoiseCriterion', 'off',
     #     'FlatlineCriterion', 'off',
     #     'BurstCriterion', 'off',

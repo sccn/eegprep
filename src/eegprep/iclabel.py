@@ -41,17 +41,17 @@ def iclabel(EEG, algorithm='default', engine=None):
     # Check if using MATLAB or Octave implementation
     if engine in ['matlab', 'octave']:
         from eegprep.eeglabcompat import get_eeglab
-        
+
         # Determine which engine to use
         runtime = 'MAT' if engine == 'matlab' else 'OCT'
         eeglab = get_eeglab(runtime=runtime)
-            
+
         # Run ICLabel using MATLAB/Octave, passing the algorithm parameter
         if algorithm == 'default':
             return eeglab.iclabel(EEG)
         else:
             return eeglab.iclabel(EEG, algorithm)
-    
+
     # Default Python implementation
     elif engine is None:
         from eegprep.iclabel_net import ICLabelNet
@@ -59,7 +59,7 @@ def iclabel(EEG, algorithm='default', engine=None):
 
         #ICLABEL Extract ICLabel features from an EEG dataset.
         features = ICL_feature_extractor(EEG, True)
-        
+
         # Equivalent of MATLAB code reshaping
         features[0] = np.single(np.concatenate([features[0],-features[0],features[0][:, ::-1, :, :],-features[0][:, ::-1, :, :]], axis=3))
         features[1] = np.single(np.tile(features[1], (1, 1, 1, 4)))
@@ -72,12 +72,12 @@ def iclabel(EEG, algorithm='default', engine=None):
         base_dir = os.path.dirname(os.path.abspath(__file__))
         data_path = os.path.join(base_dir, 'netICL.mat')
         model = ICLabelNet(data_path)
-        
+
         # Convert the features to torch tensors
         image = torch.tensor(features[0]).permute(-1, 2, 0, 1)
         psdmed = torch.tensor(features[1]).permute(-1, 2, 0, 1)
         autocorr = torch.tensor(features[2]).permute(-1, 2, 0, 1)
-        
+
         # Get the output from the model
         output = model(image, psdmed, autocorr)
         output_np = output.detach().numpy()
@@ -86,20 +86,20 @@ def iclabel(EEG, algorithm='default', engine=None):
         output_np = np.mean(output_np, axis=1)  # Compute the mean along the second axis (columns)
         output_np = np.reshape(output_np, (7, -1), order='F')  # Reshape to have 7 rows
         output_np = output_np.T  # Transpose back
-        
+
         if 'ic_classification' not in EEG['etc']:
             EEG['etc']['ic_classification'] = {}
         if 'ICLabel' not in EEG['etc']['ic_classification']:
             EEG['etc']['ic_classification']['ICLabel'] = {}
 
-        np.object = object   
+        np.object = object
         EEG['etc']['ic_classification']['ICLabel']['classes'] = np.array(
-            ['Brain', 'Muscle', 'Eye', 'Heart', 'Line Noise', 'Channel Noise', 'Other'], 
+            ['Brain', 'Muscle', 'Eye', 'Heart', 'Line Noise', 'Channel Noise', 'Other'],
             dtype=object
         )
         EEG['etc']['ic_classification']['ICLabel']['classifications'] = output_np
         EEG['etc']['ic_classification']['ICLabel']['version'] = algorithm
-        
+
         return EEG
     else:
         raise ValueError(f"Unsupported engine: {engine}. Should be None, 'matlab', or 'octave'")

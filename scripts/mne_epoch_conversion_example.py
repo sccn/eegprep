@@ -80,7 +80,7 @@ n_epochs, n_channels, n_times = data.shape
     #          datfile: 'eeglab_data_epochs_ica.fdt'
     #              run: []
     #              roi: []
-    
+
 eeglab_dict = {
     'setname'         : '',
     'filename'        : '',

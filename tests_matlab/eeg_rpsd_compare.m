@@ -28,13 +28,13 @@ temp2 = eeg_rpsd(EEG, 100);
 figure('position', [924   752   912   565])
 
 subplot(2,2,1);
-imagesc(temp2); title('MATLAB'); 
+imagesc(temp2); title('MATLAB');
 cl = clim;
 ylabel('Component index')
 title('MATLAB');
 
 subplot(2,2,3);
-imagesc(res.grid); title('Python'); 
+imagesc(res.grid); title('Python');
 xlabel('Frequency (Hz)')
 ylabel('Component index')
 clim(cl)
@@ -42,13 +42,13 @@ title('Python');
 cbar;
 
 subplot(2,2,2);
-imagesc(temp2-res.grid); 
+imagesc(temp2-res.grid);
 clim(cl-mean(cl))
 title('Difference');
 cbar;
 
 subplot(2,2,4);
-imagesc(temp2-res.grid); 
+imagesc(temp2-res.grid);
 xlabel('Frequency (Hz)')
 cl = clim;
 clim(cl-mean(cl))

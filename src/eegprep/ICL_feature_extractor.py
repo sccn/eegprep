@@ -41,7 +41,7 @@ def ICL_feature_extractor(EEG, flag_autocorr=False):
     if EEG['icaact'] is None:
         raise ValueError('You must have ICA activations to use ICLabel')
         # EEG['icaact'] = eeg_getica(EEG)
-        
+
     EEG['icaact'] = EEG['icaact'].astype(float)
 
     # Check ICA is real
@@ -97,7 +97,7 @@ def ICL_feature_extractor(EEG, flag_autocorr=False):
         features = [0.99 * topo, 0.99 * psd, 0.99 * autocorr]
     else:
         features = [0.99 * topo, 0.99 * psd]
-        
+
     return features
 
 def test_ICL_feature_extractor():

@@ -44,7 +44,7 @@ def bids_list_eeg_files(
         A list of file paths to EEG files in the BIDS dataset.
     """
     layout = layout_for_fpath(root)
-    
+
     # prepare filters, if any
     filters = {
         'subject': [subjects] if isinstance(subjects, (str, int)) else subjects,
@@ -56,7 +56,7 @@ def bids_list_eeg_files(
 
     # first get all EEG files
     eeg_files = layout.get(suffix='eeg', return_type='filename' if not filters else 'object')
-    
+
     # apply filters
     if filters:
         for key, query_values in filters.items():

@@ -35,7 +35,7 @@ from eegprep import pop_loadset, pop_saveset, iclabel
 def compare_iclabel_engines(input_file, output_dir=None, engines=None, algorithm='default'):
     """
     Compare the results of applying ICLabel with different engines.
-    
+
     Parameters:
     -----------
     input_file : str
@@ -47,7 +47,7 @@ def compare_iclabel_engines(input_file, output_dir=None, engines=None, algorithm
         Options are: None (Python), 'matlab', 'octave'
     algorithm : str
         Algorithm to use for classification, passed to the MATLAB/Octave implementation.
-    
+
     Returns:
     --------
     results : dict
@@ -58,11 +58,11 @@ def compare_iclabel_engines(input_file, output_dir=None, engines=None, algorithm
             None,  # Python implementation
             'matlab',
         ]
-    
+
     # Load the input EEG file
     print(f"Loading EEG file: {input_file}")
     EEG = pop_loadset(input_file)
-    
+
     # Apply ICLabel with different engines
     results = {}
     for engine in engines:
@@ -70,10 +70,10 @@ def compare_iclabel_engines(input_file, output_dir=None, engines=None, algorithm
             engine_name = engine if engine is not None else 'python'
             print(f"Applying ICLabel with engine={engine_name}, algorithm={algorithm}")
             EEG_result = iclabel(EEG.copy(), algorithm=algorithm, engine=engine)
-            
+
             # Store the result
             results[engine_name] = EEG_result
-            
+
             # Save the result if output_dir is specified
             if output_dir is not None:
                 output_file = os.path.join(output_dir, f"iclabel_{engine_name}_{algorithm}.set")
@@ -81,18 +81,18 @@ def compare_iclabel_engines(input_file, output_dir=None, engines=None, algorithm
                 print(f"Saved result to: {output_file}")
         except Exception as e:
             print(f"Error applying ICLabel with engine={engine_name}, algorithm={algorithm}: {e}")
-    
+
     return results
 
 def compare_classifications(results):
     """
     Compare the classifications from different engines.
-    
+
     Parameters:
     -----------
     results : dict
         Dictionary containing the results of each engine
-    
+
     Returns:
     --------
     comparisons : dict
@@ -100,41 +100,41 @@ def compare_classifications(results):
     """
     engines = list(results.keys())
     n_engines = len(engines)
-    
+
     comparisons = {}
-    
+
     # Compare each pair of engines
     for i in range(n_engines):
         for j in range(i+1, n_engines):
             engine1 = engines[i]
             engine2 = engines[j]
-            
+
             # Get the classifications
             classifications1 = results[engine1]['etc']['ic_classification']['ICLabel']['classifications']
             classifications2 = results[engine2]['etc']['ic_classification']['ICLabel']['classifications']
-            
+
             # Calculate correlation
             correlations = []
             for comp_idx in range(classifications1.shape[0]):
                 corr, _ = pearsonr(classifications1[comp_idx], classifications2[comp_idx])
                 correlations.append(corr)
-            
+
             # Calculate mean absolute difference
             mean_abs_diff = np.mean(np.abs(classifications1 - classifications2))
-            
+
             # Store the comparison metrics
             comparisons[(engine1, engine2)] = {
                 'correlations': correlations,
                 'mean_correlation': np.mean(correlations),
                 'mean_abs_diff': mean_abs_diff
             }
-    
+
     return comparisons
 
 def plot_comparisons(results, comparisons, output_dir=None, algorithm='default'):
     """
     Plot the comparisons between different engines.
-    
+
     Parameters:
     -----------
     results : dict
@@ -148,29 +148,29 @@ def plot_comparisons(results, comparisons, output_dir=None, algorithm='default')
     """
     engines = list(results.keys())
     n_engines = len(engines)
-    
+
     # Plot the classifications for each engine
     plt.figure(figsize=(15, 5 * n_engines))
-    
+
     for i, engine in enumerate(engines):
         plt.subplot(n_engines, 1, i+1)
         classifications = results[engine]['etc']['ic_classification']['ICLabel']['classifications']
         classes = results[engine]['etc']['ic_classification']['ICLabel']['classes']
-        
+
         plt.imshow(classifications, aspect='auto', cmap='viridis')
         plt.colorbar(label='Probability')
         plt.yticks(range(len(classes)), classes)
         plt.title(f"ICLabel Classifications - Engine: {engine}, Algorithm: {algorithm}")
         plt.xlabel('Component')
-    
+
     plt.tight_layout()
-    
+
     if output_dir is not None:
         plt.savefig(os.path.join(output_dir, f'iclabel_classifications_{algorithm}.png'))
-    
+
     # Plot the correlations between engines
     plt.figure(figsize=(15, 5 * len(comparisons)))
-    
+
     for i, ((engine1, engine2), metrics) in enumerate(comparisons.items()):
         plt.subplot(len(comparisons), 1, i+1)
         plt.bar(range(len(metrics['correlations'])), metrics['correlations'])
@@ -179,9 +179,9 @@ def plot_comparisons(results, comparisons, output_dir=None, algorithm='default')
         plt.xlabel('Component')
         plt.ylabel('Correlation')
         plt.legend()
-    
+
     plt.tight_layout()
-    
+
     if output_dir is not None:
         plt.savefig(os.path.join(output_dir, f'iclabel_correlations_{algorithm}.png'))
 
@@ -194,24 +194,24 @@ def main():
     parser.add_argument('--output_dir', help='Directory to save output files')
     parser.add_argument('--algorithm', default='default', help='Algorithm to use for classification')
     args = parser.parse_args()
-    
+
     # Create output directory if it doesn't exist
     if args.output_dir is not None:
         os.makedirs(args.output_dir, exist_ok=True)
-    
+
     # Compare ICLabel engines
     results = compare_iclabel_engines(args.input_file, args.output_dir, algorithm=args.algorithm)
-    
+
     # Compare classifications
     if len(results) > 1:
         comparisons = compare_classifications(results)
-        
+
         # Plot comparisons
         plot_comparisons(results, comparisons, args.output_dir, args.algorithm)
-        
+
         # Wait for user input before closing the plot
         plt.show()
-        
+
         # Print summary
         print("\nSummary of comparisons:")
         for (engine1, engine2), metrics in comparisons.items():
@@ -222,4 +222,4 @@ def main():
         print("Not enough results to compare.")
 
 if __name__ == '__main__':
-    main() 
+    main()

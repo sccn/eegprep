@@ -29,7 +29,7 @@ for i=1:m
         g = (d.^2) .* (log(d)-1);   % Green's function.
         % Value of Green's function at zero
         g(d==0) = 0;
-        vq(i,j) = g * weights;        
+        vq(i,j) = g * weights;
     end
 end
 

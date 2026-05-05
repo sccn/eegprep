@@ -12,17 +12,17 @@ TestPyPI Package Naming:
 
 Authentication:
     You can provide PyPI credentials in three ways:
-    
+
     1. ~/.pypirc file (recommended for interactive use):
         [testpypi]
         repository = https://test.pypi.org/legacy/
         username = __token__
         password = pypi-...your-token...
-        
+
         [pypi]
         username = __token__
         password = pypi-...your-token...
-    
+
     2. Environment variables (recommended for CI/CD):
         TESTPYPI_TOKEN or TWINE_PASSWORD_TESTPYPI - TestPyPI API token
         PYPI_TOKEN or TWINE_PASSWORD - PyPI API token
@@ -111,7 +111,7 @@ def get_version():
     except Exception as e:
         print_error(f"Failed to read version from pyproject.toml: {e}")
         sys.exit(1)
-    
+
     print_error("Could not find version in pyproject.toml")
     sys.exit(1)
 
@@ -127,7 +127,7 @@ def get_package_name():
     except Exception as e:
         print_error(f"Failed to read package name from pyproject.toml: {e}")
         sys.exit(1)
-    
+
     print_error("Could not find package name in pyproject.toml")
     sys.exit(1)
 
@@ -137,7 +137,7 @@ def set_package_name(new_name):
     try:
         with open(PYPROJECT_PATH, 'r') as f:
             content = f.read()
-        
+
         # Replace the name field
         modified_content = re.sub(
             r'^name\s*=\s*["\']([^"\']+)["\']',
@@ -146,10 +146,10 @@ def set_package_name(new_name):
             count=1,
             flags=re.MULTILINE
         )
-        
+
         with open(PYPROJECT_PATH, 'w') as f:
             f.write(modified_content)
-        
+
         print_success(f"Temporarily set package name to: {new_name}")
         return True
     except Exception as e:
@@ -167,7 +167,7 @@ def get_install_command():
 def check_prerequisites():
     """Check that required tools are available."""
     print_header("Pre-flight Checks")
-    
+
     # Show environment info
     print_info(f"Python executable: {sys.executable}")
     if IS_UV_PROJECT:
@@ -178,7 +178,7 @@ def check_prerequisites():
             print_warning("uv is not available in PATH but project uses uv")
 
     install_cmd = get_install_command()
-    
+
     # Check if running on Windows
     if platform.system() == "Windows":
         print_warning("Running on Windows. This script is primarily tested on Linux/Mac.")
@@ -186,21 +186,21 @@ def check_prerequisites():
         if response != 'y':
             print("Exiting.")
             sys.exit(0)
-    
+
     # Check for build package
     if find_spec("build") is None:
         print_error("Package 'build' is not installed.")
         print(f"Install with: {Fore.CYAN}{install_cmd} build{Style.RESET_ALL}")
         sys.exit(1)
     print_success("Package 'build' is installed")
-    
+
     # Check for twine
     if find_spec("twine") is None:
         print_error("Package 'twine' is not installed.")
         print(f"Install with: {Fore.CYAN}{install_cmd} twine{Style.RESET_ALL}")
         sys.exit(1)
     print_success("Package 'twine' is installed")
-    
+
     # Remind about tests
     print_info("Remember to run tests before releasing!")
     print_info("  python -m unittest discover -s tests")
@@ -222,13 +222,13 @@ def update_version_in_file(file_path, old_version, new_version):
     try:
         with open(file_path, 'r') as f:
             content = f.read()
-        
+
         # Replace version
         updated_content = content.replace(old_version, new_version)
-        
+
         with open(file_path, 'w') as f:
             f.write(updated_content)
-        
+
         return True
     except Exception as e:
         print_error(f"Failed to update version in {file_path}: {e}")
@@ -238,7 +238,7 @@ def update_version_in_file(file_path, old_version, new_version):
 def update_version_files(old_version, new_version):
     """Update version in pyproject.toml and main file."""
     print_step(3, f"Updating version from {old_version} to {new_version}")
-    
+
     # Update pyproject.toml
     print_info(f"Updating pyproject.toml...")
     cmd = f"sed -i '' 's/version = \"{old_version}\"/version = \"{new_version}\"/' {PYPROJECT_PATH}"
@@ -255,7 +255,7 @@ def update_version_files(old_version, new_version):
         if not update_version_in_file(PYPROJECT_PATH, f'version = "{old_version}"', f'version = "{new_version}"'):
             return False
         print_success(f"Updated pyproject.toml")
-    
+
     # Update main file
     print_info(f"Updating main file...")
     cmd = f"sed -i '' 's/eegprep:{old_version}/eegprep:{new_version}/g' {MAIN_PATH}"
@@ -272,14 +272,14 @@ def update_version_files(old_version, new_version):
         if not update_version_in_file(MAIN_PATH, f'eegprep:{old_version}', f'eegprep:{new_version}'):
             return False
         print_success(f"Updated main file")
-    
+
     return True
 
 
 def commit_version_changes(version):
     """Commit version changes."""
     print_step(4, f"Committing version changes")
-    
+
     cmd = f"git add {PYPROJECT_PATH} {MAIN_PATH}"
     print(f"Running: {cmd}")
     try:
@@ -292,7 +292,7 @@ def commit_version_changes(version):
     except subprocess.CalledProcessError as e:
         print_error(f"Failed to stage files: {e}")
         return False
-    
+
     commit_msg = f"Release version {version}"
     cmd = f'git commit -m "{commit_msg}"'
     print(f"Running: {cmd}")
@@ -320,7 +320,7 @@ def choose_release_type():
     print()
     print_info(f"TestPyPI will use package name '{TESTPYPI_PACKAGE_NAME}' to avoid conflicts")
     print_info("Production PyPI will use the regular package name 'eegprep'")
-    
+
     while True:
         choice = input("\nYour choice [a/b/c/q]: ").strip().lower()
         if choice in ['a', 'b', 'c', 'q']:
@@ -338,14 +338,14 @@ def clean_dist():
 
 def build_package(package_name=None):
     """Build the package.
-    
+
     Args:
-        package_name: Optional package name to use. If provided, temporarily 
+        package_name: Optional package name to use. If provided, temporarily
                       modifies pyproject.toml before building.
     """
     print_step(5, "Building Package")
     clean_dist()
-    
+
     original_name = None
     if package_name:
         original_name = get_package_name()
@@ -353,7 +353,7 @@ def build_package(package_name=None):
             print_info(f"Building with package name: {package_name}")
             if not set_package_name(package_name):
                 return False
-    
+
     cmd = f"{sys.executable} -m build"
     print(f"Running: {cmd}")
     try:
@@ -363,7 +363,7 @@ def build_package(package_name=None):
             check=True
         )
         print_success("Package built successfully")
-        
+
         # Show what was built
         if DIST_DIR.exists():
             files = list(DIST_DIR.glob("*"))
@@ -371,33 +371,33 @@ def build_package(package_name=None):
                 print_info("Built files:")
                 for f in files:
                     print(f"  - {f.name}")
-        
+
         # Restore original name if it was changed
         if original_name and original_name != package_name:
             set_package_name(original_name)
             print_info(f"Restored package name to: {original_name}")
-        
+
         return True
     except subprocess.CalledProcessError as e:
         print_error(f"Build failed: {e}")
-        
+
         # Restore original name on error too
         if original_name and original_name != package_name:
             set_package_name(original_name)
-        
+
         return False
 
 
 def upload_to_testpypi():
     """Upload to TestPyPI using the test package name."""
     print_header("Uploading to TestPyPI")
-    
+
     print_info(f"Using test package name: {TESTPYPI_PACKAGE_NAME}")
     print_info("This avoids conflicts with existing packages on TestPyPI")
-    
+
     # Build command with optional token
     cmd = [sys.executable, "-m", "twine", "upload", "--repository", "testpypi", "dist/*"]
-    
+
     # Check if token is provided via environment variable
     token = os.environ.get("TWINE_PASSWORD_TESTPYPI") or os.environ.get("TESTPYPI_TOKEN")
     if token:
@@ -409,7 +409,7 @@ def upload_to_testpypi():
     else:
         print_info("Using credentials from ~/.pypirc or will prompt")
         env = None
-    
+
     try:
         subprocess.run(
             cmd,
@@ -428,11 +428,11 @@ def upload_to_testpypi():
 def upload_to_pypi():
     """Upload to PyPI."""
     print_step(6, "Uploading to PyPI")
-    
+
     # Build command with optional token
     cmd = f"{sys.executable} -m twine upload dist/*"
     print(f"Running: {cmd}")
-    
+
     # Check if token is provided via environment variable
     token = os.environ.get("TWINE_PASSWORD") or os.environ.get("PYPI_TOKEN")
     if token:
@@ -444,7 +444,7 @@ def upload_to_pypi():
     else:
         print_info("Using credentials from ~/.pypirc or will prompt")
         env = None
-    
+
     try:
         subprocess.run(
             [sys.executable, "-m", "twine", "upload", "dist/*"],
@@ -463,7 +463,7 @@ def upload_to_pypi():
 def push_git_changes():
     """Push all committed changes to remote."""
     print_step(7, "Pushing git changes")
-    
+
     cmd = "git push"
     print(f"Running: {cmd}")
     try:
@@ -484,9 +484,9 @@ def push_git_changes():
 def create_and_push_tag(version):
     """Create and push git tag for production release."""
     print_step(8, "Creating and pushing git tag")
-    
+
     tag_name = f"{version}"
-    
+
     # Create tag
     cmd = f'git tag -a {tag_name} -m "Release version {version}"'
     print(f"Running: {cmd}")
@@ -500,7 +500,7 @@ def create_and_push_tag(version):
     except subprocess.CalledProcessError as e:
         print_error(f"Failed to create tag: {e}")
         return False
-    
+
     # Push tag
     cmd = f"git push origin {tag_name}"
     print(f"Running: {cmd}")
@@ -522,7 +522,7 @@ def create_and_push_tag(version):
 def build_and_push_docker(version):
     """Build and push Docker image."""
     print_step(9, f"Building and pushing Docker image")
-    
+
     # Build Docker image
     cmd = f"docker build -t eegprep:{version} -f DOCKERFILE ."
     print(f"Running: {cmd}")
@@ -536,7 +536,7 @@ def build_and_push_docker(version):
     except subprocess.CalledProcessError as e:
         print_error(f"Docker build failed: {e}")
         return False
-    
+
     # Tag Docker image
     cmd = f"docker tag eegprep:{version} arnodelorme/eegprep:{version}"
     print(f"Running: {cmd}")
@@ -550,7 +550,7 @@ def build_and_push_docker(version):
     except subprocess.CalledProcessError as e:
         print_error(f"Docker tag failed: {e}")
         return False
-    
+
     # Push Docker image
     cmd = f"docker push arnodelorme/eegprep:{version}"
     print(f"Running: {cmd}")
@@ -571,7 +571,7 @@ def build_and_push_docker(version):
 def print_test_instructions(version, release_type):
     """Print instructions for testing the release."""
     print_header("Testing the Release")
-    
+
     if release_type in ['test', 'both']:
         print(f"{Fore.MAGENTA}To test the TestPyPI release:{Style.RESET_ALL}")
         print(f"{Fore.YELLOW}  NOTE: The test package is named '{TESTPYPI_PACKAGE_NAME}' on TestPyPI{Style.RESET_ALL}")
@@ -580,7 +580,7 @@ def print_test_instructions(version, release_type):
         print(f"{Fore.CYAN}  After installing, you can still import it as 'eegprep':{Style.RESET_ALL}")
         print(f"  python -c 'import eegprep; print(eegprep.__version__)'")
         print()
-    
+
     if release_type in ['prod', 'both']:
         print(f"{Fore.MAGENTA}To test the PyPI release:{Style.RESET_ALL}")
         print(f"  pip install eegprep=={version}")
@@ -597,7 +597,7 @@ def main():
     print("║                  EEGPrep Release Script                            ║")
     print("╚════════════════════════════════════════════════════════════════════╝")
     print(Style.RESET_ALL)
-    
+
     # Step 1: Check for uncommitted changes
     print_step(1, "Checking for uncommitted changes")
     cmd = "git status | grep modified"
@@ -610,14 +610,14 @@ def main():
             text=True,
             check=True
         )
-        
+
         if result.stdout.strip():
             # Filter out src/eegprep/eeglab changes
             modified_lines = []
             for line in result.stdout.strip().split('\n'):
                 if 'src/eegprep/eeglab' not in line:
                     modified_lines.append(line)
-            
+
             if modified_lines:
                 print_warning("Found uncommitted changes (excluding src/eegprep/eeglab):")
                 for line in modified_lines:
@@ -635,42 +635,42 @@ def main():
         response = input("Continue anyway? [y/N]: ").strip().lower()
         if response != 'y':
             sys.exit(0)
-    
+
     # Run other checks
     check_prerequisites()
-    
+
     # Step 2: Get current version and ask for new version
     current_version = get_version()
     new_version = get_new_version(current_version)
-    
+
     # Step 3: Update version files
     if not update_version_files(current_version, new_version):
         sys.exit(1)
-    
+
     # Step 4: Commit version changes
     if not commit_version_changes(new_version):
         sys.exit(1)
-    
+
     # Step 5-9: Build, upload to PyPI, push changes, tag, and Docker
     if not build_package():
         sys.exit(1)
-    
+
     if not upload_to_pypi():
         sys.exit(1)
-    
+
     if not push_git_changes():
         sys.exit(1)
-    
+
     if not create_and_push_tag(new_version):
         sys.exit(1)
-    
+
     if not build_and_push_docker(new_version):
         print_warning("Docker build/push failed, but continuing...")
-    
+
     # Print summary
     print_header("Release Summary")
     print_success(f"Release {new_version} completed successfully!")
-    
+
     # Reminder about brainlife online
     print_step(10, "Next Steps")
     print_warning("REMINDER: Update the default app option on brainlife online")

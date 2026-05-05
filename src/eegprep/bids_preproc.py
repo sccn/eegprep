@@ -1202,7 +1202,7 @@ def bids_preproc(
         if orig_doi:
             source_entry["DOI"] = orig_doi
         desc["SourceDatasets"] = [source_entry] if source_entry else []
-        # note that the actual epoched data *can* be absent if there were no matching 
+        # note that the actual epoched data *can* be absent if there were no matching
         # event markers in any study file, which we can't determine at this point
         desc['IsEpoched'] = EpochEvents is not None
         fpath_dataset_desc = gen_derived_fpath(dataset_desc_path, outputdir=OutputDir, keyword='',

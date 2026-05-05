@@ -154,10 +154,10 @@ When adding new features, include tests:
         """Test description of what this tests."""
         # Setup
         eeg = EEGobj()
-        
+
         # Execute
         result = eeg.new_feature()
-        
+
         # Assert
         assert result is not None
         assert len(result) > 0
@@ -174,10 +174,10 @@ Use Google-style docstrings:
 
     def preprocess_eeg(eeg, filter_type='bandpass', freq_range=(1, 50)):
         """Preprocess EEG data with filtering and artifact removal.
-        
+
         This function applies a series of preprocessing steps to clean
         EEG data for further analysis.
-        
+
         Parameters
         ----------
         eeg : EEGobj
@@ -187,29 +187,29 @@ Use Google-style docstrings:
             Default is 'bandpass'.
         freq_range : tuple, optional
             Frequency range for filtering in Hz. Default is (1, 50).
-        
+
         Returns
         -------
         EEGobj
             The preprocessed EEG object.
-        
+
         Raises
         ------
         ValueError
             If filter_type is not recognized.
         TypeError
             If eeg is not an EEGobj instance.
-        
+
         Examples
         --------
         >>> import eegprep
         >>> eeg = eegprep.EEGobj.load('data.set')
         >>> eeg_clean = eegprep.preprocess_eeg(eeg, freq_range=(1, 50))
-        
+
         Notes
         -----
         This function modifies the EEG object in place and returns it.
-        
+
         See Also
         --------
         clean_artifacts : Remove artifacts from EEG data
@@ -227,7 +227,7 @@ Include practical examples in docstrings:
 
     def load_bids_dataset(bids_root, subject_id):
         """Load a BIDS-formatted EEG dataset.
-        
+
         Examples
         --------
         >>> import eegprep
