@@ -41,6 +41,20 @@ def flatten_dict_sub(d, parent_key='', sep='_'):
             items.append((new_key, v))
     return dict(items)
 
+
+def _is_numeric(val):
+    """Check if a value is numeric (Python or numpy scalar)."""
+    if isinstance(val, (int, float, np.integer, np.floating)):
+        return True
+    if isinstance(val, str):
+        try:
+            float(val)
+            return True
+        except (ValueError, TypeError):
+            return False
+    return False
+
+
 def flatten_dict(data):
     """Flatten dictionary data.
 
@@ -58,22 +72,40 @@ def flatten_dict(data):
     flat_data = [flatten_dict_sub(item) for item in data]
     fields = list(flat_data[0].keys())
     dtypes = []
+    has_object = False
 
-    # Determine data types
+    # Determine data types — EEGLAB expects numeric scalar fields as double
+    # Check ALL values per field (not just the first) to handle mixed types
+    # e.g., event type can be numeric (2) for regular events and 'boundary' for boundary events
     for field in fields:
-        sample_value = flat_data[0][field]
-        if isinstance(sample_value, int):
-            dtypes.append((field, np.int32))
-        elif isinstance(sample_value, float):
+        all_values = [item[field] for item in flat_data]
+        has_seq = any(isinstance(v, (list, np.ndarray)) for v in all_values)
+        if has_seq:
+            dtypes.append((field, 'O'))
+            has_object = True
+        elif all(_is_numeric(v) for v in all_values):
             dtypes.append((field, np.float64))
         else:
-            dtypes.append((field, 'U{}'.format(max(len(str(item[field])) for item in flat_data))))
+            dtypes.append((field, 'U{}'.format(max(len(str(v)) for v in all_values))))
 
-    # Convert the flattened data to a list of tuples
-    data_tuples = [tuple(item[field] for field in fields) for item in flat_data]
+    # If any field requires object dtype, use object for all fields
+    # (scipy.io.savemat handles mixed typed/object recarrays poorly)
+    if has_object:
+        dtype = np.dtype([(f, 'O') for f in fields])
+        data_tuples = [tuple(item[field] for field in fields) for item in flat_data]
+    else:
+        dtype = np.dtype(dtypes)
+        data_tuples = []
+        for item in flat_data:
+            row = []
+            for field, (_, dt) in zip(fields, dtypes):
+                val = item[field]
+                if dt == np.float64:
+                    row.append(float(val))
+                else:
+                    row.append(val)
+            data_tuples.append(tuple(row))
 
-    # Create the rec.array
-    dtype = np.dtype([(key, 'O') for key in data[0].keys()])
     rec_array = np.array(data_tuples, dtype=dtype).view(np.recarray)
     return rec_array
 
@@ -235,10 +267,11 @@ def pop_saveset(EEG, file_name):
         for i in range(len(eeglab_dict['chanlocs'])):
             eeglab_dict['chanlocs'][i]['urchan'] = eeglab_dict['chanlocs'][i]['urchan'] + 1
 
-    # check if EEG['chanlocs'][i]['urvent'] is 0-based
-    if len(eeglab_dict['event']) > 0 and 'urvent' in eeglab_dict['event'][0]:
+    # check if EEG['event'][i]['urevent'] is 0-based
+    if len(eeglab_dict['event']) > 0 and 'urevent' in eeglab_dict['event'][0]:
         for i in range(len(eeglab_dict['event'])):
-            eeglab_dict['event'][i]['urvent'] = eeglab_dict['event'][i]['urvent'] + 1
+            eeglab_dict['event'][i]['urevent'] = eeglab_dict['event'][i]['urevent'] + 1
+
 
     # Create the list of dictionaries with a string field
     if 'chanlocs' in EEG and len(EEG['chanlocs']) > 0:
