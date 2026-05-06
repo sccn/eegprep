@@ -91,11 +91,12 @@ Use `gh pr create` with these flags:
 ```bash
 gh pr create \
   --title "<title>" \
-  --body "<plain text body>" \
-  --label agent-generated
+  --body "<plain text body>"
 ```
 
-- Add the `agent-generated` label.
+- Add the `agent-generated` label only when the PR is created by a repository
+  automation workflow. Do not add it when a human asks an agent to create or
+  update the PR from an interactive session.
 - Never credit yourself in commits or PR descriptions.
 - Include `Fixes #NNNN` when addressing a pre-existing issue.
 

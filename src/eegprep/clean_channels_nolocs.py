@@ -56,7 +56,7 @@ def clean_channels_nolocs(
     removed_channels : boolean array indicating which channels were removed
     """
     Fs = EEG['srate']
-    
+
     # Flag channels
     if 0 < max_broken_time < 1:
         max_broken_time = EEG['data'].shape[1] * max_broken_time
@@ -74,7 +74,7 @@ def clean_channels_nolocs(
     # Optionally ignore both 50 and 60 Hz spectral components
     if linenoise_aware:
         Bwnd = design_kaiser(2 * 45 / Fs, 2 * 50 / Fs, 60, True)
-        
+
         if Fs <= 110:
             raise ValueError('Sampling rate must be above 110 Hz')
         elif Fs <= 130:
@@ -91,7 +91,7 @@ def clean_channels_nolocs(
                 [1, 1, 0, 1, 0, 1, 1],
                 w=Bwnd
             )
-        
+
         X = np.zeros((S, C))
         for c in range(C):
             X[:, c] = filtfilt_fast(B, 1.0, EEG['data'][c, :])
@@ -124,7 +124,7 @@ def clean_channels_nolocs(
             else:
                 logger.error('Could not select channels using EEGLAB\'s pop_select(); details: %s', str(e))
                 logger.debug('Exception traceback:', exc_info=True)
-            
+
             logger.info('Falling back to a basic substitute and dropping signal meta-data.')
             # Manual channel removal
             if len(EEG['chanlocs']) == EEG['data'].shape[0]:
@@ -133,12 +133,12 @@ def clean_channels_nolocs(
             EEG['data'] = np.asarray(EEG['data'], dtype=np.float32)
             EEG['data'] = EEG['data'][~removed_channels, :]
             EEG['nbchan'] = EEG['data'].shape[0]
-            
+
             # Clear other fields
             for field in ['icawinv', 'icasphere', 'icaweights', 'icaact', 'stats', 'specdata', 'specicaact']:
                 if field in EEG:
                     EEG[field] = np.array([])
-        
+
         # Update clean_channel_mask
         if 'etc' in EEG and 'clean_channel_mask' in EEG['etc'] and sum(EEG['etc']['clean_channel_mask']) == len(removed_channels):
             mask = EEG['etc']['clean_channel_mask']

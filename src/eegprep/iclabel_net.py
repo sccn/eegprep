@@ -11,7 +11,7 @@ import numpy as np
 
 class Reshape(torch.nn.Module):
     """Custom reshape layer for PyTorch neural networks."""
-    
+
     def __init__(self, shape):
         """Initialize reshape layer.
 
@@ -40,7 +40,7 @@ class Reshape(torch.nn.Module):
 
 class Concatenate(torch.nn.Module):
     """Custom concatenation layer for PyTorch neural networks."""
-    
+
     def __init__(self, dim):
         """Initialize concatenation layer.
 
@@ -51,7 +51,7 @@ class Concatenate(torch.nn.Module):
         """
         super().__init__()
         self.dim = dim
-    
+
     def forward(self, x: list):
         """Forward pass for concatenation.
 
@@ -70,7 +70,7 @@ class Concatenate(torch.nn.Module):
 
 class ICLabelNet(torch.nn.Module):
     """ICLabel neural network for EEG component classification."""
-    
+
     def __init__(self, mat_path):
         """Initialize ICLabel network from MATLAB weights.
 
@@ -257,9 +257,9 @@ class ICLabelNet(torch.nn.Module):
         # subtract max value to avoid overflow
         x = x - torch.max(x, dim=1, keepdim=True).values
         x = self.discriminator_softmax(x)
-        
+
         return x
-    
+
 # if __name__ == "__main__":
 #     model = ICLabelNet('netICL.mat')
 #     image_mat = scipy.io.loadmat('net_vars.mat')['in_image']
@@ -274,6 +274,6 @@ class ICLabelNet(torch.nn.Module):
 #     print('autocorr shape', autocorr.shape)
 #     output = model(image, psdmed, autocorr)
 #     print(output.shape)
-    
+
 #     # save the output to a mat file
 #     scipy.io.savemat('output4.mat', {'output': output.detach().numpy()})

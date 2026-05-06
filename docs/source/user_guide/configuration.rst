@@ -240,25 +240,25 @@ Create custom preprocessing functions:
 
     def custom_preprocessing_pipeline(eeg, options=None):
         """Custom preprocessing pipeline"""
-        
+
         # Step 1: Remove flatlines
         eeg = clean_flatlines(eeg, flatline_criterion=5)
-        
+
         # Step 2: Remove noisy channels
         eeg = clean_channels(eeg)
-        
+
         # Step 3: Resample
         eeg = pop_resample(eeg, 250)
-        
+
         # Step 4: Filter
         eeg = pop_eegfiltnew(eeg, locutoff=1, hicutoff=100)
-        
+
         # Step 5: ICA
         eeg = eeg_picard(eeg)
-        
+
         # Step 6: Component classification
         eeg = iclabel(eeg)
-        
+
         return eeg
 
     # Use custom pipeline

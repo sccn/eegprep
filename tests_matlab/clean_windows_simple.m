@@ -4,7 +4,7 @@ function [signal,sample_mask] = clean_windows(signal,max_bad_channels,zthreshold
 %
 % This function cuts segments from the data which contain high-power artifacts. Specifically,
 % only windows are retained which have less than a certain fraction of "bad" channels, where a channel
-% is bad in a window if its power is above or below a given upper/lower threshold (in standard 
+% is bad in a window if its power is above or below a given upper/lower threshold (in standard
 % deviations from a robust estimate of the EEG power distribution in the channel).
 %
 % In:
@@ -16,20 +16,20 @@ function [signal,sample_mask] = clean_windows(signal,max_bad_channels,zthreshold
 %                    output) to 0.3 (very lax cleaning of only coarse artifacts). Default: 0.2.
 %
 %   PowerTolerances: The minimum and maximum standard deviations within which the RMS of a channel
-%                    must lie (relative to a robust estimate of the clean EEG RMS distribution in 
+%                    must lie (relative to a robust estimate of the clean EEG RMS distribution in
 %                    the channel) for it to be considered "not bad". Default: [-3.5 5].
 %
 %   The following are detail parameters that usually do not have to be tuned. If you can't get
 %   the function to do what you want, you might consider adapting these to your data.
 %
-%   WindowLength    : Window length that is used to check the data for artifact content. This is 
-%                     ideally as long as the expected time scale of the artifacts but not shorter 
+%   WindowLength    : Window length that is used to check the data for artifact content. This is
+%                     ideally as long as the expected time scale of the artifacts but not shorter
 %                     than half a cycle of the high-pass filter that was used. Default: 1.
 %
 %   WindowOverlap : Window overlap fraction. The fraction of two successive windows that overlaps.
 %                   Higher overlap ensures that fewer artifact portions are going to be missed (but
 %                   is slower). (default: 0.66)
-% 
+%
 %   MaxDropoutFraction : Maximum fraction that can have dropouts. This is the maximum fraction of
 %                        time windows that may have arbitrarily low amplitude (e.g., due to the
 %                        sensors being unplugged). (default: 0.1)
@@ -37,7 +37,7 @@ function [signal,sample_mask] = clean_windows(signal,max_bad_channels,zthreshold
 %   MinCleanFraction : Minimum fraction that needs to be clean. This is the minimum fraction of time
 %                      windows that need to contain essentially uncontaminated EEG. (default: 0.25)
 %
-%   
+%
 %   The following are expert-level parameters that you should not tune unless you fully understand
 %   how the method works.
 %
@@ -119,7 +119,7 @@ removed_windows = find(remove_mask);
 % find indices of samples to remove
 removed_samples = repmat(offsets(removed_windows)',1,length(wnd))+repmat(wnd,length(removed_windows),1);
 % mask them out
-sample_mask = true(1,S); 
+sample_mask = true(1,S);
 sample_mask(removed_samples(:)) = false;
 fprintf('Keeping %.1f%% (%.0f seconds) of the data.\n',100*(mean(sample_mask)),nnz(sample_mask)/signal.srate);
 % determine intervals to retain

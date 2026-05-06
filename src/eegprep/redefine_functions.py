@@ -26,13 +26,13 @@ from eegprep.eeg_mne2eeg_epochs import eeg_mne2eeg_epochs
 from eegprep.eeg_options import EEG_OPTIONS
 from eegprep.eeg_picard import eeg_picard
 from eegprep.eeg_point2lat import eeg_point2lat
-from eegprep.pop_epoch import pop_epoch
-from eegprep.pop_loadset import pop_loadset
-from eegprep.pop_reref import pop_reref
-from eegprep.pop_resample import pop_resample
-from eegprep.pop_rmbase import pop_rmbase
-from eegprep.pop_saveset import pop_saveset
-from eegprep.pop_select import pop_select
+from eegprep.popfunc.pop_epoch import pop_epoch
+from eegprep.popfunc.pop_loadset import pop_loadset
+from eegprep.popfunc.pop_reref import pop_reref
+from eegprep.popfunc.pop_resample import pop_resample
+from eegprep.popfunc.pop_rmbase import pop_rmbase
+from eegprep.popfunc.pop_saveset import pop_saveset
+from eegprep.popfunc.pop_select import pop_select
 
 def checkset(*args, **kwargs):
     """Wrap eeg_checkset."""

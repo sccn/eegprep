@@ -21,13 +21,13 @@ class TestPopResample(unittest.TestCase):
         # Apply resampling with different engines
         EEG_python = pop_resample(self.EEG.copy(), self.new_freq, engine='poly')
         pop_saveset(EEG_python, os.path.join(local_url, 'eeglab_data_with_ica_tmp_python.set')) # see MATLAB code to compare the results at the end of the file
-        
+
         EEG_matlab = pop_resample(self.EEG.copy(), self.new_freq, engine='matlab')
         pop_saveset(EEG_matlab, os.path.join(local_url, 'eeglab_data_with_ica_tmp_matlab.set')) # see MATLAB code to compare the results at the end of the file
-        
+
         # EEG_octave = pop_resample(self.EEG.copy(), self.new_freq, engine='octave')
         # pop_saveset(EEG_octave, os.path.join(local_url, 'eeglab_data_with_ica_tmp_octave.set')) # see MATLAB code to compare the results at the end of the file
-        
+
         # Check sampling rates
         self.assertEqual(EEG_python['srate'], self.new_freq, 'Python resampling failed')
         print("Sampling rate ok")
@@ -37,7 +37,7 @@ class TestPopResample(unittest.TestCase):
         # print("Sampling rate ok")
 
         # Compare data shapes
-        self.assertEqual(EEG_python['data'].shape[1], EEG_matlab['data'].shape[1], 
+        self.assertEqual(EEG_python['data'].shape[1], EEG_matlab['data'].shape[1],
                         'Data shapes differ between Python and MATLAB')
         print("Data shape ok")
         # self.assertEqual(EEG_python['data'].shape[1], EEG_octave['data'].shape[1],
@@ -51,13 +51,13 @@ class TestPopResample(unittest.TestCase):
         #                          rtol=1e-5, atol=1e-8,
         #                          err_msg='Python and MATLAB results differ beyond tolerance')
         print("Data comparison ok")
-        
+
         # Compare ICA activations if present
         # if 'icaact' in self.EEG:
-        #     np.testing.assert_allclose(EEG_python['icaact'], EEG_matlab['icaact'], 
+        #     np.testing.assert_allclose(EEG_python['icaact'], EEG_matlab['icaact'],
         #                              rtol=1e-5, atol=1e-8,
         #                              err_msg='ICA activations differ between Python and MATLAB')
-        #     np.testing.assert_allclose(EEG_python['icaact'], EEG_octave['icaact'], 
+        #     np.testing.assert_allclose(EEG_python['icaact'], EEG_octave['icaact'],
         #                              rtol=1e-5, atol=1e-8,
         #                              err_msg='ICA activations differ between Python and Octave')
 
@@ -65,10 +65,10 @@ class TestPopResample(unittest.TestCase):
         pass
 
 if __name__ == '__main__':
-    unittest.main() 
-    
+    unittest.main()
+
 # MATLAB code to compare the results
-# EEG_matlab = pop_loadset('eeglab_data_with_ica_tmp_matlab.set'); 
+# EEG_matlab = pop_loadset('eeglab_data_with_ica_tmp_matlab.set');
 # EEG_octave = pop_loadset('eeglab_data_with_ica_tmp_octave.set');
 # EEG_python = pop_loadset('eeglab_data_with_ica_tmp_python.set');
 # eegplot(EEG_matlab.data, 'srate', EEG_matlab.srate, 'data2', EEG_python.data);

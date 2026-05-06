@@ -198,7 +198,7 @@ PyTorch Installation Issues
 
 **Problem**: PyTorch installation fails or GPU not detected
 
-**Solution**: 
+**Solution**:
 
 1. Check your CUDA version:
 

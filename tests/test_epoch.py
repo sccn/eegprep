@@ -52,7 +52,7 @@ class TestEpochParity(unittest.TestCase):
 
         # MATLAB indexes are 1-based; convert to 0-based for comparison
         ml_indexes0 = np.asarray(ml_indexes).astype(int).flatten() - 1  # flatten to 1D
-        
+
         self.assertTrue(np.allclose(py_epochdat, ml_epochdat, atol=1e-12))
         self.assertTrue(np.allclose(py_newtime, ml_newtime, atol=1e-12))
         self.assertTrue(np.array_equal(py_indexes, ml_indexes0))
@@ -126,7 +126,7 @@ class TestEpochParity(unittest.TestCase):
         # Compare rereferenced indices and latencies
         # Convert MATLAB's 1-based event indices to 0-based
         ml_alleventout0 = _ml_list_of_arrays_to_0_based(ml_alleventout)
-        
+
         # Handle MATLAB's nested structure for alllatencyout (similar to alleventout)
         ml_alllatencyout_flat = []
         if isinstance(ml_alllatencyout, np.ndarray) and ml_alllatencyout.dtype == object:
@@ -185,18 +185,18 @@ class TestEpochFunctional(unittest.TestCase):
         # Expect one accepted epoch
         self.assertTrue(np.array_equal(idx, np.array([0])))
         # The extracted data should match the correct slice from linearized data
-        # With MATLAB-compatible indexing: event at 1.2s (sample 120) with window [-0.2, 0.3] 
+        # With MATLAB-compatible indexing: event at 1.2s (sample 120) with window [-0.2, 0.3]
         # becomes MATLAB indices [101, 149] (1-based), which in Python becomes [99:149] (0-based)
         pos0 = int(np.floor(events[0] * srate))  # 120 (0-based)
         reallim0 = int(np.round(lim[0] * srate))  # -20
         reallim1 = int(np.round(lim[1] * srate - 1))  # 29
         posinit = pos0 + reallim0  # 100 (0-based)
         posend = pos0 + reallim1   # 149 (0-based)
-        
+
         # MATLAB slicing: posinit:posend (1-based) becomes [posinit-1:posend] (0-based)
         start_global = posinit - 1  # 99 (Python 0-based)
         end_global = posend         # 149 (Python 0-based exclusive)
-        
+
         # Extract the expected slice from linearized data (Fortran order)
         data_linearized = data.reshape(1, -1, order='F')
         expected = data_linearized[0, start_global:end_global]

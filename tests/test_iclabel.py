@@ -13,7 +13,7 @@ local_url = os.path.join(os.path.dirname(__file__), '../data/')
 class TestICLabelEngines(unittest.TestCase):
 
     def setUp(self):
-        self.EEG = pop_loadset(os.path.join(local_url, 'eeglab_data_with_ica_tmp.set')) 
+        self.EEG = pop_loadset(os.path.join(local_url, 'eeglab_data_with_ica_tmp.set'))
 
     def test_basic(self):
         # First, extract features separately to compare

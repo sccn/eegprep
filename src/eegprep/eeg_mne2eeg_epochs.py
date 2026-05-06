@@ -31,26 +31,26 @@ def eeg_mne2eeg_epochs(epochs, ica):
     data = epochs.get_data()  # Get the data from the epochs
     n_epochs, n_channels, n_times = data.shape
     ica_weights = ica.get_components()  # ICA weights (n_components x n_channels)
-    
+
     # create identity matrix of size n_channels x n_channels
     ica_sphere = np.eye(n_channels)  # ICA sphere (n_channels x n_channels)
 
     # Compute the mixing matrix (inverse weights)
     ica_inverse_weights = np.linalg.pinv(ica_weights)  # Shape: (n_channels, n_components)
-    
+
     ica_channels = ica.info['ch_names']
     raw_channels = epochs.info['ch_names']  # Assuming you have the raw object
     ica_channel_indices = [raw_channels.index(ch) for ch in ica_channels]
     ica_channel_indices = np.array(ica_channel_indices)
-    
+
     ica_act = ica.get_sources(epochs).get_data(copy=True).transpose(1, 2, 0)  # Get the ICA activations
-   
+
     print('Reference conversion may not be accurate...')
     if 'custom_ref_applied' in epochs.info and epochs.info['custom_ref_applied']:
         ref = 'common'  # Custom reference was applied
     else:
         ref = 'average'  # Default to average reference
-    
+
     eeglab_dict = {
         'setname'         : '',
         'filename'        : '',
@@ -99,7 +99,7 @@ def eeg_mne2eeg_epochs(epochs, ica):
 
     # create channel locations
     ch_names = epochs.ch_names
-    
+
     ch_locs = epochs.info['chs']
 
     theta_all = []
@@ -117,16 +117,16 @@ def eeg_mne2eeg_epochs(epochs, ica):
             Z_all.append(ch['loc'][2]*1000)
             hypotxy = math.hypot(X_all[-1],Y_all[-1])
             sph_radius_all.append(math.hypot(hypotxy,Z_all[-1]))
-            
+
             az = math.atan2(Y_all[-1],X_all[-1])/math.pi*180
             horiz = math.atan2(Z_all[-1],hypotxy)/math.pi*180
-            
+
             sph_theta_all.append(az)
             sph_phi_all.append(horiz)
 
             theta_all.append(-az) # warning inverse notation compared to MATLAB to match
             radius_all.append(0.5 - horiz/180) # warning inverse notation compared to MATLAB to match
-        
+
     d_list = [{
         'labels': ch_name,
         'theta': theta,
@@ -160,12 +160,12 @@ def eeg_mne2eeg_epochs(epochs, ica):
     # convert d_list to a numpy array
     d_list = np.array(d_list)
     eeglab_dict['chanlocs'] = d_list
-    
+
     # # Step 4: Save the EEGLAB dataset as a .mat file
     return eeglab_dict
 
     #print("EEGLAB dataset saved successfully!")
-    
+
 def test_eeg_mne2eeg_epochs():
     """Test the eeg_mne2eeg_epochs function with sample MNE data."""
     sample_data_folder = mne.datasets.sample.data_path()
@@ -175,7 +175,7 @@ def test_eeg_mne2eeg_epochs():
 
     raw = mne.io.read_raw_fif(sample_data_raw_file)
 
-    # extract data epochs    
+    # extract data epochs
     events = mne.find_events(raw, stim_channel="STI 014")
     event_dict = {
         "auditory/left": 1,
@@ -192,11 +192,11 @@ def test_eeg_mne2eeg_epochs():
         tmin=-0.2,
         tmax=0.5,
         preload=True,
-    )    
+    )
 
     ica = ICA(n_components=15, random_state=97, max_iter=800)
     ica.fit(raw)
-    
+
     EEG = eeg_mne2eeg_epochs(epochs, ica)
     savemat('output_file.mat', EEG) # use pop_saveset
 

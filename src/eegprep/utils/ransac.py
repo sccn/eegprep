@@ -104,9 +104,9 @@ def rand_permutation(
 
 
 def calc_projector(
-        locs: np.ndarray, 
-        num_samples: int, 
-        subset_size: int, 
+        locs: np.ndarray,
+        num_samples: int,
+        subset_size: int,
         stream: Optional[np.random.RandomState] = None,
         subroutine: str = 'sphericalSplineInterpolate'
 ) -> np.ndarray:

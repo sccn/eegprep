@@ -28,50 +28,50 @@ Create a custom preprocessing pipeline tailored to your specific needs:
 
     def custom_pipeline(eeg, params=None):
         """Custom preprocessing pipeline with logging"""
-        
+
         if params is None:
             params = {}
-        
+
         # Set defaults
         flatline_crit = params.get('flatline_criterion', 5)
         highpass = params.get('highpass', 1)
         lowpass = params.get('lowpass', 100)
         resample_rate = params.get('resample_rate', 250)
         asr_crit = params.get('asr_criterion', 20)
-        
+
         print(f"Starting preprocessing with {eeg.nbchan} channels")
-        
+
         # Step 1: Remove flatlines
         print("Step 1: Removing flatlines...")
         eeg = clean_flatlines(eeg, flatline_criterion=flatline_crit)
         print(f"  Channels remaining: {eeg.nbchan}")
-        
+
         # Step 2: Remove noisy channels
         print("Step 2: Removing noisy channels...")
         eeg = clean_channels(eeg)
         print(f"  Channels remaining: {eeg.nbchan}")
-        
+
         # Step 3: Interpolate removed channels
         print("Step 3: Interpolating removed channels...")
         eeg = eeg_interp(eeg)
-        
+
         # Step 4: Resample
         print(f"Step 4: Resampling to {resample_rate} Hz...")
         eeg = pop_resample(eeg, resample_rate)
-        
+
         # Step 5: Filter
         print(f"Step 5: Filtering {highpass}-{lowpass} Hz...")
         eeg = pop_eegfiltnew(eeg, locutoff=highpass, hicutoff=lowpass)
-        
+
         # Step 6: ICA
         print("Step 6: Running ICA...")
         eeg = eeg_picard(eeg)
         print(f"  Components: {eeg.icaweights.shape[0]}")
-        
+
         # Step 7: Component classification
         print("Step 7: Classifying components...")
         eeg = iclabel(eeg)
-        
+
         print("Preprocessing complete!")
         return eeg
 
@@ -96,11 +96,11 @@ Apply different preprocessing based on data characteristics:
 
     def adaptive_preprocessing(eeg):
         """Adapt preprocessing based on data quality"""
-        
+
         # Assess data quality
         psd = eeg_rpsd(eeg)
         noise_level = psd[50:100].mean()
-        
+
         if noise_level > 100:
             # High noise: aggressive preprocessing
             print("High noise detected: using aggressive preprocessing")
@@ -121,7 +121,7 @@ Apply different preprocessing based on data characteristics:
                 asr_criterion=25,
                 flatline_criterion=10
             )
-        
+
         return eeg
 
     eeg = adaptive_preprocessing(eeg)
@@ -141,21 +141,21 @@ Create custom preprocessing functions that integrate with eegprep:
 
     def custom_artifact_removal(eeg, threshold=3):
         """Custom artifact removal based on amplitude threshold"""
-        
+
         if not isinstance(eeg, EEGobj):
             raise TypeError("Input must be an EEGobj")
-        
+
         # Find samples exceeding threshold
         artifact_samples = np.where(
             np.abs(eeg.data).max(axis=0) > threshold * np.std(eeg.data)
         )[0]
-        
+
         # Mark artifacts
         if not hasattr(eeg, 'removed_windows'):
             eeg.removed_windows = []
-        
+
         eeg.removed_windows.extend(artifact_samples)
-        
+
         print(f"Marked {len(artifact_samples)} artifact samples")
         return eeg
 
@@ -284,26 +284,26 @@ Process multiple subjects in parallel:
 
     def process_subject(subject_id):
         """Process a single subject"""
-        
+
         # Load data
         input_file = f'data/sub-{subject_id:02d}.set'
         eeg = pop_loadset(input_file)
-        
+
         # Preprocess
         eeg = clean_artifacts(eeg)
-        
+
         # Save
         output_file = f'data/preprocessed/sub-{subject_id:02d}_preprocessed.set'
         pop_saveset(eeg, output_file)
-        
+
         return f"Processed subject {subject_id}"
 
     # Process subjects in parallel
     subject_ids = range(1, 11)  # Subjects 1-10
-    
+
     with Pool(processes=4) as pool:
         results = pool.map(process_subject, subject_ids)
-    
+
     for result in results:
         print(result)
 
@@ -370,22 +370,22 @@ Reduce memory usage for large datasets:
 
     def process_in_chunks(filename, chunk_size=10):
         """Process data in chunks to reduce memory usage"""
-        
+
         # Load data
         eeg = pop_loadset(filename)
-        
+
         # Process in chunks
         n_chunks = int(np.ceil(eeg.pnts / (chunk_size * eeg.srate)))
-        
+
         for i in range(n_chunks):
             start = i * chunk_size * eeg.srate
             end = min((i + 1) * chunk_size * eeg.srate, eeg.pnts)
-            
+
             print(f"Processing chunk {i+1}/{n_chunks}")
             # Process chunk
             chunk_data = eeg.data[:, start:end]
             # ... process chunk ...
-        
+
         return eeg
 
 Computation Optimization
@@ -419,13 +419,13 @@ Cache preprocessing results to avoid recomputation:
 
     def get_preprocessed_data(filename, params):
         """Get preprocessed data with caching"""
-        
+
         # Create cache key
         cache_key = hashlib.md5(
             f"{filename}{str(params)}".encode()
         ).hexdigest()
         cache_file = f"cache/{cache_key}.pkl"
-        
+
         # Check cache
         try:
             with open(cache_file, 'rb') as f:
@@ -434,15 +434,15 @@ Cache preprocessing results to avoid recomputation:
             return eeg
         except FileNotFoundError:
             pass
-        
+
         # Preprocess
         eeg = pop_loadset(filename)
         eeg = clean_artifacts(eeg, **params)
-        
+
         # Save to cache
         with open(cache_file, 'wb') as f:
             pickle.dump(eeg, f)
-        
+
         return eeg
 
 Profiling and Benchmarking
@@ -458,20 +458,20 @@ Profile preprocessing to identify bottlenecks:
 
     def profile_preprocessing(eeg):
         """Profile preprocessing function"""
-        
+
         profiler = cProfile.Profile()
         profiler.enable()
-        
+
         # Run preprocessing
         eeg = clean_artifacts(eeg)
-        
+
         profiler.disable()
-        
+
         # Print statistics
         stats = pstats.Stats(profiler)
         stats.sort_stats('cumulative')
         stats.print_stats(10)  # Print top 10 functions
-        
+
         return eeg
 
 Best Practices
@@ -489,16 +489,16 @@ Organize custom preprocessing code:
 
     class PreprocessingPipeline:
         """Base class for preprocessing pipelines"""
-        
+
         def __init__(self, params=None):
             self.params = params or {}
-        
+
         def run(self, eeg):
             raise NotImplementedError
 
     class RestingStatePipeline(PreprocessingPipeline):
         """Resting state preprocessing pipeline"""
-        
+
         def run(self, eeg):
             return clean_artifacts(
                 eeg,
@@ -509,7 +509,7 @@ Organize custom preprocessing code:
 
     class ERPPipeline(PreprocessingPipeline):
         """ERP preprocessing pipeline"""
-        
+
         def run(self, eeg):
             return clean_artifacts(
                 eeg,
@@ -537,23 +537,23 @@ Implement robust error handling:
 
     def safe_preprocessing(filename, output_file):
         """Preprocess with error handling"""
-        
+
         try:
             # Load data
             logger.info(f"Loading {filename}")
             eeg = pop_loadset(filename)
-            
+
             # Preprocess
             logger.info("Preprocessing...")
             eeg = clean_artifacts(eeg)
-            
+
             # Save
             logger.info(f"Saving to {output_file}")
             pop_saveset(eeg, output_file)
-            
+
             logger.info("Success!")
             return True
-            
+
         except FileNotFoundError as e:
             logger.error(f"File not found: {e}")
             return False
@@ -571,19 +571,19 @@ Document custom functions:
     def custom_preprocessing(eeg, threshold=3):
         """
         Apply custom artifact removal.
-        
+
         Parameters
         ----------
         eeg : EEGobj
             Input EEG data
         threshold : float, optional
             Amplitude threshold in standard deviations (default: 3)
-        
+
         Returns
         -------
         eeg : EEGobj
             Preprocessed EEG data
-        
+
         Examples
         --------
         >>> eeg = custom_preprocessing(eeg, threshold=5)
@@ -602,16 +602,16 @@ Test custom preprocessing functions:
     from eegprep import pop_loadset
 
     class TestCustomPreprocessing(unittest.TestCase):
-        
+
         def setUp(self):
             """Load test data"""
             self.eeg = pop_loadset('test_data.set')
-        
+
         def test_preprocessing_runs(self):
             """Test that preprocessing runs without error"""
             eeg = custom_preprocessing(self.eeg)
             self.assertIsNotNone(eeg)
-        
+
         def test_preprocessing_preserves_shape(self):
             """Test that preprocessing preserves data shape"""
             eeg = custom_preprocessing(self.eeg)

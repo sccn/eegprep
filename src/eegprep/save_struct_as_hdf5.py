@@ -25,7 +25,7 @@ def save_dict_to_hdf5(data, filename, dataset_name):
         elif isinstance(value, float):
             dtype.append((key, 'f8'))
         elif isinstance(value, np.ndarray):
-            dtype.append((key, 'f8', value.shape))            
+            dtype.append((key, 'f8', value.shape))
         elif value is None:
             dtype.append((key, 'S4'))
         else:
@@ -35,8 +35,8 @@ def save_dict_to_hdf5(data, filename, dataset_name):
 
     # Convert dictionary values to a structured array
     structured_data = np.array([tuple(
-        value.encode('utf-8') if isinstance(value, str) else 
-        str(value).encode('utf-8') if value is None else 
+        value.encode('utf-8') if isinstance(value, str) else
+        str(value).encode('utf-8') if value is None else
         value for value in data.values()
     )], dtype=structured_dtype)
 

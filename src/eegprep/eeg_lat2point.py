@@ -32,7 +32,7 @@ def eeg_lat2point(lat_array, epoch_array, srate, timewin, timeunit=1.0, **kwargs
     outrange = int(kwargs.get('outrange', 1))
 
     lat_array = np.atleast_1d(np.array(lat_array, dtype=float))
-    
+
     # Handle different epoch_array cases
     if np.isscalar(epoch_array):
         epoch_array = np.ones_like(lat_array, dtype=float) * float(epoch_array)

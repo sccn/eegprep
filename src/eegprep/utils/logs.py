@@ -88,7 +88,7 @@ def setup_logging(level=logging.INFO, only_if_unset=True):
     # Check if handlers already exist and if we should skip configuration
     if only_if_unset and root_logger.hasHandlers():
         logging.getLogger(__name__).debug(
-            "Root logger already has handlers, skipping setup_logging."            
+            "Root logger already has handlers, skipping setup_logging."
         )
         return # Skip configuration
 

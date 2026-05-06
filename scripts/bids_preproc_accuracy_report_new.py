@@ -175,24 +175,24 @@ if __name__ == '__main__':
     print("\n\n" + "="*80)
     print("Summary of maximum absolute errors (in µV) between Python and MATLAB results:")
     print("="*80)
-    
+
     # Build header
     header = ["Stage", "StageName", "MaxErr(all)"]
     for study in studies:
         header.append(f"MaxErr({study['studyname']})")
     print("\t".join(header))
-    
+
     # Build rows
     for stage in range(1, max(StageNames.keys()) + 1):
         row = [str(stage), StageNames[stage]]
-        
+
         # Max error across all studies
         all_errs = results[stage]['all']
         if len(all_errs) > 0:
             row.append(f"{np.max(all_errs)}")
         else:
             row.append("N/A")
-        
+
         # Max error per study
         for study in studies:
             studyname = study['studyname']
@@ -201,8 +201,8 @@ if __name__ == '__main__':
                 row.append(f"{np.max(study_errs)}")
             else:
                 row.append("N/A")
-        
+
         print("\t".join(row))
-    
+
     print("="*80)
     print("\nDone.")

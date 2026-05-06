@@ -25,10 +25,10 @@ def griddata_v4(x, y, v, xq, yq):
     """
     # Combine x and y into complex numbers for convenience
     xy = x + 1j * y
-    
+
     # Determine distances between points
     d = np.abs(xy[:, None] - xy[None, :])
-    
+
     # Determine weights for interpolation
     with np.errstate(divide='ignore', invalid='ignore'):
         g = (d**2) * (np.log(d) - 1)  # Green's function
@@ -45,11 +45,11 @@ def griddata_v4(x, y, v, xq, yq):
     except np.linalg.LinAlgError:
         # If still singular, use pseudoinverse as last resort
         weights = np.linalg.pinv(g_reg) @ v
-    
+
     # Initialize output array
     m, n = xq.shape
     vq = np.zeros_like(xq)
-    
+
     # Evaluate at requested points
     xy = xy[:, None]  # Make it column vector for broadcasting
     for i in range(m):
@@ -59,7 +59,7 @@ def griddata_v4(x, y, v, xq, yq):
                 g = (d**2) * (np.log(d) - 1)  # Green's function
             g[d == 0] = 0  # Handle Green's function at zero
             vq[i, j] = np.dot(g, weights)
-    
+
     return vq
 
 def topoplot(datavector, chan_locs, **kwargs):
@@ -199,7 +199,7 @@ def topoplot(datavector, chan_locs, **kwargs):
 
     xi, yi = np.linspace(xmin, xmax, GRID_SCALE), np.linspace(ymin, ymax, GRID_SCALE)
     yi, xi = np.meshgrid(yi, xi)
-    
+
     if method == 'griddata':
         Zi = griddata((inty, intx), intdatavector, (yi, xi), method='cubic')
     else:
@@ -217,16 +217,16 @@ def topoplot(datavector, chan_locs, **kwargs):
         Zi = griddata_v4(coords[0], coords[1], values, xi, yi)
 
         # Create the RBF interpolator
-        
+
         # rbf = Rbf(coords[0], coords[1], values, function='inverse') #, function='linear')
         # Zi1 = rbf(xi, yi)
-        
+
         # rbf = Rbf(coords[0], coords[1], values, function='thin_plate') #, function='linear')
         # Zi2 = rbf(xi, yi)
-        
+
         # # average the two results
         # Zi = (Zi1 + Zi2) / 2
-        
+
     # Mask outside the head circle (same as MATLAB)
     mask = (np.sqrt(xi**2 + yi**2) <= rmax)
     Zi[~mask] = np.nan
@@ -236,7 +236,7 @@ def topoplot(datavector, chan_locs, **kwargs):
         x_rotated = -y.copy()
         y_rotated = x.copy()
         extent_rotated = (ymin, ymax, -xmax, -xmin)
-        
+
         plt.imshow(Zi, extent=extent_rotated, origin='lower', cmap=cmap)
         plt.colorbar()
         plt.scatter(x_rotated, y_rotated, c='k')

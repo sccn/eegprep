@@ -251,7 +251,7 @@ for i, ch_name in enumerate(ch_names):
         theta = (i / len(ch_names)) * 2 * np.pi
         phi = np.pi / 4
         pos = np.array([np.sin(phi) * np.cos(theta), np.sin(phi) * np.sin(theta), np.cos(phi)])
-    
+
     chanlocs.append({
         'labels': ch_name,
         'X': float(pos[0]),
@@ -403,7 +403,7 @@ if len(correlations) > 1:
         good_bins = max(1, min(unique_good - 1, 5)) if unique_good > 1 else 1
     else:
         good_bins = 1
-    
+
     if bad_corrs:
         unique_bad = len(np.unique(np.round(bad_corrs, 5)))
         bad_bins = max(1, min(unique_bad - 1, 5)) if unique_bad > 1 else 1

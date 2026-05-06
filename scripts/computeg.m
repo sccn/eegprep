@@ -7,7 +7,7 @@
 function g = computeg(x,y,z,xelec,yelec,zelec, params)
 
 unitmat = ones(length(x(:)),length(xelec));
-EI = unitmat - sqrt((repmat(x(:),1,length(xelec)) - repmat(xelec,length(x(:)),1)).^2 +... 
+EI = unitmat - sqrt((repmat(x(:),1,length(xelec)) - repmat(xelec,length(x(:)),1)).^2 +...
                 (repmat(y(:),1,length(xelec)) - repmat(yelec,length(x(:)),1)).^2 +...
                 (repmat(z(:),1,length(xelec)) - repmat(zelec,length(x(:)),1)).^2);
 
@@ -27,4 +27,4 @@ for n = 1:maxn % 200
     end
     g = g + ((2*n+1)/(n^m*(n+1)^m))*squeeze(L(1,:,:));
 end
-g = g/(4*pi);    
+g = g/(4*pi);

@@ -247,11 +247,11 @@ Enable debug logging in your code:
 .. code-block:: python
 
     import logging
-    
+
     # Set up logging
     logging.basicConfig(level=logging.DEBUG)
     logger = logging.getLogger(__name__)
-    
+
     # Use logging in your code
     logger.debug("Debug message")
     logger.info("Info message")
@@ -266,7 +266,7 @@ Use Python's built-in debugger:
 .. code-block:: python
 
     import pdb
-    
+
     def my_function():
         x = 10
         pdb.set_trace()  # Execution pauses here
@@ -292,14 +292,14 @@ Profile code performance:
 
     import cProfile
     import pstats
-    
+
     # Profile a function
     profiler = cProfile.Profile()
     profiler.enable()
-    
+
     # Your code here
     my_function()
-    
+
     profiler.disable()
     stats = pstats.Stats(profiler)
     stats.sort_stats('cumulative')
@@ -319,7 +319,7 @@ Use it in your code:
 .. code-block:: python
 
     from memory_profiler import profile
-    
+
     @profile
     def my_function():
         large_list = [i for i in range(1000000)]

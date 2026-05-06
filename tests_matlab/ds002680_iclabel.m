@@ -26,17 +26,17 @@ disp(maxes);
 %%
 figure('Position',[470   731   904   505], 'color', 'w')
 subplot(1,3,1);
-hist(-log10([results.topoplotdiff])); 
+hist(-log10([results.topoplotdiff]));
 xlabel('% difference (decimals)')
 title('A. Scalp topography')
 
 subplot(1,3,2);
-hist(-log10([results.psddiff])); 
+hist(-log10([results.psddiff]));
 xlabel('% difference (decimals)')
 title('B. Power spectrum')
 
 subplot(1,3,3);
-hist(-log10([results.autocorrdiff])); 
+hist(-log10([results.autocorrdiff]));
 xlabel('% difference (decimals)')
 title('C. Autocorrelation')
 

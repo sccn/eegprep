@@ -20,7 +20,7 @@ from eegprep.utils.testing import DebuggableTestCase
 
 def create_test_eeg():
     """Create a complete test EEG structure with all required fields.
-    
+
     Note: clean_artifacts expects continuous (2D) data, not epoched (3D) data.
     """
     n_pnts = 10000  # 20 seconds at 500 Hz
@@ -86,24 +86,24 @@ class TestCleanArtifactsBasic(DebuggableTestCase):
         """Test basic clean_artifacts functionality with default parameters."""
         try:
             EEG, HP, BUR, removed_channels = clean_artifacts(self.test_eeg)
-            
+
             # Check that all return values are present
             self.assertIsInstance(EEG, dict)
             self.assertIsInstance(HP, dict)
             self.assertIsInstance(BUR, dict)
             self.assertIsInstance(removed_channels, np.ndarray)
-            
+
             # Check that EEG structure is preserved
             self.assertIn('data', EEG)
             self.assertIn('srate', EEG)
             self.assertIn('nbchan', EEG)
             self.assertIn('pnts', EEG)
-            
+
             # Check that data dimensions are reasonable
             self.assertEqual(EEG['srate'], self.test_eeg['srate'])
             self.assertGreaterEqual(EEG['nbchan'], 1)  # At least one channel should remain
             self.assertLessEqual(EEG['nbchan'], self.test_eeg['nbchan'])
-            
+
         except Exception as e:
             self.skipTest(f"clean_artifacts basic functionality not available: {e}")
 
@@ -119,12 +119,12 @@ class TestCleanArtifactsBasic(DebuggableTestCase):
                 Highpass='off',
                 FlatlineCriterion='off'
             )
-            
+
             # With all criteria off, data should be unchanged
             self.assertEqual(EEG['nbchan'], self.test_eeg['nbchan'])
             self.assertEqual(EEG['pnts'], self.test_eeg['pnts'])
             np.testing.assert_array_equal(EEG['data'], self.test_eeg['data'])
-            
+
         except Exception as e:
             self.skipTest(f"clean_artifacts all off not available: {e}")
 
@@ -133,31 +133,31 @@ class TestCleanArtifactsBasic(DebuggableTestCase):
         with self.assertRaises(ValueError) as cm:
             clean_artifacts(self.test_eeg, Highpass='invalid')
         self.assertIn('Highpass must be a (low, high) tuple or None/"off"', str(cm.exception))
-    
+
     def test_clean_artifacts_invalid_highpass_single_value(self):
         """Test clean_artifacts with single value instead of tuple."""
         with self.assertRaises(ValueError) as cm:
             clean_artifacts(self.test_eeg, Highpass=0.5)
         self.assertIn('Highpass must be a (low, high) tuple or None/"off"', str(cm.exception))
-    
+
     def test_clean_artifacts_invalid_highpass_too_many_values(self):
         """Test clean_artifacts with too many values in highpass tuple."""
         with self.assertRaises(ValueError) as cm:
             clean_artifacts(self.test_eeg, Highpass=(0.1, 0.5, 1.0))
         self.assertIn('Highpass must be a (low, high) tuple or None/"off"', str(cm.exception))
-    
+
     def test_clean_artifacts_invalid_highpass_empty_tuple(self):
         """Test clean_artifacts with empty highpass tuple."""
         with self.assertRaises(ValueError) as cm:
             clean_artifacts(self.test_eeg, Highpass=())
         self.assertIn('Highpass must be a (low, high) tuple or None/"off"', str(cm.exception))
-    
+
     def test_clean_artifacts_invalid_highpass_list_single(self):
         """Test clean_artifacts with single-element list."""
         with self.assertRaises(ValueError) as cm:
             clean_artifacts(self.test_eeg, Highpass=[0.5])
         self.assertIn('Highpass must be a (low, high) tuple or None/"off"', str(cm.exception))
-    
+
     def test_clean_artifacts_valid_highpass_list(self):
         """Test clean_artifacts with valid highpass list (should work like tuple)."""
         try:
@@ -184,7 +184,7 @@ class TestCleanArtifactsBasic(DebuggableTestCase):
                 Channels_ignore=['EEG003']
             )
         self.assertIn('mutually exclusive', str(cm.exception))
-    
+
     def test_clean_artifacts_mutually_exclusive_channels_both_empty(self):
         """Test clean_artifacts with both channel parameters empty (should work)."""
         try:
@@ -203,7 +203,7 @@ class TestCleanArtifactsBasic(DebuggableTestCase):
             self.assertIsInstance(EEG, dict)
         except Exception as e:
             self.skipTest(f"clean_artifacts empty channel lists not available: {e}")
-    
+
     def test_clean_artifacts_mutually_exclusive_channels_none_and_list(self):
         """Test clean_artifacts with None and non-empty list (should work)."""
         try:
@@ -222,7 +222,7 @@ class TestCleanArtifactsBasic(DebuggableTestCase):
             self.assertIsInstance(EEG, dict)
         except Exception as e:
             self.skipTest(f"clean_artifacts None and channel list not available: {e}")
-    
+
     def test_clean_artifacts_mutually_exclusive_channels_both_none(self):
         """Test clean_artifacts with both channel parameters as None (should work)."""
         try:
@@ -241,7 +241,7 @@ class TestCleanArtifactsBasic(DebuggableTestCase):
             self.assertIsInstance(EEG, dict)
         except Exception as e:
             self.skipTest(f"clean_artifacts both None not available: {e}")
-    
+
     def test_clean_artifacts_mutually_exclusive_channels_overlapping(self):
         """Test clean_artifacts with overlapping channel lists (error expected)."""
         with self.assertRaises(ValueError) as cm:
@@ -269,7 +269,7 @@ class TestCleanArtifactsFlatline(DebuggableTestCase):
             eeg_with_flatlines['data'][5, :] = 0.0  # Flatline channel (2D data)
             eeg_with_flatlines['data'][10, :] = 1.0  # Another flatline channel
             original_nbchan = eeg_with_flatlines['nbchan']
-            
+
             EEG, HP, BUR, removed_channels = clean_artifacts(
                 eeg_with_flatlines,
                 FlatlineCriterion=1.0,  # Short flatline duration
@@ -279,10 +279,10 @@ class TestCleanArtifactsFlatline(DebuggableTestCase):
                 WindowCriterion='off',
                 Highpass='off'
             )
-            
+
             # Should have removed some channels
             self.assertLess(EEG['nbchan'], original_nbchan)
-            
+
         except Exception as e:
             self.skipTest(f"clean_artifacts flatline removal not available: {e}")
 
@@ -293,7 +293,7 @@ class TestCleanArtifactsFlatline(DebuggableTestCase):
             eeg_with_flatlines = self.test_eeg.copy()
             eeg_with_flatlines['data'] = self.test_eeg['data'].copy()
             eeg_with_flatlines['data'][5, :] = 0.0  # Flatline channel (2D data)
-            
+
             EEG, HP, BUR, removed_channels = clean_artifacts(
                 eeg_with_flatlines,
                 FlatlineCriterion='off',
@@ -303,10 +303,10 @@ class TestCleanArtifactsFlatline(DebuggableTestCase):
                 WindowCriterion='off',
                 Highpass='off'
             )
-            
+
             # Should not have removed any channels
             self.assertEqual(EEG['nbchan'], eeg_with_flatlines['nbchan'])
-            
+
         except Exception as e:
             self.skipTest(f"clean_artifacts flatline off not available: {e}")
 
@@ -322,7 +322,7 @@ class TestCleanArtifactsHighpass(DebuggableTestCase):
         """Test highpass filtering."""
         try:
             original_data = self.test_eeg['data'].copy()  # Save before call
-            
+
             EEG, HP, BUR, removed_channels = clean_artifacts(
                 self.test_eeg,
                 Highpass=(0.5, 1.0),
@@ -332,14 +332,14 @@ class TestCleanArtifactsHighpass(DebuggableTestCase):
                 WindowCriterion='off',
                 FlatlineCriterion='off'
             )
-            
+
             # HP should contain the highpass filtered data
             self.assertIsInstance(HP, dict)
             self.assertIn('data', HP)
-            
+
             # Data should be different after filtering
             self.assertFalse(np.array_equal(HP['data'], original_data))
-            
+
         except Exception as e:
             self.skipTest(f"clean_artifacts highpass filtering not available: {e}")
 
@@ -355,10 +355,10 @@ class TestCleanArtifactsHighpass(DebuggableTestCase):
                 WindowCriterion='off',
                 FlatlineCriterion='off'
             )
-            
+
             # Data should be unchanged
             np.testing.assert_array_equal(HP['data'], self.test_eeg['data'])
-            
+
         except Exception as e:
             self.skipTest(f"clean_artifacts highpass off not available: {e}")
 
@@ -382,10 +382,10 @@ class TestCleanArtifactsChannelCleaning(DebuggableTestCase):
                 Highpass='off',
                 FlatlineCriterion='off'
             )
-            
+
             # Should have removed some channels with high threshold
             self.assertLessEqual(EEG['nbchan'], self.test_eeg['nbchan'])
-            
+
         except Exception as e:
             self.skipTest(f"clean_artifacts channel criterion not available: {e}")
 
@@ -401,10 +401,10 @@ class TestCleanArtifactsChannelCleaning(DebuggableTestCase):
                 Highpass='off',
                 FlatlineCriterion='off'
             )
-            
+
             # Should have removed some channels with low threshold
             self.assertLessEqual(EEG['nbchan'], self.test_eeg['nbchan'])
-            
+
         except Exception as e:
             self.skipTest(f"clean_artifacts line noise criterion not available: {e}")
 
@@ -420,10 +420,10 @@ class TestCleanArtifactsChannelCleaning(DebuggableTestCase):
                 Highpass='off',
                 FlatlineCriterion='off'
             )
-            
+
             # Should have removed some channels
             self.assertLessEqual(EEG['nbchan'], self.test_eeg['nbchan'])
-            
+
         except Exception as e:
             self.skipTest(f"clean_artifacts both channel criteria not available: {e}")
 
@@ -447,11 +447,11 @@ class TestCleanArtifactsBurstCleaning(DebuggableTestCase):
                 Highpass='off',
                 FlatlineCriterion='off'
             )
-            
+
             # BUR should contain the burst repaired data
             self.assertIsInstance(BUR, dict)
             self.assertIn('data', BUR)
-            
+
         except Exception as e:
             self.skipTest(f"clean_artifacts burst criterion not available: {e}")
 
@@ -468,10 +468,10 @@ class TestCleanArtifactsBurstCleaning(DebuggableTestCase):
                 Highpass='off',
                 FlatlineCriterion='off'
             )
-            
+
             # Should have removed some samples
             self.assertLessEqual(EEG['pnts'], self.test_eeg['pnts'])
-            
+
         except Exception as e:
             self.skipTest(f"clean_artifacts burst rejection not available: {e}")
 
@@ -487,10 +487,10 @@ class TestCleanArtifactsBurstCleaning(DebuggableTestCase):
                 Highpass='off',
                 FlatlineCriterion='off'
             )
-            
+
             # Data should be unchanged
             np.testing.assert_array_equal(BUR['data'], self.test_eeg['data'])
-            
+
         except Exception as e:
             self.skipTest(f"clean_artifacts burst off not available: {e}")
 
@@ -514,10 +514,10 @@ class TestCleanArtifactsWindowCleaning(DebuggableTestCase):
                 Highpass='off',
                 FlatlineCriterion='off'
             )
-            
+
             # Should have removed some samples
             self.assertLessEqual(EEG['pnts'], self.test_eeg['pnts'])
-            
+
         except Exception as e:
             self.skipTest(f"clean_artifacts window criterion not available: {e}")
 
@@ -533,10 +533,10 @@ class TestCleanArtifactsWindowCleaning(DebuggableTestCase):
                 Highpass='off',
                 FlatlineCriterion='off'
             )
-            
+
             # Data should be unchanged
             self.assertEqual(EEG['pnts'], self.test_eeg['pnts'])
-            
+
         except Exception as e:
             self.skipTest(f"clean_artifacts window off not available: {e}")
 
@@ -552,7 +552,7 @@ class TestCleanArtifactsChannelSelection(DebuggableTestCase):
         """Test channel inclusion."""
         try:
             channels_to_include = ['EEG001', 'EEG002', 'EEG003']
-            
+
             EEG, HP, BUR, removed_channels = clean_artifacts(
                 self.test_eeg,
                 Channels=channels_to_include,
@@ -563,10 +563,10 @@ class TestCleanArtifactsChannelSelection(DebuggableTestCase):
                 Highpass='off',
                 FlatlineCriterion='off'
             )
-            
+
             # Should have only the specified channels
             self.assertEqual(EEG['nbchan'], len(channels_to_include))
-            
+
         except Exception as e:
             self.skipTest(f"clean_artifacts channels include not available: {e}")
 
@@ -575,7 +575,7 @@ class TestCleanArtifactsChannelSelection(DebuggableTestCase):
         try:
             channels_to_ignore = ['EEG001', 'EEG002']
             original_nbchan = self.test_eeg['nbchan']  # Save before call
-            
+
             EEG, HP, BUR, removed_channels = clean_artifacts(
                 self.test_eeg,
                 Channels_ignore=channels_to_ignore,
@@ -586,10 +586,10 @@ class TestCleanArtifactsChannelSelection(DebuggableTestCase):
                 Highpass='off',
                 FlatlineCriterion='off'
             )
-            
+
             # Should have fewer channels
             self.assertEqual(EEG['nbchan'], original_nbchan - len(channels_to_ignore))
-            
+
         except Exception as e:
             self.skipTest(f"clean_artifacts channels ignore not available: {e}")
 
@@ -606,11 +606,11 @@ class TestCleanArtifactsParameterValidation(DebuggableTestCase):
         # Should accept numeric values and 'off'
         try:
             # Valid cases
-            clean_artifacts(self.test_eeg, ChannelCriterion=0.8, 
-                          LineNoiseCriterion='off', BurstCriterion='off', 
+            clean_artifacts(self.test_eeg, ChannelCriterion=0.8,
+                          LineNoiseCriterion='off', BurstCriterion='off',
                           WindowCriterion='off', Highpass='off', FlatlineCriterion='off')
             clean_artifacts(self.test_eeg, ChannelCriterion='off',
-                          LineNoiseCriterion='off', BurstCriterion='off', 
+                          LineNoiseCriterion='off', BurstCriterion='off',
                           WindowCriterion='off', Highpass='off', FlatlineCriterion='off')
         except Exception as e:
             self.skipTest(f"clean_artifacts channel criterion validation not available: {e}")
@@ -621,10 +621,10 @@ class TestCleanArtifactsParameterValidation(DebuggableTestCase):
         try:
             # Valid cases
             clean_artifacts(self.test_eeg, ChannelCriterion='off',
-                          LineNoiseCriterion=4.0, BurstCriterion='off', 
+                          LineNoiseCriterion=4.0, BurstCriterion='off',
                           WindowCriterion='off', Highpass='off', FlatlineCriterion='off')
             clean_artifacts(self.test_eeg, ChannelCriterion='off',
-                          LineNoiseCriterion='off', BurstCriterion='off', 
+                          LineNoiseCriterion='off', BurstCriterion='off',
                           WindowCriterion='off', Highpass='off', FlatlineCriterion='off')
         except Exception as e:
             self.skipTest(f"clean_artifacts line noise criterion validation not available: {e}")
@@ -635,10 +635,10 @@ class TestCleanArtifactsParameterValidation(DebuggableTestCase):
         try:
             # Valid cases
             clean_artifacts(self.test_eeg, ChannelCriterion='off',
-                          LineNoiseCriterion='off', BurstCriterion=5.0, 
+                          LineNoiseCriterion='off', BurstCriterion=5.0,
                           WindowCriterion='off', Highpass='off', FlatlineCriterion='off')
             clean_artifacts(self.test_eeg, ChannelCriterion='off',
-                          LineNoiseCriterion='off', BurstCriterion='off', 
+                          LineNoiseCriterion='off', BurstCriterion='off',
                           WindowCriterion='off', Highpass='off', FlatlineCriterion='off')
         except Exception as e:
             self.skipTest(f"clean_artifacts burst criterion validation not available: {e}")
@@ -649,10 +649,10 @@ class TestCleanArtifactsParameterValidation(DebuggableTestCase):
         try:
             # Valid cases
             clean_artifacts(self.test_eeg, ChannelCriterion='off',
-                          LineNoiseCriterion='off', BurstCriterion='off', 
+                          LineNoiseCriterion='off', BurstCriterion='off',
                           WindowCriterion=0.25, Highpass='off', FlatlineCriterion='off')
             clean_artifacts(self.test_eeg, ChannelCriterion='off',
-                          LineNoiseCriterion='off', BurstCriterion='off', 
+                          LineNoiseCriterion='off', BurstCriterion='off',
                           WindowCriterion='off', Highpass='off', FlatlineCriterion='off')
         except Exception as e:
             self.skipTest(f"clean_artifacts window criterion validation not available: {e}")
@@ -663,10 +663,10 @@ class TestCleanArtifactsParameterValidation(DebuggableTestCase):
         try:
             # Valid cases
             clean_artifacts(self.test_eeg, ChannelCriterion='off',
-                          LineNoiseCriterion='off', BurstCriterion='off', 
+                          LineNoiseCriterion='off', BurstCriterion='off',
                           WindowCriterion='off', Highpass='off', FlatlineCriterion=5.0)
             clean_artifacts(self.test_eeg, ChannelCriterion='off',
-                          LineNoiseCriterion='off', BurstCriterion='off', 
+                          LineNoiseCriterion='off', BurstCriterion='off',
                           WindowCriterion='off', Highpass='off', FlatlineCriterion='off')
         except Exception as e:
             self.skipTest(f"clean_artifacts flatline criterion validation not available: {e}")
@@ -677,11 +677,11 @@ class TestCleanArtifactsParameterValidation(DebuggableTestCase):
         try:
             # Valid cases
             clean_artifacts(self.test_eeg, ChannelCriterion='off',
-                          LineNoiseCriterion='off', BurstCriterion='off', 
+                          LineNoiseCriterion='off', BurstCriterion='off',
                           WindowCriterion='off', Highpass='off', FlatlineCriterion='off',
                           BurstRejection='on')
             clean_artifacts(self.test_eeg, ChannelCriterion='off',
-                          LineNoiseCriterion='off', BurstCriterion='off', 
+                          LineNoiseCriterion='off', BurstCriterion='off',
                           WindowCriterion='off', Highpass='off', FlatlineCriterion='off',
                           BurstRejection='off')
         except Exception as e:
@@ -693,11 +693,11 @@ class TestCleanArtifactsParameterValidation(DebuggableTestCase):
         try:
             # Valid cases
             clean_artifacts(self.test_eeg, ChannelCriterion='off',
-                          LineNoiseCriterion='off', BurstCriterion='off', 
+                          LineNoiseCriterion='off', BurstCriterion='off',
                           WindowCriterion='off', Highpass='off', FlatlineCriterion='off',
                           Distance='euclidian')
             clean_artifacts(self.test_eeg, ChannelCriterion='off',
-                          LineNoiseCriterion='off', BurstCriterion='off', 
+                          LineNoiseCriterion='off', BurstCriterion='off',
                           WindowCriterion='off', Highpass='off', FlatlineCriterion='off',
                           Distance='riemann')  # Should trigger riemannian mode
         except Exception as e:
@@ -708,7 +708,7 @@ class TestCleanArtifactsParameterValidation(DebuggableTestCase):
         # Some parameters should handle negative values gracefully
         try:
             clean_artifacts(self.test_eeg, ChannelCriterion='off',
-                          LineNoiseCriterion='off', BurstCriterion='off', 
+                          LineNoiseCriterion='off', BurstCriterion='off',
                           WindowCriterion='off', Highpass='off', FlatlineCriterion='off',
                           MaxMem=-1)  # Negative MaxMem should be handled
         except Exception as e:
@@ -719,7 +719,7 @@ class TestCleanArtifactsParameterValidation(DebuggableTestCase):
         """Test clean_artifacts with zero parameter values."""
         try:
             clean_artifacts(self.test_eeg, ChannelCriterion=0.0,  # Zero correlation threshold
-                          LineNoiseCriterion=0.0, BurstCriterion='off', 
+                          LineNoiseCriterion=0.0, BurstCriterion='off',
                           WindowCriterion=0.0, Highpass='off', FlatlineCriterion=0.0)
         except Exception as e:
             self.skipTest(f"clean_artifacts zero values not available: {e}")
@@ -728,7 +728,7 @@ class TestCleanArtifactsParameterValidation(DebuggableTestCase):
         """Test clean_artifacts with extreme parameter values."""
         try:
             clean_artifacts(self.test_eeg, ChannelCriterion=1.0,  # Perfect correlation required
-                          LineNoiseCriterion=100.0, BurstCriterion='off', 
+                          LineNoiseCriterion=100.0, BurstCriterion='off',
                           WindowCriterion=1.0, Highpass='off', FlatlineCriterion=1000.0)
         except Exception as e:
             self.skipTest(f"clean_artifacts extreme values not available: {e}")
@@ -754,10 +754,10 @@ class TestCleanArtifactsParameters(DebuggableTestCase):
                 Highpass='off',
                 FlatlineCriterion='off'
             )
-            
+
             # Should complete without error
             self.assertIsInstance(EEG, dict)
-            
+
         except Exception as e:
             self.skipTest(f"clean_artifacts available RAM not available: {e}")
 
@@ -774,10 +774,10 @@ class TestCleanArtifactsParameters(DebuggableTestCase):
                 Highpass='off',
                 FlatlineCriterion='off'
             )
-            
+
             # Should complete without error
             self.assertIsInstance(EEG, dict)
-            
+
         except Exception as e:
             self.skipTest(f"clean_artifacts distance metric not available: {e}")
 
@@ -794,10 +794,10 @@ class TestCleanArtifactsParameters(DebuggableTestCase):
                 Highpass='off',
                 FlatlineCriterion='off'
             )
-            
+
             # Should complete without error
             self.assertIsInstance(EEG, dict)
-            
+
         except Exception as e:
             self.skipTest(f"clean_artifacts max memory not available: {e}")
 
@@ -821,22 +821,22 @@ class TestCleanArtifactsIntegration(DebuggableTestCase):
                 BurstCriterion=5.0,
                 WindowCriterion=0.25
             )
-            
+
             # Check all return values
             self.assertIsInstance(EEG, dict)
             self.assertIsInstance(HP, dict)
             self.assertIsInstance(BUR, dict)
             self.assertIsInstance(removed_channels, np.ndarray)
-            
+
             # Check data integrity
             self.assertIn('data', EEG)
             self.assertIn('srate', EEG)
             self.assertIn('nbchan', EEG)
             self.assertIn('pnts', EEG)
-            
+
             # Check that some processing occurred
             self.assertLessEqual(EEG['nbchan'], self.test_eeg['nbchan'])
-            
+
         except Exception as e:
             self.skipTest(f"clean_artifacts full pipeline not available: {e}")
 
@@ -852,30 +852,30 @@ class TestCleanArtifactsIntegration(DebuggableTestCase):
                 Highpass='off',
                 FlatlineCriterion='off'
             )
-            
+
             # Check EEG structure
             self.assertIn('data', EEG)
             self.assertIn('srate', EEG)
             self.assertIn('nbchan', EEG)
             self.assertIn('pnts', EEG)
             self.assertIn('etc', EEG)
-            
+
             # Check HP structure (should be same as EEG when no highpass)
             self.assertIn('data', HP)
             self.assertIn('srate', HP)
             self.assertIn('nbchan', HP)
             self.assertIn('pnts', HP)
-            
+
             # Check BUR structure (should be same as EEG when no burst cleaning)
             self.assertIn('data', BUR)
             self.assertIn('srate', BUR)
             self.assertIn('nbchan', BUR)
             self.assertIn('pnts', BUR)
-            
+
             # Check removed_channels array
             self.assertEqual(len(removed_channels), self.test_eeg['nbchan'])
             self.assertTrue(np.issubdtype(removed_channels.dtype, np.bool_))
-            
+
         except Exception as e:
             self.skipTest(f"clean_artifacts return values not available: {e}")
 

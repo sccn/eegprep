@@ -5,15 +5,16 @@ import logging
 __version__ = "0.2.23"
 
 from .utils.logs import setup_logging
-setup_logging(logging.INFO)
+setup_logging(logging.WARNING)
 
 from .iclabel import iclabel
 from .eeg_icflag import eeg_icflag
-from .pop_subcomp import pop_subcomp
-from .pop_saveset import pop_saveset
-from .pop_loadset import loadset, pop_loadset
-from .pop_loadset_h5 import pop_loadset_h5
-from .pop_resample import pop_resample
+from .popfunc.pop_subcomp import pop_subcomp
+from .popfunc.pop_saveset import pop_saveset
+from .popfunc.pop_loadset import loadset, pop_loadset
+from .popfunc.pop_loadset_h5 import pop_loadset_h5
+from .popfunc.pop_adjustevents import pop_adjustevents
+from .popfunc.pop_resample import pop_resample
 from .eeg_checkset import eeg_checkset
 from .eeglabcompat import pop_eegfiltnew
 from .eeglabcompat import clean_artifacts as eeglab_clean_artifacts
@@ -23,7 +24,7 @@ from .eeg_rpsd import eeg_rpsd
 from .eeg_autocorr_welch import eeg_autocorr_welch
 from .eeg_autocorr import eeg_autocorr
 from .eeg_autocorr_fftw import eeg_autocorr_fftw
-from .pop_reref import pop_reref
+from .popfunc.pop_reref import pop_reref
 from .eeg_picard import eeg_picard
 from .eeg_runica import eeg_runica
 from .clean_flatlines import clean_flatlines
@@ -35,7 +36,7 @@ from .clean_windows import clean_windows
 from .eeg_compare import eeg_compare
 from .eeg_interp import eeg_interp
 from .clean_artifacts import clean_artifacts
-from .pop_load_frombids import pop_load_frombids
+from .popfunc.pop_load_frombids import pop_load_frombids
 from .bids_list_eeg_files import bids_list_eeg_files
 from .bids_preproc import bids_preproc
 from .eeg_decodechan import eeg_decodechan
