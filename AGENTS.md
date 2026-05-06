@@ -83,6 +83,7 @@ Primary references:
 
 - Pytest is the default test runner. Existing tests may still use `unittest.TestCase`; do not rewrite them unless the touched test benefits from pytest fixtures or parametrization.
 - Registered markers include `slow`, `matlab`, `octave`, `gui`, `visual`, and `parity`.
+- Legacy `unittest` tests are categorized by path/name in `tests/conftest.py`; update that map when adding obvious slow, MATLAB, GUI, visual, or parity coverage.
 - Always fix tests you break.
 - Run the narrowest relevant tests first, then broaden as risk requires:
   - Single file: `uv run pytest tests/test_pop_select.py`

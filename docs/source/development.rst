@@ -104,6 +104,10 @@ Run a marker subset:
 
     uv run pytest -m "not slow"
 
+Markers include ``slow``, ``matlab``, ``octave``, ``gui``, ``visual``, and
+``parity``. Legacy ``unittest`` tests are categorized during collection in
+``tests/conftest.py`` so marker expressions work without rewriting the tests.
+
 Continuous Integration
 ----------------------
 
