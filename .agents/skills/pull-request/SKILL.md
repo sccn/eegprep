@@ -60,7 +60,7 @@ issue link.
 Run these before pushing. Do not skip any step.
 
 1. `./pre-commit.py --fix` — resolve all issues. Do not substitute `uv run pre-commit ...`.
-2. `uv run python -m unittest discover -s tests` — relevant test directories.
+2. `uv run pytest` — relevant test files or directories.
 
 After pushing, monitor CI: `gh pr view <number> --json statusCheckRollup`.
 Fix failures before considering the PR complete.

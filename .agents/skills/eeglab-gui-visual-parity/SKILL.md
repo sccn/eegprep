@@ -20,7 +20,7 @@ git rev-parse --show-toplevel
 Use the uv-managed project environment by default:
 
 ```bash
-uv run python -m unittest tests.test_visual_parity
+uv run pytest tests/test_visual_parity.py
 ```
 
 For repeated capture runs after the environment is synced, skip dependency

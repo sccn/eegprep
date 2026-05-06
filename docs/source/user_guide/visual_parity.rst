@@ -132,7 +132,7 @@ Compare the exported EEGLAB menu JSON with an EEGPREP menu model:
 
 .. code-block:: bash
 
-   python tools/visual_parity/menu_inventory.py \
+   uv run --no-sync python tools/visual_parity/menu_inventory.py \
        --reference .visual-parity/eeglab_menus.json \
        --candidate .visual-parity/eegprep_menus.json
 
