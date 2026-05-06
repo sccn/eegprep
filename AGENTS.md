@@ -84,9 +84,9 @@ Primary references:
 - Current CI uses `unittest`, not pytest markers. Do not assume `pytest -m "not slow"` works here.
 - Always fix tests you break.
 - Run the narrowest relevant tests first, then broaden as risk requires:
-  - Single file: `python -m unittest tests.test_pop_select`
-  - Full suite: `python -m unittest discover -s tests`
-  - No MATLAB locally: `EEGPREP_SKIP_MATLAB=1 python -m unittest discover -s tests`
+  - Single file: `uv run python -m unittest tests.test_pop_select`
+  - Full suite: `uv run python -m unittest discover -s tests`
+  - No MATLAB locally: `EEGPREP_SKIP_MATLAB=1 uv run python -m unittest discover -s tests`
 - Some parity tests require MATLAB Engine or Octave via `src/eegprep/functions/adminfunc/eeglabcompat.py`; preserve skip behavior instead of weakening assertions.
 - Prefer integration-style tests that validate externally observable behavior on EEG dicts, BIDS outputs, files, or MATLAB parity results.
 - Search existing test files before creating new ones. Extend the closest existing test first.
@@ -108,8 +108,11 @@ Primary references:
 ## Dependencies
 
 - Python support starts at 3.10 per `pyproject.toml`.
+- `uv` is the default package and environment manager for development, CI, and agent workflows.
+- `.python-version` sets the default development interpreter to Python 3.11.
+- Use `uv sync --group dev` after cloning or when dependencies change.
+- Use `uv run python ...` for Python commands so tests run inside the project environment.
 - Do not add dependencies for tiny helpers. If a dependency is justified, update `pyproject.toml`, docs, and any CI/install notes.
-- `uv` is used in CI for installation, but test execution is currently `python -m unittest discover -s tests`.
 
 ## GitHub, Communication, and Commits
 

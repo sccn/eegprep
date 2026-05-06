@@ -24,7 +24,7 @@ Fork and Clone
 
 .. code-block:: bash
 
-    git remote add upstream https://github.com/NeuroTechX/eegprep.git
+    git remote add upstream https://github.com/sccn/eegprep.git
 
 4. Create a new branch for your feature or bugfix:
 
@@ -38,29 +38,27 @@ Development Environment
 Virtual Environment Setup
 --------------------------
 
-Create and activate a virtual environment:
+Create the uv-managed development environment:
 
 .. code-block:: bash
 
-    python -m venv venv
-    source venv/bin/activate  # On Windows: venv\Scripts\activate
+    uv python install 3.11
+    uv sync --group dev
 
 Install Dependencies
 --------------------
 
-Install the package in editable mode with development dependencies:
+If you only need documentation dependencies, sync the docs extra:
 
 .. code-block:: bash
 
-    pip install -e ".[dev]"
-    pip install -e ".[docs]"
+    uv sync --extra docs --group dev
 
-This installs:
+``uv sync`` installs:
 
 - The eegprep package in editable mode
-- Testing dependencies (pytest, pytest-cov)
-- Documentation dependencies (sphinx, sphinx-rtd-theme)
-- Code quality tools (black, flake8, isort)
+- Repo tooling dependencies
+- Documentation dependencies when ``--extra docs`` is used
 
 Code Style Guidelines
 =====================
@@ -86,18 +84,11 @@ Naming Conventions
 Code Formatting
 ---------------
 
-Use automated tools to maintain consistency:
+Use the repository pre-commit entry point:
 
 .. code-block:: bash
 
-    # Format code with black
-    black src/eegprep tests
-
-    # Sort imports with isort
-    isort src/eegprep tests
-
-    # Check code style with flake8
-    flake8 src/eegprep tests
+    ./pre-commit.py --fix
 
 Testing Requirements
 ====================
@@ -109,36 +100,19 @@ Run the full test suite:
 
 .. code-block:: bash
 
-    pytest
+    uv run python -m unittest discover -s tests
 
 Run tests for a specific module:
 
 .. code-block:: bash
 
-    pytest tests/test_clean_artifacts.py
+    uv run python -m unittest tests.test_clean_artifacts
 
 Run tests with verbose output:
 
 .. code-block:: bash
 
-    pytest -v
-
-Test Coverage
--------------
-
-Check test coverage:
-
-.. code-block:: bash
-
-    pytest --cov=src/eegprep --cov-report=html
-
-View the coverage report:
-
-.. code-block:: bash
-
-    open htmlcov/index.html  # On macOS
-    # or
-    xdg-open htmlcov/index.html  # On Linux
+    uv run python -m unittest -v tests.test_clean_artifacts
 
 Writing Tests
 -------------
@@ -147,7 +121,6 @@ When adding new features, include tests:
 
 .. code-block:: python
 
-    import pytest
     from eegprep import EEGobj
 
     def test_new_feature():
@@ -254,14 +227,13 @@ Before Submitting
 
 .. code-block:: bash
 
-    pytest
+    uv run python -m unittest discover -s tests
 
 3. Check code style:
 
 .. code-block:: bash
 
-    black --check src/eegprep tests
-    flake8 src/eegprep tests
+    ./pre-commit.py
 
 4. Build documentation locally:
 
@@ -341,7 +313,7 @@ Getting Help
 
 - **Documentation**: Check the :doc:`user_guide/index` and :doc:`api/index`
 - **Examples**: See :doc:`examples/index` for practical examples
-- **Issues**: Search `GitHub Issues <https://github.com/NeuroTechX/eegprep/issues>`_
+- **Issues**: Search `GitHub Issues <https://github.com/sccn/eegprep/issues>`_
 - **Discussions**: Join our community discussions on GitHub
 
 Thank you for contributing to EEGPrep!

@@ -17,15 +17,14 @@ Run commands from the EEGPrep repo root:
 git rev-parse --show-toplevel
 ```
 
-Use the current environment's Python, or set `PYTHON` to the interpreter for
-the active EEGPrep development environment:
+Use the uv-managed project environment by default:
 
 ```bash
-PYTHON=${PYTHON:-python}
-PYTHONPATH=src "$PYTHON" -m unittest tests.test_visual_parity
+uv run python -m unittest tests.test_visual_parity
 ```
 
-If `uv` is available and the environment is already synced, these are equivalent:
+For repeated capture runs after the environment is synced, skip dependency
+resolution:
 
 ```bash
 uv run --no-sync python tools/visual_parity/capture.py --list
@@ -35,7 +34,7 @@ uv run --no-sync python tools/visual_parity/compare.py --case adjust_events_dial
 Install optional GUI dependencies before Python dialog capture:
 
 ```bash
-python -m pip install -e '.[gui]'
+uv sync --extra gui --group dev
 ```
 
 ## SCCN Server Fast Path

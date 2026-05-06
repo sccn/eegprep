@@ -12,8 +12,9 @@ System Requirements
 Before installing eegprep, ensure your system meets the following requirements:
 
 - **Python**: 3.10 or higher
-- **pip**: Latest version (for pip installation)
-- **conda**: Latest version (for conda installation, optional)
+- **uv**: Default package and environment manager for source installs and development
+- **pip**: Optional fallback for published package installs
+- **conda**: Optional environment manager when required by a local setup
 - **Operating System**: Linux, macOS, or Windows
 - **RAM**: Minimum 4GB (8GB+ recommended for large datasets)
 - **Disk Space**: At least 500MB for installation and dependencies
@@ -21,20 +22,30 @@ Before installing eegprep, ensure your system meets the following requirements:
 Installation Methods
 ====================
 
-Using pip (Recommended)
------------------------
+Using uv (Recommended)
+----------------------
 
-The easiest way to install eegprep is using pip:
+For a project managed by uv, add eegprep with:
+
+.. code-block:: bash
+
+    uv add eegprep
+
+To include all optional EEGPrep dependencies:
+
+.. code-block:: bash
+
+    uv add "eegprep[all]"
+
+Using pip
+---------
+
+Published EEGPrep packages can also be installed with pip in non-uv
+environments:
 
 .. code-block:: bash
 
     pip install eegprep
-
-To upgrade an existing installation:
-
-.. code-block:: bash
-
-    pip install --upgrade eegprep
 
 Using conda
 -----------
@@ -61,9 +72,10 @@ To install eegprep from source for development:
 
     git clone https://github.com/sccn/eegprep.git
     cd eegprep
-    pip install -e .
+    uv sync --group dev
 
-The ``-e`` flag installs the package in editable mode, allowing you to modify the source code and see changes immediately.
+``uv sync`` creates the project environment, installs EEGPrep in editable mode,
+and uses ``uv.lock`` for reproducible dependency resolution.
 
 Optional Dependencies
 =====================
@@ -77,19 +89,19 @@ To use GPU-accelerated processing with PyTorch:
 
 .. code-block:: bash
 
-    pip install torch
+    uv add torch
 
 For CUDA support (NVIDIA GPUs):
 
 .. code-block:: bash
 
-    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+    uv add torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 
 For CPU-only PyTorch:
 
 .. code-block:: bash
 
-    pip install torch --index-url https://download.pytorch.org/whl/cpu
+    uv add torch --index-url https://download.pytorch.org/whl/cpu
 
 EEGLAB I/O Support
 ------------------
@@ -98,7 +110,7 @@ To enable reading and writing EEGLAB .set files:
 
 .. code-block:: bash
 
-    pip install eeglabio
+    uv add eeglabio
 
 MNE-Python Integration
 ----------------------
@@ -107,7 +119,7 @@ For integration with MNE-Python:
 
 .. code-block:: bash
 
-    pip install mne
+    uv add mne
 
 AMICA
 -----
@@ -139,7 +151,7 @@ To build the documentation locally:
 
 .. code-block:: bash
 
-    pip install sphinx sphinx-rtd-theme sphinx-autodoc-typehints
+    uv sync --extra docs
 
 All Optional Dependencies
 --------------------------
@@ -148,13 +160,13 @@ To install all optional dependencies at once:
 
 .. code-block:: bash
 
-    pip install eegprep[all]
+    uv add "eegprep[all]"
 
 Or with specific extras:
 
 .. code-block:: bash
 
-    pip install eegprep[torch,mne,docs]
+    uv add "eegprep[torch,eeglabio,gui,docs]"
 
 Verification
 ============
@@ -195,13 +207,13 @@ Import Errors
 
 .. code-block:: bash
 
-    pip install eegprep
+    uv add eegprep
 
 If installing from source, ensure you're in the correct directory and use:
 
 .. code-block:: bash
 
-    pip install -e .
+    uv sync --group dev
 
 Version Conflicts
 -----------------
@@ -212,9 +224,9 @@ Version Conflicts
 
 .. code-block:: bash
 
-    python -m venv eegprep_env
+    uv venv eegprep_env
     source eegprep_env/bin/activate  # On Windows: eegprep_env\Scripts\activate
-    pip install eegprep
+    uv pip install eegprep
 
 PyTorch Installation Issues
 ----------------------------
@@ -247,7 +259,7 @@ EEGLAB File Format Issues
 
 .. code-block:: bash
 
-    pip install eeglabio
+    uv add eeglabio
 
 Then verify:
 

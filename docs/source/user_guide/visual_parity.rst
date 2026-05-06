@@ -21,7 +21,7 @@ Install the optional EEGPREP GUI dependencies before capturing Python dialogs:
 
 .. code-block:: bash
 
-   python -m pip install -e '.[gui]'
+   uv sync --extra gui --group dev
 
 Start a Virtual Desktop
 =======================

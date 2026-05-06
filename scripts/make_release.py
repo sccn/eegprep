@@ -157,11 +157,11 @@ def set_package_name(new_name):
         return False
 
 
-def get_install_command():
+def get_install_command(package_name):
     """Determine the appropriate install command based on the environment."""
     if IS_UV_PROJECT and UV_AVAILABLE:
-        return "uv pip install"
-    return "pip install"
+        return "uv sync --group release"
+    return f"pip install {package_name}"
 
 
 def check_prerequisites():
@@ -177,8 +177,6 @@ def check_prerequisites():
         else:
             print_warning("uv is not available in PATH but project uses uv")
 
-    install_cmd = get_install_command()
-
     # Check if running on Windows
     if platform.system() == "Windows":
         print_warning("Running on Windows. This script is primarily tested on Linux/Mac.")
@@ -190,20 +188,20 @@ def check_prerequisites():
     # Check for build package
     if find_spec("build") is None:
         print_error("Package 'build' is not installed.")
-        print(f"Install with: {Fore.CYAN}{install_cmd} build{Style.RESET_ALL}")
+        print(f"Install with: {Fore.CYAN}{get_install_command('build')}{Style.RESET_ALL}")
         sys.exit(1)
     print_success("Package 'build' is installed")
 
     # Check for twine
     if find_spec("twine") is None:
         print_error("Package 'twine' is not installed.")
-        print(f"Install with: {Fore.CYAN}{install_cmd} twine{Style.RESET_ALL}")
+        print(f"Install with: {Fore.CYAN}{get_install_command('twine')}{Style.RESET_ALL}")
         sys.exit(1)
     print_success("Package 'twine' is installed")
 
     # Remind about tests
     print_info("Remember to run tests before releasing!")
-    print_info("  python -m unittest discover -s tests")
+    print_info("  uv run python -m unittest discover -s tests")
 
 
 def get_new_version(current_version):
@@ -575,7 +573,7 @@ def print_test_instructions(version, release_type):
     if release_type in ['test', 'both']:
         print(f"{Fore.MAGENTA}To test the TestPyPI release:{Style.RESET_ALL}")
         print(f"{Fore.YELLOW}  NOTE: The test package is named '{TESTPYPI_PACKAGE_NAME}' on TestPyPI{Style.RESET_ALL}")
-        print(f"  pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ {TESTPYPI_PACKAGE_NAME}=={version}")
+        print(f"  uv pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ {TESTPYPI_PACKAGE_NAME}=={version}")
         print()
         print(f"{Fore.CYAN}  After installing, you can still import it as 'eegprep':{Style.RESET_ALL}")
         print(f"  python -c 'import eegprep; print(eegprep.__version__)'")
@@ -583,10 +581,10 @@ def print_test_instructions(version, release_type):
 
     if release_type in ['prod', 'both']:
         print(f"{Fore.MAGENTA}To test the PyPI release:{Style.RESET_ALL}")
-        print(f"  pip install eegprep=={version}")
+        print(f"  uv pip install eegprep=={version}")
         print()
         print(f"{Fore.MAGENTA}Or with all optional dependencies:{Style.RESET_ALL}")
-        print(f"  pip install eegprep[all]=={version}")
+        print(f"  uv pip install 'eegprep[all]=={version}'")
         print()
 
 

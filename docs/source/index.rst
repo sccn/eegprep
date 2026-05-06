@@ -13,7 +13,7 @@ A comprehensive Python EEG preprocessing pipeline for neuroscience research.
    <div style="text-align: center; margin: 2rem 0;">
       <p style="font-size: 1.1rem; margin-bottom: 0.5rem;">Get started with:</p>
       <div style="background-color: #f5f5f5; padding: 1rem; border-radius: 0.5rem; display: inline-block; border-left: 4px solid #0066cc;">
-         <code style="font-size: 1.1rem; color: #0066cc; font-weight: 500;">pip install eegprep</code>
+         <code style="font-size: 1.1rem; color: #0066cc; font-weight: 500;">uv add eegprep</code>
       </div>
    </div>
 

@@ -10,12 +10,18 @@ Installation FAQ
 What Python versions does EEGPrep support?
 ------------------------------------------
 
-EEGPrep supports Python 3.11 and higher. We recommend using Python 3.11 or 3.12 for the best compatibility with all dependencies, following the (https://scientific-python.org/specs/spec-0000/)[SPEC0] guidelines.
+EEGPrep supports Python 3.10 and higher. We recommend using Python 3.11 or 3.12 for development.
 
 How do I install EEGPrep?
 -------------------------
 
-The easiest way is to use pip:
+In a uv-managed project:
+
+.. code-block:: bash
+
+    uv add eegprep
+
+Published releases can also be installed with pip:
 
 .. code-block:: bash
 
@@ -25,15 +31,15 @@ For development installation from source:
 
 .. code-block:: bash
 
-    git clone https://github.com/NeuroTechX/eegprep.git
+    git clone https://github.com/sccn/eegprep.git
     cd eegprep
-    pip install -e ".[dev]"
+    uv sync --group dev
 
 What are the system requirements?
 ---------------------------------
 
 - **Operating System**: Linux, macOS, or Windows
-- **Python**: 3.11 or higher
+- **Python**: 3.10 or higher
 - **RAM**: Minimum 4GB (8GB+ recommended for large datasets)
 - **Disk Space**: 500MB for installation and dependencies
 
@@ -45,20 +51,19 @@ Yes, EEGPrep works on Windows. However, some optional features may require addit
 What if I get dependency conflicts?
 -----------------------------------
 
-Try updating pip and reinstalling:
+Refresh the uv environment:
 
 .. code-block:: bash
 
-    pip install --upgrade pip
-    pip install --force-reinstall eegprep
+    uv lock
+    uv sync --group dev
 
-Or create a fresh virtual environment:
+Or create a fresh uv environment:
 
 .. code-block:: bash
 
-    python -m venv venv
-    source venv/bin/activate
-    pip install eegprep
+    rm -rf .venv
+    uv sync --group dev
 
 Does EEGPrep support GPU acceleration?
 --------------------------------------
@@ -67,8 +72,8 @@ EEGPrep can leverage GPU acceleration through MNE-Python and PyTorch for ICA and
 
 .. code-block:: bash
 
-    pip install torch  # For GPU support
-    pip install mne[cuda]  # For MNE GPU support
+    uv add torch  # For GPU support
+    uv add "mne[cuda]"  # For MNE GPU support
 
 Usage FAQ
 =========
@@ -265,13 +270,13 @@ I get "ModuleNotFoundError: No module named 'eegprep'"
 
 .. code-block:: bash
 
-    pip install eegprep
+    uv add eegprep
 
 Or if developing from source:
 
 .. code-block:: bash
 
-    pip install -e .
+    uv sync --group dev
 
 I get "ValueError: Data shape mismatch"
 ---------------------------------------
@@ -467,7 +472,7 @@ Getting Help
 
 - Check the :doc:`user_guide/index`
 - Review :doc:`examples/index`
-- Search `GitHub Issues <https://github.com/NeuroTechX/eegprep/issues>`_
+- Search `GitHub Issues <https://github.com/sccn/eegprep/issues>`_
 - Ask in GitHub Discussions
 - Contact the maintainers
 
