@@ -9,10 +9,7 @@ MATLAB EEGLAB's pop_epoch function across all tested scenarios.
 import os
 import numpy as np
 import unittest
-import os
 
-if os.getenv('EEGPREP_SKIP_MATLAB') == '1':
-    raise unittest.SkipTest("MATLAB not available")
 import copy
 
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
@@ -24,7 +21,10 @@ class TestPopEpochParity(unittest.TestCase):
 
     def setUp(self):
         np.random.seed(42)
-        self.eeglab = get_eeglab('MAT')
+        try:
+            self.eeglab = get_eeglab('MAT')
+        except Exception as e:
+            self.skipTest(f"MATLAB not available: {e}")
 
         # Create a basic EEG structure for testing
         self.create_test_eeg()
