@@ -171,8 +171,11 @@ def _find_amica_binary(amica_binary=None):
 
     # 2. Environment variable
     env_binary = os.environ.get('AMICA_BINARY')
-    if env_binary and os.path.isfile(env_binary) and os.access(env_binary, os.X_OK):
-        return env_binary
+    if env_binary:
+        if os.path.isfile(env_binary) and os.access(env_binary, os.X_OK):
+            return env_binary
+        raise FileNotFoundError(
+            f"AMICA_BINARY is set but not found or not executable: {env_binary}")
 
     # Determine platform-specific binary name
     system = platform.system()

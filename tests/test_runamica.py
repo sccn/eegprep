@@ -14,6 +14,7 @@ import platform
 import shutil
 import tempfile
 import unittest
+from unittest import mock
 
 import numpy as np
 
@@ -263,6 +264,12 @@ class TestFindAmicaBinary(unittest.TestCase):
         """Verify FileNotFoundError for nonexistent explicit path."""
         with self.assertRaises(FileNotFoundError):
             _find_amica_binary('/nonexistent/path/amica15')
+
+    def test_find_amica_binary_bad_env_var(self):
+        """Verify FileNotFoundError identifies invalid AMICA_BINARY."""
+        with mock.patch.dict(os.environ, {'AMICA_BINARY': '/nonexistent/path/amica15'}):
+            with self.assertRaisesRegex(FileNotFoundError, 'AMICA_BINARY'):
+                _find_amica_binary()
 
 
 @unittest.skipUnless(is_amica_available(),
