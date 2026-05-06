@@ -254,6 +254,23 @@ Alternative ICA algorithm:
 
 **When to use**: After filtering, before component classification.
 
+Using AMICA
+~~~~~~~~~~~
+
+AMICA is supported through an external executable. EEGPrep packages do not ship
+AMICA binaries; set ``AMICA_BINARY``, put the executable on ``PATH``, or pass
+``amica_binary`` explicitly.
+
+.. code-block:: python
+
+    from eegprep import eeg_amica
+
+    eeg = eeg_amica(
+        eeg,
+        amica_binary="/path/to/amica15ub",
+        max_iter=500,
+    )
+
 Step 7: Component Classification (ICLabel)
 -------------------------------------------
 

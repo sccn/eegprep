@@ -86,7 +86,7 @@ exclude = ["eegprep.eeglab*"]
 ]
 
 [tool.setuptools.exclude-package-data]
-"eegprep" = ["eeglab/**"]
+"eegprep" = ["bin/*", "eeglab/**"]
 
 [tool.setuptools.dynamic]
 version = { attr = "eegprep.__version__" }

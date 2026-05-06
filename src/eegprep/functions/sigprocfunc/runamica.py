@@ -5,6 +5,10 @@ Handles binary discovery, parameter file I/O, subprocess execution, and
 output loading. This is a Python port of the MATLAB runamica15.m / loadmodout15.m
 functions from https://github.com/sccn/amica.
 
+EEGPrep package distributions do not ship AMICA binaries. Source checkouts may
+contain local development binaries under src/eegprep/bin, but installed users
+should pass amica_binary, set AMICA_BINARY, or put the AMICA executable on PATH.
+
 The binary communicates via a parameter file (input.param) and writes results
 as raw binary files (float64) to an output directory.
 """
@@ -139,7 +143,7 @@ def _find_amica_binary(amica_binary=None):
     Search order:
     1. Explicit amica_binary argument.
     2. AMICA_BINARY environment variable.
-    3. Platform-specific binary in src/eegprep/bin/.
+    3. Source-tree development binary in src/eegprep/bin/ if present.
     4. EEGLAB submodule plugins directory.
     5. System PATH.
 
@@ -181,7 +185,7 @@ def _find_amica_binary(amica_binary=None):
     else:
         binary_name = 'amica15'
 
-    # 3. Vendored binary in src/eegprep/bin/
+    # 3. Source-tree development binary in src/eegprep/bin/
     bin_dir = os.path.join(PACKAGE_ROOT, 'bin')
     vendored = os.path.join(bin_dir, binary_name)
     if os.path.isfile(vendored) and os.access(vendored, os.X_OK):
@@ -204,11 +208,13 @@ def _find_amica_binary(amica_binary=None):
         return found
 
     raise FileNotFoundError(
-        f"AMICA binary '{binary_name}' not found. Install options:\n"
-        f"  1. Place the binary in {bin_dir}/\n"
-        f"  2. Set the AMICA_BINARY environment variable\n"
-        f"  3. Add the binary to your system PATH\n"
-        f"  4. Download from https://github.com/sccn/amica/releases"
+        f"AMICA binary '{binary_name}' not found. EEGPrep wheels do not "
+        f"ship AMICA binaries. Install options:\n"
+        f"  1. Pass amica_binary=/path/to/{binary_name}\n"
+        f"  2. Set AMICA_BINARY=/path/to/{binary_name}\n"
+        f"  3. Add {binary_name} to your system PATH\n"
+        f"  4. Download AMICA from https://github.com/sccn/amica/releases\n"
+        f"Source checkouts may also use a development binary in {bin_dir}/."
     )
 
 

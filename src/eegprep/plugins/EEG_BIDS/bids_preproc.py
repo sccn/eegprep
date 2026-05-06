@@ -389,7 +389,7 @@ def bids_preproc(
                          pop_saveset, eeg_runica, eeg_picard, iclabel, pop_loadset, pop_resample,
                          eeg_interp, pop_select, eeg_checkset_strict_mode, pop_reref,
                          eeg_icflag, pop_subcomp)
-    from eegprep.functions.sigprocfunc.eeg_amica import eeg_amica
+    from eegprep.functions.popfunc.eeg_amica import eeg_amica
     from .bids import gen_derived_fpath
 
     def hash_suffix(ignore: Optional[set] = None, *, prefix='#') -> str:

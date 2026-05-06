@@ -24,7 +24,7 @@ from eegprep.functions.popfunc.eeg_lat2point import eeg_lat2point
 from eegprep.functions.miscfunc.eeg_mne2eeg import eeg_mne2eeg
 from eegprep.functions.miscfunc.eeg_mne2eeg_epochs import eeg_mne2eeg_epochs
 from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
-from eegprep.functions.sigprocfunc.eeg_picard import eeg_picard
+from eegprep.functions.popfunc.eeg_picard import eeg_picard
 from eegprep.functions.popfunc.eeg_point2lat import eeg_point2lat
 from eegprep.functions.popfunc.pop_epoch import pop_epoch
 from eegprep.functions.popfunc.pop_loadset import pop_loadset

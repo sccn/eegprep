@@ -16,7 +16,7 @@ import unittest
 
 import numpy as np
 
-from eegprep.functions.sigprocfunc.eeg_amica import eeg_amica, load_amica_model
+from eegprep.functions.popfunc.eeg_amica import eeg_amica, load_amica_model
 from eegprep.functions.sigprocfunc.runamica import is_amica_available
 
 

@@ -1,6 +1,6 @@
-from .runica import runica
 import numpy as np
 from ..miscfunc.pinv import pinv
+from ..sigprocfunc.runica import runica
 
 
 def eeg_runica(EEG, posact='off', sortcomps='off', **kwargs):

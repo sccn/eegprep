@@ -1,8 +1,8 @@
 """Perform ICA decomposition using the AMICA (Adaptive Mixture ICA) algorithm."""
 
 import numpy as np
-from .runamica import runamica
 from ..miscfunc.pinv import pinv
+from ..sigprocfunc.runamica import runamica
 
 
 def eeg_amica(EEG, posact='off', sortcomps='off', num_models=1, max_iter=2000,
@@ -15,6 +15,9 @@ def eeg_amica(EEG, posact='off', sortcomps='off', num_models=1, max_iter=2000,
     distributions via an external Fortran binary. Standard ICA fields are
     populated from model 0. The full multi-model output is stored in
     EEG['etc']['amica'].
+
+    EEGPrep wheels do not ship AMICA binaries. Provide the executable with the
+    amica_binary argument, the AMICA_BINARY environment variable, or PATH.
 
     Parameters
     ----------
@@ -37,7 +40,8 @@ def eeg_amica(EEG, posact='off', sortcomps='off', num_models=1, max_iter=2000,
     outdir : str or None
         Output directory for AMICA. If None, a temporary directory is used.
     amica_binary : str or None
-        Path to AMICA binary. If None, auto-detected.
+        Path to AMICA binary. If None, auto-detected from AMICA_BINARY, a
+        source-tree development binary, EEGLAB's AMICA plugin, or PATH.
     max_threads : int
         Maximum number of threads for the binary.
     **kwargs : dict

@@ -4,8 +4,8 @@ from picard import picard
 import numpy as np
 import os
 import tempfile
-from ..popfunc.pop_saveset import pop_saveset
-from ..popfunc.pop_loadset import pop_loadset
+from .pop_saveset import pop_saveset
+from .pop_loadset import pop_loadset
 from ..adminfunc.eeglabcompat import temp_dir, MatlabWrapper
 from ..miscfunc.pinv import pinv
 

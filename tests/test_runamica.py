@@ -249,7 +249,7 @@ class TestFindAmicaBinary(unittest.TestCase):
     """Test binary discovery logic."""
 
     def test_find_amica_binary(self):
-        """Verify that _find_amica_binary() finds the vendored binary."""
+        """Verify that _find_amica_binary() finds an available AMICA binary."""
         if platform.system() not in ('Darwin', 'Linux', 'Windows'):
             self.skipTest("Unsupported platform for vendored binary")
         try:

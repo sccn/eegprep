@@ -109,6 +109,29 @@ For integration with MNE-Python:
 
     pip install mne
 
+AMICA
+-----
+
+EEGPrep can run AMICA through ``eeg_amica`` and ``ICAAlgorithm='amica'``, but
+published EEGPrep packages do not include AMICA binaries. This keeps Python
+package downloads smaller and avoids shipping platform-specific executables.
+
+To use AMICA, install or download an AMICA executable separately, then provide
+it in one of these ways:
+
+.. code-block:: bash
+
+    export AMICA_BINARY=/path/to/amica15ub
+
+or pass the path directly:
+
+.. code-block:: python
+
+    eeg = eeg_amica(eeg, amica_binary="/path/to/amica15ub")
+
+Source checkouts may contain development binaries under ``src/eegprep/bin/``.
+Those files are for local development and tests, not for package distribution.
+
 Documentation Building
 ----------------------
 

@@ -54,7 +54,7 @@ except ImportError:
 SCRIPT_DIR = Path(__file__).parent
 PROJECT_ROOT = SCRIPT_DIR.parent
 PYPROJECT_PATH = PROJECT_ROOT / "pyproject.toml"
-MAIN_PATH = PROJECT_ROOT / "main"
+MAIN_PATH = PROJECT_ROOT / "tools" / "hpc" / "main.pbs"
 DIST_DIR = PROJECT_ROOT / "dist"
 DOCKERFILE_PATH = PROJECT_ROOT / "DOCKERFILE"
 
@@ -236,7 +236,7 @@ def update_version_in_file(file_path, old_version, new_version):
 
 
 def update_version_files(old_version, new_version):
-    """Update version in pyproject.toml and main file."""
+    """Update version in pyproject.toml and the HPC wrapper."""
     print_step(3, f"Updating version from {old_version} to {new_version}")
 
     # Update pyproject.toml
@@ -256,8 +256,8 @@ def update_version_files(old_version, new_version):
             return False
         print_success(f"Updated pyproject.toml")
 
-    # Update main file
-    print_info(f"Updating main file...")
+    # Update HPC wrapper
+    print_info(f"Updating HPC wrapper...")
     cmd = f"sed -i '' 's/eegprep:{old_version}/eegprep:{new_version}/g' {MAIN_PATH}"
     print(f"Running: {cmd}")
     try:
@@ -266,12 +266,12 @@ def update_version_files(old_version, new_version):
             cwd=PROJECT_ROOT,
             check=True
         )
-        print_success(f"Updated main file")
+        print_success(f"Updated HPC wrapper")
     except subprocess.CalledProcessError:
         # Fallback to Python method
         if not update_version_in_file(MAIN_PATH, f'eegprep:{old_version}', f'eegprep:{new_version}'):
             return False
-        print_success(f"Updated main file")
+        print_success(f"Updated HPC wrapper")
 
     return True
 
@@ -683,4 +683,3 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print(f"\n{Fore.YELLOW}Release cancelled by user.{Style.RESET_ALL}")
         sys.exit(1)
-

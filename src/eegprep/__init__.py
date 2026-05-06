@@ -25,8 +25,9 @@ from .plugins.ICLabel.eeg_autocorr_welch import eeg_autocorr_welch
 from .plugins.ICLabel.eeg_autocorr import eeg_autocorr
 from .plugins.ICLabel.eeg_autocorr_fftw import eeg_autocorr_fftw
 from .functions.popfunc.pop_reref import pop_reref
-from .functions.sigprocfunc.eeg_picard import eeg_picard
-from .functions.sigprocfunc.eeg_runica import eeg_runica
+from .functions.popfunc.eeg_amica import eeg_amica
+from .functions.popfunc.eeg_picard import eeg_picard
+from .functions.popfunc.eeg_runica import eeg_runica
 from .plugins.clean_rawdata.clean_flatlines import clean_flatlines
 from .plugins.clean_rawdata.clean_drifts import clean_drifts
 from .plugins.clean_rawdata.clean_channels_nolocs import clean_channels_nolocs

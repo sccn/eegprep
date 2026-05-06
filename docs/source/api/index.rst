@@ -70,7 +70,9 @@ Signal Processing
 
    eegprep.pop_resample
    eegprep.pop_eegfiltnew
+   eegprep.eeg_amica
    eegprep.eeg_picard
+   eegprep.eeg_runica
 
 Independent Component Analysis
 ===============================

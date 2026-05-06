@@ -8,10 +8,10 @@ Primary references:
 
 ## Repo Map
 
-- `src/eegprep/functions/popfunc/`: EEGLAB-style `pop_*` user-facing wrappers. Keep each pop function in a `pop_<name>.py` module that mirrors `functions/popfunc/` in EEGLAB.
+- `src/eegprep/functions/popfunc/`: EEGLAB-style `pop_*` user-facing wrappers and `eeg_*` functions that operate on EEG structures, such as ICA wrappers. Keep each pop function in a `pop_<name>.py` module that mirrors `functions/popfunc/` in EEGLAB.
 - `src/eegprep/functions/guifunc/`: EEGLAB-style GUI helpers such as `inputgui`, dialog specs, and Qt rendering. Keep GUI infrastructure parallel to `functions/guifunc/` in EEGLAB.
 - `src/eegprep/functions/adminfunc/`: EEGLAB-style administrative helpers such as `eeg_checkset.py` and `eeg_options.py`.
-- `src/eegprep/functions/sigprocfunc/`: EEGLAB-style signal processing functions such as `runica.py`, `topoplot.py`, `epoch.py`, and ICA wrappers.
+- `src/eegprep/functions/sigprocfunc/`: EEGLAB-style low-level signal processing functions such as `runica.py`, `runamica.py`, `topoplot.py`, `epoch.py`, and `eegrej.py`.
 - `src/eegprep/plugins/clean_rawdata/`: Python ports of the EEGLAB clean_rawdata plugin, including `clean_*` and ASR modules.
 - `src/eegprep/plugins/clean_rawdata/private/`: ports of clean_rawdata private helpers such as `fit_eeg_distribution`, `geometric_median`, FIR helpers, covariance helpers, and spherical-spline interpolation.
 - `src/eegprep/plugins/ICLabel/`: Python ports of the EEGLAB ICLabel plugin and bundled `netICL.mat`.
@@ -26,6 +26,7 @@ Primary references:
 - `scripts/*.m`: MATLAB/Octave helper scripts that are not part of the normal unit-test tree.
 - `sample_data/`: small checked-in EEG sample datasets, named to match EEGLAB's `sample_data` convention.
 - `sample_notebooks/`: exploratory/sample notebooks. Keep runnable examples in docs when they are user-facing.
+- `tools/`: developer and parity tooling that is not installed as part of the `eegprep` package.
 - `tests/`: `unittest` tests. Test files generally mirror source module names.
 - `docs/source/`: Sphinx docs, examples, API pages.
 - `.github/workflows/test.yml`: CI test and pre-commit entry points.

@@ -38,7 +38,7 @@ The MATLAB and Python implementations were compared using the first two subjects
 
 # versioning
 - Change version inside the file pyproject.toml
-- Change version inside the file main (for docker)
+- Change version inside the file `tools/hpc/main.pbs` (for Singularity/Docker image references)
 - Run make_release in the script folder and tag with the version
 - Use the correct docker version when building (see below)
 
