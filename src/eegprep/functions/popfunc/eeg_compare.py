@@ -75,6 +75,23 @@ def eeg_compare(eeg1, eeg2, verbose_level=0, trigger_error=False):
         except:
             return False
 
+    def _numeric_distance(a, b):
+        """Return aggregate numeric distance, treating matching empty values as equal."""
+        if isequaln(a, b):
+            return 0.0
+        if a is None or b is None:
+            return np.inf
+        try:
+            arr_a = np.asarray(a, dtype=float)
+            arr_b = np.asarray(b, dtype=float)
+        except (TypeError, ValueError):
+            return np.inf
+        if arr_a.size == 0 and arr_b.size == 0:
+            return 0.0
+        if arr_a.size == 0 or arr_b.size == 0 or arr_a.shape != arr_b.shape:
+            return np.inf
+        return float(np.max(np.abs(arr_a - arr_b)))
+
     print('\nField analysis: (no entries means OK)')
 
     # Collect differences for error reporting
@@ -90,15 +107,21 @@ def eeg_compare(eeg1, eeg2, verbose_level=0, trigger_error=False):
 
         diff = eeg1 - eeg2
         abs_diff = np.abs(diff)
-        max_abs_diff = np.max(abs_diff)
-        mean_abs_diff = np.mean(abs_diff)
-        rms_diff = np.sqrt(np.mean(diff**2))
+        if diff.size == 0:
+            max_abs_diff = mean_abs_diff = rms_diff = 0.0
+        else:
+            max_abs_diff = np.max(abs_diff)
+            mean_abs_diff = np.mean(abs_diff)
+            rms_diff = np.sqrt(np.mean(diff**2))
 
         # Compute relative differences (avoid division by zero)
         with np.errstate(divide='ignore', invalid='ignore'):
             rel_diff = abs_diff / (np.abs(eeg1) + np.abs(eeg2) + 1e-10)
-        max_rel_diff = np.max(rel_diff)
-        mean_rel_diff = np.mean(rel_diff)
+        if rel_diff.size == 0:
+            max_rel_diff = mean_rel_diff = 0.0
+        else:
+            max_rel_diff = np.max(rel_diff)
+            mean_rel_diff = np.mean(rel_diff)
 
         mismatched = np.sum(abs_diff > 1e-10)
         total_elements = diff.size
@@ -169,13 +192,16 @@ def eeg_compare(eeg1, eeg2, verbose_level=0, trigger_error=False):
                         if v1.shape == v2.shape:
                             diff = v1 - v2
                             abs_diff = np.abs(diff)
-                            max_abs_diff = np.max(abs_diff)
-                            mean_abs_diff = np.mean(abs_diff)
-                            rms_diff = np.sqrt(np.mean(diff**2))
+                            if diff.size == 0:
+                                max_abs_diff = mean_abs_diff = rms_diff = 0.0
+                            else:
+                                max_abs_diff = np.max(abs_diff)
+                                mean_abs_diff = np.mean(abs_diff)
+                                rms_diff = np.sqrt(np.mean(diff**2))
 
                             with np.errstate(divide='ignore', invalid='ignore'):
                                 rel_diff = abs_diff / (np.abs(v1) + np.abs(v2) + 1e-10)
-                            max_rel_diff = np.max(rel_diff)
+                            max_rel_diff = np.max(rel_diff) if rel_diff.size else 0.0
 
                             error_msg = f'Field {field} differs (max_abs={max_abs_diff:.6e}, mean_abs={mean_abs_diff:.6e}, rms={rms_diff:.6e}, max_rel={max_rel_diff:.6e})'
                             print(f'    {error_msg}', file=sys.stderr)
@@ -213,10 +239,7 @@ def eeg_compare(eeg1, eeg2, verbose_level=0, trigger_error=False):
         for c1, c2 in zip(chans1, chans2):
             c1_xyz = (c1['X'], c1['Y'], c1['Z'])
             c2_xyz = (c2['X'], c2['Y'], c2['Z'])
-            if (any(v is None for v in c1_xyz) and not any(v is None for v in c2_xyz)) \
-               or (any(v is None for v in c2_xyz) and not any(v is None for v in c1_xyz)) \
-               or (all(v is not None for v in (*c1_xyz,)) and
-                   sum(abs(a - b) for a, b in zip(c1_xyz, c2_xyz)) > 1e-12):
+            if any(_numeric_distance(a, b) > 1e-12 for a, b in zip(c1_xyz, c2_xyz)):
                 coord_diff += 1
             if c1['labels'] != c2['labels']:
                 label_diff += 1

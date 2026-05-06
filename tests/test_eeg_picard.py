@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 from eegprep import pop_loadset, eeg_picard, pop_saveset
 from eegprep.eeglabcompat import get_eeglab
-from eegprep.utils.testing import DebuggableTestCase
+from eegprep.utils.testing import DebuggableTestCase, matlab_function_exists
 from eegprep.pinv import pinv
 
 
@@ -334,6 +334,10 @@ class TestEegPicard(unittest.TestCase):
     def test_picard_engines(self):
         """Test eeg_picard with Python, MATLAB, and Octave engines."""
 
+        eeglab_mat = get_eeglab('MAT')
+        if not matlab_function_exists(eeglab_mat, 'eeg_picard'):
+            self.skipTest("MATLAB EEGLAB Picard plugin is not installed")
+
         # --- Python Engine ---
         print("Running Picard with Python engine...")
         EEG_python = eeg_picard(self.EEG.copy())
@@ -342,7 +346,6 @@ class TestEegPicard(unittest.TestCase):
 
         # --- MATLAB Engine ---
         print("Running Picard with MATLAB engine...")
-        eeglab_mat = get_eeglab('MAT')
         EEG_matlab = eeg_picard(self.EEG.copy(), engine=eeglab_mat)
         pop_saveset(EEG_matlab, os.path.join(local_url, 'eeglab_data_picard_matlab.set'))
         print("MATLAB engine test completed.")

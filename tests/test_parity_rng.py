@@ -177,7 +177,7 @@ class TestRNGParity(unittest.TestCase):
         # MATLAB round
         temp_file = tempfile.mktemp(suffix='.mat')
         matlab_code = f"""
-        test_values = {list(test_values)};
+        test_values = {test_values.tolist()};
         ml_rounded = round(test_values);
         save('{temp_file}', 'ml_rounded');
         """

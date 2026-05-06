@@ -9,6 +9,23 @@ from eegprep.functions.popfunc.pop_select import pop_select
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 
 
+def _text_field(value):
+    if value is None:
+        return ''
+    if isinstance(value, np.ndarray):
+        if value.size == 0:
+            return ''
+        if value.size == 1:
+            value = value.item()
+        else:
+            return ''
+    if isinstance(value, bytes):
+        return value.decode()
+    if isinstance(value, str):
+        return value
+    return str(value)
+
+
 def pop_epoch(EEG, types=None, lim=None, **kwargs):
     """Convert a continuous EEG dataset to epoched data by extracting data epochs time locked to specified event types or event indices.
 
@@ -81,11 +98,12 @@ def pop_epoch(EEG, types=None, lim=None, **kwargs):
         lim = [-1, 2]
 
     # Process optional arguments
+    setname = _text_field(EEG.get('setname', ''))
     g = {
         'epochfield': kwargs.get('epochfield', 'type'),  # obsolete
         'timeunit': kwargs.get('timeunit', 'points'),
         'verbose': kwargs.get('verbose', 'on'),  # obsolete
-        'newname': kwargs.get('newname', EEG.get('setname', '') + ' epochs' if EEG.get('setname') else ''),
+        'newname': kwargs.get('newname', f'{setname} epochs' if setname else ''),
         'eventindices': kwargs.get('eventindices', list(range(len(EEG['event'])))),  # 0-based
         'epochinfo': kwargs.get('epochinfo', 'yes'),
         'valuelim': kwargs.get('valuelim', [-np.inf, np.inf])
@@ -139,11 +157,12 @@ def pop_epoch(EEG, types=None, lim=None, **kwargs):
         lim = [-1, 2]
 
     # Process optional arguments
+    setname = _text_field(EEG.get('setname', ''))
     g = {
         'epochfield': kwargs.get('epochfield', 'type'),  # obsolete
         'timeunit': kwargs.get('timeunit', 'points'),
         'verbose': kwargs.get('verbose', 'on'),  # obsolete
-        'newname': kwargs.get('newname', EEG.get('setname', '') + ' epochs' if EEG.get('setname') else ''),
+        'newname': kwargs.get('newname', f'{setname} epochs' if setname else ''),
         'eventindices': kwargs.get('eventindices', list(range(len(EEG['event'])))),  # 0-based
         'epochinfo': kwargs.get('epochinfo', 'yes'),
         'valuelim': kwargs.get('valuelim', [-np.inf, np.inf])
@@ -223,16 +242,13 @@ def pop_epoch(EEG, types=None, lim=None, **kwargs):
         epochdat, tmptime, indices, alleventout, alllatencyout, reallim = result
         tmptime = tmptime / EEG['srate']
     elif g['timeunit'].lower() == 'seconds':
-        # Convert latencies from samples to seconds for epoch()
-        alllatencies_sec = [lat / EEG['srate'] for lat in alllatencies]
-        tmpeventlatency_sec = [lat / EEG['srate'] for lat in tmpeventlatency]
         result = epoch(
             EEG['data'],
-            alllatencies_sec,
+            alllatencies,
             lim,
             valuelim=g['valuelim'],
             srate=EEG['srate'],
-            allevents=tmpeventlatency_sec,
+            allevents=tmpeventlatency,
             verbose='off' if g['verbose'] == 'off' else 'on'
         )
         epochdat, tmptime, indices, alleventout, alllatencyout, reallim = result
@@ -263,14 +279,15 @@ def pop_epoch(EEG, types=None, lim=None, **kwargs):
     EEG_out['icaact'] = []  # Clear ICA activations
 
     # Update dataset name and comments
-    if EEG.get('setname'):
+    setname = _text_field(EEG.get('setname', ''))
+    if setname:
         if EEG.get('comments'):
             if isinstance(EEG['comments'], str):
-                EEG_out['comments'] = f'Parent dataset "{EEG["setname"]}": ----------\n{EEG["comments"]}'
+                EEG_out['comments'] = f'Parent dataset "{setname}": ----------\n{EEG["comments"]}'
             else:
-                EEG_out['comments'] = f'Parent dataset "{EEG["setname"]}": ----------\n' + '\n'.join(EEG['comments'])
+                EEG_out['comments'] = f'Parent dataset "{setname}": ----------\n' + '\n'.join(EEG['comments'])
         else:
-            EEG_out['comments'] = f'Parent dataset: {EEG["setname"]}\n'
+            EEG_out['comments'] = f'Parent dataset: {setname}\n'
 
     EEG_out['setname'] = g['newname']
 
