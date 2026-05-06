@@ -201,7 +201,7 @@ def check_prerequisites():
 
     # Remind about tests
     print_info("Remember to run tests before releasing!")
-    print_info("  uv run python -m unittest discover -s tests")
+    print_info("  uv run pytest tests")
 
 
 def get_new_version(current_version):

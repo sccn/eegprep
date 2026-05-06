@@ -81,12 +81,14 @@ Primary references:
 
 ## Testing
 
-- Current CI uses `unittest`, not pytest markers. Do not assume `pytest -m "not slow"` works here.
+- Pytest is the default test runner. Existing tests may still use `unittest.TestCase`; do not rewrite them unless the touched test benefits from pytest fixtures or parametrization.
+- Registered markers include `slow`, `matlab`, `octave`, `gui`, `visual`, and `parity`.
 - Always fix tests you break.
 - Run the narrowest relevant tests first, then broaden as risk requires:
-  - Single file: `uv run python -m unittest tests.test_pop_select`
-  - Full suite: `uv run python -m unittest discover -s tests`
-  - No MATLAB locally: `EEGPREP_SKIP_MATLAB=1 uv run python -m unittest discover -s tests`
+  - Single file: `uv run pytest tests/test_pop_select.py`
+  - Marker subset: `uv run pytest -m "not slow"`
+  - Full suite: `uv run pytest tests`
+  - No MATLAB locally: `EEGPREP_SKIP_MATLAB=1 uv run pytest tests`
 - Some parity tests require MATLAB Engine or Octave via `src/eegprep/functions/adminfunc/eeglabcompat.py`; preserve skip behavior instead of weakening assertions.
 - Prefer integration-style tests that validate externally observable behavior on EEG dicts, BIDS outputs, files, or MATLAB parity results.
 - Search existing test files before creating new ones. Extend the closest existing test first.

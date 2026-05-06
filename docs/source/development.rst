@@ -84,19 +84,25 @@ Tests are located in the ``tests/`` directory. Run all tests:
 
 .. code-block:: bash
 
-    uv run python -m unittest discover -s tests
+    uv run pytest tests
 
 Run specific test file:
 
 .. code-block:: bash
 
-    uv run python -m unittest tests.test_clean_artifacts
+    uv run pytest tests/test_clean_artifacts.py
 
 Run specific test function:
 
 .. code-block:: bash
 
-    uv run python -m unittest tests.test_clean_artifacts.TestClassName.test_method_name
+    uv run pytest tests/test_clean_artifacts.py::TestClassName::test_method_name
+
+Run a marker subset:
+
+.. code-block:: bash
+
+    uv run pytest -m "not slow"
 
 Continuous Integration
 ----------------------
@@ -357,7 +363,7 @@ Test Failures
 .. code-block:: bash
 
     uv sync --group dev
-    uv run python -m unittest discover -s tests
+    uv run pytest tests
 
 Documentation Build Errors
 ---------------------------

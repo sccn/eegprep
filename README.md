@@ -151,11 +151,17 @@ engine.eval("disp('hello world');", nargout=0)
 
 Use tests/matlab/main_compare.m
 
-This project uses `unittest`. You can run tests from the project root via the command:
+This project uses `pytest` as the test runner. Existing tests may still use
+`unittest.TestCase`, and pytest runs them normally. Run tests from the project
+root with:
 ```
-uv run python -m unittest discover -s tests
+uv run pytest tests
 ```
-...or use the unittest integration in your IDE (e.g., PyCharm, VS Code, or Cursor).
+
+For quick local iteration, exclude slow tests with:
+```
+uv run pytest -m "not slow"
+```
 
 ## Core maintainers
 

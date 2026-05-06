@@ -100,19 +100,19 @@ Run the full test suite:
 
 .. code-block:: bash
 
-    uv run python -m unittest discover -s tests
+    uv run pytest tests
 
 Run tests for a specific module:
 
 .. code-block:: bash
 
-    uv run python -m unittest tests.test_clean_artifacts
+    uv run pytest tests/test_clean_artifacts.py
 
 Run tests with verbose output:
 
 .. code-block:: bash
 
-    uv run python -m unittest -v tests.test_clean_artifacts
+    uv run pytest -v tests/test_clean_artifacts.py
 
 Writing Tests
 -------------
@@ -227,7 +227,7 @@ Before Submitting
 
 .. code-block:: bash
 
-    uv run python -m unittest discover -s tests
+    uv run pytest tests
 
 3. Check code style:
 

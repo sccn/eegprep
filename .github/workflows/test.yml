@@ -141,7 +141,7 @@ jobs:
         uses: matlab-actions/run-command@v2
         with:
           command: |
-            [status, cmdout] = system('uv run --no-sync python -m unittest discover -s tests');
+            [status, cmdout] = system('uv run --no-sync pytest tests');
             disp(cmdout);
             if status ~= 0
                 error('Python tests failed');
@@ -150,7 +150,7 @@ jobs:
       - name: Run Python tests
         if: steps.matlab-availability.outputs.available != 'true'
         run: |
-          uv run --no-sync python -m unittest discover -s tests
+          uv run --no-sync pytest tests
 
       - name: Display installed packages
         if: always()

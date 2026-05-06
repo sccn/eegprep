@@ -71,6 +71,7 @@ all = [
 
 [dependency-groups]
 dev = [
+  "pytest>=8.0",
   "pyyaml>=6.0",
   "tomli>=2.0; python_version < '3.11'",
 ]
@@ -95,6 +96,22 @@ constraint-dependencies = [
 ]
 required-environments = [
   "sys_platform == 'linux' and platform_machine == 'x86_64'",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = [
+  "-ra",
+  "--strict-config",
+  "--strict-markers",
+]
+markers = [
+  "slow: tests that are too slow for quick local iteration",
+  "matlab: tests that require MATLAB or MATLAB Engine",
+  "octave: tests that require Octave",
+  "gui: tests that exercise GUI behavior",
+  "visual: visual parity capture or comparison tests",
+  "parity: numerical or behavioral parity tests against EEGLAB/MATLAB",
 ]
 
 [tool.setuptools]
