@@ -82,7 +82,7 @@ exclude = ["eegprep.eeglab*"]
   "resources/montages/*.locs",
   "resources/montages/README.md",
   "resources/*.m",
-  "netICL.mat"
+  "plugins/ICLabel/netICL.mat"
 ]
 
 [tool.setuptools.exclude-package-data]

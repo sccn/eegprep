@@ -1,7 +1,7 @@
 """MNE to EEG conversion functions."""
 
-from .eeg_autocorr import eeg_autocorr
-from .popfunc.pop_loadset import pop_loadset
+from .plugins.ICLabel.eeg_autocorr import eeg_autocorr
+from .functions.popfunc.pop_loadset import pop_loadset
 import mne
 import tempfile
 import os

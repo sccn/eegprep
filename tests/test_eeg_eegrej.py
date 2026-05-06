@@ -7,8 +7,8 @@ from unittest.mock import patch
 # Assume eeg_eegrej is defined as in your module that imports: from eegrej import eegrej
 from eegprep import eeg_eegrej
 from eegprep.eeglabcompat import get_eeglab
-from eegprep.popfunc.pop_loadset import pop_loadset
-from eegprep.eeg_checkset import eeg_checkset
+from eegprep.functions.popfunc.pop_loadset import pop_loadset
+from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 
 # where the test resources
 web_root = 'https://sccntestdatasets.s3.us-east-2.amazonaws.com/'

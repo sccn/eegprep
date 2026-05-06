@@ -14,7 +14,7 @@ from eegprep.eeglabcompat import (
     eeg_checkset as eeglab_eeg_checkset
 )
 from eegprep import clean_artifacts, pop_loadset
-from eegprep.eeg_checkset import eeg_checkset
+from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 from eegprep.utils.testing import DebuggableTestCase
 
 # Path to test data

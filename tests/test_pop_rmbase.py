@@ -13,8 +13,8 @@ test_dir = os.path.dirname(os.path.abspath(__file__))
 if test_dir not in sys.path:
     sys.path.insert(0, test_dir)
 
-from eegprep.popfunc.pop_rmbase import pop_rmbase
-from eegprep.popfunc.pop_loadset import pop_loadset
+from eegprep.functions.popfunc.pop_rmbase import pop_rmbase
+from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.eeglabcompat import get_eeglab
 try:
     from .fixtures import create_test_eeg

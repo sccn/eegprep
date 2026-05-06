@@ -16,7 +16,7 @@ if os.getenv('EEGPREP_SKIP_MATLAB') == '1':
 import copy
 
 from eegprep.eeglabcompat import get_eeglab
-from eegprep.popfunc.pop_epoch import pop_epoch
+from eegprep.functions.popfunc.pop_epoch import pop_epoch
 
 
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")

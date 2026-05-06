@@ -12,11 +12,11 @@ import numpy as np
 
 # Add src to path for imports
 sys.path.insert(0, 'src')
-from eegprep.popfunc.pop_reref import pop_reref
+from eegprep.functions.popfunc.pop_reref import pop_reref
 from eegprep.eeglabcompat import get_eeglab
 from eegprep.utils.testing import DebuggableTestCase
 import importlib
-eeg_checkset_module = importlib.import_module('eegprep.eeg_checkset')
+eeg_checkset_module = importlib.import_module('eegprep.functions.adminfunc.eeg_checkset')
 
 
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")

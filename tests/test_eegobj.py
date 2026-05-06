@@ -4,8 +4,8 @@ import os
 import tempfile
 import shutil
 from eegprep.eegobj import EEGobj
-from eegprep.popfunc.pop_select import pop_select # Import pop_select for direct testing if needed
-from eegprep.eeg_checkset import eeg_checkset
+from eegprep.functions.popfunc.pop_select import pop_select # Import pop_select for direct testing if needed
+from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 import copy
 
 # Helper function to create a dummy EEG dictionary

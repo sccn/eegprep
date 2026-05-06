@@ -1,11 +1,22 @@
 """EEG object wrapper for dict-based datasets."""
 
 import copy
-import os
 import importlib
+import os
+import types
 
-from eegprep.popfunc.pop_loadset import pop_loadset
-from eegprep.popfunc.pop_select import pop_select  # ensure availability via globals
+from eegprep.functions.popfunc.pop_loadset import pop_loadset
+from eegprep.functions.popfunc.pop_select import pop_select  # ensure availability via globals
+
+_EEGPREP_FUNCTION_MODULE_PREFIXES = (
+    "eegprep.functions.popfunc",
+    "eegprep.functions.adminfunc",
+    "eegprep.functions.sigprocfunc",
+    "eegprep.functions.guifunc",
+    "eegprep.plugins.clean_rawdata",
+    "eegprep.plugins.ICLabel",
+)
+
 
 class EEGobj:
     """Wrapper class for EEG datasets stored as dictionaries.
@@ -29,21 +40,12 @@ class EEGobj:
 
     # Internal helper to resolve and call an eegprep function name
     def _call_eegprep(self, fname, *args, **kwargs):
-        import types
         def _resolve(n):
             # Try globals first (for imported functions)
             cand = globals().get(n)
             if callable(cand):
                 return cand
-            # Try lazy import from eegprep package
-            try:
-                mod = importlib.import_module(f"eegprep.{n}")
-                sub = getattr(mod, n, None)
-                if callable(sub):
-                    return sub
-            except Exception:
-                pass
-            # Try as submodule of eegprep
+            # Try public package exports before probing EEGLAB-style modules.
             try:
                 import eegprep as eegpkg
                 cand = getattr(eegpkg, n, None)
@@ -55,6 +57,14 @@ class EEGobj:
                         return sub
             except Exception:
                 pass
+            for prefix in _EEGPREP_FUNCTION_MODULE_PREFIXES:
+                try:
+                    mod = importlib.import_module(f"{prefix}.{n}")
+                    cand = getattr(mod, n, None)
+                    if callable(cand):
+                        return cand
+                except Exception:
+                    pass
             return None
 
         func = _resolve(fname)

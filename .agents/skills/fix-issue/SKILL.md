@@ -63,8 +63,8 @@ Example:
 >
 > **Relevant code**
 > - [`src/eegprep/eegobj.py#L17-L29`](src/eegprep/eegobj.py#L17-L29) - path to pop_loadset
-> - [`src/eegprep/popfunc/pop_loadset.py#L80-L88`](src/eegprep/popfunc/pop_loadset.py#L80-L88) - loadmat fallback
-> - [`src/eegprep/popfunc/pop_loadset_h5.py#L20-L26`](src/eegprep/popfunc/pop_loadset_h5.py#L20-L26) - h5py file open
+> - [`src/eegprep/functions/popfunc/pop_loadset.py#L80-L88`](src/eegprep/functions/popfunc/pop_loadset.py#L80-L88) - loadmat fallback
+> - [`src/eegprep/functions/popfunc/pop_loadset_h5.py#L20-L26`](src/eegprep/functions/popfunc/pop_loadset_h5.py#L20-L26) - h5py file open
 
 ### Proposed Fix section
 

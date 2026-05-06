@@ -6,8 +6,8 @@
 import tempfile
 from typing import *
 
-from .popfunc.pop_loadset import pop_loadset
-from .popfunc.pop_saveset import pop_saveset
+from .functions.popfunc.pop_loadset import pop_loadset
+from .functions.popfunc.pop_saveset import pop_saveset
 import logging
 import os
 import numpy as np

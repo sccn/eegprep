@@ -12,9 +12,9 @@ import tempfile
 import scipy.io
 from copy import deepcopy
 
-from eegprep.ICL_feature_extractor import ICL_feature_extractor
-from eegprep.popfunc.pop_loadset import pop_loadset
-from eegprep.popfunc.pop_saveset import pop_saveset
+from eegprep.plugins.ICLabel.ICL_feature_extractor import ICL_feature_extractor
+from eegprep.functions.popfunc.pop_loadset import pop_loadset
+from eegprep.functions.popfunc.pop_saveset import pop_saveset
 from eegprep.eeglabcompat import get_eeglab
 
 local_url = os.path.join(os.path.dirname(__file__), '../data/')

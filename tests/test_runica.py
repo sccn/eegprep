@@ -15,7 +15,7 @@ import tempfile
 import numpy as np
 import scipy.io
 
-from eegprep.runica import runica
+from eegprep.functions.sigprocfunc.runica import runica
 from eegprep.eeglabcompat import get_eeglab
 
 

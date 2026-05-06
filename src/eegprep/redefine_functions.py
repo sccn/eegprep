@@ -13,26 +13,26 @@ eegrej, findboundaries, interp, lat2point, mne2eeg, mne2eeg_epochs, options, pic
 point2lat, epoch, loadset, reref, resample, rmbase, saveset, select.
 """
 
-from eegprep.eeg_checkset import eeg_checkset
-from eegprep.eeg_compare import eeg_compare
-from eegprep.eeg_decodechan import eeg_decodechan
+from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
+from eegprep.functions.popfunc.eeg_compare import eeg_compare
+from eegprep.functions.popfunc.eeg_decodechan import eeg_decodechan
 from eegprep.eeg_eeg2mne import eeg_eeg2mne
-from eegprep.eeg_eegrej import eeg_eegrej
-from eegprep.eeg_findboundaries import eeg_findboundaries
-from eegprep.eeg_interp import eeg_interp
-from eegprep.eeg_lat2point import eeg_lat2point
+from eegprep.functions.popfunc.eeg_eegrej import eeg_eegrej
+from eegprep.functions.popfunc.eeg_findboundaries import eeg_findboundaries
+from eegprep.functions.popfunc.eeg_interp import eeg_interp
+from eegprep.functions.popfunc.eeg_lat2point import eeg_lat2point
 from eegprep.eeg_mne2eeg import eeg_mne2eeg
 from eegprep.eeg_mne2eeg_epochs import eeg_mne2eeg_epochs
-from eegprep.eeg_options import EEG_OPTIONS
-from eegprep.eeg_picard import eeg_picard
-from eegprep.eeg_point2lat import eeg_point2lat
-from eegprep.popfunc.pop_epoch import pop_epoch
-from eegprep.popfunc.pop_loadset import pop_loadset
-from eegprep.popfunc.pop_reref import pop_reref
-from eegprep.popfunc.pop_resample import pop_resample
-from eegprep.popfunc.pop_rmbase import pop_rmbase
-from eegprep.popfunc.pop_saveset import pop_saveset
-from eegprep.popfunc.pop_select import pop_select
+from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
+from eegprep.functions.sigprocfunc.eeg_picard import eeg_picard
+from eegprep.functions.popfunc.eeg_point2lat import eeg_point2lat
+from eegprep.functions.popfunc.pop_epoch import pop_epoch
+from eegprep.functions.popfunc.pop_loadset import pop_loadset
+from eegprep.functions.popfunc.pop_reref import pop_reref
+from eegprep.functions.popfunc.pop_resample import pop_resample
+from eegprep.functions.popfunc.pop_rmbase import pop_rmbase
+from eegprep.functions.popfunc.pop_saveset import pop_saveset
+from eegprep.functions.popfunc.pop_select import pop_select
 
 def checkset(*args, **kwargs):
     """Wrap eeg_checkset."""

@@ -6,10 +6,10 @@ import copy
 import os
 
 from eegprep.eeglabcompat import get_eeglab
-from eegprep.popfunc.pop_loadset import pop_loadset
-from eegprep.popfunc.pop_loadset_h5 import pop_loadset_h5
-from eegprep.popfunc.pop_select import pop_select
-from eegprep.popfunc.pop_epoch import pop_epoch
+from eegprep.functions.popfunc.pop_loadset import pop_loadset
+from eegprep.functions.popfunc.pop_loadset_h5 import pop_loadset_h5
+from eegprep.functions.popfunc.pop_select import pop_select
+from eegprep.functions.popfunc.pop_epoch import pop_epoch
 
 # where the test resources
 web_root = 'https://sccntestdatasets.s3.us-east-2.amazonaws.com/'

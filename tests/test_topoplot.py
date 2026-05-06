@@ -18,7 +18,7 @@ import scipy.io
 # Set Agg backend before importing topoplot to avoid display issues
 matplotlib.use('Agg')
 
-from eegprep.topoplot import topoplot, griddata_v4
+from eegprep.functions.sigprocfunc.topoplot import topoplot, griddata_v4
 from eegprep import pop_loadset, pop_saveset
 from eegprep.eeglabcompat import get_eeglab
 

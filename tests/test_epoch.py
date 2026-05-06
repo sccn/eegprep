@@ -4,7 +4,7 @@ import numpy as np
 import unittest
 
 from eegprep.eeglabcompat import get_eeglab
-from eegprep.epoch import epoch  # Python translation under test
+from eegprep.functions.sigprocfunc.epoch import epoch  # Python translation under test
 
 
 def _ml_list_of_arrays_to_0_based(list_of_arrays):

@@ -8,9 +8,13 @@ Primary references:
 
 ## Repo Map
 
-- `src/eegprep/popfunc/`: EEGLAB-style `pop_*` user-facing wrappers. Keep each pop function in a `pop_<name>.py` module that mirrors `functions/popfunc/` in EEGLAB.
-- `src/eegprep/guifunc/`: EEGLAB-style GUI helpers such as `inputgui`, dialog specs, and Qt rendering. Keep GUI infrastructure parallel to `functions/guifunc/` in EEGLAB.
-- `src/eegprep/*.py`: public non-pop EEGLAB-style ports and pipeline entry points. Prefer one file per EEGLAB function name, e.g. `eeg_checkset.py`, `clean_artifacts.py`.
+- `src/eegprep/functions/popfunc/`: EEGLAB-style `pop_*` user-facing wrappers. Keep each pop function in a `pop_<name>.py` module that mirrors `functions/popfunc/` in EEGLAB.
+- `src/eegprep/functions/guifunc/`: EEGLAB-style GUI helpers such as `inputgui`, dialog specs, and Qt rendering. Keep GUI infrastructure parallel to `functions/guifunc/` in EEGLAB.
+- `src/eegprep/functions/adminfunc/`: EEGLAB-style administrative helpers such as `eeg_checkset.py` and `eeg_options.py`.
+- `src/eegprep/functions/sigprocfunc/`: EEGLAB-style signal processing functions such as `runica.py`, `topoplot.py`, `epoch.py`, and ICA wrappers.
+- `src/eegprep/plugins/clean_rawdata/`: Python ports of the EEGLAB clean_rawdata plugin, including `clean_*` and ASR modules.
+- `src/eegprep/plugins/ICLabel/`: Python ports of the EEGLAB ICLabel plugin and bundled `netICL.mat`.
+- `src/eegprep/*.py`: package infrastructure, BIDS pipeline entry points, format conversion, MATLAB compatibility, and Python-specific helpers that do not have a closer EEGLAB function/plugin folder.
 - `src/eegprep/utils/`: shared concrete helpers. Search here before adding utility code.
 - `src/eegprep/resources/`: MATLAB option files, montages, package data.
 - `src/eegprep/eeglab/`: vendored EEGLAB reference code and sample data. Treat as reference input; do not edit unless explicitly updating the bundled reference.
@@ -32,7 +36,7 @@ Primary references:
 
 ## EEGLAB Parity
 
-- Keep naming and directory structure as close to EEGLAB as practical. Put `pop_*` wrappers in `popfunc`, GUI helpers in `guifunc`, `eeg_*` operations at the package level unless a closer EEGLAB folder already exists, `clean_*` for clean_rawdata-style operations, and existing plugin names such as `ICLabel` where already established.
+- Keep naming and directory structure as close to EEGLAB as practical. Put `pop_*` wrappers in `functions/popfunc`, GUI helpers in `functions/guifunc`, administrative functions in `functions/adminfunc`, signal-processing functions in `functions/sigprocfunc`, clean_rawdata ports in `plugins/clean_rawdata`, and ICLabel ports in `plugins/ICLabel`.
 - Before porting or changing behavior, inspect the matching MATLAB file under `src/eegprep/eeglab/functions/` or `src/eegprep/eeglab/plugins/`.
 - Preserve EEG dict semantics unless the user asks for a new abstraction. Core fields include `data`, `nbchan`, `pnts`, `trials`, `srate`, `xmin`, `xmax`, `times`, `chanlocs`, `event`, `urevent`, `epoch`, `history`, `icaact`, `icawinv`, `icasphere`, `icaweights`, and `icachansind`.
 - Data is channel-major: continuous data is usually `(nbchan, pnts)`, epoched data is usually `(nbchan, pnts, trials)`.

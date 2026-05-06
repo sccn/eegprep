@@ -20,10 +20,10 @@ import shutil
 
 # Add src to path for imports
 sys.path.insert(0, 'src')
-from eegprep.popfunc.pop_loadset_h5 import pop_loadset_h5
+from eegprep.functions.popfunc.pop_loadset_h5 import pop_loadset_h5
 from eegprep.utils.testing import DebuggableTestCase
-from eegprep.eeg_compare import eeg_compare
-from eegprep.popfunc.pop_loadset import pop_loadset
+from eegprep.functions.popfunc.eeg_compare import eeg_compare
+from eegprep.functions.popfunc.pop_loadset import pop_loadset
 
 class TestPopLoadsetH5(DebuggableTestCase):
     """Test cases for pop_loadset_h5 function."""

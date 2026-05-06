@@ -395,7 +395,7 @@ def test_py2mat():
 
     # EEGLAB dataset
     eeglab_file_path = '/System/Volumes/Data/data/matlab/eeglab/sample_data/eeglab_data_epochs_ica.set'
-    from eegprep.popfunc.pop_loadset import pop_loadset
+    from eegprep.functions.popfunc.pop_loadset import pop_loadset
     EEG_LOADSET = pop_loadset(eeglab_file_path)
 
     # pop_loadset wihtout index adjustment

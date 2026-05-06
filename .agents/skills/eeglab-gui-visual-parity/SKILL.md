@@ -225,10 +225,10 @@ For an EEGLAB pop function such as `pop_adjustevents`:
 
 2. Keep the Python files simple and parallel to EEGLAB:
 
-   - Backend/API and dialog spec: `src/eegprep/popfunc/pop_<name>.py`
+   - Backend/API and dialog spec: `src/eegprep/functions/popfunc/pop_<name>.py`
    - Export: `src/eegprep/__init__.py`
-   - Shared GUI primitives: `src/eegprep/guifunc/spec.py`, `src/eegprep/guifunc/inputgui.py`, `src/eegprep/guifunc/qt.py`
-   - Visual capture entrypoint: `src/eegprep/guifunc/visual_capture.py`
+   - Shared GUI primitives: `src/eegprep/functions/guifunc/spec.py`, `src/eegprep/functions/guifunc/inputgui.py`, `src/eegprep/functions/guifunc/qt.py`
+   - Visual capture entrypoint: `src/eegprep/functions/guifunc/visual_capture.py`
    - Tests: `tests/test_pop_<name>.py`, `tests/test_gui_pop_<name>.py`, `tests/test_visual_parity.py`
 
 3. Make the dialog spec mirror EEGLAB's `uilist` and `uigeom`.
@@ -311,7 +311,7 @@ Add a case to `tools/visual_parity/cases.json`:
       "command": [
         "{python}",
         "-m",
-        "eegprep.guifunc.visual_capture",
+        "eegprep.functions.guifunc.visual_capture",
         "--case",
         "{case_id}",
         "--output",
@@ -390,9 +390,9 @@ When iterating, patch the smallest relevant layer:
 - Wrong behavior after clicking/editing: patch callbacks or backend parsing.
 - Wrong spacing/colors/button order/native widget shape: patch the Qt renderer.
 - MATLAB capture blank or missing: patch the generated MATLAB capture script.
-- Python capture blank or wrong state: patch `eegprep.guifunc.visual_capture`.
+- Python capture blank or wrong state: patch `eegprep.functions.guifunc.visual_capture`.
 - Import errors after file moves: fix the moved module imports before judging
-  screenshots. For example, after moving pop functions into `popfunc`, relative
+  screenshots. For example, after moving pop functions into `functions/popfunc`, relative
   imports such as `.utils` should usually become `eegprep.utils`.
 
 Treat pixel metrics as a smoke signal, not the final judge. A good dialog can
@@ -450,8 +450,8 @@ Run compile checks after editing GUI/capture code:
 
 ```bash
 PYTHONPATH=src "$PYTHON" -m compileall -q \
-  src/eegprep/popfunc/pop_adjustevents.py \
-  src/eegprep/guifunc \
+  src/eegprep/functions/popfunc/pop_adjustevents.py \
+  src/eegprep/functions/guifunc \
   tools/visual_parity \
   tests/test_pop_adjustevents.py \
   tests/test_gui_pop_adjustevents.py \

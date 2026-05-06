@@ -20,7 +20,7 @@ import warnings
 
 # Add src to path for imports
 sys.path.insert(0, 'src')
-from eegprep.eeg_autocorr_fftw import eeg_autocorr_fftw
+from eegprep.plugins.ICLabel.eeg_autocorr_fftw import eeg_autocorr_fftw
 from eegprep.eeglabcompat import get_eeglab
 from eegprep.utils.testing import DebuggableTestCase
 
@@ -296,7 +296,7 @@ class TestEegAutocorrFftw(DebuggableTestCase):
     def test_comparison_with_regular_autocorr(self):
         """Test that FFTW version produces similar results to regular version."""
         # Import the regular autocorr function for comparison
-        from eegprep.eeg_autocorr import eeg_autocorr
+        from eegprep.plugins.ICLabel.eeg_autocorr import eeg_autocorr
 
         EEG = self.create_test_eeg(ncomp=3, pnts=256, srate=128)
 
