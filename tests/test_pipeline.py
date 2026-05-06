@@ -26,9 +26,9 @@ def test_pipeline():
 
     # --- Step 1: clean_artifacts (channel cleaning only) ---
     # Channel cleaning only: BurstCriterion='off'
-    EEG_py_ch, *_ = clean_artifacts(EEG, BurstCriterion='off', ChannelCriterion=0.8)
+    EEG_py_ch, *_ = clean_artifacts(deepcopy(EEG), BurstCriterion='off', ChannelCriterion=0.8)
     eeglab = get_eeglab('MAT')
-    EEG_mat_ch = eeglab.clean_artifacts(EEG, 'BurstCriterion', 'off', 'ChannelCriterion', 0.8)
+    EEG_mat_ch = eeglab.clean_artifacts(deepcopy(EEG), 'BurstCriterion', 'off', 'ChannelCriterion', 0.8)
     # eeg_compare(EEG_py_ch, EEG_mat_ch)
     compare_eeg(EEG_py_ch['data'], EEG_mat_ch['data'], rtol=0.005, atol=1e-5, err_msg='clean_artifacts() channel cleaning Python vs MATLAB failed')
     print("clean_artifacts() channel cleaning Python vs MATLAB passed\n\n\n")

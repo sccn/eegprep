@@ -2,7 +2,33 @@
 
 from __future__ import annotations
 
+import ctypes
+import os
+from pathlib import Path
+
 import pytest
+
+
+def _preload_matlab_libstdcxx() -> None:
+    """Load a modern libstdc++ before MATLAB Engine imports native modules."""
+    candidate = os.environ.get("EEGPREP_MATLAB_LIBSTDCXX")
+    candidates = [Path(candidate)] if candidate else []
+
+    conda_prefix = os.environ.get("CONDA_PREFIX")
+    if conda_prefix:
+        candidates.append(Path(conda_prefix) / "lib" / "libstdc++.so.6")
+
+    for libstdcxx in candidates:
+        if not libstdcxx.exists():
+            continue
+        try:
+            ctypes.CDLL(str(libstdcxx), mode=ctypes.RTLD_GLOBAL)
+            return
+        except OSError:
+            continue
+
+
+_preload_matlab_libstdcxx()
 
 
 SLOW_NODEID_PARTS = (
