@@ -118,65 +118,6 @@ def pop_epoch(EEG, types=None, lim=None, **kwargs):
     sorted_indices = np.argsort(tmpeventlatency)
     EEG['event'] = [EEG['event'][i] for i in sorted_indices]
 
-    # Input validation
-    if EEG is None:
-        raise ValueError('pop_epoch: EEG dataset is required')
-
-    # Handle multiple datasets (not implemented)
-    if isinstance(EEG, list) and len(EEG) > 1:
-        raise NotImplementedError('pop_epoch: multiple datasets not supported')
-
-    if isinstance(EEG, list):
-        EEG = EEG[0]
-
-    # Check for empty event structure
-    if 'event' not in EEG or EEG['event'] is None or len(EEG['event']) == 0:
-        if EEG.get('trials', 1) > 1 and EEG.get('xmin', 0) <= 0 and EEG.get('xmax', 0) >= 0:
-            print("No EEG.event structure found: creating events of type 'TLE' (Time-Locking Event) at time 0")
-            # Create TLE events
-            EEG['event'] = []
-            for trial in range(EEG['trials']):
-                event = {
-                    'epoch': trial + 1,  # 1-based for MATLAB compatibility
-                    'type': 'TLE',
-                    'latency': -EEG['xmin'] * EEG['srate'] + 1 + trial * EEG['pnts']
-                }
-                EEG['event'].append(event)
-        else:
-            print('Cannot epoch data with no events')
-            return EEG, []
-
-    # Check for latency field
-    if not any('latency' in event for event in EEG['event']):
-        raise ValueError('Absent latency field in event array/structure: must name one of the fields "latency"')
-
-    # Default parameters
-    if types is None:
-        types = []
-    if lim is None:
-        lim = [-1, 2]
-
-    # Process optional arguments
-    setname = _text_field(EEG.get('setname', ''))
-    g = {
-        'epochfield': kwargs.get('epochfield', 'type'),  # obsolete
-        'timeunit': kwargs.get('timeunit', 'points'),
-        'verbose': kwargs.get('verbose', 'on'),  # obsolete
-        'newname': kwargs.get('newname', f'{setname} epochs' if setname else ''),
-        'eventindices': kwargs.get('eventindices', list(range(len(EEG['event'])))),  # 0-based
-        'epochinfo': kwargs.get('epochinfo', 'yes'),
-        'valuelim': kwargs.get('valuelim', [-np.inf, np.inf])
-    }
-
-    if g['valuelim'] is None:
-        g['valuelim'] = [-np.inf, np.inf]
-
-    # Sort events by latency
-    tmpevent = copy.deepcopy(EEG['event'])
-    tmpeventlatency = [event['latency'] for event in tmpevent]
-    sorted_indices = np.argsort(tmpeventlatency)
-    EEG['event'] = [EEG['event'][i] for i in sorted_indices]
-
     # Select events for epoching
     Ievent = g['eventindices']
 
