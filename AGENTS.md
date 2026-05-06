@@ -13,9 +13,13 @@ Primary references:
 - `src/eegprep/functions/adminfunc/`: EEGLAB-style administrative helpers such as `eeg_checkset.py` and `eeg_options.py`.
 - `src/eegprep/functions/sigprocfunc/`: EEGLAB-style signal processing functions such as `runica.py`, `topoplot.py`, `epoch.py`, and ICA wrappers.
 - `src/eegprep/plugins/clean_rawdata/`: Python ports of the EEGLAB clean_rawdata plugin, including `clean_*` and ASR modules.
+- `src/eegprep/plugins/clean_rawdata/private/`: ports of clean_rawdata private helpers such as `fit_eeg_distribution`, `geometric_median`, FIR helpers, covariance helpers, and spherical-spline interpolation.
 - `src/eegprep/plugins/ICLabel/`: Python ports of the EEGLAB ICLabel plugin and bundled `netICL.mat`.
-- `src/eegprep/*.py`: package infrastructure, BIDS pipeline entry points, format conversion, MATLAB compatibility, and Python-specific helpers that do not have a closer EEGLAB function/plugin folder.
-- `src/eegprep/utils/`: shared concrete helpers. Search here before adding utility code.
+- `src/eegprep/plugins/firfilt/`: Python ports of the EEGLAB firfilt plugin helpers.
+- `src/eegprep/functions/miscfunc/`: EEGLAB-style miscellaneous helpers, including format conversion and numerical utilities.
+- `src/eegprep/functions/eegobj/`: Python counterpart to EEGLAB's `functions/@eegobj/`.
+- `src/eegprep/plugins/EEG_BIDS/`: Python ports and workflow helpers for the EEGLAB EEG-BIDS plugin.
+- `src/eegprep/utils/`: Python-only test/development support. Do not put EEGLAB-equivalent processing code here.
 - `src/eegprep/resources/`: MATLAB option files, montages, package data.
 - `src/eegprep/eeglab/`: vendored EEGLAB reference code and sample data. Treat as reference input; do not edit unless explicitly updating the bundled reference.
 - `src/eegprep/matlab_local_tests/` and `scripts/*.m`: MATLAB parity helpers.
@@ -79,7 +83,7 @@ Primary references:
   - Single file: `python -m unittest tests.test_pop_select`
   - Full suite: `python -m unittest discover -s tests`
   - No MATLAB locally: `EEGPREP_SKIP_MATLAB=1 python -m unittest discover -s tests`
-- Some parity tests require MATLAB Engine or Octave via `eeglabcompat.py`; preserve skip behavior instead of weakening assertions.
+- Some parity tests require MATLAB Engine or Octave via `src/eegprep/functions/adminfunc/eeglabcompat.py`; preserve skip behavior instead of weakening assertions.
 - Prefer integration-style tests that validate externally observable behavior on EEG dicts, BIDS outputs, files, or MATLAB parity results.
 - Search existing test files before creating new ones. Extend the closest existing test first.
 - No mocks unless testing I/O boundaries such as network or filesystem. Test real behavior for numerical transforms.

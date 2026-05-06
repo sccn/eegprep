@@ -18,7 +18,7 @@ import numpy as np
 import tempfile
 import scipy.io
 from eegprep import pop_loadset, pop_saveset, eeg_rpsd
-from eegprep.eeglabcompat import get_eeglab
+from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 
 local_url = os.path.join(os.path.dirname(__file__), '../data/')
 

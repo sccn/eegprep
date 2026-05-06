@@ -41,7 +41,7 @@ class TestMatlabPath(unittest.TestCase):
     def test_get_eeglab_oct(self):
         """Test get_eeglab with Octave runtime (informational)."""
         try:
-            from eegprep.eeglabcompat import get_eeglab
+            from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
             print("Attempting to get EEGLAB with Octave runtime...")
             eeglab = get_eeglab('OCT')
             print(f"EEGLAB (Octave) loaded successfully: {type(eeglab)}")
@@ -53,7 +53,7 @@ class TestMatlabPath(unittest.TestCase):
         if os.getenv('EEGPREP_SKIP_MATLAB') == '1':
             self.skipTest("MATLAB tests disabled via EEGPREP_SKIP_MATLAB")
         try:
-            from eegprep.eeglabcompat import get_eeglab
+            from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
             print("Attempting to get EEGLAB with MATLAB runtime...")
             eeglab = get_eeglab('MAT')
             print(f"EEGLAB (MATLAB) loaded successfully: {type(eeglab)}")

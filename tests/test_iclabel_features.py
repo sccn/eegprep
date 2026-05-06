@@ -6,7 +6,7 @@ import os
 import unittest
 import numpy as np
 from eegprep import pop_loadset, ICL_feature_extractor
-from eegprep.eeglabcompat import get_eeglab
+from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 import tempfile
 import scipy.io
 

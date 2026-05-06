@@ -30,7 +30,7 @@ try:
 except ImportError:
     MNE_AVAILABLE = False
 
-from eegprep.eeg_mne2eeg_epochs import eeg_mne2eeg_epochs
+from eegprep.functions.miscfunc.eeg_mne2eeg_epochs import eeg_mne2eeg_epochs
 try:
     from .fixtures import create_test_eeg
 except (ImportError, ValueError):

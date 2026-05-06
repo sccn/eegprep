@@ -1,5 +1,5 @@
 """
-Test suite for eeglabcompat.py - EEGLAB compatibility layer.
+Test suite for functions/adminfunc/eeglabcompat.py - EEGLAB compatibility layer.
 
 This module tests the EEGLAB compatibility functions that provide
 Python interfaces to MATLAB/Octave EEGLAB functions.
@@ -9,7 +9,7 @@ import os
 import unittest
 from copy import deepcopy
 
-from eegprep.eeglabcompat import (
+from eegprep.functions.adminfunc.eeglabcompat import (
     MatlabWrapper, get_eeglab, clean_drifts, pop_eegfiltnew,
     eeg_checkset as eeglab_eeg_checkset
 )

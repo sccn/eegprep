@@ -4,7 +4,7 @@ import numpy as np
 from typing import Iterable, List, Optional, Tuple
 
 from eegprep.functions.popfunc.eeg_findboundaries import eeg_findboundaries
-from eegprep.utils.misc import round_mat
+from eegprep.functions.miscfunc.misc import round_mat
 
 def _normalize_pointrange(
     pointrange: Optional[Iterable], pnts: int

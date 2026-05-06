@@ -40,7 +40,7 @@ def iclabel(EEG, algorithm='default', engine=None):
 
     # Check if using MATLAB or Octave implementation
     if engine in ['matlab', 'octave']:
-        from eegprep.eeglabcompat import get_eeglab
+        from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 
         # Determine which engine to use
         runtime = 'MAT' if engine == 'matlab' else 'OCT'

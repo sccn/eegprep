@@ -15,7 +15,7 @@ if test_dir not in sys.path:
 
 from eegprep.functions.popfunc.pop_rmbase import pop_rmbase
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
-from eegprep.eeglabcompat import get_eeglab
+from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 try:
     from .fixtures import create_test_eeg
 except (ImportError, ValueError):

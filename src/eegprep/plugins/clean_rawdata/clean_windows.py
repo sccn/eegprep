@@ -10,8 +10,8 @@ from typing import *
 
 import numpy as np
 
-from ...utils.stats import fit_eeg_distribution
-from ...utils.misc import round_mat
+from ...functions.miscfunc.misc import round_mat
+from .private.stats import fit_eeg_distribution
 
 logger = logging.getLogger(__name__)
 

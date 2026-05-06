@@ -7,8 +7,8 @@ import os
 import numpy as np
 
 from eegprep import bids_preproc, pop_loadset, eeg_checkset_strict_mode
-from eegprep.eeglabcompat import get_eeglab
-from eegprep.utils import get_nested
+from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
+from eegprep.functions.miscfunc.misc import get_nested
 
 logger = logging.getLogger(__name__)
 

@@ -6,7 +6,7 @@ import sys
 import warnings
 from unittest.mock import patch
 
-from eegprep.utils.logs import setup_logging, ColoredWarningFormatter
+from eegprep.functions.adminfunc.logs import setup_logging, ColoredWarningFormatter
 
 
 class TestLogs(unittest.TestCase):
@@ -83,7 +83,7 @@ class TestLogs(unittest.TestCase):
 
     def test_colored_warning_formatter_branches(self):
         # Non-color branch
-        with patch('eegprep.utils.logs._COLORAMA_AVAILABLE', False):
+        with patch('eegprep.functions.adminfunc.logs._COLORAMA_AVAILABLE', False):
             fmt = ColoredWarningFormatter()
             out_warn = fmt.format(self._make_record("nm", logging.WARNING, "warnmsg"))
             out_info = fmt.format(self._make_record("nm", logging.INFO, "infomsg"))
@@ -91,7 +91,7 @@ class TestLogs(unittest.TestCase):
             self.assertEqual(out_info, "INFO (nm) infomsg")
 
         # Color branch uses specialized format for WARNING/ERROR and default for INFO
-        with patch('eegprep.utils.logs._COLORAMA_AVAILABLE', True):
+        with patch('eegprep.functions.adminfunc.logs._COLORAMA_AVAILABLE', True):
             fmt2 = ColoredWarningFormatter()
             out_warn2 = fmt2.format(self._make_record("nm2", logging.WARNING, "warn2"))
             out_err2 = fmt2.format(self._make_record("nm2", logging.ERROR, "err2"))
@@ -105,7 +105,7 @@ class TestLogs(unittest.TestCase):
 
     def test_setup_logging_warns_without_colorama(self):
         with self._preserve_root_logger():
-            with patch('eegprep.utils.logs._COLORAMA_AVAILABLE', False):
+            with patch('eegprep.functions.adminfunc.logs._COLORAMA_AVAILABLE', False):
                 with warnings.catch_warnings(record=True) as w:
                     warnings.simplefilter("always")
                     captured_err = io.StringIO()

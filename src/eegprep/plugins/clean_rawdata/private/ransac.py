@@ -4,9 +4,9 @@ from typing import *
 
 import numpy as np
 
-from .spatial import sphericalSplineInterpolate
-from ..eeglabcompat import get_eeglab
-from .misc import round_mat
+from ....functions.adminfunc.eeglabcompat import get_eeglab
+from ....functions.miscfunc.misc import round_mat
+from .sphericalSplineInterpolate import sphericalSplineInterpolate
 
 def rand_sample(
         n: int,

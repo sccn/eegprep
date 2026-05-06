@@ -6,8 +6,8 @@ import os
 import tempfile
 from ..popfunc.pop_saveset import pop_saveset
 from ..popfunc.pop_loadset import pop_loadset
-from ...eeglabcompat import temp_dir, MatlabWrapper
-from ...pinv import pinv
+from ..adminfunc.eeglabcompat import temp_dir, MatlabWrapper
+from ..miscfunc.pinv import pinv
 
 def eeg_picard(EEG, engine=None, posact='off', sortcomps='off', **kwargs):
     """Perform ICA decomposition using Picard algorithm.

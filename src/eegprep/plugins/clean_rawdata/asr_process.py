@@ -5,8 +5,8 @@ import logging
 import numpy as np
 import scipy.signal
 
-from ...utils.sigproc import moving_average
-from ...utils.misc import round_mat
+from ...functions.miscfunc.misc import round_mat
+from .private.sigproc import moving_average
 
 logger = logging.getLogger(__name__)
 

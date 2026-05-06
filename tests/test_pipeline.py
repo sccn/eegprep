@@ -7,7 +7,7 @@ import unittest
 import numpy as np
 from copy import deepcopy
 from eegprep import pop_loadset, clean_artifacts, eeg_picard, iclabel
-from eegprep.eeglabcompat import get_eeglab
+from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.functions.popfunc.eeg_compare import eeg_compare
 from eegprep.utils.testing import (
     compare_eeg,

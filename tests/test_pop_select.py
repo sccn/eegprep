@@ -5,7 +5,7 @@ import numpy as np
 import copy
 import os
 
-from eegprep.eeglabcompat import get_eeglab
+from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_loadset_h5 import pop_loadset_h5
 from eegprep.functions.popfunc.pop_select import pop_select

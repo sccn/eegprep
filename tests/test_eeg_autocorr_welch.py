@@ -20,7 +20,7 @@ class TestEegAutocorrWelch(unittest.TestCase):
         cls.matlab_available = False
         cls.eeglab = None
         try:
-            from eegprep.eeglabcompat import get_eeglab
+            from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
             cls.eeglab = get_eeglab()
             cls.matlab_available = True
         except Exception as e:

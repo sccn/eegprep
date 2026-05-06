@@ -3,7 +3,7 @@ import os
 import unittest
 import numpy as np
 from eegprep.functions.popfunc.eeg_eegrej import _eegrej  # replace with the actual module name
-from eegprep.eeglabcompat import get_eeglab
+from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 
 class TestEEGRej(unittest.TestCase):
     def setUp(self):

@@ -382,7 +382,7 @@ class TestPopLoadsetH5Parity(unittest.TestCase):
     def setUp(self):
         """Set up MATLAB connection for parity testing."""
         try:
-            from eegprep.eeglabcompat import get_eeglab
+            from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
             self.eeglab = get_eeglab('MAT')
             self.matlab_available = True
         except Exception as e:

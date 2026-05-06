@@ -7,7 +7,7 @@ import traceback
 import numpy as np
 from scipy.signal import filtfilt
 
-from ...utils import design_fir, design_kaiser, filtfilt_fast
+from .private.sigproc import design_fir, design_kaiser, filtfilt_fast
 
 logger = logging.getLogger(__name__)
 

@@ -101,7 +101,7 @@ def compare_ica_decompositions(py_file: str, mat_file: str, subject: str) -> Dic
     # Save scalp map comparison using MATLAB topoplot
     scalp_map_file_matlab = os.path.abspath(py_file.replace('_py.set', '_scalp_maps_matlab.png'))
     try:
-        from eegprep.eeglabcompat import get_eeglab
+        from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
         import tempfile
 
         n_comps_to_plot = min(10, len(correlations))
@@ -296,7 +296,7 @@ def run_staged_pipeline_python(root: str, stage_dir: str, **kwargs) -> List[str]
         List of saved file paths for each stage
     """
     from eegprep import bids_preproc, pop_saveset, pop_loadset
-    from eegprep.utils.bids import gen_derived_fpath
+    from .bids import gen_derived_fpath
 
     # Stage mapping: (output_file, stage_params)
     stages = [

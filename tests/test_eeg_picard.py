@@ -2,9 +2,9 @@ import os
 import unittest
 import numpy as np
 from eegprep import pop_loadset, eeg_picard, pop_saveset
-from eegprep.eeglabcompat import get_eeglab
+from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.utils.testing import DebuggableTestCase, matlab_function_exists
-from eegprep.pinv import pinv
+from eegprep.functions.miscfunc.pinv import pinv
 
 
 def compare_ica_components(weights1, weights2, rtol=0.01, atol=0.05):

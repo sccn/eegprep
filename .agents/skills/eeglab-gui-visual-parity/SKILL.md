@@ -393,7 +393,7 @@ When iterating, patch the smallest relevant layer:
 - Python capture blank or wrong state: patch `eegprep.functions.guifunc.visual_capture`.
 - Import errors after file moves: fix the moved module imports before judging
   screenshots. For example, after moving pop functions into `functions/popfunc`, relative
-  imports such as `.utils` should usually become `eegprep.utils`.
+  imports such as `.utils` should use the current EEGPrep package path for that helper.
 
 Treat pixel metrics as a smoke signal, not the final judge. A good dialog can
 still have differences from font rendering, antialiasing, native bevels, or OS

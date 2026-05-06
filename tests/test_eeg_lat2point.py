@@ -3,7 +3,7 @@ import os
 import numpy as np
 import unittest
 
-from eegprep.eeglabcompat import get_eeglab
+from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.functions.popfunc.eeg_lat2point import eeg_lat2point
 
 

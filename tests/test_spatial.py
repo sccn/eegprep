@@ -1,12 +1,12 @@
 """
-Tests for eegprep.utils.spatial module.
+Tests for eegprep.plugins.clean_rawdata.private.sphericalSplineInterpolate module.
 
 This module tests the spherical spline interpolation functions used in topographic plotting.
 """
 
 import unittest
 import numpy as np
-from eegprep.utils.spatial import sphericalSplineInterpolate, _interpMx
+from eegprep.plugins.clean_rawdata.private.sphericalSplineInterpolate import sphericalSplineInterpolate, _interpMx
 
 
 class TestInterpMx(unittest.TestCase):

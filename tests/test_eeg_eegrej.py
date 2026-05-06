@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 # Assume eeg_eegrej is defined as in your module that imports: from eegrej import eegrej
 from eegprep import eeg_eegrej
-from eegprep.eeglabcompat import get_eeglab
+from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 

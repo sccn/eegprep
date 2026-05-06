@@ -6,7 +6,7 @@ import logging
 import numpy as np
 from scipy.signal import filtfilt
 
-from ...utils import design_kaiser, design_fir, filtfilt_fast
+from .private.sigproc import design_fir, design_kaiser, filtfilt_fast
 
 logger = logging.getLogger(__name__)
 

@@ -2,7 +2,7 @@
 
 import numpy as np
 from typing import List, Dict, Optional, Tuple
-from ...utils.misc import round_mat
+from ..miscfunc.misc import round_mat
 
 
 def _is_boundary_event(event: Dict) -> bool:

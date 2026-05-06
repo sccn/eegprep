@@ -6,7 +6,7 @@ from scipy.io import loadmat, savemat
 from unittest.mock import patch, MagicMock
 
 from eegprep.functions.popfunc.eeg_interp import eeg_interp, spheric_spline, computeg
-from eegprep.eeglabcompat import get_eeglab
+from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 
 # Test Case	(Python vs. MATLAB)         Max Absolute	Max Relative	Scenario
 # test_parity_multiple_trials	        5.11e-04	1.99e-02 (1.99%)	3 trials, 3 channels, 1 trial

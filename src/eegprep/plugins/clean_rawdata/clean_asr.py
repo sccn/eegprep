@@ -15,7 +15,7 @@ import numpy as np
 from .asr_calibrate import asr_calibrate
 from .asr_process import asr_process
 from .clean_windows import clean_windows
-from ...utils.misc import round_mat
+from ...functions.miscfunc.misc import round_mat
 
 logger = logging.getLogger(__name__)
 

@@ -16,13 +16,13 @@ point2lat, epoch, loadset, reref, resample, rmbase, saveset, select.
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 from eegprep.functions.popfunc.eeg_compare import eeg_compare
 from eegprep.functions.popfunc.eeg_decodechan import eeg_decodechan
-from eegprep.eeg_eeg2mne import eeg_eeg2mne
+from eegprep.functions.miscfunc.eeg_eeg2mne import eeg_eeg2mne
 from eegprep.functions.popfunc.eeg_eegrej import eeg_eegrej
 from eegprep.functions.popfunc.eeg_findboundaries import eeg_findboundaries
 from eegprep.functions.popfunc.eeg_interp import eeg_interp
 from eegprep.functions.popfunc.eeg_lat2point import eeg_lat2point
-from eegprep.eeg_mne2eeg import eeg_mne2eeg
-from eegprep.eeg_mne2eeg_epochs import eeg_mne2eeg_epochs
+from eegprep.functions.miscfunc.eeg_mne2eeg import eeg_mne2eeg
+from eegprep.functions.miscfunc.eeg_mne2eeg_epochs import eeg_mne2eeg_epochs
 from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
 from eegprep.functions.sigprocfunc.eeg_picard import eeg_picard
 from eegprep.functions.popfunc.eeg_point2lat import eeg_point2lat

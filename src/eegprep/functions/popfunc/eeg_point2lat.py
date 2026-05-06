@@ -1,7 +1,7 @@
 """Module for converting event latencies from points to time units."""
 
 import numpy as np
-from ...utils.misc import round_mat
+from ..miscfunc.misc import round_mat
 
 
 def eeg_point2lat(lat_array, epoch_array=None, srate=None, timewin=None, timeunit=1.0):

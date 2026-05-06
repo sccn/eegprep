@@ -13,11 +13,17 @@ from typing import Union, Tuple, Optional, Sequence, List, Dict, Any
 
 import numpy as np
 
-from .utils import ExceptionUnlessDebug, num_jobs_from_reservation, is_debug, \
-    humanize_seconds, num_cpus_from_reservation, ToolError
-from .utils.bids import layout_for_fpath, root_for_fpath
-from .utils.coords import chanloc_has_coords
-from .utils.git import get_git_commit_id
+from ...functions.adminfunc.git import get_git_commit_id
+from ...functions.miscfunc.misc import (
+    ExceptionUnlessDebug,
+    ToolError,
+    humanize_seconds,
+    is_debug,
+    num_cpus_from_reservation,
+    num_jobs_from_reservation,
+)
+from .bids import layout_for_fpath, root_for_fpath
+from .coords import chanloc_has_coords
 
 # whether pop_rmbase accepts the time range in ms (change if needed)
 pop_rmbase_in_ms = True
@@ -384,7 +390,7 @@ def bids_preproc(
                          eeg_interp, pop_select, eeg_checkset_strict_mode, pop_reref,
                          eeg_icflag, pop_subcomp)
     from eegprep.functions.sigprocfunc.eeg_amica import eeg_amica
-    from .utils.bids import gen_derived_fpath
+    from .bids import gen_derived_fpath
 
     def hash_suffix(ignore: Optional[set] = None, *, prefix='#') -> str:
         """Get a hash for all options that affect results minus the ones listed in ignore.

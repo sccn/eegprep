@@ -6,10 +6,10 @@ from typing import Dict, Any, Tuple, List, Union, Sequence, Optional
 import logging
 import warnings
 import contextlib
-from eegprep.utils.bids import layout_for_fpath, layout_get_lenient, query_for_adjacent_fpath, \
+from eegprep.plugins.EEG_BIDS.bids import layout_for_fpath, layout_get_lenient, query_for_adjacent_fpath, \
     root_for_fpath
-from eegprep.utils.coords import *
-from eegprep.utils import ExceptionUnlessDebug, ToolError, round_mat
+from eegprep.plugins.EEG_BIDS.coords import *
+from eegprep.functions.miscfunc.misc import ExceptionUnlessDebug, ToolError, round_mat
 
 import numpy as np
 

@@ -6,10 +6,10 @@ import traceback
 
 import numpy as np
 
-from ...utils.sigproc import design_fir, filtfilt_fast
-from ...utils.ransac import calc_projector
-from ...utils.stats import mad
-from ...utils.misc import round_mat
+from ...functions.miscfunc.misc import round_mat
+from .private.ransac import calc_projector
+from .private.sigproc import design_fir, filtfilt_fast
+from .private.stats import mad
 
 logger = logging.getLogger(__name__)
 

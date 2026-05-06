@@ -8,10 +8,10 @@ import tempfile
 import sys
 sys.path.insert(0, '/Users/arno/Python/eegprep/src/')
 sys.path.insert(0, '/usr/src/project/src/')
-from eegprep.eeglabcompat import get_eeglab
+from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_saveset import pop_saveset
-from eegprep.utils import aslist
+from eegprep.functions.miscfunc.misc import aslist
 
 # TO DO TO ADDRESS DIFFERENCES BETWEEN MATLAB AND PYTHON
 # - Do a simple resample 500 to 250 Hz, there only the filter should matter (subsampling is just a decimation)
@@ -141,7 +141,7 @@ def resample_eeg(EEG, freq, method='poly', fc=0.9, df=0.2):
 
     if method == 'poly':
         # use scipy's resample_poly() function
-        from eegprep.utils.sigproc import firwsord, firws
+        from eegprep.plugins.firfilt import firws, firwsord
         from scipy.signal.windows import kaiser
         nyq = 1 / np.maximum(p, q)
         fc *= nyq

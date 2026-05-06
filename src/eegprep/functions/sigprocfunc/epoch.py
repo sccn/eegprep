@@ -6,7 +6,7 @@ locked to specified events.
 
 import numpy as np
 
-from ...utils.misc import round_mat
+from ..miscfunc.misc import round_mat
 
 
 def epoch(data, events, lim, **kwargs):

@@ -4,7 +4,7 @@ import logging
 
 __version__ = "0.2.23"
 
-from .utils.logs import setup_logging
+from .functions.adminfunc.logs import setup_logging
 setup_logging(logging.WARNING)
 
 from .plugins.ICLabel.iclabel import iclabel
@@ -16,8 +16,8 @@ from .functions.popfunc.pop_loadset_h5 import pop_loadset_h5
 from .functions.popfunc.pop_adjustevents import pop_adjustevents
 from .functions.popfunc.pop_resample import pop_resample
 from .functions.adminfunc.eeg_checkset import eeg_checkset
-from .eeglabcompat import pop_eegfiltnew
-from .eeglabcompat import clean_artifacts as eeglab_clean_artifacts
+from .functions.adminfunc.eeglabcompat import pop_eegfiltnew
+from .functions.adminfunc.eeglabcompat import clean_artifacts as eeglab_clean_artifacts
 from .plugins.ICLabel.ICL_feature_extractor import ICL_feature_extractor
 from .functions.sigprocfunc.topoplot import topoplot
 from .plugins.ICLabel.eeg_rpsd import eeg_rpsd
@@ -37,15 +37,16 @@ from .functions.popfunc.eeg_compare import eeg_compare
 from .functions.popfunc.eeg_interp import eeg_interp
 from .plugins.clean_rawdata.clean_artifacts import clean_artifacts
 from .functions.popfunc.pop_load_frombids import pop_load_frombids
-from .bids_list_eeg_files import bids_list_eeg_files
-from .bids_preproc import bids_preproc
+from .plugins.EEG_BIDS.bids_list_eeg_files import bids_list_eeg_files
+from .plugins.EEG_BIDS.bids_preproc import bids_preproc
 from .functions.popfunc.eeg_decodechan import eeg_decodechan
 from .functions.sigprocfunc.eegrej import eegrej
 from .functions.popfunc.eeg_eegrej import eeg_eegrej
-from .eegobj import EEGobj
-from .redefine_functions import *
-from .eeg_mne2eeg import eeg_mne2eeg
-from .eeg_mne2eeg_epochs import eeg_mne2eeg_epochs
+from .functions.eegobj.eegobj import EEGobj
+from .functions.redefine_functions import *
+from .functions.miscfunc.eeg_eeg2mne import eeg_eeg2mne
+from .functions.miscfunc.eeg_mne2eeg import eeg_mne2eeg
+from .functions.miscfunc.eeg_mne2eeg_epochs import eeg_mne2eeg_epochs
 from .functions.popfunc.eeg_lat2point import eeg_lat2point
 from .functions.popfunc.eeg_point2lat import eeg_point2lat
 from .functions.adminfunc.eeg_options import EEG_OPTIONS

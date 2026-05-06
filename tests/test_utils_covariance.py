@@ -3,7 +3,7 @@ import numpy as np
 import warnings
 from unittest.mock import patch
 
-from eegprep.utils.covariance import (
+from eegprep.plugins.clean_rawdata.private.covariance import (
     diag_nd, cov_logm, cov_expm, cov_powm, cov_sqrtm, cov_rsqrtm,
     cov_sqrtm2, cov_mean, cov_shrinkage
 )
@@ -271,7 +271,7 @@ class TestCovMean(unittest.TestCase):
 
     def test_verbose_mode(self):
         """Test verbose mode output."""
-        with patch('eegprep.utils.covariance.logger.info') as mock_log:
+        with patch('eegprep.plugins.clean_rawdata.private.covariance.logger.info') as mock_log:
             cov_mean(self.cov_stack, robust=True, huber=None, verbose=True)
             # Should have logged median deviations
             mock_log.assert_called()

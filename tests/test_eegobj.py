@@ -3,7 +3,7 @@ import numpy as np
 import os
 import tempfile
 import shutil
-from eegprep.eegobj import EEGobj
+from eegprep.functions.eegobj.eegobj import EEGobj
 from eegprep.functions.popfunc.pop_select import pop_select # Import pop_select for direct testing if needed
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 import copy

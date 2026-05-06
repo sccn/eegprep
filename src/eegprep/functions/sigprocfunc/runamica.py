@@ -15,13 +15,15 @@ import platform
 import shutil
 import subprocess
 import tempfile
+from pathlib import Path
 
 import numpy as np
 from scipy.special import gamma
 
-from .pinv import pinv
+from ..miscfunc.pinv import pinv
 
 logger = logging.getLogger(__name__)
+PACKAGE_ROOT = Path(__file__).resolve().parents[2]
 
 
 # --------------------------------------------------------------------------
@@ -180,13 +182,13 @@ def _find_amica_binary(amica_binary=None):
         binary_name = 'amica15'
 
     # 3. Vendored binary in src/eegprep/bin/
-    bin_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bin')
+    bin_dir = os.path.join(PACKAGE_ROOT, 'bin')
     vendored = os.path.join(bin_dir, binary_name)
     if os.path.isfile(vendored) and os.access(vendored, os.X_OK):
         return vendored
 
     # 4. EEGLAB submodule plugins
-    eeglab_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'eeglab')
+    eeglab_dir = os.path.join(PACKAGE_ROOT, 'eeglab')
     if os.path.isdir(eeglab_dir):
         plugins_dir = os.path.join(eeglab_dir, 'plugins')
         if os.path.isdir(plugins_dir):

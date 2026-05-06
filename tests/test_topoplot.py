@@ -20,7 +20,7 @@ matplotlib.use('Agg')
 
 from eegprep.functions.sigprocfunc.topoplot import topoplot, griddata_v4
 from eegprep import pop_loadset, pop_saveset
-from eegprep.eeglabcompat import get_eeglab
+from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 
 local_url = os.path.join(os.path.dirname(__file__), '../data/')
 

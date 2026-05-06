@@ -44,20 +44,19 @@ def save_dict_to_hdf5(data, filename, dataset_name):
     with h5py.File(filename, 'w') as hdf:
         hdf.create_dataset(dataset_name, data=structured_data)
 
-# Example usage
-data = {
-    'labels': 'FPz',
-    'theta': np.array([0,1,2,3]),
-    'radius': 0.5066888888888889,
-    'X': 84.98123361344625,
-    'Y': 0,
-    'Z': -1.7860385037488253,
-    'sph_theta': 0,
-    'sph_phi': -1.203999999999994,
-    'sph_radius': 85,
-    'type': 'EEG',
-    'urchan': 1,
-    'ref': None
-}
-
-save_dict_to_hdf5(data, 'data.h5', 'dataset_name')
+if __name__ == '__main__':
+    data = {
+        'labels': 'FPz',
+        'theta': np.array([0, 1, 2, 3]),
+        'radius': 0.5066888888888889,
+        'X': 84.98123361344625,
+        'Y': 0,
+        'Z': -1.7860385037488253,
+        'sph_theta': 0,
+        'sph_phi': -1.203999999999994,
+        'sph_radius': 85,
+        'type': 'EEG',
+        'urchan': 1,
+        'ref': None,
+    }
+    save_dict_to_hdf5(data, 'data.h5', 'dataset_name')

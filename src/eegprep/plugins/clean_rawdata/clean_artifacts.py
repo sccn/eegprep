@@ -13,7 +13,7 @@ from .clean_channels import clean_channels
 from .clean_channels_nolocs import clean_channels_nolocs
 from .clean_asr import clean_asr
 from .clean_windows import clean_windows
-from ...utils.misc import round_mat
+from ...functions.miscfunc.misc import round_mat
 
 
 logger = logging.getLogger(__name__)

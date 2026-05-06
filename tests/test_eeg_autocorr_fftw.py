@@ -21,7 +21,7 @@ import warnings
 # Add src to path for imports
 sys.path.insert(0, 'src')
 from eegprep.plugins.ICLabel.eeg_autocorr_fftw import eeg_autocorr_fftw
-from eegprep.eeglabcompat import get_eeglab
+from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.utils.testing import DebuggableTestCase
 
 

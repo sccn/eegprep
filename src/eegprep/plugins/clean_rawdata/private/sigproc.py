@@ -4,7 +4,7 @@ from typing import *
 
 import numpy as np
 from scipy.signal import fftconvolve
-from .misc import round_mat
+from ....functions.miscfunc.misc import round_mat
 
 __all__ = ['design_kaiser', 'design_fir', 'filtfilt_fast', 'firwsord', 'firws']
 

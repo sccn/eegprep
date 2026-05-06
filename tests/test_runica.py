@@ -16,7 +16,7 @@ import numpy as np
 import scipy.io
 
 from eegprep.functions.sigprocfunc.runica import runica
-from eegprep.eeglabcompat import get_eeglab
+from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 
 
 class TestRunicaFunctionality(unittest.TestCase):

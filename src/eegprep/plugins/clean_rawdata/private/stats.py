@@ -5,7 +5,7 @@ import logging
 import numpy as np
 from numpy.linalg import norm as np_norm  # Use alias to avoid potential name collision
 from scipy.special import gamma, gammaincinv
-from .misc import round_mat
+from ....functions.miscfunc.misc import round_mat
 
 logger = logging.getLogger(__name__)
 

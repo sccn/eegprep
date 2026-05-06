@@ -6,9 +6,9 @@ import numpy as np
 import scipy.signal
 import scipy.linalg
 
-from ...utils.stats import geometric_median, fit_eeg_distribution
-from ...utils.covariance import cov_mean, cov_shrinkage
-from ...utils.misc import canonicalize_signs, round_mat
+from ...functions.miscfunc.misc import canonicalize_signs, round_mat
+from .private.covariance import cov_mean, cov_shrinkage
+from .private.stats import fit_eeg_distribution, geometric_median
 
 logger = logging.getLogger(__name__)
 

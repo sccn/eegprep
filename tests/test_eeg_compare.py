@@ -17,7 +17,7 @@ from unittest.mock import patch
 # Add src to path for imports
 sys.path.insert(0, 'src')
 from eegprep.functions.popfunc.eeg_compare import eeg_compare
-from eegprep.eeglabcompat import get_eeglab
+from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.utils.testing import DebuggableTestCase
 
 

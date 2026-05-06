@@ -17,9 +17,9 @@ import unittest
 import numpy as np
 import tempfile
 import scipy.io
-from eegprep.eeglabcompat import get_eeglab
-from eegprep.utils.ransac import rand_sample
-from eegprep.utils.misc import round_mat
+from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
+from eegprep.plugins.clean_rawdata.private.ransac import rand_sample
+from eegprep.functions.miscfunc.misc import round_mat
 
 
 class TestRNGParity(unittest.TestCase):

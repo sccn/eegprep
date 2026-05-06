@@ -22,8 +22,8 @@ Reference:
 import logging
 import numpy as np
 from scipy.linalg import sqrtm, pinv, eig
-from ...utils.misc import round_mat
-from ...utils.ransac import rand_permutation
+from ...plugins.clean_rawdata.private.ransac import rand_permutation
+from ..miscfunc.misc import round_mat
 
 logger = logging.getLogger(__name__)
 
@@ -650,7 +650,7 @@ def runica(data, **kwargs):
         - round_mat() matches MATLAB's round() tie-breaking behavior
         - permutation() uses different algorithms and does NOT match
 
-        For details see test_parity_rng.py and utils/ransac.py:rand_permutation()
+        For details see test_parity_rng.py and clean_rawdata/private/ransac.py:rand_permutation()
         """
         return rand_permutation(n, rng_state)
 

@@ -17,7 +17,7 @@ import unittest
 
 import numpy as np
 
-from eegprep.runamica import (
+from eegprep.functions.sigprocfunc.runamica import (
     _find_amica_binary,
     _load_amica_output,
     _write_data_file,
@@ -298,7 +298,7 @@ class TestRunamicaIntegration(unittest.TestCase):
 
         # Reconstruction test: pinv(W@S) @ W @ S @ data ~ data
         WS = weights @ sphere
-        from eegprep.pinv import pinv
+        from eegprep.functions.miscfunc.pinv import pinv
         reconstructed = pinv(WS) @ WS @ data
         np.testing.assert_allclose(
             reconstructed, data, atol=1e-6,

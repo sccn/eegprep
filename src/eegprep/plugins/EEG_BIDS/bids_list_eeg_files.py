@@ -2,7 +2,7 @@
 
 import logging
 from typing import List, Sequence
-from eegprep.utils.bids import layout_for_fpath
+from .bids import layout_for_fpath
 
 logger = logging.getLogger(__name__)
 

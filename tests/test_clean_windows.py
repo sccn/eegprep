@@ -338,7 +338,7 @@ class TestCleanWindows(unittest.TestCase):
 
     def test_distribution_fitting_nan_fallback(self):
         """Test fallback when distribution fitting returns NaN."""
-        with patch('eegprep.utils.stats.fit_eeg_distribution') as mock_fit:
+        with patch('eegprep.plugins.clean_rawdata.private.stats.fit_eeg_distribution') as mock_fit:
             # Return NaN sigma to trigger fallback
             mock_fit.return_value = (1.0, np.nan, None, None)
 

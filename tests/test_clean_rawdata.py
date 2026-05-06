@@ -10,6 +10,7 @@ from copy import deepcopy
 import numpy as np
 
 from eegprep import *
+from eegprep.functions.adminfunc import eeglabcompat
 from eegprep.utils.testing import *
 
 logger = logging.getLogger(__name__)
@@ -71,21 +72,21 @@ class TestUtilFuncs(DebuggableTestCase):
         self.eeglab = eeglabcompat.get_eeglab('MAT')
 
     def test_design_kaiser(self):
-        from eegprep.utils import design_kaiser
+        from eegprep.plugins.clean_rawdata.private.sigproc import design_kaiser
         observed = design_kaiser(0.06, 0.08, 75, True)
         expected = np.asarray(self.eeglab.design_kaiser(0.06, 0.08, 75.0, True))
         np.testing.assert_almost_equal(observed.flatten(), expected.flatten(),
                                        err_msg='design_kaiser() test failed')
 
     def test_design_fir_default_wnd(self):
-        from eegprep.utils import design_fir
+        from eegprep.plugins.clean_rawdata.private.sigproc import design_fir
         observed = design_fir(234, [0.0, 0.06, 0.08, 1.0], [0, 0, 1, 1])
         expected = np.asarray(self.eeglab.design_fir(234.0, np.asarray([0.0, 0.06, 0.08, 1.0]), np.asarray([0.0, 0.0, 1.0, 1.0])))
         np.testing.assert_almost_equal(observed.flatten(), expected.flatten(),
                                        err_msg='test_design_fir_default_wnd() test failed')
 
     def test_design_fir_custom_wnd(self):
-        from eegprep.utils import design_fir, design_kaiser
+        from eegprep.plugins.clean_rawdata.private.sigproc import design_fir, design_kaiser
         wnd = design_kaiser(0.06, 0.08, 75.0, True)
         observed = design_fir(234, [0.0, 0.06, 0.08, 1.0], [0, 0, 1.0, 1.0], w=wnd)
         expected = np.asarray(self.eeglab.design_fir(234.0, np.asarray([0.0, 0.06, 0.08, 1.0]),
@@ -94,7 +95,7 @@ class TestUtilFuncs(DebuggableTestCase):
                                        err_msg='test_design_fir_custom_wnd() test failed')
 
     def test_block_geometric_median(self):
-        from eegprep.utils.stats import block_geometric_median
+        from eegprep.plugins.clean_rawdata.private.stats import block_geometric_median
         np.random.seed(42)
         # generate heavy-tailed data with non-zero centroid and apply random rotation
         df = 3  # degrees of freedom for t-distribution
@@ -109,7 +110,7 @@ class TestUtilFuncs(DebuggableTestCase):
                                        err_msg='block_geometric_median() test failed')
 
     def test_fit_eeg_distribution(self):
-        from eegprep.utils.stats import fit_eeg_distribution
+        from eegprep.plugins.clean_rawdata.private.stats import fit_eeg_distribution
         from scipy.stats import genextreme
         x = genextreme.rvs(0.1, size=5007)
         observed, *_ = fit_eeg_distribution(x)  # returns 4 values, for now we check only the first
@@ -298,4 +299,3 @@ if __name__ == "__main__":
         TestCleanASR.debugTestCase()
     else:
         unittest.main()
-

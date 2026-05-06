@@ -1,8 +1,8 @@
 """Perform ICA decomposition using the AMICA (Adaptive Mixture ICA) algorithm."""
 
 import numpy as np
-from ...runamica import runamica
-from ...pinv import pinv
+from .runamica import runamica
+from ..miscfunc.pinv import pinv
 
 
 def eeg_amica(EEG, posact='off', sortcomps='off', num_models=1, max_iter=2000,

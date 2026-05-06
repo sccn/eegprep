@@ -12,9 +12,12 @@ _EEGPREP_FUNCTION_MODULE_PREFIXES = (
     "eegprep.functions.popfunc",
     "eegprep.functions.adminfunc",
     "eegprep.functions.sigprocfunc",
+    "eegprep.functions.miscfunc",
     "eegprep.functions.guifunc",
     "eegprep.plugins.clean_rawdata",
     "eegprep.plugins.ICLabel",
+    "eegprep.plugins.EEG_BIDS",
+    "eegprep.plugins.firfilt",
 )
 
 

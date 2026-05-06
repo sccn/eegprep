@@ -6,15 +6,18 @@
 import tempfile
 from typing import *
 
-from .functions.popfunc.pop_loadset import pop_loadset
-from .functions.popfunc.pop_saveset import pop_saveset
+from ..popfunc.pop_loadset import pop_loadset
+from ..popfunc.pop_saveset import pop_saveset
 import logging
 import os
+from pathlib import Path
 import numpy as np
-from eegprep.pymat import py2mat
+from eegprep.functions.adminfunc.pymat import py2mat
 import scipy.io
 
 logger = logging.getLogger(__name__)
+PACKAGE_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = PACKAGE_ROOT.parent.parent
 
 # can be either 'OCT' (for Oct2Py) or 'MAT' (MATLAB engine)
 default_runtime = 'MAT'
@@ -26,7 +29,7 @@ if 'TEMP_DIR' in os.environ:
 elif 'TMPDIR' in os.environ:
     temp_dir = os.environ['TMPDIR']
 else:
-    temp_dir = os.path.abspath(os.path.dirname(__file__) + '../../../temp')
+    temp_dir = str(REPO_ROOT / 'temp')
     if not os.path.exists(temp_dir):
         os.makedirs(temp_dir, exist_ok=True)
 
@@ -216,10 +219,9 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
     except KeyError:
         print(f"Loading {runtime} runtime...", end='', flush=True)
         # On the command line, type "octave-8.4.0" OCTAVE_EXECUTABLE or OCTAVE var
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        path2eeglab = os.path.join(base_dir, 'eeglab')
-        path2localmatlab = os.path.join(base_dir, 'matlab_local_tests')
-        scripts_dir = os.path.abspath(os.path.join(base_dir, '../../scripts'))
+        path2eeglab = str(PACKAGE_ROOT / 'eeglab')
+        path2localmatlab = str(PACKAGE_ROOT / 'matlab_local_tests')
+        scripts_dir = str(REPO_ROOT / 'scripts')
         print("This is the path2eeglab: ", path2eeglab)
 
         # not yet loaded, do so now
