@@ -201,6 +201,96 @@ from mne.datasets import sample
 import numpy as np
 from scipy.io import savemat
 
+def _chanlocs_to_struct_array(chanlocs_list):
+    """Convert a list/array of chanloc dicts to a structured numpy array.
+
+    scipy.io.savemat writes an object-array of dicts as a MATLAB *cell* array
+    of structs, but EEGLAB expects a *struct* array.  Converting to a structured
+    numpy array beforehand makes savemat produce the correct MATLAB type.
+
+    Used for both ``EEG.chanlocs`` and ``EEG.chaninfo.removedchans``.
+    """
+    if chanlocs_list is None or len(chanlocs_list) == 0:
+        return np.array([])
+
+    # Normalise: accept numpy object-arrays of dicts as well as plain lists
+    items = list(chanlocs_list)
+    if not isinstance(items[0], dict):
+        return np.array(chanlocs_list)  # already structured, leave as-is
+
+    matlab_null = np.array([])
+
+    # Chanloc fields with their target dtypes
+    field_spec = [
+        ('labels', 'U100'),
+        ('theta', np.float64),
+        ('radius', np.float64),
+        ('X', np.float64),
+        ('Y', np.float64),
+        ('Z', np.float64),
+        ('sph_theta', np.float64),
+        ('sph_phi', np.float64),
+        ('sph_radius', np.float64),
+        ('type', 'U10'),
+        ('urchan', np.int32),
+        ('ref', 'U100'),
+        ('unit', 'U20'),
+    ]
+
+    # Extract values, replacing empty numpy arrays with None
+    d_list = []
+    for c in items:
+        row = {}
+        for fld, _ in field_spec:
+            val = c.get(fld, matlab_null)
+            if isinstance(val, np.ndarray) and val.size == 0:
+                row[fld] = None
+            else:
+                row[fld] = val
+        d_list.append(row)
+
+    # Keep only fields where at least one entry is non-None
+    retain = [f for f, _ in field_spec if not all(d[f] is None for d in d_list)]
+    if not retain:
+        return np.array([])
+
+    dtype = np.dtype([(f, t) for f, t in field_spec if f in retain])
+    arr = np.array([
+        tuple(d[f] if d[f] is not None else (0 if np.issubdtype(t, np.number) else '')
+              for f, t in field_spec if f in retain)
+        for d in d_list
+    ], dtype=dtype)
+    return arr
+
+
+def _serialize_chaninfo(chaninfo):
+    """Prepare chaninfo dict so savemat produces MATLAB struct arrays.
+
+    The critical sub-field is ``removedchans``: an object-array of dicts that
+    savemat would serialize as a cell array of structs.  MATLAB's pop_interp
+    expects a struct array, so we convert it here.
+    """
+    if chaninfo is None or (isinstance(chaninfo, np.ndarray) and chaninfo.size == 0):
+        return np.array([])
+    if not isinstance(chaninfo, dict):
+        return chaninfo
+
+    out = {}
+    for k, v in chaninfo.items():
+        if k in ('removedchans', 'nodatchans'):
+            if isinstance(v, (list, np.ndarray)) and len(v) > 0:
+                first = v[0] if isinstance(v, list) else v.flat[0]
+                if isinstance(first, dict):
+                    out[k] = _chanlocs_to_struct_array(v)
+                else:
+                    out[k] = v
+            else:
+                out[k] = np.array([])
+        else:
+            out[k] = v
+    return out
+
+
 def pop_saveset(EEG, file_name):
     """Save EEG data to file.
 
@@ -235,7 +325,7 @@ def pop_saveset(EEG, file_name):
         'icachansind'     : EEG['icachansind'].copy() if EEG['icachansind'] is not None else np.array([]),
         'chanlocs'        : EEG['chanlocs'],
         'urchanlocs'      : EEG['urchanlocs'] if EEG['urchanlocs'] is not None else np.array([]),
-        'chaninfo'        : EEG['chaninfo'] if EEG['chaninfo'] is not None else np.array([]),
+        'chaninfo'        : _serialize_chaninfo(EEG['chaninfo']),
         'ref'             : EEG['ref'],
         'event'           : EEG['event'] if 'event' in EEG else np.array([]),
         'urevent'         : EEG['urevent'] if 'urevent' in EEG else np.array([]),
