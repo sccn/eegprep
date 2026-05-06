@@ -17,7 +17,7 @@ if len(sys.argv) > 1:
     print(f"The EEG file is: {file_name}")
     print(f"Output will be in python_temp.mat (result field)")
 else:
-    file_name = '../data/eeglab_data_with_ica_tmp.set'
+    file_name = '../../sample_data/eeglab_data_with_ica_tmp.set'
     # raise("Provide the name of a file containing EEG (full path) as the first parameter.")
 
 # check if file name exists on disk

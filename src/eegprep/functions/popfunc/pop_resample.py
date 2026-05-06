@@ -335,7 +335,7 @@ def resample_raw(x, p, q, h=None):
 
 def test_pop_resample_local():
     """Test function for pop_resample."""
-    eeglab_file_path = '/Users/arno/Python/eegprep/data/eeglab_data_with_ica_tmp.set'
+    eeglab_file_path = '/Users/arno/Python/eegprep/sample_data/eeglab_data_with_ica_tmp.set'
     EEG = pop_loadset(eeglab_file_path)
 
     # Test with different engines

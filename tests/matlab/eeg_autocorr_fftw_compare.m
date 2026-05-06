@@ -1,16 +1,16 @@
 clear
 
 % this script compares the MATLAB and Python version of the function
-pythonFunc = '../.venv/bin/python';
+pythonFunc = '../../.venv/bin/python';
 pyenv('Version', pythonFunc);
 dataset = '/System/Volumes/Data/data/matlab/eeglab/sample_data/eeglab_data_epochs_ica.set';
-addpath(fullfile(pwd, '..', 'eeglab'));
+addpath(fullfile(pwd, '..', '..', 'src', 'eegprep', 'eeglab'));
 if ~exist('pop_loadset')
     eeglab;
 end
 
 % call Python function
-fileName = '../data/eeglab_data_with_ica_tmp.set';
+fileName = '../../sample_data/eeglab_data_with_ica_tmp.set';
 % fileName = '/System/Volumes/Data/data/data/STUDIES/STERN/S01/Memorize.set';
 
 system([ pythonFunc ' eeg_autocorr_fftw_compare_helper.py ' fileName ]);
@@ -56,8 +56,8 @@ cbar;
 setfont(gcf, 'fontsize', 20)
 set(gcf, 'color', 'w')
 set(gcf, 'PaperPositionMode', 'auto');
-print('-djpeg', '../figures/autocorr_diff.jpg')
-print('-depsc', '../figures/autocorr_diff.eps')
+print('-djpeg', '../../figures/autocorr_diff.jpg')
+print('-depsc', '../../figures/autocorr_diff.eps')
 
 
 %print('-djpeg', 'topoplot_diff.jpg')

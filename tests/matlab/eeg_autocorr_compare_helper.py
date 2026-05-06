@@ -5,7 +5,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'
 from eegprep import pop_loadset
 from eegprep import eeg_autocorr
 
-eeglab_file_path = '../data/eeglab_data_with_ica_tmp.set'
+eeglab_file_path = '../../sample_data/eeglab_data_with_ica_tmp.set'
 EEG = pop_loadset(eeglab_file_path)
 
 # Print the loaded data

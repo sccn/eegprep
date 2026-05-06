@@ -20,7 +20,7 @@ from eegprep.utils.testing import (
 def test_pipeline():
     """Test pipeline: clean_artifacts -> eeg_picard -> iclabel, comparing Python and MATLAB at each step."""
     # where the test resources
-    local_url = os.path.join(os.path.dirname(__file__), '../data/')
+    local_url = os.path.join(os.path.dirname(__file__), '../sample_data/')
     fname = os.path.join(local_url, 'eeglab_data_with_ica_tmp.set')
     EEG = pop_loadset(fname)
 
@@ -39,7 +39,7 @@ class TestPipeline(DebuggableTestCase):
 
     def setUp(self):
         """Set up test fixtures."""
-        local_url = os.path.join(os.path.dirname(__file__), '../data/')
+        local_url = os.path.join(os.path.dirname(__file__), '../sample_data/')
         fname = os.path.join(local_url, 'eeglab_data_with_ica_tmp.set')
         self.EEG = pop_loadset(fname)
         self.eeglab = get_eeglab('MAT')

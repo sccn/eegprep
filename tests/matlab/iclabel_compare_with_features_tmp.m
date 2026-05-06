@@ -1,10 +1,10 @@
 % original comparison, not in a single Python script yet
 clear
 
-pythonFunc = '../.venv/bin/python';
+pythonFunc = '../../.venv/bin/python';
 pyenv('Version', pythonFunc);
 dataset = '/System/Volumes/Data/data/matlab/eeglab/sample_data/eeglab_data_epochs_ica.set';
-addpath(fullfile(pwd, '..', 'eeglab'));
+addpath(fullfile(pwd, '..', '..', 'src', 'eegprep', 'eeglab'));
 if ~exist('pop_loadset')
     eeglab;
 end

@@ -510,6 +510,6 @@ def pop_select(EEG, **kwargs):
 
 if __name__ == '__main__':
     from eegprep.functions.popfunc.pop_loadset import pop_loadset
-    EEG = pop_loadset('data/eeglab_data.set')
+    EEG = pop_loadset('sample_data/eeglab_data.set')
     EEG2 = pop_select(EEG, channel=['FP1', 'FP2'])
     print(EEG2)

@@ -286,14 +286,14 @@ Process multiple subjects in parallel:
         """Process a single subject"""
 
         # Load data
-        input_file = f'data/sub-{subject_id:02d}.set'
+        input_file = f'sample_data/sub-{subject_id:02d}.set'
         eeg = pop_loadset(input_file)
 
         # Preprocess
         eeg = clean_artifacts(eeg)
 
         # Save
-        output_file = f'data/preprocessed/sub-{subject_id:02d}_preprocessed.set'
+        output_file = f'sample_data/preprocessed/sub-{subject_id:02d}_preprocessed.set'
         pop_saveset(eeg, output_file)
 
         return f"Processed subject {subject_id}"
@@ -319,10 +319,10 @@ Use joblib for more flexible parallel processing:
 
     def process_subject(subject_id):
         """Process a single subject"""
-        input_file = f'data/sub-{subject_id:02d}.set'
+        input_file = f'sample_data/sub-{subject_id:02d}.set'
         eeg = pop_loadset(input_file)
         eeg = clean_artifacts(eeg)
-        output_file = f'data/preprocessed/sub-{subject_id:02d}_preprocessed.set'
+        output_file = f'sample_data/preprocessed/sub-{subject_id:02d}_preprocessed.set'
         pop_saveset(eeg, output_file)
         return f"Processed subject {subject_id}"
 

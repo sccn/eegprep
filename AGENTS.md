@@ -22,7 +22,10 @@ Primary references:
 - `src/eegprep/utils/`: Python-only test/development support. Do not put EEGLAB-equivalent processing code here.
 - `src/eegprep/resources/`: MATLAB option files, montages, package data.
 - `src/eegprep/eeglab/`: vendored EEGLAB reference code and sample data. Treat as reference input; do not edit unless explicitly updating the bundled reference.
-- `src/eegprep/matlab_local_tests/` and `scripts/*.m`: MATLAB parity helpers.
+- `tests/matlab/`: MATLAB parity scripts and MATLAB helper fixtures used by Python tests.
+- `scripts/*.m`: MATLAB/Octave helper scripts that are not part of the normal unit-test tree.
+- `sample_data/`: small checked-in EEG sample datasets, named to match EEGLAB's `sample_data` convention.
+- `sample_notebooks/`: exploratory/sample notebooks. Keep runnable examples in docs when they are user-facing.
 - `tests/`: `unittest` tests. Test files generally mirror source module names.
 - `docs/source/`: Sphinx docs, examples, API pages.
 - `.github/workflows/test.yml`: CI test and pre-commit entry points.

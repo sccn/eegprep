@@ -279,7 +279,7 @@ def pop_loadset_h5(file_name):
     return EEG
 
 if __name__ == '__main__':
-    file_name = 'data/eeglab_data_epochs_ica_hdf5.set'
+    file_name = 'sample_data/eeglab_data_epochs_ica_hdf5.set'
     EEG = pop_loadset_h5(file_name)
     print(EEG['data'].shape)
     print(EEG['icaweights'].shape)

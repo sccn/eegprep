@@ -8,7 +8,7 @@ import scipy.io
 from eegprep.utils.testing import has_optional_dependency
 
 # where the test resources
-local_url = os.path.join(os.path.dirname(__file__), '../data/')
+local_url = os.path.join(os.path.dirname(__file__), '../sample_data/')
 
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestICLabelEngines(unittest.TestCase):

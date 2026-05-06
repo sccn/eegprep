@@ -22,7 +22,7 @@ from eegprep.functions.sigprocfunc.topoplot import topoplot, griddata_v4
 from eegprep import pop_loadset, pop_saveset
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 
-local_url = os.path.join(os.path.dirname(__file__), '../data/')
+local_url = os.path.join(os.path.dirname(__file__), '../sample_data/')
 
 
 class TestGriddataV4(unittest.TestCase):

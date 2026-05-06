@@ -1,15 +1,15 @@
 clear
 
 % this script compares the MATLAB and Python version of the function
-pythonFunc = '../.venv/bin/python';
+pythonFunc = '../../.venv/bin/python';
 pyenv('Version', pythonFunc);
 dataset = '/System/Volumes/Data/data/matlab/eeglab/sample_data/eeglab_data_epochs_ica.set';
-addpath(fullfile(pwd, '..', 'eeglab'));
+addpath(fullfile(pwd, '..', '..', 'src', 'eegprep', 'eeglab'));
 if ~exist('pop_loadset')
     eeglab;
 end
 
-fileName = '../data/eeglab_data_with_ica_tmp.set';
+fileName = '../../sample_data/eeglab_data_with_ica_tmp.set';
 
 % call Python function
 system([pythonFunc ' ICL_feature_extractor_compare_helper.py ' fileName]);

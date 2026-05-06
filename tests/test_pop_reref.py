@@ -340,7 +340,7 @@ class TestPopReref(DebuggableTestCase):
         from eegprep import pop_loadset, pop_saveset
 
         # Load real test data
-        local_url = os.path.join(os.path.dirname(__file__), '../data/')
+        local_url = os.path.join(os.path.dirname(__file__), '../sample_data/')
         test_file = os.path.join(local_url, 'eeglab_data_with_ica_tmp.set')
         EEG = pop_loadset(test_file)
 

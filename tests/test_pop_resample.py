@@ -8,7 +8,7 @@ import numpy as np
 from eegprep import pop_loadset, pop_resample, pop_saveset  # Explicitly import pop_resample
 
 # where the test resources
-local_url = os.path.join(os.path.dirname(__file__), '../data/')
+local_url = os.path.join(os.path.dirname(__file__), '../sample_data/')
 
 class TestPopResample(unittest.TestCase):
 

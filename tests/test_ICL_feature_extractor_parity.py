@@ -20,7 +20,7 @@ import scipy.io
 from eegprep import pop_loadset, pop_saveset, ICL_feature_extractor
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 
-local_url = os.path.join(os.path.dirname(__file__), '../data/')
+local_url = os.path.join(os.path.dirname(__file__), '../sample_data/')
 
 
 class TestICLFeatureExtractorParity(unittest.TestCase):

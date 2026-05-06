@@ -1,13 +1,13 @@
 clear
 
 % this script compares the MATLAB and Python version of the function
-cd('..')
+cd('../..')
 pythonFunc = '.venv/bin/python';
 pyenv('Version', pythonFunc);
 system([pythonFunc ' main.py']);
-cd('tests');
+cd('tests/matlab');
 
-addpath(fullfile(pwd, '..', 'eeglab'));
+addpath(fullfile(pwd, '..', '..', 'src', 'eegprep', 'eeglab'));
 if ~exist('pop_loadset')
     eeglab;
 end
@@ -15,7 +15,7 @@ end
 currentFolder = fileparts(mfilename('fullpath'));
 
 % Read config.json.example (adjust the file name accordingly)
-configFile = fullfile(currentFolder, '../config.json.example');
+configFile = fullfile(currentFolder, '..', '..', 'config.json.example');
 if exist(configFile, 'file')
     fid = fopen(configFile);
     raw = fread(fid, inf);
@@ -47,7 +47,7 @@ EEG = pop_runica(EEG, 'icatype', 'picard');
 pop_saveset(EEG, fname_out)
 
 % compare
-EEG_py = pop_loadset('../data/eeglab_data_with_ica_tmp_out.set');
-EEG_mat = pop_loadset('../data/eeglab_data_with_ica_tmp_out2.set');
+EEG_py = pop_loadset('../../sample_data/eeglab_data_with_ica_tmp_out.set');
+EEG_mat = pop_loadset('../../sample_data/eeglab_data_with_ica_tmp_out2.set');
 eeg_eventtypes(EEG_mat)
 eeg_eventtypes(EEG_py)

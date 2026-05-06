@@ -18,7 +18,7 @@ from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 from eegprep.utils.testing import DebuggableTestCase
 
 # Path to test data
-LOCAL_DATA_PATH = os.path.join(os.path.dirname(__file__), '../data/')
+LOCAL_DATA_PATH = os.path.join(os.path.dirname(__file__), '../sample_data/')
 
 
 class TestMatlabWrapper(DebuggableTestCase):

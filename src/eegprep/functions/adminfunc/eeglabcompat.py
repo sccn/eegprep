@@ -220,7 +220,7 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
         print(f"Loading {runtime} runtime...", end='', flush=True)
         # On the command line, type "octave-8.4.0" OCTAVE_EXECUTABLE or OCTAVE var
         path2eeglab = str(PACKAGE_ROOT / 'eeglab')
-        path2localmatlab = str(PACKAGE_ROOT / 'matlab_local_tests')
+        matlab_test_dir = REPO_ROOT / 'tests' / 'matlab'
         scripts_dir = str(REPO_ROOT / 'scripts')
         print("This is the path2eeglab: ", path2eeglab)
 
@@ -266,7 +266,8 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
         amica_path = path2eeglab + '/plugins/amica'
         if os.path.isdir(amica_path):
             engine.addpath(amica_path, nargout=0)
-        engine.addpath(path2localmatlab)
+        if matlab_test_dir.is_dir():
+            engine.addpath(str(matlab_test_dir))
         engine.addpath(scripts_dir)
         engine.cd(path2eeglab + '/plugins/clean_rawdata/private')  # to grant access to util funcs for unit testing
 

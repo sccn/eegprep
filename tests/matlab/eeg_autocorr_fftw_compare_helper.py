@@ -10,7 +10,7 @@ from eegprep import pop_reref
 if len(sys.argv) > 1:
     eeglab_file_path = sys.argv[1]
 else:
-    eeglab_file_path = '../data/eeglab_data_with_ica_tmp.set'
+    eeglab_file_path = '../../sample_data/eeglab_data_with_ica_tmp.set'
 EEG = pop_loadset(eeglab_file_path)
 EEG = pop_reref(EEG, [])
 

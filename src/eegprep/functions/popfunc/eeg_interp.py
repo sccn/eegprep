@@ -6,9 +6,9 @@ methods including spherical spline interpolation.
 
 # to do, look at line 83 and 84 and try to see if the MATLAB array output match. Run code side by side.
 
-# EEG = pop_loadset('data/eeglab_data_tmp.set');
+# EEG = pop_loadset('sample_data/eeglab_data_tmp.set');
 # EEG = eeg_interp(EEG, [1, 2, 3], 'spherical'); % or EEG = eeg_interp(EEG, {'Fp1' 'Fp2' 'F7'}, 'spherical');
-# pop_save(EEG, 'data/eeglab_data_tmp_out_matlab.set');
+# pop_save(EEG, 'sample_data/eeglab_data_tmp_out_matlab.set');
 
 import numpy as np
 from scipy.linalg import pinv
@@ -18,7 +18,7 @@ from copy import deepcopy
 import os
 
 # absolute path for all files in data folder
-data_path = '/Users/arno/Python/eegprep/data/' #os.path.abspath('data/')
+data_path = '/Users/arno/Python/eegprep/sample_data/' #os.path.abspath('sample_data/')
 
 def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dtype='float32'):
     """Interpolate missing or bad EEG channels using spherical spline.

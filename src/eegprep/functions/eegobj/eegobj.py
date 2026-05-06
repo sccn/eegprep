@@ -255,5 +255,5 @@ class EEGobj:
 
 
 if __name__ == '__main__':
-    obj = EEGobj('data/eeglab_data.set')
+    obj = EEGobj('sample_data/eeglab_data.set')
     print(obj)

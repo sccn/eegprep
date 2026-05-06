@@ -143,7 +143,7 @@ engine = matlab.engine.start_matlab()
 engine.eval("disp('hello world');", nargout=0)
 ```
 
-Use tests/main_compare.m
+Use tests/matlab/main_compare.m
 
 This project uses `unittest`. You can run tests from the project root via the command:
 ```

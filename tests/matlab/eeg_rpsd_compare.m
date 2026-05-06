@@ -2,10 +2,10 @@
 clear
 
 % this script compares the MATLAB and Python version of the function
-pythonFunc = '../.venv/bin/python';
+pythonFunc = '../../.venv/bin/python';
 pyenv('Version', pythonFunc);
 dataset = '/System/Volumes/Data/data/matlab/eeglab/sample_data/eeglab_data_epochs_ica.set';
-addpath(fullfile(pwd, '..', 'eeglab'));
+addpath(fullfile(pwd, '..', '..', 'src', 'eegprep', 'eeglab'));
 if ~exist('pop_loadset')
     eeglab;
 end
@@ -13,7 +13,7 @@ end
 eeglabpath = which('eeglab.m');
 eeglabpath = eeglabpath(1:end-length('eeglab.m'));
 fileName = fullfile(eeglabpath, 'sample_data', 'eeglab_data_epochs_ica.set');
-%fileName = fullfile(pwd, '../data/eeglab_data_with_ica_tmp.set');
+%fileName = fullfile(pwd, '../../sample_data/eeglab_data_with_ica_tmp.set');
 
 % call Python function
 system([pythonFunc ' eeg_rpsd_compare_helper.py ' fileName]);
@@ -58,7 +58,7 @@ cbar;
 setfont(gcf, 'fontsize', 20)
 set(gcf, 'color', 'w')
 set(gcf, 'PaperPositionMode', 'auto');
-print('-djpeg', '../figures/ersp_diff.jpg')
-print('-depsc', '../figures/ersp_diff.eps')
+print('-djpeg', '../../figures/ersp_diff.jpg')
+print('-depsc', '../../figures/ersp_diff.eps')
 
 compare_variables(temp2, res.grid);

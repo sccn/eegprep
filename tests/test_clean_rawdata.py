@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 # where the test resources
 web_root = 'https://sccntestdatasets.s3.us-east-2.amazonaws.com/'
-local_url = os.path.join(os.path.dirname(__file__), '../data/')
+local_url = os.path.join(os.path.dirname(__file__), '../sample_data/')
 
 
 def ensure_file(fname: str) -> str:

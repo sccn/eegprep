@@ -5,7 +5,7 @@ if __name__ == "__main__":
     import sys
     from eegprep import pop_load_frombids, pop_biosig
 
-    fn = '/Users/arno/Python/eegprep/data/test_file.edf'
+    fn = '/Users/arno/Python/eegprep/sample_data/test_file.edf'
     EEG1 = pop_load_frombids(fn, bidsevent=True)
 
     # import using eeglabcompat

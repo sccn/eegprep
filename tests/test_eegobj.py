@@ -36,7 +36,7 @@ def create_test_eeg(n_channels=32, n_samples=1000, srate=250.0, n_trials=1):
 class TestEEGobj(unittest.TestCase):
 
     def setUp(self):
-        self.test_file_path = 'data/eeglab_data.set' # Assuming this file exists for path-based init
+        self.test_file_path = 'sample_data/eeglab_data.set' # Assuming this file exists for path-based init
         self.temp_dir = tempfile.mkdtemp()
 
     def tearDown(self):
@@ -390,5 +390,4 @@ class TestEEGobj(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-
 

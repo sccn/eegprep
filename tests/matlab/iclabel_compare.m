@@ -1,15 +1,15 @@
 clear
 
-pythonFunc = '../.venv/bin/python';
+pythonFunc = '../../.venv/bin/python';
 pyenv('Version', pythonFunc);
 dataset = '/System/Volumes/Data/data/matlab/eeglab/sample_data/eeglab_data_epochs_ica.set';
-addpath(fullfile(pwd, '..', 'eeglab'));
+addpath(fullfile(pwd, '..', '..', 'src', 'eegprep', 'eeglab'));
 if ~exist('pop_loadset')
     eeglab;
 end
 
-system([pythonFunc ' iclabel_compare_helper.py ../data/eeglab_data_with_ica_tmp.set ../data/eeglab_data_with_ica_out.set']);
-EEGTMP = pop_loadset('../data/eeglab_data_with_ica_out.set');
+system([pythonFunc ' iclabel_compare_helper.py ../../sample_data/eeglab_data_with_ica_tmp.set ../../sample_data/eeglab_data_with_ica_out.set']);
+EEGTMP = pop_loadset('../../sample_data/eeglab_data_with_ica_out.set');
 labels_py4 = EEGTMP.etc.ic_classification.ICLabel.classifications;
 
 % call EEGLAB function
@@ -18,7 +18,7 @@ if ~exist('pop_loadset')
 end
 eeglabpath = which('eeglab.m');
 eeglabpath = eeglabpath(1:end-length('eeglab.m'));
-EEG = pop_loadset(fullfile(pwd, '../data/eeglab_data_with_ica_tmp.set'));
+EEG = pop_loadset(fullfile(pwd, '../../sample_data/eeglab_data_with_ica_tmp.set'));
 EEG = pop_iclabel(EEG, 'default');
 
 labels_mat = EEG.etc.ic_classification.ICLabel.classifications;
@@ -52,8 +52,8 @@ cbar;
 setfont(gcf, 'fontsize', 20)
 set(gcf, 'color', 'w')
 set(gcf, 'PaperPositionMode', 'auto');
-print('-djpeg', '../figures/iclabel_diff.jpg')
-print('-depsc', '../figures/iclabel_diff.eps')
+print('-djpeg', '../../figures/iclabel_diff.jpg')
+print('-depsc', '../../figures/iclabel_diff.eps')
 
 [~,class_mat] = max(labels_mat,[],2);
 [~,class_py ] = max(labels_py4,[],2);

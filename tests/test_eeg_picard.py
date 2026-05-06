@@ -62,7 +62,7 @@ def compare_ica_components(weights1, weights2, rtol=0.01, atol=0.05):
 
 
 # where the test resources
-local_url = os.path.join(os.path.dirname(__file__), '../data/')
+local_url = os.path.join(os.path.dirname(__file__), '../sample_data/')
 
 
 def create_test_eeg():

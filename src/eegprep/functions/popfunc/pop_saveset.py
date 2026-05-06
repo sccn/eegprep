@@ -341,10 +341,10 @@ def pop_saveset(EEG, file_name):
 def test_pop_saveset():
     """Test pop_saveset function."""
     from eegprep.functions.popfunc.pop_loadset import pop_loadset
-    file_path = './data/eeglab_data_with_ica_tmp.set'
+    file_path = './sample_data/eeglab_data_with_ica_tmp.set'
     EEG = pop_loadset(file_path)
-    pop_saveset( EEG, '/Users/arno/Python/eegprep/data/tmp.set')
-    pop_saveset_old(EEG, '/Users/arno/Python/eegprep/data/tmp2.set') # does not do events and function above is better
+    pop_saveset( EEG, '/Users/arno/Python/eegprep/sample_data/tmp.set')
+    pop_saveset_old(EEG, '/Users/arno/Python/eegprep/sample_data/tmp2.set') # does not do events and function above is better
     # print the keys of the EEG dictionary
     print(EEG.keys())
 

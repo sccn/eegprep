@@ -7,7 +7,7 @@ if nargin < 2
     plotFlag = false;
 end
 
-pythonFunc = '../.venv/bin/python';
+pythonFunc = '../../.venv/bin/python';
 pyenv('Version', pythonFunc);
 system([pythonFunc ' ICL_feature_extractor_compare_helper.py ' filename]);
 respy = load('python_temp.mat');
