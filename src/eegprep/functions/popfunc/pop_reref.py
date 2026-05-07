@@ -11,6 +11,7 @@ import numpy as np
 
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
+from eegprep.functions.popfunc.eeg_interp import eeg_interp
 from eegprep.functions.sigprocfunc.reref import reref
 
 logger = logging.getLogger(__name__)
@@ -92,18 +93,24 @@ def pop_reref(
 
     original_nbchan = int(EEG_out["data"].shape[0])
     original_chanlocs = _chanlocs_as_list(EEG_out.get("chanlocs", []))
+    interp_labels = [str(chan.get("labels", "")) for chan in resolved["interpchan"]]
+    if resolved["interpchan"]:
+        EEG_out = eeg_interp(EEG_out, resolved["interpchan"], "spherical")
+
     EEG_out["data"], chanlocs, removed_ref_chans, _mean_data = reref(
         EEG_out["data"],
         resolved["ref_indices"],
         exclude=resolved["exclude_indices"],
         keepref=resolved["keepref"],
-        elocs=original_chanlocs,
+        elocs=_chanlocs_as_list(EEG_out.get("chanlocs", [])),
         refloc=resolved["refloc"],
         huber=resolved["huber"],
     )
     if chanlocs is not None:
         EEG_out["chanlocs"] = chanlocs
     EEG_out["nbchan"] = int(EEG_out["data"].shape[0])
+    if interp_labels:
+        EEG_out = _remove_channels_by_labels(EEG_out, interp_labels)
     _store_removed_ref_channels(EEG_out, removed_ref_chans)
     _remove_refloc_from_removed_channels(EEG_out, resolved["refloc"])
     _update_legacy_ref(EEG_out, resolved["ref_indices"])
@@ -119,9 +126,25 @@ def pop_reref(
     return (EEG_out, com) if return_com else EEG_out
 
 
-def pop_reref_dialog_spec(current_ref: str = "unknown") -> DialogSpec:
+def pop_reref_dialog_spec(
+    current_ref: str = "unknown",
+    channel_labels: Any = (),
+    refloc_labels: Any = (),
+) -> DialogSpec:
     """Return the EEGLAB-like dialog spec for ``pop_reref``."""
-    geometry = ((1,), (1,), (1.8, 1, 0.3), (1.8, 1, 0.3), (1,), (1,), (1,), (1.8, 1, 0.3), (1.8, 1, 0.3))
+    channel_labels = tuple(str(label) for label in channel_labels)
+    refloc_labels = tuple(str(label) for label in refloc_labels)
+    geometry = (
+        (1,),
+        (1,),
+        (1.8, 1, 0.3),
+        (1.8, 1, 0.3),
+        (1,),
+        (1,),
+        (1,),
+        (1.8, 1, 0.3),
+        (1.8, 1, 0.3),
+    )
     return DialogSpec(
         title="pop_reref - average reference or re-reference data",
         function_name="pop_reref",
@@ -177,7 +200,11 @@ def pop_reref_dialog_spec(current_ref: str = "unknown") -> DialogSpec:
                 enabled=False,
                 callback=CallbackSpec(
                     "select_channels",
-                    params={"button": "refbr", "target": "reref"},
+                    params={
+                        "button": "refbr",
+                        "target": "reref",
+                        "channels": channel_labels,
+                    },
                     matlab_callback="pop_chansel({tmpchanlocs.labels}, 'withindex', 'on')",
                 ),
             ),
@@ -198,7 +225,11 @@ def pop_reref_dialog_spec(current_ref: str = "unknown") -> DialogSpec:
                 tag="exclude_button",
                 callback=CallbackSpec(
                     "select_channels",
-                    params={"button": "exclude_button", "target": "exclude"},
+                    params={
+                        "button": "exclude_button",
+                        "target": "exclude",
+                        "channels": channel_labels,
+                    },
                     matlab_callback="pop_chansel({tmpchanlocs.labels}, 'withindex', 'on')",
                 ),
             ),
@@ -210,7 +241,11 @@ def pop_reref_dialog_spec(current_ref: str = "unknown") -> DialogSpec:
                 tag="refloc_button",
                 callback=CallbackSpec(
                     "select_channels",
-                    params={"button": "refloc_button", "target": "refloc"},
+                    params={
+                        "button": "refloc_button",
+                        "target": "refloc",
+                        "channels": refloc_labels,
+                    },
                     matlab_callback="pop_chansel({tmpchaninfo.nodatchans.labels}, 'withindex', 'on')",
                 ),
             ),
@@ -249,9 +284,6 @@ def _validate_eeg(EEG: dict) -> None:
 
 
 def _resolve_options(EEG: dict, ref: Any, options: dict[str, Any]) -> dict[str, Any]:
-    if options.get("interpchan", "off") not in (None, "off"):
-        raise NotImplementedError("pop_reref interpchan support is not implemented yet")
-
     ref_indices = _resolve_channels(EEG, ref)
     exclude_indices = _resolve_channels(EEG, options.get("exclude", []))
     refica = str(options.get("refica", "on")).lower()
@@ -261,7 +293,8 @@ def _resolve_options(EEG: dict, ref: Any, options: dict[str, Any]) -> dict[str, 
     keepref = str(options.get("keepref", "off")).lower()
     huber = options.get("huber")
     huber = None if _is_empty(huber) else float(huber)
-    refloc = options.get("refloc", [])
+    refloc = _resolve_refloc(EEG, options.get("refloc", []))
+    interpchan = _resolve_interpchan(EEG, options.get("interpchan", "off"))
     return {
         "ref_indices": ref_indices,
         "exclude_indices": exclude_indices,
@@ -269,6 +302,7 @@ def _resolve_options(EEG: dict, ref: Any, options: dict[str, Any]) -> dict[str, 
         "refloc": refloc,
         "refica": refica,
         "huber": huber,
+        "interpchan": interpchan,
         "history_options": {
             key: value
             for key, value in options.items()
@@ -346,6 +380,24 @@ def _store_removed_ref_channels(EEG: dict, removed: list[dict[str, Any]]) -> Non
     chaninfo["removedchans"] = list(existing) + removed
 
 
+def _remove_channels_by_labels(EEG: dict, labels: list[str]) -> dict:
+    labels_lower = {label.lower() for label in labels}
+    chanlocs = _chanlocs_as_list(EEG.get("chanlocs", []))
+    remove_indices = [
+        index
+        for index, chan in enumerate(chanlocs)
+        if str(chan.get("labels", "")).lower() in labels_lower
+    ]
+    if not remove_indices:
+        return EEG
+
+    keep = [index for index in range(int(EEG["data"].shape[0])) if index not in set(remove_indices)]
+    EEG["data"] = np.asarray(EEG["data"])[keep, ...]
+    EEG["chanlocs"] = [chan for index, chan in enumerate(chanlocs) if index in keep]
+    EEG["nbchan"] = int(EEG["data"].shape[0])
+    return EEG
+
+
 def _remove_refloc_from_removed_channels(EEG: dict, refloc: Any) -> None:
     if _is_empty(refloc):
         return
@@ -371,6 +423,134 @@ def _normalise_refloc_list(refloc: Any) -> list[dict[str, Any]]:
     return list(refloc)
 
 
+def _resolve_refloc(EEG: dict, refloc: Any) -> list[dict[str, Any]]:
+    if _is_empty(refloc):
+        return []
+    if isinstance(refloc, dict):
+        return [copy.deepcopy(refloc)]
+    if isinstance(refloc, np.ndarray):
+        refloc = refloc.tolist()
+    if isinstance(refloc, (list, tuple)) and refloc and isinstance(refloc[0], dict):
+        return [copy.deepcopy(loc) for loc in refloc]
+    if (
+        isinstance(refloc, (list, tuple))
+        and len(refloc) == 3
+        and isinstance(refloc[0], str)
+        and _is_number_like(refloc[1])
+        and _is_number_like(refloc[2])
+    ):
+        return [{"labels": refloc[0], "theta": refloc[1], "radius": refloc[2]}]
+
+    nodatchans = _chanlocs_as_list(EEG.get("chaninfo", {}).get("nodatchans", []))
+    if not nodatchans:
+        raise ValueError("Reference channel locations require EEG['chaninfo']['nodatchans']")
+    return _resolve_locs_from_identifiers(nodatchans, refloc, "reference location")
+
+
+def _resolve_interpchan(EEG: dict, interpchan: Any) -> list[dict[str, Any]]:
+    if interpchan is None or (isinstance(interpchan, str) and interpchan.lower() == "off"):
+        return []
+    if isinstance(interpchan, dict):
+        return [copy.deepcopy(interpchan)]
+    if isinstance(interpchan, np.ndarray):
+        interpchan = interpchan.tolist()
+    if isinstance(interpchan, (list, tuple)) and interpchan and isinstance(interpchan[0], dict):
+        return [copy.deepcopy(loc) for loc in interpchan if _has_xyz(loc)]
+    if _is_empty(interpchan):
+        inferred = _infer_removed_channels(EEG)
+        if inferred:
+            return inferred
+        logger.info("pop_reref: no removed channels found for interpolation")
+        return []
+
+    urchanlocs = _chanlocs_as_list(EEG.get("urchanlocs", []))
+    if not urchanlocs:
+        raise ValueError("interpchan indices require EEG['urchanlocs']")
+    return _resolve_locs_from_identifiers(urchanlocs, interpchan, "interpolation channel")
+
+
+def _infer_removed_channels(EEG: dict) -> list[dict[str, Any]]:
+    removedchans = _chanlocs_as_list(EEG.get("chaninfo", {}).get("removedchans", []))
+    valid_removed = [copy.deepcopy(chan) for chan in removedchans if _has_xyz(chan)]
+    if valid_removed:
+        return valid_removed
+
+    chanlocs = _chanlocs_as_list(EEG.get("chanlocs", []))
+    urchanlocs = _chanlocs_as_list(EEG.get("urchanlocs", []))
+    if not chanlocs or not urchanlocs:
+        return []
+
+    chan_types = [str(chan.get("type", "")).strip().lower() for chan in chanlocs]
+    urchan_types = [str(chan.get("type", "")).strip().lower() for chan in urchanlocs]
+    require_eeg_type = all(chan_types) and all(urchan_types)
+    current_labels = {
+        str(chan.get("labels", "")).lower()
+        for chan in chanlocs
+        if _is_referenceable_eeg(chan, require_eeg_type)
+    }
+    inferred = []
+    for chan in urchanlocs:
+        label = str(chan.get("labels", "")).lower()
+        if (
+            label
+            and label not in current_labels
+            and _is_referenceable_eeg(chan, require_eeg_type)
+            and _has_xyz(chan)
+        ):
+            inferred.append(copy.deepcopy(chan))
+    return inferred
+
+
+def _resolve_locs_from_identifiers(
+    locs: list[dict[str, Any]],
+    identifiers: Any,
+    label: str,
+) -> list[dict[str, Any]]:
+    values = _normalise_channel_values(identifiers)
+    labels = [str(loc.get("labels", "")).lower() for loc in locs]
+    out = []
+    for value in values:
+        if isinstance(value, str) and not _is_int_text(value):
+            matches = [idx for idx, loc_label in enumerate(labels) if loc_label == value.lower()]
+            if not matches:
+                raise ValueError(f"{label.capitalize()} '{value}' not found")
+            out.extend(copy.deepcopy(locs[idx]) for idx in matches)
+        else:
+            index = int(value)
+            if index < 0 or index >= len(locs):
+                raise ValueError(f"{label.capitalize()} index out of range")
+            out.append(copy.deepcopy(locs[index]))
+    return [loc for loc in out if _has_xyz(loc) or label == "reference location"]
+
+
+def _has_xyz(chan: dict[str, Any]) -> bool:
+    for key in ("X", "Y", "Z"):
+        value = chan.get(key)
+        if value is None:
+            return False
+        try:
+            if np.size(value) == 0 or np.isnan(float(np.asarray(value).squeeze())):
+                return False
+        except (TypeError, ValueError):
+            return False
+    return True
+
+
+def _is_referenceable_eeg(chan: dict[str, Any], require_eeg_type: bool) -> bool:
+    chan_type = str(chan.get("type", "")).strip().lower()
+    if require_eeg_type:
+        return chan_type == "eeg"
+    return chan_type != "fid"
+
+
+def _is_number_like(value: Any) -> bool:
+    try:
+        float(value)
+    except (TypeError, ValueError):
+        return False
+    return True
+
+
 def _update_legacy_ref(EEG: dict, ref_indices: list[int]) -> None:
     if not ref_indices:
         EEG["ref"] = "average"
@@ -394,28 +574,56 @@ def _update_ica(
     if _is_empty_array(icaweights) or _is_empty_array(icawinv):
         return
 
-    EEG["icaact"] = np.array([])
+    preserve_icaact = resolved["refica"] == "backwardcomp"
+    if not preserve_icaact:
+        EEG["icaact"] = np.array([])
     if resolved["refica"] == "off":
         return
 
     icachansind = list(EEG.get("icachansind", []))
-    if len(icachansind) != original_nbchan or resolved["exclude_indices"]:
-        logger.warning("Removing ICA decomposition after re-reference because ICA channels do not match data channels.")
+    if any(index in resolved["exclude_indices"] for index in icachansind):
+        logger.warning("Removing ICA decomposition because ICA channels were excluded from re-referencing.")
+        _clear_ica(EEG)
+        return
+    if len(icachansind) != original_nbchan - len(resolved["exclude_indices"]):
+        logger.warning("Removing ICA decomposition because ICA channels do not match re-referenced channels.")
         _clear_ica(EEG)
         return
 
-    new_icawinv, _chanlocs, _removed, _mean = reref(
-        np.asarray(icawinv),
+    original_icawinv = np.asarray(icawinv)
+    expanded_icawinv = np.zeros((original_nbchan, original_icawinv.shape[1]), dtype=original_icawinv.dtype)
+    expanded_icawinv[np.asarray(icachansind, dtype=int), :] = original_icawinv
+
+    new_icawinv, new_chanlocs, _removed, _mean = reref(
+        expanded_icawinv,
         resolved["ref_indices"],
-        exclude=[],
+        exclude=resolved["exclude_indices"],
         keepref=resolved["keepref"],
         elocs=original_chanlocs,
         refloc=resolved["refloc"],
         huber=resolved["huber"],
     )
-    EEG["icawinv"] = new_icawinv
-    EEG["icachansind"] = list(range(new_icawinv.shape[0]))
-    EEG["icaweights"] = np.linalg.pinv(new_icawinv)
+    new_chanlocs = new_chanlocs or []
+    new_labels = [str(chan.get("labels", "")).lower() for chan in new_chanlocs]
+    new_icachansind = []
+    keep_rows = []
+    for old_index in icachansind:
+        old_label = str(original_chanlocs[old_index].get("labels", "")).lower()
+        if old_label not in new_labels:
+            continue
+        new_index = new_labels.index(old_label)
+        new_icachansind.append(new_index)
+        keep_rows.append(new_index)
+
+    if len(new_icachansind) != len(keep_rows):
+        _clear_ica(EEG)
+        return
+    EEG["icawinv"] = new_icawinv[np.asarray(keep_rows, dtype=int), :]
+    EEG["icachansind"] = new_icachansind
+    if len(EEG["icachansind"]) != EEG["icawinv"].shape[0]:
+        _clear_ica(EEG)
+        return
+    EEG["icaweights"] = np.linalg.pinv(EEG["icawinv"])
     EEG["icasphere"] = np.eye(len(EEG["icachansind"]))
 
 
@@ -429,7 +637,12 @@ def _clear_ica(EEG: dict) -> None:
 def _run_gui(EEG: dict, renderer: Any | None = None) -> dict[str, Any] | None:
     from eegprep.functions.guifunc.inputgui import inputgui
 
-    spec = pop_reref_dialog_spec(_current_reference(EEG))
+    channel_labels = [chan.get("labels", "") for chan in _chanlocs_as_list(EEG.get("chanlocs", []))]
+    refloc_labels = [
+        chan.get("labels", "")
+        for chan in _chanlocs_as_list(EEG.get("chaninfo", {}).get("nodatchans", []))
+    ]
+    spec = pop_reref_dialog_spec(_current_reference(EEG), channel_labels, refloc_labels)
     result = inputgui(spec, renderer=renderer)
     if result is None:
         return None

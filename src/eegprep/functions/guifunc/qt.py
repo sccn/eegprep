@@ -173,6 +173,7 @@ class QtDialogRenderer:
         if spec.help_text:
             help_button = QtWidgets.QPushButton("Help")
             help_button.setObjectName("help")
+            help_button.clicked.connect(lambda: QtDialogRenderer._show_help(QtWidgets, dialog, spec))
             button_layout.addWidget(help_button)
         button_layout.addStretch(1)
         cancel_button = QtWidgets.QPushButton("Cancel")
@@ -310,18 +311,38 @@ class QtDialogRenderer:
 
     @staticmethod
     def _select_channels(button: Any, target: Any, params: Mapping[str, Any]) -> None:
-        from PySide6 import QtWidgets
+        from PySide6 import QtCore, QtWidgets
 
         channels = [str(value) for value in params.get("channels", ())]
         if channels:
-            value, accepted = QtWidgets.QInputDialog.getItem(
-                button,
-                "Select channel",
-                "Channel",
-                channels,
-                0,
-                editable=False,
+            dialog = QtWidgets.QDialog(button)
+            dialog.setWindowTitle("Select channels")
+            layout = QtWidgets.QVBoxLayout(dialog)
+            prompt = params.get("prompt", "(use shift|Ctrl to\nselect several)")
+            layout.addWidget(QtWidgets.QLabel(str(prompt)))
+            list_widget = QtWidgets.QListWidget()
+            selection_mode = str(params.get("selectionmode", "multiple")).lower()
+            if selection_mode == "single":
+                list_widget.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
+            else:
+                list_widget.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
+            current = set(target.text().strip().split())
+            for index, label in enumerate(channels, start=1):
+                item = QtWidgets.QListWidgetItem(f"{index}  -  {label}")
+                item.setData(QtCore.Qt.UserRole, label)
+                if label in current:
+                    item.setSelected(True)
+                list_widget.addItem(item)
+            layout.addWidget(list_widget)
+            buttons = QtWidgets.QDialogButtonBox(
+                QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
             )
+            buttons.accepted.connect(dialog.accept)
+            buttons.rejected.connect(dialog.reject)
+            layout.addWidget(buttons)
+            accepted = dialog.exec() == QtWidgets.QDialog.Accepted
+            selected = [item.data(QtCore.Qt.UserRole) for item in list_widget.selectedItems()]
+            value = " ".join(selected)
         else:
             value, accepted = QtWidgets.QInputDialog.getText(
                 button,
@@ -330,8 +351,7 @@ class QtDialogRenderer:
             )
         if not accepted or not value:
             return
-        current = target.text().strip()
-        target.setText((current + " " + value).strip())
+        target.setText(value.strip())
 
     @staticmethod
     def _set_reref_mode(widgets: dict[str, Any], mode: str, checked: bool) -> None:
@@ -356,6 +376,14 @@ class QtDialogRenderer:
                 widgets[tag].setEnabled(not average_mode)
         if average_mode and "keepref" in widgets:
             widgets["keepref"].setChecked(False)
+
+    @staticmethod
+    def _show_help(QtWidgets: Any, dialog: Any, spec: DialogSpec) -> None:
+        QtWidgets.QMessageBox.information(
+            dialog,
+            f"{spec.function_name} help",
+            spec.help_text or spec.function_name,
+        )
 
     @staticmethod
     def _read_widget(widget: Any) -> Any:

@@ -77,12 +77,16 @@ class PopRerefGuiSpecTests(unittest.TestCase):
         self.assertFalse(widgets["keepref"].enabled)
 
     def test_dialog_callbacks_keep_matlab_metadata(self):
-        controls = controls_by_tag(pop_reref_dialog_spec("average"))
+        controls = controls_by_tag(pop_reref_dialog_spec("average", ["Fp1", "Cz"], ["M1"]))
 
         self.assertEqual(controls["ave"].callback.name, "set_reref_mode")
         self.assertIn("cb_averef", controls["ave"].callback.matlab_callback)
         self.assertEqual(controls["rerefstr"].callback.name, "set_reref_mode")
         self.assertIn("pop_chansel", controls["refbr"].callback.matlab_callback)
+        self.assertEqual(controls["refbr"].callback.params["channels"], ("Fp1", "Cz"))
+        self.assertEqual(controls["exclude_button"].callback.params["channels"], ("Fp1", "Cz"))
+        self.assertEqual(controls["refloc_button"].callback.params["channels"], ("M1",))
+        self.assertEqual(pop_reref_dialog_spec().help_text, "pophelp('pop_reref')")
 
 
 if __name__ == "__main__":

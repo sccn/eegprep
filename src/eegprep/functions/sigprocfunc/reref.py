@@ -142,6 +142,8 @@ def _normalise_reflocs(refloc: Any) -> list[dict[str, Any]]:
         isinstance(refloc, (list, tuple))
         and len(refloc) == 3
         and isinstance(refloc[0], str)
+        and _is_number_like(refloc[1])
+        and _is_number_like(refloc[2])
     ):
         return [{"labels": refloc[0], "theta": refloc[1], "radius": refloc[2]}]
     locs = []
@@ -150,6 +152,14 @@ def _normalise_reflocs(refloc: Any) -> list[dict[str, Any]]:
             raise TypeError("refloc entries must be dictionaries or [label, theta, radius]")
         locs.append(copy.deepcopy(loc))
     return locs
+
+
+def _is_number_like(value: Any) -> bool:
+    try:
+        float(value)
+    except (TypeError, ValueError):
+        return False
+    return True
 
 
 def _update_references(locs: list[dict[str, Any]], chansin: list[int], ref_indices: list[int]) -> None:
