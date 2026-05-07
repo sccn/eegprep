@@ -67,7 +67,7 @@ Load a single file from a BIDS dataset:
 
     # Load a specific file
     eeg = pop_load_frombids(
-        bids_root='data/bids_dataset',
+        bids_root='sample_data/bids_dataset',
         subject='01',
         session='01',
         task='rest'
@@ -93,7 +93,7 @@ Loading with Additional Parameters
 
     # Load with specific run and additional options
     eeg = pop_load_frombids(
-        bids_root='data/bids_dataset',
+        bids_root='sample_data/bids_dataset',
         subject='01',
         session='01',
         task='oddball',
@@ -111,7 +111,7 @@ Find all EEG files in a BIDS dataset:
     from eegprep import bids_list_eeg_files
 
     # List all EEG files
-    files = bids_list_eeg_files('data/bids_dataset')
+    files = bids_list_eeg_files('sample_data/bids_dataset')
 
     for file_info in files:
         print(f"Subject: {file_info['subject']}")
@@ -134,8 +134,8 @@ Process all files in a BIDS dataset with a single command:
 
     # Run preprocessing on entire dataset
     bids_preproc(
-        bids_root='data/bids_dataset',
-        output_dir='data/bids_dataset/derivatives/eegprep',
+        bids_root='sample_data/bids_dataset',
+        output_dir='sample_data/bids_dataset/derivatives/eegprep',
         overwrite=False
     )
 
@@ -155,8 +155,8 @@ Batch Processing with Custom Parameters
 
     # Custom preprocessing parameters
     bids_preproc(
-        bids_root='data/bids_dataset',
-        output_dir='data/bids_dataset/derivatives/eegprep',
+        bids_root='sample_data/bids_dataset',
+        output_dir='sample_data/bids_dataset/derivatives/eegprep',
         preproc_params={
             'flatline_criterion': 5,
             'highpass': 1,
@@ -179,8 +179,8 @@ Process multiple subjects in parallel:
 
     # Process with 8 parallel jobs
     bids_preproc(
-        bids_root='data/bids_dataset',
-        output_dir='data/bids_dataset/derivatives/eegprep',
+        bids_root='sample_data/bids_dataset',
+        output_dir='sample_data/bids_dataset/derivatives/eegprep',
         n_jobs=8,
         verbose=True
     )
@@ -196,8 +196,8 @@ Processing Specific Subjects
 
     # Process only specific subjects
     bids_preproc(
-        bids_root='data/bids_dataset',
-        output_dir='data/bids_dataset/derivatives/eegprep',
+        bids_root='sample_data/bids_dataset',
+        output_dir='sample_data/bids_dataset/derivatives/eegprep',
         subjects=['01', '02', '03']
     )
 
@@ -246,7 +246,7 @@ Load preprocessed data from derivatives:
 
     # Load preprocessed data
     eeg = pop_load_frombids(
-        bids_root='data/bids_dataset/derivatives/eegprep',
+        bids_root='sample_data/bids_dataset/derivatives/eegprep',
         subject='01',
         session='01',
         task='rest'
@@ -314,7 +314,7 @@ Accessing Channel Information
     from eegprep import pop_load_frombids
 
     eeg = pop_load_frombids(
-        bids_root='data/bids_dataset',
+        bids_root='sample_data/bids_dataset',
         subject='01',
         session='01',
         task='rest'
@@ -366,7 +366,7 @@ Complete Preprocessing Workflow
 
     # 1. Load data
     eeg = pop_load_frombids(
-        bids_root='data/bids_dataset',
+        bids_root='sample_data/bids_dataset',
         subject='01',
         session='01',
         task='rest'
@@ -384,7 +384,7 @@ Complete Preprocessing Workflow
     # 3. Save to derivatives
     pop_saveset(
         eeg,
-        'data/bids_dataset/derivatives/eegprep/sub-01/ses-01/eeg/sub-01_ses-01_task-rest_eeg_preprocessed.set'
+        'sample_data/bids_dataset/derivatives/eegprep/sub-01/ses-01/eeg/sub-01_ses-01_task-rest_eeg_preprocessed.set'
     )
 
 Batch Processing with Quality Control
@@ -396,13 +396,13 @@ Batch Processing with Quality Control
     import json
 
     # 1. List all files
-    files = bids_list_eeg_files('data/bids_dataset')
+    files = bids_list_eeg_files('sample_data/bids_dataset')
     print(f"Found {len(files)} EEG files")
 
     # 2. Run preprocessing
     bids_preproc(
-        bids_root='data/bids_dataset',
-        output_dir='data/bids_dataset/derivatives/eegprep',
+        bids_root='sample_data/bids_dataset',
+        output_dir='sample_data/bids_dataset/derivatives/eegprep',
         n_jobs=4
     )
 
@@ -438,7 +438,7 @@ File Not Found
 
     from eegprep import bids_list_eeg_files
 
-    files = bids_list_eeg_files('data/bids_dataset')
+    files = bids_list_eeg_files('sample_data/bids_dataset')
     for f in files:
         print(f"sub-{f['subject']}_ses-{f['session']}_task-{f['task']}")
 

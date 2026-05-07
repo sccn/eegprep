@@ -14,10 +14,11 @@ import platform
 import shutil
 import tempfile
 import unittest
+from unittest import mock
 
 import numpy as np
 
-from eegprep.runamica import (
+from eegprep.functions.sigprocfunc.runamica import (
     _find_amica_binary,
     _load_amica_output,
     _write_data_file,
@@ -249,7 +250,7 @@ class TestFindAmicaBinary(unittest.TestCase):
     """Test binary discovery logic."""
 
     def test_find_amica_binary(self):
-        """Verify that _find_amica_binary() finds the vendored binary."""
+        """Verify that _find_amica_binary() finds an available AMICA binary."""
         if platform.system() not in ('Darwin', 'Linux', 'Windows'):
             self.skipTest("Unsupported platform for vendored binary")
         try:
@@ -263,6 +264,12 @@ class TestFindAmicaBinary(unittest.TestCase):
         """Verify FileNotFoundError for nonexistent explicit path."""
         with self.assertRaises(FileNotFoundError):
             _find_amica_binary('/nonexistent/path/amica15')
+
+    def test_find_amica_binary_bad_env_var(self):
+        """Verify FileNotFoundError identifies invalid AMICA_BINARY."""
+        with mock.patch.dict(os.environ, {'AMICA_BINARY': '/nonexistent/path/amica15'}):
+            with self.assertRaisesRegex(FileNotFoundError, 'AMICA_BINARY'):
+                _find_amica_binary()
 
 
 @unittest.skipUnless(is_amica_available(),
@@ -298,7 +305,7 @@ class TestRunamicaIntegration(unittest.TestCase):
 
         # Reconstruction test: pinv(W@S) @ W @ S @ data ~ data
         WS = weights @ sphere
-        from eegprep.pinv import pinv
+        from eegprep.functions.miscfunc.pinv import pinv
         reconstructed = pinv(WS) @ WS @ data
         np.testing.assert_allclose(
             reconstructed, data, atol=1e-6,

@@ -27,27 +27,27 @@ Utility Modules
 Coordinate Utilities
 --------------------
 
-.. automodule:: eegprep.utils.coords
+.. automodule:: eegprep.plugins.EEG_BIDS.coords
    :members:
    :undoc-members:
 
 Spatial Utilities
 -----------------
 
-.. automodule:: eegprep.utils.spatial
+.. automodule:: eegprep.plugins.clean_rawdata.private.sphericalSplineInterpolate
    :members:
    :undoc-members:
 
 Statistical Utilities
 ---------------------
 
-.. automodule:: eegprep.utils.stats
+.. automodule:: eegprep.plugins.clean_rawdata.private.stats
    :members:
    :undoc-members:
 
 Signal Processing Utilities
 ---------------------------
 
-.. automodule:: eegprep.utils.sigproc
+.. automodule:: eegprep.plugins.clean_rawdata.private.sigproc
    :members:
    :undoc-members:

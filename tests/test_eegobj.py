@@ -3,9 +3,9 @@ import numpy as np
 import os
 import tempfile
 import shutil
-from eegprep.eegobj import EEGobj
-from eegprep.popfunc.pop_select import pop_select # Import pop_select for direct testing if needed
-from eegprep.eeg_checkset import eeg_checkset
+from eegprep.functions.eegobj.eegobj import EEGobj
+from eegprep.functions.popfunc.pop_select import pop_select # Import pop_select for direct testing if needed
+from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 import copy
 
 # Helper function to create a dummy EEG dictionary
@@ -36,7 +36,7 @@ def create_test_eeg(n_channels=32, n_samples=1000, srate=250.0, n_trials=1):
 class TestEEGobj(unittest.TestCase):
 
     def setUp(self):
-        self.test_file_path = 'data/eeglab_data.set' # Assuming this file exists for path-based init
+        self.test_file_path = 'sample_data/eeglab_data.set' # Assuming this file exists for path-based init
         self.temp_dir = tempfile.mkdtemp()
 
     def tearDown(self):
@@ -390,5 +390,4 @@ class TestEEGobj(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-
 

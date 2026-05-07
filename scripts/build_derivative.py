@@ -205,8 +205,9 @@ docker run --rm eegprep-minimal --help
 ## Reproduce without Docker
 
 ```bash
-pip install eegprep
-python bids_minimal_preproc.py --input /path/to/{os.path.basename(bids_root)}
+uv venv
+uv pip install eegprep
+uv run python bids_minimal_preproc.py --input /path/to/{os.path.basename(bids_root)}
 ```
 
 ## Files in this directory

@@ -263,8 +263,6 @@ def cleanup_matplotlib():
     memory leaks and interference between tests.
     """
     plt.close('all')
-    plt.clf()
-    plt.cla()
 
 
 class TestFixturesContextManager:
@@ -275,6 +273,8 @@ class TestFixturesContextManager:
             eeg = fixtures.create_eeg(n_channels=64)
             # ... run tests ...
     """
+
+    __test__ = False
 
     def __init__(self, seed=42, mpl_backend='Agg'):
         """Initialize test fixtures.

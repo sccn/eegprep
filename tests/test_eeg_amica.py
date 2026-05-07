@@ -16,8 +16,8 @@ import unittest
 
 import numpy as np
 
-from eegprep.eeg_amica import eeg_amica, load_amica_model
-from eegprep.runamica import is_amica_available
+from eegprep.functions.popfunc.eeg_amica import eeg_amica, load_amica_model
+from eegprep.functions.sigprocfunc.runamica import is_amica_available
 
 
 def _make_test_eeg(n_channels=4, n_samples=2000, n_trials=1, srate=250.0,

@@ -16,15 +16,21 @@ EEGPrep is currently in a pre-release phase. It functions end-to-end (bids branc
 
 ## Install
 
-To install the complete EEGPrep including the ICLabel classifier (which can pull in ~7GB of binaries on Linux), use the following line:
+EEGPrep uses `uv` as the default package manager for development and CI.
+
+To add the complete EEGPrep package to a uv-managed project, including the
+ICLabel classifier (which can pull in ~7GB of binaries on Linux), use:
 ```
-pip install eegprep[all]
+uv add "eegprep[all]"
 ```
 
-To install the lean version:
+To add the lean version:
 ```
-pip install eegprep
+uv add eegprep
 ```
+
+If you are installing into a non-uv environment, `pip install eegprep` remains
+supported for published releases.
 
 You can then manually install a lightweight CPU-only version of PyTorch if desired by
 your operating system.
@@ -38,7 +44,7 @@ The MATLAB and Python implementations were compared using the first two subjects
 
 # versioning
 - Change version inside the file pyproject.toml
-- Change version inside the file main (for docker)
+- Change version inside the file `tools/hpc/main.pbs` (for Singularity/Docker image references)
 - Run make_release in the script folder and tag with the version
 - Use the correct docker version when building (see below)
 
@@ -61,7 +67,7 @@ Mounted folder in /usr/src/project
 Use the release script for streamlined releases:
 
 ```bash
-python scripts/make_release.py
+uv run --group release python scripts/make_release.py
 ```
 
 The script will:
@@ -78,7 +84,7 @@ The script will:
 
 Install build tools:
 ```bash
-pip install build twine
+uv sync --group release
 ```
 
 ## API Tokens
@@ -103,21 +109,21 @@ If you need to release manually:
 
 ```bash
 # In pyproject.toml, temporarily change: name = "eegprep" to name = "eegprep_test"
-python -m build
-python -m twine upload --repository testpypi dist/*
+uv run --group release python -m build
+uv run --group release python -m twine upload --repository testpypi dist/*
 # Change name back to "eegprep" in pyproject.toml
 
 # Test the installation:
-pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ eegprep_test==X.Y.Z
+uv pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ eegprep_test==X.Y.Z
 # (imports still work as 'import eegprep')
 ```
 
 **3. Production release:**
 ```bash
-python -m twine upload dist/*
+uv run --group release python -m twine upload dist/*
 git tag -a vX.Y.Z -m "Release version X.Y.Z"
 git push origin vX.Y.Z
-pip install eegprep==X.Y.Z
+uv pip install eegprep==X.Y.Z
 ```
 
 ## Documentation
@@ -128,12 +134,12 @@ Packaging was done following the tutorial: https://packaging.python.org/en/lates
 
 To install the package with all optional dependencies, run:
 ```
-pip install eegprep[all]
+uv add "eegprep[all]"
 ```
 
 ## Running Tests
 
-Install MATLAB interface `pip install /your/path/to/matlab/extern/engines/python` (for example on OSx `pip install /Applications/MATLAB_R2025a.app/extern/engines/python`)
+Install MATLAB interface with `uv pip install /your/path/to/matlab/extern/engines/python` (for example on OSx `uv pip install /Applications/MATLAB_R2025a.app/extern/engines/python`)
 
 Check installation
 
@@ -143,13 +149,19 @@ engine = matlab.engine.start_matlab()
 engine.eval("disp('hello world');", nargout=0)
 ```
 
-Use tests/main_compare.m
+Use tests/matlab/main_compare.m
 
-This project uses `unittest`. You can run tests from the project root via the command:
+This project uses `pytest` as the test runner. Existing tests may still use
+`unittest.TestCase`, and pytest runs them normally. Run tests from the project
+root with:
 ```
-python -m unittest discover -s tests
+uv run pytest tests
 ```
-...or use the unittest integration in your IDE (e.g., PyCharm, VS Code, or Cursor).
+
+For quick local iteration, exclude slow tests with:
+```
+uv run pytest -m "not slow"
+```
 
 ## Core maintainers
 

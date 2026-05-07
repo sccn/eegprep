@@ -16,8 +16,8 @@ from unittest.mock import patch
 
 # Add src to path for imports
 sys.path.insert(0, 'src')
-from eegprep.eeg_compare import eeg_compare
-from eegprep.eeglabcompat import get_eeglab
+from eegprep.functions.popfunc.eeg_compare import eeg_compare
+from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.utils.testing import DebuggableTestCase
 
 
@@ -391,7 +391,7 @@ class TestEegCompare(DebuggableTestCase):
 
     def test_isequaln_function_coverage(self):
         """Test the internal isequaln function with various data types."""
-        from eegprep.eeg_compare import eeg_compare
+        from eegprep.functions.popfunc.eeg_compare import eeg_compare
 
         # Test with None values
         eeg2 = self.create_test_eeg()
@@ -469,7 +469,7 @@ class TestIsequaln(unittest.TestCase):
     def setUp(self):
         """Import the isequaln function for testing."""
         # We need to access the internal function for thorough testing
-        from eegprep.eeg_compare import eeg_compare
+        from eegprep.functions.popfunc.eeg_compare import eeg_compare
 
         # Create a dummy function to access isequaln
         def dummy_compare(a, b):

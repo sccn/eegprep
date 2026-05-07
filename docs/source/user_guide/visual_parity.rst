@@ -21,7 +21,7 @@ Install the optional EEGPREP GUI dependencies before capturing Python dialogs:
 
 .. code-block:: bash
 
-   python -m pip install -e '.[gui]'
+   uv sync --extra gui --group dev
 
 Start a Virtual Desktop
 =======================
@@ -85,7 +85,7 @@ Capture only EEGPREP using a command supplied by the caller:
    uv run --no-sync python tools/visual_parity/capture.py \
        --case file_menu \
        --target eegprep \
-       --eegprep-command "python -m eegprep.guifunc.visual_capture --case {case_id} --output {output}"
+       --eegprep-command "python -m eegprep.functions.guifunc.visual_capture --case {case_id} --output {output}"
 
 Capture commands receive these environment variables:
 
@@ -132,7 +132,7 @@ Compare the exported EEGLAB menu JSON with an EEGPREP menu model:
 
 .. code-block:: bash
 
-   python tools/visual_parity/menu_inventory.py \
+   uv run --no-sync python tools/visual_parity/menu_inventory.py \
        --reference .visual-parity/eeglab_menus.json \
        --candidate .visual-parity/eegprep_menus.json
 

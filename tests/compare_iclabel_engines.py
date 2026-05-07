@@ -11,7 +11,7 @@ from scipy.stats import pearsonr
 # from eegprep import pop_loadset, iclabel
 
 # # Load an EEG file
-# EEG = pop_loadset('./data/eeglab_data_with_ica_tmp.set')
+# EEG = pop_loadset('./sample_data/eeglab_data_with_ica_tmp.set')
 
 # # Apply ICLabel with the default Python implementation
 # EEG_python = iclabel(EEG, algorithm='default', engine=None)

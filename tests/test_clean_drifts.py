@@ -13,7 +13,7 @@ import os
 
 # Add src to path for imports
 sys.path.insert(0, 'src')
-from eegprep.clean_drifts import clean_drifts
+from eegprep.plugins.clean_rawdata.clean_drifts import clean_drifts
 from eegprep.utils.testing import DebuggableTestCase
 
 

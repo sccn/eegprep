@@ -13,7 +13,7 @@ import os
 
 # Add src to path for imports
 sys.path.insert(0, 'src')
-from eegprep.eeg_checkset import eeg_checkset, strict_mode
+from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset, strict_mode
 from eegprep.utils.testing import DebuggableTestCase
 
 

@@ -6,11 +6,11 @@ from eegprep import pop_loadset, pop_resample, pop_saveset  # Explicitly import 
 
 
 # where the test resources
-local_url = os.path.join(os.path.dirname(__file__), '../data/')
+local_url = os.path.join(os.path.dirname(__file__), '../sample_data/')
 
 # where the test resources
 web_root = 'https://sccntestdatasets.s3.us-east-2.amazonaws.com/'
-local_url = os.path.join(os.path.dirname(__file__), '../data/')
+local_url = os.path.join(os.path.dirname(__file__), '../sample_data/')
 
 def ensure_file(fname: str) -> str:
     """Download a file if it does not exist and return the local path."""

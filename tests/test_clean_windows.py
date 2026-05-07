@@ -4,7 +4,7 @@ import warnings
 from unittest.mock import patch, MagicMock
 import logging
 
-from eegprep.clean_windows import clean_windows
+from eegprep.plugins.clean_rawdata.clean_windows import clean_windows
 
 
 class TestCleanWindows(unittest.TestCase):
@@ -338,7 +338,7 @@ class TestCleanWindows(unittest.TestCase):
 
     def test_distribution_fitting_nan_fallback(self):
         """Test fallback when distribution fitting returns NaN."""
-        with patch('eegprep.utils.stats.fit_eeg_distribution') as mock_fit:
+        with patch('eegprep.plugins.clean_rawdata.private.stats.fit_eeg_distribution') as mock_fit:
             # Return NaN sigma to trigger fallback
             mock_fit.return_value = (1.0, np.nan, None, None)
 
@@ -401,7 +401,7 @@ class TestCleanWindows(unittest.TestCase):
         incompatible_mask = np.ones(100, dtype=bool)  # Wrong size
         EEG_test3['etc'] = {'clean_sample_mask': incompatible_mask}
 
-        with self.assertLogs('eegprep.clean_windows', level='WARNING') as log:
+        with self.assertLogs('eegprep.plugins.clean_rawdata.clean_windows', level='WARNING') as log:
             EEG_out3, sample_mask3 = clean_windows(EEG_test3)
 
         # Should log warning and overwrite
@@ -432,7 +432,7 @@ class TestCleanWindows(unittest.TestCase):
 
     def test_logging_output(self):
         """Test that appropriate logging messages are generated."""
-        with self.assertLogs('eegprep.clean_windows', level='INFO') as log:
+        with self.assertLogs('eegprep.plugins.clean_rawdata.clean_windows', level='INFO') as log:
             clean_windows(self.EEG_artifacts.copy())
 
         # Should log threshold determination and completion

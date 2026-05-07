@@ -1,4 +1,5 @@
-#!/usr/bin/env python3
+#!/bin/sh
+"exec" "uv" "run" "--script" "$0" "$@"
 # /// script
 # requires-python = ">=3.10"
 # dependencies = [
@@ -18,6 +19,8 @@
 #       Check all tracked files. This is useful after repository-wide cleanups.
 #   ./pre-commit.py path/to/file.py path/to/notebook.ipynb
 #       Check explicit files.
+#   uv run --script pre-commit.py --all-files
+#       Equivalent uv invocation when the executable bit or shebang is unavailable.
 #
 # Checks currently run:
 #   - Python syntax parsing for *.py files.
@@ -35,8 +38,6 @@ pre-commit command. PR jobs can use ``--changed-from origin/develop`` to check
 only files touched by a branch without turning existing baseline issues into
 new failures.
 """
-
-from __future__ import annotations
 
 import argparse
 import ast

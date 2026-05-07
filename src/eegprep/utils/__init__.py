@@ -1,4 +1,1 @@
-"""EEG preprocessing utilities package."""
-
-from .sigproc import *
-from .misc import *
+"""Python-only test support utilities."""

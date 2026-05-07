@@ -34,7 +34,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.guifunc.visual_capture",
+            "eegprep.functions.guifunc.visual_capture",
             "--case",
             "{case_id}",
             "--output",

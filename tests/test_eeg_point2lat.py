@@ -1,7 +1,7 @@
 import os
 import numpy as np
-from eegprep.eeglabcompat import get_eeglab
-from eegprep.eeg_point2lat import eeg_point2lat
+from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
+from eegprep.functions.popfunc.eeg_point2lat import eeg_point2lat
 import unittest
 
 def _matlab_row(x):

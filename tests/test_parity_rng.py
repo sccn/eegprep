@@ -17,9 +17,9 @@ import unittest
 import numpy as np
 import tempfile
 import scipy.io
-from eegprep.eeglabcompat import get_eeglab
-from eegprep.utils.ransac import rand_sample
-from eegprep.utils.misc import round_mat
+from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
+from eegprep.plugins.clean_rawdata.private.ransac import rand_sample
+from eegprep.functions.miscfunc.misc import round_mat
 
 
 class TestRNGParity(unittest.TestCase):
@@ -177,7 +177,7 @@ class TestRNGParity(unittest.TestCase):
         # MATLAB round
         temp_file = tempfile.mktemp(suffix='.mat')
         matlab_code = f"""
-        test_values = {list(test_values)};
+        test_values = {test_values.tolist()};
         ml_rounded = round(test_values);
         save('{temp_file}', 'ml_rounded');
         """

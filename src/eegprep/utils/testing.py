@@ -1,5 +1,6 @@
 """Testing utilities."""
 
+import importlib.util
 import os
 import shutil
 import sys
@@ -10,7 +11,14 @@ from pathlib import Path
 
 import numpy as np
 
-__all__ = ['compare_eeg', 'DebuggableTestCase', 'is_debug', 'use_64bit_eeg_options']
+__all__ = [
+    'compare_eeg',
+    'DebuggableTestCase',
+    'has_optional_dependency',
+    'is_debug',
+    'matlab_function_exists',
+    'use_64bit_eeg_options',
+]
 
 
 # default to True since the round-tripping through file can force data to
@@ -114,6 +122,20 @@ class DebuggableTestCase(unittest.TestCase):
 def is_debug():
     """Determine whether Python is running in debug mode."""
     return getattr(sys, 'gettrace', None)() is not None
+
+
+def has_optional_dependency(name: str) -> bool:
+    """Return whether an optional Python dependency can be imported."""
+    return importlib.util.find_spec(name) is not None
+
+
+def matlab_function_exists(eeglab, name: str) -> bool:
+    """Return whether a MATLAB/Octave function is available on the engine path."""
+    engine = getattr(eeglab, 'engine', eeglab)
+    try:
+        return int(engine.exist(name, 'file', nargout=1)) != 0
+    except Exception:
+        return False
 
 
 @contextmanager

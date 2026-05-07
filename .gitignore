@@ -62,21 +62,22 @@ env/
 
 # Project-specific
 .visual-parity/
-data/eeglab_data.fdt
-data/eeglab_data.set
+sample_data/eeglab_data.fdt
+sample_data/eeglab_data.set
 scripts/data
-data/eeglab_data_epochs_ica.fdt
-data/eeglab_data_tmp_out_matlab.fdt
-data/icaweights_comparison.png
-data/iclabel_classifications_default.png
-data/iclabel_correlations_default.png
-data/test_file.edf
+sample_data/eeglab_data_epochs_ica.fdt
+sample_data/eeglab_data_tmp_out_matlab.fdt
+sample_data/icaweights_comparison.png
+sample_data/iclabel_classifications_default.png
+sample_data/iclabel_correlations_default.png
+sample_data/test_file.edf
 temp
 error_log.txt
-data/*
+sample_data/*
 temp
 scripts/data
-notebooks/*.set
+sample_notebooks/*.set
+tests/matlab/*.set
 *tmp_out2.*
 eeglab_data_with_ica_out.set
 eeg_autocorr_data.mat
@@ -84,10 +85,11 @@ eeg_rpsd_data.mat
 fit_eeg_distribution_for_compiling.m
 topoplot_data.mat
 eeglab_data_with_ica_tmp_out.set
-data/ds002680/
+sample_data/ds002680/
 out_dir
 figures
-notebooks/octave-workspace
+sample_notebooks/octave-workspace
+tests/matlab/octave-workspace
 old
 python_temp.mat
 python_temp_reformated.mat
@@ -97,9 +99,6 @@ python_temp_reformated.mat
 *.fdt
 
 matlab/clean_rawdata
-
-# for now excluded; may introduce for purposes of hard-locking dev deps
-uv.lock
 
 *.DS_Store
 

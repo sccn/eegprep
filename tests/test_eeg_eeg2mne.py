@@ -29,8 +29,8 @@ except ImportError:
     MNE_AVAILABLE = False
     BaseRaw = None
 
-from eegprep.eeg_eeg2mne import eeg_eeg2mne
-from eegprep.eeglabcompat import get_eeglab
+from eegprep.functions.miscfunc.eeg_eeg2mne import eeg_eeg2mne
+from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 try:
     from .fixtures import create_test_eeg
 except (ImportError, ValueError):

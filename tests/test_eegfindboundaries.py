@@ -6,8 +6,8 @@ if os.getenv('EEGPREP_SKIP_MATLAB') == '1':
     raise unittest.SkipTest("MATLAB not available")
 import numpy as np
 
-from eegprep.eeglabcompat import get_eeglab
-from eegprep.eeg_findboundaries import eeg_findboundaries
+from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
+from eegprep.functions.popfunc.eeg_findboundaries import eeg_findboundaries
 
 
 class TestEegFindBoundariesParity(unittest.TestCase):
@@ -65,7 +65,7 @@ class TestEegFindBoundariesFunctional(unittest.TestCase):
 
     def test_numeric_option_boundary99_true(self):
         # Toggle the EEG_OPTIONS option_boundary99 for this test
-        from eegprep.eeg_options import EEG_OPTIONS
+        from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
         old = EEG_OPTIONS['option_boundary99']
         EEG_OPTIONS['option_boundary99'] = 1  # Use 1 to match MATLAB convention
         try:
@@ -77,7 +77,7 @@ class TestEegFindBoundariesFunctional(unittest.TestCase):
 
     def test_numeric_option_boundary99_false(self):
         # Toggle the EEG_OPTIONS option_boundary99 for this test
-        from eegprep.eeg_options import EEG_OPTIONS
+        from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
         old = EEG_OPTIONS['option_boundary99']
         EEG_OPTIONS['option_boundary99'] = 0  # Use 0 to match MATLAB convention
         try:
@@ -227,7 +227,7 @@ class TestEegFindBoundariesEdgeCases(unittest.TestCase):
 
     def test_numeric_boundary99_enabled(self):
         """Test numeric boundary detection with option_boundary99 enabled."""
-        from eegprep.eeg_options import EEG_OPTIONS
+        from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
         old_value = EEG_OPTIONS['option_boundary99']
         EEG_OPTIONS['option_boundary99'] = 1
 
@@ -245,7 +245,7 @@ class TestEegFindBoundariesEdgeCases(unittest.TestCase):
 
     def test_numeric_boundary99_disabled(self):
         """Test numeric boundary detection with option_boundary99 disabled."""
-        from eegprep.eeg_options import EEG_OPTIONS
+        from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
         old_value = EEG_OPTIONS['option_boundary99']
         EEG_OPTIONS['option_boundary99'] = 0
 
@@ -262,7 +262,7 @@ class TestEegFindBoundariesEdgeCases(unittest.TestCase):
 
     def test_mixed_string_numeric_types_with_boundary99(self):
         """Test mixed string and numeric types with boundary99 option."""
-        from eegprep.eeg_options import EEG_OPTIONS
+        from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
         old_value = EEG_OPTIONS['option_boundary99']
         EEG_OPTIONS['option_boundary99'] = 1
 

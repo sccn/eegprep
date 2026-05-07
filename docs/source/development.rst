@@ -14,8 +14,7 @@ System Requirements
 
 - **Python**: 3.11 or higher
 - **Git**: For version control
-- **pip**: Python package manager
-- **Virtual environment**: venv or conda
+- **uv**: Default package and environment manager
 
 Check your Python version:
 
@@ -28,7 +27,7 @@ Required Tools
 
 - **Git**: `https://git-scm.com/ <https://git-scm.com/>`_
 - **Python**: `https://www.python.org/ <https://www.python.org/>`_
-- **pip**: Usually included with Python
+- **uv**: `https://docs.astral.sh/uv/ <https://docs.astral.sh/uv/>`_
 
 Optional Tools
 --------------
@@ -45,54 +44,35 @@ Clone the Repository
 
 .. code-block:: bash
 
-    git clone https://github.com/NeuroTechX/eegprep.git
+    git clone https://github.com/sccn/eegprep.git
     cd eegprep
 
-Create Virtual Environment
----------------------------
+Create the uv Environment
+-------------------------
 
-Using venv:
-
-.. code-block:: bash
-
-    python -m venv venv
-    source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-Using conda:
+Install the default development environment:
 
 .. code-block:: bash
 
-    conda create -n eegprep python=3.10
-    conda activate eegprep
+    uv python install 3.11
+    uv sync --group dev
 
-Install in Editable Mode
-------------------------
-
-Install the package with all development dependencies:
-
-.. code-block:: bash
-
-    pip install -e ".[dev]"
-
-This installs:
-
-- The eegprep package in editable mode (changes are reflected immediately)
-- Development dependencies (testing, linting, formatting)
-- Documentation dependencies
+``uv sync`` creates ``.venv/`` and installs EEGPrep in editable mode from the
+locked dependency set. Use ``uv run`` for commands so they execute inside this
+environment.
 
 Install Documentation Dependencies
 ----------------------------------
 
 .. code-block:: bash
 
-    pip install -e ".[docs]"
+    uv sync --extra docs --group dev
 
-This includes:
+This installs:
 
-- Sphinx (documentation generator)
-- sphinx-rtd-theme (Read the Docs theme)
-- sphinx-autodoc-typehints (Type hints in documentation)
-- sphinx-gallery (Example gallery)
+- The eegprep package in editable mode
+- Development dependencies used by repo tooling
+- Documentation dependencies
 
 Running Tests
 =============
@@ -104,63 +84,29 @@ Tests are located in the ``tests/`` directory. Run all tests:
 
 .. code-block:: bash
 
-    pytest
+    uv run pytest tests
 
 Run specific test file:
 
 .. code-block:: bash
 
-    pytest tests/test_clean_artifacts.py
+    uv run pytest tests/test_clean_artifacts.py
 
 Run specific test function:
 
 .. code-block:: bash
 
-    pytest tests/test_clean_artifacts.py::test_remove_artifacts
+    uv run pytest tests/test_clean_artifacts.py::TestClassName::test_method_name
 
-Pytest Options
---------------
-
-Verbose output:
+Run a marker subset:
 
 .. code-block:: bash
 
-    pytest -v
+    uv run pytest -m "not slow"
 
-Stop on first failure:
-
-.. code-block:: bash
-
-    pytest -x
-
-Show print statements:
-
-.. code-block:: bash
-
-    pytest -s
-
-Run only tests matching a pattern:
-
-.. code-block:: bash
-
-    pytest -k "artifact"
-
-Test Coverage
--------------
-
-Generate coverage report:
-
-.. code-block:: bash
-
-    pytest --cov=src/eegprep --cov-report=html
-
-View HTML coverage report:
-
-.. code-block:: bash
-
-    open htmlcov/index.html  # macOS
-    xdg-open htmlcov/index.html  # Linux
-    start htmlcov/index.html  # Windows
+Markers include ``slow``, ``matlab``, ``octave``, ``gui``, ``visual``, and
+``parity``. Legacy ``unittest`` tests are categorized during collection in
+``tests/conftest.py`` so marker expressions work without rewriting the tests.
 
 Continuous Integration
 ----------------------
@@ -183,10 +129,9 @@ Navigate to the docs directory and build:
 
 .. code-block:: bash
 
-    cd docs
-    make html
+    uv run make -C docs html
 
-The built documentation is in ``docs/_build/html/``.
+The built documentation is in ``docs/build/html/``.
 
 View Documentation Locally
 ---------------------------
@@ -195,16 +140,16 @@ Open the built documentation in your browser:
 
 .. code-block:: bash
 
-    open docs/_build/html/index.html  # macOS
-    xdg-open docs/_build/html/index.html  # Linux
-    start docs/_build/html/index.html  # Windows
+    open docs/build/html/index.html  # macOS
+    xdg-open docs/build/html/index.html  # Linux
+    start docs/build/html/index.html  # Windows
 
 Or use a local server:
 
 .. code-block:: bash
 
-    cd docs/_build/html
-    python -m http.server 8000
+    cd docs/build/html
+    uv run python -m http.server 8000
 
 Then visit ``http://localhost:8000`` in your browser.
 
@@ -215,9 +160,8 @@ Remove old build files and rebuild:
 
 .. code-block:: bash
 
-    cd docs
-    make clean
-    make html
+    uv run make -C docs clean
+    uv run make -C docs html
 
 Build Options
 -------------
@@ -226,15 +170,13 @@ Build PDF documentation (requires LaTeX):
 
 .. code-block:: bash
 
-    cd docs
-    make latexpdf
+    uv run make -C docs latexpdf
 
 Build EPUB documentation:
 
 .. code-block:: bash
 
-    cd docs
-    make epub
+    uv run make -C docs epub
 
 Debugging Tips
 ==============
@@ -312,7 +254,7 @@ Install memory profiler:
 
 .. code-block:: bash
 
-    pip install memory-profiler
+    uv add --dev memory-profiler
 
 Use it in your code:
 
@@ -329,7 +271,7 @@ Run with:
 
 .. code-block:: bash
 
-    python -m memory_profiler script.py
+    uv run python -m memory_profiler script.py
 
 Release Process
 ===============
@@ -387,20 +329,19 @@ Build distribution packages:
 
 .. code-block:: bash
 
-    pip install build twine
-    python -m build
+    uv run --group release python -m build
 
 Upload to PyPI:
 
 .. code-block:: bash
 
-    python -m twine upload dist/*
+    uv run --group release python -m twine upload dist/*
 
 Or upload to TestPyPI first:
 
 .. code-block:: bash
 
-    python -m twine upload --repository testpypi dist/*
+    uv run --group release python -m twine upload --repository testpypi dist/*
 
 Common Issues
 =============
@@ -414,7 +355,7 @@ Import Errors
 
 .. code-block:: bash
 
-    pip install -e .
+    uv sync --group dev
 
 Test Failures
 -------------
@@ -425,9 +366,8 @@ Test Failures
 
 .. code-block:: bash
 
-    source venv/bin/activate
-    pip install -e ".[dev]"
-    pytest
+    uv sync --group dev
+    uv run pytest tests
 
 Documentation Build Errors
 ---------------------------
@@ -438,7 +378,7 @@ Documentation Build Errors
 
 .. code-block:: bash
 
-    pip install -e ".[docs]"
+    uv sync --extra docs --group dev
 
 Git Conflicts
 -------------
@@ -464,28 +404,26 @@ Virtual Environment Issues
 
 .. code-block:: bash
 
-    rm -rf venv
-    python -m venv venv
-    source venv/bin/activate
-    pip install -e ".[dev]"
+    rm -rf .venv
+    uv sync --group dev
 
 Dependency Conflicts
 --------------------
 
 **Problem**: Dependency version conflicts
 
-**Solution**: Update pip and reinstall:
+**Solution**: Refresh the locked environment:
 
 .. code-block:: bash
 
-    pip install --upgrade pip
-    pip install -e ".[dev]" --force-reinstall
+    uv lock
+    uv sync --group dev
 
 Getting Help
 ============
 
 - Check the :doc:`contributing` guide
-- Review existing `GitHub Issues <https://github.com/NeuroTechX/eegprep/issues>`_
+- Review existing `GitHub Issues <https://github.com/sccn/eegprep/issues>`_
 - Ask in GitHub Discussions
 - Contact the maintainers
 

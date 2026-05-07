@@ -5,15 +5,15 @@ import numpy as np
 import copy
 import os
 
-from eegprep.eeglabcompat import get_eeglab
-from eegprep.popfunc.pop_loadset import pop_loadset
-from eegprep.popfunc.pop_loadset_h5 import pop_loadset_h5
-from eegprep.popfunc.pop_select import pop_select
-from eegprep.popfunc.pop_epoch import pop_epoch
+from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
+from eegprep.functions.popfunc.pop_loadset import pop_loadset
+from eegprep.functions.popfunc.pop_loadset_h5 import pop_loadset_h5
+from eegprep.functions.popfunc.pop_select import pop_select
+from eegprep.functions.popfunc.pop_epoch import pop_epoch
 
 # where the test resources
 web_root = 'https://sccntestdatasets.s3.us-east-2.amazonaws.com/'
-local_url = os.path.join(os.path.dirname(__file__), '../data/')
+local_url = os.path.join(os.path.dirname(__file__), '../sample_data/')
 
 def ensure_file(fname: str) -> str: # duplicate of test_clean_rawdata.py
     """Download a file if it does not exist and return the local path."""

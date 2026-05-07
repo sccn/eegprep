@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 
 from eegprep import pop_adjustevents
-from eegprep.eeg_options import EEG_OPTIONS
+from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
 
 
 def demo_eeg():
