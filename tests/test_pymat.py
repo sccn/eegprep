@@ -4,7 +4,7 @@ import tempfile
 import os
 from unittest.mock import MagicMock, patch
 
-from eegprep.pymat import py2mat, mat2py, default_empty
+from eegprep.functions.adminfunc.pymat import py2mat, mat2py, default_empty
 
 
 class TestPy2Mat(unittest.TestCase):
@@ -330,7 +330,7 @@ class TestMat2Py(unittest.TestCase):
         mock_mat_struct = MockMatStruct()
 
         # Patch the isinstance check for scipy.io.matlab.mat_struct
-        with patch('eegprep.pymat.scipy.io.matlab.mat_struct', MockMatStruct):
+        with patch('eegprep.functions.adminfunc.pymat.scipy.io.matlab.mat_struct', MockMatStruct):
             result = mat2py(mock_mat_struct)
 
             self.assertIsInstance(result, dict)

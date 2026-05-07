@@ -4,7 +4,7 @@ import warnings
 import os
 from unittest.mock import patch, MagicMock
 
-from eegprep.eeg_autocorr_welch import eeg_autocorr_welch
+from eegprep.plugins.ICLabel.eeg_autocorr_welch import eeg_autocorr_welch
 
 
 class TestEegAutocorrWelch(unittest.TestCase):
@@ -20,7 +20,7 @@ class TestEegAutocorrWelch(unittest.TestCase):
         cls.matlab_available = False
         cls.eeglab = None
         try:
-            from eegprep.eeglabcompat import get_eeglab
+            from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
             cls.eeglab = get_eeglab()
             cls.matlab_available = True
         except Exception as e:
@@ -349,7 +349,7 @@ class TestEegAutocorrWelch(unittest.TestCase):
             self.skipTest("MATLAB not available")
 
         # Load real EEG dataset with ICA
-        from eegprep.popfunc.pop_loadset import pop_loadset
+        from eegprep.functions.popfunc.pop_loadset import pop_loadset
 
         test_file = os.path.join(os.path.dirname(__file__), '..', 'data', 'eeglab_data_with_ica_tmp.set')
         if not os.path.exists(test_file):
@@ -377,7 +377,7 @@ class TestEegAutocorrWelch(unittest.TestCase):
             self.skipTest("MATLAB not available")
 
         # Load real EEG dataset with ICA
-        from eegprep.popfunc.pop_loadset import pop_loadset
+        from eegprep.functions.popfunc.pop_loadset import pop_loadset
 
         test_file = os.path.join(os.path.dirname(__file__), '..', 'data', 'eeglab_data_with_ica_tmp.set')
         if not os.path.exists(test_file):

@@ -3,8 +3,8 @@ import os
 import numpy as np
 import unittest
 
-from eegprep.eeglabcompat import get_eeglab
-from eegprep.eeg_lat2point import eeg_lat2point
+from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
+from eegprep.functions.popfunc.eeg_lat2point import eeg_lat2point
 
 
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")

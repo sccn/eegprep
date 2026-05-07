@@ -6,13 +6,13 @@ from unittest.mock import patch
 
 # Assume eeg_eegrej is defined as in your module that imports: from eegrej import eegrej
 from eegprep import eeg_eegrej
-from eegprep.eeglabcompat import get_eeglab
-from eegprep.popfunc.pop_loadset import pop_loadset
-from eegprep.eeg_checkset import eeg_checkset
+from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
+from eegprep.functions.popfunc.pop_loadset import pop_loadset
+from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 
 # where the test resources
 web_root = 'https://sccntestdatasets.s3.us-east-2.amazonaws.com/'
-local_url = os.path.join(os.path.dirname(__file__), '../data/')
+local_url = os.path.join(os.path.dirname(__file__), '../sample_data/')
 
 def ensure_file(fname: str) -> str: # duplicate of test_clean_rawdata.py
     """Download a file if it does not exist and return the local path."""

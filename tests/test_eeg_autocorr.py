@@ -20,8 +20,8 @@ import warnings
 
 # Add src to path for imports
 sys.path.insert(0, 'src')
-from eegprep.eeg_autocorr import eeg_autocorr
-from eegprep.eeglabcompat import get_eeglab
+from eegprep.plugins.ICLabel.eeg_autocorr import eeg_autocorr
+from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.utils.testing import DebuggableTestCase
 
 
@@ -275,7 +275,7 @@ class TestEegAutocorr(DebuggableTestCase):
             self.skipTest("MATLAB not available")
 
         # Load real EEG dataset with ICA
-        from eegprep.popfunc.pop_loadset import pop_loadset
+        from eegprep.functions.popfunc.pop_loadset import pop_loadset
         import os
 
         test_file = os.path.join(os.path.dirname(__file__), '..', 'data', 'eeglab_data_with_ica_tmp.set')
@@ -300,7 +300,7 @@ class TestEegAutocorr(DebuggableTestCase):
             self.skipTest("MATLAB not available")
 
         # Load real EEG dataset with ICA
-        from eegprep.popfunc.pop_loadset import pop_loadset
+        from eegprep.functions.popfunc.pop_loadset import pop_loadset
         import os
 
         test_file = os.path.join(os.path.dirname(__file__), '..', 'data', 'eeglab_data_with_ica_tmp.set')

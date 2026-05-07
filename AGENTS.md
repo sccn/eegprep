@@ -8,13 +8,25 @@ Primary references:
 
 ## Repo Map
 
-- `src/eegprep/popfunc/`: EEGLAB-style `pop_*` user-facing wrappers. Keep each pop function in a `pop_<name>.py` module that mirrors `functions/popfunc/` in EEGLAB.
-- `src/eegprep/guifunc/`: EEGLAB-style GUI helpers such as `inputgui`, dialog specs, and Qt rendering. Keep GUI infrastructure parallel to `functions/guifunc/` in EEGLAB.
-- `src/eegprep/*.py`: public non-pop EEGLAB-style ports and pipeline entry points. Prefer one file per EEGLAB function name, e.g. `eeg_checkset.py`, `clean_artifacts.py`.
-- `src/eegprep/utils/`: shared concrete helpers. Search here before adding utility code.
+- `src/eegprep/functions/popfunc/`: EEGLAB-style `pop_*` user-facing wrappers and `eeg_*` functions that operate on EEG structures, such as ICA wrappers. Keep each pop function in a `pop_<name>.py` module that mirrors `functions/popfunc/` in EEGLAB.
+- `src/eegprep/functions/guifunc/`: EEGLAB-style GUI helpers such as `inputgui`, dialog specs, and Qt rendering. Keep GUI infrastructure parallel to `functions/guifunc/` in EEGLAB.
+- `src/eegprep/functions/adminfunc/`: EEGLAB-style administrative helpers such as `eeg_checkset.py` and `eeg_options.py`.
+- `src/eegprep/functions/sigprocfunc/`: EEGLAB-style low-level signal processing functions such as `runica.py`, `runamica.py`, `topoplot.py`, `epoch.py`, and `eegrej.py`.
+- `src/eegprep/plugins/clean_rawdata/`: Python ports of the EEGLAB clean_rawdata plugin, including `clean_*` and ASR modules.
+- `src/eegprep/plugins/clean_rawdata/private/`: ports of clean_rawdata private helpers such as `fit_eeg_distribution`, `geometric_median`, FIR helpers, covariance helpers, and spherical-spline interpolation.
+- `src/eegprep/plugins/ICLabel/`: Python ports of the EEGLAB ICLabel plugin and bundled `netICL.mat`.
+- `src/eegprep/plugins/firfilt/`: Python ports of the EEGLAB firfilt plugin helpers.
+- `src/eegprep/functions/miscfunc/`: EEGLAB-style miscellaneous helpers, including format conversion and numerical utilities.
+- `src/eegprep/functions/eegobj/`: Python counterpart to EEGLAB's `functions/@eegobj/`.
+- `src/eegprep/plugins/EEG_BIDS/`: Python ports and workflow helpers for the EEGLAB EEG-BIDS plugin.
+- `src/eegprep/utils/`: Python-only test/development support. Do not put EEGLAB-equivalent processing code here.
 - `src/eegprep/resources/`: MATLAB option files, montages, package data.
 - `src/eegprep/eeglab/`: vendored EEGLAB reference code and sample data. Treat as reference input; do not edit unless explicitly updating the bundled reference.
-- `src/eegprep/matlab_local_tests/` and `scripts/*.m`: MATLAB parity helpers.
+- `tests/matlab/`: MATLAB parity scripts and MATLAB helper fixtures used by Python tests.
+- `scripts/*.m`: MATLAB/Octave helper scripts that are not part of the normal unit-test tree.
+- `sample_data/`: small checked-in EEG sample datasets, named to match EEGLAB's `sample_data` convention.
+- `sample_notebooks/`: exploratory/sample notebooks. Keep runnable examples in docs when they are user-facing.
+- `tools/`: developer and parity tooling that is not installed as part of the `eegprep` package.
 - `tests/`: `unittest` tests. Test files generally mirror source module names.
 - `docs/source/`: Sphinx docs, examples, API pages.
 - `.github/workflows/test.yml`: CI test and pre-commit entry points.
@@ -32,7 +44,7 @@ Primary references:
 
 ## EEGLAB Parity
 
-- Keep naming and directory structure as close to EEGLAB as practical. Put `pop_*` wrappers in `popfunc`, GUI helpers in `guifunc`, `eeg_*` operations at the package level unless a closer EEGLAB folder already exists, `clean_*` for clean_rawdata-style operations, and existing plugin names such as `ICLabel` where already established.
+- Keep naming and directory structure as close to EEGLAB as practical. Put `pop_*` wrappers in `functions/popfunc`, GUI helpers in `functions/guifunc`, administrative functions in `functions/adminfunc`, signal-processing functions in `functions/sigprocfunc`, clean_rawdata ports in `plugins/clean_rawdata`, and ICLabel ports in `plugins/ICLabel`.
 - Before porting or changing behavior, inspect the matching MATLAB file under `src/eegprep/eeglab/functions/` or `src/eegprep/eeglab/plugins/`.
 - Preserve EEG dict semantics unless the user asks for a new abstraction. Core fields include `data`, `nbchan`, `pnts`, `trials`, `srate`, `xmin`, `xmax`, `times`, `chanlocs`, `event`, `urevent`, `epoch`, `history`, `icaact`, `icawinv`, `icasphere`, `icaweights`, and `icachansind`.
 - Data is channel-major: continuous data is usually `(nbchan, pnts)`, epoched data is usually `(nbchan, pnts, trials)`.
@@ -69,13 +81,16 @@ Primary references:
 
 ## Testing
 
-- Current CI uses `unittest`, not pytest markers. Do not assume `pytest -m "not slow"` works here.
+- Pytest is the default test runner. Existing tests may still use `unittest.TestCase`; do not rewrite them unless the touched test benefits from pytest fixtures or parametrization.
+- Registered markers include `slow`, `matlab`, `octave`, `gui`, `visual`, and `parity`.
+- Legacy `unittest` tests are categorized by path/name in `tests/conftest.py`; update that map when adding obvious slow, MATLAB, GUI, visual, or parity coverage.
 - Always fix tests you break.
 - Run the narrowest relevant tests first, then broaden as risk requires:
-  - Single file: `python -m unittest tests.test_pop_select`
-  - Full suite: `python -m unittest discover -s tests`
-  - No MATLAB locally: `EEGPREP_SKIP_MATLAB=1 python -m unittest discover -s tests`
-- Some parity tests require MATLAB Engine or Octave via `eeglabcompat.py`; preserve skip behavior instead of weakening assertions.
+  - Single file: `uv run pytest tests/test_pop_select.py`
+  - Marker subset: `uv run pytest -m "not slow"`
+  - Full suite: `uv run pytest tests`
+  - No MATLAB locally: `EEGPREP_SKIP_MATLAB=1 uv run pytest tests`
+- Some parity tests require MATLAB Engine or Octave via `src/eegprep/functions/adminfunc/eeglabcompat.py`; preserve skip behavior instead of weakening assertions.
 - Prefer integration-style tests that validate externally observable behavior on EEG dicts, BIDS outputs, files, or MATLAB parity results.
 - Search existing test files before creating new ones. Extend the closest existing test first.
 - No mocks unless testing I/O boundaries such as network or filesystem. Test real behavior for numerical transforms.
@@ -96,8 +111,11 @@ Primary references:
 ## Dependencies
 
 - Python support starts at 3.10 per `pyproject.toml`.
+- `uv` is the default package and environment manager for development, CI, and agent workflows.
+- `.python-version` sets the default development interpreter to Python 3.11.
+- Use `uv sync --group dev` after cloning or when dependencies change.
+- Use `uv run python ...` for Python commands so tests run inside the project environment.
 - Do not add dependencies for tiny helpers. If a dependency is justified, update `pyproject.toml`, docs, and any CI/install notes.
-- `uv` is used in CI for installation, but test execution is currently `python -m unittest discover -s tests`.
 
 ## GitHub, Communication, and Commits
 

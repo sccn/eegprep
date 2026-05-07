@@ -10,7 +10,7 @@ from unittest.mock import patch, MagicMock
 import numpy as np
 import logging
 
-from eegprep.clean_asr import clean_asr
+from eegprep.plugins.clean_rawdata.clean_asr import clean_asr
 
 
 class TestCleanASRBasic(unittest.TestCase):
@@ -76,7 +76,7 @@ class TestCleanASRBasic(unittest.TestCase):
         mismatched_eeg['nbchan'] = 10  # Doesn't match data shape (8, 1000)
 
         try:
-            with self.assertLogs('eegprep.clean_asr', level='WARNING') as log:
+            with self.assertLogs('eegprep.plugins.clean_rawdata.clean_asr', level='WARNING') as log:
                 result = clean_asr(mismatched_eeg, cutoff=20.0)
 
             self.assertTrue(any('Mismatch between' in msg for msg in log.output))
@@ -146,7 +146,7 @@ class TestCleanASRCalibrationData(unittest.TestCase):
     def test_clean_asr_ref_maxbadchannels_off(self):
         """Test clean_asr with ref_maxbadchannels='off'."""
         try:
-            with self.assertLogs('eegprep.clean_asr', level='INFO') as log:
+            with self.assertLogs('eegprep.plugins.clean_rawdata.clean_asr', level='INFO') as log:
                 result = clean_asr(self.test_eeg, ref_maxbadchannels='off', cutoff=20.0)
 
             self.assertTrue(any('Using the entire data for calibration' in msg for msg in log.output))
@@ -157,7 +157,7 @@ class TestCleanASRCalibrationData(unittest.TestCase):
     def test_clean_asr_ref_tolerances_off(self):
         """Test clean_asr with ref_tolerances='off'."""
         try:
-            with self.assertLogs('eegprep.clean_asr', level='INFO') as log:
+            with self.assertLogs('eegprep.plugins.clean_rawdata.clean_asr', level='INFO') as log:
                 result = clean_asr(self.test_eeg, ref_tolerances='off', cutoff=20.0)
 
             self.assertTrue(any('Using the entire data for calibration' in msg for msg in log.output))
@@ -168,7 +168,7 @@ class TestCleanASRCalibrationData(unittest.TestCase):
     def test_clean_asr_ref_wndlen_off(self):
         """Test clean_asr with ref_wndlen='off'."""
         try:
-            with self.assertLogs('eegprep.clean_asr', level='INFO') as log:
+            with self.assertLogs('eegprep.plugins.clean_rawdata.clean_asr', level='INFO') as log:
                 result = clean_asr(self.test_eeg, ref_wndlen='off', cutoff=20.0)
 
             self.assertTrue(any('Using the entire data for calibration' in msg for msg in log.output))
@@ -182,7 +182,7 @@ class TestCleanASRCalibrationData(unittest.TestCase):
         user_calib_data = np.random.randn(self.n_channels, 250) * 0.3
 
         try:
-            with self.assertLogs('eegprep.clean_asr', level='INFO') as log:
+            with self.assertLogs('eegprep.plugins.clean_rawdata.clean_asr', level='INFO') as log:
                 result = clean_asr(self.test_eeg, ref_maxbadchannels=user_calib_data, cutoff=20.0)
 
             self.assertTrue(any('Using user-supplied data array' in msg for msg in log.output))
@@ -251,7 +251,7 @@ class TestCleanASRCalibrationFailure(unittest.TestCase):
         """Test clean_asr fallback when automatic calibration data selection is used."""
         try:
             # Use parameters that trigger automatic calibration data selection
-            with self.assertLogs('eegprep.clean_asr', level='INFO') as log:
+            with self.assertLogs('eegprep.plugins.clean_rawdata.clean_asr', level='INFO') as log:
                 result = clean_asr(
                     self.test_eeg,
                     ref_maxbadchannels=0.1,

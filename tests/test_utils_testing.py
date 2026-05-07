@@ -191,7 +191,14 @@ class TestModuleConstants(unittest.TestCase):
     def test_module_exports(self):
         """Test that __all__ contains expected exports."""
         from eegprep.utils.testing import __all__
-        expected_exports = ['compare_eeg', 'DebuggableTestCase', 'is_debug', 'use_64bit_eeg_options']
+        expected_exports = [
+            'compare_eeg',
+            'DebuggableTestCase',
+            'has_optional_dependency',
+            'is_debug',
+            'matlab_function_exists',
+            'use_64bit_eeg_options',
+        ]
         self.assertEqual(set(__all__), set(expected_exports))
 
     def test_default_32_bit_constant(self):

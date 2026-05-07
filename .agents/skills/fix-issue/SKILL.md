@@ -29,7 +29,7 @@ already have. Follow these rules in all comments you post:
 - Max 3-4 sentences of prose per comment section. Use links and code, not words.
 - Annotate code links, don't narrate them. Bad: "The key/value arg validation is
   in eegobj.py where it checks for paired inputs".
-  Good: `src/eegprep/eegobj.py#L65-L71` - key/value arg validation.
+  Good: `src/eegprep/functions/eegobj/eegobj.py#L65-L71` - key/value arg validation.
 
 ## Research
 
@@ -62,9 +62,9 @@ Example:
 > leak file handles. Root cause: `h5py.File(...)` is never closed.
 >
 > **Relevant code**
-> - [`src/eegprep/eegobj.py#L17-L29`](src/eegprep/eegobj.py#L17-L29) - path to pop_loadset
-> - [`src/eegprep/popfunc/pop_loadset.py#L80-L88`](src/eegprep/popfunc/pop_loadset.py#L80-L88) - loadmat fallback
-> - [`src/eegprep/popfunc/pop_loadset_h5.py#L20-L26`](src/eegprep/popfunc/pop_loadset_h5.py#L20-L26) - h5py file open
+> - [`src/eegprep/functions/eegobj/eegobj.py#L17-L29`](src/eegprep/functions/eegobj/eegobj.py#L17-L29) - path to pop_loadset
+> - [`src/eegprep/functions/popfunc/pop_loadset.py#L80-L88`](src/eegprep/functions/popfunc/pop_loadset.py#L80-L88) - loadmat fallback
+> - [`src/eegprep/functions/popfunc/pop_loadset_h5.py#L20-L26`](src/eegprep/functions/popfunc/pop_loadset_h5.py#L20-L26) - h5py file open
 
 ### Proposed Fix section
 
@@ -100,7 +100,7 @@ beginning work. Your tests will be minimal and refrain from using mocks.
 * You never use mocks when testing.
 * You keep tests simple and minimal. You do not test obvious behavior like "object has an attr".
 * You run `./pre-commit.py --fix` and resolve all reported issues before uploading.
-* You will test using `python -m unittest discover -s tests` before uploading.
+* You will test using `uv run pytest` before uploading.
 * You will ensure _all_ tests pass.
 
 ## Uploading

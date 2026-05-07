@@ -41,7 +41,7 @@ The :func:`eegprep.pop_loadset` function loads EEGLAB .set files:
     from eegprep import pop_loadset
 
     # Load a .set file
-    eeg = pop_loadset('data/subject_01.set')
+    eeg = pop_loadset('sample_data/subject_01.set')
 
     # Access basic information
     print(f"Channels: {eeg.nbchan}")
@@ -69,7 +69,7 @@ For BIDS-formatted datasets, use :func:`eegprep.pop_load_frombids`:
 
     # Load from BIDS dataset
     eeg = pop_load_frombids(
-        bids_root='data/bids_dataset',
+        bids_root='sample_data/bids_dataset',
         subject='01',
         session='01',
         task='rest'
@@ -176,7 +176,7 @@ Save preprocessed data back to EEGLAB format:
     from eegprep import pop_saveset
 
     # Save to .set file
-    pop_saveset(eeg, 'data/subject_01_preprocessed.set')
+    pop_saveset(eeg, 'sample_data/subject_01_preprocessed.set')
     print("Data saved successfully")
 
 Saving with Compression
@@ -191,7 +191,7 @@ Save with compression to reduce file size:
     # Save with compression
     pop_saveset(
         eeg,
-        'data/subject_01_preprocessed.set',
+        'sample_data/subject_01_preprocessed.set',
         savemode='onefile'  # Save as single file
     )
 
@@ -207,7 +207,7 @@ For large datasets, save to HDF5 format:
     # Save to HDF5
     pop_saveset(
         eeg,
-        'data/subject_01_preprocessed.h5',
+        'sample_data/subject_01_preprocessed.h5',
         fmt='h5'
     )
 

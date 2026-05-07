@@ -5,7 +5,8 @@ from unittest.mock import patch, MagicMock
 import scipy.signal
 import scipy.linalg
 
-from eegprep.utils.asr import asr_calibrate, asr_process
+from eegprep.plugins.clean_rawdata.asr_calibrate import asr_calibrate
+from eegprep.plugins.clean_rawdata.asr_process import asr_process
 
 
 class TestAsrCalibrate(unittest.TestCase):
@@ -76,7 +77,7 @@ class TestAsrCalibrate(unittest.TestCase):
         unsupported_srate = 999.0
         data = np.random.randn(4, 1000) * 0.3
 
-        with self.assertLogs('eegprep.utils.asr', level='WARNING') as log:
+        with self.assertLogs('eegprep.plugins.clean_rawdata.asr_calibrate', level='WARNING') as log:
             state = asr_calibrate(data, unsupported_srate)
 
         # Check that warning was logged
@@ -135,7 +136,7 @@ class TestAsrCalibrate(unittest.TestCase):
     def test_riemannian_calibration(self):
         """Test Riemannian ASR calibration variant."""
         # Mock the cov_mean function to avoid complex dependencies
-        with patch('eegprep.utils.asr.cov_mean') as mock_cov_mean:
+        with patch('eegprep.plugins.clean_rawdata.asr_calibrate.cov_mean') as mock_cov_mean:
             mock_cov_mean.return_value = np.eye(self.n_channels) * 0.5
 
             state = asr_calibrate(self.clean_data, self.srate, useriemannian='calib')
@@ -179,7 +180,7 @@ class TestAsrCalibrate(unittest.TestCase):
         data = self.clean_data.copy()
         data[:, :100] *= 10  # Add some "artifacts"
 
-        with patch('eegprep.utils.asr.fit_eeg_distribution') as mock_fit:
+        with patch('eegprep.plugins.clean_rawdata.asr_calibrate.fit_eeg_distribution') as mock_fit:
             # Mock successful fitting for most components
             mock_fit.return_value = (1.0, 0.5, None, None)
 
@@ -199,14 +200,14 @@ class TestAsrCalibrate(unittest.TestCase):
 
     def test_geometric_median_fallback(self):
         """Test fallback to geometric median when Riemannian method fails."""
-        with patch('eegprep.utils.asr.cov_mean') as mock_cov_mean:
+        with patch('eegprep.plugins.clean_rawdata.asr_calibrate.cov_mean') as mock_cov_mean:
             # Make cov_mean return NaNs to trigger fallback
             mock_cov_mean.return_value = np.full((self.n_channels, self.n_channels), np.nan)
 
-            with patch('eegprep.utils.asr.geometric_median') as mock_geom_median:
+            with patch('eegprep.plugins.clean_rawdata.asr_calibrate.geometric_median') as mock_geom_median:
                 mock_geom_median.return_value = np.eye(self.n_channels).flatten()
 
-                with self.assertLogs('eegprep.utils.asr', level='WARNING') as log:
+                with self.assertLogs('eegprep.plugins.clean_rawdata.asr_calibrate', level='WARNING') as log:
                     state = asr_calibrate(self.clean_data, self.srate, useriemannian='calib')
 
                 # Check that warning was logged and fallback was used
@@ -318,7 +319,7 @@ class TestAsrProcess(unittest.TestCase):
             # Mock low available memory to trigger splitting
             mock_vm.return_value.free = 50 * 1024**2  # 50 MB
 
-            with self.assertLogs('eegprep.utils.asr', level='INFO') as log:
+            with self.assertLogs('eegprep.plugins.clean_rawdata.asr_process', level='INFO') as log:
                 cleaned_data, new_state = asr_process(
                     large_data,
                     self.srate,
@@ -350,7 +351,7 @@ class TestAsrProcess(unittest.TestCase):
         with patch('numpy.linalg.eigh') as mock_eigh:
             mock_eigh.side_effect = np.linalg.LinAlgError("Eigendecomposition failed")
 
-            with self.assertLogs('eegprep.utils.asr', level='WARNING') as log:
+            with self.assertLogs('eegprep.plugins.clean_rawdata.asr_process', level='WARNING') as log:
                 cleaned_data, new_state = asr_process(self.test_data, self.srate, self.state)
 
             # Should log warning and use fallback
@@ -362,7 +363,7 @@ class TestAsrProcess(unittest.TestCase):
         with patch('numpy.linalg.pinv') as mock_pinv:
             mock_pinv.side_effect = np.linalg.LinAlgError("Singular matrix")
 
-            with self.assertLogs('eegprep.utils.asr', level='WARNING') as log:
+            with self.assertLogs('eegprep.plugins.clean_rawdata.asr_process', level='WARNING') as log:
                 cleaned_data, new_state = asr_process(self.test_data, self.srate, self.state)
 
             # Should log warning and use identity matrix fallback
@@ -407,7 +408,7 @@ class TestAsrProcess(unittest.TestCase):
         """Test error handling in component selection logic."""
         # Mock numpy.sum to raise an error during threshold calculation
         with patch('numpy.sum', side_effect=Exception("Threshold error")):
-            with self.assertLogs('eegprep.utils.asr', level='ERROR') as log:
+            with self.assertLogs('eegprep.plugins.clean_rawdata.asr_process', level='ERROR') as log:
                 cleaned_data, new_state = asr_process(self.test_data, self.srate, self.state)
 
             # Should log error and use fallback (keep all components)
@@ -620,7 +621,7 @@ class TestAsrEdgeCases(unittest.TestCase):
         calib_data = np.random.randn(n_channels, n_samples) * 0.3
 
         # Should use fallback filter for unsupported sampling rate
-        with self.assertLogs('eegprep.utils.asr', level='WARNING'):
+        with self.assertLogs('eegprep.plugins.clean_rawdata.asr_calibrate', level='WARNING'):
             state = asr_calibrate(calib_data, srate)
 
         # Should still work

@@ -7,23 +7,28 @@ import unittest
 import numpy as np
 from copy import deepcopy
 from eegprep import pop_loadset, clean_artifacts, eeg_picard, iclabel
-from eegprep.eeglabcompat import get_eeglab
-from eegprep.eeg_compare import eeg_compare
-from eegprep.utils.testing import compare_eeg, DebuggableTestCase
+from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
+from eegprep.functions.popfunc.eeg_compare import eeg_compare
+from eegprep.utils.testing import (
+    compare_eeg,
+    DebuggableTestCase,
+    has_optional_dependency,
+    matlab_function_exists,
+)
 
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 def test_pipeline():
     """Test pipeline: clean_artifacts -> eeg_picard -> iclabel, comparing Python and MATLAB at each step."""
     # where the test resources
-    local_url = os.path.join(os.path.dirname(__file__), '../data/')
+    local_url = os.path.join(os.path.dirname(__file__), '../sample_data/')
     fname = os.path.join(local_url, 'eeglab_data_with_ica_tmp.set')
     EEG = pop_loadset(fname)
 
     # --- Step 1: clean_artifacts (channel cleaning only) ---
     # Channel cleaning only: BurstCriterion='off'
-    EEG_py_ch, *_ = clean_artifacts(EEG, BurstCriterion='off', ChannelCriterion=0.8)
+    EEG_py_ch, *_ = clean_artifacts(deepcopy(EEG), BurstCriterion='off', ChannelCriterion=0.8)
     eeglab = get_eeglab('MAT')
-    EEG_mat_ch = eeglab.clean_artifacts(EEG, 'BurstCriterion', 'off', 'ChannelCriterion', 0.8)
+    EEG_mat_ch = eeglab.clean_artifacts(deepcopy(EEG), 'BurstCriterion', 'off', 'ChannelCriterion', 0.8)
     # eeg_compare(EEG_py_ch, EEG_mat_ch)
     compare_eeg(EEG_py_ch['data'], EEG_mat_ch['data'], rtol=0.005, atol=1e-5, err_msg='clean_artifacts() channel cleaning Python vs MATLAB failed')
     print("clean_artifacts() channel cleaning Python vs MATLAB passed\n\n\n")
@@ -34,10 +39,11 @@ class TestPipeline(DebuggableTestCase):
 
     def setUp(self):
         """Set up test fixtures."""
-        local_url = os.path.join(os.path.dirname(__file__), '../data/')
+        local_url = os.path.join(os.path.dirname(__file__), '../sample_data/')
         fname = os.path.join(local_url, 'eeglab_data_with_ica_tmp.set')
         self.EEG = pop_loadset(fname)
         self.eeglab = get_eeglab('MAT')
+        self.has_matlab_picard = matlab_function_exists(self.eeglab, 'eeg_picard')
 
     def test_clean_artifacts_channel_cleaning(self):
         """Test clean_artifacts channel cleaning step (BurstCriterion='off')."""
@@ -87,6 +93,9 @@ class TestPipeline(DebuggableTestCase):
 
     def test_eeg_picard(self):
         """Test eeg_picard ICA decomposition."""
+        if not self.has_matlab_picard:
+            self.skipTest("MATLAB EEGLAB Picard plugin is not installed")
+
         # Prepare data: channel cleaning + burst cleaning
         EEG_py_ch, *_ = clean_artifacts(deepcopy(self.EEG), BurstCriterion='off', ChannelCriterion=0.8)
         EEG_mat_ch = self.eeglab.clean_artifacts(deepcopy(self.EEG), 'BurstCriterion', 'off', 'ChannelCriterion', 0.8)
@@ -120,6 +129,11 @@ class TestPipeline(DebuggableTestCase):
 
     def test_iclabel(self):
         """Test iclabel component classification."""
+        if not self.has_matlab_picard:
+            self.skipTest("MATLAB EEGLAB Picard plugin is not installed")
+        if not has_optional_dependency('torch'):
+            self.skipTest("PyTorch is not installed; install eegprep[torch] to run ICLabel parity")
+
         # Prepare data: channel cleaning + burst cleaning + ICA
         EEG_py_ch, *_ = clean_artifacts(deepcopy(self.EEG), BurstCriterion='off', ChannelCriterion=0.8)
         EEG_mat_ch = self.eeglab.clean_artifacts(deepcopy(self.EEG), 'BurstCriterion', 'off', 'ChannelCriterion', 0.8)
@@ -150,6 +164,11 @@ class TestPipeline(DebuggableTestCase):
 
     def test_z_full_pipeline(self):
         """Test the complete pipeline end-to-end."""
+        if not self.has_matlab_picard:
+            self.skipTest("MATLAB EEGLAB Picard plugin is not installed")
+        if not has_optional_dependency('torch'):
+            self.skipTest("PyTorch is not installed; install eegprep[torch] to run full pipeline parity")
+
         print("\n" + "="*80)
         print("Full Pipeline Test: clean_artifacts -> eeg_picard -> iclabel")
         print("="*80)

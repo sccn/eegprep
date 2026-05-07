@@ -67,8 +67,8 @@ class TestBidsPreproc(DebuggableTestCase):
     def test_end2end(self):
         """End-to-end test vs MATLAB."""
         from eegprep import bids_preproc, pop_loadset, eeg_checkset_strict_mode
-        from eegprep.eeglabcompat import get_eeglab
-        from eegprep.utils.stage_comparison import generate_comparison_table, save_comparison_report
+        from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
+        from eegprep.plugins.EEG_BIDS.stage_comparison import generate_comparison_table, save_comparison_report
         from datetime import datetime
 
         for study in self.studies:

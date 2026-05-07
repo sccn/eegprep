@@ -9,7 +9,11 @@ This section documents the Independent Component Analysis (ICA) functions for de
 ICA Decomposition
 =================
 
+.. autofunction:: eegprep.eeg_amica
+
 .. autofunction:: eegprep.eeg_picard
+
+.. autofunction:: eegprep.eeg_runica
 
 Component Classification
 ========================

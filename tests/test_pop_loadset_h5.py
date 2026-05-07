@@ -20,10 +20,10 @@ import shutil
 
 # Add src to path for imports
 sys.path.insert(0, 'src')
-from eegprep.popfunc.pop_loadset_h5 import pop_loadset_h5
+from eegprep.functions.popfunc.pop_loadset_h5 import pop_loadset_h5
 from eegprep.utils.testing import DebuggableTestCase
-from eegprep.eeg_compare import eeg_compare
-from eegprep.popfunc.pop_loadset import pop_loadset
+from eegprep.functions.popfunc.eeg_compare import eeg_compare
+from eegprep.functions.popfunc.pop_loadset import pop_loadset
 
 class TestPopLoadsetH5(DebuggableTestCase):
     """Test cases for pop_loadset_h5 function."""
@@ -382,7 +382,7 @@ class TestPopLoadsetH5Parity(unittest.TestCase):
     def setUp(self):
         """Set up MATLAB connection for parity testing."""
         try:
-            from eegprep.eeglabcompat import get_eeglab
+            from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
             self.eeglab = get_eeglab('MAT')
             self.matlab_available = True
         except Exception as e:
@@ -394,13 +394,13 @@ class TestPopLoadsetH5Parity(unittest.TestCase):
         if not self.matlab_available:
             self.skipTest("MATLAB not available for parity testing")
 
-        filepath = 'data/eeglab_data_hdf5.set'
+        filepath = 'sample_data/eeglab_data_hdf5.set'
 
         # Load with Python
         py_eeg = pop_loadset_h5(filepath)
 
         # Load with MATLAB
-        data_dir = os.path.abspath('data')
+        data_dir = os.path.abspath('sample_data')
         ml_eeg = self.eeglab.pop_loadset('filename', 'eeglab_data_hdf5.set', 'filepath', data_dir)
 
         eeg_compare(py_eeg, ml_eeg)
@@ -410,13 +410,13 @@ class TestPopLoadsetH5Parity(unittest.TestCase):
         if not self.matlab_available:
             self.skipTest("MATLAB not available for parity testing")
 
-        filepath = 'data/eeglab_data_epochs_ica_hdf5.set'
+        filepath = 'sample_data/eeglab_data_epochs_ica_hdf5.set'
 
         # Load with Python
         py_eeg = pop_loadset_h5(filepath)
 
         # Load with MATLAB
-        data_dir = os.path.abspath('data')
+        data_dir = os.path.abspath('sample_data')
         ml_eeg = self.eeglab.pop_loadset('filename', 'eeglab_data_epochs_ica.set', 'filepath', data_dir)
 
         eeg_compare(py_eeg, ml_eeg)
@@ -426,7 +426,7 @@ class TestPopLoadsetH5RealData(unittest.TestCase):
 
     def test_load_continuous_data(self):
         """Test loading continuous EEG data."""
-        filepath = 'data/eeglab_data_hdf5.set'
+        filepath = 'sample_data/eeglab_data_hdf5.set'
 
         if not os.path.exists(filepath):
             self.skipTest(f"Test data file not found: {filepath}")
@@ -452,7 +452,7 @@ class TestPopLoadsetH5RealData(unittest.TestCase):
 
     def test_load_epoched_data(self):
         """Test loading epoched EEG data."""
-        filepath = 'data/eeglab_data_epochs_ica_hdf5.set'
+        filepath = 'sample_data/eeglab_data_epochs_ica_hdf5.set'
 
         if not os.path.exists(filepath):
             self.skipTest(f"Test data file not found: {filepath}")
@@ -478,7 +478,7 @@ class TestPopLoadsetH5RealData(unittest.TestCase):
 
     def test_chanlocs_structure(self):
         """Test channel locations structure."""
-        filepath = 'data/eeglab_data_hdf5.set'
+        filepath = 'sample_data/eeglab_data_hdf5.set'
 
         if not os.path.exists(filepath):
             self.skipTest(f"Test data file not found: {filepath}")
@@ -501,7 +501,7 @@ class TestPopLoadsetH5RealData(unittest.TestCase):
 
     def test_events_structure(self):
         """Test events structure for epoched data."""
-        filepath = 'data/eeglab_data_epochs_ica_hdf5.set'
+        filepath = 'sample_data/eeglab_data_epochs_ica_hdf5.set'
 
         if not os.path.exists(filepath):
             self.skipTest(f"Test data file not found: {filepath}")
@@ -524,7 +524,7 @@ class TestPopLoadsetH5RealData(unittest.TestCase):
 
     def test_ica_components(self):
         """Test ICA components structure."""
-        filepath = 'data/eeglab_data_epochs_ica_hdf5.set'
+        filepath = 'sample_data/eeglab_data_epochs_ica_hdf5.set'
 
         EEG = pop_loadset_h5(filepath)
 
@@ -546,14 +546,14 @@ class TestPopLoadsetH5RealData(unittest.TestCase):
                     self.assertLessEqual(len(EEG[field]), EEG['nbchan'])
 
     def test_compare_continuous_pop_loadset(self):
-        EEG1 = pop_loadset('data/eeglab_data.set')
-        EEG2 = pop_loadset_h5('data/eeglab_data_hdf5.set')
+        EEG1 = pop_loadset('sample_data/eeglab_data.set')
+        EEG2 = pop_loadset_h5('sample_data/eeglab_data_hdf5.set')
 
         eeg_compare(EEG1, EEG2)
 
     def test_compare_epochs_pop_loadset(self):
-        EEG1 = pop_loadset('data/eeglab_data_epochs_ica.set')
-        EEG2 = pop_loadset_h5('data/eeglab_data_epochs_ica_hdf5.set')
+        EEG1 = pop_loadset('sample_data/eeglab_data_epochs_ica.set')
+        EEG2 = pop_loadset_h5('sample_data/eeglab_data_epochs_ica_hdf5.set')
 
         eeg_compare(EEG1, EEG2)
 

@@ -17,15 +17,14 @@ Run commands from the EEGPrep repo root:
 git rev-parse --show-toplevel
 ```
 
-Use the current environment's Python, or set `PYTHON` to the interpreter for
-the active EEGPrep development environment:
+Use the uv-managed project environment by default:
 
 ```bash
-PYTHON=${PYTHON:-python}
-PYTHONPATH=src "$PYTHON" -m unittest tests.test_visual_parity
+uv run pytest tests/test_visual_parity.py
 ```
 
-If `uv` is available and the environment is already synced, these are equivalent:
+For repeated capture runs after the environment is synced, skip dependency
+resolution:
 
 ```bash
 uv run --no-sync python tools/visual_parity/capture.py --list
@@ -35,7 +34,7 @@ uv run --no-sync python tools/visual_parity/compare.py --case adjust_events_dial
 Install optional GUI dependencies before Python dialog capture:
 
 ```bash
-python -m pip install -e '.[gui]'
+uv sync --extra gui --group dev
 ```
 
 ## SCCN Server Fast Path
@@ -225,10 +224,10 @@ For an EEGLAB pop function such as `pop_adjustevents`:
 
 2. Keep the Python files simple and parallel to EEGLAB:
 
-   - Backend/API and dialog spec: `src/eegprep/popfunc/pop_<name>.py`
+   - Backend/API and dialog spec: `src/eegprep/functions/popfunc/pop_<name>.py`
    - Export: `src/eegprep/__init__.py`
-   - Shared GUI primitives: `src/eegprep/guifunc/spec.py`, `src/eegprep/guifunc/inputgui.py`, `src/eegprep/guifunc/qt.py`
-   - Visual capture entrypoint: `src/eegprep/guifunc/visual_capture.py`
+   - Shared GUI primitives: `src/eegprep/functions/guifunc/spec.py`, `src/eegprep/functions/guifunc/inputgui.py`, `src/eegprep/functions/guifunc/qt.py`
+   - Visual capture entrypoint: `src/eegprep/functions/guifunc/visual_capture.py`
    - Tests: `tests/test_pop_<name>.py`, `tests/test_gui_pop_<name>.py`, `tests/test_visual_parity.py`
 
 3. Make the dialog spec mirror EEGLAB's `uilist` and `uigeom`.
@@ -311,7 +310,7 @@ Add a case to `tools/visual_parity/cases.json`:
       "command": [
         "{python}",
         "-m",
-        "eegprep.guifunc.visual_capture",
+        "eegprep.functions.guifunc.visual_capture",
         "--case",
         "{case_id}",
         "--output",
@@ -390,10 +389,10 @@ When iterating, patch the smallest relevant layer:
 - Wrong behavior after clicking/editing: patch callbacks or backend parsing.
 - Wrong spacing/colors/button order/native widget shape: patch the Qt renderer.
 - MATLAB capture blank or missing: patch the generated MATLAB capture script.
-- Python capture blank or wrong state: patch `eegprep.guifunc.visual_capture`.
+- Python capture blank or wrong state: patch `eegprep.functions.guifunc.visual_capture`.
 - Import errors after file moves: fix the moved module imports before judging
-  screenshots. For example, after moving pop functions into `popfunc`, relative
-  imports such as `.utils` should usually become `eegprep.utils`.
+  screenshots. For example, after moving pop functions into `functions/popfunc`, relative
+  imports such as `.utils` should use the current EEGPrep package path for that helper.
 
 Treat pixel metrics as a smoke signal, not the final judge. A good dialog can
 still have differences from font rendering, antialiasing, native bevels, or OS
@@ -450,8 +449,8 @@ Run compile checks after editing GUI/capture code:
 
 ```bash
 PYTHONPATH=src "$PYTHON" -m compileall -q \
-  src/eegprep/popfunc/pop_adjustevents.py \
-  src/eegprep/guifunc \
+  src/eegprep/functions/popfunc/pop_adjustevents.py \
+  src/eegprep/functions/guifunc \
   tools/visual_parity \
   tests/test_pop_adjustevents.py \
   tests/test_gui_pop_adjustevents.py \

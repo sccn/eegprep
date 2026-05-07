@@ -54,7 +54,7 @@ except ImportError:
 SCRIPT_DIR = Path(__file__).parent
 PROJECT_ROOT = SCRIPT_DIR.parent
 PYPROJECT_PATH = PROJECT_ROOT / "pyproject.toml"
-MAIN_PATH = PROJECT_ROOT / "main"
+MAIN_PATH = PROJECT_ROOT / "tools" / "hpc" / "main.pbs"
 DIST_DIR = PROJECT_ROOT / "dist"
 DOCKERFILE_PATH = PROJECT_ROOT / "DOCKERFILE"
 
@@ -157,11 +157,11 @@ def set_package_name(new_name):
         return False
 
 
-def get_install_command():
+def get_install_command(package_name):
     """Determine the appropriate install command based on the environment."""
     if IS_UV_PROJECT and UV_AVAILABLE:
-        return "uv pip install"
-    return "pip install"
+        return "uv sync --group release"
+    return f"pip install {package_name}"
 
 
 def check_prerequisites():
@@ -177,8 +177,6 @@ def check_prerequisites():
         else:
             print_warning("uv is not available in PATH but project uses uv")
 
-    install_cmd = get_install_command()
-
     # Check if running on Windows
     if platform.system() == "Windows":
         print_warning("Running on Windows. This script is primarily tested on Linux/Mac.")
@@ -190,20 +188,20 @@ def check_prerequisites():
     # Check for build package
     if find_spec("build") is None:
         print_error("Package 'build' is not installed.")
-        print(f"Install with: {Fore.CYAN}{install_cmd} build{Style.RESET_ALL}")
+        print(f"Install with: {Fore.CYAN}{get_install_command('build')}{Style.RESET_ALL}")
         sys.exit(1)
     print_success("Package 'build' is installed")
 
     # Check for twine
     if find_spec("twine") is None:
         print_error("Package 'twine' is not installed.")
-        print(f"Install with: {Fore.CYAN}{install_cmd} twine{Style.RESET_ALL}")
+        print(f"Install with: {Fore.CYAN}{get_install_command('twine')}{Style.RESET_ALL}")
         sys.exit(1)
     print_success("Package 'twine' is installed")
 
     # Remind about tests
     print_info("Remember to run tests before releasing!")
-    print_info("  python -m unittest discover -s tests")
+    print_info("  uv run pytest tests")
 
 
 def get_new_version(current_version):
@@ -236,7 +234,7 @@ def update_version_in_file(file_path, old_version, new_version):
 
 
 def update_version_files(old_version, new_version):
-    """Update version in pyproject.toml and main file."""
+    """Update version in pyproject.toml and the HPC wrapper."""
     print_step(3, f"Updating version from {old_version} to {new_version}")
 
     # Update pyproject.toml
@@ -256,8 +254,8 @@ def update_version_files(old_version, new_version):
             return False
         print_success(f"Updated pyproject.toml")
 
-    # Update main file
-    print_info(f"Updating main file...")
+    # Update HPC wrapper
+    print_info(f"Updating HPC wrapper...")
     cmd = f"sed -i '' 's/eegprep:{old_version}/eegprep:{new_version}/g' {MAIN_PATH}"
     print(f"Running: {cmd}")
     try:
@@ -266,12 +264,12 @@ def update_version_files(old_version, new_version):
             cwd=PROJECT_ROOT,
             check=True
         )
-        print_success(f"Updated main file")
+        print_success(f"Updated HPC wrapper")
     except subprocess.CalledProcessError:
         # Fallback to Python method
         if not update_version_in_file(MAIN_PATH, f'eegprep:{old_version}', f'eegprep:{new_version}'):
             return False
-        print_success(f"Updated main file")
+        print_success(f"Updated HPC wrapper")
 
     return True
 
@@ -575,7 +573,7 @@ def print_test_instructions(version, release_type):
     if release_type in ['test', 'both']:
         print(f"{Fore.MAGENTA}To test the TestPyPI release:{Style.RESET_ALL}")
         print(f"{Fore.YELLOW}  NOTE: The test package is named '{TESTPYPI_PACKAGE_NAME}' on TestPyPI{Style.RESET_ALL}")
-        print(f"  pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ {TESTPYPI_PACKAGE_NAME}=={version}")
+        print(f"  uv pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ {TESTPYPI_PACKAGE_NAME}=={version}")
         print()
         print(f"{Fore.CYAN}  After installing, you can still import it as 'eegprep':{Style.RESET_ALL}")
         print(f"  python -c 'import eegprep; print(eegprep.__version__)'")
@@ -583,10 +581,10 @@ def print_test_instructions(version, release_type):
 
     if release_type in ['prod', 'both']:
         print(f"{Fore.MAGENTA}To test the PyPI release:{Style.RESET_ALL}")
-        print(f"  pip install eegprep=={version}")
+        print(f"  uv pip install eegprep=={version}")
         print()
         print(f"{Fore.MAGENTA}Or with all optional dependencies:{Style.RESET_ALL}")
-        print(f"  pip install eegprep[all]=={version}")
+        print(f"  uv pip install 'eegprep[all]=={version}'")
         print()
 
 
@@ -683,4 +681,3 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print(f"\n{Fore.YELLOW}Release cancelled by user.{Style.RESET_ALL}")
         sys.exit(1)
-

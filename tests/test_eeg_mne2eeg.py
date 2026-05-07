@@ -20,7 +20,7 @@ try:
 except ImportError:
     MNE_AVAILABLE = False
 
-from eegprep.eeg_mne2eeg import eeg_mne2eeg, _mne_events_to_eeglab_events
+from eegprep.functions.miscfunc.eeg_mne2eeg import eeg_mne2eeg, _mne_events_to_eeglab_events
 
 # Import fixtures - use absolute import to work with unittest discovery
 try:

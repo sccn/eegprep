@@ -14,7 +14,7 @@ import shutil
 
 # Add src to path for imports
 sys.path.insert(0, 'src')
-from eegprep.clean_artifacts import clean_artifacts
+from eegprep.plugins.clean_rawdata.clean_artifacts import clean_artifacts
 from eegprep.utils.testing import DebuggableTestCase
 
 
