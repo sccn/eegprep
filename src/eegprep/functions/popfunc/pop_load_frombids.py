@@ -874,7 +874,10 @@ def pop_load_frombids(
 
         # Determine montage path and files to check
         # Resources are now always in the package directory
-        montage_path = os.path.join(os.path.dirname(__file__), 'resources', 'montages')
+        # Resources live at the package root (src/eegprep/resources/), not
+        # next to this file which was moved during the EEGLAB-style reorg.
+        _pkg_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        montage_path = os.path.join(_pkg_root, 'resources', 'montages')
 
         if not os.path.isdir(montage_path):
             raise RuntimeError(
