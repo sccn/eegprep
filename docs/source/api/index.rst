@@ -112,6 +112,7 @@ Visualization
 .. autosummary::
    :toctree: generated/
 
+   eegprep.cart2topo
    eegprep.topoplot
 
 Format Conversion

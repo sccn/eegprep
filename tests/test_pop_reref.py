@@ -2,7 +2,7 @@
 Test suite for pop_reref.py with MATLAB parity validation.
 
 This module tests the pop_reref function which re-references EEG data
-to average reference (currently the only implemented option).
+to average reference or to explicit common-reference channels.
 """
 
 import os
@@ -167,25 +167,54 @@ class TestPopReref(DebuggableTestCase):
         for chan in result['chanlocs']:
             self.assertEqual(chan['ref'], 'average')
 
-    def test_error_non_empty_ref(self):
-        """Test error when ref is not None or empty list."""
-        EEG = self.create_test_eeg(nbchan=8, pnts=100)
+    def test_explicit_single_reference_removes_ref_by_default(self):
+        """Test common reference to a channel index."""
+        EEG = self.create_test_eeg(nbchan=4, pnts=20)
+        original_data = EEG['data'].copy()
 
-        # Test with string reference
-        with self.assertRaises(ValueError) as context:
-            pop_reref(EEG, ref='Cz')
-        self.assertIn('Feature not implemented', str(context.exception))
-        self.assertIn('must be empty or None', str(context.exception))
+        result = pop_reref(EEG, ref=1)
 
-        # Test with list of channels
-        with self.assertRaises(ValueError) as context:
-            pop_reref(EEG, ref=['Cz', 'FCz'])
-        self.assertIn('Feature not implemented', str(context.exception))
+        expected = original_data - original_data[1:2, :, :]
+        expected = np.delete(expected, 1, axis=0)
+        if expected.ndim == 3 and expected.shape[2] == 1:
+            expected = np.squeeze(expected, axis=2)
+        np.testing.assert_allclose(result['data'], expected, rtol=1e-6)
+        self.assertEqual(result['nbchan'], 3)
+        self.assertEqual([chan['labels'] for chan in result['chanlocs']], ['Ch1', 'Ch3', 'Ch4'])
+        self.assertEqual(result['ref'], 'common')
+        self.assertEqual(result['chaninfo']['removedchans'][0]['labels'], 'Ch2')
 
-        # Test with integer reference
-        with self.assertRaises(ValueError) as context:
-            pop_reref(EEG, ref=1)
-        self.assertIn('Feature not implemented', str(context.exception))
+    def test_explicit_reference_label_keepref(self):
+        """Test common reference to a channel label while keeping the reference row."""
+        EEG = self.create_test_eeg(nbchan=4, pnts=20)
+        original_data = EEG['data'].copy()
+
+        result = pop_reref(EEG, ref='Ch2', keepref='on')
+
+        expected = original_data - original_data[1:2, :, :]
+        if expected.ndim == 3 and expected.shape[2] == 1:
+            expected = np.squeeze(expected, axis=2)
+        np.testing.assert_allclose(result['data'], expected, rtol=1e-6)
+        self.assertEqual(result['nbchan'], 4)
+        np.testing.assert_allclose(result['data'][1], 0, atol=1e-6)
+        for chan in result['chanlocs']:
+            self.assertEqual(chan['ref'], 'Ch2')
+
+    def test_average_reference_exclude_leaves_excluded_channel_unchanged(self):
+        """Test average reference with excluded channels."""
+        EEG = self.create_test_eeg(nbchan=4, pnts=20)
+        original_data = EEG['data'].copy()
+
+        result = pop_reref(EEG, ref=[], exclude=[3])
+
+        mean_included = original_data[:3].mean(axis=0)
+        expected = original_data.copy()
+        expected[:3] = expected[:3] - mean_included
+        if expected.ndim == 3 and expected.shape[2] == 1:
+            expected = np.squeeze(expected, axis=2)
+        np.testing.assert_allclose(result['data'], expected, rtol=1e-6)
+        np.testing.assert_allclose(result['data'][3], np.squeeze(original_data[3], axis=-1), rtol=1e-6)
+        self.assertNotEqual(result['chanlocs'][3].get('ref'), 'average')
 
     def test_error_icachansind_mismatch(self):
         """Test behavior when icachansind length doesn't match nbchan."""

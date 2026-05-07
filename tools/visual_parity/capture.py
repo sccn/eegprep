@@ -243,6 +243,96 @@ def _write_matlab_adjustevents_dialog_script(case: VisualCase, output_path: path
     return script_path
 
 
+def _write_matlab_reref_dialog_script(case: VisualCase, output_path: pathlib.Path) -> pathlib.Path:
+    eeglab_root = REPO_ROOT / "src" / "eegprep" / "eeglab"
+    script_path = output_path.parent / f"{case.id}_eeglab_capture.m"
+    script_path.write_text(
+        "\n".join(
+            [
+                "function eegprep_visual_capture()",
+                "capture_timer = [];",
+                "try",
+                f"output_file = {_matlab_string(output_path)};",
+                f"eeglab_root = {_matlab_string(eeglab_root)};",
+                "addpath(genpath(eeglab_root));",
+                "set(0, 'DefaultFigureVisible', 'on');",
+                "EEG = eeg_emptyset;",
+                "EEG.setname = 'reref demo';",
+                "EEG.nbchan = 4;",
+                "EEG.pnts = 1000;",
+                "EEG.trials = 1;",
+                "EEG.srate = 250;",
+                "EEG.xmin = 0;",
+                "EEG.xmax = (EEG.pnts-1)/EEG.srate;",
+                "EEG.data = zeros(4, EEG.pnts);",
+                "EEG.chanlocs = struct( ...",
+                "    'labels', {'Fp1', 'Fp2', 'Cz', 'Oz'}, ...",
+                "    'ref', {'common', 'common', 'common', 'common'}, ...",
+                "    'theta', {-18, 18, 0, 180}, ...",
+                "    'radius', {0.42, 0.42, 0, 0.42});",
+                "EEG.chaninfo = struct();",
+                "EEG.chaninfo.nodatchans = struct('labels', {'M1'}, 'theta', {-90}, 'radius', {0.5});",
+                "EEG.ref = 'common';",
+                "EEG.icaweights = [];",
+                "EEG.icasphere = [];",
+                "EEG.icawinv = [];",
+                "EEG.icaact = [];",
+                "EEG.icachansind = [];",
+                "capture_timer = timer( ...",
+                "    'ExecutionMode', 'fixedSpacing', ...",
+                "    'Period', 0.5, ...",
+                "    'StartDelay', 0.5, ...",
+                "    'UserData', output_file, ...",
+                "    'TimerFcn', @capture_pop_reref_dialog);",
+                "start(capture_timer);",
+                "[EEG, com] = pop_reref(EEG);",
+                "if exist(output_file, 'file') ~= 2",
+                "    error('visual parity capture did not create %s', output_file);",
+                "end",
+                "try, stop(capture_timer); delete(capture_timer); catch, end",
+                "exit(0);",
+                "catch ME",
+                "try, if ~isempty(capture_timer), stop(capture_timer); delete(capture_timer); end, catch, end",
+                "disp(getReport(ME, 'extended'));",
+                "exit(1);",
+                "end",
+                "end",
+                "",
+                "function capture_pop_reref_dialog(timer_obj, ~)",
+                "output_file = get(timer_obj, 'UserData');",
+                "fig = findall(0, 'Type', 'figure', 'Name', 'pop_reref - average reference or re-reference data');",
+                "if isempty(fig)",
+                "    figs = findall(0, 'Type', 'figure');",
+                "    for idx = 1:length(figs)",
+                "        fig_name = get(figs(idx), 'Name');",
+                "        if contains(fig_name, 'pop_reref') || contains(fig_name, 'reference')",
+                "            fig = figs(idx);",
+                "            break;",
+                "        end",
+                "    end",
+                "end",
+                "if isempty(fig), return; end",
+                "fig = fig(1);",
+                "ok_button = findobj('parent', fig, 'tag', 'ok');",
+                "if isempty(ok_button), return; end",
+                "set(fig, 'Units', 'pixels');",
+                "drawnow;",
+                "pause(0.2);",
+                "write_figure_capture(fig, output_file);",
+                "set(ok_button, 'userdata', 'retuninginputui');",
+                "stop(timer_obj);",
+                "delete(timer_obj);",
+                "end",
+                "",
+                *_matlab_capture_helper(),
+                "eegprep_visual_capture();",
+                "",
+            ]
+        )
+    )
+    return script_path
+
+
 def _run_subprocess(
     target_name: str,
     output_path: pathlib.Path,
@@ -315,7 +405,7 @@ def capture_target(
         script_path = _write_matlab_figure_script(case, target, output_path)
         command = [matlab_executable, "-nosplash", "-nodesktop", "-r", _matlab_run_expression(script_path)]
     elif target.type == "matlab_dialog" and target_name == "eeglab":
-        if target.action != "pop_adjustevents":
+        if target.action not in {"pop_adjustevents", "pop_reref"}:
             return CaptureResult(
                 target_name,
                 output_path,
@@ -331,7 +421,10 @@ def capture_target(
                 127,
                 stderr=f"MATLAB executable not found: {matlab_executable}",
             )
-        script_path = _write_matlab_adjustevents_dialog_script(case, output_path)
+        if target.action == "pop_adjustevents":
+            script_path = _write_matlab_adjustevents_dialog_script(case, output_path)
+        else:
+            script_path = _write_matlab_reref_dialog_script(case, output_path)
         command = [matlab_executable, "-nosplash", "-nodesktop", "-r", _matlab_run_expression(script_path)]
     else:
         if not target.command:

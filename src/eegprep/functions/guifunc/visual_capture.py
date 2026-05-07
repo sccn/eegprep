@@ -10,6 +10,7 @@ import numpy as np
 
 from eegprep.functions.guifunc.qt import QtDialogRenderer
 from eegprep.functions.popfunc.pop_adjustevents import pop_adjustevents_dialog_spec
+from eegprep.functions.popfunc.pop_reref import pop_reref_dialog_spec
 
 
 def _demo_eeg() -> dict:
@@ -26,6 +27,27 @@ def _demo_eeg() -> dict:
             {"type": "resp", "latency": 350.0},
             {"type": "boundary", "latency": 500.5, "duration": 20.0},
         ],
+    }
+
+
+def _demo_reref_eeg() -> dict:
+    chanlocs = [
+        {"labels": "Fp1", "ref": "common", "theta": -18.0, "radius": 0.42},
+        {"labels": "Fp2", "ref": "common", "theta": 18.0, "radius": 0.42},
+        {"labels": "Cz", "ref": "common", "theta": 0.0, "radius": 0.0},
+        {"labels": "Oz", "ref": "common", "theta": 180.0, "radius": 0.42},
+    ]
+    return {
+        "data": np.zeros((4, 1000), dtype=np.float32),
+        "nbchan": 4,
+        "pnts": 1000,
+        "trials": 1,
+        "srate": 250.0,
+        "xmin": 0.0,
+        "xmax": 3.996,
+        "chanlocs": chanlocs,
+        "chaninfo": {"nodatchans": [{"labels": "M1", "theta": -90.0, "radius": 0.5}]},
+        "ref": "common",
     }
 
 
@@ -47,16 +69,35 @@ def capture_adjust_events_dialog(output: pathlib.Path) -> None:
     app.processEvents()
 
 
+def capture_reref_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_reref dialog."""
+    eeg = _demo_reref_eeg()
+    spec = pop_reref_dialog_spec("common")
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    dialog.show()
+    dialog.raise_()
+    app.processEvents()
+    pixmap = dialog.grab()
+    output.parent.mkdir(parents=True, exist_ok=True)
+    if not pixmap.save(str(output), "PNG"):
+        raise RuntimeError(f"failed to save screenshot: {output}")
+    dialog.close()
+    app.processEvents()
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--case", required=True)
     parser.add_argument("--output", required=True, type=pathlib.Path)
     args = parser.parse_args(argv)
 
-    if args.case != "adjust_events_dialog":
+    if args.case == "adjust_events_dialog":
+        capture_adjust_events_dialog(args.output)
+    elif args.case == "reref_dialog":
+        capture_reref_dialog(args.output)
+    else:
         parser.error(f"unsupported EEGPrep visual capture case: {args.case}")
-
-    capture_adjust_events_dialog(args.output)
     return 0
 
 

@@ -28,6 +28,8 @@ class VisualParityConfigTests(unittest.TestCase):
         self.assertIn("adjust_events_dialog", cases)
         self.assertEqual(cases["adjust_events_dialog"].targets["eeglab"].type, "matlab_dialog")
         self.assertIn("eegprep.functions.guifunc.visual_capture", cases["adjust_events_dialog"].targets["eegprep"].command)
+        self.assertIn("reref_dialog", cases)
+        self.assertEqual(cases["reref_dialog"].targets["eeglab"].action, "pop_reref")
 
 
 class VisualParityCaptureTests(unittest.TestCase):

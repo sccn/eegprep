@@ -44,6 +44,31 @@
       }
     },
     {
+      "id": "reref_dialog",
+      "description": "Average/common reference dialog opened from pop_reref.",
+      "window_size": [616, 281],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_reref"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "reref_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
       "id": "file_menu",
       "description": "Top-level File menu opened from the main window.",
       "targets": {

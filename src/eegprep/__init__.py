@@ -22,6 +22,7 @@ from .functions.adminfunc.eeg_checkset import eeg_checkset, strict_mode as eeg_c
 from .functions.adminfunc.eeglabcompat import pop_eegfiltnew
 from .functions.adminfunc.eeglabcompat import clean_artifacts as eeglab_clean_artifacts
 from .plugins.ICLabel.ICL_feature_extractor import ICL_feature_extractor
+from .functions.sigprocfunc.cart2topo import cart2topo
 from .functions.sigprocfunc.topoplot import topoplot
 from .plugins.ICLabel.eeg_rpsd import eeg_rpsd
 from .plugins.ICLabel.eeg_autocorr_welch import eeg_autocorr_welch
