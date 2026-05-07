@@ -1,3 +1,7 @@
+.claude/settings.local.json
+.context/
+.coveragerc
+
 # Python
 # Byte-compiled / optimized / DLL files
 __pycache__/
