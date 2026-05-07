@@ -234,6 +234,10 @@ def clean_artifacts(
     BUR = EEG  # default in case ASR is skipped
     if BurstCriterion not in (None, 'off'):
         logger.info('Applying ASR burst repair...')
+        # Save original data before clean_asr modifies EEG in place.
+        # MATLAB passes structs by value so the caller's EEG retains the
+        # original data, but Python dicts are passed by reference.
+        original_data = EEG['data'].copy() if BurstRejection else None
         try:
             BUR = clean_asr(
                 EEG,
@@ -257,9 +261,11 @@ def clean_artifacts(
             )
 
         if BurstRejection:
-            # Determine unchanged samples after ASR repair
-            sample_mask = np.sum(np.abs(EEG['data'] - BUR['data']), axis=0) < 1e-8
-            # Convert to intervals (start,end) inclusive
+            # Determine unchanged samples: compare original (pre-ASR) with repaired.
+            # Use original_data saved before clean_asr modified EEG['data'] in place.
+            sample_mask = np.sum(np.abs(original_data - BUR['data']), axis=0) < 1e-8
+            del original_data
+            # Convert to intervals (start,end) inclusive, 0-based
             padded = np.concatenate([[False], sample_mask, [False]])
             diff = np.diff(padded.astype(int))
             starts = np.where(diff == 1)[0]
@@ -277,7 +283,8 @@ def clean_artifacts(
             # Apply selection to EEG
             try:
                 from eegprep import pop_select  # type: ignore
-                EEG = pop_select(EEG, point=retain_intervals)
+                # Convert to 1-based indexing (MATLAB convention) for pop_select
+                EEG = pop_select(EEG, point=retain_intervals + 1)
             except Exception:
                 # Manual trimming
                 EEG['data'] = EEG['data'][:, sample_mask]
