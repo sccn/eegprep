@@ -30,6 +30,8 @@ class VisualParityConfigTests(unittest.TestCase):
         self.assertIn("eegprep.functions.guifunc.visual_capture", cases["adjust_events_dialog"].targets["eegprep"].command)
         self.assertIn("reref_dialog", cases)
         self.assertEqual(cases["reref_dialog"].targets["eeglab"].action, "pop_reref")
+        self.assertIn("pop_chansel_dialog", cases)
+        self.assertEqual(cases["pop_chansel_dialog"].targets["eeglab"].action, "pop_chansel")
 
 
 class VisualParityCaptureTests(unittest.TestCase):
@@ -118,6 +120,30 @@ class VisualParityCaptureTests(unittest.TestCase):
             script_text = next((tmp_path / "adjust_events_dialog").glob("*.m")).read_text()
             self.assertIn("pop_adjustevents(EEG)", script_text)
             self.assertIn("capture_pop_adjustevents_dialog", script_text)
+
+    def test_matlab_dialog_capture_generates_pop_chansel_script(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = pathlib.Path(tmpdir)
+            case = load_manifest()["pop_chansel_dialog"]
+            captured_command = []
+
+            def fake_run_subprocess(target_name, output_path, command, env, timeout_seconds):
+                captured_command.extend(command)
+                output_path.write_bytes(base64.b64decode(ONE_PIXEL_PNG))
+                return CaptureResult(target_name, output_path, command, 0)
+
+            with (
+                mock.patch("tools.visual_parity.capture.shutil.which", return_value="/usr/common/bin/matlab"),
+                mock.patch("tools.visual_parity.capture._run_subprocess", side_effect=fake_run_subprocess),
+            ):
+                results = capture_case(case, "eeglab", output_dir=tmp_path)
+
+            self.assertTrue(results[0].ok)
+            self.assertIn("-nosplash", captured_command)
+            self.assertNotIn("-batch", captured_command)
+            script_text = next((tmp_path / "pop_chansel_dialog").glob("*.m")).read_text()
+            self.assertIn("pop_chansel({'Fp1', 'Fp2', 'Cz', 'Oz'}, 'withindex', 'on')", script_text)
+            self.assertIn("capture_pop_chansel_dialog", script_text)
 
 
 class VisualParityCompareTests(unittest.TestCase):

@@ -69,6 +69,31 @@
       }
     },
     {
+      "id": "pop_chansel_dialog",
+      "description": "Channel selection dialog opened from pop_chansel/listdlg2.",
+      "window_size": [300, 195],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_chansel"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_chansel_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
       "id": "file_menu",
       "description": "Top-level File menu opened from the main window.",
       "targets": {

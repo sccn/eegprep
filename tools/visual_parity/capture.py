@@ -333,6 +333,66 @@ def _write_matlab_reref_dialog_script(case: VisualCase, output_path: pathlib.Pat
     return script_path
 
 
+def _write_matlab_pop_chansel_dialog_script(case: VisualCase, output_path: pathlib.Path) -> pathlib.Path:
+    eeglab_root = REPO_ROOT / "src" / "eegprep" / "eeglab"
+    script_path = output_path.parent / f"{case.id}_eeglab_capture.m"
+    script_path.write_text(
+        "\n".join(
+            [
+                "function eegprep_visual_capture()",
+                "capture_timer = [];",
+                "try",
+                f"output_file = {_matlab_string(output_path)};",
+                f"eeglab_root = {_matlab_string(eeglab_root)};",
+                "addpath(genpath(eeglab_root));",
+                "set(0, 'DefaultFigureVisible', 'on');",
+                "capture_timer = timer( ...",
+                "    'ExecutionMode', 'fixedSpacing', ...",
+                "    'Period', 0.5, ...",
+                "    'StartDelay', 0.5, ...",
+                "    'UserData', output_file, ...",
+                "    'TimerFcn', @capture_pop_chansel_dialog);",
+                "start(capture_timer);",
+                "[chanlist, chanliststr, allchanstr] = pop_chansel({'Fp1', 'Fp2', 'Cz', 'Oz'}, 'withindex', 'on');",
+                "if exist(output_file, 'file') ~= 2",
+                "    error('visual parity capture did not create %s', output_file);",
+                "end",
+                "try, stop(capture_timer); delete(capture_timer); catch, end",
+                "exit(0);",
+                "catch ME",
+                "try, if ~isempty(capture_timer), stop(capture_timer); delete(capture_timer); end, catch, end",
+                "disp(getReport(ME, 'extended'));",
+                "exit(1);",
+                "end",
+                "end",
+                "",
+                "function capture_pop_chansel_dialog(timer_obj, ~)",
+                "output_file = get(timer_obj, 'UserData');",
+                "listbox = findobj(0, 'tag', 'listboxvals');",
+                "if isempty(listbox), return; end",
+                "fig = ancestor(listbox(1), 'figure');",
+                "if isempty(fig), return; end",
+                "set(fig, 'Units', 'pixels');",
+                "drawnow;",
+                "pause(0.2);",
+                "write_figure_capture(fig, output_file);",
+                "set(fig, 'userdata', 'cancel');",
+                "drawnow;",
+                "pause(0.1);",
+                "try, close(fig); catch, end",
+                "stop(timer_obj);",
+                "delete(timer_obj);",
+                "end",
+                "",
+                *_matlab_capture_helper(),
+                "eegprep_visual_capture();",
+                "",
+            ]
+        )
+    )
+    return script_path
+
+
 def _run_subprocess(
     target_name: str,
     output_path: pathlib.Path,
@@ -405,7 +465,7 @@ def capture_target(
         script_path = _write_matlab_figure_script(case, target, output_path)
         command = [matlab_executable, "-nosplash", "-nodesktop", "-r", _matlab_run_expression(script_path)]
     elif target.type == "matlab_dialog" and target_name == "eeglab":
-        if target.action not in {"pop_adjustevents", "pop_reref"}:
+        if target.action not in {"pop_adjustevents", "pop_chansel", "pop_reref"}:
             return CaptureResult(
                 target_name,
                 output_path,
@@ -423,6 +483,8 @@ def capture_target(
             )
         if target.action == "pop_adjustevents":
             script_path = _write_matlab_adjustevents_dialog_script(case, output_path)
+        elif target.action == "pop_chansel":
+            script_path = _write_matlab_pop_chansel_dialog_script(case, output_path)
         else:
             script_path = _write_matlab_reref_dialog_script(case, output_path)
         command = [matlab_executable, "-nosplash", "-nodesktop", "-r", _matlab_run_expression(script_path)]

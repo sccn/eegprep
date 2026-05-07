@@ -9,7 +9,9 @@ import sys
 import numpy as np
 
 from eegprep.functions.guifunc.qt import QtDialogRenderer
+from eegprep.functions.guifunc.listdlg2 import build_listdlg2_dialog
 from eegprep.functions.popfunc.pop_adjustevents import pop_adjustevents_dialog_spec
+from eegprep.functions.popfunc.pop_chansel import pop_chansel_display_values
 from eegprep.functions.popfunc.pop_reref import pop_reref_dialog_spec
 
 
@@ -86,6 +88,26 @@ def capture_reref_dialog(output: pathlib.Path) -> None:
     app.processEvents()
 
 
+def capture_pop_chansel_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_chansel/listdlg2 channel picker."""
+    labels = ["Fp1", "Fp2", "Cz", "Oz"]
+    display_values = pop_chansel_display_values(labels, withindex="on")
+    app, dialog = build_listdlg2_dialog(
+        promptstring="(use shift|Ctrl to\nselect several)",
+        liststring=display_values,
+        selectionmode="multiple",
+    )
+    dialog.show()
+    dialog.raise_()
+    app.processEvents()
+    pixmap = dialog.grab()
+    output.parent.mkdir(parents=True, exist_ok=True)
+    if not pixmap.save(str(output), "PNG"):
+        raise RuntimeError(f"failed to save screenshot: {output}")
+    dialog.close()
+    app.processEvents()
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--case", required=True)
@@ -96,6 +118,8 @@ def main(argv: list[str] | None = None) -> int:
         capture_adjust_events_dialog(args.output)
     elif args.case == "reref_dialog":
         capture_reref_dialog(args.output)
+    elif args.case == "pop_chansel_dialog":
+        capture_pop_chansel_dialog(args.output)
     else:
         parser.error(f"unsupported EEGPrep visual capture case: {args.case}")
     return 0

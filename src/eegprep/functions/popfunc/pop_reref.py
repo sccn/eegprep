@@ -152,9 +152,6 @@ def pop_reref_dialog_spec(
         geometry=geometry,
         size=(616, 281),
         help_text="pophelp('pop_reref')",
-        known_differences=(
-            "Channel browser buttons use Python callbacks; original MATLAB callback intent is kept as metadata.",
-        ),
         controls=(
             ControlSpec("text", f"Current data reference state is: {current_ref}"),
             ControlSpec(

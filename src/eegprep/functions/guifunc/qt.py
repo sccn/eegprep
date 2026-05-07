@@ -311,39 +311,21 @@ class QtDialogRenderer:
 
     @staticmethod
     def _select_channels(button: Any, target: Any, params: Mapping[str, Any]) -> None:
-        from PySide6 import QtCore, QtWidgets
+        from eegprep.functions.popfunc.pop_chansel import pop_chansel
 
         channels = [str(value) for value in params.get("channels", ())]
         if channels:
-            dialog = QtWidgets.QDialog(button)
-            dialog.setWindowTitle("Select channels")
-            layout = QtWidgets.QVBoxLayout(dialog)
-            prompt = params.get("prompt", "(use shift|Ctrl to\nselect several)")
-            layout.addWidget(QtWidgets.QLabel(str(prompt)))
-            list_widget = QtWidgets.QListWidget()
-            selection_mode = str(params.get("selectionmode", "multiple")).lower()
-            if selection_mode == "single":
-                list_widget.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
-            else:
-                list_widget.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
-            current = set(target.text().strip().split())
-            for index, label in enumerate(channels, start=1):
-                item = QtWidgets.QListWidgetItem(f"{index}  -  {label}")
-                item.setData(QtCore.Qt.UserRole, label)
-                if label in current:
-                    item.setSelected(True)
-                list_widget.addItem(item)
-            layout.addWidget(list_widget)
-            buttons = QtWidgets.QDialogButtonBox(
-                QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
+            _chanlist, value, _allchanstr = pop_chansel(
+                channels,
+                withindex="on",
+                select=target.text().strip(),
+                selectionmode=str(params.get("selectionmode", "multiple")),
+                parent=button,
             )
-            buttons.accepted.connect(dialog.accept)
-            buttons.rejected.connect(dialog.reject)
-            layout.addWidget(buttons)
-            accepted = dialog.exec() == QtWidgets.QDialog.Accepted
-            selected = [item.data(QtCore.Qt.UserRole) for item in list_widget.selectedItems()]
-            value = " ".join(selected)
+            accepted = bool(value)
         else:
+            from PySide6 import QtWidgets
+
             value, accepted = QtWidgets.QInputDialog.getText(
                 button,
                 "Select channel",
@@ -379,11 +361,9 @@ class QtDialogRenderer:
 
     @staticmethod
     def _show_help(QtWidgets: Any, dialog: Any, spec: DialogSpec) -> None:
-        QtWidgets.QMessageBox.information(
-            dialog,
-            f"{spec.function_name} help",
-            spec.help_text or spec.function_name,
-        )
+        from eegprep.functions.guifunc.pophelp import pophelp
+
+        dialog._eegprep_help_dialog = pophelp(spec.help_text or spec.function_name, parent=dialog)
 
     @staticmethod
     def _read_widget(widget: Any) -> Any:

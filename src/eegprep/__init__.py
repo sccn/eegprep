@@ -18,6 +18,7 @@ from .functions.popfunc.pop_epoch import pop_epoch
 from .functions.popfunc.pop_resample import pop_resample
 from .functions.popfunc.pop_rmbase import pop_rmbase
 from .functions.popfunc.pop_select import pop_select
+from .functions.popfunc.pop_chansel import pop_chansel
 from .functions.adminfunc.eeg_checkset import eeg_checkset, strict_mode as eeg_checkset_strict_mode
 from .functions.adminfunc.eeglabcompat import pop_eegfiltnew
 from .functions.adminfunc.eeglabcompat import clean_artifacts as eeglab_clean_artifacts
