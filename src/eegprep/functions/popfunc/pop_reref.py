@@ -30,8 +30,20 @@ def pop_reref(EEG, ref):
     if ref is not None and ref != []:
         raise ValueError('Feature not implemented: The ref parameter must be empty or None')
 
-    # Subtract mean from EEG data using broadcasting in NumPy
-    EEG['data'] = EEG['data'] - np.mean(EEG['data'], axis=0)
+    # Average re-reference using matrix multiplication, matching MATLAB's
+    # reref.m: refmatrix = eye(n) - ones(n)/n; data = refmatrix * data.
+    # This produces numerically closer results to MATLAB than the algebraically
+    # equivalent data - mean(data) because the float32 accumulation order in
+    # matrix multiplication matches MATLAB's BLAS path, while np.mean uses
+    # pairwise summation which diverges enough to cascade through nonlinear
+    # downstream operations like ASR calibration.
+    data = EEG['data']
+    n = data.shape[0]
+    dtype = data.dtype
+    orig_shape = data.shape
+    refmatrix = np.eye(n, dtype=dtype) - np.ones((n, n), dtype=dtype) / dtype.type(n)
+    # MATLAB's reref.m reshapes 3-D data to 2-D before the multiply
+    EEG['data'] = (refmatrix @ data.reshape(n, -1)).reshape(orig_shape)
 
     # Check if the number of channels in EEG['icachansind'] is the same as the number of channels in EEG['nbchan']
     if len(EEG['icachansind']) and (len(EEG['icachansind']) != EEG['nbchan']):
