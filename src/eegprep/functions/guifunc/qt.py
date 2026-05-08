@@ -60,7 +60,10 @@ class QtDialogRenderer:
         dialog.setWindowTitle(spec.title)
         self._apply_eeglab_style(dialog)
         layout = QtWidgets.QGridLayout(dialog)
-        layout.setContentsMargins(42, 17, 42, 13)
+        if spec.function_name == "pop_interp":
+            layout.setContentsMargins(23, 14, 25, 13)
+        else:
+            layout.setContentsMargins(42, 17, 42, 13)
         layout.setHorizontalSpacing(8)
         layout.setVerticalSpacing(4)
 
@@ -102,7 +105,7 @@ class QtDialogRenderer:
                 color: #000066;
                 font-size: 16px;
             }
-            QLabel, QCheckBox, QPushButton, QLineEdit {
+            QLabel, QCheckBox, QPushButton, QLineEdit, QComboBox {
                 font-size: 16px;
             }
             QLabel, QCheckBox {
@@ -119,6 +122,15 @@ class QtDialogRenderer:
                 margin-left: 1px;
                 padding: 0 3px;
             }
+            QComboBox {
+                background: white;
+                border: 1px solid #7f7f7f;
+                min-width: 217px;
+                max-width: 217px;
+                min-height: 20px;
+                max-height: 20px;
+                color: #000066;
+            }
             QPushButton {
                 background: #eeeeee;
                 border: 1px solid #7f7f7f;
@@ -129,6 +141,9 @@ class QtDialogRenderer:
                 padding: 0 10px;
                 color: #000066;
             }
+            QPushButton:disabled {
+                color: #b0b0b0;
+            }
             QPushButton#events_button {
                 min-width: 130px;
                 max-width: 130px;
@@ -137,6 +152,23 @@ class QtDialogRenderer:
                 min-width: 33px;
                 max-width: 33px;
                 padding: 0;
+            }
+            QPushButton#interp_nondatchan,
+            QPushButton#interp_removedchans,
+            QPushButton#interp_datchan,
+            QPushButton#interp_selectchan,
+            QPushButton#interp_uselist {
+                min-width: 434px;
+                max-width: 434px;
+                padding: 0;
+            }
+            QDialog#pop_interp QPushButton {
+                padding: 0;
+            }
+            QDialog#pop_interp QLineEdit,
+            QDialog#pop_interp QComboBox {
+                min-width: 198px;
+                max-width: 198px;
             }
             QDialog#pop_reref QLineEdit {
                 min-width: 163px;
@@ -240,6 +272,15 @@ class QtDialogRenderer:
         elif style == "checkbox":
             widget = QtWidgets.QCheckBox(control.string)
             widget.setChecked(bool(value))
+        elif style == "popupmenu":
+            widget = QtWidgets.QComboBox()
+            widget.addItems([item.strip() for item in control.string.split("|")])
+            try:
+                index = int(value) - 1
+            except (TypeError, ValueError):
+                index = 0
+            if 0 <= index < widget.count():
+                widget.setCurrentIndex(index)
         elif style == "spacer":
             widget = QtWidgets.QWidget()
         else:
@@ -277,6 +318,10 @@ class QtDialogRenderer:
         elif callback.name == "set_reref_mode":
             source = widgets[params["source"]]
             source.toggled.connect(lambda checked: self._set_reref_mode(widgets, params["mode"], checked))
+        elif callback.name == "select_interp_channels":
+            button = widgets[params["button"]]
+            target = widgets[params["target"]]
+            button.clicked.connect(lambda: self._select_interp_channels(button, target, params))
 
     @staticmethod
     def _sync_numeric(source: Any, target: Any, multiplier: float) -> None:
@@ -326,6 +371,10 @@ class QtDialogRenderer:
         else:
             from PySide6 import QtWidgets
 
+            no_channels_message = str(params.get("no_channels_message", "")).strip()
+            if no_channels_message:
+                QtWidgets.QMessageBox.warning(button, "Warning", no_channels_message)
+                return
             value, accepted = QtWidgets.QInputDialog.getText(
                 button,
                 "Select channel",
@@ -334,6 +383,85 @@ class QtDialogRenderer:
         if not accepted or not value:
             return
         target.setText(value.strip())
+
+    @staticmethod
+    def _select_interp_channels(button: Any, target: Any, params: Mapping[str, Any]) -> None:
+        from PySide6 import QtWidgets
+
+        from eegprep.functions.popfunc.pop_chansel import pop_chansel
+
+        source = str(params.get("source", "")).lower()
+        chanlocs = [dict(chan) for chan in params.get("chanlocs", ())]
+        removedchans = [dict(chan) for chan in params.get("removedchans", ())]
+        alleeg = [dict(eeg) for eeg in params.get("alleeg", ())]
+
+        if source in {"removedchans", "nondatchan"}:
+            labels = [str(chan.get("labels", "")) for chan in removedchans]
+            chanlist, chanliststr, _allchanstr = pop_chansel(labels, parent=button)
+            if not chanlist:
+                return
+            selected = [removedchans[index - 1] for index in chanlist]
+            chanstr = "EEG.chaninfo.removedchans([" + " ".join(str(index) for index in chanlist) + "])"
+            QtDialogRenderer._store_interp_selection(target, selected, chanstr, chanliststr)
+            return
+
+        if source == "datchan":
+            labels = [str(chan.get("labels", "")) for chan in chanlocs]
+            chanlist, chanliststr, _allchanstr = pop_chansel(labels, parent=button)
+            if not chanlist:
+                return
+            selected = [index - 1 for index in chanlist]
+            chanstr = "[" + " ".join(str(index - 1) for index in chanlist) + "]"
+            QtDialogRenderer._store_interp_selection(target, selected, chanstr, chanliststr)
+            return
+
+        dataset_index, accepted = QtWidgets.QInputDialog.getInt(
+            button,
+            "Choose dataset",
+            "Dataset index",
+            1,
+            1,
+            max(1, len(alleeg)),
+        )
+        if not accepted:
+            return
+        if dataset_index < 1 or dataset_index > len(alleeg):
+            QtWidgets.QMessageBox.warning(button, "Warning", "Wrong index")
+            return
+
+        other = alleeg[dataset_index - 1]
+        other_chanlocs = [dict(chan) for chan in other.get("chanlocs", ())]
+        if source == "selectchan":
+            labels = [str(chan.get("labels", "")) for chan in other_chanlocs]
+            chanlist, _chanliststr, _allchanstr = pop_chansel(labels, parent=button)
+        else:
+            chanlist = list(range(1, len(other_chanlocs) + 1))
+        if not chanlist:
+            return
+
+        current_labels = {str(chan.get("labels", "")).lower() for chan in chanlocs}
+        selected_indices = [
+            index for index in chanlist
+            if str(other_chanlocs[index - 1].get("labels", "")).lower() not in current_labels
+        ]
+        if not selected_indices:
+            QtWidgets.QMessageBox.warning(button, "Warning", "No new channels selected")
+            return
+
+        if len(chanlist) == len(other_chanlocs):
+            selected = other_chanlocs
+            chanstr = f"ALLEEG({dataset_index}).chanlocs"
+        else:
+            selected_indices = sorted(selected_indices)
+            selected = [other_chanlocs[index - 1] for index in selected_indices]
+            chanstr = f"ALLEEG({dataset_index}).chanlocs([" + " ".join(str(index) for index in selected_indices) + "])"
+        display = " ".join(str(other_chanlocs[index - 1].get("labels", "")) for index in selected_indices)
+        QtDialogRenderer._store_interp_selection(target, selected, chanstr, display)
+
+    @staticmethod
+    def _store_interp_selection(target: Any, chans: Any, chanstr: str, display: str) -> None:
+        target._eegprep_value = {"chans": chans, "chanstr": chanstr}
+        target.setText(display.strip())
 
     @staticmethod
     def _set_reref_mode(widgets: dict[str, Any], mode: str, checked: bool) -> None:
@@ -367,8 +495,12 @@ class QtDialogRenderer:
 
     @staticmethod
     def _read_widget(widget: Any) -> Any:
+        if hasattr(widget, "_eegprep_value"):
+            return widget._eegprep_value
         if hasattr(widget, "isChecked"):
             return widget.isChecked()
+        if hasattr(widget, "currentIndex"):
+            return widget.currentIndex() + 1
         if hasattr(widget, "text"):
             return widget.text()
         return None

@@ -398,6 +398,30 @@ class TestPopReref(DebuggableTestCase):
     def test_refloc_adds_old_reference_channel_to_data(self):
         """Test adding a current reference channel back to the data."""
         EEG = self.create_simple_eeg(nbchan=2, pnts=20)
+        old_ref = {
+            'labels': 'M1',
+            'X': 0.0,
+            'Y': -1.0,
+            'Z': 0.0,
+            'theta': -90.0,
+            'radius': 0.5,
+            'type': 'REF',
+            'ref': 'common',
+        }
+        EEG['chaninfo'] = {
+            'nodatchans': [old_ref],
+            'removedchans': [old_ref],
+        }
+
+        result = pop_reref(EEG, ref=[], refloc='M1')
+
+        self.assertEqual(result['nbchan'], 3)
+        self.assertEqual(result['chanlocs'][-1]['labels'], 'M1')
+        np.testing.assert_allclose(result['data'].mean(axis=0), 0, atol=1e-6)
+
+    def test_refloc_requires_removed_reference_information_like_eeglab(self):
+        """Test EEGLAB error path when refloc is provided without removedchans."""
+        EEG = self.create_simple_eeg(nbchan=2, pnts=20)
         EEG['chaninfo'] = {
             'nodatchans': [{
                 'labels': 'M1',
@@ -411,11 +435,8 @@ class TestPopReref(DebuggableTestCase):
             }]
         }
 
-        result = pop_reref(EEG, ref=[], refloc='M1')
-
-        self.assertEqual(result['nbchan'], 3)
-        self.assertEqual(result['chanlocs'][-1]['labels'], 'M1')
-        np.testing.assert_allclose(result['data'].mean(axis=0), 0, atol=1e-6)
+        with self.assertRaisesRegex(ValueError, "Missing reference channel information"):
+            pop_reref(EEG, ref=[], refloc='M1')
 
     def test_refica_remove_and_off_modes(self):
         """Test refica options that intentionally do not re-reference ICA maps."""
@@ -425,6 +446,7 @@ class TestPopReref(DebuggableTestCase):
             EEG = self.create_test_eeg(nbchan=4, pnts=20)
             original_icawinv = EEG['icawinv'].copy()
             original_icaweights = EEG['icaweights'].copy()
+            EEG['icaact'] = np.ones((4, EEG['pnts']))
 
             removed = pop_reref(EEG, ref=[], refica='remove')
             self.assertEqual(removed['icawinv'].size, 0)
@@ -434,6 +456,7 @@ class TestPopReref(DebuggableTestCase):
             off = pop_reref(EEG, ref=[], refica='off')
             np.testing.assert_allclose(off['icawinv'], original_icawinv)
             np.testing.assert_allclose(off['icaweights'], original_icaweights)
+            self.assertIsInstance(off['icachansind'], np.ndarray)
         finally:
             eeg_checkset_module.option_scaleicarms = original_option
 
@@ -445,6 +468,26 @@ class TestPopReref(DebuggableTestCase):
 
         self.assertEqual(result['icawinv'].size, 0)
         self.assertEqual(result['icaweights'].size, 0)
+
+    def test_refica_backwardcomp_rereferences_ica_maps(self):
+        """Test EEGLAB backwardcomp path still updates ICA maps."""
+        EEG = self.create_simple_eeg(nbchan=4, pnts=20)
+        EEG['icawinv'] = np.array([
+            [1.0, 0.2, 0.1, 0.0],
+            [0.1, 1.0, 0.2, 0.1],
+            [0.0, 0.1, 1.0, 0.2],
+            [0.2, 0.0, 0.1, 1.0],
+        ])
+        EEG['icaweights'] = np.linalg.pinv(EEG['icawinv'])
+        EEG['icasphere'] = np.eye(4)
+        EEG['icaact'] = np.ones((4, EEG['pnts']))
+        EEG['icachansind'] = [0, 1, 2, 3]
+
+        result = pop_reref(EEG, ref=[], refica='backwardcomp')
+
+        np.testing.assert_allclose(result['icawinv'].mean(axis=0), 0, atol=1e-8)
+        self.assertGreater(result['icaact'].size, 0)
+        self.assertEqual(result['icasphere'].shape, (4, 4))
 
     def test_error_icachansind_mismatch(self):
         """Test behavior when icachansind length doesn't match nbchan."""
@@ -567,6 +610,84 @@ class TestPopReref(DebuggableTestCase):
 
         mean_icawinv = np.mean(result['icawinv'], axis=0)
         self.assertTrue(np.all(np.abs(mean_icawinv) < 1e-6))
+
+    def test_history_command_formats_label_reference_like_eeglab(self):
+        EEG = self.create_simple_eeg(nbchan=4, pnts=20)
+
+        _out, com = pop_reref(EEG, ref='Ch2', keepref='on', return_com=True)
+
+        self.assertEqual(com, "EEG = pop_reref( EEG, {'Ch2'}, 'keepref', 'on');")
+
+    def test_history_command_formats_refloc_struct_like_eeglab(self):
+        EEG = self.create_simple_eeg(nbchan=2, pnts=20)
+        old_ref = {
+            'labels': 'M1',
+            'X': 0.0,
+            'Y': -1.0,
+            'Z': 0.0,
+            'theta': -90.0,
+            'radius': 0.5,
+            'type': 'REF',
+            'ref': 'common',
+        }
+        EEG['chaninfo'] = {'nodatchans': [old_ref], 'removedchans': [old_ref]}
+
+        _out, com = pop_reref(EEG, ref=[], refloc=old_ref, return_com=True)
+
+        self.assertIn("'refloc', struct(", com)
+        self.assertIn("'labels',{'M1'}", com)
+        self.assertIn("'theta',-90", com)
+
+    def test_multiple_dataset_gui_path_prompts_once_like_eeglab(self):
+        class Renderer:
+            def __init__(self):
+                self.calls = 0
+
+            def run(self, spec, initial_values=None):
+                self.calls += 1
+                return {"ave": True}
+
+        renderer = Renderer()
+        datasets = [self.create_simple_eeg(nbchan=2, pnts=20), self.create_simple_eeg(nbchan=2, pnts=20)]
+
+        outputs, com = pop_reref(datasets, gui=True, renderer=renderer, return_com=True)
+
+        self.assertEqual(renderer.calls, 1)
+        self.assertEqual(len(outputs), 2)
+        self.assertEqual([out["ref"] for out in outputs], ["average", "average"])
+        self.assertEqual(com, "EEG = pop_reref( EEG, []);")
+
+    def test_gui_huber_path_preserves_other_eeglab_gui_options(self):
+        class Renderer:
+            def run(self, spec, initial_values=None):
+                return {
+                    "huberef": True,
+                    "huberval": "25",
+                    "exclude": "1",
+                }
+
+        EEG = self.create_simple_eeg(nbchan=2, pnts=20)
+        original_excluded = EEG['data'][1].copy()
+
+        out = pop_reref(EEG, gui=True, renderer=Renderer())
+
+        np.testing.assert_allclose(out['data'][1], original_excluded)
+
+    def test_gui_numeric_reference_text_is_zero_based_like_python_api(self):
+        class Renderer:
+            def run(self, spec, initial_values=None):
+                return {
+                    "rerefstr": True,
+                    "reref": "0",
+                    "keepref": True,
+                }
+
+        EEG = self.create_simple_eeg(nbchan=3, pnts=20)
+
+        out, com = pop_reref(EEG, gui=True, renderer=Renderer(), return_com=True)
+
+        self.assertEqual(com, "EEG = pop_reref( EEG, [0], 'keepref', 'on');")
+        np.testing.assert_allclose(out['data'][0], 0, atol=1e-6)
 
     def test_parity_basic_reref(self):
         """Test parity with MATLAB for basic rereferencing."""
@@ -739,6 +860,27 @@ class TestPopReref(DebuggableTestCase):
 
         np.testing.assert_allclose(py_result['icawinv'], ml_result['icawinv_ml'], rtol=1e-8, atol=1e-8)
         np.testing.assert_allclose(py_result['icaweights'], ml_result['icaweights_ml'], rtol=1e-8, atol=1e-8)
+
+    def test_parity_refica_backwardcomp_with_matlab(self):
+        """Test MATLAB parity for backwardcomp ICA handling."""
+        EEG = self.create_simple_eeg(nbchan=4, pnts=20)
+        EEG['icawinv'] = np.array([
+            [1.0, 0.2, 0.1, 0.0],
+            [0.1, 1.0, 0.2, 0.1],
+            [0.0, 0.1, 1.0, 0.2],
+            [0.2, 0.0, 0.1, 1.0],
+        ])
+        EEG['icaweights'] = np.linalg.pinv(EEG['icawinv'])
+        EEG['icasphere'] = np.eye(4)
+        EEG['icaact'] = np.ones((4, EEG['pnts']))
+        EEG['icachansind'] = [0, 1, 2, 3]
+
+        py_result = pop_reref(EEG, ref=[], refica='backwardcomp')
+        ml_result = self._matlab_pop_reref(EEG, "[]", ", 'refica', 'backwardcomp'")
+
+        np.testing.assert_allclose(py_result['icawinv'], ml_result['icawinv_ml'], rtol=1e-8, atol=1e-8)
+        np.testing.assert_allclose(py_result['icaweights'], ml_result['icaweights_ml'], rtol=1e-8, atol=1e-8)
+        self.assertEqual(py_result['icaact'].size, ml_result['icaact_ml'].size)
 
 
 if __name__ == '__main__':

@@ -12,6 +12,7 @@ methods including spherical spline interpolation.
 
 import numpy as np
 from scipy.linalg import pinv
+from scipy.interpolate import RBFInterpolator, griddata
 from scipy.special import lpmv
 from eegprep.functions.popfunc.eeg_compare import eeg_compare
 from copy import deepcopy
@@ -39,7 +40,8 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
           2. If no overlap with existing channels, appends new channels and interpolates them
           3. If existing channels are a subset, remaps data to new channel structure
     method : str, optional
-        Interpolation method ('spherical', 'sphericalKang', 'sphericalCRD', 'sphericalfast')
+        Interpolation method ('spherical', 'sphericalKang', 'sphericalCRD',
+        'sphericalfast', 'invdist'/'v4', or 'spacetime').
     t_range : tuple, optional
         Time range for interpolation
     params : tuple, optional
@@ -56,7 +58,8 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
     """
     EEG = deepcopy(EEG)
     # set defaults
-    if method not in ('spherical','sphericalKang','sphericalCRD','sphericalfast'):
+    method = _normalise_method(method)
+    if method not in ('spherical','sphericalKang','sphericalCRD','sphericalfast','invdist','v4','spacetime'):
         raise ValueError(f"Unknown method {method}")
     if t_range is None:
         t_range = (EEG['xmin'], EEG['xmax'])
@@ -150,13 +153,18 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
     original_bad_data = d[bad_idx,:].copy()
 
     # compute interpolated signals for bad channels
-    bad_data = spheric_spline(
-        xelec=xyz_good[0], yelec=xyz_good[1], zelec=xyz_good[2],
-        xbad =xyz_bad[0],  ybad =xyz_bad[1],  zbad =xyz_bad[2],
-        values=d[good_idx,:],
-        params=params,
-        dtype=dtype
-    )
+    if method in ('spherical','sphericalKang','sphericalCRD','sphericalfast'):
+        bad_data = spheric_spline(
+            xelec=xyz_good[0], yelec=xyz_good[1], zelec=xyz_good[2],
+            xbad =xyz_bad[0],  ybad =xyz_bad[1],  zbad =xyz_bad[2],
+            values=d[good_idx,:],
+            params=params,
+            dtype=dtype
+        )
+    elif method in ('invdist', 'v4'):
+        bad_data = _planar_v4_interpolate(locs, good_idx, bad_idx, d[good_idx, :])
+    else:
+        bad_data = _spacetime_interpolate(locs, good_idx, bad_idx, d[good_idx, :])
 
     # restore original time range if needed
     if t_range != (EEG['xmin'], EEG['xmax']):
@@ -207,6 +215,88 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
         # Original was 3D epoched data or needs to be 3D
         EEG['data'] = full.reshape(EEG['nbchan'], EEG['pnts'], EEG['trials'])
     return EEG
+
+def _normalise_method(method):
+    if not isinstance(method, str):
+        return method
+    method_lookup = {
+        'spherical': 'spherical',
+        'sphericalkang': 'sphericalKang',
+        'sphericalcrd': 'sphericalCRD',
+        'sphericalfast': 'sphericalfast',
+        'invdist': 'invdist',
+        'v4': 'v4',
+        'spacetime': 'spacetime',
+    }
+    return method_lookup.get(method.lower(), method)
+
+def _planar_v4_interpolate(locs, good_idx, bad_idx, values):
+    """Use a thin-plate spline analogue of MATLAB griddata(..., 'v4')."""
+    good_points = _planar_points(locs, good_idx)
+    bad_points = _planar_points(locs, bad_idx)
+    try:
+        return RBFInterpolator(good_points, values, kernel='thin_plate_spline')(bad_points)
+    except Exception:
+        interpolated = griddata(good_points, values, bad_points, method='cubic')
+        if np.isnan(interpolated).any():
+            linear = griddata(good_points, values, bad_points, method='linear')
+            interpolated = np.where(np.isnan(interpolated), linear, interpolated)
+        if np.isnan(interpolated).any():
+            nearest = griddata(good_points, values, bad_points, method='nearest')
+            interpolated = np.where(np.isnan(interpolated), nearest, interpolated)
+        return interpolated
+
+def _spacetime_interpolate(locs, good_idx, bad_idx, values):
+    """Match EEGLAB's nearest-neighbor space/time interpolation path."""
+    good_points_2d = _planar_points(locs, good_idx)
+    bad_points_2d = _planar_points(locs, bad_idx)
+    n_time = values.shape[1]
+    times = np.arange(1, n_time + 1)
+
+    good_points = np.column_stack([
+        np.tile(good_points_2d[:, 0], n_time),
+        np.tile(good_points_2d[:, 1], n_time),
+        np.repeat(times, len(good_idx)),
+    ])
+    bad_points = np.column_stack([
+        np.tile(bad_points_2d[:, 0], n_time),
+        np.tile(bad_points_2d[:, 1], n_time),
+        np.repeat(times, len(bad_idx)),
+    ])
+    flattened = values.reshape(-1, order='F')
+    interpolated = griddata(good_points, flattened, bad_points, method='nearest')
+    return interpolated.reshape(len(bad_idx), n_time, order='F')
+
+def _planar_points(locs, indices):
+    points = []
+    for index in indices:
+        theta, radius = _theta_radius(locs[index])
+        points.append((radius * np.sin(theta), radius * np.cos(theta)))
+    return np.asarray(points, dtype=float)
+
+def _theta_radius(chanloc):
+    theta = chanloc.get('theta')
+    radius = chanloc.get('radius')
+    if not _is_empty_coordinate(theta) and not _is_empty_coordinate(radius):
+        return float(theta), float(radius)
+
+    x = float(chanloc.get('X', np.nan))
+    y = float(chanloc.get('Y', np.nan))
+    if np.isnan(x) or np.isnan(y):
+        raise RuntimeError("Channel theta/radius or X/Y locations required for planar interpolation")
+    return float(np.arctan2(y, x)), float(np.sqrt(x * x + y * y))
+
+def _is_empty_coordinate(value):
+    if value is None:
+        return True
+    if isinstance(value, np.ndarray):
+        return value.size == 0 or np.isnan(value).all()
+    if isinstance(value, list):
+        return len(value) == 0
+    try:
+        return bool(np.isnan(value))
+    except TypeError:
+        return False
 
 def _handle_chanloc_interpolation(EEG, new_chanlocs):
     """Handle interpolation when bad_chans is provided as a list of chanloc.

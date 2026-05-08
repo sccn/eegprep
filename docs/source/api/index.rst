@@ -60,6 +60,7 @@ Channel Operations
    eegprep.clean_channels
    eegprep.clean_channels_nolocs
    eegprep.eeg_interp
+   eegprep.pop_interp
    eegprep.pop_reref
 
 Signal Processing

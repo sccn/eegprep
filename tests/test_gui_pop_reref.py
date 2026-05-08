@@ -1,8 +1,10 @@
 import unittest
 
+import numpy as np
+
 from eegprep.functions.guifunc.qt import QtDialogRenderer
 from eegprep.functions.guifunc.spec import controls_by_tag
-from eegprep.functions.popfunc.pop_reref import pop_reref_dialog_spec
+from eegprep.functions.popfunc.pop_reref import pop_reref, pop_reref_dialog_spec
 
 
 class PopRerefGuiSpecTests(unittest.TestCase):
@@ -87,6 +89,35 @@ class PopRerefGuiSpecTests(unittest.TestCase):
         self.assertEqual(controls["exclude_button"].callback.params["channels"], ("Fp1", "Cz"))
         self.assertEqual(controls["refloc_button"].callback.params["channels"], ("M1",))
         self.assertEqual(pop_reref_dialog_spec().help_text, "pophelp('pop_reref')")
+
+    def test_gui_refloc_picker_filters_fiducials_like_eeglab(self):
+        class Renderer:
+            def run(self, spec, initial_values=None):
+                self.spec = spec
+                return None
+
+        renderer = Renderer()
+        eeg = {
+            "data": np.zeros((2, 10)),
+            "nbchan": 2,
+            "pnts": 10,
+            "trials": 1,
+            "srate": 100,
+            "chanlocs": [{"labels": "Fp1"}, {"labels": "Fp2"}],
+            "chaninfo": {
+                "nodatchans": [
+                    {"labels": "Nz", "type": "FID"},
+                    {"labels": "M1", "type": "REF"},
+                ]
+            },
+        }
+
+        out = pop_reref(eeg, gui=True, renderer=renderer)
+        controls = controls_by_tag(renderer.spec)
+
+        self.assertIs(out, eeg)
+        self.assertEqual(controls["refloc_button"].callback.params["channels"], ("M1",))
+        self.assertIn("no_channels_message", controls["refloc_button"].callback.params)
 
 
 if __name__ == "__main__":

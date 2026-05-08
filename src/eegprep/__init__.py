@@ -41,6 +41,7 @@ from .plugins.clean_rawdata.clean_asr import clean_asr
 from .plugins.clean_rawdata.clean_windows import clean_windows
 from .functions.popfunc.eeg_compare import eeg_compare
 from .functions.popfunc.eeg_interp import eeg_interp
+from .functions.popfunc.pop_interp import pop_interp
 from .functions.popfunc.eeg_findboundaries import eeg_findboundaries
 from .plugins.clean_rawdata.clean_artifacts import clean_artifacts
 from .functions.popfunc.pop_load_frombids import pop_load_frombids

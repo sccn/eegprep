@@ -30,8 +30,15 @@ class VisualParityConfigTests(unittest.TestCase):
         self.assertIn("eegprep.functions.guifunc.visual_capture", cases["adjust_events_dialog"].targets["eegprep"].command)
         self.assertIn("reref_dialog", cases)
         self.assertEqual(cases["reref_dialog"].targets["eeglab"].action, "pop_reref")
+        self.assertEqual(cases["reref_dialog_channel_ref"].targets["eeglab"].action, "pop_reref:channels")
+        self.assertEqual(cases["reref_dialog_huber_ref"].targets["eeglab"].action, "pop_reref:huber")
+        self.assertIn("pop_interp_dialog", cases)
+        self.assertEqual(cases["pop_interp_dialog"].targets["eeglab"].action, "pop_interp:continuous")
+        self.assertEqual(cases["pop_interp_epoched_dialog"].targets["eeglab"].action, "pop_interp:epoched")
         self.assertIn("pop_chansel_dialog", cases)
         self.assertEqual(cases["pop_chansel_dialog"].targets["eeglab"].action, "pop_chansel")
+        self.assertEqual(cases["pop_interp_dataset_index_dialog"].targets["eeglab"].action, "inputdlg2:dataset_index")
+        self.assertEqual(cases["pop_reref_help_dialog"].targets["eeglab"].action, "pophelp:pop_reref")
 
 
 class VisualParityCaptureTests(unittest.TestCase):
@@ -144,6 +151,77 @@ class VisualParityCaptureTests(unittest.TestCase):
             script_text = next((tmp_path / "pop_chansel_dialog").glob("*.m")).read_text()
             self.assertIn("pop_chansel({'Fp1', 'Fp2', 'Cz', 'Oz'}, 'withindex', 'on')", script_text)
             self.assertIn("capture_pop_chansel_dialog", script_text)
+
+    def test_matlab_dialog_capture_generates_pop_reref_variant_script(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = pathlib.Path(tmpdir)
+            case = load_manifest()["reref_dialog_channel_ref"]
+            captured_command = []
+
+            def fake_run_subprocess(target_name, output_path, command, env, timeout_seconds):
+                captured_command.extend(command)
+                output_path.write_bytes(base64.b64decode(ONE_PIXEL_PNG))
+                return CaptureResult(target_name, output_path, command, 0)
+
+            with (
+                mock.patch("tools.visual_parity.capture.shutil.which", return_value="/usr/common/bin/matlab"),
+                mock.patch("tools.visual_parity.capture._run_subprocess", side_effect=fake_run_subprocess),
+            ):
+                results = capture_case(case, "eeglab", output_dir=tmp_path)
+
+            self.assertTrue(results[0].ok)
+            self.assertIn("-nosplash", captured_command)
+            script_text = next((tmp_path / "reref_dialog_channel_ref").glob("*.m")).read_text()
+            self.assertIn("capture_variant = 'channels';", script_text)
+            self.assertIn("apply_pop_reref_variant", script_text)
+
+    def test_matlab_dialog_capture_generates_pop_interp_script(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = pathlib.Path(tmpdir)
+            case = load_manifest()["pop_interp_epoched_dialog"]
+            captured_command = []
+
+            def fake_run_subprocess(target_name, output_path, command, env, timeout_seconds):
+                captured_command.extend(command)
+                output_path.write_bytes(base64.b64decode(ONE_PIXEL_PNG))
+                return CaptureResult(target_name, output_path, command, 0)
+
+            with (
+                mock.patch("tools.visual_parity.capture.shutil.which", return_value="/usr/common/bin/matlab"),
+                mock.patch("tools.visual_parity.capture._run_subprocess", side_effect=fake_run_subprocess),
+            ):
+                results = capture_case(case, "eeglab", output_dir=tmp_path)
+
+            self.assertTrue(results[0].ok)
+            self.assertIn("-nosplash", captured_command)
+            script_text = next((tmp_path / "pop_interp_epoched_dialog").glob("*.m")).read_text()
+            self.assertIn("capture_variant = 'epoched';", script_text)
+            self.assertIn("[EEG, com] = pop_interp(EEG);", script_text)
+            self.assertIn("EEG.epoch = struct", script_text)
+
+    def test_matlab_dialog_capture_generates_pophelp_script(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = pathlib.Path(tmpdir)
+            case = load_manifest()["pop_interp_help_dialog"]
+            captured_command = []
+
+            def fake_run_subprocess(target_name, output_path, command, env, timeout_seconds):
+                captured_command.extend(command)
+                output_path.write_bytes(base64.b64decode(ONE_PIXEL_PNG))
+                return CaptureResult(target_name, output_path, command, 0)
+
+            with (
+                mock.patch("tools.visual_parity.capture.shutil.which", return_value="/usr/common/bin/matlab"),
+                mock.patch("tools.visual_parity.capture._run_subprocess", side_effect=fake_run_subprocess),
+            ):
+                results = capture_case(case, "eeglab", output_dir=tmp_path)
+
+            self.assertTrue(results[0].ok)
+            self.assertIn("-nosplash", captured_command)
+            script_text = next((tmp_path / "pop_interp_help_dialog").glob("*.m")).read_text()
+            self.assertIn("function_name = 'pop_interp';", script_text)
+            self.assertIn("pophelp(function_name);", script_text)
+            self.assertIn("write_pophelp_text_capture", script_text)
 
 
 class VisualParityCompareTests(unittest.TestCase):

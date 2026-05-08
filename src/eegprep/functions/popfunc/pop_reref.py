@@ -11,7 +11,7 @@ import numpy as np
 
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
-from eegprep.functions.popfunc.eeg_interp import eeg_interp
+from eegprep.functions.popfunc.pop_interp import pop_interp
 from eegprep.functions.sigprocfunc.reref import reref
 
 logger = logging.getLogger(__name__)
@@ -30,7 +30,7 @@ _VALID_OPTIONS = {
 
 
 def pop_reref(
-    EEG: dict | list[dict],
+    EEG: dict | list[dict] | object = _UNSET,
     ref: Any = _UNSET,
     *args: Any,
     gui: bool | None = None,
@@ -60,13 +60,8 @@ def pop_reref(
         dict or tuple: Re-referenced EEG, and optionally the EEGLAB-style
         command string.
     """
-    if isinstance(EEG, list):
-        outputs = [
-            pop_reref(item, ref, *args, gui=False, renderer=renderer, return_com=False, **kwargs)
-            for item in EEG
-        ]
-        com = _history_command(ref, _parse_options(args, kwargs)[0])
-        return (outputs, com) if return_com else outputs
+    if EEG is _UNSET:
+        return (None, "") if return_com else None
 
     options, ref_from_options = _parse_options(args, kwargs)
     if ref is _UNSET and ref_from_options is not _UNSET:
@@ -77,6 +72,24 @@ def pop_reref(
     has_processing_args = ref is not _UNSET
     if gui is None:
         gui = not has_processing_args
+
+    if isinstance(EEG, list):
+        if not EEG:
+            return ([], "") if return_com else []
+        if gui:
+            gui_result = _run_gui(EEG[0], renderer=renderer)
+            if gui_result is None:
+                return (EEG, "") if return_com else EEG
+            ref = gui_result.pop("ref")
+            options.update(gui_result)
+        elif ref is _UNSET:
+            ref = []
+        outputs = [
+            pop_reref(item, ref, gui=False, renderer=renderer, return_com=False, **options)
+            for item in EEG
+        ]
+        com = _history_command(ref, _history_options(options))
+        return (outputs, com) if return_com else outputs
 
     if gui:
         gui_result = _run_gui(EEG, renderer=renderer)
@@ -95,7 +108,7 @@ def pop_reref(
     original_chanlocs = _chanlocs_as_list(EEG_out.get("chanlocs", []))
     interp_labels = [str(chan.get("labels", "")) for chan in resolved["interpchan"]]
     if resolved["interpchan"]:
-        EEG_out = eeg_interp(EEG_out, resolved["interpchan"], "spherical")
+        EEG_out = pop_interp(EEG_out, resolved["interpchan"], "spherical")
 
     EEG_out["data"], chanlocs, removed_ref_chans, _mean_data = reref(
         EEG_out["data"],
@@ -121,6 +134,7 @@ def pop_reref(
         resolved=resolved,
     )
 
+    _normalise_checkset_types(EEG_out)
     EEG_out = eeg_checkset(EEG_out)
     com = _history_command(ref, resolved["history_options"])
     return (EEG_out, com) if return_com else EEG_out
@@ -242,6 +256,9 @@ def pop_reref_dialog_spec(
                         "button": "refloc_button",
                         "target": "refloc",
                         "channels": refloc_labels,
+                        "no_channels_message": (
+                            "There are no Reference channel defined, add it using the channel location editor"
+                        ),
                     },
                     matlab_callback="pop_chansel({tmpchaninfo.nodatchans.labels}, 'withindex', 'on')",
                 ),
@@ -301,11 +318,17 @@ def _resolve_options(EEG: dict, ref: Any, options: dict[str, Any]) -> dict[str, 
         "huber": huber,
         "interpchan": interpchan,
         "history_options": {
-            key: value
-            for key, value in options.items()
-            if key in {"exclude", "keepref", "refloc", "refica", "huber", "interpchan"}
-            and not _is_default_option(key, value)
+            key: value for key, value in _history_options(options).items()
         },
+    }
+
+
+def _history_options(options: dict[str, Any]) -> dict[str, Any]:
+    return {
+        key: value
+        for key, value in options.items()
+        if key in {"exclude", "keepref", "refloc", "refica", "huber", "interpchan"}
+        and not _is_default_option(key, value)
     }
 
 
@@ -401,7 +424,7 @@ def _remove_refloc_from_removed_channels(EEG: dict, refloc: Any) -> None:
     chaninfo = EEG.get("chaninfo", {})
     removed = chaninfo.get("removedchans", [])
     if not removed:
-        return
+        raise ValueError("Missing reference channel information. Edit channels and add reference first.")
     labels = {str(loc.get("labels", "")).lower() for loc in _normalise_refloc_list(refloc)}
     if not labels:
         return
@@ -438,7 +461,7 @@ def _resolve_refloc(EEG: dict, refloc: Any) -> list[dict[str, Any]]:
     ):
         return [{"labels": refloc[0], "theta": refloc[1], "radius": refloc[2]}]
 
-    nodatchans = _chanlocs_as_list(EEG.get("chaninfo", {}).get("nodatchans", []))
+    nodatchans = _reference_nodatchans(EEG)
     if not nodatchans:
         raise ValueError("Reference channel locations require EEG['chaninfo']['nodatchans']")
     return _resolve_locs_from_identifiers(nodatchans, refloc, "reference location")
@@ -549,9 +572,12 @@ def _is_number_like(value: Any) -> bool:
 
 
 def _update_legacy_ref(EEG: dict, ref_indices: list[int]) -> None:
+    if "ref" not in EEG:
+        return
     if not ref_indices:
-        EEG["ref"] = "average"
-    else:
+        if str(EEG["ref"]).lower() == "common":
+            EEG["ref"] = "average"
+    elif str(EEG["ref"]).lower() == "average":
         EEG["ref"] = "common"
 
 
@@ -571,11 +597,10 @@ def _update_ica(
     if _is_empty_array(icaweights) or _is_empty_array(icawinv):
         return
 
-    preserve_icaact = resolved["refica"] == "backwardcomp"
-    if not preserve_icaact:
-        EEG["icaact"] = np.array([])
     if resolved["refica"] == "off":
+        EEG["icaact"] = np.array([])
         return
+    EEG["icaact"] = np.array([])
 
     icachansind = list(EEG.get("icachansind", []))
     if any(index in resolved["exclude_indices"] for index in icachansind):
@@ -631,28 +656,31 @@ def _clear_ica(EEG: dict) -> None:
     EEG["icaact"] = np.array([])
 
 
+def _normalise_checkset_types(EEG: dict) -> None:
+    if "icachansind" in EEG and not isinstance(EEG["icachansind"], np.ndarray):
+        EEG["icachansind"] = np.asarray(EEG["icachansind"], dtype=int)
+
+
 def _run_gui(EEG: dict, renderer: Any | None = None) -> dict[str, Any] | None:
     from eegprep.functions.guifunc.inputgui import inputgui
 
     channel_labels = [chan.get("labels", "") for chan in _chanlocs_as_list(EEG.get("chanlocs", []))]
-    refloc_labels = [
-        chan.get("labels", "")
-        for chan in _chanlocs_as_list(EEG.get("chaninfo", {}).get("nodatchans", []))
-    ]
+    refloc_labels = [chan.get("labels", "") for chan in _reference_nodatchans(EEG)]
     spec = pop_reref_dialog_spec(_current_reference(EEG), channel_labels, refloc_labels)
     result = inputgui(spec, renderer=renderer)
     if result is None:
         return None
+    options: dict[str, Any] = {}
     if result.get("huberef"):
-        return {"ref": [], "huber": result.get("huberval") or 25}
-    if result.get("rerefstr"):
+        options.update({"ref": [], "huber": result.get("huberval") or 25})
+    elif result.get("rerefstr"):
         ref_text = result.get("reref", "")
         if not str(ref_text).strip():
             logger.info("Aborting: you must enter one or more reference channels")
             return None
-        options = {"ref": _parse_gui_channel_text(ref_text)}
+        options["ref"] = _parse_gui_channel_text(ref_text)
     else:
-        options = {"ref": []}
+        options["ref"] = []
 
     if result.get("keepref"):
         options["keepref"] = "on"
@@ -661,7 +689,10 @@ def _run_gui(EEG: dict, renderer: Any | None = None) -> dict[str, Any] | None:
     if result.get("interp"):
         options["interpchan"] = []
     if str(result.get("refloc", "")).strip():
-        options["refloc"] = _gui_reflocs(EEG, result["refloc"])
+        try:
+            options["refloc"] = _gui_reflocs(EEG, result["refloc"])
+        except ValueError:
+            logger.info("Error with old reference: ignoring it")
     return options
 
 
@@ -670,7 +701,7 @@ def _parse_gui_channel_text(text: str) -> list[int | str]:
     parsed = []
     for value in values:
         if isinstance(value, str) and _is_int_text(value):
-            parsed.append(int(value) - 1)
+            parsed.append(int(value))
         else:
             parsed.append(value)
     return parsed
@@ -678,10 +709,9 @@ def _parse_gui_channel_text(text: str) -> list[int | str]:
 
 def _gui_reflocs(EEG: dict, text: str) -> list[dict[str, Any]]:
     requested = _parse_gui_channel_text(text)
-    nodatchans = EEG.get("chaninfo", {}).get("nodatchans", [])
-    locs = _chanlocs_as_list(nodatchans)
+    locs = _reference_nodatchans(EEG)
     if not locs:
-        raise ValueError("No reference channel locations are available in EEG['chaninfo']['nodatchans']")
+        raise ValueError("There are no Reference channel defined, add it using the channel location editor")
     labels = [str(loc.get("labels", "")).lower() for loc in locs]
     out = []
     for value in requested:
@@ -697,6 +727,15 @@ def _gui_reflocs(EEG: dict, text: str) -> list[dict[str, Any]]:
     return out
 
 
+def _reference_nodatchans(EEG: dict) -> list[dict[str, Any]]:
+    locs = _chanlocs_as_list(EEG.get("chaninfo", {}).get("nodatchans", []))
+    return [
+        loc
+        for loc in locs
+        if str(loc.get("type", "")).strip().lower() != "fid"
+    ]
+
+
 def _current_reference(EEG: dict) -> str:
     chanlocs = _chanlocs_as_list(EEG.get("chanlocs", []))
     refs = [str(chan.get("ref", "")) for chan in chanlocs if "ref" in chan]
@@ -707,11 +746,17 @@ def _current_reference(EEG: dict) -> str:
 
 
 def _history_command(ref: Any, options: dict[str, Any]) -> str:
-    parts = [_format_history_value([] if ref is _UNSET or ref is None else ref)]
+    parts = [_format_ref_history_value([] if ref is _UNSET or ref is None else ref)]
     for key, value in options.items():
         parts.append(_format_history_value(key))
         parts.append(_format_history_value(value))
-    return f"EEG = pop_reref(EEG, {', '.join(parts)});"
+    return f"EEG = pop_reref( EEG, {', '.join(parts)});"
+
+
+def _format_ref_history_value(ref: Any) -> str:
+    if isinstance(ref, str) and not _is_empty(ref):
+        return _format_history_value([ref])
+    return _format_history_value(ref)
 
 
 def _format_history_value(value: Any) -> str:
@@ -720,12 +765,56 @@ def _format_history_value(value: Any) -> str:
     if isinstance(value, str):
         return "'" + value.replace("'", "''") + "'"
     if isinstance(value, dict):
-        return repr(value)
+        return _format_history_struct([value])
     if isinstance(value, (list, tuple)):
-        return "[" + " ".join(_format_history_value(item).strip("'") for item in value) + "]"
+        values = list(value)
+        if not values:
+            return "[]"
+        if all(isinstance(item, dict) for item in values):
+            return _format_history_struct(values)
+        if any(isinstance(item, str) for item in values):
+            return "{" + ",".join(_format_history_value(item) for item in values) + "}"
+        return "[" + " ".join(_format_history_number(item) for item in values) + "]"
     if value is None:
         return "[]"
+    if isinstance(value, (np.integer, np.floating)):
+        return _format_history_number(value.item())
     return str(value)
+
+
+def _format_history_struct(values: list[dict[str, Any]]) -> str:
+    if not values:
+        return "struct([])"
+    fields: list[str] = []
+    for loc in values:
+        for field in loc:
+            if field not in fields:
+                fields.append(field)
+
+    parts = []
+    for field in fields:
+        contents = [loc.get(field, []) for loc in values]
+        if len(contents) == 1 and _is_number_or_empty(contents[0]):
+            parts.append(f"'{field}',{_format_history_value(contents[0])}")
+        elif len(contents) == 1 and isinstance(contents[0], np.ndarray) and contents[0].size == 0:
+            parts.append(f"'{field}',[]")
+        else:
+            parts.append(f"'{field}'," + "{" + ",".join(_format_history_value(item) for item in contents) + "}")
+    return "struct(" + ",".join(parts) + ")"
+
+
+def _format_history_number(value: Any) -> str:
+    if isinstance(value, (np.integer, np.floating)):
+        value = value.item()
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return str(value)
+
+
+def _is_number_or_empty(value: Any) -> bool:
+    if isinstance(value, np.ndarray):
+        return value.size == 0 or np.issubdtype(value.dtype, np.number)
+    return isinstance(value, (int, float, np.integer, np.floating)) or _is_empty(value)
 
 
 def _is_default_option(key: str, value: Any) -> bool:
