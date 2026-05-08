@@ -21,7 +21,7 @@ Primary references:
 - `src/eegprep/plugins/EEG_BIDS/`: Python ports and workflow helpers for the EEGLAB EEG-BIDS plugin.
 - `src/eegprep/utils/`: Python-only test/development support. Do not put EEGLAB-equivalent processing code here.
 - `src/eegprep/resources/`: MATLAB option files, montages, package data.
-- `src/eegprep/eeglab/`: vendored EEGLAB reference code and sample data. Treat as reference input; do not edit unless explicitly updating the bundled reference.
+- `src/eegprep/eeglab/`: vendored EEGLAB reference code for local development and parity work. Treat as reference input; do not edit unless explicitly updating the bundled reference. Do not make package runtime behavior depend on this directory existing.
 - `tests/matlab/`: MATLAB parity scripts and MATLAB helper fixtures used by Python tests.
 - `scripts/*.m`: MATLAB/Octave helper scripts that are not part of the normal unit-test tree.
 - `sample_data/`: small checked-in EEG sample datasets, named to match EEGLAB's `sample_data` convention.
@@ -46,6 +46,7 @@ Primary references:
 
 - Keep naming and directory structure as close to EEGLAB as practical. Put `pop_*` wrappers in `functions/popfunc`, GUI helpers in `functions/guifunc`, administrative functions in `functions/adminfunc`, signal-processing functions in `functions/sigprocfunc`, clean_rawdata ports in `plugins/clean_rawdata`, and ICLabel ports in `plugins/ICLabel`.
 - Before porting or changing behavior, inspect the matching MATLAB file under `src/eegprep/eeglab/functions/` or `src/eegprep/eeglab/plugins/`.
+- Runtime code in the installed `eegprep` package must work without `src/eegprep/eeglab/` present. If EEGLAB text/examples are needed at runtime, use packaged resources under `src/eegprep/resources/` or Python-native fallbacks.
 - Preserve EEG dict semantics unless the user asks for a new abstraction. Core fields include `data`, `nbchan`, `pnts`, `trials`, `srate`, `xmin`, `xmax`, `times`, `chanlocs`, `event`, `urevent`, `epoch`, `history`, `icaact`, `icawinv`, `icasphere`, `icaweights`, and `icachansind`.
 - Data is channel-major: continuous data is usually `(nbchan, pnts)`, epoched data is usually `(nbchan, pnts, trials)`.
 - Be explicit about MATLAB/Python indexing boundaries. EEGLAB event latencies and many user-facing indices are 1-based; Python arrays are 0-based internally. Test first/last sample and boundary-event behavior.

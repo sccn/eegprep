@@ -395,6 +395,18 @@ class TestPopReref(DebuggableTestCase):
         self.assertEqual([chan['labels'] for chan in result['chanlocs']], ['Ch1', 'Ch2', 'Ch3'])
         self.assertNotIn('Ch4', [chan['labels'] for chan in result['chanlocs']])
 
+    def test_explicit_reference_without_chanlocs_still_rereferences(self):
+        """Numeric common reference should work when chanlocs are absent."""
+        EEG = self.create_simple_eeg(nbchan=4, pnts=20)
+        EEG['chanlocs'] = []
+        EEG['urchanlocs'] = []
+
+        result = pop_reref(EEG, ref=1)
+
+        self.assertEqual(result['nbchan'], 3)
+        self.assertEqual(result['data'].shape[0], 3)
+        self.assertEqual(np.size(result['chanlocs']), 0)
+
     def test_refloc_adds_old_reference_channel_to_data(self):
         """Test adding a current reference channel back to the data."""
         EEG = self.create_simple_eeg(nbchan=2, pnts=20)
@@ -488,6 +500,38 @@ class TestPopReref(DebuggableTestCase):
         np.testing.assert_allclose(result['icawinv'].mean(axis=0), 0, atol=1e-8)
         self.assertGreater(result['icaact'].size, 0)
         self.assertEqual(result['icasphere'].shape, (4, 4))
+
+    def test_interpchan_clears_ica_when_channel_set_changes(self):
+        """Interpolating channels before reref invalidates ICA decomposition."""
+        EEG = self.create_simple_eeg(nbchan=3, pnts=20)
+        removed = {
+            'labels': 'Ch4',
+            'X': 0.0,
+            'Y': -1.0,
+            'Z': 0.0,
+            'theta': 90.0,
+            'radius': 0.5,
+            'type': 'EEG',
+            'ref': 'common',
+        }
+        EEG['urchanlocs'] = EEG['chanlocs'] + [removed]
+        EEG['chaninfo'] = {'removedchans': [removed]}
+        EEG['icawinv'] = np.array([
+            [1.0, 0.2, 0.1],
+            [0.1, 1.0, 0.2],
+            [0.2, 0.1, 1.0],
+        ])
+        EEG['icaweights'] = np.linalg.pinv(EEG['icawinv'])
+        EEG['icasphere'] = np.eye(3)
+        EEG['icaact'] = np.ones((3, EEG['pnts']))
+        EEG['icachansind'] = [0, 1, 2]
+
+        result = pop_reref(EEG, ref=[], interpchan=[])
+
+        self.assertEqual(result['icawinv'].size, 0)
+        self.assertEqual(result['icaweights'].size, 0)
+        self.assertEqual(result['icasphere'].size, 0)
+        self.assertEqual(result['icaact'].size, 0)
 
     def test_error_icachansind_mismatch(self):
         """Test behavior when icachansind length doesn't match nbchan."""

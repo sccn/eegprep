@@ -175,6 +175,16 @@ class PopInterpGuiSpecTests(unittest.TestCase):
         self.assertEqual(controls["method"].string, "Spherical|spherical(Kang et al.)|Planar (slow)")
         self.assertNotIn("timerange", controls)
 
+    def test_epoched_dialog_spec_accepts_numpy_epoch_arrays(self):
+        eeg = _eeg(trials=2)
+        eeg["epoch"] = np.asarray([{"event": 1}], dtype=object)
+
+        spec = pop_interp_dialog_spec(eeg)
+        controls = controls_by_tag(spec)
+
+        self.assertEqual(controls["method"].string, "Spherical|spherical(Kang et al.)|Planar (slow)")
+        self.assertNotIn("timerange", controls)
+
     def test_dialog_callbacks_keep_matlab_metadata(self):
         controls = controls_by_tag(pop_interp_dialog_spec(_eeg()))
 

@@ -319,7 +319,15 @@ def _is_chanloc_sequence(value: Any) -> bool:
 
 
 def _is_continuous(EEG: dict) -> bool:
-    return not EEG.get("epoch")
+    epoch = EEG.get("epoch")
+    if epoch is None:
+        return True
+    if isinstance(epoch, np.ndarray):
+        return epoch.size == 0
+    try:
+        return len(epoch) == 0
+    except TypeError:
+        return False
 
 
 __all__ = ["pop_interp", "pop_interp_dialog_spec"]

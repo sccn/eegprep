@@ -578,6 +578,13 @@ def _update_ica(
     else:
         EEG["icaact"] = np.array([])
 
+    if resolved["interpchan"]:
+        logger.warning(
+            "Removing ICA decomposition because interpolation changed the re-referenced channel set."
+        )
+        _clear_ica(EEG)
+        return
+
     icachansind = list(EEG.get("icachansind", []))
     if any(index in resolved["exclude_indices"] for index in icachansind):
         logger.warning("Removing ICA decomposition because ICA channels were excluded from re-referencing.")

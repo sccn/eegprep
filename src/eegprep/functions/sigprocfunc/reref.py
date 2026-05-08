@@ -87,7 +87,7 @@ def reref(
     removed = []
     if ref_indices and keepref_value == "off":
         if locs is not None:
-            removed = [copy.deepcopy(locs[idx]) for idx in ref_indices]
+            removed = [copy.deepcopy(locs[idx]) for idx in ref_indices if idx < len(locs)]
             locs = [loc for idx, loc in enumerate(locs) if idx not in set(ref_indices)]
         keep_mask = np.ones(work.shape[0], dtype=bool)
         keep_mask[ref_indices] = False
@@ -104,7 +104,8 @@ def _copy_locs(elocs: Any) -> list[dict[str, Any]] | None:
         return None
     if isinstance(elocs, np.ndarray):
         elocs = elocs.tolist()
-    return [copy.deepcopy(dict(loc)) for loc in list(elocs)]
+    copied = [copy.deepcopy(dict(loc)) for loc in list(elocs)]
+    return copied or None
 
 
 def _normalise_indices(values: Any, nchan: int, name: str) -> list[int]:
