@@ -278,7 +278,7 @@ def _theta_radius(chanloc):
     theta = chanloc.get('theta')
     radius = chanloc.get('radius')
     if not _is_empty_coordinate(theta) and not _is_empty_coordinate(radius):
-        return float(theta), float(radius)
+        return float(np.deg2rad(float(theta))), float(radius)
 
     x = float(chanloc.get('X', np.nan))
     y = float(chanloc.get('Y', np.nan))

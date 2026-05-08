@@ -5,6 +5,21 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
+try:  # pragma: no cover - depends on optional GUI dependency
+    from PySide6 import QtCore, QtWidgets
+except ImportError:  # pragma: no cover - depends on optional GUI dependency
+    QtCore = None
+    QtWidgets = None
+
+
+def _require_qt() -> tuple[Any, Any]:
+    if QtCore is None or QtWidgets is None:
+        raise RuntimeError(
+            "PySide6 is required for EEGPrep GUI list dialogs. Install it with "
+            "`pip install -e .[gui]` or `pip install eegprep[gui]`."
+        )
+    return QtCore, QtWidgets
+
 
 def listdlg2(
     *,
@@ -21,17 +36,11 @@ def listdlg2(
     Returns 1-based selected list positions, an OK flag, and the selected
     display strings joined by spaces, matching EEGLAB ``listdlg2``.
     """
-    try:
-        from PySide6 import QtCore, QtWidgets
-    except ImportError as exc:  # pragma: no cover - optional GUI dependency
-        raise RuntimeError(
-            "PySide6 is required for EEGPrep GUI list dialogs. Install it with "
-            "`pip install -e .[gui]` or `pip install eegprep[gui]`."
-        ) from exc
+    qt_core, qt_widgets = _require_qt()
 
     dialog, list_widget, list_items = _create_dialog(
-        QtCore,
-        QtWidgets,
+        qt_core,
+        qt_widgets,
         promptstring=promptstring,
         liststring=liststring,
         selectionmode=selectionmode,
@@ -41,9 +50,9 @@ def listdlg2(
         parent=parent,
     )
 
-    if dialog.exec() != QtWidgets.QDialog.Accepted:
+    if dialog.exec() != qt_widgets.QDialog.Accepted:
         return [], 0, ""
-    selected = sorted(item.data(QtCore.Qt.UserRole) for item in list_widget.selectedItems())
+    selected = sorted(item.data(qt_core.Qt.UserRole) for item in list_widget.selectedItems())
     selected_strings = [list_items[index - 1] for index in selected]
     return selected, 1, " ".join(selected_strings)
 
@@ -59,12 +68,12 @@ def build_listdlg2_dialog(
     parent: Any | None = None,
 ) -> tuple[Any, Any]:
     """Build a listdlg2 dialog without executing it, for visual capture tests."""
-    from PySide6 import QtCore, QtWidgets
+    qt_core, qt_widgets = _require_qt()
 
-    app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    app = qt_widgets.QApplication.instance() or qt_widgets.QApplication([])
     dialog, _list_widget, _list_items = _create_dialog(
-        QtCore,
-        QtWidgets,
+        qt_core,
+        qt_widgets,
         promptstring=promptstring,
         liststring=liststring,
         selectionmode=selectionmode,

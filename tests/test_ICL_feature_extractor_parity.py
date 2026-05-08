@@ -24,6 +24,7 @@ local_url = os.path.join(os.path.dirname(__file__), '../sample_data/')
 
 ICLABEL_PARITY_RTOL = 2e-5
 ICLABEL_PARITY_ATOL = 1e-8
+# MATLAB ICLabel casts PSD features to single precision before returning them.
 ICLABEL_PSD_PARITY_ATOL = 5e-8
 
 

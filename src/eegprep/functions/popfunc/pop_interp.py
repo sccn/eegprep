@@ -9,7 +9,9 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
+from eegprep.functions.popfunc._chanutils import chanlocs_as_list as _chanlocs_as_list
 from eegprep.functions.popfunc.eeg_interp import eeg_interp
 
 logger = logging.getLogger(__name__)
@@ -163,6 +165,7 @@ def pop_interp_dialog_spec(EEG: dict, alleeg: list[dict] | None = None) -> Dialo
         eeglab_source="functions/popfunc/pop_interp.m",
         help_text="pophelp('pop_interp')",
         size=size,
+        content_margins=(23, 14, 25, 13),
     )
 
 
@@ -202,8 +205,6 @@ def _run_gui(
     renderer: Any | None = None,
     alleeg: list[dict] | None = None,
 ) -> dict[str, Any] | None:
-    from eegprep.functions.guifunc.inputgui import inputgui
-
     logger.warning("interpolation can be done on the fly in studies")
     logger.warning("this function will actually create channels in the dataset")
     logger.warning("do not interpolate channels before running ICA")
@@ -315,16 +316,6 @@ def _is_chanloc_sequence(value: Any) -> bool:
         and bool(value)
         and all(isinstance(item, dict) and "labels" in item for item in value)
     )
-
-
-def _chanlocs_as_list(value: Any) -> list[dict[str, Any]]:
-    if value is None:
-        return []
-    if isinstance(value, np.ndarray):
-        value = value.tolist()
-    if isinstance(value, dict):
-        return [value]
-    return list(value)
 
 
 def _is_continuous(EEG: dict) -> bool:

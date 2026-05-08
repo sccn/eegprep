@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 import numpy as np
 
@@ -24,13 +25,16 @@ def _eeg(n_channels=8, n_points=50, trials=1):
         "epoch": [] if trials == 1 else [{} for _ in range(trials)],
     }
     for index in range(n_channels):
-        theta = 2 * np.pi * index / n_channels
+        angle = 2 * np.pi * index / n_channels
+        x = np.cos(angle)
+        y = np.sin(angle)
+        theta = np.degrees(np.arctan2(x, y))
         radius = 0.5
         eeg["chanlocs"].append(
             {
                 "labels": f"Ch{index + 1}",
-                "X": np.cos(theta),
-                "Y": np.sin(theta),
+                "X": x,
+                "Y": y,
                 "Z": 0.5,
                 "theta": theta,
                 "radius": radius,
@@ -77,7 +81,7 @@ class PopInterpTests(unittest.TestCase):
             "X": 0.0,
             "Y": -1.0,
             "Z": 0.5,
-            "theta": -np.pi / 2,
+            "theta": 180.0,
             "radius": 0.5,
         }
         eeg["chaninfo"]["removedchans"] = [removed.copy()]
@@ -92,7 +96,7 @@ class PopInterpTests(unittest.TestCase):
         class Renderer:
             def run(self, spec, initial_values=None):
                 self.spec = spec
-                return {"chanlist": {"chans": [0], "chanstr": "[0]"}, "method": 1, "timerange": ""}
+                return {"chanlist": {"chans": [0], "chanstr": "[1]"}, "method": 1, "timerange": ""}
 
         eeg = _eeg()
         renderer = Renderer()
@@ -100,22 +104,22 @@ class PopInterpTests(unittest.TestCase):
         out, com = pop_interp(eeg, gui=True, renderer=renderer, return_com=True)
 
         self.assertEqual(renderer.spec.title, "Interpolate channel(s) -- pop_interp()")
-        self.assertEqual(com, "EEG = pop_interp(EEG, [0], 'spherical');")
+        self.assertEqual(com, "EEG = pop_interp(EEG, [1], 'spherical');")
         self.assertFalse(np.array_equal(out["data"][0], eeg["data"][0]))
 
     def test_continuous_gui_second_method_matches_eeglab_source_mapping(self):
         class Renderer:
             def run(self, spec, initial_values=None):
-                return {"chanlist": {"chans": [0], "chanstr": "[0]"}, "method": 2, "timerange": ""}
+                return {"chanlist": {"chans": [0], "chanstr": "[1]"}, "method": 2, "timerange": ""}
 
         _out, com = pop_interp(_eeg(), gui=True, renderer=Renderer(), return_com=True)
 
-        self.assertEqual(com, "EEG = pop_interp(EEG, [0], 'sphericalKang');")
+        self.assertEqual(com, "EEG = pop_interp(EEG, [1], 'sphericalKang');")
 
     def test_gui_blank_time_range_matches_eeglab_full_range_gui_behavior(self):
         class Renderer:
             def run(self, spec, initial_values=None):
-                return {"chanlist": {"chans": [0], "chanstr": "[0]"}, "method": 1, "timerange": ""}
+                return {"chanlist": {"chans": [0], "chanstr": "[1]"}, "method": 1, "timerange": ""}
 
         eeg = _eeg()
 
@@ -127,7 +131,7 @@ class PopInterpTests(unittest.TestCase):
     def test_gui_time_range_validation_matches_eeglab_errors(self):
         class Renderer:
             def run(self, spec, initial_values=None):
-                return {"chanlist": {"chans": [0], "chanstr": "[0]"}, "method": 1, "timerange": "0 99"}
+                return {"chanlist": {"chans": [0], "chanstr": "[1]"}, "method": 1, "timerange": "0 99"}
 
         with self.assertRaisesRegex(ValueError, "upper data limits"):
             pop_interp(_eeg(), gui=True, renderer=Renderer())
@@ -190,15 +194,116 @@ class PopInterpGuiSpecTests(unittest.TestCase):
 
     def test_renderer_stores_interp_selection_as_inputgui_userdata(self):
         class Target:
+            def __init__(self):
+                self._properties = {}
+
             def setText(self, text):
                 self.text = text
 
+            def setProperty(self, name, value):
+                self._properties[name] = value
+
+            def property(self, name):
+                return self._properties.get(name)
+
         target = Target()
 
-        QtDialogRenderer._store_interp_selection(target, [0, 2], "[0 2]", "Ch1 Ch3")
+        QtDialogRenderer._store_interp_selection(target, [0, 2], "[1 3]", "Ch1 Ch3")
 
         self.assertEqual(target.text, "Ch1 Ch3")
-        self.assertEqual(QtDialogRenderer._read_widget(target), {"chans": [0, 2], "chanstr": "[0 2]"})
+        self.assertEqual(QtDialogRenderer._read_widget(target), {"chans": [0, 2], "chanstr": "[1 3]"})
+
+    def test_interp_datchan_callback_keeps_zero_based_data_and_one_based_history(self):
+        target = _Target()
+        params = {
+            "source": "datchan",
+            "chanlocs": ({"labels": "Ch1"}, {"labels": "Ch2"}, {"labels": "Ch3"}),
+        }
+
+        with patch("eegprep.functions.guifunc.qt.pop_chansel", return_value=([1, 3], "Ch1 Ch3", ["Ch1", "Ch3"])):
+            QtDialogRenderer._select_interp_channels(None, target, params)
+
+        self.assertEqual(target.text, "Ch1 Ch3")
+        self.assertEqual(QtDialogRenderer._read_widget(target), {"chans": [0, 2], "chanstr": "[1 3]"})
+
+    def test_interp_removed_callback_uses_removedchans_history_expression(self):
+        target = _Target()
+        removed = ({"labels": "M1"}, {"labels": "M2"})
+        params = {"source": "nondatchan", "removedchans": removed}
+
+        with patch("eegprep.functions.guifunc.qt.pop_chansel", return_value=([1, 2], "M1 M2", ["M1", "M2"])):
+            QtDialogRenderer._select_interp_channels(None, target, params)
+
+        self.assertEqual(QtDialogRenderer._read_widget(target), {
+            "chans": [{"labels": "M1"}, {"labels": "M2"}],
+            "chanstr": "EEG.chaninfo.removedchans([1 2])",
+        })
+
+    def test_interp_selectchan_callback_uses_alleeg_subset_history_expression(self):
+        target = _Target()
+        params = {
+            "source": "selectchan",
+            "chanlocs": ({"labels": "Ch1"},),
+            "alleeg": ({"chanlocs": ({"labels": "Ch1"}, {"labels": "Pz"})},),
+        }
+
+        with (
+            patch("eegprep.functions.guifunc.qt._require_qt", return_value=(object(), _FakeQtWidgets)),
+            patch("eegprep.functions.guifunc.qt.pop_chansel", return_value=([2], "Pz", ["Pz"])),
+        ):
+            QtDialogRenderer._select_interp_channels(None, target, params)
+
+        self.assertEqual(QtDialogRenderer._read_widget(target), {
+            "chans": [{"labels": "Pz"}],
+            "chanstr": "ALLEEG(1).chanlocs([2])",
+        })
+
+    def test_interp_uselist_callback_uses_alleeg_full_history_expression(self):
+        target = _Target()
+        params = {
+            "source": "uselist",
+            "chanlocs": ({"labels": "Ch1"},),
+            "alleeg": ({"chanlocs": ({"labels": "Pz"}, {"labels": "Oz"})},),
+        }
+
+        with patch("eegprep.functions.guifunc.qt._require_qt", return_value=(object(), _FakeQtWidgets)):
+            QtDialogRenderer._select_interp_channels(None, target, params)
+
+        self.assertEqual(QtDialogRenderer._read_widget(target), {
+            "chans": [{"labels": "Pz"}, {"labels": "Oz"}],
+            "chanstr": "ALLEEG(1).chanlocs",
+        })
+
+
+class _Target:
+    def __init__(self):
+        self._properties = {}
+
+    def setText(self, text):
+        self.text = text
+
+    def setProperty(self, name, value):
+        self._properties[name] = value
+
+    def property(self, name):
+        return self._properties.get(name)
+
+
+class _FakeInputDialog:
+    @staticmethod
+    def getInt(*args, **kwargs):
+        return 1, True
+
+
+class _FakeMessageBox:
+    @staticmethod
+    def warning(*args, **kwargs):
+        return None
+
+
+class _FakeQtWidgets:
+    QInputDialog = _FakeInputDialog
+    QMessageBox = _FakeMessageBox
 
 
 if __name__ == "__main__":

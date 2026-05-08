@@ -7,6 +7,8 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.popfunc._chanutils import normalise_reflocs as _normalise_reflocs
+
 
 def reref(
     data: Any,
@@ -131,35 +133,6 @@ def _normalise_indices(values: Any, nchan: int, name: str) -> list[int]:
             raise ValueError(f"{name.capitalize()} channel index out of range")
         indices.append(value)
     return sorted(set(indices))
-
-
-def _normalise_reflocs(refloc: Any) -> list[dict[str, Any]]:
-    if isinstance(refloc, dict):
-        return [copy.deepcopy(refloc)]
-    if isinstance(refloc, np.ndarray):
-        refloc = refloc.tolist()
-    if (
-        isinstance(refloc, (list, tuple))
-        and len(refloc) == 3
-        and isinstance(refloc[0], str)
-        and _is_number_like(refloc[1])
-        and _is_number_like(refloc[2])
-    ):
-        return [{"labels": refloc[0], "theta": refloc[1], "radius": refloc[2]}]
-    locs = []
-    for loc in list(refloc):
-        if not isinstance(loc, dict):
-            raise TypeError("refloc entries must be dictionaries or [label, theta, radius]")
-        locs.append(copy.deepcopy(loc))
-    return locs
-
-
-def _is_number_like(value: Any) -> bool:
-    try:
-        float(value)
-    except (TypeError, ValueError):
-        return False
-    return True
 
 
 def _update_references(locs: list[dict[str, Any]], chansin: list[int], ref_indices: list[int]) -> None:

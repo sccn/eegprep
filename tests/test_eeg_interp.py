@@ -1,7 +1,7 @@
+import copy
 import os
 import unittest
 import numpy as np
-import os
 from scipy.io import loadmat, savemat
 from unittest.mock import patch, MagicMock
 
@@ -17,6 +17,50 @@ from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 # test_parity_spherical_kang	        2.81e-04	2.98e-03 (0.30%)	SphericalKang method, 3 channels, 1 trial
 # test_parity_spherical_basic	        2.50e-04	3.18e-03 (0.32%)	Basic spherical, 3 channels, 1 trial
 # test_parity_custom_time_range	        2.49e-04	2.02e-03 (0.20%)	Custom time range, 3 channels
+
+
+class TestEegInterpPlanarGeometry(unittest.TestCase):
+    def test_planar_theta_radius_degrees_match_xy_fallback(self):
+        n_channels = 6
+        n_points = 24
+        data = np.arange(n_channels * n_points, dtype=float).reshape(n_channels, n_points)
+        chanlocs = []
+        for theta in np.linspace(-150, 150, n_channels):
+            theta_rad = np.deg2rad(theta)
+            radius = 0.45
+            x = radius * np.sin(theta_rad)
+            y = radius * np.cos(theta_rad)
+            chanlocs.append(
+                {
+                    "labels": f"Ch{len(chanlocs) + 1}",
+                    "theta": theta,
+                    "radius": radius,
+                    "X": x,
+                    "Y": y,
+                    "Z": 0.75,
+                }
+            )
+
+        eeg_theta = {
+            "data": data.copy(),
+            "nbchan": n_channels,
+            "pnts": n_points,
+            "trials": 1,
+            "srate": 100,
+            "xmin": 0.0,
+            "xmax": (n_points - 1) / 100,
+            "chanlocs": chanlocs,
+        }
+        eeg_xy = copy.deepcopy(eeg_theta)
+        for loc in eeg_xy["chanlocs"]:
+            loc["theta"] = []
+            loc["radius"] = []
+
+        by_theta = eeg_interp(eeg_theta, [0], method="invdist")
+        by_xy = eeg_interp(eeg_xy, [0], method="invdist")
+
+        np.testing.assert_allclose(by_theta["data"], by_xy["data"], rtol=1e-12, atol=1e-12)
+
 
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestEegInterpParity(unittest.TestCase):

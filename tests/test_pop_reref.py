@@ -618,6 +618,22 @@ class TestPopReref(DebuggableTestCase):
 
         self.assertEqual(com, "EEG = pop_reref( EEG, {'Ch2'}, 'keepref', 'on');")
 
+    def test_history_command_formats_numeric_channels_as_matlab_indices(self):
+        EEG = self.create_simple_eeg(nbchan=4, pnts=20)
+
+        _out, com = pop_reref(EEG, ref=[0], exclude=[3], return_com=True)
+
+        self.assertEqual(com, "EEG = pop_reref( EEG, [1], 'exclude', [4]);")
+
+    def test_history_command_formats_numeric_interpchan_as_matlab_indices(self):
+        EEG = self.create_simple_eeg(nbchan=3, pnts=20)
+        missing = {'labels': 'Ch4', 'X': 0.0, 'Y': -1.0, 'Z': 0.0, 'theta': 180.0, 'radius': 0.5}
+        EEG['urchanlocs'] = EEG['chanlocs'] + [missing]
+
+        _out, com = pop_reref(EEG, ref=[], interpchan=[3], return_com=True)
+
+        self.assertEqual(com, "EEG = pop_reref( EEG, [], 'interpchan', [4]);")
+
     def test_history_command_formats_refloc_struct_like_eeglab(self):
         EEG = self.create_simple_eeg(nbchan=2, pnts=20)
         old_ref = {
@@ -637,6 +653,14 @@ class TestPopReref(DebuggableTestCase):
         self.assertIn("'refloc', struct(", com)
         self.assertIn("'labels',{'M1'}", com)
         self.assertIn("'theta',-90", com)
+
+    def test_unsupported_legacy_options_raise(self):
+        EEG = self.create_simple_eeg(nbchan=2, pnts=20)
+
+        with self.assertRaisesRegex(ValueError, "Unknown pop_reref option"):
+            pop_reref(EEG, ref=[], addrefchannel="Cz")
+        with self.assertRaisesRegex(ValueError, "Unknown pop_reref option"):
+            pop_reref(EEG, ref=[], enforcetype="on")
 
     def test_multiple_dataset_gui_path_prompts_once_like_eeglab(self):
         class Renderer:
@@ -686,7 +710,7 @@ class TestPopReref(DebuggableTestCase):
 
         out, com = pop_reref(EEG, gui=True, renderer=Renderer(), return_com=True)
 
-        self.assertEqual(com, "EEG = pop_reref( EEG, [0], 'keepref', 'on');")
+        self.assertEqual(com, "EEG = pop_reref( EEG, [1], 'keepref', 'on');")
         np.testing.assert_allclose(out['data'][0], 0, atol=1e-6)
 
     def test_parity_basic_reref(self):

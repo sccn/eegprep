@@ -10,7 +10,13 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
+from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
+from eegprep.functions.popfunc._chanutils import (
+    chanlocs_as_list as _chanlocs_as_list,
+    is_number_like as _is_number_like,
+    normalise_reflocs as _normalise_reflocs,
+)
 from eegprep.functions.popfunc.pop_interp import pop_interp
 from eegprep.functions.sigprocfunc.reref import reref
 
@@ -24,8 +30,6 @@ _VALID_OPTIONS = {
     "refica",
     "interpchan",
     "huber",
-    "addrefchannel",
-    "enforcetype",
 }
 
 
@@ -332,7 +336,7 @@ def _history_options(options: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _resolve_channels(EEG: dict, channels: Any, *, one_based_numbers: bool = False) -> list[int]:
+def _resolve_channels(EEG: dict, channels: Any) -> list[int]:
     if _is_empty(channels):
         return []
     chanlocs = _chanlocs_as_list(EEG.get("chanlocs", []))
@@ -349,8 +353,6 @@ def _resolve_channels(EEG: dict, channels: Any, *, one_based_numbers: bool = Fal
             indices.extend(matches)
             continue
         index = int(value)
-        if one_based_numbers:
-            index -= 1
         if index < 0 or index >= nchan:
             raise ValueError("Channel index out of range")
         indices.append(index)
@@ -376,16 +378,6 @@ def _normalise_channel_values(channels: Any) -> list[Any]:
         tokens = re.findall(r"'([^']*)'|\"([^\"]*)\"|([^,\s]+)", text)
         return [next(part for part in token if part) for token in tokens]
     return list(channels)
-
-
-def _chanlocs_as_list(chanlocs: Any) -> list[dict[str, Any]]:
-    if chanlocs is None:
-        return []
-    if isinstance(chanlocs, np.ndarray):
-        chanlocs = chanlocs.tolist()
-    if isinstance(chanlocs, dict):
-        return [chanlocs]
-    return list(chanlocs)
 
 
 def _store_removed_ref_channels(EEG: dict, removed: list[dict[str, Any]]) -> None:
@@ -425,7 +417,7 @@ def _remove_refloc_from_removed_channels(EEG: dict, refloc: Any) -> None:
     removed = chaninfo.get("removedchans", [])
     if not removed:
         raise ValueError("Missing reference channel information. Edit channels and add reference first.")
-    labels = {str(loc.get("labels", "")).lower() for loc in _normalise_refloc_list(refloc)}
+    labels = {str(loc.get("labels", "")).lower() for loc in _normalise_reflocs(refloc)}
     if not labels:
         return
     chaninfo["removedchans"] = [
@@ -433,33 +425,22 @@ def _remove_refloc_from_removed_channels(EEG: dict, refloc: Any) -> None:
     ]
 
 
-def _normalise_refloc_list(refloc: Any) -> list[dict[str, Any]]:
-    if isinstance(refloc, dict):
-        return [refloc]
-    if isinstance(refloc, np.ndarray):
-        refloc = refloc.tolist()
-    if isinstance(refloc, (list, tuple)) and len(refloc) == 3 and isinstance(refloc[0], str):
-        return [{"labels": refloc[0], "theta": refloc[1], "radius": refloc[2]}]
-    return list(refloc)
-
-
 def _resolve_refloc(EEG: dict, refloc: Any) -> list[dict[str, Any]]:
     if _is_empty(refloc):
         return []
-    if isinstance(refloc, dict):
-        return [copy.deepcopy(refloc)]
-    if isinstance(refloc, np.ndarray):
-        refloc = refloc.tolist()
-    if isinstance(refloc, (list, tuple)) and refloc and isinstance(refloc[0], dict):
-        return [copy.deepcopy(loc) for loc in refloc]
+    refloc_values = refloc.tolist() if isinstance(refloc, np.ndarray) else refloc
     if (
-        isinstance(refloc, (list, tuple))
-        and len(refloc) == 3
-        and isinstance(refloc[0], str)
-        and _is_number_like(refloc[1])
-        and _is_number_like(refloc[2])
+        isinstance(refloc_values, (list, tuple))
+        and len(refloc_values) == 3
+        and isinstance(refloc_values[0], str)
+        and _is_number_like(refloc_values[1])
+        and _is_number_like(refloc_values[2])
     ):
-        return [{"labels": refloc[0], "theta": refloc[1], "radius": refloc[2]}]
+        return _normalise_reflocs(refloc_values)
+    if isinstance(refloc_values, dict):
+        return _normalise_reflocs(refloc_values)
+    if isinstance(refloc_values, (list, tuple)) and refloc_values and isinstance(refloc_values[0], dict):
+        return _normalise_reflocs(refloc_values)
 
     nodatchans = _reference_nodatchans(EEG)
     if not nodatchans:
@@ -563,14 +544,6 @@ def _is_referenceable_eeg(chan: dict[str, Any], require_eeg_type: bool) -> bool:
     return chan_type != "fid"
 
 
-def _is_number_like(value: Any) -> bool:
-    try:
-        float(value)
-    except (TypeError, ValueError):
-        return False
-    return True
-
-
 def _update_legacy_ref(EEG: dict, ref_indices: list[int]) -> None:
     if "ref" not in EEG:
         return
@@ -600,7 +573,10 @@ def _update_ica(
     if resolved["refica"] == "off":
         EEG["icaact"] = np.array([])
         return
-    EEG["icaact"] = np.array([])
+    if resolved["refica"] == "backwardcomp":
+        resolved = {**resolved, "refica": "on"}
+    else:
+        EEG["icaact"] = np.array([])
 
     icachansind = list(EEG.get("icachansind", []))
     if any(index in resolved["exclude_indices"] for index in icachansind):
@@ -662,8 +638,6 @@ def _normalise_checkset_types(EEG: dict) -> None:
 
 
 def _run_gui(EEG: dict, renderer: Any | None = None) -> dict[str, Any] | None:
-    from eegprep.functions.guifunc.inputgui import inputgui
-
     channel_labels = [chan.get("labels", "") for chan in _chanlocs_as_list(EEG.get("chanlocs", []))]
     refloc_labels = [chan.get("labels", "") for chan in _reference_nodatchans(EEG)]
     spec = pop_reref_dialog_spec(_current_reference(EEG), channel_labels, refloc_labels)
@@ -746,17 +720,43 @@ def _current_reference(EEG: dict) -> str:
 
 
 def _history_command(ref: Any, options: dict[str, Any]) -> str:
-    parts = [_format_ref_history_value([] if ref is _UNSET or ref is None else ref)]
+    parts = [_format_channel_history_value([] if ref is _UNSET or ref is None else ref)]
     for key, value in options.items():
         parts.append(_format_history_value(key))
-        parts.append(_format_history_value(value))
+        if key in {"exclude", "interpchan"}:
+            parts.append(_format_channel_history_value(value))
+        else:
+            parts.append(_format_history_value(value))
     return f"EEG = pop_reref( EEG, {', '.join(parts)});"
 
 
-def _format_ref_history_value(ref: Any) -> str:
-    if isinstance(ref, str) and not _is_empty(ref):
-        return _format_history_value([ref])
-    return _format_history_value(ref)
+def _format_channel_history_value(channels: Any) -> str:
+    if isinstance(channels, np.ndarray):
+        channels = channels.tolist()
+    if isinstance(channels, str):
+        if _is_empty(channels):
+            return "[]"
+        if _is_int_text(channels):
+            return _format_history_number(int(channels) + 1)
+        return _format_history_value([channels])
+    if isinstance(channels, (int, np.integer)):
+        return _format_history_number(int(channels) + 1)
+    if isinstance(channels, (float, np.floating)) and float(channels).is_integer():
+        return _format_history_number(int(channels) + 1)
+    if isinstance(channels, dict):
+        return _format_history_struct([channels])
+    if isinstance(channels, (list, tuple)):
+        values = list(channels)
+        if not values:
+            return "[]"
+        if all(isinstance(item, dict) for item in values):
+            return _format_history_struct(values)
+        if all(_is_channel_number(item) for item in values):
+            shifted = [int(item) + 1 for item in values]
+            return "[" + " ".join(_format_history_number(item) for item in shifted) + "]"
+        if any(isinstance(item, str) for item in values):
+            return "{" + ",".join(_format_history_value(item) for item in values) + "}"
+    return _format_history_value(channels)
 
 
 def _format_history_value(value: Any) -> str:
@@ -809,6 +809,14 @@ def _format_history_number(value: Any) -> str:
     if isinstance(value, float) and value.is_integer():
         return str(int(value))
     return str(value)
+
+
+def _is_channel_number(value: Any) -> bool:
+    if isinstance(value, (int, np.integer)):
+        return True
+    if isinstance(value, (float, np.floating)) and float(value).is_integer():
+        return True
+    return isinstance(value, str) and _is_int_text(value)
 
 
 def _is_number_or_empty(value: Any) -> bool:

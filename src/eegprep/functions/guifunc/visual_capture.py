@@ -239,20 +239,17 @@ def capture_dataset_index_dialog(output: pathlib.Path) -> None:
         }
         """
     )
-    label = QtWidgets.QLabel("Dataset index", dialog)
-    label.setGeometry(9, 16, 180, 20)
-    edit = QtWidgets.QLineEdit(dialog)
-    edit.setObjectName("input")
-    edit.setGeometry(9, 44, 179, 19)
-    help_button = QtWidgets.QPushButton("Help", dialog)
-    help_button.setObjectName("help")
-    help_button.setGeometry(9, 90, 49, 19)
-    cancel_button = QtWidgets.QPushButton("Cancel", dialog)
-    cancel_button.setObjectName("cancel")
-    cancel_button.setGeometry(87, 90, 49, 19)
-    ok_button = QtWidgets.QPushButton("OK", dialog)
-    ok_button.setObjectName("ok")
-    ok_button.setGeometry(140, 90, 49, 19)
+    widgets = [
+        (QtWidgets.QLabel("Dataset index", dialog), "", (9, 16, 180, 20)),
+        (QtWidgets.QLineEdit(dialog), "input", (9, 44, 179, 19)),
+        (QtWidgets.QPushButton("Help", dialog), "help", (9, 90, 49, 19)),
+        (QtWidgets.QPushButton("Cancel", dialog), "cancel", (87, 90, 49, 19)),
+        (QtWidgets.QPushButton("OK", dialog), "ok", (140, 90, 49, 19)),
+    ]
+    for widget, name, geometry in widgets:
+        if name:
+            widget.setObjectName(name)
+        widget.setGeometry(*geometry)
     _grab_dialog(dialog, output, app)
 
 
