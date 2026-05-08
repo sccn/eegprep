@@ -662,6 +662,13 @@ class TestPopReref(DebuggableTestCase):
 
         self.assertEqual(com, "EEG = pop_reref( EEG, {'Ch2'}, 'keepref', 'on');")
 
+    def test_history_command_normalises_keepref_case(self):
+        EEG = self.create_simple_eeg(nbchan=4, pnts=20)
+
+        _out, com = pop_reref(EEG, ref=[], keepref='ON', return_com=True)
+
+        self.assertEqual(com, "EEG = pop_reref( EEG, [], 'keepref', 'on');")
+
     def test_history_command_formats_numeric_channels_as_matlab_indices(self):
         EEG = self.create_simple_eeg(nbchan=4, pnts=20)
 

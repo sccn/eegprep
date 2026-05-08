@@ -328,12 +328,21 @@ def _resolve_options(EEG: dict, ref: Any, options: dict[str, Any]) -> dict[str, 
 
 
 def _history_options(options: dict[str, Any]) -> dict[str, Any]:
-    return {
-        key: value
-        for key, value in options.items()
-        if key in {"exclude", "keepref", "refloc", "refica", "huber", "interpchan"}
-        and not _is_default_option(key, value)
-    }
+    history: dict[str, Any] = {}
+    for key, value in options.items():
+        if key not in {"exclude", "keepref", "refloc", "refica", "huber", "interpchan"}:
+            continue
+        normalised = _normalise_history_option_value(key, value)
+        if _is_default_option(key, normalised):
+            continue
+        history[key] = normalised
+    return history
+
+
+def _normalise_history_option_value(key: str, value: Any) -> Any:
+    if key in {"keepref", "refica"} and isinstance(value, str):
+        return value.lower()
+    return value
 
 
 def _resolve_channels(EEG: dict, channels: Any) -> list[int]:

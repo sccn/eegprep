@@ -153,7 +153,6 @@ def _update_references(locs: list[dict[str, Any]], chansin: list[int], ref_indic
 
 def _huber_average_reference(data: np.ndarray, threshold: float) -> np.ndarray:
     mean = data.mean(axis=0)
-    weights = np.ones((data.shape[0], 1), dtype=data.dtype)
     for _ in range(100):
         residual = np.mean(data - mean, axis=1, keepdims=True)
         weights = np.ones_like(residual)

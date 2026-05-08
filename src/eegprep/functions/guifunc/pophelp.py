@@ -13,6 +13,8 @@ from typing import Any
 PACKAGE_ROOT = Path(__file__).resolve().parents[2]
 EEGLAB_ROOTS = (
     PACKAGE_ROOT / "resources" / "eeglab",
+    # Development-only fallback when running from a source checkout.
+    # Packaged runtime must still work when this path is absent.
     PACKAGE_ROOT / "eeglab",
 )
 PYTHON_HELP_MODULE_HINTS = (
