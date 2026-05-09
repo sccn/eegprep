@@ -61,19 +61,16 @@ CURRENTSET = 0;
 
 if strcmp(state, 'continuous')
     EEG = demo_eeg('continuous', 'menu continuous');
-    EEG = eeg_checkset(EEG, 'eventconsistency');
-    [ALLEEG, EEG, CURRENTSET] = eeg_store(ALLEEG, EEG, 0);
+    ALLEEG = EEG;
+    CURRENTSET = 1;
 elseif strcmp(state, 'epoched')
     EEG = demo_eeg('epoched', 'menu epoched');
-    EEG = eeg_checkset(EEG, 'eventconsistency');
-    [ALLEEG, EEG, CURRENTSET] = eeg_store(ALLEEG, EEG, 0);
+    ALLEEG = EEG;
+    CURRENTSET = 1;
 elseif strcmp(state, 'multiple')
     EEG = demo_eeg('continuous', 'menu one');
-    EEG = eeg_checkset(EEG, 'eventconsistency');
-    [ALLEEG, EEG, CURRENTSET] = eeg_store(ALLEEG, EEG, 0);
-    EEG = demo_eeg('continuous', 'menu two');
-    EEG = eeg_checkset(EEG, 'eventconsistency');
-    [ALLEEG, EEG, CURRENTSET] = eeg_store(ALLEEG, EEG, 0);
+    ALLEEG = EEG;
+    ALLEEG(2) = demo_eeg('continuous', 'menu two');
     CURRENTSET = [1 2];
     EEG = ALLEEG(CURRENTSET);
 else
