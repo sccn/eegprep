@@ -274,12 +274,15 @@ def _summary_for_session(session: EEGPrepSession) -> tuple[str, str, list[tuple[
             _short_file_line("Study filename", study.get("filepath", ""), study.get("filename", "")),
             [
                 ("Study task name", str(study.get("task", ""))),
-                ("Nb of subjects", str(len(study.get("subject", []) or []))),
-                ("Nb of conditions", str(len(study.get("condition", []) or []))),
-                ("Nb of sessions", str(len(study.get("session", []) or []))),
-                ("Nb of groups", str(len(study.get("group", []) or []))),
+                ("Nb of subjects", str(max(1, len(study.get("subject", []) or [])))),
+                ("Nb of conditions", _per_subject_count(study.get("condition", []) or [])),
+                ("Nb of sessions", _per_subject_count(study.get("session", []) or [])),
+                ("Nb of groups", _per_subject_count(study.get("group", []) or [])),
+                ("Epoch consistency", _epoch_consistency(session.ALLEEG)),
+                ("Channels per frame", _unique_values(session.ALLEEG, "nbchan")),
+                ("Channel locations", _study_channel_locations(session.ALLEEG)),
                 ("Clusters", str(len(study.get("cluster", []) or []))),
-                ("Status", "Ready"),
+                ("Status", _study_status(session.ALLEEG)),
                 ("Total size (Mb)", _size_mb(session.ALLEEG)),
             ],
         )
@@ -291,10 +294,14 @@ def _summary_for_session(session: EEGPrepSession) -> tuple[str, str, list[tuple[
             [
                 ("Number of datasets", str(len(eeg))),
                 ("Dataset type", _dataset_type(eeg)),
+                ("Epoch consistency", _epoch_consistency(eeg)),
                 ("Channels per frame", _unique_values(eeg, "nbchan")),
+                ("Channel consistency", _channel_consistency(eeg)),
+                ("Channel locations", _study_channel_locations(eeg)),
                 ("Events (total)", str(sum(_collection_len(item.get("event")) for item in eeg))),
                 ("Sampling rate (Hz)", _unique_values(eeg, "srate")),
                 ("ICA weights", _yes_no(all(not _empty_array(item.get("icaweights")) for item in eeg))),
+                ("Identical ICA", _identical_ica(eeg)),
                 ("Total size (Mb)", _size_mb(eeg)),
             ],
         )
@@ -439,7 +446,60 @@ def _dataset_type(eeg_list: list[dict[str, Any]]) -> str:
 
 
 def _unique_values(eeg_list: list[dict[str, Any]], key: str) -> str:
-    return ", ".join(str(value) for value in sorted({eeg.get(key, "") for eeg in eeg_list}))
+    return ", ".join(_format_scalar(value) for value in sorted({eeg.get(key, "") for eeg in eeg_list}))
+
+
+def _format_scalar(value: Any) -> str:
+    if isinstance(value, (int, float)) and float(value) == round(float(value)):
+        return str(int(value))
+    return str(value)
+
+
+def _per_subject_count(values: Any) -> str:
+    return f"{max(1, len(values))} per subject"
+
+
+def _epoch_consistency(eeg_list: list[dict[str, Any]]) -> str:
+    trials = {int(eeg.get("trials", 1) or 1) for eeg in eeg_list}
+    if trials == {1}:
+        return "no"
+    return "yes" if len(trials) == 1 else "no"
+
+
+def _channel_consistency(eeg_list: list[dict[str, Any]]) -> str:
+    return "yes" if len({int(eeg.get("nbchan", 0) or 0) for eeg in eeg_list}) == 1 else "no"
+
+
+def _study_channel_locations(eeg_list: list[dict[str, Any]]) -> str:
+    states = {_channel_location_state(eeg).lower().startswith("yes") for eeg in eeg_list}
+    if states == {True}:
+        return "yes"
+    if states == {False}:
+        return "no"
+    return "mixed, yes and no"
+
+
+def _identical_ica(eeg_list: list[dict[str, Any]]) -> str:
+    if not eeg_list:
+        return "no"
+    first_weights = eeg_list[0].get("icaweights")
+    if _empty_array(first_weights):
+        return "no"
+    for eeg in eeg_list[1:]:
+        weights = eeg.get("icaweights")
+        if _empty_array(weights):
+            return "no"
+        if isinstance(first_weights, np.ndarray) and isinstance(weights, np.ndarray):
+            if not np.array_equal(first_weights, weights):
+                return "no"
+        elif first_weights != weights:
+            return "no"
+    return "yes"
+
+
+def _study_status(eeg_list: list[dict[str, Any]]) -> str:
+    has_ica = all(not _empty_array(eeg.get("icaweights")) for eeg in eeg_list)
+    return "Ready to precluster" if has_ica else "Missing ICA dec."
 
 
 def _yes_no(value: bool) -> str:

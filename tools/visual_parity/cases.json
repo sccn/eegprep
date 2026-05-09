@@ -30,6 +30,106 @@
       }
     },
     {
+      "id": "main_window_continuous",
+      "description": "EEGLAB/EEGPrep main window with one continuous dataset loaded.",
+      "window_size": [386, 290],
+      "targets": {
+        "eeglab": {
+          "type": "matlab_figure",
+          "action": "main_window_state:continuous",
+          "matlab_command": "eeglab;"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "main_window_continuous",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "main_window_epoched",
+      "description": "EEGLAB/EEGPrep main window with one epoched dataset loaded.",
+      "window_size": [386, 290],
+      "targets": {
+        "eeglab": {
+          "type": "matlab_figure",
+          "action": "main_window_state:epoched",
+          "matlab_command": "eeglab;"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "main_window_epoched",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "main_window_multiple",
+      "description": "EEGLAB/EEGPrep main window with multiple datasets selected.",
+      "window_size": [386, 290],
+      "targets": {
+        "eeglab": {
+          "type": "matlab_figure",
+          "action": "main_window_state:multiple",
+          "matlab_command": "eeglab;"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "main_window_multiple",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "main_window_study",
+      "description": "EEGLAB/EEGPrep main window with a STUDY selected.",
+      "window_size": [386, 290],
+      "targets": {
+        "eeglab": {
+          "type": "matlab_figure",
+          "action": "main_window_state:study",
+          "matlab_command": "eeglab;"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "main_window_study",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
       "id": "adjust_events_dialog",
       "description": "Adjust event latencies dialog opened from pop_adjustevents.",
       "window_size": [858, 169],

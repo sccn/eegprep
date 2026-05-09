@@ -133,28 +133,70 @@ def _demo_interp_eeg(*, epoched: bool = False, removed: bool = False) -> dict:
     return eeg
 
 
-def _demo_main_eeg() -> dict:
+def _demo_main_eeg(*, epoched: bool = False, setname: str = "menu demo") -> dict:
     eeg = _demo_reref_eeg()
+    if epoched:
+        eeg.update(
+            {
+                "data": np.zeros((4, 250, 2), dtype=np.float32),
+                "pnts": 250,
+                "trials": 2,
+                "xmin": -0.2,
+                "xmax": 0.796,
+                "epoch": [{"event": [1]}, {"event": [2]}],
+            }
+        )
     eeg.update(
         {
-            "setname": "menu demo",
-            "filename": "menu_demo.set",
+            "setname": setname,
+            "filename": f"{setname.replace(' ', '_')}.set",
             "filepath": "/tmp",
             "event": [
                 {"type": "stim", "latency": 100.0, "duration": 0.0},
                 {"type": "resp", "latency": 350.0, "duration": 0.0},
             ],
             "urevent": [],
-            "epoch": [],
             "history": "",
             "icaweights": np.eye(4, dtype=np.float32),
             "icasphere": np.eye(4, dtype=np.float32),
             "icawinv": np.eye(4, dtype=np.float32),
             "icachansind": np.arange(4),
-            "icaact": np.zeros((4, 1000), dtype=np.float32),
+            "icaact": np.zeros((4, 250, 2), dtype=np.float32) if epoched else np.zeros((4, 1000), dtype=np.float32),
         }
     )
     return eeg
+
+
+def _configure_main_window_session(session: EEGPrepSession, state: str) -> None:
+    if state == "startup":
+        return
+    if state == "continuous":
+        session.store_current(_demo_main_eeg(), new=True)
+        return
+    if state == "epoched":
+        session.store_current(_demo_main_eeg(epoched=True, setname="menu epoched"), new=True)
+        return
+    if state == "multiple":
+        session.store_current(_demo_main_eeg(setname="menu one"), new=True)
+        session.store_current(_demo_main_eeg(setname="menu two"), new=True)
+        session.retrieve([1, 2])
+        return
+    if state == "study":
+        session.store_current(_demo_main_eeg(setname="study demo"), new=True)
+        session.STUDY = {
+            "name": "menu study",
+            "filename": "menu_study.study",
+            "filepath": "/tmp",
+            "task": "demo task",
+            "subject": ["S01"],
+            "condition": ["C1"],
+            "session": [],
+            "group": [],
+            "cluster": [{"name": "ParentCluster"}],
+        }
+        session.CURRENTSTUDY = 1
+        return
+    raise ValueError(f"unsupported main-window state: {state}")
 
 
 def _grab_dialog(dialog, output: pathlib.Path, app) -> None:
@@ -169,11 +211,12 @@ def _grab_dialog(dialog, output: pathlib.Path, app) -> None:
     app.processEvents()
 
 
-def capture_main_window(output: pathlib.Path, *, menu_label: str | None = None) -> None:
+def capture_main_window(output: pathlib.Path, *, state: str = "startup", menu_label: str | None = None) -> None:
     """Render and capture the EEGPrep main window, optionally with a menu open."""
     session = EEGPrepSession()
-    if menu_label is not None:
-        session.store_current(_demo_main_eeg(), new=True)
+    if menu_label is not None and state == "startup":
+        state = "continuous"
+    _configure_main_window_session(session, state)
     window = build_main_window(session)
     window.show()
     window.app.processEvents()
@@ -341,6 +384,14 @@ def main(argv: list[str] | None = None) -> int:
         capture_adjust_events_dialog(args.output)
     elif args.case == "main_window":
         capture_main_window(args.output)
+    elif args.case == "main_window_continuous":
+        capture_main_window(args.output, state="continuous")
+    elif args.case == "main_window_epoched":
+        capture_main_window(args.output, state="epoched")
+    elif args.case == "main_window_multiple":
+        capture_main_window(args.output, state="multiple")
+    elif args.case == "main_window_study":
+        capture_main_window(args.output, state="study")
     elif args.case == "file_menu":
         capture_main_window(args.output, menu_label="File")
     elif args.case == "edit_menu":
