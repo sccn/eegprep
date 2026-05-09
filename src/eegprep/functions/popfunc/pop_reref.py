@@ -597,7 +597,7 @@ def _update_ica(
         _clear_ica(EEG)
         return
 
-    icachansind = list(EEG.get("icachansind", []))
+    icachansind = _normalise_icachansind(EEG.get("icachansind", []))
     if any(index in resolved["exclude_indices"] for index in icachansind):
         logger.warning("Removing ICA decomposition because ICA channels were excluded from re-referencing.")
         _clear_ica(EEG)
@@ -652,8 +652,14 @@ def _clear_ica(EEG: dict) -> None:
 
 
 def _normalise_checkset_types(EEG: dict) -> None:
-    if "icachansind" in EEG and not isinstance(EEG["icachansind"], np.ndarray):
-        EEG["icachansind"] = np.asarray(EEG["icachansind"], dtype=int)
+    if "icachansind" in EEG:
+        EEG["icachansind"] = np.asarray(_normalise_icachansind(EEG["icachansind"]), dtype=int)
+
+
+def _normalise_icachansind(value: Any) -> list[int]:
+    if _is_empty_array(value):
+        return []
+    return np.asarray(value, dtype=int).reshape(-1).tolist()
 
 
 def _run_gui(EEG: dict, renderer: Any | None = None) -> dict[str, Any] | None:

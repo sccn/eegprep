@@ -21,6 +21,38 @@ import importlib
 eeg_checkset_module = importlib.import_module('eegprep.functions.adminfunc.eeg_checkset')
 
 
+class PopRerefIcaRegressionTests(unittest.TestCase):
+    def test_float_icachansind_values_update_ica_without_list_index_error(self):
+        """MATLAB-loaded float ICA channel indices should stay usable internally."""
+        EEG = {
+            'data': np.arange(120, dtype=np.float64).reshape(3, 40),
+            'nbchan': 3,
+            'pnts': 40,
+            'trials': 1,
+            'srate': 100,
+            'xmin': 0,
+            'xmax': 0.39,
+            'chanlocs': [{'labels': 'Ch1'}, {'labels': 'Ch2'}, {'labels': 'Ch3'}],
+            'icaweights': np.eye(3),
+            'icawinv': np.eye(3),
+            'icasphere': np.eye(3),
+            'icaact': np.array([]),
+            'icachansind': np.array([0.0, 1.0, 2.0], dtype=np.float64),
+            'ref': 'common',
+            'epoch': np.array([], dtype=object),
+        }
+        original_option = eeg_checkset_module.option_scaleicarms
+        eeg_checkset_module.option_scaleicarms = False
+        try:
+            result = pop_reref(EEG, ref=[])
+        finally:
+            eeg_checkset_module.option_scaleicarms = original_option
+
+        np.testing.assert_array_equal(result['icachansind'], np.array([0, 1, 2]))
+        self.assertTrue(np.issubdtype(result['icachansind'].dtype, np.integer))
+        np.testing.assert_allclose(result['icawinv'].mean(axis=0), 0, atol=1e-12)
+
+
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestPopReref(DebuggableTestCase):
     """Test cases for pop_reref function."""
