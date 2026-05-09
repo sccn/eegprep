@@ -17,10 +17,14 @@ Graphic interface:
 - "Exclude channel indices (EMG, EOG)" excludes channels from the reference calculation.
 - "Add old ref. channel back to the data" reconstructs an old reference channel when its location is known.
 
+Channel index note:
+
+Numeric channel indices typed into EEGPrep GUI fields are 0-based, matching the Python API. For example, type `0` for the first channel. Generated EEGLAB-style history commands are written with 1-based indices so they can be read like EEGLAB commands.
+
 Inputs:
 
 - `EEG`: input EEG dataset.
-- `ref`: `[]` or `None` for average reference, a channel index, a sequence of channel indices, a channel label, or a sequence of channel labels.
+- `ref`: `[]` or `None` for average reference, a 0-based channel index, a sequence of 0-based channel indices, a channel label, or a sequence of channel labels.
 
 Optional inputs:
 
