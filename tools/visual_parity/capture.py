@@ -19,6 +19,11 @@ except ImportError:  # pragma: no cover - supports direct script execution
 
 DEFAULT_OUTPUT_DIR = pathlib.Path(".visual-parity")
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
+EEGLAB_REFERENCE_ROOT = (
+    REPO_ROOT.parent / "eeglab"
+    if (REPO_ROOT.parent / "eeglab" / "eeglab.m").exists()
+    else REPO_ROOT / "src" / "eegprep" / "eeglab"
+)
 
 
 @dataclass(frozen=True)
@@ -83,6 +88,184 @@ def _matlab_capture_helper() -> list[str]:
         "end",
         "end",
         "",
+        "function write_figure_screen_capture(fig, output_file)",
+        "set(fig, 'Units', 'pixels');",
+        "drawnow;",
+        "pause(0.2);",
+        "try",
+        "    pos = get(fig, 'Position');",
+        "    screen_size = java.awt.Toolkit.getDefaultToolkit().getScreenSize();",
+        "    x = max(0, round(pos(1)));",
+        "    y = max(0, round(screen_size.getHeight() - pos(2) - pos(4)));",
+        "    w = max(1, round(pos(3)));",
+        "    h = max(1, round(pos(4)));",
+        "    robot = java.awt.Robot;",
+        "    rect = java.awt.Rectangle(x, y, w, h);",
+        "    img = robot.createScreenCapture(rect);",
+        "    javax.imageio.ImageIO.write(img, 'png', java.io.File(output_file));",
+        "catch robot_error",
+        "    error('Screen capture failed. Robot: %s', robot_error.message);",
+        "end",
+        "end",
+        "",
+        "function open_figure_menu(fig, menu_label)",
+        "menu_handle = findobj(fig, 'Type', 'uimenu', 'Label', menu_label);",
+        "if isempty(menu_handle)",
+        "    error('Could not find menu label: %s', menu_label);",
+        "end",
+        "drawnow;",
+        "pause(0.5);",
+        "opened = false;",
+        "try",
+        "    frames = java.awt.Frame.getFrames();",
+        "    for frame_idx = 1:length(frames)",
+        "        frame = frames(frame_idx);",
+        "        if ~frame.isShowing(), continue; end",
+        "        menubar = find_java_menubar(frame);",
+        "        if isempty(menubar), continue; end",
+        "        for menu_idx = 0:menubar.getMenuCount()-1",
+        "            java_menu = menubar.getMenu(menu_idx);",
+        "            if isempty(java_menu), continue; end",
+        "            if strcmp(char(java_menu.getText()), menu_label)",
+        "                java_menu.doClick();",
+        "                opened = true;",
+        "                pause(0.6);",
+        "                return;",
+        "            end",
+        "        end",
+        "    end",
+        "catch menu_error",
+        "    warning('EEGPrepVisualParity:MenuOpen', 'Java menu open failed: %s', menu_error.message);",
+        "end",
+        "if ~opened && ismac",
+        "    opened = open_macos_menu(menu_label);",
+        "    if opened",
+        "        pause(0.6);",
+        "        return;",
+        "    end",
+        "end",
+        "if ~opened",
+        "    warning('EEGPrepVisualParity:MenuOpen', 'Menu was found but could not be opened: %s', menu_label);",
+        "end",
+        "end",
+        "",
+        "function menubar = find_java_menubar(component)",
+        "menubar = [];",
+        "try",
+        "    if isa(component, 'javax.swing.JMenuBar')",
+        "        menubar = component;",
+        "        return;",
+        "    end",
+        "catch",
+        "end",
+        "try",
+        "    candidate = component.getJMenuBar();",
+        "    if ~isempty(candidate)",
+        "        menubar = candidate;",
+        "        return;",
+        "    end",
+        "catch",
+        "end",
+        "try",
+        "    children = component.getComponents();",
+        "catch",
+        "    children = [];",
+        "end",
+        "for child_idx = 1:length(children)",
+        "    menubar = find_java_menubar(children(child_idx));",
+        "    if ~isempty(menubar), return; end",
+        "end",
+        "end",
+        "",
+        "function opened = open_macos_menu(menu_label)",
+        "opened = false;",
+        "script_file = [tempname '.applescript'];",
+        "safe_label = strrep(menu_label, '\\', '\\\\');",
+        "safe_label = strrep(safe_label, '\"', '\\\"');",
+        "fid = fopen(script_file, 'w');",
+        "if fid == -1, return; end",
+        "fprintf(fid, 'set menuLabel to \"%s\"\\n', safe_label);",
+        "fprintf(fid, 'tell application \"System Events\"\\n');",
+        "fprintf(fid, '  set matlabProcesses to every process whose name contains \"MATLAB\"\\n');",
+        "fprintf(fid, '  repeat with matlabProcess in matlabProcesses\\n');",
+        "fprintf(fid, '    try\\n');",
+        "fprintf(fid, '      tell matlabProcess\\n');",
+        "fprintf(fid, '        set frontmost to true\\n');",
+        "fprintf(fid, '        delay 0.2\\n');",
+        "fprintf(fid, '        click menu bar item menuLabel of menu bar 1\\n');",
+        "fprintf(fid, '      end tell\\n');",
+        "fprintf(fid, '      return \"opened\"\\n');",
+        "fprintf(fid, '    end try\\n');",
+        "fprintf(fid, '  end repeat\\n');",
+        "fprintf(fid, 'end tell\\n');",
+        "fclose(fid);",
+        "[status, result] = system(['osascript ' shell_quote(script_file)]);",
+        "try, delete(script_file); catch, end",
+        "if status == 0",
+        "    opened = true;",
+        "else",
+        "    warning('EEGPrepVisualParity:MenuOpen', 'AppleScript menu open failed: %s', result);",
+        "end",
+        "end",
+        "",
+        "function write_macos_screen_capture(output_file)",
+        "[status, result] = system(['screencapture -x ' shell_quote(output_file)]);",
+        "if status ~= 0",
+        "    error('macOS screen capture failed: %s', result);",
+        "end",
+        "end",
+        "",
+        "function quoted = shell_quote(value)",
+        "quoted = ['''' strrep(value, '''', '''\"''\"''') ''''];",
+        "end",
+        "",
+    ]
+
+
+def _matlab_main_window_demo_helper() -> list[str]:
+    return [
+        "function make_menu_demo_dataset()",
+        "global EEG ALLEEG CURRENTSET;",
+        "EEG = eeg_emptyset;",
+        "EEG.setname = 'menu demo';",
+        "EEG.filename = 'menu_demo.set';",
+        "EEG.filepath = tempdir;",
+        "EEG.nbchan = 4;",
+        "EEG.pnts = 1000;",
+        "EEG.trials = 1;",
+        "EEG.srate = 250;",
+        "EEG.xmin = 0;",
+        "EEG.xmax = (EEG.pnts-1)/EEG.srate;",
+        "EEG.data = zeros(4, EEG.pnts);",
+        "EEG.chanlocs = struct( ...",
+        "    'labels', {'Fp1', 'Fp2', 'Cz', 'Oz'}, ...",
+        "    'ref', {'common', 'common', 'common', 'common'}, ...",
+        "    'theta', {-18, 18, 0, 180}, ...",
+        "    'radius', {0.42, 0.42, 0, 0.42}, ...",
+        "    'X', {-0.25, 0.25, 0, 0}, ...",
+        "    'Y', {0.75, 0.75, 0, -0.8}, ...",
+        "    'Z', {0.55, 0.55, 1, 0.55}, ...",
+        "    'type', {'EEG', 'EEG', 'EEG', 'EEG'});",
+        "EEG.chaninfo = struct();",
+        "EEG.event = struct( ...",
+        "    'type', {'stim', 'resp'}, ...",
+        "    'latency', {100, 350}, ...",
+        "    'duration', {0, 0});",
+        "EEG.urevent = [];",
+        "EEG.epoch = [];",
+        "EEG.history = '';",
+        "EEG.icaweights = eye(4);",
+        "EEG.icasphere = eye(4);",
+        "EEG.icawinv = eye(4);",
+        "EEG.icachansind = 1:4;",
+        "EEG.icaact = zeros(4, EEG.pnts);",
+        "EEG = eeg_checkset(EEG, 'eventconsistency');",
+        "[ALLEEG, EEG, CURRENTSET] = eeg_store(ALLEEG, EEG, 0);",
+        "eeglab redraw;",
+        "drawnow;",
+        "pause(0.5);",
+        "end",
+        "",
     ]
 
 
@@ -128,19 +311,25 @@ def _target_env(case: VisualCase, target_name: str, target: TargetSpec, output_p
 
 def _write_matlab_figure_script(case: VisualCase, target: TargetSpec, output_path: pathlib.Path) -> pathlib.Path:
     width, height = case.window_size
-    eeglab_root = REPO_ROOT / "src" / "eegprep" / "eeglab"
+    eeglab_root = EEGLAB_REFERENCE_ROOT
     script_path = output_path.parent / f"{case.id}_eeglab_capture.m"
     matlab_command = target.matlab_command.strip() or "eeglab;"
+    action, variant = _split_action(target.action)
+    menu_label = variant if action == "open_menu" else ""
     script_path.write_text(
         "\n".join(
             [
                 "function eegprep_visual_capture()",
                 "try",
                 f"output_file = {_matlab_string(output_path)};",
+                f"menu_label = {_matlab_string(menu_label)};",
                 f"eeglab_root = {_matlab_string(eeglab_root)};",
                 "addpath(eeglab_root);",
                 "set(0, 'DefaultFigureVisible', 'on');",
                 matlab_command,
+                "if ~isempty(menu_label)",
+                "    make_menu_demo_dataset();",
+                "end",
                 "drawnow;",
                 "pause(1);",
                 "fig = findobj('tag', 'EEGLAB');",
@@ -152,7 +341,12 @@ def _write_matlab_figure_script(case: VisualCase, target: TargetSpec, output_pat
                 f"set(fig, 'Units', 'pixels', 'Position', [100 100 {width} {height}]);",
                 "drawnow;",
                 "pause(0.5);",
-                "write_figure_capture(fig, output_file);",
+                "if ~isempty(menu_label)",
+                "    open_figure_menu(fig, menu_label);",
+                "    write_figure_screen_capture(fig, output_file);",
+                "else",
+                "    write_figure_capture(fig, output_file);",
+                "end",
                 "exit(0);",
                 "catch ME",
                 "disp(getReport(ME, 'extended'));",
@@ -160,6 +354,7 @@ def _write_matlab_figure_script(case: VisualCase, target: TargetSpec, output_pat
                 "end",
                 "end",
                 *_matlab_capture_helper(),
+                *_matlab_main_window_demo_helper(),
                 "eegprep_visual_capture();",
                 "",
             ]
@@ -169,7 +364,7 @@ def _write_matlab_figure_script(case: VisualCase, target: TargetSpec, output_pat
 
 
 def _write_matlab_adjustevents_dialog_script(case: VisualCase, output_path: pathlib.Path) -> pathlib.Path:
-    eeglab_root = REPO_ROOT / "src" / "eegprep" / "eeglab"
+    eeglab_root = EEGLAB_REFERENCE_ROOT
     script_path = output_path.parent / f"{case.id}_eeglab_capture.m"
     script_path.write_text(
         "\n".join(
@@ -253,7 +448,7 @@ def _write_matlab_reref_dialog_script(
     output_path: pathlib.Path,
     variant: str = "default",
 ) -> pathlib.Path:
-    eeglab_root = REPO_ROOT / "src" / "eegprep" / "eeglab"
+    eeglab_root = EEGLAB_REFERENCE_ROOT
     script_path = output_path.parent / f"{case.id}_eeglab_capture.m"
     script_path.write_text(
         "\n".join(
@@ -383,7 +578,7 @@ def _write_matlab_interp_dialog_script(
     output_path: pathlib.Path,
     variant: str = "continuous",
 ) -> pathlib.Path:
-    eeglab_root = REPO_ROOT / "src" / "eegprep" / "eeglab"
+    eeglab_root = EEGLAB_REFERENCE_ROOT
     script_path = output_path.parent / f"{case.id}_eeglab_capture.m"
     script_path.write_text(
         "\n".join(
@@ -498,7 +693,7 @@ def _write_matlab_interp_dialog_script(
 
 
 def _write_matlab_dataset_index_dialog_script(case: VisualCase, output_path: pathlib.Path) -> pathlib.Path:
-    eeglab_root = REPO_ROOT / "src" / "eegprep" / "eeglab"
+    eeglab_root = EEGLAB_REFERENCE_ROOT
     script_path = output_path.parent / f"{case.id}_eeglab_capture.m"
     script_path.write_text(
         "\n".join(
@@ -567,7 +762,7 @@ def _write_matlab_pophelp_dialog_script(
     output_path: pathlib.Path,
     function_name: str,
 ) -> pathlib.Path:
-    eeglab_root = REPO_ROOT / "src" / "eegprep" / "eeglab"
+    eeglab_root = EEGLAB_REFERENCE_ROOT
     script_path = output_path.parent / f"{case.id}_eeglab_capture.m"
     script_path.write_text(
         "\n".join(
@@ -708,7 +903,7 @@ def _write_matlab_pophelp_dialog_script(
 
 
 def _write_matlab_pop_chansel_dialog_script(case: VisualCase, output_path: pathlib.Path) -> pathlib.Path:
-    eeglab_root = REPO_ROOT / "src" / "eegprep" / "eeglab"
+    eeglab_root = EEGLAB_REFERENCE_ROOT
     script_path = output_path.parent / f"{case.id}_eeglab_capture.m"
     script_path.write_text(
         "\n".join(

@@ -6,15 +6,26 @@
   "cases": [
     {
       "id": "main_window",
-      "description": "Main EEGLAB-style application window after startup.",
+      "description": "EEGLAB/EEGPrep main window at startup.",
+      "window_size": [386, 290],
       "targets": {
         "eeglab": {
           "type": "matlab_figure",
+          "action": "main_window",
           "matlab_command": "eeglab;"
         },
         "eegprep": {
           "type": "command",
-          "action": "main_window"
+          "action": "main_window",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
         }
       }
     },
@@ -323,12 +334,46 @@
       "description": "Top-level File menu opened from the main window.",
       "targets": {
         "eeglab": {
-          "type": "command",
+          "type": "matlab_figure",
+          "matlab_command": "eeglab;",
           "action": "open_menu:File"
         },
         "eegprep": {
           "type": "command",
-          "action": "open_menu:File"
+          "action": "open_menu:File",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "edit_menu",
+      "description": "Top-level Edit menu opened from the main window.",
+      "targets": {
+        "eeglab": {
+          "type": "matlab_figure",
+          "matlab_command": "eeglab;",
+          "action": "open_menu:Edit"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "open_menu:Edit",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
         }
       }
     },
@@ -337,12 +382,22 @@
       "description": "Top-level Tools menu opened from the main window.",
       "targets": {
         "eeglab": {
-          "type": "command",
+          "type": "matlab_figure",
+          "matlab_command": "eeglab;",
           "action": "open_menu:Tools"
         },
         "eegprep": {
           "type": "command",
-          "action": "open_menu:Tools"
+          "action": "open_menu:Tools",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
         }
       }
     },
@@ -351,12 +406,94 @@
       "description": "Top-level Plot menu opened from the main window.",
       "targets": {
         "eeglab": {
-          "type": "command",
+          "type": "matlab_figure",
+          "matlab_command": "eeglab;",
           "action": "open_menu:Plot"
         },
         "eegprep": {
           "type": "command",
-          "action": "open_menu:Plot"
+          "action": "open_menu:Plot",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "study_menu",
+      "description": "Top-level Study menu opened from the main window.",
+      "targets": {
+        "eeglab": {
+          "type": "matlab_figure",
+          "matlab_command": "eeglab;",
+          "action": "open_menu:Study"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "open_menu:Study",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "datasets_menu",
+      "description": "Top-level Datasets menu opened from the main window.",
+      "targets": {
+        "eeglab": {
+          "type": "matlab_figure",
+          "matlab_command": "eeglab;",
+          "action": "open_menu:Datasets"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "open_menu:Datasets",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "help_menu",
+      "description": "Top-level Help menu opened from the main window.",
+      "targets": {
+        "eeglab": {
+          "type": "matlab_figure",
+          "matlab_command": "eeglab;",
+          "action": "open_menu:Help"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "open_menu:Help",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
         }
       }
     }
