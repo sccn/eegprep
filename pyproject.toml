@@ -123,7 +123,7 @@ exclude = ["eegprep.eeglab*"]
 
 [tool.setuptools.package-data]
 "eegprep" = [
-  "resources/eeglab/**/*",
+  "resources/help/*.md",
   "resources/montages/*.locs",
   "resources/montages/README.md",
   "resources/*.m",

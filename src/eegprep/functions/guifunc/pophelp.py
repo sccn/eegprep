@@ -3,28 +3,13 @@
 from __future__ import annotations
 
 import html
-import importlib
-import inspect
 import re
 from pathlib import Path
 from typing import Any
 
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[2]
-EEGLAB_ROOTS = (
-    PACKAGE_ROOT / "resources" / "eeglab",
-    # Development-only fallback when running from a source checkout.
-    # Packaged runtime must still work when this path is absent.
-    PACKAGE_ROOT / "eeglab",
-)
-PYTHON_HELP_MODULE_HINTS = (
-    "popfunc",
-    "sigprocfunc",
-    "adminfunc",
-    "miscfunc",
-    "eegobj",
-    "guifunc",
-)
+HELP_ROOT = PACKAGE_ROOT / "resources" / "help"
 
 
 def pophelp(function_name: str, nonmatlab: bool = False, parent: Any | None = None) -> Any:
@@ -62,24 +47,15 @@ def pophelp(function_name: str, nonmatlab: bool = False, parent: Any | None = No
 def pophelp_text(function_name: str, nonmatlab: bool = False) -> tuple[str, str]:
     """Return EEGLAB-style help text and source path for ``function_name``."""
     function_name = _normalise_function_name(function_name)
-    source_path = _find_source(function_name, missing_ok=True)
-    if source_path is not None:
-        doc = _read_help_source(source_path, nonmatlab=nonmatlab)
-        if function_name.startswith("pop_"):
-            called_name = function_name[4:]
-            called_source = _find_source(called_name, missing_ok=True)
-            if called_source is not None:
-                called_doc = _read_help_source(called_source, nonmatlab=False)
-                doc = _append_called_help(doc, called_doc)
-        return doc, str(source_path)
-
-    doc, source_label = _read_python_help(function_name, nonmatlab=nonmatlab, missing_ok=False)
+    source_path = _find_source(function_name)
+    doc = _read_help_source(source_path, nonmatlab=nonmatlab)
     if function_name.startswith("pop_"):
         called_name = function_name[4:]
-        called_doc, _called_source = _read_python_help(called_name, nonmatlab=False, missing_ok=True)
-        if called_doc:
+        called_source = _find_source(called_name, missing_ok=True)
+        if called_source is not None:
+            called_doc = _read_help_source(called_source, nonmatlab=False)
             doc = _append_called_help(doc, called_doc)
-    return doc, source_label
+    return doc, str(source_path)
 
 
 def _normalise_function_name(function_name: str) -> str:
@@ -87,42 +63,29 @@ def _normalise_function_name(function_name: str) -> str:
     match = re.fullmatch(r"pophelp\(['\"]([^'\"]+)['\"]\)", function_name)
     if match:
         function_name = match.group(1)
-    if function_name.endswith(".m"):
-        function_name = function_name[:-2]
+    for suffix in (".md", ".m"):
+        if function_name.endswith(suffix):
+            function_name = function_name[: -len(suffix)]
     return function_name
 
 
 def _find_source(function_name: str, *, missing_ok: bool = False) -> Path | None:
-    for eeglab_root in EEGLAB_ROOTS:
-        if not eeglab_root.exists():
-            continue
-        direct = eeglab_root / f"{function_name}.m"
-        if direct.exists():
-            return direct
-        matches = sorted(eeglab_root.rglob(f"{function_name}.m"))
-        if matches:
-            return matches[0]
+    direct = HELP_ROOT / f"{function_name}.md"
+    if direct.exists():
+        return direct
     if missing_ok:
         return None
-    raise FileNotFoundError(f"Could not find EEGLAB help source for {function_name!r}")
+    raise FileNotFoundError(
+        "Missing packaged EEGPrep help resource for "
+        f"{function_name!r}. Add a help snapshot under "
+        "src/eegprep/resources/help/."
+    )
 
 
 def _read_help_source(path: Path | None, *, nonmatlab: bool) -> str:
     if path is None:
         return ""
-    lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
-    doc_lines = []
-    for line in lines:
-        if nonmatlab:
-            doc_lines.append(line)
-            continue
-        if not line.startswith("%"):
-            break
-        text = line[1:]
-        if text.startswith(" "):
-            text = text[1:]
-        doc_lines.append(text.rstrip())
-    return "\n".join(doc_lines).strip() or f"No help found for {path.stem}."
+    return path.read_text(encoding="utf-8", errors="replace").strip() or f"No help found for {path.stem}."
 
 
 def _append_called_help(doc: str, called_doc: str) -> str:
@@ -132,45 +95,13 @@ def _append_called_help(doc: str, called_doc: str) -> str:
             "",
             "___________________________________________________________________",
             "",
-            " The 'pop' function above calls the eponymous Matlab function below",
+            " The 'pop' function above calls the lower-level function below",
             " and could use some of its optional parameters",
             "___________________________________________________________________",
             "",
             called_doc,
         ]
     )
-
-
-def _read_python_help(function_name: str, *, nonmatlab: bool, missing_ok: bool) -> tuple[str, str]:
-    for module_name in _python_module_names(function_name):
-        try:
-            module = importlib.import_module(module_name)
-        except Exception:
-            continue
-
-        target = getattr(module, function_name, None)
-        source_obj = target if target is not None else module
-        source_file = inspect.getsourcefile(source_obj) or inspect.getsourcefile(module)
-        if source_file is not None:
-            source_label = str(Path(source_file).resolve())
-        else:
-            source_label = f"python:{module_name}"
-
-        if nonmatlab and source_file is not None:
-            text = Path(source_file).read_text(encoding="utf-8", errors="replace").strip()
-        else:
-            text = inspect.getdoc(source_obj) or inspect.getdoc(module) or ""
-        if text:
-            return text, source_label
-        return f"No help found for {function_name}.", source_label
-
-    if missing_ok:
-        return "", ""
-    raise FileNotFoundError(f"Could not find EEGLAB or Python help source for {function_name!r}")
-
-
-def _python_module_names(function_name: str) -> tuple[str, ...]:
-    return tuple(f"eegprep.functions.{group}.{function_name}" for group in PYTHON_HELP_MODULE_HINTS)
 
 
 def _help_html(function_name: str, source_path: str, text: str) -> str:
