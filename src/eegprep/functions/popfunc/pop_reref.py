@@ -342,6 +342,9 @@ def _history_options(options: dict[str, Any]) -> dict[str, Any]:
 def _normalise_history_option_value(key: str, value: Any) -> Any:
     if key in {"keepref", "refica"} and isinstance(value, str):
         return value.lower()
+    if key == "huber" and not _is_empty(value):
+        number = float(value)
+        return int(number) if number.is_integer() else number
     return value
 
 

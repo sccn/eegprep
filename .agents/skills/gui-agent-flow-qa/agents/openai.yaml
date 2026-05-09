@@ -1,0 +1,7 @@
+interface:
+  display_name: "GUI Agent Flow QA"
+  short_description: "Exhaustive GUI-agent PR flow testing"
+  default_prompt: "Use $gui-agent-flow-qa to test the current PR with the Computer GUI agent and report the user-flow results."
+
+policy:
+  allow_implicit_invocation: false

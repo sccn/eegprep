@@ -67,7 +67,7 @@ def pop_interp(
         bad_elec = gui_result["bad_elec"]
         method = gui_result["method"]
         t_range = gui_result["t_range"]
-        com = f"EEG = pop_interp(EEG, {gui_result['chanstr']}, '{method}');"
+        com = _gui_history_command(gui_result["chanstr"], method, gui_result["t_rangestr"])
     elif bad_elec is _UNSET:
         raise ValueError("bad_elec must be provided when gui=False")
 
@@ -140,7 +140,19 @@ def pop_interp_dialog_spec(EEG: dict, alleeg: list[dict] | None = None) -> Dialo
             [
                 ControlSpec("spacer"),
                 ControlSpec("text", "Time range [min max] (s)"),
-                ControlSpec("edit", tag="timerange", value=""),
+                ControlSpec(
+                    "edit",
+                    tag="timerange",
+                    value="",
+                    callback=CallbackSpec(
+                        "validate_numeric_range",
+                        params={
+                            "columns": 2,
+                            "lower": float(EEG.get("xmin", 0)),
+                            "upper": float(EEG.get("xmax", 0)),
+                        },
+                    ),
+                ),
                 ControlSpec("spacer"),
                 ControlSpec("text", "Note: for group level analysis, interpolate in STUDY"),
             ]
@@ -217,12 +229,14 @@ def _run_gui(
     if not isinstance(selection, dict) or not selection.get("chans"):
         return None
 
-    t_range = _gui_t_range(EEG, result.get("timerange", ""))
+    timerange_text = str(result.get("timerange", "") or "").strip()
+    t_range = _gui_t_range(EEG, timerange_text)
     return {
         "bad_elec": selection["chans"],
         "chanstr": selection["chanstr"],
-        "method": _gui_method(result.get("method", 1)),
+        "method": _gui_method(result.get("method", 1), is_continuous=_is_continuous(EEG)),
         "t_range": t_range,
+        "t_rangestr": _gui_t_range_history(timerange_text),
     }
 
 
@@ -233,7 +247,14 @@ def _alleeg_chanlocs(alleeg: list[dict] | None) -> tuple[dict[str, Any], ...]:
     )
 
 
-def _gui_method(value: Any) -> str:
+def _gui_history_command(chanstr: str, method: str, t_rangestr: str | None) -> str:
+    args = [chanstr, f"'{method}'"]
+    if t_rangestr is not None:
+        args.append(t_rangestr)
+    return f"EEG = pop_interp(EEG, {', '.join(args)});"
+
+
+def _gui_method(value: Any, *, is_continuous: bool = True) -> str:
     if isinstance(value, str):
         text = value.strip().lower()
         if text.isdigit():
@@ -249,7 +270,7 @@ def _gui_method(value: Any) -> str:
     if index == 1:
         return "spherical"
     if index == 2:
-        return "sphericalKang"
+        return "invdist" if is_continuous else "sphericalKang"
     return "invdist"
 
 
@@ -266,6 +287,13 @@ def _gui_t_range(EEG: dict, value: Any) -> list[float]:
     if min(values) < float(EEG.get("xmin", 0)):
         raise ValueError("Time/point range exceed lower data limits")
     return values
+
+
+def _gui_t_range_history(value: str) -> str | None:
+    if not value:
+        return None
+    values = _parse_numeric_text(value)
+    return "[" + " ".join(f"{item:g}" for item in values) + "]"
 
 
 def _normalise_t_range_argument(t_range: Any) -> Any:

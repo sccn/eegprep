@@ -119,6 +119,76 @@ class PopRerefGuiSpecTests(unittest.TestCase):
         self.assertEqual(controls["refloc_button"].callback.params["channels"], ("M1",))
         self.assertIn("no_channels_message", controls["refloc_button"].callback.params)
 
+    def test_dialog_validation_rejects_bad_huber_threshold_before_accepting(self):
+        spec = pop_reref_dialog_spec("common", ["Fp1", "Cz"])
+        widgets = {
+            "huberef": _FakeWidget(checked=True),
+            "huberval": _FakeWidget(text="abc"),
+        }
+
+        self.assertEqual(
+            QtDialogRenderer._validation_message(spec, widgets),
+            "could not convert string to float: 'abc'",
+        )
+
+    def test_dialog_validation_rejects_unknown_reference_channel_before_accepting(self):
+        spec = pop_reref_dialog_spec("common", ["Fp1", "Cz"])
+        widgets = {
+            "huberef": _FakeWidget(checked=False),
+            "rerefstr": _FakeWidget(checked=True),
+            "reref": _FakeWidget(text="NoSuch"),
+            "exclude": _FakeWidget(text=""),
+            "refloc": _FakeWidget(text=""),
+        }
+
+        self.assertEqual(
+            QtDialogRenderer._validation_message(spec, widgets),
+            "Channel 'NoSuch' not found",
+        )
+
+    def test_gui_huber_history_uses_numeric_threshold(self):
+        class Renderer:
+            def run(self, spec, initial_values=None):
+                return {
+                    "ave": False,
+                    "huberef": True,
+                    "huberval": "25",
+                    "rerefstr": False,
+                    "interp": False,
+                    "keepref": False,
+                    "exclude": "",
+                    "refloc": "",
+                }
+
+        eeg = {
+            "data": np.arange(40, dtype=float).reshape(4, 10),
+            "nbchan": 4,
+            "pnts": 10,
+            "trials": 1,
+            "srate": 100,
+            "xmin": 0,
+            "xmax": 0.09,
+            "chanlocs": [{"labels": f"Ch{index + 1}"} for index in range(4)],
+            "chaninfo": {},
+            "epoch": [],
+        }
+
+        _out, com = pop_reref(eeg, gui=True, renderer=Renderer(), return_com=True)
+
+        self.assertEqual(com, "EEG = pop_reref( EEG, [], 'huber', 25);")
+
+
+class _FakeWidget:
+    def __init__(self, text="", checked=False):
+        self._text = text
+        self._checked = checked
+
+    def text(self):
+        return self._text
+
+    def isChecked(self):
+        return self._checked
+
 
 if __name__ == "__main__":
     unittest.main()

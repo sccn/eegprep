@@ -107,14 +107,32 @@ class PopInterpTests(unittest.TestCase):
         self.assertEqual(com, "EEG = pop_interp(EEG, [1], 'spherical');")
         self.assertFalse(np.array_equal(out["data"][0], eeg["data"][0]))
 
-    def test_continuous_gui_second_method_matches_eeglab_source_mapping(self):
+    def test_continuous_gui_second_method_matches_eeglab_planar_mapping(self):
         class Renderer:
             def run(self, spec, initial_values=None):
                 return {"chanlist": {"chans": [0], "chanstr": "[1]"}, "method": 2, "timerange": ""}
 
         _out, com = pop_interp(_eeg(), gui=True, renderer=Renderer(), return_com=True)
 
+        self.assertEqual(com, "EEG = pop_interp(EEG, [1], 'invdist');")
+
+    def test_epoched_gui_second_method_matches_eeglab_kang_mapping(self):
+        class Renderer:
+            def run(self, spec, initial_values=None):
+                return {"chanlist": {"chans": [0], "chanstr": "[1]"}, "method": 2}
+
+        _out, com = pop_interp(_eeg(trials=2), gui=True, renderer=Renderer(), return_com=True)
+
         self.assertEqual(com, "EEG = pop_interp(EEG, [1], 'sphericalKang');")
+
+    def test_gui_history_includes_user_entered_time_range(self):
+        class Renderer:
+            def run(self, spec, initial_values=None):
+                return {"chanlist": {"chans": [0], "chanstr": "[1]"}, "method": 1, "timerange": "0 0.2"}
+
+        _out, com = pop_interp(_eeg(), gui=True, renderer=Renderer(), return_com=True)
+
+        self.assertEqual(com, "EEG = pop_interp(EEG, [1], 'spherical', [0 0.2]);")
 
     def test_gui_blank_time_range_matches_eeglab_full_range_gui_behavior(self):
         class Renderer:
@@ -166,6 +184,18 @@ class PopInterpGuiSpecTests(unittest.TestCase):
                 ("spacer", "", None, True),
                 ("text", "Note: for group level analysis, interpolate in STUDY", None, True),
             ],
+        )
+
+    def test_continuous_timerange_control_validates_before_accepting_dialog(self):
+        spec = pop_interp_dialog_spec(_eeg())
+        controls = controls_by_tag(spec)
+
+        self.assertEqual(controls["timerange"].callback.name, "validate_numeric_range")
+        self.assertEqual(controls["timerange"].callback.params["lower"], 0.0)
+        self.assertEqual(controls["timerange"].callback.params["upper"], 0.49)
+        self.assertEqual(
+            QtDialogRenderer._validation_message(spec, {"timerange": _FakeWidget(text="0 99")}),
+            "Time/point range exceed upper data limits",
         )
 
     def test_epoched_dialog_spec_includes_kang_method_like_eeglab(self):
@@ -314,6 +344,18 @@ class _FakeMessageBox:
 class _FakeQtWidgets:
     QInputDialog = _FakeInputDialog
     QMessageBox = _FakeMessageBox
+
+
+class _FakeWidget:
+    def __init__(self, text="", checked=False):
+        self._text = text
+        self._checked = checked
+
+    def text(self):
+        return self._text
+
+    def isChecked(self):
+        return self._checked
 
 
 if __name__ == "__main__":

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+import math
+import re
 from typing import Any
 
 from eegprep.functions.guifunc.pophelp import pophelp
@@ -102,7 +104,7 @@ class QtDialogRenderer:
         for control in spec.controls:
             self._connect_callback(control.callback, widgets)
 
-        self._add_buttons(qt_widgets, layout, spec, dialog)
+        self._add_buttons(qt_widgets, layout, spec, dialog, widgets)
         dialog.adjustSize()
         self._apply_spec_size(dialog, spec)
         return app, dialog, widgets
@@ -208,7 +210,13 @@ class QtDialogRenderer:
             layout.setColumnStretch(column, max(1, int(float(stretch) * 100)))
 
     @staticmethod
-    def _add_buttons(QtWidgets: Any, layout: Any, spec: DialogSpec, dialog: Any) -> None:
+    def _add_buttons(
+        QtWidgets: Any,
+        layout: Any,
+        spec: DialogSpec,
+        dialog: Any,
+        widgets: dict[str, Any],
+    ) -> None:
         button_container = QtWidgets.QWidget()
         button_layout = QtWidgets.QHBoxLayout(button_container)
         button_layout.setContentsMargins(0, 18, 0, 0)
@@ -224,7 +232,7 @@ class QtDialogRenderer:
         cancel_button.setObjectName("cancel")
         ok_button.setObjectName("ok")
         cancel_button.clicked.connect(dialog.reject)
-        ok_button.clicked.connect(dialog.accept)
+        ok_button.clicked.connect(lambda: QtDialogRenderer._accept_if_valid(dialog, spec, widgets))
         button_layout.addWidget(cancel_button)
         button_layout.addWidget(ok_button)
         layout.addWidget(
@@ -333,6 +341,128 @@ class QtDialogRenderer:
             button = widgets[params["button"]]
             target = widgets[params["target"]]
             button.clicked.connect(lambda: self._select_interp_channels(button, target, params))
+
+    @staticmethod
+    def _accept_if_valid(dialog: Any, spec: DialogSpec, widgets: dict[str, Any]) -> None:
+        message = QtDialogRenderer._validation_message(spec, widgets)
+        if message:
+            _qt_core, qt_widgets = _require_qt()
+            qt_widgets.QMessageBox.warning(dialog, "Warning", message)
+            return
+        dialog.accept()
+
+    @staticmethod
+    def _validation_message(spec: DialogSpec, widgets: dict[str, Any]) -> str | None:
+        if spec.function_name == "pop_reref":
+            return QtDialogRenderer._validate_pop_reref_dialog(spec, widgets)
+        if spec.function_name == "pop_interp":
+            return QtDialogRenderer._validate_pop_interp_dialog(spec, widgets)
+        return None
+
+    @staticmethod
+    def _validate_pop_reref_dialog(spec: DialogSpec, widgets: dict[str, Any]) -> str | None:
+        if QtDialogRenderer._widget_checked(widgets.get("huberef")):
+            huber_text = QtDialogRenderer._widget_text(widgets.get("huberval")).strip()
+            if huber_text:
+                try:
+                    float(huber_text)
+                except ValueError:
+                    return f"could not convert string to float: '{huber_text}'"
+
+        channel_labels = QtDialogRenderer._callback_channels(spec, "refbr")
+        if QtDialogRenderer._widget_checked(widgets.get("rerefstr")):
+            ref_text = QtDialogRenderer._widget_text(widgets.get("reref")).strip()
+            if not ref_text:
+                return "Aborting: you must enter one or more reference channels"
+            message = QtDialogRenderer._validate_channel_text(ref_text, channel_labels, "Channel")
+            if message:
+                return message
+
+        exclude_text = QtDialogRenderer._widget_text(widgets.get("exclude")).strip()
+        if exclude_text:
+            message = QtDialogRenderer._validate_channel_text(exclude_text, channel_labels, "Channel")
+            if message:
+                return message
+
+        refloc_text = QtDialogRenderer._widget_text(widgets.get("refloc")).strip()
+        if refloc_text:
+            refloc_labels = QtDialogRenderer._callback_channels(spec, "refloc_button")
+            return QtDialogRenderer._validate_channel_text(refloc_text, refloc_labels, "Reference location")
+        return None
+
+    @staticmethod
+    def _validate_pop_interp_dialog(spec: DialogSpec, widgets: dict[str, Any]) -> str | None:
+        for control in spec.controls:
+            if control.callback is None or control.callback.name != "validate_numeric_range":
+                continue
+            widget = widgets.get(control.tag or "")
+            text = QtDialogRenderer._widget_text(widget).strip()
+            if not text:
+                continue
+            params = control.callback.params
+            try:
+                values = QtDialogRenderer._parse_numeric_text(text)
+            except ValueError:
+                return "Time/point range must contain numeric values"
+            if len(values) != int(params.get("columns", 2)):
+                return "Time/point range must contain 2 columns exactly"
+            if min(values) < float(params["lower"]):
+                return "Time/point range exceed lower data limits"
+            if math.floor(max(values)) > float(params["upper"]):
+                return "Time/point range exceed upper data limits"
+        return None
+
+    @staticmethod
+    def _callback_channels(spec: DialogSpec, tag: str) -> tuple[str, ...]:
+        for control in spec.controls:
+            if control.tag == tag and control.callback is not None:
+                return tuple(str(value) for value in control.callback.params.get("channels", ()))
+        return ()
+
+    @staticmethod
+    def _validate_channel_text(text: str, labels: tuple[str, ...], label: str) -> str | None:
+        values = QtDialogRenderer._parse_channel_text(text)
+        lower_labels = [value.lower() for value in labels]
+        for value in values:
+            if QtDialogRenderer._is_int_text(value):
+                index = int(value)
+                if index < 0 or index >= len(labels):
+                    return f"{label} index out of range"
+                continue
+            if value.lower() not in lower_labels:
+                return f"{label} '{value}' not found"
+        return None
+
+    @staticmethod
+    def _parse_channel_text(text: str) -> list[str]:
+        text = text.strip()
+        if text.startswith("[") and text.endswith("]"):
+            text = text[1:-1]
+        if text.startswith("{") and text.endswith("}"):
+            text = text[1:-1]
+        tokens = re.findall(r"'([^']*)'|\"([^\"]*)\"|([^,\s]+)", text)
+        return [next(part for part in token if part) for token in tokens]
+
+    @staticmethod
+    def _parse_numeric_text(text: str) -> list[float]:
+        cleaned = text.strip().strip("[]")
+        if not cleaned:
+            return []
+        return [float(value) for value in re.split(r"[\s,]+", cleaned) if value]
+
+    @staticmethod
+    def _is_int_text(value: str) -> bool:
+        return bool(re.fullmatch(r"[+-]?\d+", value.strip()))
+
+    @staticmethod
+    def _widget_checked(widget: Any) -> bool:
+        return bool(widget is not None and hasattr(widget, "isChecked") and widget.isChecked())
+
+    @staticmethod
+    def _widget_text(widget: Any) -> str:
+        if widget is None or not hasattr(widget, "text"):
+            return ""
+        return str(widget.text())
 
     @staticmethod
     def _sync_numeric(source: Any, target: Any, multiplier: float) -> None:
