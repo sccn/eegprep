@@ -44,6 +44,281 @@
       }
     },
     {
+      "id": "reref_dialog",
+      "description": "Average/common reference dialog opened from pop_reref.",
+      "window_size": [616, 281],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_reref"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "reref_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "reref_dialog_channel_ref",
+      "description": "pop_reref dialog with the common-reference channel path enabled.",
+      "window_size": [616, 281],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_reref:channels"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "reref_dialog_channel_ref",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "reref_dialog_huber_ref",
+      "description": "pop_reref dialog with the Huber-average reference path enabled.",
+      "window_size": [616, 281],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_reref:huber"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "reref_dialog_huber_ref",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "reref_dialog_interp_removed",
+      "description": "pop_reref dialog with interpolate-removed-channels selected.",
+      "window_size": [616, 281],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_reref:interp_removed"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "reref_dialog_interp_removed",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_interp_dialog",
+      "description": "Continuous-data channel interpolation dialog opened from pop_interp.",
+      "window_size": [484, 327],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_interp:continuous"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_interp_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_interp_removed_dialog",
+      "description": "Continuous-data pop_interp dialog with removed-channel selection enabled.",
+      "window_size": [484, 327],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_interp:removed"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_interp_removed_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_interp_epoched_dialog",
+      "description": "Epoched-data channel interpolation dialog opened from pop_interp.",
+      "window_size": [484, 292],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_interp:epoched"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_interp_epoched_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_chansel_dialog",
+      "description": "Channel selection dialog opened from pop_chansel/listdlg2.",
+      "window_size": [300, 195],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_chansel"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_chansel_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_interp_dataset_index_dialog",
+      "description": "Dataset-index prompt reached from pop_interp other-dataset buttons.",
+      "window_size": [200, 127],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "inputdlg2:dataset_index"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_interp_dataset_index_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_reref_help_dialog",
+      "description": "pophelp browser opened from the pop_reref Help button.",
+      "window_size": [720, 520],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pophelp:pop_reref"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_reref_help_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_interp_help_dialog",
+      "description": "pophelp browser opened from the pop_interp Help button.",
+      "window_size": [720, 520],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pophelp:pop_interp"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_interp_help_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
       "id": "file_menu",
       "description": "Top-level File menu opened from the main window.",
       "targets": {

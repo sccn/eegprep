@@ -24,3 +24,10 @@ Baseline Removal
 ================
 
 .. autofunction:: eegprep.pop_rmbase
+
+Topography
+==========
+
+.. autofunction:: eegprep.cart2topo
+
+.. autofunction:: eegprep.topoplot
