@@ -12,9 +12,9 @@ def pop_delset(
     """Delete dataset indices from ``ALLEEG`` and return a history command."""
     alleeg = [] if ALLEEG is None else list(ALLEEG)
     if isinstance(indices, int):
-        delete_indices = [abs(indices)]
+        delete_indices = [int(indices)]
     else:
-        delete_indices = [abs(int(index)) for index in indices]
+        delete_indices = [int(index) for index in indices]
     for index in sorted(set(delete_indices), reverse=True):
         if index < 1:
             raise ValueError("EEGLAB dataset indices are 1-based")

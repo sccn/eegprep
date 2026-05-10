@@ -41,6 +41,8 @@ def eeg_store(
     index = _normalize_index(storeSetIndex if isinstance(storeSetIndex, int) else None, alleeg)
     while len(alleeg) < index:
         alleeg.append({})
-    checked["saved"] = "yes" if storeSetIndex == 0 or checked.get("saved") == "justloaded" else "no"
+    saved_state = str(checked.get("saved") or "").lower()
+    is_loaded = saved_state == "justloaded" or (storeSetIndex == 0 and saved_state == "yes")
+    checked["saved"] = "yes" if is_loaded else "no"
     alleeg[index - 1] = checked
     return alleeg, checked, index

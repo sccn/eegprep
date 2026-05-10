@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import webbrowser
 from collections.abc import Callable
 from pathlib import Path
@@ -18,6 +19,8 @@ from eegprep.functions.popfunc.pop_reref import pop_reref
 from eegprep.functions.popfunc.pop_saveset import pop_saveset
 from eegprep.plugins.ICLabel.iclabel import iclabel
 
+
+logger = logging.getLogger(__name__)
 
 IMPLEMENTED_ACTIONS = {
     "clear_study",
@@ -48,6 +51,9 @@ class MenuActionDispatcher:
         try:
             self.dispatch(action, parent)
         except Exception as exc:
+            logger.exception("EEGPrep GUI menu action failed: %s", action)
+            if parent is None:
+                raise
             self._warn(parent, str(exc))
 
     def dispatch(self, action: str, parent: Any | None = None) -> None:
@@ -198,10 +204,7 @@ class MenuActionDispatcher:
         self._refresh()
 
     def _show_help(self, function_name: str, parent: Any | None) -> None:
-        try:
-            pophelp(function_name, parent=parent)
-        except Exception:
-            self.show_coming_soon(f"pophelp:{function_name}", parent)
+        pophelp(function_name, parent=parent)
 
     def _current_selection_or_warn(
         self,

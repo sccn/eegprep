@@ -146,7 +146,7 @@ class EEGPrepSession:
         """Return ``(index, label, selected)`` tuples for the Datasets menu."""
         summaries = []
         for index, dataset in enumerate(self.ALLEEG, start=1):
-            if not has_eeg_data(dataset):
+            if not isinstance(dataset, dict) or not dataset:
                 continue
             setname = str(dataset.get("setname") or "(no dataset name)")
             summaries.append((index, f"Dataset {index}:{setname}", index in self.CURRENTSET))
@@ -158,7 +158,7 @@ class EEGPrepSession:
 
 
 def _is_epoched(eeg: dict[str, Any]) -> bool:
-    return int(eeg.get("trials", 1) or 1) > 1 or float(eeg.get("xmin", 0) or 0) != 0
+    return int(eeg.get("trials", 1) or 1) > 1
 
 
 def _chanloc_absent(eeg: dict[str, Any]) -> bool:

@@ -201,7 +201,7 @@ class EEGPrepMainWindow:
     def _add_top_menu(self, menubar: Any, spec: MenuItemSpec, statuses: set[str]) -> Any:
         menu = menubar.addMenu(spec.label)
         action = menu.menuAction()
-        _apply_action_metadata(action, spec)
+        _apply_action_metadata(action, spec, self._qt_gui)
         action.setEnabled(menu_enabled(spec, statuses))
         if spec.tag:
             menu.setObjectName(spec.tag)
@@ -217,7 +217,7 @@ class EEGPrepMainWindow:
             if spec.tag:
                 submenu.setObjectName(spec.tag)
             action = submenu.menuAction()
-            _apply_action_metadata(action, spec)
+            _apply_action_metadata(action, spec, self._qt_gui)
             action.setEnabled(menu_enabled(spec, statuses))
             if spec.origin != "core":
                 action.setIconText(spec.label)
@@ -225,7 +225,7 @@ class EEGPrepMainWindow:
                 self._add_menu_item(submenu, child, statuses)
             return action
         action = menu.addAction(spec.label)
-        _apply_action_metadata(action, spec)
+        _apply_action_metadata(action, spec, self._qt_gui)
         action.setEnabled(menu_enabled(spec, statuses))
         if spec.checked:
             action.setCheckable(True)
@@ -388,8 +388,8 @@ def _configure_eeglab_label(label: Any, qt_widgets: Any) -> None:
     label.setSizePolicy(qt_widgets.QSizePolicy.Ignored, qt_widgets.QSizePolicy.Fixed)
 
 
-def _apply_action_metadata(action: Any, spec: MenuItemSpec) -> None:
-    action.setMenuRole(QtGui.QAction.MenuRole.NoRole)
+def _apply_action_metadata(action: Any, spec: MenuItemSpec, qt_gui: Any) -> None:
+    action.setMenuRole(qt_gui.QAction.MenuRole.NoRole)
     action.setObjectName(spec.tag or spec.action or spec.label)
     action.setProperty("eegprep_label", spec.label)
     action.setProperty("eegprep_tag", spec.tag or "")
