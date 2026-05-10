@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 
 from eegprep.functions.adminfunc.eegh import eegh
+from eegprep.functions.adminfunc import eeglab as eeglab_module
 from eegprep.functions.adminfunc.eeg_retrieve import eeg_retrieve
 from eegprep.functions.adminfunc.eeg_store import eeg_store
 from eegprep.functions.adminfunc.pop_delset import pop_delset
@@ -88,6 +89,30 @@ def test_eeg_store_handles_multiple_eeg_inputs_with_one_based_indices():
     assert [eeg["setname"] for eeg in alleeg] == ["first", "second"]
 
 
+def test_eeg_store_replaces_existing_one_based_slot():
+    existing = [_eeg(name="first", saved="yes"), _eeg(name="second", saved="yes")]
+
+    alleeg, checked, index = eeg_store(existing, _eeg(name="replacement", saved="no"), 2)
+
+    assert index == 2
+    assert checked["setname"] == "replacement"
+    assert checked["saved"] == "no"
+    assert [eeg["setname"] for eeg in alleeg] == ["first", "replacement"]
+
+
+def test_eeg_store_appends_when_index_omitted_or_none():
+    alleeg, checked, index = eeg_store(None, _eeg(name="first"), None)
+
+    assert index == 1
+    assert checked["setname"] == "first"
+    assert alleeg[0]["setname"] == "first"
+
+
+def test_eeg_store_rejects_mismatched_multiple_indices():
+    with pytest.raises(ValueError, match="Length of EEG list"):
+        eeg_store([], [_eeg(name="first"), _eeg(name="second")], [1])
+
+
 def test_eeg_store_rejects_non_positive_explicit_index():
     with pytest.raises(ValueError, match="1-based"):
         eeg_store([], _eeg(), -1)
@@ -109,6 +134,13 @@ def test_eeg_retrieve_handles_multiple_indices_and_empty_slots():
     assert current == [1, 2, 3]
     assert [eeg["setname"] for eeg in selected] == ["first", "", "third"]
     assert selected[1]["ref"] == "common"
+
+
+def test_eeg_retrieve_accepts_tuple_indices():
+    selected, _alleeg, current = eeg_retrieve([_eeg(name="first"), _eeg(name="second")], (2,))
+
+    assert current == [2]
+    assert [eeg["setname"] for eeg in selected] == ["second"]
 
 
 def test_eeg_retrieve_rejects_zero_and_missing_indices():
@@ -136,6 +168,15 @@ def test_pop_newset_stores_setname_and_retrieves_dataset():
 def test_pop_newset_rejects_unknown_keyword_options():
     with pytest.raises(ValueError, match="Unsupported pop_newset"):
         pop_newset([], _eeg(), 0, unknown=True)
+
+
+def test_pop_newset_empty_retrieve_option_stores_current_dataset():
+    alleeg, current, current_set, command = pop_newset([], _eeg(name="stored"), 0, "retrieve", [])
+
+    assert current_set == 1
+    assert current["setname"] == "stored"
+    assert alleeg[0]["setname"] == "stored"
+    assert command == "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET);"
 
 
 def test_pop_delset_rejects_non_positive_indices():
@@ -206,3 +247,48 @@ def test_dispatch_gui_reraises_headless_errors_and_logs_traceback(caplog):
         dispatcher.dispatch_gui("pop_reref")
 
     assert "EEGPrep GUI menu action failed: pop_reref" in caplog.text
+
+
+def test_eeglab_versions_and_nogui_entry_points():
+    import eegprep
+
+    session = EEGPrepSession()
+
+    assert eeglab_module.eeglab("versions") == eegprep.__version__
+    assert eeglab_module.eeglab("nogui", session=session, show=False) is session
+
+
+def test_eeglab_full_mode_builds_window_without_showing():
+    session = EEGPrepSession()
+    window = mock.Mock()
+
+    with mock.patch.object(eeglab_module, "build_main_window", return_value=window) as build:
+        returned = eeglab_module.eeglab("full", session=session, show=False, include_plugins=False)
+
+    assert returned is window
+    build.assert_called_once_with(session, all_menus=True, include_plugins=False)
+    window.show.assert_not_called()
+    window.exec.assert_not_called()
+
+
+def test_eeglab_show_and_block_paths():
+    session = EEGPrepSession()
+    window = mock.Mock()
+    window.exec.return_value = 7
+
+    with mock.patch.object(eeglab_module, "build_main_window", return_value=window):
+        assert eeglab_module.eeglab(session=session, show=True) is window
+        assert eeglab_module.eeglab(session=session, block=True) == 7
+
+    assert window.show.call_count == 1
+    assert window.exec.call_count == 1
+
+
+def test_eeglab_main_parses_nogui_and_full_plugin_options():
+    with mock.patch.object(eeglab_module, "eeglab") as eeglab:
+        assert eeglab_module.main(["--nogui"]) == 0
+        eeglab.assert_called_once_with("nogui", show=False)
+
+    with mock.patch.object(eeglab_module, "eeglab") as eeglab:
+        assert eeglab_module.main(["--full", "--no-plugins"]) == 0
+        eeglab.assert_called_once_with("full", block=True, include_plugins=False)
