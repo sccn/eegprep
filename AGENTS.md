@@ -126,7 +126,7 @@ Primary references:
 
 - NEVER SAY "You're absolutely right!"
 - Never credit yourself or AI tools in commits. No `Co-authored-by` or generated-by trailers unless the user explicitly asks.
-- Keep commits scoped to one logical change with concise messages.
+- Keep commits scoped to one logical change with concise messages. Commit often.
 - Add the `agent-generated` label only when a repository automation workflow
   creates the PR or issue. Do not add it when a human asks an agent to open or
   update a PR from an interactive session.
