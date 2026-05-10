@@ -295,7 +295,7 @@ class MenuActionDispatcherTests(unittest.TestCase):
         with mock.patch("eegprep.functions.guifunc.menu_actions.pop_saveset") as saveset:
             dispatcher.dispatch("pop_saveset:resave")
 
-        saveset.assert_called_once_with(mock.ANY, "/tmp/demo.set")
+        saveset.assert_called_once_with(mock.ANY, os.path.normpath("/tmp/demo.set"))
         self.assertEqual(session.EEG["filename"], "demo.set")
         self.assertEqual(session.EEG["filepath"], "/tmp")
         self.assertEqual(session.EEG["saved"], "yes")
@@ -323,7 +323,7 @@ class MenuActionDispatcherTests(unittest.TestCase):
 
         self.assertEqual(
             [call.args[1] for call in saveset.call_args_list],
-            ["/tmp/first.set", "/tmp/second.set"],
+            [os.path.normpath("/tmp/first.set"), os.path.normpath("/tmp/second.set")],
         )
         self.assertEqual(session.CURRENTSET, [1, 2])
         self.assertEqual([item["setname"] for item in session.EEG], ["first", "second"])
