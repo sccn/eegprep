@@ -297,7 +297,7 @@ class MenuActionDispatcherTests(unittest.TestCase):
 
         saveset.assert_called_once_with(mock.ANY, os.path.normpath("/tmp/demo.set"))
         self.assertEqual(session.EEG["filename"], "demo.set")
-        self.assertEqual(session.EEG["filepath"], "/tmp")
+        self.assertEqual(session.EEG["filepath"], os.path.normpath("/tmp"))
         self.assertEqual(session.EEG["saved"], "yes")
         self.assertEqual(session.ALLEEG[0]["saved"], "yes")
 
