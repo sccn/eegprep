@@ -4,6 +4,7 @@ import unittest
 
 import eegprep
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset, strict_mode
+from eegprep.functions.adminfunc.eeglab import eeglab
 from eegprep.functions.popfunc.eeg_eegrej import eeg_eegrej
 from eegprep.functions.popfunc.pop_epoch import pop_epoch
 from eegprep.functions.popfunc.pop_rmbase import pop_rmbase
@@ -18,6 +19,7 @@ class TestPackageExports(unittest.TestCase):
         self.assertIsNot(eegprep.eegrej, eegprep.eeg_eegrej)
 
     def test_direct_exports_survive_explicit_wrapper_imports(self):
+        self.assertIs(eegprep.eeglab, eeglab)
         self.assertIs(eegprep.eeg_checkset, eeg_checkset)
         self.assertIs(eegprep.eeg_checkset_strict_mode, strict_mode)
         self.assertIs(eegprep.pop_epoch, pop_epoch)

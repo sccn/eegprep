@@ -10,7 +10,9 @@ import numpy as np
 
 from eegprep.functions.guifunc.qt import QtDialogRenderer
 from eegprep.functions.guifunc.listdlg2 import build_listdlg2_dialog
+from eegprep.functions.guifunc.main_window import build_main_window
 from eegprep.functions.guifunc.pophelp import pophelp
+from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.functions.popfunc.pop_adjustevents import pop_adjustevents_dialog_spec
 from eegprep.functions.popfunc.pop_chansel import pop_chansel_display_values
 from eegprep.functions.popfunc.pop_interp import pop_interp_dialog_spec
@@ -131,16 +133,131 @@ def _demo_interp_eeg(*, epoched: bool = False, removed: bool = False) -> dict:
     return eeg
 
 
+def _demo_main_eeg(*, epoched: bool = False, setname: str = "menu demo") -> dict:
+    eeg = _demo_reref_eeg()
+    if epoched:
+        eeg.update(
+            {
+                "data": np.zeros((4, 250, 2), dtype=np.float32),
+                "pnts": 250,
+                "trials": 2,
+                "xmin": -0.2,
+                "xmax": 0.796,
+                "epoch": [{"event": [1]}, {"event": [2]}],
+            }
+        )
+    eeg.update(
+        {
+            "setname": setname,
+            "filename": f"{setname.replace(' ', '_')}.set",
+            "filepath": "/tmp",
+            "event": [
+                {"type": "stim", "latency": 100.0, "duration": 0.0},
+                {"type": "resp", "latency": 350.0, "duration": 0.0},
+            ],
+            "urevent": [],
+            "history": "",
+            "icaweights": np.eye(4, dtype=np.float32),
+            "icasphere": np.eye(4, dtype=np.float32),
+            "icawinv": np.eye(4, dtype=np.float32),
+            "icachansind": np.arange(4),
+            "icaact": np.zeros((4, 250, 2), dtype=np.float32) if epoched else np.zeros((4, 1000), dtype=np.float32),
+        }
+    )
+    return eeg
+
+
+def _configure_main_window_session(session: EEGPrepSession, state: str) -> None:
+    if state == "startup":
+        return
+    if state == "continuous":
+        session.store_current(_demo_main_eeg(), new=True)
+        return
+    if state == "epoched":
+        session.store_current(_demo_main_eeg(epoched=True, setname="menu epoched"), new=True)
+        return
+    if state == "multiple":
+        session.store_current(_demo_main_eeg(setname="menu one"), new=True)
+        session.store_current(_demo_main_eeg(setname="menu two"), new=True)
+        session.retrieve([1, 2])
+        return
+    if state == "study":
+        session.store_current(_demo_main_eeg(setname="study demo"), new=True)
+        session.STUDY = {
+            "name": "menu study",
+            "filename": "menu_study.study",
+            "filepath": "/tmp",
+            "task": "demo task",
+            "subject": ["S01"],
+            "condition": ["C1"],
+            "session": [],
+            "group": [],
+            "cluster": [{"name": "ParentCluster"}],
+        }
+        session.CURRENTSTUDY = 1
+        return
+    raise ValueError(f"unsupported main-window state: {state}")
+
+
+def _main_window_menu_state(menu_label: str | None, state: str) -> str:
+    if menu_label is None or state != "startup":
+        return state
+    return "study" if menu_label == "Study" else "continuous"
+
+
 def _grab_dialog(dialog, output: pathlib.Path, app) -> None:
     dialog.show()
     dialog.raise_()
     app.processEvents()
-    pixmap = dialog.grab()
+    pixmap = _matlab_scaled_pixmap(dialog.grab(), app)
     output.parent.mkdir(parents=True, exist_ok=True)
     if not pixmap.save(str(output), "PNG"):
         raise RuntimeError(f"failed to save screenshot: {output}")
     dialog.close()
     app.processEvents()
+
+
+def capture_main_window(output: pathlib.Path, *, state: str = "startup", menu_label: str | None = None) -> None:
+    """Render and capture the EEGPrep main window, optionally with a menu open."""
+    session = EEGPrepSession()
+    state = _main_window_menu_state(menu_label, state)
+    _configure_main_window_session(session, state)
+    window = build_main_window(session)
+    window.show()
+    window.app.processEvents()
+    if menu_label:
+        window.open_menu(menu_label)
+    if menu_label and window.app.primaryScreen() is not None:
+        geometry = window.window.frameGeometry()
+        pixmap = window.app.primaryScreen().grabWindow(
+            0,
+            geometry.x(),
+            geometry.y(),
+            geometry.width() + 360,
+            geometry.height() + 420,
+        )
+    else:
+        pixmap = window.window.grab()
+    pixmap = _matlab_scaled_pixmap(pixmap, window.app)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    if not pixmap.save(str(output), "PNG"):
+        raise RuntimeError(f"failed to save screenshot: {output}")
+    window.window.close()
+    window.app.processEvents()
+
+
+def _matlab_scaled_pixmap(pixmap, app):
+    if sys.platform != "darwin":
+        return pixmap
+    screen = app.primaryScreen()
+    ratio = float(pixmap.devicePixelRatio() or 1)
+    if screen is not None:
+        ratio = max(ratio, float(screen.devicePixelRatio() or 1))
+    if ratio <= 1:
+        return pixmap
+    matlab_ratio = 1.5
+    scale = matlab_ratio / ratio
+    return pixmap.scaled(max(1, round(pixmap.width() * scale)), max(1, round(pixmap.height() * scale)))
 
 
 def capture_adjust_events_dialog(output: pathlib.Path) -> None:
@@ -270,6 +387,30 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.case == "adjust_events_dialog":
         capture_adjust_events_dialog(args.output)
+    elif args.case == "main_window":
+        capture_main_window(args.output)
+    elif args.case == "main_window_continuous":
+        capture_main_window(args.output, state="continuous")
+    elif args.case == "main_window_epoched":
+        capture_main_window(args.output, state="epoched")
+    elif args.case == "main_window_multiple":
+        capture_main_window(args.output, state="multiple")
+    elif args.case == "main_window_study":
+        capture_main_window(args.output, state="study")
+    elif args.case == "file_menu":
+        capture_main_window(args.output, menu_label="File")
+    elif args.case == "edit_menu":
+        capture_main_window(args.output, menu_label="Edit")
+    elif args.case == "tools_menu":
+        capture_main_window(args.output, menu_label="Tools")
+    elif args.case == "plot_menu":
+        capture_main_window(args.output, menu_label="Plot")
+    elif args.case == "study_menu":
+        capture_main_window(args.output, menu_label="Study")
+    elif args.case == "datasets_menu":
+        capture_main_window(args.output, menu_label="Datasets")
+    elif args.case == "help_menu":
+        capture_main_window(args.output, menu_label="Help")
     elif args.case == "reref_dialog":
         capture_reref_dialog(args.output)
     elif args.case == "reref_dialog_channel_ref":

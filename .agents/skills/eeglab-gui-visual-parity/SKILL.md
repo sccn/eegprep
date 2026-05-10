@@ -37,6 +37,46 @@ Install optional GUI dependencies before Python dialog capture:
 uv sync --extra gui --group dev
 ```
 
+## Choose The Capture Path First
+
+Before starting MATLAB or any display server, identify the machine class and
+then use the matching section below. Do not start X11 tooling on a Mac, and do
+not use the macOS desktop workflow on the SCCN Linux server.
+
+```bash
+uname -s
+uname -m
+hostname
+command -v matlab || true
+command -v uv || true
+command -v conda || true
+command -v Xvnc || true
+command -v Xvfb || true
+command -v xdpyinfo || true
+command -v screencapture || true
+command -v osascript || true
+```
+
+Use this decision rule:
+
+- If `uname -s` is `Linux` and the machine has the SCCN server setup
+  (`conda`, `eegprep-dev`, and usually `Xvnc`), use **SCCN Server Fast Path**.
+- If `uname -s` is `Darwin`, use **MacBook Fast Path**.
+- If neither path fits, probe dependencies first and then adapt the closest
+  path without hard-coding checkout-specific absolute paths.
+
+Always probe the Python used by capture before judging screenshots:
+
+```bash
+uv run --no-sync python - <<'PY'
+import importlib.util, platform, sys
+print(platform.platform())
+print(sys.executable)
+for name in ("numpy", "PySide6", "PIL"):
+    print(name, importlib.util.find_spec(name) is not None)
+PY
+```
+
 ## SCCN Server Fast Path
 
 This is the tested path on the shared server environment used for EEGPrep GUI
@@ -117,6 +157,114 @@ sed -n '1,120p' .visual-parity/adjust_events_dialog/report.md
 Open `.visual-parity/adjust_events_dialog/side_by_side.png` and judge the UI
 like a user. In the successful server run, both screenshots were `858x169`; the
 remaining differences after tuning were font rendering and native widget bevels.
+
+## MacBook Fast Path
+
+Use this path on a logged-in macOS desktop. Do not start `Xvfb`, `Xvnc`, or
+`openbox` on macOS. MATLAB and Qt can render on the physical desktop, and the
+capture helpers should be run from the uv environment.
+
+Probe the Mac desktop tools first:
+
+```bash
+uname -s
+sw_vers
+command -v matlab || true
+command -v screencapture || true
+command -v osascript || true
+uv run --no-sync python - <<'PY'
+import importlib.util, platform, sys
+print(platform.platform())
+print(sys.executable)
+for name in ("numpy", "PySide6", "PIL"):
+    print(name, importlib.util.find_spec(name) is not None)
+PY
+```
+
+If `matlab` is missing, add the MATLAB command-line launcher to `PATH` before
+running visual parity. If Qt or NumPy is missing, run:
+
+```bash
+uv sync --extra gui --group dev
+```
+
+For screenshots of main windows and modal dialogs, use the normal generated
+capture scripts. They use MATLAB `-nosplash -nodesktop -r` and the Python
+capture entrypoint; no `DISPLAY` variable is needed.
+
+```bash
+uv run --no-sync python tools/visual_parity/capture.py --list
+uv run --no-sync python tools/visual_parity/capture.py \
+  --case main_window \
+  --target both \
+  --timeout 180
+uv run --no-sync python tools/visual_parity/compare.py --case main_window
+sed -n '1,120p' .visual-parity/main_window/report.md
+```
+
+For iteration, keep the EEGLAB screenshot fixed and recapture only EEGPrep after
+each patch:
+
+```bash
+uv run --no-sync python tools/visual_parity/capture.py \
+  --case main_window \
+  --target eegprep \
+  --timeout 60
+uv run --no-sync python tools/visual_parity/compare.py --case main_window
+```
+
+On macOS Retina displays, small numeric deltas can come from device-pixel-ratio
+scaling, MATLAB font rendering, and Qt antialiasing. Treat `compare.py` metrics
+as a smoke signal and inspect `side_by_side.png` at original size.
+
+For main-window menu parity on macOS, prefer inventory parity over open-menu
+screenshots. MATLAB figure menus can be hard to capture reliably on macOS
+because the native application menu bar may receive focus instead of the EEGLAB
+figure menu. Use screenshots for the main window and modal dialogs; use menu
+inventories for menu labels, order, separators, and enabled state.
+
+Export the EEGLAB inventories from the sibling checkout when present:
+
+```bash
+mkdir -p .visual-parity/menu_inventory
+matlab -nosplash -nodesktop -r "try, addpath('tools/visual_parity/matlab'); states = {'startup','continuous','epoched','multiple'}; for i = 1:numel(states), export_eeglab_menu_inventory(['.visual-parity/menu_inventory/eeglab_' states{i} '_default.json'], '../eeglab', states{i}); end; catch ME, disp(getReport(ME, 'extended')); exit(1); end; exit(0);"
+```
+
+Then export and compare EEGPrep:
+
+```bash
+for state in startup continuous epoched multiple; do
+  uv run --no-sync python tools/visual_parity/export_eegprep_menu_inventory.py \
+    --state "$state" \
+    --output ".visual-parity/menu_inventory/eegprep_${state}_default.json"
+  uv run --no-sync python tools/visual_parity/menu_inventory.py \
+    --reference ".visual-parity/menu_inventory/eeglab_${state}_default.json" \
+    --candidate ".visual-parity/menu_inventory/eegprep_${state}_default.json" \
+    --report ".visual-parity/menu_inventory/${state}_default_report.md"
+done
+```
+
+Inspect any differences:
+
+```bash
+for state in startup continuous epoched multiple; do
+  echo "== $state =="
+  sed -n '1,160p' ".visual-parity/menu_inventory/${state}_default_report.md"
+done
+```
+
+If you need a quick local screenshot of an EEGPrep-opened menu on macOS, capture
+the EEGPrep target only:
+
+```bash
+uv run --no-sync python tools/visual_parity/capture.py \
+  --case file_menu \
+  --target eegprep \
+  --timeout 60
+```
+
+Do not treat a failed or blank EEGLAB open-menu screenshot on macOS as a menu
+implementation failure. Verify the menu tree with the inventory exporter.
 
 ## Physical Desktop UX Check
 

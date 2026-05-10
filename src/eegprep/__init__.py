@@ -7,6 +7,7 @@ __version__ = "0.2.23"
 from .functions.adminfunc.logs import setup_logging
 setup_logging(logging.WARNING)
 
+from .functions.adminfunc.eeglab import eeglab
 from .plugins.ICLabel.iclabel import iclabel
 from .plugins.ICLabel.eeg_icflag import eeg_icflag
 from .functions.popfunc.pop_subcomp import pop_subcomp
