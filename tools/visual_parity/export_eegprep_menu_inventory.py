@@ -54,18 +54,18 @@ def _menus_for_state(*, all_menus: bool, include_plugins: bool, state: str):
 def _dataset_items_for_state(state: str) -> tuple[MenuItemSpec, ...]:
     if state == "continuous":
         return (
-            MenuItemSpec("Dataset 1:menu continuous", action="retrieve_dataset:1", userdata="study:on"),
+            MenuItemSpec("Dataset 1:menu continuous", action="retrieve_dataset:1", userdata="study:on", checked=True),
             _select_multiple_item(),
         )
     if state == "epoched":
         return (
-            MenuItemSpec("Dataset 1:menu epoched", action="retrieve_dataset:1", userdata="study:on"),
+            MenuItemSpec("Dataset 1:menu epoched", action="retrieve_dataset:1", userdata="study:on", checked=True),
             _select_multiple_item(),
         )
     if state == "multiple":
         return (
-            MenuItemSpec("Dataset 1:menu one", action="retrieve_dataset:1", userdata="study:on"),
-            MenuItemSpec("Dataset 2:menu two", action="retrieve_dataset:2", userdata="study:on"),
+            MenuItemSpec("Dataset 1:menu one", action="retrieve_dataset:1", userdata="study:on", checked=True),
+            MenuItemSpec("Dataset 2:menu two", action="retrieve_dataset:2", userdata="study:on", checked=True),
             _select_multiple_item(),
         )
     return (MenuItemSpec("Select multiple datasets", action="select_multiple_datasets", separator=True),)

@@ -8,7 +8,7 @@ from eegprep.plugins.EEG_BIDS.menu import (
     eeg_bids_import_items,
     eeg_bids_tools_menu,
 )
-from eegprep.plugins.ICLabel.menu import iclabel_menu
+from eegprep.plugins.ICLabel.menu import iclabel_menu, viewprops_plot_menus
 from eegprep.plugins.clean_rawdata.menu import clean_rawdata_menu
 from eegprep.plugins.dipfit.menu import dipfit_menu
 from eegprep.plugins.firfilt.menu import firfilt_filter_items
@@ -356,6 +356,7 @@ def eeglab_menus(*, all_menus: bool = False, include_plugins: bool = True) -> tu
         menus[0] = _insert_file_plugins(menus[0])
         menus[2] = _insert_tools_plugins(menus[2])
         menus[2] = _insert_firfilt(menus[2])
+        menus[3] = _insert_plot_plugins(menus[3])
     return visible_menu_items(tuple(menus), all_menus=all_menus)
 
 
@@ -395,6 +396,10 @@ def _insert_firfilt(tools_menu: MenuItemSpec) -> MenuItemSpec:
         )
         children.append(item.with_children(filter_children))
     return tools_menu.with_children(tuple(children))
+
+
+def _insert_plot_plugins(plot_menu: MenuItemSpec) -> MenuItemSpec:
+    return plot_menu.with_children((*plot_menu.children, *viewprops_plot_menus()))
 
 
 def _insert_file_plugins(file_menu: MenuItemSpec) -> MenuItemSpec:

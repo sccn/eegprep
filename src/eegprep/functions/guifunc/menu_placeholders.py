@@ -100,6 +100,7 @@ PLACEHOLDER_ACTIONS = frozenset(
         "pop_studydesign",
         "pop_studyerp",
         "pop_studywizard",
+        "pop_subcomp",
         "pop_taskinfo",
         "pop_timtopo",
         "pop_topoplot",

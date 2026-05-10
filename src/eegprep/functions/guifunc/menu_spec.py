@@ -19,6 +19,7 @@ class MenuItemSpec:
     userdata: str = ""
     separator: bool = False
     enabled: bool = True
+    checked: bool = False
     visibility: Visibility = "always"
     origin: str = "core"
     children: tuple["MenuItemSpec", ...] = field(default_factory=tuple)
@@ -36,6 +37,7 @@ def menu_item(
     userdata: str = "",
     separator: bool = False,
     enabled: bool = True,
+    checked: bool = False,
     visibility: Visibility = "always",
     origin: str = "core",
     children: tuple[MenuItemSpec, ...] | list[MenuItemSpec] = (),
@@ -48,6 +50,7 @@ def menu_item(
         userdata=userdata,
         separator=separator,
         enabled=enabled,
+        checked=checked,
         visibility=visibility,
         origin=origin,
         children=tuple(children),
@@ -102,6 +105,7 @@ def menu_to_inventory(items: tuple[MenuItemSpec, ...], statuses: set[str] | None
             "label": item.label,
             "enabled": menu_enabled(item, statuses),
             "separator": item.separator,
+            "checked": item.checked,
             "tag": item.tag or "",
             "children": menu_to_inventory(item.children, statuses),
         }

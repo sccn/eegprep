@@ -54,14 +54,31 @@ class EEGPrepSession:
             return self.CURRENTSET[0]
         return list(self.CURRENTSET)
 
-    def store_current(self, eeg: dict[str, Any], *, new: bool = False, command: str = "") -> int:
+    def store_current(
+        self,
+        eeg: dict[str, Any] | list[dict[str, Any]],
+        *,
+        new: bool = False,
+        command: str = "",
+        mark_saved: bool = False,
+    ) -> int | list[int]:
         """Store ``eeg`` in ALLEEG and select it."""
-        index = 0 if new or not self.CURRENTSET else self.CURRENTSET[0]
+        if isinstance(eeg, list):
+            if new:
+                index: int | list[int] | None = [0] * len(eeg)
+            elif len(self.CURRENTSET) == len(eeg):
+                index = list(self.CURRENTSET)
+            else:
+                index = None
+        else:
+            index = 0 if new or not self.CURRENTSET else self.CURRENTSET[0]
         self.ALLEEG, checked, stored_index = eeg_store(self.ALLEEG, eeg, index)
         self.EEG = checked
-        self.CURRENTSET = [int(stored_index)]
+        self.CURRENTSET = list(stored_index) if isinstance(stored_index, list) else [int(stored_index)]
+        if mark_saved:
+            self.mark_current_saved()
         self.add_history(command)
-        return int(stored_index)
+        return stored_index
 
     def retrieve(self, indices: int | list[int]) -> dict[str, Any] | list[dict[str, Any]]:
         """Select dataset(s) from ALLEEG using 1-based indices."""
@@ -74,8 +91,12 @@ class EEGPrepSession:
         """Delete the current dataset selection from memory."""
         if not self.CURRENTSET:
             return
+        deleted_indices = list(self.CURRENTSET)
         self.ALLEEG, command = pop_delset(self.ALLEEG, self.CURRENTSET)
         self.add_history(command)
+        if self.ALLEEG:
+            self.retrieve(min(min(deleted_indices), len(self.ALLEEG)))
+            return
         self.CURRENTSET = []
         self.EEG = eeg_emptyset()
 
@@ -91,6 +112,14 @@ class EEGPrepSession:
     def add_history(self, command: str | None) -> None:
         """Append an EEGLAB-style command to session history."""
         self.LASTCOM = eegh(command, self.ALLCOM)
+
+    def mark_current_saved(self) -> None:
+        """Mark the current dataset selection as saved in EEG and ALLEEG."""
+        current = self.EEG if isinstance(self.EEG, list) else [self.EEG]
+        for index, eeg in zip(self.CURRENTSET, current):
+            eeg["saved"] = "yes"
+            if 1 <= index <= len(self.ALLEEG):
+                self.ALLEEG[index - 1]["saved"] = "yes"
 
     def menu_statuses(self) -> set[str]:
         """Return EEGLAB-style menu status tokens for the current state."""

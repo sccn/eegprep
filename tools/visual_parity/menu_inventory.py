@@ -27,6 +27,13 @@ def _separator(node: dict[str, Any]) -> bool:
     return bool(value)
 
 
+def _checked(node: dict[str, Any]) -> bool:
+    value = node.get("checked", False)
+    if isinstance(value, str):
+        return value.lower() == "on"
+    return bool(value)
+
+
 def _children(node: dict[str, Any]) -> list[dict[str, Any]]:
     value = node.get("children", [])
     if isinstance(value, list):
@@ -62,6 +69,10 @@ def compare_menu_trees(reference: list[dict[str, Any]], candidate: list[dict[str
         if _separator(ref_node) != _separator(cand_node):
             differences.append(
                 f"{path}: separator mismatch, expected {_separator(ref_node)}, got {_separator(cand_node)}"
+            )
+        if _checked(ref_node) != _checked(cand_node):
+            differences.append(
+                f"{path}: checked mismatch, expected {_checked(ref_node)}, got {_checked(cand_node)}"
             )
 
         child_differences = compare_menu_trees(

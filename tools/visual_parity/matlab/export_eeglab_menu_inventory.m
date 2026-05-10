@@ -30,6 +30,11 @@ addpath(eeglab_root);
 eeglab;
 drawnow;
 
+fig = findobj('tag', 'EEGLAB');
+if isempty(fig)
+    error('Could not find EEGLAB main window');
+end
+add_viewprops_menu_if_present(eeglab_root, fig(1));
 make_demo_state(state);
 
 fig = findobj('tag', 'EEGLAB');
@@ -46,6 +51,21 @@ if fid < 0
 end
 cleanup = onCleanup(@() fclose(fid));
 fprintf(fid, '%s\n', jsonencode(payload));
+end
+
+function add_viewprops_menu_if_present(eeglab_root, fig)
+if ~isempty(findobj(fig, 'Label', 'View extended channel properties'))
+    return;
+end
+viewprops_root = fullfile(eeglab_root, 'plugins', 'ICLabel', 'viewprops');
+if ~exist(fullfile(viewprops_root, 'eegplugin_viewprops.m'), 'file')
+    return;
+end
+addpath(viewprops_root);
+try_strings = struct('no_check', '');
+catch_strings = struct('add_to_hist', '');
+eegplugin_viewprops(fig, try_strings, catch_strings);
+drawnow;
 end
 
 function make_demo_state(state)
@@ -146,12 +166,13 @@ end
 [~, order] = sort(positions);
 menu_handles = menu_handles(order);
 
-menus = struct('label', {}, 'enabled', {}, 'separator', {}, 'tag', {}, 'children', {});
+menus = struct('label', {}, 'enabled', {}, 'separator', {}, 'checked', {}, 'tag', {}, 'children', {});
 for idx = 1:numel(menu_handles)
     handle = menu_handles(idx);
     menus(idx).label = get(handle, 'Label');
     menus(idx).enabled = get(handle, 'Enable');
     menus(idx).separator = get(handle, 'Separator');
+    menus(idx).checked = get(handle, 'Checked');
     menus(idx).tag = get(handle, 'Tag');
     menus(idx).children = collect_menu_children(handle);
 end

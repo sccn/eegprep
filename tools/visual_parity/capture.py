@@ -61,6 +61,16 @@ def _split_action(action: str) -> tuple[str, str]:
     return base, variant or "default"
 
 
+def _main_window_menu_state(menu_label: str, state: str = "") -> str:
+    if state:
+        return state
+    if menu_label == "Study":
+        return "study"
+    if menu_label:
+        return "continuous"
+    return ""
+
+
 def _matlab_capture_helper() -> list[str]:
     return [
         "function write_figure_capture(fig, output_file)",
@@ -217,6 +227,21 @@ def _matlab_capture_helper() -> list[str]:
         "",
         "function quoted = shell_quote(value)",
         "quoted = ['''' strrep(value, '''', '''\"''\"''') ''''];",
+        "end",
+        "",
+        "function add_viewprops_menu_if_present(eeglab_root, fig)",
+        "if ~isempty(findobj(fig, 'Label', 'View extended channel properties'))",
+        "    return;",
+        "end",
+        "viewprops_root = fullfile(eeglab_root, 'plugins', 'ICLabel', 'viewprops');",
+        "if ~exist(fullfile(viewprops_root, 'eegplugin_viewprops.m'), 'file')",
+        "    return;",
+        "end",
+        "addpath(viewprops_root);",
+        "try_strings = struct('no_check', '');",
+        "catch_strings = struct('add_to_hist', '');",
+        "eegplugin_viewprops(fig, try_strings, catch_strings);",
+        "drawnow;",
         "end",
         "",
     ]
@@ -379,8 +404,7 @@ def _write_matlab_figure_script(case: VisualCase, target: TargetSpec, output_pat
     action, variant = _split_action(target.action)
     menu_label = variant if action == "open_menu" else ""
     main_window_state = variant if action == "main_window_state" else ""
-    if menu_label and not main_window_state:
-        main_window_state = "continuous"
+    main_window_state = _main_window_menu_state(menu_label, main_window_state)
     script_path.write_text(
         "\n".join(
             [
@@ -393,6 +417,10 @@ def _write_matlab_figure_script(case: VisualCase, target: TargetSpec, output_pat
                 "addpath(eeglab_root);",
                 "set(0, 'DefaultFigureVisible', 'on');",
                 matlab_command,
+                "initial_fig = findobj('tag', 'EEGLAB');",
+                "if ~isempty(initial_fig)",
+                "    add_viewprops_menu_if_present(eeglab_root, initial_fig(1));",
+                "end",
                 "if ~isempty(main_window_state)",
                 "    make_main_window_state(main_window_state);",
                 "end",
@@ -404,6 +432,7 @@ def _write_matlab_figure_script(case: VisualCase, target: TargetSpec, output_pat
                 "else",
                 "    fig = fig(1);",
                 "end",
+                "add_viewprops_menu_if_present(eeglab_root, fig);",
                 f"set(fig, 'Units', 'pixels', 'Position', [100 100 {width} {height}]);",
                 "drawnow;",
                 "pause(0.5);",

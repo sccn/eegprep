@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import webbrowser
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 from eegprep.functions.guifunc.menu_placeholders import is_placeholder_action, placeholder_message
@@ -15,7 +16,6 @@ from eegprep.functions.popfunc.pop_interp import pop_interp
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_reref import pop_reref
 from eegprep.functions.popfunc.pop_saveset import pop_saveset
-from eegprep.functions.popfunc.pop_subcomp import pop_subcomp
 from eegprep.plugins.ICLabel.iclabel import iclabel
 
 
@@ -30,7 +30,6 @@ IMPLEMENTED_ACTIONS = {
     "pop_loadset",
     "pop_reref",
     "pop_saveset",
-    "pop_subcomp",
     "quit",
     "retrieve_dataset",
     "tutorial",
@@ -43,6 +42,13 @@ class MenuActionDispatcher:
     def __init__(self, session: EEGPrepSession, refresh: Callable[[], None] | None = None):
         self.session = session
         self.refresh = refresh
+
+    def dispatch_gui(self, action: str, parent: Any | None = None) -> None:
+        """Run a menu action from Qt and show user-facing errors."""
+        try:
+            self.dispatch(action, parent)
+        except Exception as exc:
+            self._warn(parent, str(exc))
 
     def dispatch(self, action: str, parent: Any | None = None) -> None:
         """Run a menu action."""
@@ -75,8 +81,7 @@ class MenuActionDispatcher:
             self._refresh()
             return
         if base == "retrieve_dataset":
-            self.session.retrieve(int(variant))
-            self._refresh()
+            self._retrieve_dataset(int(variant))
             return
         if base == "pop_adjustevents":
             self._run_pop_function("pop_adjustevents", parent)
@@ -86,9 +91,6 @@ class MenuActionDispatcher:
             return
         if base == "pop_interp":
             self._run_pop_function("pop_interp", parent)
-            return
-        if base == "pop_subcomp":
-            self._run_pop_function("pop_subcomp", parent)
             return
         if base == "pop_iclabel":
             self._run_iclabel(parent)
@@ -119,40 +121,51 @@ class MenuActionDispatcher:
         self._refresh()
 
     def _saveset(self, parent: Any | None, *, resave: bool = False) -> None:
-        eeg = self._current_dataset_or_warn(parent)
-        if eeg is None:
+        selection = self._current_selection_or_warn(parent, allow_multiple=resave)
+        if selection is None:
             return
-        filename = ""
-        if resave:
-            filepath = str(eeg.get("filepath") or "")
-            basename = str(eeg.get("filename") or "")
-            filename = f"{filepath}/{basename}" if filepath and basename else ""
-        if not filename:
+        datasets = selection if isinstance(selection, list) else [selection]
+        filenames = [_existing_dataset_filename(eeg) if resave else "" for eeg in datasets]
+        if resave and len(datasets) > 1 and not all(filenames):
+            self._warn(parent, "Cannot resave multiple datasets until every selected dataset has a filename.")
+            return
+        filename = filenames[0] if len(datasets) == 1 else ""
+        if len(datasets) == 1 and not filename:
             qt_widgets = _require_qt_widgets()
             filename, _filter = qt_widgets.QFileDialog.getSaveFileName(
                 parent,
                 "Save current dataset as",
-                str(eeg.get("filename") or ""),
+                str(datasets[0].get("filename") or ""),
                 "EEGLAB datasets (*.set);;All files (*)",
             )
-        if not filename:
+            filenames = [filename]
+        if len(datasets) == 1 and not filename:
             return
-        pop_saveset(eeg, filename)
-        self.session.store_current(eeg, command=f"EEG = pop_saveset(EEG, {filename!r});")
+        for eeg, filename in zip(datasets, filenames):
+            pop_saveset(eeg, filename)
+            _apply_save_metadata(eeg, filename)
+        stored = datasets if isinstance(selection, list) else datasets[0]
+        command = (
+            "EEG = pop_saveset(EEG, 'savemode', 'resave');"
+            if resave
+            else f"EEG = pop_saveset(EEG, {filenames[0]!r});"
+        )
+        self.session.store_current(stored, command=command, mark_saved=True)
         self._refresh()
 
     def _run_pop_function(self, name: str, parent: Any | None) -> None:
-        eeg = self._current_dataset_or_warn(parent)
-        if eeg is None:
+        selection = self._current_selection_or_warn(parent, allow_multiple=name == "pop_reref")
+        if selection is None:
             return
         if name == "pop_adjustevents":
-            out = pop_adjustevents(eeg, return_com=True)
+            out = pop_adjustevents(selection, return_com=True)
         elif name == "pop_reref":
-            out = pop_reref(eeg, return_com=True)
+            out = pop_reref(selection, return_com=True)
         elif name == "pop_interp":
-            out = pop_interp(eeg, alleeg=self.session.ALLEEG, return_com=True)
+            out = pop_interp(selection, alleeg=self.session.ALLEEG, return_com=True)
         else:
-            out = (pop_subcomp(eeg), "EEG = pop_subcomp(EEG);")
+            self.show_coming_soon(name, parent)
+            return
         if isinstance(out, tuple):
             eeg_out, command = out[0], out[1] if len(out) > 1 else ""
         else:
@@ -162,10 +175,26 @@ class MenuActionDispatcher:
             self._refresh()
 
     def _run_iclabel(self, parent: Any | None) -> None:
-        eeg = self._current_dataset_or_warn(parent)
-        if eeg is None:
+        selection = self._current_selection_or_warn(parent, allow_multiple=True)
+        if selection is None:
             return
-        self.session.store_current(iclabel(eeg), command="EEG = pop_iclabel(EEG, 'default');")
+        if isinstance(selection, list):
+            self.session.store_current(
+                [iclabel(eeg) for eeg in selection],
+                command="EEG = pop_iclabel(EEG, 'default');",
+            )
+        else:
+            self.session.store_current(iclabel(selection), command="EEG = pop_iclabel(EEG, 'default');")
+        self._refresh()
+
+    def _retrieve_dataset(self, index: int) -> None:
+        was_study = self.session.CURRENTSTUDY == 1
+        self.session.retrieve(index)
+        command = f"[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, 'retrieve', {index});"
+        if was_study:
+            self.session.CURRENTSTUDY = 0
+            command = f"CURRENTSTUDY = 0;{command}"
+        self.session.add_history(command)
         self._refresh()
 
     def _show_help(self, function_name: str, parent: Any | None) -> None:
@@ -174,20 +203,51 @@ class MenuActionDispatcher:
         except Exception:
             self.show_coming_soon(f"pophelp:{function_name}", parent)
 
-    def _current_dataset_or_warn(self, parent: Any | None) -> dict[str, Any] | None:
-        eeg = self.session.current_eeg()
-        if isinstance(eeg, list):
-            eeg = eeg[0] if eeg else {}
-        if has_eeg_data(eeg):
-            return eeg
+    def _current_selection_or_warn(
+        self,
+        parent: Any | None,
+        *,
+        allow_multiple: bool = False,
+    ) -> dict[str, Any] | list[dict[str, Any]] | None:
+        selection = self.session.current_eeg()
+        if isinstance(selection, list):
+            if not any(has_eeg_data(eeg) for eeg in selection):
+                self._warn(parent, "No current dataset")
+                return None
+            if len(selection) > 1:
+                if allow_multiple:
+                    return selection
+                self._warn(parent, "This action is not available for multiple selected datasets")
+                return None
+            return selection[0]
+        if has_eeg_data(selection):
+            return selection
+        self._warn(parent, "No current dataset")
+        return None
+
+    def _warn(self, parent: Any | None, message: str) -> None:
         qt_widgets = _qt_widgets()
         if qt_widgets is not None:
-            qt_widgets.QMessageBox.warning(parent, "EEGPrep", "No current dataset")
-        return None
+            qt_widgets.QMessageBox.warning(parent, "EEGPrep", message)
 
     def _refresh(self) -> None:
         if self.refresh is not None:
             self.refresh()
+
+
+def _existing_dataset_filename(eeg: dict[str, Any]) -> str:
+    filepath = str(eeg.get("filepath") or "")
+    filename = str(eeg.get("filename") or "")
+    if filepath and filename:
+        return str(Path(filepath) / filename)
+    return filename
+
+
+def _apply_save_metadata(eeg: dict[str, Any], filename: str) -> None:
+    path = Path(filename)
+    eeg["filename"] = path.name
+    eeg["filepath"] = str(path.parent)
+    eeg["saved"] = "yes"
 
 
 def action_kind(action: str) -> str:

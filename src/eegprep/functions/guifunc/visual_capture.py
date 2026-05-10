@@ -199,6 +199,12 @@ def _configure_main_window_session(session: EEGPrepSession, state: str) -> None:
     raise ValueError(f"unsupported main-window state: {state}")
 
 
+def _main_window_menu_state(menu_label: str | None, state: str) -> str:
+    if menu_label is None or state != "startup":
+        return state
+    return "study" if menu_label == "Study" else "continuous"
+
+
 def _grab_dialog(dialog, output: pathlib.Path, app) -> None:
     dialog.show()
     dialog.raise_()
@@ -214,8 +220,7 @@ def _grab_dialog(dialog, output: pathlib.Path, app) -> None:
 def capture_main_window(output: pathlib.Path, *, state: str = "startup", menu_label: str | None = None) -> None:
     """Render and capture the EEGPrep main window, optionally with a menu open."""
     session = EEGPrepSession()
-    if menu_label is not None and state == "startup":
-        state = "continuous"
+    state = _main_window_menu_state(menu_label, state)
     _configure_main_window_session(session, state)
     window = build_main_window(session)
     window.show()

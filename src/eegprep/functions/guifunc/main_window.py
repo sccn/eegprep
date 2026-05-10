@@ -57,6 +57,7 @@ class EEGPrepMainWindow:
         self.window.setWindowTitle("EEGPrep - EEGLAB-compatible GUI")
         self.window.resize(386, 290)
         self.window.setStyleSheet(_main_window_stylesheet())
+        self.window.menuBar().setNativeMenuBar(False)
         self.dispatcher = MenuActionDispatcher(self.session, refresh=self.refresh)
         self._build_central_widget()
         self.refresh()
@@ -187,6 +188,7 @@ class EEGPrepMainWindow:
                 action=f"retrieve_dataset:{index}",
                 userdata="study:on",
                 enabled=True,
+                checked=_selected,
             )
             for index, label, _selected in summaries
         ]
@@ -225,8 +227,11 @@ class EEGPrepMainWindow:
         action = menu.addAction(spec.label)
         _apply_action_metadata(action, spec)
         action.setEnabled(menu_enabled(spec, statuses))
+        if spec.checked:
+            action.setCheckable(True)
+            action.setChecked(True)
         if spec.action:
-            action.triggered.connect(lambda _checked=False, action_id=spec.action: self.dispatcher.dispatch(action_id, self.window))
+            action.triggered.connect(lambda _checked=False, action_id=spec.action: self.dispatcher.dispatch_gui(action_id, self.window))
         if spec.origin != "core":
             action.setProperty("eegprep_plugin", True)
         return action
@@ -384,11 +389,13 @@ def _configure_eeglab_label(label: Any, qt_widgets: Any) -> None:
 
 
 def _apply_action_metadata(action: Any, spec: MenuItemSpec) -> None:
+    action.setMenuRole(QtGui.QAction.MenuRole.NoRole)
     action.setObjectName(spec.tag or spec.action or spec.label)
     action.setProperty("eegprep_label", spec.label)
     action.setProperty("eegprep_tag", spec.tag or "")
     action.setProperty("eegprep_separator", bool(spec.separator))
     action.setProperty("eegprep_origin", spec.origin)
+    action.setProperty("eegprep_checked", bool(spec.checked))
     if spec.action:
         action.setData(spec.action)
 
@@ -400,6 +407,7 @@ def _action_inventory(action: Any) -> dict[str, Any]:
         "label": action.text(),
         "enabled": action.isEnabled(),
         "separator": bool(action.property("eegprep_separator")),
+        "checked": action.isChecked(),
         "tag": str(action.property("eegprep_tag") or ""),
         "children": children,
     }
