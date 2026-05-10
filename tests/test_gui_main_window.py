@@ -156,6 +156,7 @@ class MainMenuSpecTests(unittest.TestCase):
         self.assertEqual(action_kind("pop_clean_rawdata"), "placeholder")
         self.assertEqual(action_kind("pop_exportbids"), "placeholder")
         self.assertEqual(action_kind("select_multiple_datasets"), "placeholder")
+        self.assertEqual(action_kind("topoplot:labels"), "placeholder")
         self.assertTrue(all(action_kind(action) in {"implemented", "placeholder"} for action in actions))
         self.assertTrue(
             all(action_kind(action) == "implemented" or is_placeholder_action(action) for action in actions)

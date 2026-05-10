@@ -73,12 +73,12 @@ def test_eeg_store_preserves_justloaded_dataset_as_saved():
     assert alleeg[0]["saved"] == "yes"
 
 
-def test_eeg_store_keeps_loaded_saved_dataset_saved_when_appending():
+def test_eeg_store_marks_saved_dataset_unsaved_without_justloaded_marker():
     alleeg, checked, index = eeg_store([], _eeg(saved="yes"), 0)
 
     assert index == 1
-    assert checked["saved"] == "yes"
-    assert alleeg[0]["saved"] == "yes"
+    assert checked["saved"] == "no"
+    assert alleeg[0]["saved"] == "no"
 
 
 def test_eeg_store_handles_multiple_eeg_inputs_with_one_based_indices():

@@ -103,6 +103,8 @@ def pop_loadset(file_path=None):
         EEG['icachansind'] = EEG['icachansind'] - 1
 
     EEG = eeg_checkset(EEG)
+    EEG.pop("changes_not_saved", None)
+    EEG["saved"] = "justloaded"
 
     # check if EEG['urchan'] is 0-based
     if len(EEG['chanlocs']) > 0 and 'urchan' in EEG['chanlocs'][0]:
