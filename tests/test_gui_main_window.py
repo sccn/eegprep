@@ -1,4 +1,5 @@
 import os
+import logging
 import unittest
 from unittest import mock
 
@@ -10,6 +11,7 @@ from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher, action_
 from eegprep.functions.guifunc.menu_placeholders import is_placeholder_action
 from eegprep.functions.guifunc.menu_spec import menu_enabled
 from eegprep.functions.guifunc.session import EEGPrepSession
+from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
 
 
 def _labels(items):
@@ -223,6 +225,27 @@ class EEGPrepSessionTests(unittest.TestCase):
         session.CURRENTSTUDY = 1
         self.assertEqual(session.menu_statuses(), {"study"})
 
+    def test_session_treats_nonzero_xmin_single_trial_data_as_continuous(self):
+        session = EEGPrepSession()
+        session.EEG = _demo_eeg()
+        session.EEG["xmin"] = 1.5
+        session.EEG["trials"] = 1
+
+        self.assertEqual(session.menu_statuses(), {"continuous_dataset"})
+
+    def test_session_dataset_summaries_include_empty_dataset_structs(self):
+        session = EEGPrepSession()
+        session.ALLEEG = [eeg_emptyset(), {}, _demo_eeg()]
+        session.CURRENTSET = [1]
+
+        self.assertEqual(
+            session.dataset_summaries(),
+            [
+                (1, "Dataset 1:(no dataset name)", True),
+                (3, "Dataset 3:demo", False),
+            ],
+        )
+
 
 class MenuActionDispatcherTests(unittest.TestCase):
     def test_pop_subcomp_menu_action_uses_placeholder_until_gui_flow_exists(self):
@@ -243,6 +266,33 @@ class MenuActionDispatcherTests(unittest.TestCase):
             dispatcher.dispatch_gui("pop_adjustevents", parent="window")
 
         warn.assert_called_once_with("window", "bad input")
+
+    def test_show_help_missing_resource_raises_clear_error_not_coming_soon(self):
+        dispatcher = MenuActionDispatcher(EEGPrepSession())
+
+        with (
+            mock.patch(
+                "eegprep.functions.guifunc.menu_actions.pophelp",
+                side_effect=FileNotFoundError("missing packaged help"),
+            ),
+            mock.patch.object(dispatcher, "show_coming_soon") as coming_soon,
+            self.assertRaisesRegex(FileNotFoundError, "missing packaged help"),
+        ):
+            dispatcher.dispatch("help:missing")
+
+        coming_soon.assert_not_called()
+
+    def test_dispatch_gui_reraises_headless_errors_and_logs_traceback(self):
+        dispatcher = MenuActionDispatcher(EEGPrepSession())
+
+        with (
+            mock.patch.object(dispatcher, "dispatch", side_effect=RuntimeError("boom")),
+            self.assertLogs("eegprep.functions.guifunc.menu_actions", level=logging.ERROR) as logs,
+            self.assertRaisesRegex(RuntimeError, "boom"),
+        ):
+            dispatcher.dispatch_gui("pop_reref")
+
+        self.assertIn("EEGPrep GUI menu action failed: pop_reref", "\n".join(logs.output))
 
     def test_retrieve_dataset_menu_action_clears_study_mode(self):
         session = EEGPrepSession()
