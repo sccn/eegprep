@@ -22,6 +22,11 @@ from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 
 local_url = os.path.join(os.path.dirname(__file__), '../sample_data/')
 
+ICLABEL_PARITY_RTOL = 2e-5
+ICLABEL_PARITY_ATOL = 1e-8
+# MATLAB ICLabel casts PSD features to single precision before returning them.
+ICLABEL_PSD_PARITY_ATOL = 5e-8
+
 
 class TestICLFeatureExtractorParity(unittest.TestCase):
     """Test parity between Python and MATLAB ICL_feature_extractor implementations."""
@@ -80,7 +85,7 @@ class TestICLFeatureExtractorParity(unittest.TestCase):
         print(f"  Max absolute diff: {np.max(np.abs(py_topo - ml_topo)):.6f}")
 
         # Calculate mismatched elements
-        mismatch_mask = ~np.isclose(py_topo, ml_topo, rtol=2e-5, atol=1e-8)
+        mismatch_mask = ~np.isclose(py_topo, ml_topo, rtol=ICLABEL_PARITY_RTOL, atol=ICLABEL_PARITY_ATOL)
         n_mismatch = np.sum(mismatch_mask)
         n_total = py_topo.size
         print(f"  Mismatched elements: {n_mismatch} / {n_total} ({100*n_mismatch/n_total:.2f}%)")
@@ -89,7 +94,7 @@ class TestICLFeatureExtractorParity(unittest.TestCase):
             max_rel_diff = np.max(np.abs((py_topo - ml_topo) / (ml_topo + 1e-10)))
             print(f"  Max relative diff: {max_rel_diff:.6f}")
 
-        np.testing.assert_allclose(py_topo, ml_topo, rtol=2e-5, atol=1e-8,
+        np.testing.assert_allclose(py_topo, ml_topo, rtol=ICLABEL_PARITY_RTOL, atol=ICLABEL_PARITY_ATOL,
                                    err_msg="Topo feature differs beyond tolerance")
 
         # Compare psd feature
@@ -100,7 +105,7 @@ class TestICLFeatureExtractorParity(unittest.TestCase):
         print(f"  Max absolute diff: {np.max(np.abs(py_psd - ml_psd)):.6f}")
 
         # Calculate mismatched elements
-        mismatch_mask = ~np.isclose(py_psd, ml_psd, rtol=2e-5, atol=1e-8)
+        mismatch_mask = ~np.isclose(py_psd, ml_psd, rtol=ICLABEL_PARITY_RTOL, atol=ICLABEL_PSD_PARITY_ATOL)
         n_mismatch = np.sum(mismatch_mask)
         n_total = py_psd.size
         print(f"  Mismatched elements: {n_mismatch} / {n_total} ({100*n_mismatch/n_total:.2f}%)")
@@ -109,7 +114,7 @@ class TestICLFeatureExtractorParity(unittest.TestCase):
             max_rel_diff = np.max(np.abs((py_psd - ml_psd) / (ml_psd + 1e-10)))
             print(f"  Max relative diff: {max_rel_diff:.6f}")
 
-        np.testing.assert_allclose(py_psd, ml_psd, rtol=2e-5, atol=1e-8,
+        np.testing.assert_allclose(py_psd, ml_psd, rtol=ICLABEL_PARITY_RTOL, atol=ICLABEL_PSD_PARITY_ATOL,
                                    err_msg="PSD feature differs beyond tolerance")
 
     def test_parity_with_autocorr(self):
@@ -154,7 +159,7 @@ class TestICLFeatureExtractorParity(unittest.TestCase):
         print(f"  Max absolute diff: {np.max(np.abs(py_topo - ml_topo)):.6f}")
 
         # Calculate mismatched elements
-        mismatch_mask = ~np.isclose(py_topo, ml_topo, rtol=2e-5, atol=1e-8)
+        mismatch_mask = ~np.isclose(py_topo, ml_topo, rtol=ICLABEL_PARITY_RTOL, atol=ICLABEL_PARITY_ATOL)
         n_mismatch = np.sum(mismatch_mask)
         n_total = py_topo.size
         print(f"  Mismatched elements: {n_mismatch} / {n_total} ({100*n_mismatch/n_total:.2f}%)")
@@ -163,7 +168,7 @@ class TestICLFeatureExtractorParity(unittest.TestCase):
             max_rel_diff = np.max(np.abs((py_topo - ml_topo) / (ml_topo + 1e-10)))
             print(f"  Max relative diff: {max_rel_diff:.6f}")
 
-        np.testing.assert_allclose(py_topo, ml_topo, rtol=2e-5, atol=1e-8,
+        np.testing.assert_allclose(py_topo, ml_topo, rtol=ICLABEL_PARITY_RTOL, atol=ICLABEL_PARITY_ATOL,
                                    err_msg="Topo feature differs beyond tolerance")
 
         # Compare psd feature
@@ -174,7 +179,7 @@ class TestICLFeatureExtractorParity(unittest.TestCase):
         print(f"  Max absolute diff: {np.max(np.abs(py_psd - ml_psd)):.6f}")
 
         # Calculate mismatched elements
-        mismatch_mask = ~np.isclose(py_psd, ml_psd, rtol=2e-5, atol=1e-8)
+        mismatch_mask = ~np.isclose(py_psd, ml_psd, rtol=ICLABEL_PARITY_RTOL, atol=ICLABEL_PSD_PARITY_ATOL)
         n_mismatch = np.sum(mismatch_mask)
         n_total = py_psd.size
         print(f"  Mismatched elements: {n_mismatch} / {n_total} ({100*n_mismatch/n_total:.2f}%)")
@@ -183,7 +188,7 @@ class TestICLFeatureExtractorParity(unittest.TestCase):
             max_rel_diff = np.max(np.abs((py_psd - ml_psd) / (ml_psd + 1e-10)))
             print(f"  Max relative diff: {max_rel_diff:.6f}")
 
-        np.testing.assert_allclose(py_psd, ml_psd, rtol=2e-5, atol=1e-8,
+        np.testing.assert_allclose(py_psd, ml_psd, rtol=ICLABEL_PARITY_RTOL, atol=ICLABEL_PSD_PARITY_ATOL,
                                    err_msg="PSD feature differs beyond tolerance")
 
         # Compare autocorr feature
@@ -194,7 +199,7 @@ class TestICLFeatureExtractorParity(unittest.TestCase):
         print(f"  Max absolute diff: {np.max(np.abs(py_autocorr - ml_autocorr)):.6f}")
 
         # Calculate mismatched elements
-        mismatch_mask = ~np.isclose(py_autocorr, ml_autocorr, rtol=2e-5, atol=1e-8)
+        mismatch_mask = ~np.isclose(py_autocorr, ml_autocorr, rtol=ICLABEL_PARITY_RTOL, atol=ICLABEL_PARITY_ATOL)
         n_mismatch = np.sum(mismatch_mask)
         n_total = py_autocorr.size
         print(f"  Mismatched elements: {n_mismatch} / {n_total} ({100*n_mismatch/n_total:.2f}%)")
@@ -203,7 +208,7 @@ class TestICLFeatureExtractorParity(unittest.TestCase):
             max_rel_diff = np.max(np.abs((py_autocorr - ml_autocorr) / (ml_autocorr + 1e-10)))
             print(f"  Max relative diff: {max_rel_diff:.6f}")
 
-        np.testing.assert_allclose(py_autocorr, ml_autocorr, rtol=2e-5, atol=1e-8,
+        np.testing.assert_allclose(py_autocorr, ml_autocorr, rtol=ICLABEL_PARITY_RTOL, atol=ICLABEL_PARITY_ATOL,
                                    err_msg="Autocorr feature differs beyond tolerance")
 
 

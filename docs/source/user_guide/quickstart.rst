@@ -334,8 +334,15 @@ Re-referencing
     # Re-reference to average
     eeg = pop_reref(eeg, [])  # Empty list = average reference
 
-    # Re-reference to specific channel
-    eeg = pop_reref(eeg, 32)  # Reference to channel 32
+    # Re-reference to a specific channel by 0-based index
+    eeg = pop_reref(eeg, 31)  # Reference to the 32nd channel
+
+.. note::
+
+   Numeric channel indices in EEGPrep Python calls and GUI text fields are
+   0-based. For example, enter ``0`` for the first channel. EEGPrep still writes
+   generated EEGLAB-style history commands with 1-based indices so the command
+   text matches EEGLAB conventions.
 
 Next Steps
 ==========

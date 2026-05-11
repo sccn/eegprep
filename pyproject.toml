@@ -69,6 +69,9 @@ all = [
   "eegprep[docs]",
 ]
 
+[project.scripts]
+eegprep-gui = "eegprep.functions.adminfunc.eeglab:main"
+
 [dependency-groups]
 dev = [
   "pytest>=8.0",
@@ -123,7 +126,7 @@ exclude = ["eegprep.eeglab*"]
 
 [tool.setuptools.package-data]
 "eegprep" = [
-  "resources/eeglab/**/*",
+  "resources/help/*.md",
   "resources/montages/*.locs",
   "resources/montages/README.md",
   "resources/*.m",

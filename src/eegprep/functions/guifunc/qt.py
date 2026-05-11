@@ -3,9 +3,33 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+import math
+import re
 from typing import Any
 
+from eegprep.functions.guifunc.pophelp import pophelp
+from eegprep.functions.popfunc.pop_chansel import pop_chansel
+
 from .spec import CallbackSpec, ControlSpec, DialogSpec
+
+try:  # pragma: no cover - depends on optional GUI dependency
+    from PySide6 import QtCore, QtWidgets
+    from PySide6.QtWidgets import QDialog
+except ImportError:  # pragma: no cover - depends on optional GUI dependency
+    QtCore = None
+    QtWidgets = None
+    QDialog = None
+
+_VALUE_PROPERTY = "eegprep_value"
+
+
+def _require_qt() -> tuple[Any, Any]:
+    if QtCore is None or QtWidgets is None:
+        raise RuntimeError(
+            "PySide6 is required for EEGPrep GUI dialogs. Install it with "
+            "`pip install -e .[gui]` or `pip install eegprep[gui]`."
+        )
+    return QtCore, QtWidgets
 
 
 class QtDialogRenderer:
@@ -24,13 +48,11 @@ class QtDialogRenderer:
 
     @staticmethod
     def _QDialog() -> Any:
-        try:
-            from PySide6.QtWidgets import QDialog
-        except ImportError as exc:  # pragma: no cover - depends on optional extra
+        if QDialog is None:
             raise RuntimeError(
                 "PySide6 is required for EEGPrep GUI dialogs. Install it with "
                 "`pip install -e .[gui]` or `pip install eegprep[gui]`."
-            ) from exc
+            )
         return QDialog
 
     @staticmethod
@@ -46,20 +68,15 @@ class QtDialogRenderer:
         initial_values: Mapping[str, Any] | None = None,
     ) -> tuple[Any, Any, dict[str, Any]]:
         """Build a dialog without executing it, for screenshot capture."""
-        try:
-            from PySide6 import QtCore, QtWidgets
-        except ImportError as exc:  # pragma: no cover - depends on optional extra
-            raise RuntimeError(
-                "PySide6 is required for EEGPrep GUI dialogs. Install it with "
-                "`pip install -e .[gui]` or `pip install eegprep[gui]`."
-            ) from exc
+        qt_core, qt_widgets = _require_qt()
 
-        app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
-        dialog = QtWidgets.QDialog()
+        app = qt_widgets.QApplication.instance() or qt_widgets.QApplication([])
+        dialog = qt_widgets.QDialog()
+        dialog.setObjectName(spec.function_name)
         dialog.setWindowTitle(spec.title)
         self._apply_eeglab_style(dialog)
-        layout = QtWidgets.QGridLayout(dialog)
-        layout.setContentsMargins(42, 17, 42, 13)
+        layout = qt_widgets.QGridLayout(dialog)
+        layout.setContentsMargins(*spec.content_margins)
         layout.setHorizontalSpacing(8)
         layout.setVerticalSpacing(4)
 
@@ -72,20 +89,22 @@ class QtDialogRenderer:
                 if index >= len(spec.controls):
                     break
                 control = spec.controls[index]
-                widget = self._build_widget(QtWidgets, control, initial_values)
+                widget = self._build_widget(qt_widgets, control, initial_values)
                 if control.tag:
                     widgets[control.tag] = widget
                 column_span = 1
                 if isinstance(row_geometry, (int, float)) and row_geometry == 1 and row_width == 1:
-                    column_span = max(1, self._row_width(spec.geometry, 0))
-                self._add_widget(QtCore, layout, widget, control, row, column, column_span)
+                    column_span = self._max_columns(spec.geometry)
+                elif isinstance(row_geometry, (list, tuple)) and len(row_geometry) == 1:
+                    column_span = self._max_columns(spec.geometry)
+                self._add_widget(qt_core, layout, widget, control, row, column, column_span)
                 index += 1
 
         self._apply_column_stretches(layout, spec)
         for control in spec.controls:
             self._connect_callback(control.callback, widgets)
 
-        self._add_buttons(QtWidgets, layout, spec, dialog)
+        self._add_buttons(qt_widgets, layout, spec, dialog, widgets)
         dialog.adjustSize()
         self._apply_spec_size(dialog, spec)
         return app, dialog, widgets
@@ -99,7 +118,7 @@ class QtDialogRenderer:
                 color: #000066;
                 font-size: 16px;
             }
-            QLabel, QCheckBox, QPushButton, QLineEdit {
+            QLabel, QCheckBox, QPushButton, QLineEdit, QComboBox {
                 font-size: 16px;
             }
             QLabel, QCheckBox {
@@ -116,6 +135,15 @@ class QtDialogRenderer:
                 margin-left: 1px;
                 padding: 0 3px;
             }
+            QComboBox {
+                background: white;
+                border: 1px solid #7f7f7f;
+                min-width: 217px;
+                max-width: 217px;
+                min-height: 20px;
+                max-height: 20px;
+                color: #000066;
+            }
             QPushButton {
                 background: #eeeeee;
                 border: 1px solid #7f7f7f;
@@ -126,9 +154,38 @@ class QtDialogRenderer:
                 padding: 0 10px;
                 color: #000066;
             }
+            QPushButton:disabled {
+                color: #b0b0b0;
+            }
             QPushButton#events_button {
                 min-width: 130px;
                 max-width: 130px;
+            }
+            QPushButton#refbr, QPushButton#exclude_button, QPushButton#refloc_button {
+                min-width: 33px;
+                max-width: 33px;
+                padding: 0;
+            }
+            QPushButton#interp_nondatchan,
+            QPushButton#interp_removedchans,
+            QPushButton#interp_datchan,
+            QPushButton#interp_selectchan,
+            QPushButton#interp_uselist {
+                min-width: 434px;
+                max-width: 434px;
+                padding: 0;
+            }
+            QDialog#pop_interp QPushButton {
+                padding: 0;
+            }
+            QDialog#pop_interp QLineEdit,
+            QDialog#pop_interp QComboBox {
+                min-width: 198px;
+                max-width: 198px;
+            }
+            QDialog#pop_reref QLineEdit {
+                min-width: 163px;
+                max-width: 163px;
             }
             QCheckBox {
                 spacing: 4px;
@@ -146,25 +203,36 @@ class QtDialogRenderer:
 
     @staticmethod
     def _apply_column_stretches(layout: Any, spec: DialogSpec) -> None:
-        first_row = spec.geometry[0] if spec.geometry else ()
-        if not isinstance(first_row, (list, tuple)):
+        row = QtDialogRenderer._widest_geometry_row(spec.geometry)
+        if not isinstance(row, (list, tuple)):
             return
-        for column, stretch in enumerate(first_row):
+        for column, stretch in enumerate(row):
             layout.setColumnStretch(column, max(1, int(float(stretch) * 100)))
 
     @staticmethod
-    def _add_buttons(QtWidgets: Any, layout: Any, spec: DialogSpec, dialog: Any) -> None:
+    def _add_buttons(
+        QtWidgets: Any,
+        layout: Any,
+        spec: DialogSpec,
+        dialog: Any,
+        widgets: dict[str, Any],
+    ) -> None:
         button_container = QtWidgets.QWidget()
         button_layout = QtWidgets.QHBoxLayout(button_container)
         button_layout.setContentsMargins(0, 18, 0, 0)
         button_layout.setSpacing(16)
+        if spec.help_text:
+            help_button = QtWidgets.QPushButton("Help")
+            help_button.setObjectName("help")
+            help_button.clicked.connect(lambda: QtDialogRenderer._show_help(QtWidgets, dialog, spec))
+            button_layout.addWidget(help_button)
         button_layout.addStretch(1)
         cancel_button = QtWidgets.QPushButton("Cancel")
         ok_button = QtWidgets.QPushButton("OK")
         cancel_button.setObjectName("cancel")
         ok_button.setObjectName("ok")
         cancel_button.clicked.connect(dialog.reject)
-        ok_button.clicked.connect(dialog.accept)
+        ok_button.clicked.connect(lambda: QtDialogRenderer._accept_if_valid(dialog, spec, widgets))
         button_layout.addWidget(cancel_button)
         button_layout.addWidget(ok_button)
         layout.addWidget(
@@ -172,8 +240,23 @@ class QtDialogRenderer:
             len(spec.geometry),
             0,
             1,
-            max(1, QtDialogRenderer._row_width(spec.geometry, 0)),
+            QtDialogRenderer._max_columns(spec.geometry),
         )
+
+    @staticmethod
+    def _max_columns(geometry: tuple[Any, ...]) -> int:
+        widths = [
+            len(value) if isinstance(value, (list, tuple)) else 1
+            for value in geometry
+        ]
+        return max(widths, default=1)
+
+    @staticmethod
+    def _widest_geometry_row(geometry: tuple[Any, ...]) -> Any:
+        rows = [value for value in geometry if isinstance(value, (list, tuple))]
+        if not rows:
+            return ()
+        return max(rows, key=len)
 
     @staticmethod
     def _add_widget(
@@ -208,6 +291,15 @@ class QtDialogRenderer:
         elif style == "checkbox":
             widget = QtWidgets.QCheckBox(control.string)
             widget.setChecked(bool(value))
+        elif style == "popupmenu":
+            widget = QtWidgets.QComboBox()
+            widget.addItems([item.strip() for item in control.string.split("|")])
+            try:
+                index = int(value) - 1
+            except (TypeError, ValueError):
+                index = 0
+            if 0 <= index < widget.count():
+                widget.setCurrentIndex(index)
         elif style == "spacer":
             widget = QtWidgets.QWidget()
         else:
@@ -238,6 +330,139 @@ class QtDialogRenderer:
             button = widgets[params["button"]]
             target = widgets[params["target"]]
             button.clicked.connect(lambda: self._select_event_types(button, target, params))
+        elif callback.name == "select_channels":
+            button = widgets[params["button"]]
+            target = widgets[params["target"]]
+            button.clicked.connect(lambda: self._select_channels(button, target, params))
+        elif callback.name == "set_reref_mode":
+            source = widgets[params["source"]]
+            source.toggled.connect(lambda checked: self._set_reref_mode(widgets, params["mode"], checked))
+        elif callback.name == "select_interp_channels":
+            button = widgets[params["button"]]
+            target = widgets[params["target"]]
+            button.clicked.connect(lambda: self._select_interp_channels(button, target, params))
+
+    @staticmethod
+    def _accept_if_valid(dialog: Any, spec: DialogSpec, widgets: dict[str, Any]) -> None:
+        message = QtDialogRenderer._validation_message(spec, widgets)
+        if message:
+            _qt_core, qt_widgets = _require_qt()
+            qt_widgets.QMessageBox.warning(dialog, "Warning", message)
+            return
+        dialog.accept()
+
+    @staticmethod
+    def _validation_message(spec: DialogSpec, widgets: dict[str, Any]) -> str | None:
+        if spec.function_name == "pop_reref":
+            return QtDialogRenderer._validate_pop_reref_dialog(spec, widgets)
+        if spec.function_name == "pop_interp":
+            return QtDialogRenderer._validate_pop_interp_dialog(spec, widgets)
+        return None
+
+    @staticmethod
+    def _validate_pop_reref_dialog(spec: DialogSpec, widgets: dict[str, Any]) -> str | None:
+        if QtDialogRenderer._widget_checked(widgets.get("huberef")):
+            huber_text = QtDialogRenderer._widget_text(widgets.get("huberval")).strip()
+            if huber_text:
+                try:
+                    float(huber_text)
+                except ValueError:
+                    return f"could not convert string to float: '{huber_text}'"
+
+        channel_labels = QtDialogRenderer._callback_channels(spec, "refbr")
+        if QtDialogRenderer._widget_checked(widgets.get("rerefstr")):
+            ref_text = QtDialogRenderer._widget_text(widgets.get("reref")).strip()
+            if not ref_text:
+                return "Aborting: you must enter one or more reference channels"
+            message = QtDialogRenderer._validate_channel_text(ref_text, channel_labels, "Channel")
+            if message:
+                return message
+
+        exclude_text = QtDialogRenderer._widget_text(widgets.get("exclude")).strip()
+        if exclude_text:
+            message = QtDialogRenderer._validate_channel_text(exclude_text, channel_labels, "Channel")
+            if message:
+                return message
+
+        refloc_text = QtDialogRenderer._widget_text(widgets.get("refloc")).strip()
+        if refloc_text:
+            refloc_labels = QtDialogRenderer._callback_channels(spec, "refloc_button")
+            return QtDialogRenderer._validate_channel_text(refloc_text, refloc_labels, "Reference location")
+        return None
+
+    @staticmethod
+    def _validate_pop_interp_dialog(spec: DialogSpec, widgets: dict[str, Any]) -> str | None:
+        for control in spec.controls:
+            if control.callback is None or control.callback.name != "validate_numeric_range":
+                continue
+            widget = widgets.get(control.tag or "")
+            text = QtDialogRenderer._widget_text(widget).strip()
+            if not text:
+                continue
+            params = control.callback.params
+            try:
+                values = QtDialogRenderer._parse_numeric_text(text)
+            except ValueError:
+                return "Time/point range must contain numeric values"
+            if len(values) != int(params.get("columns", 2)):
+                return "Time/point range must contain 2 columns exactly"
+            if min(values) < float(params["lower"]):
+                return "Time/point range exceed lower data limits"
+            if math.floor(max(values)) > float(params["upper"]):
+                return "Time/point range exceed upper data limits"
+        return None
+
+    @staticmethod
+    def _callback_channels(spec: DialogSpec, tag: str) -> tuple[str, ...]:
+        for control in spec.controls:
+            if control.tag == tag and control.callback is not None:
+                return tuple(str(value) for value in control.callback.params.get("channels", ()))
+        return ()
+
+    @staticmethod
+    def _validate_channel_text(text: str, labels: tuple[str, ...], label: str) -> str | None:
+        values = QtDialogRenderer._parse_channel_text(text)
+        lower_labels = [value.lower() for value in labels]
+        for value in values:
+            if QtDialogRenderer._is_int_text(value):
+                index = int(value)
+                if index < 0 or index >= len(labels):
+                    return f"{label} index out of range"
+                continue
+            if value.lower() not in lower_labels:
+                return f"{label} '{value}' not found"
+        return None
+
+    @staticmethod
+    def _parse_channel_text(text: str) -> list[str]:
+        text = text.strip()
+        if text.startswith("[") and text.endswith("]"):
+            text = text[1:-1]
+        if text.startswith("{") and text.endswith("}"):
+            text = text[1:-1]
+        tokens = re.findall(r"'([^']*)'|\"([^\"]*)\"|([^,\s]+)", text)
+        return [next(part for part in token if part) for token in tokens]
+
+    @staticmethod
+    def _parse_numeric_text(text: str) -> list[float]:
+        cleaned = text.strip().strip("[]")
+        if not cleaned:
+            return []
+        return [float(value) for value in re.split(r"[\s,]+", cleaned) if value]
+
+    @staticmethod
+    def _is_int_text(value: str) -> bool:
+        return bool(re.fullmatch(r"[+-]?\d+", value.strip()))
+
+    @staticmethod
+    def _widget_checked(widget: Any) -> bool:
+        return bool(widget is not None and hasattr(widget, "isChecked") and widget.isChecked())
+
+    @staticmethod
+    def _widget_text(widget: Any) -> str:
+        if widget is None or not hasattr(widget, "text"):
+            return ""
+        return str(widget.text())
 
     @staticmethod
     def _sync_numeric(source: Any, target: Any, multiplier: float) -> None:
@@ -253,13 +478,12 @@ class QtDialogRenderer:
 
     @staticmethod
     def _select_event_types(button: Any, target: Any, params: Mapping[str, Any]) -> None:
-        from PySide6 import QtWidgets
-
         event_types = [str(value) for value in params.get("event_types", ())]
         if not event_types:
             return
         current = target.text().strip()
-        value, accepted = QtWidgets.QInputDialog.getItem(
+        _qt_core, qt_widgets = _require_qt()
+        value, accepted = qt_widgets.QInputDialog.getItem(
             button,
             "Select event type",
             "Event type",
@@ -271,9 +495,145 @@ class QtDialogRenderer:
             target.setText((current + " " + value).strip())
 
     @staticmethod
+    def _select_channels(button: Any, target: Any, params: Mapping[str, Any]) -> None:
+        channels = [str(value) for value in params.get("channels", ())]
+        if channels:
+            _chanlist, value, _allchanstr = pop_chansel(
+                channels,
+                withindex="on",
+                select=target.text().strip(),
+                selectionmode=str(params.get("selectionmode", "multiple")),
+                parent=button,
+            )
+            accepted = bool(value)
+        else:
+            _qt_core, qt_widgets = _require_qt()
+            no_channels_message = str(params.get("no_channels_message", "")).strip()
+            if no_channels_message:
+                qt_widgets.QMessageBox.warning(button, "Warning", no_channels_message)
+                return
+            value, accepted = qt_widgets.QInputDialog.getText(
+                button,
+                "Select channel",
+                "Channel index or label",
+            )
+        if not accepted or not value:
+            return
+        target.setText(value.strip())
+
+    @staticmethod
+    def _select_interp_channels(button: Any, target: Any, params: Mapping[str, Any]) -> None:
+        source = str(params.get("source", "")).lower()
+        chanlocs = [dict(chan) for chan in params.get("chanlocs", ())]
+        removedchans = [dict(chan) for chan in params.get("removedchans", ())]
+        alleeg = [dict(eeg) for eeg in params.get("alleeg", ())]
+
+        if source in {"removedchans", "nondatchan"}:
+            labels = [str(chan.get("labels", "")) for chan in removedchans]
+            chanlist, chanliststr, _allchanstr = pop_chansel(labels, parent=button)
+            if not chanlist:
+                return
+            selected = [removedchans[index - 1] for index in chanlist]
+            chanstr = "EEG.chaninfo.removedchans([" + " ".join(str(index) for index in chanlist) + "])"
+            QtDialogRenderer._store_interp_selection(target, selected, chanstr, chanliststr)
+            return
+
+        if source == "datchan":
+            labels = [str(chan.get("labels", "")) for chan in chanlocs]
+            chanlist, chanliststr, _allchanstr = pop_chansel(labels, parent=button)
+            if not chanlist:
+                return
+            selected = [index - 1 for index in chanlist]
+            chanstr = "[" + " ".join(str(index) for index in chanlist) + "]"
+            QtDialogRenderer._store_interp_selection(target, selected, chanstr, chanliststr)
+            return
+
+        _qt_core, qt_widgets = _require_qt()
+        dataset_index, accepted = qt_widgets.QInputDialog.getInt(
+            button,
+            "Choose dataset",
+            "Dataset index",
+            1,
+            1,
+            max(1, len(alleeg)),
+        )
+        if not accepted:
+            return
+        if dataset_index < 1 or dataset_index > len(alleeg):
+            qt_widgets.QMessageBox.warning(button, "Warning", "Wrong index")
+            return
+
+        other = alleeg[dataset_index - 1]
+        other_chanlocs = [dict(chan) for chan in other.get("chanlocs", ())]
+        if source == "selectchan":
+            labels = [str(chan.get("labels", "")) for chan in other_chanlocs]
+            chanlist, _chanliststr, _allchanstr = pop_chansel(labels, parent=button)
+        else:
+            chanlist = list(range(1, len(other_chanlocs) + 1))
+        if not chanlist:
+            return
+
+        current_labels = {str(chan.get("labels", "")).lower() for chan in chanlocs}
+        selected_indices = [
+            index for index in chanlist
+            if str(other_chanlocs[index - 1].get("labels", "")).lower() not in current_labels
+        ]
+        if not selected_indices:
+            qt_widgets.QMessageBox.warning(button, "Warning", "No new channels selected")
+            return
+
+        if len(chanlist) == len(other_chanlocs):
+            selected = other_chanlocs
+            chanstr = f"ALLEEG({dataset_index}).chanlocs"
+        else:
+            selected_indices = sorted(selected_indices)
+            selected = [other_chanlocs[index - 1] for index in selected_indices]
+            chanstr = f"ALLEEG({dataset_index}).chanlocs([" + " ".join(str(index) for index in selected_indices) + "])"
+        display = " ".join(str(other_chanlocs[index - 1].get("labels", "")) for index in selected_indices)
+        QtDialogRenderer._store_interp_selection(target, selected, chanstr, display)
+
+    @staticmethod
+    def _store_interp_selection(target: Any, chans: Any, chanstr: str, display: str) -> None:
+        target.setProperty(_VALUE_PROPERTY, {"chans": chans, "chanstr": chanstr})
+        target.setText(display.strip())
+
+    @staticmethod
+    def _set_reref_mode(widgets: dict[str, Any], mode: str, checked: bool) -> None:
+        if not checked:
+            if mode == "channels" and "ave" in widgets:
+                widgets["ave"].setChecked(True)
+            return
+
+        average_mode = mode in {"average", "huber"}
+        for tag in ("ave", "huberef", "rerefstr"):
+            if tag in widgets:
+                widgets[tag].blockSignals(True)
+                widgets[tag].setChecked(
+                    (tag == "ave" and mode == "average")
+                    or (tag == "huberef" and mode == "huber")
+                    or (tag == "rerefstr" and mode == "channels")
+                )
+                widgets[tag].blockSignals(False)
+
+        for tag in ("reref", "refbr", "keepref"):
+            if tag in widgets:
+                widgets[tag].setEnabled(not average_mode)
+        if average_mode and "keepref" in widgets:
+            widgets["keepref"].setChecked(False)
+
+    @staticmethod
+    def _show_help(_qt_widgets: Any, dialog: Any, spec: DialogSpec) -> None:
+        dialog._eegprep_help_dialog = pophelp(spec.help_text or spec.function_name, parent=dialog)
+
+    @staticmethod
     def _read_widget(widget: Any) -> Any:
+        stored_value = widget.property(_VALUE_PROPERTY)
+        if stored_value is not None:
+            return stored_value
         if hasattr(widget, "isChecked"):
             return widget.isChecked()
+        if hasattr(widget, "currentIndex"):
+            return widget.currentIndex() + 1
         if hasattr(widget, "text"):
             return widget.text()
         return None

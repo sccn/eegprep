@@ -7,6 +7,7 @@ __version__ = "0.2.23"
 from .functions.adminfunc.logs import setup_logging
 setup_logging(logging.WARNING)
 
+from .functions.adminfunc.eeglab import eeglab
 from .plugins.ICLabel.iclabel import iclabel
 from .plugins.ICLabel.eeg_icflag import eeg_icflag
 from .functions.popfunc.pop_subcomp import pop_subcomp
@@ -18,10 +19,12 @@ from .functions.popfunc.pop_epoch import pop_epoch
 from .functions.popfunc.pop_resample import pop_resample
 from .functions.popfunc.pop_rmbase import pop_rmbase
 from .functions.popfunc.pop_select import pop_select
+from .functions.popfunc.pop_chansel import pop_chansel
 from .functions.adminfunc.eeg_checkset import eeg_checkset, strict_mode as eeg_checkset_strict_mode
 from .functions.adminfunc.eeglabcompat import pop_eegfiltnew
 from .functions.adminfunc.eeglabcompat import clean_artifacts as eeglab_clean_artifacts
 from .plugins.ICLabel.ICL_feature_extractor import ICL_feature_extractor
+from .functions.sigprocfunc.cart2topo import cart2topo
 from .functions.sigprocfunc.topoplot import topoplot
 from .plugins.ICLabel.eeg_rpsd import eeg_rpsd
 from .plugins.ICLabel.eeg_autocorr_welch import eeg_autocorr_welch
@@ -39,6 +42,7 @@ from .plugins.clean_rawdata.clean_asr import clean_asr
 from .plugins.clean_rawdata.clean_windows import clean_windows
 from .functions.popfunc.eeg_compare import eeg_compare
 from .functions.popfunc.eeg_interp import eeg_interp
+from .functions.popfunc.pop_interp import pop_interp
 from .functions.popfunc.eeg_findboundaries import eeg_findboundaries
 from .plugins.clean_rawdata.clean_artifacts import clean_artifacts
 from .functions.popfunc.pop_load_frombids import pop_load_frombids

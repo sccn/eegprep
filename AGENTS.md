@@ -20,8 +20,9 @@ Primary references:
 - `src/eegprep/functions/eegobj/`: Python counterpart to EEGLAB's `functions/@eegobj/`.
 - `src/eegprep/plugins/EEG_BIDS/`: Python ports and workflow helpers for the EEGLAB EEG-BIDS plugin.
 - `src/eegprep/utils/`: Python-only test/development support. Do not put EEGLAB-equivalent processing code here.
-- `src/eegprep/resources/`: MATLAB option files, montages, package data.
-- `src/eegprep/eeglab/`: vendored EEGLAB reference code and sample data. Treat as reference input; do not edit unless explicitly updating the bundled reference.
+- `src/eegprep/resources/`: MATLAB option files, montages, help text, and package data.
+- `src/eegprep/resources/help/`: EEGPrep-owned Markdown help resources for GUI Help buttons and EEGLAB-style `pophelp` text. Add `<function_name>.md` here whenever new user-facing functionality needs GUI help.
+- `src/eegprep/eeglab/`: vendored EEGLAB reference code for local development and parity work. Treat as reference input; do not edit unless explicitly updating the bundled reference. Do not make package runtime behavior depend on this directory existing.
 - `tests/matlab/`: MATLAB parity scripts and MATLAB helper fixtures used by Python tests.
 - `scripts/*.m`: MATLAB/Octave helper scripts that are not part of the normal unit-test tree.
 - `sample_data/`: small checked-in EEG sample datasets, named to match EEGLAB's `sample_data` convention.
@@ -44,8 +45,11 @@ Primary references:
 
 ## EEGLAB Parity
 
+- Use EEGLAB as a development and parity oracle, not as an EEGPrep runtime dependency. During development, compare against EEGLAB so EEGPrep features look, feel, and behave like EEGLAB for EEGLAB users; at runtime, EEGPrep must work standalone without an EEGLAB checkout.
 - Keep naming and directory structure as close to EEGLAB as practical. Put `pop_*` wrappers in `functions/popfunc`, GUI helpers in `functions/guifunc`, administrative functions in `functions/adminfunc`, signal-processing functions in `functions/sigprocfunc`, clean_rawdata ports in `plugins/clean_rawdata`, and ICLabel ports in `plugins/ICLabel`.
 - Before porting or changing behavior, inspect the matching MATLAB file under `src/eegprep/eeglab/functions/` or `src/eegprep/eeglab/plugins/`.
+- Runtime code in the installed `eegprep` package must work without `src/eegprep/eeglab/` present. Do not read from, import from, shell out to, or otherwise depend on the EEGLAB checkout in package runtime paths.
+- If EEGLAB-like text, examples, or Help content are needed at runtime, make them EEGPrep-owned packaged resources. For GUI Help and `pophelp`, add Markdown files under `src/eegprep/resources/help/<function_name>.md`; missing help resources should fail clearly instead of falling back to the EEGLAB checkout or Python docstrings.
 - Preserve EEG dict semantics unless the user asks for a new abstraction. Core fields include `data`, `nbchan`, `pnts`, `trials`, `srate`, `xmin`, `xmax`, `times`, `chanlocs`, `event`, `urevent`, `epoch`, `history`, `icaact`, `icawinv`, `icasphere`, `icaweights`, and `icachansind`.
 - Data is channel-major: continuous data is usually `(nbchan, pnts)`, epoched data is usually `(nbchan, pnts, trials)`.
 - Be explicit about MATLAB/Python indexing boundaries. EEGLAB event latencies and many user-facing indices are 1-based; Python arrays are 0-based internally. Test first/last sample and boundary-event behavior.
@@ -76,6 +80,7 @@ Primary references:
 - Public APIs need concise docstrings. Use the style already present in nearby code; Google-style is preferred for new public functions.
 - Skip docstrings for trivial private helpers with clear names.
 - When adding a feature or changing user-facing behavior, update Sphinx docs under `docs/source/`. Update examples/API pages when relevant.
+- When adding a user-facing function or GUI dialog with a Help button, add or update the corresponding Markdown help resource in `src/eegprep/resources/help/`, for example `src/eegprep/resources/help/pop_reref.md`.
 - Keep comments for module/class behavior, subtle logic, or non-obvious boolean arguments. Do not restate code.
 - Delete stale comments when you encounter them in touched code.
 
@@ -121,7 +126,7 @@ Primary references:
 
 - NEVER SAY "You're absolutely right!"
 - Never credit yourself or AI tools in commits. No `Co-authored-by` or generated-by trailers unless the user explicitly asks.
-- Keep commits scoped to one logical change with concise messages.
+- Keep commits scoped to one logical change with concise messages. Commit often.
 - Add the `agent-generated` label only when a repository automation workflow
   creates the PR or issue. Do not add it when a human asks an agent to open or
   update a PR from an interactive session.
