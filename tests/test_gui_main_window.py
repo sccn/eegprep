@@ -1,5 +1,6 @@
 import os
 import logging
+import sys
 import unittest
 from unittest import mock
 
@@ -7,8 +8,14 @@ import numpy as np
 import pytest
 
 from eegprep.functions.guifunc.eeglab_menu import eeglab_menus, menu_actions
-from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher, action_kind
-from eegprep.functions.guifunc.menu_placeholders import is_placeholder_action
+from eegprep.functions.guifunc.menu_actions import (
+    HELP_DOC_PATHS,
+    HELP_UNAVAILABLE_TOPICS,
+    MenuActionDispatcher,
+    action_kind,
+    unavailable_help_message,
+)
+from eegprep.functions.guifunc.menu_placeholders import is_placeholder_action, placeholder_message
 from eegprep.functions.guifunc.menu_spec import menu_enabled
 from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
@@ -119,13 +126,74 @@ class MainMenuSpecTests(unittest.TestCase):
     def test_eeg_bids_plugin_items_match_file_menu_locations(self):
         file_menu = _child(eeglab_menus(all_menus=False), "File")
         import_menu = _child(file_menu.children, "Import data")
-        import_functions = _child(import_menu.children, "Using EEGLAB functions and plugins")
+        import_functions = _child(import_menu.children, "Using EEGPrep functions and plugins")
         export_menu = _child(file_menu.children, "Export")
 
         self.assertIn("From BIDS folder structure", _labels(import_functions.children))
         self.assertIn("Import Magstim/EGI .mff file", _labels(import_functions.children))
         self.assertIn("To BIDS folder structure", _labels(export_menu.children))
         self.assertEqual(_labels(file_menu.children)[4], "BIDS tools")
+        self.assertIn("Manage EEGPrep extensions", _labels(file_menu.children))
+
+    def test_help_menu_uses_eegprep_branding_and_eeglab_style_actions(self):
+        help_menu = _child(eeglab_menus(all_menus=False), "Help")
+        help_labels = _labels(help_menu.children)
+
+        self.assertIn("About EEGPrep", help_labels)
+        self.assertIn("Check for EEGPrep updates", help_labels)
+        self.assertIn("EEGPrep menus", help_labels)
+        self.assertIn("EEGPrep tutorial", help_labels)
+        self.assertIn("Email the EEGPrep team", help_labels)
+        self.assertIn("Report an EEGPrep issue", help_labels)
+        self.assertNotIn("EEGLAB tutorial", help_labels)
+        self.assertEqual(_child(help_menu.children, "About EEGPrep").action, "help:eegprep")
+        self.assertEqual(_child(help_menu.children, "Check for EEGPrep updates").action, "updates")
+        self.assertEqual(_child(help_menu.children, "About EEGPrep help").action, "help:eeg_helphelp")
+        self.assertEqual(_child(help_menu.children, "EEGPrep menus").action, "help:eeg_helpmenu")
+        self.assertEqual(_child(help_menu.children, "EEGPrep tutorial").action, "tutorial")
+        self.assertEqual(_child(help_menu.children, "Email the EEGPrep team").action, "mailto:eeglab@sccn.ucsd.edu")
+        self.assertEqual(_child(help_menu.children, "Report an EEGPrep issue").action, "issues")
+
+    def test_help_functions_submenu_uses_eeglab_pophelp_topics(self):
+        functions_menu = _child(_child(eeglab_menus(all_menus=False), "Help").children, "EEGPrep functions")
+
+        self.assertEqual(
+            {item.label: item.action for item in functions_menu.children},
+            {
+                "Admin. functions": "help:eeg_helpadmin",
+                "Interactive pop_ functions": "help:eeg_helppop",
+                "Signal processing functions": "help:eeg_helpsigproc",
+                "Group data (STUDY) functions": "help:eeg_helpstudy",
+                "Time-frequency functions": "help:eeg_helptimefreq",
+                "Statistical functions": "help:eeg_helpstatistics",
+                "Graphic interface builder functions": "help:eeg_helpgui",
+                "Misc. command line functions": "help:eeg_helpmisc",
+            },
+        )
+
+    def test_help_menu_pophelp_actions_have_eegprep_docs_or_unavailable_popups(self):
+        help_menu = _child(eeglab_menus(all_menus=False), "Help")
+        help_actions = [action for action in menu_actions((help_menu,)) if action.startswith("help:")]
+        help_topics = {action.split(":", 1)[1] for action in help_actions}
+
+        self.assertEqual(
+            help_topics,
+            {
+                "eegprep",
+                "eeg_helphelp",
+                "eeg_helpmenu",
+                "eeg_helpadmin",
+                "eeg_helppop",
+                "eeg_helpsigproc",
+                "eeg_helpstudy",
+                "eeg_helptimefreq",
+                "eeg_helpstatistics",
+                "eeg_helpgui",
+                "eeg_helpmisc",
+            },
+        )
+        self.assertEqual(help_topics, set(HELP_DOC_PATHS) | set(HELP_UNAVAILABLE_TOPICS))
+        self.assertTrue(all("eeglab" not in path.lower() for path in HELP_DOC_PATHS.values()))
 
     def test_viewprops_plugin_items_match_plot_menu_locations(self):
         plot_menu = _child(eeglab_menus(all_menus=False), "Plot")
@@ -148,6 +216,22 @@ class MainMenuSpecTests(unittest.TestCase):
         self.assertFalse(menu_enabled(tools_menu, {"startup"}))
         self.assertTrue(menu_enabled(tools_menu, {"continuous_dataset"}))
         self.assertFalse(menu_enabled(channel_locations, {"continuous_dataset", "chanloc_absent"}))
+
+    def test_startup_top_level_enabled_states_match_eegprep_ux(self):
+        enabled_by_label = {menu.label: menu_enabled(menu, {"startup"}) for menu in eeglab_menus(all_menus=False)}
+
+        self.assertEqual(
+            enabled_by_label,
+            {
+                "File": True,
+                "Edit": False,
+                "Tools": False,
+                "Plot": False,
+                "Study": False,
+                "Datasets": False,
+                "Help": True,
+            },
+        )
 
     def test_all_menu_actions_are_classified(self):
         actions = menu_actions(eeglab_menus(all_menus=True))
@@ -256,6 +340,13 @@ class MenuActionDispatcherTests(unittest.TestCase):
 
         coming_soon.assert_called_once_with("pop_subcomp", None)
 
+    def test_placeholder_message_is_user_facing(self):
+        message = placeholder_message("pop_subcomp")
+
+        self.assertIn("not yet available in EEGPrep", message)
+        self.assertIn("https://github.com/sccn/eegprep/issues", message)
+        self.assertNotIn("TODO", message)
+
     def test_gui_dispatch_shows_warning_for_action_errors(self):
         dispatcher = MenuActionDispatcher(EEGPrepSession())
 
@@ -281,6 +372,73 @@ class MenuActionDispatcherTests(unittest.TestCase):
             dispatcher.dispatch("help:missing")
 
         coming_soon.assert_not_called()
+
+    def test_show_help_uses_eegprep_docs_for_available_help_topics(self):
+        dispatcher = MenuActionDispatcher(EEGPrepSession())
+
+        with (
+            mock.patch(
+                "eegprep.functions.guifunc.menu_actions.pophelp",
+                side_effect=FileNotFoundError("missing packaged help"),
+            ),
+            mock.patch("eegprep.functions.guifunc.menu_actions.webbrowser.open") as open_url,
+        ):
+            dispatcher.dispatch("help:eeg_helpadmin")
+
+        open_url.assert_called_once_with("https://sccn.github.io/eegprep/api/core.html")
+
+    def test_show_help_uses_unavailable_popup_for_missing_eegprep_help_topics(self):
+        dispatcher = MenuActionDispatcher(EEGPrepSession())
+
+        with (
+            mock.patch(
+                "eegprep.functions.guifunc.menu_actions.pophelp",
+                side_effect=FileNotFoundError("missing packaged help"),
+            ),
+            mock.patch.object(dispatcher, "_show_unavailable_help") as unavailable,
+        ):
+            dispatcher.dispatch("help:eeg_helpstudy", parent="window")
+
+        unavailable.assert_called_once_with("eeg_helpstudy", "window")
+
+    def test_unavailable_help_without_gui_parent_raises_clear_message(self):
+        dispatcher = MenuActionDispatcher(EEGPrepSession())
+
+        with (
+            mock.patch(
+                "eegprep.functions.guifunc.menu_actions.pophelp",
+                side_effect=FileNotFoundError("missing packaged help"),
+            ),
+            self.assertRaisesRegex(FileNotFoundError, "Group data .* not available yet"),
+        ):
+            dispatcher.dispatch("help:eeg_helpstudy")
+
+    def test_unavailable_help_message_is_user_facing(self):
+        message = unavailable_help_message("eeg_helpmenu")
+
+        self.assertIn("EEGPrep help for EEGPrep menus is not available yet", message)
+        self.assertIn("https://github.com/sccn/eegprep/issues", message)
+        self.assertNotIn("TODO", message)
+        self.assertNotIn("eeglab", message.lower())
+
+    def test_tutorial_mailto_updates_and_issue_actions_open_expected_targets(self):
+        dispatcher = MenuActionDispatcher(EEGPrepSession())
+
+        with mock.patch("eegprep.functions.guifunc.menu_actions.webbrowser.open") as open_url:
+            dispatcher.dispatch("tutorial")
+            dispatcher.dispatch("mailto:eeglab@sccn.ucsd.edu")
+            dispatcher.dispatch("updates")
+            dispatcher.dispatch("issues")
+
+        self.assertEqual(
+            [call.args[0] for call in open_url.call_args_list],
+            [
+                "https://sccn.github.io/eegprep/user_guide/quickstart.html",
+                "mailto:eeglab@sccn.ucsd.edu",
+                "https://github.com/sccn/eegprep/releases",
+                "https://github.com/sccn/eegprep/issues",
+            ],
+        )
 
     def test_dispatch_gui_reraises_headless_errors_and_logs_traceback(self):
         dispatcher = MenuActionDispatcher(EEGPrepSession())
@@ -325,7 +483,7 @@ class MenuActionDispatcherTests(unittest.TestCase):
         reref_output = [dict(item, ref="average") for item in session.EEG]
 
         with mock.patch(
-            "eegprep.functions.guifunc.menu_actions.pop_reref",
+            "eegprep.functions.popfunc.pop_reref.pop_reref",
             return_value=(reref_output, "EEG = pop_reref(EEG);"),
         ) as reref:
             dispatcher.dispatch("pop_reref")
@@ -343,7 +501,7 @@ class MenuActionDispatcherTests(unittest.TestCase):
         session.ALLEEG[0]["saved"] = "no"
         dispatcher = MenuActionDispatcher(session)
 
-        with mock.patch("eegprep.functions.guifunc.menu_actions.pop_saveset") as saveset:
+        with mock.patch("eegprep.functions.popfunc.pop_saveset.pop_saveset") as saveset:
             dispatcher.dispatch("pop_saveset:resave")
 
         saveset.assert_called_once_with(mock.ANY, os.path.normpath("/tmp/demo.set"))
@@ -369,7 +527,7 @@ class MenuActionDispatcherTests(unittest.TestCase):
             eeg["saved"] = "no"
         dispatcher = MenuActionDispatcher(session)
 
-        with mock.patch("eegprep.functions.guifunc.menu_actions.pop_saveset") as saveset:
+        with mock.patch("eegprep.functions.popfunc.pop_saveset.pop_saveset") as saveset:
             dispatcher.dispatch("pop_saveset:resave")
 
         self.assertEqual(
@@ -383,6 +541,46 @@ class MenuActionDispatcherTests(unittest.TestCase):
 
 
 class QtMainWindowTests(unittest.TestCase):
+    def test_gui_main_window_startup_branding_size_and_menu_states(self):
+        pytest.importorskip("PySide6")
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from eegprep.functions.guifunc.main_window import (
+            _macos_application_menu_title,
+            _macos_process_name,
+            build_main_window,
+        )
+
+        window = build_main_window(EEGPrepSession(), all_menus=False)
+        window.show()
+        window.app.processEvents()
+        size = window.window.size()
+        minimum_size = window.window.minimumSize()
+        enabled_by_label = {item["label"]: item["enabled"] for item in window.menu_inventory()}
+
+        self.assertEqual(window.window.windowTitle(), "EEGPrep")
+        self.assertEqual(window.app.applicationName(), "EEGPrep")
+        self.assertEqual(window.app.applicationDisplayName(), "EEGPrep")
+        if sys.platform == "darwin":
+            self.assertEqual(_macos_process_name(), "EEGPrep")
+            menu_title = _macos_application_menu_title()
+            if menu_title is not None:
+                self.assertEqual(menu_title, "EEGPrep")
+        self.assertEqual((size.width(), size.height()), (520, 380))
+        self.assertEqual((minimum_size.width(), minimum_size.height()), (460, 340))
+        self.assertEqual(
+            enabled_by_label,
+            {
+                "File": True,
+                "Edit": False,
+                "Tools": False,
+                "Plot": False,
+                "Study": False,
+                "Datasets": False,
+                "Help": True,
+            },
+        )
+        window.window.close()
+
     def test_gui_main_window_inventory_includes_dynamic_dataset_menu(self):
         pytest.importorskip("PySide6")
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -422,7 +620,7 @@ class QtMainWindowTests(unittest.TestCase):
         self.assertTrue(dataset_actions["Dataset 2:second"].isChecked())
         window.window.close()
 
-    def test_gui_main_window_uses_non_native_menu_roles(self):
+    def test_gui_main_window_uses_native_menu_request_and_non_native_menu_roles(self):
         pytest.importorskip("PySide6")
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
         from PySide6 import QtGui
@@ -433,7 +631,11 @@ class QtMainWindowTests(unittest.TestCase):
         menubar = window.window.menuBar()
         actions = _qt_actions(menubar.actions())
 
-        self.assertFalse(menubar.isNativeMenuBar())
+        if sys.platform == "darwin" and os.environ.get("QT_QPA_PLATFORM") != "offscreen":
+            self.assertTrue(menubar.isNativeMenuBar())
+            self.assertEqual(menubar.actions()[0].menuRole(), QtGui.QAction.MenuRole.NoRole)
+        else:
+            self.assertFalse(menubar.isNativeMenuBar())
         self.assertTrue(actions)
         self.assertTrue(all(action.menuRole() == QtGui.QAction.MenuRole.NoRole for action in actions))
         window.window.close()

@@ -222,20 +222,18 @@ def capture_main_window(output: pathlib.Path, *, state: str = "startup", menu_la
     session = EEGPrepSession()
     state = _main_window_menu_state(menu_label, state)
     _configure_main_window_session(session, state)
-    window = build_main_window(session)
-    window.show()
-    window.app.processEvents()
+    window = build_main_window(session, native_menu_bar=False if menu_label else None)
     if menu_label:
-        window.open_menu(menu_label)
-    if menu_label and window.app.primaryScreen() is not None:
-        geometry = window.window.frameGeometry()
-        pixmap = window.app.primaryScreen().grabWindow(
-            0,
-            geometry.x(),
-            geometry.y(),
-            geometry.width() + 360,
-            geometry.height() + 420,
-        )
+        window.window.setWindowFlag(window._qt_core.Qt.WindowStaysOnTopHint, True)
+    window.show()
+    window.window.activateWindow()
+    window.window.raise_()
+    window.app.processEvents()
+    menu = None
+    if menu_label:
+        menu = window.open_menu(menu_label)
+    if menu is not None:
+        pixmap = _grab_main_window_with_menu(window, menu_label, menu)
     else:
         pixmap = window.window.grab()
     pixmap = _matlab_scaled_pixmap(pixmap, window.app)
@@ -244,6 +242,36 @@ def capture_main_window(output: pathlib.Path, *, state: str = "startup", menu_la
         raise RuntimeError(f"failed to save screenshot: {output}")
     window.window.close()
     window.app.processEvents()
+
+
+def _grab_main_window_with_menu(window, menu_label: str, menu):
+    window_pixmap = window.window.grab()
+    menu_pixmap = menu.grab()
+    ratio = float(window_pixmap.devicePixelRatio() or 1)
+    window_pixmap.setDevicePixelRatio(1)
+    menu_pixmap.setDevicePixelRatio(1)
+    pos = _menu_popup_position(window, menu_label, ratio)
+    width = max(window_pixmap.width(), pos[0] + menu_pixmap.width())
+    height = max(window_pixmap.height(), pos[1] + menu_pixmap.height())
+    canvas = window._qt_gui.QPixmap(width, height)
+    canvas.fill(window._qt_gui.QColor("#a8c2ff"))
+    painter = window._qt_gui.QPainter(canvas)
+    painter.drawPixmap(0, 0, window_pixmap)
+    painter.drawPixmap(pos[0], pos[1], menu_pixmap)
+    painter.end()
+    return canvas
+
+
+def _menu_popup_position(window, menu_label: str, ratio: float) -> tuple[int, int]:
+    menubar = window.window.menuBar()
+    for action in menubar.actions():
+        if action.text() != menu_label:
+            continue
+        geometry = menubar.actionGeometry(action)
+        x = round((menubar.x() + geometry.x()) * ratio)
+        y = round((menubar.y() + geometry.bottom()) * ratio)
+        return max(0, x), max(0, y)
+    return 0, round(menubar.height() * ratio)
 
 
 def _matlab_scaled_pixmap(pixmap, app):
