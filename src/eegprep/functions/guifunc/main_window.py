@@ -24,6 +24,7 @@ except ImportError:  # pragma: no cover - optional GUI dependency
 BACKEEGLABCOLOR = "#a8c2ff"
 GUITEXTCOLOR = "#000066"
 PLUGINMENUCOLOR = "#800080"
+APP_NAME = "EEGPrep"
 
 
 def _require_qt() -> tuple[Any, Any, Any]:
@@ -51,12 +52,14 @@ class EEGPrepMainWindow:
         self._qt_gui = qt_gui
         self._qt_widgets = qt_widgets
         self.app = qt_widgets.QApplication.instance() or qt_widgets.QApplication([])
+        self.app.setApplicationName(APP_NAME)
+        self.app.setApplicationDisplayName(APP_NAME)
         self.session = session or EEGPrepSession()
         self.all_menus = bool(EEG_OPTIONS.get("option_allmenus", 0)) if all_menus is None else bool(all_menus)
         self.include_plugins = include_plugins
         self.window = qt_widgets.QMainWindow()
-        self.window.setObjectName("EEGPrep")
-        self.window.setWindowTitle("EEGPrep")
+        self.window.setObjectName(APP_NAME)
+        self.window.setWindowTitle(APP_NAME)
         self.window.resize(520, 380)
         self.window.setMinimumSize(460, 340)
         self.window.setStyleSheet(_main_window_stylesheet())

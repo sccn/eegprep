@@ -425,6 +425,8 @@ class QtMainWindowTests(unittest.TestCase):
         enabled_by_label = {item["label"]: item["enabled"] for item in window.menu_inventory()}
 
         self.assertEqual(window.window.windowTitle(), "EEGPrep")
+        self.assertEqual(window.app.applicationName(), "EEGPrep")
+        self.assertEqual(window.app.applicationDisplayName(), "EEGPrep")
         self.assertEqual((size.width(), size.height()), (520, 380))
         self.assertEqual((minimum_size.width(), minimum_size.height()), (460, 340))
         self.assertEqual(
