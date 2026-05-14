@@ -39,23 +39,30 @@ IMPLEMENTED_ACTIONS = {
 EEGPREP_REPO_URL = "https://github.com/sccn/eegprep"
 EEGPREP_DOCS_URL = "https://sccn.github.io/eegprep/"
 EEGPREP_SOURCE_URL = f"{EEGPREP_REPO_URL}/blob/develop"
-EEGLAB_SOURCE_URL = "https://github.com/sccn/eeglab/blob/develop"
 
-# TODO: Port these EEGLAB help topics into EEGPrep-owned Markdown resources in
-# src/eegprep/resources/help/ and remove the EEGLAB source fallbacks below.
-HELP_SOURCE_FALLBACKS = {
-    "eegprep": f"{EEGPREP_SOURCE_URL}/src/eegprep/functions/adminfunc/eeglab.py",
-    "eeg_helphelp": f"{EEGLAB_SOURCE_URL}/functions/adminfunc/eeg_helphelp.m",
-    "eeg_helpmenu": f"{EEGLAB_SOURCE_URL}/functions/adminfunc/eeg_helpmenu.m",
-    "eeg_helpadmin": f"{EEGLAB_SOURCE_URL}/functions/adminfunc/eeg_helpadmin.m",
-    "eeg_helppop": f"{EEGLAB_SOURCE_URL}/functions/adminfunc/eeg_helppop.m",
-    "eeg_helpsigproc": f"{EEGLAB_SOURCE_URL}/functions/adminfunc/eeg_helpsigproc.m",
-    "eeg_helpstudy": f"{EEGLAB_SOURCE_URL}/functions/adminfunc/eeg_helpstudy.m",
-    "eeg_helptimefreq": f"{EEGLAB_SOURCE_URL}/functions/adminfunc/eeg_helptimefreq.m",
-    "eeg_helpstatistics": f"{EEGLAB_SOURCE_URL}/functions/adminfunc/eeg_helpstatistics.m",
-    "eeg_helpgui": f"{EEGLAB_SOURCE_URL}/functions/adminfunc/eeg_helpgui.m",
-    "eeg_helpmisc": f"{EEGLAB_SOURCE_URL}/functions/adminfunc/eeg_helpmisc.m",
+HELP_TOPIC_LABELS = {
+    "eegprep": "About EEGPrep",
+    "eeg_helphelp": "About EEGPrep help",
+    "eeg_helpmenu": "EEGPrep menus",
+    "eeg_helpadmin": "Admin. functions",
+    "eeg_helppop": "Interactive pop_ functions",
+    "eeg_helpsigproc": "Signal processing functions",
+    "eeg_helpstudy": "Group data (STUDY) functions",
+    "eeg_helptimefreq": "Time-frequency functions",
+    "eeg_helpstatistics": "Statistical functions",
+    "eeg_helpgui": "Graphic interface builder functions",
+    "eeg_helpmisc": "Misc. command line functions",
 }
+HELP_DOC_PATHS = {
+    "eegprep": "",
+    "eeg_helphelp": "user_guide/index.html#getting-help",
+    "eeg_helpadmin": "api/core.html",
+    "eeg_helppop": "api/index.html",
+    "eeg_helpsigproc": "api/signal_processing.html",
+    "eeg_helpstatistics": "api/utils.html#statistical-utilities",
+    "eeg_helpmisc": "api/utils.html",
+}
+HELP_UNAVAILABLE_TOPICS = frozenset(set(HELP_TOPIC_LABELS) - set(HELP_DOC_PATHS))
 
 
 class MenuActionDispatcher:
@@ -249,11 +256,21 @@ class MenuActionDispatcher:
     def _show_help(self, function_name: str, parent: Any | None) -> None:
         try:
             pophelp(function_name, parent=parent)
-        except FileNotFoundError:
-            fallback = HELP_SOURCE_FALLBACKS.get(function_name)
-            if fallback is None:
-                raise
-            webbrowser.open(fallback)
+        except FileNotFoundError as exc:
+            if function_name in HELP_DOC_PATHS:
+                webbrowser.open(_docs_url(HELP_DOC_PATHS[function_name]))
+                return
+            if function_name in HELP_UNAVAILABLE_TOPICS:
+                self._show_unavailable_help(function_name, parent)
+                return
+            raise exc
+
+    def _show_unavailable_help(self, function_name: str, parent: Any | None) -> None:
+        message = unavailable_help_message(function_name)
+        qt_widgets = _qt_widgets()
+        if qt_widgets is None or parent is None:
+            raise FileNotFoundError(message)
+        qt_widgets.QMessageBox.information(parent, "EEGPrep", message)
 
     def _current_selection_or_warn(
         self,
@@ -309,6 +326,15 @@ def _docs_url(path: str = "") -> str:
 
 def _tutorial_url() -> str:
     return _docs_url("user_guide/quickstart.html")
+
+
+def unavailable_help_message(function_name: str) -> str:
+    """Return user-facing copy for help topics not yet documented in EEGPrep."""
+    label = HELP_TOPIC_LABELS.get(function_name, function_name)
+    return (
+        f"EEGPrep help for {label} is not available yet.\n\n"
+        "Track progress or request this documentation at https://github.com/sccn/eegprep/issues."
+    )
 
 
 def action_kind(action: str) -> str:
