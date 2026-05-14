@@ -1,0 +1,4 @@
+interface:
+  display_name: "EEGPrep Feature Development"
+  short_description: "EEGPrep feature development workflow"
+  default_prompt: "Use the EEGPrep feature development workflow to plan, implement, test, QA, review, and prepare this feature PR."
