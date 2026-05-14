@@ -33,6 +33,28 @@ IMPLEMENTED_ACTIONS = {
     "quit",
     "retrieve_dataset",
     "tutorial",
+    "updates",
+}
+
+EEGPREP_REPO_URL = "https://github.com/sccn/eegprep"
+EEGPREP_DOCS_URL = "https://sccn.github.io/eegprep/"
+EEGPREP_SOURCE_URL = f"{EEGPREP_REPO_URL}/blob/develop"
+EEGLAB_SOURCE_URL = "https://github.com/sccn/eeglab/blob/develop"
+
+# TODO: Port these EEGLAB help topics into EEGPrep-owned Markdown resources in
+# src/eegprep/resources/help/ and remove the EEGLAB source fallbacks below.
+HELP_SOURCE_FALLBACKS = {
+    "eegprep": f"{EEGPREP_SOURCE_URL}/src/eegprep/functions/adminfunc/eeglab.py",
+    "eeg_helphelp": f"{EEGLAB_SOURCE_URL}/functions/adminfunc/eeg_helphelp.m",
+    "eeg_helpmenu": f"{EEGLAB_SOURCE_URL}/functions/adminfunc/eeg_helpmenu.m",
+    "eeg_helpadmin": f"{EEGLAB_SOURCE_URL}/functions/adminfunc/eeg_helpadmin.m",
+    "eeg_helppop": f"{EEGLAB_SOURCE_URL}/functions/adminfunc/eeg_helppop.m",
+    "eeg_helpsigproc": f"{EEGLAB_SOURCE_URL}/functions/adminfunc/eeg_helpsigproc.m",
+    "eeg_helpstudy": f"{EEGLAB_SOURCE_URL}/functions/adminfunc/eeg_helpstudy.m",
+    "eeg_helptimefreq": f"{EEGLAB_SOURCE_URL}/functions/adminfunc/eeg_helptimefreq.m",
+    "eeg_helpstatistics": f"{EEGLAB_SOURCE_URL}/functions/adminfunc/eeg_helpstatistics.m",
+    "eeg_helpgui": f"{EEGLAB_SOURCE_URL}/functions/adminfunc/eeg_helpgui.m",
+    "eeg_helpmisc": f"{EEGLAB_SOURCE_URL}/functions/adminfunc/eeg_helpmisc.m",
 }
 
 
@@ -71,16 +93,19 @@ class MenuActionDispatcher:
             webbrowser.open(_docs_url(variant))
             return
         if base == "issues":
-            webbrowser.open("https://github.com/sccn/eegprep/issues")
+            webbrowser.open(f"{EEGPREP_REPO_URL}/issues")
             return
         if base == "license":
-            webbrowser.open("https://github.com/sccn/eegprep/blob/develop/LICENSE")
+            webbrowser.open(f"{EEGPREP_SOURCE_URL}/LICENSE")
             return
         if base == "mailto":
             webbrowser.open(f"mailto:{variant}")
             return
         if base == "tutorial":
-            webbrowser.open(_docs_url("user_guide/quickstart.html"))
+            webbrowser.open(_tutorial_url())
+            return
+        if base == "updates":
+            webbrowser.open(f"{EEGPREP_REPO_URL}/releases")
             return
         if base == "pop_loadset":
             self._loadset(parent)
@@ -222,7 +247,13 @@ class MenuActionDispatcher:
         self._refresh()
 
     def _show_help(self, function_name: str, parent: Any | None) -> None:
-        pophelp(function_name, parent=parent)
+        try:
+            pophelp(function_name, parent=parent)
+        except FileNotFoundError:
+            fallback = HELP_SOURCE_FALLBACKS.get(function_name)
+            if fallback is None:
+                raise
+            webbrowser.open(fallback)
 
     def _current_selection_or_warn(
         self,
@@ -272,9 +303,12 @@ def _apply_save_metadata(eeg: dict[str, Any], filename: str) -> None:
 
 
 def _docs_url(path: str = "") -> str:
-    base = "https://sccn.github.io/eegprep/"
     path = str(path or "").lstrip("/")
-    return base + path
+    return EEGPREP_DOCS_URL + path
+
+
+def _tutorial_url() -> str:
+    return _docs_url("user_guide/quickstart.html")
 
 
 def action_kind(action: str) -> str:

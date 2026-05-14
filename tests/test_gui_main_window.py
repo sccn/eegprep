@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 
 from eegprep.functions.guifunc.eeglab_menu import eeglab_menus, menu_actions
-from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher, action_kind
+from eegprep.functions.guifunc.menu_actions import HELP_SOURCE_FALLBACKS, MenuActionDispatcher, action_kind
 from eegprep.functions.guifunc.menu_placeholders import is_placeholder_action
 from eegprep.functions.guifunc.menu_spec import menu_enabled
 from eegprep.functions.guifunc.session import EEGPrepSession
@@ -129,7 +129,7 @@ class MainMenuSpecTests(unittest.TestCase):
         self.assertEqual(_labels(file_menu.children)[4], "BIDS tools")
         self.assertIn("Manage EEGPrep extensions", _labels(file_menu.children))
 
-    def test_help_menu_uses_eegprep_branding_and_docs_actions(self):
+    def test_help_menu_uses_eegprep_branding_and_eeglab_style_actions(self):
         help_menu = _child(eeglab_menus(all_menus=False), "Help")
         help_labels = _labels(help_menu.children)
 
@@ -137,10 +137,55 @@ class MainMenuSpecTests(unittest.TestCase):
         self.assertIn("Check for EEGPrep updates", help_labels)
         self.assertIn("EEGPrep menus", help_labels)
         self.assertIn("EEGPrep tutorial", help_labels)
+        self.assertIn("Email the EEGPrep team", help_labels)
         self.assertIn("Report an EEGPrep issue", help_labels)
         self.assertNotIn("EEGLAB tutorial", help_labels)
-        self.assertEqual(_child(help_menu.children, "About EEGPrep").action, "docs")
+        self.assertEqual(_child(help_menu.children, "About EEGPrep").action, "help:eegprep")
+        self.assertEqual(_child(help_menu.children, "Check for EEGPrep updates").action, "updates")
+        self.assertEqual(_child(help_menu.children, "About EEGPrep help").action, "help:eeg_helphelp")
+        self.assertEqual(_child(help_menu.children, "EEGPrep menus").action, "help:eeg_helpmenu")
+        self.assertEqual(_child(help_menu.children, "EEGPrep tutorial").action, "tutorial")
+        self.assertEqual(_child(help_menu.children, "Email the EEGPrep team").action, "mailto:eeglab@sccn.ucsd.edu")
         self.assertEqual(_child(help_menu.children, "Report an EEGPrep issue").action, "issues")
+
+    def test_help_functions_submenu_uses_eeglab_pophelp_topics(self):
+        functions_menu = _child(_child(eeglab_menus(all_menus=False), "Help").children, "EEGPrep functions")
+
+        self.assertEqual(
+            {item.label: item.action for item in functions_menu.children},
+            {
+                "Admin. functions": "help:eeg_helpadmin",
+                "Interactive pop_ functions": "help:eeg_helppop",
+                "Signal processing functions": "help:eeg_helpsigproc",
+                "Group data (STUDY) functions": "help:eeg_helpstudy",
+                "Time-frequency functions": "help:eeg_helptimefreq",
+                "Statistical functions": "help:eeg_helpstatistics",
+                "Graphic interface builder functions": "help:eeg_helpgui",
+                "Misc. command line functions": "help:eeg_helpmisc",
+            },
+        )
+
+    def test_help_menu_pophelp_actions_have_source_fallbacks_until_resources_exist(self):
+        help_menu = _child(eeglab_menus(all_menus=False), "Help")
+        help_actions = [action for action in menu_actions((help_menu,)) if action.startswith("help:")]
+
+        self.assertEqual(
+            {action.split(":", 1)[1] for action in help_actions},
+            {
+                "eegprep",
+                "eeg_helphelp",
+                "eeg_helpmenu",
+                "eeg_helpadmin",
+                "eeg_helppop",
+                "eeg_helpsigproc",
+                "eeg_helpstudy",
+                "eeg_helptimefreq",
+                "eeg_helpstatistics",
+                "eeg_helpgui",
+                "eeg_helpmisc",
+            },
+        )
+        self.assertTrue(all(action.split(":", 1)[1] in HELP_SOURCE_FALLBACKS for action in help_actions))
 
     def test_viewprops_plugin_items_match_plot_menu_locations(self):
         plot_menu = _child(eeglab_menus(all_menus=False), "Plot")
@@ -312,6 +357,39 @@ class MenuActionDispatcherTests(unittest.TestCase):
             dispatcher.dispatch("help:missing")
 
         coming_soon.assert_not_called()
+
+    def test_show_help_uses_eeglab_source_fallback_for_unported_help_topics(self):
+        dispatcher = MenuActionDispatcher(EEGPrepSession())
+
+        with (
+            mock.patch(
+                "eegprep.functions.guifunc.menu_actions.pophelp",
+                side_effect=FileNotFoundError("missing packaged help"),
+            ),
+            mock.patch("eegprep.functions.guifunc.menu_actions.webbrowser.open") as open_url,
+        ):
+            dispatcher.dispatch("help:eeg_helpadmin")
+
+        open_url.assert_called_once_with(HELP_SOURCE_FALLBACKS["eeg_helpadmin"])
+
+    def test_tutorial_mailto_updates_and_issue_actions_open_expected_targets(self):
+        dispatcher = MenuActionDispatcher(EEGPrepSession())
+
+        with mock.patch("eegprep.functions.guifunc.menu_actions.webbrowser.open") as open_url:
+            dispatcher.dispatch("tutorial")
+            dispatcher.dispatch("mailto:eeglab@sccn.ucsd.edu")
+            dispatcher.dispatch("updates")
+            dispatcher.dispatch("issues")
+
+        self.assertEqual(
+            [call.args[0] for call in open_url.call_args_list],
+            [
+                "https://sccn.github.io/eegprep/user_guide/quickstart.html",
+                "mailto:eeglab@sccn.ucsd.edu",
+                "https://github.com/sccn/eegprep/releases",
+                "https://github.com/sccn/eegprep/issues",
+            ],
+        )
 
     def test_dispatch_gui_reraises_headless_errors_and_logs_traceback(self):
         dispatcher = MenuActionDispatcher(EEGPrepSession())
