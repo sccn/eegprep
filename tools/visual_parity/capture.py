@@ -787,6 +787,159 @@ def _write_matlab_interp_dialog_script(
     return script_path
 
 
+def _write_matlab_simple_pop_dialog_script(
+    case: VisualCase,
+    output_path: pathlib.Path,
+    action: str,
+) -> pathlib.Path:
+    eeglab_root = EEGLAB_REFERENCE_ROOT
+    script_path = output_path.parent / f"{case.id}_eeglab_capture.m"
+    inputgui_override_dir = output_path.parent / "inputgui_plot_override"
+    inputgui_override_dir.mkdir(exist_ok=True)
+    (inputgui_override_dir / "inputgui.m").write_text(
+        "\n".join(
+            [
+                "function varargout = inputgui(varargin)",
+                "override_dir = fileparts(mfilename('fullpath'));",
+                "rmpath(override_dir);",
+                "cleanup = onCleanup(@() addpath(override_dir, '-begin'));",
+                "args = force_plot_mode(varargin);",
+                "[varargout{1:nargout}] = inputgui(args{:});",
+                "end",
+                "",
+                "function args = force_plot_mode(args)",
+                "if isempty(args), return; end",
+                "if ischar(args{1}) || isstring(args{1})",
+                "    mode_index = [];",
+                "    for idx = 1:2:length(args)-1",
+                "        if ischar(args{idx}) || isstring(args{idx})",
+                "            if strcmpi(char(args{idx}), 'mode')",
+                "                mode_index = idx + 1;",
+                "                break;",
+                "            end",
+                "        end",
+                "    end",
+                "    if isempty(mode_index)",
+                "        args = [args {'mode' 'plot'}];",
+                "    else",
+                "        args{mode_index} = 'plot';",
+                "    end",
+                "    return;",
+                "end",
+                "while length(args) < 6",
+                "    args{end+1} = [];",
+                "end",
+                "args{6} = 'plot';",
+                "end",
+                "",
+            ]
+        )
+    )
+    title_by_action = {
+        "pop_select": "Select data -- pop_select()",
+        "pop_resample": "Resample current dataset -- pop_resample()",
+        "pop_runica": "Run ICA decomposition -- pop_runica()",
+        "pop_clean_rawdata": "pop_clean_rawdata()",
+        "pop_iclabel": "ICLabel",
+    }
+    script_path.write_text(
+        "\n".join(
+            [
+                "function eegprep_visual_capture()",
+                "try",
+                f"output_file = {_matlab_string(output_path)};",
+                f"target_title = {_matlab_string(title_by_action[action])};",
+                f"action = {_matlab_string(action)};",
+                f"eeglab_root = {_matlab_string(eeglab_root)};",
+                f"inputgui_override_dir = {_matlab_string(inputgui_override_dir)};",
+                "addpath(genpath(eeglab_root));",
+                "addpath(inputgui_override_dir, '-begin');",
+                "set(0, 'DefaultFigureVisible', 'on');",
+                "EEG = make_simple_pop_demo();",
+                "switch action",
+                "    case 'pop_select'",
+                "        [EEG, com] = pop_select(EEG);",
+                "    case 'pop_resample'",
+                "        [EEG, com] = pop_resample(EEG);",
+                "    case 'pop_runica'",
+                "        [EEG, com] = pop_runica(EEG);",
+                "    case 'pop_clean_rawdata'",
+                "        [EEG, com] = pop_clean_rawdata(EEG);",
+                "    case 'pop_iclabel'",
+                "        [EEG, com] = pop_iclabel(EEG);",
+                "end",
+                "capture_simple_pop_dialog(output_file, target_title, action);",
+                "if exist(output_file, 'file') ~= 2",
+                "    error('visual parity capture did not create %s', output_file);",
+                "end",
+                "exit(0);",
+                "catch ME",
+                "disp(getReport(ME, 'extended'));",
+                "exit(1);",
+                "end",
+                "end",
+                "",
+                "function EEG = make_simple_pop_demo()",
+                "EEG = eeg_emptyset;",
+                "EEG.setname = 'pop demo';",
+                "EEG.nbchan = 4;",
+                "EEG.pnts = 1000;",
+                "EEG.trials = 1;",
+                "EEG.srate = 250;",
+                "EEG.xmin = 0;",
+                "EEG.xmax = (EEG.pnts-1)/EEG.srate;",
+                "EEG.data = zeros(4, EEG.pnts);",
+                "EEG.chanlocs = struct( ...",
+                "    'labels', {'Fp1', 'Fp2', 'Cz', 'Oz'}, ...",
+                "    'ref', {'common', 'common', 'common', 'common'}, ...",
+                "    'theta', {-18, 18, 0, 180}, ...",
+                "    'radius', {0.42, 0.42, 0, 0.42}, ...",
+                "    'X', {-0.25, 0.25, 0, 0}, ...",
+                "    'Y', {0.75, 0.75, 0, -0.8}, ...",
+                "    'Z', {0.55, 0.55, 1, 0.55}, ...",
+                "    'type', {'EEG', 'EEG', 'EEG', 'EEG'});",
+                "EEG.chaninfo = struct();",
+                "EEG.event = struct('type', {'stim'}, 'latency', {100}, 'duration', {0});",
+                "EEG.urevent = [];",
+                "EEG.history = '';",
+                "EEG.saved = 'yes';",
+                "EEG.icaweights = eye(4);",
+                "EEG.icasphere = eye(4);",
+                "EEG.icawinv = eye(4);",
+                "EEG.icachansind = 1:4;",
+                "EEG.icaact = zeros(4, EEG.pnts);",
+                "end",
+                "",
+                "function capture_simple_pop_dialog(output_file, target_title, action)",
+                "fig = findall(0, 'Type', 'figure', 'Name', target_title);",
+                "if isempty(fig)",
+                "    figs = findall(0, 'Type', 'figure');",
+                "    for idx = 1:length(figs)",
+                "        fig_name = get(figs(idx), 'Name');",
+                "        if contains(fig_name, target_title) || contains(fig_name, action)",
+                "            fig = figs(idx);",
+                "            break;",
+                "        end",
+                "    end",
+                "end",
+                "if isempty(fig), error('Could not find dialog %s', target_title); end",
+                "fig = fig(1);",
+                "set(fig, 'Units', 'pixels');",
+                "drawnow;",
+                "pause(0.2);",
+                "write_figure_capture(fig, output_file);",
+                "try, close(fig); catch, end",
+                "end",
+                "",
+                *_matlab_capture_helper(),
+                "eegprep_visual_capture();",
+                "",
+            ]
+        )
+    )
+    return script_path
+
+
 def _write_matlab_dataset_index_dialog_script(case: VisualCase, output_path: pathlib.Path) -> pathlib.Path:
     eeglab_root = EEGLAB_REFERENCE_ROOT
     script_path = output_path.parent / f"{case.id}_eeglab_capture.m"
@@ -1130,7 +1283,19 @@ def capture_target(
         command = [matlab_executable, "-nosplash", "-nodesktop", "-r", _matlab_run_expression(script_path)]
     elif target.type == "matlab_dialog" and target_name == "eeglab":
         action, variant = _split_action(target.action)
-        if action not in {"pop_adjustevents", "pop_chansel", "pop_reref", "pop_interp", "inputdlg2", "pophelp"}:
+        if action not in {
+            "pop_adjustevents",
+            "pop_chansel",
+            "pop_clean_rawdata",
+            "pop_iclabel",
+            "pop_interp",
+            "pop_resample",
+            "pop_reref",
+            "pop_runica",
+            "pop_select",
+            "inputdlg2",
+            "pophelp",
+        }:
             return CaptureResult(
                 target_name,
                 output_path,
@@ -1152,6 +1317,8 @@ def capture_target(
             script_path = _write_matlab_pop_chansel_dialog_script(case, output_path)
         elif action == "pop_interp":
             script_path = _write_matlab_interp_dialog_script(case, output_path, variant)
+        elif action in {"pop_clean_rawdata", "pop_iclabel", "pop_resample", "pop_runica", "pop_select"}:
+            script_path = _write_matlab_simple_pop_dialog_script(case, output_path, action)
         elif action == "inputdlg2":
             script_path = _write_matlab_dataset_index_dialog_script(case, output_path)
         elif action == "pophelp":

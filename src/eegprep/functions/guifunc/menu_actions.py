@@ -24,12 +24,16 @@ IMPLEMENTED_ACTIONS = {
     "license",
     "mailto",
     "pop_adjustevents",
+    "pop_clean_rawdata",
     "pop_delset",
     "pop_iclabel",
     "pop_interp",
     "pop_loadset",
     "pop_reref",
+    "pop_resample",
+    "pop_runica",
     "pop_saveset",
+    "pop_select",
     "quit",
     "retrieve_dataset",
     "tutorial",
@@ -63,6 +67,15 @@ HELP_DOC_PATHS = {
     "eeg_helpmisc": "api/utils.html",
 }
 HELP_UNAVAILABLE_TOPICS = frozenset(set(HELP_TOPIC_LABELS) - set(HELP_DOC_PATHS))
+
+_MULTIPLE_DATASET_ACTIONS = {
+    "pop_clean_rawdata",
+    "pop_iclabel",
+    "pop_reref",
+    "pop_resample",
+    "pop_runica",
+    "pop_select",
+}
 
 
 class MenuActionDispatcher:
@@ -130,14 +143,26 @@ class MenuActionDispatcher:
         if base == "pop_adjustevents":
             self._run_pop_function("pop_adjustevents", parent)
             return
+        if base == "pop_clean_rawdata":
+            self._run_pop_function("pop_clean_rawdata", parent)
+            return
         if base == "pop_reref":
             self._run_pop_function("pop_reref", parent)
             return
         if base == "pop_interp":
             self._run_pop_function("pop_interp", parent)
             return
+        if base == "pop_resample":
+            self._run_pop_function("pop_resample", parent)
+            return
+        if base == "pop_runica":
+            self._run_pop_function("pop_runica", parent)
+            return
+        if base == "pop_select":
+            self._run_pop_function("pop_select", parent)
+            return
         if base == "pop_iclabel":
-            self._run_iclabel(parent)
+            self._run_pop_function("pop_iclabel", parent)
             return
         self.show_coming_soon(action, parent)
 
@@ -202,13 +227,17 @@ class MenuActionDispatcher:
         self._refresh()
 
     def _run_pop_function(self, name: str, parent: Any | None) -> None:
-        selection = self._current_selection_or_warn(parent, allow_multiple=name == "pop_reref")
+        selection = self._current_selection_or_warn(parent, allow_multiple=name in _MULTIPLE_DATASET_ACTIONS)
         if selection is None:
             return
         if name == "pop_adjustevents":
             from eegprep.functions.popfunc.pop_adjustevents import pop_adjustevents
 
             out = pop_adjustevents(selection, return_com=True)
+        elif name == "pop_clean_rawdata":
+            from eegprep.plugins.clean_rawdata.pop_clean_rawdata import pop_clean_rawdata
+
+            out = pop_clean_rawdata(selection, return_com=True)
         elif name == "pop_reref":
             from eegprep.functions.popfunc.pop_reref import pop_reref
 
@@ -217,6 +246,22 @@ class MenuActionDispatcher:
             from eegprep.functions.popfunc.pop_interp import pop_interp
 
             out = pop_interp(selection, alleeg=self.session.ALLEEG, return_com=True)
+        elif name == "pop_iclabel":
+            from eegprep.plugins.ICLabel.pop_iclabel import pop_iclabel
+
+            out = pop_iclabel(selection, return_com=True)
+        elif name == "pop_resample":
+            from eegprep.functions.popfunc.pop_resample import pop_resample
+
+            out = pop_resample(selection, return_com=True)
+        elif name == "pop_runica":
+            from eegprep.functions.popfunc.pop_runica import pop_runica
+
+            out = pop_runica(selection, return_com=True)
+        elif name == "pop_select":
+            from eegprep.functions.popfunc.pop_select import pop_select
+
+            out = pop_select(selection, return_com=True)
         else:
             self.show_coming_soon(name, parent)
             return
@@ -227,21 +272,6 @@ class MenuActionDispatcher:
         if command:
             self.session.store_current(eeg_out, command=command)
             self._refresh()
-
-    def _run_iclabel(self, parent: Any | None) -> None:
-        selection = self._current_selection_or_warn(parent, allow_multiple=True)
-        if selection is None:
-            return
-        from eegprep.plugins.ICLabel.iclabel import iclabel
-
-        if isinstance(selection, list):
-            self.session.store_current(
-                [iclabel(eeg) for eeg in selection],
-                command="EEG = pop_iclabel(EEG, 'default');",
-            )
-        else:
-            self.session.store_current(iclabel(selection), command="EEG = pop_iclabel(EEG, 'default');")
-        self._refresh()
 
     def _retrieve_dataset(self, index: int) -> None:
         was_study = self.session.CURRENTSTUDY == 1

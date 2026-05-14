@@ -38,6 +38,11 @@ class VisualParityConfigTests(unittest.TestCase):
         self.assertIn("pop_interp_dialog", cases)
         self.assertEqual(cases["pop_interp_dialog"].targets["eeglab"].action, "pop_interp:continuous")
         self.assertEqual(cases["pop_interp_epoched_dialog"].targets["eeglab"].action, "pop_interp:epoched")
+        self.assertEqual(cases["pop_select_dialog"].targets["eeglab"].action, "pop_select")
+        self.assertEqual(cases["pop_resample_dialog"].targets["eeglab"].action, "pop_resample")
+        self.assertEqual(cases["pop_runica_dialog"].targets["eeglab"].action, "pop_runica")
+        self.assertEqual(cases["pop_iclabel_dialog"].targets["eeglab"].action, "pop_iclabel")
+        self.assertEqual(cases["pop_clean_rawdata_dialog"].targets["eeglab"].action, "pop_clean_rawdata")
         self.assertIn("pop_chansel_dialog", cases)
         self.assertEqual(cases["pop_chansel_dialog"].targets["eeglab"].action, "pop_chansel")
         self.assertEqual(cases["pop_interp_dataset_index_dialog"].targets["eeglab"].action, "inputdlg2:dataset_index")
@@ -252,6 +257,33 @@ class VisualParityCaptureTests(unittest.TestCase):
             self.assertIn("capture_variant = 'epoched';", script_text)
             self.assertIn("[EEG, com] = pop_interp(EEG);", script_text)
             self.assertIn("EEG.epoch = struct", script_text)
+
+    def test_matlab_dialog_capture_generates_simple_pop_function_script(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = pathlib.Path(tmpdir)
+            case = load_manifest()["pop_resample_dialog"]
+
+            def fake_run_subprocess(target_name, output_path, command, env, timeout_seconds):
+                output_path.write_bytes(base64.b64decode(ONE_PIXEL_PNG))
+                return CaptureResult(target_name, output_path, command, 0)
+
+            with (
+                mock.patch("tools.visual_parity.capture.shutil.which", return_value="/usr/common/bin/matlab"),
+                mock.patch("tools.visual_parity.capture._run_subprocess", side_effect=fake_run_subprocess),
+            ):
+                results = capture_case(case, "eeglab", output_dir=tmp_path)
+
+            self.assertTrue(results[0].ok)
+            script_text = next((tmp_path / "pop_resample_dialog").glob("*.m")).read_text()
+            self.assertIn("action = 'pop_resample';", script_text)
+            self.assertIn("[EEG, com] = pop_resample(EEG);", script_text)
+            self.assertIn("capture_simple_pop_dialog", script_text)
+            self.assertIn("inputgui_override_dir =", script_text)
+            self.assertIn("addpath(inputgui_override_dir, '-begin');", script_text)
+            self.assertIn("write_figure_capture(fig, output_file);", script_text)
+            override_text = next((tmp_path / "pop_resample_dialog" / "inputgui_plot_override").glob("inputgui.m")).read_text()
+            self.assertIn("args{6} = 'plot';", override_text)
+            self.assertIn("args = [args {'mode' 'plot'}];", override_text)
 
     def test_matlab_dialog_capture_generates_pophelp_script(self):
         with tempfile.TemporaryDirectory() as tmpdir:

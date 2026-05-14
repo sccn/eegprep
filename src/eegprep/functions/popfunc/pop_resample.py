@@ -1,17 +1,19 @@
-"""EEG data resampling utilities."""
+"""EEGLAB-style EEG resampling pop function."""
 
-import os
+import math
+from math import ceil, floor, gcd
+
 import numpy as np
+import sympy as sp
+from scipy import signal
 from scipy.signal import resample, resample_poly
-from scipy.io import savemat
-import tempfile
-import sys
-sys.path.insert(0, '/Users/arno/Python/eegprep/src/')
-sys.path.insert(0, '/usr/src/project/src/')
+from scipy.signal.windows import kaiser
+
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
-from eegprep.functions.popfunc.pop_loadset import pop_loadset
-from eegprep.functions.popfunc.pop_saveset import pop_saveset
+from eegprep.functions.guifunc.inputgui import inputgui
+from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.miscfunc.misc import aslist
+from eegprep.plugins.firfilt import firws, firwsord
 
 # TO DO TO ADDRESS DIFFERENCES BETWEEN MATLAB AND PYTHON
 # - Do a simple resample 500 to 250 Hz, there only the filter should matter (subsampling is just a decimation)
@@ -19,9 +21,19 @@ from eegprep.functions.miscfunc.misc import aslist
 # - Check the options of the resample function in MATLAB and Python
 # - Try the pyresample package
 # - Check for boundary effects in MATLAB and Python (different padding)
-# - Try Cyton (mix of Python and typing that compiles to C)
 
-def pop_resample(EEG, freq, engine=None):
+
+def pop_resample(
+    EEG,
+    freq=None,
+    engine=None,
+    *,
+    gui=None,
+    renderer=None,
+    return_com=False,
+    fc=None,
+    df=None,
+):
     """Resample EEG data to a new sampling rate.
 
     Parameters
@@ -42,20 +54,47 @@ def pop_resample(EEG, freq, engine=None):
     EEG : dict
         EEGLAB EEG structure with resampled data.
     """
+    if EEG is None:
+        return (None, "") if return_com else None
+    if gui is None:
+        gui = freq is None
+    if gui:
+        result = _run_gui(EEG[0] if isinstance(EEG, list) else EEG, renderer=renderer)
+        if result is None:
+            return (EEG, "") if return_com else EEG
+        freq = result["freq"]
+    if freq is None:
+        raise ValueError("freq argument is required when gui=False")
+    freq = float(freq)
+    if freq <= 0:
+        raise ValueError("New sampling rate must be positive")
+    fc = 0.9 if fc is None else fc
+    df = 0.2 if df is None else df
+
+    if isinstance(EEG, list):
+        output = [
+            pop_resample(item, freq, engine=engine, gui=False, fc=fc, df=df)
+            for item in EEG
+        ]
+        command = _history_command(freq)
+        return (output, command) if return_com else output
+
     # Check if using MATLAB or Octave implementation
     if engine in ['matlab', 'octave']:
         eeglab = get_eeglab(runtime='MAT' if engine == 'matlab' else 'OCT')
-        return eeglab.pop_resample(EEG, freq)
+        EEG_new = eeglab.pop_resample(EEG, freq)
+        command = _history_command(freq)
+        return (EEG_new, command) if return_com else EEG_new
 
     # Default Python implementation
     else:
         if engine is None:
             # use the resample_eeg function
-            EEG_new = resample_eeg(EEG, freq, method='poly')
+            EEG_new = resample_eeg(EEG, freq, method='poly', fc=fc, df=df)
 
         elif engine == 'poly':
             # use the resample_poly function
-            EEG_new = resample_eeg(EEG, freq, method='poly')
+            EEG_new = resample_eeg(EEG, freq, method='poly', fc=fc, df=df)
 
         elif engine == 'scipy':
             # Calculate the new number of points
@@ -96,12 +135,51 @@ def pop_resample(EEG, freq, engine=None):
         for event in aslist(EEG_new['event']) + aslist(EEG_new['urevent']):
             event['latency'] = np.clip((event['latency']-1) * ratio + 1, 1, new_pnts)
 
-        return EEG_new
+        command = _history_command(freq)
+        return (EEG_new, command) if return_com else EEG_new
 
-import numpy as np
-from scipy import signal
-from math import gcd, ceil, floor
-import sympy as sp
+
+def pop_resample_dialog_spec(srate) -> DialogSpec:
+    """Return the EEGLAB-like dialog spec for ``pop_resample``."""
+    return DialogSpec(
+        title="Resample current dataset -- pop_resample()",
+        function_name="pop_resample",
+        eeglab_source="functions/popfunc/pop_resample.m",
+        geometry=((1,), (1,)),
+        size=(300, 199),
+        help_text="pophelp('pop_resample')",
+        controls=(
+            ControlSpec("text", "New sampling rate"),
+            ControlSpec(
+                "edit",
+                tag="freq",
+                value=f"{float(srate):g}",
+                callback=CallbackSpec("validate_numeric_range", params={"columns": 1, "lower": 0, "upper": np.inf}),
+            ),
+        ),
+    )
+
+
+def _run_gui(EEG, renderer=None):
+    spec = pop_resample_dialog_spec(EEG.get("srate", 1))
+    result = inputgui(spec, renderer=renderer)
+    if result is None:
+        return None
+    text = str(result.get("freq", "")).strip()
+    if not text:
+        return None
+    return {"freq": float(text)}
+
+
+def _history_command(freq):
+    return f"EEG = pop_resample( EEG, {_format_number(freq)});"
+
+
+def _format_number(value):
+    value = float(value)
+    if value.is_integer():
+        return str(int(value))
+    return f"{value:g}"
 
 def resample_eeg(EEG, freq, method='poly', fc=0.9, df=0.2):
     """Port of EEGLAB's pop_resample behavior.
@@ -141,8 +219,6 @@ def resample_eeg(EEG, freq, method='poly', fc=0.9, df=0.2):
 
     if method == 'poly':
         # use scipy's resample_poly() function
-        from eegprep.plugins.firfilt import firws, firwsord
-        from scipy.signal.windows import kaiser
         nyq = 1 / np.maximum(p, q)
         fc *= nyq
         df *= nyq
@@ -170,9 +246,6 @@ def resample_eeg(EEG, freq, method='poly', fc=0.9, df=0.2):
         raise ValueError(f"Unsupported method: {method}. Should be 'poly' or 'octave', but got {method}")
 
     return EEG_new
-
-import numpy as np
-import math
 
 def upfirdn_raw(x, h, p, q):
     """Upfirdn implementation for resampling.

@@ -118,7 +118,7 @@ class QtDialogRenderer:
                 color: #000066;
                 font-size: 16px;
             }
-            QLabel, QCheckBox, QPushButton, QLineEdit, QComboBox {
+            QLabel, QCheckBox, QPushButton, QLineEdit, QComboBox, QListWidget {
                 font-size: 16px;
             }
             QLabel, QCheckBox {
@@ -134,6 +134,11 @@ class QtDialogRenderer:
                 max-height: 18px;
                 margin-left: 1px;
                 padding: 0 3px;
+                color: #000066;
+            }
+            QLineEdit:disabled {
+                background: #dce6ff;
+                color: #7c86a8;
             }
             QComboBox {
                 background: white;
@@ -142,6 +147,15 @@ class QtDialogRenderer:
                 max-width: 217px;
                 min-height: 20px;
                 max-height: 20px;
+                color: #000066;
+            }
+            QListWidget {
+                background: white;
+                border: 1px solid #7f7f7f;
+                min-width: 217px;
+                max-width: 217px;
+                min-height: 74px;
+                max-height: 74px;
                 color: #000066;
             }
             QPushButton {
@@ -160,6 +174,10 @@ class QtDialogRenderer:
             QPushButton#events_button {
                 min-width: 130px;
                 max-width: 130px;
+            }
+            QPushButton#scroll {
+                min-width: 159px;
+                max-width: 159px;
             }
             QPushButton#refbr, QPushButton#exclude_button, QPushButton#refloc_button {
                 min-width: 33px;
@@ -300,6 +318,15 @@ class QtDialogRenderer:
                 index = 0
             if 0 <= index < widget.count():
                 widget.setCurrentIndex(index)
+        elif style == "listbox":
+            widget = QtWidgets.QListWidget()
+            widget.addItems([item.strip() for item in control.string.split("|")])
+            try:
+                index = int(value) - 1
+            except (TypeError, ValueError):
+                index = 0
+            if 0 <= index < widget.count():
+                widget.setCurrentRow(index)
         elif style == "spacer":
             widget = QtWidgets.QWidget()
         else:
@@ -357,6 +384,16 @@ class QtDialogRenderer:
             return QtDialogRenderer._validate_pop_reref_dialog(spec, widgets)
         if spec.function_name == "pop_interp":
             return QtDialogRenderer._validate_pop_interp_dialog(spec, widgets)
+        if spec.function_name == "pop_resample":
+            text = QtDialogRenderer._widget_text(widgets.get("freq")).strip()
+            if not text:
+                return "New sampling rate is required"
+            try:
+                value = float(text)
+            except ValueError:
+                return "New sampling rate must be numeric"
+            if value <= 0:
+                return "New sampling rate must be positive"
         return None
 
     @staticmethod
@@ -634,6 +671,8 @@ class QtDialogRenderer:
             return widget.isChecked()
         if hasattr(widget, "currentIndex"):
             return widget.currentIndex() + 1
+        if hasattr(widget, "currentRow"):
+            return widget.currentRow() + 1
         if hasattr(widget, "text"):
             return widget.text()
         return None

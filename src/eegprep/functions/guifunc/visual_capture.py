@@ -17,6 +17,11 @@ from eegprep.functions.popfunc.pop_adjustevents import pop_adjustevents_dialog_s
 from eegprep.functions.popfunc.pop_chansel import pop_chansel_display_values
 from eegprep.functions.popfunc.pop_interp import pop_interp_dialog_spec
 from eegprep.functions.popfunc.pop_reref import pop_reref_dialog_spec
+from eegprep.functions.popfunc.pop_resample import pop_resample_dialog_spec
+from eegprep.functions.popfunc.pop_runica import pop_runica_dialog_spec
+from eegprep.functions.popfunc.pop_select import pop_select_dialog_spec
+from eegprep.plugins.ICLabel.pop_iclabel import pop_iclabel_dialog_spec
+from eegprep.plugins.clean_rawdata.pop_clean_rawdata import pop_clean_rawdata_dialog_spec
 
 
 def _demo_eeg() -> dict:
@@ -331,6 +336,50 @@ def capture_pop_interp_dialog(output: pathlib.Path, *, variant: str = "continuou
     _grab_dialog(dialog, output, app)
 
 
+def capture_pop_select_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_select dialog."""
+    eeg = _demo_main_eeg()
+    spec = pop_select_dialog_spec(eeg)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_resample_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_resample dialog."""
+    eeg = _demo_main_eeg()
+    spec = pop_resample_dialog_spec(eeg["srate"])
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_runica_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_runica dialog."""
+    eeg = _demo_main_eeg()
+    spec = pop_runica_dialog_spec(eeg)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_iclabel_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_iclabel dialog."""
+    spec = pop_iclabel_dialog_spec()
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_clean_rawdata_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_clean_rawdata dialog."""
+    eeg = _demo_main_eeg()
+    spec = pop_clean_rawdata_dialog_spec(eeg)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
 def capture_pop_chansel_dialog(output: pathlib.Path) -> None:
     """Render and capture the pop_chansel/listdlg2 channel picker."""
     labels = ["Fp1", "Fp2", "Cz", "Oz"]
@@ -453,6 +502,16 @@ def main(argv: list[str] | None = None) -> int:
         capture_pop_interp_dialog(args.output, variant="removed")
     elif args.case == "pop_interp_epoched_dialog":
         capture_pop_interp_dialog(args.output, variant="epoched")
+    elif args.case == "pop_select_dialog":
+        capture_pop_select_dialog(args.output)
+    elif args.case == "pop_resample_dialog":
+        capture_pop_resample_dialog(args.output)
+    elif args.case == "pop_runica_dialog":
+        capture_pop_runica_dialog(args.output)
+    elif args.case == "pop_iclabel_dialog":
+        capture_pop_iclabel_dialog(args.output)
+    elif args.case == "pop_clean_rawdata_dialog":
+        capture_pop_clean_rawdata_dialog(args.output)
     elif args.case == "pop_chansel_dialog":
         capture_pop_chansel_dialog(args.output)
     elif args.case == "pop_interp_dataset_index_dialog":

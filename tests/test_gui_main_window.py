@@ -238,8 +238,12 @@ class MainMenuSpecTests(unittest.TestCase):
 
         self.assertIn("pop_reref", actions)
         self.assertEqual(action_kind("pop_reref"), "implemented")
+        self.assertEqual(action_kind("pop_select"), "implemented")
+        self.assertEqual(action_kind("pop_resample"), "implemented")
+        self.assertEqual(action_kind("pop_clean_rawdata"), "implemented")
+        self.assertEqual(action_kind("pop_runica"), "implemented")
+        self.assertEqual(action_kind("pop_iclabel"), "implemented")
         self.assertEqual(action_kind("pop_subcomp"), "placeholder")
-        self.assertEqual(action_kind("pop_clean_rawdata"), "placeholder")
         self.assertEqual(action_kind("pop_exportbids"), "placeholder")
         self.assertEqual(action_kind("select_multiple_datasets"), "placeholder")
         self.assertEqual(action_kind("topoplot:labels"), "placeholder")
@@ -538,6 +542,30 @@ class MenuActionDispatcherTests(unittest.TestCase):
         self.assertEqual([item["setname"] for item in session.EEG], ["first", "second"])
         self.assertEqual([item["saved"] for item in session.EEG], ["yes", "yes"])
         self.assertEqual([item["saved"] for item in session.ALLEEG], ["yes", "yes"])
+
+    def test_new_main_window_pop_actions_dispatch_to_real_wrappers(self):
+        action_specs = [
+            ("pop_select", "eegprep.functions.popfunc.pop_select.pop_select", "selected"),
+            ("pop_resample", "eegprep.functions.popfunc.pop_resample.pop_resample", "resampled"),
+            ("pop_clean_rawdata", "eegprep.plugins.clean_rawdata.pop_clean_rawdata.pop_clean_rawdata", "cleaned"),
+            ("pop_runica", "eegprep.functions.popfunc.pop_runica.pop_runica", "ica"),
+            ("pop_iclabel", "eegprep.plugins.ICLabel.pop_iclabel.pop_iclabel", "labeled"),
+        ]
+
+        for action, patch_target, setname in action_specs:
+            with self.subTest(action=action):
+                session = EEGPrepSession()
+                session.store_current(_demo_eeg(), new=True)
+                dispatcher = MenuActionDispatcher(session)
+                output = dict(session.EEG, setname=setname)
+
+                with mock.patch(patch_target, return_value=(output, f"EEG = {action}(EEG);")) as pop_func:
+                    dispatcher.dispatch(action)
+
+                pop_func.assert_called_once_with(mock.ANY, return_com=True)
+                self.assertEqual(session.EEG["setname"], setname)
+                self.assertEqual(session.ALLEEG[0]["setname"], setname)
+                self.assertEqual(session.ALLCOM[-1], f"EEG = {action}(EEG);")
 
 
 class QtMainWindowTests(unittest.TestCase):
