@@ -40,17 +40,22 @@ def pop_chanevent(
             x = _apply_oper(x, str(options["oper"]))
         events.extend(_events_from_channel(x, channel, edge=edge, duration=duration, edgelen=int(options.get("edgelen", 1))))
     out = deepcopy(EEG)
+    original_events, original_urevents = _events_with_existing_urevents(
+        events_to_records(out.get("event")),
+        events_to_records(out.get("urevent")),
+    )
+    imported_events, imported_urevents = _events_with_new_urevents(events, len(original_urevents))
     if str(options.get("delevent", "on")).lower() in {"on", "yes", "true", "1"}:
-        out["event"] = events
+        out["event"] = imported_events
     else:
-        out["event"] = events_to_records(out.get("event")) + events
+        out["event"] = original_events + imported_events
         out["event"].sort(key=lambda item: float(item.get("latency", np.inf)))
     if str(options.get("delchan", "on")).lower() in {"on", "yes", "true", "1"}:
         keep = [index for index in range(data.shape[0]) if index + 1 not in channels]
         out["data"] = data[keep, :]
         out["nbchan"] = len(keep)
         out["chanlocs"] = [loc for index, loc in enumerate(list(out.get("chanlocs", [])), start=1) if index not in channels]
-    out["urevent"] = [dict(event) for event in out["event"]]
+    out["urevent"] = original_urevents + imported_urevents
     out["saved"] = "no"
     with strict_mode(False):
         out = eeg_checkset(out)
@@ -78,6 +83,52 @@ def _events_from_channel(x: np.ndarray, channel: int, *, edge: str, duration: bo
             event["duration"] = int(next_trailing[0] - latency) if next_trailing.size else int(values.size - latency)
         events.append(event)
     return events
+
+
+def _events_with_existing_urevents(
+    events: list[dict[str, Any]],
+    urevents: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    normalized_urevents = [dict(event) for event in urevents]
+    normalized_events = []
+    for event in events:
+        normalized = dict(event)
+        urevent_index = _valid_urevent_index(normalized.get("urevent"), len(normalized_urevents))
+        if urevent_index is None:
+            normalized_urevents.append(_urevent_record(normalized))
+            urevent_index = len(normalized_urevents)
+        normalized["urevent"] = urevent_index
+        normalized_events.append(normalized)
+    return normalized_events, normalized_urevents
+
+
+def _events_with_new_urevents(
+    events: list[dict[str, Any]],
+    offset: int,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    normalized_events = []
+    urevents = []
+    for index, event in enumerate(events, start=1):
+        urevent = _urevent_record(event)
+        event_with_ref = dict(urevent)
+        event_with_ref["urevent"] = offset + index
+        normalized_events.append(event_with_ref)
+        urevents.append(urevent)
+    return normalized_events, urevents
+
+
+def _valid_urevent_index(value: Any, count: int) -> int | None:
+    try:
+        index = int(value)
+    except (TypeError, ValueError):
+        return None
+    return index if 1 <= index <= count else None
+
+
+def _urevent_record(event: dict[str, Any]) -> dict[str, Any]:
+    record = dict(event)
+    record.pop("urevent", None)
+    return record
 
 
 def _drop_close(values: np.ndarray, edgelen: int) -> np.ndarray:

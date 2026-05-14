@@ -8,6 +8,7 @@ from typing import Any
 import mne
 
 from eegprep.functions.popfunc._file_io import mne_raw_to_eeg
+from eegprep.functions.popfunc._pop_utils import format_history_value
 from eegprep.functions.popfunc.pop_importdata import pop_importdata
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 
@@ -29,7 +30,7 @@ def pop_fileio(filename: str | Path, *, return_com: bool = False, **kwargs: Any)
         reader = _reader_for_suffix(suffix)
         raw = reader(str(path), preload=True, verbose=False)
         eeg = mne_raw_to_eeg(raw, setname=path.stem, filename=str(path))
-    command = f"EEG = pop_fileio('{path}');"
+    command = f"EEG = pop_fileio({format_history_value(path)});"
     eeg["history"] = command
     return (eeg, command) if return_com else eeg
 

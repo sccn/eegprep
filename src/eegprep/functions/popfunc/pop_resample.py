@@ -406,26 +406,3 @@ def resample_raw(x, p, q, h=None):
         y = y.reshape(-1, x.shape[1])
 
     return y, h
-
-def test_pop_resample_local():
-    """Test function for pop_resample."""
-    eeglab_file_path = '/Users/arno/Python/eegprep/sample_data/eeglab_data_with_ica_tmp.set'
-    EEG = pop_loadset(eeglab_file_path)
-
-    # Test with different engines
-    EEG_python = pop_resample(EEG.copy(), 100, engine=None)
-    EEG_python = pop_resample(EEG.copy(), 100, engine='poly')
-    EEG_python = pop_resample(EEG.copy(), 100, engine='scipy')
-    EEG_matlab = pop_resample(EEG.copy(), 100, engine='matlab')
-    EEG_octave = pop_resample(EEG.copy(), 100, engine='octave')
-
-    # Print results
-    print("Original sampling rate:", EEG['srate'])
-    print("Python resampled rate:", EEG_python['srate'])
-    print("MATLAB resampled rate:", EEG_matlab['srate'])
-    print("Octave resampled rate:", EEG_octave['srate'])
-
-    return EEG_python, EEG_matlab, EEG_octave
-
-if __name__ == '__main__':
-    test_pop_resample_local()

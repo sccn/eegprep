@@ -8,6 +8,7 @@ from typing import Any
 from mne.export import export_raw
 
 from eegprep.functions.popfunc._file_io import eeg_to_mne_raw
+from eegprep.functions.popfunc._pop_utils import format_history_value
 
 
 def pop_writeeeg(EEG: dict[str, Any], filename: str | Path, *args: Any, **kwargs: Any) -> str:
@@ -18,4 +19,4 @@ def pop_writeeeg(EEG: dict[str, Any], filename: str | Path, *args: Any, **kwargs
     path.parent.mkdir(parents=True, exist_ok=True)
     raw = eeg_to_mne_raw(EEG)
     export_raw(str(path), raw, fmt=path.suffix.lower()[1:], overwrite=True)
-    return f"LASTCOM = pop_writeeeg(EEG, '{path}');"
+    return f"LASTCOM = pop_writeeeg(EEG, {format_history_value(path)});"

@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from eegprep.functions.popfunc._file_io import write_json
+from eegprep.functions.popfunc._pop_utils import format_history_value
 from eegprep.plugins.EEG_BIDS.bids_list_eeg_files import bids_list_eeg_files
 from eegprep.plugins.EEG_BIDS.pop_exportbids import pop_exportbids
 
@@ -60,4 +61,8 @@ def _update_bids_metadata(
     etc = target.setdefault("etc", {})
     bids = etc.setdefault("bids", {})
     bids.setdefault(section, {}).update(metadata)
-    return target, f"LASTCOM = {command_name}();"
+    target_name = "STUDY" if "datasetinfo" in target else "EEG"
+    pieces = [target_name]
+    for key, value in metadata.items():
+        pieces.extend([format_history_value(key), format_history_value(value)])
+    return target, f"LASTCOM = {command_name}({', '.join(pieces)});"

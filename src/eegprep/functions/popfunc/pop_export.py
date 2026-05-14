@@ -8,7 +8,7 @@ from typing import Any
 
 import numpy as np
 
-from eegprep.functions.popfunc._file_io import _channel_labels
+from eegprep.functions.popfunc._file_io import channel_labels
 from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args
 
 
@@ -31,7 +31,7 @@ def pop_export(EEG: dict[str, Any], filename: str | Path, *args: Any, **kwargs: 
         data = np.vstack([time, data])
     separator = str(options.get("separator", "\t"))
     precision = int(options.get("precision", 7))
-    labels = ["Time", *_channel_labels(EEG)] if _is_on(options.get("time", "on")) else _channel_labels(EEG)
+    labels = ["Time", *channel_labels(EEG)] if _is_on(options.get("time", "on")) else channel_labels(EEG)
     path = Path(filename)
     path.parent.mkdir(parents=True, exist_ok=True)
     transpose = _is_on(options.get("transpose", "off"))

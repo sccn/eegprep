@@ -7,7 +7,8 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
-from eegprep.functions.popfunc._file_io import _channel_labels, events_to_records, write_json
+from eegprep.functions.popfunc._file_io import channel_labels, events_to_records, write_json
+from eegprep.functions.popfunc._pop_utils import format_history_value
 from eegprep.functions.popfunc.pop_saveset import pop_saveset
 
 
@@ -35,7 +36,7 @@ def pop_exportbids(
         pop_saveset(deepcopy(eeg), str(eeg_dir / f"{prefix}_eeg.set"))
         _write_channels(eeg_dir / f"{prefix}_channels.tsv", eeg)
         _write_events(eeg_dir / f"{prefix}_events.tsv", eeg)
-    command = f"LASTCOM = pop_exportbids(EEG, '{root}');"
+    command = f"LASTCOM = pop_exportbids(EEG, {format_history_value(root)});"
     return (str(root), command) if return_com else str(root)
 
 
@@ -50,7 +51,7 @@ def _write_channels(path: Path, eeg: dict[str, Any]) -> None:
     with path.open("w", newline="", encoding="utf-8") as stream:
         writer = csv.writer(stream, delimiter="\t")
         writer.writerow(["name", "type", "units"])
-        for label in _channel_labels(eeg):
+        for label in channel_labels(eeg):
             writer.writerow([label, "EEG", "uV"])
 
 

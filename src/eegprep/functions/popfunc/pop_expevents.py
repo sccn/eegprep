@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from eegprep.functions.popfunc._file_io import events_to_records
+from eegprep.functions.popfunc._pop_utils import format_history_value
 
 
 def pop_expevents(EEG: dict[str, Any], filename: str | Path) -> str:
@@ -19,4 +20,4 @@ def pop_expevents(EEG: dict[str, Any], filename: str | Path) -> str:
         writer = csv.DictWriter(stream, fieldnames=fields, delimiter="\t", extrasaction="ignore")
         writer.writeheader()
         writer.writerows(events)
-    return f"LASTCOM = pop_expevents(EEG, '{path}');"
+    return f"LASTCOM = pop_expevents(EEG, {format_history_value(path)});"

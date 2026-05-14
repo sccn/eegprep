@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from eegprep.functions.popfunc._pop_utils import format_history_value
 from eegprep.functions.popfunc.pop_importevent import pop_importevent
 
 
@@ -31,6 +32,6 @@ def pop_importpres(
         **kwargs,
     )
     eeg, _command = out
-    command = f"EEG = pop_importpres(EEG, {filename!r});"
+    command = f"EEG = pop_importpres(EEG, {format_history_value(filename)});"
     eeg["history"] = command if not EEG.get("history") else f"{EEG['history'].rstrip()}\n{command}"
     return (eeg, command) if return_com else eeg

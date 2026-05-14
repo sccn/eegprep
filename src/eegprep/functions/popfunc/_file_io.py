@@ -235,7 +235,7 @@ def eeg_to_mne_raw(eeg: dict[str, Any]) -> mne.io.RawArray:
     data = np.asarray(eeg["data"])
     if data.ndim == 3:
         data = data.reshape((data.shape[0], data.shape[1] * data.shape[2]))
-    ch_names = _channel_labels(eeg)
+    ch_names = channel_labels(eeg)
     info = mne.create_info(ch_names=ch_names, sfreq=float(eeg["srate"]), ch_types="eeg")
     raw = mne.io.RawArray(data / 1_000_000.0, info, verbose=False)
     events = events_to_records(eeg.get("event"))
@@ -312,7 +312,8 @@ def _default_chanlocs(nbchan: int) -> list[dict[str, Any]]:
     return [{"labels": f"Ch{index}", "type": "EEG"} for index in range(1, int(nbchan) + 1)]
 
 
-def _channel_labels(eeg: dict[str, Any]) -> list[str]:
+def channel_labels(eeg: dict[str, Any]) -> list[str]:
+    """Return channel labels for an EEGLAB-like EEG dict."""
     chanlocs = eeg.get("chanlocs")
     if chanlocs is None:
         chanlocs = []
