@@ -121,4 +121,4 @@ def is_placeholder_action(action: str) -> bool:
 
 def placeholder_message(action: str) -> str:
     """Build the shared EEGLAB-style placeholder message for ``action``."""
-    return f"{action} is coming soon in EEGPrep.\n\nTODO: port the matching EEGLAB flow."
+    return f"{action} is coming soon in EEGPrep.\n\nTODO: port the matching workflow."

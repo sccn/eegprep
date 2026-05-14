@@ -12,19 +12,16 @@ from eegprep.functions.guifunc.menu_placeholders import is_placeholder_action, p
 from eegprep.functions.guifunc.pophelp import pophelp
 from eegprep.functions.guifunc.session import EEGPrepSession, has_eeg_data
 from eegprep.functions.popfunc._coming_soon import coming_soon
-from eegprep.functions.popfunc.pop_adjustevents import pop_adjustevents
-from eegprep.functions.popfunc.pop_interp import pop_interp
-from eegprep.functions.popfunc.pop_loadset import pop_loadset
-from eegprep.functions.popfunc.pop_reref import pop_reref
-from eegprep.functions.popfunc.pop_saveset import pop_saveset
-from eegprep.plugins.ICLabel.iclabel import iclabel
 
 
 logger = logging.getLogger(__name__)
 
 IMPLEMENTED_ACTIONS = {
     "clear_study",
+    "docs",
     "help",
+    "issues",
+    "license",
     "mailto",
     "pop_adjustevents",
     "pop_delset",
@@ -70,11 +67,20 @@ class MenuActionDispatcher:
         if base == "help":
             self._show_help(variant or "eeglab", parent)
             return
+        if base == "docs":
+            webbrowser.open(_docs_url(variant))
+            return
+        if base == "issues":
+            webbrowser.open("https://github.com/sccn/eegprep/issues")
+            return
+        if base == "license":
+            webbrowser.open("https://github.com/sccn/eegprep/blob/develop/LICENSE")
+            return
         if base == "mailto":
             webbrowser.open(f"mailto:{variant}")
             return
         if base == "tutorial":
-            webbrowser.open("https://eeglab.org/tutorials/")
+            webbrowser.open(_docs_url("user_guide/quickstart.html"))
             return
         if base == "pop_loadset":
             self._loadset(parent)
@@ -113,12 +119,14 @@ class MenuActionDispatcher:
         qt_widgets.QMessageBox.information(parent, "EEGPrep", message)
 
     def _loadset(self, parent: Any | None) -> None:
+        from eegprep.functions.popfunc.pop_loadset import pop_loadset
+
         qt_widgets = _require_qt_widgets()
         filename, _filter = qt_widgets.QFileDialog.getOpenFileName(
             parent,
             "Load existing dataset",
             "",
-            "EEGLAB datasets (*.set *.mat);;All files (*)",
+            "EEGPrep/EEGLAB datasets (*.set *.mat);;All files (*)",
         )
         if not filename:
             return
@@ -142,11 +150,13 @@ class MenuActionDispatcher:
                 parent,
                 "Save current dataset as",
                 str(datasets[0].get("filename") or ""),
-                "EEGLAB datasets (*.set);;All files (*)",
+                "EEGPrep/EEGLAB datasets (*.set);;All files (*)",
             )
             filenames = [filename]
         if len(datasets) == 1 and not filename:
             return
+        from eegprep.functions.popfunc.pop_saveset import pop_saveset
+
         for eeg, filename in zip(datasets, filenames):
             pop_saveset(eeg, filename)
             _apply_save_metadata(eeg, filename)
@@ -164,10 +174,16 @@ class MenuActionDispatcher:
         if selection is None:
             return
         if name == "pop_adjustevents":
+            from eegprep.functions.popfunc.pop_adjustevents import pop_adjustevents
+
             out = pop_adjustevents(selection, return_com=True)
         elif name == "pop_reref":
+            from eegprep.functions.popfunc.pop_reref import pop_reref
+
             out = pop_reref(selection, return_com=True)
         elif name == "pop_interp":
+            from eegprep.functions.popfunc.pop_interp import pop_interp
+
             out = pop_interp(selection, alleeg=self.session.ALLEEG, return_com=True)
         else:
             self.show_coming_soon(name, parent)
@@ -184,6 +200,8 @@ class MenuActionDispatcher:
         selection = self._current_selection_or_warn(parent, allow_multiple=True)
         if selection is None:
             return
+        from eegprep.plugins.ICLabel.iclabel import iclabel
+
         if isinstance(selection, list):
             self.session.store_current(
                 [iclabel(eeg) for eeg in selection],
@@ -251,6 +269,12 @@ def _apply_save_metadata(eeg: dict[str, Any], filename: str) -> None:
     eeg["filename"] = path.name
     eeg["filepath"] = str(path.parent)
     eeg["saved"] = "yes"
+
+
+def _docs_url(path: str = "") -> str:
+    base = "https://sccn.github.io/eegprep/"
+    path = str(path or "").lstrip("/")
+    return base + path
 
 
 def action_kind(action: str) -> str:

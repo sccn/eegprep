@@ -25,7 +25,7 @@ class VisualParityConfigTests(unittest.TestCase):
         cases = load_manifest()
 
         self.assertIn("main_window", cases)
-        self.assertEqual(cases["main_window"].window_size, (386, 290))
+        self.assertEqual(cases["main_window"].window_size, (520, 380))
         self.assertIn("eeglab", cases["main_window"].targets)
         self.assertIn("eegprep.functions.guifunc.visual_capture", cases["main_window"].targets["eegprep"].command)
         self.assertIn("adjust_events_dialog", cases)

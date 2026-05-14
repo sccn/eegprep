@@ -1,5 +1,6 @@
 import os
 import logging
+import sys
 import unittest
 from unittest import mock
 
@@ -119,13 +120,27 @@ class MainMenuSpecTests(unittest.TestCase):
     def test_eeg_bids_plugin_items_match_file_menu_locations(self):
         file_menu = _child(eeglab_menus(all_menus=False), "File")
         import_menu = _child(file_menu.children, "Import data")
-        import_functions = _child(import_menu.children, "Using EEGLAB functions and plugins")
+        import_functions = _child(import_menu.children, "Using EEGPrep functions and plugins")
         export_menu = _child(file_menu.children, "Export")
 
         self.assertIn("From BIDS folder structure", _labels(import_functions.children))
         self.assertIn("Import Magstim/EGI .mff file", _labels(import_functions.children))
         self.assertIn("To BIDS folder structure", _labels(export_menu.children))
         self.assertEqual(_labels(file_menu.children)[4], "BIDS tools")
+        self.assertIn("Manage EEGPrep extensions", _labels(file_menu.children))
+
+    def test_help_menu_uses_eegprep_branding_and_docs_actions(self):
+        help_menu = _child(eeglab_menus(all_menus=False), "Help")
+        help_labels = _labels(help_menu.children)
+
+        self.assertIn("About EEGPrep", help_labels)
+        self.assertIn("Check for EEGPrep updates", help_labels)
+        self.assertIn("EEGPrep menus", help_labels)
+        self.assertIn("EEGPrep tutorial", help_labels)
+        self.assertIn("Report an EEGPrep issue", help_labels)
+        self.assertNotIn("EEGLAB tutorial", help_labels)
+        self.assertEqual(_child(help_menu.children, "About EEGPrep").action, "docs")
+        self.assertEqual(_child(help_menu.children, "Report an EEGPrep issue").action, "issues")
 
     def test_viewprops_plugin_items_match_plot_menu_locations(self):
         plot_menu = _child(eeglab_menus(all_menus=False), "Plot")
@@ -148,6 +163,22 @@ class MainMenuSpecTests(unittest.TestCase):
         self.assertFalse(menu_enabled(tools_menu, {"startup"}))
         self.assertTrue(menu_enabled(tools_menu, {"continuous_dataset"}))
         self.assertFalse(menu_enabled(channel_locations, {"continuous_dataset", "chanloc_absent"}))
+
+    def test_startup_top_level_enabled_states_match_eegprep_ux(self):
+        enabled_by_label = {menu.label: menu_enabled(menu, {"startup"}) for menu in eeglab_menus(all_menus=False)}
+
+        self.assertEqual(
+            enabled_by_label,
+            {
+                "File": True,
+                "Edit": False,
+                "Tools": False,
+                "Plot": False,
+                "Study": False,
+                "Datasets": False,
+                "Help": True,
+            },
+        )
 
     def test_all_menu_actions_are_classified(self):
         actions = menu_actions(eeglab_menus(all_menus=True))
@@ -325,7 +356,7 @@ class MenuActionDispatcherTests(unittest.TestCase):
         reref_output = [dict(item, ref="average") for item in session.EEG]
 
         with mock.patch(
-            "eegprep.functions.guifunc.menu_actions.pop_reref",
+            "eegprep.functions.popfunc.pop_reref.pop_reref",
             return_value=(reref_output, "EEG = pop_reref(EEG);"),
         ) as reref:
             dispatcher.dispatch("pop_reref")
@@ -343,7 +374,7 @@ class MenuActionDispatcherTests(unittest.TestCase):
         session.ALLEEG[0]["saved"] = "no"
         dispatcher = MenuActionDispatcher(session)
 
-        with mock.patch("eegprep.functions.guifunc.menu_actions.pop_saveset") as saveset:
+        with mock.patch("eegprep.functions.popfunc.pop_saveset.pop_saveset") as saveset:
             dispatcher.dispatch("pop_saveset:resave")
 
         saveset.assert_called_once_with(mock.ANY, os.path.normpath("/tmp/demo.set"))
@@ -369,7 +400,7 @@ class MenuActionDispatcherTests(unittest.TestCase):
             eeg["saved"] = "no"
         dispatcher = MenuActionDispatcher(session)
 
-        with mock.patch("eegprep.functions.guifunc.menu_actions.pop_saveset") as saveset:
+        with mock.patch("eegprep.functions.popfunc.pop_saveset.pop_saveset") as saveset:
             dispatcher.dispatch("pop_saveset:resave")
 
         self.assertEqual(
@@ -383,6 +414,33 @@ class MenuActionDispatcherTests(unittest.TestCase):
 
 
 class QtMainWindowTests(unittest.TestCase):
+    def test_gui_main_window_startup_branding_size_and_menu_states(self):
+        pytest.importorskip("PySide6")
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from eegprep.functions.guifunc.main_window import build_main_window
+
+        window = build_main_window(EEGPrepSession(), all_menus=False)
+        size = window.window.size()
+        minimum_size = window.window.minimumSize()
+        enabled_by_label = {item["label"]: item["enabled"] for item in window.menu_inventory()}
+
+        self.assertEqual(window.window.windowTitle(), "EEGPrep")
+        self.assertEqual((size.width(), size.height()), (520, 380))
+        self.assertEqual((minimum_size.width(), minimum_size.height()), (460, 340))
+        self.assertEqual(
+            enabled_by_label,
+            {
+                "File": True,
+                "Edit": False,
+                "Tools": False,
+                "Plot": False,
+                "Study": False,
+                "Datasets": False,
+                "Help": True,
+            },
+        )
+        window.window.close()
+
     def test_gui_main_window_inventory_includes_dynamic_dataset_menu(self):
         pytest.importorskip("PySide6")
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -422,7 +480,7 @@ class QtMainWindowTests(unittest.TestCase):
         self.assertTrue(dataset_actions["Dataset 2:second"].isChecked())
         window.window.close()
 
-    def test_gui_main_window_uses_non_native_menu_roles(self):
+    def test_gui_main_window_uses_native_menu_request_and_non_native_menu_roles(self):
         pytest.importorskip("PySide6")
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
         from PySide6 import QtGui
@@ -433,7 +491,10 @@ class QtMainWindowTests(unittest.TestCase):
         menubar = window.window.menuBar()
         actions = _qt_actions(menubar.actions())
 
-        self.assertFalse(menubar.isNativeMenuBar())
+        if sys.platform == "darwin" and os.environ.get("QT_QPA_PLATFORM") != "offscreen":
+            self.assertTrue(menubar.isNativeMenuBar())
+        else:
+            self.assertFalse(menubar.isNativeMenuBar())
         self.assertTrue(actions)
         self.assertTrue(all(action.menuRole() == QtGui.QAction.MenuRole.NoRole for action in actions))
         window.window.close()

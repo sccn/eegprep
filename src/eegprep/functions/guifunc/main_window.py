@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from typing import Any
 
 import numpy as np
@@ -43,6 +44,7 @@ class EEGPrepMainWindow:
         *,
         all_menus: bool | None = None,
         include_plugins: bool = True,
+        native_menu_bar: bool | None = None,
     ) -> None:
         qt_core, qt_gui, qt_widgets = _require_qt()
         self._qt_core = qt_core
@@ -53,11 +55,13 @@ class EEGPrepMainWindow:
         self.all_menus = bool(EEG_OPTIONS.get("option_allmenus", 0)) if all_menus is None else bool(all_menus)
         self.include_plugins = include_plugins
         self.window = qt_widgets.QMainWindow()
-        self.window.setObjectName("EEGLAB")
-        self.window.setWindowTitle("EEGPrep - EEGLAB-compatible GUI")
-        self.window.resize(386, 290)
+        self.window.setObjectName("EEGPrep")
+        self.window.setWindowTitle("EEGPrep")
+        self.window.resize(520, 380)
+        self.window.setMinimumSize(460, 340)
         self.window.setStyleSheet(_main_window_stylesheet())
-        self.window.menuBar().setNativeMenuBar(False)
+        use_native_menu_bar = sys.platform == "darwin" if native_menu_bar is None else bool(native_menu_bar)
+        self.window.menuBar().setNativeMenuBar(use_native_menu_bar)
         self.dispatcher = MenuActionDispatcher(self.session, refresh=self.refresh)
         self._build_central_widget()
         self.refresh()
@@ -102,7 +106,7 @@ class EEGPrepMainWindow:
         outer.setSpacing(0)
 
         frame = qt_widgets.QFrame()
-        frame.setObjectName("eeglab_frame")
+        frame.setObjectName("eegprep_frame")
         frame.setFrameShape(qt_widgets.QFrame.Box)
         frame.setFrameShadow(qt_widgets.QFrame.Plain)
         frame_layout = qt_widgets.QVBoxLayout(frame)
@@ -265,9 +269,15 @@ def build_main_window(
     *,
     all_menus: bool | None = None,
     include_plugins: bool = True,
+    native_menu_bar: bool | None = None,
 ) -> EEGPrepMainWindow:
     """Build an EEGPrep main window without entering the Qt event loop."""
-    return EEGPrepMainWindow(session=session, all_menus=all_menus, include_plugins=include_plugins)
+    return EEGPrepMainWindow(
+        session=session,
+        all_menus=all_menus,
+        include_plugins=include_plugins,
+        native_menu_bar=native_menu_bar,
+    )
 
 
 def _summary_for_session(session: EEGPrepSession) -> tuple[str, str, list[tuple[str, str]]]:
@@ -368,17 +378,9 @@ def _main_window_stylesheet() -> str:
     QLabel#startup_title {{
         font-weight: bold;
     }}
-    QFrame#eeglab_frame {{
+    QFrame#eegprep_frame {{
         border: 1px solid #777777;
         background: {BACKEEGLABCOLOR};
-    }}
-    QMenuBar, QMenu {{
-        background: #f0f0f0;
-        color: black;
-        font-size: 13px;
-    }}
-    QMenu::item:disabled {{
-        color: #8a8a8a;
     }}
     """
 
