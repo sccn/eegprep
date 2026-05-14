@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import ctypes
+import ctypes.util
 import sys
 from typing import Any
 
@@ -25,6 +27,7 @@ BACKEEGLABCOLOR = "#a8c2ff"
 GUITEXTCOLOR = "#000066"
 PLUGINMENUCOLOR = "#800080"
 APP_NAME = "EEGPrep"
+_MACOS_MENU_BRANDING_RETRY_MS = 100
 
 
 def _require_qt() -> tuple[Any, Any, Any]:
@@ -76,7 +79,13 @@ class EEGPrepMainWindow:
         self.window.raise_()
         self._apply_application_branding()
         self._qt_core.QTimer.singleShot(0, self._apply_application_branding)
-        self._qt_core.QTimer.singleShot(100, self._apply_application_branding)
+        # Cocoa can populate or rewrite the native application menu after
+        # QMainWindow.show() returns, so the first pass may have no app-menu
+        # item to rename. Keep the retry short and idempotent.
+        self._qt_core.QTimer.singleShot(
+            _MACOS_MENU_BRANDING_RETRY_MS,
+            self._apply_application_branding,
+        )
         return self
 
     def exec(self) -> int:
@@ -505,9 +514,6 @@ def _macos_objc_runtime() -> tuple[Any, Any, Any] | None:
     if sys.platform != "darwin":
         return None
     try:
-        import ctypes
-        import ctypes.util
-
         objc_path = ctypes.util.find_library("objc")
         foundation_path = ctypes.util.find_library("Foundation")
         if objc_path is None or foundation_path is None:
@@ -539,9 +545,8 @@ def _objc_selector(runtime: tuple[Any, Any, Any], name: str) -> Any:
 
 def _objc_msg_send(runtime: tuple[Any, Any, Any], restype: Any, *argtypes: Any) -> Any:
     ctypes, objc, _foundation = runtime
-    objc.objc_msgSend.restype = restype
-    objc.objc_msgSend.argtypes = [ctypes.c_void_p, ctypes.c_void_p, *argtypes]
-    return objc.objc_msgSend
+    prototype = ctypes.CFUNCTYPE(restype, ctypes.c_void_p, ctypes.c_void_p, *argtypes)
+    return prototype(("objc_msgSend", objc))
 
 
 def _macos_nsstring(runtime: tuple[Any, Any, Any], text: str) -> Any:

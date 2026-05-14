@@ -9,7 +9,7 @@ import pytest
 
 from eegprep.functions.guifunc.eeglab_menu import eeglab_menus, menu_actions
 from eegprep.functions.guifunc.menu_actions import HELP_SOURCE_FALLBACKS, MenuActionDispatcher, action_kind
-from eegprep.functions.guifunc.menu_placeholders import is_placeholder_action
+from eegprep.functions.guifunc.menu_placeholders import is_placeholder_action, placeholder_message
 from eegprep.functions.guifunc.menu_spec import menu_enabled
 from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
@@ -332,6 +332,13 @@ class MenuActionDispatcherTests(unittest.TestCase):
 
         coming_soon.assert_called_once_with("pop_subcomp", None)
 
+    def test_placeholder_message_is_user_facing(self):
+        message = placeholder_message("pop_subcomp")
+
+        self.assertIn("not yet available in EEGPrep", message)
+        self.assertIn("https://github.com/sccn/eegprep/issues", message)
+        self.assertNotIn("TODO", message)
+
     def test_gui_dispatch_shows_warning_for_action_errors(self):
         dispatcher = MenuActionDispatcher(EEGPrepSession())
 
@@ -584,6 +591,7 @@ class QtMainWindowTests(unittest.TestCase):
 
         if sys.platform == "darwin" and os.environ.get("QT_QPA_PLATFORM") != "offscreen":
             self.assertTrue(menubar.isNativeMenuBar())
+            self.assertEqual(menubar.actions()[0].menuRole(), QtGui.QAction.MenuRole.NoRole)
         else:
             self.assertFalse(menubar.isNativeMenuBar())
         self.assertTrue(actions)

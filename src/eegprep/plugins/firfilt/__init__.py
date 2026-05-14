@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from importlib import import_module
 from typing import Any
 
 _LAZY_EXPORTS = {
@@ -17,8 +18,6 @@ def __getattr__(name: str) -> Any:
         module_name, attr_name = _LAZY_EXPORTS[name]
     except KeyError as exc:
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from exc
-    from importlib import import_module
-
     value = getattr(import_module(module_name), attr_name)
     globals()[name] = value
     return value

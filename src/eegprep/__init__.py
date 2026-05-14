@@ -96,5 +96,6 @@ def __getattr__(name: str) -> Any:
     except KeyError as exc:
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from exc
     value = getattr(importlib.import_module(module_name), attr_name)
+    # Cache the resolved export so normal attribute lookup skips __getattr__.
     globals()[name] = value
     return value
