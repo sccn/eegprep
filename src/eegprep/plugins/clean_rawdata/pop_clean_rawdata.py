@@ -73,7 +73,7 @@ def pop_clean_rawdata(
 
 def pop_clean_rawdata_dialog_spec(EEG) -> DialogSpec:
     """Return the EEGLAB-like dialog spec for ``pop_clean_rawdata``."""
-    chanlocs = list(EEG.get("chanlocs", []) or [])
+    chanlocs = _chanloc_records(EEG.get("chanlocs", []))
     labels = tuple(str(chan.get("labels", "")) for chan in chanlocs if isinstance(chan, dict))
     winsize = max(0.5, 1.5 * float(EEG.get("nbchan", 1)) / float(EEG.get("srate", 1)))
     row4 = (0.1, 0.8, 0.2, 0.3)
@@ -85,7 +85,7 @@ def pop_clean_rawdata_dialog_spec(EEG) -> DialogSpec:
         eeglab_source="plugins/clean_rawdata/pop_clean_rawdata.m",
         geometry=(1, row, 1, 1, row4, row4, row, row, row, 1, 1, row, row2, row2, 1, 1, row, row, 1, 1),
         size=(681, 733),
-        help_text="pophelp('clean_artifacts')",
+        help_text="pophelp('pop_clean_rawdata')",
         controls=(
             ControlSpec(
                 "checkbox",
@@ -159,6 +159,16 @@ def pop_clean_rawdata_dialog_spec(EEG) -> DialogSpec:
             ControlSpec("checkbox", "Pop up scrolling data window with rejected data highlighted", tag="vis", value=False),
         ),
     )
+
+
+def _chanloc_records(chanlocs):
+    if chanlocs is None:
+        return []
+    if isinstance(chanlocs, dict):
+        return [chanlocs]
+    if isinstance(chanlocs, np.ndarray):
+        return list(chanlocs.ravel())
+    return list(chanlocs)
 
 
 def _run_gui(EEG, renderer=None):

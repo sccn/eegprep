@@ -205,6 +205,10 @@ class QtDialogRenderer:
                 min-width: 163px;
                 max-width: 163px;
             }
+            QDialog#pop_runica QListWidget {
+                min-height: 102px;
+                max-height: 102px;
+            }
             QCheckBox {
                 spacing: 4px;
             }

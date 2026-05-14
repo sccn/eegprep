@@ -35,7 +35,12 @@ class PopRunicaGuiTests(unittest.TestCase):
             [(control.style, control.string, control.tag) for control in spec.controls],
             [
                 ("text", "ICA algorithm to use (click to select)", None),
-                ("listbox", "Extended Infomax (runica.m; default)|Robust Extended Infomax (runica.m; slow)", "icatype"),
+                (
+                    "listbox",
+                    "Extended Infomax (runica.m; default)|Robust Extended Infomax (runica.m; slow)|"
+                    "AMICA (slowest; best)|Infomax picard.m|FastICA picard.m (fastest)",
+                    "icatype",
+                ),
                 ("text", "Commandline options (See help messages)", None),
                 ("edit", "", "params"),
                 ("checkbox", "Reorder components by variance (if that's not already the case)", "reorder"),
@@ -64,7 +69,10 @@ class PopRunicaGuiTests(unittest.TestCase):
 
         runica.assert_called_once()
         self.assertEqual(out["icaweights"].shape, (4, 4))
-        self.assertEqual(com, "EEG = pop_runica(EEG, 'icatype', 'runica', 'extended', 1, 'maxsteps', 2);")
+        self.assertEqual(
+            com,
+            "EEG = pop_runica(EEG, 'icatype', 'runica', 'extended', 1, 'maxsteps', 2, 'interrupt', 'on');",
+        )
 
     def test_gui_numeric_chanind_keeps_one_based_history(self):
         class Renderer:
@@ -89,10 +97,10 @@ class PopRunicaGuiTests(unittest.TestCase):
         np.testing.assert_array_equal(out["icachansind"], np.array([0, 1]))
         self.assertEqual(
             com,
-            "EEG = pop_runica(EEG, 'icatype', 'runica', 'extended', 1, 'maxsteps', 2, 'chanind', [1 2]);",
+            "EEG = pop_runica(EEG, 'icatype', 'runica', 'extended', 1, 'maxsteps', 2, 'interrupt', 'on', 'chanind', [1 2]);",
         )
 
-    def test_chanind_accepts_numpy_array(self):
+    def test_chanind_accepts_one_based_numpy_array(self):
         eeg = _eeg()
         updated = dict(
             eeg,
@@ -105,11 +113,89 @@ class PopRunicaGuiTests(unittest.TestCase):
             icaact=np.zeros((2, 20, 1)),
         )
         with mock.patch("eegprep.functions.popfunc.pop_runica.eeg_runica", return_value=updated):
-            out, com = pop_runica(eeg, chanind=np.array([0, 1]), return_com=True)
+            out, com = pop_runica(eeg, chanind=np.array([1, 2]), return_com=True)
 
         self.assertEqual(out["icaweights"].shape, (2, 2))
         np.testing.assert_array_equal(out["icachansind"], np.array([0, 1]))
-        self.assertEqual(com, "EEG = pop_runica(EEG, 'icatype', 'runica', 'extended', 1, 'chanind', [0 1]);")
+        self.assertEqual(com, "EEG = pop_runica(EEG, 'icatype', 'runica', 'extended', 1, 'chanind', [1 2]);")
+
+    def test_gui_dialog_spec_adds_concatenate_controls_for_multiple_datasets(self):
+        spec = pop_runica_dialog_spec([_eeg(), _eeg()])
+        tagged = {control.tag: control for control in spec.controls if control.tag}
+
+        self.assertIn("concatenate", tagged)
+        self.assertIn("concatcond", tagged)
+        self.assertFalse(tagged["concatenate"].value)
+        self.assertTrue(tagged["concatcond"].value)
+
+    def test_picard_algorithm_routes_to_eeg_picard(self):
+        eeg = _eeg()
+        updated = dict(eeg, icaweights=np.eye(4), icasphere=np.eye(4), icawinv=np.eye(4), icaact=np.zeros((4, 20, 1)))
+
+        with mock.patch("eegprep.functions.popfunc.pop_runica.eeg_picard", return_value=updated) as picard:
+            out, com = pop_runica(eeg, icatype="picard", options={"maxiter": 7, "mode": "standard"}, return_com=True)
+
+        picard.assert_called_once()
+        self.assertEqual(picard.call_args.kwargs["max_iter"], 7)
+        self.assertFalse(picard.call_args.kwargs["ortho"])
+        self.assertEqual(out["icaweights"].shape, (4, 4))
+        self.assertEqual(com, "EEG = pop_runica(EEG, 'icatype', 'picard', 'maxiter', 7, 'mode', 'standard');")
+
+    def test_key_value_options_override_backend_defaults(self):
+        eeg = _eeg()
+        updated = dict(eeg, icaweights=np.eye(4), icasphere=np.eye(4), icawinv=np.eye(4), icaact=np.zeros((4, 20, 1)))
+
+        with mock.patch("eegprep.functions.popfunc.pop_runica.eeg_runica", return_value=updated) as runica:
+            _out, com = pop_runica(eeg, "extended", 0, return_com=True)
+
+        self.assertEqual(runica.call_args.kwargs["extended"], 0)
+        self.assertEqual(com, "EEG = pop_runica(EEG, 'icatype', 'runica', 'extended', 0);")
+
+    def test_amica_algorithm_routes_to_eeg_amica(self):
+        eeg = _eeg()
+        updated = dict(eeg, icaweights=np.eye(4), icasphere=np.eye(4), icawinv=np.eye(4), icaact=np.zeros((4, 20, 1)))
+
+        with mock.patch("eegprep.functions.popfunc.pop_runica.eeg_amica", return_value=updated) as amica:
+            out, com = pop_runica(eeg, icatype="runamica15", options={"maxiter": 3}, return_com=True)
+
+        amica.assert_called_once()
+        self.assertEqual(amica.call_args.kwargs["max_iter"], 3)
+        self.assertEqual(out["icaweights"].shape, (4, 4))
+        self.assertEqual(com, "EEG = pop_runica(EEG, 'icatype', 'runamica15', 'maxiter', 3);")
+
+    def test_concatenate_copies_single_decomposition_to_each_dataset(self):
+        first = _eeg()
+        second = dict(_eeg(), data=np.arange(80, 160, dtype=np.float64).reshape(4, 20))
+
+        def fake_runica(eeg, sortcomps="off", **_kwargs):
+            return dict(eeg, icaweights=np.eye(4), icasphere=np.eye(4), icawinv=np.eye(4), icaact=np.zeros((4, 40, 1)))
+
+        with mock.patch("eegprep.functions.popfunc.pop_runica.eeg_runica", side_effect=fake_runica) as runica:
+            out, com = pop_runica([first, second], options={"extended": 1}, concatenate="on", return_com=True)
+
+        runica.assert_called_once()
+        self.assertEqual(runica.call_args.args[0]["data"].shape, (4, 40))
+        self.assertEqual(len(out), 2)
+        for eeg in out:
+            np.testing.assert_array_equal(eeg["icaweights"], np.eye(4))
+            self.assertEqual(eeg["icaact"].size, 0)
+        self.assertIn("'concatenate', 'on'", com)
+
+    def test_existing_ica_is_saved_and_iclabel_removed_before_recompute(self):
+        eeg = dict(
+            _eeg(),
+            icaweights=np.eye(4),
+            icasphere=np.eye(4),
+            icachansind=np.arange(4),
+            etc={"ic_classification": {"ICLabel": {"version": "default"}}},
+        )
+        updated = dict(eeg, icaweights=np.eye(4) * 2, icasphere=np.eye(4), icawinv=np.eye(4), icaact=np.zeros((4, 20, 1)))
+
+        with mock.patch("eegprep.functions.popfunc.pop_runica.eeg_runica", return_value=updated):
+            out = pop_runica(eeg, options={"extended": 1})
+
+        self.assertNotIn("ic_classification", out["etc"])
+        np.testing.assert_array_equal(out["etc"]["oldicaweights"][0], np.eye(4))
 
     def test_qt_renderer_reads_listbox_as_one_based_row(self):
         class ListboxWidget:

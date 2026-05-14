@@ -1,5 +1,6 @@
 """EEGLAB-style EEG resampling pop function."""
 
+from copy import deepcopy
 import math
 from math import ceil, floor, gcd
 
@@ -10,17 +11,11 @@ from scipy.signal import resample, resample_poly
 from scipy.signal.windows import kaiser
 
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
+from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
-from eegprep.functions.miscfunc.misc import aslist
+from eegprep.functions.popfunc._file_io import events_to_records
 from eegprep.plugins.firfilt import firws, firwsord
-
-# TO DO TO ADDRESS DIFFERENCES BETWEEN MATLAB AND PYTHON
-# - Do a simple resample 500 to 250 Hz, there only the filter should matter (subsampling is just a decimation)
-# - Check the filter result in MATLAB and Python
-# - Check the options of the resample function in MATLAB and Python
-# - Try the pyresample package
-# - Check for boundary effects in MATLAB and Python (different padding)
 
 
 def pop_resample(
@@ -86,58 +81,11 @@ def pop_resample(
         command = _history_command(freq)
         return (EEG_new, command) if return_com else EEG_new
 
-    # Default Python implementation
-    else:
-        if engine is None:
-            # use the resample_eeg function
-            EEG_new = resample_eeg(EEG, freq, method='poly', fc=fc, df=df)
-
-        elif engine == 'poly':
-            # use the resample_poly function
-            EEG_new = resample_eeg(EEG, freq, method='poly', fc=fc, df=df)
-
-        elif engine == 'scipy':
-            # Calculate the new number of points
-            # Resample the data
-
-            # Create a copy of the EEG structure
-            EEG_new = EEG.copy()
-            old_srate = EEG['srate']
-            old_pnts = EEG['pnts']
-            new_pnts = int(old_pnts * freq / old_srate)
-
-            if 'data' in EEG:
-                EEG_new['data'] = resample(EEG['data'].astype(np.float64), new_pnts, axis=1).astype(np.float32)
-
-        else:
-            raise ValueError(f"Unsupported engine: {engine}. Should be None, 'matlab', or 'octave'")
-
-        # Update EEG structure
-        new_pnts = EEG_new['data'].shape[1]
-        EEG_new['pnts'] = new_pnts
-        EEG_new['srate'] = freq
-
-        # Update xmin and xmax if present
-        if 'xmin' in EEG and 'xmax' in EEG:
-            duration = EEG['xmax'] - EEG['xmin']
-            EEG_new['xmin'] = EEG['xmin']
-            EEG_new['xmax'] = EEG['xmin'] + (EEG_new['pnts']-1)/EEG_new['srate'] # was: EEG['xmin'] + duration
-
-        # Update times if present
-        EEG_new['times'] = np.linspace(EEG_new['xmin']*1000, EEG_new['xmax']*1000, new_pnts)
-
-        # Update event/urevent latencies if present
-        orig_ratio = freq / EEG['srate']
-        rational_approx = sp.nsimplify(orig_ratio, tolerance=1e-12)
-        p, q = rational_approx.as_numer_denom()
-        ratio = float(p/q)
-
-        for event in aslist(EEG_new.get('event', [])) + aslist(EEG_new.get('urevent', [])):
-            if isinstance(event, dict) and 'latency' in event:
-                event['latency'] = np.clip((event['latency']-1) * ratio + 1, 1, new_pnts)
-
-        command = _history_command(freq)
-        return (EEG_new, command) if return_com else EEG_new
+    if engine not in {None, "poly", "scipy"}:
+        raise ValueError("Unsupported engine: {engine}. Should be None, 'poly', 'scipy', 'matlab', or 'octave'".format(engine=engine))
+    EEG_new = resample_eeg(EEG, freq, method="poly" if engine is None else engine, fc=fc, df=df)
+    command = _history_command(freq)
+    return (EEG_new, command) if return_com else EEG_new
 
 
 def pop_resample_dialog_spec(srate) -> DialogSpec:
@@ -182,10 +130,9 @@ def _format_number(value):
         return str(int(value))
     return f"{value:g}"
 
+
 def resample_eeg(EEG, freq, method='poly', fc=0.9, df=0.2):
     """Port of EEGLAB's pop_resample behavior.
-
-    This currently supports only filtering of continuous / gap-free data.
 
     Parameters
     ----------
@@ -205,48 +152,150 @@ def resample_eeg(EEG, freq, method='poly', fc=0.9, df=0.2):
     EEG : dict
         EEGLAB EEG structure with resampled data.
     """
-    assert 0 <= fc <= 1, "Anti-aliasing filter cutoff frequency out of range"
+    if not 0 <= fc <= 1:
+        raise ValueError("Anti-aliasing filter cutoff frequency out of range.")
+    if method not in {"poly", "scipy", "octave"}:
+        raise ValueError(f"Unsupported method: {method}. Should be 'poly', 'scipy', or 'octave'")
 
-    # Calculate the ratio
-    ratio = freq / EEG['srate']
-    rational_approx = sp.nsimplify(ratio, tolerance=1e-12)
+    p, q = _resample_ratio(freq, EEG["srate"])
+    ratio = p / q
+    data = np.asarray(EEG["data"])
+    if data.ndim not in {2, 3}:
+        raise ValueError("pop_resample supports continuous or epoched EEG data")
+    old_pnts = int(EEG.get("pnts", data.shape[1]))
+    data_3d = data[:, :, np.newaxis] if data.ndim == 2 else data
+    bounds = _segment_bounds(EEG, old_pnts) if data_3d.shape[2] == 1 else np.asarray([1, old_pnts + 1], dtype=int)
+    segments = []
+    indices = [1]
+    for start, stop in zip(bounds[:-1], bounds[1:]):
+        segment = data_3d[:, start - 1:stop - 1, :]
+        resampled = _resample_segment(segment, p, q, method=method, fc=fc, df=df)
+        segments.append(resampled)
+        indices.append(indices[-1] + resampled.shape[1])
+    resampled_data = np.concatenate(segments, axis=1) if segments else data_3d[:, :0, :]
+
+    output = deepcopy(EEG)
+    output["data"] = resampled_data[:, :, 0] if data.ndim == 2 else resampled_data
+    output["pnts"] = int(resampled_data.shape[1])
+    output["trials"] = int(resampled_data.shape[2])
+    output["srate"] = float(freq)
+    output["xmin"] = float(output.get("xmin", EEG.get("xmin", 0.0)) or 0.0)
+    output["xmax"] = output["xmin"] + ((output["pnts"] - 1) / output["srate"] if output["pnts"] else 0.0)
+    output["times"] = np.linspace(output["xmin"] * 1000, output["xmax"] * 1000, output["pnts"]) if output["pnts"] else np.array([])
+    _resample_event_latencies(output, old_pnts, ratio, np.asarray(bounds), indices)
+    output["icaact"] = np.array([])
+    if output.get("setname"):
+        output["setname"] = f"{output['setname']} resampled"
+    output["saved"] = "no"
+    return output
+
+
+def _resample_ratio(freq, srate):
+    rational_approx = sp.nsimplify(float(freq) / float(srate), tolerance=1e-12)
     p, q = rational_approx.as_numer_denom()
-    p = int(p)
-    q = int(q)
+    return int(p), int(q)
 
-    # Prepare new data
-    EEG_new = EEG.copy()
-    EEG_new['data'] = np.zeros((EEG['nbchan'], int(EEG['pnts'] * p / q)))
 
-    if method == 'poly':
-        # use scipy's resample_poly() function
-        nyq = 1 / np.maximum(p, q)
-        fc *= nyq
-        df *= nyq
+def _segment_bounds(EEG, old_pnts):
+    bounds = [1]
+    for event in events_to_records(EEG.get("event")):
+        if not _is_boundary_event(event):
+            continue
+        try:
+            latency = float(event.get("latency"))
+        except (TypeError, ValueError):
+            continue
+        if latency <= 0 or latency > old_pnts:
+            continue
+        if not latency.is_integer():
+            latency = round(latency + 0.5)
+        bounds.append(int(latency))
+    bounds.append(old_pnts + 1)
+    return np.asarray(sorted(set(bounds)), dtype=int)
 
-        # determine filter order
-        m, _ = firwsord('kaiser', 2, df, 0.002)
 
-        # design windowed-sinc filter
-        wnd = kaiser(m + 1, beta=5)
-        b, _ = firws(m, fc, w=wnd)
+def _is_boundary_event(event):
+    event_type = event.get("type") if isinstance(event, dict) else None
+    if isinstance(event_type, str):
+        return event_type.lower().startswith("boundary")
+    return bool(EEG_OPTIONS.get("option_boundary99")) and event_type == -99
 
-        nPad = int(np.ceil((m / 2) / q) * q)
-        # constant-pad the data along axis=1
-        tmpdata = np.pad(EEG['data'], ((0, 0), (nPad, nPad)), mode='edge').astype(np.float64)
-        tmpdata = resample_poly(tmpdata, p, q, axis=1, window=b).astype(np.float32)
-        nPadAfter = nPad * p // q
-        # remove the padding and write back
-        EEG_new['data'] = tmpdata[:, nPadAfter:-nPadAfter]
-    elif method == 'octave':
-        # use port from octave:
-        for i in range(EEG['nbchan']):
-            tmp, h = resample_raw(EEG['data'][i, :].flatten().astype(np.float64), p, q)
-            EEG_new['data'][i, :] = tmp.astype(np.float32)
+
+def _resample_segment(segment, p, q, *, method, fc, df):
+    if segment.shape[1] < 2:
+        return segment.astype(np.float32, copy=True)
+    if method == "scipy":
+        return resample(segment.astype(np.float64), int(np.ceil(segment.shape[1] * p / q)), axis=1).astype(np.float32)
+    if method == "octave":
+        flattened = segment.transpose(1, 0, 2).reshape(segment.shape[1], -1)
+        resampled, _h = resample_raw(flattened.astype(np.float64), p, q)
+        return resampled.reshape(resampled.shape[0], segment.shape[0], segment.shape[2]).transpose(1, 0, 2).astype(np.float32)
+    return _resample_poly_segment(segment, p, q, fc=fc, df=df)
+
+
+def _resample_poly_segment(segment, p, q, *, fc, df):
+    nyq = 1 / np.maximum(p, q)
+    cutoff = fc * nyq
+    transition = df * nyq
+    m, _ = firwsord("kaiser", 2, transition, 0.002)
+    wnd = kaiser(m + 1, beta=5)
+    b, _ = firws(m, cutoff, w=wnd)
+    n_pad = int(np.ceil((m / 2) / q) * q)
+    pad_width = [(0, 0), (n_pad, n_pad), *[(0, 0) for _ in range(segment.ndim - 2)]]
+    padded = np.pad(segment, pad_width, mode="edge").astype(np.float64)
+    resampled = resample_poly(padded, p, q, axis=1, window=b).astype(np.float32)
+    n_pad_after = n_pad * p // q
+    if n_pad_after == 0:
+        return resampled
+    return resampled[:, n_pad_after:-n_pad_after, :]
+
+
+def _resample_event_latencies(output, old_pnts, ratio, bounds, indices):
+    events = events_to_records(output.get("event"))
+    urevents = events_to_records(output.get("urevent"))
+    if output["trials"] > 1:
+        _resample_epoched_events(events, old_pnts, output["pnts"], ratio)
+        output["urevent"] = []
     else:
-        raise ValueError(f"Unsupported method: {method}. Should be 'poly' or 'octave', but got {method}")
+        _resample_continuous_events(events, bounds, indices, ratio)
+        _resample_continuous_events(urevents, bounds, indices, ratio)
+        output["urevent"] = urevents
+    output["event"] = events
 
-    return EEG_new
+
+def _resample_epoched_events(events, old_pnts, new_pnts, ratio):
+    for event in events:
+        if "latency" not in event:
+            continue
+        epoch = int(event.get("epoch", 1) or 1)
+        event["latency"] = (float(event["latency"]) - (epoch - 1) * old_pnts - 1) * ratio + (epoch - 1) * new_pnts + 1
+        _scale_duration(event, ratio)
+
+
+def _resample_continuous_events(events, bounds, indices, ratio):
+    for event in events:
+        if "latency" not in event:
+            continue
+        latency = float(event["latency"])
+        if _is_boundary_event(event) and abs(latency % 1 - 0.5) < 1e-12:
+            segment_index = _segment_index(bounds, latency + 0.5)
+            event["latency"] = indices[segment_index] - 0.5
+        else:
+            segment_index = _segment_index(bounds, latency)
+            event["latency"] = (latency - bounds[segment_index]) * ratio + indices[segment_index]
+        _scale_duration(event, ratio)
+
+
+def _segment_index(bounds, latency):
+    index = int(np.searchsorted(bounds, latency, side="right") - 1)
+    return max(0, min(index, len(bounds) - 2))
+
+
+def _scale_duration(event, ratio):
+    if "duration" not in event or event["duration"] in (None, ""):
+        return
+    event["duration"] = float(event["duration"]) * ratio
+
 
 def upfirdn_raw(x, h, p, q):
     """Upfirdn implementation for resampling.
@@ -389,13 +438,6 @@ def resample_raw(x, p, q, h=None):
     h_padded = np.pad(h_padded, (0, nz_post), 'constant')
 
     # Filtering - fixed upfirdn usage
-    x_up = np.zeros(p * len(x))
-    x_up[::p] = x.flatten()
-    # y = signal.upfirdn(h_padded, x_up, up=1, down=q)
-    print(x.shape)
-    print(h_padded.shape)
-    print(p)
-    print(q)
     y = upfirdn_raw(x, h_padded, p, q)
     y = y[offset:offset + Ly]
 

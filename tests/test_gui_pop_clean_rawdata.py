@@ -31,6 +31,7 @@ class PopCleanRawdataGuiTests(unittest.TestCase):
         self.assertEqual(spec.title, "pop_clean_rawdata()")
         self.assertEqual(spec.function_name, "pop_clean_rawdata")
         self.assertEqual(spec.eeglab_source, "plugins/clean_rawdata/pop_clean_rawdata.m")
+        self.assertEqual(spec.help_text, "pophelp('pop_clean_rawdata')")
         labels = [(control.style, control.string, control.tag) for control in spec.controls]
         self.assertIn(("checkbox", "Remove channel drift (data not already high-pass filtered)", "filter"), labels)
         self.assertIn(("checkbox", "Process/remove channels", "chanrm"), labels)
@@ -45,6 +46,15 @@ class PopCleanRawdataGuiTests(unittest.TestCase):
         self.assertEqual(controls["chanignore_button"].callback.params["channels"], ("Cz", "Pz"))
         self.assertEqual(controls["filter"].callback.name, "toggle_enabled")
         self.assertEqual(controls["filter"].callback.params["targets"], ("filterfreqs",))
+
+    def test_gui_channel_callbacks_accept_numpy_chanlocs(self):
+        eeg = _eeg()
+        eeg["chanlocs"] = np.asarray(eeg["chanlocs"], dtype=object)
+
+        controls = controls_by_tag(pop_clean_rawdata_dialog_spec(eeg))
+
+        self.assertEqual(controls["chanuse_button"].callback.params["channels"], ("Cz", "Pz"))
+        self.assertEqual(controls["chanignore_button"].callback.params["channels"], ("Cz", "Pz"))
 
     def test_gui_result_runs_clean_artifacts_and_returns_history(self):
         class Renderer:

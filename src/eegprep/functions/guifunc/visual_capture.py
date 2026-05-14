@@ -363,6 +363,17 @@ def capture_pop_runica_dialog(output: pathlib.Path) -> None:
     _grab_dialog(dialog, output, app)
 
 
+def capture_pop_runica_multiple_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_runica dialog for multiple datasets."""
+    eeg = _demo_main_eeg()
+    second = dict(eeg)
+    second["setname"] = "second demo"
+    spec = pop_runica_dialog_spec([eeg, second])
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
 def capture_pop_iclabel_dialog(output: pathlib.Path) -> None:
     """Render and capture the pop_iclabel dialog."""
     spec = pop_iclabel_dialog_spec()
@@ -508,6 +519,8 @@ def main(argv: list[str] | None = None) -> int:
         capture_pop_resample_dialog(args.output)
     elif args.case == "pop_runica_dialog":
         capture_pop_runica_dialog(args.output)
+    elif args.case == "pop_runica_multiple_dialog":
+        capture_pop_runica_multiple_dialog(args.output)
     elif args.case == "pop_iclabel_dialog":
         capture_pop_iclabel_dialog(args.output)
     elif args.case == "pop_clean_rawdata_dialog":

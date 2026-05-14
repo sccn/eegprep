@@ -791,6 +791,7 @@ def _write_matlab_simple_pop_dialog_script(
     case: VisualCase,
     output_path: pathlib.Path,
     action: str,
+    variant: str = "default",
 ) -> pathlib.Path:
     eeglab_root = EEGLAB_REFERENCE_ROOT
     script_path = output_path.parent / f"{case.id}_eeglab_capture.m"
@@ -850,12 +851,17 @@ def _write_matlab_simple_pop_dialog_script(
                 f"output_file = {_matlab_string(output_path)};",
                 f"target_title = {_matlab_string(title_by_action[action])};",
                 f"action = {_matlab_string(action)};",
+                f"variant = {_matlab_string(variant)};",
                 f"eeglab_root = {_matlab_string(eeglab_root)};",
                 f"inputgui_override_dir = {_matlab_string(inputgui_override_dir)};",
                 "addpath(genpath(eeglab_root));",
                 "addpath(inputgui_override_dir, '-begin');",
                 "set(0, 'DefaultFigureVisible', 'on');",
                 "EEG = make_simple_pop_demo();",
+                "if strcmp(action, 'pop_runica') && strcmp(variant, 'multiple')",
+                "    EEG(2) = make_simple_pop_demo();",
+                "    EEG(2).setname = 'pop demo two';",
+                "end",
                 "switch action",
                 "    case 'pop_select'",
                 "        [EEG, com] = pop_select(EEG);",
@@ -1318,7 +1324,7 @@ def capture_target(
         elif action == "pop_interp":
             script_path = _write_matlab_interp_dialog_script(case, output_path, variant)
         elif action in {"pop_clean_rawdata", "pop_iclabel", "pop_resample", "pop_runica", "pop_select"}:
-            script_path = _write_matlab_simple_pop_dialog_script(case, output_path, action)
+            script_path = _write_matlab_simple_pop_dialog_script(case, output_path, action, variant)
         elif action == "inputdlg2":
             script_path = _write_matlab_dataset_index_dialog_script(case, output_path)
         elif action == "pophelp":

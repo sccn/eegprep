@@ -405,6 +405,31 @@
       }
     },
     {
+      "id": "pop_runica_multiple_dialog",
+      "description": "ICA decomposition dialog opened from pop_runica with multiple datasets.",
+      "window_size": [824, 394],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_runica:multiple"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_runica_multiple_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
       "id": "pop_iclabel_dialog",
       "description": "ICLabel version dialog opened from pop_iclabel.",
       "window_size": [356, 199],
