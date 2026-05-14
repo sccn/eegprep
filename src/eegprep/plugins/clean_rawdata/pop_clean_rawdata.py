@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from typing import Any
 
@@ -11,6 +12,9 @@ from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.plugins.clean_rawdata.clean_artifacts import clean_artifacts
 
+
+logger = logging.getLogger(__name__)
+_SHOW_VIS_ARTIFACTS_KEY = "_show_vis_artifacts"
 
 _OPTION_ALIASES = {
     "channelcriterion": "ChannelCriterion",
@@ -38,21 +42,27 @@ def pop_clean_rawdata(
     if EEG is None:
         return (None, "") if return_com else None
     options = _normalise_options(_parse_key_value_args(args, kwargs))
+    show_vis_artifacts = bool(options.pop(_SHOW_VIS_ARTIFACTS_KEY, False))
     if gui is None:
         gui = not bool(options)
     if gui:
         gui_options = _run_gui(EEG[0] if isinstance(EEG, list) else EEG, renderer=renderer)
         if gui_options is None:
             return (EEG, "") if return_com else EEG
+        show_vis_artifacts = bool(gui_options.pop(_SHOW_VIS_ARTIFACTS_KEY, False))
         options.update(gui_options)
     if isinstance(EEG, list):
         output = [pop_clean_rawdata(item, gui=False, **options) for item in EEG]
         command = _history_command(options)
+        if show_vis_artifacts:
+            _notify_vis_artifacts_unavailable()
         return (output, command) if return_com else output
     if int(EEG.get("trials", 1) or 1) > 1 or np.asarray(EEG.get("data")).ndim == 3:
         raise ValueError("Input data must be continuous. This data seems epoched.")
     clean_eeg, _hp, _bur, _removed_channels = clean_artifacts(EEG, **options)
     command = _history_command(options)
+    if show_vis_artifacts:
+        _notify_vis_artifacts_unavailable()
     return (clean_eeg, command) if return_com else clean_eeg
 
 
@@ -182,6 +192,7 @@ def _run_gui(EEG, renderer=None):
         options["WindowCriterion"] = float(result.get("rejwinval2", 25)) / 100.0
     if result.get("asrrej") and options["BurstCriterion"] != "off":
         options["BurstRejection"] = True
+    options[_SHOW_VIS_ARTIFACTS_KEY] = bool(result.get("vis"))
     return options
 
 
@@ -249,6 +260,8 @@ def _history_value(value):
     if isinstance(value, bool):
         return "'on'" if value else "'off'"
     if isinstance(value, (list, tuple, np.ndarray)):
+        if all(isinstance(item, str) for item in value):
+            return "{" + " ".join(_history_value(item) for item in value) + "}"
         return "[" + " ".join(_history_value(item) for item in value) + "]"
     if isinstance(value, float):
         if np.isneginf(value):
@@ -258,3 +271,20 @@ def _history_value(value):
         if value.is_integer():
             return str(int(value))
     return str(value)
+
+
+def _notify_vis_artifacts_unavailable():
+    message = (
+        "The clean_rawdata rejected-data scrolling viewer is not yet available in EEGPrep. "
+        "The dataset was still cleaned."
+    )
+    try:
+        from PySide6 import QtWidgets
+    except ImportError:
+        logger.warning(message)
+        return
+    app = QtWidgets.QApplication.instance()
+    if app is None:
+        logger.warning(message)
+        return
+    QtWidgets.QMessageBox.information(app.activeWindow(), "EEGPrep", message)

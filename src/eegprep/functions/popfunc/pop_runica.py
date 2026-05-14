@@ -52,6 +52,9 @@ def pop_runica(
         options = gui_result["options"]
         reorder = gui_result["reorder"]
         chanind = gui_result["chanind"]
+        apply_chanind = _gui_chanind_for_apply(chanind)
+    else:
+        apply_chanind = chanind
 
     runica_options = _normalise_runica_options(options, parsed)
     if str(icatype).lower() != "runica":
@@ -64,7 +67,7 @@ def pop_runica(
                 icatype=icatype,
                 options=runica_options,
                 reorder=reorder,
-                chanind=chanind,
+                chanind=apply_chanind,
                 gui=False,
             )
             for item in EEG
@@ -72,7 +75,7 @@ def pop_runica(
         command = _history_command(icatype, runica_options, reorder, chanind)
         return (output, command) if return_com else output
 
-    output = _runica_on_dataset(EEG, runica_options, reorder=reorder, chanind=chanind)
+    output = _runica_on_dataset(EEG, runica_options, reorder=reorder, chanind=apply_chanind)
     command = _history_command(icatype, runica_options, reorder, chanind)
     return (output, command) if return_com else output
 
@@ -140,8 +143,20 @@ def _run_gui(EEG, renderer=None):
         "icatype": _ALGORITHMS[algorithm_index][0],
         "options": _parse_option_text(str(result.get("params", "") or "")),
         "reorder": "on" if result.get("reorder") else "off",
-        "chanind": _parse_channel_text(chan_text, one_based=True) if chan_text else None,
+        "chanind": _parse_channel_text(chan_text) if chan_text else None,
     }
+
+
+def _gui_chanind_for_apply(chanind):
+    if chanind is None:
+        return None
+    if isinstance(chanind, np.ndarray):
+        chanind = chanind.tolist()
+    if isinstance(chanind, (list, tuple)):
+        return [value - 1 if isinstance(value, int) else value for value in chanind]
+    if isinstance(chanind, int):
+        return chanind - 1
+    return chanind
 
 
 def _runica_on_dataset(EEG, options, *, reorder, chanind):

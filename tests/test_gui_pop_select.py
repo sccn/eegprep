@@ -106,6 +106,27 @@ class PopSelectGuiTests(unittest.TestCase):
         self.assertEqual([chan["labels"] for chan in out["chaninfo"]["removedchans"]], ["HEOG", "VEOG"])
         self.assertEqual(com, "EEG = pop_select( EEG, 'channel', {'Fz' 'Cz'});")
 
+    def test_gui_numeric_channels_keep_one_based_history(self):
+        class Renderer:
+            def run(self, spec, initial_values=None):
+                return {
+                    "time": "",
+                    "rmtime": False,
+                    "point": "",
+                    "rmpoint": False,
+                    "trial": "",
+                    "rmtrial": False,
+                    "chans": "1 2 3",
+                    "rmchannel": False,
+                    "chantype": "",
+                    "rmchantype": False,
+                }
+
+        out, com = pop_select(_eeg(), gui=True, renderer=Renderer(), return_com=True)
+
+        self.assertEqual([chan["labels"] for chan in out["chanlocs"]], ["Fz", "Cz", "HEOG"])
+        self.assertEqual(com, "EEG = pop_select( EEG, 'channel', [1 2 3]);")
+
     def test_gui_result_handles_missing_optional_eeg_fields(self):
         class Renderer:
             def run(self, spec, initial_values=None):

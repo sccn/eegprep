@@ -84,6 +84,65 @@ class PopCleanRawdataGuiTests(unittest.TestCase):
         self.assertIn("'BurstCriterion', 20", com)
         self.assertIn("'BurstRejection', 'on'", com)
 
+    def test_gui_vis_checkbox_notifies_when_checked(self):
+        class Renderer:
+            def run(self, spec, initial_values=None):
+                return {
+                    "filter": False,
+                    "filterfreqs": "",
+                    "chanrm": False,
+                    "chanignoreflag": False,
+                    "chanignore": "",
+                    "chanuseflag": False,
+                    "chanuse": "",
+                    "rmflat": False,
+                    "rmflatsec": "5",
+                    "rmcorr": False,
+                    "rmcorrval": "0.8",
+                    "rmnoise": False,
+                    "rmnoiseval": "4",
+                    "asr": False,
+                    "asrstdval": "20",
+                    "distance": False,
+                    "rejwin": False,
+                    "rejwinval1": "-Inf 7",
+                    "rejwinval2": "25",
+                    "asrrej": False,
+                    "vis": True,
+                }
+
+        eeg = _eeg()
+        with (
+            mock.patch(
+                "eegprep.plugins.clean_rawdata.pop_clean_rawdata.clean_artifacts",
+                return_value=(dict(eeg, setname="cleaned"), eeg, eeg, np.zeros(2, dtype=bool)),
+            ) as clean,
+            mock.patch("eegprep.plugins.clean_rawdata.pop_clean_rawdata._notify_vis_artifacts_unavailable") as notify,
+        ):
+            out, com = pop_clean_rawdata(eeg, gui=True, renderer=Renderer(), return_com=True)
+
+        clean.assert_called_once()
+        notify.assert_called_once()
+        self.assertEqual(out["setname"], "cleaned")
+        self.assertNotIn("_show_vis_artifacts", com)
+
+    def test_string_channel_lists_use_matlab_cell_history(self):
+        eeg = _eeg()
+        with mock.patch(
+            "eegprep.plugins.clean_rawdata.pop_clean_rawdata.clean_artifacts",
+            return_value=(dict(eeg, setname="cleaned"), eeg, eeg, np.zeros(2, dtype=bool)),
+        ):
+            _out, com = pop_clean_rawdata(
+                eeg,
+                gui=False,
+                Channels=["Cz", "Pz"],
+                Channels_ignore=["ECG"],
+                return_com=True,
+            )
+
+        self.assertIn("'Channels', {'Cz' 'Pz'}", com)
+        self.assertIn("'Channels_ignore', {'ECG'}", com)
+
     def test_epoched_data_raises_clear_error(self):
         with self.assertRaisesRegex(ValueError, "continuous"):
             pop_clean_rawdata(_eeg(epoched=True), gui=False)

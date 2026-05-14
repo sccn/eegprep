@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import numpy as np
+
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.plugins.ICLabel.iclabel import iclabel
@@ -69,7 +71,7 @@ def _run_gui(renderer=None):
 
 def _require_ica(EEG):
     weights = EEG.get("icaweights")
-    if weights is None or getattr(weights, "size", len(weights) if hasattr(weights, "__len__") else 0) == 0:
+    if weights is None or np.asarray(weights).size == 0:
         raise ValueError("ICLabel requires an ICA decomposition. Run pop_runica first.")
 
 

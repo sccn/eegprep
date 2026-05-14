@@ -25,11 +25,14 @@ def pop_select(EEG, *args, gui=None, renderer=None, return_com=False, **kwargs):
         if gui_options is None:
             return (EEG, "") if return_com else EEG
         options.update(gui_options)
+        apply_options = _gui_options_for_apply(options)
+    else:
+        apply_options = options
     if isinstance(EEG, list):
-        output = [pop_select(item, gui=False, **options) for item in EEG]
+        output = [pop_select(item, gui=False, **apply_options) for item in EEG]
         command = _history_command(options)
         return (output, command) if return_com else output
-    output = _pop_select_apply(EEG, **options)
+    output = _pop_select_apply(EEG, **apply_options)
     command = _history_command(options)
     return (output, command) if return_com else output
 
@@ -660,10 +663,20 @@ def _add_text_option(options, result, tag, remove_tag, *, keep_key, remove_key):
     if not text:
         return
     key = remove_key if result.get(remove_tag) else keep_key
-    values = _parse_text_tokens(text)
-    if keep_key == "channel":
-        values = [value - 1 if isinstance(value, int) else value for value in values]
-    options[key] = values
+    options[key] = _parse_text_tokens(text)
+
+
+def _gui_options_for_apply(options):
+    apply_options = dict(options)
+    for key in ("channel", "rmchannel"):
+        values = apply_options.get(key)
+        if values is None:
+            continue
+        if isinstance(values, (list, tuple)):
+            apply_options[key] = [value - 1 if isinstance(value, int) else value for value in values]
+        elif isinstance(values, int):
+            apply_options[key] = values - 1
+    return apply_options
 
 
 def _parse_key_value_args(args, kwargs):

@@ -66,6 +66,32 @@ class PopRunicaGuiTests(unittest.TestCase):
         self.assertEqual(out["icaweights"].shape, (4, 4))
         self.assertEqual(com, "EEG = pop_runica(EEG, 'icatype', 'runica', 'extended', 1, 'maxsteps', 2);")
 
+    def test_gui_numeric_chanind_keeps_one_based_history(self):
+        class Renderer:
+            def run(self, spec, initial_values=None):
+                return {"icatype": 1, "params": "'extended', 1, 'maxsteps', 2", "reorder": True, "chantype": "1 2"}
+
+        eeg = _eeg()
+        updated = dict(
+            eeg,
+            data=eeg["data"][:2],
+            nbchan=2,
+            chanlocs=eeg["chanlocs"][:2],
+            icaweights=np.eye(2),
+            icasphere=np.eye(2),
+            icawinv=np.eye(2),
+            icaact=np.zeros((2, 20, 1)),
+        )
+        with mock.patch("eegprep.functions.popfunc.pop_runica.eeg_runica", return_value=updated):
+            out, com = pop_runica(eeg, gui=True, renderer=Renderer(), return_com=True)
+
+        self.assertEqual(out["icaweights"].shape, (2, 2))
+        np.testing.assert_array_equal(out["icachansind"], np.array([0, 1]))
+        self.assertEqual(
+            com,
+            "EEG = pop_runica(EEG, 'icatype', 'runica', 'extended', 1, 'maxsteps', 2, 'chanind', [1 2]);",
+        )
+
     def test_chanind_accepts_numpy_array(self):
         eeg = _eeg()
         updated = dict(
