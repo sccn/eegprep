@@ -244,11 +244,8 @@ def _pairs_to_dict(values):
     return {str(values[index]).lower(): values[index + 1] for index in range(0, len(values), 2)}
 
 
-def _parse_channel_text(text, *, one_based=False):
-    values = [_parse_scalar(value) for value in re.split(r"[\s,]+", text.strip().strip("[]")) if value]
-    if one_based:
-        values = [value - 1 if isinstance(value, int) else value for value in values]
-    return values
+def _parse_channel_text(text):
+    return [_parse_scalar(value) for value in re.split(r"[\s,]+", text.strip().strip("[]")) if value]
 
 
 def _parse_scalar(value):

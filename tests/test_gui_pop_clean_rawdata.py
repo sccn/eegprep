@@ -36,6 +36,7 @@ class PopCleanRawdataGuiTests(unittest.TestCase):
         self.assertIn(("checkbox", "Process/remove channels", "chanrm"), labels)
         self.assertIn(("checkbox", "Perform Artifact Subspace Reconstruction bad burst correction/rejection", "asr"), labels)
         self.assertIn(("checkbox", "Additional removal of bad data periods", "rejwin"), labels)
+        self.assertFalse(controls_by_tag(spec)["vis"].value)
 
     def test_gui_channel_callbacks_expose_labels(self):
         controls = controls_by_tag(pop_clean_rawdata_dialog_spec(_eeg()))

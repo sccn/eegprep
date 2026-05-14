@@ -151,7 +151,7 @@ def pop_clean_rawdata_dialog_spec(EEG) -> DialogSpec:
             ControlSpec("text", "Maximum out-of-bound channels (%)"),
             ControlSpec("edit", tag="rejwinval2", value="25"),
             ControlSpec("spacer"),
-            ControlSpec("checkbox", "Pop up scrolling data window with rejected data highlighted", tag="vis", value=True),
+            ControlSpec("checkbox", "Pop up scrolling data window with rejected data highlighted", tag="vis", value=False),
         ),
     )
 
