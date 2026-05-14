@@ -424,6 +424,8 @@ class QtMainWindowTests(unittest.TestCase):
         )
 
         window = build_main_window(EEGPrepSession(), all_menus=False)
+        window.show()
+        window.app.processEvents()
         size = window.window.size()
         minimum_size = window.window.minimumSize()
         enabled_by_label = {item["label"]: item["enabled"] for item in window.menu_inventory()}

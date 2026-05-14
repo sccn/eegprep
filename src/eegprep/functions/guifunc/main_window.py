@@ -74,6 +74,9 @@ class EEGPrepMainWindow:
         """Show the main window and return ``self``."""
         self.window.show()
         self.window.raise_()
+        self._apply_application_branding()
+        self._qt_core.QTimer.singleShot(0, self._apply_application_branding)
+        self._qt_core.QTimer.singleShot(100, self._apply_application_branding)
         return self
 
     def exec(self) -> int:
@@ -177,6 +180,12 @@ class EEGPrepMainWindow:
             action = self._add_top_menu(menubar, spec, statuses)
             if spec.label == "Study" and "multiple_datasets" in statuses:
                 action.setEnabled(False)
+        _set_macos_application_menu_title(APP_NAME)
+
+    def _apply_application_branding(self) -> None:
+        self.app.setApplicationName(APP_NAME)
+        self.app.setApplicationDisplayName(APP_NAME)
+        _set_macos_process_name(APP_NAME)
         _set_macos_application_menu_title(APP_NAME)
 
     def _current_menu_specs(self) -> tuple[MenuItemSpec, ...]:
