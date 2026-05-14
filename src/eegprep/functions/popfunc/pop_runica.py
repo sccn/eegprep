@@ -165,9 +165,11 @@ def _runica_on_dataset(EEG, options, *, reorder, chanind):
 
 
 def _resolve_chanind(EEG, chanind):
-    if chanind is None or chanind == "":
+    if chanind is None:
         return None
     if isinstance(chanind, str):
+        if chanind == "":
+            return None
         chanind = _parse_channel_text(chanind)
     if isinstance(chanind, np.ndarray):
         chanind = chanind.tolist()

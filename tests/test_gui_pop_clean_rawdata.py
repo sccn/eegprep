@@ -42,6 +42,8 @@ class PopCleanRawdataGuiTests(unittest.TestCase):
 
         self.assertEqual(controls["chanuse_button"].callback.params["channels"], ("Cz", "Pz"))
         self.assertEqual(controls["chanignore_button"].callback.params["channels"], ("Cz", "Pz"))
+        self.assertEqual(controls["filter"].callback.name, "toggle_enabled")
+        self.assertEqual(controls["filter"].callback.params["targets"], ("filterfreqs",))
 
     def test_gui_result_runs_clean_artifacts_and_returns_history(self):
         class Renderer:

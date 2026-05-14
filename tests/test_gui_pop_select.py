@@ -42,6 +42,16 @@ def _eeg():
     }
 
 
+def _epoched_eeg():
+    eeg = _eeg()
+    eeg["data"] = np.arange(120, dtype=np.float32).reshape(4, 10, 3)
+    eeg["pnts"] = 10
+    eeg["trials"] = 3
+    eeg["xmax"] = 0.09
+    eeg["epoch"] = [{}, {}, {}]
+    return eeg
+
+
 class PopSelectGuiTests(unittest.TestCase):
     def test_gui_dialog_spec_matches_eeglab_control_order(self):
         spec = pop_select_dialog_spec(_eeg())
@@ -95,6 +105,94 @@ class PopSelectGuiTests(unittest.TestCase):
         self.assertNotIn("There was an issue storing removed channels", stdout.getvalue())
         self.assertEqual([chan["labels"] for chan in out["chaninfo"]["removedchans"]], ["HEOG", "VEOG"])
         self.assertEqual(com, "EEG = pop_select( EEG, 'channel', {'Fz' 'Cz'});")
+
+    def test_gui_result_handles_missing_optional_eeg_fields(self):
+        class Renderer:
+            def run(self, spec, initial_values=None):
+                return {
+                    "time": "",
+                    "rmtime": False,
+                    "point": "",
+                    "rmpoint": False,
+                    "trial": "",
+                    "rmtrial": False,
+                    "chans": "Fz Cz",
+                    "rmchannel": False,
+                    "chantype": "",
+                    "rmchantype": False,
+                }
+
+        eeg = {
+            "data": np.arange(120, dtype=np.float32).reshape(3, 40),
+            "nbchan": 3,
+            "pnts": 40,
+            "trials": 1,
+            "srate": 100,
+            "xmin": 0,
+            "xmax": 0.39,
+            "times": np.arange(40),
+            "event": [],
+            "urevent": [],
+            "epoch": [],
+            "chanlocs": [
+                {"labels": "Fz", "type": "EEG"},
+                {"labels": "Cz", "type": "EEG"},
+                {"labels": "Pz", "type": "EOG"},
+            ],
+        }
+
+        out, com = pop_select(eeg, gui=True, renderer=Renderer(), return_com=True)
+
+        self.assertEqual(out["nbchan"], 2)
+        self.assertEqual([chan["labels"] for chan in out["chanlocs"]], ["Fz", "Cz"])
+        self.assertEqual([chan["labels"] for chan in out["chaninfo"]["removedchans"]], ["Pz"])
+        self.assertEqual(com, "EEG = pop_select( EEG, 'channel', {'Fz' 'Cz'});")
+
+    def test_gui_result_handles_multiple_datasets(self):
+        test_case = self
+
+        class Renderer:
+            def run(self, spec, initial_values=None):
+                test_case.assertEqual(spec.function_name, "pop_select")
+                return {
+                    "time": "",
+                    "rmtime": False,
+                    "point": "",
+                    "rmpoint": False,
+                    "trial": "",
+                    "rmtrial": False,
+                    "chans": "Fz Cz",
+                    "rmchannel": False,
+                    "chantype": "",
+                    "rmchantype": False,
+                }
+
+        out, com = pop_select([_eeg(), _eeg()], gui=True, renderer=Renderer(), return_com=True)
+
+        self.assertEqual([eeg["nbchan"] for eeg in out], [2, 2])
+        self.assertEqual(com, "EEG = pop_select( EEG, 'channel', {'Fz' 'Cz'});")
+
+    def test_gui_result_accepts_matlab_colon_trial_range(self):
+        class Renderer:
+            def run(self, spec, initial_values=None):
+                return {
+                    "time": "",
+                    "rmtime": False,
+                    "point": "",
+                    "rmpoint": False,
+                    "trial": "1:2:3",
+                    "rmtrial": False,
+                    "chans": "",
+                    "rmchannel": False,
+                    "chantype": "",
+                    "rmchantype": False,
+                }
+
+        out, com = pop_select(_epoched_eeg(), gui=True, renderer=Renderer(), return_com=True)
+
+        self.assertEqual(out["trials"], 2)
+        self.assertEqual(out["data"].shape, (4, 10, 2))
+        self.assertEqual(com, "EEG = pop_select( EEG, 'trial', [1 3]);")
 
 
 if __name__ == "__main__":

@@ -21,7 +21,7 @@ def pop_select(EEG, *args, gui=None, renderer=None, return_com=False, **kwargs):
     if gui is None:
         gui = not bool(options)
     if gui:
-        gui_options = _run_gui(EEG, renderer=renderer)
+        gui_options = _run_gui(EEG[0] if isinstance(EEG, list) else EEG, renderer=renderer)
         if gui_options is None:
             return (EEG, "") if return_com else EEG
         options.update(gui_options)
@@ -337,7 +337,7 @@ def _pop_select_apply(EEG, **kwargs):
             pnts = EEG['pnts']
 
             # shift event latencies within each epoch window
-            if EEG['event'] is not None and len(EEG['event']) > 0:
+            if _has_content(EEG.get('event')):
                 newevents = []
                 for ev in EEG['event']:
                     if 'epoch' in ev and 'latency' in ev:
@@ -350,7 +350,7 @@ def _pop_select_apply(EEG, **kwargs):
                 EEG['event'] = newevents
 
             # erase epoch-level event fields
-            if EEG['epoch'] is not None and len(EEG['epoch']) > 0:
+            if _has_content(EEG.get('epoch')):
                 # remove fields that start with 'event'
                 new_epoch = []
                 for ep in EEG['epoch']:
@@ -424,13 +424,14 @@ def _pop_select_apply(EEG, **kwargs):
         EEG['data'] = data[chan_idx, :]
 
     # icaact
-    if EEG['icaact'] is not None and len(EEG['icaact']) > 0:
-        ia = EEG['icaact']
-        if ia is not None and isinstance(ia, np.ndarray) and ia.ndim == 3:
+    ia = EEG.get('icaact')
+    if _has_content(ia):
+        if isinstance(ia, np.ndarray) and ia.ndim == 3:
             EEG['icaact'] = ia[:, :, trial_idx_0]
 
     # chanlocs bookkeeping
-    if EEG['chanlocs'] is not None and len(EEG['chanlocs']) > 0:
+    chanlocs = EEG.get('chanlocs')
+    if _has_content(chanlocs):
         chaninfo = EEG.get("chaninfo")
         if not isinstance(chaninfo, dict):
             chaninfo = {}
@@ -442,10 +443,10 @@ def _pop_select_apply(EEG, **kwargs):
         else:
             removedchans = list(removedchans or [])
         removed = np.setdiff1d(np.arange(nbchan), chan_idx)
-        removedchans.extend(copy.deepcopy(EEG["chanlocs"][int(index)]) for index in removed.tolist())
+        removedchans.extend(copy.deepcopy(chanlocs[int(index)]) for index in removed.tolist())
         chaninfo["removedchans"] = removedchans
         EEG["chaninfo"] = chaninfo
-        EEG['chanlocs'] = [EEG['chanlocs'][i] for i in chan_idx.tolist()]
+        EEG['chanlocs'] = [chanlocs[i] for i in chan_idx.tolist()]
 
     # update sizes
     EEG['trials'] = len(trial_idx_0)
@@ -454,17 +455,18 @@ def _pop_select_apply(EEG, **kwargs):
     EEG['nbchan'] = len(chan_idx)
 
     # epoch metadata
-    if EEG['epoch'] is not None and len(EEG['epoch']) > 0:
+    if _has_content(EEG.get('epoch')):
         EEG['epoch'] = [EEG['epoch'][i] for i in trial_idx_0.tolist()]
 
      # ICA channel bookkeeping
-    if EEG.get('icachansind') is not None and len(EEG.get('icachansind')) > 0:
-        rmch = np.setdiff1d(np.array(EEG['icachansind'], dtype=int), chan_idx)
-        icachans = list(range(len(EEG['icachansind'])))
+    icachansind = EEG.get('icachansind')
+    if _has_content(icachansind):
+        rmch = np.setdiff1d(np.array(icachansind, dtype=int), chan_idx)
+        icachans = list(range(len(icachansind)))
         for rc in rmch[::-1]:
             # remove component channel indices that were removed
             try:
-                idx = int(np.where(np.array(EEG['icachansind']) == rc)[0][0])
+                idx = int(np.where(np.array(icachansind) == rc)[0][0])
                 icachans.pop(idx)
             except Exception:
                 pass
@@ -472,19 +474,20 @@ def _pop_select_apply(EEG, **kwargs):
         # new mapping of icachansind to kept channel positions
         newinds = []
         chan_idx_list = chan_idx.tolist()
-        for ch in EEG['icachansind']:
+        for ch in icachansind:
             if ch in chan_idx_list:
                 newinds.append(chan_idx_list.index(ch))
         EEG['icachansind'] = newinds
     else:
-        if EEG['icasphere'] is not None and len(EEG['icasphere']) > 0:
-            icachans = range(EEG['icasphere'].shape[1])
+        icasphere = EEG.get('icasphere')
+        if _has_content(icasphere):
+            icachans = range(icasphere.shape[1])
         else:
             icachans = 0
 
     # icawinv/icaweights/icasphere coherence if channels removed
-    if EEG['icawinv'] is not None and len(EEG['icawinv']) > 0:
-        icawinv = EEG['icawinv']
+    icawinv = EEG.get('icawinv')
+    if _has_content(icawinv):
         if isinstance(icawinv, np.ndarray) and icawinv.size:
             flag_rmchan = (len(icachans) != icawinv.shape[0])
             if EEG.get('icaweights') is None or flag_rmchan:
@@ -494,21 +497,21 @@ def _pop_select_apply(EEG, **kwargs):
                 EEG['icaweights'] = np.linalg.pinv(iw)
                 EEG['icasphere']  = np.eye(EEG['icaweights'].shape[1])
 
-    if EEG['specicaact'] is not None and len(EEG['specicaact']) > 0:
+    if _has_content(EEG.get('specicaact')):
         EEG['specicaact'] = np.array([])
    # specdata/specicaact handling
-    if EEG['specdata'] is not None and len(EEG['specdata']) > 0:
+    if _has_content(EEG.get('specdata')):
         EEG['specdata'] = np.array([])
     # single epoch → drop event.epoch and clear epoch list
     if EEG['trials'] == 1:
-        if EEG['event'] is not None and len(EEG['event']) > 0:
+        if _has_content(EEG.get('event')):
             for ev in EEG['event']:
                 if 'epoch' in ev:
                     ev.pop('epoch', None)
         EEG['epoch'] = []
 
     # reject, stats clean-up
-    if EEG['reject'] is not None and isinstance(EEG['reject'], dict) and 'gcompreject' in EEG['reject'] and \
+    if EEG.get('reject') is not None and isinstance(EEG.get('reject'), dict) and 'gcompreject' in EEG['reject'] and \
        len(g['channel']) == nbchan:
         tmp = EEG['reject']['gcompreject']
         EEG['reject'] = {}
@@ -521,7 +524,7 @@ def _pop_select_apply(EEG, **kwargs):
 
     # event consistency check stub (depends on eeg_checkset in EEGLAB)
     # Here we simply ensure event latencies are within data bounds when possible.
-    if EEG['event'] is not None and len(EEG['event']) > 0:
+    if _has_content(EEG.get('event')):
         total_pts = EEG['pnts'] * EEG['trials']
         cleaned = []
         for ev in EEG['event']:
@@ -678,11 +681,41 @@ def _parse_key_value_args(args, kwargs):
 
 
 def _parse_numeric_text(text):
-    values = [float(value) for value in re.split(r"[\s,]+", text.strip().strip("[]")) if value]
+    values = []
+    for value in re.split(r"[\s,]+", text.strip().strip("[]")):
+        if not value:
+            continue
+        values.extend(_parse_numeric_token(value))
     if len(values) == 1:
         return values
     if all(value.is_integer() for value in values):
         return [int(value) for value in values]
+    return values
+
+
+def _parse_numeric_token(value):
+    if ":" not in value:
+        return [float(value)]
+    parts = [float(part) for part in value.split(":") if part]
+    if len(parts) == 2:
+        start, stop = parts
+        step = 1.0 if stop >= start else -1.0
+    elif len(parts) == 3:
+        start, step, stop = parts
+        if step == 0:
+            raise ValueError("Colon range step cannot be zero")
+    else:
+        raise ValueError("Colon ranges must use start:stop or start:step:stop")
+    values = []
+    current = start
+    if step > 0:
+        while current <= stop + np.finfo(float).eps:
+            values.append(current)
+            current += step
+    else:
+        while current >= stop - np.finfo(float).eps:
+            values.append(current)
+            current += step
     return values
 
 

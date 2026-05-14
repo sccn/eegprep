@@ -4,6 +4,7 @@ from unittest import mock
 import numpy as np
 
 from eegprep.functions.guifunc.spec import controls_by_tag
+from eegprep.functions.guifunc.qt import QtDialogRenderer
 from eegprep.functions.popfunc.pop_runica import pop_runica, pop_runica_dialog_spec
 
 
@@ -64,6 +65,38 @@ class PopRunicaGuiTests(unittest.TestCase):
         runica.assert_called_once()
         self.assertEqual(out["icaweights"].shape, (4, 4))
         self.assertEqual(com, "EEG = pop_runica(EEG, 'icatype', 'runica', 'extended', 1, 'maxsteps', 2);")
+
+    def test_chanind_accepts_numpy_array(self):
+        eeg = _eeg()
+        updated = dict(
+            eeg,
+            data=eeg["data"][:2],
+            nbchan=2,
+            chanlocs=eeg["chanlocs"][:2],
+            icaweights=np.eye(2),
+            icasphere=np.eye(2),
+            icawinv=np.eye(2),
+            icaact=np.zeros((2, 20, 1)),
+        )
+        with mock.patch("eegprep.functions.popfunc.pop_runica.eeg_runica", return_value=updated):
+            out, com = pop_runica(eeg, chanind=np.array([0, 1]), return_com=True)
+
+        self.assertEqual(out["icaweights"].shape, (2, 2))
+        np.testing.assert_array_equal(out["icachansind"], np.array([0, 1]))
+        self.assertEqual(com, "EEG = pop_runica(EEG, 'icatype', 'runica', 'extended', 1, 'chanind', [0 1]);")
+
+    def test_qt_renderer_reads_listbox_as_one_based_row(self):
+        class ListboxWidget:
+            def property(self, name):
+                return None
+
+            def currentRow(self):
+                return 1
+
+            def currentIndex(self):
+                raise AssertionError("QListWidget currentIndex returns a QModelIndex")
+
+        self.assertEqual(QtDialogRenderer._read_widget(ListboxWidget()), 2)
 
 
 if __name__ == "__main__":

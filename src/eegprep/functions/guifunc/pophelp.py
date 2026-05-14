@@ -113,7 +113,7 @@ def _help_html(function_name: str, source_path: str, text: str) -> str:
 html, body {{ height: 100%; }}
 body {{
   margin: 16px;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
   line-height: 1.4;
   font-size: 13px;
 }}

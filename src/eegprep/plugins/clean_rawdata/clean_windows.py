@@ -15,6 +15,17 @@ from .private.stats import fit_eeg_distribution
 
 logger = logging.getLogger(__name__)
 
+_SIGNAL_METADATA_FIELDS = (
+    'event',
+    'urevent',
+    'epoch',
+    'icaact',
+    'reject',
+    'stats',
+    'specdata',
+    'specicaact',
+)
+
 
 def clean_windows(
         EEG: Dict[str, Any],
@@ -194,6 +205,11 @@ def clean_windows(
     try:
         from eegprep import pop_select  # type: ignore
         EEG = pop_select(EEG, point=retain_intervals)
+        # EEGLAB's pop_select path returns single-precision data in this workflow.
+        EEG['data'] = np.asarray(EEG['data'], dtype=np.float32)
+        EEG['pnts'] = EEG['data'].shape[1]
+        EEG['xmax'] = EEG['xmin'] + (EEG['pnts'] - 1) / Fs
+        _drop_signal_metadata(EEG)
         logger.warning("This call to pop_select() assumes that time intervals use "
                       "1-based indexing; if this has been verified, please remove this warning.")
     except Exception as e:  # noqa: BLE001 – we really want to catch *everything*
@@ -211,10 +227,7 @@ def clean_windows(
         EEG['pnts'] = EEG['data'].shape[1]
         EEG['xmax'] = EEG['xmin'] + (EEG['pnts'] - 1) / Fs
         # Wipe or reset fields that are now inconsistent
-        for fld in ['event', 'urevent', 'epoch', 'icaact', 'reject',
-                    'stats', 'specdata', 'specicaact']:
-            if fld in EEG:
-                EEG[fld] = [] if isinstance(EEG[fld], list) else np.array([])
+        _drop_signal_metadata(EEG)
 
     # ------------------------------------------------------------------
     #                     Update/insert clean_sample_mask
@@ -236,3 +249,9 @@ def clean_windows(
         etc['clean_sample_mask'] = sample_mask
 
     return EEG, sample_mask
+
+
+def _drop_signal_metadata(EEG: Dict[str, Any]) -> None:
+    for fld in _SIGNAL_METADATA_FIELDS:
+        if fld in EEG:
+            EEG[fld] = [] if isinstance(EEG[fld], list) else np.array([])

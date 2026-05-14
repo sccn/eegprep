@@ -72,7 +72,13 @@ def pop_clean_rawdata_dialog_spec(EEG) -> DialogSpec:
         size=(681, 733),
         help_text="pophelp('clean_artifacts')",
         controls=(
-            ControlSpec("checkbox", "Remove channel drift (data not already high-pass filtered)", tag="filter", value=False),
+            ControlSpec(
+                "checkbox",
+                "Remove channel drift (data not already high-pass filtered)",
+                tag="filter",
+                value=False,
+                callback=CallbackSpec("toggle_enabled", params={"source": "filter", "targets": ("filterfreqs",)}),
+            ),
             ControlSpec("spacer"),
             ControlSpec("text", "Linear filter (FIR) transition band [lo hi] in Hz", enabled=False),
             ControlSpec("edit", tag="filterfreqs", value="0.25 0.75", enabled=False),

@@ -364,6 +364,11 @@ class QtDialogRenderer:
         elif callback.name == "set_reref_mode":
             source = widgets[params["source"]]
             source.toggled.connect(lambda checked: self._set_reref_mode(widgets, params["mode"], checked))
+        elif callback.name == "toggle_enabled":
+            source = widgets[params["source"]]
+            targets = [widgets[tag] for tag in params["targets"] if tag in widgets]
+            source.toggled.connect(lambda checked: self._set_enabled(targets, checked))
+            self._set_enabled(targets, source.isChecked())
         elif callback.name == "select_interp_channels":
             button = widgets[params["button"]]
             target = widgets[params["target"]]
@@ -659,6 +664,11 @@ class QtDialogRenderer:
             widgets["keepref"].setChecked(False)
 
     @staticmethod
+    def _set_enabled(widgets: list[Any], enabled: bool) -> None:
+        for widget in widgets:
+            widget.setEnabled(enabled)
+
+    @staticmethod
     def _show_help(_qt_widgets: Any, dialog: Any, spec: DialogSpec) -> None:
         dialog._eegprep_help_dialog = pophelp(spec.help_text or spec.function_name, parent=dialog)
 
@@ -669,10 +679,10 @@ class QtDialogRenderer:
             return stored_value
         if hasattr(widget, "isChecked"):
             return widget.isChecked()
-        if hasattr(widget, "currentIndex"):
-            return widget.currentIndex() + 1
         if hasattr(widget, "currentRow"):
             return widget.currentRow() + 1
+        if hasattr(widget, "currentIndex"):
+            return widget.currentIndex() + 1
         if hasattr(widget, "text"):
             return widget.text()
         return None

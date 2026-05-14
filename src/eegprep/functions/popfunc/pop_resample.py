@@ -132,8 +132,9 @@ def pop_resample(
         p, q = rational_approx.as_numer_denom()
         ratio = float(p/q)
 
-        for event in aslist(EEG_new['event']) + aslist(EEG_new['urevent']):
-            event['latency'] = np.clip((event['latency']-1) * ratio + 1, 1, new_pnts)
+        for event in aslist(EEG_new.get('event', [])) + aslist(EEG_new.get('urevent', [])):
+            if isinstance(event, dict) and 'latency' in event:
+                event['latency'] = np.clip((event['latency']-1) * ratio + 1, 1, new_pnts)
 
         command = _history_command(freq)
         return (EEG_new, command) if return_com else EEG_new

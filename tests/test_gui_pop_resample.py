@@ -44,6 +44,17 @@ class PopResampleGuiTests(unittest.TestCase):
         self.assertEqual(out["pnts"], 10)
         self.assertEqual(com, "EEG = pop_resample( EEG, 50);")
 
+    def test_resample_handles_missing_event_fields(self):
+        eeg = _eeg()
+        eeg.pop("event")
+        eeg.pop("urevent")
+
+        out, com = pop_resample(eeg, 50, return_com=True)
+
+        self.assertEqual(out["srate"], 50)
+        self.assertEqual(out["pnts"], 10)
+        self.assertEqual(com, "EEG = pop_resample( EEG, 50);")
+
     def test_gui_validation_rejects_nonpositive_rate(self):
         spec = pop_resample_dialog_spec(100)
         widgets = {"freq": _FakeWidget("0")}
