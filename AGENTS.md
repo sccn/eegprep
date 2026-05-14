@@ -131,6 +131,7 @@ Primary references:
   creates the PR or issue. Do not add it when a human asks an agent to open or
   update a PR from an interactive session.
 - Agent comments on PRs/issues must begin with `🤖` unless the exact text was explicitly approved by the user.
+- When creating a PR that includes GUI changes, add side-by-side GUI comparison images as GitHub user attachments in a PR comment; do not commit those images or visual parity artifacts to the repo.
 - When using `gh` to inspect issues or PRs, prefer `--json <fields>` or explicit narrow flags such as `--comments`; avoid plain `gh issue view` or `gh pr view`, which can fail on this repo because GitHub classic project fields are deprecated.
 - If you notice unrelated dead code or unrelated cleanup, mention it separately instead of changing it.
 
