@@ -417,7 +417,11 @@ class QtMainWindowTests(unittest.TestCase):
     def test_gui_main_window_startup_branding_size_and_menu_states(self):
         pytest.importorskip("PySide6")
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-        from eegprep.functions.guifunc.main_window import build_main_window
+        from eegprep.functions.guifunc.main_window import (
+            _macos_application_menu_title,
+            _macos_process_name,
+            build_main_window,
+        )
 
         window = build_main_window(EEGPrepSession(), all_menus=False)
         size = window.window.size()
@@ -427,6 +431,11 @@ class QtMainWindowTests(unittest.TestCase):
         self.assertEqual(window.window.windowTitle(), "EEGPrep")
         self.assertEqual(window.app.applicationName(), "EEGPrep")
         self.assertEqual(window.app.applicationDisplayName(), "EEGPrep")
+        if sys.platform == "darwin":
+            self.assertEqual(_macos_process_name(), "EEGPrep")
+            menu_title = _macos_application_menu_title()
+            if menu_title is not None:
+                self.assertEqual(menu_title, "EEGPrep")
         self.assertEqual((size.width(), size.height()), (520, 380))
         self.assertEqual((minimum_size.width(), minimum_size.height()), (460, 340))
         self.assertEqual(

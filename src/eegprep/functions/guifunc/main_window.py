@@ -51,6 +51,7 @@ class EEGPrepMainWindow:
         self._qt_core = qt_core
         self._qt_gui = qt_gui
         self._qt_widgets = qt_widgets
+        _prepare_application_branding(qt_core)
         self.app = qt_widgets.QApplication.instance() or qt_widgets.QApplication([])
         self.app.setApplicationName(APP_NAME)
         self.app.setApplicationDisplayName(APP_NAME)
@@ -176,6 +177,7 @@ class EEGPrepMainWindow:
             action = self._add_top_menu(menubar, spec, statuses)
             if spec.label == "Study" and "multiple_datasets" in statuses:
                 action.setEnabled(False)
+        _set_macos_application_menu_title(APP_NAME)
 
     def _current_menu_specs(self) -> tuple[MenuItemSpec, ...]:
         specs = []
@@ -391,6 +393,152 @@ def _main_window_stylesheet() -> str:
 def _configure_eeglab_label(label: Any, qt_widgets: Any) -> None:
     label.setMinimumWidth(0)
     label.setSizePolicy(qt_widgets.QSizePolicy.Ignored, qt_widgets.QSizePolicy.Fixed)
+
+
+def _prepare_application_branding(qt_core: Any) -> None:
+    qt_core.QCoreApplication.setApplicationName(APP_NAME)
+    _set_macos_process_name(APP_NAME)
+
+
+def _set_macos_process_name(name: str) -> None:
+    runtime = _macos_objc_runtime()
+    if runtime is None:
+        return
+    ctypes, _objc, foundation = runtime
+    process_info = _objc_msg_send(runtime, ctypes.c_void_p)(
+        _objc_class(runtime, "NSProcessInfo"),
+        _objc_selector(runtime, "processInfo"),
+    )
+    if not process_info:
+        return
+    ns_name = _macos_nsstring(runtime, name)
+    if not ns_name:
+        return
+    try:
+        _objc_msg_send(runtime, None, ctypes.c_void_p)(
+            process_info,
+            _objc_selector(runtime, "setProcessName:"),
+            ns_name,
+        )
+    finally:
+        foundation.CFRelease(ns_name)
+
+
+def _macos_process_name() -> str | None:
+    runtime = _macos_objc_runtime()
+    if runtime is None:
+        return None
+    ctypes, _objc, _foundation = runtime
+    process_info = _objc_msg_send(runtime, ctypes.c_void_p)(
+        _objc_class(runtime, "NSProcessInfo"),
+        _objc_selector(runtime, "processInfo"),
+    )
+    name = _objc_msg_send(runtime, ctypes.c_void_p)(process_info, _objc_selector(runtime, "processName"))
+    if not name:
+        return None
+    text = _objc_msg_send(runtime, ctypes.c_char_p)(name, _objc_selector(runtime, "UTF8String"))
+    return None if text is None else text.decode()
+
+
+def _set_macos_application_menu_title(name: str) -> None:
+    runtime = _macos_objc_runtime()
+    if runtime is None:
+        return
+    menu_item = _macos_application_menu_item(runtime)
+    if not menu_item:
+        return
+    _ctypes, _objc, foundation = runtime
+    ns_name = _macos_nsstring(runtime, name)
+    if not ns_name:
+        return
+    try:
+        _objc_msg_send(runtime, None, _ctypes.c_void_p)(
+            menu_item,
+            _objc_selector(runtime, "setTitle:"),
+            ns_name,
+        )
+    finally:
+        foundation.CFRelease(ns_name)
+
+
+def _macos_application_menu_title() -> str | None:
+    runtime = _macos_objc_runtime()
+    if runtime is None:
+        return None
+    ctypes, _objc, _foundation = runtime
+    menu_item = _macos_application_menu_item(runtime)
+    if not menu_item:
+        return None
+    title = _objc_msg_send(runtime, ctypes.c_void_p)(menu_item, _objc_selector(runtime, "title"))
+    if not title:
+        return None
+    text = _objc_msg_send(runtime, ctypes.c_char_p)(title, _objc_selector(runtime, "UTF8String"))
+    return None if text is None else text.decode()
+
+
+def _macos_application_menu_item(runtime: tuple[Any, Any, Any]) -> Any:
+    ctypes, _objc, _foundation = runtime
+    app = _objc_msg_send(runtime, ctypes.c_void_p)(
+        _objc_class(runtime, "NSApplication"),
+        _objc_selector(runtime, "sharedApplication"),
+    )
+    menu = _objc_msg_send(runtime, ctypes.c_void_p)(app, _objc_selector(runtime, "mainMenu"))
+    if not menu:
+        return None
+    return _objc_msg_send(runtime, ctypes.c_void_p, ctypes.c_long)(
+        menu,
+        _objc_selector(runtime, "itemAtIndex:"),
+        0,
+    )
+
+
+def _macos_objc_runtime() -> tuple[Any, Any, Any] | None:
+    if sys.platform != "darwin":
+        return None
+    try:
+        import ctypes
+        import ctypes.util
+
+        objc_path = ctypes.util.find_library("objc")
+        foundation_path = ctypes.util.find_library("Foundation")
+        if objc_path is None or foundation_path is None:
+            return None
+        objc = ctypes.cdll.LoadLibrary(objc_path)
+        foundation = ctypes.cdll.LoadLibrary(foundation_path)
+    except Exception:
+        return None
+    objc.objc_getClass.restype = ctypes.c_void_p
+    objc.objc_getClass.argtypes = [ctypes.c_char_p]
+    objc.sel_registerName.restype = ctypes.c_void_p
+    objc.sel_registerName.argtypes = [ctypes.c_char_p]
+    foundation.CFStringCreateWithCString.restype = ctypes.c_void_p
+    foundation.CFStringCreateWithCString.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_uint32]
+    foundation.CFRelease.restype = None
+    foundation.CFRelease.argtypes = [ctypes.c_void_p]
+    return ctypes, objc, foundation
+
+
+def _objc_class(runtime: tuple[Any, Any, Any], name: str) -> Any:
+    _ctypes, objc, _foundation = runtime
+    return objc.objc_getClass(name.encode("utf-8"))
+
+
+def _objc_selector(runtime: tuple[Any, Any, Any], name: str) -> Any:
+    _ctypes, objc, _foundation = runtime
+    return objc.sel_registerName(name.encode("utf-8"))
+
+
+def _objc_msg_send(runtime: tuple[Any, Any, Any], restype: Any, *argtypes: Any) -> Any:
+    ctypes, objc, _foundation = runtime
+    objc.objc_msgSend.restype = restype
+    objc.objc_msgSend.argtypes = [ctypes.c_void_p, ctypes.c_void_p, *argtypes]
+    return objc.objc_msgSend
+
+
+def _macos_nsstring(runtime: tuple[Any, Any, Any], text: str) -> Any:
+    _ctypes, _objc, foundation = runtime
+    utf8 = 0x08000100
+    return foundation.CFStringCreateWithCString(None, text.encode("utf-8"), utf8)
 
 
 def _apply_action_metadata(action: Any, spec: MenuItemSpec, qt_gui: Any) -> None:
