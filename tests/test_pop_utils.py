@@ -35,6 +35,7 @@ class PopUtilsTests(unittest.TestCase):
     def test_format_history_value_defaults_to_eeglab_like_literals(self):
         self.assertEqual(format_history_value("F'z"), "'F''z'")
         self.assertEqual(format_history_value([1, 2.0, np.float64(3.0)]), "[1 2 3]")
+        self.assertEqual(format_history_value(np.array([[1, 2], [3, 4]])), "[1 2; 3 4]")
         self.assertEqual(format_history_value(["Fz", "Cz"]), "{'Fz' 'Cz'}")
         self.assertEqual(format_history_value([-np.inf, np.inf]), "[-Inf Inf]")
 

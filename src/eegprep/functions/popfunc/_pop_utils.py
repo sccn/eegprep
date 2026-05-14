@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from pathlib import Path
 from typing import Any, Callable
 
 import numpy as np
@@ -65,6 +66,8 @@ def format_history_value(
     """Format a Python value as an EEGLAB command-history literal."""
     if isinstance(value, np.ndarray):
         value = value.tolist()
+    if isinstance(value, Path):
+        value = str(value)
     if value is None and none_as_empty:
         return "[]"
     if isinstance(value, str):
@@ -79,6 +82,8 @@ def format_history_value(
             return empty_sequence
         if dict_formatter is not None and all(isinstance(item, dict) for item in values):
             return dict_formatter(values)
+        if any(_is_nested_sequence(item) for item in values):
+            return "[" + "; ".join(_format_history_row(item, number_formatter) for item in values) + "]"
         if _sequence_should_use_cell(values, cell_for_sequence):
             return "{" + string_separator.join(
                 format_history_value(
@@ -99,6 +104,18 @@ def format_history_value(
     if isinstance(value, (int, float)):
         return _format_history_number(value, number_formatter)
     return str(value)
+
+
+def _is_nested_sequence(value: Any) -> bool:
+    return isinstance(value, np.ndarray) or (isinstance(value, (list, tuple)) and not isinstance(value, (str, bytes)))
+
+
+def _format_history_row(value: Any, formatter: Callable[[Any], str] | None) -> str:
+    if isinstance(value, np.ndarray):
+        value = value.tolist()
+    if isinstance(value, (list, tuple)):
+        return " ".join(_format_history_number(item, formatter) for item in value)
+    return _format_history_number(value, formatter)
 
 
 def _sequence_should_use_cell(values: list[Any], mode: str | None) -> bool:

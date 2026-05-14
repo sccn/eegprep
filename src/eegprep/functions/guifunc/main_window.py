@@ -77,15 +77,7 @@ class EEGPrepMainWindow:
         """Show the main window and return ``self``."""
         self.window.show()
         self.window.raise_()
-        self._apply_application_branding()
-        self._qt_core.QTimer.singleShot(0, self._apply_application_branding)
-        # Cocoa can populate or rewrite the native application menu after
-        # QMainWindow.show() returns, so the first pass may have no app-menu
-        # item to rename. Keep the retry short and idempotent.
-        self._qt_core.QTimer.singleShot(
-            _MACOS_MENU_BRANDING_RETRY_MS,
-            self._apply_application_branding,
-        )
+        self._queue_application_branding()
         return self
 
     def exec(self) -> int:
@@ -194,8 +186,27 @@ class EEGPrepMainWindow:
     def _apply_application_branding(self) -> None:
         self.app.setApplicationName(APP_NAME)
         self.app.setApplicationDisplayName(APP_NAME)
+        _set_macos_bundle_name(APP_NAME)
         _set_macos_process_name(APP_NAME)
         _set_macos_application_menu_title(APP_NAME)
+
+    def _queue_application_branding(self) -> None:
+        self._apply_application_branding()
+        self._qt_core.QTimer.singleShot(0, self._apply_application_branding)
+        # Cocoa can populate or rewrite the native application menu after
+        # QMainWindow.show() returns or after native file dialogs close, so
+        # the first pass may have no app-menu item to rename. Keep the retry
+        # short and idempotent.
+        self._qt_core.QTimer.singleShot(
+            _MACOS_MENU_BRANDING_RETRY_MS,
+            self._apply_application_branding,
+        )
+
+    def _dispatch_menu_action(self, action_id: str) -> None:
+        try:
+            self.dispatcher.dispatch_gui(action_id, self.window)
+        finally:
+            self._queue_application_branding()
 
     def _current_menu_specs(self) -> tuple[MenuItemSpec, ...]:
         specs = []
@@ -258,7 +269,7 @@ class EEGPrepMainWindow:
             action.setCheckable(True)
             action.setChecked(True)
         if spec.action:
-            action.triggered.connect(lambda _checked=False, action_id=spec.action: self.dispatcher.dispatch_gui(action_id, self.window))
+            action.triggered.connect(lambda _checked=False, action_id=spec.action: self._dispatch_menu_action(action_id))
         if spec.origin != "core":
             action.setProperty("eegprep_plugin", True)
         return action
@@ -415,6 +426,7 @@ def _configure_eeglab_label(label: Any, qt_widgets: Any) -> None:
 
 def _prepare_application_branding(qt_core: Any) -> None:
     qt_core.QCoreApplication.setApplicationName(APP_NAME)
+    _set_macos_bundle_name(APP_NAME)
     _set_macos_process_name(APP_NAME)
 
 
@@ -442,6 +454,38 @@ def _set_macos_process_name(name: str) -> None:
         foundation.CFRelease(ns_name)
 
 
+def _set_macos_bundle_name(name: str) -> None:
+    runtime = _macos_objc_runtime()
+    if runtime is None:
+        return
+    ctypes, _objc, foundation = runtime
+    bundle = _objc_msg_send(runtime, ctypes.c_void_p)(
+        _objc_class(runtime, "NSBundle"),
+        _objc_selector(runtime, "mainBundle"),
+    )
+    if not bundle:
+        return
+    info = _objc_msg_send(runtime, ctypes.c_void_p)(bundle, _objc_selector(runtime, "infoDictionary"))
+    if not info:
+        return
+    ns_name = _macos_nsstring(runtime, name)
+    ns_bundle_name = _macos_nsstring(runtime, "CFBundleName")
+    ns_bundle_display_name = _macos_nsstring(runtime, "CFBundleDisplayName")
+    if not ns_name or not ns_bundle_name or not ns_bundle_display_name:
+        for value in (ns_name, ns_bundle_name, ns_bundle_display_name):
+            if value:
+                foundation.CFRelease(value)
+        return
+    try:
+        set_object = _objc_msg_send(runtime, None, ctypes.c_void_p, ctypes.c_void_p)
+        set_object(info, _objc_selector(runtime, "setObject:forKey:"), ns_name, ns_bundle_name)
+        set_object(info, _objc_selector(runtime, "setObject:forKey:"), ns_name, ns_bundle_display_name)
+    finally:
+        foundation.CFRelease(ns_name)
+        foundation.CFRelease(ns_bundle_name)
+        foundation.CFRelease(ns_bundle_display_name)
+
+
 def _macos_process_name() -> str | None:
     runtime = _macos_objc_runtime()
     if runtime is None:
@@ -465,13 +509,21 @@ def _set_macos_application_menu_title(name: str) -> None:
     menu_item = _macos_application_menu_item(runtime)
     if not menu_item:
         return
+    _ctypes, _objc, _foundation = runtime
+    _set_macos_object_title(runtime, menu_item, name)
+    submenu = _objc_msg_send(runtime, _ctypes.c_void_p)(menu_item, _objc_selector(runtime, "submenu"))
+    if submenu:
+        _set_macos_object_title(runtime, submenu, name)
+
+
+def _set_macos_object_title(runtime: tuple[Any, Any, Any], target: Any, name: str) -> None:
     _ctypes, _objc, foundation = runtime
     ns_name = _macos_nsstring(runtime, name)
     if not ns_name:
         return
     try:
         _objc_msg_send(runtime, None, _ctypes.c_void_p)(
-            menu_item,
+            target,
             _objc_selector(runtime, "setTitle:"),
             ns_name,
         )
@@ -598,17 +650,35 @@ def _format_time(value: Any) -> str:
 
 def _reference_state(eeg: dict[str, Any]) -> str:
     chanlocs = _as_list(eeg.get("chanlocs"))
-    refs = [str(chan.get("ref")) for chan in chanlocs if isinstance(chan, dict) and chan.get("ref")]
-    return refs[0] if refs else str(eeg.get("ref") or "unknown")
+    refs = [_display_scalar(chan.get("ref")) for chan in chanlocs if isinstance(chan, dict) and _has_value(chan.get("ref"))]
+    return refs[0] if refs else (_display_scalar(eeg.get("ref")) or "unknown")
 
 
 def _channel_location_state(eeg: dict[str, Any]) -> str:
     chanlocs = _as_list(eeg.get("chanlocs"))
     if not chanlocs:
         return "No"
-    if all(isinstance(chan, dict) and chan.get("theta") in (None, "") for chan in chanlocs):
+    if all(isinstance(chan, dict) and not _has_value(chan.get("theta")) for chan in chanlocs):
         return "No (labels only)"
     return "Yes"
+
+
+def _has_value(value: Any) -> bool:
+    if isinstance(value, np.ndarray):
+        return value.size > 0
+    if value is None or value == "":
+        return False
+    return True
+
+
+def _display_scalar(value: Any) -> str:
+    if isinstance(value, np.ndarray):
+        if value.size == 0:
+            return ""
+        if value.size == 1:
+            return str(value.item())
+        return str(value.tolist())
+    return "" if value in (None, "") else str(value)
 
 
 def _dataset_type(eeg_list: list[dict[str, Any]]) -> str:
