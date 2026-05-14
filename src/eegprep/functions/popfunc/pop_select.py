@@ -7,6 +7,11 @@ import numpy as np
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
+from eegprep.functions.popfunc._pop_utils import (
+    format_history_value,
+    parse_key_value_args,
+    parse_text_tokens,
+)
 from eegprep.functions.popfunc.eeg_lat2point import eeg_lat2point
 from eegprep.functions.popfunc.eeg_point2lat import eeg_point2lat
 from eegprep.functions.popfunc.eeg_decodechan import eeg_decodechan
@@ -15,7 +20,7 @@ from eegprep.functions.popfunc.eeg_eegrej import eeg_eegrej
 
 def pop_select(EEG, *args, gui=None, renderer=None, return_com=False, **kwargs):
     """Select EEG data using EEGLAB ``pop_select`` semantics."""
-    options = _parse_key_value_args(args, kwargs)
+    options = parse_key_value_args(args, kwargs)
     if not isinstance(EEG, list) and EEG.get("data") is None:
         raise ValueError('EEG["data"] is required')
     if gui is None:
@@ -663,7 +668,7 @@ def _add_text_option(options, result, tag, remove_tag, *, keep_key, remove_key):
     if not text:
         return
     key = remove_key if result.get(remove_tag) else keep_key
-    options[key] = _parse_text_tokens(text)
+    options[key] = parse_text_tokens(text, parse_ints=True)
 
 
 def _gui_options_for_apply(options):
@@ -677,20 +682,6 @@ def _gui_options_for_apply(options):
         elif isinstance(values, int):
             apply_options[key] = values - 1
     return apply_options
-
-
-def _parse_key_value_args(args, kwargs):
-    if len(args) % 2:
-        raise ValueError("Key/value arguments must be in pairs")
-    options = dict(kwargs)
-    for index in range(0, len(args), 2):
-        key = args[index]
-        if isinstance(key, bytes):
-            key = key.decode("utf-8")
-        if not isinstance(key, str):
-            raise ValueError("Keys must be strings")
-        options[key.lower()] = args[index + 1]
-    return options
 
 
 def _parse_numeric_text(text):
@@ -732,37 +723,13 @@ def _parse_numeric_token(value):
     return values
 
 
-def _parse_text_tokens(text):
-    tokens = re.findall(r"'([^']*)'|\"([^\"]*)\"|([^,\s]+)", text.strip().strip("{}"))
-    values = [next(part for part in token if part) for token in tokens]
-    parsed = []
-    for value in values:
-        try:
-            parsed.append(int(value))
-        except ValueError:
-            parsed.append(value)
-    return parsed
-
-
 def _history_command(options):
     if not options:
         return ""
     parts = []
     for key, value in options.items():
-        parts.extend([f"'{key}'", _history_value(value)])
+        parts.extend([f"'{key}'", format_history_value(value, empty_sequence="{}")])
     return f"EEG = pop_select( EEG, {', '.join(parts)});"
-
-
-def _history_value(value):
-    if isinstance(value, str):
-        return "'" + value.replace("'", "''") + "'"
-    if isinstance(value, (list, tuple, np.ndarray)):
-        if all(isinstance(item, str) for item in value):
-            return "{" + " ".join(_history_value(item) for item in value) + "}"
-        return "[" + " ".join(_history_value(item) for item in value) + "]"
-    if isinstance(value, float) and value.is_integer():
-        return str(int(value))
-    return str(value)
 
 if __name__ == '__main__':
     from eegprep.functions.popfunc.pop_loadset import pop_loadset

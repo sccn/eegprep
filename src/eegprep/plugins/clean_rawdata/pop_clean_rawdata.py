@@ -10,6 +10,11 @@ import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
+from eegprep.functions.popfunc._pop_utils import (
+    format_history_value,
+    parse_key_value_args,
+    parse_text_tokens,
+)
 from eegprep.plugins.clean_rawdata.clean_artifacts import clean_artifacts
 
 
@@ -41,7 +46,7 @@ def pop_clean_rawdata(
     """Clean continuous EEG data using the clean_rawdata workflow."""
     if EEG is None:
         return (None, "") if return_com else None
-    options = _normalise_options(_parse_key_value_args(args, kwargs))
+    options = _normalise_options(parse_key_value_args(args, kwargs, lowercase_keys=False))
     show_vis_artifacts = bool(options.pop(_SHOW_VIS_ARTIFACTS_KEY, False))
     if gui is None:
         gui = not bool(options)
@@ -174,9 +179,9 @@ def _run_gui(EEG, renderer=None):
         options["Highpass"] = _parse_numeric_text(result.get("filterfreqs", ""))
     if result.get("chanrm"):
         if result.get("chanignoreflag"):
-            options["Channels_ignore"] = _parse_text_tokens(result.get("chanignore", ""))
+            options["Channels_ignore"] = parse_text_tokens(result.get("chanignore", ""))
         if result.get("chanuseflag"):
-            options["Channels"] = _parse_text_tokens(result.get("chanuse", ""))
+            options["Channels"] = parse_text_tokens(result.get("chanuse", ""))
         if result.get("rmflat"):
             options["FlatlineCriterion"] = float(result.get("rmflatsec", 5))
         if result.get("rmcorr"):
@@ -193,20 +198,6 @@ def _run_gui(EEG, renderer=None):
     if result.get("asrrej") and options["BurstCriterion"] != "off":
         options["BurstRejection"] = True
     options[_SHOW_VIS_ARTIFACTS_KEY] = bool(result.get("vis"))
-    return options
-
-
-def _parse_key_value_args(args, kwargs):
-    if len(args) % 2:
-        raise ValueError("Key/value arguments must be in pairs")
-    options = dict(kwargs)
-    for index in range(0, len(args), 2):
-        key = args[index]
-        if isinstance(key, bytes):
-            key = key.decode("utf-8")
-        if not isinstance(key, str):
-            raise ValueError("Keys must be strings")
-        options[key] = args[index + 1]
     return options
 
 
@@ -240,37 +231,17 @@ def _parse_numeric_text(text):
     return values
 
 
-def _parse_text_tokens(text):
-    tokens = re.findall(r"'([^']*)'|\"([^\"]*)\"|([^,\s]+)", str(text).strip().strip("{}"))
-    return [next(part for part in token if part) for token in tokens]
-
-
 def _history_command(options):
     if not options:
         return "EEG = pop_clean_rawdata(EEG);"
     parts = []
     for key, value in options.items():
-        parts.extend([_history_value(key), _history_value(value)])
+        parts.extend([_clean_rawdata_history_value(key), _clean_rawdata_history_value(value)])
     return f"EEG = pop_clean_rawdata(EEG, {', '.join(parts)});"
 
 
-def _history_value(value):
-    if isinstance(value, str):
-        return "'" + value.replace("'", "''") + "'"
-    if isinstance(value, bool):
-        return "'on'" if value else "'off'"
-    if isinstance(value, (list, tuple, np.ndarray)):
-        if all(isinstance(item, str) for item in value):
-            return "{" + " ".join(_history_value(item) for item in value) + "}"
-        return "[" + " ".join(_history_value(item) for item in value) + "]"
-    if isinstance(value, float):
-        if np.isneginf(value):
-            return "-Inf"
-        if np.isposinf(value):
-            return "Inf"
-        if value.is_integer():
-            return str(int(value))
-    return str(value)
+def _clean_rawdata_history_value(value):
+    return format_history_value(value, bool_style="onoff", empty_sequence="{}")
 
 
 def _notify_vis_artifacts_unavailable():

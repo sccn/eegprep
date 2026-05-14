@@ -10,6 +10,7 @@ import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
+from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args
 from eegprep.functions.popfunc.eeg_decodechan import eeg_decodechan
 from eegprep.functions.popfunc.eeg_runica import eeg_runica
 
@@ -33,7 +34,7 @@ def pop_runica(
     **kwargs,
 ):
     """Run ICA decomposition with EEGLAB ``pop_runica`` calling semantics."""
-    parsed = _parse_key_value_args(args, kwargs)
+    parsed = parse_key_value_args(args, kwargs, lowercase_kwargs=True)
     icatype = parsed.pop("icatype", icatype)
     options = parsed.pop("options", options)
     reorder = parsed.pop("reorder", reorder)
@@ -199,20 +200,6 @@ def _resolve_chanind(EEG, chanind):
     return [int(value) for value in values]
 
 
-def _parse_key_value_args(args, kwargs):
-    if len(args) % 2:
-        raise ValueError("Key/value arguments must be in pairs")
-    options = {str(key).lower(): value for key, value in kwargs.items()}
-    for index in range(0, len(args), 2):
-        key = args[index]
-        if isinstance(key, bytes):
-            key = key.decode("utf-8")
-        if not isinstance(key, str):
-            raise ValueError("Keys must be strings")
-        options[key.lower()] = args[index + 1]
-    return options
-
-
 def _normalise_runica_options(options, extra):
     parsed = dict(extra)
     if options is None:
@@ -263,21 +250,15 @@ def _is_int_text(value):
 
 
 def _history_command(icatype, options, reorder, chanind):
-    parts = ["'icatype'", _history_value(str(icatype).lower())]
+    parts = ["'icatype'", _runica_history_value(str(icatype).lower())]
     for key, value in options.items():
-        parts.extend([_history_value(key), _history_value(value)])
+        parts.extend([_runica_history_value(key), _runica_history_value(value)])
     if str(reorder).lower() != "on":
-        parts.extend(["'reorder'", _history_value(reorder)])
+        parts.extend(["'reorder'", _runica_history_value(reorder)])
     if chanind is not None:
-        parts.extend(["'chanind'", _history_value(chanind)])
+        parts.extend(["'chanind'", _runica_history_value(chanind)])
     return f"EEG = pop_runica(EEG, {', '.join(parts)});"
 
 
-def _history_value(value):
-    if isinstance(value, str):
-        return "'" + value.replace("'", "''") + "'"
-    if isinstance(value, (list, tuple, np.ndarray)):
-        return "[" + " ".join(_history_value(item) for item in value) + "]"
-    if isinstance(value, float) and value.is_integer():
-        return str(int(value))
-    return str(value)
+def _runica_history_value(value):
+    return format_history_value(value, cell_for_sequence=None)

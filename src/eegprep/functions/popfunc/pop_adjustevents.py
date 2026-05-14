@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import copy
 import logging
-import re
 from collections.abc import Iterable
 from typing import Any
 
@@ -13,6 +12,11 @@ import numpy as np
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
+from eegprep.functions.popfunc._pop_utils import (
+    format_history_value,
+    parse_key_value_args,
+    parse_text_tokens,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +42,7 @@ def pop_adjustevents(
     structures. When no processing arguments are supplied, the GUI dialog is
     launched by default, matching the MATLAB pop-function convention.
     """
-    kwargs_from_args = _parse_key_value_args(args)
+    kwargs_from_args = parse_key_value_args(args)
     addms = _pick_option("addms", addms, kwargs_from_args)
     addsamples = _pick_option("addsamples", addsamples, kwargs_from_args)
     eventtypes = _pick_option("eventtypes", eventtypes, kwargs_from_args)
@@ -101,22 +105,6 @@ def pop_adjustevents(
     return (EEG_out, com) if return_com else EEG_out
 
 
-def _parse_key_value_args(args: tuple[Any, ...]) -> dict[str, Any]:
-    if not args:
-        return {}
-    if len(args) % 2:
-        raise ValueError("Key/value arguments must be in pairs")
-    options: dict[str, Any] = {}
-    for index in range(0, len(args), 2):
-        key = args[index]
-        if isinstance(key, bytes):
-            key = key.decode("utf-8")
-        if not isinstance(key, str):
-            raise ValueError("Keys must be strings")
-        options[key.lower()] = args[index + 1]
-    return options
-
-
 def _pick_option(name: str, explicit: Any, options: dict[str, Any]) -> Any:
     if name in options:
         value = options.pop(name)
@@ -175,9 +163,7 @@ def _normalize_eventtypes(eventtypes: Any) -> list[Any]:
             return []
         if text.startswith("{") and text.endswith("}"):
             text = text[1:-1]
-        tokens = re.findall(r"'([^']*)'|\"([^\"]*)\"|([^,\s]+)", text)
-        values = [next(part for part in token if part) for token in tokens]
-        return values
+        return parse_text_tokens(text)
     if isinstance(eventtypes, np.ndarray):
         return _normalize_eventtypes(eventtypes.tolist())
     if isinstance(eventtypes, Iterable) and not isinstance(eventtypes, (bytes, bytearray)):
@@ -350,24 +336,18 @@ def _run_gui(EEG: dict, renderer: Any | None = None) -> dict[str, Any] | None:
 def _history_command(options: dict[str, Any]) -> str:
     parts: list[str] = []
     if options["addms"] is not None:
-        parts.extend(["'addms'", _format_history_value(options["addms"])])
+        parts.extend(["'addms'", _adjustevents_history_value(options["addms"])])
     if options["addsamples"] is not None:
-        parts.extend(["'addsamples'", _format_history_value(options["addsamples"])])
+        parts.extend(["'addsamples'", _adjustevents_history_value(options["addsamples"])])
     if options["eventtypes"]:
-        parts.extend(["'eventtypes'", _format_history_value(options["eventtypes"])])
+        parts.extend(["'eventtypes'", _adjustevents_history_value(options["eventtypes"])])
     if options["force"] != "auto":
-        parts.extend(["'force'", _format_history_value(options["force"])])
+        parts.extend(["'force'", _adjustevents_history_value(options["force"])])
     return f"[EEG,com] = pop_adjustevents(EEG, {', '.join(parts)});"
 
 
-def _format_history_value(value: Any) -> str:
-    if isinstance(value, str):
-        return "'" + value.replace("'", "''") + "'"
-    if isinstance(value, list):
-        return "{" + " ".join(_format_history_value(item) for item in value) + "}"
-    if isinstance(value, float) and value.is_integer():
-        return str(int(value))
-    return str(value)
+def _adjustevents_history_value(value: Any) -> str:
+    return format_history_value(value, cell_for_sequence="always", empty_sequence="{}")
 
 
 __all__ = ["pop_adjustevents"]
