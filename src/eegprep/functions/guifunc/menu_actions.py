@@ -743,10 +743,16 @@ def _default_bids_metadata(action: str) -> str:
 def _currentset_list(value: Any) -> list[int]:
     if value is None:
         return []
-    if isinstance(value, str) and value == "":
-        return []
-    if isinstance(value, (int, float)) and int(value) == 0:
-        return []
+    if isinstance(value, str):
+        if value == "":
+            return []
+        current = int(value)
+        return [current] if current > 0 else []
+    if isinstance(value, bool):
+        return [1] if value else []
+    if isinstance(value, (int, float)):
+        current = int(value)
+        return [current] if current > 0 else []
     if isinstance(value, Iterable) and not isinstance(value, (str, bytes)):
         return [int(item) for item in value if int(item) > 0]
     current = int(value)

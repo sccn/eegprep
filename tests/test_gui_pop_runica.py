@@ -158,6 +158,13 @@ class PopRunicaGuiTests(unittest.TestCase):
         self.assertEqual(out[1]["icaweights"].shape, (4, 4))
         self.assertIn("'dataset', [2]", com)
 
+    def test_empty_dataset_selection_raises(self):
+        first = dict(_eeg(), setname="first")
+        second = dict(_eeg(), setname="second")
+
+        with self.assertRaisesRegex(ValueError, "dataset must contain at least one index"):
+            pop_runica([first, second], dataset=[])
+
     def test_picard_algorithm_routes_to_eeg_picard(self):
         eeg = _eeg()
         updated = dict(eeg, icaweights=np.eye(4), icasphere=np.eye(4), icawinv=np.eye(4), icaact=np.zeros((4, 20, 1)))

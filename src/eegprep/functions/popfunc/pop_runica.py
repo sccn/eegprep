@@ -361,6 +361,8 @@ def _dataset_indices(EEG, dataset):
     values = np.asarray(dataset).tolist() if isinstance(dataset, np.ndarray) else dataset
     if isinstance(values, (int, np.integer)):
         values = [int(values)]
+    if not values:
+        raise ValueError("dataset must contain at least one index")
     indices = [int(value) - 1 for value in values]
     if any(index < 0 or index >= len(EEG) for index in indices):
         raise ValueError("dataset indices must be 1-based and within the ALLEEG list")
