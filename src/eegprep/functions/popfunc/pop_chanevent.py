@@ -40,22 +40,25 @@ def pop_chanevent(
             x = _apply_oper(x, str(options["oper"]))
         events.extend(_events_from_channel(x, channel, edge=edge, duration=duration, edgelen=int(options.get("edgelen", 1))))
     out = deepcopy(EEG)
-    original_events, original_urevents = _events_with_existing_urevents(
-        events_to_records(out.get("event")),
-        events_to_records(out.get("urevent")),
-    )
-    imported_events, imported_urevents = _events_with_new_urevents(events, len(original_urevents))
-    if str(options.get("delevent", "on")).lower() in {"on", "yes", "true", "1"}:
+    delete_events = str(options.get("delevent", "on")).lower() in {"on", "yes", "true", "1"}
+    if delete_events:
+        imported_events, imported_urevents = _events_with_new_urevents(events, 0)
         out["event"] = imported_events
+        out["urevent"] = imported_urevents
     else:
+        original_events, original_urevents = _events_with_existing_urevents(
+            events_to_records(out.get("event")),
+            events_to_records(out.get("urevent")),
+        )
+        imported_events, imported_urevents = _events_with_new_urevents(events, len(original_urevents))
         out["event"] = original_events + imported_events
         out["event"].sort(key=lambda item: float(item.get("latency", np.inf)))
+        out["urevent"] = original_urevents + imported_urevents
     if str(options.get("delchan", "on")).lower() in {"on", "yes", "true", "1"}:
         keep = [index for index in range(data.shape[0]) if index + 1 not in channels]
         out["data"] = data[keep, :]
         out["nbchan"] = len(keep)
         out["chanlocs"] = [loc for index, loc in enumerate(list(out.get("chanlocs", [])), start=1) if index not in channels]
-    out["urevent"] = original_urevents + imported_urevents
     out["saved"] = "no"
     with strict_mode(False):
         out = eeg_checkset(out)

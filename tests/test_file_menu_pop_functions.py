@@ -128,6 +128,23 @@ def test_pop_chanevent_preserves_existing_urevents_when_appending():
     ]
 
 
+def test_pop_chanevent_rebuilds_urevents_when_replacing_events():
+    eeg = eeg_from_data(np.array([[0, 0, 1, 1, 0, 0]], dtype=float), srate=100)
+    eeg["event"] = [{"type": "old", "latency": 1, "urevent": 1}]
+    eeg["urevent"] = [{"type": "old", "latency": 1}]
+
+    imported = pop_chanevent(eeg, 1, "edge", "both", "delchan", "off", "delevent", "on")
+    events = [dict(event) for event in imported["event"]]
+    urevents = [dict(event) for event in imported["urevent"]]
+
+    assert [event["latency"] for event in events] == [2, 5]
+    assert [event["urevent"] for event in events] == [1, 2]
+    assert urevents == [
+        {"type": "chan1", "latency": 2},
+        {"type": "chan1", "latency": 5},
+    ]
+
+
 def test_pop_chanevent_rejects_out_of_range_channels():
     eeg = eeg_from_data(np.array([[0, 1, 0]], dtype=float), srate=100)
 

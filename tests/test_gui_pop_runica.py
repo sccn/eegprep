@@ -68,6 +68,7 @@ class PopRunicaGuiTests(unittest.TestCase):
             out, com = pop_runica(eeg, gui=True, renderer=Renderer(), return_com=True)
 
         runica.assert_called_once()
+        self.assertNotIn("lrate", runica.call_args.kwargs)
         self.assertEqual(out["icaweights"].shape, (4, 4))
         self.assertEqual(
             com,
@@ -149,6 +150,7 @@ class PopRunicaGuiTests(unittest.TestCase):
             _out, com = pop_runica(eeg, "extended", 0, return_com=True)
 
         self.assertEqual(runica.call_args.kwargs["extended"], 0)
+        self.assertNotIn("lrate", runica.call_args.kwargs)
         self.assertEqual(com, "EEG = pop_runica(EEG, 'icatype', 'runica', 'extended', 0);")
 
     def test_amica_algorithm_routes_to_eeg_amica(self):
@@ -180,6 +182,21 @@ class PopRunicaGuiTests(unittest.TestCase):
             np.testing.assert_array_equal(eeg["icaweights"], np.eye(4))
             self.assertEqual(eeg["icaact"].size, 0)
         self.assertIn("'concatenate', 'on'", com)
+
+    def test_concatcond_groups_datasets_without_subjects(self):
+        first = _eeg()
+        second = dict(_eeg(), data=np.arange(80, 160, dtype=np.float64).reshape(4, 20))
+
+        def fake_runica(eeg, sortcomps="off", **_kwargs):
+            return dict(eeg, icaweights=np.eye(4), icasphere=np.eye(4), icawinv=np.eye(4), icaact=np.zeros((4, 40, 1)))
+
+        with mock.patch("eegprep.functions.popfunc.pop_runica.eeg_runica", side_effect=fake_runica) as runica:
+            out, com = pop_runica([first, second], options={"extended": 1}, concatcond="on", return_com=True)
+
+        runica.assert_called_once()
+        self.assertEqual(runica.call_args.args[0]["data"].shape, (4, 40))
+        self.assertEqual(len(out), 2)
+        self.assertIn("'concatcond', 'on'", com)
 
     def test_existing_ica_is_saved_and_iclabel_removed_before_recompute(self):
         eeg = dict(

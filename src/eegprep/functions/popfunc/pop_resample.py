@@ -208,7 +208,7 @@ def _segment_bounds(EEG, old_pnts):
         if latency <= 0 or latency > old_pnts:
             continue
         if not latency.is_integer():
-            latency = round(latency + 0.5)
+            latency = ceil(latency)
         bounds.append(int(latency))
     bounds.append(old_pnts + 1)
     return np.asarray(sorted(set(bounds)), dtype=int)

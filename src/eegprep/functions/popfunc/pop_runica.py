@@ -170,24 +170,25 @@ def _run_gui(EEG, renderer=None):
 
 
 def _runica_on_dataset(EEG, icatype, options, *, reorder, chanind):
-    output = _prepare_ica_dataset(EEG)
-    chanind = _resolve_chanind(output, chanind)
+    prepared = _prepare_ica_dataset(EEG)
+    chanind = _resolve_chanind(prepared, chanind)
     if chanind is None:
-        return _finalize_ica_dataset(_run_ica_backend(output, icatype, options, reorder=reorder), output)
+        return _finalize_ica_dataset(_run_ica_backend(prepared, icatype, options, reorder=reorder), prepared)
 
-    subset = copy.deepcopy(output)
+    subset = copy.deepcopy(prepared)
     subset["data"] = np.asarray(subset["data"])[chanind, ...]
     subset["nbchan"] = len(chanind)
     chanlocs = _as_list(subset.get("chanlocs", []))
     if chanlocs:
         subset["chanlocs"] = [chanlocs[index] for index in chanind]
     subset = _run_ica_backend(subset, icatype, options, reorder=reorder)
+    output = copy.deepcopy(prepared)
     output["icasphere"] = subset["icasphere"]
     output["icaweights"] = subset["icaweights"]
     output["icawinv"] = subset["icawinv"]
     output["icaact"] = subset["icaact"]
     output["icachansind"] = np.asarray(chanind)
-    return _finalize_ica_dataset(output, output)
+    return _finalize_ica_dataset(output, prepared)
 
 
 def _runica_on_datasets(EEG, *, dataset, icatype, options, reorder, chanind, concatenate, concatcond):
@@ -224,16 +225,19 @@ def _runica_concatenated(datasets, icatype, options, *, reorder, chanind):
 def _runica_by_subject_session(datasets, icatype, options, *, reorder, chanind):
     groups: dict[tuple[str, Any], list[int]] = {}
     for index, eeg in enumerate(datasets):
-        subject = eeg.get("subject")
-        if subject in (None, ""):
-            raise ValueError("Subject names are required to concatenate datasets by subject and session")
-        groups.setdefault((str(subject), eeg.get("session")), []).append(index)
+        groups.setdefault(_subject_session_key(eeg), []).append(index)
     output = list(datasets)
     for indices in groups.values():
         updated = _runica_concatenated([datasets[index] for index in indices], icatype, options, reorder=reorder, chanind=chanind)
         for index, item in zip(indices, updated):
             output[index] = item
     return output
+
+
+def _subject_session_key(EEG):
+    subject = EEG.get("subject")
+    session = EEG.get("session")
+    return ("" if subject in (None, "") else str(subject), "" if session in (None, "") else session)
 
 
 def _flatten_dataset_data(EEG):
@@ -297,9 +301,7 @@ def _finalize_ica_dataset(output, prepared):
 
 def _run_ica_backend(EEG, icatype, options, *, reorder):
     if icatype == "runica":
-        runica_options = dict(options)
-        runica_options.setdefault("lrate", 0.001)
-        return eeg_runica(EEG, sortcomps=reorder, **runica_options)
+        return eeg_runica(EEG, sortcomps=reorder, **options)
     if icatype == "picard":
         return eeg_picard(EEG, sortcomps=reorder, **_picard_options(options))
     if icatype == "runamica15":
