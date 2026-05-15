@@ -407,7 +407,7 @@
     {
       "id": "pop_runica_multiple_dialog",
       "description": "ICA decomposition dialog opened from pop_runica with multiple datasets.",
-      "window_size": [824, 394],
+      "window_size": [824, 454],
       "timeout_seconds": 120,
       "targets": {
         "eeglab": {

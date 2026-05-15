@@ -51,13 +51,14 @@ def pop_runica(
     if gui is None:
         gui = options is None and not parsed and chanind is None and dataset is None
     if gui:
-        gui_result = _run_gui(EEG[0] if isinstance(EEG, list) else EEG, renderer=renderer)
+        gui_result = _run_gui(EEG, renderer=renderer)
         if gui_result is None:
             return (EEG, "") if return_com else EEG
         icatype = gui_result["icatype"]
         options = gui_result["options"]
         reorder = gui_result["reorder"]
         chanind = gui_result["chanind"]
+        dataset = gui_result["dataset"]
         concatenate = gui_result["concatenate"]
         concatcond = gui_result["concatcond"]
         if icatype == "runica":
@@ -76,7 +77,15 @@ def pop_runica(
             concatenate=concatenate,
             concatcond=concatcond,
         )
-        command = _history_command(icatype, ica_options, reorder, chanind, concatenate=concatenate, concatcond=concatcond)
+        command = _history_command(
+            icatype,
+            ica_options,
+            reorder,
+            chanind,
+            dataset=dataset,
+            concatenate=concatenate,
+            concatcond=concatcond,
+        )
         return (output, command) if return_com else output
 
     output = _runica_on_dataset(EEG, icatype, ica_options, reorder=reorder, chanind=chanind)
@@ -130,6 +139,13 @@ def pop_runica_dialog_spec(EEG) -> DialogSpec:
     geometry = [(2, 1.5), (2, 1.5), (1,), (2, 1, 1, 1)]
     height = 334
     if dataset_count > 1:
+        dataset_values = list(range(1, dataset_count + 1))
+        controls.extend(
+            [
+                ControlSpec("text", "Datasets to use for ICA decomposition"),
+                ControlSpec("listbox", "|".join(_dataset_labels(EEG)), tag="dataset", value=dataset_values),
+            ]
+        )
         controls.extend(
             [
                 ControlSpec("text", "Concatenate all datasets (check=yes; uncheck=run ICA on each dataset)?"),
@@ -138,8 +154,8 @@ def pop_runica_dialog_spec(EEG) -> DialogSpec:
                 ControlSpec("checkbox", tag="concatcond", value=True),
             ]
         )
-        geometry.extend([(2, 0.2), (2, 0.2)])
-        height = 394
+        geometry.extend([(2, 1.5), (2, 0.2), (2, 0.2)])
+        height = 454
     return DialogSpec(
         title="Run ICA decomposition -- pop_runica()",
         function_name="pop_runica",
@@ -164,6 +180,7 @@ def _run_gui(EEG, renderer=None):
         "options": _parse_option_text(str(result.get("params", "") or "")),
         "reorder": "on" if result.get("reorder") else "off",
         "chanind": _parse_channel_text(chan_text) if chan_text else None,
+        "dataset": result.get("dataset"),
         "concatenate": "on" if result.get("concatenate") else "off",
         "concatcond": "on" if result.get("concatcond") else "off",
     }
@@ -451,8 +468,18 @@ def _is_int_text(value):
     return bool(re.fullmatch(r"[+-]?\d+", str(value).strip()))
 
 
-def _history_command(icatype, options, reorder, chanind, *, concatenate="off", concatcond="off"):
+def _dataset_labels(ALLEEG):
+    labels = []
+    for index, eeg in enumerate(ALLEEG, start=1):
+        setname = str(eeg.get("setname") or f"Dataset {index}")
+        labels.append(f"{index}: {setname}")
+    return tuple(labels)
+
+
+def _history_command(icatype, options, reorder, chanind, *, dataset=None, concatenate="off", concatcond="off"):
     parts = ["'icatype'", _runica_history_value(str(icatype).lower())]
+    if dataset is not None:
+        parts.extend(["'dataset'", _runica_history_value(dataset)])
     for key, value in options.items():
         parts.extend([_runica_history_value(key), _runica_history_value(value)])
     if str(reorder).lower() != "on":

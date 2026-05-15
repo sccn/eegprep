@@ -1,7 +1,9 @@
+import os
 import unittest
 from unittest import mock
 
 import numpy as np
+import pytest
 
 from eegprep.functions.guifunc.spec import controls_by_tag
 from eegprep.functions.guifunc.qt import QtDialogRenderer
@@ -121,13 +123,40 @@ class PopRunicaGuiTests(unittest.TestCase):
         self.assertEqual(com, "EEG = pop_runica(EEG, 'icatype', 'runica', 'extended', 1, 'chanind', [1 2]);")
 
     def test_gui_dialog_spec_adds_concatenate_controls_for_multiple_datasets(self):
-        spec = pop_runica_dialog_spec([_eeg(), _eeg()])
+        spec = pop_runica_dialog_spec([dict(_eeg(), setname="first"), dict(_eeg(), setname="second")])
         tagged = {control.tag: control for control in spec.controls if control.tag}
 
+        self.assertEqual(tagged["dataset"].string, "1: first|2: second")
+        self.assertEqual(tagged["dataset"].value, [1, 2])
         self.assertIn("concatenate", tagged)
         self.assertIn("concatcond", tagged)
         self.assertFalse(tagged["concatenate"].value)
         self.assertTrue(tagged["concatcond"].value)
+
+    def test_gui_dataset_selection_routes_to_dataset_argument(self):
+        class Renderer:
+            def run(self, spec, initial_values=None):
+                return {
+                    "icatype": 1,
+                    "params": "'extended', 1",
+                    "reorder": True,
+                    "chantype": "",
+                    "dataset": [2],
+                    "concatenate": False,
+                    "concatcond": False,
+                }
+
+        first = dict(_eeg(), setname="first")
+        second = dict(_eeg(), setname="second")
+        updated = dict(second, icaweights=np.eye(4), icasphere=np.eye(4), icawinv=np.eye(4), icaact=np.zeros((4, 20, 1)))
+
+        with mock.patch("eegprep.functions.popfunc.pop_runica.eeg_runica", return_value=updated) as runica:
+            out, com = pop_runica([first, second], gui=True, renderer=Renderer(), return_com=True)
+
+        runica.assert_called_once()
+        self.assertIs(out[0], first)
+        self.assertEqual(out[1]["icaweights"].shape, (4, 4))
+        self.assertIn("'dataset', [2]", com)
 
     def test_picard_algorithm_routes_to_eeg_picard(self):
         eeg = _eeg()
@@ -226,6 +255,38 @@ class PopRunicaGuiTests(unittest.TestCase):
                 raise AssertionError("QListWidget currentIndex returns a QModelIndex")
 
         self.assertEqual(QtDialogRenderer._read_widget(ListboxWidget()), 2)
+
+    def test_qt_renderer_reads_multiselect_listbox_as_one_based_rows(self):
+        class Index:
+            def __init__(self, row):
+                self._row = row
+
+            def row(self):
+                return self._row
+
+        class ListboxWidget:
+            def property(self, name):
+                return True if name == "eegprep_multiselect" else None
+
+            def selectedIndexes(self):
+                return [Index(2), Index(0)]
+
+            def currentRow(self):
+                raise AssertionError("multi-select listboxes should read selected indexes")
+
+        self.assertEqual(QtDialogRenderer._read_widget(ListboxWidget()), [1, 3])
+
+    def test_qt_renderer_defaults_to_all_selected_dataset_rows(self):
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        pytest.importorskip("PySide6")
+        renderer = QtDialogRenderer()
+        spec = pop_runica_dialog_spec([dict(_eeg(), setname="first"), dict(_eeg(), setname="second")])
+        _app, dialog, widgets = renderer.build_dialog(spec)
+
+        try:
+            self.assertEqual(QtDialogRenderer._read_widget(widgets["dataset"]), [1, 2])
+        finally:
+            dialog.close()
 
 
 if __name__ == "__main__":

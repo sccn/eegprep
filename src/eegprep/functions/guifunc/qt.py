@@ -21,6 +21,7 @@ except ImportError:  # pragma: no cover - depends on optional GUI dependency
     QDialog = None
 
 _VALUE_PROPERTY = "eegprep_value"
+_MULTI_SELECT_PROPERTY = "eegprep_multiselect"
 
 
 def _require_qt() -> tuple[Any, Any]:
@@ -325,12 +326,22 @@ class QtDialogRenderer:
         elif style == "listbox":
             widget = QtWidgets.QListWidget()
             widget.addItems([item.strip() for item in control.string.split("|")])
-            try:
-                index = int(value) - 1
-            except (TypeError, ValueError):
-                index = 0
-            if 0 <= index < widget.count():
-                widget.setCurrentRow(index)
+            if _is_sequence_value(value):
+                widget.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
+                widget.setProperty(_MULTI_SELECT_PROPERTY, True)
+                selected_rows = [int(item) - 1 for item in value]
+                if selected_rows and 0 <= selected_rows[0] < widget.count():
+                    widget.setCurrentRow(selected_rows[0])
+                for row in selected_rows:
+                    if 0 <= row < widget.count():
+                        widget.item(row).setSelected(True)
+            else:
+                try:
+                    index = int(value) - 1
+                except (TypeError, ValueError):
+                    index = 0
+                if 0 <= index < widget.count():
+                    widget.setCurrentRow(index)
         elif style == "spacer":
             widget = QtWidgets.QWidget()
         else:
@@ -403,6 +414,9 @@ class QtDialogRenderer:
                 return "New sampling rate must be numeric"
             if value <= 0:
                 return "New sampling rate must be positive"
+        if spec.function_name == "pop_runica" and "dataset" in widgets:
+            if not QtDialogRenderer._read_widget(widgets["dataset"]):
+                return "Select at least one dataset"
         return None
 
     @staticmethod
@@ -683,6 +697,8 @@ class QtDialogRenderer:
             return stored_value
         if hasattr(widget, "isChecked"):
             return widget.isChecked()
+        if widget.property(_MULTI_SELECT_PROPERTY) and hasattr(widget, "selectedIndexes"):
+            return sorted({index.row() + 1 for index in widget.selectedIndexes()})
         if hasattr(widget, "currentRow"):
             return widget.currentRow() + 1
         if hasattr(widget, "currentIndex"):
@@ -690,3 +706,7 @@ class QtDialogRenderer:
         if hasattr(widget, "text"):
             return widget.text()
         return None
+
+
+def _is_sequence_value(value: Any) -> bool:
+    return isinstance(value, (list, tuple, set))

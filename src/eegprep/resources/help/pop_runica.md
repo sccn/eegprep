@@ -16,8 +16,9 @@ Inputs:
 - `'options'`: key/value options passed to the selected backend.
 - `'chanind'`: one-based channel indices, channel labels, or channel types used for ICA.
 - `'reorder'`: `'on'` or `'off'`; reorder components by descending activation variance. Default is `'on'`.
+- `'dataset'`: one-based dataset indices to process when `EEG` is a list of datasets. Default is all datasets.
 - `'concatenate'`: for a list of datasets, `'on'` runs one ICA on concatenated data and copies the decomposition back to each dataset. Default is `'off'`.
-- `'concatcond'`: for a list of datasets, `'on'` concatenates datasets that share the same subject and session. Subject names must be present.
+- `'concatcond'`: for a list of datasets, `'on'` concatenates datasets that share the same subject and session. Datasets without subject/session metadata are grouped together.
 
 Graphical interface:
 
@@ -27,7 +28,7 @@ Calling `pop_runica(EEG)` opens an EEGLAB-style dialog with:
 - A command-line options field.
 - A component-reordering checkbox.
 - Channel type/index selection controls.
-- For multiple datasets, concatenate controls matching EEGLAB's standard ICA dialog.
+- For multiple datasets, a dataset selector and concatenate controls.
 
 Behavior:
 
