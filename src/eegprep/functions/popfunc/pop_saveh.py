@@ -17,7 +17,7 @@ def pop_saveh(allcoms: str | list[str], filename: str | Path = "eegprephist.m", 
         stream.write(f"% EEGPrep history file generated on {date.today().isoformat()}\n")
         stream.write("% ------------------------------------------------\n")
         if isinstance(allcoms, list):
-            for command in reversed(allcoms):
+            for command in allcoms:
                 stream.write(f"{command}\n")
             stream.write("eegprep.eeglab();\n")
         else:

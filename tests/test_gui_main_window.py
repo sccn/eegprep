@@ -304,14 +304,18 @@ class MainMenuSpecTests(unittest.TestCase):
             all(action_kind(action) == "implemented" or is_placeholder_action(action) for action in actions)
         )
 
-    def test_all_file_menu_actions_are_implemented(self):
+    def test_file_menu_actions_are_implemented_or_explicit_placeholders(self):
         file_menu = _child(eeglab_menus(all_menus=True), "File")
         file_actions = menu_actions((file_menu,))
 
         self.assertIn("pop_importdata", file_actions)
         self.assertIn("pop_exportbids", file_actions)
         self.assertIn("pop_saveh:dataset", file_actions)
-        self.assertEqual([action for action in sorted(file_actions) if action_kind(action) != "implemented"], [])
+        self.assertEqual(
+            [action for action in sorted(file_actions) if action_kind(action) != "implemented"],
+            ["pop_fileio_brainvision_mat"],
+        )
+        self.assertEqual(action_kind("pop_fileio_brainvision_mat"), "placeholder")
 
 
 class EEGPrepSessionTests(unittest.TestCase):
@@ -700,6 +704,27 @@ class MenuActionDispatcherTests(unittest.TestCase):
         self.assertEqual(session.CURRENTSTUDY, 1)
         self.assertEqual(session.STUDY["datasetinfo"][0]["setname"], "demo")
         self.assertEqual(session.ALLCOM[-1], "pop_saveh(ALLCOM, 'history.m', '/tmp');")
+
+    def test_file_menu_runscript_updates_currentset_from_namespace(self):
+        session = EEGPrepSession()
+        session.store_current(_demo_eeg(), new=True)
+        session.store_current(dict(_demo_eeg(), setname="second"), new=True)
+        session.retrieve(1)
+        dispatcher = MenuActionDispatcher(session)
+        qt_widgets = _fake_qt_widgets(open_file="/tmp/script.py")
+
+        def fake_runscript(_filename, namespace):
+            namespace["CURRENTSET"] = 2
+            return "LASTCOM = pop_runscript('/tmp/script.py');"
+
+        with (
+            mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets),
+            mock.patch("eegprep.functions.popfunc.pop_runscript.pop_runscript", side_effect=fake_runscript),
+        ):
+            dispatcher.dispatch("pop_runscript")
+
+        self.assertEqual(session.CURRENTSET, [2])
+        self.assertEqual(session.ALLCOM[-1], "LASTCOM = pop_runscript('/tmp/script.py');")
 
 
 class QtMainWindowTests(unittest.TestCase):

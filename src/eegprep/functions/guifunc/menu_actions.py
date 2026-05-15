@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import webbrowser
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from pathlib import Path
 from typing import Any
 
@@ -36,7 +36,6 @@ IMPLEMENTED_ACTIONS = {
     "pop_exportbids",
     "pop_fileio",
     "pop_fileio_brainvision",
-    "pop_fileio_brainvision_mat",
     "pop_fileio_cnt",
     "pop_fileio_eeg",
     "pop_fileio_mff",
@@ -172,7 +171,6 @@ class MenuActionDispatcher:
             "pop_biosig",
             "pop_fileio",
             "pop_fileio_brainvision",
-            "pop_fileio_brainvision_mat",
             "pop_fileio_cnt",
             "pop_fileio_eeg",
             "pop_fileio_mff",
@@ -338,7 +336,6 @@ class MenuActionDispatcher:
             "pop_fileio_cnt": "Neuroscan CNT (*.cnt);;All files (*)",
             "pop_fileio_eeg": "Neuroscan/BrainVision EEG (*.eeg);;All files (*)",
             "pop_fileio_brainvision": "BrainVision header (*.vhdr);;All files (*)",
-            "pop_fileio_brainvision_mat": "BrainVision MATLAB (*.mat);;All files (*)",
         }
         filename, _filter = qt_widgets.QFileDialog.getOpenFileName(
             parent,
@@ -536,6 +533,7 @@ class MenuActionDispatcher:
         command = pop_runscript(filename, namespace)
         self.session.EEG = namespace.get("EEG", self.session.EEG)
         self.session.ALLEEG = namespace.get("ALLEEG", self.session.ALLEEG)
+        self.session.CURRENTSET = _currentset_list(namespace.get("CURRENTSET", self.session.current_set_value()))
         self.session.STUDY = namespace.get("STUDY", self.session.STUDY)
         self.session.add_history(command)
         self._refresh()
@@ -740,6 +738,19 @@ def _default_bids_metadata(action: str) -> str:
     if action == "pop_participantinfo":
         return "participant_id=sub-01"
     return "trial_type=event"
+
+
+def _currentset_list(value: Any) -> list[int]:
+    if value is None:
+        return []
+    if isinstance(value, str) and value == "":
+        return []
+    if isinstance(value, (int, float)) and int(value) == 0:
+        return []
+    if isinstance(value, Iterable) and not isinstance(value, (str, bytes)):
+        return [int(item) for item in value if int(item) > 0]
+    current = int(value)
+    return [current] if current > 0 else []
 
 
 def _apply_save_metadata(eeg: dict[str, Any], filename: str) -> None:

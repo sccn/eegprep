@@ -39,6 +39,7 @@ PLACEHOLDER_ACTIONS = frozenset(
         "pop_firma",
         "pop_firpm",
         "pop_firws",
+        "pop_fileio_brainvision_mat",
         "pop_headplot",
         "pop_icflag",
         "pop_jointprob",

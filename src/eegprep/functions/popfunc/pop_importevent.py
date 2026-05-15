@@ -33,10 +33,18 @@ def pop_importevent(
     append = str(options.get("append", "no")).lower() in {"on", "yes", "true", "1"}
     out = deepcopy(EEG)
     if append:
-        events = events_to_records(out.get("event")) + events
+        original_events, original_urevents = _events_with_existing_urevents(
+            events_to_records(out.get("event")),
+            events_to_records(out.get("urevent")),
+        )
+        imported_events, imported_urevents = _events_with_new_urevents(events, len(original_urevents))
+        events = original_events + imported_events
         events.sort(key=lambda item: float(item.get("latency", np.inf)))
+        out["urevent"] = original_urevents + imported_urevents
+    else:
+        events, urevents = _events_with_new_urevents(events, 0)
+        out["urevent"] = urevents
     out["event"] = events
-    out["urevent"] = [dict(event) for event in events]
     out["saved"] = "no"
     with strict_mode(False):
         out = eeg_checkset(out)
@@ -60,6 +68,52 @@ def _timeunit(options: dict[str, Any]) -> float | None:
     if isinstance(value, str) and value.lower() == "nan":
         return float("nan")
     return float(value)
+
+
+def _events_with_existing_urevents(
+    events: list[dict[str, Any]],
+    urevents: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    normalized_urevents = [_urevent_record(event) for event in urevents]
+    normalized_events = []
+    for event in events:
+        normalized = dict(event)
+        urevent_index = _valid_urevent_index(normalized.get("urevent"), len(normalized_urevents))
+        if urevent_index is None:
+            normalized_urevents.append(_urevent_record(normalized))
+            urevent_index = len(normalized_urevents)
+        normalized["urevent"] = urevent_index
+        normalized_events.append(normalized)
+    return normalized_events, normalized_urevents
+
+
+def _events_with_new_urevents(
+    events: list[dict[str, Any]],
+    offset: int,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    normalized_events = []
+    urevents = []
+    for index, event in enumerate(events, start=1):
+        urevent = _urevent_record(event)
+        event_with_ref = dict(urevent)
+        event_with_ref["urevent"] = offset + index
+        normalized_events.append(event_with_ref)
+        urevents.append(urevent)
+    return normalized_events, urevents
+
+
+def _valid_urevent_index(value: Any, count: int) -> int | None:
+    try:
+        index = int(value)
+    except (TypeError, ValueError):
+        return None
+    return index if 1 <= index <= count else None
+
+
+def _urevent_record(event: dict[str, Any]) -> dict[str, Any]:
+    record = dict(event)
+    record.pop("urevent", None)
+    return record
 
 
 def _history_command(event_source: Any, options: dict[str, Any]) -> str:

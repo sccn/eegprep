@@ -84,7 +84,11 @@ def test_pop_importevent_replaces_and_appends_events(tmp_path):
 
     assert [event["type"] for event in replaced["event"]] == ["stim", "resp"]
     assert [event["latency"] for event in replaced["event"]] == [1, 4]
+    assert [event["urevent"] for event in replaced["event"]] == [1, 2]
+    assert all("urevent" not in urevent for urevent in replaced["urevent"])
     assert len(appended["event"]) == 3
+    assert all("urevent" in event for event in appended["event"])
+    assert all("urevent" not in urevent for urevent in appended["urevent"])
     assert "pop_importevent" in command
 
 
@@ -184,7 +188,7 @@ def test_history_script_save_and_python_run(tmp_path):
     command = pop_saveh(["first;", "second;"], history_file.name, history_file.parent)
     run_command = pop_runscript(script_file, namespace)
 
-    assert "second;" in history_file.read_text(encoding="utf-8").splitlines()[2]
+    assert history_file.read_text(encoding="utf-8").splitlines()[2:4] == ["first;", "second;"]
     assert namespace["EEG"]["setname"] == "scripted"
     assert "pop_saveh" in command
     assert _matlab_string(history_file.name) in command
