@@ -575,6 +575,7 @@ def pop_select_dialog_spec(EEG) -> DialogSpec:
             (1, 1, 1),
         ),
         size=(695, 404),
+        geomvert=(1, 1, 1, 1, 1, 1, 1, 1),
         help_text="pophelp('pop_select')",
         controls=(
             ControlSpec("text", "Select data in:", font_weight="bold"),
@@ -635,7 +636,8 @@ def pop_select_dialog_spec(EEG) -> DialogSpec:
             ),
             ControlSpec("spacer"),
             ControlSpec("spacer"),
-            ControlSpec("pushbutton", "Scroll dataset", tag="scroll"),
+            # TODO: re-enable when an EEGPrep equivalent of EEGLAB's eegplot scrolling viewer is available.
+            ControlSpec("pushbutton", "Scroll dataset", tag="scroll", enabled=False),
             ControlSpec("spacer"),
         ),
     )
