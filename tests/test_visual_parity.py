@@ -185,7 +185,8 @@ class VisualParityCaptureTests(unittest.TestCase):
             self.assertNotIn("-batch", captured_command)
             script_text = next((tmp_path / "adjust_events_dialog").glob("*.m")).read_text()
             self.assertIn("pop_adjustevents(EEG)", script_text)
-            self.assertIn("capture_pop_adjustevents_dialog", script_text)
+            self.assertIn("capture_simple_pop_dialog", script_text)
+            self.assertIn("inputgui_override_dir =", script_text)
 
     def test_matlab_dialog_capture_generates_pop_chansel_script(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -254,9 +255,10 @@ class VisualParityCaptureTests(unittest.TestCase):
             self.assertTrue(results[0].ok)
             self.assertIn("-nosplash", captured_command)
             script_text = next((tmp_path / "pop_interp_epoched_dialog").glob("*.m")).read_text()
-            self.assertIn("capture_variant = 'epoched';", script_text)
+            self.assertIn("variant = 'epoched';", script_text)
             self.assertIn("[EEG, com] = pop_interp(EEG);", script_text)
             self.assertIn("EEG.epoch = struct", script_text)
+            self.assertIn("capture_simple_pop_dialog", script_text)
 
     def test_matlab_dialog_capture_generates_simple_pop_function_script(self):
         with tempfile.TemporaryDirectory() as tmpdir:

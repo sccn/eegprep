@@ -56,13 +56,6 @@ class QtDialogRenderer:
             )
         return QDialog
 
-    @staticmethod
-    def _row_width(geometry: tuple[Any, ...], row: int) -> int:
-        value = geometry[min(row, len(geometry) - 1)]
-        if isinstance(value, (list, tuple)):
-            return max(1, len(value))
-        return max(1, int(value))
-
     def build_dialog(
         self,
         spec: DialogSpec,
@@ -76,32 +69,39 @@ class QtDialogRenderer:
         dialog.setObjectName(spec.function_name)
         dialog.setWindowTitle(spec.title)
         self._apply_eeglab_style(dialog)
-        layout = qt_widgets.QGridLayout(dialog)
+        layout = qt_widgets.QVBoxLayout(dialog)
         layout.setContentsMargins(*spec.content_margins)
-        layout.setHorizontalSpacing(8)
-        layout.setVerticalSpacing(4)
+        layout.setSpacing(4)
 
         initial_values = initial_values or {}
         widgets: dict[str, Any] = {}
         index = 0
-        for row, row_geometry in enumerate(spec.geometry):
-            row_width = self._row_width(spec.geometry, row)
-            for column in range(row_width):
+        for row_index, row_geometry in enumerate(spec.geometry):
+            weights = self._row_weights(row_geometry)
+            row_container = qt_widgets.QWidget()
+            row_layout = qt_widgets.QHBoxLayout(row_container)
+            row_layout.setContentsMargins(0, 0, 0, 0)
+            row_layout.setSpacing(4)
+            added_visible_widget = False
+            for weight in weights:
                 if index >= len(spec.controls):
                     break
                 control = spec.controls[index]
                 widget = self._build_widget(qt_widgets, control, initial_values)
                 if control.tag:
                     widgets[control.tag] = widget
-                column_span = 1
-                if isinstance(row_geometry, (int, float)) and row_geometry == 1 and row_width == 1:
-                    column_span = self._max_columns(spec.geometry)
-                elif isinstance(row_geometry, (list, tuple)) and len(row_geometry) == 1:
-                    column_span = self._max_columns(spec.geometry)
-                self._add_widget(qt_core, layout, widget, control, row, column, column_span)
+                stretch = max(1, round(float(weight) * 100))
+                if control.style.lower() == "spacer":
+                    row_layout.addStretch(stretch)
+                else:
+                    row_layout.addWidget(widget, stretch, qt_core.Qt.AlignVCenter)
+                    added_visible_widget = True
                 index += 1
+            if added_visible_widget:
+                layout.addWidget(row_container, self._row_stretch(spec, row_index))
+            else:
+                layout.addSpacing(8)
 
-        self._apply_column_stretches(layout, spec)
         for control in spec.controls:
             self._connect_callback(control.callback, widgets)
 
@@ -129,8 +129,6 @@ class QtDialogRenderer:
             QLineEdit {
                 background: white;
                 border: 1px solid #7f7f7f;
-                min-width: 217px;
-                max-width: 217px;
                 min-height: 18px;
                 max-height: 18px;
                 margin-left: 1px;
@@ -144,8 +142,6 @@ class QtDialogRenderer:
             QComboBox {
                 background: white;
                 border: 1px solid #7f7f7f;
-                min-width: 217px;
-                max-width: 217px;
                 min-height: 20px;
                 max-height: 20px;
                 color: #000066;
@@ -153,8 +149,6 @@ class QtDialogRenderer:
             QListWidget {
                 background: white;
                 border: 1px solid #7f7f7f;
-                min-width: 217px;
-                max-width: 217px;
                 min-height: 74px;
                 max-height: 74px;
                 color: #000066;
@@ -162,8 +156,6 @@ class QtDialogRenderer:
             QPushButton {
                 background: #eeeeee;
                 border: 1px solid #7f7f7f;
-                min-width: 79px;
-                max-width: 79px;
                 min-height: 18px;
                 max-height: 18px;
                 padding: 0 10px;
@@ -225,12 +217,17 @@ class QtDialogRenderer:
         )
 
     @staticmethod
-    def _apply_column_stretches(layout: Any, spec: DialogSpec) -> None:
-        row = QtDialogRenderer._widest_geometry_row(spec.geometry)
-        if not isinstance(row, (list, tuple)):
-            return
-        for column, stretch in enumerate(row):
-            layout.setColumnStretch(column, max(1, int(float(stretch) * 100)))
+    def _row_weights(row_geometry: Any) -> list[float]:
+        if isinstance(row_geometry, (list, tuple)):
+            return [max(0.01, float(value)) for value in row_geometry]
+        return [1.0] * max(1, int(row_geometry))
+
+    @staticmethod
+    def _row_stretch(spec: DialogSpec, row_index: int) -> int:
+        if spec.geomvert is None:
+            return 0
+        value = spec.geomvert[min(row_index, len(spec.geomvert) - 1)]
+        return max(1, round(float(value) * 100))
 
     @staticmethod
     def _add_buttons(
@@ -247,6 +244,7 @@ class QtDialogRenderer:
         if spec.help_text:
             help_button = QtWidgets.QPushButton("Help")
             help_button.setObjectName("help")
+            help_button.setFixedWidth(80)
             help_button.clicked.connect(lambda: QtDialogRenderer._show_help(QtWidgets, dialog, spec))
             button_layout.addWidget(help_button)
         button_layout.addStretch(1)
@@ -254,47 +252,13 @@ class QtDialogRenderer:
         ok_button = QtWidgets.QPushButton("OK")
         cancel_button.setObjectName("cancel")
         ok_button.setObjectName("ok")
+        cancel_button.setFixedWidth(80)
+        ok_button.setFixedWidth(80)
         cancel_button.clicked.connect(dialog.reject)
         ok_button.clicked.connect(lambda: QtDialogRenderer._accept_if_valid(dialog, spec, widgets))
         button_layout.addWidget(cancel_button)
         button_layout.addWidget(ok_button)
-        layout.addWidget(
-            button_container,
-            len(spec.geometry),
-            0,
-            1,
-            QtDialogRenderer._max_columns(spec.geometry),
-        )
-
-    @staticmethod
-    def _max_columns(geometry: tuple[Any, ...]) -> int:
-        widths = [
-            len(value) if isinstance(value, (list, tuple)) else 1
-            for value in geometry
-        ]
-        return max(widths, default=1)
-
-    @staticmethod
-    def _widest_geometry_row(geometry: tuple[Any, ...]) -> Any:
-        rows = [value for value in geometry if isinstance(value, (list, tuple))]
-        if not rows:
-            return ()
-        return max(rows, key=len)
-
-    @staticmethod
-    def _add_widget(
-        QtCore: Any,
-        layout: Any,
-        widget: Any,
-        control: ControlSpec,
-        row: int,
-        column: int,
-        column_span: int,
-    ) -> None:
-        if control.style.lower() == "edit":
-            layout.addWidget(widget, row, column, 1, column_span, QtCore.Qt.AlignLeft)
-            return
-        layout.addWidget(widget, row, column, 1, column_span)
+        layout.addWidget(button_container)
 
     @staticmethod
     def _apply_spec_size(dialog: Any, spec: DialogSpec) -> None:
@@ -351,8 +315,19 @@ class QtDialogRenderer:
             widget.setObjectName(control.tag)
         if control.tooltip:
             widget.setToolTip(control.tooltip)
+        self._apply_widget_size_policy(QtWidgets, widget, style)
         widget.setEnabled(control.enabled)
         return widget
+
+    @staticmethod
+    def _apply_widget_size_policy(QtWidgets: Any, widget: Any, style: str) -> None:
+        policy = QtWidgets.QSizePolicy
+        if style in {"edit", "popupmenu", "listbox", "pushbutton"}:
+            widget.setSizePolicy(policy.Expanding, policy.Fixed)
+            return
+        if style in {"text", "checkbox"}:
+            widget.setMinimumWidth(0)
+            widget.setSizePolicy(policy.Expanding, policy.Fixed)
 
     def _connect_callback(self, callback: CallbackSpec | None, widgets: dict[str, Any]) -> None:
         if callback is None:

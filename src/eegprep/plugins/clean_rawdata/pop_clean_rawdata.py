@@ -84,6 +84,7 @@ def pop_clean_rawdata_dialog_spec(EEG) -> DialogSpec:
         function_name="pop_clean_rawdata",
         eeglab_source="plugins/clean_rawdata/pop_clean_rawdata.m",
         geometry=(1, row, 1, 1, row4, row4, row, row, row, 1, 1, row, row2, row2, 1, 1, row, row, 1, 1),
+        geomvert=(1, 1, 0.3, 1, 1, 1, 1, 1, 1, 0.3, 1, 1, 1, 1, 0.3, 1, 1, 1, 0.3, 1),
         size=(681, 733),
         help_text="pophelp('pop_clean_rawdata')",
         controls=(

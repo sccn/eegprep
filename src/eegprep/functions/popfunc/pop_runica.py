@@ -137,6 +137,7 @@ def pop_runica_dialog_spec(EEG) -> DialogSpec:
         ),
     ]
     geometry = [(2, 1.5), (2, 1.5), (1,), (2, 1, 1, 1)]
+    geomvert = [3, 1, 1, 1]
     height = 334
     if dataset_count > 1:
         dataset_values = list(range(1, dataset_count + 1))
@@ -155,12 +156,14 @@ def pop_runica_dialog_spec(EEG) -> DialogSpec:
             ]
         )
         geometry.extend([(2, 1.5), (2, 0.2), (2, 0.2)])
+        geomvert.extend([1, 1, 1])
         height = 454
     return DialogSpec(
         title="Run ICA decomposition -- pop_runica()",
         function_name="pop_runica",
         eeglab_source="functions/popfunc/pop_runica.m",
         geometry=tuple(geometry),
+        geomvert=tuple(geomvert),
         size=(824, height),
         help_text="pophelp('pop_runica')",
         controls=tuple(controls),

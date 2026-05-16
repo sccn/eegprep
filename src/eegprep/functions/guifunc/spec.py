@@ -45,6 +45,7 @@ class DialogSpec:
     help_text: str | None = None
     known_differences: tuple[str, ...] = ()
     content_margins: tuple[int, int, int, int] = (42, 17, 42, 13)
+    geomvert: tuple[float, ...] | None = None
 
 
 def controls_by_tag(spec: DialogSpec) -> dict[str, ControlSpec]:
