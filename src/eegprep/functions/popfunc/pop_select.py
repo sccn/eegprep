@@ -577,9 +577,9 @@ def pop_select_dialog_spec(EEG) -> DialogSpec:
         size=(695, 404),
         help_text="pophelp('pop_select')",
         controls=(
-            ControlSpec("text", "Select data in:"),
-            ControlSpec("text", "Input desired range"),
-            ControlSpec("text", "on->remove these"),
+            ControlSpec("text", "Select data in:", font_weight="bold"),
+            ControlSpec("text", "Input desired range", font_weight="bold"),
+            ControlSpec("text", "on->remove these", font_weight="bold"),
             ControlSpec("text", "Time range [min max] (s)"),
             ControlSpec("edit", tag="time", value=""),
             ControlSpec("spacer"),

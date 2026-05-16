@@ -243,8 +243,10 @@ def pop_adjustevents_dialog_spec(srate: float, event_types: Iterable[object] = (
         title="Adjust event latencies - pop_adjustevents()",
         function_name="pop_adjustevents",
         eeglab_source="functions/popfunc/pop_adjustevents.m",
-        size=(858, 169),
+        size=(784, 264),
         geometry=((1, 0.7, 0.5), (1, 0.7, 0.5), (1, 0.7, 0.5), 1),
+        content_margins=(42, 36, 42, 13),
+        row_spacing=14,
         known_differences=(
             "Python callback code is explicit; original MATLAB callback strings are kept as metadata.",
         ),

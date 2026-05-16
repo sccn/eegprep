@@ -73,6 +73,7 @@ class PopSelectGuiTests(unittest.TestCase):
                 ("spacer", "", None),
             ],
         )
+        self.assertEqual([control.font_weight for control in spec.controls[:3]], ["bold", "bold", "bold"])
 
     def test_gui_channel_picker_exposes_labels_and_types(self):
         controls = controls_by_tag(pop_select_dialog_spec(_eeg()))

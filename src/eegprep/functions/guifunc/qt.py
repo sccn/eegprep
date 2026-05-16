@@ -71,7 +71,7 @@ class QtDialogRenderer:
         self._apply_eeglab_style(dialog)
         layout = qt_widgets.QVBoxLayout(dialog)
         layout.setContentsMargins(*spec.content_margins)
-        layout.setSpacing(4)
+        layout.setSpacing(spec.row_spacing)
 
         initial_values = initial_values or {}
         widgets: dict[str, Any] = {}
@@ -79,6 +79,8 @@ class QtDialogRenderer:
         for row_index, row_geometry in enumerate(spec.geometry):
             weights = self._row_weights(row_geometry)
             row_container = qt_widgets.QWidget()
+            if spec.geomvert is None:
+                row_container.setSizePolicy(qt_widgets.QSizePolicy.Expanding, qt_widgets.QSizePolicy.Fixed)
             row_layout = qt_widgets.QHBoxLayout(row_container)
             row_layout.setContentsMargins(0, 0, 0, 0)
             row_layout.setSpacing(4)
@@ -237,7 +239,10 @@ class QtDialogRenderer:
         dialog: Any,
         widgets: dict[str, Any],
     ) -> None:
+        if spec.geomvert is None and spec.size is not None:
+            layout.addStretch(1)
         button_container = QtWidgets.QWidget()
+        button_container.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
         button_layout = QtWidgets.QHBoxLayout(button_container)
         button_layout.setContentsMargins(0, 18, 0, 0)
         button_layout.setSpacing(16)
@@ -315,9 +320,18 @@ class QtDialogRenderer:
             widget.setObjectName(control.tag)
         if control.tooltip:
             widget.setToolTip(control.tooltip)
+        self._apply_font_hints(widget, control)
         self._apply_widget_size_policy(QtWidgets, widget, style)
         widget.setEnabled(control.enabled)
         return widget
+
+    @staticmethod
+    def _apply_font_hints(widget: Any, control: ControlSpec) -> None:
+        if control.font_weight is None:
+            return
+        font = widget.font()
+        font.setBold(control.font_weight.lower() == "bold")
+        widget.setFont(font)
 
     @staticmethod
     def _apply_widget_size_policy(QtWidgets: Any, widget: Any, style: str) -> None:
