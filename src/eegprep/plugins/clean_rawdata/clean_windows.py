@@ -205,15 +205,17 @@ def clean_windows(
     try:
         from eegprep import pop_select  # type: ignore
         EEG = pop_select(EEG, point=retain_intervals)
-        # EEGLAB's pop_select path returns single-precision data in this workflow.
+        # pop_select / eeg_eegrej already updated pnts/xmax, shifted event
+        # latencies, and inserted boundary events at each cut. Match EEGLAB by
+        # also casting data to single precision (pop_select keeps the input
+        # dtype).
         EEG['data'] = np.asarray(EEG['data'], dtype=np.float32)
-        EEG['pnts'] = EEG['data'].shape[1]
-        EEG['xmax'] = EEG['xmin'] + (EEG['pnts'] - 1) / Fs
-        _drop_signal_metadata(EEG)
         logger.warning("This call to pop_select() assumes that time intervals use "
                       "1-based indexing; if this has been verified, please remove this warning.")
     except Exception as e:  # noqa: BLE001 – we really want to catch *everything*
-        # Fall back to manual trimming and minimal bookkeeping
+        # Fall back to manual trimming and minimal bookkeeping. The manual
+        # path below cannot shift event latencies or insert boundary events,
+        # so the metadata wipe is correct only on this branch.
         if isinstance(e, ImportError):
             logger.error("Apparently you do not have EEGLAB's pop_select() on the path.")
         else:
