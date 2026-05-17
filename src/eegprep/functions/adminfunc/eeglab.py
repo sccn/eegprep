@@ -57,9 +57,9 @@ def eeglab(
 
 def main(argv: list[str] | None = None) -> int:
     """Console-script entry point for ``eegprep-gui``."""
-    parser = argparse.ArgumentParser(description="Launch the EEGPrep EEGLAB-style GUI.")
+    parser = argparse.ArgumentParser(description="Launch the EEGPrep GUI.")
     parser.add_argument("--nogui", action="store_true", help="Initialize session state without opening a window")
-    parser.add_argument("--full", action="store_true", help="Show EEGLAB legacy/advanced menu items")
+    parser.add_argument("--full", action="store_true", help="Show legacy/advanced menu items")
     parser.add_argument("--no-plugins", action="store_true", help="Hide plugin-contributed menu items")
     args = parser.parse_args(argv)
     if args.nogui:

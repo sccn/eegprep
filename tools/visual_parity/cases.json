@@ -7,7 +7,7 @@
     {
       "id": "main_window",
       "description": "EEGLAB/EEGPrep main window at startup.",
-      "window_size": [386, 290],
+      "window_size": [520, 380],
       "targets": {
         "eeglab": {
           "type": "matlab_figure",
@@ -32,7 +32,7 @@
     {
       "id": "main_window_continuous",
       "description": "EEGLAB/EEGPrep main window with one continuous dataset loaded.",
-      "window_size": [386, 290],
+      "window_size": [520, 380],
       "targets": {
         "eeglab": {
           "type": "matlab_figure",
@@ -57,7 +57,7 @@
     {
       "id": "main_window_epoched",
       "description": "EEGLAB/EEGPrep main window with one epoched dataset loaded.",
-      "window_size": [386, 290],
+      "window_size": [520, 380],
       "targets": {
         "eeglab": {
           "type": "matlab_figure",
@@ -82,7 +82,7 @@
     {
       "id": "main_window_multiple",
       "description": "EEGLAB/EEGPrep main window with multiple datasets selected.",
-      "window_size": [386, 290],
+      "window_size": [520, 380],
       "targets": {
         "eeglab": {
           "type": "matlab_figure",
@@ -107,7 +107,7 @@
     {
       "id": "main_window_study",
       "description": "EEGLAB/EEGPrep main window with a STUDY selected.",
-      "window_size": [386, 290],
+      "window_size": [520, 380],
       "targets": {
         "eeglab": {
           "type": "matlab_figure",

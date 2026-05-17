@@ -1,80 +1,101 @@
 """EEG preprocessing package for MATLAB EEGLAB compatibility."""
 
+from __future__ import annotations
+
+import importlib
 import logging
+from typing import Any
+
+from .functions.adminfunc.logs import setup_logging
 
 __version__ = "0.2.23"
 
-from .functions.adminfunc.logs import setup_logging
 setup_logging(logging.WARNING)
 
-from .functions.adminfunc.eeglab import eeglab
-from .plugins.ICLabel.iclabel import iclabel
-from .plugins.ICLabel.eeg_icflag import eeg_icflag
-from .functions.popfunc.pop_subcomp import pop_subcomp
-from .functions.popfunc.pop_saveset import pop_saveset
-from .functions.popfunc.pop_loadset import loadset, pop_loadset
-from .functions.popfunc.pop_loadset_h5 import pop_loadset_h5
-from .functions.popfunc.pop_adjustevents import pop_adjustevents
-from .functions.popfunc.pop_epoch import pop_epoch
-from .functions.popfunc.pop_resample import pop_resample
-from .functions.popfunc.pop_rmbase import pop_rmbase
-from .functions.popfunc.pop_select import pop_select
-from .functions.popfunc.pop_chansel import pop_chansel
-from .functions.adminfunc.eeg_checkset import eeg_checkset, strict_mode as eeg_checkset_strict_mode
-from .functions.adminfunc.eeglabcompat import pop_eegfiltnew
-from .functions.adminfunc.eeglabcompat import clean_artifacts as eeglab_clean_artifacts
-from .plugins.ICLabel.ICL_feature_extractor import ICL_feature_extractor
-from .functions.sigprocfunc.cart2topo import cart2topo
-from .functions.sigprocfunc.topoplot import topoplot
-from .plugins.ICLabel.eeg_rpsd import eeg_rpsd
-from .plugins.ICLabel.eeg_autocorr_welch import eeg_autocorr_welch
-from .plugins.ICLabel.eeg_autocorr import eeg_autocorr
-from .plugins.ICLabel.eeg_autocorr_fftw import eeg_autocorr_fftw
-from .functions.popfunc.pop_reref import pop_reref
-from .functions.popfunc.eeg_amica import eeg_amica
-from .functions.popfunc.eeg_picard import eeg_picard
-from .functions.popfunc.eeg_runica import eeg_runica
-from .plugins.clean_rawdata.clean_flatlines import clean_flatlines
-from .plugins.clean_rawdata.clean_drifts import clean_drifts
-from .plugins.clean_rawdata.clean_channels_nolocs import clean_channels_nolocs
-from .plugins.clean_rawdata.clean_channels import clean_channels
-from .plugins.clean_rawdata.clean_asr import clean_asr
-from .plugins.clean_rawdata.clean_windows import clean_windows
-from .functions.popfunc.eeg_compare import eeg_compare
-from .functions.popfunc.eeg_interp import eeg_interp
-from .functions.popfunc.pop_interp import pop_interp
-from .functions.popfunc.eeg_findboundaries import eeg_findboundaries
-from .plugins.clean_rawdata.clean_artifacts import clean_artifacts
-from .functions.popfunc.pop_load_frombids import pop_load_frombids
-from .plugins.EEG_BIDS.bids_list_eeg_files import bids_list_eeg_files
-from .plugins.EEG_BIDS.bids_preproc import bids_preproc
-from .functions.popfunc.eeg_decodechan import eeg_decodechan
-from .functions.sigprocfunc.eegrej import eegrej
-from .functions.popfunc.eeg_eegrej import eeg_eegrej
-from .functions.eegobj.eegobj import EEGobj
-from .functions.redefine_functions import (
-    checkset,
-    compare,
-    decodechan,
-    eeg2mne,
-    epoch,
-    findboundaries,
-    interp,
-    lat2point,
-    mne2eeg,
-    mne2eeg_epochs,
-    options,
-    picard,
-    point2lat,
-    reref,
-    resample,
-    rmbase,
-    saveset,
-    select,
-)
-from .functions.miscfunc.eeg_eeg2mne import eeg_eeg2mne
-from .functions.miscfunc.eeg_mne2eeg import eeg_mne2eeg
-from .functions.miscfunc.eeg_mne2eeg_epochs import eeg_mne2eeg_epochs
-from .functions.popfunc.eeg_lat2point import eeg_lat2point
-from .functions.popfunc.eeg_point2lat import eeg_point2lat
-from .functions.adminfunc.eeg_options import EEG_OPTIONS
+_LAZY_EXPORTS = {
+    "EEG_OPTIONS": ("eegprep.functions.adminfunc.eeg_options", "EEG_OPTIONS"),
+    "EEGobj": ("eegprep.functions.eegobj.eegobj", "EEGobj"),
+    "ICL_feature_extractor": ("eegprep.plugins.ICLabel.ICL_feature_extractor", "ICL_feature_extractor"),
+    "bids_list_eeg_files": ("eegprep.plugins.EEG_BIDS.bids_list_eeg_files", "bids_list_eeg_files"),
+    "bids_preproc": ("eegprep.plugins.EEG_BIDS.bids_preproc", "bids_preproc"),
+    "cart2topo": ("eegprep.functions.sigprocfunc.cart2topo", "cart2topo"),
+    "checkset": ("eegprep.functions.redefine_functions", "checkset"),
+    "clean_artifacts": ("eegprep.plugins.clean_rawdata.clean_artifacts", "clean_artifacts"),
+    "clean_asr": ("eegprep.plugins.clean_rawdata.clean_asr", "clean_asr"),
+    "clean_channels": ("eegprep.plugins.clean_rawdata.clean_channels", "clean_channels"),
+    "clean_channels_nolocs": ("eegprep.plugins.clean_rawdata.clean_channels_nolocs", "clean_channels_nolocs"),
+    "clean_drifts": ("eegprep.plugins.clean_rawdata.clean_drifts", "clean_drifts"),
+    "clean_flatlines": ("eegprep.plugins.clean_rawdata.clean_flatlines", "clean_flatlines"),
+    "clean_windows": ("eegprep.plugins.clean_rawdata.clean_windows", "clean_windows"),
+    "compare": ("eegprep.functions.redefine_functions", "compare"),
+    "decodechan": ("eegprep.functions.redefine_functions", "decodechan"),
+    "eeg2mne": ("eegprep.functions.redefine_functions", "eeg2mne"),
+    "eeg_amica": ("eegprep.functions.popfunc.eeg_amica", "eeg_amica"),
+    "eeg_autocorr": ("eegprep.plugins.ICLabel.eeg_autocorr", "eeg_autocorr"),
+    "eeg_autocorr_fftw": ("eegprep.plugins.ICLabel.eeg_autocorr_fftw", "eeg_autocorr_fftw"),
+    "eeg_autocorr_welch": ("eegprep.plugins.ICLabel.eeg_autocorr_welch", "eeg_autocorr_welch"),
+    "eeg_checkset": ("eegprep.functions.adminfunc.eeg_checkset", "eeg_checkset"),
+    "eeg_checkset_strict_mode": ("eegprep.functions.adminfunc.eeg_checkset", "strict_mode"),
+    "eeg_compare": ("eegprep.functions.popfunc.eeg_compare", "eeg_compare"),
+    "eeg_decodechan": ("eegprep.functions.popfunc.eeg_decodechan", "eeg_decodechan"),
+    "eeg_eeg2mne": ("eegprep.functions.miscfunc.eeg_eeg2mne", "eeg_eeg2mne"),
+    "eeg_eegrej": ("eegprep.functions.popfunc.eeg_eegrej", "eeg_eegrej"),
+    "eeg_findboundaries": ("eegprep.functions.popfunc.eeg_findboundaries", "eeg_findboundaries"),
+    "eeg_interp": ("eegprep.functions.popfunc.eeg_interp", "eeg_interp"),
+    "eeg_lat2point": ("eegprep.functions.popfunc.eeg_lat2point", "eeg_lat2point"),
+    "eeg_mne2eeg": ("eegprep.functions.miscfunc.eeg_mne2eeg", "eeg_mne2eeg"),
+    "eeg_mne2eeg_epochs": ("eegprep.functions.miscfunc.eeg_mne2eeg_epochs", "eeg_mne2eeg_epochs"),
+    "eeg_picard": ("eegprep.functions.popfunc.eeg_picard", "eeg_picard"),
+    "eeg_point2lat": ("eegprep.functions.popfunc.eeg_point2lat", "eeg_point2lat"),
+    "eeg_rpsd": ("eegprep.plugins.ICLabel.eeg_rpsd", "eeg_rpsd"),
+    "eeg_runica": ("eegprep.functions.popfunc.eeg_runica", "eeg_runica"),
+    "eeglab": ("eegprep.functions.adminfunc.eeglab", "eeglab"),
+    "eeglab_clean_artifacts": ("eegprep.functions.adminfunc.eeglabcompat", "clean_artifacts"),
+    "eegrej": ("eegprep.functions.sigprocfunc.eegrej", "eegrej"),
+    "epoch": ("eegprep.functions.redefine_functions", "epoch"),
+    "findboundaries": ("eegprep.functions.redefine_functions", "findboundaries"),
+    "iclabel": ("eegprep.plugins.ICLabel.iclabel", "iclabel"),
+    "eeg_icflag": ("eegprep.plugins.ICLabel.eeg_icflag", "eeg_icflag"),
+    "interp": ("eegprep.functions.redefine_functions", "interp"),
+    "lat2point": ("eegprep.functions.redefine_functions", "lat2point"),
+    "loadset": ("eegprep.functions.popfunc.pop_loadset", "loadset"),
+    "mne2eeg": ("eegprep.functions.redefine_functions", "mne2eeg"),
+    "mne2eeg_epochs": ("eegprep.functions.redefine_functions", "mne2eeg_epochs"),
+    "options": ("eegprep.functions.redefine_functions", "options"),
+    "picard": ("eegprep.functions.redefine_functions", "picard"),
+    "point2lat": ("eegprep.functions.redefine_functions", "point2lat"),
+    "pop_adjustevents": ("eegprep.functions.popfunc.pop_adjustevents", "pop_adjustevents"),
+    "pop_chansel": ("eegprep.functions.popfunc.pop_chansel", "pop_chansel"),
+    "pop_epoch": ("eegprep.functions.popfunc.pop_epoch", "pop_epoch"),
+    "pop_eegfiltnew": ("eegprep.functions.adminfunc.eeglabcompat", "pop_eegfiltnew"),
+    "pop_interp": ("eegprep.functions.popfunc.pop_interp", "pop_interp"),
+    "pop_load_frombids": ("eegprep.functions.popfunc.pop_load_frombids", "pop_load_frombids"),
+    "pop_loadset": ("eegprep.functions.popfunc.pop_loadset", "pop_loadset"),
+    "pop_loadset_h5": ("eegprep.functions.popfunc.pop_loadset_h5", "pop_loadset_h5"),
+    "pop_resample": ("eegprep.functions.popfunc.pop_resample", "pop_resample"),
+    "pop_reref": ("eegprep.functions.popfunc.pop_reref", "pop_reref"),
+    "pop_rmbase": ("eegprep.functions.popfunc.pop_rmbase", "pop_rmbase"),
+    "pop_saveset": ("eegprep.functions.popfunc.pop_saveset", "pop_saveset"),
+    "pop_select": ("eegprep.functions.popfunc.pop_select", "pop_select"),
+    "pop_subcomp": ("eegprep.functions.popfunc.pop_subcomp", "pop_subcomp"),
+    "reref": ("eegprep.functions.redefine_functions", "reref"),
+    "resample": ("eegprep.functions.redefine_functions", "resample"),
+    "rmbase": ("eegprep.functions.redefine_functions", "rmbase"),
+    "saveset": ("eegprep.functions.redefine_functions", "saveset"),
+    "select": ("eegprep.functions.redefine_functions", "select"),
+    "topoplot": ("eegprep.functions.sigprocfunc.topoplot", "topoplot"),
+}
+
+__all__ = ["__version__", *_LAZY_EXPORTS]
+
+
+def __getattr__(name: str) -> Any:
+    """Load public EEGPrep exports on first access."""
+    try:
+        module_name, attr_name = _LAZY_EXPORTS[name]
+    except KeyError as exc:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from exc
+    value = getattr(importlib.import_module(module_name), attr_name)
+    # Cache the resolved export so normal attribute lookup skips __getattr__.
+    globals()[name] = value
+    return value

@@ -12,19 +12,16 @@ from eegprep.functions.guifunc.menu_placeholders import is_placeholder_action, p
 from eegprep.functions.guifunc.pophelp import pophelp
 from eegprep.functions.guifunc.session import EEGPrepSession, has_eeg_data
 from eegprep.functions.popfunc._coming_soon import coming_soon
-from eegprep.functions.popfunc.pop_adjustevents import pop_adjustevents
-from eegprep.functions.popfunc.pop_interp import pop_interp
-from eegprep.functions.popfunc.pop_loadset import pop_loadset
-from eegprep.functions.popfunc.pop_reref import pop_reref
-from eegprep.functions.popfunc.pop_saveset import pop_saveset
-from eegprep.plugins.ICLabel.iclabel import iclabel
 
 
 logger = logging.getLogger(__name__)
 
 IMPLEMENTED_ACTIONS = {
     "clear_study",
+    "docs",
     "help",
+    "issues",
+    "license",
     "mailto",
     "pop_adjustevents",
     "pop_delset",
@@ -36,7 +33,36 @@ IMPLEMENTED_ACTIONS = {
     "quit",
     "retrieve_dataset",
     "tutorial",
+    "updates",
 }
+
+EEGPREP_REPO_URL = "https://github.com/sccn/eegprep"
+EEGPREP_DOCS_URL = "https://sccn.github.io/eegprep/"
+EEGPREP_SOURCE_URL = f"{EEGPREP_REPO_URL}/blob/develop"
+
+HELP_TOPIC_LABELS = {
+    "eegprep": "About EEGPrep",
+    "eeg_helphelp": "About EEGPrep help",
+    "eeg_helpmenu": "EEGPrep menus",
+    "eeg_helpadmin": "Admin. functions",
+    "eeg_helppop": "Interactive pop_ functions",
+    "eeg_helpsigproc": "Signal processing functions",
+    "eeg_helpstudy": "Group data (STUDY) functions",
+    "eeg_helptimefreq": "Time-frequency functions",
+    "eeg_helpstatistics": "Statistical functions",
+    "eeg_helpgui": "Graphic interface builder functions",
+    "eeg_helpmisc": "Misc. command line functions",
+}
+HELP_DOC_PATHS = {
+    "eegprep": "",
+    "eeg_helphelp": "user_guide/index.html#getting-help",
+    "eeg_helpadmin": "api/core.html",
+    "eeg_helppop": "api/index.html",
+    "eeg_helpsigproc": "api/signal_processing.html",
+    "eeg_helpstatistics": "api/utils.html#statistical-utilities",
+    "eeg_helpmisc": "api/utils.html",
+}
+HELP_UNAVAILABLE_TOPICS = frozenset(set(HELP_TOPIC_LABELS) - set(HELP_DOC_PATHS))
 
 
 class MenuActionDispatcher:
@@ -70,11 +96,23 @@ class MenuActionDispatcher:
         if base == "help":
             self._show_help(variant or "eeglab", parent)
             return
+        if base == "docs":
+            webbrowser.open(_docs_url(variant))
+            return
+        if base == "issues":
+            webbrowser.open(f"{EEGPREP_REPO_URL}/issues")
+            return
+        if base == "license":
+            webbrowser.open(f"{EEGPREP_SOURCE_URL}/LICENSE")
+            return
         if base == "mailto":
             webbrowser.open(f"mailto:{variant}")
             return
         if base == "tutorial":
-            webbrowser.open("https://eeglab.org/tutorials/")
+            webbrowser.open(_tutorial_url())
+            return
+        if base == "updates":
+            webbrowser.open(f"{EEGPREP_REPO_URL}/releases")
             return
         if base == "pop_loadset":
             self._loadset(parent)
@@ -113,12 +151,14 @@ class MenuActionDispatcher:
         qt_widgets.QMessageBox.information(parent, "EEGPrep", message)
 
     def _loadset(self, parent: Any | None) -> None:
+        from eegprep.functions.popfunc.pop_loadset import pop_loadset
+
         qt_widgets = _require_qt_widgets()
         filename, _filter = qt_widgets.QFileDialog.getOpenFileName(
             parent,
             "Load existing dataset",
             "",
-            "EEGLAB datasets (*.set *.mat);;All files (*)",
+            "EEGPrep/EEGLAB datasets (*.set *.mat);;All files (*)",
         )
         if not filename:
             return
@@ -142,11 +182,13 @@ class MenuActionDispatcher:
                 parent,
                 "Save current dataset as",
                 str(datasets[0].get("filename") or ""),
-                "EEGLAB datasets (*.set);;All files (*)",
+                "EEGPrep/EEGLAB datasets (*.set);;All files (*)",
             )
             filenames = [filename]
         if len(datasets) == 1 and not filename:
             return
+        from eegprep.functions.popfunc.pop_saveset import pop_saveset
+
         for eeg, filename in zip(datasets, filenames):
             pop_saveset(eeg, filename)
             _apply_save_metadata(eeg, filename)
@@ -164,10 +206,16 @@ class MenuActionDispatcher:
         if selection is None:
             return
         if name == "pop_adjustevents":
+            from eegprep.functions.popfunc.pop_adjustevents import pop_adjustevents
+
             out = pop_adjustevents(selection, return_com=True)
         elif name == "pop_reref":
+            from eegprep.functions.popfunc.pop_reref import pop_reref
+
             out = pop_reref(selection, return_com=True)
         elif name == "pop_interp":
+            from eegprep.functions.popfunc.pop_interp import pop_interp
+
             out = pop_interp(selection, alleeg=self.session.ALLEEG, return_com=True)
         else:
             self.show_coming_soon(name, parent)
@@ -184,6 +232,8 @@ class MenuActionDispatcher:
         selection = self._current_selection_or_warn(parent, allow_multiple=True)
         if selection is None:
             return
+        from eegprep.plugins.ICLabel.iclabel import iclabel
+
         if isinstance(selection, list):
             self.session.store_current(
                 [iclabel(eeg) for eeg in selection],
@@ -204,7 +254,23 @@ class MenuActionDispatcher:
         self._refresh()
 
     def _show_help(self, function_name: str, parent: Any | None) -> None:
-        pophelp(function_name, parent=parent)
+        try:
+            pophelp(function_name, parent=parent)
+        except FileNotFoundError as exc:
+            if function_name in HELP_DOC_PATHS:
+                webbrowser.open(_docs_url(HELP_DOC_PATHS[function_name]))
+                return
+            if function_name in HELP_UNAVAILABLE_TOPICS:
+                self._show_unavailable_help(function_name, parent)
+                return
+            raise exc
+
+    def _show_unavailable_help(self, function_name: str, parent: Any | None) -> None:
+        message = unavailable_help_message(function_name)
+        qt_widgets = _qt_widgets()
+        if qt_widgets is None or parent is None:
+            raise FileNotFoundError(message)
+        qt_widgets.QMessageBox.information(parent, "EEGPrep", message)
 
     def _current_selection_or_warn(
         self,
@@ -251,6 +317,24 @@ def _apply_save_metadata(eeg: dict[str, Any], filename: str) -> None:
     eeg["filename"] = path.name
     eeg["filepath"] = str(path.parent)
     eeg["saved"] = "yes"
+
+
+def _docs_url(path: str = "") -> str:
+    path = str(path or "").lstrip("/")
+    return EEGPREP_DOCS_URL + path
+
+
+def _tutorial_url() -> str:
+    return _docs_url("user_guide/quickstart.html")
+
+
+def unavailable_help_message(function_name: str) -> str:
+    """Return user-facing copy for help topics not yet documented in EEGPrep."""
+    label = HELP_TOPIC_LABELS.get(function_name, function_name)
+    return (
+        f"EEGPrep help for {label} is not available yet.\n\n"
+        "Track progress or request this documentation at https://github.com/sccn/eegprep/issues."
+    )
 
 
 def action_kind(action: str) -> str:

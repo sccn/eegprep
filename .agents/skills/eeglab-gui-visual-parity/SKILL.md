@@ -547,7 +547,24 @@ still have differences from font rendering, antialiasing, native bevels, or OS
 theme. Prioritize user-visible structure.
 
 Do not commit generated `.visual-parity/` screenshots unless explicitly asked
-for a durable reference. For PRs, link or attach `side_by_side.png` in a comment.
+for a durable reference. For PRs involving GUI work, attach side-by-side images
+as GitHub user attachments in a PR comment instead of committing them.
+
+Actionable PR attachment workflow:
+
+- Keep comparison artifacts local, usually under
+  `.visual-parity/<case>/side_by_side.png` or `/tmp`.
+- If `gh image` is unavailable, install it once with
+  `gh extension install drogers0/gh-image`.
+- Upload images with `gh image --repo sccn/eegprep <path-to-png> ...`; use the
+  returned `https://github.com/user-attachments/assets/...` Markdown in the PR
+  comment.
+- Put all GUI cases in one concise PR comment, starting with `🤖`, and wrap the
+  image list in `<details>` when there are many screenshots.
+- Post or refresh the comment with `gh pr comment <pr-number> --body-file
+  /tmp/gui-parity-comment.md`.
+- Label each image with the feature/state it covers. If an image is UX-only
+  evidence rather than strict EEGLAB parity, say that explicitly.
 
 ## Iterative Development Checklist
 

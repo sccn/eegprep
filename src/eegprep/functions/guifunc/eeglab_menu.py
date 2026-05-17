@@ -40,11 +40,11 @@ def eeglab_core_menus() -> tuple[MenuItemSpec, ...]:
                 userdata=ON_NO_STUDY,
                 children=[
                     menu_item(
-                        "Using EEGLAB functions and plugins",
+                        "Using EEGPrep functions and plugins",
                         tag="import data",
                         userdata=ON_NO_STUDY,
                         children=[
-                            menu_item("(for more use menu File > Manage EEGLAB extensions)", userdata=OFF, enabled=False),
+                            menu_item("(for more use menu File > Manage EEGPrep extensions)", userdata=OFF, enabled=False),
                             menu_item("From ASCII/float file or MATLAB array", action="pop_importdata", separator=True),
                             menu_item("From Biosemi BDF file (BIOSIG toolbox)", action="pop_biosig", separator=True),
                             menu_item("From EDF/EDF+/GDF files (BIOSIG toolbox)", action="pop_biosig"),
@@ -78,7 +78,7 @@ def eeglab_core_menus() -> tuple[MenuItemSpec, ...]:
                 tag="export",
                 userdata=ON_DATA_STUDY,
                 children=[
-                    menu_item("(for more use menu File > Manage EEGLAB extensions)", userdata=OFF, enabled=False),
+                    menu_item("(for more use menu File > Manage EEGPrep extensions)", userdata=OFF, enabled=False),
                     menu_item("Data and ICA activity to text file", action="pop_export", separator=True),
                     menu_item("Weight matrix to text file", action="pop_expica:weights"),
                     menu_item("Inverse weight matrix to text file", action="pop_expica:inv"),
@@ -115,7 +115,7 @@ def eeglab_core_menus() -> tuple[MenuItemSpec, ...]:
                     menu_item("Run script", action="pop_runscript", userdata=ON),
                 ],
             ),
-            menu_item("Manage EEGLAB extensions", action="plugin_menu", userdata=ON),
+            menu_item("Manage EEGPrep extensions", action="plugin_menu", userdata=ON),
             menu_item("Quit", action="quit", userdata=ON, separator=True),
         ],
     )
@@ -314,12 +314,12 @@ def eeglab_core_menus() -> tuple[MenuItemSpec, ...]:
         "Help",
         userdata=ON,
         children=[
-            menu_item("About EEGLAB", action="help:eeglab", userdata=ON),
-            menu_item("Check for EEGLAB update", action="eeglab_update", userdata=ON),
-            menu_item("About EEGLAB help", action="help:eeg_helphelp", userdata=ON),
-            menu_item("EEGLAB menus", action="help:eeg_helpmenu", userdata=ON, separator=True),
+            menu_item("About EEGPrep", action="help:eegprep", userdata=ON),
+            menu_item("Check for EEGPrep updates", action="updates", userdata=ON),
+            menu_item("About EEGPrep help", action="help:eeg_helphelp", userdata=ON),
+            menu_item("EEGPrep menus", action="help:eeg_helpmenu", userdata=ON, separator=True),
             menu_item(
-                "EEGLAB functions",
+                "EEGPrep functions",
                 userdata=ON,
                 children=[
                     menu_item("Admin. functions", action="help:eeg_helpadmin", userdata=ON),
@@ -332,9 +332,12 @@ def eeglab_core_menus() -> tuple[MenuItemSpec, ...]:
                     menu_item("Misc. command line functions", action="help:eeg_helpmisc", userdata=ON),
                 ],
             ),
-            menu_item("EEGLAB license", action="help:eeglablicense.txt", userdata=ON),
-            menu_item("EEGLAB tutorial", action="tutorial", userdata=ON, separator=True),
-            menu_item("Email the EEGLAB team", action="mailto:eeglab@sccn.ucsd.edu", userdata=ON),
+            menu_item("EEGPrep license", action="license", userdata=ON),
+            menu_item("EEGPrep tutorial", action="tutorial", userdata=ON, separator=True),
+            # TODO: Replace this EEGLAB support alias with an EEGPrep-owned
+            # contact channel once one is published.
+            menu_item("Email the EEGPrep team", action="mailto:eeglab@sccn.ucsd.edu", userdata=ON),
+            menu_item("Report an EEGPrep issue", action="issues", userdata=ON),
         ],
     )
     return (file_menu, edit_menu, tools_menu, plot_menu, study_menu, datasets_menu, help_menu)

@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import ctypes
+import ctypes.util
+import sys
 from typing import Any
 
 import numpy as np
@@ -23,6 +26,8 @@ except ImportError:  # pragma: no cover - optional GUI dependency
 BACKEEGLABCOLOR = "#a8c2ff"
 GUITEXTCOLOR = "#000066"
 PLUGINMENUCOLOR = "#800080"
+APP_NAME = "EEGPrep"
+_MACOS_MENU_BRANDING_RETRY_MS = 100
 
 
 def _require_qt() -> tuple[Any, Any, Any]:
@@ -43,21 +48,27 @@ class EEGPrepMainWindow:
         *,
         all_menus: bool | None = None,
         include_plugins: bool = True,
+        native_menu_bar: bool | None = None,
     ) -> None:
         qt_core, qt_gui, qt_widgets = _require_qt()
         self._qt_core = qt_core
         self._qt_gui = qt_gui
         self._qt_widgets = qt_widgets
+        _prepare_application_branding(qt_core)
         self.app = qt_widgets.QApplication.instance() or qt_widgets.QApplication([])
+        self.app.setApplicationName(APP_NAME)
+        self.app.setApplicationDisplayName(APP_NAME)
         self.session = session or EEGPrepSession()
         self.all_menus = bool(EEG_OPTIONS.get("option_allmenus", 0)) if all_menus is None else bool(all_menus)
         self.include_plugins = include_plugins
         self.window = qt_widgets.QMainWindow()
-        self.window.setObjectName("EEGLAB")
-        self.window.setWindowTitle("EEGPrep - EEGLAB-compatible GUI")
-        self.window.resize(386, 290)
+        self.window.setObjectName(APP_NAME)
+        self.window.setWindowTitle(APP_NAME)
+        self.window.resize(520, 380)
+        self.window.setMinimumSize(460, 340)
         self.window.setStyleSheet(_main_window_stylesheet())
-        self.window.menuBar().setNativeMenuBar(False)
+        use_native_menu_bar = sys.platform == "darwin" if native_menu_bar is None else bool(native_menu_bar)
+        self.window.menuBar().setNativeMenuBar(use_native_menu_bar)
         self.dispatcher = MenuActionDispatcher(self.session, refresh=self.refresh)
         self._build_central_widget()
         self.refresh()
@@ -66,6 +77,15 @@ class EEGPrepMainWindow:
         """Show the main window and return ``self``."""
         self.window.show()
         self.window.raise_()
+        self._apply_application_branding()
+        self._qt_core.QTimer.singleShot(0, self._apply_application_branding)
+        # Cocoa can populate or rewrite the native application menu after
+        # QMainWindow.show() returns, so the first pass may have no app-menu
+        # item to rename. Keep the retry short and idempotent.
+        self._qt_core.QTimer.singleShot(
+            _MACOS_MENU_BRANDING_RETRY_MS,
+            self._apply_application_branding,
+        )
         return self
 
     def exec(self) -> int:
@@ -102,7 +122,7 @@ class EEGPrepMainWindow:
         outer.setSpacing(0)
 
         frame = qt_widgets.QFrame()
-        frame.setObjectName("eeglab_frame")
+        frame.setObjectName("eegprep_frame")
         frame.setFrameShape(qt_widgets.QFrame.Box)
         frame.setFrameShadow(qt_widgets.QFrame.Plain)
         frame_layout = qt_widgets.QVBoxLayout(frame)
@@ -169,6 +189,13 @@ class EEGPrepMainWindow:
             action = self._add_top_menu(menubar, spec, statuses)
             if spec.label == "Study" and "multiple_datasets" in statuses:
                 action.setEnabled(False)
+        _set_macos_application_menu_title(APP_NAME)
+
+    def _apply_application_branding(self) -> None:
+        self.app.setApplicationName(APP_NAME)
+        self.app.setApplicationDisplayName(APP_NAME)
+        _set_macos_process_name(APP_NAME)
+        _set_macos_application_menu_title(APP_NAME)
 
     def _current_menu_specs(self) -> tuple[MenuItemSpec, ...]:
         specs = []
@@ -265,9 +292,15 @@ def build_main_window(
     *,
     all_menus: bool | None = None,
     include_plugins: bool = True,
+    native_menu_bar: bool | None = None,
 ) -> EEGPrepMainWindow:
     """Build an EEGPrep main window without entering the Qt event loop."""
-    return EEGPrepMainWindow(session=session, all_menus=all_menus, include_plugins=include_plugins)
+    return EEGPrepMainWindow(
+        session=session,
+        all_menus=all_menus,
+        include_plugins=include_plugins,
+        native_menu_bar=native_menu_bar,
+    )
 
 
 def _summary_for_session(session: EEGPrepSession) -> tuple[str, str, list[tuple[str, str]]]:
@@ -368,17 +401,9 @@ def _main_window_stylesheet() -> str:
     QLabel#startup_title {{
         font-weight: bold;
     }}
-    QFrame#eeglab_frame {{
+    QFrame#eegprep_frame {{
         border: 1px solid #777777;
         background: {BACKEEGLABCOLOR};
-    }}
-    QMenuBar, QMenu {{
-        background: #f0f0f0;
-        color: black;
-        font-size: 13px;
-    }}
-    QMenu::item:disabled {{
-        color: #8a8a8a;
     }}
     """
 
@@ -386,6 +411,148 @@ def _main_window_stylesheet() -> str:
 def _configure_eeglab_label(label: Any, qt_widgets: Any) -> None:
     label.setMinimumWidth(0)
     label.setSizePolicy(qt_widgets.QSizePolicy.Ignored, qt_widgets.QSizePolicy.Fixed)
+
+
+def _prepare_application_branding(qt_core: Any) -> None:
+    qt_core.QCoreApplication.setApplicationName(APP_NAME)
+    _set_macos_process_name(APP_NAME)
+
+
+def _set_macos_process_name(name: str) -> None:
+    runtime = _macos_objc_runtime()
+    if runtime is None:
+        return
+    ctypes, _objc, foundation = runtime
+    process_info = _objc_msg_send(runtime, ctypes.c_void_p)(
+        _objc_class(runtime, "NSProcessInfo"),
+        _objc_selector(runtime, "processInfo"),
+    )
+    if not process_info:
+        return
+    ns_name = _macos_nsstring(runtime, name)
+    if not ns_name:
+        return
+    try:
+        _objc_msg_send(runtime, None, ctypes.c_void_p)(
+            process_info,
+            _objc_selector(runtime, "setProcessName:"),
+            ns_name,
+        )
+    finally:
+        foundation.CFRelease(ns_name)
+
+
+def _macos_process_name() -> str | None:
+    runtime = _macos_objc_runtime()
+    if runtime is None:
+        return None
+    ctypes, _objc, _foundation = runtime
+    process_info = _objc_msg_send(runtime, ctypes.c_void_p)(
+        _objc_class(runtime, "NSProcessInfo"),
+        _objc_selector(runtime, "processInfo"),
+    )
+    name = _objc_msg_send(runtime, ctypes.c_void_p)(process_info, _objc_selector(runtime, "processName"))
+    if not name:
+        return None
+    text = _objc_msg_send(runtime, ctypes.c_char_p)(name, _objc_selector(runtime, "UTF8String"))
+    return None if text is None else text.decode()
+
+
+def _set_macos_application_menu_title(name: str) -> None:
+    runtime = _macos_objc_runtime()
+    if runtime is None:
+        return
+    menu_item = _macos_application_menu_item(runtime)
+    if not menu_item:
+        return
+    _ctypes, _objc, foundation = runtime
+    ns_name = _macos_nsstring(runtime, name)
+    if not ns_name:
+        return
+    try:
+        _objc_msg_send(runtime, None, _ctypes.c_void_p)(
+            menu_item,
+            _objc_selector(runtime, "setTitle:"),
+            ns_name,
+        )
+    finally:
+        foundation.CFRelease(ns_name)
+
+
+def _macos_application_menu_title() -> str | None:
+    runtime = _macos_objc_runtime()
+    if runtime is None:
+        return None
+    ctypes, _objc, _foundation = runtime
+    menu_item = _macos_application_menu_item(runtime)
+    if not menu_item:
+        return None
+    title = _objc_msg_send(runtime, ctypes.c_void_p)(menu_item, _objc_selector(runtime, "title"))
+    if not title:
+        return None
+    text = _objc_msg_send(runtime, ctypes.c_char_p)(title, _objc_selector(runtime, "UTF8String"))
+    return None if text is None else text.decode()
+
+
+def _macos_application_menu_item(runtime: tuple[Any, Any, Any]) -> Any:
+    ctypes, _objc, _foundation = runtime
+    app = _objc_msg_send(runtime, ctypes.c_void_p)(
+        _objc_class(runtime, "NSApplication"),
+        _objc_selector(runtime, "sharedApplication"),
+    )
+    menu = _objc_msg_send(runtime, ctypes.c_void_p)(app, _objc_selector(runtime, "mainMenu"))
+    if not menu:
+        return None
+    return _objc_msg_send(runtime, ctypes.c_void_p, ctypes.c_long)(
+        menu,
+        _objc_selector(runtime, "itemAtIndex:"),
+        0,
+    )
+
+
+def _macos_objc_runtime() -> tuple[Any, Any, Any] | None:
+    if sys.platform != "darwin":
+        return None
+    try:
+        objc_path = ctypes.util.find_library("objc")
+        foundation_path = ctypes.util.find_library("Foundation")
+        if objc_path is None or foundation_path is None:
+            return None
+        objc = ctypes.cdll.LoadLibrary(objc_path)
+        foundation = ctypes.cdll.LoadLibrary(foundation_path)
+    except Exception:
+        return None
+    objc.objc_getClass.restype = ctypes.c_void_p
+    objc.objc_getClass.argtypes = [ctypes.c_char_p]
+    objc.sel_registerName.restype = ctypes.c_void_p
+    objc.sel_registerName.argtypes = [ctypes.c_char_p]
+    foundation.CFStringCreateWithCString.restype = ctypes.c_void_p
+    foundation.CFStringCreateWithCString.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_uint32]
+    foundation.CFRelease.restype = None
+    foundation.CFRelease.argtypes = [ctypes.c_void_p]
+    return ctypes, objc, foundation
+
+
+def _objc_class(runtime: tuple[Any, Any, Any], name: str) -> Any:
+    _ctypes, objc, _foundation = runtime
+    return objc.objc_getClass(name.encode("utf-8"))
+
+
+def _objc_selector(runtime: tuple[Any, Any, Any], name: str) -> Any:
+    _ctypes, objc, _foundation = runtime
+    return objc.sel_registerName(name.encode("utf-8"))
+
+
+def _objc_msg_send(runtime: tuple[Any, Any, Any], restype: Any, *argtypes: Any) -> Any:
+    ctypes, objc, _foundation = runtime
+    prototype = ctypes.CFUNCTYPE(restype, ctypes.c_void_p, ctypes.c_void_p, *argtypes)
+    return prototype(("objc_msgSend", objc))
+
+
+def _macos_nsstring(runtime: tuple[Any, Any, Any], text: str) -> Any:
+    _ctypes, _objc, foundation = runtime
+    utf8 = 0x08000100
+    return foundation.CFStringCreateWithCString(None, text.encode("utf-8"), utf8)
 
 
 def _apply_action_metadata(action: Any, spec: MenuItemSpec, qt_gui: Any) -> None:
