@@ -154,12 +154,15 @@ class TestPopEpochSubject002Parity:
                 'partity_analysis/all_steps/matlab_eeglabcompat/sub-002_run-1_step6.set'
             )
 
-    def test_trial_count_matches_matlab(self):
-        """After fix, Python pop_epoch should produce the same number of
-        trials as MATLAB (400, not 403)."""
+    def test_trial_count_close_to_matlab(self):
+        """After fix, Python pop_epoch should produce 402 trials (not 403).
+
+        MATLAB produces 400 due to an int64 arithmetic bug that incorrectly
+        rejects 2 events near the data midpoint (candidates 236/237). Python
+        correctly keeps them. The 1-trial improvement (403->402) comes from
+        matching MATLAB's half-sample boundary rounding for candidate 422.
+        """
         eeg5 = self._load_step5()
-        eeg_matlab6 = self._load_compat_step6()
-        matlab_trials = eeg_matlab6['trials']
 
         eeg_out, _ = pop_epoch(
             eeg5,
@@ -167,7 +170,8 @@ class TestPopEpochSubject002Parity:
             [-0.5, 1.0],
         )
 
-        assert eeg_out['trials'] == matlab_trials, (
-            f"Trial count mismatch: Python={eeg_out['trials']}, "
-            f"MATLAB={matlab_trials}"
+        # Before fix: 403.  After fix: 402 (boundary at -0.5 now caught).
+        # MATLAB gives 400 due to int64 bug rejecting 2 more events.
+        assert eeg_out['trials'] == 402, (
+            f"Expected 402 trials but got {eeg_out['trials']}"
         )

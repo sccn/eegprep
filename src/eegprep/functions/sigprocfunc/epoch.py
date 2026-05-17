@@ -131,8 +131,11 @@ def epoch(data, events, lim, **kwargs):
             posend_re = pos0 + g['alleventrange'][1] * g['srate']
             ae_pts = g['allevents'] * g['srate']
             # MATLAB: eventtrial = intersect_bc(find(ae_pts >= posinit_re), find(ae_pts < posend_re));
-            # MISSING: intersect_bc. Using NumPy equivalent below.
-            mask = (ae_pts >= posinit_re) & (ae_pts < posend_re)
+            # MATLAB int64 latencies cause >= to round .5 values up before
+            # comparison (double→int64 conversion rounds half away from zero).
+            # Use >= (posinit_re - 0.5) to match this behavior for boundary
+            # events that use the half-sample convention (latency ending in .5).
+            mask = (ae_pts >= posinit_re - 0.5) & (ae_pts < posend_re)
             eventtrial = np.where(mask)[0]  # indices into allevents
             alleventout.append(eventtrial)
             alllatencyout.append(ae_pts[eventtrial] - pos0)
