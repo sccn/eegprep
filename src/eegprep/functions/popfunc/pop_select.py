@@ -1,13 +1,48 @@
-"""EEG dataset selection utilities."""
+import copy
+import re
+from typing import Any
 
 import numpy as np
-import copy
+
+from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
+from eegprep.functions.guifunc.inputgui import inputgui
+from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
+from eegprep.functions.popfunc._pop_utils import (
+    format_history_value,
+    parse_key_value_args,
+    parse_text_tokens,
+)
 from eegprep.functions.popfunc.eeg_lat2point import eeg_lat2point
 from eegprep.functions.popfunc.eeg_point2lat import eeg_point2lat
 from eegprep.functions.popfunc.eeg_decodechan import eeg_decodechan
 from eegprep.functions.popfunc.eeg_eegrej import eeg_eegrej
 
-def pop_select(EEG, **kwargs):
+
+def pop_select(EEG, *args, gui=None, renderer=None, return_com=False, **kwargs):
+    """Select EEG data using EEGLAB ``pop_select`` semantics."""
+    options = parse_key_value_args(args, kwargs)
+    if not isinstance(EEG, list) and EEG.get("data") is None:
+        raise ValueError('EEG["data"] is required')
+    if gui is None:
+        gui = not bool(options)
+    if gui:
+        gui_options = _run_gui(EEG[0] if isinstance(EEG, list) else EEG, renderer=renderer)
+        if gui_options is None:
+            return (EEG, "") if return_com else EEG
+        options.update(gui_options)
+        apply_options = _gui_options_for_apply(options)
+    else:
+        apply_options = options
+    if isinstance(EEG, list):
+        output = [pop_select(item, gui=False, **apply_options) for item in EEG]
+        command = _history_command(options)
+        return (output, command) if return_com else output
+    output = _pop_select_apply(EEG, **apply_options)
+    command = _history_command(options)
+    return (output, command) if return_com else output
+
+
+def _pop_select_apply(EEG, **kwargs):
     """Python port of EEGLAB's pop_select for dict-based EEG.
 
     Assumptions:
@@ -310,7 +345,7 @@ def pop_select(EEG, **kwargs):
             pnts = EEG['pnts']
 
             # shift event latencies within each epoch window
-            if EEG['event'] is not None and len(EEG['event']) > 0:
+            if _has_content(EEG.get('event')):
                 newevents = []
                 for ev in EEG['event']:
                     if 'epoch' in ev and 'latency' in ev:
@@ -323,7 +358,7 @@ def pop_select(EEG, **kwargs):
                 EEG['event'] = newevents
 
             # erase epoch-level event fields
-            if EEG['epoch'] is not None and len(EEG['epoch']) > 0:
+            if _has_content(EEG.get('epoch')):
                 # remove fields that start with 'event'
                 new_epoch = []
                 for ep in EEG['epoch']:
@@ -397,24 +432,29 @@ def pop_select(EEG, **kwargs):
         EEG['data'] = data[chan_idx, :]
 
     # icaact
-    if EEG['icaact'] is not None and len(EEG['icaact']) > 0:
-        ia = EEG['icaact']
-        if ia is not None and isinstance(ia, np.ndarray) and ia.ndim == 3:
+    ia = EEG.get('icaact')
+    if _has_content(ia):
+        if isinstance(ia, np.ndarray) and ia.ndim == 3:
             EEG['icaact'] = ia[:, :, trial_idx_0]
 
     # chanlocs bookkeeping
-    if EEG['chanlocs'] is not None and len(EEG['chanlocs']) > 0:
-        if 'chaninfo' in EEG and EEG['chaninfo'] is not None and len(EEG['chaninfo']) > 0:
-            EEG['chaninfo'] = {}
-        if 'removedchans' not in EEG['chaninfo'] or EEG['chaninfo']['removedchans'] is None:
-            EEG['chaninfo']['removedchans'] = []
-        try:
-            removed = np.setdiff1d(np.arange(nbchan), chan_idx)
-            for chan in EEG['chanlocs'][removed.tolist()]:
-                EEG['chaninfo']['removedchans'].append(chan)
-        except Exception:
-            print('There was an issue storing removed channels in pop_select')
-        EEG['chanlocs'] = [EEG['chanlocs'][i] for i in chan_idx.tolist()]
+    chanlocs = EEG.get('chanlocs')
+    if _has_content(chanlocs):
+        chaninfo = EEG.get("chaninfo")
+        if not isinstance(chaninfo, dict):
+            chaninfo = {}
+        removedchans = chaninfo.get("removedchans", [])
+        if isinstance(removedchans, np.ndarray) and removedchans.size == 0:
+            removedchans = []
+        elif isinstance(removedchans, dict):
+            removedchans = [removedchans]
+        else:
+            removedchans = list(removedchans or [])
+        removed = np.setdiff1d(np.arange(nbchan), chan_idx)
+        removedchans.extend(copy.deepcopy(chanlocs[int(index)]) for index in removed.tolist())
+        chaninfo["removedchans"] = removedchans
+        EEG["chaninfo"] = chaninfo
+        EEG['chanlocs'] = [chanlocs[i] for i in chan_idx.tolist()]
 
     # update sizes
     EEG['trials'] = len(trial_idx_0)
@@ -423,17 +463,18 @@ def pop_select(EEG, **kwargs):
     EEG['nbchan'] = len(chan_idx)
 
     # epoch metadata
-    if EEG['epoch'] is not None and len(EEG['epoch']) > 0:
+    if _has_content(EEG.get('epoch')):
         EEG['epoch'] = [EEG['epoch'][i] for i in trial_idx_0.tolist()]
 
      # ICA channel bookkeeping
-    if EEG.get('icachansind') is not None and len(EEG.get('icachansind')) > 0:
-        rmch = np.setdiff1d(np.array(EEG['icachansind'], dtype=int), chan_idx)
-        icachans = list(range(len(EEG['icachansind'])))
+    icachansind = EEG.get('icachansind')
+    if _has_content(icachansind):
+        rmch = np.setdiff1d(np.array(icachansind, dtype=int), chan_idx)
+        icachans = list(range(len(icachansind)))
         for rc in rmch[::-1]:
             # remove component channel indices that were removed
             try:
-                idx = int(np.where(np.array(EEG['icachansind']) == rc)[0][0])
+                idx = int(np.where(np.array(icachansind) == rc)[0][0])
                 icachans.pop(idx)
             except Exception:
                 pass
@@ -441,19 +482,20 @@ def pop_select(EEG, **kwargs):
         # new mapping of icachansind to kept channel positions
         newinds = []
         chan_idx_list = chan_idx.tolist()
-        for ch in EEG['icachansind']:
+        for ch in icachansind:
             if ch in chan_idx_list:
                 newinds.append(chan_idx_list.index(ch))
         EEG['icachansind'] = newinds
     else:
-        if EEG['icasphere'] is not None and len(EEG['icasphere']) > 0:
-            icachans = range(EEG['icasphere'].shape[1])
+        icasphere = EEG.get('icasphere')
+        if _has_content(icasphere):
+            icachans = range(icasphere.shape[1])
         else:
             icachans = 0
 
     # icawinv/icaweights/icasphere coherence if channels removed
-    if EEG['icawinv'] is not None and len(EEG['icawinv']) > 0:
-        icawinv = EEG['icawinv']
+    icawinv = EEG.get('icawinv')
+    if _has_content(icawinv):
         if isinstance(icawinv, np.ndarray) and icawinv.size:
             flag_rmchan = (len(icachans) != icawinv.shape[0])
             if EEG.get('icaweights') is None or flag_rmchan:
@@ -463,21 +505,21 @@ def pop_select(EEG, **kwargs):
                 EEG['icaweights'] = np.linalg.pinv(iw)
                 EEG['icasphere']  = np.eye(EEG['icaweights'].shape[1])
 
-    if EEG['specicaact'] is not None and len(EEG['specicaact']) > 0:
+    if _has_content(EEG.get('specicaact')):
         EEG['specicaact'] = np.array([])
    # specdata/specicaact handling
-    if EEG['specdata'] is not None and len(EEG['specdata']) > 0:
+    if _has_content(EEG.get('specdata')):
         EEG['specdata'] = np.array([])
     # single epoch → drop event.epoch and clear epoch list
     if EEG['trials'] == 1:
-        if EEG['event'] is not None and len(EEG['event']) > 0:
+        if _has_content(EEG.get('event')):
             for ev in EEG['event']:
                 if 'epoch' in ev:
                     ev.pop('epoch', None)
         EEG['epoch'] = []
 
     # reject, stats clean-up
-    if EEG['reject'] is not None and isinstance(EEG['reject'], dict) and 'gcompreject' in EEG['reject'] and \
+    if EEG.get('reject') is not None and isinstance(EEG.get('reject'), dict) and 'gcompreject' in EEG['reject'] and \
        len(g['channel']) == nbchan:
         tmp = EEG['reject']['gcompreject']
         EEG['reject'] = {}
@@ -490,7 +532,7 @@ def pop_select(EEG, **kwargs):
 
     # event consistency check stub (depends on eeg_checkset in EEGLAB)
     # Here we simply ensure event latencies are within data bounds when possible.
-    if EEG['event'] is not None and len(EEG['event']) > 0:
+    if _has_content(EEG.get('event')):
         total_pts = EEG['pnts'] * EEG['trials']
         cleaned = []
         for ev in EEG['event']:
@@ -503,10 +545,193 @@ def pop_select(EEG, **kwargs):
         EEG['event'] = cleaned
 
     # Call eeg_checkset to ensure consistency after modifications
-    from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
     EEG = eeg_checkset(EEG)
 
     return EEG
+
+
+def pop_select_dialog_spec(EEG) -> DialogSpec:
+    """Return the EEGLAB-like dialog spec for ``pop_select``."""
+    chanlocs = list(EEG.get("chanlocs", []) or [])
+    channel_labels = tuple(str(chan.get("labels", "")) for chan in chanlocs if isinstance(chan, dict))
+    channel_types = tuple(
+        value for value in dict.fromkeys(
+            str(chan.get("type", "")) for chan in chanlocs if isinstance(chan, dict) and chan.get("type", "") != ""
+        )
+    )
+    type_enabled = bool(channel_types)
+    return DialogSpec(
+        title="Select data -- pop_select()",
+        function_name="pop_select",
+        eeglab_source="functions/popfunc/pop_select.m",
+        geometry=(
+            (1, 1, 1),
+            (1, 1, 0.25, 0.23, 0.51),
+            (1, 1, 0.25, 0.23, 0.51),
+            (1, 1, 0.25, 0.23, 0.51),
+            (1, 1, 0.25, 0.23, 0.51),
+            (1, 1, 0.25, 0.23, 0.51),
+            (1,),
+            (1, 1, 1),
+        ),
+        size=(695, 404),
+        geomvert=(1, 1, 1, 1, 1, 1, 1, 1),
+        help_text="pophelp('pop_select')",
+        controls=(
+            ControlSpec("text", "Select data in:", font_weight="bold"),
+            ControlSpec("text", "Input desired range", font_weight="bold"),
+            ControlSpec("text", "on->remove these", font_weight="bold"),
+            ControlSpec("text", "Time range [min max] (s)"),
+            ControlSpec("edit", tag="time", value=""),
+            ControlSpec("spacer"),
+            ControlSpec("checkbox", "    ", tag="rmtime", value=False),
+            ControlSpec("spacer"),
+            ControlSpec("text", "Point range (ex: [1 10])"),
+            ControlSpec("edit", tag="point", value=""),
+            ControlSpec("spacer"),
+            ControlSpec("checkbox", "    ", tag="rmpoint", value=False),
+            ControlSpec("spacer"),
+            ControlSpec("text", "Epoch range (ex: 3:2:10)"),
+            ControlSpec("edit", tag="trial", value=""),
+            ControlSpec("spacer"),
+            ControlSpec("checkbox", "    ", tag="rmtrial", value=False),
+            ControlSpec("spacer"),
+            ControlSpec("text", "Channel(s)"),
+            ControlSpec("edit", tag="chans", value=""),
+            ControlSpec("spacer"),
+            ControlSpec("checkbox", "    ", tag="rmchannel", value=False),
+            ControlSpec(
+                "pushbutton",
+                "...",
+                tag="chans_button",
+                enabled=bool(channel_labels),
+                callback=CallbackSpec(
+                    "select_channels",
+                    params={
+                        "button": "chans_button",
+                        "target": "chans",
+                        "channels": channel_labels,
+                    },
+                    matlab_callback="pop_chansel(get(gcbf, 'userdata'), 'field', 'labels')",
+                ),
+            ),
+            ControlSpec("text", "Channel type(s)"),
+            ControlSpec("edit", tag="chantype", value=""),
+            ControlSpec("spacer"),
+            ControlSpec("checkbox", "    ", tag="rmchantype", value=False),
+            ControlSpec(
+                "pushbutton",
+                "...",
+                tag="chantype_button",
+                enabled=type_enabled,
+                callback=CallbackSpec(
+                    "select_channels",
+                    params={
+                        "button": "chantype_button",
+                        "target": "chantype",
+                        "channels": channel_types,
+                    },
+                    matlab_callback="pop_chansel(get(gcbf, 'userdata'), 'field', 'type')",
+                ),
+            ),
+            ControlSpec("spacer"),
+            ControlSpec("spacer"),
+            # TODO: re-enable when an EEGPrep equivalent of EEGLAB's eegplot scrolling viewer is available.
+            ControlSpec("pushbutton", "Scroll dataset", tag="scroll", enabled=False),
+            ControlSpec("spacer"),
+        ),
+    )
+
+
+def _run_gui(EEG, renderer=None):
+    spec = pop_select_dialog_spec(EEG)
+    result = inputgui(spec, renderer=renderer)
+    if result is None:
+        return None
+    options: dict[str, Any] = {}
+    _add_range_option(options, result, "time", "rmtime")
+    _add_range_option(options, result, "point", "rmpoint")
+    _add_range_option(options, result, "trial", "rmtrial")
+    _add_text_option(options, result, "chans", "rmchannel", keep_key="channel", remove_key="rmchannel")
+    _add_text_option(options, result, "chantype", "rmchantype", keep_key="chantype", remove_key="rmchantype")
+    return options or None
+
+
+def _add_range_option(options, result, tag, remove_tag):
+    text = str(result.get(tag, "") or "").strip()
+    if not text:
+        return
+    key = remove_tag if result.get(remove_tag) else tag
+    options[key] = _parse_numeric_text(text)
+
+
+def _add_text_option(options, result, tag, remove_tag, *, keep_key, remove_key):
+    text = str(result.get(tag, "") or "").strip()
+    if not text:
+        return
+    key = remove_key if result.get(remove_tag) else keep_key
+    options[key] = parse_text_tokens(text, parse_ints=True)
+
+
+def _gui_options_for_apply(options):
+    apply_options = dict(options)
+    for key in ("channel", "rmchannel"):
+        values = apply_options.get(key)
+        if values is None:
+            continue
+        if isinstance(values, (list, tuple)):
+            apply_options[key] = [value - 1 if isinstance(value, int) else value for value in values]
+        elif isinstance(values, int):
+            apply_options[key] = values - 1
+    return apply_options
+
+
+def _parse_numeric_text(text):
+    values = []
+    for value in re.split(r"[\s,]+", text.strip().strip("[]")):
+        if not value:
+            continue
+        values.extend(_parse_numeric_token(value))
+    if len(values) == 1:
+        return values
+    if all(value.is_integer() for value in values):
+        return [int(value) for value in values]
+    return values
+
+
+def _parse_numeric_token(value):
+    if ":" not in value:
+        return [float(value)]
+    parts = [float(part) for part in value.split(":") if part]
+    if len(parts) == 2:
+        start, stop = parts
+        step = 1.0 if stop >= start else -1.0
+    elif len(parts) == 3:
+        start, step, stop = parts
+        if step == 0:
+            raise ValueError("Colon range step cannot be zero")
+    else:
+        raise ValueError("Colon ranges must use start:stop or start:step:stop")
+    values = []
+    current = start
+    if step > 0:
+        while current <= stop + np.finfo(float).eps:
+            values.append(current)
+            current += step
+    else:
+        while current >= stop - np.finfo(float).eps:
+            values.append(current)
+            current += step
+    return values
+
+
+def _history_command(options):
+    if not options:
+        return ""
+    parts = []
+    for key, value in options.items():
+        parts.extend([f"'{key}'", format_history_value(value, empty_sequence="{}")])
+    return f"EEG = pop_select( EEG, {', '.join(parts)});"
 
 if __name__ == '__main__':
     from eegprep.functions.popfunc.pop_loadset import pop_loadset

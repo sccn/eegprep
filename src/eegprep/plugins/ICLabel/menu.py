@@ -9,12 +9,12 @@ def iclabel_menu() -> MenuItemSpec:
     """Return the EEGLAB ICLabel Tools submenu."""
     return menu_item(
         "Classify components using ICLabel",
-        userdata="startup:off;study:on;roi:off",
+        userdata="startup:off;study:on;ica:on;roi:off",
         origin="ICLabel",
         children=[
-            menu_item("Label components", action="pop_iclabel", userdata="startup:off;study:on", origin="ICLabel"),
-            menu_item("Flag components as artifacts", action="pop_icflag", userdata="startup:off;study:on", origin="ICLabel"),
-            menu_item("View extended component properties", action="pop_viewprops:components", origin="ICLabel"),
+            menu_item("Label components", action="pop_iclabel", userdata="startup:off;study:on;ica:on", origin="ICLabel"),
+            menu_item("Flag components as artifacts", action="pop_icflag", userdata="startup:off;study:on;ica:on", origin="ICLabel"),
+            menu_item("View extended component properties", action="pop_viewprops:components", userdata="startup:off;ica:on", origin="ICLabel"),
         ],
     )
 

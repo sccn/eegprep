@@ -44,6 +44,57 @@ def _qt_actions(actions):
     return collected
 
 
+def _fake_qt_widgets(*, open_file="", save_file="", directory="", double_value=1.0):
+    class QFileDialog:
+        @staticmethod
+        def getOpenFileName(*_args, **_kwargs):
+            return open_file, ""
+
+        @staticmethod
+        def getOpenFileNames(*_args, **_kwargs):
+            return ([open_file] if open_file else []), ""
+
+        @staticmethod
+        def getSaveFileName(*_args, **_kwargs):
+            return save_file, ""
+
+        @staticmethod
+        def getExistingDirectory(*_args, **_kwargs):
+            return directory
+
+    class QInputDialog:
+        @staticmethod
+        def getDouble(*_args, **_kwargs):
+            return double_value, True
+
+        @staticmethod
+        def getInt(*_args, **_kwargs):
+            return 1, True
+
+        @staticmethod
+        def getMultiLineText(*_args, **_kwargs):
+            return "TaskName=eeg", True
+
+    class QMessageBox:
+        Yes = 1
+        No = 2
+        Cancel = 3
+
+        @staticmethod
+        def question(*_args, **_kwargs):
+            return QMessageBox.Yes
+
+        @staticmethod
+        def warning(*_args, **_kwargs):
+            return None
+
+        @staticmethod
+        def information(*_args, **_kwargs):
+            return None
+
+    return type("FakeQtWidgets", (), {"QFileDialog": QFileDialog, "QInputDialog": QInputDialog, "QMessageBox": QMessageBox})
+
+
 def _demo_eeg(*, epoched=False, chanlocs=True, ica=True):
     data = np.zeros((2, 20, 2), dtype=np.float32) if epoched else np.zeros((2, 40), dtype=np.float32)
     eeg = {
@@ -192,7 +243,8 @@ class MainMenuSpecTests(unittest.TestCase):
                 "eeg_helpmisc",
             },
         )
-        self.assertEqual(help_topics, set(HELP_DOC_PATHS) | set(HELP_UNAVAILABLE_TOPICS))
+        self.assertTrue(help_topics.issubset(set(HELP_DOC_PATHS) | set(HELP_UNAVAILABLE_TOPICS)))
+        self.assertIn("troubleshooting_data_formats", HELP_DOC_PATHS)
         self.assertTrue(all("eeglab" not in path.lower() for path in HELP_DOC_PATHS.values()))
 
     def test_viewprops_plugin_items_match_plot_menu_locations(self):
@@ -238,15 +290,32 @@ class MainMenuSpecTests(unittest.TestCase):
 
         self.assertIn("pop_reref", actions)
         self.assertEqual(action_kind("pop_reref"), "implemented")
+        self.assertEqual(action_kind("pop_select"), "implemented")
+        self.assertEqual(action_kind("pop_resample"), "implemented")
+        self.assertEqual(action_kind("pop_clean_rawdata"), "implemented")
+        self.assertEqual(action_kind("pop_runica"), "implemented")
+        self.assertEqual(action_kind("pop_iclabel"), "implemented")
         self.assertEqual(action_kind("pop_subcomp"), "placeholder")
-        self.assertEqual(action_kind("pop_clean_rawdata"), "placeholder")
-        self.assertEqual(action_kind("pop_exportbids"), "placeholder")
+        self.assertEqual(action_kind("pop_exportbids"), "implemented")
         self.assertEqual(action_kind("select_multiple_datasets"), "placeholder")
         self.assertEqual(action_kind("topoplot:labels"), "placeholder")
         self.assertTrue(all(action_kind(action) in {"implemented", "placeholder"} for action in actions))
         self.assertTrue(
             all(action_kind(action) == "implemented" or is_placeholder_action(action) for action in actions)
         )
+
+    def test_file_menu_actions_are_implemented_or_explicit_placeholders(self):
+        file_menu = _child(eeglab_menus(all_menus=True), "File")
+        file_actions = menu_actions((file_menu,))
+
+        self.assertIn("pop_importdata", file_actions)
+        self.assertIn("pop_exportbids", file_actions)
+        self.assertIn("pop_saveh:dataset", file_actions)
+        self.assertEqual(
+            [action for action in sorted(file_actions) if action_kind(action) != "implemented"],
+            ["pop_fileio_brainvision_mat"],
+        )
+        self.assertEqual(action_kind("pop_fileio_brainvision_mat"), "placeholder")
 
 
 class EEGPrepSessionTests(unittest.TestCase):
@@ -329,6 +398,18 @@ class EEGPrepSessionTests(unittest.TestCase):
                 (3, "Dataset 3:demo", False),
             ],
         )
+
+    def test_main_window_summary_handles_empty_numpy_metadata_values(self):
+        from eegprep.functions.guifunc.main_window import _channel_location_state, _reference_state
+
+        eeg = _demo_eeg()
+        eeg["ref"] = np.array([])
+        for chanloc in eeg["chanlocs"]:
+            chanloc["ref"] = np.array([])
+            chanloc["theta"] = np.array([])
+
+        self.assertEqual(_reference_state(eeg), "unknown")
+        self.assertEqual(_channel_location_state(eeg), "No (labels only)")
 
 
 class MenuActionDispatcherTests(unittest.TestCase):
@@ -539,6 +620,112 @@ class MenuActionDispatcherTests(unittest.TestCase):
         self.assertEqual([item["saved"] for item in session.EEG], ["yes", "yes"])
         self.assertEqual([item["saved"] for item in session.ALLEEG], ["yes", "yes"])
 
+    def test_new_main_window_pop_actions_dispatch_to_real_wrappers(self):
+        action_specs = [
+            ("pop_select", "eegprep.functions.popfunc.pop_select.pop_select", "selected"),
+            ("pop_resample", "eegprep.functions.popfunc.pop_resample.pop_resample", "resampled"),
+            ("pop_clean_rawdata", "eegprep.plugins.clean_rawdata.pop_clean_rawdata.pop_clean_rawdata", "cleaned"),
+            ("pop_runica", "eegprep.functions.popfunc.pop_runica.pop_runica", "ica"),
+            ("pop_iclabel", "eegprep.plugins.ICLabel.pop_iclabel.pop_iclabel", "labeled"),
+        ]
+
+        for action, patch_target, setname in action_specs:
+            with self.subTest(action=action):
+                session = EEGPrepSession()
+                session.store_current(_demo_eeg(), new=True)
+                dispatcher = MenuActionDispatcher(session)
+                output = dict(session.EEG, setname=setname)
+
+                with mock.patch(patch_target, return_value=(output, f"EEG = {action}(EEG);")) as pop_func:
+                    dispatcher.dispatch(action)
+
+                pop_func.assert_called_once_with(mock.ANY, return_com=True)
+                self.assertEqual(session.EEG["setname"], setname)
+                self.assertEqual(session.ALLEEG[0]["setname"], setname)
+                self.assertEqual(session.ALLCOM[-1], f"EEG = {action}(EEG);")
+
+    def test_file_menu_importdata_dispatch_stores_new_dataset(self):
+        session = EEGPrepSession()
+        dispatcher = MenuActionDispatcher(session)
+        imported = _demo_eeg()
+        imported["setname"] = "imported"
+        qt_widgets = _fake_qt_widgets(open_file="/tmp/data.tsv", double_value=250.0)
+
+        with (
+            mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets),
+            mock.patch(
+                "eegprep.functions.popfunc.pop_importdata.pop_importdata",
+                return_value=(imported, "EEG = pop_importdata('data', '/tmp/data.tsv');"),
+            ) as importdata,
+        ):
+            dispatcher.dispatch("pop_importdata")
+
+        importdata.assert_called_once()
+        self.assertEqual(session.EEG["setname"], "imported")
+        self.assertEqual(session.CURRENTSET, [1])
+        self.assertEqual(session.ALLCOM[-1], "EEG = pop_importdata('data', '/tmp/data.tsv');")
+
+    def test_file_menu_export_dispatch_records_history_without_changing_dataset(self):
+        session = EEGPrepSession()
+        session.store_current(_demo_eeg(), new=True)
+        dispatcher = MenuActionDispatcher(session)
+        qt_widgets = _fake_qt_widgets(save_file="/tmp/export.tsv")
+
+        with (
+            mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets),
+            mock.patch(
+                "eegprep.functions.popfunc.pop_export.pop_export",
+                return_value="LASTCOM = pop_export(EEG, '/tmp/export.tsv');",
+            ) as export,
+        ):
+            dispatcher.dispatch("pop_export")
+
+        export.assert_called_once()
+        self.assertEqual(session.EEG["setname"], "demo")
+        self.assertEqual(session.ALLCOM[-1], "LASTCOM = pop_export(EEG, '/tmp/export.tsv');")
+
+    def test_file_menu_study_and_history_actions_update_session(self):
+        session = EEGPrepSession()
+        session.store_current(_demo_eeg(), new=True)
+        dispatcher = MenuActionDispatcher(session)
+        qt_widgets = _fake_qt_widgets(save_file="/tmp/history.m")
+
+        with (
+            mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets),
+            mock.patch(
+                "eegprep.functions.popfunc.pop_saveh.pop_saveh",
+                return_value="pop_saveh(ALLCOM, 'history.m', '/tmp');",
+            ) as saveh,
+        ):
+            dispatcher.dispatch("pop_study")
+            dispatcher.dispatch("pop_saveh:session")
+
+        saveh.assert_called_once()
+        self.assertEqual(session.CURRENTSTUDY, 1)
+        self.assertEqual(session.STUDY["datasetinfo"][0]["setname"], "demo")
+        self.assertEqual(session.ALLCOM[-1], "pop_saveh(ALLCOM, 'history.m', '/tmp');")
+
+    def test_file_menu_runscript_updates_currentset_from_namespace(self):
+        session = EEGPrepSession()
+        session.store_current(_demo_eeg(), new=True)
+        session.store_current(dict(_demo_eeg(), setname="second"), new=True)
+        session.retrieve(1)
+        dispatcher = MenuActionDispatcher(session)
+        qt_widgets = _fake_qt_widgets(open_file="/tmp/script.py")
+
+        def fake_runscript(_filename, namespace):
+            namespace["CURRENTSET"] = 2
+            return "LASTCOM = pop_runscript('/tmp/script.py');"
+
+        with (
+            mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets),
+            mock.patch("eegprep.functions.popfunc.pop_runscript.pop_runscript", side_effect=fake_runscript),
+        ):
+            dispatcher.dispatch("pop_runscript")
+
+        self.assertEqual(session.CURRENTSET, [2])
+        self.assertEqual(session.ALLCOM[-1], "LASTCOM = pop_runscript('/tmp/script.py');")
+
 
 class QtMainWindowTests(unittest.TestCase):
     def test_gui_main_window_startup_branding_size_and_menu_states(self):
@@ -638,4 +825,28 @@ class QtMainWindowTests(unittest.TestCase):
             self.assertFalse(menubar.isNativeMenuBar())
         self.assertTrue(actions)
         self.assertTrue(all(action.menuRole() == QtGui.QAction.MenuRole.NoRole for action in actions))
+        window.window.close()
+
+    def test_gui_main_window_reapplies_branding_after_menu_action(self):
+        pytest.importorskip("PySide6")
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from eegprep.functions.guifunc.main_window import build_main_window
+
+        class FakeDispatcher:
+            def __init__(self):
+                self.actions = []
+
+            def dispatch_gui(self, action_id, parent):
+                self.actions.append((action_id, parent))
+
+        window = build_main_window(EEGPrepSession(), all_menus=False)
+        dispatcher = FakeDispatcher()
+        branding_calls = []
+        window.dispatcher = dispatcher
+        window._apply_application_branding = lambda: branding_calls.append("branding")
+
+        window._dispatch_menu_action("pop_loadset")
+
+        self.assertEqual(dispatcher.actions, [("pop_loadset", window.window)])
+        self.assertEqual(branding_calls, ["branding"])
         window.window.close()

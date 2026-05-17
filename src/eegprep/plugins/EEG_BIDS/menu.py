@@ -1,4 +1,4 @@
-"""EEG-BIDS plugin menu placeholders."""
+"""EEG-BIDS plugin menu specs."""
 
 from __future__ import annotations
 

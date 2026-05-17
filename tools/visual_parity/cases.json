@@ -330,6 +330,156 @@
       }
     },
     {
+      "id": "pop_select_dialog",
+      "description": "Data-selection dialog opened from pop_select.",
+      "window_size": [695, 404],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_select"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_select_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_resample_dialog",
+      "description": "Sampling-rate dialog opened from pop_resample.",
+      "window_size": [300, 199],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_resample"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_resample_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_runica_dialog",
+      "description": "ICA decomposition dialog opened from pop_runica.",
+      "window_size": [824, 334],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_runica"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_runica_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_runica_multiple_dialog",
+      "description": "ICA decomposition dialog opened from pop_runica with multiple datasets.",
+      "window_size": [824, 454],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_runica:multiple"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_runica_multiple_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_iclabel_dialog",
+      "description": "ICLabel version dialog opened from pop_iclabel.",
+      "window_size": [356, 199],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_iclabel"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_iclabel_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_clean_rawdata_dialog",
+      "description": "clean_rawdata configuration dialog opened from pop_clean_rawdata.",
+      "window_size": [681, 733],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_clean_rawdata"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_clean_rawdata_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
       "id": "pop_chansel_dialog",
       "description": "Channel selection dialog opened from pop_chansel/listdlg2.",
       "window_size": [300, 195],
