@@ -349,23 +349,20 @@ class TestCleanWindows(unittest.TestCase):
             self.assertTrue(np.all(np.isfinite(EEG_out['data'])))
 
     def test_pop_select_integration(self):
-        """Test integration with pop_select function."""
-        # Since pop_select naturally fails in the test environment,
-        # we can test that the function handles the failure gracefully
+        """pop_select success path should produce a float32 dataset."""
         EEG_out, sample_mask = clean_windows(self.EEG_artifacts.copy())
 
-        # Should complete successfully using fallback
+        # Should complete successfully via pop_select
         self.assertIsInstance(EEG_out, dict)
         self.assertTrue(np.all(np.isfinite(EEG_out['data'])))
 
-        # Should use fallback mode (float32 data)
+        # clean_windows casts to float32 to match EEGLAB's pop_select behavior
         self.assertEqual(EEG_out['data'].dtype, np.float32)
 
     def test_pop_select_fallback(self):
-        """Test fallback when pop_select fails."""
-        # The function already falls back naturally due to import issues
-        # Just test that the fallback works correctly
-        EEG_out, sample_mask = clean_windows(self.EEG_artifacts.copy())
+        """Manual-fallback path should also yield a valid float32 dataset."""
+        with patch('eegprep.pop_select', side_effect=RuntimeError('forced fallback')):
+            EEG_out, sample_mask = clean_windows(self.EEG_artifacts.copy())
 
         # Should produce valid output using fallback
         self.assertIsInstance(EEG_out, dict)
@@ -409,9 +406,9 @@ class TestCleanWindows(unittest.TestCase):
         np.testing.assert_array_equal(EEG_out3['etc']['clean_sample_mask'], sample_mask3)
 
     def test_fallback_data_processing(self):
-        """Test fallback data processing when pop_select fails."""
-        # The function naturally uses fallback mode, so we can test it directly
-        EEG_out, sample_mask = clean_windows(self.EEG_artifacts.copy())
+        """Fallback path clears signal metadata when pop_select cannot be used."""
+        with patch('eegprep.pop_select', side_effect=RuntimeError('forced fallback')):
+            EEG_out, sample_mask = clean_windows(self.EEG_artifacts.copy())
 
         # Check that fallback processing was applied
         # Data should be converted to float32
@@ -422,13 +419,68 @@ class TestCleanWindows(unittest.TestCase):
         expected_xmax = EEG_out['xmin'] + (EEG_out['pnts'] - 1) / self.srate
         self.assertAlmostEqual(EEG_out['xmax'], expected_xmax, places=6)
 
-        # Metadata fields should be cleared in fallback mode
+        # Metadata fields should be cleared in fallback mode because the manual
+        # path cannot shift event latencies or insert boundary events.
         for field in ['event', 'urevent', 'epoch', 'icaact', 'reject', 'stats', 'specdata', 'specicaact']:
             if field in EEG_out:
                 if isinstance(EEG_out[field], list):
                     self.assertEqual(len(EEG_out[field]), 0)
                 else:
                     self.assertEqual(len(EEG_out[field]), 0)
+
+    def test_pop_select_success_preserves_events_and_inserts_boundaries(self):
+        """pop_select success path keeps events and inserts boundaries at cuts.
+
+        Mirrors EEGLAB's clean_windows.m, which only wipes event metadata in
+        the manual fallback branch. On the success path, pop_select / eeg_eegrej
+        shift event latencies and insert a 'boundary' event at each cut with
+        duration equal to the excised sample count.
+        """
+        EEG_in = self.EEG_artifacts.copy()
+        # Pre-populate events at known sample latencies, covering survivors,
+        # an event inside an artifact region, and a marker after the second
+        # artifact so we can verify post-cut latency shifting.
+        EEG_in['event'] = [
+            {'type': 'S1', 'latency': 100.0, 'duration': 0.0},
+            {'type': 'S2', 'latency': 600.0, 'duration': 0.0},   # inside first artifact (500:750)
+            {'type': 'S3', 'latency': 1000.0, 'duration': 0.0},
+            {'type': 'S4', 'latency': 2000.0, 'duration': 0.0},
+        ]
+        EEG_in['urevent'] = [dict(ev) for ev in EEG_in['event']]
+        for i, ev in enumerate(EEG_in['event'], start=1):
+            ev['urevent'] = i
+        EEG_in['nbchan'] = self.n_channels
+        EEG_in['trials'] = 1
+
+        EEG_out, sample_mask = clean_windows(EEG_in)
+
+        # The success path should not wipe event metadata.
+        self.assertIn('event', EEG_out)
+        events = list(EEG_out['event'])
+        self.assertGreater(len(events), 0)
+
+        # At least one boundary event should have been inserted (artifacts
+        # produced cuts, so sample_mask has False stretches).
+        boundary_events = [ev for ev in events if str(ev.get('type', '')).lower() == 'boundary']
+        self.assertGreaterEqual(len(boundary_events), 1)
+
+        # Surviving events must lie within the new sample grid.
+        new_pnts = EEG_out['pnts']
+        for ev in events:
+            if 'latency' in ev:
+                self.assertGreaterEqual(float(ev['latency']), 0.0)
+                self.assertLessEqual(float(ev['latency']), float(new_pnts) + 1)
+
+        # Boundary durations should be positive and not exceed the total
+        # number of removed samples.
+        total_removed = int(np.sum(~sample_mask))
+        for ev in boundary_events:
+            self.assertGreater(float(ev.get('duration', 0.0)), 0.0)
+            self.assertLessEqual(float(ev.get('duration', 0.0)), float(total_removed))
+
+        # Output data should still be float32 (clean_windows casts to single
+        # precision to match EEGLAB).
+        self.assertEqual(EEG_out['data'].dtype, np.float32)
 
     def test_logging_output(self):
         """Test that appropriate logging messages are generated."""
