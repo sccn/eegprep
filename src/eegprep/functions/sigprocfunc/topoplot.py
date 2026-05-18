@@ -254,8 +254,8 @@ def topoplot(datavector, chan_locs, **kwargs):
         # Head circles: a thick white ring at slightly smaller radius fills the
         # gap between the interpolated image edge and the head outline.
         theta_c = np.linspace(0, 2 * np.pi, 100)
-        ax.plot(np.cos(theta_c) * (rmax * 0.98), np.sin(theta_c) * (rmax * 0.98),
-                color='white', linewidth=4, zorder=3)
+        ax.plot(np.cos(theta_c) * (rmax * 0.99), np.sin(theta_c) * (rmax * 0.99),
+                color='white', linewidth=2.5, zorder=3)
         ax.plot(np.cos(theta_c) * rmax, np.sin(theta_c) * rmax, 'k', linewidth=1.5, zorder=4)
         # Nose marker
         nose_w = 0.08
