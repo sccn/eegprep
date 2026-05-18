@@ -269,7 +269,7 @@ def pop_epoch(EEG, types=None, lim=None, **kwargs):
     EEG_out['saved'] = 'no'
 
     # Check for data consistency
-    EEG_out = eeg_checkset(EEG_out)
+    EEG_out = eeg_checkset(EEG_out, 'eventconsistency')
 
     # Check for boundary events
     print('pop_epoch: checking epochs for data discontinuity')

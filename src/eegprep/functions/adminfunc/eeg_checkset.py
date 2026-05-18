@@ -10,7 +10,7 @@ import os
 
 logger = logging.getLogger(__name__)
 
-__all__ = ['eeg_checkset', 'strict_mode', 'option_scaleicarms']
+__all__ = ['eeg_checkset', '_eventconsistency', 'strict_mode', 'option_scaleicarms']
 
 # Global option to control ICA RMS scaling (default True, like MATLAB)
 option_scaleicarms = True
@@ -43,7 +43,129 @@ def strict_mode(enabled: bool):
         _strict_mode_var.reset(token)
 
 
-def eeg_checkset(EEG, load_data=True):
+def _eventconsistency(EEG):
+    """Port of MATLAB eeg_checkset 'eventconsistency' event cleanup.
+
+    Performs, in order:
+    1. Remove events with NaN latency
+    2. Handle first boundary event edge cases
+    3. Remove out-of-bounds events (latency < 0.5 or > pnts*trials+1)
+    4. Remove events with invalid epoch numbers
+    5. Set empty duration fields to 0
+    6. Remove duplicate boundary events (merge durations)
+    7. Resort events by {epoch, latency}
+    8. Clamp first-event latency to >= 0.5
+    """
+    from ..popfunc.eeg_findboundaries import eeg_findboundaries
+
+    events = EEG.get('event')
+    if events is None:
+        return EEG
+
+    # Convert numpy array to list for manipulation
+    if isinstance(events, np.ndarray):
+        events = list(events)
+
+    if len(events) == 0:
+        return EEG
+
+    # 1. Remove events with NaN latency
+    events = [e for e in events if not (
+        'latency' in e and isinstance(e.get('latency'), float) and np.isnan(e['latency'])
+    )]
+    if not events:
+        EEG['event'] = np.asarray(events, dtype=object)
+        return EEG
+
+    # 2. First boundary event: if boundary with duration < 1 remove it;
+    #    if latency in (0, 1), clamp to 0.5  (MATLAB lines 424-430)
+    if (events[0].get('type', '') == 'boundary'
+            and 'duration' in events[0]):
+        if events[0].get('duration', 0) < 1:
+            events.pop(0)
+        elif 0 < events[0].get('latency', 0) < 1:
+            events[0]['latency'] = 0.5
+
+    if not events:
+        EEG['event'] = np.asarray(events, dtype=object)
+        return EEG
+
+    # 3. Remove out-of-bounds events (MATLAB lines 439-449)
+    pnts = int(EEG.get('pnts', 0))
+    trials = int(EEG.get('trials', 1))
+    upper_bound = pnts * trials + 1
+    events = [e for e in events
+              if 'latency' not in e
+              or (e['latency'] >= 0.5 and e['latency'] <= upper_bound)]
+    if not events:
+        EEG['event'] = np.asarray(events, dtype=object)
+        return EEG
+
+    # 4. Remove events with invalid epoch numbers (MATLAB lines 456-477)
+    if trials > 1:
+        keep = []
+        for e in events:
+            ep = e.get('epoch')
+            if ep is None:
+                keep.append(e)
+            elif isinstance(ep, (int, float)) and 1 <= ep <= trials:
+                keep.append(e)
+            # else: drop (invalid epoch)
+        if len(keep) < len(events):
+            logger.info(f"eeg_checkset: {len(events) - len(keep)} events with invalid epoch removed")
+        events = keep
+
+    # 5. Set empty/None duration to 0 (MATLAB lines 481-489)
+    for e in events:
+        if 'duration' in e and (e['duration'] is None or e['duration'] == ''):
+            e['duration'] = 0
+
+    # 6. Remove duplicate boundary events at same latency, merge durations
+    #    (MATLAB lines 521-546)
+    boundary_idx = eeg_findboundaries(EEG={'event': events, 'setname': '_'})
+    if boundary_idx:
+        boundary_lats = [events[i].get('latency', float('nan')) for i in boundary_idx]
+        # Remove final boundary if past data end (single-trial only)
+        if trials == 1 and boundary_lats:
+            last_lat = boundary_lats[-1]
+            if isinstance(last_lat, (int, float)) and round(last_lat - 0.5) > pnts:
+                events.pop(boundary_idx[-1])
+                boundary_idx = boundary_idx[:-1]
+                boundary_lats = boundary_lats[:-1]
+
+        # Find consecutive duplicates (same latency)
+        to_remove = []
+        for j in range(len(boundary_lats) - 1, 0, -1):
+            if boundary_lats[j] == boundary_lats[j - 1]:
+                # Merge duration into the next one
+                dur_this = events[boundary_idx[j]].get('duration', 0) or 0
+                dur_prev = events[boundary_idx[j - 1]].get('duration', 0) or 0
+                events[boundary_idx[j]]['duration'] = dur_this + dur_prev
+                to_remove.append(boundary_idx[j - 1])
+        if to_remove:
+            logger.info("eeg_checkset: duplicate boundary events removed")
+            for idx in sorted(to_remove, reverse=True):
+                events.pop(idx)
+
+    # 7. Resort events by (epoch, latency)  (MATLAB lines 580-596)
+    def _sort_key(e):
+        ep = e.get('epoch', 0)
+        lat = e.get('latency', 0)
+        ep = ep if isinstance(ep, (int, float)) else 0
+        lat = lat if isinstance(lat, (int, float)) else 0
+        return (ep, lat)
+    events.sort(key=_sort_key)
+
+    # 8. Clamp first event latency to >= 0.5  (MATLAB lines 600-604)
+    if events and 'latency' in events[0]:
+        if isinstance(events[0]['latency'], (int, float)) and events[0]['latency'] < 0.5:
+            events[0]['latency'] = 0.5
+
+    EEG['event'] = np.asarray(events, dtype=object)
+    return EEG
+
+
+def eeg_checkset(EEG, *checks, load_data=True):
     """Validate and set up EEG dataset structure.
 
     Ensures EEG dict has required fields with correct types, computes ICA activations if
@@ -176,6 +298,11 @@ def eeg_checkset(EEG, load_data=True):
         except exception_type as e:
             logger.error("Error computing ICA activations: " + str(e))
             EEG['icaact'] = np.array([])
+
+    # Handle optional check modes (matches MATLAB's eeg_checkset(EEG, 'mode') API)
+    for check in checks:
+        if isinstance(check, str) and check.lower() == 'eventconsistency':
+            EEG = _eventconsistency(EEG)
 
     # Build epoch structure from events (for epoched data)
     # This matches MATLAB's eeg_checkset behavior (lines 611-670 in eeg_checkset.m)

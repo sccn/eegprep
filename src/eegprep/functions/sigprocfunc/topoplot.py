@@ -232,23 +232,48 @@ def topoplot(datavector, chan_locs, **kwargs):
     Zi[~mask] = np.nan
 
     if noplot == 'off':
+        ax = kwargs.get('axes', None)
+        own_figure = ax is None
+        if own_figure:
+            fig, ax = plt.subplots(1, 1)
+        else:
+            fig = ax.figure
+
         # Rotate electrode positions by -90 degrees: (x, y) -> (y, -x)
         x_rotated = -y.copy()
         y_rotated = x.copy()
         extent_rotated = (ymin, ymax, -xmax, -xmin)
 
-        plt.imshow(Zi, extent=extent_rotated, origin='lower', cmap=cmap)
-        plt.colorbar()
-        plt.scatter(x_rotated, y_rotated, c='k')
-        # Rotate head circle coordinates to match electrode rotation
-        theta = np.linspace(0, 2 * np.pi, 100)
-        head_x = np.cos(theta) * rmax
-        head_y = np.sin(theta) * rmax
-        plt.plot(head_x, head_y, 'k')
-        for i, txt in enumerate(labels):
-            plt.annotate(txt, (x_rotated[i], y_rotated[i]), fontsize=8, ha='right')
-        plt.title('Topoplot')
-        plt.axis('off')
-        plt.show()
+        im = ax.imshow(Zi, extent=extent_rotated, origin='lower', cmap=cmap)
+        if kwargs.get('colorbar', own_figure):
+            fig.colorbar(im, ax=ax, shrink=0.7)
+
+        markersize = kwargs.get('markersize', 6)
+        if ELECTRODES == 'on':
+            ax.scatter(x_rotated, y_rotated, c='k', s=markersize, zorder=5)
+        # Head circles: a thick white ring at slightly smaller radius fills the
+        # gap between the interpolated image edge and the head outline.
+        theta_c = np.linspace(0, 2 * np.pi, 100)
+        ax.plot(np.cos(theta_c) * (rmax * 0.98), np.sin(theta_c) * (rmax * 0.98),
+                color='white', linewidth=4, zorder=3)
+        ax.plot(np.cos(theta_c) * rmax, np.sin(theta_c) * rmax, 'k', linewidth=1.5, zorder=4)
+        # Nose marker
+        nose_w = 0.08
+        ax.plot([nose_w, 0, -nose_w], [rmax, rmax + 0.06, rmax], 'k', linewidth=1.5, zorder=4)
+
+        if kwargs.get('showlabels', False):
+            for i, txt in enumerate(labels):
+                ax.annotate(txt, (x_rotated[i], y_rotated[i]), fontsize=7, ha='right')
+
+        ax.set_xlim(-0.6, 0.6)
+        ax.set_ylim(-0.6, 0.65)
+        ax.set_aspect('equal')
+        ax.axis('off')
+
+        if own_figure:
+            ax.set_title('Topoplot')
+            plt.show()
+
+        handle = fig
 
     return handle, Zi, plotrad, xi, yi

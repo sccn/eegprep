@@ -405,6 +405,15 @@ def pop_saveset(EEG, file_name):
             for item in d_list
         ], dtype=dtype)
 
+    # Normalize event latencies to float before saving so MATLAB loads them
+    # as double.  Without this, integer stimulus latencies become int64 and
+    # MATLAB's [struct.field] concatenation coerces boundary .5 latencies to
+    # int64, losing the fractional part.
+    if isinstance(eeglab_dict['event'], (list, np.ndarray)):
+        for ev in eeglab_dict['event']:
+            if isinstance(ev, dict) and 'latency' in ev:
+                ev['latency'] = float(ev['latency'])
+
     if isinstance(eeglab_dict['event'], list):
         eeglab_dict['event'] = np.array(eeglab_dict['event'])
 

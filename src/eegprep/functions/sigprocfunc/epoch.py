@@ -131,7 +131,6 @@ def epoch(data, events, lim, **kwargs):
             posend_re = pos0 + g['alleventrange'][1] * g['srate']
             ae_pts = g['allevents'] * g['srate']
             # MATLAB: eventtrial = intersect_bc(find(ae_pts >= posinit_re), find(ae_pts < posend_re));
-            # MISSING: intersect_bc. Using NumPy equivalent below.
             mask = (ae_pts >= posinit_re) & (ae_pts < posend_re)
             eventtrial = np.where(mask)[0]  # indices into allevents
             alleventout.append(eventtrial)

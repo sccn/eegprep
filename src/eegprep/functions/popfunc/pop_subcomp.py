@@ -19,8 +19,8 @@ def pop_subcomp(EEG, components=None, recompute=True):
     EEG : dict
         EEG structure with ICA decomposition
     components : array-like, optional
-        Component indices to remove (0-based). If None, uses components flagged
-        in EEG['reject']['gcompreject']
+        Component indices to remove (1-based, matching MATLAB convention).
+        If None, uses components flagged in EEG['reject']['gcompreject']
     recompute : bool, default=True
         If True (default), reconstruct data after component removal.
         If False, only update the ICA matrices (for MATLAB compatibility, but not used here).
@@ -57,7 +57,7 @@ def pop_subcomp(EEG, components=None, recompute=True):
             logger.warning("No components specified and no reject flags found. No components removed.")
             return EEG
     else:
-        components = np.array(components, dtype=int)
+        components = np.array(components, dtype=int) - 1  # convert 1-based to 0-based
 
     if len(components) == 0:
         logger.info("No components to remove.")
