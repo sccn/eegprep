@@ -91,14 +91,18 @@ def _eegrej(indata, regions, timelength, events: Optional[List[Dict]] = None) ->
     ori_events: List[Dict] = [] if events is None else [dict(ev) for ev in events]
     events_out: List[Dict] = [dict(ev) for ev in ori_events]
 
-    # Recompute event latencies (if events have 'latency') and remove events strictly inside regions
+    # Recompute event latencies and remove events inside regions.
+    # MATLAB eeg_eegrej.m uses inclusive bounds (>= and <=) but preserves
+    # boundary events (line 117: allEventFlag(boundaryIndices) = false).
     if events_out and all("latency" in ev for ev in events_out):
         ori_lat = np.array([float(ev.get("latency", float("nan"))) for ev in events_out], dtype=float)
         lat = ori_lat.copy()
         rejected_per_region: List[List[int]] = []
         for beg, end in r:
-            # indices strictly inside (beg, end)
-            rej_idx = np.where((ori_lat > beg) & (ori_lat < end))[0].tolist()
+            # Inclusive bounds matching MATLAB (>= beg & <= end)
+            rej_idx = np.where((ori_lat >= beg) & (ori_lat <= end))[0].tolist()
+            # Preserve boundary events inside regions (MATLAB line 117)
+            rej_idx = [i for i in rej_idx if not _is_boundary_event(ori_events[i])]
             rejected_per_region.append(rej_idx)
             # subtract span from latencies whose original latency is strictly after region start
             span = int(end - beg + 1)
@@ -108,7 +112,7 @@ def _eegrej(indata, regions, timelength, events: Optional[List[Dict]] = None) ->
         for i, ev in enumerate(events_out):
             ev["latency"] = float(lat[i])
 
-        # Remove events inside rejected regions
+        # Remove non-boundary events inside rejected regions
         rm_idx = sorted(set(idx for group in rejected_per_region for idx in group))
         if rm_idx:
             keep_mask = np.ones(len(events_out), dtype=bool)
@@ -118,17 +122,23 @@ def _eegrej(indata, regions, timelength, events: Optional[List[Dict]] = None) ->
     # Boundary latencies: start-1, then subtract cumulative prior durations, then +0.5
     base_durations = (r[:, 1] - r[:, 0] + 1).astype(int)
 
-    # If we have original events and they include type/duration, add nested boundary durations
+    # Find nested boundary events inside regions and accumulate their durations.
+    # MATLAB eeg_insertbound uses findnested() with inclusive bounds to find
+    # boundary events inside each region, adds their durations to the new
+    # boundary's .duration field, and removes the nested events.
     durations = base_durations.astype(float).copy()
+    nested_to_remove: List[int] = []  # indices into events_out to remove after loop
     if ori_events and all("latency" in ev for ev in ori_events):
         ori_lat = np.array([float(ev.get("latency", float("nan"))) for ev in ori_events], dtype=float)
         for i_region, (beg, end) in enumerate(r):
+            # Inclusive bounds matching MATLAB findnested (> beg & < end for strict interior)
             inside_mask = (ori_lat > beg) & (ori_lat < end)
-            selected_events = [ori_events[i] for i, m in enumerate(inside_mask) if m]
             extra = 0.0
-            for ev in selected_events:
-                if _is_boundary_event(ev):
-                    extra += float(ev.get("duration", 0.0) or 0.0)
+            for i_ev, m in enumerate(inside_mask):
+                if m and _is_boundary_event(ori_events[i_ev]):
+                    extra += float(ori_events[i_ev].get("duration", 0.0) or 0.0)
+                    # Mark for removal from events_out (find by matching latency)
+                    nested_to_remove.append(i_ev)
             durations[i_region] += extra
 
     # Compute boundevents considering prior removals.
@@ -184,6 +194,38 @@ def _eegrej(indata, regions, timelength, events: Optional[List[Dict]] = None) ->
                     "latency": be,
                     "duration": float(durations[i] if i < len(durations) else (base_durations[i] if i < len(base_durations) else 0.0)),
                 })
+
+    # Remove nested boundary events that were absorbed into new boundaries.
+    # These are pre-existing boundaries that fell inside removal regions;
+    # their durations were added to the new boundary's .duration field above.
+    # Match by original latency (adjusted by prior region removals).
+    if nested_to_remove:
+        # Collect adjusted latencies of nested boundaries to remove
+        nested_lats = set()
+        for idx in nested_to_remove:
+            if idx < len(ori_events):
+                # The latency was already adjusted in events_out during the
+                # latency shift loop; find the event by identity (same dict ref
+                # won't work since we copied). Use a latency-based search on
+                # the boundary events that are NOT newly inserted.
+                nested_lats.add(float(ori_events[idx].get("latency", float("nan"))))
+        if nested_lats:
+            # Build set of adjusted latencies for nested events
+            # ori_lat was captured before adjustments; recompute adjusted lat
+            ori_lat_arr = np.array([float(ev.get("latency", float("nan"))) for ev in ori_events], dtype=float)
+            adj_lat = ori_lat_arr.copy()
+            for beg, end in r:
+                span = int(end - beg + 1)
+                adj_lat[ori_lat_arr > beg] -= span
+            adj_nested_lats = set(float(adj_lat[i]) for i in nested_to_remove if i < len(adj_lat))
+
+            cleaned = []
+            for ev in events_out:
+                if _is_boundary_event(ev) and float(ev.get("latency", -1)) in adj_nested_lats:
+                    adj_nested_lats.discard(float(ev.get("latency", -1)))
+                    continue  # skip this nested boundary
+                cleaned.append(ev)
+            events_out = cleaned
 
     # Remove events with latency out of bound (> newn+1)
     filtered: List[Dict] = []
