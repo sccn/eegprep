@@ -12,8 +12,10 @@ class PopAdjustEventsGuiSpecTests(unittest.TestCase):
         self.assertEqual(spec.title, "Adjust event latencies - pop_adjustevents()")
         self.assertEqual(spec.function_name, "pop_adjustevents")
         self.assertEqual(spec.eeglab_source, "functions/popfunc/pop_adjustevents.m")
-        self.assertEqual(spec.size, (858, 169))
+        self.assertEqual(spec.size, (784, 264))
         self.assertEqual(spec.geometry, ((1, 0.7, 0.5), (1, 0.7, 0.5), (1, 0.7, 0.5), 1))
+        self.assertEqual(spec.content_margins, (42, 36, 42, 13))
+        self.assertEqual(spec.row_spacing, 14)
         self.assertEqual(
             [(control.style, control.string, control.tag) for control in spec.controls],
             [

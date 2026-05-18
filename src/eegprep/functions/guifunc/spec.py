@@ -30,6 +30,7 @@ class ControlSpec:
     callback: CallbackSpec | None = None
     tooltip: str | None = None
     enabled: bool = True
+    font_weight: str | None = None
 
 
 @dataclass(frozen=True)
@@ -45,6 +46,8 @@ class DialogSpec:
     help_text: str | None = None
     known_differences: tuple[str, ...] = ()
     content_margins: tuple[int, int, int, int] = (42, 17, 42, 13)
+    row_spacing: int = 4
+    geomvert: tuple[float, ...] | None = None
 
 
 def controls_by_tag(spec: DialogSpec) -> dict[str, ControlSpec]:

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import copy
 import logging
-import re
 from typing import Any
 
 import numpy as np
@@ -16,6 +15,11 @@ from eegprep.functions.popfunc._chanutils import (
     chanlocs_as_list as _chanlocs_as_list,
     is_number_like as _is_number_like,
     normalise_reflocs as _normalise_reflocs,
+)
+from eegprep.functions.popfunc._pop_utils import (
+    format_history_value,
+    parse_key_value_args,
+    parse_text_tokens,
 )
 from eegprep.functions.popfunc.pop_interp import pop_interp
 from eegprep.functions.sigprocfunc.reref import reref
@@ -272,21 +276,12 @@ def pop_reref_dialog_spec(
 
 
 def _parse_options(args: tuple[Any, ...], kwargs: dict[str, Any]) -> tuple[dict[str, Any], Any]:
-    if len(args) % 2:
-        raise ValueError("Key/value arguments must be in pairs")
-    options = {str(key).lower(): value for key, value in kwargs.items()}
+    options = parse_key_value_args((), kwargs, lowercase_kwargs=True)
+    arg_options = parse_key_value_args(args)
     ref = _UNSET
-    for index in range(0, len(args), 2):
-        key = args[index]
-        if isinstance(key, bytes):
-            key = key.decode("utf-8")
-        if not isinstance(key, str):
-            raise ValueError("Keys must be strings")
-        key = key.lower()
-        if key == "ref":
-            ref = args[index + 1]
-        else:
-            options[key] = args[index + 1]
+    if "ref" in arg_options:
+        ref = arg_options.pop("ref")
+    options.update(arg_options)
     unknown = sorted(set(options) - _VALID_OPTIONS)
     if unknown:
         raise ValueError(f"Unknown pop_reref option(s): {', '.join(unknown)}")
@@ -387,8 +382,7 @@ def _normalise_channel_values(channels: Any) -> list[Any]:
             text = text[1:-1]
         if text.startswith("{") and text.endswith("}"):
             text = text[1:-1]
-        tokens = re.findall(r"'([^']*)'|\"([^\"]*)\"|([^,\s]+)", text)
-        return [next(part for part in token if part) for token in tokens]
+        return parse_text_tokens(text)
     return list(channels)
 
 
@@ -747,11 +741,11 @@ def _current_reference(EEG: dict) -> str:
 def _history_command(ref: Any, options: dict[str, Any]) -> str:
     parts = [_format_channel_history_value([] if ref is _UNSET or ref is None else ref)]
     for key, value in options.items():
-        parts.append(_format_history_value(key))
+        parts.append(_format_reref_history_value(key))
         if key in {"exclude", "interpchan"}:
             parts.append(_format_channel_history_value(value))
         else:
-            parts.append(_format_history_value(value))
+            parts.append(_format_reref_history_value(value))
     return f"EEG = pop_reref( EEG, {', '.join(parts)});"
 
 
@@ -763,7 +757,7 @@ def _format_channel_history_value(channels: Any) -> str:
             return "[]"
         if _is_int_text(channels):
             return _format_history_number(int(channels) + 1)
-        return _format_history_value([channels])
+        return _format_reref_history_value([channels])
     if isinstance(channels, (int, np.integer)):
         return _format_history_number(int(channels) + 1)
     if isinstance(channels, (float, np.floating)) and float(channels).is_integer():
@@ -780,31 +774,19 @@ def _format_channel_history_value(channels: Any) -> str:
             shifted = [int(item) + 1 for item in values]
             return "[" + " ".join(_format_history_number(item) for item in shifted) + "]"
         if any(isinstance(item, str) for item in values):
-            return "{" + ",".join(_format_history_value(item) for item in values) + "}"
-    return _format_history_value(channels)
+            return "{" + ",".join(_format_reref_history_value(item) for item in values) + "}"
+    return _format_reref_history_value(channels)
 
 
-def _format_history_value(value: Any) -> str:
-    if isinstance(value, np.ndarray):
-        value = value.tolist()
-    if isinstance(value, str):
-        return "'" + value.replace("'", "''") + "'"
-    if isinstance(value, dict):
-        return _format_history_struct([value])
-    if isinstance(value, (list, tuple)):
-        values = list(value)
-        if not values:
-            return "[]"
-        if all(isinstance(item, dict) for item in values):
-            return _format_history_struct(values)
-        if any(isinstance(item, str) for item in values):
-            return "{" + ",".join(_format_history_value(item) for item in values) + "}"
-        return "[" + " ".join(_format_history_number(item) for item in values) + "]"
-    if value is None:
-        return "[]"
-    if isinstance(value, (np.integer, np.floating)):
-        return _format_history_number(value.item())
-    return str(value)
+def _format_reref_history_value(value: Any) -> str:
+    return format_history_value(
+        value,
+        cell_for_sequence="any_strings",
+        string_separator=",",
+        none_as_empty=True,
+        dict_formatter=_format_history_struct,
+        number_formatter=_format_history_number,
+    )
 
 
 def _format_history_struct(values: list[dict[str, Any]]) -> str:
@@ -820,11 +802,11 @@ def _format_history_struct(values: list[dict[str, Any]]) -> str:
     for field in fields:
         contents = [loc.get(field, []) for loc in values]
         if len(contents) == 1 and _is_number_or_empty(contents[0]):
-            parts.append(f"'{field}',{_format_history_value(contents[0])}")
+            parts.append(f"'{field}',{_format_reref_history_value(contents[0])}")
         elif len(contents) == 1 and isinstance(contents[0], np.ndarray) and contents[0].size == 0:
             parts.append(f"'{field}',[]")
         else:
-            parts.append(f"'{field}'," + "{" + ",".join(_format_history_value(item) for item in contents) + "}")
+            parts.append(f"'{field}'," + "{" + ",".join(_format_reref_history_value(item) for item in contents) + "}")
     return "struct(" + ",".join(parts) + ")"
 
 

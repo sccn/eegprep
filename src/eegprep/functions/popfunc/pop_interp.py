@@ -158,6 +158,7 @@ def pop_interp_dialog_spec(EEG: dict, alleeg: list[dict] | None = None) -> Dialo
             ]
         )
         geometry = (1, 1, 1, 1, 1, 1, 1, (1.1, 1), 1, (1.1, 1), 1, 1)
+        geomvert = (1, 1, 1, 1, 1, 1, 1, 1, 0.5, 1, 0.5, 1)
         size = (483, 327)
     else:
         controls.extend(
@@ -167,6 +168,7 @@ def pop_interp_dialog_spec(EEG: dict, alleeg: list[dict] | None = None) -> Dialo
             ]
         )
         geometry = (1, 1, 1, 1, 1, 1, 1, (1.1, 1), 1, 1)
+        geomvert = (1, 1, 1, 1, 1, 1, 1, 1, 0.5, 1)
         size = (483, 292)
 
     return DialogSpec(
@@ -178,6 +180,7 @@ def pop_interp_dialog_spec(EEG: dict, alleeg: list[dict] | None = None) -> Dialo
         help_text="pophelp('pop_interp')",
         size=size,
         content_margins=(23, 14, 25, 13),
+        geomvert=geomvert,
     )
 
 

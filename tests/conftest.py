@@ -42,6 +42,11 @@ VISUAL_FILE_SUFFIXES = (
 
 GUI_FILE_SUFFIXES = (
     "tests/test_gui_pop_adjustevents.py",
+    "tests/test_gui_pop_clean_rawdata.py",
+    "tests/test_gui_pop_iclabel.py",
+    "tests/test_gui_pop_resample.py",
+    "tests/test_gui_pop_runica.py",
+    "tests/test_gui_pop_select.py",
     "tests/test_gui_main_window.py",
 )
 GUI_NODEID_PARTS = (
