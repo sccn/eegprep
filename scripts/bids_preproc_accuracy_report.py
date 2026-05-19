@@ -68,7 +68,7 @@ if __name__ == '__main__':
         11: 'Reinterpolate',
         12: 'Epoching',
         13: 'BaselineRemoval',
-        14: 'CommonAverageRef',
+        14: 'CommonAverageReference',
     }
 
     # Initialize results structure indexed by stage
