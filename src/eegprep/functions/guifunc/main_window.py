@@ -12,6 +12,7 @@ import numpy as np
 from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
 from eegprep.functions.guifunc.eeglab_menu import eeglab_menus
 from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher
+from eegprep.functions.guifunc.menu_placeholders import is_placeholder_action
 from eegprep.functions.guifunc.menu_spec import MenuItemSpec, menu_enabled
 from eegprep.functions.guifunc.session import EEGPrepSession, has_eeg_data
 
@@ -28,6 +29,8 @@ GUITEXTCOLOR = "#000066"
 PLUGINMENUCOLOR = "#800080"
 APP_NAME = "EEGPrep"
 _MACOS_MENU_BRANDING_RETRY_MS = 100
+COMING_SOON_SUFFIX = " (coming soon)"
+COMING_SOON_TOOLTIP = "This workflow is not available in EEGPrep yet."
 
 
 def _require_qt() -> tuple[Any, Any, Any]:
@@ -262,13 +265,16 @@ class EEGPrepMainWindow:
             for child in spec.children:
                 self._add_menu_item(submenu, child, statuses)
             return action
-        action = menu.addAction(spec.label)
+        coming_soon = _is_coming_soon_item(spec)
+        action = menu.addAction(_display_menu_label(spec))
         _apply_action_metadata(action, spec, self._qt_gui)
-        action.setEnabled(menu_enabled(spec, statuses))
+        if coming_soon:
+            _mark_coming_soon_action(action)
+        action.setEnabled(menu_enabled(spec, statuses) and not coming_soon)
         if spec.checked:
             action.setCheckable(True)
             action.setChecked(True)
-        if spec.action:
+        if spec.action and not coming_soon:
             action.triggered.connect(lambda _checked=False, action_id=spec.action: self._dispatch_menu_action(action_id))
         if spec.origin != "core":
             action.setProperty("eegprep_plugin", True)
@@ -619,12 +625,33 @@ def _apply_action_metadata(action: Any, spec: MenuItemSpec, qt_gui: Any) -> None
         action.setData(spec.action)
 
 
+def _is_coming_soon_item(spec: MenuItemSpec) -> bool:
+    return bool(spec.action and not spec.children and is_placeholder_action(spec.action))
+
+
+def _display_menu_label(spec: MenuItemSpec) -> str:
+    if _is_coming_soon_item(spec):
+        return f"{spec.label}{COMING_SOON_SUFFIX}"
+    return spec.label
+
+
+def _mark_coming_soon_action(action: Any) -> None:
+    action.setProperty("eegprep_implementation_state", "coming_soon")
+    action.setToolTip(COMING_SOON_TOOLTIP)
+    action.setStatusTip(COMING_SOON_TOOLTIP)
+    font = action.font()
+    font.setItalic(True)
+    action.setFont(font)
+
+
 def _action_inventory(action: Any) -> dict[str, Any]:
     menu = action.menu()
     children = [_action_inventory(child) for child in menu.actions() if not child.isSeparator()] if menu is not None else []
     return {
         "label": action.text(),
+        "source_label": str(action.property("eegprep_label") or action.text()),
         "enabled": action.isEnabled(),
+        "implementation_state": str(action.property("eegprep_implementation_state") or "implemented"),
         "separator": bool(action.property("eegprep_separator")),
         "checked": action.isChecked(),
         "tag": str(action.property("eegprep_tag") or ""),
