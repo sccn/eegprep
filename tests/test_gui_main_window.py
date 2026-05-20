@@ -868,6 +868,20 @@ class QtMainWindowTests(unittest.TestCase):
         self.assertTrue(all(action.menuRole() == QtGui.QAction.MenuRole.NoRole for action in actions))
         window.window.close()
 
+    def test_gui_main_window_can_force_in_window_menu_bar(self):
+        pytest.importorskip("PySide6")
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from eegprep.functions.guifunc.main_window import build_main_window
+
+        window = build_main_window(EEGPrepSession(), all_menus=True, native_menu_bar=False)
+
+        self.assertFalse(window.window.menuBar().isNativeMenuBar())
+        self.assertEqual(
+            [action.text() for action in window.window.menuBar().actions()],
+            ["File", "Edit", "Tools", "Plot", "Study", "Datasets", "Help"],
+        )
+        window.window.close()
+
     def test_gui_main_window_reapplies_branding_after_menu_action(self):
         pytest.importorskip("PySide6")
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")

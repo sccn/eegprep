@@ -21,7 +21,7 @@ def test_eeglab_full_mode_builds_window_without_showing():
         returned = eeglab_module.eeglab("full", session=session, show=False, include_plugins=False)
 
     assert returned is window
-    build.assert_called_once_with(session, all_menus=True, include_plugins=False)
+    build.assert_called_once_with(session, all_menus=True, include_plugins=False, native_menu_bar=None)
     window.show.assert_not_called()
     window.exec.assert_not_called()
 
@@ -43,7 +43,13 @@ def test_gui_alias_forwards_to_eeglab_launcher():
     session = EEGPrepSession()
 
     with mock.patch.object(eeglab_module, "eeglab", return_value="window") as eeglab:
-        returned = eeglab_module.gui("full", session=session, show=False, include_plugins=False)
+        returned = eeglab_module.gui(
+            "full",
+            session=session,
+            show=False,
+            include_plugins=False,
+            native_menu_bar=False,
+        )
 
     assert returned == "window"
     eeglab.assert_called_once_with(
@@ -53,6 +59,7 @@ def test_gui_alias_forwards_to_eeglab_launcher():
         block=False,
         all_menus=None,
         include_plugins=False,
+        native_menu_bar=False,
     )
 
 
@@ -63,4 +70,8 @@ def test_eeglab_main_parses_nogui_and_full_plugin_options():
 
     with mock.patch.object(eeglab_module, "eeglab") as eeglab:
         assert eeglab_module.main(["--full", "--no-plugins"]) == 0
-        eeglab.assert_called_once_with("full", block=True, include_plugins=False)
+        eeglab.assert_called_once_with("full", block=True, include_plugins=False, native_menu_bar=None)
+
+    with mock.patch.object(eeglab_module, "eeglab") as eeglab:
+        assert eeglab_module.main(["--full", "--window-menu-bar"]) == 0
+        eeglab.assert_called_once_with("full", block=True, include_plugins=True, native_menu_bar=False)
