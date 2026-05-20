@@ -766,6 +766,14 @@ class QtMainWindowTests(unittest.TestCase):
                 "Help": True,
             },
         )
+        top_level_actions = {action.text(): action for action in window.window.menuBar().actions()}
+        self.assertTrue(top_level_actions["File"].menu().isEnabled())
+        self.assertFalse(top_level_actions["Edit"].menu().isEnabled())
+        self.assertFalse(top_level_actions["Tools"].menu().isEnabled())
+        self.assertFalse(top_level_actions["Plot"].menu().isEnabled())
+        self.assertFalse(top_level_actions["Study"].menu().isEnabled())
+        self.assertFalse(top_level_actions["Datasets"].menu().isEnabled())
+        self.assertTrue(top_level_actions["Help"].menu().isEnabled())
         window.window.close()
 
     def test_gui_main_window_inventory_includes_dynamic_dataset_menu(self):

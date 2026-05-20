@@ -183,7 +183,7 @@ class EEGPrepMainWindow:
         for spec in self._current_menu_specs():
             action = self._add_top_menu(menubar, spec, statuses)
             if spec.label == "Study" and "multiple_datasets" in statuses:
-                action.setEnabled(False)
+                _set_menu_enabled(action.menu(), action, False)
         _set_macos_application_menu_title(APP_NAME)
 
     def _apply_application_branding(self) -> None:
@@ -243,7 +243,7 @@ class EEGPrepMainWindow:
         menu = menubar.addMenu(spec.label)
         action = menu.menuAction()
         _apply_action_metadata(action, spec, self._qt_gui)
-        action.setEnabled(menu_enabled(spec, statuses))
+        _set_menu_enabled(menu, action, menu_enabled(spec, statuses))
         if spec.tag:
             menu.setObjectName(spec.tag)
         for child in spec.children:
@@ -259,7 +259,7 @@ class EEGPrepMainWindow:
                 submenu.setObjectName(spec.tag)
             action = submenu.menuAction()
             _apply_action_metadata(action, spec, self._qt_gui)
-            action.setEnabled(menu_enabled(spec, statuses))
+            _set_menu_enabled(submenu, action, menu_enabled(spec, statuses))
             if spec.origin != "core":
                 action.setIconText(spec.label)
             for child in spec.children:
@@ -623,6 +623,12 @@ def _apply_action_metadata(action: Any, spec: MenuItemSpec, qt_gui: Any) -> None
     action.setProperty("eegprep_checked", bool(spec.checked))
     if spec.action:
         action.setData(spec.action)
+
+
+def _set_menu_enabled(menu: Any | None, action: Any, enabled: bool) -> None:
+    action.setEnabled(enabled)
+    if menu is not None:
+        menu.setEnabled(enabled)
 
 
 def _is_coming_soon_item(spec: MenuItemSpec) -> bool:
