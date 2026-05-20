@@ -418,6 +418,27 @@ def _main_window_stylesheet() -> str:
     QLabel#startup_title {{
         font-weight: bold;
     }}
+    QMenuBar {{
+        background: #dce8ff;
+        border-bottom: 1px solid #7f8fb4;
+        color: {GUITEXTCOLOR};
+    }}
+    QMenuBar::item {{
+        background: transparent;
+        color: {GUITEXTCOLOR};
+        padding: 4px 10px;
+    }}
+    QMenuBar::item:selected {{
+        background: #c6d9ff;
+    }}
+    QMenuBar::item:disabled {{
+        background: #d6d6d6;
+        color: #6b6b6b;
+    }}
+    QMenuBar::item:disabled:selected {{
+        background: #d6d6d6;
+        color: #6b6b6b;
+    }}
     QFrame#eegprep_frame {{
         border: 1px solid #777777;
         background: {BACKEEGLABCOLOR};

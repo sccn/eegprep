@@ -285,6 +285,15 @@ class MainMenuSpecTests(unittest.TestCase):
             },
         )
 
+    def test_main_window_stylesheet_makes_in_window_disabled_menus_discernible(self):
+        from eegprep.functions.guifunc.main_window import _main_window_stylesheet
+
+        stylesheet = _main_window_stylesheet()
+
+        self.assertIn("QMenuBar::item:disabled", stylesheet)
+        self.assertIn("color: #6b6b6b", stylesheet)
+        self.assertIn("background: #d6d6d6", stylesheet)
+
     def test_all_menu_actions_are_classified(self):
         actions = menu_actions(eeglab_menus(all_menus=True))
 
