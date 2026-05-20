@@ -432,12 +432,12 @@ def _main_window_stylesheet() -> str:
         background: #c6d9ff;
     }}
     QMenuBar::item:disabled {{
-        background: #d6d6d6;
-        color: #6b6b6b;
+        background: transparent;
+        color: #64708f;
     }}
     QMenuBar::item:disabled:selected {{
-        background: #d6d6d6;
-        color: #6b6b6b;
+        background: transparent;
+        color: #64708f;
     }}
     QFrame#eegprep_frame {{
         border: 1px solid #777777;

@@ -291,8 +291,8 @@ class MainMenuSpecTests(unittest.TestCase):
         stylesheet = _main_window_stylesheet()
 
         self.assertIn("QMenuBar::item:disabled", stylesheet)
-        self.assertIn("color: #6b6b6b", stylesheet)
-        self.assertIn("background: #d6d6d6", stylesheet)
+        self.assertIn("color: #64708f", stylesheet)
+        self.assertIn("background: transparent", stylesheet)
 
     def test_all_menu_actions_are_classified(self):
         actions = menu_actions(eeglab_menus(all_menus=True))
