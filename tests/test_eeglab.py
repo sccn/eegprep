@@ -39,6 +39,23 @@ def test_eeglab_show_and_block_paths():
     assert window.exec.call_count == 1
 
 
+def test_gui_alias_forwards_to_eeglab_launcher():
+    session = EEGPrepSession()
+
+    with mock.patch.object(eeglab_module, "eeglab", return_value="window") as eeglab:
+        returned = eeglab_module.gui("full", session=session, show=False, include_plugins=False)
+
+    assert returned == "window"
+    eeglab.assert_called_once_with(
+        "full",
+        session=session,
+        show=False,
+        block=False,
+        all_menus=None,
+        include_plugins=False,
+    )
+
+
 def test_eeglab_main_parses_nogui_and_full_plugin_options():
     with mock.patch.object(eeglab_module, "eeglab") as eeglab:
         assert eeglab_module.main(["--nogui"]) == 0

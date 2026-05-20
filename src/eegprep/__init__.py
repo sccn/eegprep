@@ -54,6 +54,7 @@ _LAZY_EXPORTS = {
     "eegrej": ("eegprep.functions.sigprocfunc.eegrej", "eegrej"),
     "epoch": ("eegprep.functions.redefine_functions", "epoch"),
     "findboundaries": ("eegprep.functions.redefine_functions", "findboundaries"),
+    "gui": ("eegprep.functions.adminfunc.eeglab", "gui"),
     "iclabel": ("eegprep.plugins.ICLabel.iclabel", "iclabel"),
     "eeg_icflag": ("eegprep.plugins.ICLabel.eeg_icflag", "eeg_icflag"),
     "interp": ("eegprep.functions.redefine_functions", "interp"),

@@ -55,6 +55,30 @@ def eeglab(
     return window
 
 
+def gui(
+    onearg: str | None = None,
+    *,
+    session: EEGPrepSession | None = None,
+    show: bool = True,
+    block: bool = False,
+    all_menus: bool | None = None,
+    include_plugins: bool = True,
+) -> Any:
+    """Start the EEGPrep GUI.
+
+    This is the EEGPrep-first alias for :func:`eeglab`, which remains available
+    for EEGLAB-compatible workflows.
+    """
+    return eeglab(
+        onearg,
+        session=session,
+        show=show,
+        block=block,
+        all_menus=all_menus,
+        include_plugins=include_plugins,
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     """Console-script entry point for ``eegprep-gui``."""
     parser = argparse.ArgumentParser(description="Launch the EEGPrep GUI.")
