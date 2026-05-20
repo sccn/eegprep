@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 eeg_extensions = ('.vhdr', '.edf', '.bdf', '.set')
 
 # list of all possible processing stages, in the order in which they apply
-all_stages = ['Import', 'ChannelSelection', 'Resample', 'CleanArtifacts', 'ICA', 'ICLabel', 'ChannelInterp', 'Epoching', 'CommonAverageRef']
+all_stages = ['Import', 'ChannelSelection', 'Resample', 'CleanArtifacts', 'ICA', 'ICLabel', 'ChannelInterp', 'Epoching', 'CommonAverageReference']
 
 def _copy_misc_root_files(root: str, dst: str, exclude: List[str]) -> None:
     """Move miscellaneous description files from the study root to the target directory."""
@@ -540,7 +540,7 @@ def bids_preproc(
             need_final = False
 
         if CommonAverageReference:
-            StagesToGo += ['CommonAverageRef']
+            StagesToGo += ['CommonAverageReference']
             need_final = True
 
         if need_final:
@@ -949,7 +949,7 @@ def bids_preproc(
 
                 if CommonAverageReference:
                     EEG = pop_reref(EEG, [])
-                    StagesToGo.remove('CommonAverageRef')
+                    StagesToGo.remove('CommonAverageReference')
                     report["CommonAverageReference"] = {"Applied": True}
                     save_stage(EEG, 14, 'reref')
 
