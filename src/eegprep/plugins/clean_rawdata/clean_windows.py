@@ -206,10 +206,7 @@ def clean_windows(
         from eegprep import pop_select  # type: ignore
         EEG = pop_select(EEG, point=retain_intervals)
         # pop_select / eeg_eegrej already updated pnts/xmax, shifted event
-        # latencies, and inserted boundary events at each cut. Match EEGLAB by
-        # also casting data to single precision (pop_select keeps the input
-        # dtype).
-        EEG['data'] = np.asarray(EEG['data'], dtype=np.float32)
+        # latencies, and inserted boundary events at each cut.
         logger.warning("This call to pop_select() assumes that time intervals use "
                       "1-based indexing; if this has been verified, please remove this warning.")
     except Exception as e:  # noqa: BLE001 – we really want to catch *everything*
@@ -223,8 +220,6 @@ def clean_windows(
             logger.debug('Exception traceback:', exc_info=True)
 
         logger.info('Falling back to a basic substitute and dropping signal meta-data.')
-        # pop_select() by default truncates to single precision in EEGLAB, which we're mirroring here
-        EEG['data'] = np.asarray(EEG['data'], dtype=np.float32)
         EEG['data'] = EEG['data'][:, sample_mask]
         EEG['pnts'] = EEG['data'].shape[1]
         EEG['xmax'] = EEG['xmin'] + (EEG['pnts'] - 1) / Fs

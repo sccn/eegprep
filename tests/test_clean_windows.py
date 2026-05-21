@@ -349,18 +349,19 @@ class TestCleanWindows(unittest.TestCase):
             self.assertTrue(np.all(np.isfinite(EEG_out['data'])))
 
     def test_pop_select_integration(self):
-        """pop_select success path should produce a float32 dataset."""
+        """pop_select success path should preserve the input data dtype."""
+        original_dtype = self.EEG_artifacts['data'].dtype
         EEG_out, sample_mask = clean_windows(self.EEG_artifacts.copy())
 
         # Should complete successfully via pop_select
         self.assertIsInstance(EEG_out, dict)
         self.assertTrue(np.all(np.isfinite(EEG_out['data'])))
 
-        # clean_windows casts to float32 to match EEGLAB's pop_select behavior
-        self.assertEqual(EEG_out['data'].dtype, np.float32)
+        self.assertEqual(EEG_out['data'].dtype, original_dtype)
 
     def test_pop_select_fallback(self):
-        """Manual-fallback path should also yield a valid float32 dataset."""
+        """Manual-fallback path should also preserve the input data dtype."""
+        original_dtype = self.EEG_artifacts['data'].dtype
         with patch('eegprep.pop_select', side_effect=RuntimeError('forced fallback')):
             EEG_out, sample_mask = clean_windows(self.EEG_artifacts.copy())
 
@@ -368,8 +369,7 @@ class TestCleanWindows(unittest.TestCase):
         self.assertIsInstance(EEG_out, dict)
         self.assertTrue(np.all(np.isfinite(EEG_out['data'])))
 
-        # Data should be converted to float32 in fallback mode
-        self.assertEqual(EEG_out['data'].dtype, np.float32)
+        self.assertEqual(EEG_out['data'].dtype, original_dtype)
 
     def test_clean_sample_mask_handling(self):
         """Test handling of EEG.etc.clean_sample_mask field."""
@@ -410,9 +410,8 @@ class TestCleanWindows(unittest.TestCase):
         with patch('eegprep.pop_select', side_effect=RuntimeError('forced fallback')):
             EEG_out, sample_mask = clean_windows(self.EEG_artifacts.copy())
 
-        # Check that fallback processing was applied
-        # Data should be converted to float32
-        self.assertEqual(EEG_out['data'].dtype, np.float32)
+        # Check that fallback processing was applied without changing precision.
+        self.assertEqual(EEG_out['data'].dtype, self.EEG_artifacts['data'].dtype)
 
         # pnts and xmax should be updated
         self.assertEqual(EEG_out['pnts'], EEG_out['data'].shape[1])
@@ -478,9 +477,7 @@ class TestCleanWindows(unittest.TestCase):
             self.assertGreater(float(ev.get('duration', 0.0)), 0.0)
             self.assertLessEqual(float(ev.get('duration', 0.0)), float(total_removed))
 
-        # Output data should still be float32 (clean_windows casts to single
-        # precision to match EEGLAB).
-        self.assertEqual(EEG_out['data'].dtype, np.float32)
+        self.assertEqual(EEG_out['data'].dtype, EEG_in['data'].dtype)
 
     def test_logging_output(self):
         """Test that appropriate logging messages are generated."""

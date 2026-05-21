@@ -195,7 +195,7 @@ def asr_process(data, srate, state, window_len=0.5, lookahead=None, step_size=32
             # Determine which components to keep (variance below threshold or not admissible for rejection)
             try:
                 thresholds = np.sum((T @ V)**2, axis=0)
-                keep = (D < thresholds) | (np.arange(C) < (C - max_dims_num))
+                keep = (D < thresholds) | (np.arange(1, C + 1) < (C - max_dims_num))
                 trivial = np.all(keep)
             except Exception as e:
                 logger.error(f"Error in component selection: {e}")
