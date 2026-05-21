@@ -14,6 +14,15 @@ Launch it with:
 
    uv run eegprep-console --full
 
+By default, EEGPrep uses IPython when it is available because IPython has a
+native Qt input hook. If IPython is not installed, the command falls back to a
+standard-library Python console that still keeps the GUI responsive while the
+prompt waits for input. You can force that path with:
+
+.. code-block:: bash
+
+   uv run eegprep-console --full --backend stdlib
+
 The console starts with EEGLAB-style workspace names already defined:
 
 .. code-block:: python
@@ -34,7 +43,14 @@ console update the same GUI session. For example:
    pop_reref(EEG, [])
 
 updates the current dataset, refreshes the GUI, and appends the returned command
-to ``ALLCOM``. Assignment-style calls also work:
+to ``ALLCOM``. The console-local ``eegprep`` object wraps ``pop_*`` functions
+the same way, so this also updates the shared session:
+
+.. code-block:: python
+
+   eegprep.pop_reref(EEG, [])
+
+Assignment-style calls also work:
 
 .. code-block:: python
 
