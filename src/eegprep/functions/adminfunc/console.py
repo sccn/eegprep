@@ -4,10 +4,8 @@ from __future__ import annotations
 
 import argparse
 import ast
-import code
 import importlib
 import inspect
-import select
 import sys
 from collections.abc import Callable, Iterator, Mapping
 from typing import Any
@@ -19,8 +17,6 @@ from eegprep.functions.guifunc.session import EEGPrepSession
 
 WORKSPACE_NAMES = ("EEG", "ALLEEG", "CURRENTSET", "ALLCOM", "LASTCOM", "STUDY", "CURRENTSTUDY")
 POP_RESULT_PREVIEW_LIMIT = 96
-STDIN_POLL_INTERVAL_SECONDS = 0.05
-BACKENDS = ("auto", "ipython", "stdlib")
 
 
 class ConsolePopResult:
@@ -267,142 +263,6 @@ class EEGPrepConsoleWorkspace:
             self.refresh()
 
 
-class StdlibConsoleShell:
-    """Standard-library interactive shell that keeps Qt events moving."""
-
-    def __init__(
-        self,
-        workspace: EEGPrepConsoleWorkspace,
-        banner: str,
-        *,
-        app: Any | None = None,
-        input_stream: Any | None = None,
-        output_stream: Any | None = None,
-        poll_interval: float = STDIN_POLL_INTERVAL_SECONDS,
-    ) -> None:
-        self.workspace = workspace
-        self.banner = banner
-        self.app = app
-        self.input_stream = input_stream or sys.stdin
-        self.output_stream = output_stream or sys.stderr
-        self.poll_interval = poll_interval
-
-    def enable_gui(self, _gui: str) -> None:
-        """Match the tiny shell interface used by the IPython path."""
-
-    def __call__(self) -> None:
-        console = StdlibWorkspaceConsole(
-            self.workspace,
-            app=self.app,
-            input_stream=self.input_stream,
-            output_stream=self.output_stream,
-            poll_interval=self.poll_interval,
-        )
-        console.interact(banner=self.banner, exitmsg="Leaving EEGPrep console.")
-
-
-class StdlibWorkspaceConsole(code.InteractiveConsole):
-    """``code.InteractiveConsole`` variant that synchronizes EEGPrep state."""
-
-    def __init__(
-        self,
-        workspace: EEGPrepConsoleWorkspace,
-        *,
-        app: Any | None = None,
-        input_stream: Any | None = None,
-        output_stream: Any | None = None,
-        poll_interval: float = STDIN_POLL_INTERVAL_SECONDS,
-    ) -> None:
-        super().__init__(locals=workspace.namespace)
-        self.workspace = workspace
-        self.output_stream = output_stream or sys.stderr
-        self.input_reader = QtInputReader(
-            app=app,
-            input_stream=input_stream or sys.stdin,
-            output_stream=self.output_stream,
-            poll_interval=poll_interval,
-        )
-        self._active_source = ""
-
-    def raw_input(self, prompt: str = "") -> str:
-        return self.input_reader(prompt)
-
-    def write(self, data: str) -> None:
-        self.output_stream.write(data)
-        self.output_stream.flush()
-
-    def runsource(self, source: str, filename: str = "<input>", symbol: str = "single") -> bool:
-        try:
-            code_object = self.compile(source, filename, symbol)
-        except (OverflowError, SyntaxError, ValueError):
-            self.showsyntaxerror(filename)
-            _safe_after_execute(self.workspace, source, success=False, write=self.write)
-            return False
-        if code_object is None:
-            return True
-        self._active_source = source
-        try:
-            self.runcode(code_object)
-        finally:
-            self._active_source = ""
-        return False
-
-    def runcode(self, code_object: Any) -> None:
-        try:
-            exec(code_object, self.locals)
-        except SystemExit:
-            raise
-        except Exception:
-            self.showtraceback()
-            _safe_after_execute(self.workspace, self._active_source, success=False, write=self.write)
-        else:
-            _safe_after_execute(self.workspace, self._active_source, success=True, write=self.write)
-
-
-class QtInputReader:
-    """Read terminal input while periodically processing Qt events."""
-
-    def __init__(
-        self,
-        *,
-        app: Any | None,
-        input_stream: Any,
-        output_stream: Any,
-        poll_interval: float = STDIN_POLL_INTERVAL_SECONDS,
-    ) -> None:
-        self.app = app
-        self.input_stream = input_stream
-        self.output_stream = output_stream
-        self.poll_interval = poll_interval
-
-    def __call__(self, prompt: str = "") -> str:
-        if prompt:
-            self.output_stream.write(prompt)
-            self.output_stream.flush()
-        line = self._readline()
-        if line == "":
-            raise EOFError
-        return line.rstrip("\n")
-
-    def _readline(self) -> str:
-        fileno = _stream_fileno(self.input_stream)
-        if fileno is None:
-            self._process_events()
-            return self.input_stream.readline()
-        while True:
-            self._process_events()
-            try:
-                ready, _writeable, _errors = select.select([self.input_stream], [], [], self.poll_interval)
-            except (OSError, ValueError):
-                return self.input_stream.readline()
-            if ready:
-                return self.input_stream.readline()
-
-    def _process_events(self) -> None:
-        if self.app is not None and hasattr(self.app, "processEvents"):
-            self.app.processEvents()
-
-
 def run_console(
     argv: list[str] | None = None,
     *,
@@ -417,12 +277,6 @@ def run_console(
         "--window-menu-bar",
         action="store_true",
         help="Keep menus inside the EEGPrep window instead of using the native macOS menu bar",
-    )
-    parser.add_argument(
-        "--backend",
-        choices=BACKENDS,
-        default="auto",
-        help="Console backend. 'auto' uses IPython when available and otherwise falls back to stdlib.",
     )
     args = parser.parse_args(argv)
 
@@ -448,7 +302,7 @@ def run_console(
     shell = (
         _IPythonShellAdapter(shell_factory(workspace.namespace, banner), workspace)
         if shell_factory is not None
-        else _console_shell(args.backend, workspace, banner, getattr(window, "app", None))
+        else _IPythonShellAdapter(_ipython_shell_factory(workspace.namespace, banner), workspace)
     )
     try:
         shell()
@@ -488,16 +342,6 @@ class _IPythonShellAdapter:
 
         self.shell.events.register("post_run_cell", post_run_cell)
         self.shell()
-
-
-def _console_shell(backend: str, workspace: EEGPrepConsoleWorkspace, banner: str, app: Any | None) -> Callable[[], None]:
-    if backend in {"auto", "ipython"}:
-        try:
-            return _IPythonShellAdapter(_ipython_shell_factory(workspace.namespace, banner), workspace)
-        except RuntimeError as exc:
-            if backend == "ipython" or "IPython is required" not in str(exc):
-                raise
-    return StdlibConsoleShell(workspace, banner, app=app)
 
 
 def _console_banner() -> str:
@@ -558,13 +402,6 @@ def _normalize_currentset(value: Any) -> list[int]:
     if isinstance(value, list):
         return [int(item) for item in value if int(item) > 0]
     raise ValueError("CURRENTSET must be a 1-based integer or list of integers")
-
-
-def _stream_fileno(stream: Any) -> int | None:
-    try:
-        return int(stream.fileno())
-    except (AttributeError, OSError, ValueError):
-        return None
 
 
 def _workspace_assignment_targets(source: str) -> set[str]:

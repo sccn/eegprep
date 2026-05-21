@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import io
 from types import SimpleNamespace
 from unittest import mock
 
@@ -120,9 +119,9 @@ def test_eegprep_proxy_pop_call_updates_session_like_direct_pop_call():
 def test_console_restores_eegprep_proxy_after_user_imports_eegprep():
     session = EEGPrepSession()
     workspace = EEGPrepConsoleWorkspace(session, exports={})
-    console = console_module.StdlibWorkspaceConsole(workspace, output_stream=io.StringIO())
 
-    assert console.runsource("import eegprep") is False
+    workspace.namespace["eegprep"] = console_module.eegprep
+    workspace.after_execute("import eegprep")
 
     assert isinstance(workspace.namespace["eegprep"], console_module.ConsoleEEGPrepModule)
 
@@ -131,9 +130,9 @@ def test_console_restores_pop_wrappers_after_from_import():
     session = EEGPrepSession()
     workspace = EEGPrepConsoleWorkspace(session, exports={"pop_reref": _fake_pop_reref})
     original_wrapper = workspace.namespace["pop_reref"]
-    console = console_module.StdlibWorkspaceConsole(workspace, output_stream=io.StringIO())
 
-    assert console.runsource("from eegprep import pop_reref") is False
+    workspace.namespace["pop_reref"] = _fake_pop_reref
+    workspace.after_execute("from eegprep import pop_reref")
 
     assert workspace.namespace["pop_reref"] is original_wrapper
 
@@ -184,114 +183,19 @@ def test_multiple_selected_datasets_stay_selected_after_pop_call():
     assert [item["setname"] for item in session.ALLEEG] == ["one-selected", "two-selected"]
 
 
-def test_stdlib_console_executes_single_line_and_syncs_workspace():
+def test_safe_after_execute_sync_error_recovers_namespace_without_crashing():
     session = EEGPrepSession()
     session.store_current(_demo_eeg(), new=True)
     workspace = EEGPrepConsoleWorkspace(session, exports={})
-    output = io.StringIO()
-    console = console_module.StdlibWorkspaceConsole(workspace, output_stream=output)
+    writes = []
 
-    assert console.runsource("EEG['setname'] = 'edited'") is False
-
-    assert session.EEG["setname"] == "edited"
-    assert session.ALLCOM == ["EEG['setname'] = 'edited'"]
-    assert output.getvalue() == ""
-
-
-def test_stdlib_console_executes_multiline_blocks_and_syncs_once():
-    session = EEGPrepSession()
-    session.store_current(_demo_eeg(), new=True)
-    refresh = mock.Mock()
-    workspace = EEGPrepConsoleWorkspace(session, refresh=refresh, exports={})
-    console = console_module.StdlibWorkspaceConsole(workspace, output_stream=io.StringIO())
-
-    assert console.push("if True:") is True
-    assert console.push("    EEG['setname'] = 'block-edited'") is True
-    assert console.push("") is False
-
-    assert session.EEG["setname"] == "block-edited"
-    assert session.ALLCOM == ["if True:\n    EEG['setname'] = 'block-edited'"]
-    refresh.assert_called_once()
-
-
-def test_stdlib_console_runtime_error_recovers_namespace_without_history():
-    session = EEGPrepSession()
-    session.store_current(_demo_eeg(), new=True)
-    workspace = EEGPrepConsoleWorkspace(session, exports={})
-    output = io.StringIO()
-    console = console_module.StdlibWorkspaceConsole(workspace, output_stream=output)
-
-    assert console.runsource("raise ValueError('bad command')") is False
+    workspace.namespace["EEG"] = 3
+    console_module._safe_after_execute(workspace, "EEG = 3", success=True, write=writes.append)
 
     assert session.EEG["setname"] == "demo"
     assert workspace.namespace["EEG"] is session.EEG
     assert session.ALLCOM == []
-    assert "ValueError: bad command" in output.getvalue()
-
-
-def test_stdlib_console_sync_error_recovers_namespace_without_crashing():
-    session = EEGPrepSession()
-    session.store_current(_demo_eeg(), new=True)
-    workspace = EEGPrepConsoleWorkspace(session, exports={})
-    output = io.StringIO()
-    console = console_module.StdlibWorkspaceConsole(workspace, output_stream=output)
-
-    assert console.runsource("EEG = 3") is False
-
-    assert session.EEG["setname"] == "demo"
-    assert workspace.namespace["EEG"] is session.EEG
-    assert session.ALLCOM == []
-    assert "EEGPrep workspace sync failed" in output.getvalue()
-
-
-def test_stdlib_console_syntax_error_recovers_namespace_without_history():
-    session = EEGPrepSession()
-    session.store_current(_demo_eeg(), new=True)
-    workspace = EEGPrepConsoleWorkspace(session, exports={})
-    output = io.StringIO()
-    console = console_module.StdlibWorkspaceConsole(workspace, output_stream=output)
-
-    assert console.runsource("EEG =") is False
-
-    assert session.EEG["setname"] == "demo"
-    assert workspace.namespace["EEG"] is session.EEG
-    assert session.ALLCOM == []
-    assert "SyntaxError" in output.getvalue()
-
-
-def test_qt_input_reader_processes_events_while_reading_nonselectable_stream():
-    app = SimpleNamespace(processEvents=mock.Mock())
-    output = io.StringIO()
-    reader = console_module.QtInputReader(
-        app=app,
-        input_stream=io.StringIO("CURRENTSET\n"),
-        output_stream=output,
-    )
-
-    assert reader(">>> ") == "CURRENTSET"
-    assert output.getvalue() == ">>> "
-    app.processEvents.assert_called_once()
-
-
-def test_auto_backend_falls_back_to_stdlib_when_ipython_is_missing():
-    session = EEGPrepSession()
-    workspace = EEGPrepConsoleWorkspace(session, exports={})
-
-    with mock.patch.object(console_module.importlib, "import_module", side_effect=ImportError("missing")):
-        shell = console_module._console_shell("auto", workspace, "banner", app=None)
-
-    assert isinstance(shell, console_module.StdlibConsoleShell)
-
-
-def test_explicit_ipython_backend_errors_when_ipython_is_missing():
-    session = EEGPrepSession()
-    workspace = EEGPrepConsoleWorkspace(session, exports={})
-
-    with (
-        mock.patch.object(console_module.importlib, "import_module", side_effect=ImportError("missing")),
-        pytest.raises(RuntimeError, match="IPython is required for eegprep-console"),
-    ):
-        console_module._console_shell("ipython", workspace, "banner", app=None)
+    assert "EEGPrep workspace sync failed" in "".join(writes)
 
 
 class _FakeEvents:
@@ -344,33 +248,6 @@ def test_run_console_forwards_cli_options_to_gui_launcher():
     assert shell.enabled_gui == "qt"
     assert shell.called is True
     assert "EEG" in captured["namespace"]
-
-
-def test_run_console_forwards_stdlib_backend_to_shell_factory():
-    captured = {}
-    fake_shell = mock.Mock()
-
-    def gui_launcher(*_args, **_kwargs):
-        return SimpleNamespace(app=SimpleNamespace(processEvents=mock.Mock()), refresh=mock.Mock())
-
-    def console_shell(backend, workspace, banner, app):
-        captured["backend"] = backend
-        captured["workspace"] = workspace
-        captured["banner"] = banner
-        captured["app"] = app
-        return fake_shell
-
-    with mock.patch.object(console_module, "_console_shell", side_effect=console_shell):
-        assert console_module.run_console(
-            ["--backend", "stdlib"],
-            gui_launcher=gui_launcher,
-        ) == 0
-
-    assert captured["backend"] == "stdlib"
-    assert isinstance(captured["workspace"], EEGPrepConsoleWorkspace)
-    assert "EEGPrep interactive console" in captured["banner"]
-    assert captured["app"].processEvents is not None
-    fake_shell.assert_called_once()
 
 
 def test_ipython_factory_error_is_user_facing_when_dependency_missing():

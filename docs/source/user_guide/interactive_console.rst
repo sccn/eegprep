@@ -14,14 +14,10 @@ Launch it with:
 
    uv run eegprep-console --full
 
-By default, EEGPrep uses IPython when it is available because IPython has a
-native Qt input hook. If IPython is not installed, the command falls back to a
-standard-library Python console that still keeps the GUI responsive while the
-prompt waits for input. You can force that path with:
-
-.. code-block:: bash
-
-   uv run eegprep-console --full --backend stdlib
+EEGPrep uses IPython for this console because it provides a mature Qt input
+hook, tab completion, command history, and rich interactive inspection. If
+IPython is not installed, the command fails with an install hint instead of
+falling back to a different console.
 
 The console starts with EEGLAB-style workspace names already defined:
 
