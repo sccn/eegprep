@@ -94,10 +94,7 @@ class ConsoleEEGPrepModule:
 
     def __getattr__(self, name: str) -> Any:
         if name.startswith("pop_"):
-            wrapped = self._bridge.namespace.get(name)
-            if wrapped is None:
-                wrapped = ConsolePopFunction(name, self._bridge)
-            return wrapped
+            return self._bridge.pop_wrapper(name)
         return getattr(eegprep, name)
 
     def __dir__(self) -> list[str]:
@@ -158,6 +155,7 @@ class EEGPrepConsoleWorkspace:
             return
 
         targets = _workspace_assignment_targets(source)
+        self._restore_imported_wrappers(source)
         history_command = self._history_command_for_source(source, targets)
         changed = False
 
@@ -236,6 +234,14 @@ class EEGPrepConsoleWorkspace:
             else:
                 self.namespace[name] = LazyWorkspaceExport(name, None if exports is None else exports[name])
 
+    def pop_wrapper(self, name: str) -> ConsolePopFunction:
+        """Return the console-aware wrapper for a public ``pop_*`` function."""
+        wrapped = self._wrapped_pop_exports.get(name)
+        if wrapped is None:
+            wrapped = ConsolePopFunction(name, self)
+            self._wrapped_pop_exports[name] = wrapped
+        return wrapped
+
     def _session_changed(self, _session: EEGPrepSession) -> None:
         if not self._syncing:
             self.pull_from_session()
@@ -250,6 +256,13 @@ class EEGPrepConsoleWorkspace:
         if targets:
             return source.strip()
         return ""
+
+    def _restore_imported_wrappers(self, source: str) -> None:
+        for local_name, export_name in _eegprep_import_aliases(source).items():
+            if export_name == "eegprep":
+                self.namespace[local_name] = self._eegprep_proxy
+            elif export_name.startswith("pop_"):
+                self.namespace[local_name] = self.pop_wrapper(export_name)
 
     def _store_eeg(self, eeg: Any, command: str, *, new: bool = False) -> None:
         self._syncing = True
@@ -416,6 +429,24 @@ def _workspace_assignment_targets(source: str) -> set[str]:
             for target in raw_targets:
                 targets.update(root for root in _target_root_names(target) if root in WORKSPACE_NAMES)
     return targets
+
+
+def _eegprep_import_aliases(source: str) -> dict[str, str]:
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return {}
+    aliases: dict[str, str] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name == "eegprep":
+                    aliases[alias.asname or "eegprep"] = "eegprep"
+        elif isinstance(node, ast.ImportFrom) and node.module == "eegprep":
+            for alias in node.names:
+                if alias.name.startswith("pop_"):
+                    aliases[alias.asname or alias.name] = alias.name
+    return aliases
 
 
 def _target_root_names(node: ast.AST) -> set[str]:

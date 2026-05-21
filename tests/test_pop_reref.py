@@ -9,11 +9,13 @@ import os
 import unittest
 import sys
 import tempfile
+import warnings
 import numpy as np
 import scipy.io
 
 # Add src to path for imports
 sys.path.insert(0, 'src')
+from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_reref import pop_reref
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.utils.testing import DebuggableTestCase
@@ -51,6 +53,17 @@ class PopRerefIcaRegressionTests(unittest.TestCase):
         np.testing.assert_array_equal(result['icachansind'], np.array([0, 1, 2]))
         self.assertTrue(np.issubdtype(result['icachansind'].dtype, np.integer))
         np.testing.assert_allclose(result['icawinv'].mean(axis=0), 0, atol=1e-12)
+
+    def test_sample_data_average_reference_emits_no_runtime_warning(self):
+        """Average-referencing sample data should not leak BLAS warnings."""
+        EEG = pop_loadset("sample_data/eeglab_data.set")
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", RuntimeWarning)
+            result = pop_reref(EEG, ref=[])
+
+        self.assertEqual(result["ref"], "average")
+        self.assertTrue(np.isfinite(result["data"]).all())
 
 
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")

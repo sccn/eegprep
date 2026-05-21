@@ -137,6 +137,33 @@ def test_console_restores_pop_wrappers_after_from_import():
     assert workspace.namespace["pop_reref"] is original_wrapper
 
 
+def test_console_restores_aliased_pop_wrapper_after_from_import():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(), new=True)
+    workspace = EEGPrepConsoleWorkspace(session, exports={"pop_reref": _fake_pop_reref})
+
+    workspace.namespace["reref"] = _fake_pop_reref
+    workspace.after_execute("from eegprep import pop_reref as reref")
+    result = workspace.namespace["reref"](workspace.namespace["EEG"], [])
+    workspace.after_execute("reref(EEG, [])")
+
+    eeg, command = result
+    assert eeg is session.EEG
+    assert command == "EEG = pop_reref(EEG, []);"
+    assert session.EEG["setname"] == "reref"
+    assert session.ALLCOM == ["EEG = pop_reref(EEG, []);"]
+
+
+def test_console_restores_aliased_eegprep_import_proxy():
+    session = EEGPrepSession()
+    workspace = EEGPrepConsoleWorkspace(session, exports={})
+
+    workspace.namespace["ep"] = console_module.eegprep
+    workspace.after_execute("import eegprep as ep")
+
+    assert isinstance(workspace.namespace["ep"], console_module.ConsoleEEGPrepModule)
+
+
 def test_assignment_style_pop_call_does_not_duplicate_history():
     session = EEGPrepSession()
     session.store_current(_demo_eeg(), new=True)
