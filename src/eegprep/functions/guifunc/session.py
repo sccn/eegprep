@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Callable
 
 import numpy as np
 
@@ -41,6 +41,22 @@ class EEGPrepSession:
     STUDY: dict[str, Any] | None = None
     CURRENTSTUDY: int = 0
     PLUGINLIST: list[dict[str, Any]] = field(default_factory=list)
+    _listeners: list[Callable[["EEGPrepSession"], None]] = field(default_factory=list, init=False, repr=False)
+
+    def add_change_listener(self, listener: Callable[["EEGPrepSession"], None]) -> None:
+        """Register a callback that runs after session state changes."""
+        if listener not in self._listeners:
+            self._listeners.append(listener)
+
+    def remove_change_listener(self, listener: Callable[["EEGPrepSession"], None]) -> None:
+        """Remove a previously registered session change callback."""
+        if listener in self._listeners:
+            self._listeners.remove(listener)
+
+    def notify_changed(self) -> None:
+        """Notify listeners that session-backed state changed."""
+        for listener in list(self._listeners):
+            listener(self)
 
     def current_eeg(self) -> dict[str, Any] | list[dict[str, Any]]:
         """Return the current EEG selection."""
@@ -77,7 +93,8 @@ class EEGPrepSession:
         self.CURRENTSET = list(stored_index) if isinstance(stored_index, list) else [int(stored_index)]
         if mark_saved:
             self.mark_current_saved()
-        self.add_history(command)
+        self.add_history(command, notify=False)
+        self.notify_changed()
         return stored_index
 
     def retrieve(self, indices: int | list[int]) -> dict[str, Any] | list[dict[str, Any]]:
@@ -85,6 +102,7 @@ class EEGPrepSession:
         eeg, self.ALLEEG, current = eeg_retrieve(self.ALLEEG, indices)
         self.EEG = eeg
         self.CURRENTSET = list(current) if isinstance(current, list) else [int(current)]
+        self.notify_changed()
         return eeg
 
     def delete_current(self) -> None:
@@ -93,12 +111,13 @@ class EEGPrepSession:
             return
         deleted_indices = list(self.CURRENTSET)
         self.ALLEEG, command = pop_delset(self.ALLEEG, self.CURRENTSET)
-        self.add_history(command)
+        self.add_history(command, notify=False)
         if self.ALLEEG:
             self.retrieve(min(min(deleted_indices), len(self.ALLEEG)))
             return
         self.CURRENTSET = []
         self.EEG = eeg_emptyset()
+        self.notify_changed()
 
     def clear_all(self) -> None:
         """Clear all datasets and study state."""
@@ -109,9 +128,11 @@ class EEGPrepSession:
         self.CURRENTSTUDY = 0
         self.add_history("STUDY = []; CURRENTSTUDY = 0; ALLEEG = []; EEG=[]; CURRENTSET=[];")
 
-    def add_history(self, command: str | None) -> None:
+    def add_history(self, command: str | None, *, notify: bool = True) -> None:
         """Append an EEGLAB-style command to session history."""
         self.LASTCOM = eegh(command, self.ALLCOM)
+        if notify:
+            self.notify_changed()
 
     def mark_current_saved(self) -> None:
         """Mark the current dataset selection as saved in EEG and ALLEEG."""

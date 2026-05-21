@@ -687,6 +687,8 @@ dependencies = [
 [package.optional-dependencies]
 all = [
     { name = "eeglabio" },
+    { name = "ipython", version = "8.39.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "ipython", version = "9.13.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "myst-parser", version = "4.0.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "myst-parser", version = "5.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "numpydoc" },
@@ -705,6 +707,11 @@ all = [
     { name = "sphinx-togglebutton" },
     { name = "sphinxcontrib-spelling" },
     { name = "torch" },
+]
+console = [
+    { name = "ipython", version = "8.39.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "ipython", version = "9.13.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "pyside6" },
 ]
 docs = [
     { name = "myst-parser", version = "4.0.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
@@ -750,11 +757,14 @@ requires-dist = [
     { name = "colorama", specifier = ">=0.4.6" },
     { name = "eeglabio", specifier = ">=0.1.2" },
     { name = "eeglabio", marker = "extra == 'eeglabio'", specifier = ">=0.1.2" },
+    { name = "eegprep", extras = ["console"], marker = "extra == 'all'" },
     { name = "eegprep", extras = ["docs"], marker = "extra == 'all'" },
     { name = "eegprep", extras = ["eeglabio"], marker = "extra == 'all'" },
     { name = "eegprep", extras = ["gui"], marker = "extra == 'all'" },
+    { name = "eegprep", extras = ["gui"], marker = "extra == 'console'" },
     { name = "eegprep", extras = ["torch"], marker = "extra == 'all'" },
     { name = "h5py", specifier = ">=3.3.0" },
+    { name = "ipython", marker = "extra == 'console'", specifier = ">=8.0" },
     { name = "matplotlib", specifier = ">=3.4.0" },
     { name = "mne", specifier = ">=1.10.0" },
     { name = "myst-parser", marker = "extra == 'docs'", specifier = ">=1.0.0" },
@@ -780,7 +790,7 @@ requires-dist = [
     { name = "threadpoolctl", specifier = ">=3.6.0" },
     { name = "torch", marker = "extra == 'torch'", specifier = ">=2.0" },
 ]
-provides-extras = ["torch", "eeglabio", "gui", "docs", "all"]
+provides-extras = ["torch", "eeglabio", "gui", "console", "docs", "all"]
 
 [package.metadata.requires-dev]
 dev = [
