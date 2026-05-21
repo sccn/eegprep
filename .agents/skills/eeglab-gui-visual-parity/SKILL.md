@@ -191,6 +191,10 @@ uv sync --extra gui --group dev
 For screenshots of main windows and modal dialogs, use the normal generated
 capture scripts. They use MATLAB `-nosplash -nodesktop -r` and the Python
 capture entrypoint; no `DISPLAY` variable is needed.
+If you need cursor-level QA rather than screenshot capture, remember that
+`eegprep-console` uses the IPython Qt input hook and may not expose the same
+accessibility surface as a normal Qt event-loop app. Use the GUI-only launcher
+for Computer Use checks, and verify shared console state separately.
 
 ```bash
 uv run --no-sync python tools/visual_parity/capture.py --list

@@ -25,6 +25,10 @@ Use this workflow when building a new EEGPrep feature.
 4. Execute the plan and write code. Maintain current coding conventions and
    follow `AGENTS.md`. Write tests as described there. Aim for more than 90%
    coverage for the changed feature code, and ensure the tests pass.
+   For user-facing `pop_*` or menu actions, preserve the `eegprep-console`
+   workspace contract: return `(EEG, com)` with `return_com=True`, update
+   GUI state through `EEGPrepSession`, and keep `EEG`/`ALLEEG`/history visible
+   from both the GUI and the console.
 
 5. For features that involve a GUI component, use the
    [`eeglab-gui-visual-parity`](../eeglab-gui-visual-parity/SKILL.md) skill to
@@ -36,11 +40,15 @@ Use this workflow when building a new EEGPrep feature.
    [`gui-agent-flow-qa`](../gui-agent-flow-qa/SKILL.md) skill and Codex's GUI
    Agent. Cover typical user flows, including loading data from `sample_data`,
    and use every feature developed in the branch as a user would. Also cover
-   edge cases that are likely from a user's point of view. Fix any bugs that
-   surface.
+   edge cases that are likely from a user's point of view. For interactive
+   features, include mixed GUI plus `eegprep-console` flows: act in the GUI,
+   inspect/use `EEG` in the console, then run a console command and verify the
+   GUI/history refresh. Fix any bugs that surface.
 
 7. After implementation and GUI parity/QA work, write additional regression
-   tests and integration tests for behaviors discovered during testing.
+   tests and integration tests for behaviors discovered during testing,
+   including `tests/test_console_workspace.py` when shared workspace sync or
+   console wrappers are affected.
 
 8. Review the current feature branch against `origin/develop`. Use the
    [`github-pr-review`](../github-pr-review/SKILL.md) skill when appropriate.
