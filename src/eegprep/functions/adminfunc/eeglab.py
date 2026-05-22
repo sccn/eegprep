@@ -18,6 +18,7 @@ def eeglab(
     all_menus: bool | None = None,
     include_plugins: bool = True,
     native_menu_bar: bool | None = None,
+    native_file_dialogs: bool = True,
 ) -> Any:
     """Start the EEGPrep EEGLAB-style main window.
 
@@ -33,6 +34,7 @@ def eeglab(
         native_menu_bar: Use the native macOS menu bar when ``True``. ``None``
             keeps EEGPrep's platform default; set ``False`` to keep menus in
             the window on macOS.
+        native_file_dialogs: Use platform-native file pickers when ``True``.
 
     Returns:
         ``EEGPrepMainWindow`` by default, or ``EEGPrepSession`` for
@@ -52,6 +54,7 @@ def eeglab(
         all_menus=all_menus,
         include_plugins=include_plugins,
         native_menu_bar=native_menu_bar,
+        native_file_dialogs=native_file_dialogs,
     )
     if block:
         return window.exec()
@@ -69,6 +72,7 @@ def gui(
     all_menus: bool | None = None,
     include_plugins: bool = True,
     native_menu_bar: bool | None = None,
+    native_file_dialogs: bool = True,
 ) -> Any:
     """Start the EEGPrep GUI.
 
@@ -83,6 +87,7 @@ def gui(
         all_menus=all_menus,
         include_plugins=include_plugins,
         native_menu_bar=native_menu_bar,
+        native_file_dialogs=native_file_dialogs,
     )
 
 

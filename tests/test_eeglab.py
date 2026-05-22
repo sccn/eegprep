@@ -21,7 +21,13 @@ def test_eeglab_full_mode_builds_window_without_showing():
         returned = eeglab_module.eeglab("full", session=session, show=False, include_plugins=False)
 
     assert returned is window
-    build.assert_called_once_with(session, all_menus=True, include_plugins=False, native_menu_bar=None)
+    build.assert_called_once_with(
+        session,
+        all_menus=True,
+        include_plugins=False,
+        native_menu_bar=None,
+        native_file_dialogs=True,
+    )
     window.show.assert_not_called()
     window.exec.assert_not_called()
 
@@ -49,6 +55,7 @@ def test_gui_alias_forwards_to_eeglab_launcher():
             show=False,
             include_plugins=False,
             native_menu_bar=False,
+            native_file_dialogs=False,
         )
 
     assert returned == "window"
@@ -60,6 +67,7 @@ def test_gui_alias_forwards_to_eeglab_launcher():
         all_menus=None,
         include_plugins=False,
         native_menu_bar=False,
+        native_file_dialogs=False,
     )
 
 

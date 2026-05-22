@@ -4,6 +4,7 @@ import scipy.io
 import numpy as np
 import os
 import h5py
+from eegprep.functions.popfunc._file_io import normalize_icachansind
 from eegprep.functions.popfunc.pop_loadset_h5 import pop_loadset_h5
 # Allows access using . notation
 # class EEG:
@@ -78,7 +79,7 @@ def pop_loadset(file_path=None):
             return dict_obj
 
     # Load MATLAB file
-    print(file_path)  # This will show us the actual path being used
+    loaded_with_h5 = False
     try:
         EEG = scipy.io.loadmat(file_path, struct_as_record=False, squeeze_me=True, appendmat=False)
         EEG = new_check(EEG)
@@ -86,6 +87,7 @@ def pop_loadset(file_path=None):
             EEG = EEG['EEG']
     except Exception as e:
         EEG = pop_loadset_h5(file_path)
+        loaded_with_h5 = True
 
     EEG['filepath'] = os.path.dirname(file_path)
     EEG['filename'] = os.path.basename(file_path)
@@ -98,9 +100,9 @@ def pop_loadset(file_path=None):
     if '__globals__' in EEG:
         del EEG['__globals__']
 
-    # subtract 1 to EEG['icachansind'] to make it 0-based (must be done before eeg_checkset)
-    if 'icachansind' in EEG and EEG['icachansind'].size > 0:
-        EEG['icachansind'] = EEG['icachansind'] - 1
+    # Convert MATLAB-loaded 1-based doubles to EEGPrep's 0-based integer indices.
+    if 'icachansind' in EEG:
+        EEG['icachansind'] = normalize_icachansind(EEG['icachansind'], matlab_one_based=not loaded_with_h5)
 
     EEG = eeg_checkset(EEG)
     EEG.pop("changes_not_saved", None)

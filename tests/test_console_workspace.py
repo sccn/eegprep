@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import io
+import logging
 from types import SimpleNamespace
 from unittest import mock
 
@@ -56,6 +58,52 @@ def test_session_changes_update_console_namespace():
     assert workspace.namespace["LASTCOM"] == "EEG = demo;"
 
 
+def test_gui_history_commands_echo_to_console():
+    session = EEGPrepSession()
+    writes = []
+    workspace = EEGPrepConsoleWorkspace(session, history_echo=writes.append, exports={})
+
+    session.store_current(_demo_eeg(), new=True, command="EEG = pop_loadset('demo.set');")
+
+    assert workspace.namespace["LASTCOM"] == "EEG = pop_loadset('demo.set');"
+    assert writes == ["EEG = pop_loadset('demo.set');"]
+
+
+def test_previewed_gui_history_echoes_before_session_history_without_duplicate():
+    session = EEGPrepSession()
+    writes = []
+    workspace = EEGPrepConsoleWorkspace(session, history_echo=writes.append, exports={})
+
+    session.preview_history("EEG = pop_resample( EEG, 64);")
+    session.add_history("EEG = pop_resample( EEG, 64);")
+
+    assert writes == ["EEG = pop_resample( EEG, 64);"]
+    assert session.ALLCOM == ["EEG = pop_resample( EEG, 64);"]
+    workspace.close()
+
+
+def test_console_history_edits_do_not_echo_as_gui_commands():
+    session = EEGPrepSession()
+    writes = []
+    workspace = EEGPrepConsoleWorkspace(session, history_echo=writes.append, exports={})
+
+    workspace.namespace["LASTCOM"] = "EEG = custom_command(EEG);"
+    workspace.after_execute("LASTCOM = 'EEG = custom_command(EEG);'")
+
+    assert session.ALLCOM == ["EEG = custom_command(EEG);"]
+    assert writes == []
+
+
+def test_preexisting_history_is_not_echoed_when_console_workspace_starts():
+    session = EEGPrepSession()
+    session.add_history("EEG = before_console;")
+    writes = []
+
+    EEGPrepConsoleWorkspace(session, history_echo=writes.append, exports={})
+
+    assert writes == []
+
+
 def test_console_eeg_assignment_stores_current_dataset_and_refreshes():
     session = EEGPrepSession()
     session.store_current(_demo_eeg(), new=True)
@@ -87,7 +135,13 @@ def test_bare_pop_call_updates_session_and_returns_compact_unpackable_result():
     session = EEGPrepSession()
     session.store_current(_demo_eeg(), new=True)
     refresh = mock.Mock()
-    workspace = EEGPrepConsoleWorkspace(session, refresh=refresh, exports={"pop_reref": _fake_pop_reref})
+    writes = []
+    workspace = EEGPrepConsoleWorkspace(
+        session,
+        refresh=refresh,
+        history_echo=writes.append,
+        exports={"pop_reref": _fake_pop_reref},
+    )
 
     result = workspace.namespace["pop_reref"](workspace.namespace["EEG"], [])
     workspace.after_execute("pop_reref(EEG, [])")
@@ -98,6 +152,7 @@ def test_bare_pop_call_updates_session_and_returns_compact_unpackable_result():
     assert session.EEG["setname"] == "reref"
     assert session.ALLCOM == ["EEG = pop_reref(EEG, []);"]
     assert "data" not in repr(result)
+    assert writes == []
     refresh.assert_called_once()
 
 
@@ -210,6 +265,39 @@ def test_multiple_selected_datasets_stay_selected_after_pop_call():
     assert [item["setname"] for item in session.ALLEEG] == ["one-selected", "two-selected"]
 
 
+def test_real_pop_epoch_updates_console_session_and_history():
+    from eegprep.functions.popfunc.pop_epoch import pop_epoch
+
+    eeg = {
+        "setname": "continuous",
+        "data": np.arange(400, dtype=np.float32).reshape(2, 200),
+        "nbchan": 2,
+        "pnts": 200,
+        "trials": 1,
+        "srate": 100.0,
+        "xmin": 0.0,
+        "xmax": 1.99,
+        "event": [{"type": "stim", "latency": 100, "duration": 0}],
+        "urevent": [],
+        "epoch": [],
+    }
+    session = EEGPrepSession()
+    session.store_current(eeg, new=True)
+    refresh = mock.Mock()
+    workspace = EEGPrepConsoleWorkspace(session, refresh=refresh, exports={"pop_epoch": pop_epoch})
+
+    result = workspace.namespace["pop_epoch"](workspace.namespace["EEG"], ["stim"], [-0.1, 0.1])
+    workspace.after_execute("pop_epoch(EEG, ['stim'], [-0.1, 0.1])")
+
+    output, command = result
+    assert output is session.EEG
+    assert session.EEG["trials"] == 1
+    assert session.EEG["pnts"] == 20
+    assert command == "EEG = pop_epoch( EEG, { 'stim' }, [-0.1 0.1]);"
+    assert session.ALLCOM == [command]
+    refresh.assert_called_once()
+
+
 def test_safe_after_execute_sync_error_recovers_namespace_without_crashing():
     session = EEGPrepSession()
     session.store_current(_demo_eeg(), new=True)
@@ -233,9 +321,19 @@ class _FakeEvents:
         self.callbacks[name] = callback
 
 
+class _FakeHistoryManager:
+    def __init__(self):
+        self.inputs = []
+
+    def store_inputs(self, line_number, source, source_raw=None):
+        self.inputs.append((line_number, source, source_raw))
+
+
 class _FakeShell:
     def __init__(self):
         self.events = _FakeEvents()
+        self.history_manager = _FakeHistoryManager()
+        self.execution_count = 1
         self.enabled_gui = None
         self.called = False
 
@@ -246,6 +344,14 @@ class _FakeShell:
         self.called = True
         callback = self.events.callbacks["post_run_cell"]
         callback(SimpleNamespace(info=SimpleNamespace(raw_cell="EEG"), success=True))
+
+
+class _FakePrompts:
+    def __init__(self, shell):
+        self.shell = shell
+
+    def in_prompt_tokens(self):
+        return [("Token.Prompt", f"In [{self.shell.execution_count}]: ")]
 
 
 def test_run_console_forwards_cli_options_to_gui_launcher():
@@ -271,6 +377,7 @@ def test_run_console_forwards_cli_options_to_gui_launcher():
     assert captured["gui_args"] == ("full",)
     assert captured["gui_kwargs"]["include_plugins"] is False
     assert captured["gui_kwargs"]["native_menu_bar"] is False
+    assert captured["gui_kwargs"]["native_file_dialogs"] is False
     assert "EEGPrep interactive console" in captured["banner"]
     assert shell.enabled_gui == "qt"
     assert shell.called is True
@@ -283,3 +390,125 @@ def test_ipython_factory_error_is_user_facing_when_dependency_missing():
         pytest.raises(RuntimeError, match="IPython is required for eegprep-console"),
     ):
         console_module._ipython_shell_factory({}, "")
+
+
+def test_ipython_adapter_records_gui_command_as_input_and_advances_prompt():
+    shell = _FakeShell()
+    workspace = EEGPrepConsoleWorkspace(EEGPrepSession(), exports={})
+    adapter = console_module._IPythonShellAdapter(shell, workspace)
+
+    with mock.patch.object(console_module, "_terminal_write") as terminal_write:
+        adapter.echo_gui_command("EEG = pop_fileio('demo.set');")
+
+    assert shell.execution_count == 2
+    assert shell.history_manager.inputs == [(1, "EEG = pop_fileio('demo.set');", "EEG = pop_fileio('demo.set');")]
+    terminal_write.assert_called_once_with("In [1]: EEG = pop_fileio('demo.set');\n")
+
+
+def test_ipython_adapter_keeps_prompt_message_dynamic():
+    shell = _FakeShell()
+    shell.prompts = _FakePrompts(shell)
+
+    def extra_prompt_options():
+        return {"message": "In [1]: "}
+
+    shell._extra_prompt_options = extra_prompt_options
+
+    console_module._make_shell_prompt_dynamic(shell)
+    options = shell._extra_prompt_options()
+
+    assert callable(options["message"])
+    assert shell._eegprep_dynamic_prompt is True
+
+
+def test_ipython_adapter_installs_dynamic_prompt_before_shell_starts():
+    shell = _FakeShell()
+    shell.prompts = _FakePrompts(shell)
+    shell._extra_prompt_options = lambda: {"message": "In [1]: "}
+    workspace = EEGPrepConsoleWorkspace(EEGPrepSession(), exports={})
+    adapter = console_module._IPythonShellAdapter(shell, workspace)
+
+    adapter()
+
+    assert shell._eegprep_dynamic_prompt is True
+
+
+def test_ipython_adapter_installs_prompt_safe_logging_during_shell_run():
+    shell = _FakeShell()
+    workspace = EEGPrepConsoleWorkspace(EEGPrepSession(), exports={})
+    adapter = console_module._IPythonShellAdapter(shell, workspace)
+
+    with (
+        mock.patch.object(console_module, "_install_prompt_safe_logging") as install_logging,
+        mock.patch.object(console_module, "_make_shell_prompt_dynamic"),
+    ):
+        restore_logging = mock.Mock()
+        install_logging.return_value = restore_logging
+        adapter()
+
+    install_logging.assert_called_once()
+    restore_logging.assert_called_once()
+
+
+def test_format_ipython_input_trims_extra_newlines():
+    assert console_module._format_ipython_input("EEG = demo;\n", 3) == "In [3]: EEG = demo;\n"
+
+
+def test_prompt_safe_logging_stream_uses_terminal_write():
+    stream = io.StringIO()
+    safe_stream = console_module._PromptSafeStream(stream)
+
+    with mock.patch.object(console_module, "_terminal_write") as terminal_write:
+        assert safe_stream.write("WARNING (demo) message\n") == len("WARNING (demo) message\n")
+
+    terminal_write.assert_called_once_with("WARNING (demo) message\n", stream=stream)
+
+
+def test_prompt_safe_logging_install_restores_stream_handlers():
+    stream = io.StringIO()
+    handler = logging.StreamHandler(stream)
+    root_logger = logging.getLogger()
+    root_logger.addHandler(handler)
+    try:
+        restore = console_module._install_prompt_safe_logging()
+
+        assert isinstance(handler.stream, console_module._PromptSafeStream)
+
+        restore()
+
+        assert handler.stream is stream
+    finally:
+        root_logger.removeHandler(handler)
+
+
+def test_terminal_write_prints_above_active_prompt():
+    stream = io.StringIO()
+    calls = []
+
+    def fake_run_in_terminal(callback):
+        calls.append(callback)
+        callback()
+
+    fake_module = SimpleNamespace(run_in_terminal=fake_run_in_terminal)
+
+    with (
+        mock.patch.object(console_module.importlib, "import_module", return_value=fake_module) as import_module,
+        mock.patch.object(console_module.sys, "stdout", stream),
+    ):
+        console_module._terminal_write("In [1]: EEG = pop_fileio('demo.set');\n")
+
+    import_module.assert_called_once_with("prompt_toolkit.application.run_in_terminal")
+    assert len(calls) == 1
+    assert stream.getvalue() == "In [1]: EEG = pop_fileio('demo.set');\n"
+
+
+def test_terminal_write_fallback_starts_on_new_line():
+    stream = io.StringIO()
+
+    with (
+        mock.patch.object(console_module.importlib, "import_module", side_effect=ImportError("missing")),
+        mock.patch.object(console_module.sys, "stdout", stream),
+    ):
+        console_module._terminal_write("In [1]: EEG = pop_fileio('demo.set');\n")
+
+    assert stream.getvalue() == "\nIn [1]: EEG = pop_fileio('demo.set');\n"

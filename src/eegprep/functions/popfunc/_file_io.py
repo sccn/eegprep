@@ -22,6 +22,18 @@ NUMPY_EXTENSIONS = {".npy", ".npz"}
 FLOAT32_FORMATS = {"float32", "float32le", "float32be"}
 
 
+def normalize_icachansind(value: Any, *, matlab_one_based: bool) -> np.ndarray:
+    """Return EEGPrep's zero-based integer ICA channel indices."""
+    if value is None:
+        return np.array([], dtype=int)
+    indices = np.asarray(value, dtype=float)
+    if indices.size == 0:
+        return np.array([], dtype=int)
+    if matlab_one_based:
+        indices = indices - 1
+    return indices.flatten().astype(int)
+
+
 def infer_dataformat(filename: str | Path | None, dataformat: str | None = None) -> str:
     """Infer an EEGLAB-style import data format from a filename."""
     if dataformat and dataformat != "auto":

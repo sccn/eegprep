@@ -42,6 +42,7 @@ class EEGPrepSession:
     CURRENTSTUDY: int = 0
     PLUGINLIST: list[dict[str, Any]] = field(default_factory=list)
     _listeners: list[Callable[["EEGPrepSession"], None]] = field(default_factory=list, init=False, repr=False)
+    _history_preview_listeners: list[Callable[[str], None]] = field(default_factory=list, init=False, repr=False)
 
     def add_change_listener(self, listener: Callable[["EEGPrepSession"], None]) -> None:
         """Register a callback that runs after session state changes."""
@@ -52,6 +53,23 @@ class EEGPrepSession:
         """Remove a previously registered session change callback."""
         if listener in self._listeners:
             self._listeners.remove(listener)
+
+    def add_history_preview_listener(self, listener: Callable[[str], None]) -> None:
+        """Register a callback for commands that are about to run from the GUI."""
+        if listener not in self._history_preview_listeners:
+            self._history_preview_listeners.append(listener)
+
+    def remove_history_preview_listener(self, listener: Callable[[str], None]) -> None:
+        """Remove a previously registered history preview callback."""
+        if listener in self._history_preview_listeners:
+            self._history_preview_listeners.remove(listener)
+
+    def preview_history(self, command: str | None) -> None:
+        """Notify listeners that a GUI command is about to update the session."""
+        if not command:
+            return
+        for listener in list(self._history_preview_listeners):
+            listener(command)
 
     def notify_changed(self) -> None:
         """Notify listeners that session-backed state changed."""

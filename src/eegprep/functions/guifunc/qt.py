@@ -403,6 +403,26 @@ class QtDialogRenderer:
                 return "New sampling rate must be numeric"
             if value <= 0:
                 return "New sampling rate must be positive"
+        if spec.function_name == "pop_epoch":
+            limits_text = QtDialogRenderer._widget_text(widgets.get("limits")).strip()
+            if not limits_text:
+                return "Epoch limits are required"
+            try:
+                limits = QtDialogRenderer._parse_numeric_text(limits_text)
+            except ValueError:
+                return "Epoch limits must be numeric"
+            if len(limits) != 2:
+                return "Epoch limits must contain 2 values"
+            if limits[0] >= limits[1]:
+                return "Epoch start must be lower than epoch end"
+            valuelim_text = QtDialogRenderer._widget_text(widgets.get("valuelim")).strip()
+            if valuelim_text:
+                try:
+                    valuelim = QtDialogRenderer._parse_numeric_text(valuelim_text)
+                except ValueError:
+                    return "Out-of-bounds EEG limits must be numeric"
+                if len(valuelim) not in {1, 2}:
+                    return "Out-of-bounds EEG limits must contain 1 or 2 values"
         if spec.function_name == "pop_runica" and "dataset" in widgets:
             if not QtDialogRenderer._read_widget(widgets["dataset"]):
                 return "Select at least one dataset"

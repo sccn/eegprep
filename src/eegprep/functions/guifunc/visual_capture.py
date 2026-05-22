@@ -15,6 +15,7 @@ from eegprep.functions.guifunc.pophelp import pophelp
 from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.functions.popfunc.pop_adjustevents import pop_adjustevents_dialog_spec
 from eegprep.functions.popfunc.pop_chansel import pop_chansel_display_values
+from eegprep.functions.popfunc.pop_epoch import pop_epoch_dialog_spec
 from eegprep.functions.popfunc.pop_interp import pop_interp_dialog_spec
 from eegprep.functions.popfunc.pop_reref import pop_reref_dialog_spec
 from eegprep.functions.popfunc.pop_resample import pop_resample_dialog_spec
@@ -354,6 +355,15 @@ def capture_pop_resample_dialog(output: pathlib.Path) -> None:
     _grab_dialog(dialog, output, app)
 
 
+def capture_pop_epoch_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_epoch dialog."""
+    eeg = _demo_main_eeg(setname="pop demo")
+    spec = pop_epoch_dialog_spec(eeg)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
 def capture_pop_runica_dialog(output: pathlib.Path) -> None:
     """Render and capture the pop_runica dialog."""
     eeg = _demo_main_eeg()
@@ -517,6 +527,8 @@ def main(argv: list[str] | None = None) -> int:
         capture_pop_select_dialog(args.output)
     elif args.case == "pop_resample_dialog":
         capture_pop_resample_dialog(args.output)
+    elif args.case == "pop_epoch_dialog":
+        capture_pop_epoch_dialog(args.output)
     elif args.case == "pop_runica_dialog":
         capture_pop_runica_dialog(args.output)
     elif args.case == "pop_runica_multiple_dialog":

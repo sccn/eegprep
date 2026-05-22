@@ -52,6 +52,7 @@ class EEGPrepMainWindow:
         all_menus: bool | None = None,
         include_plugins: bool = True,
         native_menu_bar: bool | None = None,
+        native_file_dialogs: bool = True,
     ) -> None:
         qt_core, qt_gui, qt_widgets = _require_qt()
         self._qt_core = qt_core
@@ -72,7 +73,11 @@ class EEGPrepMainWindow:
         self.window.setStyleSheet(_main_window_stylesheet())
         use_native_menu_bar = sys.platform == "darwin" if native_menu_bar is None else bool(native_menu_bar)
         self.window.menuBar().setNativeMenuBar(use_native_menu_bar)
-        self.dispatcher = MenuActionDispatcher(self.session, refresh=self.refresh)
+        self.dispatcher = MenuActionDispatcher(
+            self.session,
+            refresh=self.refresh,
+            native_file_dialogs=native_file_dialogs,
+        )
         self._build_central_widget()
         self.refresh()
 
@@ -310,6 +315,7 @@ def build_main_window(
     all_menus: bool | None = None,
     include_plugins: bool = True,
     native_menu_bar: bool | None = None,
+    native_file_dialogs: bool = True,
 ) -> EEGPrepMainWindow:
     """Build an EEGPrep main window without entering the Qt event loop."""
     return EEGPrepMainWindow(
@@ -317,6 +323,7 @@ def build_main_window(
         all_menus=all_menus,
         include_plugins=include_plugins,
         native_menu_bar=native_menu_bar,
+        native_file_dialogs=native_file_dialogs,
     )
 
 

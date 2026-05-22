@@ -301,6 +301,7 @@ class MainMenuSpecTests(unittest.TestCase):
         self.assertEqual(action_kind("pop_reref"), "implemented")
         self.assertEqual(action_kind("pop_select"), "implemented")
         self.assertEqual(action_kind("pop_resample"), "implemented")
+        self.assertEqual(action_kind("pop_epoch"), "implemented")
         self.assertEqual(action_kind("pop_clean_rawdata"), "implemented")
         self.assertEqual(action_kind("pop_runica"), "implemented")
         self.assertEqual(action_kind("pop_iclabel"), "implemented")
@@ -633,6 +634,7 @@ class MenuActionDispatcherTests(unittest.TestCase):
         action_specs = [
             ("pop_select", "eegprep.functions.popfunc.pop_select.pop_select", "selected"),
             ("pop_resample", "eegprep.functions.popfunc.pop_resample.pop_resample", "resampled"),
+            ("pop_epoch", "eegprep.functions.popfunc.pop_epoch.pop_epoch", "epoched"),
             ("pop_clean_rawdata", "eegprep.plugins.clean_rawdata.pop_clean_rawdata.pop_clean_rawdata", "cleaned"),
             ("pop_runica", "eegprep.functions.popfunc.pop_runica.pop_runica", "ica"),
             ("pop_iclabel", "eegprep.plugins.ICLabel.pop_iclabel.pop_iclabel", "labeled"),
@@ -673,6 +675,52 @@ class MenuActionDispatcherTests(unittest.TestCase):
         self.assertEqual(session.EEG["setname"], "imported")
         self.assertEqual(session.CURRENTSET, [1])
         self.assertEqual(session.ALLCOM[-1], "EEG = pop_importdata('data', '/tmp/data.tsv');")
+
+    def test_file_menu_import_uses_native_file_dialog_by_default(self):
+        captured = {}
+
+        class QFileDialog:
+            class Option:
+                DontUseNativeDialog = 4
+
+            @staticmethod
+            def getOpenFileName(*args, **kwargs):
+                captured["args"] = args
+                captured["kwargs"] = kwargs
+                return "", ""
+
+        qt_widgets = type("FakeQtWidgets", (), {"QFileDialog": QFileDialog})
+        dispatcher = MenuActionDispatcher(EEGPrepSession())
+
+        with mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets):
+            filename = dispatcher._open_import_filename("pop_fileio", None)
+
+        self.assertEqual(filename, "")
+        self.assertEqual(captured["args"][1], "Import data")
+        self.assertEqual(captured["kwargs"], {})
+
+    def test_file_menu_import_can_use_stable_qt_file_dialog(self):
+        captured = {}
+
+        class QFileDialog:
+            class Option:
+                DontUseNativeDialog = 4
+
+            @staticmethod
+            def getOpenFileName(*args, **kwargs):
+                captured["args"] = args
+                captured["kwargs"] = kwargs
+                return "", ""
+
+        qt_widgets = type("FakeQtWidgets", (), {"QFileDialog": QFileDialog})
+        dispatcher = MenuActionDispatcher(EEGPrepSession(), native_file_dialogs=False)
+
+        with mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets):
+            filename = dispatcher._open_import_filename("pop_fileio", None)
+
+        self.assertEqual(filename, "")
+        self.assertEqual(captured["args"][1], "Import data")
+        self.assertEqual(captured["kwargs"], {"options": QFileDialog.Option.DontUseNativeDialog})
 
     def test_file_menu_export_dispatch_records_history_without_changing_dataset(self):
         session = EEGPrepSession()
