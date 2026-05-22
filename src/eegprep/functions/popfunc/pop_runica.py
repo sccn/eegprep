@@ -98,12 +98,8 @@ def pop_runica_dialog_spec(EEG) -> DialogSpec:
     dataset_count = len(EEG) if isinstance(EEG, list) else 1
     first_eeg = EEG[0] if isinstance(EEG, list) else EEG
     chanlocs = _as_list(first_eeg.get("chanlocs", []))
-    labels = tuple(str(chan.get("labels", "")) for chan in chanlocs if isinstance(chan, dict))
-    types = tuple(
-        value for value in dict.fromkeys(
-            str(chan.get("type", "")) for chan in chanlocs if isinstance(chan, dict) and chan.get("type", "")
-        )
-    )
+    labels = _channel_field_values(chanlocs, "labels")
+    types = _channel_field_values(chanlocs, "type", unique=True)
     algorithm_labels = "|".join(description for _name, description, _options in _ALGORITHMS)
     controls = [
         ControlSpec("text", "ICA algorithm to use (click to select)"),
@@ -273,6 +269,44 @@ def _as_list(value):
     if isinstance(value, dict):
         return [value]
     return list(value)
+
+
+def _channel_field_values(chanlocs, field, *, unique=False):
+    values = []
+    seen = set()
+    for chan in chanlocs:
+        if not isinstance(chan, dict):
+            continue
+        text = _channel_field_text(chan.get(field, ""))
+        if not text:
+            continue
+        if unique:
+            if text in seen:
+                continue
+            seen.add(text)
+        values.append(text)
+    return tuple(values)
+
+
+def _channel_field_text(value):
+    if value is None:
+        return ""
+    if isinstance(value, np.ndarray):
+        if value.size == 0:
+            return ""
+        flattened = value.reshape(-1)
+        if flattened.size == 1:
+            return _channel_field_text(flattened[0])
+        if value.dtype.kind in {"S", "U"}:
+            return "".join(str(item) for item in flattened).strip()
+        return str(value.tolist()).strip()
+    if isinstance(value, (list, tuple)):
+        if not value:
+            return ""
+        if len(value) == 1:
+            return _channel_field_text(value[0])
+        return " ".join(text for item in value if (text := _channel_field_text(item))).strip()
+    return str(value).strip()
 
 
 def _copy_ica_fields(EEG, source):

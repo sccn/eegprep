@@ -59,6 +59,40 @@ class PopRunicaGuiTests(unittest.TestCase):
         self.assertEqual(controls["type_button"].callback.params["channels"], ("EEG", "EOG"))
         self.assertEqual(controls["chan_button"].callback.params["channels"], ("Fz", "Cz", "HEOG", "VEOG"))
 
+    def test_gui_channel_callbacks_ignore_empty_numpy_type_fields_like_eeglab(self):
+        eeg = _eeg()
+        eeg["chanlocs"] = [
+            {"labels": "Fz", "type": np.array([], dtype=object)},
+            {"labels": np.array("Cz", dtype=object), "type": "EEG"},
+            {"labels": "HEOG", "type": np.array(["EOG"], dtype=object)},
+            {"labels": "VEOG", "type": ""},
+        ]
+
+        controls = controls_by_tag(pop_runica_dialog_spec(eeg))
+
+        self.assertEqual(controls["type_button"].callback.params["channels"], ("EEG", "EOG"))
+        self.assertEqual(controls["chan_button"].callback.params["channels"], ("Fz", "Cz", "HEOG", "VEOG"))
+
+    def test_gui_with_empty_numpy_channel_types_preserves_runica_options(self):
+        class Renderer:
+            def run(self, spec, initial_values=None):
+                return {"icatype": 1, "params": "'extended', 1, 'maxsteps', 2", "reorder": True, "chantype": ""}
+
+        eeg = _eeg()
+        eeg["chanlocs"][0]["type"] = np.array([], dtype=object)
+        updated = dict(eeg, icaweights=np.eye(4), icasphere=np.eye(4), icawinv=np.eye(4), icaact=np.zeros((4, 20, 1)))
+        with mock.patch("eegprep.functions.popfunc.pop_runica.eeg_runica", return_value=updated) as runica:
+            _out, com = pop_runica(eeg, gui=True, renderer=Renderer(), return_com=True)
+
+        np.testing.assert_array_equal(runica.call_args.args[0]["data"], eeg["data"])
+        self.assertEqual(runica.call_args.kwargs["extended"], 1)
+        self.assertEqual(runica.call_args.kwargs["maxsteps"], 2)
+        self.assertNotIn("lrate", runica.call_args.kwargs)
+        self.assertEqual(
+            com,
+            "EEG = pop_runica(EEG, 'icatype', 'runica', 'extended', 1, 'maxsteps', 2, 'interrupt', 'on');",
+        )
+
     def test_gui_result_runs_runica_and_returns_history(self):
         class Renderer:
             def run(self, spec, initial_values=None):
