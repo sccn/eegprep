@@ -7,7 +7,9 @@ import ast
 import importlib
 import inspect
 import logging
+import re
 import sys
+import warnings
 from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from typing import Any
@@ -15,10 +17,17 @@ from typing import Any
 import eegprep
 from eegprep.functions.adminfunc.eeglab import gui
 from eegprep.functions.guifunc.session import EEGPrepSession
+from eegprep.functions.popfunc.pop_newset import pop_newset
 
 
 WORKSPACE_NAMES = ("EEG", "ALLEEG", "CURRENTSET", "ALLCOM", "LASTCOM", "STUDY", "CURRENTSTUDY")
 POP_RESULT_PREVIEW_LIMIT = 96
+ANSI_CLEAR_LINE = "\r\x1b[2K"
+_ACTIVE_TERMINAL_BUFFER: _TerminalOutputBuffer | None = None
+_MATLAB_MULTI_ASSIGN_PATTERN = re.compile(r"^\s*\[([A-Za-z_][A-Za-z0-9_]*(?:\s+[A-Za-z_][A-Za-z0-9_]*)+)\]\s*=")
+_POP_INTERP_CHANNELS_PATTERN = re.compile(r"(pop_interp\s*\(\s*EEG\s*,\s*)\[([0-9,\s]+)\]")
+_PYTHON_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_CONSOLE_COMMAND_EXPORTS = {"pop_newset": pop_newset}
 
 
 class ConsolePopResult:
@@ -127,19 +136,25 @@ class EEGPrepConsoleWorkspace:
         self._wrapped_pop_exports: dict[str, ConsolePopFunction] = {}
         self._syncing = False
         self._pop_updated_session = False
+        self._pop_needs_source_history = False
         self._suppress_history_echo = 0
         self._history_echo_cursor = len(session.ALLCOM)
         self._previewed_history: list[str] = []
+        self._gui_action_depth = 0
+        self._terminal_buffer: _TerminalOutputBuffer | None = None
         self._bind_base_namespace()
         self._bind_exports(exports)
         self.pull_from_session()
         self.session.add_change_listener(self._session_changed)
         self.session.add_history_preview_listener(self._preview_session_history)
+        self.session.add_gui_action_listener(self._gui_action_event)
 
     def close(self) -> None:
         """Detach this workspace from session notifications."""
         self.session.remove_change_listener(self._session_changed)
         self.session.remove_history_preview_listener(self._preview_session_history)
+        self.session.remove_gui_action_listener(self._gui_action_event)
+        self._finish_gui_action_output()
 
     def pull_from_session(self) -> None:
         """Mirror session state into the console namespace."""
@@ -161,6 +176,11 @@ class EEGPrepConsoleWorkspace:
                 return
             if self._pop_updated_session:
                 self._pop_updated_session = False
+                if self._pop_needs_source_history:
+                    self._pop_needs_source_history = False
+                    command = source.strip()
+                    if command:
+                        self.session.add_history(command)
                 self.pull_from_session()
                 return
 
@@ -226,12 +246,14 @@ class EEGPrepConsoleWorkspace:
             new_dataset = not self.session.CURRENTSET or not args or args[0] is not self.session.EEG
             self._store_eeg(eeg, command, new=new_dataset)
             self._pop_updated_session = True
+            self._pop_needs_source_history = not bool(command)
             self.pull_from_session()
             self._refresh()
             return ConsolePopResult(self.session.EEG, command, updated=True)
 
     def _bind_base_namespace(self) -> None:
         self.namespace.update({"eegprep": self._eegprep_proxy, "session": self.session, "window": self.window})
+        self.namespace.update(_CONSOLE_COMMAND_EXPORTS)
 
     def _bind_exports(self, exports: Mapping[str, Any] | None) -> None:
         export_names = exports.keys() if exports is not None else eegprep.__all__
@@ -303,6 +325,31 @@ class EEGPrepConsoleWorkspace:
             return
         self._previewed_history.append(command)
         self.history_echo(command)
+        self._release_gui_action_output()
+
+    def _gui_action_event(self, event: str, _action: str) -> None:
+        if event == "begin":
+            self._gui_action_depth += 1
+            if self._gui_action_depth == 1:
+                self._terminal_buffer = _TerminalOutputBuffer()
+                _set_active_terminal_buffer(self._terminal_buffer)
+            return
+        if event == "end":
+            self._gui_action_depth = max(0, self._gui_action_depth - 1)
+            if self._gui_action_depth == 0:
+                self._finish_gui_action_output()
+
+    def _release_gui_action_output(self) -> None:
+        if self._terminal_buffer is not None:
+            self._terminal_buffer.release()
+
+    def _finish_gui_action_output(self) -> None:
+        buffer = self._terminal_buffer
+        if buffer is not None:
+            buffer.release()
+        if _active_terminal_buffer() is buffer:
+            _set_active_terminal_buffer(None)
+        self._terminal_buffer = None
 
     def _consume_previewed_history(self, command: str) -> bool:
         if not command:
@@ -413,11 +460,12 @@ class _IPythonShellAdapter:
     def echo_gui_command(self, command: str) -> None:
         """Record and display a GUI history command as console input."""
         line_number = int(getattr(self.shell, "execution_count", 1) or 1)
+        console_command = _console_python_command(command)
         history_manager = getattr(self.shell, "history_manager", None)
         if history_manager is not None:
-            history_manager.store_inputs(line_number, command, command)
+            history_manager.store_inputs(line_number, console_command, console_command)
         self.shell.execution_count = line_number + 1
-        _terminal_write(_format_ipython_input(command, line_number))
+        _terminal_write(_format_ipython_input(console_command, line_number), stream=sys.stderr, sync=True)
 
 
 def _console_banner() -> str:
@@ -430,6 +478,428 @@ def _console_banner() -> str:
 
 def _format_ipython_input(command: str, line_number: int) -> str:
     return f"In [{line_number}]: {command.rstrip()}\n"
+
+
+def _console_python_command(command: str) -> str:
+    """Convert EEGLAB-style history text to pasteable Python console input."""
+    text = command.strip()
+    if text.endswith(";"):
+        text = text[:-1].rstrip()
+    statements = _split_history_statements(text)
+    if len(statements) > 1:
+        return "; ".join(_console_python_command(statement) for statement in statements)
+    text = _matlab_strings_to_python(text)
+    text = _matlab_multi_assign_to_python(text)
+    text = _matlab_cells_to_python_lists(text)
+    text = _matlab_vectors_to_python_lists(text)
+    text = _pythonize_known_pop_arguments(text)
+    text = _keywordize_console_pop_calls(text)
+    return _normalise_python_command(text)
+
+
+def _split_history_statements(text: str) -> list[str]:
+    statements = []
+    start = 0
+    depth = 0
+    index = 0
+    while index < len(text):
+        char = text[index]
+        if char in {"'", '"'}:
+            index = _string_end(text, index)
+            continue
+        if char in "([{":
+            depth += 1
+        elif char in ")]}":
+            depth = max(0, depth - 1)
+        elif char == ";" and depth == 0:
+            statement = text[start:index].strip()
+            if statement:
+                statements.append(statement)
+            start = index + 1
+        index += 1
+    statement = text[start:].strip()
+    if statement:
+        statements.append(statement)
+    return statements or [text]
+
+
+def _matlab_strings_to_python(text: str) -> str:
+    output = []
+    index = 0
+    while index < len(text):
+        char = text[index]
+        if char != "'":
+            output.append(char)
+            index += 1
+            continue
+        index += 1
+        value = []
+        while index < len(text):
+            char = text[index]
+            if char != "'":
+                value.append(char)
+                index += 1
+                continue
+            if index + 1 < len(text) and text[index + 1] == "'":
+                value.append("'")
+                index += 2
+                continue
+            index += 1
+            break
+        output.append(repr("".join(value)))
+    return "".join(output)
+
+
+def _matlab_multi_assign_to_python(text: str) -> str:
+    match = _MATLAB_MULTI_ASSIGN_PATTERN.match(text)
+    if not match:
+        return text
+    names = ", ".join(match.group(1).split())
+    return f"{names} =" + text[match.end() :]
+
+
+def _matlab_cells_to_python_lists(text: str) -> str:
+    return _replace_matlab_delimited_lists(text, "{", "}")
+
+
+def _matlab_vectors_to_python_lists(text: str) -> str:
+    return _replace_matlab_delimited_lists(text, "[", "]")
+
+
+def _replace_matlab_delimited_lists(text: str, open_char: str, close_char: str) -> str:
+    output = []
+    index = 0
+    while index < len(text):
+        char = text[index]
+        if char in {"'", '"'}:
+            end = _string_end(text, index)
+            output.append(text[index:end])
+            index = end
+            continue
+        if char != open_char:
+            output.append(char)
+            index += 1
+            continue
+        end = _delimiter_end(text, index, open_char, close_char)
+        if end is None:
+            output.append(char)
+            index += 1
+            continue
+        original = text[index : end + 1]
+        content = text[index + 1 : end]
+        output.append(_format_matlab_list_content(content, original))
+        index = end + 1
+    return "".join(output)
+
+
+def _format_matlab_list_content(content: str, original: str) -> str:
+    content = content.strip()
+    if not content:
+        return "[]"
+    rows = [row.strip() for row in content.split(";")]
+    if not all(_is_matlab_list_row(row) for row in rows):
+        return original
+    formatted_rows = [_comma_join_matlab_row(row) for row in rows]
+    if len(formatted_rows) == 1:
+        return f"[{formatted_rows[0]}]"
+    return "[" + ", ".join(f"[{row}]" for row in formatted_rows) + "]"
+
+
+def _delimiter_end(text: str, start: int, open_char: str, close_char: str) -> int | None:
+    depth = 0
+    index = start
+    while index < len(text):
+        char = text[index]
+        if char in {"'", '"'}:
+            index = _string_end(text, index)
+            continue
+        if char == open_char:
+            depth += 1
+        elif char == close_char:
+            depth -= 1
+            if depth == 0:
+                return index
+        index += 1
+    return None
+
+
+def _string_end(text: str, start: int) -> int:
+    quote = text[start]
+    index = start + 1
+    escaped = False
+    while index < len(text):
+        char = text[index]
+        if escaped:
+            escaped = False
+        elif char == "\\":
+            escaped = True
+        elif char == quote:
+            return index + 1
+        index += 1
+    return len(text)
+
+
+def _is_matlab_list_row(row: str) -> bool:
+    if not row:
+        return True
+    return all(_is_python_literal_token(token) for token in row.replace(",", " ").split())
+
+
+def _comma_join_matlab_row(row: str) -> str:
+    return ", ".join(row.replace(",", " ").split())
+
+
+def _is_python_literal_token(token: str) -> bool:
+    if not token:
+        return False
+    if token in {"True", "False", "None"}:
+        return True
+    try:
+        float(token)
+    except ValueError:
+        return token.startswith(("'", '"')) and token.endswith(("'", '"'))
+    return True
+
+
+def _replace_outside_strings(text: str, pattern: re.Pattern[str], replacement: Callable[[re.Match[str]], str]) -> str:
+    output = []
+    cursor = 0
+    for start, end in _string_spans(text):
+        output.append(pattern.sub(replacement, text[cursor:start]))
+        output.append(text[start:end])
+        cursor = end
+    output.append(pattern.sub(replacement, text[cursor:]))
+    return "".join(output)
+
+
+def _string_spans(text: str) -> list[tuple[int, int]]:
+    spans = []
+    index = 0
+    while index < len(text):
+        quote = text[index]
+        if quote not in {"'", '"'}:
+            index += 1
+            continue
+        start = index
+        index += 1
+        escaped = False
+        while index < len(text):
+            char = text[index]
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == quote:
+                index += 1
+                break
+            index += 1
+        spans.append((start, index))
+    return spans
+
+
+def _pythonize_known_pop_arguments(text: str) -> str:
+    text = _pythonize_pop_interp_channels(text)
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        return text
+    converter = _ConsoleCommandArgumentConverter()
+    tree = converter.visit(tree)
+    ast.fix_missing_locations(tree)
+    return ast.unparse(tree) if converter.changed else text
+
+
+def _pythonize_pop_interp_channels(text: str) -> str:
+    def replacement(match: re.Match[str]) -> str:
+        channels = [int(token) - 1 for token in match.group(2).replace(",", " ").split()]
+        return f"{match.group(1)}{channels}"
+
+    return _replace_outside_strings(text, _POP_INTERP_CHANNELS_PATTERN, replacement)
+
+
+def _keywordize_console_pop_calls(text: str) -> str:
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        return text
+    converter = _ConsoleCommandKeywordizer()
+    tree = converter.visit(tree)
+    ast.fix_missing_locations(tree)
+    return ast.unparse(tree) if converter.changed else text
+
+
+def _normalise_python_command(text: str) -> str:
+    try:
+        return ast.unparse(ast.parse(text)).strip()
+    except SyntaxError:
+        return text
+
+
+class _ConsoleCommandArgumentConverter(ast.NodeTransformer):
+    def __init__(self) -> None:
+        self.changed = False
+
+    def visit_Call(self, node: ast.Call) -> ast.AST:
+        self.generic_visit(node)
+        if not isinstance(node.func, ast.Name):
+            return node
+        if node.func.id == "pop_reref":
+            self._convert_pop_reref(node)
+        return node
+
+    def _convert_pop_reref(self, node: ast.Call) -> None:
+        if len(node.args) >= 2:
+            node.args[1] = self._zero_base_channel_arg(node.args[1])
+        for index in range(2, len(node.args) - 1, 2):
+            key = self._string_constant(node.args[index])
+            if key in {"exclude", "interpchan"}:
+                node.args[index + 1] = self._zero_base_channel_arg(node.args[index + 1])
+
+    def _zero_base_channel_arg(self, node: ast.AST) -> ast.AST:
+        if isinstance(node, ast.List) and all(_is_numeric_ast_constant(item) for item in node.elts):
+            self.changed = True
+            return ast.List(
+                elts=[
+                    ast.Constant(value=int(float(item.value)) - 1)  # type: ignore[union-attr]
+                    for item in node.elts
+                ],
+                ctx=node.ctx,
+            )
+        if _is_numeric_ast_constant(node):
+            self.changed = True
+            return ast.Constant(value=int(float(node.value)) - 1)  # type: ignore[union-attr]
+        return node
+
+    @staticmethod
+    def _string_constant(node: ast.AST) -> str | None:
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            return node.value.lower()
+        return None
+
+
+class _ConsoleCommandKeywordizer(ast.NodeTransformer):
+    def __init__(self) -> None:
+        self.changed = False
+
+    def visit_Call(self, node: ast.Call) -> ast.AST:
+        self.generic_visit(node)
+        function_name = _console_call_name(node.func)
+        if function_name is None or not function_name.startswith("pop_"):
+            return node
+        function = _resolve_eegprep_callable(function_name)
+        if function is None:
+            return node
+        return self._keywordize_call(node, function)
+
+    def _keywordize_call(self, node: ast.Call, function: Callable[..., Any]) -> ast.Call:
+        try:
+            parameters = list(inspect.signature(function).parameters.values())
+        except (TypeError, ValueError):
+            return node
+        positional_parameters = [
+            parameter
+            for parameter in parameters
+            if parameter.kind in {inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD}
+        ]
+        accepts_var_keywords = any(parameter.kind == inspect.Parameter.VAR_KEYWORD for parameter in parameters)
+        keyword_parameters = {
+            parameter.name
+            for parameter in parameters
+            if parameter.kind in {inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.KEYWORD_ONLY}
+        }
+        existing_keywords = {keyword.arg for keyword in node.keywords if keyword.arg is not None}
+        kept_args: list[ast.expr] = []
+        converted_keywords: list[ast.keyword] = []
+        arg_index = 0
+        while arg_index < len(node.args) and arg_index < len(positional_parameters):
+            arg = node.args[arg_index]
+            parameter = positional_parameters[arg_index]
+            if (
+                parameter.kind == inspect.Parameter.POSITIONAL_ONLY
+                or parameter.name in existing_keywords
+                or _is_workspace_argument(parameter.name, arg)
+            ):
+                kept_args.append(arg)
+            else:
+                converted_keywords.append(ast.keyword(arg=parameter.name, value=arg))
+            arg_index += 1
+
+        option_keywords, leftover_args = _keywordize_option_pairs(
+            node.args[arg_index:],
+            accepts_var_keywords=accepts_var_keywords,
+            keyword_parameters=keyword_parameters,
+            existing_keywords=existing_keywords | {keyword.arg for keyword in converted_keywords},
+        )
+        if leftover_args and (converted_keywords or option_keywords):
+            return node
+        if not converted_keywords and not option_keywords:
+            return node
+        self.changed = True
+        node.args = kept_args + leftover_args
+        node.keywords = converted_keywords + option_keywords + node.keywords
+        return node
+
+
+def _keywordize_option_pairs(
+    args: list[ast.expr],
+    *,
+    accepts_var_keywords: bool,
+    keyword_parameters: set[str],
+    existing_keywords: set[str | None],
+) -> tuple[list[ast.keyword], list[ast.expr]]:
+    keywords: list[ast.keyword] = []
+    index = 0
+    while index + 1 < len(args):
+        key = _option_pair_key(args[index])
+        if key is None or key in existing_keywords or not _can_pass_keyword(key, keyword_parameters, accepts_var_keywords):
+            break
+        keywords.append(ast.keyword(arg=key, value=args[index + 1]))
+        existing_keywords.add(key)
+        index += 2
+    return keywords, args[index:]
+
+
+def _option_pair_key(node: ast.expr) -> str | None:
+    if not isinstance(node, ast.Constant) or not isinstance(node.value, str):
+        return None
+    key = node.value.strip().lower()
+    if not _PYTHON_IDENTIFIER_PATTERN.match(key):
+        return None
+    return key
+
+
+def _can_pass_keyword(key: str, keyword_parameters: set[str], accepts_var_keywords: bool) -> bool:
+    return accepts_var_keywords or key in keyword_parameters
+
+
+def _is_workspace_argument(parameter_name: str, arg: ast.expr) -> bool:
+    return parameter_name.upper() in WORKSPACE_NAMES and isinstance(arg, ast.Name) and arg.id.upper() == parameter_name.upper()
+
+
+def _console_call_name(node: ast.expr) -> str | None:
+    if isinstance(node, ast.Name):
+        return node.id
+    if (
+        isinstance(node, ast.Attribute)
+        and isinstance(node.value, ast.Name)
+        and node.value.id == "eegprep"
+    ):
+        return node.attr
+    return None
+
+
+def _resolve_eegprep_callable(name: str) -> Callable[..., Any] | None:
+    try:
+        value = getattr(eegprep, name)
+    except AttributeError:
+        value = _CONSOLE_COMMAND_EXPORTS.get(name)
+        if value is None:
+            return None
+    return value if callable(value) else None
+
+
+def _is_numeric_ast_constant(node: ast.AST) -> bool:
+    return isinstance(node, ast.Constant) and isinstance(node.value, (int, float))
 
 
 def _make_shell_prompt_dynamic(shell: Any) -> None:
@@ -488,10 +958,43 @@ def _install_prompt_safe_logging() -> Callable[[], None]:
                 original_stream = handler.stream
                 handler.setStream(_PromptSafeStream(original_stream))
                 patched.append((handler, original_stream))
+    original_emit = logging.StreamHandler.emit
+
+    def emit(handler: logging.StreamHandler[Any], record: logging.LogRecord) -> None:
+        if isinstance(handler, logging.FileHandler) or isinstance(handler.stream, _PromptSafeStream):
+            original_emit(handler, record)
+            return
+        try:
+            message = handler.format(record)
+            _terminal_write(message + handler.terminator, stream=handler.stream)
+            handler.flush()
+        except RecursionError:
+            raise
+        except Exception:
+            handler.handleError(record)
+
+    logging.StreamHandler.emit = emit
+    original_showwarning = warnings.showwarning
+
+    def showwarning(
+        message: Warning | str,
+        category: type[Warning],
+        filename: str,
+        lineno: int,
+        file: Any | None = None,
+        line: str | None = None,
+    ) -> None:
+        output = file or sys.stderr
+        formatted = warnings.formatwarning(message, category, filename, lineno, line)
+        _terminal_write(formatted, stream=output)
+
+    warnings.showwarning = showwarning
 
     def restore() -> None:
+        logging.StreamHandler.emit = original_emit
         for handler, original_stream in patched:
             handler.setStream(original_stream)
+        warnings.showwarning = original_showwarning
 
     return restore
 
@@ -504,8 +1007,20 @@ def _logging_tree() -> list[logging.Logger]:
     return loggers
 
 
-def _terminal_write(message: str, *, stream: Any | None = None) -> None:
+def _terminal_write(message: str, *, stream: Any | None = None, sync: bool = False) -> None:
     output = stream or sys.stdout
+    buffer = _active_terminal_buffer()
+    if not sync and buffer is not None:
+        if buffer.write(message, output):
+            return
+        _terminal_write(message, stream=output, sync=True)
+        return
+    if sync:
+        # GUI previews have to appear before warnings raised by the same Qt callback.
+        prefix = ANSI_CLEAR_LINE if _is_tty(output) else "\n"
+        output.write(f"{prefix}{message}")
+        output.flush()
+        return
     try:
         run_module = importlib.import_module("prompt_toolkit.application.run_in_terminal")
     except ImportError:
@@ -518,6 +1033,39 @@ def _terminal_write(message: str, *, stream: Any | None = None) -> None:
         output.flush()
 
     run_module.run_in_terminal(write_message)
+
+
+def _is_tty(stream: Any) -> bool:
+    return bool(getattr(stream, "isatty", lambda: False)())
+
+
+class _TerminalOutputBuffer:
+    def __init__(self) -> None:
+        self.messages: list[tuple[str, Any]] = []
+        self.released = False
+
+    def write(self, message: str, stream: Any) -> bool:
+        if self.released:
+            return False
+        self.messages.append((message, stream))
+        return True
+
+    def release(self) -> None:
+        if self.released:
+            return
+        self.released = True
+        for message, stream in self.messages:
+            _terminal_write(message, stream=stream, sync=True)
+        self.messages.clear()
+
+
+def _active_terminal_buffer() -> _TerminalOutputBuffer | None:
+    return _ACTIVE_TERMINAL_BUFFER
+
+
+def _set_active_terminal_buffer(buffer: _TerminalOutputBuffer | None) -> None:
+    global _ACTIVE_TERMINAL_BUFFER
+    _ACTIVE_TERMINAL_BUFFER = buffer
 
 
 def _safe_after_execute(

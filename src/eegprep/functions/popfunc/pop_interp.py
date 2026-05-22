@@ -68,6 +68,7 @@ def pop_interp(
         method = gui_result["method"]
         t_range = gui_result["t_range"]
         com = _gui_history_command(gui_result["chanstr"], method, gui_result["t_rangestr"])
+        _warn_gui_interpolation()
     elif bad_elec is _UNSET:
         raise ValueError("bad_elec must be provided when gui=False")
 
@@ -220,9 +221,6 @@ def _run_gui(
     renderer: Any | None = None,
     alleeg: list[dict] | None = None,
 ) -> dict[str, Any] | None:
-    logger.warning("interpolation can be done on the fly in studies")
-    logger.warning("this function will actually create channels in the dataset")
-    logger.warning("do not interpolate channels before running ICA")
     spec = pop_interp_dialog_spec(EEG, alleeg=alleeg)
     result = inputgui(spec, renderer=renderer)
     if not result:
@@ -241,6 +239,12 @@ def _run_gui(
         "t_range": t_range,
         "t_rangestr": _gui_t_range_history(timerange_text),
     }
+
+
+def _warn_gui_interpolation() -> None:
+    logger.warning("interpolation can be done on the fly in studies")
+    logger.warning("this function will actually create channels in the dataset")
+    logger.warning("do not interpolate channels before running ICA")
 
 
 def _alleeg_chanlocs(alleeg: list[dict] | None) -> tuple[dict[str, Any], ...]:

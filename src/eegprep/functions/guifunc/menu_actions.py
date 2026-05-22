@@ -130,13 +130,14 @@ class MenuActionDispatcher:
 
     def dispatch_gui(self, action: str, parent: Any | None = None) -> None:
         """Run a menu action from Qt and show user-facing errors."""
-        try:
-            self.dispatch(action, parent)
-        except Exception as exc:
-            logger.exception("EEGPrep GUI menu action failed: %s", action)
-            if parent is None:
-                raise
-            self._warn(parent, str(exc))
+        with self.session.gui_action(action):
+            try:
+                self.dispatch(action, parent)
+            except Exception as exc:
+                logger.exception("EEGPrep GUI menu action failed: %s", action)
+                if parent is None:
+                    raise
+                self._warn(parent, str(exc))
 
     def dispatch(self, action: str, parent: Any | None = None) -> None:
         """Run a menu action."""
@@ -271,9 +272,8 @@ class MenuActionDispatcher:
         if not filename:
             return
         command = f"EEG = pop_loadset({filename!r});"
-        self.session.preview_history(command)
         eeg = pop_loadset(filename)
-        self.session.store_current(eeg, new=True, command=command)
+        self._store_current_from_gui(eeg, new=True, command=command)
         self._refresh()
 
     def _saveset(self, parent: Any | None, *, resave: bool = False) -> None:
@@ -309,7 +309,7 @@ class MenuActionDispatcher:
             if resave
             else f"EEG = pop_saveset(EEG, {filenames[0]!r});"
         )
-        self._store_current_with_preview(stored, command=command, mark_saved=True)
+        self._store_current_from_gui(stored, command=command, mark_saved=True)
         self._refresh()
 
     def _import_dataset(self, action: str, parent: Any | None) -> None:
@@ -345,7 +345,7 @@ class MenuActionDispatcher:
                 from eegprep.functions.popfunc.pop_fileio import pop_fileio
 
                 eeg_out, command = pop_fileio(filename, return_com=True)
-        self._store_current_with_preview(eeg_out, new=True, command=command)
+        self._store_current_from_gui(eeg_out, new=True, command=command)
         self._refresh()
 
     def _open_import_filename(self, action: str, parent: Any | None) -> str:
@@ -405,7 +405,7 @@ class MenuActionDispatcher:
                 from eegprep.functions.popfunc.pop_importevent import pop_importevent
 
                 eeg_out, command = pop_importevent(selection, "event", filename, return_com=True)
-        self._store_current_with_preview(eeg_out, command=command)
+        self._store_current_from_gui(eeg_out, command=command)
         self._refresh()
 
     def _export_current_dataset(self, action: str, variant: str, parent: Any | None) -> None:
@@ -452,7 +452,7 @@ class MenuActionDispatcher:
                 from eegprep.functions.popfunc.pop_writeeeg import pop_writeeeg
 
                 command = pop_writeeeg(selection, filename)
-        self.session.add_history(command)
+        self._add_history_from_gui(command)
         self._refresh()
 
     def _study_action(self, action: str, variant: str, parent: Any | None) -> None:
@@ -474,7 +474,7 @@ class MenuActionDispatcher:
             if alleeg:
                 self.session.ALLEEG = alleeg
             self.session.CURRENTSTUDY = 1
-            self.session.add_history(command)
+            self._add_history_from_gui(command)
             self._refresh()
             return
         if action == "pop_savestudy":
@@ -496,7 +496,7 @@ class MenuActionDispatcher:
 
             study, command = pop_savestudy(self.session.STUDY, self.session.EEG, filename, savemode=variant or None)
             self.session.STUDY = study
-            self.session.add_history(command)
+            self._add_history_from_gui(command)
             self._refresh()
             return
         if action == "pop_studywizard":
@@ -526,7 +526,7 @@ class MenuActionDispatcher:
         self.session.STUDY = study
         self.session.ALLEEG = alleeg
         self.session.CURRENTSTUDY = 1
-        self.session.add_history(command)
+        self._add_history_from_gui(command)
         self._refresh()
 
     def _edit_options(self, parent: Any | None) -> None:
@@ -547,7 +547,7 @@ class MenuActionDispatcher:
                 return
             enabled = int(result == qt_widgets.QMessageBox.Yes)
         command = pop_editoptions(option_allmenus=enabled)
-        self.session.add_history(command)
+        self._add_history_from_gui(command)
         self._info(parent, "Preferences updated. Reopen the main window to rebuild the menu mode.")
         self._refresh()
 
@@ -567,7 +567,7 @@ class MenuActionDispatcher:
         path = Path(filename)
         history = self.session.EEG.get("history", "") if variant == "dataset" and isinstance(self.session.EEG, dict) else self.session.ALLCOM
         command = pop_saveh(history, path.name, path.parent)
-        self.session.add_history(command)
+        self._add_history_from_gui(command)
         self._refresh()
 
     def _run_script(self, parent: Any | None) -> None:
@@ -594,7 +594,7 @@ class MenuActionDispatcher:
         self.session.ALLEEG = namespace.get("ALLEEG", self.session.ALLEEG)
         self.session.CURRENTSET = _currentset_list(namespace.get("CURRENTSET", self.session.current_set_value()))
         self.session.STUDY = namespace.get("STUDY", self.session.STUDY)
-        self.session.add_history(command)
+        self._add_history_from_gui(command)
         self._refresh()
 
     def _bids_tool_action(self, action: str, parent: Any | None) -> None:
@@ -625,9 +625,9 @@ class MenuActionDispatcher:
         updated, command = getattr(bids_tools, action)(target, **metadata)
         if self.session.CURRENTSTUDY == 1 and self.session.STUDY:
             self.session.STUDY = updated
-            self.session.add_history(command)
+            self._add_history_from_gui(command)
         else:
-            self._store_current_with_preview(updated, command=command)
+            self._store_current_from_gui(updated, command=command)
         self._refresh()
 
     def _show_extension_manager(self, parent: Any | None) -> None:
@@ -682,13 +682,17 @@ class MenuActionDispatcher:
         else:
             eeg_out, command = out, ""
         if command:
-            self._store_current_with_preview(eeg_out, command=command)
+            self._store_current_from_gui(eeg_out, command=command)
             self._refresh()
 
-    def _store_current_with_preview(self, eeg: Any, **kwargs: Any) -> Any:
+    def _store_current_from_gui(self, eeg: Any, **kwargs: Any) -> Any:
         command = kwargs.get("command")
         self.session.preview_history(command)
         return self.session.store_current(eeg, **kwargs)
+
+    def _add_history_from_gui(self, command: str | None) -> None:
+        self.session.preview_history(command)
+        self.session.add_history(command)
 
     def _retrieve_dataset(self, index: int) -> None:
         was_study = self.session.CURRENTSTUDY == 1
@@ -697,7 +701,7 @@ class MenuActionDispatcher:
         if was_study:
             self.session.CURRENTSTUDY = 0
             command = f"CURRENTSTUDY = 0;{command}"
-        self.session.add_history(command)
+        self._add_history_from_gui(command)
         self._refresh()
 
     def _show_help(self, function_name: str, parent: Any | None) -> None:

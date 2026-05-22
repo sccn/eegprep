@@ -461,6 +461,10 @@ class QtDialogRenderer:
 
     @staticmethod
     def _validate_pop_interp_dialog(spec: DialogSpec, widgets: dict[str, Any]) -> str | None:
+        if "chanlist" in widgets:
+            selection = QtDialogRenderer._read_widget(widgets["chanlist"])
+            if not isinstance(selection, dict) or not selection.get("chans"):
+                return "Select one or more channels to interpolate"
         for control in spec.controls:
             if control.callback is None or control.callback.name != "validate_numeric_range":
                 continue

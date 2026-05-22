@@ -1,4 +1,5 @@
 import unittest
+import warnings
 from unittest.mock import patch
 
 import numpy as np
@@ -91,6 +92,16 @@ class PopInterpTests(unittest.TestCase):
         self.assertEqual(out["nbchan"], eeg["nbchan"] + 1)
         self.assertEqual(out["chanlocs"][-1]["labels"], "M1")
         self.assertEqual(out["chaninfo"]["removedchans"], [])
+
+    def test_spherical_interpolation_does_not_surface_finite_internal_matmul_warnings(self):
+        eeg = _eeg()
+
+        with warnings.catch_warnings(record=True) as captured:
+            warnings.simplefilter("always", RuntimeWarning)
+            out = pop_interp(eeg, [0], "spherical")
+
+        self.assertTrue(np.all(np.isfinite(out["data"])))
+        self.assertFalse([warning for warning in captured if "matmul" in str(warning.message)])
 
     def test_gui_path_uses_selection_userdata_for_history_and_processing(self):
         class Renderer:
@@ -252,6 +263,19 @@ class PopInterpGuiSpecTests(unittest.TestCase):
 
         self.assertEqual(target.text, "Ch1 Ch3")
         self.assertEqual(QtDialogRenderer._read_widget(target), {"chans": [0, 2], "chanstr": "[1 3]"})
+
+    def test_renderer_requires_interp_selection_before_accepting_dialog(self):
+        spec = pop_interp_dialog_spec(_eeg())
+        widgets = {"chanlist": _Target()}
+
+        self.assertEqual(
+            QtDialogRenderer._validation_message(spec, widgets),
+            "Select one or more channels to interpolate",
+        )
+
+        QtDialogRenderer._store_interp_selection(widgets["chanlist"], [0], "[1]", "Ch1")
+
+        self.assertIsNone(QtDialogRenderer._validation_message(spec, widgets))
 
     def test_interp_datchan_callback_keeps_zero_based_data_and_one_based_history(self):
         target = _Target()

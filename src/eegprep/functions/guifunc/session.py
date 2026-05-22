@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any, Callable, Iterator
 
 import numpy as np
 
@@ -43,6 +44,7 @@ class EEGPrepSession:
     PLUGINLIST: list[dict[str, Any]] = field(default_factory=list)
     _listeners: list[Callable[["EEGPrepSession"], None]] = field(default_factory=list, init=False, repr=False)
     _history_preview_listeners: list[Callable[[str], None]] = field(default_factory=list, init=False, repr=False)
+    _gui_action_listeners: list[Callable[[str, str], None]] = field(default_factory=list, init=False, repr=False)
 
     def add_change_listener(self, listener: Callable[["EEGPrepSession"], None]) -> None:
         """Register a callback that runs after session state changes."""
@@ -63,6 +65,35 @@ class EEGPrepSession:
         """Remove a previously registered history preview callback."""
         if listener in self._history_preview_listeners:
             self._history_preview_listeners.remove(listener)
+
+    def add_gui_action_listener(self, listener: Callable[[str, str], None]) -> None:
+        """Register a callback for GUI action start/end notifications."""
+        if listener not in self._gui_action_listeners:
+            self._gui_action_listeners.append(listener)
+
+    def remove_gui_action_listener(self, listener: Callable[[str, str], None]) -> None:
+        """Remove a previously registered GUI action callback."""
+        if listener in self._gui_action_listeners:
+            self._gui_action_listeners.remove(listener)
+
+    def begin_gui_action(self, action: str) -> None:
+        """Notify listeners that a GUI action is about to run."""
+        for listener in list(self._gui_action_listeners):
+            listener("begin", action)
+
+    def end_gui_action(self, action: str) -> None:
+        """Notify listeners that a GUI action has finished."""
+        for listener in list(self._gui_action_listeners):
+            listener("end", action)
+
+    @contextmanager
+    def gui_action(self, action: str) -> Iterator[None]:
+        """Wrap a user-triggered GUI action for console/output synchronization."""
+        self.begin_gui_action(action)
+        try:
+            yield
+        finally:
+            self.end_gui_action(action)
 
     def preview_history(self, command: str | None) -> None:
         """Notify listeners that a GUI command is about to update the session."""

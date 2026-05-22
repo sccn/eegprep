@@ -655,6 +655,28 @@ class MenuActionDispatcherTests(unittest.TestCase):
                 self.assertEqual(session.ALLEEG[0]["setname"], setname)
                 self.assertEqual(session.ALLCOM[-1], f"EEG = {action}(EEG);")
 
+    def test_pop_interp_dispatch_uses_generic_gui_history_preview(self):
+        session = EEGPrepSession()
+        session.store_current(_demo_eeg(), new=True)
+        dispatcher = MenuActionDispatcher(session)
+        command = "EEG = pop_interp(EEG, [1], 'spherical');"
+        previewed = []
+        output = dict(session.EEG, setname="interpolated")
+
+        def fake_pop_interp(eeg, *, alleeg, return_com):
+            self.assertIs(eeg, session.EEG)
+            self.assertIs(alleeg, session.ALLEEG)
+            self.assertTrue(return_com)
+            return output, command
+
+        session.add_history_preview_listener(previewed.append)
+        with mock.patch("eegprep.functions.popfunc.pop_interp.pop_interp", side_effect=fake_pop_interp):
+            dispatcher.dispatch("pop_interp")
+
+        self.assertEqual(previewed, [command])
+        self.assertEqual(session.EEG["setname"], "interpolated")
+        self.assertEqual(session.ALLCOM[-1], command)
+
     def test_file_menu_importdata_dispatch_stores_new_dataset(self):
         session = EEGPrepSession()
         dispatcher = MenuActionDispatcher(session)

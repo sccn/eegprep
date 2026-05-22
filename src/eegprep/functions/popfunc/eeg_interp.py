@@ -476,9 +476,10 @@ def spheric_spline(xelec, yelec, zelec, xbad, ybad, zbad, values, params, dtype=
     lam = params[0]
     A   = np.vstack([Gelec + np.eye(Gelec.shape[0])*lam,
                      np.ones((1, Gelec.shape[0]))])
-    C   = pinv(A) @ values # some minor differences with MATLAB in the pinv implementation
-
-    allres = Gsph @ C
+    with np.errstate(divide='ignore', over='ignore', invalid='ignore'):
+        # Matches MATLAB numerically; NumPy may warn inside finite pseudo-inverse matmuls.
+        C = pinv(A) @ values
+        allres = Gsph @ C
     # Add mean back like MATLAB: repmat(meanvalues, [size(allres,1) 1])
     allres = allres + meanvalues
     return allres
