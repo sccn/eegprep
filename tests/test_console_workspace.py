@@ -32,8 +32,8 @@ def _demo_eeg(setname: str = "demo"):
     }
 
 
-def _fake_pop_reref(eeg, ref, *, return_com=False):
-    output = dict(eeg, setname="reref", ref=list(ref))
+def _fake_pop_reref(EEG, ref, *, return_com=False):
+    output = dict(EEG, setname="reref", ref=list(ref))
     command = "EEG = pop_reref(EEG, []);"
     return (output, command) if return_com else output
 
@@ -516,6 +516,23 @@ def test_eegprep_proxy_pop_call_updates_session_like_direct_pop_call():
     assert session.ALLCOM == ["EEG = pop_reref(EEG, []);"]
 
 
+def test_keyword_eeg_pop_call_updates_current_dataset_in_place():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(), new=True)
+    workspace = EEGPrepConsoleWorkspace(session, exports={"pop_reref": _fake_pop_reref})
+
+    result = workspace.namespace["pop_reref"](EEG=workspace.namespace["EEG"], ref=[])
+    workspace.after_execute("pop_reref(EEG=EEG, ref=[])")
+
+    eeg, command = result
+    assert eeg is session.EEG
+    assert command == "EEG = pop_reref(EEG, []);"
+    assert session.EEG["setname"] == "reref"
+    assert session.CURRENTSET == [1]
+    assert len(session.ALLEEG) == 1
+    assert session.ALLCOM == ["EEG = pop_reref(EEG, []);"]
+
+
 def test_console_restores_eegprep_proxy_after_user_imports_eegprep():
     session = EEGPrepSession()
     workspace = EEGPrepConsoleWorkspace(session, exports={})
@@ -552,6 +569,28 @@ def test_console_restores_aliased_pop_wrapper_after_from_import():
     assert command == "EEG = pop_reref(EEG, []);"
     assert session.EEG["setname"] == "reref"
     assert session.ALLCOM == ["EEG = pop_reref(EEG, []);"]
+
+
+def test_console_restores_pop_alias_imported_after_pop_call_in_same_cell():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(), new=True)
+    workspace = EEGPrepConsoleWorkspace(
+        session,
+        exports={"pop_reref": _fake_pop_reref, "pop_resample": _fake_pop_without_command},
+    )
+
+    result = workspace.namespace["pop_reref"](workspace.namespace["EEG"], [])
+    workspace.namespace["resample"] = _fake_pop_without_command
+    workspace.after_execute("pop_reref(EEG, []); from eegprep import pop_resample as resample")
+
+    assert result[0] is session.EEG
+    assert isinstance(workspace.namespace["resample"], console_module.ConsolePopFunction)
+    second = workspace.namespace["resample"](workspace.namespace["EEG"])
+    workspace.after_execute("resample(EEG)")
+
+    assert second[0] is session.EEG
+    assert session.EEG["setname"] == "no-history-command"
+    assert session.ALLCOM == ["EEG = pop_reref(EEG, []);", "resample(EEG)"]
 
 
 def test_console_restores_aliased_eegprep_import_proxy():

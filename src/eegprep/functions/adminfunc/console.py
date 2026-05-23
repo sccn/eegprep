@@ -91,7 +91,7 @@ class ConsolePopFunction(LazyWorkspaceExport):
         if _accepts_return_com(function) and "return_com" not in call_kwargs:
             call_kwargs["return_com"] = True
         result = function(*args, **call_kwargs)
-        return self.bridge.accept_pop_result(result, args)
+        return self.bridge.accept_pop_result(result, args, kwargs)
 
     def __repr__(self) -> str:
         return f"<EEGPrep console pop function {self.name}>"
@@ -171,6 +171,7 @@ class EEGPrepConsoleWorkspace:
         if not success:
             self.pull_from_session()
             return
+        self._restore_imported_wrappers(source)
         if self._pop_updated_session:
             self._pop_updated_session = False
             if self._pop_needs_source_history:
@@ -182,7 +183,6 @@ class EEGPrepConsoleWorkspace:
             return
 
         targets = _workspace_assignment_targets(source)
-        self._restore_imported_wrappers(source)
         history_command = self._history_command_for_source(source, targets)
         changed = False
 
@@ -228,7 +228,7 @@ class EEGPrepConsoleWorkspace:
         if changed:
             self._refresh()
 
-    def accept_pop_result(self, result: Any, args: tuple[Any, ...]) -> Any:
+    def accept_pop_result(self, result: Any, args: tuple[Any, ...], kwargs: Mapping[str, Any] | None = None) -> Any:
         """Store a ``pop_*`` result in the current session when appropriate."""
         eeg, command = _extract_pop_eeg_and_command(result)
         if eeg is None:
@@ -239,7 +239,8 @@ class EEGPrepConsoleWorkspace:
         should_store = bool(command) or eeg is not self.session.EEG
         if not should_store:
             return ConsolePopResult(eeg, command, updated=False)
-        new_dataset = not self.session.CURRENTSET or not args or args[0] is not self.session.EEG
+        input_eeg = _first_call_eeg_argument(args, kwargs or {})
+        new_dataset = not self.session.CURRENTSET or input_eeg is not self.session.EEG
         self._store_eeg(eeg, command, new=new_dataset)
         self._pop_updated_session = True
         self._pop_needs_source_history = not bool(command)
@@ -1056,6 +1057,12 @@ def _extract_pop_eeg_and_command(result: Any) -> tuple[Any | None, str]:
     if isinstance(result, str):
         return None, result.strip()
     return None, ""
+
+
+def _first_call_eeg_argument(args: tuple[Any, ...], kwargs: Mapping[str, Any]) -> Any | None:
+    if args:
+        return args[0]
+    return kwargs.get("EEG")
 
 
 def _is_eeg_selection(value: Any) -> bool:
