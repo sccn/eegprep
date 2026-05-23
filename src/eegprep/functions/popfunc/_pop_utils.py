@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from pathlib import Path
+from pathlib import PurePath
 from typing import Any, Callable
 
 import numpy as np
@@ -68,8 +68,8 @@ def format_history_value(
     """Format a Python value as an EEGLAB command-history literal."""
     if isinstance(value, np.ndarray):
         value = value.tolist()
-    if isinstance(value, Path):
-        value = str(value)
+    if isinstance(value, PurePath):
+        value = value.as_posix()
     if value is None and none_as_empty:
         return "[]"
     if isinstance(value, str):

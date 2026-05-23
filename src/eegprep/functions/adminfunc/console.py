@@ -25,6 +25,7 @@ POP_RESULT_PREVIEW_LIMIT = 96
 ANSI_CLEAR_LINE = "\r\x1b[2K"
 _ACTIVE_TERMINAL_BUFFER = contextvars.ContextVar("_ACTIVE_TERMINAL_BUFFER", default=None)
 _MATLAB_MULTI_ASSIGN_PATTERN = re.compile(r"^\s*\[([A-Za-z_][A-Za-z0-9_]*(?:\s+[A-Za-z_][A-Za-z0-9_]*)+)\]\s*=")
+_TUPLE_ASSIGNMENT_TARGET_PATTERN = re.compile(r"(^|;\s*)\(([A-Za-z_][A-Za-z0-9_]*(?:,\s*[A-Za-z_][A-Za-z0-9_]*)+)\)\s*=")
 _POP_INTERP_CHANNELS_PATTERN = re.compile(r"(pop_interp\s*\(\s*EEG\s*,\s*)\[([0-9,\s]+)\]")
 _PYTHON_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _CONSOLE_COMMAND_EXPORTS = {"pop_newset": pop_newset}
@@ -692,9 +693,13 @@ def _keywordize_console_pop_calls(text: str) -> str:
 
 def _normalise_python_command(text: str) -> str:
     try:
-        return ast.unparse(ast.parse(text)).strip()
+        return _normalise_tuple_assignment_targets(ast.unparse(ast.parse(text)).strip())
     except SyntaxError:
         return text
+
+
+def _normalise_tuple_assignment_targets(text: str) -> str:
+    return _TUPLE_ASSIGNMENT_TARGET_PATTERN.sub(lambda match: f"{match.group(1)}{match.group(2)} =", text)
 
 
 class _ConsoleCommandArgumentConverter(ast.NodeTransformer):

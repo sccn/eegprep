@@ -860,6 +860,7 @@ def test_console_python_command_converts_common_eeglab_history_syntax():
         "EEG = pop_resample( EEG, 64);",
         "EEG = pop_reref( EEG, [1], 'exclude', [4]);",
         "EEG = pop_reref( EEG, [], 'huber', 25);",
+        "(ALLEEG, EEG, CURRENTSET) = pop_newset(ALLEEG, EEG, CURRENTSET, retrieve=3)",
     ]
 
     converted = [console_module._console_python_command(command) for command in commands]
@@ -872,6 +873,7 @@ def test_console_python_command_converts_common_eeglab_history_syntax():
         "EEG = pop_resample(EEG, freq=64)",
         "EEG = pop_reref(EEG, ref=[0], exclude=[3])",
         "EEG = pop_reref(EEG, ref=[], huber=25)",
+        "ALLEEG, EEG, CURRENTSET = pop_newset(ALLEEG, EEG, CURRENTSET, retrieve=3)",
     ]
     for command in converted:
         ast.parse(command)
