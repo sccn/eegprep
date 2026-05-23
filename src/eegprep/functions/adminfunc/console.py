@@ -347,6 +347,11 @@ def run_console(
         action="store_true",
         help="Keep menus inside the EEGPrep window instead of using the native macOS menu bar",
     )
+    parser.add_argument(
+        "--native-file-dialogs",
+        action="store_true",
+        help="Use platform-native file pickers instead of the stable Qt dialogs used by default in the console",
+    )
     args = parser.parse_args(argv)
 
     session = EEGPrepSession()
@@ -357,7 +362,9 @@ def run_console(
             block=False,
             include_plugins=not args.no_plugins,
             native_menu_bar=False if args.window_menu_bar else None,
-            native_file_dialogs=False,
+            # Native macOS QFileDialog can close immediately under IPython's Qt
+            # input hook; keep the console default stable but allow opt-in.
+            native_file_dialogs=args.native_file_dialogs,
         )
     except RuntimeError as exc:
         if "PySide6" in str(exc):

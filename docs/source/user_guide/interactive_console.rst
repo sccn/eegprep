@@ -19,6 +19,14 @@ hook, tab completion, command history, and rich interactive inspection. If
 IPython is not installed, the command fails with an install hint instead of
 falling back to a different console.
 
+The console uses Qt file dialogs by default because native macOS file pickers
+can close immediately when opened from IPython's Qt input hook. To opt into
+native file pickers, launch:
+
+.. code-block:: bash
+
+   uv run eegprep-console --full --native-file-dialogs
+
 The console starts with EEGLAB-style workspace names already defined:
 
 .. code-block:: python

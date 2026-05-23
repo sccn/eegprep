@@ -690,6 +690,26 @@ def test_run_console_forwards_cli_options_to_gui_launcher():
     assert "EEG" in captured["namespace"]
 
 
+def test_run_console_native_file_dialogs_are_explicit_opt_in():
+    shell = _FakeShell()
+    captured = {}
+
+    def shell_factory(namespace, banner):
+        return shell
+
+    def gui_launcher(*args, **kwargs):
+        captured["gui_kwargs"] = kwargs
+        return SimpleNamespace(refresh=mock.Mock())
+
+    assert console_module.run_console(
+        ["--native-file-dialogs"],
+        shell_factory=shell_factory,
+        gui_launcher=gui_launcher,
+    ) == 0
+
+    assert captured["gui_kwargs"]["native_file_dialogs"] is True
+
+
 def test_ipython_factory_error_is_user_facing_when_dependency_missing():
     with (
         mock.patch.object(console_module.importlib, "import_module", side_effect=ImportError("missing")),
