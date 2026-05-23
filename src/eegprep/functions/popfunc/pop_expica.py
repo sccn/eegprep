@@ -7,7 +7,8 @@ from typing import Any
 
 import numpy as np
 
-from eegprep.functions.popfunc._pop_utils import finite_matmul, format_history_value
+from eegprep.functions.miscfunc.misc import finite_matmul
+from eegprep.functions.popfunc._pop_utils import format_history_value
 
 
 def pop_expica(EEG: dict[str, Any], filename: str | Path, matrix: str = "weights") -> str:

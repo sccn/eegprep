@@ -8,8 +8,9 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.miscfunc.misc import finite_matmul
 from eegprep.functions.popfunc._file_io import channel_labels
-from eegprep.functions.popfunc._pop_utils import finite_matmul, format_history_value, parse_key_value_args
+from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args
 
 
 def pop_export(EEG: dict[str, Any], filename: str | Path, *args: Any, **kwargs: Any) -> str:

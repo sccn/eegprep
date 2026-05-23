@@ -7,7 +7,7 @@ This is a Python equivalent of EEGLAB's pop_subcomp function.
 import numpy as np
 import logging
 
-from eegprep.functions.popfunc._pop_utils import finite_matmul
+from eegprep.functions.miscfunc.misc import finite_matmul
 
 logger = logging.getLogger(__name__)
 

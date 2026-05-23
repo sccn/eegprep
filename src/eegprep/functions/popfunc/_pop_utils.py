@@ -8,8 +8,6 @@ from typing import Any, Callable
 
 import numpy as np
 
-from eegprep.functions.miscfunc.misc import finite_matmul
-
 
 _TOKEN_PATTERN = re.compile(r"'([^']*)'|\"([^\"]*)\"|([^,\s]+)")
 
