@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import contextvars
 import importlib
 import inspect
 import logging
@@ -22,7 +23,7 @@ from eegprep.functions.popfunc.pop_newset import pop_newset
 WORKSPACE_NAMES = ("EEG", "ALLEEG", "CURRENTSET", "ALLCOM", "LASTCOM", "STUDY", "CURRENTSTUDY")
 POP_RESULT_PREVIEW_LIMIT = 96
 ANSI_CLEAR_LINE = "\r\x1b[2K"
-_ACTIVE_TERMINAL_BUFFER: _TerminalOutputBuffer | None = None
+_ACTIVE_TERMINAL_BUFFER = contextvars.ContextVar("_ACTIVE_TERMINAL_BUFFER", default=None)
 _MATLAB_MULTI_ASSIGN_PATTERN = re.compile(r"^\s*\[([A-Za-z_][A-Za-z0-9_]*(?:\s+[A-Za-z_][A-Za-z0-9_]*)+)\]\s*=")
 _POP_INTERP_CHANNELS_PATTERN = re.compile(r"(pop_interp\s*\(\s*EEG\s*,\s*)\[([0-9,\s]+)\]")
 _PYTHON_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
@@ -138,6 +139,7 @@ class EEGPrepConsoleWorkspace:
         self._pop_needs_source_history = False
         self._gui_action_depth = 0
         self._terminal_buffer: _TerminalOutputBuffer | None = None
+        self._terminal_buffer_token: contextvars.Token | None = None
         self._bind_base_namespace()
         self._bind_exports(exports)
         self.pull_from_session()
@@ -312,7 +314,7 @@ class EEGPrepConsoleWorkspace:
             self._gui_action_depth += 1
             if self._gui_action_depth == 1:
                 self._terminal_buffer = _TerminalOutputBuffer()
-                _set_active_terminal_buffer(self._terminal_buffer)
+                self._terminal_buffer_token = _ACTIVE_TERMINAL_BUFFER.set(self._terminal_buffer)
             return
         if event == "end":
             self._gui_action_depth = max(0, self._gui_action_depth - 1)
@@ -325,9 +327,11 @@ class EEGPrepConsoleWorkspace:
 
     def _finish_gui_action_output(self) -> None:
         buffer = self._terminal_buffer
-        if _active_terminal_buffer() is buffer:
-            _set_active_terminal_buffer(None)
+        token = self._terminal_buffer_token
         self._terminal_buffer = None
+        self._terminal_buffer_token = None
+        if token is not None and _active_terminal_buffer() is buffer:
+            _ACTIVE_TERMINAL_BUFFER.reset(token)
         if buffer is not None:
             buffer.release(sync=False)
 
@@ -645,23 +649,11 @@ def _string_spans(text: str) -> list[tuple[int, int]]:
     spans = []
     index = 0
     while index < len(text):
-        quote = text[index]
-        if quote not in {"'", '"'}:
+        if text[index] not in {"'", '"'}:
             index += 1
             continue
         start = index
-        index += 1
-        escaped = False
-        while index < len(text):
-            char = text[index]
-            if escaped:
-                escaped = False
-            elif char == "\\":
-                escaped = True
-            elif char == quote:
-                index += 1
-                break
-            index += 1
+        index = _string_end(text, index)
         spans.append((start, index))
     return spans
 
@@ -1029,12 +1021,7 @@ class _TerminalOutputBuffer:
 
 
 def _active_terminal_buffer() -> _TerminalOutputBuffer | None:
-    return _ACTIVE_TERMINAL_BUFFER
-
-
-def _set_active_terminal_buffer(buffer: _TerminalOutputBuffer | None) -> None:
-    global _ACTIVE_TERMINAL_BUFFER
-    _ACTIVE_TERMINAL_BUFFER = buffer
+    return _ACTIVE_TERMINAL_BUFFER.get()
 
 
 def _safe_after_execute(

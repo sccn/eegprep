@@ -492,8 +492,11 @@ class TestCleanWindows(unittest.TestCase):
                 self.assertIsInstance(EEG_out, dict)
                 self.assertTrue(np.all(np.isfinite(EEG_out['data'])))
 
-                # Function converts to float64 internally
                 self.assertTrue(np.issubdtype(EEG_out['data'].dtype, np.floating))
+                if np.issubdtype(np.dtype(dtype), np.floating):
+                    self.assertEqual(EEG_out['data'].dtype, np.dtype(dtype))
+                else:
+                    self.assertEqual(EEG_out['data'].dtype, np.dtype(np.float64))
 
     def test_sample_mask_consistency(self):
         """Test that sample_mask correctly corresponds to retained data."""

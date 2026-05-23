@@ -272,6 +272,7 @@ def _parse_options(args: tuple[Any, ...], kwargs: dict[str, Any]) -> dict[str, A
 def _processing_options(EEG: dict[str, Any], events: list[dict[str, Any]], options: dict[str, Any]) -> dict[str, Any]:
     setname = _text_field(EEG.get("setname", ""))
     return {
+        # EEGLAB accepts this obsolete option and still matches on event.type.
         "epochfield": str(options.get("epochfield", "type")),
         "timeunit": str(options.get("timeunit", "points")),
         "verbose": str(options.get("verbose", "on")),
@@ -323,12 +324,9 @@ def _normalise_eventindices(value: Any, event_count: int) -> list[int]:
     if _is_empty_sequence(value):
         return []
     indices = [int(item) for item in _as_list(value)]
-    if any(index == 0 for index in indices):
-        normalised = indices
-    else:
-        normalised = [index - 1 for index in indices]
+    normalised = [index - 1 for index in indices]
     if any(index < 0 or index >= event_count for index in normalised):
-        raise ValueError("eventindices are out of range")
+        raise ValueError("eventindices must be 1-based and within EEG.event")
     return sorted(set(normalised))
 
 

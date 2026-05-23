@@ -110,6 +110,45 @@ def test_gui_action_buffers_output_until_command_echo():
     workspace.close()
 
 
+def test_nested_workspace_gui_buffers_restore_previous_buffer():
+    first_session = EEGPrepSession()
+    second_session = EEGPrepSession()
+    first_stream = io.StringIO()
+    second_stream = io.StringIO()
+    first_workspace = EEGPrepConsoleWorkspace(
+        first_session,
+        command_echo=lambda command: console_module._terminal_write(f"In [1]: {command}\n", stream=first_stream, sync=True),
+        exports={},
+    )
+    second_workspace = EEGPrepConsoleWorkspace(
+        second_session,
+        command_echo=lambda command: console_module._terminal_write(f"In [1]: {command}\n", stream=second_stream, sync=True),
+        exports={},
+    )
+
+    try:
+        first_session.begin_gui_action("first")
+        console_module._terminal_write("first warning before nested\n", stream=first_stream)
+        second_session.begin_gui_action("second")
+        console_module._terminal_write("second warning\n", stream=second_stream)
+        second_session.echo_command("EEG = pop_second(EEG);")
+        second_session.end_gui_action("second")
+        console_module._terminal_write("first warning after nested\n", stream=first_stream)
+        first_session.echo_command("EEG = pop_first(EEG);")
+        first_session.end_gui_action("first")
+    finally:
+        first_workspace.close()
+        second_workspace.close()
+
+    first_output = first_stream.getvalue()
+    second_output = second_stream.getvalue()
+    assert first_output.index("In [1]: EEG = pop_first(EEG);") < first_output.index("first warning before nested")
+    assert first_output.index("In [1]: EEG = pop_first(EEG);") < first_output.index("first warning after nested")
+    assert "second warning" not in first_output
+    assert second_output.index("In [1]: EEG = pop_second(EEG);") < second_output.index("second warning")
+    assert "first warning" not in second_output
+
+
 def test_gui_action_buffers_logger_warnings_until_command_echo():
     logger = logging.getLogger("eegprep.tests.console_gui")
     logger.setLevel(logging.WARNING)

@@ -11,6 +11,7 @@ import numpy as np
 
 from ...functions.miscfunc.misc import round_mat
 from ...functions.popfunc.eeg_eegrej import eeg_eegrej
+from .private.masks import mask_to_intervals
 from .private.stats import fit_eeg_distribution
 
 logger = logging.getLogger(__name__)
@@ -77,7 +78,9 @@ def clean_windows(
     # ------------------------------------------------------------------
     #                           Input handling
     # ------------------------------------------------------------------
-    EEG['data'] = np.asarray(EEG['data'], dtype=np.float64)
+    input_data = np.asarray(EEG['data'])
+    output_dtype = input_data.dtype if np.issubdtype(input_data.dtype, np.floating) else np.dtype(np.float64)
+    EEG['data'] = input_data.astype(np.float64, copy=False)
     C, S = EEG['data'].shape
     Fs = EEG['srate']
 
@@ -180,9 +183,10 @@ def clean_windows(
     # ------------------------------------------------------------------
     #               Apply sample rejection
     # ------------------------------------------------------------------
-    rejected_intervals = _mask_to_intervals(sample_mask, value=False)
+    rejected_intervals = mask_to_intervals(sample_mask, value=False)
     if rejected_intervals.size:
         EEG = eeg_eegrej(EEG, rejected_intervals)
+    EEG['data'] = np.asarray(EEG['data'], dtype=output_dtype)
 
     # ------------------------------------------------------------------
     #                     Update/insert clean_sample_mask
@@ -204,14 +208,3 @@ def clean_windows(
         etc['clean_sample_mask'] = sample_mask
 
     return EEG, sample_mask
-
-
-def _mask_to_intervals(mask: np.ndarray, *, value: bool) -> np.ndarray:
-    target = np.asarray(mask, dtype=bool) == value
-    if not np.any(target):
-        return np.empty((0, 2), dtype=int)
-    padded = np.concatenate([[False], target, [False]])
-    diff = np.diff(padded.astype(int))
-    starts = np.where(diff == 1)[0] + 1
-    ends = np.where(diff == -1)[0]
-    return np.stack([starts, ends], axis=1).astype(int)

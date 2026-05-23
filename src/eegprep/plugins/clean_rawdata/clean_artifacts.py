@@ -12,6 +12,7 @@ from .clean_channels import clean_channels
 from .clean_channels_nolocs import clean_channels_nolocs
 from .clean_asr import clean_asr
 from .clean_windows import clean_windows
+from .private.masks import mask_to_intervals
 from ...functions.miscfunc.misc import round_mat
 from ...functions.popfunc.eeg_eegrej import eeg_eegrej
 
@@ -266,7 +267,7 @@ def clean_artifacts(
             sample_mask = np.sum(np.abs(original_data - BUR['data']), axis=0) < 1e-8
             del original_data
             # Convert retained samples to inclusive zero-based intervals.
-            retain_intervals = _mask_to_intervals(sample_mask, value=True) - 1
+            retain_intervals = mask_to_intervals(sample_mask, value=True) - 1
 
             # Remove very short intervals < 5 samples
             if retain_intervals.size:
@@ -276,7 +277,7 @@ def clean_artifacts(
                     sample_mask[s:e + 1] = False
                 retain_intervals = retain_intervals[~small]
 
-            rejected_intervals = _mask_to_intervals(sample_mask, value=False)
+            rejected_intervals = mask_to_intervals(sample_mask, value=False)
             if rejected_intervals.size:
                 EEG = eeg_eegrej(EEG, rejected_intervals)
 
@@ -306,14 +307,3 @@ def clean_artifacts(
     # merge channels back manually if needed.
 
     return EEG, HP, BUR, removed_channels
-
-
-def _mask_to_intervals(mask: np.ndarray, *, value: bool) -> np.ndarray:
-    target = np.asarray(mask, dtype=bool) == value
-    if not np.any(target):
-        return np.empty((0, 2), dtype=int)
-    padded = np.concatenate([[False], target, [False]])
-    diff = np.diff(padded.astype(int))
-    starts = np.where(diff == 1)[0] + 1
-    ends = np.where(diff == -1)[0]
-    return np.stack([starts, ends], axis=1).astype(int)

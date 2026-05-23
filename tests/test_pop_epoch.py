@@ -11,6 +11,7 @@ import numpy as np
 import unittest
 
 import copy
+import eegprep.functions.popfunc.pop_epoch as pop_epoch_module
 
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.functions.guifunc.qt import QtDialogRenderer
@@ -889,12 +890,9 @@ class TestPopEpochGuiAndHistory(unittest.TestCase):
         self.assertEqual(eeg_out["trials"], 1)
         self.assertEqual(indices, [0])
 
-    def test_zero_based_eventindices_remain_supported_when_zero_is_present(self):
-        eeg_out, indices = pop_epoch(self.EEG, [], [-0.1, 0.1], eventindices=[0])
-
-        self.assertEqual(eeg_out["trials"], 1)
-        self.assertEqual(indices, [0])
-        self.assertEqual(eeg_out["event"][0]["type"], "S1")
+    def test_eventindices_are_strictly_eeglab_one_based(self):
+        with self.assertRaisesRegex(ValueError, "1-based"):
+            pop_epoch(self.EEG, [], [-0.1, 0.1], eventindices=[0])
 
     def test_empty_eventindices_raise_empty_epoch_range(self):
         with self.assertRaisesRegex(ValueError, "empty epoch range"):
@@ -909,7 +907,7 @@ class TestPopEpochGuiAndHistory(unittest.TestCase):
             pop_epoch(self.EEG, "S1", [0.1, -0.1])
         with self.assertRaisesRegex(ValueError, "valuelim"):
             pop_epoch(self.EEG, "S1", [-0.1, 0.1], valuelim=[-1, 1, 2])
-        with self.assertRaisesRegex(ValueError, "out of range"):
+        with self.assertRaisesRegex(ValueError, "1-based"):
             pop_epoch(self.EEG, "S1", [-0.1, 0.1], eventindices=[10])
         with self.assertRaisesRegex(ValueError, "dataset dictionary"):
             pop_epoch(3, "S1", [-0.1, 0.1])
@@ -955,6 +953,23 @@ class TestPopEpochGuiAndHistory(unittest.TestCase):
 
         self.assertEqual(eeg_out["trials"], 1)
         self.assertEqual(indices, [1])
+
+    def test_two_sided_epoch_window_does_not_pre_adjust_boundaries(self):
+        events = [
+            {"type": "stim", "latency": 100, "duration": 0},
+            {"type": "boundary", "latency": 104, "duration": 1},
+        ]
+
+        selected, latencies = pop_epoch_module._adjust_latencies_for_boundaries(
+            events,
+            [0],
+            [100.0],
+            [-0.05, 0.05],
+            100.0,
+        )
+
+        self.assertEqual(selected, [0])
+        self.assertEqual(latencies, [100.0])
 
     def test_boundary_adjustment_before_positive_epoch_window(self):
         eeg = copy.deepcopy(self.EEG)

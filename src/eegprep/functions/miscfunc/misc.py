@@ -3,7 +3,7 @@
 import math
 import sys
 import warnings
-from typing import Optional
+from typing import Callable, Optional
 
 import numpy as np
 
@@ -40,12 +40,13 @@ def finite_matmul(left: np.ndarray, right: np.ndarray) -> np.ndarray:
     return result
 
 
-def finite_pinv(matrix: np.ndarray) -> np.ndarray:
+def finite_pinv(matrix: np.ndarray, solver: Callable[[np.ndarray], np.ndarray] | None = None) -> np.ndarray:
     """Compute a pseudo-inverse, suppressing only warnings from finite results."""
     matrix = np.asarray(matrix)
+    solver = solver or np.linalg.pinv
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always", RuntimeWarning)
-        result = np.linalg.pinv(matrix)
+        result = solver(matrix)
     if caught and not (_is_finite_array(matrix) and _is_finite_array(result)):
         _reissue_warnings(caught)
     return result
