@@ -10,6 +10,7 @@ import sys
 import numpy as np
 import tempfile
 import os
+import logging
 
 # Add src to path for imports
 sys.path.insert(0, 'src')
@@ -78,6 +79,16 @@ def create_complete_eeg():
         'icaweights': np.array([]),
         'icachansind': np.array([])
     }
+
+
+def test_eeg_checkset_accepts_eeglab_string_comments(caplog):
+    eeg = create_complete_eeg()
+    eeg["comments"] = "Loaded from an EEGLAB dataset"
+    caplog.set_level(logging.WARNING, logger="eegprep.functions.adminfunc.eeg_checkset")
+
+    eeg_checkset(eeg)
+
+    assert "Field 'comments' is expected" not in caplog.text
 
 
 class TestEegChecksetBasic(DebuggableTestCase):

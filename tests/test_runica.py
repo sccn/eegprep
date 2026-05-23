@@ -12,11 +12,13 @@ with seed 5489 (MATLAB default). This allows exact comparison of results.
 import os
 import unittest
 import tempfile
+import warnings
 import numpy as np
 import scipy.io
 
 from eegprep.functions.sigprocfunc.runica import runica
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
+from eegprep.functions.popfunc.pop_loadset import pop_loadset
 
 
 class TestRunicaFunctionality(unittest.TestCase):
@@ -63,6 +65,23 @@ class TestRunicaFunctionality(unittest.TestCase):
 
         # Signs should be +1 or -1
         self.assertTrue(np.all(np.isin(signs, [-1, 1])))
+
+    def test_sample_data_extended_ica_does_not_surface_finite_matmul_warnings(self):
+        """Finite sample-data ICA should not leak NumPy BLAS warnings."""
+        eeg = pop_loadset("sample_data/eeglab_data.set")
+        data = eeg["data"].astype("float64").reshape(eeg["nbchan"], -1)
+
+        with warnings.catch_warnings(record=True) as captured:
+            warnings.simplefilter("always", RuntimeWarning)
+            weights, sphere, _compvars, bias, signs, _lrates = runica(
+                data, extended=1, maxsteps=1, verbose=False, rndreset="off"
+            )
+
+        self.assertTrue(np.isfinite(weights).all())
+        self.assertTrue(np.isfinite(sphere).all())
+        self.assertTrue(np.isfinite(bias).all())
+        self.assertTrue(np.isfinite(signs).all())
+        self.assertFalse([warning for warning in captured if "matmul" in str(warning.message)])
 
     def test_pca_reduction(self):
         """Test PCA dimension reduction."""

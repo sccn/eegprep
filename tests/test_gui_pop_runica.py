@@ -1,5 +1,6 @@
 import os
 import unittest
+import warnings
 from unittest import mock
 
 import numpy as np
@@ -7,6 +8,7 @@ import pytest
 
 from eegprep.functions.guifunc.spec import controls_by_tag
 from eegprep.functions.guifunc.qt import QtDialogRenderer
+from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_runica import pop_runica, pop_runica_dialog_spec
 
 
@@ -155,6 +157,19 @@ class PopRunicaGuiTests(unittest.TestCase):
         self.assertEqual(out["icaweights"].shape, (2, 2))
         np.testing.assert_array_equal(out["icachansind"], np.array([0, 1]))
         self.assertEqual(com, "EEG = pop_runica(EEG, 'icatype', 'runica', 'extended', 1, 'chanind', [1 2]);")
+
+    def test_sample_data_pop_runica_does_not_surface_finite_matmul_warnings(self):
+        eeg = pop_loadset("sample_data/eeglab_data.set")
+
+        with warnings.catch_warnings(record=True) as captured:
+            warnings.simplefilter("always", RuntimeWarning)
+            out, com = pop_runica(eeg, extended=1, maxsteps=1, return_com=True)
+
+        self.assertIn("'maxsteps', 1", com)
+        self.assertTrue(np.isfinite(out["icaweights"]).all())
+        self.assertTrue(np.isfinite(out["icasphere"]).all())
+        self.assertTrue(np.isfinite(out["icaact"]).all())
+        self.assertFalse([warning for warning in captured if "matmul" in str(warning.message)])
 
     def test_gui_dialog_spec_adds_concatenate_controls_for_multiple_datasets(self):
         spec = pop_runica_dialog_spec([dict(_eeg(), setname="first"), dict(_eeg(), setname="second")])

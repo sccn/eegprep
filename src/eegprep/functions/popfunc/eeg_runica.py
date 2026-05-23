@@ -3,6 +3,11 @@ from ..miscfunc.pinv import pinv
 from ..sigprocfunc.runica import runica
 
 
+def _matmul(left, right):
+    with np.errstate(divide='ignore', over='ignore', invalid='ignore'):
+        return left @ right
+
+
 def eeg_runica(EEG, posact='off', sortcomps='off', **kwargs):
     """
     Perform ICA decomposition using runica (infomax) algorithm.
@@ -29,14 +34,22 @@ def eeg_runica(EEG, posact='off', sortcomps='off', **kwargs):
 
     # Run runica
     weights, sphere, compvars, bias, signs, lrates = runica(data, **kwargs)
+    if not np.isfinite(weights).all() or not np.isfinite(sphere).all():
+        raise ValueError("runica(): ICA decomposition produced non-finite weights or sphering matrix.")
 
     # Update EEG structure with ICA results
     EEG['icasphere'] = sphere
     EEG['icaweights'] = weights
-    EEG['icawinv'] = pinv(weights @ sphere)
+    unmixing = _matmul(weights, sphere)
+    with np.errstate(divide='ignore', over='ignore', invalid='ignore'):
+        EEG['icawinv'] = pinv(unmixing)
+    if not np.isfinite(EEG['icawinv']).all():
+        raise ValueError("runica(): ICA decomposition produced a non-finite inverse weight matrix.")
 
     # Compute ICA activations
-    EEG['icaact'] = (weights @ sphere) @ data
+    EEG['icaact'] = _matmul(unmixing, data)
+    if not np.isfinite(EEG['icaact']).all():
+        raise ValueError("runica(): ICA decomposition produced non-finite activations.")
     # Reshape icaact back to 3D
     EEG['icaact'] = EEG['icaact'].reshape(EEG['icaact'].shape[0], EEG['pnts'], EEG['trials'])
     EEG['icachansind'] = np.arange(EEG['nbchan'])
