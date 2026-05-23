@@ -51,6 +51,10 @@ from eegprep.plugins.EEG_BIDS.bids_tools import pop_eventinfo, pop_participantin
 from eegprep.plugins.EEG_BIDS.pop_exportbids import pop_exportbids
 from eegprep.plugins.EEG_BIDS.pop_importbids import pop_importbids
 from eegprep.plugins.ICLabel.pop_iclabel import pop_iclabel
+from eegprep.plugins.clean_rawdata.clean_artifacts import clean_artifacts
+from eegprep.plugins.clean_rawdata.clean_asr import clean_asr
+from eegprep.plugins.clean_rawdata.clean_channels import clean_channels
+from eegprep.plugins.clean_rawdata.clean_windows import clean_windows
 from eegprep.plugins.clean_rawdata.pop_clean_rawdata import pop_clean_rawdata
 
 
@@ -215,6 +219,104 @@ def test_pop_clean_rawdata_all_criteria_off_preserves_sample_data_shape(sample_e
     assert cleaned["nbchan"] == sample_eeg["nbchan"]
     assert cleaned["pnts"] == sample_eeg["pnts"]
     assert "'FlatlineCriterion', 'off'" in command
+
+
+def test_clean_channels_removes_sample_bad_channels_without_warning_noise(sample_eeg, caplog):
+    caplog.set_level("WARNING")
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", RuntimeWarning)
+        cleaned = clean_channels(sample_eeg)
+
+    assert cleaned["data"].shape == (30, 30504)
+    assert cleaned["nbchan"] == 30
+    assert np.isfinite(cleaned["data"]).all()
+    assert not [record for record in caplog.records if record.levelname in {"WARNING", "ERROR"}]
+
+
+def test_clean_windows_removes_sample_bad_periods_without_warning_noise(sample_eeg, caplog):
+    caplog.set_level("WARNING")
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", RuntimeWarning)
+        cleaned, sample_mask = clean_windows(sample_eeg)
+
+    assert cleaned["data"].shape == (32, 26242)
+    assert cleaned["pnts"] == int(np.count_nonzero(sample_mask))
+    assert sample_mask.shape == (30504,)
+    assert np.isfinite(cleaned["data"]).all()
+    assert not [record for record in caplog.records if record.levelname in {"WARNING", "ERROR"}]
+
+
+def test_clean_asr_uses_sample_calibration_windows_without_warning_noise(sample_eeg, caplog):
+    caplog.set_level("WARNING")
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", RuntimeWarning)
+        cleaned = clean_asr(sample_eeg)
+
+    assert cleaned["data"].shape == sample_eeg["data"].shape
+    assert cleaned["nbchan"] == sample_eeg["nbchan"]
+    assert np.isfinite(cleaned["data"]).all()
+    assert not [record for record in caplog.records if record.levelname in {"WARNING", "ERROR"}]
+
+
+def test_clean_artifacts_default_runs_on_sample_data_without_warning_noise(sample_eeg, caplog):
+    caplog.set_level("WARNING")
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", RuntimeWarning)
+        cleaned, hp, bur, removed_channels = clean_artifacts(sample_eeg)
+
+    assert cleaned["data"].shape == (30, 30504)
+    assert hp["data"].shape[1] == 30504
+    assert bur["data"].shape == (30, 30504)
+    assert removed_channels.shape == (32,)
+    assert int(np.count_nonzero(removed_channels)) == 2
+    assert np.isfinite(cleaned["data"]).all()
+    assert not [record for record in caplog.records if record.levelname in {"WARNING", "ERROR"}]
+
+
+def test_pop_clean_rawdata_gui_defaults_run_on_sample_data_without_warning_noise(sample_eeg, caplog):
+    class Renderer:
+        def run(self, spec, initial_values=None):
+            return {control.tag: control.value for control in spec.controls if control.tag is not None}
+
+    caplog.set_level("WARNING")
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", RuntimeWarning)
+        cleaned, command = pop_clean_rawdata(sample_eeg, gui=True, renderer=Renderer(), return_com=True)
+
+    assert cleaned["nbchan"] == 30
+    assert cleaned["pnts"] < 30504
+    assert np.isfinite(cleaned["data"]).all()
+    assert "'BurstRejection', 'on'" in command
+    assert not [record for record in caplog.records if record.levelname in {"WARNING", "ERROR"}]
+
+
+def test_pop_clean_rawdata_riemannian_asr_runs_on_sample_data_without_warning_noise(sample_eeg, caplog):
+    caplog.set_level("WARNING")
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", RuntimeWarning)
+        cleaned, command = pop_clean_rawdata(
+            sample_eeg,
+            return_com=True,
+            Distance="Riemannian",
+            BurstCriterion=20,
+            BurstRejection="off",
+            WindowCriterion="off",
+            Highpass="off",
+            ChannelCriterion="off",
+            LineNoiseCriterion="off",
+            FlatlineCriterion="off",
+        )
+
+    assert cleaned["data"].shape == sample_eeg["data"].shape
+    assert np.isfinite(cleaned["data"]).all()
+    assert "'Distance', 'Riemannian'" in command
+    assert not [record for record in caplog.records if record.levelname in {"WARNING", "ERROR"}]
 
 
 def test_pop_rmbase_zeroes_selected_sample_baseline_channels(sample_eeg):

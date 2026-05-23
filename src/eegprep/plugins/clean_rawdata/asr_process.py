@@ -5,7 +5,7 @@ import logging
 import numpy as np
 import scipy.signal
 
-from ...functions.miscfunc.misc import round_mat
+from ...functions.miscfunc.misc import finite_matmul, finite_pinv, round_mat
 from .private.sigproc import moving_average
 
 logger = logging.getLogger(__name__)
@@ -194,7 +194,7 @@ def asr_process(data, srate, state, window_len=0.5, lookahead=None, step_size=32
 
             # Determine which components to keep (variance below threshold or not admissible for rejection)
             try:
-                thresholds = np.sum((T @ V)**2, axis=0)
+                thresholds = np.sum(finite_matmul(T, V)**2, axis=0)
                 keep = (D < thresholds) | (np.arange(1, C + 1) < (C - max_dims_num))
                 trivial = np.all(keep)
             except Exception as e:
@@ -208,13 +208,13 @@ def asr_process(data, srate, state, window_len=0.5, lookahead=None, step_size=32
                     # Following reference implementation:
                     # Get V[:, keep] equivalent by multiplying V by a diagonal selection matrix
                     keep_mask = keep[np.newaxis, :]  # Make column vector
-                    A = V.T @ M  # V.T × M
+                    A = finite_matmul(V.T, M)  # V.T × M
                     masked_A_T = keep_mask * A.T  # Zero out rows where keep is False
                     Q = masked_A_T.T  # Back to original orientation
 
                     # Calculate reconstruction matrix
-                    Z = np.linalg.pinv(Q)
-                    R = np.real(M @ Z @ V.T)
+                    Z = finite_pinv(Q)
+                    R = np.real(finite_matmul(finite_matmul(M, Z), V.T))
                 except np.linalg.LinAlgError:
                     logger.warning(f"Failed to calculate inverse at update point {j}. Using identity matrix.")
                     R = np.eye(C)
@@ -235,8 +235,10 @@ def asr_process(data, srate, state, window_len=0.5, lookahead=None, step_size=32
                     segment = X[:, idx_in_X]
 
                     # Apply blended reconstruction
-                    X[:, idx_in_X] = (blend * (R @ segment) +
-                                      (1 - blend) * (last_R @ segment))
+                    X[:, idx_in_X] = (
+                        blend * finite_matmul(R, segment)
+                        + (1 - blend) * finite_matmul(last_R, segment)
+                    )
 
             # Update state for next iteration
             last_n = n

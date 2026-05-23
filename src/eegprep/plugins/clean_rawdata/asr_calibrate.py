@@ -6,7 +6,7 @@ import numpy as np
 import scipy.signal
 import scipy.linalg
 
-from ...functions.miscfunc.misc import canonicalize_signs, round_mat
+from ...functions.miscfunc.misc import canonicalize_signs, finite_matmul, round_mat
 from .private.covariance import cov_mean, cov_shrinkage
 from .private.stats import fit_eeg_distribution, geometric_median
 
@@ -232,7 +232,7 @@ def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
     V = canonicalize_signs(V)
 
     # Transform data into component space (using eigenvectors)
-    X_transformed = np.abs(Xf.T @ V)  # Shape: (S, C)
+    X_transformed = np.abs(finite_matmul(Xf.T, V))  # Shape: (S, C)
 
     # Calculate window indices for RMS calculation
     step = N * (1.0 - window_overlap)
@@ -283,7 +283,7 @@ def asr_calibrate(X, srate, cutoff=None, blocksize=None, B=None, A=None,
     sig = np.maximum(sig, 0)
 
     # Calculate threshold matrix T
-    T = np.diag(mu + cutoff * sig) @ V.T
+    T = finite_matmul(np.diag(mu + cutoff * sig), V.T)
 
     logger.info('Thresholds calculation complete.')
 

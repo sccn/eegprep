@@ -359,13 +359,12 @@ class TestCleanWindows(unittest.TestCase):
 
         self.assertEqual(EEG_out['data'].dtype, original_dtype)
 
-    def test_pop_select_fallback(self):
-        """Manual-fallback path should also preserve the input data dtype."""
+    def test_direct_rejection_preserves_dtype(self):
+        """Direct eeg_eegrej sample rejection should preserve the input data dtype."""
         original_dtype = self.EEG_artifacts['data'].dtype
-        with patch('eegprep.pop_select', side_effect=RuntimeError('forced fallback')):
-            EEG_out, sample_mask = clean_windows(self.EEG_artifacts.copy())
+        EEG_out, sample_mask = clean_windows(self.EEG_artifacts.copy())
 
-        # Should produce valid output using fallback
+        # Should produce valid output using direct sample rejection.
         self.assertIsInstance(EEG_out, dict)
         self.assertTrue(np.all(np.isfinite(EEG_out['data'])))
 
@@ -405,27 +404,18 @@ class TestCleanWindows(unittest.TestCase):
         self.assertTrue(any('incompatible' in msg for msg in log.output))
         np.testing.assert_array_equal(EEG_out3['etc']['clean_sample_mask'], sample_mask3)
 
-    def test_fallback_data_processing(self):
-        """Fallback path clears signal metadata when pop_select cannot be used."""
-        with patch('eegprep.pop_select', side_effect=RuntimeError('forced fallback')):
-            EEG_out, sample_mask = clean_windows(self.EEG_artifacts.copy())
+    def test_direct_rejection_data_processing(self):
+        """Direct sample rejection keeps EEGLAB eegrej timing semantics."""
+        EEG_out, sample_mask = clean_windows(self.EEG_artifacts.copy())
 
         # Check that fallback processing was applied without changing precision.
         self.assertEqual(EEG_out['data'].dtype, self.EEG_artifacts['data'].dtype)
 
         # pnts and xmax should be updated
         self.assertEqual(EEG_out['pnts'], EEG_out['data'].shape[1])
-        expected_xmax = EEG_out['xmin'] + (EEG_out['pnts'] - 1) / self.srate
+        old_duration = self.EEG_artifacts['xmax'] - self.EEG_artifacts['xmin']
+        expected_xmax = self.EEG_artifacts['xmin'] + old_duration * EEG_out['pnts'] / self.EEG_artifacts['pnts']
         self.assertAlmostEqual(EEG_out['xmax'], expected_xmax, places=6)
-
-        # Metadata fields should be cleared in fallback mode because the manual
-        # path cannot shift event latencies or insert boundary events.
-        for field in ['event', 'urevent', 'epoch', 'icaact', 'reject', 'stats', 'specdata', 'specicaact']:
-            if field in EEG_out:
-                if isinstance(EEG_out[field], list):
-                    self.assertEqual(len(EEG_out[field]), 0)
-                else:
-                    self.assertEqual(len(EEG_out[field]), 0)
 
     def test_pop_select_success_preserves_events_and_inserts_boundaries(self):
         """pop_select success path keeps events and inserts boundaries at cuts.

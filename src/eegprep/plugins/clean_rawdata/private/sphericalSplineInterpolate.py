@@ -2,7 +2,8 @@
 
 from typing import *
 import numpy as np
-from numpy.linalg import pinv
+
+from eegprep.functions.miscfunc.misc import finite_matmul, finite_pinv
 
 
 # Helper function (vectorized version of MATLAB's interpMx)
@@ -146,8 +147,8 @@ def sphericalSplineInterpolate(src, dest, lambda_reg=1e-5, order=4, type='spline
     # Calculate the cosine of the angle between the new and old electrodes.
     # If the vectors are on top of each other, the result is 1.
     # Transpose src_norm (N, 3) and dest_norm (M, 3) for matrix multiplication
-    cosSS = src_norm.T @ src_norm  # angles between source positions [N x N]
-    cosDS = dest_norm.T @ src_norm # angles between destination positions [M x N]
+    cosSS = finite_matmul(src_norm.T, src_norm)  # angles between source positions [N x N]
+    cosDS = finite_matmul(dest_norm.T, src_norm) # angles between destination positions [M x N]
 
     # Ensure cosines are within [-1, 1] due to potential floating point errors
     cosSS = np.clip(cosSS, -1.0, 1.0)
@@ -176,7 +177,7 @@ def sphericalSplineInterpolate(src, dest, lambda_reg=1e-5, order=4, type='spline
     # C[n_src, n_src] remains 0
 
     # Calculate the pseudoinverse of C
-    iC = pinv(C) # [N+1 x N+1]
+    iC = finite_pinv(C) # [N+1 x N+1]
 
     # Compute the final mapping matrix W based on the specified type
     type_lower = type.lower()
@@ -185,15 +186,14 @@ def sphericalSplineInterpolate(src, dest, lambda_reg=1e-5, order=4, type='spline
         # Construct the [Gds ones(M,1)*muGss] matrix part
         Gds_augmented = np.hstack((Gds, muGss * np.ones((n_dest, 1)))) # [M x N+1]
         # Multiply by the relevant part of iC
-        W = Gds_augmented @ iC[:, :n_src] # [M x N+1] @ [N+1 x N] = [M x N]
+        W = finite_matmul(Gds_augmented, iC[:, :n_src]) # [M x N+1] @ [N+1 x N] = [M x N]
 
     elif type_lower == 'slap':
         # W = Hds * iC[:-1, :-1]
-        W = Hds @ iC[:n_src, :n_src] # [M x N] @ [N x N] = [M x N]
+        W = finite_matmul(Hds, iC[:n_src, :n_src]) # [M x N] @ [N x N] = [M x N]
 
     else:
         raise ValueError(f"Unknown interpolation type specified: '{type}'. Must be 'spline' or 'slap'.")
 
     # Return the mapping matrix W and intermediate G/H matrices as per MATLAB signature
     return W, Gss, Gds, Hds
-

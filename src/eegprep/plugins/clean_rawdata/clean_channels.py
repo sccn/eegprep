@@ -6,7 +6,7 @@ import traceback
 
 import numpy as np
 
-from ...functions.miscfunc.misc import round_mat
+from ...functions.miscfunc.misc import finite_matmul, round_mat
 from .private.ransac import calc_projector
 from .private.sigproc import design_fir, filtfilt_fast
 from .private.stats import mad
@@ -121,7 +121,7 @@ def clean_channels(
         start_time = time.time()
 
         XX = X[offsets[o] + wnd, :]
-        YY = np.sort(np.reshape((XX @ P).T, (num_samples, -1)), axis=0)
+        YY = np.sort(np.reshape(finite_matmul(XX, P).T, (num_samples, -1)), axis=0)
         YY = np.reshape(YY[int(round_mat(num_samples / 2)) - 1, :], (-1, window_len)).T
 
         # Calculate correlation for each channel
