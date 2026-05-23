@@ -443,6 +443,31 @@ class TestPopEpochEdgeCases(unittest.TestCase):
         with self.assertRaises(ValueError):
             pop_epoch(EEG, ['X', 'Y'], [-0.1, 0.1])
 
+    def test_string_event_type_matches_exactly(self):
+        """String event selectors should match EEGLAB's exact char matching."""
+        EEG = {
+            'data': np.random.randn(1, 400).astype(np.float32),
+            'srate': 100.0,
+            'nbchan': 1,
+            'pnts': 400,
+            'trials': 1,
+            'xmin': 0.0,
+            'xmax': 3.99,
+            'setname': 'exact_match_test',
+            'event': [
+                {'type': 'S1', 'latency': 100, 'duration': 0},
+                {'type': 'S10', 'latency': 250, 'duration': 0},
+            ],
+            'epoch': [],
+            'saved': 'no',
+        }
+
+        eeg_out, indices = pop_epoch(EEG, 'S1', [-0.05, 0.05])
+
+        self.assertEqual(eeg_out['trials'], 1)
+        self.assertEqual(indices, [0])
+        self.assertEqual(eeg_out['event'][0]['type'], 'S1')
+
     def test_input_validation_none_eeg(self):
         """Test that None EEG raises ValueError"""
         with self.assertRaises(ValueError):
@@ -589,9 +614,9 @@ class TestPopEpochEdgeCases(unittest.TestCase):
             'saved': 'no'
         }
 
-        # Test numeric type matching with string (regex will match both 1 and 1.5)
+        # Test numeric type matching with string.
         eeg_out, indices = pop_epoch(EEG, '1', [-0.1, 0.1])
-        self.assertGreaterEqual(len(indices), 1)  # Should match event types containing '1'
+        self.assertEqual(indices, [0])
 
     def test_invalid_types_error(self):
         """Test error for invalid types parameter"""

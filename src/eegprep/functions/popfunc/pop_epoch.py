@@ -337,11 +337,7 @@ def _selected_event_indices(events: list[dict[str, Any]], types: Any, eventindic
         return sorted(eventindices)
     eventindex_set = set(eventindices)
     if isinstance(types, str):
-        selected = [
-            index for index, event in enumerate(events)
-            if index in eventindex_set and re.search(types, _text_field(event.get("type", "")))
-        ]
-        return sorted(selected)
+        types = [types]
     if not isinstance(types, list):
         raise ValueError("pop_epoch(): multiple event types must be entered as a list/cell array or a string")
     selected = []
