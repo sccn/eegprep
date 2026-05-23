@@ -687,11 +687,11 @@ class MenuActionDispatcher:
 
     def _store_current_from_gui(self, eeg: Any, **kwargs: Any) -> Any:
         command = kwargs.get("command")
-        self.session.preview_history(command)
+        self.session.echo_command(command)
         return self.session.store_current(eeg, **kwargs)
 
     def _add_history_from_gui(self, command: str | None) -> None:
-        self.session.preview_history(command)
+        self.session.echo_command(command)
         self.session.add_history(command)
 
     def _retrieve_dataset(self, index: int) -> None:

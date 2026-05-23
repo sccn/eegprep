@@ -552,10 +552,16 @@ class MenuActionDispatcherTests(unittest.TestCase):
         session.store_current(second, new=True)
         session.STUDY = {"name": "study"}
         session.CURRENTSTUDY = 1
+        echoed = []
+        session.add_command_echo_listener(echoed.append)
         dispatcher = MenuActionDispatcher(session)
 
         dispatcher.dispatch("retrieve_dataset:2")
 
+        self.assertEqual(
+            echoed,
+            ["CURRENTSTUDY = 0;[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, 'retrieve', 2);"],
+        )
         self.assertEqual(session.CURRENTSTUDY, 0)
         self.assertEqual(session.CURRENTSET, [2])
         self.assertEqual(session.EEG["setname"], "second")
@@ -655,12 +661,12 @@ class MenuActionDispatcherTests(unittest.TestCase):
                 self.assertEqual(session.ALLEEG[0]["setname"], setname)
                 self.assertEqual(session.ALLCOM[-1], f"EEG = {action}(EEG);")
 
-    def test_pop_interp_dispatch_uses_generic_gui_history_preview(self):
+    def test_pop_interp_dispatch_uses_generic_gui_command_echo(self):
         session = EEGPrepSession()
         session.store_current(_demo_eeg(), new=True)
         dispatcher = MenuActionDispatcher(session)
         command = "EEG = pop_interp(EEG, [1], 'spherical');"
-        previewed = []
+        echoed = []
         output = dict(session.EEG, setname="interpolated")
 
         def fake_pop_interp(eeg, *, alleeg, return_com):
@@ -669,11 +675,11 @@ class MenuActionDispatcherTests(unittest.TestCase):
             self.assertTrue(return_com)
             return output, command
 
-        session.add_history_preview_listener(previewed.append)
+        session.add_command_echo_listener(echoed.append)
         with mock.patch("eegprep.functions.popfunc.pop_interp.pop_interp", side_effect=fake_pop_interp):
             dispatcher.dispatch("pop_interp")
 
-        self.assertEqual(previewed, [command])
+        self.assertEqual(echoed, [command])
         self.assertEqual(session.EEG["setname"], "interpolated")
         self.assertEqual(session.ALLCOM[-1], command)
 

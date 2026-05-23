@@ -43,7 +43,7 @@ class EEGPrepSession:
     CURRENTSTUDY: int = 0
     PLUGINLIST: list[dict[str, Any]] = field(default_factory=list)
     _listeners: list[Callable[["EEGPrepSession"], None]] = field(default_factory=list, init=False, repr=False)
-    _history_preview_listeners: list[Callable[[str], None]] = field(default_factory=list, init=False, repr=False)
+    _command_echo_listeners: list[Callable[[str], None]] = field(default_factory=list, init=False, repr=False)
     _gui_action_listeners: list[Callable[[str, str], None]] = field(default_factory=list, init=False, repr=False)
 
     def add_change_listener(self, listener: Callable[["EEGPrepSession"], None]) -> None:
@@ -56,15 +56,15 @@ class EEGPrepSession:
         if listener in self._listeners:
             self._listeners.remove(listener)
 
-    def add_history_preview_listener(self, listener: Callable[[str], None]) -> None:
-        """Register a callback for commands that are about to run from the GUI."""
-        if listener not in self._history_preview_listeners:
-            self._history_preview_listeners.append(listener)
+    def add_command_echo_listener(self, listener: Callable[[str], None]) -> None:
+        """Register a callback for GUI commands to display in the console."""
+        if listener not in self._command_echo_listeners:
+            self._command_echo_listeners.append(listener)
 
-    def remove_history_preview_listener(self, listener: Callable[[str], None]) -> None:
-        """Remove a previously registered history preview callback."""
-        if listener in self._history_preview_listeners:
-            self._history_preview_listeners.remove(listener)
+    def remove_command_echo_listener(self, listener: Callable[[str], None]) -> None:
+        """Remove a previously registered command echo callback."""
+        if listener in self._command_echo_listeners:
+            self._command_echo_listeners.remove(listener)
 
     def add_gui_action_listener(self, listener: Callable[[str, str], None]) -> None:
         """Register a callback for GUI action start/end notifications."""
@@ -95,11 +95,11 @@ class EEGPrepSession:
         finally:
             self.end_gui_action(action)
 
-    def preview_history(self, command: str | None) -> None:
-        """Notify listeners that a GUI command is about to update the session."""
+    def echo_command(self, command: str | None) -> None:
+        """Display a GUI command without mutating session history."""
         if not command:
             return
-        for listener in list(self._history_preview_listeners):
+        for listener in list(self._command_echo_listeners):
             listener(command)
 
     def notify_changed(self) -> None:

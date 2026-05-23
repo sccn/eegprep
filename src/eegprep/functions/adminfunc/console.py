@@ -11,7 +11,6 @@ import re
 import sys
 import warnings
 from collections.abc import Callable, Iterator, Mapping
-from contextlib import contextmanager
 from typing import Any
 
 import eegprep
@@ -124,35 +123,32 @@ class EEGPrepConsoleWorkspace:
         *,
         window: Any | None = None,
         refresh: Callable[[], None] | None = None,
-        history_echo: Callable[[str], Any] | None = None,
+        command_echo: Callable[[str], Any] | None = None,
         exports: Mapping[str, Any] | None = None,
     ) -> None:
         self.session = session
         self.window = window
         self.refresh = refresh or getattr(window, "refresh", None)
-        self.history_echo = history_echo
+        self.command_echo = command_echo
         self.namespace: dict[str, Any] = {}
         self._eegprep_proxy = ConsoleEEGPrepModule(self)
         self._wrapped_pop_exports: dict[str, ConsolePopFunction] = {}
         self._syncing = False
         self._pop_updated_session = False
         self._pop_needs_source_history = False
-        self._suppress_history_echo = 0
-        self._history_echo_cursor = len(session.ALLCOM)
-        self._previewed_history: list[str] = []
         self._gui_action_depth = 0
         self._terminal_buffer: _TerminalOutputBuffer | None = None
         self._bind_base_namespace()
         self._bind_exports(exports)
         self.pull_from_session()
         self.session.add_change_listener(self._session_changed)
-        self.session.add_history_preview_listener(self._preview_session_history)
+        self.session.add_command_echo_listener(self._echo_session_command)
         self.session.add_gui_action_listener(self._gui_action_event)
 
     def close(self) -> None:
         """Detach this workspace from session notifications."""
         self.session.remove_change_listener(self._session_changed)
-        self.session.remove_history_preview_listener(self._preview_session_history)
+        self.session.remove_command_echo_listener(self._echo_session_command)
         self.session.remove_gui_action_listener(self._gui_action_event)
         self._finish_gui_action_output()
 
@@ -170,86 +166,84 @@ class EEGPrepConsoleWorkspace:
 
     def after_execute(self, source: str, *, success: bool = True) -> None:
         """Push console-side workspace edits back into the session."""
-        with self._without_history_echo():
-            if not success:
-                self.pull_from_session()
-                return
-            if self._pop_updated_session:
-                self._pop_updated_session = False
-                if self._pop_needs_source_history:
-                    self._pop_needs_source_history = False
-                    command = source.strip()
-                    if command:
-                        self.session.add_history(command)
-                self.pull_from_session()
-                return
-
-            targets = _workspace_assignment_targets(source)
-            self._restore_imported_wrappers(source)
-            history_command = self._history_command_for_source(source, targets)
-            changed = False
-
-            if "ALLEEG" in targets:
-                alleeg = self.namespace.get("ALLEEG", [])
-                if not isinstance(alleeg, list):
-                    raise ValueError("ALLEEG must be a list of EEG datasets")
-                self.session.ALLEEG = alleeg
-                changed = True
-
-            if "CURRENTSET" in targets:
-                current = _normalize_currentset(self.namespace.get("CURRENTSET"))
-                if current:
-                    self.session.retrieve(current if len(current) > 1 else current[0])
-                else:
-                    self.session.CURRENTSET = []
-                changed = True
-
-            if self._namespace_eeg_changed(targets):
-                eeg = self.namespace.get("EEG")
-                if not _is_eeg_selection(eeg):
-                    raise ValueError("EEG must be an EEG dataset dictionary or a list of EEG dataset dictionaries")
-                self._store_eeg(eeg, history_command)
-                changed = True
-            elif "LASTCOM" in targets:
-                command = str(self.namespace.get("LASTCOM") or "").strip()
-                if command and command != self.session.LASTCOM:
-                    self.session.add_history(command)
-                    changed = True
-
-            if "STUDY" in targets:
-                self.session.STUDY = self.namespace.get("STUDY")
-                changed = True
-            if "CURRENTSTUDY" in targets:
-                self.session.CURRENTSTUDY = int(self.namespace.get("CURRENTSTUDY") or 0)
-                changed = True
-
-            if changed:
-                self.session.notify_changed()
-                if history_command and history_command != self.session.LASTCOM:
-                    self.session.add_history(history_command)
+        if not success:
             self.pull_from_session()
-            if changed:
-                self._refresh()
+            return
+        if self._pop_updated_session:
+            self._pop_updated_session = False
+            if self._pop_needs_source_history:
+                self._pop_needs_source_history = False
+                command = source.strip()
+                if command:
+                    self.session.add_history(command)
+            self.pull_from_session()
+            return
+
+        targets = _workspace_assignment_targets(source)
+        self._restore_imported_wrappers(source)
+        history_command = self._history_command_for_source(source, targets)
+        changed = False
+
+        if "ALLEEG" in targets:
+            alleeg = self.namespace.get("ALLEEG", [])
+            if not isinstance(alleeg, list):
+                raise ValueError("ALLEEG must be a list of EEG datasets")
+            self.session.ALLEEG = alleeg
+            changed = True
+
+        if "CURRENTSET" in targets:
+            current = _normalize_currentset(self.namespace.get("CURRENTSET"))
+            if current:
+                self.session.retrieve(current if len(current) > 1 else current[0])
+            else:
+                self.session.CURRENTSET = []
+            changed = True
+
+        if self._namespace_eeg_changed(targets):
+            eeg = self.namespace.get("EEG")
+            if not _is_eeg_selection(eeg):
+                raise ValueError("EEG must be an EEG dataset dictionary or a list of EEG dataset dictionaries")
+            self._store_eeg(eeg, history_command)
+            changed = True
+        elif "LASTCOM" in targets:
+            command = str(self.namespace.get("LASTCOM") or "").strip()
+            if command and command != self.session.LASTCOM:
+                self.session.add_history(command)
+                changed = True
+
+        if "STUDY" in targets:
+            self.session.STUDY = self.namespace.get("STUDY")
+            changed = True
+        if "CURRENTSTUDY" in targets:
+            self.session.CURRENTSTUDY = int(self.namespace.get("CURRENTSTUDY") or 0)
+            changed = True
+
+        if changed:
+            self.session.notify_changed()
+            if history_command and history_command != self.session.LASTCOM:
+                self.session.add_history(history_command)
+        self.pull_from_session()
+        if changed:
+            self._refresh()
 
     def accept_pop_result(self, result: Any, args: tuple[Any, ...]) -> Any:
         """Store a ``pop_*`` result in the current session when appropriate."""
-        with self._without_history_echo():
-            eeg, command = _extract_pop_eeg_and_command(result)
-            if eeg is None:
-                if command:
-                    self.session.add_history(command)
-                    self._pop_updated_session = True
-                return result
-            should_store = bool(command) or eeg is not self.session.EEG
-            if not should_store:
-                return ConsolePopResult(eeg, command, updated=False)
-            new_dataset = not self.session.CURRENTSET or not args or args[0] is not self.session.EEG
-            self._store_eeg(eeg, command, new=new_dataset)
-            self._pop_updated_session = True
-            self._pop_needs_source_history = not bool(command)
-            self.pull_from_session()
-            self._refresh()
-            return ConsolePopResult(self.session.EEG, command, updated=True)
+        eeg, command = _extract_pop_eeg_and_command(result)
+        if eeg is None:
+            if command:
+                self.session.add_history(command)
+                self._pop_updated_session = True
+            return result
+        should_store = bool(command) or eeg is not self.session.EEG
+        if not should_store:
+            return ConsolePopResult(eeg, command, updated=False)
+        new_dataset = not self.session.CURRENTSET or not args or args[0] is not self.session.EEG
+        self._store_eeg(eeg, command, new=new_dataset)
+        self._pop_updated_session = True
+        self._pop_needs_source_history = not bool(command)
+        self.pull_from_session()
+        self._refresh()
+        return ConsolePopResult(self.session.EEG, command, updated=True)
 
     def _bind_base_namespace(self) -> None:
         self.namespace.update({"eegprep": self._eegprep_proxy, "session": self.session, "window": self.window})
@@ -276,7 +270,6 @@ class EEGPrepConsoleWorkspace:
         return wrapped
 
     def _session_changed(self, _session: EEGPrepSession) -> None:
-        self._echo_session_history()
         if not self._syncing:
             self.pull_from_session()
 
@@ -309,22 +302,9 @@ class EEGPrepConsoleWorkspace:
         if self.refresh is not None:
             self.refresh()
 
-    def _echo_session_history(self) -> None:
-        new_commands = self.session.ALLCOM[self._history_echo_cursor :]
-        self._history_echo_cursor = len(self.session.ALLCOM)
-        if self.history_echo is None or self._suppress_history_echo:
-            return
-        for command in new_commands:
-            if self._consume_previewed_history(command):
-                continue
-            if command:
-                self.history_echo(command)
-
-    def _preview_session_history(self, command: str) -> None:
-        if self.history_echo is None or self._suppress_history_echo:
-            return
-        self._previewed_history.append(command)
-        self.history_echo(command)
+    def _echo_session_command(self, command: str) -> None:
+        if self.command_echo is not None:
+            self.command_echo(command)
         self._release_gui_action_output()
 
     def _gui_action_event(self, event: str, _action: str) -> None:
@@ -341,33 +321,15 @@ class EEGPrepConsoleWorkspace:
 
     def _release_gui_action_output(self) -> None:
         if self._terminal_buffer is not None:
-            self._terminal_buffer.release()
+            self._terminal_buffer.release(sync=True)
 
     def _finish_gui_action_output(self) -> None:
         buffer = self._terminal_buffer
-        if buffer is not None:
-            buffer.release()
         if _active_terminal_buffer() is buffer:
             _set_active_terminal_buffer(None)
         self._terminal_buffer = None
-
-    def _consume_previewed_history(self, command: str) -> bool:
-        if not command:
-            return False
-        try:
-            index = self._previewed_history.index(command)
-        except ValueError:
-            return False
-        self._previewed_history.pop(index)
-        return True
-
-    @contextmanager
-    def _without_history_echo(self) -> Iterator[None]:
-        self._suppress_history_echo += 1
-        try:
-            yield
-        finally:
-            self._suppress_history_echo -= 1
+        if buffer is not None:
+            buffer.release(sync=False)
 
 
 def run_console(
@@ -412,7 +374,7 @@ def run_console(
         if shell_factory is not None
         else _IPythonShellAdapter(_ipython_shell_factory(workspace.namespace, banner), workspace)
     )
-    workspace.history_echo = shell.echo_gui_command
+    workspace.command_echo = shell.echo_gui_command
     try:
         shell()
     finally:
@@ -472,7 +434,7 @@ def _console_banner() -> str:
     return (
         "EEGPrep interactive console\n"
         "The GUI and these workspace names share one session: EEG, ALLEEG, CURRENTSET, ALLCOM, LASTCOM, STUDY.\n"
-        "Call pop_* functions directly, for example: pop_reref(EEG, [])"
+        "Call pop_* functions directly, for example: pop_reref(EEG, [])\n"
     )
 
 
@@ -1050,12 +1012,12 @@ class _TerminalOutputBuffer:
         self.messages.append((message, stream))
         return True
 
-    def release(self) -> None:
+    def release(self, *, sync: bool) -> None:
         if self.released:
             return
         self.released = True
         for message, stream in self.messages:
-            _terminal_write(message, stream=stream, sync=True)
+            _terminal_write(message, stream=stream, sync=sync)
         self.messages.clear()
 
 
