@@ -1,6 +1,7 @@
 import os
 import unittest
 import warnings
+from pathlib import Path
 from unittest import mock
 
 import numpy as np
@@ -112,6 +113,79 @@ class PopRunicaGuiTests(unittest.TestCase):
             com,
             "EEG = pop_runica(EEG, 'icatype', 'runica', 'extended', 1, 'maxsteps', 2, 'interrupt', 'on');",
         )
+
+    def test_selectamica_forces_gui_with_amica_defaults(self):
+        seen = {}
+        amicaout = str(Path.cwd() / "amicaout")
+
+        class Renderer:
+            def run(self, spec, initial_values=None):
+                seen["initial_values"] = initial_values
+                return {
+                    "icatype": initial_values["icatype"],
+                    "params": initial_values["params"],
+                    "reorder": True,
+                    "chantype": "",
+                }
+
+        eeg = _eeg()
+        updated = dict(eeg, icaweights=np.eye(4), icasphere=np.eye(4), icawinv=np.eye(4), icaact=np.zeros((4, 20, 1)))
+        with mock.patch("eegprep.functions.popfunc.pop_runica.eeg_amica", return_value=updated) as amica:
+            out, com = pop_runica(eeg, "selectamica", renderer=Renderer(), return_com=True)
+
+        self.assertEqual(seen["initial_values"]["icatype"], 3)
+        self.assertEqual(seen["initial_values"]["params"], f"'outdir', '{amicaout}'")
+        amica.assert_called_once()
+        self.assertEqual(amica.call_args.kwargs["outdir"], amicaout)
+        self.assertNotIn("qsub", amica.call_args.kwargs)
+        self.assertEqual(out["icaweights"].shape, (4, 4))
+        self.assertEqual(com, f"EEG = pop_runica(EEG, 'icatype', 'runamica15', 'outdir', '{amicaout}');")
+
+    def test_selectamicaloc_forces_gui_with_local_amica_defaults(self):
+        seen = {}
+        amicaout = str(Path.cwd() / "amicaout")
+
+        class Renderer:
+            def run(self, spec, initial_values=None):
+                seen["initial_values"] = initial_values
+                return {
+                    "icatype": initial_values["icatype"],
+                    "params": initial_values["params"],
+                    "reorder": True,
+                    "chantype": "",
+                }
+
+        eeg = _eeg()
+        updated = dict(eeg, icaweights=np.eye(4), icasphere=np.eye(4), icawinv=np.eye(4), icaact=np.zeros((4, 20, 1)))
+        with mock.patch("eegprep.functions.popfunc.pop_runica.eeg_amica", return_value=updated) as amica:
+            _out, com = pop_runica(eeg, "selectamicaloc", renderer=Renderer(), return_com=True)
+
+        expected_params = f"'outdir', '{amicaout}', 'qsub', 'off'"
+        self.assertEqual(seen["initial_values"]["params"], expected_params)
+        self.assertEqual(amica.call_args.kwargs["outdir"], amicaout)
+        self.assertEqual(amica.call_args.kwargs["qsub"], "off")
+        self.assertEqual(
+            com,
+            f"EEG = pop_runica(EEG, 'icatype', 'runamica15', 'outdir', '{amicaout}', 'qsub', 'off');",
+        )
+
+    def test_selectamica_ignores_trailing_key_value_args_like_eeglab(self):
+        class Renderer:
+            def run(self, spec, initial_values=None):
+                return {
+                    "icatype": initial_values["icatype"],
+                    "params": initial_values["params"],
+                    "reorder": True,
+                    "chantype": "",
+                }
+
+        eeg = _eeg()
+        updated = dict(eeg, icaweights=np.eye(4), icasphere=np.eye(4), icawinv=np.eye(4), icaact=np.zeros((4, 20, 1)))
+        with mock.patch("eegprep.functions.popfunc.pop_runica.eeg_amica", return_value=updated) as amica:
+            pop_runica(eeg, "selectamica", "maxiter", 7, renderer=Renderer())
+
+        self.assertNotIn("max_iter", amica.call_args.kwargs)
+        self.assertNotIn("maxiter", amica.call_args.kwargs)
 
     def test_gui_numeric_chanind_keeps_one_based_history(self):
         class Renderer:

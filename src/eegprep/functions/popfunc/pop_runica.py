@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import copy
 import re
+from pathlib import Path
 from typing import Any
 
 import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
+from eegprep.functions.popfunc._ica_utils import flatten_ica_data
 from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args
 from eegprep.functions.popfunc.eeg_amica import eeg_amica
 from eegprep.functions.popfunc.eeg_decodechan import eeg_decodechan
@@ -39,7 +41,9 @@ def pop_runica(
     **kwargs,
 ):
     """Run ICA decomposition with EEGLAB ``pop_runica`` calling semantics."""
+    selectamica = _selectamica_mode(args)
     parsed = _parse_runica_args(args, kwargs)
+    has_programmatic_options = bool(parsed)
     icatype = _normalise_icatype(parsed.pop("icatype", icatype))
     options = parsed.pop("options", options)
     reorder = parsed.pop("reorder", reorder)
@@ -48,10 +52,12 @@ def pop_runica(
     concatenate = parsed.pop("concatenate", "off")
     concatcond = parsed.pop("concatcond", "off")
 
-    if gui is None:
-        gui = options is None and not parsed and chanind is None and dataset is None
+    if selectamica is not None:
+        gui = True
+    elif gui is None:
+        gui = options is None and not has_programmatic_options and chanind is None and dataset is None
     if gui:
-        gui_result = _run_gui(EEG, renderer=renderer)
+        gui_result = _run_gui(EEG, renderer=renderer, initial_values=_selectamica_initial_values(selectamica))
         if gui_result is None:
             return (EEG, "") if return_com else EEG
         icatype = gui_result["icatype"]
@@ -166,9 +172,9 @@ def pop_runica_dialog_spec(EEG) -> DialogSpec:
     )
 
 
-def _run_gui(EEG, renderer=None):
+def _run_gui(EEG, renderer=None, initial_values=None):
     spec = pop_runica_dialog_spec(EEG)
-    result = inputgui(spec, renderer=renderer)
+    result = inputgui(spec, initial_values=initial_values, renderer=renderer)
     if result is None:
         return None
     algorithm_index = int(result.get("icatype", 1)) - 1
@@ -257,8 +263,7 @@ def _subject_session_key(EEG):
 
 
 def _flatten_dataset_data(EEG):
-    data = np.asarray(EEG["data"])
-    return data.reshape(data.shape[0], -1)
+    return flatten_ica_data(EEG["data"])
 
 
 def _as_list(value):
@@ -430,16 +435,35 @@ def _resolve_chanind(EEG, chanind):
 
 
 def _parse_runica_args(args, kwargs):
+    if _selectamica_mode(args) is not None:
+        return {}
     if args and len(args) % 2:
         first = str(args[0]).lower()
-        if first in {"selectamica", "selectamicaloc"}:
-            parsed = {"icatype": "runamica15", "options": {"outdir": "amicaout"}}
-            if first == "selectamicaloc":
-                parsed["options"]["qsub"] = "off"
-            parsed.update(parse_key_value_args(args[1:], kwargs, lowercase_kwargs=True))
-            return parsed
         return parse_key_value_args(("icatype", *args), kwargs, lowercase_kwargs=True)
     return parse_key_value_args(args, kwargs, lowercase_kwargs=True)
+
+
+def _selectamica_mode(args):
+    if not args:
+        return None
+    first = str(args[0]).lower()
+    return first if first in {"selectamica", "selectamicaloc"} else None
+
+
+def _selectamica_initial_values(mode):
+    if mode is None:
+        return None
+    params = f"'outdir', {format_history_value(str(Path.cwd() / 'amicaout'))}"
+    if mode == "selectamicaloc":
+        params = f"{params}, 'qsub', 'off'"
+    return {"icatype": _algorithm_index("runamica15"), "params": params}
+
+
+def _algorithm_index(icatype):
+    for index, (name, _description, _options) in enumerate(_ALGORITHMS, start=1):
+        if name == icatype:
+            return index
+    raise ValueError(f"Unsupported ICA algorithm: {icatype}")
 
 
 def _normalise_icatype(icatype):
