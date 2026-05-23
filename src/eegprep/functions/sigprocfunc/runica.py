@@ -23,7 +23,7 @@ import logging
 import numpy as np
 from scipy.linalg import sqrtm, pinv, eig
 from ...plugins.clean_rawdata.private.ransac import rand_permutation
-from ..miscfunc.misc import round_mat
+from ..miscfunc.misc import finite_pinv, round_mat
 
 logger = logging.getLogger(__name__)
 
@@ -1352,14 +1352,13 @@ def runica(data, **kwargs):
         logger.info('Sorting components in descending order of mean projected variance ...')
 
     # Compute inverse of unmixing matrix for backprojection (MATLAB lines 1477-1482)
+    unmixing = _matmul(weights, sphere)
     if ncomps == urchans:  # if weights are square
-        with np.errstate(divide='ignore', over='ignore', invalid='ignore'):
-            winv = np.linalg.inv(_matmul(weights, sphere))
+        winv = np.linalg.inv(unmixing)
     else:
         if verbose:
             logger.info('Using pseudo-inverse of weight matrix to rank order component projections.')
-        with np.errstate(divide='ignore', over='ignore', invalid='ignore'):
-            winv = pinv(_matmul(weights, sphere))
+        winv = finite_pinv(unmixing, solver=pinv)
 
     # Compute variances without backprojecting (MATLAB line 1486)
     # Formula from Rey Ramirez 8/07

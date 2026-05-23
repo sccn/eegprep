@@ -16,6 +16,8 @@ from eegprep.functions.popfunc._coming_soon import coming_soon
 
 logger = logging.getLogger(__name__)
 
+# Action handlers import user-facing pop/plugin modules lazily so launching the
+# main GUI does not eagerly load heavier signal-processing and optional stacks.
 IMPLEMENTED_ACTIONS = {
     "clear_study",
     "docs",

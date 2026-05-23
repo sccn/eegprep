@@ -310,7 +310,12 @@ def _channel_field_text(value):
             return ""
         if len(value) == 1:
             return _channel_field_text(value[0])
-        return " ".join(text for item in value if (text := _channel_field_text(item))).strip()
+        parts = []
+        for item in value:
+            text = _channel_field_text(item)
+            if text:
+                parts.append(text)
+        return " ".join(parts).strip()
     return str(value).strip()
 
 
