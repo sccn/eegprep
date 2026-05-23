@@ -7,6 +7,8 @@ This is a Python equivalent of EEGLAB's pop_subcomp function.
 import numpy as np
 import logging
 
+from eegprep.functions.popfunc._pop_utils import finite_matmul
+
 logger = logging.getLogger(__name__)
 
 
@@ -71,8 +73,9 @@ def pop_subcomp(EEG, components=None, recompute=True):
     keep_comps[components] = False
 
     # Reconstruct data without bad components
-    W = EEG['icaweights'] @ EEG['icasphere']
-    A = np.linalg.pinv(W)
+    W = finite_matmul(EEG['icaweights'], EEG['icasphere'])
+    with np.errstate(divide='ignore', over='ignore', invalid='ignore'):
+        A = np.linalg.pinv(W)
 
     # Zero out bad components in mixing matrix
     A_clean = A.copy()
@@ -81,7 +84,7 @@ def pop_subcomp(EEG, components=None, recompute=True):
     # Reconstruct data
     original_shape = EEG['data'].shape
     data_2d = EEG['data'].reshape(EEG['nbchan'], -1)
-    data_clean = A_clean @ W @ data_2d
+    data_clean = finite_matmul(finite_matmul(A_clean, W), data_2d)
     EEG['data'] = data_clean.reshape(original_shape)
 
     # Update ICA matrices to remove the components

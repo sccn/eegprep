@@ -9,7 +9,7 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.popfunc._file_io import channel_labels
-from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args
+from eegprep.functions.popfunc._pop_utils import finite_matmul, format_history_value, parse_key_value_args
 
 
 def pop_export(EEG: dict[str, Any], filename: str | Path, *args: Any, **kwargs: Any) -> str:
@@ -62,7 +62,8 @@ def _selected_data(EEG: dict[str, Any], *, ica: bool) -> np.ndarray:
         raise ValueError("No ICA activity or ICA weights are available")
     channels = np.asarray(EEG.get("icachansind", np.arange(EEG["nbchan"])), dtype=int)
     data = np.asarray(EEG["data"])[channels, ...]
-    activations = weights @ sphere @ data.reshape((len(channels), -1))
+    unmixing = finite_matmul(weights, sphere)
+    activations = finite_matmul(unmixing, data.reshape((len(channels), -1)))
     return activations.reshape((activations.shape[0], int(EEG["pnts"]), int(EEG.get("trials", 1))))
 
 

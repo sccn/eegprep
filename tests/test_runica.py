@@ -471,6 +471,50 @@ class TestRunicaParity(unittest.TestCase):
         self.assertGreater(np.abs(det_py), 1e-10, "Python unmixing matrix is singular")
         self.assertGreater(np.abs(det_ml), 1e-10, "MATLAB unmixing matrix is singular")
 
+    def test_parity_sample_data_extended_ica_initial_sphere(self):
+        """Sample-data extended ICA should match EEGLAB's initial sphering."""
+        if not self.matlab_available:
+            self.skipTest("MATLAB not available")
+
+        eeg = pop_loadset("sample_data/eeglab_data.set")
+        data = eeg["data"].astype(np.float64).reshape(eeg["nbchan"], -1)
+
+        w_py, s_py, _cv_py, b_py, sg_py, lr_py = runica(
+            data.copy(), extended=1, rndreset="off", maxsteps=1, verbose=False
+        )
+
+        temp_file = tempfile.mktemp(suffix=".mat")
+        scipy.io.savemat(temp_file, {"data": data})
+        try:
+            matlab_code = f"""
+            load('{temp_file}');
+            [w_ml, s_ml, ~, b_ml, sg_ml, lr_ml] = runica(data, 'extended', 1, 'maxsteps', 1, 'verbose', 'off', 'pythoncompat', 'on');
+            save('{temp_file}_out.mat', 'w_ml', 's_ml', 'b_ml', 'sg_ml', 'lr_ml');
+            """
+            self.eeglab.eval(matlab_code, nargout=0)
+            ml_data = scipy.io.loadmat(temp_file + "_out.mat")
+        finally:
+            if os.path.exists(temp_file):
+                os.remove(temp_file)
+            if os.path.exists(temp_file + "_out.mat"):
+                os.remove(temp_file + "_out.mat")
+
+        w_ml = ml_data["w_ml"]
+        s_ml = ml_data["s_ml"]
+        b_ml = ml_data["b_ml"]
+        sg_ml = ml_data["sg_ml"].flatten()
+        lr_ml = ml_data["lr_ml"].flatten()
+
+        np.testing.assert_allclose(s_py, s_ml, rtol=1e-10, atol=1e-12)
+        self.assertEqual(w_py.shape, w_ml.shape)
+        self.assertEqual(b_py.shape, b_ml.shape)
+        np.testing.assert_array_equal(sg_py, sg_ml)
+        np.testing.assert_allclose(lr_py, lr_ml, rtol=1e-12, atol=1e-15)
+        self.assertTrue(np.isfinite(w_py).all())
+        self.assertTrue(np.isfinite(w_ml).all())
+        self.assertTrue(np.isfinite(s_py).all())
+        self.assertTrue(np.isfinite(s_ml).all())
+
     def test_parity_pca_reduction(self):
         """
         Test parity for PCA reduction.

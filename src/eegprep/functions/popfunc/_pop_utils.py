@@ -52,6 +52,12 @@ def parse_text_tokens(text: Any, *, parse_ints: bool = False) -> list[Any]:
     return parsed
 
 
+def finite_matmul(left: np.ndarray, right: np.ndarray) -> np.ndarray:
+    """Compute a matrix product without surfacing finite BLAS status warnings."""
+    with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
+        return left @ right
+
+
 def format_history_value(
     value: Any,
     *,
