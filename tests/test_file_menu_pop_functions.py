@@ -1,4 +1,5 @@
 import math
+from pathlib import PurePath
 
 import numpy as np
 import pytest
@@ -40,6 +41,8 @@ def _eeg(epoched=False):
 
 
 def _matlab_string(value):
+    if isinstance(value, PurePath):
+        value = value.as_posix()
     return "'" + str(value).replace("'", "''") + "'"
 
 
@@ -175,7 +178,7 @@ def test_text_exports_write_data_ica_and_events(tmp_path):
     assert events_file.read_text(encoding="utf-8").splitlines()[0] == "duration\tlatency\ttype"
     assert "pop_export" in data_command
     assert "pop_expica" in weights_command
-    assert str(weights_file) in weights_command
+    assert weights_file.as_posix() in weights_command
     assert _matlab_string(events_file) in events_command
 
 

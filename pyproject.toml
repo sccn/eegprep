@@ -50,6 +50,10 @@ eeglabio = [
 gui = [
   "PySide6>=6.6"
 ]
+console = [
+  "eegprep[gui]",
+  "ipython>=8.0",
+]
 docs = [
   "sphinx>=7.0",
   "pydata-sphinx-theme>=0.14.0",
@@ -66,11 +70,13 @@ all = [
   "eegprep[torch]",
   "eegprep[eeglabio]",
   "eegprep[gui]",
+  "eegprep[console]",
   "eegprep[docs]",
 ]
 
 [project.scripts]
 eegprep-gui = "eegprep.functions.adminfunc.eeglab:main"
+eegprep-console = "eegprep.functions.adminfunc.console:main"
 
 [dependency-groups]
 dev = [

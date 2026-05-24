@@ -182,7 +182,7 @@ def resample_eeg(EEG, freq, method='poly', fc=0.9, df=0.2):
     output["xmin"] = float(output.get("xmin", EEG.get("xmin", 0.0)) or 0.0)
     output["xmax"] = output["xmin"] + ((output["pnts"] - 1) / output["srate"] if output["pnts"] else 0.0)
     output["times"] = np.linspace(output["xmin"] * 1000, output["xmax"] * 1000, output["pnts"]) if output["pnts"] else np.array([])
-    _resample_event_latencies(output, old_pnts, ratio, np.asarray(bounds), indices)
+    _resample_event_latencies(output, old_pnts, ratio, np.asarray(bounds), indices, EEG)
     output["icaact"] = np.array([])
     if output.get("setname"):
         output["setname"] = f"{output['setname']} resampled"
@@ -250,17 +250,25 @@ def _resample_poly_segment(segment, p, q, *, fc, df):
     return resampled[:, n_pad_after:-n_pad_after, :]
 
 
-def _resample_event_latencies(output, old_pnts, ratio, bounds, indices):
+def _resample_event_latencies(output, old_pnts, ratio, bounds, indices, original):
     events = events_to_records(output.get("event"))
     urevents = events_to_records(output.get("urevent"))
     if output["trials"] > 1:
         _resample_epoched_events(events, old_pnts, output["pnts"], ratio)
-        output["urevent"] = []
+        output["urevent"] = _restore_event_container(original.get("urevent"), [])
     else:
         _resample_continuous_events(events, bounds, indices, ratio)
         _resample_continuous_events(urevents, bounds, indices, ratio)
-        output["urevent"] = urevents
-    output["event"] = events
+        output["urevent"] = _restore_event_container(original.get("urevent"), urevents)
+    output["event"] = _restore_event_container(original.get("event"), events)
+
+
+def _restore_event_container(original_events, events):
+    if isinstance(original_events, np.ndarray):
+        return np.asarray(events, dtype=object)
+    if isinstance(original_events, dict):
+        return events[0] if events else {}
+    return events
 
 
 def _resample_epoched_events(events, old_pnts, new_pnts, ratio):

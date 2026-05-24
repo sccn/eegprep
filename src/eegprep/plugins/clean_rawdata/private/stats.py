@@ -179,7 +179,8 @@ def fit_eeg_distribution(X, min_clean_fraction=None, max_dropout_fraction=None,
         X_m = X_shifted[:, m - 1]
 
         # scale and bin the data in the intervals exactly as in the MATLAB code
-        H = np.asarray(X_shifted[:, :m] * nbins / X_shifted[:, m - 1].reshape((-1, 1)))
+        with np.errstate(invalid="ignore", divide="ignore"):
+            H = np.asarray(X_shifted[:, :m] * nbins / X_shifted[:, m - 1].reshape((-1, 1)))
         H[np.isnan(H)] = -1
         bins = list(range(nbins))
         bins.append(np.inf)

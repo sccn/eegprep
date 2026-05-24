@@ -55,6 +55,18 @@ def _is_numeric(val):
     return False
 
 
+def _string_field(value):
+    """Return a scalar MATLAB string field value."""
+    if value is None:
+        return ''
+    if isinstance(value, np.ndarray):
+        if value.size == 0:
+            return ''
+        if value.size == 1:
+            return str(value.reshape(-1)[0])
+    return str(value)
+
+
 def flatten_dict(data):
     """Flatten dictionary data.
 
@@ -301,15 +313,18 @@ def pop_saveset(EEG, file_name):
     file_name : str
         File name.
     """
+    file_name = os.fspath(file_name)
+    save_dir = os.path.dirname(file_name) or '.'
+    save_name = os.path.basename(file_name)
     eeglab_dict = {
-        'setname'         : '',
-        'filename'        : '',
-        'filepath'        : '',
-        'subject'         : '',
-        'group'           : '',
-        'condition'       : '',
-        'session'         : np.array([]),
-        'comments'        : '',
+        'setname'         : _string_field(EEG.get('setname', '')),
+        'filename'        : save_name,
+        'filepath'        : save_dir,
+        'subject'         : _string_field(EEG.get('subject', '')),
+        'group'           : _string_field(EEG.get('group', '')),
+        'condition'       : _string_field(EEG.get('condition', '')),
+        'session'         : EEG.get('session', np.array([])),
+        'comments'        : _string_field(EEG.get('comments', '')),
         'nbchan'          : float(EEG['nbchan']),
         'trials'          : float(EEG['trials']),
         'pnts'            : float(EEG['pnts']),
@@ -421,8 +436,8 @@ def pop_saveset(EEG, file_name):
         if isinstance(eeglab_dict[key], np.ndarray) and len(eeglab_dict[key]) > 0 and isinstance(eeglab_dict[key][0], dict):
             eeglab_dict[key] = flatten_dict(eeglab_dict[key])
 
-    if not os.path.exists(os.path.dirname(file_name)):
-        os.makedirs(os.path.dirname(file_name))
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
 
     # # Step 4: Save the EEGLAB dataset as a .mat file
     try:

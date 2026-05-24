@@ -1,14 +1,15 @@
 """Miscellaneous utility functions."""
 
-import sys
 import math
-from typing import Optional
+import sys
+import warnings
+from typing import Callable, Optional
 
 import numpy as np
 
 __all__ = ['is_debug', 'ExceptionUnlessDebug', 'num_jobs_from_reservation', 'humanize_seconds',
            'num_cpus_from_reservation', 'ToolError', 'canonicalize_signs', 'round_mat',
-           'aslist', 'get_nested']
+           'aslist', 'get_nested', 'finite_matmul', 'finite_pinv']
 
 
 def is_debug() -> bool:
@@ -25,6 +26,39 @@ def aslist(arr_or_list: np.ndarray | list) -> list:
     else:
         raise ValueError(f"Input must be a numpy array or a list, but "
                          f"was of type {type(arr_or_list)}.")
+
+
+def finite_matmul(left: np.ndarray, right: np.ndarray) -> np.ndarray:
+    """Compute a matrix product, suppressing only warnings from finite results."""
+    left = np.asarray(left)
+    right = np.asarray(right)
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always", RuntimeWarning)
+        result = left @ right
+    if caught and not (_is_finite_array(left) and _is_finite_array(right) and _is_finite_array(result)):
+        _reissue_warnings(caught)
+    return result
+
+
+def finite_pinv(matrix: np.ndarray, solver: Callable[[np.ndarray], np.ndarray] | None = None) -> np.ndarray:
+    """Compute a pseudo-inverse, suppressing only warnings from finite results."""
+    matrix = np.asarray(matrix)
+    solver = solver or np.linalg.pinv
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always", RuntimeWarning)
+        result = solver(matrix)
+    if caught and not (_is_finite_array(matrix) and _is_finite_array(result)):
+        _reissue_warnings(caught)
+    return result
+
+
+def _is_finite_array(value: np.ndarray) -> bool:
+    return bool(np.isfinite(np.asarray(value)).all())
+
+
+def _reissue_warnings(caught) -> None:
+    for warning in caught:
+        warnings.warn(warning.message, warning.category, stacklevel=3)
 
 
 # Sentinel value to indicate that KeyError should be raised if key not found

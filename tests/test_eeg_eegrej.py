@@ -98,18 +98,21 @@ class TestEEGEegrej(unittest.TestCase):
         self.assertEqual(EEG_out["pnts"], 15)
         self.assertEqual(EEG_out["data"].shape, (2, 15))
 
-        # Event at latency 7 is removed because it is inside the rejected region
-        # Boundary event at original 6 is preserved and a new boundary is inserted at new latency 6 with duration 5
-        # Event at 12 shifts by 5 to latency 7. Event at 3 stays at 3.
+        # Event at latency 7 is removed because it is inside the rejected region.
+        # The original boundary at 6 is preserved, while the new rejection
+        # boundary is inserted at 5.5 with duration 5. Event at 12 shifts by 5
+        # to latency 7. Event at 3 stays at 3.
         ev = EEG_out["event"]
         lats = [e.get("latency") for e in ev]
         types = [e.get("type") for e in ev]
 
-        # Must contain exactly one boundary we inserted at new position 6 with duration 5
-        self.assertIn(6.0, lats)
-        bidx = lats.index(6.0)
-        self.assertEqual(types[bidx], "boundary")
-        self.assertEqual(ev[bidx].get("duration"), 5.0)
+        inserted_boundaries = [e for e in ev if e.get("type") == "boundary" and e.get("duration") == 5.0]
+        self.assertEqual(len(inserted_boundaries), 1)
+        self.assertEqual(inserted_boundaries[0].get("latency"), 5.5)
+
+        preserved_boundaries = [e for e in ev if e.get("type") == "boundary" and e.get("duration") == 0.0]
+        self.assertEqual(len(preserved_boundaries), 1)
+        self.assertEqual(preserved_boundaries[0].get("latency"), 6.0)
 
         # Stim at 3 remains
         self.assertIn(3.0, lats)

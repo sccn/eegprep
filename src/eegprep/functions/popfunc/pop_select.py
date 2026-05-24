@@ -418,10 +418,10 @@ def _pop_select_apply(EEG, **kwargs):
     trial_idx_0 = np.array(g['trial'], dtype=int) - 1  # to 0-based
 
     # erase dipfit if channels removed
-    if len(chan_idx) != nbchan and EEG.get('dipfit') is not None:
+    if len(chan_idx) != nbchan and _has_content(EEG.get('dipfit')):
         print('warning: erasing dipole information since channels have been removed')
-        EEG['dipfit'] = []
-        EEG['roi'] = []
+        EEG['dipfit'] = np.array([])
+        EEG['roi'] = {}
 
     # data slicing
     data = EEG['data']
@@ -516,7 +516,7 @@ def _pop_select_apply(EEG, **kwargs):
             for ev in EEG['event']:
                 if 'epoch' in ev:
                     ev.pop('epoch', None)
-        EEG['epoch'] = []
+        EEG['epoch'] = np.array([], dtype=object)
 
     # reject, stats clean-up
     if EEG.get('reject') is not None and isinstance(EEG.get('reject'), dict) and 'gcompreject' in EEG['reject'] and \

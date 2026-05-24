@@ -166,5 +166,6 @@ uv run pytest -m "not slow"
 ## Core maintainers
 
 - Arnaud Delorme, UCSD, CA, USA
+- Suraj Ranganath, UCSD, CA, USA
 - Christian Kothe, Intheon, CA, USA
 - Bruno Aristimunha Pinto, Inria, France

@@ -23,9 +23,17 @@ import logging
 import numpy as np
 from scipy.linalg import sqrtm, pinv, eig
 from ...plugins.clean_rawdata.private.ransac import rand_permutation
-from ..miscfunc.misc import round_mat
+from ..miscfunc.misc import finite_pinv, round_mat
 
 logger = logging.getLogger(__name__)
+
+
+def _matmul(left, right):
+    # MATLAB mtimes does not surface BLAS floating-point status warnings for
+    # finite ICA products. NumPy/Accelerate can, so keep runica's output quiet
+    # while the existing blow-up checks handle unstable weights.
+    with np.errstate(divide='ignore', over='ignore', invalid='ignore'):
+        return left @ right
 
 
 # Constants matching MATLAB defaults
@@ -495,7 +503,7 @@ def runica(data, **kwargs):
         PCdat2 = data.T  # shape: (frames, chans)
         PCn, PCp = PCdat2.shape
         PCdat2 = PCdat2 / PCn
-        PCout = data @ PCdat2
+        PCout = _matmul(data, PCdat2)
 
         # Eigendecomposition
         # Note: scipy.linalg.eig returns (eigenvalues, eigenvectors)
@@ -513,7 +521,7 @@ def runica(data, **kwargs):
         # Project to ncomps dimensions
         eigenvectors = PCEigenVectors
         eigenvalues = PCEigenValues
-        data = eigenvectors[:, :ncomps].T @ data
+        data = _matmul(eigenvectors[:, :ncomps].T, data)
 
     # =========================================================================
     # 8. SPHERING COMPUTATION
@@ -537,7 +545,7 @@ def runica(data, **kwargs):
 
         if verbose:
             logger.info('Sphering the data ...')
-        data = sphere @ data
+        data = _matmul(sphere, data)
 
     elif sphering == 'off':
         if wts_passed == 0:
@@ -546,7 +554,7 @@ def runica(data, **kwargs):
                 logger.info('Returning the identity matrix in variable "sphere" ...')
             sphere_temp = 2.0 * np.linalg.inv(sqrtm(np.cov(data, rowvar=True)))
             sphere_temp = sphere_temp.real
-            weights = np.eye(ncomps, chans) @ sphere_temp
+            weights = _matmul(np.eye(ncomps, chans), sphere_temp)
             sphere = np.eye(chans)
         else:
             if verbose:
@@ -691,14 +699,17 @@ def runica(data, **kwargs):
 
                 # Extract and process block (MATLAB line 846)
                 # MATLAB: u = weights*double(data(:,timeperm(t:t+block-1))) + bias*onesrow
-                u = weights @ data[:, timeperm[t:t+block]] + bias @ onesrow
+                u = _matmul(weights, data[:, timeperm[t:t+block]]) + _matmul(bias, onesrow)
 
                 # Apply tanh nonlinearity (MATLAB line 848)
                 y = np.tanh(u)
 
                 # Extended-ICA natural gradient weight update (MATLAB line 849)
                 # weights = weights + lrate*(BI-signs*y*u'-u*u')*weights
-                weights = weights + lrate * (BI - signs @ y @ u.T - u @ u.T) @ weights
+                weights = weights + lrate * _matmul(
+                    BI - _matmul(_matmul(signs, y), u.T) - _matmul(u, u.T),
+                    weights,
+                )
 
                 # Bias update for tanh (MATLAB line 850)
                 # bias = bias + lrate*sum((-2*y)')';
@@ -724,10 +735,10 @@ def runica(data, **kwargs):
                             # Pick random subset (MATLAB lines 869-876)
                             # Use randint to avoid index overflow (rand() * datalength could equal datalength)
                             rp = rng.randint(1, datalength, size=kurtsize)
-                            partact = weights @ data[:, rp[:kurtsize]]
+                            partact = _matmul(weights, data[:, rp[:kurtsize]])
                         else:
                             # For small data sets, use whole data (MATLAB lines 877-878)
-                            partact = weights @ data
+                            partact = _matmul(weights, data)
 
                         # Compute kurtosis (MATLAB lines 880-882)
                         m2 = np.mean(partact**2, axis=1)**2
@@ -777,7 +788,7 @@ def runica(data, **kwargs):
                 # Compute change magnitude (MATLAB lines 914-916)
                 angledelta = 0.0
                 delta = oldwtchange.flatten()
-                change = delta @ delta
+                change = _matmul(delta, delta)
 
             # Check for restart conditions (MATLAB lines 921-999)
             if wts_blowup or np.isnan(change) or np.isinf(change):
@@ -828,7 +839,7 @@ def runica(data, **kwargs):
 
                 # Compute angle delta after step 2 (MATLAB lines 965-967)
                 if step > 2:
-                    cos_angle = (delta @ olddelta) / np.sqrt(change * oldchange)
+                    cos_angle = _matmul(delta, olddelta) / np.sqrt(change * oldchange)
                     cos_angle = np.clip(cos_angle, -1.0, 1.0)
                     angledelta = np.arccos(cos_angle)
 
@@ -877,7 +888,7 @@ def runica(data, **kwargs):
                 # Extract and process block (MATLAB line 1021)
                 # MATLAB: u = weights*double(data(:,timeperm(t:t+block-1))) + bias*onesrow
                 # Note: MATLAB uses 1-based indexing, so t:t+block-1 means t to t+block
-                u = weights @ data[:, timeperm[t:t+block]] + bias @ onesrow
+                u = _matmul(weights, data[:, timeperm[t:t+block]]) + _matmul(bias, onesrow)
 
                 # Apply logistic nonlinearity (MATLAB line 1022)
                 # Clip u to prevent overflow in exp
@@ -887,7 +898,7 @@ def runica(data, **kwargs):
 
                 # Natural gradient weight update (MATLAB line 1023)
                 # weights = weights + lrate*(BI+(1-2*y)*u')*weights
-                weights = weights + lrate * (BI + (1 - 2*y) @ u.T) @ weights
+                weights = weights + lrate * _matmul(BI + _matmul(1 - 2*y, u.T), weights)
 
                 # Bias update (MATLAB line 1024)
                 # bias = bias + lrate*sum((1-2*y)')';
@@ -925,7 +936,7 @@ def runica(data, **kwargs):
                 # Compute change magnitude (MATLAB lines 1049-1051)
                 angledelta = 0.0
                 delta = oldwtchange.flatten()  # Reshape to 1D
-                change = delta @ delta  # Squared norm
+                change = _matmul(delta, delta)  # Squared norm
 
             # Check for restart conditions (MATLAB lines 1056-1085)
             if wts_blowup or np.isnan(change) or np.isinf(change):
@@ -973,7 +984,7 @@ def runica(data, **kwargs):
                 if step > 2:
                     # acos((delta*olddelta')/sqrt(change*oldchange))
                     # Clip to avoid numerical issues with acos
-                    cos_angle = (delta @ olddelta) / np.sqrt(change * oldchange)
+                    cos_angle = _matmul(delta, olddelta) / np.sqrt(change * oldchange)
                     cos_angle = np.clip(cos_angle, -1.0, 1.0)
                     angledelta = np.arccos(cos_angle)
 
@@ -1019,13 +1030,16 @@ def runica(data, **kwargs):
             for t in range(0, lastt, block):
 
                 # Extract and process block - NO BIAS (MATLAB line 1145)
-                u = weights @ data[:, timeperm[t:t+block]]
+                u = _matmul(weights, data[:, timeperm[t:t+block]])
 
                 # Apply tanh nonlinearity (MATLAB line 1146)
                 y = np.tanh(u)
 
                 # Extended-ICA natural gradient weight update (MATLAB line 1147)
-                weights = weights + lrate * (BI - signs @ y @ u.T - u @ u.T) @ weights
+                weights = weights + lrate * _matmul(
+                    BI - _matmul(_matmul(signs, y), u.T) - _matmul(u, u.T),
+                    weights,
+                )
 
                 # NO BIAS UPDATE for no-bias variant
 
@@ -1046,9 +1060,9 @@ def runica(data, **kwargs):
                         if kurtsize < frames:
                             # Use randint to avoid index overflow (rand() * datalength could equal datalength)
                             rp = rng.randint(1, datalength, size=kurtsize)
-                            partact = weights @ data[:, rp[:kurtsize]]
+                            partact = _matmul(weights, data[:, rp[:kurtsize]])
                         else:
-                            partact = weights @ data
+                            partact = _matmul(weights, data)
 
                         m2 = np.mean(partact**2, axis=1)**2
                         m4 = np.mean(partact**4, axis=1)
@@ -1085,7 +1099,7 @@ def runica(data, **kwargs):
                 lrates[step-1] = lrate
                 angledelta = 0.0
                 delta = oldwtchange.flatten()
-                change = delta @ delta
+                change = _matmul(delta, delta)
 
             # Check for restart conditions (MATLAB lines 1218-1256)
             if wts_blowup or np.isnan(change) or np.isinf(change):
@@ -1133,7 +1147,7 @@ def runica(data, **kwargs):
 
                 # Compute angle delta after step 2 (MATLAB lines 1261-1263)
                 if step > 2:
-                    cos_angle = (delta @ olddelta) / np.sqrt(change * oldchange)
+                    cos_angle = _matmul(delta, olddelta) / np.sqrt(change * oldchange)
                     cos_angle = np.clip(cos_angle, -1.0, 1.0)
                     angledelta = np.arccos(cos_angle)
 
@@ -1179,7 +1193,7 @@ def runica(data, **kwargs):
             for t in range(0, lastt, block):
 
                 # Extract and process block - NO BIAS (MATLAB line 1315)
-                u = weights @ data[:, timeperm[t:t+block]]
+                u = _matmul(weights, data[:, timeperm[t:t+block]])
 
                 # Apply logistic nonlinearity (MATLAB line 1316)
                 u = np.maximum(u, -MAX_WEIGHT)
@@ -1187,7 +1201,7 @@ def runica(data, **kwargs):
                 y = 1.0 / (1.0 + np.exp(-u))
 
                 # Natural gradient weight update (MATLAB line 1317)
-                weights = weights + lrate * (BI + (1 - 2*y) @ u.T) @ weights
+                weights = weights + lrate * _matmul(BI + _matmul(1 - 2*y, u.T), weights)
 
                 # NO BIAS UPDATE for no-bias variant
 
@@ -1214,7 +1228,7 @@ def runica(data, **kwargs):
                 lrates[step-1] = lrate
                 angledelta = 0.0
                 delta = oldwtchange.flatten()
-                change = delta @ delta
+                change = _matmul(delta, delta)
 
             # Check for restart conditions (MATLAB lines 1350-1383)
             if wts_blowup or np.isnan(change) or np.isinf(change):
@@ -1256,7 +1270,7 @@ def runica(data, **kwargs):
 
                 # Compute angle delta after step 2 (MATLAB lines 1388-1390)
                 if step > 2:
-                    cos_angle = (delta @ olddelta) / np.sqrt(change * oldchange)
+                    cos_angle = _matmul(delta, olddelta) / np.sqrt(change * oldchange)
                     cos_angle = np.clip(cos_angle, -1.0, 1.0)
                     angledelta = np.arccos(cos_angle)
 
@@ -1308,16 +1322,16 @@ def runica(data, **kwargs):
     # Make activations from sphered data (MATLAB line 1439)
     # Add back the row means removed from data before sphering (MATLAB lines 1442-1447)
     if pcaflag == 'off':
-        sr = sphere @ rowmeans
+        sr = _matmul(sphere, rowmeans)
         for r in range(ncomps):
             data[r, :] = data[r, :] + sr[r]
-        activations_unsorted = weights @ data  # MATLAB line 1447
+        activations_unsorted = _matmul(weights, data)  # MATLAB line 1447
     else:
         # For PCA case (MATLAB lines 1449-1453)
-        ser = sphere @ eigenvectors[:, :ncomps].T @ rowmeans
+        ser = _matmul(_matmul(sphere, eigenvectors[:, :ncomps].T), rowmeans)
         for r in range(ncomps):
             data[r, :] = data[r, :] + ser[r]
-        activations_unsorted = weights @ data
+        activations_unsorted = _matmul(weights, data)
 
     # Now 'activations_unsorted' are the component activations = weights*sphere*raw_data
 
@@ -1328,7 +1342,7 @@ def runica(data, **kwargs):
         if verbose:
             logger.info('Composing the eigenvector, weights, and sphere matrices '
                        f'into a single rectangular weights matrix; sphere=eye({chans})')
-        weights = weights @ sphere @ eigenvectors[:, :ncomps].T
+        weights = _matmul(_matmul(weights, sphere), eigenvectors[:, :ncomps].T)
         sphere = np.eye(urchans)
 
     # =========================================================================
@@ -1338,12 +1352,13 @@ def runica(data, **kwargs):
         logger.info('Sorting components in descending order of mean projected variance ...')
 
     # Compute inverse of unmixing matrix for backprojection (MATLAB lines 1477-1482)
+    unmixing = _matmul(weights, sphere)
     if ncomps == urchans:  # if weights are square
-        winv = np.linalg.inv(weights @ sphere)
+        winv = np.linalg.inv(unmixing)
     else:
         if verbose:
             logger.info('Using pseudo-inverse of weight matrix to rank order component projections.')
-        winv = pinv(weights @ sphere)
+        winv = finite_pinv(unmixing, solver=pinv)
 
     # Compute variances without backprojecting (MATLAB line 1486)
     # Formula from Rey Ramirez 8/07

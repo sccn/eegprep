@@ -33,7 +33,6 @@ PLACEHOLDER_ACTIONS = frozenset(
         "pop_eegplot",
         "pop_eegthresh",
         "pop_envtopo",
-        "pop_epoch",
         "pop_erpimage",
         "pop_eventstat",
         "pop_firma",

@@ -3,6 +3,7 @@
 import h5py
 import numpy as np
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
+from eegprep.functions.popfunc._file_io import normalize_icachansind
 
 def pop_loadset_h5(file_name):
     """Load EEG data from HDF5 file.
@@ -269,10 +270,9 @@ def pop_loadset_h5(file_name):
                 data_arr = np.transpose(data_arr, (2, 1, 0))
         EEG['data'] = data_arr
 
-    # subtract 1 to EEG['icachansind'] to make it 0-based (must be done before eeg_checkset)
-    # also flatten to ensure it's a 1D array for proper indexing
-    if 'icachansind' in EEG and EEG['icachansind'].size > 0:
-        EEG['icachansind'] = (EEG['icachansind'] - 1).flatten().astype(int)
+    # Convert MATLAB-loaded 1-based doubles to EEGPrep's 0-based integer indices.
+    if 'icachansind' in EEG:
+        EEG['icachansind'] = normalize_icachansind(EEG['icachansind'], matlab_one_based=True)
 
     EEG = eeg_checkset(EEG)
 

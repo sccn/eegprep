@@ -48,6 +48,17 @@ class PopResamplePythonTests(unittest.TestCase):
         np.testing.assert_allclose([event["duration"] for event in out["event"]], [1.0, 0.5, 2.0])
         np.testing.assert_allclose([event["latency"] for event in out["urevent"]], [3.5, 5.5, 8.5])
 
+    def test_resample_preserves_numpy_event_containers(self):
+        eeg = _continuous_eeg()
+        eeg["event"] = np.asarray(eeg["event"], dtype=object)
+        eeg["urevent"] = np.asarray(eeg["urevent"], dtype=object)
+
+        out = pop_resample(eeg, 50, engine="scipy")
+
+        self.assertIsInstance(out["event"], np.ndarray)
+        self.assertIsInstance(out["urevent"], np.ndarray)
+        np.testing.assert_allclose([event["latency"] for event in out["urevent"]], [3.5, 5.5, 8.5])
+
     def test_epoched_data_resamples_each_epoch_and_clears_urevents(self):
         eeg = _continuous_eeg()
         eeg["data"] = np.arange(80, dtype=np.float32).reshape(2, 20, 2)

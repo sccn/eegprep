@@ -236,7 +236,8 @@ def eeg_checkset(EEG, *checks, load_data=True):
 
         try:
             # Check if pinv(icaweights @ icasphere) ≈ icawinv
-            computed_icawinv = np.linalg.pinv(EEG['icaweights'] @ EEG['icasphere'])
+            with np.errstate(divide='ignore', over='ignore', invalid='ignore'):
+                computed_icawinv = np.linalg.pinv(EEG['icaweights'] @ EEG['icasphere'])
             mean_diff = np.mean(np.abs(computed_icawinv - EEG['icawinv']))
 
             if mean_diff < 0.0001:
@@ -256,7 +257,8 @@ def eeg_checkset(EEG, *checks, load_data=True):
                 EEG['icaweights'] = EEG['icaweights'] * scaling[:, np.newaxis]
 
                 # Recompute icawinv
-                EEG['icawinv'] = np.linalg.pinv(EEG['icaweights'] @ EEG['icasphere'])
+                with np.errstate(divide='ignore', over='ignore', invalid='ignore'):
+                    EEG['icawinv'] = np.linalg.pinv(EEG['icaweights'] @ EEG['icasphere'])
         except exception_type as e:
             logger.error("Error scaling ICA components: " + str(e))
 
@@ -408,7 +410,7 @@ def eeg_checkset(EEG, *checks, load_data=True):
         'group': str,
         'condition': str,
         'session': (str, int),
-        'comments': np.ndarray,
+        'comments': (str, np.ndarray),
         'nbchan': int,
         'trials': int,
         'pnts': int,

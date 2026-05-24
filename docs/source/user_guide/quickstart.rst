@@ -321,8 +321,8 @@ Epoching Data
     from eegprep import pop_epoch
 
     # Epoch data around event markers
-    eeg = pop_epoch(eeg, [1, 2, 3], [-1, 2])  # Events 1,2,3; -1 to 2 seconds
-    print(f"Epochs: {eeg.trials}")
+    eeg, indices = pop_epoch(eeg, ["stim"], [-1, 2])
+    print(f"Epochs: {eeg['trials']}")
 
 Re-referencing
 ---------------

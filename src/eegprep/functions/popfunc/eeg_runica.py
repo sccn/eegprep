@@ -1,4 +1,6 @@
 import numpy as np
+from ._ica_utils import flatten_ica_data, reshape_ica_activations
+from ..miscfunc.misc import finite_matmul, finite_pinv
 from ..miscfunc.pinv import pinv
 from ..sigprocfunc.runica import runica
 
@@ -24,27 +26,33 @@ def eeg_runica(EEG, posact='off', sortcomps='off', **kwargs):
         The updated EEG structure with ICA fields.
     """
     # Extract data and reshape from 3D to 2D
-    data = EEG['data'].astype('float64')
-    data = data.reshape(data.shape[0], -1)
+    data = flatten_ica_data(EEG['data'].astype('float64'))
 
     # Run runica
     weights, sphere, compvars, bias, signs, lrates = runica(data, **kwargs)
+    if not np.isfinite(weights).all() or not np.isfinite(sphere).all():
+        raise ValueError("runica(): ICA decomposition produced non-finite weights or sphering matrix.")
 
     # Update EEG structure with ICA results
     EEG['icasphere'] = sphere
     EEG['icaweights'] = weights
-    EEG['icawinv'] = pinv(weights @ sphere)
+    unmixing = finite_matmul(weights, sphere)
+    EEG['icawinv'] = finite_pinv(unmixing, solver=pinv)
+    if not np.isfinite(EEG['icawinv']).all():
+        raise ValueError("runica(): ICA decomposition produced a non-finite inverse weight matrix.")
 
     # Compute ICA activations
-    EEG['icaact'] = (weights @ sphere) @ data
+    EEG['icaact'] = finite_matmul(unmixing, data)
+    if not np.isfinite(EEG['icaact']).all():
+        raise ValueError("runica(): ICA decomposition produced non-finite activations.")
     # Reshape icaact back to 3D
-    EEG['icaact'] = EEG['icaact'].reshape(EEG['icaact'].shape[0], EEG['pnts'], EEG['trials'])
+    EEG['icaact'] = reshape_ica_activations(EEG['icaact'], EEG['pnts'], EEG['trials'])
     EEG['icachansind'] = np.arange(EEG['nbchan'])
 
     # Optionally sort components by mean descending activation variance
     if sortcomps in ('on', True):
         # Flatten icaact to 2D for variance computation
-        icaact_2d = EEG['icaact'].reshape(EEG['icaact'].shape[0], -1)
+        icaact_2d = flatten_ica_data(EEG['icaact'])
         # Compute variance metric: sum(icawinv^2) .* sum(icaact^2)
         variance_metric = np.sum(EEG['icawinv'] ** 2, axis=0) * np.sum(icaact_2d ** 2, axis=1)
         # Sort indices in descending order
@@ -57,7 +65,7 @@ def eeg_runica(EEG, posact='off', sortcomps='off', **kwargs):
     # Optionally normalize components using the same rule as runica()
     if posact in ('on', True):
         # Flatten icaact to 2D for finding max abs values
-        icaact_2d = EEG['icaact'].reshape(EEG['icaact'].shape[0], -1)
+        icaact_2d = flatten_ica_data(EEG['icaact'])
         # Find indices of max absolute values for each component
         ix = np.argmax(np.abs(icaact_2d), axis=1)
         had_flips = False
@@ -73,6 +81,6 @@ def eeg_runica(EEG, posact='off', sortcomps='off', **kwargs):
 
         if had_flips:
             # Recompute unmixing matrix
-            EEG['icaweights'] = pinv(EEG['icawinv'])
+            EEG['icaweights'] = finite_pinv(EEG['icawinv'], solver=pinv)
 
     return EEG

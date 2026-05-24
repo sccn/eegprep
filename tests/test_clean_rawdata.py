@@ -227,6 +227,10 @@ class TestCleanWindows(DebuggableTestCase):
         compare_eeg(cleaned['data'], expected['data'],
                     err_msg='clean_windows() failed vs MATLAB')
 
+    def test_clean_windows_preserves_float64(self):
+        cleaned, _ = clean_windows(deepcopy(self.EEG))
+        self.assertEqual(cleaned['data'].dtype, np.float64)
+
 
 # ------------------------------------------------------------------------------
 #                               clean_artifacts

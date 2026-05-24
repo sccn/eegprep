@@ -196,7 +196,7 @@ class TestPopSelectFunctional(unittest.TestCase):
         if int(EEG.get('trials')) > 2:
             EEG_out = pop_select(EEG, trial=[1,2])
 
-            self.assertTrue(EEG_out.get('epoch') == [])
+            self.assertEqual(np.asarray(EEG_out.get('epoch')).size, 0)
 
 
 class TestPopSelectEdgeCases(unittest.TestCase):
@@ -505,8 +505,8 @@ class TestPopSelectEdgeCases(unittest.TestCase):
         EEG_out = pop_select(EEG, channel=[0, 1, 2])  # Remove channel 3
 
         # dipfit and roi should be cleared
-        self.assertEqual(EEG_out['dipfit'], [])
-        self.assertEqual(EEG_out['roi'], [])
+        self.assertEqual(np.asarray(EEG_out['dipfit']).size, 0)
+        self.assertEqual(EEG_out['roi'], {})
 
     def test_single_trial_epoch_field_removal(self):
         """Test that epoch fields are removed from events when only one trial remains."""
@@ -520,7 +520,7 @@ class TestPopSelectEdgeCases(unittest.TestCase):
         for event in EEG_out['event']:
             self.assertNotIn('epoch', event)
         # epoch list should be empty
-        self.assertEqual(EEG_out['epoch'], [])
+        self.assertEqual(np.asarray(EEG_out['epoch']).size, 0)
 
     def test_event_latency_bounds_checking(self):
         """Test that events with invalid latencies are removed."""

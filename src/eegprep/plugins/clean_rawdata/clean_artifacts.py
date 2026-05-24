@@ -4,7 +4,6 @@ from typing import *
 import logging
 
 import numpy as np
-import warnings
 
 # Local imports from the eegprep package
 from .clean_flatlines import clean_flatlines
@@ -13,7 +12,9 @@ from .clean_channels import clean_channels
 from .clean_channels_nolocs import clean_channels_nolocs
 from .clean_asr import clean_asr
 from .clean_windows import clean_windows
+from .private.masks import mask_to_intervals
 from ...functions.miscfunc.misc import round_mat
+from ...functions.popfunc.eeg_eegrej import eeg_eegrej
 
 
 logger = logging.getLogger(__name__)
@@ -265,12 +266,8 @@ def clean_artifacts(
             # Use original_data saved before clean_asr modified EEG['data'] in place.
             sample_mask = np.sum(np.abs(original_data - BUR['data']), axis=0) < 1e-8
             del original_data
-            # Convert to intervals (start,end) inclusive, 0-based
-            padded = np.concatenate([[False], sample_mask, [False]])
-            diff = np.diff(padded.astype(int))
-            starts = np.where(diff == 1)[0]
-            ends = np.where(diff == -1)[0] - 1
-            retain_intervals = np.stack([starts, ends], axis=1)
+            # Convert retained samples to inclusive zero-based intervals.
+            retain_intervals = mask_to_intervals(sample_mask, value=True) - 1
 
             # Remove very short intervals < 5 samples
             if retain_intervals.size:
@@ -280,20 +277,9 @@ def clean_artifacts(
                     sample_mask[s:e + 1] = False
                 retain_intervals = retain_intervals[~small]
 
-            # Apply selection to EEG
-            try:
-                from eegprep import pop_select  # type: ignore
-                # Convert to 1-based indexing (MATLAB convention) for pop_select
-                EEG = pop_select(EEG, point=retain_intervals + 1)
-            except Exception:
-                # Manual trimming
-                EEG['data'] = EEG['data'][:, sample_mask]
-                EEG['pnts'] = EEG['data'].shape[1]
-                EEG['xmax'] = EEG['xmin'] + (EEG['pnts'] - 1) / EEG['srate']
-                # Wipe inconsistent fields
-                for fld in ['event', 'urevent', 'epoch', 'icaact', 'reject',
-                            'stats', 'specdata', 'specicaact']:
-                    EEG[fld] = [] if fld in EEG else []
+            rejected_intervals = mask_to_intervals(sample_mask, value=False)
+            if rejected_intervals.size:
+                EEG = eeg_eegrej(EEG, rejected_intervals)
 
             # Update mask in EEG.etc
             EEG['etc']['clean_sample_mask'] = sample_mask
