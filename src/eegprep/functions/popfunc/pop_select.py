@@ -167,7 +167,11 @@ def _pop_select_apply(EEG, **kwargs):
             raise ValueError('Select channels by name OR by type, not both')
 
         if _decode_list(g['channel']):
-            inds, _ = eeg_decodechan(EEG, g['channel'], 'labels', True)
+            ch_list = _decode_list(g['channel'])
+            if all(isinstance(c, (int, np.integer)) for c in ch_list):
+                inds = [int(c) for c in ch_list]
+            else:
+                inds, _ = eeg_decodechan(EEG, g['channel'], 'labels', True)
             # show warning if not all channels are found and error if no channels are found
             if len(inds) != len(g['channel']):
                 print(f"Warning: {len(g['channel'])-len(inds)} channels not found")
@@ -177,7 +181,11 @@ def _pop_select_apply(EEG, **kwargs):
             chan_selected_flag[np.array(inds, dtype=int)] = True
 
         if _decode_list(g['nochannel']):
-            inds, _ = eeg_decodechan(EEG, g['nochannel'], 'labels', True)
+            nc_list = _decode_list(g['nochannel'])
+            if all(isinstance(c, (int, np.integer)) for c in nc_list):
+                inds = [int(c) for c in nc_list]
+            else:
+                inds, _ = eeg_decodechan(EEG, g['nochannel'], 'labels', True)
             chan_selected_flag[np.array(inds, dtype=int)] = False
             # show warning if not all channels are found and error if no channels are found
             if len(inds) != len(g['nochannel']):
@@ -448,8 +456,10 @@ def _pop_select_apply(EEG, **kwargs):
             removedchans = []
         elif isinstance(removedchans, dict):
             removedchans = [removedchans]
+        elif isinstance(removedchans, np.ndarray):
+            removedchans = list(removedchans)
         else:
-            removedchans = list(removedchans or [])
+            removedchans = list(removedchans) if removedchans else []
         removed = np.setdiff1d(np.arange(nbchan), chan_idx)
         removedchans.extend(copy.deepcopy(chanlocs[int(index)]) for index in removed.tolist())
         chaninfo["removedchans"] = removedchans
