@@ -3,6 +3,8 @@
 import unittest
 import sys
 import os
+from unittest import mock
+
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
@@ -14,8 +16,10 @@ if test_dir not in sys.path:
 
 try:
     # Try pytest-style relative import first
+    from . import fixtures as fixtures_module
     from .fixtures import (
         mpl_use_agg,
+        matlab_engine_available,
         rng_seed,
         create_test_eeg,
         create_test_eeg_with_ica,
@@ -26,8 +30,10 @@ try:
     )
 except (ImportError, ValueError):
     # Fallback for unittest discovery
+    import fixtures as fixtures_module
     from fixtures import (
         mpl_use_agg,
+        matlab_engine_available,
         rng_seed,
         create_test_eeg,
         create_test_eeg_with_ica,
@@ -165,6 +171,18 @@ class TestFixturesFunctions(unittest.TestCase):
         self.assertEqual(eeg['nbchan'], 8)
         self.assertEqual(eeg['pnts'], 250)
         self.assertEqual(eeg['data'].shape, (8, 250))
+
+    def test_matlab_engine_available_returns_false_when_parent_package_missing(self):
+        """Missing MATLAB package should skip tests instead of failing collection."""
+        with (
+            mock.patch.dict(os.environ, {'EEGPREP_SKIP_MATLAB': '0'}),
+            mock.patch.object(
+                fixtures_module.importlib.util,
+                "find_spec",
+                side_effect=ModuleNotFoundError("No module named 'matlab'"),
+            ),
+        ):
+            self.assertFalse(matlab_engine_available())
 
 
 class TestContextManager(unittest.TestCase):

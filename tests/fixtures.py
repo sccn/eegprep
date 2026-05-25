@@ -22,7 +22,10 @@ def matlab_engine_available():
     if os.environ.get('EEGPREP_SKIP_MATLAB', '0') == '1':
         return False
 
-    return importlib.util.find_spec("matlab.engine") is not None
+    try:
+        return importlib.util.find_spec("matlab.engine") is not None
+    except ModuleNotFoundError:
+        return False
 
 
 def skip_without_matlab(test_func):
