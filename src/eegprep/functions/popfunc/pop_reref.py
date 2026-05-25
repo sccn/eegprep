@@ -92,10 +92,7 @@ def pop_reref(
             options.update(gui_result)
         elif ref is _UNSET:
             ref = []
-        outputs = [
-            pop_reref(item, ref, gui=False, renderer=renderer, return_com=False, **options)
-            for item in EEG
-        ]
+        outputs = [pop_reref(item, ref, gui=False, renderer=renderer, return_com=False, **options) for item in EEG]
         com = _history_command(ref, _history_options(options))
         return (outputs, com) if return_com else outputs
 
@@ -316,9 +313,7 @@ def _resolve_options(EEG: dict, ref: Any, options: dict[str, Any]) -> dict[str, 
         "refica": refica,
         "huber": huber,
         "interpchan": interpchan,
-        "history_options": {
-            key: value for key, value in _history_options(options).items()
-        },
+        "history_options": {key: value for key, value in _history_options(options).items()},
     }
 
 
@@ -402,9 +397,7 @@ def _remove_channels_by_labels(EEG: dict, labels: list[str]) -> dict:
     labels_lower = {label.lower() for label in labels}
     chanlocs = _chanlocs_as_list(EEG.get("chanlocs", []))
     remove_indices = [
-        index
-        for index, chan in enumerate(chanlocs)
-        if str(chan.get("labels", "")).lower() in labels_lower
+        index for index, chan in enumerate(chanlocs) if str(chan.get("labels", "")).lower() in labels_lower
     ]
     if not remove_indices:
         return EEG
@@ -491,19 +484,12 @@ def _infer_removed_channels(EEG: dict) -> list[dict[str, Any]]:
     urchan_types = [str(chan.get("type", "")).strip().lower() for chan in urchanlocs]
     require_eeg_type = all(chan_types) and all(urchan_types)
     current_labels = {
-        str(chan.get("labels", "")).lower()
-        for chan in chanlocs
-        if _is_referenceable_eeg(chan, require_eeg_type)
+        str(chan.get("labels", "")).lower() for chan in chanlocs if _is_referenceable_eeg(chan, require_eeg_type)
     }
     inferred = []
     for chan in urchanlocs:
         label = str(chan.get("labels", "")).lower()
-        if (
-            label
-            and label not in current_labels
-            and _is_referenceable_eeg(chan, require_eeg_type)
-            and _has_xyz(chan)
-        ):
+        if label and label not in current_labels and _is_referenceable_eeg(chan, require_eeg_type) and _has_xyz(chan):
             inferred.append(copy.deepcopy(chan))
     return inferred
 
@@ -585,9 +571,7 @@ def _update_ica(
         EEG["icaact"] = np.array([])
 
     if resolved["interpchan"]:
-        logger.warning(
-            "Removing ICA decomposition because interpolation changed the re-referenced channel set."
-        )
+        logger.warning("Removing ICA decomposition because interpolation changed the re-referenced channel set.")
         _clear_ica(EEG)
         return
 
@@ -722,11 +706,7 @@ def _gui_reflocs(EEG: dict, text: str) -> list[dict[str, Any]]:
 
 def _reference_nodatchans(EEG: dict) -> list[dict[str, Any]]:
     locs = _chanlocs_as_list(EEG.get("chaninfo", {}).get("nodatchans", []))
-    return [
-        loc
-        for loc in locs
-        if str(loc.get("type", "")).strip().lower() != "fid"
-    ]
+    return [loc for loc in locs if str(loc.get("type", "")).strip().lower() != "fid"]
 
 
 def _current_reference(EEG: dict) -> str:

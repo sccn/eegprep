@@ -8,8 +8,8 @@ import numpy as np
 from scipy.signal import resample_poly
 import random
 from ...functions.popfunc.pop_loadset import pop_loadset
-import numpy as np
 from numpy.fft import fft, ifft
+
 
 def eeg_autocorr_welch(EEG, pct_data=100):
     """Compute autocorrelation of EEG ICA components using Welch method.
@@ -33,9 +33,11 @@ def eeg_autocorr_welch(EEG, pct_data=100):
     # setup constants
     ncomp = EEG['icaweights'].shape[0]
     n_points = min(EEG['pnts'], EEG['srate'] * 3)
-    nfft = 2**(int(np.log2(n_points * 2 - 1)) + 1)
+    nfft = 2 ** (int(np.log2(n_points * 2 - 1)) + 1)
     cutoff = (EEG['pnts'] // n_points) * n_points
-    index = np.add.outer(np.ceil(np.arange(0, cutoff - n_points + 1, n_points // 2)).astype(int), np.arange(n_points)).astype(int)
+    index = np.add.outer(
+        np.ceil(np.arange(0, cutoff - n_points + 1, n_points // 2)).astype(int), np.arange(n_points)
+    ).astype(int)
     index = index.T
 
     # separate data segments
@@ -52,15 +54,29 @@ def eeg_autocorr_welch(EEG, pct_data=100):
     # calc autocorrelation
     ac = np.zeros((ncomp, nfft))
     for it in range(ncomp):
-        fftpow = np.mean(np.abs(fft(segments[it, :, :], nfft, axis=0))**2, axis=1)
+        fftpow = np.mean(np.abs(fft(segments[it, :, :], nfft, axis=0)) ** 2, axis=1)
         ac[it, :] = np.real(ifft(fftpow, axis=0)).T
 
     # normalizefft
     if EEG['pnts'] < EEG['srate']:
-        ac = np.concatenate([ac[:, :EEG['pnts']] / (ac[:, 0][:, np.newaxis] * np.arange(n_points, 0, -1) / n_points),
-                             np.zeros((ncomp, int(EEG['srate']) - n_points + 1))], axis=1)
+        ac = np.concatenate(
+            [
+                ac[:, : EEG['pnts']] / (ac[:, 0][:, np.newaxis] * np.arange(n_points, 0, -1) / n_points),
+                np.zeros((ncomp, int(EEG['srate']) - n_points + 1)),
+            ],
+            axis=1,
+        )
     else:
-        ac = ac[:, :int(EEG['srate']) + 1] / (ac[:, 0][:, np.newaxis] * np.concatenate((np.arange(n_points, n_points - int(EEG['srate']), -1), np.array([max(1, n_points - int(EEG['srate']))]))) / n_points)
+        ac = ac[:, : int(EEG['srate']) + 1] / (
+            ac[:, 0][:, np.newaxis]
+            * np.concatenate(
+                (
+                    np.arange(n_points, n_points - int(EEG['srate']), -1),
+                    np.array([max(1, n_points - int(EEG['srate']))]),
+                )
+            )
+            / n_points
+        )
 
     # resample to 1 second at 100 samples/sec
     ac = resample_poly(ac.T, up=100, down=EEG['srate']).T
@@ -68,15 +84,17 @@ def eeg_autocorr_welch(EEG, pct_data=100):
 
     return ac
 
+
 def test_eeg_autocorr_welch():
     """Test function for eeg_autocorr_welch."""
     eeglab_file_path = './eeglab_data_with_ica_tmp.set'
     EEG = pop_loadset(eeglab_file_path)
 
-    psdmed = eeg_autocorr_welch(EEG, 100)
+    eeg_autocorr_welch(EEG, 100)
 
     # print information about psdmed
     # print(psdmed.shape)
     # print(psdmed)
+
 
 # test_eeg_autocorr_welch()

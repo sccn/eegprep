@@ -7,6 +7,7 @@ import warnings
 # Try importing colorama, handle if missing
 try:
     import colorama
+
     _COLORAMA_AVAILABLE = True
     # Initialize colorama for Windows compatibility
     colorama.init()
@@ -47,8 +48,7 @@ class ColoredWarningFormatter(logging.Formatter):
                 logging.CRITICAL: logging.Formatter(self.log_format_error, datefmt=datefmt, style=style),
             }
         else:
-            self.formats = {} # No special formats if no colorama
-
+            self.formats = {}  # No special formats if no colorama
 
     def format(self, record):
         """Format the record with color if applicable."""
@@ -83,18 +83,16 @@ def setup_logging(level=logging.INFO, only_if_unset=True):
         If True (default), configuration is skipped if the
         root logger already has handlers configured.
     """
-    root_logger = logging.getLogger() # Get the root logger
+    root_logger = logging.getLogger()  # Get the root logger
 
     # Check if handlers already exist and if we should skip configuration
     if only_if_unset and root_logger.hasHandlers():
-        logging.getLogger(__name__).debug(
-            "Root logger already has handlers, skipping setup_logging."
-        )
-        return # Skip configuration
+        logging.getLogger(__name__).debug("Root logger already has handlers, skipping setup_logging.")
+        return  # Skip configuration
 
     # --- Proceed with configuration ---
     # Set level *after* checking handlers, so we don't change level if skipping.
-    root_logger.setLevel(level) # Set the minimum level for the logger itself
+    root_logger.setLevel(level)  # Set the minimum level for the logger itself
 
     # Configure console handler
     console_handler = logging.StreamHandler(sys.stderr)
@@ -104,19 +102,17 @@ def setup_logging(level=logging.INFO, only_if_unset=True):
         formatter = ColoredWarningFormatter()
         console_handler.setFormatter(formatter)
     elif not _COLORAMA_AVAILABLE:
-         warnings.warn(
-             "Optional dependency 'colorama' not found. Log colors will be disabled. "
-             "Install with: pip install colorama",
-             ImportWarning
-         )
-         # Fallback to standard formatter if colorama is missing
-         formatter = logging.Formatter(ColoredWarningFormatter.log_format)
-         console_handler.setFormatter(formatter)
+        warnings.warn(
+            "Optional dependency 'colorama' not found. Log colors will be disabled. Install with: pip install colorama",
+            ImportWarning,
+        )
+        # Fallback to standard formatter if colorama is missing
+        formatter = logging.Formatter(ColoredWarningFormatter.log_format)
+        console_handler.setFormatter(formatter)
     else:
         # Use standard formatter if not a TTY (e.g., redirecting to a file)
         formatter = logging.Formatter(ColoredWarningFormatter.log_format)
         console_handler.setFormatter(formatter)
-
 
     # Set the level for the handler (controls what messages the handler *outputs*)
     console_handler.setLevel(level)

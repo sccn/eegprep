@@ -3,7 +3,6 @@
 import scipy.io
 import numpy as np
 import os
-import h5py
 from eegprep.functions.popfunc._file_io import normalize_icachansind
 from eegprep.functions.popfunc.pop_loadset_h5 import pop_loadset_h5
 # Allows access using . notation
@@ -16,11 +15,13 @@ from eegprep.functions.popfunc.pop_loadset_h5 import pop_loadset_h5
 #         self.__dict__[key] = value
 
 default_empty = np.array([])
-#default_empty = None
+# default_empty = None
+
 
 def loadset(file_path):
     """Load EEGLAB dataset from file (alias for pop_loadset)."""
     return pop_loadset(file_path)
+
 
 def pop_loadset(file_path=None):
     """Load EEGLAB dataset from .set or .mat file.
@@ -39,7 +40,6 @@ def pop_loadset(file_path=None):
 
     if file_path is None:
         raise ValueError("file_path argument is required")
-    from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 
     if file_path is None:
         raise ValueError("file_path argument is required")
@@ -85,7 +85,7 @@ def pop_loadset(file_path=None):
         EEG = new_check(EEG)
         if 'EEG' in EEG:
             EEG = EEG['EEG']
-    except Exception as e:
+    except Exception:
         EEG = pop_loadset_h5(file_path)
         loaded_with_h5 = True
 
@@ -121,14 +121,16 @@ def pop_loadset(file_path=None):
 
     return EEG
 
+
 def test_pop_loadset():
     """Test the pop_loadset function with a sample file."""
     file_path = './tmp2.set'
-    file_path = '/System/Volumes/Data/data/data/STUDIES/STERN/S04/Memorize.set' #'./eeglab_data_with_ica_tmp.set'
+    file_path = '/System/Volumes/Data/data/data/STUDIES/STERN/S04/Memorize.set'  #'./eeglab_data_with_ica_tmp.set'
     EEG = pop_loadset(file_path)
 
     # print the keys of the EEG dictionary
     print(EEG.keys())
+
 
 if __name__ == "__main__":
     test_pop_loadset()

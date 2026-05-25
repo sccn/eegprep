@@ -15,7 +15,14 @@ logger = logging.getLogger(__name__)
 curhost = socket.gethostname()
 
 # add your host to this list if you want to run things in parallel
-slow_tests_hosts_only = ['ck-carbon', 'MacBook-Pro-10.local', 'MacBook-Pro-10.lan', 'sccn-delorme.ucsd.edu','jamming', 'DESKTOP-TGLFTPM']
+slow_tests_hosts_only = [
+    'ck-carbon',
+    'MacBook-Pro-10.local',
+    'MacBook-Pro-10.lan',
+    'sccn-delorme.ucsd.edu',
+    'jamming',
+    'DESKTOP-TGLFTPM',
+]
 
 # add your host to this list if you want to run things in parallel
 if curhost in ['ck-carbon', 'MacBook-Pro-10.local', 'MacBook-Pro-10.lan', 'jamming', 'sccn-delorme.ucsd.edu']:
@@ -35,11 +42,11 @@ studies = [
     #     'subjects': ['001', '002'],
     #     'runs': [],
     # },
-   {
-       'studyname': 'ds002680',
-       'subjects': ['002'],  # first subject, has 2 sessions
-       'runs': [],  # needs to be >= 10 otherwise MATLAB-side filtering by run fails
-   }
+    {
+        'studyname': 'ds002680',
+        'subjects': ['002'],  # first subject, has 2 sessions
+        'runs': [],  # needs to be >= 10 otherwise MATLAB-side filtering by run fails
+    }
 ]
 
 if __name__ == '__main__':
@@ -55,15 +62,15 @@ if __name__ == '__main__':
     # run up to and including the given numeric stage
     # (1=import, 2=select channels, 3=resample, ... up to and including 14=CAR)
     StageNames = {
-        1:  'BIDS Import',
-        2:  'ChannelSelection',
-        3:  'Resampling',
-        4:  'FlatlineRemoval',
-        5:  'HighpassFilter',
-        6:  'BadChannelRemoval',
-        7:  'BurstRemoval (ASR)',
-        8:  'BadWindowRemoval',
-        9:  'PICARD',
+        1: 'BIDS Import',
+        2: 'ChannelSelection',
+        3: 'Resampling',
+        4: 'FlatlineRemoval',
+        5: 'HighpassFilter',
+        6: 'BadChannelRemoval',
+        7: 'BurstRemoval (ASR)',
+        8: 'BadWindowRemoval',
+        9: 'PICARD',
         10: 'ICLabel',
         11: 'Reinterpolate',
         12: 'Epoching',
@@ -90,8 +97,9 @@ if __name__ == '__main__':
         candidates = [studyname, studyname + '-download']
         retain = [d for d in os.listdir(root_path) if d in candidates]
         if len(retain) == 0:
-            raise ValueError(f"None of the candidate study folders {candidates} was "
-                             f"found in {root_path}. Cannot generate report.")
+            raise ValueError(
+                f"None of the candidate study folders {candidates} was found in {root_path}. Cannot generate report."
+            )
 
         study_path = os.path.join(root_path, retain[0])
 
@@ -102,12 +110,15 @@ if __name__ == '__main__':
                 study_path,
                 ReservePerJob=reservation,
                 # just the first few subjects of the main task
-                Subjects=subjects, Runs=runs,
+                Subjects=subjects,
+                Runs=runs,
                 # reuse results for for quicker re-runs
-                SkipIfPresent=True, UseHashes=True, MinimizeDiskUsage=False,
+                SkipIfPresent=True,
+                UseHashes=True,
+                MinimizeDiskUsage=False,
                 # parse events from BIDS, use value column
-                ApplyEvents=True, EventColumn='value', # <- needed for study ds3061 to match pop_importbids() in MATLAB
-
+                ApplyEvents=True,
+                EventColumn='value',  # <- needed for study ds3061 to match pop_importbids() in MATLAB
                 # determine arguments in accordance with to_stage
                 OnlyChannelsWithPosition=True if to_stage >= 2 else False,
                 OnlyModalities=() if to_stage >= 2 else (),
@@ -124,19 +135,17 @@ if __name__ == '__main__':
                 EpochEvents=[] if to_stage >= 12 else None,
                 EpochBaseline=[-0.2, 0] if to_stage >= 13 else None,
                 CommonAverageReference=to_stage >= 14,
-
                 # misc params
                 EpochLimits=[-0.2, 0.5],
                 # return results so we can compare things
-                ReturnData=True)
+                ReturnData=True,
+            )
 
             print(f"Running bids_pipeline() on {study_path} to stage {to_stage} ({StageNames[to_stage]})...")
             eeglab = get_eeglab('MATLAB')
             result_paths = eeglab.bids_pipeline(
-                study_path,
-                [f'sub-{s}' for s in subjects],
-                [f'{r}' for r in runs],
-                to_stage)
+                study_path, [f'sub-{s}' for s in subjects], [f'{r}' for r in runs], to_stage
+            )
 
             with eeg_checkset_strict_mode(False):
                 ALLEEG_mat = [pop_loadset(p.item()) for p in result_paths.flatten()]
@@ -172,9 +181,9 @@ if __name__ == '__main__':
             results[to_stage]['all'].extend(stage_errs)
 
     # Print summary table
-    print("\n\n" + "="*80)
+    print("\n\n" + "=" * 80)
     print("Summary of maximum absolute errors (in µV) between Python and MATLAB results:")
-    print("="*80)
+    print("=" * 80)
 
     # Build header
     header = ["Stage", "StageName", "MaxErr(all)"]
@@ -204,5 +213,5 @@ if __name__ == '__main__':
 
         print("\t".join(row))
 
-    print("="*80)
+    print("=" * 80)
     print("\nDone.")

@@ -151,14 +151,18 @@ def _save_image(path: pathlib.Path, image: RgbaImage) -> None:
         raw.append(0)
         raw.extend(image.pixels[start : start + row_length])
     ihdr = struct.pack(">IIBBBBB", image.width, image.height, 8, 6, 0, 0, 0)
-    png = PNG_SIGNATURE + _png_chunk(b"IHDR", ihdr) + _png_chunk(b"IDAT", zlib.compress(bytes(raw))) + _png_chunk(b"IEND", b"")
+    png = (
+        PNG_SIGNATURE
+        + _png_chunk(b"IHDR", ihdr)
+        + _png_chunk(b"IDAT", zlib.compress(bytes(raw)))
+        + _png_chunk(b"IEND", b"")
+    )
     path.write_bytes(png)
 
 
 def _pad_to_height(image: RgbaImage, height: int) -> RgbaImage:
     if image.height == height:
         return image
-    row_length = image.width * 4
     padding = bytes((255, 255, 255, 255)) * image.width * (height - image.height)
     return RgbaImage(width=image.width, height=height, pixels=image.pixels + padding)
 
@@ -174,9 +178,7 @@ def write_side_by_side(reference: RgbaImage, candidate: RgbaImage, path: pathlib
         out_row = row_index * output_width * 4
         ref_row = row_index * reference.width * 4
         cand_row = row_index * candidate.width * 4
-        output[out_row : out_row + reference.width * 4] = reference.pixels[
-            ref_row : ref_row + reference.width * 4
-        ]
+        output[out_row : out_row + reference.width * 4] = reference.pixels[ref_row : ref_row + reference.width * 4]
         cand_start = out_row + (reference.width + 16) * 4
         output[cand_start : cand_start + candidate.width * 4] = candidate.pixels[
             cand_row : cand_row + candidate.width * 4
@@ -311,9 +313,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"mean_abs_delta: {result.mean_abs_delta:.6f}")
     print(f"different_pixel_ratio: {result.different_pixel_ratio:.6f}")
 
-    if args.fail_threshold is not None and (
-        result.size_mismatch or result.mean_abs_delta > args.fail_threshold
-    ):
+    if args.fail_threshold is not None and (result.size_mismatch or result.mean_abs_delta > args.fail_threshold):
         return 1
     return 0
 

@@ -2,12 +2,8 @@
 
 from picard import picard
 import numpy as np
-import os
-import tempfile
-from .pop_saveset import pop_saveset
-from .pop_loadset import pop_loadset
-from ..adminfunc.eeglabcompat import temp_dir, MatlabWrapper
 from ..miscfunc.pinv import pinv
+
 
 def eeg_picard(EEG, engine=None, posact='off', sortcomps='off', **kwargs):
     """Perform ICA decomposition using Picard algorithm.
@@ -43,14 +39,14 @@ def eeg_picard(EEG, engine=None, posact='off', sortcomps='off', **kwargs):
         # Parameters to match MATLAB picard defaults for reproducible parity
         # Using identity w_init ensures deterministic results matching MATLAB
         params = {
-            'ortho': False,           # Use standard Picard (not Picard-O)
-            'fun': 'tanh',            # Score function (matches MATLAB 'logcosh')
+            'ortho': False,  # Use standard Picard (not Picard-O)
+            'fun': 'tanh',  # Score function (matches MATLAB 'logcosh')
             'verbose': True,
-            'm': 10,                  # L-BFGS memory size
-            'max_iter': 512,          # Match MATLAB python_defaults
-            'tol': 1e-7,              # Match MATLAB python_defaults
-            'centering': True,        # Center data before ICA
-            'whiten': True,           # Whiten data (PCA)
+            'm': 10,  # L-BFGS memory size
+            'max_iter': 512,  # Match MATLAB python_defaults
+            'tol': 1e-7,  # Match MATLAB python_defaults
+            'centering': True,  # Center data before ICA
+            'whiten': True,  # Whiten data (PCA)
             'w_init': np.eye(data.shape[0]),  # Identity init for reproducibility
         }
         params.update(kwargs)
@@ -81,8 +77,7 @@ def eeg_picard(EEG, engine=None, posact='off', sortcomps='off', **kwargs):
         # Flatten icaact to 2D for variance computation
         icaact_2d = EEG['icaact'].reshape(EEG['icaact'].shape[0], -1)
         # Compute variance metric: sum(icawinv^2) .* sum(icaact^2)
-        variance_metric = np.sum(EEG['icawinv'] ** 2, axis=0) * np.sum(
-            icaact_2d ** 2, axis=1)
+        variance_metric = np.sum(EEG['icawinv'] ** 2, axis=0) * np.sum(icaact_2d**2, axis=1)
         # Sort indices in descending order
         windex = np.argsort(variance_metric)[::-1]
         # Reorder components

@@ -298,10 +298,13 @@ class PopInterpGuiSpecTests(unittest.TestCase):
         with patch("eegprep.functions.guifunc.qt.pop_chansel", return_value=([1, 2], "M1 M2", ["M1", "M2"])):
             QtDialogRenderer._select_interp_channels(None, target, params)
 
-        self.assertEqual(QtDialogRenderer._read_widget(target), {
-            "chans": [{"labels": "M1"}, {"labels": "M2"}],
-            "chanstr": "EEG.chaninfo.removedchans([1 2])",
-        })
+        self.assertEqual(
+            QtDialogRenderer._read_widget(target),
+            {
+                "chans": [{"labels": "M1"}, {"labels": "M2"}],
+                "chanstr": "EEG.chaninfo.removedchans([1 2])",
+            },
+        )
 
     def test_interp_selectchan_callback_uses_alleeg_subset_history_expression(self):
         target = _Target()
@@ -317,10 +320,13 @@ class PopInterpGuiSpecTests(unittest.TestCase):
         ):
             QtDialogRenderer._select_interp_channels(None, target, params)
 
-        self.assertEqual(QtDialogRenderer._read_widget(target), {
-            "chans": [{"labels": "Pz"}],
-            "chanstr": "ALLEEG(1).chanlocs([2])",
-        })
+        self.assertEqual(
+            QtDialogRenderer._read_widget(target),
+            {
+                "chans": [{"labels": "Pz"}],
+                "chanstr": "ALLEEG(1).chanlocs([2])",
+            },
+        )
 
     def test_interp_uselist_callback_uses_alleeg_full_history_expression(self):
         target = _Target()
@@ -333,10 +339,13 @@ class PopInterpGuiSpecTests(unittest.TestCase):
         with patch("eegprep.functions.guifunc.qt._require_qt", return_value=(object(), _FakeQtWidgets)):
             QtDialogRenderer._select_interp_channels(None, target, params)
 
-        self.assertEqual(QtDialogRenderer._read_widget(target), {
-            "chans": [{"labels": "Pz"}, {"labels": "Oz"}],
-            "chanstr": "ALLEEG(1).chanlocs",
-        })
+        self.assertEqual(
+            QtDialogRenderer._read_widget(target),
+            {
+                "chans": [{"labels": "Pz"}, {"labels": "Oz"}],
+                "chanstr": "ALLEEG(1).chanlocs",
+            },
+        )
 
 
 class _Target:

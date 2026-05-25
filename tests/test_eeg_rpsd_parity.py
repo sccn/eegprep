@@ -7,6 +7,7 @@ Multithreading is disabled for deterministic numerical results.
 
 # Disable multithreading for deterministic numerical results
 import os
+
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
 os.environ["NUMEXPR_NUM_THREADS"] = "1"
@@ -72,8 +73,13 @@ class TestEegRpsdParity(unittest.TestCase):
         # Compare results
         # Max absolute diff: 0.00017, Mismatched: 1/2048 (0.05%)
         # Max relative diff: 1.14e-05
-        np.testing.assert_allclose(py_result, ml_result, rtol=2e-5, atol=1e-8,
-                                   err_msg="eeg_rpsd results differ beyond tolerance (default nfreqs)")
+        np.testing.assert_allclose(
+            py_result,
+            ml_result,
+            rtol=2e-5,
+            atol=1e-8,
+            err_msg="eeg_rpsd results differ beyond tolerance (default nfreqs)",
+        )
 
     def test_parity_custom_nfreqs_100(self):
         """Test parity with MATLAB using nfreqs=100."""
@@ -107,8 +113,9 @@ class TestEegRpsdParity(unittest.TestCase):
         # Compare results
         # Max absolute diff: 0.00017, Mismatched: 1/2048 (0.05%)
         # Max relative diff: 1.14e-05
-        np.testing.assert_allclose(py_result, ml_result, rtol=2e-5, atol=1e-8,
-                                   err_msg="eeg_rpsd results differ beyond tolerance (nfreqs=100)")
+        np.testing.assert_allclose(
+            py_result, ml_result, rtol=2e-5, atol=1e-8, err_msg="eeg_rpsd results differ beyond tolerance (nfreqs=100)"
+        )
 
     def test_parity_custom_nfreqs_50(self):
         """Test parity with MATLAB using nfreqs=50."""
@@ -142,8 +149,9 @@ class TestEegRpsdParity(unittest.TestCase):
         # Compare results
         # Max absolute diff: ~0.0002, Mismatched: ~1/1024 (0.1%)
         # Max relative diff: ~1.14e-05
-        np.testing.assert_allclose(py_result, ml_result, rtol=2e-5, atol=1e-8,
-                                   err_msg="eeg_rpsd results differ beyond tolerance (nfreqs=50)")
+        np.testing.assert_allclose(
+            py_result, ml_result, rtol=2e-5, atol=1e-8, err_msg="eeg_rpsd results differ beyond tolerance (nfreqs=50)"
+        )
 
     def test_parity_with_icl_processing(self):
         """Test parity with MATLAB including ICL processing (notch undo + normalization)."""
@@ -215,8 +223,9 @@ class TestEegRpsdParity(unittest.TestCase):
         # Compare results
         # Max absolute diff: TBD
         # Max relative diff: TBD
-        np.testing.assert_allclose(py_result, ml_result, rtol=2e-5, atol=1e-8,
-                                   err_msg="eeg_rpsd with ICL processing differs beyond tolerance")
+        np.testing.assert_allclose(
+            py_result, ml_result, rtol=2e-5, atol=1e-8, err_msg="eeg_rpsd with ICL processing differs beyond tolerance"
+        )
 
 
 if __name__ == '__main__':

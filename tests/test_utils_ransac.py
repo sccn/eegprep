@@ -101,14 +101,12 @@ class TestCalcProjector(unittest.TestCase):
         """Set up test fixtures with synthetic channel locations."""
         # Create synthetic 3D channel locations (spherical coordinates)
         self.n_channels = 8
-        theta = np.linspace(0, 2*np.pi, self.n_channels, endpoint=False)
-        phi = np.pi/4  # Fixed elevation
+        theta = np.linspace(0, 2 * np.pi, self.n_channels, endpoint=False)
+        phi = np.pi / 4  # Fixed elevation
 
-        self.locs = np.column_stack([
-            np.cos(theta) * np.cos(phi),
-            np.sin(theta) * np.cos(phi),
-            np.sin(phi) * np.ones(self.n_channels)
-        ])
+        self.locs = np.column_stack(
+            [np.cos(theta) * np.cos(phi), np.sin(theta) * np.cos(phi), np.sin(phi) * np.ones(self.n_channels)]
+        )
 
         # Test parameters
         self.num_samples = 5
@@ -117,6 +115,7 @@ class TestCalcProjector(unittest.TestCase):
 
     def test_basic_projector_calculation(self):
         """Test basic projector matrix calculation."""
+
         # Mock the sphericalSplineInterpolate function
         # Input: src_locs (3, subset_size), dest_locs (3, n_channels)
         # Output: W (n_channels, subset_size)
@@ -125,14 +124,10 @@ class TestCalcProjector(unittest.TestCase):
             n_dest = dest_locs.shape[1]  # n_channels (columns in transposed input)
             return np.random.randn(n_dest, n_src), None
 
-        with patch('eegprep.plugins.clean_rawdata.private.ransac.sphericalSplineInterpolate', side_effect=mock_interp_func) as mock_interp:
-
-            result = calc_projector(
-                self.locs,
-                self.num_samples,
-                self.subset_size,
-                stream=self.rng
-            )
+        with patch(
+            'eegprep.plugins.clean_rawdata.private.ransac.sphericalSplineInterpolate', side_effect=mock_interp_func
+        ) as mock_interp:
+            result = calc_projector(self.locs, self.num_samples, self.subset_size, stream=self.rng)
 
         # Check output shape
         expected_shape = (self.n_channels, self.n_channels * self.num_samples)
@@ -143,13 +138,15 @@ class TestCalcProjector(unittest.TestCase):
 
     def test_deterministic_with_fixed_stream(self):
         """Test that results are deterministic with fixed random stream."""
+
         def mock_interp_func(src_locs, dest_locs):
             n_src = src_locs.shape[1]  # subset_size
             n_dest = dest_locs.shape[1]  # n_channels
             return np.ones((n_dest, n_src)), None
 
-        with patch('eegprep.plugins.clean_rawdata.private.ransac.sphericalSplineInterpolate', side_effect=mock_interp_func) as mock_interp:
-
+        with patch(
+            'eegprep.plugins.clean_rawdata.private.ransac.sphericalSplineInterpolate', side_effect=mock_interp_func
+        ):
             rng1 = np.random.RandomState(999)
             rng2 = np.random.RandomState(999)
 
@@ -160,14 +157,16 @@ class TestCalcProjector(unittest.TestCase):
 
     def test_default_random_stream(self):
         """Test that default random stream is used when none provided."""
+
         def mock_interp_func(src_locs, dest_locs):
             n_src = src_locs.shape[1]  # subset_size
             n_dest = dest_locs.shape[1]  # n_channels
             # Return deterministic values for reproducible test
             return np.ones((n_dest, n_src)), None
 
-        with patch('eegprep.plugins.clean_rawdata.private.ransac.sphericalSplineInterpolate', side_effect=mock_interp_func) as mock_interp:
-
+        with patch(
+            'eegprep.plugins.clean_rawdata.private.ransac.sphericalSplineInterpolate', side_effect=mock_interp_func
+        ):
             # Call without providing stream - should use default seed
             result1 = calc_projector(self.locs, 2, 2)
             result2 = calc_projector(self.locs, 2, 2)
@@ -178,22 +177,18 @@ class TestCalcProjector(unittest.TestCase):
     def test_matlab_subroutine(self):
         """Test using MATLAB subroutine."""
         mock_matlab = MagicMock()
+
         def mock_matlab_interp(src_locs, dest_locs):
             n_src = src_locs.shape[1]  # MATLAB uses transposed input
             n_dest = dest_locs.shape[1]
             return np.random.randn(n_dest, n_src), None
+
         mock_matlab.sphericalSplineInterpolate.side_effect = mock_matlab_interp
 
         with patch('eegprep.plugins.clean_rawdata.private.ransac.get_eeglab') as mock_get_eeglab:
             mock_get_eeglab.return_value = mock_matlab
 
-            result = calc_projector(
-                self.locs,
-                self.num_samples,
-                self.subset_size,
-                stream=self.rng,
-                subroutine='matlab'
-            )
+            result = calc_projector(self.locs, self.num_samples, self.subset_size, stream=self.rng, subroutine='matlab')
 
         # Check that MATLAB was requested and used
         mock_get_eeglab.assert_called_once_with('MAT')
@@ -203,22 +198,18 @@ class TestCalcProjector(unittest.TestCase):
     def test_octave_subroutine(self):
         """Test using Octave subroutine."""
         mock_octave = MagicMock()
+
         def mock_octave_interp(src_locs, dest_locs):
             n_src = src_locs.shape[1]  # Octave uses transposed input
             n_dest = dest_locs.shape[1]
             return np.random.randn(n_dest, n_src), None
+
         mock_octave.sphericalSplineInterpolate.side_effect = mock_octave_interp
 
         with patch('eegprep.plugins.clean_rawdata.private.ransac.get_eeglab') as mock_get_eeglab:
             mock_get_eeglab.return_value = mock_octave
 
-            result = calc_projector(
-                self.locs,
-                self.num_samples,
-                self.subset_size,
-                stream=self.rng,
-                subroutine='octave'
-            )
+            result = calc_projector(self.locs, self.num_samples, self.subset_size, stream=self.rng, subroutine='octave')
 
         # Check that Octave was requested and used
         mock_get_eeglab.assert_called_once_with('OCT')
@@ -229,17 +220,14 @@ class TestCalcProjector(unittest.TestCase):
         """Test error handling for invalid subroutine."""
         with self.assertRaises(ValueError) as cm:
             calc_projector(
-                self.locs,
-                self.num_samples,
-                self.subset_size,
-                stream=self.rng,
-                subroutine='invalid_subroutine'
+                self.locs, self.num_samples, self.subset_size, stream=self.rng, subroutine='invalid_subroutine'
             )
 
         self.assertIn('Unknown subroutine: invalid_subroutine', str(cm.exception))
 
     def test_different_sample_parameters(self):
         """Test with different sampling parameters."""
+
         def mock_interp_func(src_locs, dest_locs):
             n_src = src_locs.shape[1]  # subset_size
             n_dest = dest_locs.shape[1]  # n_channels
@@ -249,8 +237,9 @@ class TestCalcProjector(unittest.TestCase):
             result[:min_dim, :min_dim] = np.eye(min_dim)
             return result, None
 
-        with patch('eegprep.plugins.clean_rawdata.private.ransac.sphericalSplineInterpolate', side_effect=mock_interp_func) as mock_interp:
-
+        with patch(
+            'eegprep.plugins.clean_rawdata.private.ransac.sphericalSplineInterpolate', side_effect=mock_interp_func
+        ):
             # Test with different num_samples
             result1 = calc_projector(self.locs, 3, 2, stream=self.rng)
             result2 = calc_projector(self.locs, 6, 2, stream=self.rng)
@@ -264,6 +253,7 @@ class TestCalcProjector(unittest.TestCase):
 
     def test_complex_interpolation_result_handling(self):
         """Test handling of complex interpolation results."""
+
         def mock_interp_func(src_locs, dest_locs):
             n_src = src_locs.shape[1]  # subset_size
             n_dest = dest_locs.shape[1]  # n_channels
@@ -272,8 +262,9 @@ class TestCalcProjector(unittest.TestCase):
             imag_part = np.random.randn(n_dest, n_src)
             return real_part + 1j * imag_part, None
 
-        with patch('eegprep.plugins.clean_rawdata.private.ransac.sphericalSplineInterpolate', side_effect=mock_interp_func) as mock_interp:
-
+        with patch(
+            'eegprep.plugins.clean_rawdata.private.ransac.sphericalSplineInterpolate', side_effect=mock_interp_func
+        ):
             result = calc_projector(self.locs, 2, 2, stream=self.rng)
 
             # Result should be real (np.real applied)
@@ -282,6 +273,7 @@ class TestCalcProjector(unittest.TestCase):
 
     def test_sampling_coverage_across_channels(self):
         """Test that sampling covers different channel subsets."""
+
         def mock_interp_func(src_locs, dest_locs):
             n_src = src_locs.shape[1]  # subset_size
             n_dest = dest_locs.shape[1]  # n_channels
@@ -290,15 +282,11 @@ class TestCalcProjector(unittest.TestCase):
             result[:min_dim, :min_dim] = np.eye(min_dim)
             return result, None
 
-        with patch('eegprep.plugins.clean_rawdata.private.ransac.sphericalSplineInterpolate', side_effect=mock_interp_func) as mock_interp:
-
+        with patch(
+            'eegprep.plugins.clean_rawdata.private.ransac.sphericalSplineInterpolate', side_effect=mock_interp_func
+        ) as mock_interp:
             # Use many samples to ensure different subsets are chosen
-            result = calc_projector(
-                self.locs,
-                num_samples=20,
-                subset_size=3,
-                stream=np.random.RandomState(777)
-            )
+            result = calc_projector(self.locs, num_samples=20, subset_size=3, stream=np.random.RandomState(777))
 
             # Check that result has expected shape
             expected_shape = (self.n_channels, self.n_channels * 20)
@@ -309,13 +297,15 @@ class TestCalcProjector(unittest.TestCase):
 
     def test_edge_case_single_sample(self):
         """Test with single sample."""
+
         def mock_interp_func(src_locs, dest_locs):
             n_src = src_locs.shape[1]  # subset_size
             n_dest = dest_locs.shape[1]  # n_channels
             return np.random.randn(n_dest, n_src), None
 
-        with patch('eegprep.plugins.clean_rawdata.private.ransac.sphericalSplineInterpolate', side_effect=mock_interp_func) as mock_interp:
-
+        with patch(
+            'eegprep.plugins.clean_rawdata.private.ransac.sphericalSplineInterpolate', side_effect=mock_interp_func
+        ) as mock_interp:
             result = calc_projector(self.locs, 1, 2, stream=self.rng)
 
             self.assertEqual(result.shape, (self.n_channels, self.n_channels))
@@ -323,20 +313,17 @@ class TestCalcProjector(unittest.TestCase):
 
     def test_large_subset_size(self):
         """Test with subset size close to total number of channels."""
+
         def mock_interp_func(src_locs, dest_locs):
             n_src = src_locs.shape[1]  # subset_size
             n_dest = dest_locs.shape[1]  # n_channels
             return np.random.randn(n_dest, n_src), None
 
-        with patch('eegprep.plugins.clean_rawdata.private.ransac.sphericalSplineInterpolate', side_effect=mock_interp_func) as mock_interp:
-
+        with patch(
+            'eegprep.plugins.clean_rawdata.private.ransac.sphericalSplineInterpolate', side_effect=mock_interp_func
+        ) as mock_interp:
             # Use subset_size = n_channels - 1
-            result = calc_projector(
-                self.locs,
-                3,
-                self.n_channels - 1,
-                stream=self.rng
-            )
+            result = calc_projector(self.locs, 3, self.n_channels - 1, stream=self.rng)
 
             self.assertEqual(result.shape, (self.n_channels, self.n_channels * 3))
             self.assertEqual(mock_interp.call_count, 3)
@@ -359,21 +346,18 @@ class TestRansacIntegration(unittest.TestCase):
 
     def test_no_fail_path_with_realistic_data(self):
         """Test that RANSAC functions don't fail with realistic data."""
+
         # Mock the interpolation to avoid dependency on complex spatial functions
         def mock_interp_func(src_locs, dest_locs):
             n_src = src_locs.shape[1]  # subset_size
             n_dest = dest_locs.shape[1]  # n_channels
             return np.random.randn(n_dest, n_src), None
 
-        with patch('eegprep.plugins.clean_rawdata.private.ransac.sphericalSplineInterpolate', side_effect=mock_interp_func) as mock_interp:
-
+        with patch(
+            'eegprep.plugins.clean_rawdata.private.ransac.sphericalSplineInterpolate', side_effect=mock_interp_func
+        ):
             # This should not raise any exceptions
-            result = calc_projector(
-                self.locs,
-                num_samples=10,
-                subset_size=8,
-                stream=np.random.RandomState(555)
-            )
+            result = calc_projector(self.locs, num_samples=10, subset_size=8, stream=np.random.RandomState(555))
 
             # Basic sanity checks
             self.assertIsInstance(result, np.ndarray)
@@ -406,14 +390,11 @@ class TestRansacIntegration(unittest.TestCase):
 
             return result, None
 
-        with patch('eegprep.plugins.clean_rawdata.private.ransac.sphericalSplineInterpolate', side_effect=mock_interp_func):
+        with patch(
+            'eegprep.plugins.clean_rawdata.private.ransac.sphericalSplineInterpolate', side_effect=mock_interp_func
+        ):
             # Calculate projector matrix
-            projector = calc_projector(
-                locs,
-                num_samples=15,
-                subset_size=10,
-                stream=np.random.RandomState(888)
-            )
+            projector = calc_projector(locs, num_samples=15, subset_size=10, stream=np.random.RandomState(888))
 
             # Verify basic properties
             self.assertEqual(projector.shape, (total_channels, total_channels * 15))
@@ -432,6 +413,7 @@ class TestRansacIntegration(unittest.TestCase):
 
     def test_deterministic_behavior_for_reproducibility(self):
         """Test that RANSAC behavior is reproducible for debugging."""
+
         def mock_interp_func(src_locs, dest_locs):
             n_src = src_locs.shape[1]  # subset_size
             n_dest = dest_locs.shape[1]  # n_channels
@@ -439,8 +421,9 @@ class TestRansacIntegration(unittest.TestCase):
             rng = np.random.RandomState(123)
             return rng.randn(n_dest, n_src), None
 
-        with patch('eegprep.plugins.clean_rawdata.private.ransac.sphericalSplineInterpolate', side_effect=mock_interp_func) as mock_interp:
-
+        with patch(
+            'eegprep.plugins.clean_rawdata.private.ransac.sphericalSplineInterpolate', side_effect=mock_interp_func
+        ):
             # Multiple runs with same seed should give identical results
             results = []
             for _ in range(3):
@@ -448,7 +431,7 @@ class TestRansacIntegration(unittest.TestCase):
                     self.locs,
                     num_samples=5,
                     subset_size=6,
-                    stream=np.random.RandomState(999)  # Same seed each time
+                    stream=np.random.RandomState(999),  # Same seed each time
                 )
                 results.append(result.copy())
 
@@ -458,6 +441,7 @@ class TestRansacIntegration(unittest.TestCase):
 
     def test_parameter_validation_implicit(self):
         """Test that functions handle edge cases gracefully."""
+
         def mock_interp_func(src_locs, dest_locs):
             n_src = src_locs.shape[1]  # subset_size
             n_dest = dest_locs.shape[1]  # n_channels
@@ -466,24 +450,17 @@ class TestRansacIntegration(unittest.TestCase):
             result[:min_dim, :min_dim] = np.eye(min_dim)
             return result, None
 
-        with patch('eegprep.plugins.clean_rawdata.private.ransac.sphericalSplineInterpolate', side_effect=mock_interp_func) as mock_interp:
-
+        with patch(
+            'eegprep.plugins.clean_rawdata.private.ransac.sphericalSplineInterpolate', side_effect=mock_interp_func
+        ):
             # Test minimum viable parameters
-            result = calc_projector(
-                self.locs,
-                num_samples=1,
-                subset_size=1,
-                stream=np.random.RandomState(111)
-            )
+            result = calc_projector(self.locs, num_samples=1, subset_size=1, stream=np.random.RandomState(111))
 
             self.assertEqual(result.shape, (self.n_channels, self.n_channels))
 
             # Test with subset_size equal to number of channels
             result = calc_projector(
-                self.locs,
-                num_samples=2,
-                subset_size=self.n_channels,
-                stream=np.random.RandomState(222)
+                self.locs, num_samples=2, subset_size=self.n_channels, stream=np.random.RandomState(222)
             )
 
             self.assertEqual(result.shape, (self.n_channels, self.n_channels * 2))

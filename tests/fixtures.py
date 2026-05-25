@@ -6,6 +6,7 @@ across different test modules.
 
 import os
 import unittest
+import importlib.util
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
@@ -21,11 +22,7 @@ def matlab_engine_available():
     if os.environ.get('EEGPREP_SKIP_MATLAB', '0') == '1':
         return False
 
-    try:
-        import matlab.engine
-        return True
-    except ImportError:
-        return False
+    return importlib.util.find_spec("matlab.engine") is not None
 
 
 def skip_without_matlab(test_func):
@@ -37,10 +34,7 @@ def skip_without_matlab(test_func):
             # Test code that requires MATLAB
             pass
     """
-    return unittest.skipUnless(
-        matlab_engine_available(),
-        "MATLAB engine not available or skipped"
-    )(test_func)
+    return unittest.skipUnless(matlab_engine_available(), "MATLAB engine not available or skipped")(test_func)
 
 
 def mpl_use_agg():
@@ -84,36 +78,35 @@ def create_test_eeg(n_channels=32, n_samples=1000, srate=250.0, n_trials=1):
     if n_trials > 1:
         # Create one event per epoch
         for i in range(n_trials):
-            events.append({
-                'type': 'epoch',
-                'latency': i * n_samples + 1,  # 1-based indexing for EEGLAB
-                'duration': 0,
-                'urevent': i + 1
-            })
-            epochs.append({
-                'event': [i],
-                'eventtype': ['epoch'],
-                'eventlatency': [0],
-                'eventduration': [0]
-            })
+            events.append(
+                {
+                    'type': 'epoch',
+                    'latency': i * n_samples + 1,  # 1-based indexing for EEGLAB
+                    'duration': 0,
+                    'urevent': i + 1,
+                }
+            )
+            epochs.append({'event': [i], 'eventtype': ['epoch'], 'eventlatency': [0], 'eventduration': [0]})
 
     # Create basic channel locations
     chanlocs = []
     for i in range(n_channels):
-        chanlocs.append({
-            'labels': f'Ch{i+1}',
-            'type': 'EEG',
-            'theta': i * (360 / n_channels),
-            'radius': 0.5,
-            'X': 0.5 * np.cos(np.radians(i * (360 / n_channels))),
-            'Y': 0.5 * np.sin(np.radians(i * (360 / n_channels))),
-            'Z': 0.0,
-            'sph_theta': i * (360 / n_channels),
-            'sph_phi': 0.0,
-            'sph_radius': 1.0,
-            'urchan': i + 1,
-            'ref': ''
-        })
+        chanlocs.append(
+            {
+                'labels': f'Ch{i + 1}',
+                'type': 'EEG',
+                'theta': i * (360 / n_channels),
+                'radius': 0.5,
+                'X': 0.5 * np.cos(np.radians(i * (360 / n_channels))),
+                'Y': 0.5 * np.sin(np.radians(i * (360 / n_channels))),
+                'Z': 0.0,
+                'sph_theta': i * (360 / n_channels),
+                'sph_phi': 0.0,
+                'sph_radius': 1.0,
+                'urchan': i + 1,
+                'ref': '',
+            }
+        )
 
     # Create basic EEG structure
     eeg = {
@@ -142,13 +135,7 @@ def create_test_eeg(n_channels=32, n_samples=1000, srate=250.0, n_trials=1):
         'icachansind': None,
         'chanlocs': chanlocs,
         'urchanlocs': [],
-        'chaninfo': {
-            'filename': '',
-            'plotrad': [],
-            'shrink': [],
-            'nosedir': '+X',
-            'nodatchans': []
-        },
+        'chaninfo': {'filename': '', 'plotrad': [], 'shrink': [], 'nosedir': '+X', 'nodatchans': []},
         'urevent': [],
         'eventdescription': {},
         'epoch': epochs,
@@ -165,14 +152,13 @@ def create_test_eeg(n_channels=32, n_samples=1000, srate=250.0, n_trials=1):
         'etc': {},
         'datfile': '',
         'run': [],
-        'roi': {}
+        'roi': {},
     }
 
     return eeg
 
 
-def create_test_eeg_with_ica(n_channels=32, n_samples=1000, srate=250.0,
-                           n_components=None, n_trials=1):
+def create_test_eeg_with_ica(n_channels=32, n_samples=1000, srate=250.0, n_components=None, n_trials=1):
     """Create a synthetic EEG structure with ICA decomposition for testing.
 
     Args:
@@ -209,15 +195,17 @@ def create_test_eeg_with_ica(n_channels=32, n_samples=1000, srate=250.0,
     # Add basic channel locations
     eeg['chanlocs'] = []
     for i in range(n_channels):
-        eeg['chanlocs'].append({
-            'theta': i * (360 / n_channels),  # Distribute evenly around head
-            'radius': 0.3,
-            'X': 0.3 * np.cos(np.radians(i * (360 / n_channels))),
-            'Y': 0.3 * np.sin(np.radians(i * (360 / n_channels))),
-            'Z': 0.0,
-            'labels': f'Ch{i+1}',
-            'type': 'EEG'
-        })
+        eeg['chanlocs'].append(
+            {
+                'theta': i * (360 / n_channels),  # Distribute evenly around head
+                'radius': 0.3,
+                'X': 0.3 * np.cos(np.radians(i * (360 / n_channels))),
+                'Y': 0.3 * np.sin(np.radians(i * (360 / n_channels))),
+                'Z': 0.0,
+                'labels': f'Ch{i + 1}',
+                'type': 'EEG',
+            }
+        )
 
     return eeg
 
@@ -241,17 +229,19 @@ def create_test_events(n_events=10, max_latency=1000, event_types=None):
 
     for i, latency in enumerate(latencies):
         event_type = event_types[i % len(event_types)]
-        events.append({
-            'type': event_type,
-            'latency': float(latency),
-            'duration': 0.0,
-            'channel': 0,
-            'bvtime': [],
-            'bvmknum': 1,
-            'visible': [1],
-            'code': event_type,
-            'urevent': i + 1
-        })
+        events.append(
+            {
+                'type': event_type,
+                'latency': float(latency),
+                'duration': 0.0,
+                'channel': 0,
+                'bvtime': [],
+                'bvmknum': 1,
+                'visible': [1],
+                'code': event_type,
+                'urevent': i + 1,
+            }
+        )
 
     return events
 
@@ -325,6 +315,11 @@ class TestFixturesContextManager:
 # Backward compatibility alias for legacy references.
 EEGContext = TestFixturesContextManager
 
+
 # Legacy functions for backward compatibility
-small_eeg = lambda: create_test_eeg(n_channels=8, n_samples=250)  # Small EEG for quick tests
+def small_eeg():
+    """Create a small EEG fixture for quick legacy tests."""
+    return create_test_eeg(n_channels=8, n_samples=250)
+
+
 TestFixtures = EEGContext  # Backward compatibility alias

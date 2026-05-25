@@ -2,7 +2,6 @@ import logging
 import unittest
 import contextlib
 import io
-import sys
 import warnings
 from unittest.mock import patch
 
@@ -10,7 +9,6 @@ from eegprep.functions.adminfunc.logs import setup_logging, ColoredWarningFormat
 
 
 class TestLogs(unittest.TestCase):
-
     @contextlib.contextmanager
     def _preserve_root_logger(self):
         root_logger = logging.getLogger()
@@ -121,5 +119,3 @@ class TestLogs(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-
-

@@ -150,10 +150,14 @@ def pop_clean_rawdata_dialog_spec(EEG) -> DialogSpec:
             ControlSpec("text", f"Max acceptable {winsize:1.1f} second window std dev"),
             ControlSpec("edit", tag="asrstdval", value="20"),
             ControlSpec("spacer"),
-            ControlSpec("checkbox", "Use Riemanian distance metric (not Euclidean) - beta", tag="distance", value=False),
+            ControlSpec(
+                "checkbox", "Use Riemanian distance metric (not Euclidean) - beta", tag="distance", value=False
+            ),
             ControlSpec("spacer"),
             ControlSpec("spacer"),
-            ControlSpec("checkbox", "Remove bad data periods (when uncheck, correct using ASR)", tag="asrrej", value=True),
+            ControlSpec(
+                "checkbox", "Remove bad data periods (when uncheck, correct using ASR)", tag="asrrej", value=True
+            ),
             ControlSpec("spacer"),
             ControlSpec("spacer"),
             ControlSpec(
@@ -170,7 +174,9 @@ def pop_clean_rawdata_dialog_spec(EEG) -> DialogSpec:
             ControlSpec("text", "Maximum out-of-bound channels (%)"),
             ControlSpec("edit", tag="rejwinval2", value="25"),
             ControlSpec("spacer"),
-            ControlSpec("checkbox", "Pop up scrolling data window with rejected data highlighted", tag="vis", value=False),
+            ControlSpec(
+                "checkbox", "Pop up scrolling data window with rejected data highlighted", tag="vis", value=False
+            ),
         ),
     )
 

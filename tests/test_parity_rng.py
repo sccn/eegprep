@@ -63,13 +63,14 @@ class TestRNGParity(unittest.TestCase):
         os.remove(temp_file)
 
         # Compare rand (uniform distribution) - THIS SHOULD MATCH for 1D
-        print(f"\nrand() 1D uniform comparison:")
+        print("\nrand() 1D uniform comparison:")
         print(f"  Python first 5 values: {py_rand[:5]}")
         print(f"  MATLAB first 5 values: {ml_rand[:5]}")
         print(f"  Max absolute diff: {np.max(np.abs(py_rand - ml_rand)):.2e}")
 
-        np.testing.assert_allclose(py_rand, ml_rand, rtol=1e-15, atol=1e-15,
-                                   err_msg="rand() 1D uniform should produce identical sequences")
+        np.testing.assert_allclose(
+            py_rand, ml_rand, rtol=1e-15, atol=1e-15, err_msg="rand() 1D uniform should produce identical sequences"
+        )
 
     def test_rng_normal_incompatibility(self):
         """Test that randn() (normal) produces DIFFERENT sequences (known incompatibility)."""
@@ -99,15 +100,16 @@ class TestRNGParity(unittest.TestCase):
         os.remove(temp_file)
 
         # Compare randn (normal distribution) - THIS SHOULD DIFFER
-        print(f"\nrandn() normal comparison (EXPECTED TO DIFFER):")
+        print("\nrandn() normal comparison (EXPECTED TO DIFFER):")
         print(f"  Python first 3 values: {py_randn.flatten()[:3]}")
         print(f"  MATLAB first 3 values: {ml_randn.flatten()[:3]}")
         print(f"  Max absolute diff: {np.max(np.abs(py_randn - ml_randn)):.2e}")
 
         are_different = not np.allclose(py_randn, ml_randn, rtol=1e-10, atol=1e-10)
-        self.assertTrue(are_different,
-                       "randn() normal distribution differs between Python and MATLAB "
-                       "(this is expected - use rand() for parity)")
+        self.assertTrue(
+            are_different,
+            "randn() normal distribution differs between Python and MATLAB (this is expected - use rand() for parity)",
+        )
 
     def test_rand_sample_mechanism(self):
         """Test the rand_sample mechanism that provides MATLAB parity."""
@@ -116,7 +118,7 @@ class TestRNGParity(unittest.TestCase):
 
         seed = 5489
         n = 20  # sample from 20 items
-        m = 5   # select 5 items
+        m = 5  # select 5 items
 
         # Python rand_sample (from ransac.py)
         rng_py = np.random.RandomState(seed)
@@ -156,12 +158,11 @@ class TestRNGParity(unittest.TestCase):
         os.remove(temp_file)
 
         # Compare
-        print(f"\nrand_sample comparison:")
+        print("\nrand_sample comparison:")
         print(f"  Python sample: {py_sample}")
         print(f"  MATLAB sample: {ml_sample}")
 
-        np.testing.assert_array_equal(py_sample, ml_sample,
-                                     err_msg="rand_sample should produce identical results")
+        np.testing.assert_array_equal(py_sample, ml_sample, err_msg="rand_sample should produce identical results")
 
     def test_round_mat_parity(self):
         """Test that round_mat matches MATLAB's round() behavior."""
@@ -191,13 +192,12 @@ class TestRNGParity(unittest.TestCase):
         os.remove(temp_file)
 
         # Compare
-        print(f"\nround_mat comparison:")
+        print("\nround_mat comparison:")
         print(f"  Test values:  {test_values}")
         print(f"  Python round: {py_rounded}")
         print(f"  MATLAB round: {ml_rounded}")
 
-        np.testing.assert_array_equal(py_rounded, ml_rounded,
-                                     err_msg="round_mat should match MATLAB round()")
+        np.testing.assert_array_equal(py_rounded, ml_rounded, err_msg="round_mat should match MATLAB round()")
 
     def test_rng_permutation_compatibility(self):
         """Test that permutation differs (known incompatibility)."""
@@ -230,15 +230,17 @@ class TestRNGParity(unittest.TestCase):
         # Check if they differ (they should - different algorithms)
         are_different = not np.array_equal(py_perm, ml_perm)
 
-        print(f"\nPermutation comparison (EXPECTED TO DIFFER):")
+        print("\nPermutation comparison (EXPECTED TO DIFFER):")
         print(f"  Python permutation: {py_perm[:5]}...")
         print(f"  MATLAB permutation: {ml_perm[:5]}...")
         print(f"  Are different: {are_different}")
 
         # Document this known incompatibility
-        self.assertTrue(are_different,
-                       "Permutation algorithms differ between Python and MATLAB "
-                       "(this is expected - randperm uses different algorithm than permutation)")
+        self.assertTrue(
+            are_different,
+            "Permutation algorithms differ between Python and MATLAB "
+            "(this is expected - randperm uses different algorithm than permutation)",
+        )
 
 
 class TestRNGIsolation(unittest.TestCase):
@@ -257,8 +259,7 @@ class TestRNGIsolation(unittest.TestCase):
         seq2 = rng2.rand(100)
 
         # Should be identical
-        np.testing.assert_array_equal(seq1, seq2,
-                                     err_msg="Same seed should produce identical sequence")
+        np.testing.assert_array_equal(seq1, seq2, err_msg="Same seed should produce identical sequence")
 
     def test_python_rng_different_seeds(self):
         """Test that different seeds produce different sequences."""
@@ -269,8 +270,7 @@ class TestRNGIsolation(unittest.TestCase):
         seq2 = rng2.rand(100)
 
         # Should be different
-        self.assertFalse(np.array_equal(seq1, seq2),
-                        "Different seeds should produce different sequences")
+        self.assertFalse(np.array_equal(seq1, seq2), "Different seeds should produce different sequences")
 
     def test_matlab_default_seed_value(self):
         """Document that 5489 is MATLAB's default seed."""
@@ -288,13 +288,18 @@ class TestRNGIsolation(unittest.TestCase):
         # Expected first value when using seed 5489
         # (Verified against MATLAB: rng(5489,'twister'); rand)
         expected_first_uniform_value = 0.8147236863931789  # Matches MATLAB output
+        self.assertAlmostEqual(first_uniform_value, expected_first_uniform_value)
 
         # Reset and check
         rng = np.random.RandomState(matlab_default_seed)
         actual_first_uniform_value = rng.rand()
 
-        self.assertAlmostEqual(actual_first_uniform_value, expected_first_uniform_value, places=15,
-                              msg="MATLAB default seed (5489) should produce expected first uniform value")
+        self.assertAlmostEqual(
+            actual_first_uniform_value,
+            expected_first_uniform_value,
+            places=15,
+            msg="MATLAB default seed (5489) should produce expected first uniform value",
+        )
 
     def test_rand_sample_deterministic(self):
         """Test that rand_sample is deterministic."""
@@ -311,8 +316,7 @@ class TestRNGIsolation(unittest.TestCase):
         sample2 = rand_sample(n, m, rng2)
 
         # Should be identical
-        np.testing.assert_array_equal(sample1, sample2,
-                                     err_msg="rand_sample with same seed should be deterministic")
+        np.testing.assert_array_equal(sample1, sample2, err_msg="rand_sample with same seed should be deterministic")
 
     def test_round_mat_tie_breaking(self):
         """Test round_mat's tie-breaking behavior (rounds away from zero)."""
@@ -320,11 +324,11 @@ class TestRNGIsolation(unittest.TestCase):
         # Python's round() rounds ties to even (banker's rounding)
         # round_mat should match MATLAB
 
-        self.assertEqual(round_mat(0.5), 1.0)   # Round up
+        self.assertEqual(round_mat(0.5), 1.0)  # Round up
         self.assertEqual(round_mat(-0.5), -1.0)  # Round down (away from zero)
-        self.assertEqual(round_mat(1.5), 2.0)   # Round up
+        self.assertEqual(round_mat(1.5), 2.0)  # Round up
         self.assertEqual(round_mat(-1.5), -2.0)  # Round down (away from zero)
-        self.assertEqual(round_mat(2.5), 3.0)   # Round up
+        self.assertEqual(round_mat(2.5), 3.0)  # Round up
 
 
 if __name__ == '__main__':

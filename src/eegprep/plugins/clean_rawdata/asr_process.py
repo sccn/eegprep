@@ -11,7 +11,9 @@ from .private.sigproc import moving_average
 logger = logging.getLogger(__name__)
 
 
-def asr_process(data, srate, state, window_len=0.5, lookahead=None, step_size=32, max_dims=0.66, max_mem=None, use_gpu=False):
+def asr_process(
+    data, srate, state, window_len=0.5, lookahead=None, step_size=32, max_dims=0.66, max_mem=None, use_gpu=False
+):
     """Process data using the Artifact Subspace Reconstruction (ASR) method.
 
     CleanedData, State = asr_process(Data, SamplingRate, State, WindowLength, LookAhead, StepSize, MaxDimensions, MaxMemory, UseGPU)
@@ -60,6 +62,7 @@ def asr_process(data, srate, state, window_len=0.5, lookahead=None, step_size=32
     if max_mem is None:
         # use at most half of available memory
         import psutil
+
         max_mem = psutil.virtual_memory().free / 1024**2 / 2
 
     # Ensure window length is adequate
@@ -79,19 +82,19 @@ def asr_process(data, srate, state, window_len=0.5, lookahead=None, step_size=32
     data[~np.isfinite(data)] = 0
 
     # Extract state variables
-    M = state['M']                  # Mixing matrix
-    T = state['T']                  # Threshold matrix
-    sos = state.get('sos')          # SOS filter representation (None if compatibility='max')
-    b = state.get('B')              # Filter numerator coefficients
-    a = state.get('A')              # Filter denominator coefficients
+    M = state['M']  # Mixing matrix
+    T = state['T']  # Threshold matrix
+    sos = state.get('sos')  # SOS filter representation (None if compatibility='max')
+    b = state.get('B')  # Filter numerator coefficients
+    a = state.get('A')  # Filter denominator coefficients
     compatibility = state.get('compatibility', 'standard')  # Compatibility mode
     iir_state = state.get('iir_state')  # Filter state
-    carry = state.get('carry')      # Carry buffer (previous lookahead data)
-    cov = state.get('cov')          # Covariance state (MovAvgState or None)
+    carry = state.get('carry')  # Carry buffer (previous lookahead data)
+    cov = state.get('cov')  # Covariance state (MovAvgState or None)
     # If cov is from an older run and is not a MovAvgState, reset it
     if cov is not None and not hasattr(cov, 'buf'):
         cov = None
-    last_R = state.get('last_R')    # Last reconstruction matrix
+    last_R = state.get('last_R')  # Last reconstruction matrix
     last_trivial = state.get('last_trivial', True)  # Was last step trivial (no artifacts)
 
     # Initialize prior filter state by extrapolating available data into the past
@@ -104,19 +107,19 @@ def asr_process(data, srate, state, window_len=0.5, lookahead=None, step_size=32
 
     # Calculate number of splits for memory management
 
-    if max_mem*1024*1024 - C*C*P*8*3 < 0:
-        logger.warning("Memory too low, increasing it (rejection block size now "
-             "depends on available memory so it might not be fully reproducible)...")
+    if max_mem * 1024 * 1024 - C * C * P * 8 * 3 < 0:
+        logger.warning(
+            "Memory too low, increasing it (rejection block size now "
+            "depends on available memory so it might not be fully reproducible)..."
+        )
         import psutil
+
         max_mem = psutil.virtual_memory().free / 1024**2 / 2
-        if max_mem*1024*1024 - C*C*P*8*3 < 0:
+        if max_mem * 1024 * 1024 - C * C * P * 8 * 3 < 0:
             raise RuntimeError('Not enough memory')
 
     # Calculate memory bytes needed (following reference implementation formula)
-    bytes_needed = (C * C * S * 8 * 8 +
-                    C * C * 8 * S / step_size +
-                    C * S * 8 * 2 +
-                    S * 8 * 5)
+    bytes_needed = C * C * S * 8 * 8 + C * C * 8 * S / step_size + C * S * 8 * 2 + S * 8 * 5
 
     # Available memory in bytes (subtract fixed overhead)
     mem_available = max_mem * 1024**2 - C * C * P * 8 * 3
@@ -156,10 +159,7 @@ def asr_process(data, srate, state, window_len=0.5, lookahead=None, step_size=32
         # replicates MATLAB's `moving_average` helper. This yields a smoothed
         # covariance estimate for *every* sample and updates the internal
         # circular buffer/state stored in `cov`.
-        Xcov_sample = np.reshape(
-            np.reshape(Xfilt, (C, 1, -1)) * np.reshape(Xfilt, (1, C, -1)),
-            (C * C, -1)
-        )
+        Xcov_sample = np.reshape(np.reshape(Xfilt, (C, 1, -1)) * np.reshape(Xfilt, (1, C, -1)), (C * C, -1))
 
         # Running mean over a window of N samples (along the last / time axis)
         Xcov_filtered, cov = moving_average(Xcov_sample, N=N, axis=1, Z=cov, init=0)
@@ -173,7 +173,7 @@ def asr_process(data, srate, state, window_len=0.5, lookahead=None, step_size=32
             update_at = np.insert(update_at, 0, 1)
             last_R = np.eye(C)
 
-        update_at -= 1 # prepare for 0-based indexing
+        update_at -= 1  # prepare for 0-based indexing
 
         # Extract the covariance matrices at our update points (already
         # averaged by the moving window) and reshape to C × C × #updates.
@@ -194,7 +194,7 @@ def asr_process(data, srate, state, window_len=0.5, lookahead=None, step_size=32
 
             # Determine which components to keep (variance below threshold or not admissible for rejection)
             try:
-                thresholds = np.sum(finite_matmul(T, V)**2, axis=0)
+                thresholds = np.sum(finite_matmul(T, V) ** 2, axis=0)
                 keep = (D < thresholds) | (np.arange(1, C + 1) < (C - max_dims_num))
                 trivial = np.all(keep)
             except Exception as e:
@@ -235,10 +235,7 @@ def asr_process(data, srate, state, window_len=0.5, lookahead=None, step_size=32
                     segment = X[:, idx_in_X]
 
                     # Apply blended reconstruction
-                    X[:, idx_in_X] = (
-                        blend * finite_matmul(R, segment)
-                        + (1 - blend) * finite_matmul(last_R, segment)
-                    )
+                    X[:, idx_in_X] = blend * finite_matmul(R, segment) + (1 - blend) * finite_matmul(last_R, segment)
 
             # Update state for next iteration
             last_n = n
@@ -246,7 +243,7 @@ def asr_process(data, srate, state, window_len=0.5, lookahead=None, step_size=32
             last_trivial = trivial
 
         if splits > 1 and k % 10 == 0:
-            logger.debug(f'Processing block {k+1}/{splits}')
+            logger.debug(f'Processing block {k + 1}/{splits}')
 
     if splits > 1:
         logger.info('Finished cleaning.')
@@ -255,7 +252,7 @@ def asr_process(data, srate, state, window_len=0.5, lookahead=None, step_size=32
     new_carry = X[:, -P:] if X.shape[1] >= P else X
 
     # Return cleaned data (without the lookahead portion)
-    outdata = X[:, P:P+S]
+    outdata = X[:, P : P + S]
 
     # Update state dictionary
     outstate = {
@@ -271,7 +268,7 @@ def asr_process(data, srate, state, window_len=0.5, lookahead=None, step_size=32
         'B': b,
         'A': a,
         'compatibility': compatibility,
-        'useriemannian': state.get('useriemannian')
+        'useriemannian': state.get('useriemannian'),
     }
 
     return outdata, outstate

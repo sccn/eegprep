@@ -36,12 +36,12 @@ References
 # -----------------
 
 import numpy as np
-import matplotlib.pyplot as plt
 import tempfile
 import os
 import json
-from pathlib import Path
 import sys
+import shutil
+
 sys.path.insert(0, '/Users/baristim/Projects/eegprep/src')
 
 import eegprep
@@ -112,30 +112,14 @@ dataset_desc = {
     "BIDSVersion": "1.9.0",
     "DatasetType": "raw",
     "License": "CC0",
-    "Authors": [
-        {
-            "Name": "Example Author",
-            "Email": "author@example.com"
-        }
-    ],
+    "Authors": [{"Name": "Example Author", "Email": "author@example.com"}],
     "Acknowledgements": "Example dataset for eegprep documentation",
     "HowToAcknowledge": "Please cite this paper: Example et al. (2024)",
-    "Funding": [
-        {
-            "Funder": "Example Foundation",
-            "Grant": "EX-12345"
-        }
-    ],
+    "Funding": [{"Funder": "Example Foundation", "Grant": "EX-12345"}],
     "EthicsApprovals": [
-        {
-            "HipApproval": True,
-            "Committee": "Example IRB",
-            "CommitteeAbbreviation": "IRB",
-            "ExpireDate": "2025-12-31"
-        }
+        {"HipApproval": True, "Committee": "Example IRB", "CommitteeAbbreviation": "IRB", "ExpireDate": "2025-12-31"}
     ],
     "ReferencesAndLinks": [],
-    "DatasetType": "raw"
 }
 
 with open(os.path.join(bids_root, 'dataset_description.json'), 'w') as f:
@@ -165,10 +149,38 @@ for sub_id in ['01', '02']:
 
     # Create channel names
     ch_names = [
-        'Fp1', 'Fpz', 'Fp2', 'F7', 'F3', 'Fz', 'F4', 'F8',
-        'T7', 'C3', 'Cz', 'C4', 'T8', 'P7', 'P3', 'Pz',
-        'P4', 'P8', 'O1', 'Oz', 'O2', 'A1', 'A2', 'M1',
-        'M2', 'Fc1', 'Fc2', 'Cp1', 'Cp2', 'Fc5', 'Fc6', 'Cp5'
+        'Fp1',
+        'Fpz',
+        'Fp2',
+        'F7',
+        'F3',
+        'Fz',
+        'F4',
+        'F8',
+        'T7',
+        'C3',
+        'Cz',
+        'C4',
+        'T8',
+        'P7',
+        'P3',
+        'Pz',
+        'P4',
+        'P8',
+        'O1',
+        'Oz',
+        'O2',
+        'A1',
+        'A2',
+        'M1',
+        'M2',
+        'Fc1',
+        'Fc2',
+        'Cp1',
+        'Cp2',
+        'Fc5',
+        'Fc6',
+        'Cp5',
     ]
 
     # Create synthetic data
@@ -194,7 +206,7 @@ for sub_id in ['01', '02']:
         "EEGReference": "average",
         "EEGGround": "Fpz",
         "RecordingDuration": n_samples / sfreq,
-        "RecordingType": "continuous"
+        "RecordingType": "continuous",
     }
 
     json_file = os.path.join(sub_dir, f'sub-{sub_id}_ses-01_task-rest_eeg.json')
@@ -219,7 +231,7 @@ for sub_id in ['01', '02']:
 
     print(f"  ✓ Created subject sub-{sub_id} data")
 
-print(f"\nBIDS dataset created successfully!")
+print("\nBIDS dataset created successfully!")
 print(f"Dataset location: {bids_root}")
 
 # %%
@@ -238,7 +250,7 @@ try:
     for f in eeg_files:
         print(f"  - {f}")
 except Exception as e:
-    print(f"Note: bids_list_eeg_files may require specific BIDS structure")
+    print("Note: bids_list_eeg_files may require specific BIDS structure")
     print(f"Error: {e}")
     # List files manually
     print("\nManually listing EEG files:")
@@ -314,7 +326,7 @@ preproc_params = {
     'asr_threshold': 20,
     'ica_method': 'picard',
     'iclabel_threshold': 0.5,
-    'verbose': False
+    'verbose': False,
 }
 
 print("\nPreprocessing Configuration:")
@@ -458,10 +470,8 @@ Key Points About BIDS Preprocessing with eegprep:
 print(summary)
 print("=" * 70)
 
-# Clean up temporary directory
-import shutil
 shutil.rmtree(bids_root)
-print(f"\nCleaned up temporary BIDS directory")
+print("\nCleaned up temporary BIDS directory")
 
 # %%
 # Key Takeaways

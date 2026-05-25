@@ -10,7 +10,6 @@ import numpy as np
 import os
 import tempfile
 import scipy.io
-from copy import deepcopy
 
 from eegprep.plugins.ICLabel.ICL_feature_extractor import ICL_feature_extractor
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
@@ -36,7 +35,7 @@ def create_test_eeg(n_channels=32, n_samples=1000, srate=250.0, n_trials=1):
         'xmax': (n_samples - 1) / srate,
         'times': np.arange(n_samples) / srate,
         'event': [],
-        'ref': 'unknown'
+        'ref': 'unknown',
     }
 
 
@@ -55,10 +54,7 @@ class TestICLFeatureExtractorBasic(unittest.TestCase):
 
         # Create base EEG structure
         self.test_eeg = create_test_eeg(
-            n_channels=self.n_channels,
-            n_samples=self.n_samples,
-            srate=self.srate,
-            n_trials=1
+            n_channels=self.n_channels, n_samples=self.n_samples, srate=self.srate, n_trials=1
         )
 
         # Add required ICA fields
@@ -70,14 +66,19 @@ class TestICLFeatureExtractorBasic(unittest.TestCase):
         self.test_eeg['ref'] = 'averef'
 
         # Add channel locations (simplified) - create numpy array format
-        self.test_eeg['chanlocs'] = np.array([{
-            'theta': 45 * i,  # Use fixed positions to avoid randomness issues
-            'radius': 0.3,
-            'X': 0.3 * np.cos(np.radians(45 * i)),
-            'Y': 0.3 * np.sin(np.radians(45 * i)),
-            'Z': 0.0,
-            'labels': f'Ch{i+1}'
-        } for i in range(self.n_channels)])
+        self.test_eeg['chanlocs'] = np.array(
+            [
+                {
+                    'theta': 45 * i,  # Use fixed positions to avoid randomness issues
+                    'radius': 0.3,
+                    'X': 0.3 * np.cos(np.radians(45 * i)),
+                    'Y': 0.3 * np.sin(np.radians(45 * i)),
+                    'Z': 0.0,
+                    'labels': f'Ch{i + 1}',
+                }
+                for i in range(self.n_channels)
+            ]
+        )
 
     def test_icl_feature_extractor_missing_ica_winv(self):
         """Test ICL_feature_extractor with missing icawinv."""
@@ -171,10 +172,7 @@ class TestICLFeatureExtractorDataTypes(unittest.TestCase):
         self.srate = 250.0
 
         self.base_eeg = create_test_eeg(
-            n_channels=self.n_channels,
-            n_samples=self.n_samples,
-            srate=self.srate,
-            n_trials=1
+            n_channels=self.n_channels, n_samples=self.n_samples, srate=self.srate, n_trials=1
         )
 
         self.base_eeg['icawinv'] = np.random.randn(self.n_channels, self.n_components) * 0.5
@@ -187,14 +185,16 @@ class TestICLFeatureExtractorDataTypes(unittest.TestCase):
         # Add channel locations
         self.base_eeg['chanlocs'] = []
         for i in range(self.n_channels):
-            self.base_eeg['chanlocs'].append({
-                'theta': np.random.uniform(0, 360),
-                'radius': np.random.uniform(0.1, 0.5),
-                'X': np.random.uniform(-1, 1),
-                'Y': np.random.uniform(-1, 1),
-                'Z': np.random.uniform(-1, 1),
-                'labels': f'Ch{i+1}'
-            })
+            self.base_eeg['chanlocs'].append(
+                {
+                    'theta': np.random.uniform(0, 360),
+                    'radius': np.random.uniform(0.1, 0.5),
+                    'X': np.random.uniform(-1, 1),
+                    'Y': np.random.uniform(-1, 1),
+                    'Z': np.random.uniform(-1, 1),
+                    'labels': f'Ch{i + 1}',
+                }
+            )
 
     def test_icl_feature_extractor_float32_data(self):
         """Test ICL_feature_extractor with float32 input data."""
@@ -228,6 +228,7 @@ class TestICLFeatureExtractorDataTypes(unittest.TestCase):
         except Exception as e:
             self.skipTest(f"ICL_feature_extractor float64 test not available: {e}")
 
+
 class TestICLFeatureExtractorEdgeCases(unittest.TestCase):
     """Test ICL_feature_extractor edge cases."""
 
@@ -241,10 +242,7 @@ class TestICLFeatureExtractorEdgeCases(unittest.TestCase):
         self.srate = 250.0
 
         self.base_eeg = create_test_eeg(
-            n_channels=self.n_channels,
-            n_samples=self.n_samples,
-            srate=self.srate,
-            n_trials=1
+            n_channels=self.n_channels, n_samples=self.n_samples, srate=self.srate, n_trials=1
         )
 
         self.base_eeg['icawinv'] = np.random.randn(self.n_channels, self.n_components) * 0.5
@@ -257,14 +255,16 @@ class TestICLFeatureExtractorEdgeCases(unittest.TestCase):
         # Add minimal channel locations
         self.base_eeg['chanlocs'] = []
         for i in range(self.n_channels):
-            self.base_eeg['chanlocs'].append({
-                'theta': i * 45,  # Spread evenly
-                'radius': 0.3,
-                'X': 0.3 * np.cos(np.radians(i * 45)),
-                'Y': 0.3 * np.sin(np.radians(i * 45)),
-                'Z': 0.0,
-                'labels': f'Ch{i+1}'
-            })
+            self.base_eeg['chanlocs'].append(
+                {
+                    'theta': i * 45,  # Spread evenly
+                    'radius': 0.3,
+                    'X': 0.3 * np.cos(np.radians(i * 45)),
+                    'Y': 0.3 * np.sin(np.radians(i * 45)),
+                    'Z': 0.0,
+                    'labels': f'Ch{i + 1}',
+                }
+            )
 
     def test_icl_feature_extractor_small_eeg_data(self):
         """Test ICL_feature_extractor with small EEG data."""
@@ -429,10 +429,7 @@ class TestICLFeatureExtractorValidation(unittest.TestCase):
         self.srate = 250.0
 
         self.base_eeg = create_test_eeg(
-            n_channels=self.n_channels,
-            n_samples=self.n_samples,
-            srate=self.srate,
-            n_trials=1
+            n_channels=self.n_channels, n_samples=self.n_samples, srate=self.srate, n_trials=1
         )
 
         self.base_eeg['icawinv'] = np.random.randn(self.n_channels, self.n_components) * 0.5
@@ -445,14 +442,16 @@ class TestICLFeatureExtractorValidation(unittest.TestCase):
         # Add channel locations
         self.base_eeg['chanlocs'] = []
         for i in range(self.n_channels):
-            self.base_eeg['chanlocs'].append({
-                'theta': i * 45,
-                'radius': 0.3,
-                'X': 0.3 * np.cos(np.radians(i * 45)),
-                'Y': 0.3 * np.sin(np.radians(i * 45)),
-                'Z': 0.0,
-                'labels': f'Ch{i+1}'
-            })
+            self.base_eeg['chanlocs'].append(
+                {
+                    'theta': i * 45,
+                    'radius': 0.3,
+                    'X': 0.3 * np.cos(np.radians(i * 45)),
+                    'Y': 0.3 * np.sin(np.radians(i * 45)),
+                    'Z': 0.0,
+                    'labels': f'Ch{i + 1}',
+                }
+            )
 
     def test_icl_feature_extractor_no_inf_nan_in_features(self):
         """Test ICL_feature_extractor produces no inf/nan values in features."""
@@ -461,8 +460,7 @@ class TestICLFeatureExtractorValidation(unittest.TestCase):
 
             # Check that no features contain inf or nan
             for i, feature in enumerate(features):
-                self.assertTrue(np.all(np.isfinite(feature)),
-                              f"Feature {i} contains inf or nan values")
+                self.assertTrue(np.all(np.isfinite(feature)), f"Feature {i} contains inf or nan values")
 
         except Exception as e:
             self.skipTest(f"ICL_feature_extractor inf/nan test not available: {e}")
@@ -513,7 +511,7 @@ class TestICLFeatureExtractorValidation(unittest.TestCase):
             features = ICL_feature_extractor(EEG, flag_autocorr=False)
             if features:
                 self.assertEqual(len(features), 2)
-        except (ValueError, IndexError) as e:
+        except (ValueError, IndexError):
             # Expected behavior for mismatched indices
             pass
         except Exception as e:
@@ -527,8 +525,7 @@ class TestICLFeatureExtractorValidation(unittest.TestCase):
             # All features should be scaled by 0.99 (max absolute value <= 0.99)
             for i, feature in enumerate(features):
                 max_abs_val = np.max(np.abs(feature))
-                self.assertLessEqual(max_abs_val, 0.99 + 1e-6,
-                                   f"Feature {i} not properly scaled by 0.99")
+                self.assertLessEqual(max_abs_val, 0.99 + 1e-6, f"Feature {i} not properly scaled by 0.99")
 
         except Exception as e:
             self.skipTest(f"ICL_feature_extractor scaling test not available: {e}")
@@ -586,11 +583,7 @@ class TestICLFeatureExtractorParity(unittest.TestCase):
 
         # Load MATLAB features
         mat_data = scipy.io.loadmat(temp_file + '.mat')
-        features_ml = [
-            mat_data['features'][0, 0],
-            mat_data['features'][0, 1],
-            mat_data['features'][0, 2]
-        ]
+        features_ml = [mat_data['features'][0, 0], mat_data['features'][0, 1], mat_data['features'][0, 2]]
 
         # Clean up
         os.remove(temp_file)
@@ -606,13 +599,15 @@ class TestICLFeatureExtractorParity(unittest.TestCase):
             ml_feat = features_ml[i]
 
             # Verify shapes match
-            self.assertEqual(py_feat.shape, ml_feat.shape,
-                           f"{name} feature shape mismatch: {py_feat.shape} vs {ml_feat.shape}")
+            self.assertEqual(
+                py_feat.shape, ml_feat.shape, f"{name} feature shape mismatch: {py_feat.shape} vs {ml_feat.shape}"
+            )
 
             # Compare values
             # Max absolute diff: ~6e-8 (float32 precision)
-            np.testing.assert_allclose(py_feat, ml_feat, rtol=1e-5, atol=1e-6,
-                                       err_msg=f"{name} feature differs beyond tolerance")
+            np.testing.assert_allclose(
+                py_feat, ml_feat, rtol=1e-5, atol=1e-6, err_msg=f"{name} feature differs beyond tolerance"
+            )
 
     def test_parity_topo_feature_only(self):
         """Test parity specifically for topography feature."""
@@ -647,8 +642,9 @@ class TestICLFeatureExtractorParity(unittest.TestCase):
 
         # Compare
         # Max absolute diff: ~6e-8 (float32 precision)
-        np.testing.assert_allclose(topo_py, topo_ml, rtol=1e-5, atol=1e-6,
-                                   err_msg="Topo feature differs beyond tolerance")
+        np.testing.assert_allclose(
+            topo_py, topo_ml, rtol=1e-5, atol=1e-6, err_msg="Topo feature differs beyond tolerance"
+        )
 
     def test_parity_psd_feature_only(self):
         """Test parity specifically for PSD feature."""
@@ -683,8 +679,7 @@ class TestICLFeatureExtractorParity(unittest.TestCase):
 
         # Compare
         # Max absolute diff: ~6e-8 (float32 precision)
-        np.testing.assert_allclose(psd_py, psd_ml, rtol=1e-5, atol=1e-6,
-                                   err_msg="PSD feature differs beyond tolerance")
+        np.testing.assert_allclose(psd_py, psd_ml, rtol=1e-5, atol=1e-6, err_msg="PSD feature differs beyond tolerance")
 
     def test_parity_autocorr_feature_only(self):
         """Test parity specifically for autocorrelation feature."""
@@ -719,8 +714,9 @@ class TestICLFeatureExtractorParity(unittest.TestCase):
 
         # Compare
         # Max absolute diff: ~6e-8 (float32 precision)
-        np.testing.assert_allclose(autocorr_py, autocorr_ml, rtol=1e-5, atol=1e-6,
-                                   err_msg="Autocorr feature differs beyond tolerance")
+        np.testing.assert_allclose(
+            autocorr_py, autocorr_ml, rtol=1e-5, atol=1e-6, err_msg="Autocorr feature differs beyond tolerance"
+        )
 
 
 if __name__ == '__main__':

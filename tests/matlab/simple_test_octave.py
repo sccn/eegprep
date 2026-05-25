@@ -1,4 +1,3 @@
-
 if __name__ == '__main__':
     from eegprep import pop_resample, pop_loadset
 
@@ -12,11 +11,11 @@ if __name__ == '__main__':
 
 
 if 0:
-    from oct2py import Oct2Py, get_log
+    from oct2py import get_log
     from oct2py import octave as octave_engine
     import logging
-    import os
-    #engine = Oct2Py(logger=get_log())
+
+    # engine = Oct2Py(logger=get_log())
     octave_engine.logger = get_log("new_log")
     octave_engine.logger.setLevel(logging.WARNING)
     octave_engine.warning('off', 'backtrace')
@@ -29,7 +28,6 @@ if 0:
     octave_engine.addpath(path2eeglab + '/functions/sigprocfunc')
     octave_engine.addpath(path2eeglab + '/functions/miscfunc')
     octave_engine.addpath(path2eeglab + '/plugins/dipfit')
-
 
     EEG = octave_engine.pop_loadset('tmp.set')
     EEG = octave_engine.pop_resample(EEG, 100)

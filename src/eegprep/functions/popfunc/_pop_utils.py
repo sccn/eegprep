@@ -85,19 +85,23 @@ def format_history_value(
         if any(_is_nested_sequence(item) for item in values):
             return "[" + "; ".join(_format_history_row(item, number_formatter) for item in values) + "]"
         if _sequence_should_use_cell(values, cell_for_sequence):
-            return "{" + string_separator.join(
-                format_history_value(
-                    item,
-                    bool_style=bool_style,
-                    cell_for_sequence=cell_for_sequence,
-                    string_separator=string_separator,
-                    empty_sequence=empty_sequence,
-                    none_as_empty=none_as_empty,
-                    dict_formatter=dict_formatter,
-                    number_formatter=number_formatter,
+            return (
+                "{"
+                + string_separator.join(
+                    format_history_value(
+                        item,
+                        bool_style=bool_style,
+                        cell_for_sequence=cell_for_sequence,
+                        string_separator=string_separator,
+                        empty_sequence=empty_sequence,
+                        none_as_empty=none_as_empty,
+                        dict_formatter=dict_formatter,
+                        number_formatter=number_formatter,
+                    )
+                    for item in values
                 )
-                for item in values
-            ) + "}"
+                + "}"
+            )
         return "[" + " ".join(_format_history_number(item, number_formatter) for item in values) + "]"
     if isinstance(value, (np.integer, np.floating)):
         value = value.item()

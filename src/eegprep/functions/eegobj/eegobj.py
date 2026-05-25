@@ -6,7 +6,6 @@ import os
 import types
 
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
-from eegprep.functions.popfunc.pop_select import pop_select  # ensure availability via globals
 
 _EEGPREP_FUNCTION_MODULE_PREFIXES = (
     "eegprep.functions.popfunc",
@@ -51,6 +50,7 @@ class EEGobj:
             # Try public package exports before probing EEGLAB-style modules.
             try:
                 import eegprep as eegpkg
+
                 cand = getattr(eegpkg, n, None)
                 if callable(cand):
                     return cand
@@ -120,6 +120,7 @@ class EEGobj:
 
         def wrapper(*args, **kwargs):
             return self._call_eegprep(name, *args, **kwargs)
+
         return wrapper
 
     def __setattr__(self, name, value):
@@ -216,7 +217,7 @@ class EEGobj:
             iterable_cl = clocs
             if hasattr(clocs, 'tolist'):
                 iterable_cl = clocs.tolist()
-            for ch in (iterable_cl if isinstance(iterable_cl, (list, tuple)) else []):
+            for ch in iterable_cl if isinstance(iterable_cl, (list, tuple)) else []:
                 if isinstance(ch, dict) and 'type' in ch:
                     t = ch['type']
                     if isinstance(t, bytes):

@@ -150,11 +150,7 @@ def _update_references(locs: list[dict[str, Any]], chansin: list[int], ref_indic
     if not ref_indices:
         ref_text = "average"
     else:
-        labels = [
-            str(locs[idx].get("labels", idx))
-            for idx in ref_indices
-            if idx < len(locs)
-        ]
+        labels = [str(locs[idx].get("labels", idx)) for idx in ref_indices if idx < len(locs)]
         ref_text = labels[0] if len(labels) == 1 else " ".join(labels)
     for idx in chansin:
         if idx < len(locs):

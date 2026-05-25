@@ -1,6 +1,5 @@
 import os
 import unittest
-import os
 
 if os.getenv('EEGPREP_SKIP_MATLAB') == '1':
     raise unittest.SkipTest("MATLAB not available")
@@ -10,8 +9,8 @@ from eegprep import pop_loadset, pop_resample, pop_saveset  # Explicitly import 
 # where the test resources
 local_url = os.path.join(os.path.dirname(__file__), '../sample_data/')
 
-class TestPopResample(unittest.TestCase):
 
+class TestPopResample(unittest.TestCase):
     def setUp(self):
         self.EEG = pop_loadset(os.path.join(local_url, 'eeglab_data_with_ica_tmp.set'))
         self.new_freq = 96  # New sampling rate in Hz
@@ -20,10 +19,14 @@ class TestPopResample(unittest.TestCase):
         """Test basic resampling functionality with different engines"""
         # Apply resampling with different engines
         EEG_python = pop_resample(self.EEG.copy(), self.new_freq, engine='poly')
-        pop_saveset(EEG_python, os.path.join(local_url, 'eeglab_data_with_ica_tmp_python.set')) # see MATLAB code to compare the results at the end of the file
+        pop_saveset(
+            EEG_python, os.path.join(local_url, 'eeglab_data_with_ica_tmp_python.set')
+        )  # see MATLAB code to compare the results at the end of the file
 
         EEG_matlab = pop_resample(self.EEG.copy(), self.new_freq, engine='matlab')
-        pop_saveset(EEG_matlab, os.path.join(local_url, 'eeglab_data_with_ica_tmp_matlab.set')) # see MATLAB code to compare the results at the end of the file
+        pop_saveset(
+            EEG_matlab, os.path.join(local_url, 'eeglab_data_with_ica_tmp_matlab.set')
+        )  # see MATLAB code to compare the results at the end of the file
 
         # EEG_octave = pop_resample(self.EEG.copy(), self.new_freq, engine='octave')
         # pop_saveset(EEG_octave, os.path.join(local_url, 'eeglab_data_with_ica_tmp_octave.set')) # see MATLAB code to compare the results at the end of the file
@@ -37,16 +40,21 @@ class TestPopResample(unittest.TestCase):
         # print("Sampling rate ok")
 
         # Compare data shapes
-        self.assertEqual(EEG_python['data'].shape[1], EEG_matlab['data'].shape[1],
-                        'Data shapes differ between Python and MATLAB')
+        self.assertEqual(
+            EEG_python['data'].shape[1], EEG_matlab['data'].shape[1], 'Data shapes differ between Python and MATLAB'
+        )
         print("Data shape ok")
         # self.assertEqual(EEG_python['data'].shape[1], EEG_octave['data'].shape[1],
         #                 'Data shapes differ between Python and Octave')
         # print("Data shape ok")
         # Compare data with tolerance
-        np.testing.assert_allclose(EEG_python['data'], EEG_matlab['data'],
-                                 rtol=1e-5, atol=1e-8,
-                                 err_msg='Python and MATLAB results differ beyond tolerance')
+        np.testing.assert_allclose(
+            EEG_python['data'],
+            EEG_matlab['data'],
+            rtol=1e-5,
+            atol=1e-8,
+            err_msg='Python and MATLAB results differ beyond tolerance',
+        )
         # np.testing.assert_allclose(EEG_matlab['data'].flatten(), EEG_octave['data'].flatten(),
         #                          rtol=1e-5, atol=1e-8,
         #                          err_msg='Python and MATLAB results differ beyond tolerance')
@@ -63,6 +71,7 @@ class TestPopResample(unittest.TestCase):
 
     def test_advanced(self):
         pass
+
 
 if __name__ == '__main__':
     unittest.main()

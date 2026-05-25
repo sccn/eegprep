@@ -28,10 +28,13 @@ class PopIclabelGuiTests(unittest.TestCase):
         self.assertEqual(spec.title, "ICLabel")
         self.assertEqual(spec.function_name, "pop_iclabel")
         self.assertEqual(spec.eeglab_source, "plugins/ICLabel/pop_iclabel.m")
-        self.assertEqual([(control.style, control.string, control.tag) for control in spec.controls], [
-            ("text", "Select which icversion of ICLabel to use:", None),
-            ("popupmenu", "Default (recommended)|Lite|Beta", "icversion"),
-        ])
+        self.assertEqual(
+            [(control.style, control.string, control.tag) for control in spec.controls],
+            [
+                ("text", "Select which icversion of ICLabel to use:", None),
+                ("popupmenu", "Default (recommended)|Lite|Beta", "icversion"),
+            ],
+        )
 
     def test_gui_result_runs_iclabel_and_returns_history(self):
         class Renderer:

@@ -1,7 +1,6 @@
 """Testing utilities."""
 
 import importlib.util
-import os
 import shutil
 import sys
 import unittest
@@ -28,6 +27,7 @@ default_32_bit = True
 # works around an issue where pop_loadset can at times read back a 2d array@
 # as 3d
 flatten_to_2d = True
+
 
 def compare_eeg(a, b, rtol=0, atol=1e-7, use_32_bit=default_32_bit, err_msg=''):
     """Compare EEG time series data, with optional 32-bit precision.
@@ -76,7 +76,7 @@ def compare_eeg(a, b, rtol=0, atol=1e-7, use_32_bit=default_32_bit, err_msg=''):
 
     # Build summary string
     summary_lines = [
-        f"Comparison Summary:",
+        "Comparison Summary:",
         f"  Shape: {original_shape}",
         f"  Total elements: {total_elements:,}",
         f"  Mismatched elements (> {atol}): {mismatched:,} ({mismatch_pct:.2f}%)",
@@ -118,6 +118,7 @@ class DebuggableTestCase(unittest.TestCase):
         loader = unittest.defaultTestLoader
         testSuite = loader.loadTestsFromTestCase(cls)
         testSuite.debug()
+
 
 def is_debug():
     """Determine whether Python is running in debug mode."""
@@ -189,8 +190,7 @@ def use_64bit_eeg_options():
                 backup_path.unlink()  # Remove the backup file
             else:
                 warnings.warn(
-                    f"Backup file {backup_path} went missing, could not restore original eeg_options.m",
-                    UserWarning
+                    f"Backup file {backup_path} went missing, could not restore original eeg_options.m", UserWarning
                 )
         else:
             # Delete the file since it didn't exist before

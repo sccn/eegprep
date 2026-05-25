@@ -32,9 +32,10 @@ References
 
 import numpy as np
 import matplotlib.pyplot as plt
-from mne import create_info, EpochsArray
+from mne import create_info
 from mne.channels import make_standard_montage
 import sys
+
 sys.path.insert(0, '/Users/baristim/Projects/eegprep/src')
 
 import eegprep
@@ -56,10 +57,38 @@ duration = n_samples / sfreq
 
 # Create standard 10-20 channel names
 ch_names = [
-    'Fp1', 'Fpz', 'Fp2', 'F7', 'F3', 'Fz', 'F4', 'F8',
-    'T7', 'C3', 'Cz', 'C4', 'T8', 'P7', 'P3', 'Pz',
-    'P4', 'P8', 'O1', 'Oz', 'O2', 'A1', 'A2', 'M1',
-    'M2', 'Fc1', 'Fc2', 'Cp1', 'Cp2', 'Fc5', 'Fc6', 'Cp5'
+    'Fp1',
+    'Fpz',
+    'Fp2',
+    'F7',
+    'F3',
+    'Fz',
+    'F4',
+    'F8',
+    'T7',
+    'C3',
+    'Cz',
+    'C4',
+    'T8',
+    'P7',
+    'P3',
+    'Pz',
+    'P4',
+    'P8',
+    'O1',
+    'Oz',
+    'O2',
+    'A1',
+    'A2',
+    'M1',
+    'M2',
+    'Fc1',
+    'Fc2',
+    'Cp1',
+    'Cp2',
+    'Fc5',
+    'Fc6',
+    'Cp5',
 ]
 
 # Create time vector
@@ -115,7 +144,7 @@ for i in range(n_channels):
     data[i, :] += drift * (0.1 + np.random.rand())
 print("  ✓ Added slow drift artifacts")
 
-print(f"\nData with artifacts created:")
+print("\nData with artifacts created:")
 print(f"  Shape: {data.shape}")
 print(f"  Range: [{np.min(data):.2f}, {np.max(data):.2f}] µV")
 print("=" * 70)
@@ -149,18 +178,20 @@ for i, ch_name in enumerate(ch_names):
             theta = (i / len(ch_names)) * 2 * np.pi
             phi = np.pi / 4
             pos = np.array([np.sin(phi) * np.cos(theta), np.sin(phi) * np.sin(theta), np.cos(phi)])
-    except:
+    except Exception:
         # Default: generate position on unit sphere
         theta = (i / len(ch_names)) * 2 * np.pi
         phi = np.pi / 4
         pos = np.array([np.sin(phi) * np.cos(theta), np.sin(phi) * np.sin(theta), np.cos(phi)])
 
-    chanlocs.append({
-        'labels': ch_name,
-        'X': float(pos[0]),
-        'Y': float(pos[1]),
-        'Z': float(pos[2]),
-    })
+    chanlocs.append(
+        {
+            'labels': ch_name,
+            'X': float(pos[0]),
+            'Y': float(pos[1]),
+            'Z': float(pos[2]),
+        }
+    )
 
 EEG_dict = {
     'data': data.copy(),
@@ -170,7 +201,7 @@ EEG_dict = {
     'xmin': 0,
     'xmax': (data.shape[1] - 1) / sfreq,
     'chanlocs': chanlocs,
-    'etc': {}
+    'etc': {},
 }
 
 result = eegprep.clean_artifacts(EEG_dict, ChannelCriterion='off', LineNoiseCriterion='off')
@@ -191,16 +222,10 @@ print("Description: Removes artifacts while preserving signal structure")
 print("Threshold controls aggressiveness (lower = more aggressive)")
 
 # Create EEG dict for ASR (reuse the one created earlier)
-cleaned_asr_20_result = eegprep.clean_asr(
-    EEG_dict.copy(),
-    cutoff=20
-)
+cleaned_asr_20_result = eegprep.clean_asr(EEG_dict.copy(), cutoff=20)
 cleaned_asr_20 = cleaned_asr_20_result['data']
 
-cleaned_asr_15_result = eegprep.clean_asr(
-    EEG_dict.copy(),
-    cutoff=15
-)
+cleaned_asr_15_result = eegprep.clean_asr(EEG_dict.copy(), cutoff=15)
 cleaned_asr_15 = cleaned_asr_15_result['data']
 
 print(f"ASR (threshold=20): Data range [{np.min(cleaned_asr_20):.2f}, {np.max(cleaned_asr_20):.2f}] µV")
@@ -217,9 +242,7 @@ print("=" * 70)
 print("Description: Removes channels with flat/dead signals")
 print("Good for: Detecting and handling non-functional channels")
 
-cleaned_flatlines_result = eegprep.clean_flatlines(
-    EEG_dict.copy()
-)
+cleaned_flatlines_result = eegprep.clean_flatlines(EEG_dict.copy())
 cleaned_flatlines = cleaned_flatlines_result['data']
 
 print(f"Result: Data range [{np.min(cleaned_flatlines):.2f}, {np.max(cleaned_flatlines):.2f}] µV")
@@ -239,61 +262,56 @@ time_window = slice(0, 3000)  # First 6 seconds
 ax = axes[0]
 for i, ch_idx in enumerate(channels_to_plot):
     offset = i * 150
-    ax.plot(t[time_window], data[ch_idx, time_window] + offset,
-            linewidth=1.5, label=ch_names[ch_idx])
+    ax.plot(t[time_window], data[ch_idx, time_window] + offset, linewidth=1.5, label=ch_names[ch_idx])
 ax.set_ylabel('Amplitude (µV)', fontsize=11)
 ax.set_title('Original Data with Artifacts', fontsize=12, fontweight='bold')
 ax.grid(True, alpha=0.3)
-ax.set_xlim([t[time_window.start], t[time_window.stop-1]])
+ax.set_xlim([t[time_window.start], t[time_window.stop - 1]])
 ax.legend(loc='upper right', fontsize=10)
 
 # Plot 2: clean_artifacts
 ax = axes[1]
 for i, ch_idx in enumerate(channels_to_plot):
     offset = i * 150
-    ax.plot(t[time_window], cleaned_artifacts[ch_idx, time_window] + offset,
-            linewidth=1.5, label=ch_names[ch_idx])
+    ax.plot(t[time_window], cleaned_artifacts[ch_idx, time_window] + offset, linewidth=1.5, label=ch_names[ch_idx])
 ax.set_ylabel('Amplitude (µV)', fontsize=11)
 ax.set_title('After clean_artifacts', fontsize=12, fontweight='bold')
 ax.grid(True, alpha=0.3)
-ax.set_xlim([t[time_window.start], t[time_window.stop-1]])
+ax.set_xlim([t[time_window.start], t[time_window.stop - 1]])
 ax.legend(loc='upper right', fontsize=10)
 
 # Plot 3: clean_asr (threshold=20)
 ax = axes[2]
 for i, ch_idx in enumerate(channels_to_plot):
     offset = i * 150
-    ax.plot(t[time_window], cleaned_asr_20[ch_idx, time_window] + offset,
-            linewidth=1.5, label=ch_names[ch_idx])
+    ax.plot(t[time_window], cleaned_asr_20[ch_idx, time_window] + offset, linewidth=1.5, label=ch_names[ch_idx])
 ax.set_ylabel('Amplitude (µV)', fontsize=11)
 ax.set_title('After clean_asr (threshold=20)', fontsize=12, fontweight='bold')
 ax.grid(True, alpha=0.3)
-ax.set_xlim([t[time_window.start], t[time_window.stop-1]])
+ax.set_xlim([t[time_window.start], t[time_window.stop - 1]])
 ax.legend(loc='upper right', fontsize=10)
 
 # Plot 4: clean_asr (threshold=15)
 ax = axes[3]
 for i, ch_idx in enumerate(channels_to_plot):
     offset = i * 150
-    ax.plot(t[time_window], cleaned_asr_15[ch_idx, time_window] + offset,
-            linewidth=1.5, label=ch_names[ch_idx])
+    ax.plot(t[time_window], cleaned_asr_15[ch_idx, time_window] + offset, linewidth=1.5, label=ch_names[ch_idx])
 ax.set_ylabel('Amplitude (µV)', fontsize=11)
 ax.set_title('After clean_asr (threshold=15, more aggressive)', fontsize=12, fontweight='bold')
 ax.grid(True, alpha=0.3)
-ax.set_xlim([t[time_window.start], t[time_window.stop-1]])
+ax.set_xlim([t[time_window.start], t[time_window.stop - 1]])
 ax.legend(loc='upper right', fontsize=10)
 
 # Plot 5: clean_flatlines
 ax = axes[4]
 for i, ch_idx in enumerate(channels_to_plot):
     offset = i * 150
-    ax.plot(t[time_window], cleaned_flatlines[ch_idx, time_window] + offset,
-            linewidth=1.5, label=ch_names[ch_idx])
+    ax.plot(t[time_window], cleaned_flatlines[ch_idx, time_window] + offset, linewidth=1.5, label=ch_names[ch_idx])
 ax.set_xlabel('Time (s)', fontsize=11)
 ax.set_ylabel('Amplitude (µV)', fontsize=11)
 ax.set_title('After clean_flatlines', fontsize=12, fontweight='bold')
 ax.grid(True, alpha=0.3)
-ax.set_xlim([t[time_window.start], t[time_window.stop-1]])
+ax.set_xlim([t[time_window.start], t[time_window.stop - 1]])
 ax.legend(loc='upper right', fontsize=10)
 
 plt.tight_layout()
@@ -321,8 +339,7 @@ ax.grid(True, alpha=0.3, axis='y')
 # Add value labels on bars
 for bar in bars:
     height = bar.get_height()
-    ax.text(bar.get_x() + bar.get_width()/2., height,
-            f'{height:.0f}', ha='center', va='bottom', fontsize=9)
+    ax.text(bar.get_x() + bar.get_width() / 2.0, height, f'{height:.0f}', ha='center', va='bottom', fontsize=9)
 
 # Standard deviation comparison
 ax = axes[0, 1]
@@ -334,8 +351,7 @@ ax.tick_params(axis='x', rotation=45)
 ax.grid(True, alpha=0.3, axis='y')
 for bar in bars:
     height = bar.get_height()
-    ax.text(bar.get_x() + bar.get_width()/2., height,
-            f'{height:.1f}', ha='center', va='bottom', fontsize=9)
+    ax.text(bar.get_x() + bar.get_width() / 2.0, height, f'{height:.1f}', ha='center', va='bottom', fontsize=9)
 
 # Range comparison
 ax = axes[1, 0]
@@ -347,8 +363,7 @@ ax.tick_params(axis='x', rotation=45)
 ax.grid(True, alpha=0.3, axis='y')
 for bar in bars:
     height = bar.get_height()
-    ax.text(bar.get_x() + bar.get_width()/2., height,
-            f'{height:.0f}', ha='center', va='bottom', fontsize=9)
+    ax.text(bar.get_x() + bar.get_width() / 2.0, height, f'{height:.0f}', ha='center', va='bottom', fontsize=9)
 
 # Mean absolute value comparison
 ax = axes[1, 1]
@@ -360,8 +375,7 @@ ax.tick_params(axis='x', rotation=45)
 ax.grid(True, alpha=0.3, axis='y')
 for bar in bars:
     height = bar.get_height()
-    ax.text(bar.get_x() + bar.get_width()/2., height,
-            f'{height:.1f}', ha='center', va='bottom', fontsize=9)
+    ax.text(bar.get_x() + bar.get_width() / 2.0, height, f'{height:.1f}', ha='center', va='bottom', fontsize=9)
 
 plt.tight_layout()
 plt.show()
@@ -382,7 +396,7 @@ print("   - General-purpose artifact removal")
 print("   - Removes high-amplitude transient artifacts")
 print("   - Fast and computationally efficient")
 print("   - Good for eye blinks and muscle artifacts")
-var_reduction = (1 - np.var(cleaned_artifacts)/np.var(data))*100
+var_reduction = (1 - np.var(cleaned_artifacts) / np.var(data)) * 100
 print(f"   - Variance reduction: {var_reduction:.1f}%")
 print("\n   Best for: Quick preprocessing, real-time applications")
 
@@ -393,8 +407,8 @@ print("   - Removes artifacts while preserving signal structure")
 print("   - Threshold controls aggressiveness")
 print("   - More sophisticated than clean_artifacts")
 print("   - Preserves brain activity better")
-var_reduction_20 = (1 - np.var(cleaned_asr_20)/np.var(data))*100
-var_reduction_15 = (1 - np.var(cleaned_asr_15)/np.var(data))*100
+var_reduction_20 = (1 - np.var(cleaned_asr_20) / np.var(data)) * 100
+var_reduction_15 = (1 - np.var(cleaned_asr_15) / np.var(data)) * 100
 print(f"   - ASR(20) variance reduction: {var_reduction_20:.1f}%")
 print(f"   - ASR(15) variance reduction: {var_reduction_15:.1f}%")
 print("\n   Best for: Research applications, when signal preservation is critical")
@@ -405,7 +419,7 @@ print("   Characteristics:")
 print("   - Removes channels with no signal variation")
 print("   - Detects dead/non-functional channels")
 print("   - Complements other methods")
-var_reduction_flat = (1 - np.var(cleaned_flatlines)/np.var(data))*100
+var_reduction_flat = (1 - np.var(cleaned_flatlines) / np.var(data)) * 100
 print(f"   - Variance reduction: {var_reduction_flat:.1f}%")
 print("\n   Best for: Channel quality control, preprocessing pipeline")
 

@@ -30,7 +30,6 @@ def _ml_list_of_arrays_to_0_based(list_of_arrays):
 
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestEpochParity(unittest.TestCase):
-
     def setUp(self):
         np.random.seed(0)
         self.eeglab = get_eeglab('MAT')
@@ -99,19 +98,9 @@ class TestEpochParity(unittest.TestCase):
         allevents = np.array([4.7, 4.9, 5.1, 5.6, 9.1, 9.85, 10.05], dtype=float)
         alleventrange = np.array([-0.1, 0.3], dtype=float)
 
-        py = epoch(
-            data, events, lim,
-            srate=srate,
-            allevents=allevents,
-            alleventrange=alleventrange,
-            verbose='off'
-        )
+        py = epoch(data, events, lim, srate=srate, allevents=allevents, alleventrange=alleventrange, verbose='off')
         ml = self.eeglab.epoch(
-            data, events, lim,
-            'srate', srate,
-            'allevents', allevents,
-            'alleventrange', alleventrange,
-            'verbose', 'off'
+            data, events, lim, 'srate', srate, 'allevents', allevents, 'alleventrange', alleventrange, 'verbose', 'off'
         )
 
         py_epochdat, py_newtime, py_indexes, py_alleventout, py_alllatencyout, py_reallim = py
@@ -165,7 +154,6 @@ class TestEpochParity(unittest.TestCase):
 
 
 class TestEpochFunctional(unittest.TestCase):
-
     def test_functional_3d_epoched_input_same_epoch_constraint(self):
         # data shaped (chan, frames, epochs) = (1, 100, 3)
         # time window must remain within the same pre-existing epoch
@@ -191,18 +179,18 @@ class TestEpochFunctional(unittest.TestCase):
         reallim0 = int(np.round(lim[0] * srate))  # -20
         reallim1 = int(np.round(lim[1] * srate - 1))  # 29
         posinit = pos0 + reallim0  # 100 (0-based)
-        posend = pos0 + reallim1   # 149 (0-based)
+        posend = pos0 + reallim1  # 149 (0-based)
 
         # MATLAB slicing: posinit:posend (1-based) becomes [posinit-1:posend] (0-based)
         start_global = posinit - 1  # 99 (Python 0-based)
-        end_global = posend         # 149 (Python 0-based exclusive)
+        end_global = posend  # 149 (Python 0-based exclusive)
 
         # Extract the expected slice from linearized data (Fortran order)
         data_linearized = data.reshape(1, -1, order='F')
         expected = data_linearized[0, start_global:end_global]
         self.assertTrue(np.allclose(ep[0, :, 0], expected, atol=1e-12))
         # newtime should reflect limits divided by srate with the -1 sample convention
-        self.assertTrue(np.allclose(newtime, np.array([lim[0], np.round(lim[1]*srate-1)/srate]), atol=1e-12))
+        self.assertTrue(np.allclose(newtime, np.array([lim[0], np.round(lim[1] * srate - 1) / srate]), atol=1e-12))
 
     def test_functional_valuelim_pass_all(self):
         srate = 200.0

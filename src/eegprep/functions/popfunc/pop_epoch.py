@@ -172,10 +172,7 @@ def _pop_epoch_one(
 
     events = _event_list(EEG.get("event"))
     if not events:
-        if (
-            int(EEG.get("trials", 1) or 1) > 1
-            and float(EEG.get("xmin", 0) or 0) <= 0 <= float(EEG.get("xmax", 0) or 0)
-        ):
+        if int(EEG.get("trials", 1) or 1) > 1 and float(EEG.get("xmin", 0) or 0) <= 0 <= float(EEG.get("xmax", 0) or 0):
             events = _time_locking_events(EEG)
         else:
             logger.info("Cannot epoch data with no events")
@@ -428,11 +425,7 @@ def _epoch_events(
             new_event = copy.deepcopy(events[event_index])
             new_event["epoch"] = epoch_index + 1
             new_event["latency"] = (
-                float(new_event["latency"])
-                - accepted_latencies[epoch_index]
-                - xmin * srate
-                + 1
-                + pnts * epoch_index
+                float(new_event["latency"]) - accepted_latencies[epoch_index] - xmin * srate + 1 + pnts * epoch_index
             )
             new_events.append(new_event)
     return new_events
@@ -447,17 +440,15 @@ def _remove_boundary_epochs(output: dict[str, Any], accepted_positions: list[int
     boundary_indices = eeg_findboundaries(EEG=events)
     if not boundary_indices:
         return output, accepted_positions
-    remove_epochs = {
-        int(events[index].get("epoch", 1) or 1)
-        for index in boundary_indices
-    }
+    remove_epochs = {int(events[index].get("epoch", 1) or 1) for index in boundary_indices}
     if not remove_epochs:
         return output, accepted_positions
     selected = pop_select(output, notrial=sorted(remove_epochs))
     if isinstance(selected, tuple):
         selected = selected[0]
     kept_positions = [
-        position for epoch_number, position in enumerate(accepted_positions, start=1)
+        position
+        for epoch_number, position in enumerate(accepted_positions, start=1)
         if epoch_number not in remove_epochs
     ]
     return selected, kept_positions
@@ -472,19 +463,14 @@ def _update_dataset_text(output: dict[str, Any], original: dict[str, Any], newna
                 body = comments
             else:
                 body = "\n".join(str(line) for line in comments)
-            output["comments"] = (
-                f'Parent dataset: {setname}\n\nParent dataset "{setname}": ----------\n{body}'
-            )
+            output["comments"] = f'Parent dataset: {setname}\n\nParent dataset "{setname}": ----------\n{body}'
         else:
             output["comments"] = f"Parent dataset: {setname}\n"
     output["setname"] = newname
 
 
 def _history_command(types: Any, lim: list[float], options: dict[str, Any]) -> str:
-    pieces = [
-        f"EEG = pop_epoch( EEG, {_history_types(types)}, "
-        f"{format_history_value(lim, cell_for_sequence=None)}"
-    ]
+    pieces = [f"EEG = pop_epoch( EEG, {_history_types(types)}, {format_history_value(lim, cell_for_sequence=None)}"]
     for key, value in options.items():
         if _is_empty_history_value(value):
             continue

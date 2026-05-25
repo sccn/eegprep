@@ -10,7 +10,6 @@ Usage:
 """
 
 import argparse
-import sys
 import logging
 
 logging.basicConfig(
@@ -20,24 +19,21 @@ logging.basicConfig(
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description='Minimal EEGPrep preprocessing: resample and highpass filter.')
-    parser.add_argument('--input', required=True,
-                        help='Path to the BIDS dataset root directory')
-    parser.add_argument('--output', default=None,
-                        help='Output directory (default: {input}/derivatives/eegprep)')
-    parser.add_argument('--srate', type=float, default=100.0,
-                        help='Target sampling rate in Hz (default: 100)')
-    parser.add_argument('--highpass', type=float, default=0.5,
-                        help='Highpass filter cutoff in Hz (default: 0.5)')
-    parser.add_argument('--subjects', nargs='*', default=None,
-                        help='Subject IDs or 0-based indices to process (default: all)')
-    parser.add_argument('--jobs', default='1CPU',
-                        help='Parallelism spec, e.g. "1CPU" or "4GB" (default: 1CPU)')
-    parser.add_argument('--desc', default='',
-                        help='desc- label for output files (default: none)')
-    parser.add_argument('--report-dir', default='code/reports',
-                        help='Directory for report files relative to output (default: code/reports)')
+    parser = argparse.ArgumentParser(description='Minimal EEGPrep preprocessing: resample and highpass filter.')
+    parser.add_argument('--input', required=True, help='Path to the BIDS dataset root directory')
+    parser.add_argument('--output', default=None, help='Output directory (default: {input}/derivatives/eegprep)')
+    parser.add_argument('--srate', type=float, default=100.0, help='Target sampling rate in Hz (default: 100)')
+    parser.add_argument('--highpass', type=float, default=0.5, help='Highpass filter cutoff in Hz (default: 0.5)')
+    parser.add_argument(
+        '--subjects', nargs='*', default=None, help='Subject IDs or 0-based indices to process (default: all)'
+    )
+    parser.add_argument('--jobs', default='1CPU', help='Parallelism spec, e.g. "1CPU" or "4GB" (default: 1CPU)')
+    parser.add_argument('--desc', default='', help='desc- label for output files (default: none)')
+    parser.add_argument(
+        '--report-dir',
+        default='code/reports',
+        help='Directory for report files relative to output (default: code/reports)',
+    )
     args = parser.parse_args()
 
     from eegprep import bids_preproc

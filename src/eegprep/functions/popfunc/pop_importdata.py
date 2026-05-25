@@ -16,7 +16,9 @@ def pop_importdata(*args: Any, return_com: bool = False, **kwargs: Any) -> dict[
         raise ValueError("pop_importdata requires a 'data' file or array")
     data_source = options["data"]
     nbchan = _optional_int(options.get("nbchan"))
-    dataformat = infer_dataformat(data_source if isinstance(data_source, (str, Path)) else None, options.get("dataformat"))
+    dataformat = infer_dataformat(
+        data_source if isinstance(data_source, (str, Path)) else None, options.get("dataformat")
+    )
     data = load_data_array(
         data_source,
         dataformat=dataformat,

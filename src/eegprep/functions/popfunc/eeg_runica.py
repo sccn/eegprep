@@ -54,7 +54,7 @@ def eeg_runica(EEG, posact='off', sortcomps='off', **kwargs):
         # Flatten icaact to 2D for variance computation
         icaact_2d = flatten_ica_data(EEG['icaact'])
         # Compute variance metric: sum(icawinv^2) .* sum(icaact^2)
-        variance_metric = np.sum(EEG['icawinv'] ** 2, axis=0) * np.sum(icaact_2d ** 2, axis=1)
+        variance_metric = np.sum(EEG['icawinv'] ** 2, axis=0) * np.sum(icaact_2d**2, axis=1)
         # Sort indices in descending order
         windex = np.argsort(variance_metric)[::-1]
         # Reorder components

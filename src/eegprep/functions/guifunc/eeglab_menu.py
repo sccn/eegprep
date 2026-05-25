@@ -44,7 +44,9 @@ def eeglab_core_menus() -> tuple[MenuItemSpec, ...]:
                         tag="import data",
                         userdata=ON_NO_STUDY,
                         children=[
-                            menu_item("(for more use menu File > Manage EEGPrep extensions)", userdata=OFF, enabled=False),
+                            menu_item(
+                                "(for more use menu File > Manage EEGPrep extensions)", userdata=OFF, enabled=False
+                            ),
                             menu_item("From ASCII/float file or MATLAB array", action="pop_importdata", separator=True),
                             menu_item("From Biosemi BDF file (BIOSIG toolbox)", action="pop_biosig", separator=True),
                             menu_item("From EDF/EDF+/GDF files (BIOSIG toolbox)", action="pop_biosig"),
@@ -144,7 +146,9 @@ def eeglab_core_menus() -> tuple[MenuItemSpec, ...]:
         tag="tools",
         userdata=ON_DATA_STUDY,
         children=[
-            menu_item('(Expand tool choices via "File > Preferences")', userdata=OFF, enabled=False, visibility="default"),
+            menu_item(
+                '(Expand tool choices via "File > Preferences")', userdata=OFF, enabled=False, visibility="default"
+            ),
             menu_item("Change sampling rate", action="pop_resample", userdata=ON_DATA_STUDY, separator=True),
             menu_item(
                 "Filter the data",
@@ -171,11 +175,18 @@ def eeglab_core_menus() -> tuple[MenuItemSpec, ...]:
                     menu_item("Reject by probability", action="pop_jointprob:data", userdata=ON_EPOCH),
                     menu_item("Reject by kurtosis", action="pop_rejkurt:data", userdata=ON_EPOCH),
                     menu_item("Reject by spectra", action="pop_rejspec:data", userdata=ON_EPOCH),
-                    menu_item("Export marks to ICA reject", action="eeg_rejsuperpose:data_to_ica", userdata=ON_EPOCH, separator=True),
+                    menu_item(
+                        "Export marks to ICA reject",
+                        action="eeg_rejsuperpose:data_to_ica",
+                        userdata=ON_EPOCH,
+                        separator=True,
+                    ),
                     menu_item("Reject marked epochs", action="pop_rejepoch:data", userdata=ON_EPOCH, separator=True),
                 ],
             ),
-            menu_item("Inspect/label components by map", action="pop_selectcomps", userdata=ON_DATA, visibility="default"),
+            menu_item(
+                "Inspect/label components by map", action="pop_selectcomps", userdata=ON_DATA, visibility="default"
+            ),
             menu_item(
                 "Reject data using ICA",
                 userdata=ON_DATA,
@@ -189,7 +200,12 @@ def eeglab_core_menus() -> tuple[MenuItemSpec, ...]:
                     menu_item("Reject by probability", action="pop_jointprob:ica", userdata=ON_EPOCH),
                     menu_item("Reject by kurtosis", action="pop_rejkurt:ica", userdata=ON_EPOCH),
                     menu_item("Reject by spectra", action="pop_rejspec:ica", userdata=ON_EPOCH),
-                    menu_item("Export marks to data reject", action="eeg_rejsuperpose:ica_to_data", userdata=ON_EPOCH, separator=True),
+                    menu_item(
+                        "Export marks to data reject",
+                        action="eeg_rejsuperpose:ica_to_data",
+                        userdata=ON_EPOCH,
+                        separator=True,
+                    ),
                     menu_item("Reject marked epochs", action="pop_rejepoch:ica", userdata=ON_EPOCH, separator=True),
                 ],
             ),
@@ -234,7 +250,9 @@ def eeglab_core_menus() -> tuple[MenuItemSpec, ...]:
             ),
             menu_item("Sum/Compare ERPs", action="pop_comperp:channels", userdata=ON_EPOCH, visibility="allmenus"),
             menu_item("Channel time-frequency", action="pop_newtimef:channels", visibility="default"),
-            menu_item("Component activations (scroll)", action="pop_eegplot:components", userdata=ON_DATA, separator=True),
+            menu_item(
+                "Component activations (scroll)", action="pop_eegplot:components", userdata=ON_DATA, separator=True
+            ),
             menu_item("Component spectra and maps", action="pop_spectopo:components", userdata=ON_DATA_NO_ROI),
             menu_item(
                 "Component maps",
@@ -255,7 +273,12 @@ def eeglab_core_menus() -> tuple[MenuItemSpec, ...]:
                     menu_item("In rectangular array", action="pop_plotdata:components", userdata=ON_EPOCH),
                 ],
             ),
-            menu_item("Sum/Compare comp. ERPs", action="pop_comperp:components", userdata=ON_EPOCH_NO_ROI, visibility="allmenus"),
+            menu_item(
+                "Sum/Compare comp. ERPs",
+                action="pop_comperp:components",
+                userdata=ON_EPOCH_NO_ROI,
+                visibility="allmenus",
+            ),
             menu_item(
                 "Data statistics",
                 userdata=ON_DATA,
@@ -292,7 +315,9 @@ def eeglab_core_menus() -> tuple[MenuItemSpec, ...]:
             menu_item("Select/Edit study design(s)", action="pop_studydesign", userdata=ON_STUDY),
             menu_item("Precompute channel measures", action="pop_precomp:channels", userdata=ON_STUDY, separator=True),
             menu_item("Plot channel measures", action="pop_chanplot", userdata=ON_STUDY),
-            menu_item("Precompute component measures", action="pop_precomp:components", userdata=ON_STUDY, separator=True),
+            menu_item(
+                "Precompute component measures", action="pop_precomp:components", userdata=ON_STUDY, separator=True
+            ),
             menu_item(
                 "PCA clustering (original)",
                 userdata=ON_STUDY_NO_ROI,

@@ -103,6 +103,18 @@ jobs:
         run: |
           uv sync --python ${{ matrix.python-version }} --all-extras --group dev
 
+      - name: Run Ruff lint
+        run: |
+          uv run --no-sync ruff check .
+
+      - name: Run Ruff format check
+        run: |
+          uv run --no-sync ruff format --check .
+
+      - name: Run ty type check
+        run: |
+          uv run --no-sync ty check
+
       - name: Set up MATLAB
         if: steps.matlab-availability.outputs.available == 'true'
         uses: matlab-actions/setup-matlab@v2

@@ -1,9 +1,6 @@
 import unittest
 import numpy as np
-import warnings
-from unittest.mock import patch, MagicMock
-import scipy.signal
-import scipy.linalg
+from unittest.mock import patch
 
 from eegprep.plugins.clean_rawdata.asr_calibrate import asr_calibrate
 from eegprep.plugins.clean_rawdata.asr_process import asr_process
@@ -26,7 +23,7 @@ class TestAsrCalibrate(unittest.TestCase):
         for i in range(self.n_channels):
             # Simple AR(1) process for more realistic EEG-like data
             for j in range(1, self.n_samples):
-                self.clean_data[i, j] += 0.8 * self.clean_data[i, j-1]
+                self.clean_data[i, j] += 0.8 * self.clean_data[i, j - 1]
 
     def test_basic_calibration(self):
         """Test basic ASR calibration functionality."""
@@ -113,7 +110,7 @@ class TestAsrCalibrate(unittest.TestCase):
             window_overlap=0.5,
             max_dropout_fraction=0.2,
             min_clean_fraction=0.3,
-            maxmem=32
+            maxmem=32,
         )
 
         # Should complete without errors
@@ -139,7 +136,7 @@ class TestAsrCalibrate(unittest.TestCase):
         with patch('eegprep.plugins.clean_rawdata.asr_calibrate.cov_mean') as mock_cov_mean:
             mock_cov_mean.return_value = np.eye(self.n_channels) * 0.5
 
-            state = asr_calibrate(self.clean_data, self.srate, useriemannian='calib')
+            asr_calibrate(self.clean_data, self.srate, useriemannian='calib')
 
             # Should have called cov_mean with robust=True
             mock_cov_mean.assert_called_once()
@@ -166,7 +163,7 @@ class TestAsrCalibrate(unittest.TestCase):
             # Return data with NaN values to simulate filter divergence
             mock_sosfilt.return_value = (
                 np.full((4, 1000), np.nan),
-                np.zeros((2, 4, 2))  # Mock iir_state
+                np.zeros((2, 4, 2)),  # Mock iir_state
             )
 
             with self.assertRaises(RuntimeError) as cm:
@@ -208,7 +205,7 @@ class TestAsrCalibrate(unittest.TestCase):
                 mock_geom_median.return_value = np.eye(self.n_channels).flatten()
 
                 with self.assertLogs('eegprep.plugins.clean_rawdata.asr_calibrate', level='WARNING') as log:
-                    state = asr_calibrate(self.clean_data, self.srate, useriemannian='calib')
+                    asr_calibrate(self.clean_data, self.srate, useriemannian='calib')
 
                 # Check that warning was logged and fallback was used
                 self.assertTrue(any('NaNs' in msg for msg in log.output))
@@ -273,13 +270,7 @@ class TestAsrProcess(unittest.TestCase):
     def test_custom_processing_parameters(self):
         """Test processing with custom parameters."""
         cleaned_data, new_state = asr_process(
-            self.test_data,
-            self.srate,
-            self.state,
-            window_len=0.25,
-            lookahead=0.1,
-            step_size=16,
-            max_dims=0.5
+            self.test_data, self.srate, self.state, window_len=0.25, lookahead=0.1, step_size=16, max_dims=0.5
         )
 
         # Should complete without errors
@@ -292,7 +283,7 @@ class TestAsrProcess(unittest.TestCase):
             self.test_data,
             self.srate,
             self.state,
-            max_dims=3  # Integer instead of fraction
+            max_dims=3,  # Integer instead of fraction
         )
 
         self.assertEqual(cleaned_data.shape, self.test_data.shape)
@@ -324,7 +315,7 @@ class TestAsrProcess(unittest.TestCase):
                     large_data,
                     self.srate,
                     self.state,
-                    max_mem=10  # Low memory limit
+                    max_mem=10,  # Low memory limit
                 )
 
             # Check that splitting was logged
@@ -397,7 +388,7 @@ class TestAsrProcess(unittest.TestCase):
             small_data,
             self.srate,
             self.state,
-            window_len=0.1  # Very small window
+            window_len=0.1,  # Very small window
         )
 
         # Should complete without errors despite small data
@@ -438,7 +429,7 @@ class TestAsrIntegration(unittest.TestCase):
 
         # Add some correlated structure between channels
         for i in range(n_channels):
-            for j in range(i+1, n_channels):
+            for j in range(i + 1, n_channels):
                 if np.random.rand() > 0.7:  # 30% chance of correlation
                     correlation = 0.3 * np.random.randn()
                     data[j] += correlation * data[i]
@@ -446,7 +437,7 @@ class TestAsrIntegration(unittest.TestCase):
         # Add some temporal autocorrelation
         for i in range(n_channels):
             for j in range(1, n_samples):
-                data[i, j] += 0.7 * data[i, j-1] * np.random.rand()
+                data[i, j] += 0.7 * data[i, j - 1] * np.random.rand()
 
         return data
 
@@ -465,7 +456,7 @@ class TestAsrIntegration(unittest.TestCase):
             blink_duration = 20
             if blink_time + blink_duration < n_samples:
                 blink_artifact = 5.0 * np.exp(-np.arange(blink_duration) / 5.0)
-                data[0, blink_time:blink_time + blink_duration] += blink_artifact
+                data[0, blink_time : blink_time + blink_duration] += blink_artifact
 
     def test_full_calibration_and_processing_pipeline(self):
         """Test complete ASR pipeline from calibration to processing."""
@@ -480,10 +471,12 @@ class TestAsrIntegration(unittest.TestCase):
         self.assertTrue(np.all(np.isfinite(cleaned_data)))
 
         # Check that artifacts were reduced (RMS should be lower in artifact regions)
-        artifact_region = slice(self.test_data.shape[1] // 4, self.test_data.shape[1] // 4 + self.test_data.shape[1] // 10)
+        artifact_region = slice(
+            self.test_data.shape[1] // 4, self.test_data.shape[1] // 4 + self.test_data.shape[1] // 10
+        )
 
-        original_rms = np.sqrt(np.mean(self.test_data[1, artifact_region]**2))
-        cleaned_rms = np.sqrt(np.mean(cleaned_data[1, artifact_region]**2))
+        original_rms = np.sqrt(np.mean(self.test_data[1, artifact_region] ** 2))
+        cleaned_rms = np.sqrt(np.mean(cleaned_data[1, artifact_region] ** 2))
 
         # Cleaned data should have lower RMS in artifact region
         self.assertLess(cleaned_rms, original_rms)
@@ -521,16 +514,14 @@ class TestAsrIntegration(unittest.TestCase):
         parameter_sets = [
             {'cutoff': 3.0, 'window_len': 0.25, 'max_dims': 0.5},
             {'cutoff': 7.0, 'window_len': 1.0, 'max_dims': 2},
-            {'cutoff': 4.0, 'blocksize': 20, 'window_overlap': 0.8}
+            {'cutoff': 4.0, 'blocksize': 20, 'window_overlap': 0.8},
         ]
 
         for params in parameter_sets:
             with self.subTest(params=params):
                 # Split parameters between calibration and processing
-                calib_params = {k: v for k, v in params.items()
-                              if k in ['cutoff', 'blocksize', 'window_overlap']}
-                process_params = {k: v for k, v in params.items()
-                                if k in ['window_len', 'max_dims']}
+                calib_params = {k: v for k, v in params.items() if k in ['cutoff', 'blocksize', 'window_overlap']}
+                process_params = {k: v for k, v in params.items() if k in ['window_len', 'max_dims']}
 
                 # Test pipeline
                 state = asr_calibrate(self.calib_data, self.srate, **calib_params)

@@ -5,9 +5,19 @@ from ..miscfunc.pinv import pinv
 from ..sigprocfunc.runamica import runamica
 
 
-def eeg_amica(EEG, posact='off', sortcomps='off', num_models=1, max_iter=2000,
-              num_mix_comps=3, pcakeep=None, outdir=None, amica_binary=None,
-              max_threads=4, **kwargs):
+def eeg_amica(
+    EEG,
+    posact='off',
+    sortcomps='off',
+    num_models=1,
+    max_iter=2000,
+    num_mix_comps=3,
+    pcakeep=None,
+    outdir=None,
+    amica_binary=None,
+    max_threads=4,
+    **kwargs,
+):
     """
     Perform ICA decomposition using AMICA (Adaptive Mixture ICA).
 
@@ -91,7 +101,7 @@ def eeg_amica(EEG, posact='off', sortcomps='off', num_models=1, max_iter=2000,
         # Flatten icaact to 2D for variance computation
         icaact_2d = EEG['icaact'].reshape(EEG['icaact'].shape[0], -1)
         # Compute variance metric: sum(icawinv^2) .* sum(icaact^2)
-        variance_metric = np.sum(EEG['icawinv'] ** 2, axis=0) * np.sum(icaact_2d ** 2, axis=1)
+        variance_metric = np.sum(EEG['icawinv'] ** 2, axis=0) * np.sum(icaact_2d**2, axis=1)
         # Sort indices in descending order
         windex = np.argsort(variance_metric)[::-1]
         # Reorder components
@@ -148,8 +158,7 @@ def load_amica_model(EEG, mods, model_num=0):
     num_models = mods['num_models']
 
     if model_num < 0 or model_num >= num_models:
-        raise ValueError(
-            f"model_num={model_num} out of range for {num_models} models")
+        raise ValueError(f"model_num={model_num} out of range for {num_models} models")
 
     EEG['icaweights'] = mods['W'][:, :, model_num]
     EEG['icasphere'] = mods['S'][:num_pcs, :]

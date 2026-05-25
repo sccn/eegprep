@@ -2,8 +2,6 @@ import copy
 import os
 import unittest
 import numpy as np
-from scipy.io import loadmat, savemat
-from unittest.mock import patch, MagicMock
 
 from eegprep.functions.popfunc.eeg_interp import eeg_interp, spheric_spline, computeg
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
@@ -98,13 +96,13 @@ class TestEegInterpParity(unittest.TestCase):
             'ref': 'common',
             'history': '',
             'saved': 'no',
-            'etc': {}
+            'etc': {},
         }
 
         # Create realistic channel locations on unit sphere
         for i in range(n_channels):
             theta = 2 * np.pi * i / n_channels
-            phi = np.pi/6 + (np.pi/3) * (i % 8) / 8
+            phi = np.pi / 6 + (np.pi / 3) * (i % 8) / 8
 
             x = np.cos(phi) * np.cos(theta)
             y = np.cos(phi) * np.sin(theta)
@@ -120,22 +118,24 @@ class TestEegInterpParity(unittest.TestCase):
             elif i == 3:
                 label = 'F3'
             else:
-                label = f'Ch{i+1}'
+                label = f'Ch{i + 1}'
 
-            self.test_EEG['chanlocs'].append({
-                'labels': label,
-                'X': x,
-                'Y': y,
-                'Z': z,
-                'theta': np.arctan2(y, x),
-                'radius': np.sqrt(x**2 + y**2),
-                'sph_theta': theta,
-                'sph_phi': phi,
-                'sph_radius': 1.0,  # Unit sphere
-                'type': 'EEG',
-                'urchan': i,  # 0-based original channel index
-                'ref': ''
-            })
+            self.test_EEG['chanlocs'].append(
+                {
+                    'labels': label,
+                    'X': x,
+                    'Y': y,
+                    'Z': z,
+                    'theta': np.arctan2(y, x),
+                    'radius': np.sqrt(x**2 + y**2),
+                    'sph_theta': theta,
+                    'sph_phi': phi,
+                    'sph_radius': 1.0,  # Unit sphere
+                    'type': 'EEG',
+                    'urchan': i,  # 0-based original channel index
+                    'ref': '',
+                }
+            )
 
     def _compare_eeg_results(self, py_result, ml_result):
         """Helper method to compare Python and MATLAB EEG results"""
@@ -308,9 +308,7 @@ class TestSphericalSplineParity(unittest.TestCase):
         """Test parity for basic spherical spline interpolation"""
         # Python computation
         py_result = spheric_spline(
-            self.xelec, self.yelec, self.zelec,
-            self.xbad, self.ybad, self.zbad,
-            self.values, self.params
+            self.xelec, self.yelec, self.zelec, self.xbad, self.ybad, self.zbad, self.values, self.params
         )
 
         # Convert tuple to numpy array for MATLAB
@@ -318,9 +316,7 @@ class TestSphericalSplineParity(unittest.TestCase):
 
         # MATLAB computation (call the internal function)
         ml_result = self.eeglab.spheric_spline(
-            self.xelec, self.yelec, self.zelec,
-            self.xbad, self.ybad, self.zbad,
-            self.values, params_array
+            self.xelec, self.yelec, self.zelec, self.xbad, self.ybad, self.zbad, self.values, params_array
         )
 
         # Extract the actual interpolated values (4th output from MATLAB)
@@ -335,25 +331,21 @@ class TestSphericalSplineParity(unittest.TestCase):
     def test_parity_spheric_spline_different_params(self):
         """Test parity with different parameter sets"""
         param_sets = [
-            (0, 4, 7),      # spherical
+            (0, 4, 7),  # spherical
             (1e-8, 3, 50),  # sphericalKang
-            (1e-5, 4, 100)  # sphericalCRD (reduced iterations for speed)
+            (1e-5, 4, 100),  # sphericalCRD (reduced iterations for speed)
         ]
 
         for params in param_sets:
             with self.subTest(params=params):
                 py_result = spheric_spline(
-                    self.xelec, self.yelec, self.zelec,
-                    self.xbad, self.ybad, self.zbad,
-                    self.values, params
+                    self.xelec, self.yelec, self.zelec, self.xbad, self.ybad, self.zbad, self.values, params
                 )
 
                 # Convert tuple to numpy array for MATLAB
                 params_array = np.array(params)
                 ml_result = self.eeglab.spheric_spline(
-                    self.xelec, self.yelec, self.zelec,
-                    self.xbad, self.ybad, self.zbad,
-                    self.values, params_array
+                    self.xelec, self.yelec, self.zelec, self.xbad, self.ybad, self.zbad, self.values, params_array
                 )
 
                 # Extract interpolated values (4th output from MATLAB)
@@ -384,19 +376,11 @@ class TestComputeGParity(unittest.TestCase):
 
     def test_parity_computeg_basic(self):
         """Test parity for basic computeg function"""
-        py_result = computeg(
-            self.x, self.y, self.z,
-            self.xelec, self.yelec, self.zelec,
-            self.params
-        )
+        py_result = computeg(self.x, self.y, self.z, self.xelec, self.yelec, self.zelec, self.params)
 
         # Convert tuple to numpy array for MATLAB
         params_array = np.array(self.params)
-        ml_result = self.eeglab.computeg(
-            self.x, self.y, self.z,
-            self.xelec, self.yelec, self.zelec,
-            params_array
-        )
+        ml_result = self.eeglab.computeg(self.x, self.y, self.z, self.xelec, self.yelec, self.zelec, params_array)
 
         self.assertEqual(py_result.shape, ml_result.shape)
         self.assertTrue(np.allclose(py_result, ml_result, atol=1e-10))
@@ -406,23 +390,17 @@ class TestComputeGParity(unittest.TestCase):
         param_sets = [
             (0, 2, 5),
             (0, 4, 7),
-            (1e-8, 3, 20)  # Reduced iterations for speed
+            (1e-8, 3, 20),  # Reduced iterations for speed
         ]
 
         for params in param_sets:
             with self.subTest(params=params):
-                py_result = computeg(
-                    self.x, self.y, self.z,
-                    self.xelec, self.yelec, self.zelec,
-                    params
-                )
+                py_result = computeg(self.x, self.y, self.z, self.xelec, self.yelec, self.zelec, params)
 
                 # Convert tuple to numpy array for MATLAB
                 params_array = np.array(params)
                 ml_result = self.eeglab.computeg(
-                    self.x, self.y, self.z,
-                    self.xelec, self.yelec, self.zelec,
-                    params_array
+                    self.x, self.y, self.z, self.xelec, self.yelec, self.zelec, params_array
                 )
 
                 self.assertEqual(py_result.shape, ml_result.shape)
@@ -430,7 +408,6 @@ class TestComputeGParity(unittest.TestCase):
 
 
 class TestEegInterp(unittest.TestCase):
-
     def setUp(self):
         """Set up test fixtures with mock EEG data structure"""
         # Create a minimal EEG structure for testing
@@ -441,7 +418,7 @@ class TestEegInterp(unittest.TestCase):
             'trials': 1,
             'xmin': -0.5,
             'xmax': 1.5,
-            'chanlocs': []
+            'chanlocs': [],
         }
 
         # Create mock channel locations
@@ -453,12 +430,7 @@ class TestEegInterp(unittest.TestCase):
             y = np.cos(phi) * np.sin(theta)
             z = np.sin(phi)
 
-            self.mock_EEG['chanlocs'].append({
-                'labels': f'Ch{i+1}',
-                'X': x,
-                'Y': y,
-                'Z': z
-            })
+            self.mock_EEG['chanlocs'].append({'labels': f'Ch{i + 1}', 'X': x, 'Y': y, 'Z': z})
 
         # Add some named channels for testing
         self.mock_EEG['chanlocs'][0]['labels'] = 'Fp1'
@@ -536,12 +508,7 @@ class TestEegInterp(unittest.TestCase):
         # Add a channel with NaN coordinates
         eeg_with_nan = self.mock_EEG.copy()
         eeg_with_nan['chanlocs'] = self.mock_EEG['chanlocs'].copy()
-        eeg_with_nan['chanlocs'].append({
-            'labels': 'NaN_ch',
-            'X': np.nan,
-            'Y': np.nan,
-            'Z': np.nan
-        })
+        eeg_with_nan['chanlocs'].append({'labels': 'NaN_ch', 'X': np.nan, 'Y': np.nan, 'Z': np.nan})
         eeg_with_nan['nbchan'] = 33
         eeg_with_nan['data'] = np.random.randn(33, 1000, 1)
 
@@ -569,7 +536,6 @@ class TestEegInterp(unittest.TestCase):
 
 
 class TestSphericSpline(unittest.TestCase):
-
     def setUp(self):
         """Set up test data for spheric spline"""
         np.random.seed(42)  # For reproducible tests
@@ -592,9 +558,7 @@ class TestSphericSpline(unittest.TestCase):
     def test_spheric_spline_basic(self):
         """Test basic spheric spline functionality"""
         result = spheric_spline(
-            self.xelec, self.yelec, self.zelec,
-            self.xbad, self.ybad, self.zbad,
-            self.values, self.params
+            self.xelec, self.yelec, self.zelec, self.xbad, self.ybad, self.zbad, self.values, self.params
         )
 
         # Check output shape
@@ -606,17 +570,15 @@ class TestSphericSpline(unittest.TestCase):
     def test_spheric_spline_different_params(self):
         """Test spheric spline with different parameter sets"""
         params_sets = [
-            (0, 4, 7),      # spherical
+            (0, 4, 7),  # spherical
             (1e-8, 3, 50),  # sphericalKang
-            (1e-5, 4, 500)  # sphericalCRD
+            (1e-5, 4, 500),  # sphericalCRD
         ]
 
         for params in params_sets:
             with self.subTest(params=params):
                 result = spheric_spline(
-                    self.xelec, self.yelec, self.zelec,
-                    self.xbad, self.ybad, self.zbad,
-                    self.values, params
+                    self.xelec, self.yelec, self.zelec, self.xbad, self.ybad, self.zbad, self.values, params
                 )
                 self.assertEqual(result.shape, (self.n_bad, self.n_points))
                 self.assertTrue(np.all(np.isfinite(result)))
@@ -625,9 +587,7 @@ class TestSphericSpline(unittest.TestCase):
         """Test spheric spline with single time point"""
         values_single = self.values[:, :1]  # Single time point
         result = spheric_spline(
-            self.xelec, self.yelec, self.zelec,
-            self.xbad, self.ybad, self.zbad,
-            values_single, self.params
+            self.xelec, self.yelec, self.zelec, self.xbad, self.ybad, self.zbad, values_single, self.params
         )
 
         self.assertEqual(result.shape, (self.n_bad, 1))
@@ -635,7 +595,6 @@ class TestSphericSpline(unittest.TestCase):
 
 
 class TestComputeG(unittest.TestCase):
-
     def setUp(self):
         """Set up test data for computeg function"""
         self.x = np.array([0.1, 0.2, 0.3])
@@ -648,9 +607,7 @@ class TestComputeG(unittest.TestCase):
 
     def test_computeg_basic(self):
         """Test basic computeg functionality"""
-        result = computeg(self.x, self.y, self.z,
-                         self.xelec, self.yelec, self.zelec,
-                         self.params)
+        result = computeg(self.x, self.y, self.z, self.xelec, self.yelec, self.zelec, self.params)
 
         # Check output shape
         expected_shape = (len(self.x), len(self.xelec))
@@ -661,17 +618,11 @@ class TestComputeG(unittest.TestCase):
 
     def test_computeg_different_params(self):
         """Test computeg with different parameter values"""
-        params_list = [
-            (0, 2, 5),
-            (0, 4, 7),
-            (0, 6, 10)
-        ]
+        params_list = [(0, 2, 5), (0, 4, 7), (0, 6, 10)]
 
         for params in params_list:
             with self.subTest(params=params):
-                result = computeg(self.x, self.y, self.z,
-                                 self.xelec, self.yelec, self.zelec,
-                                 params)
+                result = computeg(self.x, self.y, self.z, self.xelec, self.yelec, self.zelec, params)
                 self.assertEqual(result.shape, (len(self.x), len(self.xelec)))
                 self.assertTrue(np.all(np.isfinite(result)))
 
@@ -681,9 +632,7 @@ class TestComputeG(unittest.TestCase):
         y_single = np.array([0.2])
         z_single = np.array([0.3])
 
-        result = computeg(x_single, y_single, z_single,
-                         self.xelec, self.yelec, self.zelec,
-                         self.params)
+        result = computeg(x_single, y_single, z_single, self.xelec, self.yelec, self.zelec, self.params)
 
         self.assertEqual(result.shape, (1, len(self.xelec)))
         self.assertTrue(np.all(np.isfinite(result)))
@@ -695,9 +644,7 @@ class TestComputeG(unittest.TestCase):
         y_same = np.array([0.0])
         z_same = np.array([1.0])
 
-        result = computeg(x_same, y_same, z_same,
-                         self.xelec, self.yelec, self.zelec,
-                         self.params)
+        result = computeg(x_same, y_same, z_same, self.xelec, self.yelec, self.zelec, self.params)
 
         self.assertEqual(result.shape, (1, len(self.xelec)))
         # Note: Some values might be NaN or Inf for identical points, that's expected
@@ -721,25 +668,20 @@ class TestEegInterpIntegration(unittest.TestCase):
             'srate': 500,  # 500 Hz sampling rate
             'xmin': -1.0,
             'xmax': 3.0,
-            'chanlocs': []
+            'chanlocs': [],
         }
 
         # Create realistic channel locations (10-20 system approximation)
         for i in range(n_channels):
             # Distribute channels on sphere
             theta = 2 * np.pi * i / n_channels
-            phi = np.pi/6 + (np.pi/3) * (i % 8) / 8  # Vary elevation
+            phi = np.pi / 6 + (np.pi / 3) * (i % 8) / 8  # Vary elevation
 
             x = np.cos(phi) * np.cos(theta)
             y = np.cos(phi) * np.sin(theta)
             z = np.sin(phi)
 
-            self.eeg_data['chanlocs'].append({
-                'labels': f'Ch{i+1}',
-                'X': x,
-                'Y': y,
-                'Z': z
-            })
+            self.eeg_data['chanlocs'].append({'labels': f'Ch{i + 1}', 'X': x, 'Y': y, 'Z': z})
 
     def test_interpolation_preserves_good_channels(self):
         """Test that interpolation doesn't change good channels"""
@@ -753,10 +695,7 @@ class TestEegInterpIntegration(unittest.TestCase):
         result = eeg_interp(self.eeg_data, bad_channels, method='spherical')
 
         # Check that good channels are unchanged
-        np.testing.assert_array_equal(
-            result['data'][good_channels, :, :],
-            original_good_data
-        )
+        np.testing.assert_array_equal(result['data'][good_channels, :, :], original_good_data)
 
     def test_interpolation_changes_bad_channels(self):
         """Test that interpolation actually changes bad channels"""
@@ -770,10 +709,7 @@ class TestEegInterpIntegration(unittest.TestCase):
 
         # Check that bad channels have changed
         with self.assertRaises(AssertionError):
-            np.testing.assert_array_equal(
-                result['data'][bad_channels, :, :],
-                original_bad_data
-            )
+            np.testing.assert_array_equal(result['data'][bad_channels, :, :], original_bad_data)
 
     def test_interpolation_reasonable_values(self):
         """Test that interpolated values are reasonable"""
@@ -791,7 +727,7 @@ class TestEegInterpIntegration(unittest.TestCase):
         # Should be within reasonable amplitude range (not too extreme)
         # Assuming original data has std around 50, interpolated should be similar
         self.assertTrue(np.std(interpolated_data) < 200)  # Not too large
-        self.assertTrue(np.std(interpolated_data) > 1)    # Not too small
+        self.assertTrue(np.std(interpolated_data) > 1)  # Not too small
 
 
 class TestEegInterpFileOperations(unittest.TestCase):
@@ -816,9 +752,14 @@ class TestEegInterpFileOperations(unittest.TestCase):
 
         # Test that spheric spline computation works
         result = spheric_spline(
-            xelec=xyz[0], yelec=xyz[1], zelec=xyz[2],
-            xbad=xbad[0], ybad=xbad[1], zbad=xbad[2],
-            values=values, params=(0, 4, 7)
+            xelec=xyz[0],
+            yelec=xyz[1],
+            zelec=xyz[2],
+            xbad=xbad[0],
+            ybad=xbad[1],
+            zbad=xbad[2],
+            values=values,
+            params=(0, 4, 7),
         )
 
         self.assertEqual(result.shape, (n_bad, n_pts))
@@ -828,8 +769,8 @@ class TestEegInterpFileOperations(unittest.TestCase):
         """Test that computeg can handle different input configurations"""
         # Test computeg with various input sizes
         test_cases = [
-            (10, 5),    # 10 interpolation points, 5 electrodes
-            (50, 10),   # 50 interpolation points, 10 electrodes
+            (10, 5),  # 10 interpolation points, 5 electrodes
+            (50, 10),  # 50 interpolation points, 10 electrodes
             (100, 20),  # 100 interpolation points, 20 electrodes
         ]
 
@@ -850,6 +791,7 @@ class TestEegInterpFileOperations(unittest.TestCase):
                 self.assertEqual(g.shape, (n_points, n_elec))
                 self.assertTrue(np.all(np.isfinite(g)))
 
+
 class TestEegInterpChanlocs(unittest.TestCase):
     """Test the new chanloc structure functionality in eeg_interp"""
 
@@ -869,7 +811,7 @@ class TestEegInterpChanlocs(unittest.TestCase):
                 {'labels': 'Fp2', 'X': -0.1, 'Y': 0.8, 'Z': 0.6},
                 {'labels': 'F3', 'X': 0.4, 'Y': 0.6, 'Z': 0.7},
                 {'labels': 'F4', 'X': -0.4, 'Y': 0.6, 'Z': 0.7},
-            ]
+            ],
         }
 
         # Store original data for comparison
@@ -886,8 +828,7 @@ class TestEegInterpChanlocs(unittest.TestCase):
         np.testing.assert_array_equal(result['data'], self.original_data)
         self.assertEqual(result['nbchan'], 4)
         self.assertEqual(len(result['chanlocs']), 4)
-        self.assertEqual([ch['labels'] for ch in result['chanlocs']],
-                        ['Fp1', 'Fp2', 'F3', 'F4'])
+        self.assertEqual([ch['labels'] for ch in result['chanlocs']], ['Fp1', 'Fp2', 'F3', 'F4'])
 
     def test_chanloc_no_overlap_appends_channels(self):
         """Test Case 2: No overlap should append new channels"""
@@ -920,12 +861,12 @@ class TestEegInterpChanlocs(unittest.TestCase):
         """Test Case 3: Existing channels as proper subset should remap to new structure"""
         # Create superset that includes existing channels plus new ones
         superset_chanlocs = [
-            {'labels': 'Fp1', 'X': 0.1, 'Y': 0.8, 'Z': 0.6},    # existing
-            {'labels': 'C3', 'X': 0.6, 'Y': 0.0, 'Z': 0.8},     # new
-            {'labels': 'F3', 'X': 0.4, 'Y': 0.6, 'Z': 0.7},     # existing
-            {'labels': 'C4', 'X': -0.6, 'Y': 0.0, 'Z': 0.8},    # new
-            {'labels': 'Fp2', 'X': -0.1, 'Y': 0.8, 'Z': 0.6},   # existing
-            {'labels': 'F4', 'X': -0.4, 'Y': 0.6, 'Z': 0.7},    # existing
+            {'labels': 'Fp1', 'X': 0.1, 'Y': 0.8, 'Z': 0.6},  # existing
+            {'labels': 'C3', 'X': 0.6, 'Y': 0.0, 'Z': 0.8},  # new
+            {'labels': 'F3', 'X': 0.4, 'Y': 0.6, 'Z': 0.7},  # existing
+            {'labels': 'C4', 'X': -0.6, 'Y': 0.0, 'Z': 0.8},  # new
+            {'labels': 'Fp2', 'X': -0.1, 'Y': 0.8, 'Z': 0.6},  # existing
+            {'labels': 'F4', 'X': -0.4, 'Y': 0.6, 'Z': 0.7},  # existing
         ]
 
         result = eeg_interp(self.test_EEG.copy(), superset_chanlocs)
@@ -966,9 +907,9 @@ class TestEegInterpChanlocs(unittest.TestCase):
         """Test partial overlap case (not subset, not disjoint)"""
         # Create chanlocs with partial overlap
         partial_overlap_chanlocs = [
-            {'labels': 'Fp1', 'X': 0.1, 'Y': 0.8, 'Z': 0.6},    # exists
-            {'labels': 'T7', 'X': 0.8, 'Y': 0.0, 'Z': 0.6},     # new
-            {'labels': 'F3', 'X': 0.4, 'Y': 0.6, 'Z': 0.7},     # exists
+            {'labels': 'Fp1', 'X': 0.1, 'Y': 0.8, 'Z': 0.6},  # exists
+            {'labels': 'T7', 'X': 0.8, 'Y': 0.0, 'Z': 0.6},  # new
+            {'labels': 'F3', 'X': 0.4, 'Y': 0.6, 'Z': 0.7},  # exists
         ]
 
         result = eeg_interp(self.test_EEG.copy(), partial_overlap_chanlocs)
@@ -994,8 +935,8 @@ class TestEegInterpChanlocs(unittest.TestCase):
         # Same labels but different coordinates
         different_coords_chanlocs = [
             {'labels': 'Fp1', 'X': 0.2, 'Y': 0.9, 'Z': 0.5},  # Different coords
-            {'labels': 'Fp2', 'X': -0.2, 'Y': 0.9, 'Z': 0.5}, # Different coords
-            {'labels': 'F3', 'X': 0.5, 'Y': 0.7, 'Z': 0.6},   # Different coords
+            {'labels': 'Fp2', 'X': -0.2, 'Y': 0.9, 'Z': 0.5},  # Different coords
+            {'labels': 'F3', 'X': 0.5, 'Y': 0.7, 'Z': 0.6},  # Different coords
             {'labels': 'F4', 'X': -0.5, 'Y': 0.7, 'Z': 0.6},  # Different coords
         ]
 
@@ -1008,11 +949,6 @@ class TestEegInterpChanlocs(unittest.TestCase):
 
     def test_chanloc_invalid_structure(self):
         """Test error handling for invalid chanloc structures"""
-        # Test missing required fields
-        invalid_chanlocs = [
-            {'labels': 'T7', 'X': 0.8, 'Y': 0.0},  # Missing Z
-        ]
-
         # Should fall back to treating as regular channel names and fail appropriately
         with self.assertRaises(ValueError):
             eeg_interp(self.test_EEG.copy(), ['NonexistentChannel'])

@@ -1,8 +1,4 @@
-
-
 if __name__ == "__main__":
-    import os
-    import sys
     from eegprep import pop_load_frombids, pop_biosig
 
     fn = '/Users/arno/Python/eegprep/sample_data/test_file.edf'
@@ -13,5 +9,5 @@ if __name__ == "__main__":
 
     # compare using eeg_compare
     from eegprep import eeg_compare
-    eeg_compare(EEG1, EEG2, verbose_level=1)
 
+    eeg_compare(EEG1, EEG2, verbose_level=1)

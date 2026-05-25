@@ -35,7 +35,9 @@ class PopCleanRawdataGuiTests(unittest.TestCase):
         labels = [(control.style, control.string, control.tag) for control in spec.controls]
         self.assertIn(("checkbox", "Remove channel drift (data not already high-pass filtered)", "filter"), labels)
         self.assertIn(("checkbox", "Process/remove channels", "chanrm"), labels)
-        self.assertIn(("checkbox", "Perform Artifact Subspace Reconstruction bad burst correction/rejection", "asr"), labels)
+        self.assertIn(
+            ("checkbox", "Perform Artifact Subspace Reconstruction bad burst correction/rejection", "asr"), labels
+        )
         self.assertIn(("checkbox", "Additional removal of bad data periods", "rejwin"), labels)
         controls = controls_by_tag(spec)
         self.assertEqual(controls["filter"].font_weight, "bold")

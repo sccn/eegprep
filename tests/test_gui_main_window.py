@@ -92,7 +92,9 @@ def _fake_qt_widgets(*, open_file="", save_file="", directory="", double_value=1
         def information(*_args, **_kwargs):
             return None
 
-    return type("FakeQtWidgets", (), {"QFileDialog": QFileDialog, "QInputDialog": QInputDialog, "QMessageBox": QMessageBox})
+    return type(
+        "FakeQtWidgets", (), {"QFileDialog": QFileDialog, "QInputDialog": QInputDialog, "QMessageBox": QMessageBox}
+    )
 
 
 def _demo_eeg(*, epoched=False, chanlocs=True, ica=True):
@@ -893,7 +895,9 @@ class QtMainWindowTests(unittest.TestCase):
         session.retrieve(2)
         window = build_main_window(session, all_menus=False)
         datasets = next(action.menu() for action in window.window.menuBar().actions() if action.text() == "Datasets")
-        dataset_actions = {action.text(): action for action in datasets.actions() if action.text().startswith("Dataset")}
+        dataset_actions = {
+            action.text(): action for action in datasets.actions() if action.text().startswith("Dataset")
+        }
 
         self.assertFalse(dataset_actions["Dataset 1:demo"].isChecked())
         self.assertTrue(dataset_actions["Dataset 2:second"].isCheckable())
@@ -908,7 +912,9 @@ class QtMainWindowTests(unittest.TestCase):
         session = EEGPrepSession()
         session.store_current(_demo_eeg(), new=True)
         window = build_main_window(session, all_menus=False)
-        actions_by_data = {action.data(): action for action in _qt_actions(window.window.menuBar().actions()) if action.data()}
+        actions_by_data = {
+            action.data(): action for action in _qt_actions(window.window.menuBar().actions()) if action.data()
+        }
         placeholder = actions_by_data["pop_eegplot:data"]
         implemented = actions_by_data["pop_resample"]
 

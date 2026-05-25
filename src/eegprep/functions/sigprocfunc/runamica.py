@@ -111,29 +111,81 @@ _AMICA_DEFAULTS = {
 
 # Parameters that use integer format in the param file
 _INT_PARAMS = {
-    'block_size', 'do_opt_block', 'blk_min', 'blk_step', 'blk_max',
-    'num_models', 'num_mix_comps', 'pdftype', 'max_iter', 'max_threads',
-    'do_newton', 'newt_start', 'newt_ramp', 'do_reject', 'numrej',
-    'rejstart', 'rejint', 'writestep', 'write_nd', 'write_LLt',
-    'decwindow', 'max_decs', 'fix_init', 'update_A', 'update_c',
-    'update_gm', 'update_alpha', 'update_mu', 'update_beta',
-    'do_rho', 'do_mean', 'do_sphere', 'doPCA', 'doscaling', 'scalestep',
-    'do_history', 'histstep', 'share_comps', 'share_start', 'share_iter',
-    'load_rej', 'load_W', 'load_c', 'load_gm', 'load_alpha', 'load_mu',
-    'load_beta', 'load_rho', 'load_comp_list', 'kurt_start', 'num_kurt',
-    'kurt_int', 'use_min_dll', 'use_grad_norm', 'pcakeep', 'byte_size',
-    'data_dim', 'field_dim', 'num_samples', 'field_blocksize',
-    'min_dll', 'min_grad_norm',
+    'block_size',
+    'do_opt_block',
+    'blk_min',
+    'blk_step',
+    'blk_max',
+    'num_models',
+    'num_mix_comps',
+    'pdftype',
+    'max_iter',
+    'max_threads',
+    'do_newton',
+    'newt_start',
+    'newt_ramp',
+    'do_reject',
+    'numrej',
+    'rejstart',
+    'rejint',
+    'writestep',
+    'write_nd',
+    'write_LLt',
+    'decwindow',
+    'max_decs',
+    'fix_init',
+    'update_A',
+    'update_c',
+    'update_gm',
+    'update_alpha',
+    'update_mu',
+    'update_beta',
+    'do_rho',
+    'do_mean',
+    'do_sphere',
+    'doPCA',
+    'doscaling',
+    'scalestep',
+    'do_history',
+    'histstep',
+    'share_comps',
+    'share_start',
+    'share_iter',
+    'load_rej',
+    'load_W',
+    'load_c',
+    'load_gm',
+    'load_alpha',
+    'load_mu',
+    'load_beta',
+    'load_rho',
+    'load_comp_list',
+    'kurt_start',
+    'num_kurt',
+    'kurt_int',
+    'use_min_dll',
+    'use_grad_norm',
+    'pcakeep',
+    'byte_size',
+    'data_dim',
+    'field_dim',
+    'num_samples',
+    'field_blocksize',
+    'min_dll',
+    'min_grad_norm',
 }
 
 # Parameters that use scientific notation format
 _SCI_PARAMS = {
-    'minlrate', 'mineig',
+    'minlrate',
+    'mineig',
 }
 
 # Parameters that use string format
 _STR_PARAMS = {
-    'files', 'outdir', 'indir',
+    'files',
+    'outdir',
+    'indir',
 }
 
 
@@ -166,16 +218,14 @@ def _find_amica_binary(amica_binary=None):
     if amica_binary is not None:
         if os.path.isfile(amica_binary) and os.access(amica_binary, os.X_OK):
             return amica_binary
-        raise FileNotFoundError(
-            f"Specified AMICA binary not found or not executable: {amica_binary}")
+        raise FileNotFoundError(f"Specified AMICA binary not found or not executable: {amica_binary}")
 
     # 2. Environment variable
     env_binary = os.environ.get('AMICA_BINARY')
     if env_binary:
         if os.path.isfile(env_binary) and os.access(env_binary, os.X_OK):
             return env_binary
-        raise FileNotFoundError(
-            f"AMICA_BINARY is set but not found or not executable: {env_binary}")
+        raise FileNotFoundError(f"AMICA_BINARY is set but not found or not executable: {env_binary}")
 
     # Determine platform-specific binary name
     system = platform.system()
@@ -261,8 +311,7 @@ def _write_param_file(outdir, params):
 
     # AMICA binary requires 'files' to appear before 'num_samples' in the
     # param file. Write file/directory params first, then everything else.
-    priority_keys = ['files', 'outdir', 'indir', 'data_dim', 'field_dim',
-                     'num_samples', 'byte_size', 'field_blocksize']
+    priority_keys = ['files', 'outdir', 'indir', 'data_dim', 'field_dim', 'num_samples', 'byte_size', 'field_blocksize']
     ordered_keys = [k for k in priority_keys if k in merged]
     ordered_keys += [k for k in merged if k not in priority_keys]
 
@@ -309,13 +358,13 @@ def _amica_subprocess_kwargs():
     kwargs = {'env': env}
     if os.name == 'posix':
         import resource
+
         def _raise_stack():
             try:
-                resource.setrlimit(
-                    resource.RLIMIT_STACK,
-                    (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
+                resource.setrlimit(resource.RLIMIT_STACK, (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
             except (OSError, ValueError):
                 pass
+
         kwargs['preexec_fn'] = _raise_stack
     return kwargs
 
@@ -399,8 +448,7 @@ def _run_amica(binary, param_file):
         raise RuntimeError(msg) from e
 
 
-def _load_amica_output(outdir, num_models, num_pcs, data_dim, num_mix_comps,
-                       max_iter, field_dim):
+def _load_amica_output(outdir, num_models, num_pcs, data_dim, num_mix_comps, max_iter, field_dim):
     """Load AMICA output files from disk.
 
     Port of MATLAB loadmodout15.m. Reads binary double-precision files and
@@ -485,8 +533,7 @@ def _load_amica_output(outdir, num_models, num_pcs, data_dim, num_mix_comps,
             comp_list = comp_list[:expected].reshape(nw, num_models, order='F')
             complistset = True
         else:
-            logger.warning("comp_list has %d values, expected %d; ignoring",
-                           len(comp_list), expected)
+            logger.warning("comp_list has %d values, expected %d; ignoring", len(comp_list), expected)
             comp_list = None
     else:
         comp_list = None
@@ -525,8 +572,7 @@ def _load_amica_output(outdir, num_models, num_pcs, data_dim, num_mix_comps,
         c = np.zeros((nw, num_models))
 
     # -- alpha, mu, sbeta, rho (mixture parameters, indexed via comp_list) --
-    alpha, mu, sbeta, rho = _load_mixture_params(
-        outdir, nw, num_models, num_mix_comps, comp_list, complistset)
+    alpha, mu, sbeta, rho = _load_mixture_params(outdir, nw, num_models, num_mix_comps, comp_list, complistset)
 
     # -- nd (weight change history) --
     nd_path = os.path.join(outdir, 'nd')
@@ -586,10 +632,7 @@ def _load_amica_output(outdir, num_models, num_pcs, data_dim, num_mix_comps,
                 rho_slice = rho[:nm, i, h]
                 sbeta_slice = sbeta[:nm, i, h]
                 # Source variance: alpha * (mu^2 + gamma(3/rho)/gamma(1/rho) / sbeta^2)
-                var_mix = a_slice * (
-                    mu_slice ** 2
-                    + gamma(3.0 / rho_slice) / gamma(1.0 / rho_slice) / sbeta_slice ** 2
-                )
+                var_mix = a_slice * (mu_slice**2 + gamma(3.0 / rho_slice) / gamma(1.0 / rho_slice) / sbeta_slice**2)
                 svar[i, h] = np.sum(var_mix) * np.linalg.norm(A[:, i, h]) ** 2
 
         # Sort by descending variance
@@ -655,8 +698,7 @@ def _load_amica_output(outdir, num_models, num_pcs, data_dim, num_mix_comps,
     return mods
 
 
-def _load_mixture_params(outdir, nw, num_models, num_mix_comps, comp_list,
-                         complistset):
+def _load_mixture_params(outdir, nw, num_models, num_mix_comps, comp_list, complistset):
     """Load and remap alpha, mu, sbeta, rho via comp_list.
 
     Parameters
@@ -679,8 +721,8 @@ def _load_mixture_params(outdir, nw, num_models, num_mix_comps, comp_list,
     tuple of ndarray
         (alpha, mu, sbeta, rho), each shape (num_mix, nw, num_models).
     """
-    def _load_and_remap(filename, default_val, nw, num_models, num_mix_comps,
-                        comp_list, complistset):
+
+    def _load_and_remap(filename, default_val, nw, num_models, num_mix_comps, comp_list, complistset):
         fpath = os.path.join(outdir, filename)
         if os.path.isfile(fpath):
             raw = np.fromfile(fpath, dtype=np.float64)
@@ -704,21 +746,26 @@ def _load_mixture_params(outdir, nw, num_models, num_mix_comps, comp_list,
         else:
             return np.full((num_mix_comps, nw, num_models), default_val), num_mix_comps
 
-    alpha, num_mix = _load_and_remap('alpha', 1.0, nw, num_models, num_mix_comps,
-                                     comp_list, complistset)
-    mu, _ = _load_and_remap('mu', 0.0, nw, num_models, num_mix,
-                            comp_list, complistset)
-    sbeta, _ = _load_and_remap('sbeta', 1.0, nw, num_models, num_mix,
-                               comp_list, complistset)
-    rho, _ = _load_and_remap('rho', 2.0, nw, num_models, num_mix,
-                             comp_list, complistset)
+    alpha, num_mix = _load_and_remap('alpha', 1.0, nw, num_models, num_mix_comps, comp_list, complistset)
+    mu, _ = _load_and_remap('mu', 0.0, nw, num_models, num_mix, comp_list, complistset)
+    sbeta, _ = _load_and_remap('sbeta', 1.0, nw, num_models, num_mix, comp_list, complistset)
+    rho, _ = _load_and_remap('rho', 2.0, nw, num_models, num_mix, comp_list, complistset)
 
     return alpha, mu, sbeta, rho
 
 
-def runamica(data, num_models=1, max_iter=2000, num_mix_comps=3, pcakeep=None,
-             outdir=None, amica_binary=None, max_threads=4, cleanup=True,
-             **kwargs):
+def runamica(
+    data,
+    num_models=1,
+    max_iter=2000,
+    num_mix_comps=3,
+    pcakeep=None,
+    outdir=None,
+    amica_binary=None,
+    max_threads=4,
+    cleanup=True,
+    **kwargs,
+):
     """Run AMICA binary on a data matrix.
 
     Parameters
@@ -808,7 +855,7 @@ def runamica(data, num_models=1, max_iter=2000, num_mix_comps=3, pcakeep=None,
 
     # Extract model 0 weights and sphere
     weights = mods['W'][:, :, 0]
-    sphere = mods['S'][:mods['num_pcs'], :]
+    sphere = mods['S'][: mods['num_pcs'], :]
 
     # Cleanup
     if cleanup:

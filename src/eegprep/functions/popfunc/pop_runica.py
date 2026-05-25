@@ -112,7 +112,9 @@ def pop_runica_dialog_spec(EEG) -> DialogSpec:
         ControlSpec("listbox", algorithm_labels, tag="icatype", value=1),
         ControlSpec("text", "Commandline options (See help messages)"),
         ControlSpec("edit", tag="params", value=_ALGORITHMS[0][2]),
-        ControlSpec("checkbox", "Reorder components by variance (if that's not already the case)", tag="reorder", value=True),
+        ControlSpec(
+            "checkbox", "Reorder components by variance (if that's not already the case)", tag="reorder", value=True
+        ),
         ControlSpec("text", "Use only channel type(s) or indices"),
         ControlSpec("edit", tag="chantype", value=""),
         ControlSpec(
@@ -250,7 +252,9 @@ def _runica_by_subject_session(datasets, icatype, options, *, reorder, chanind):
         groups.setdefault(_subject_session_key(eeg), []).append(index)
     output = list(datasets)
     for indices in groups.values():
-        updated = _runica_concatenated([datasets[index] for index in indices], icatype, options, reorder=reorder, chanind=chanind)
+        updated = _runica_concatenated(
+            [datasets[index] for index in indices], icatype, options, reorder=reorder, chanind=chanind
+        )
         for index, item in zip(indices, updated):
             output[index] = item
     return output
@@ -443,7 +447,6 @@ def _parse_runica_args(args, kwargs):
     if _selectamica_mode(args) is not None:
         return {}
     if args and len(args) % 2:
-        first = str(args[0]).lower()
         return parse_key_value_args(("icatype", *args), kwargs, lowercase_kwargs=True)
     return parse_key_value_args(args, kwargs, lowercase_kwargs=True)
 

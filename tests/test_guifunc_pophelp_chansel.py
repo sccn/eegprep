@@ -4,13 +4,14 @@ from pathlib import Path
 from unittest.mock import patch
 
 from eegprep.functions.guifunc.pophelp import pophelp_text
-pophelp_module = importlib.import_module("eegprep.functions.guifunc.pophelp")
 from eegprep.functions.popfunc.pop_interp import pop_interp_dialog_spec
 from eegprep.functions.popfunc.pop_chansel import (
     pop_chansel_display_values,
     pop_chansel_selected_string,
 )
 from eegprep.functions.popfunc.pop_reref import pop_reref_dialog_spec
+
+pophelp_module = importlib.import_module("eegprep.functions.guifunc.pophelp")
 
 
 class PopHelpAndChanSelTests(unittest.TestCase):

@@ -28,9 +28,9 @@ class TestEventconsistencyOperations:
     def test_removes_out_of_bounds_events(self):
         EEG = {
             'event': [
-                {'type': 'stim', 'latency': 0.3},   # < 0.5 -> remove
-                {'type': 'stim', 'latency': 0.5},   # == 0.5 -> keep
-                {'type': 'stim', 'latency': 500},   # ok
+                {'type': 'stim', 'latency': 0.3},  # < 0.5 -> remove
+                {'type': 'stim', 'latency': 0.5},  # == 0.5 -> keep
+                {'type': 'stim', 'latency': 500},  # ok
                 {'type': 'stim', 'latency': 1001},  # == pnts*trials+1 -> keep
                 {'type': 'stim', 'latency': 1002},  # > pnts*trials+1 -> remove
             ],
@@ -49,9 +49,9 @@ class TestEventconsistencyOperations:
         EEG = {
             'event': [
                 {'type': 'stim', 'latency': 10, 'epoch': 1},
-                {'type': 'stim', 'latency': 20, 'epoch': 0},    # invalid
+                {'type': 'stim', 'latency': 20, 'epoch': 0},  # invalid
                 {'type': 'stim', 'latency': 30, 'epoch': 3},
-                {'type': 'stim', 'latency': 40, 'epoch': 4},    # invalid (> trials)
+                {'type': 'stim', 'latency': 40, 'epoch': 4},  # invalid (> trials)
             ],
             'pnts': 100,
             'trials': 3,
@@ -135,24 +135,22 @@ class TestEventconsistencyOperations:
 
 @pytest.mark.skipif(
     not os.path.exists('partity_analysis/all_steps/python_eegprep/sub-002_run-1_step5.set'),
-    reason="Sub-002 parity data not available"
+    reason="Sub-002 parity data not available",
 )
 class TestPopEpochSubject002Parity:
     """Integration test using real sub-002 step-5 data."""
 
     def _load_step5(self):
         from eegprep import pop_loadset, eeg_checkset_strict_mode
+
         with eeg_checkset_strict_mode(False):
-            return pop_loadset(
-                'partity_analysis/all_steps/python_eegprep/sub-002_run-1_step5.set'
-            )
+            return pop_loadset('partity_analysis/all_steps/python_eegprep/sub-002_run-1_step5.set')
 
     def _load_compat_step6(self):
         from eegprep import pop_loadset, eeg_checkset_strict_mode
+
         with eeg_checkset_strict_mode(False):
-            return pop_loadset(
-                'partity_analysis/all_steps/matlab_eeglabcompat/sub-002_run-1_step6.set'
-            )
+            return pop_loadset('partity_analysis/all_steps/matlab_eeglabcompat/sub-002_run-1_step6.set')
 
     def test_trial_count_matches_matlab(self):
         """Python pop_epoch trial count must match MATLAB eeglabcompat.
@@ -170,6 +168,5 @@ class TestPopEpochSubject002Parity:
         )
 
         assert eeg_out['trials'] == eeg_matlab6['trials'], (
-            f"Trial count mismatch: Python={eeg_out['trials']}, "
-            f"MATLAB={eeg_matlab6['trials']}"
+            f"Trial count mismatch: Python={eeg_out['trials']}, MATLAB={eeg_matlab6['trials']}"
         )

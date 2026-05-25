@@ -74,10 +74,10 @@ def eeg_icflag(EEG, thresholds):
             reject |= (probs >= min_thresh) & (probs <= max_thresh)
         elif not np.isnan(min_thresh):
             # Only min threshold: flag if >= min
-            reject |= (probs >= min_thresh)
+            reject |= probs >= min_thresh
         elif not np.isnan(max_thresh):
             # Only max threshold: flag if <= max
-            reject |= (probs <= max_thresh)
+            reject |= probs <= max_thresh
 
     # Store reject flags in EEG structure
     EEG['reject'] = {

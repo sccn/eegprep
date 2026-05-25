@@ -1,5 +1,6 @@
 import os
 import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
 
 from eegprep import pop_loadset
@@ -19,5 +20,6 @@ res = eeg_autocorr_fftw(EEG, 100)
 
 # save in a matlab file
 import scipy.io
+
 scipy.io.savemat('eeg_autocorr_data.mat', {'grid': res})
 print('Saved eeg_autocorr_data.mat')

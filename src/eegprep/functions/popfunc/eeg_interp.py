@@ -14,12 +14,11 @@ import numpy as np
 from scipy.linalg import pinv
 from scipy.interpolate import RBFInterpolator, griddata
 from scipy.special import lpmv
-from eegprep.functions.popfunc.eeg_compare import eeg_compare
 from copy import deepcopy
-import os
 
 # absolute path for all files in data folder
-data_path = '/Users/arno/Python/eegprep/sample_data/' #os.path.abspath('sample_data/')
+data_path = '/Users/arno/Python/eegprep/sample_data/'  # os.path.abspath('sample_data/')
+
 
 def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dtype='float32'):
     """Interpolate missing or bad EEG channels using spherical spline.
@@ -59,19 +58,19 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
     EEG = deepcopy(EEG)
     # set defaults
     method = _normalise_method(method)
-    if method not in ('spherical','sphericalKang','sphericalCRD','sphericalfast','invdist','v4','spacetime'):
+    if method not in ('spherical', 'sphericalKang', 'sphericalCRD', 'sphericalfast', 'invdist', 'v4', 'spacetime'):
         raise ValueError(f"Unknown method {method}")
     if t_range is None:
         t_range = (EEG['xmin'], EEG['xmax'])
     if params is None:
-        if method=='spherical':
-            params = (0,4,7)
-        elif method=='sphericalKang':
-            params = (1e-8,3,50)
-        elif method=='sphericalCRD':
-            params = (1e-5,4,500)
+        if method == 'spherical':
+            params = (0, 4, 7)
+        elif method == 'sphericalKang':
+            params = (1e-8, 3, 50)
+        elif method == 'sphericalCRD':
+            params = (1e-5, 4, 500)
     else:
-        if len(params)!=3:
+        if len(params) != 3:
             raise ValueError("params must be length-3 tuple")
         method = 'spherical'
 
@@ -95,10 +94,15 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
     if isinstance(bad_chans, list) and len(bad_chans) == 0:
         bad_idx = []
     # Check if bad_chans is a list of chanloc structures
-    elif (isinstance(bad_chans, list) and len(bad_chans) > 0 and
-          isinstance(bad_chans[0], dict) and
-          'labels' in bad_chans[0] and 'X' in bad_chans[0] and
-          'Y' in bad_chans[0] and 'Z' in bad_chans[0]):
+    elif (
+        isinstance(bad_chans, list)
+        and len(bad_chans) > 0
+        and isinstance(bad_chans[0], dict)
+        and 'labels' in bad_chans[0]
+        and 'X' in bad_chans[0]
+        and 'Y' in bad_chans[0]
+        and 'Z' in bad_chans[0]
+    ):
         # Handle the new chanloc structure case
         EEG, bad_idx = _handle_chanloc_interpolation(EEG, bad_chans)
         # Update local variables that may have changed
@@ -114,8 +118,7 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
         return EEG
 
     good_idx = [i for i in range(EEG['nbchan']) if i not in bad_idx]
-    empty_idx = [i for i in range(EEG['nbchan'])
-                 if (np.array_equal(locs[i]['X'], []) or np.isnan(locs[i]['X']))]
+    empty_idx = [i for i in range(EEG['nbchan']) if (np.array_equal(locs[i]['X'], []) or np.isnan(locs[i]['X']))]
     good_idx = [i for i in good_idx if i not in empty_idx]
     bad_idx = [i for i in bad_idx if i not in empty_idx]
 
@@ -139,27 +142,31 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
         ndarray
             Normalized XYZ coordinates (3, n_channels).
         """
-        xyz = np.vstack([ [locs[i][c] for i in ch_ids] for c in ('X','Y','Z') ])
+        xyz = np.vstack([[locs[i][c] for i in ch_ids] for c in ('X', 'Y', 'Z')])
         rad = np.linalg.norm(xyz, axis=0)
         return xyz / rad
 
     xyz_good = _norm(good_idx)
-    xyz_bad  = _norm(bad_idx)
+    xyz_bad = _norm(bad_idx)
 
     # reshape data to (n_chan, n_timepoints)
     d = EEG['data'].reshape(EEG['nbchan'], -1)
 
     # Save original bad channel data before interpolation
-    original_bad_data = d[bad_idx,:].copy()
+    original_bad_data = d[bad_idx, :].copy()
 
     # compute interpolated signals for bad channels
-    if method in ('spherical','sphericalKang','sphericalCRD','sphericalfast'):
+    if method in ('spherical', 'sphericalKang', 'sphericalCRD', 'sphericalfast'):
         bad_data = spheric_spline(
-            xelec=xyz_good[0], yelec=xyz_good[1], zelec=xyz_good[2],
-            xbad =xyz_bad[0],  ybad =xyz_bad[1],  zbad =xyz_bad[2],
-            values=d[good_idx,:],
+            xelec=xyz_good[0],
+            yelec=xyz_good[1],
+            zelec=xyz_good[2],
+            xbad=xyz_bad[0],
+            ybad=xyz_bad[1],
+            zbad=xyz_bad[2],
+            values=d[good_idx, :],
             params=params,
-            dtype=dtype
+            dtype=dtype,
         )
     elif method in ('invdist', 'v4'):
         bad_data = _planar_v4_interpolate(locs, good_idx, bad_idx, d[good_idx, :])
@@ -203,9 +210,9 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
 
     # assemble full data array
     full = np.zeros_like(d)
-    full[good_idx,:] = d[good_idx,:]
-    full[empty_idx,:] = d[empty_idx,:]
-    full[bad_idx,:]  = bad_data
+    full[good_idx, :] = d[good_idx, :]
+    full[empty_idx, :] = d[empty_idx, :]
+    full[bad_idx, :] = bad_data
 
     # Restore original data shape (2D for continuous, 3D for epoched)
     if len(original_data_shape) == 2:
@@ -215,6 +222,7 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
         # Original was 3D epoched data or needs to be 3D
         EEG['data'] = full.reshape(EEG['nbchan'], EEG['pnts'], EEG['trials'])
     return EEG
+
 
 def _normalise_method(method):
     if not isinstance(method, str):
@@ -229,6 +237,7 @@ def _normalise_method(method):
         'spacetime': 'spacetime',
     }
     return method_lookup.get(method.lower(), method)
+
 
 def _planar_v4_interpolate(locs, good_idx, bad_idx, values):
     """Use a thin-plate spline analogue of MATLAB griddata(..., 'v4')."""
@@ -246,6 +255,7 @@ def _planar_v4_interpolate(locs, good_idx, bad_idx, values):
             interpolated = np.where(np.isnan(interpolated), nearest, interpolated)
         return interpolated
 
+
 def _spacetime_interpolate(locs, good_idx, bad_idx, values):
     """Match EEGLAB's nearest-neighbor space/time interpolation path."""
     good_points_2d = _planar_points(locs, good_idx)
@@ -253,19 +263,24 @@ def _spacetime_interpolate(locs, good_idx, bad_idx, values):
     n_time = values.shape[1]
     times = np.arange(1, n_time + 1)
 
-    good_points = np.column_stack([
-        np.tile(good_points_2d[:, 0], n_time),
-        np.tile(good_points_2d[:, 1], n_time),
-        np.repeat(times, len(good_idx)),
-    ])
-    bad_points = np.column_stack([
-        np.tile(bad_points_2d[:, 0], n_time),
-        np.tile(bad_points_2d[:, 1], n_time),
-        np.repeat(times, len(bad_idx)),
-    ])
+    good_points = np.column_stack(
+        [
+            np.tile(good_points_2d[:, 0], n_time),
+            np.tile(good_points_2d[:, 1], n_time),
+            np.repeat(times, len(good_idx)),
+        ]
+    )
+    bad_points = np.column_stack(
+        [
+            np.tile(bad_points_2d[:, 0], n_time),
+            np.tile(bad_points_2d[:, 1], n_time),
+            np.repeat(times, len(bad_idx)),
+        ]
+    )
     flattened = values.reshape(-1, order='F')
     interpolated = griddata(good_points, flattened, bad_points, method='nearest')
     return interpolated.reshape(len(bad_idx), n_time, order='F')
+
 
 def _planar_points(locs, indices):
     points = []
@@ -273,6 +288,7 @@ def _planar_points(locs, indices):
         theta, radius = _theta_radius(locs[index])
         points.append((radius * np.sin(theta), radius * np.cos(theta)))
     return np.asarray(points, dtype=float)
+
 
 def _theta_radius(chanloc):
     theta = chanloc.get('theta')
@@ -286,6 +302,7 @@ def _theta_radius(chanloc):
         raise RuntimeError("Channel theta/radius or X/Y locations required for planar interpolation")
     return float(np.arctan2(y, x)), float(np.sqrt(x * x + y * y))
 
+
 def _is_empty_coordinate(value):
     if value is None:
         return True
@@ -297,6 +314,7 @@ def _is_empty_coordinate(value):
         return bool(np.isnan(value))
     except TypeError:
         return False
+
 
 def _handle_chanloc_interpolation(EEG, new_chanlocs):
     """Handle interpolation when bad_chans is provided as a list of chanloc.
@@ -318,9 +336,7 @@ def _handle_chanloc_interpolation(EEG, new_chanlocs):
         # Check if the coordinate data is also identical
         coords_match = True
         for i, (curr_ch, new_ch) in enumerate(zip(current_locs, new_chanlocs)):
-            if (curr_ch['X'] != new_ch['X'] or
-                curr_ch['Y'] != new_ch['Y'] or
-                curr_ch['Z'] != new_ch['Z']):
+            if curr_ch['X'] != new_ch['X'] or curr_ch['Y'] != new_ch['Y'] or curr_ch['Z'] != new_ch['Z']:
                 coords_match = False
                 break
 
@@ -345,10 +361,10 @@ def _handle_chanloc_interpolation(EEG, new_chanlocs):
         original_shape = EEG['data'].shape
         if len(original_shape) == 3:  # epoched data
             new_data = np.zeros((EEG['nbchan'] + len(new_chanlocs), original_shape[1], original_shape[2]))
-            new_data[:EEG['nbchan'], :, :] = EEG['data']
+            new_data[: EEG['nbchan'], :, :] = EEG['data']
         else:  # continuous data
             new_data = np.zeros((EEG['nbchan'] + len(new_chanlocs), original_shape[1]))
-            new_data[:EEG['nbchan'], :] = EEG['data']
+            new_data[: EEG['nbchan'], :] = EEG['data']
 
         # Update EEG structure
         EEG['data'] = new_data
@@ -387,16 +403,13 @@ def _handle_chanloc_interpolation(EEG, new_chanlocs):
         EEG['nbchan'] = len(new_chanlocs)
 
         # Handle ICA channel indices update (equivalent to MATLAB lines 174-189)
-        if (EEG.get('icasphere') is not None and
-            hasattr(EEG['icasphere'], '__len__') and len(EEG['icasphere']) > 0):
-
-            # Create inverse mapping from new positions back to old positions
-            new_to_old_idx = {new_idx: old_idx for old_idx, new_idx in old_to_new_idx.items()}
-
+        if EEG.get('icasphere') is not None and hasattr(EEG['icasphere'], '__len__') and len(EEG['icasphere']) > 0:
             # Update icachansind if it exists and is not empty
-            if (EEG.get('icachansind') is not None and
-                hasattr(EEG['icachansind'], '__len__') and len(EEG['icachansind']) > 0):
-
+            if (
+                EEG.get('icachansind') is not None
+                and hasattr(EEG['icachansind'], '__len__')
+                and len(EEG['icachansind']) > 0
+            ):
                 # Convert icachansind to list if it's a numpy array for easier manipulation
                 if hasattr(EEG['icachansind'], 'tolist'):
                     icachansind = EEG['icachansind'].tolist()
@@ -437,6 +450,7 @@ def _handle_chanloc_interpolation(EEG, new_chanlocs):
 
         return EEG, bad_idx
 
+
 def spheric_spline(xelec, yelec, zelec, xbad, ybad, zbad, values, params, dtype='float32'):
     """Perform spherical spline interpolation.
 
@@ -462,7 +476,7 @@ def spheric_spline(xelec, yelec, zelec, xbad, ybad, zbad, values, params, dtype=
 
     # values: (n_good, n_points)
     Gelec = computeg(xelec, yelec, zelec, xelec, yelec, zelec, params)
-    Gsph  = computeg(xbad,  ybad,  zbad,  xelec, yelec, zelec, params)
+    Gsph = computeg(xbad, ybad, zbad, xelec, yelec, zelec, params)
 
     # Match MATLAB: mean across all values (not just axis=1)
     # mean across the first dimension
@@ -474,8 +488,7 @@ def spheric_spline(xelec, yelec, zelec, xbad, ybad, zbad, values, params, dtype=
     values = np.vstack([values, np.zeros((1, values.shape[1]))])
 
     lam = params[0]
-    A   = np.vstack([Gelec + np.eye(Gelec.shape[0])*lam,
-                     np.ones((1, Gelec.shape[0]))])
+    A = np.vstack([Gelec + np.eye(Gelec.shape[0]) * lam, np.ones((1, Gelec.shape[0]))])
     with np.errstate(divide='ignore', over='ignore', invalid='ignore'):
         # Matches MATLAB numerically; NumPy may warn inside finite pseudo-inverse matmuls.
         C = pinv(A) @ values
@@ -483,6 +496,7 @@ def spheric_spline(xelec, yelec, zelec, xbad, ybad, zbad, values, params, dtype=
     # Add mean back like MATLAB: repmat(meanvalues, [size(allres,1) 1])
     allres = allres + meanvalues
     return allres
+
 
 def computeg(x, y, z, xelec, yelec, zelec, params):
     """Compute spherical spline basis functions.
@@ -502,18 +516,22 @@ def computeg(x, y, z, xelec, yelec, zelec, params):
         Basis function values.
     """
     # x,y,z are points to interpolate; xelec,... electrode locations
-    X = x.ravel()[:,None]; Y = y.ravel()[:,None]; Z = z.ravel()[:,None]
-    E = 1 - np.sqrt((X - xelec[None,:])**2 + (Y - yelec[None,:])**2 + (Z - zelec[None,:])**2)
+    X = x.ravel()[:, None]
+    Y = y.ravel()[:, None]
+    Z = z.ravel()[:, None]
+    E = 1 - np.sqrt((X - xelec[None, :]) ** 2 + (Y - yelec[None, :]) ** 2 + (Z - zelec[None, :]) ** 2)
 
     m, maxn = params[1], int(params[2])
     g = np.zeros((E.shape[0], E.shape[1]))
-    for n in range(1, maxn+1):
+    for n in range(1, maxn + 1):
         Pn = lpmv(0, n, E)  # shape (E.shape)
-        g += ((2*n+1)/(n**m*(n+1)**m)) * Pn
+        g += ((2 * n + 1) / (n**m * (n + 1) ** m)) * Pn
 
-    return g/(4*np.pi)
+    return g / (4 * np.pi)
+
 
 # Test functions moved to tests/test_eeg_interp.py
+
 
 def test_chanloc_interpolation():
     """Example usage of the new chanloc interpolation functionality.
@@ -534,7 +552,7 @@ def test_chanloc_interpolation():
             {'labels': 'Fp2', 'X': -0.1, 'Y': 0.8, 'Z': 0.6},
             {'labels': 'F3', 'X': 0.4, 'Y': 0.6, 'Z': 0.7},
             {'labels': 'F4', 'X': -0.4, 'Y': 0.6, 'Z': 0.7},
-        ]
+        ],
     }
 
     print("Original EEG structure:")
@@ -545,7 +563,7 @@ def test_chanloc_interpolation():
     # Case 1: Identical chanlocs (should return unchanged)
     identical_chanlocs = EEG['chanlocs'].copy()
     result1 = eeg_interp(EEG.copy(), identical_chanlocs)
-    print(f"\nCase 1 - Identical chanlocs:")
+    print("\nCase 1 - Identical chanlocs:")
     print(f"Data shape unchanged: {result1['data'].shape == EEG['data'].shape}")
     print(f"Data is identical: {np.array_equal(result1['data'], EEG['data'])}")
 
@@ -555,7 +573,7 @@ def test_chanloc_interpolation():
         {'labels': 'T8', 'X': -0.8, 'Y': 0.0, 'Z': 0.6},
     ]
     result2 = eeg_interp(EEG.copy(), new_chanlocs)
-    print(f"\nCase 2 - No overlap (append new channels):")
+    print("\nCase 2 - No overlap (append new channels):")
     print(f"Original channels: {EEG['nbchan']}, After: {result2['nbchan']}")
     print(f"Data shape: {EEG['data'].shape} -> {result2['data'].shape}")
     print(f"New channel labels: {[ch['labels'] for ch in result2['chanlocs']]}")
@@ -570,12 +588,13 @@ def test_chanloc_interpolation():
         {'labels': 'C4', 'X': -0.6, 'Y': 0.0, 'Z': 0.8},
     ]
     result3 = eeg_interp(EEG.copy(), superset_chanlocs)
-    print(f"\nCase 3 - Existing subset of new structure:")
+    print("\nCase 3 - Existing subset of new structure:")
     print(f"Original channels: {EEG['nbchan']}, After: {result3['nbchan']}")
     print(f"Data shape: {EEG['data'].shape} -> {result3['data'].shape}")
     print(f"Final channel labels: {[ch['labels'] for ch in result3['chanlocs']]}")
 
     return result1, result2, result3
+
 
 def test_ica_indices_update():
     """Test that ICA channel indices are properly updated when channels are.
@@ -608,7 +627,7 @@ def test_ica_indices_update():
         'icachansind': [0, 1, 2, 3],  # All channels used for ICA (0-based)
         'chaninfo': {
             'icachansind': [0, 1, 2, 3],
-        }
+        },
     }
 
     print("Original EEG structure with ICA:")
@@ -621,17 +640,17 @@ def test_ica_indices_update():
     # Test Case: Subset interpolation that causes channel reordering
     # Create a superset where the existing channels appear in different order
     superset_chanlocs = [
-        {'labels': 'F3', 'X': 0.4, 'Y': 0.6, 'Z': 0.7},    # was index 2, now 0
-        {'labels': 'Fp1', 'X': 0.1, 'Y': 0.8, 'Z': 0.6},   # was index 0, now 1
-        {'labels': 'C3', 'X': 0.6, 'Y': 0.0, 'Z': 0.8},    # new channel, index 2
+        {'labels': 'F3', 'X': 0.4, 'Y': 0.6, 'Z': 0.7},  # was index 2, now 0
+        {'labels': 'Fp1', 'X': 0.1, 'Y': 0.8, 'Z': 0.6},  # was index 0, now 1
+        {'labels': 'C3', 'X': 0.6, 'Y': 0.0, 'Z': 0.8},  # new channel, index 2
         {'labels': 'Fp2', 'X': -0.1, 'Y': 0.8, 'Z': 0.6},  # was index 1, now 3
-        {'labels': 'F4', 'X': -0.4, 'Y': 0.6, 'Z': 0.7},   # was index 3, now 4
-        {'labels': 'C4', 'X': -0.6, 'Y': 0.0, 'Z': 0.8},   # new channel, index 5
+        {'labels': 'F4', 'X': -0.4, 'Y': 0.6, 'Z': 0.7},  # was index 3, now 4
+        {'labels': 'C4', 'X': -0.6, 'Y': 0.0, 'Z': 0.8},  # new channel, index 5
     ]
 
     result = eeg_interp(EEG.copy(), superset_chanlocs)
 
-    print(f"\nAfter interpolation with reordering:")
+    print("\nAfter interpolation with reordering:")
     print(f"Data shape: {EEG['data'].shape} -> {result['data'].shape}")
     print(f"Number of channels: {EEG['nbchan']} -> {result['nbchan']}")
     print(f"Channel labels: {[ch['labels'] for ch in result['chanlocs']]}")
@@ -653,6 +672,7 @@ def test_ica_indices_update():
         print(f"Chaninfo mapping correct: {result['chaninfo']['icachansind'] == expected_indices}")
 
     return result
+
 
 # Uncomment to run the tests
 # if __name__ == '__main__':

@@ -31,7 +31,9 @@ def eeg_point2lat(lat_array, epoch_array=None, srate=None, timewin=None, timeuni
         raise ValueError("srate is required")
 
     # defaults
-    if epoch_array is None or (isinstance(epoch_array, (list, tuple, np.ndarray)) and len(np.atleast_1d(epoch_array)) == 0):
+    if epoch_array is None or (
+        isinstance(epoch_array, (list, tuple, np.ndarray)) and len(np.atleast_1d(epoch_array)) == 0
+    ):
         epoch_array = 1
 
     if timewin is None:

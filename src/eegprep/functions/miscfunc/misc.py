@@ -7,9 +7,20 @@ from typing import Callable, Optional
 
 import numpy as np
 
-__all__ = ['is_debug', 'ExceptionUnlessDebug', 'num_jobs_from_reservation', 'humanize_seconds',
-           'num_cpus_from_reservation', 'ToolError', 'canonicalize_signs', 'round_mat',
-           'aslist', 'get_nested', 'finite_matmul', 'finite_pinv']
+__all__ = [
+    'is_debug',
+    'ExceptionUnlessDebug',
+    'num_jobs_from_reservation',
+    'humanize_seconds',
+    'num_cpus_from_reservation',
+    'ToolError',
+    'canonicalize_signs',
+    'round_mat',
+    'aslist',
+    'get_nested',
+    'finite_matmul',
+    'finite_pinv',
+]
 
 
 def is_debug() -> bool:
@@ -24,8 +35,7 @@ def aslist(arr_or_list: np.ndarray | list) -> list:
     elif isinstance(arr_or_list, list):
         return arr_or_list
     else:
-        raise ValueError(f"Input must be a numpy array or a list, but "
-                         f"was of type {type(arr_or_list)}.")
+        raise ValueError(f"Input must be a numpy array or a list, but was of type {type(arr_or_list)}.")
 
 
 def finite_matmul(left: np.ndarray, right: np.ndarray) -> np.ndarray:
@@ -195,19 +205,20 @@ def num_jobs_from_reservation(ReservePerJob: str) -> int:
         try:
             import psutil
         except ImportError:
-            raise ImportError("psutil is required to determine available system RAM. "
-                              "Please install it with 'uv pip install psutil'.")
+            raise ImportError(
+                "psutil is required to determine available system RAM. Please install it with 'uv pip install psutil'."
+            )
         avail_amt = psutil.virtual_memory().available
         unit = reserve[-2:].upper()
-        multiplier = {'GB': 2 ** 30, 'MB': 2 ** 20, 'KB': 2 ** 10, 'B': 1}[unit]
+        multiplier = {'GB': 2**30, 'MB': 2**20, 'KB': 2**10, 'B': 1}[unit]
         reserve_amt = float(reserve[:-2]) * multiplier
     elif reserve.endswith('CPU'):
         import multiprocessing
+
         avail_amt = multiprocessing.cpu_count()
         reserve_amt = float(reserve[:-3])
     else:
-        raise ValueError(f"Invalid reserve amount format: {ReservePerJob}. "
-                         "Expected format like '4GB' or '2CPU'.")
+        raise ValueError(f"Invalid reserve amount format: {ReservePerJob}. Expected format like '4GB' or '2CPU'.")
     if not margin:
         margin_amt = 0
     elif margin.endswith('%'):
@@ -215,18 +226,19 @@ def num_jobs_from_reservation(ReservePerJob: str) -> int:
         margin_amt = avail_amt * margin_frac
     elif margin.endswith('B'):
         unit = margin[-2:].upper()
-        multiplier = {'GB': 2 ** 30, 'MB': 2 ** 20, 'KB': 2 ** 10, 'B': 1}[unit]
+        multiplier = {'GB': 2**30, 'MB': 2**20, 'KB': 2**10, 'B': 1}[unit]
         margin_amt = float(margin[:-2]) * multiplier
     elif margin.endswith('CPU') or margin.endswith('GPU'):
         margin_amt = float(margin[:-3])
     else:
-        raise ValueError(f"Invalid margin format: {margin}. "
-                         "Expected format like '10%' or '100MB'.")
+        raise ValueError(f"Invalid margin format: {margin}. Expected format like '10%' or '100MB'.")
     avail_amt -= margin_amt
     if reserve_amt > avail_amt:
-        raise ValueError(f"Requested reserve amount {reserve_amt} exceeds available "
-                         f"system resources after applying margin {margin_amt}. "
-                         f"Available: {avail_amt}.")
+        raise ValueError(
+            f"Requested reserve amount {reserve_amt} exceeds available "
+            f"system resources after applying margin {margin_amt}. "
+            f"Available: {avail_amt}."
+        )
     num_jobs = int(avail_amt // reserve_amt)
     return num_jobs
 
@@ -282,13 +294,13 @@ def round_mat(x, decimals=0):
         xp = math
     else:
         xp = np
-        x = np.asarray(x)             # ensure ndarray
+        x = np.asarray(x)  # ensure ndarray
 
     if decimals == 0:
         return xp.copysign(xp.floor(abs(x) + 0.5), x)
 
     if decimals > 0:
-        factor = 10.0 ** decimals
+        factor = 10.0**decimals
         y = xp.copysign(xp.floor(abs(x) * factor + 0.5), x)
         return y / factor
 
@@ -296,8 +308,6 @@ def round_mat(x, decimals=0):
     factor = 10.0 ** (-decimals)
     y = xp.copysign(xp.floor(abs(x) / factor + 0.5), x)
     return y * factor
-
-
 
 
 class SkippableException(Exception):

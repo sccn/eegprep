@@ -4,8 +4,6 @@ import unittest
 import sys
 import os
 import numpy as np
-import os
-import sys
 import matplotlib
 import matplotlib.pyplot as plt
 
@@ -16,17 +14,27 @@ if test_dir not in sys.path:
 
 try:
     # Try pytest-style relative import first
-    from . import fixtures
     from .fixtures import (
-        mpl_use_agg, rng_seed, create_test_eeg, create_test_eeg_with_ica,
-        create_test_events, cleanup_matplotlib, TestFixturesContextManager, small_eeg
+        mpl_use_agg,
+        rng_seed,
+        create_test_eeg,
+        create_test_eeg_with_ica,
+        create_test_events,
+        cleanup_matplotlib,
+        TestFixturesContextManager,
+        small_eeg,
     )
 except (ImportError, ValueError):
     # Fallback for unittest discovery
-    import fixtures
     from fixtures import (
-        mpl_use_agg, rng_seed, create_test_eeg, create_test_eeg_with_ica,
-        create_test_events, cleanup_matplotlib, TestFixturesContextManager, small_eeg
+        mpl_use_agg,
+        rng_seed,
+        create_test_eeg,
+        create_test_eeg_with_ica,
+        create_test_events,
+        cleanup_matplotlib,
+        TestFixturesContextManager,
+        small_eeg,
     )
 
 
@@ -111,7 +119,7 @@ class TestFixturesFunctions(unittest.TestCase):
         self.assertEqual(len(eeg['chanlocs']), 16)
         for i, ch in enumerate(eeg['chanlocs']):
             self.assertIn('labels', ch)
-            self.assertEqual(ch['labels'], f'Ch{i+1}')
+            self.assertEqual(ch['labels'], f'Ch{i + 1}')
 
     def test_create_test_events(self):
         """Test event creation."""
@@ -242,7 +250,7 @@ class TestFixturesIntegration(unittest.TestCase):
 
         for i in range(5):
             with TestFixturesContextManager() as fixtures:
-                eeg = fixtures.create_eeg(n_channels=2, n_samples=10)
+                fixtures.create_eeg(n_channels=2, n_samples=10)
                 plt.figure()  # Create figure that should be cleaned up
 
         # Should not accumulate figures

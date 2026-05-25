@@ -1,11 +1,17 @@
 import unittest
 import numpy as np
-import warnings
 from unittest.mock import patch
 
 from eegprep.plugins.clean_rawdata.private.covariance import (
-    diag_nd, cov_logm, cov_expm, cov_powm, cov_sqrtm, cov_rsqrtm,
-    cov_sqrtm2, cov_mean, cov_shrinkage
+    diag_nd,
+    cov_logm,
+    cov_expm,
+    cov_powm,
+    cov_sqrtm,
+    cov_rsqrtm,
+    cov_sqrtm2,
+    cov_mean,
+    cov_shrinkage,
 )
 
 
@@ -25,10 +31,12 @@ class TestDiagNd(unittest.TestCase):
         result = diag_nd(x)
 
         # Should create 2 diagonal matrices
-        expected = np.array([
-            [[1, 0], [0, 2]],  # diag([1, 2])
-            [[3, 0], [0, 4]]   # diag([3, 4])
-        ])
+        expected = np.array(
+            [
+                [[1, 0], [0, 2]],  # diag([1, 2])
+                [[3, 0], [0, 4]],  # diag([3, 4])
+            ]
+        )
         np.testing.assert_array_equal(result, expected)
 
     def test_3d_input(self):
@@ -53,17 +61,10 @@ class TestCovarianceMatrixOperations(unittest.TestCase):
         self.cov_2x2 = np.array([[2.0, 1.0], [1.0, 2.0]])
 
         # 3x3 positive definite matrix
-        self.cov_3x3 = np.array([
-            [4.0, 1.0, 0.5],
-            [1.0, 3.0, 1.0],
-            [0.5, 1.0, 2.0]
-        ])
+        self.cov_3x3 = np.array([[4.0, 1.0, 0.5], [1.0, 3.0, 1.0], [0.5, 1.0, 2.0]])
 
         # Stack of covariance matrices
-        self.cov_stack = np.array([
-            [[2.0, 1.0], [1.0, 2.0]],
-            [[3.0, 0.5], [0.5, 1.5]]
-        ])
+        self.cov_stack = np.array([[[2.0, 1.0], [1.0, 2.0]], [[3.0, 0.5], [0.5, 1.5]]])
 
     def test_cov_logm_single_matrix(self):
         """Test matrix logarithm of single covariance matrix."""
@@ -175,11 +176,7 @@ class TestCovMean(unittest.TestCase):
     def setUp(self):
         """Create test data."""
         # Create a stack of similar covariance matrices
-        self.cov_stack = np.array([
-            [[2.0, 0.5], [0.5, 1.5]],
-            [[2.2, 0.3], [0.3, 1.8]],
-            [[1.8, 0.7], [0.7, 1.2]]
-        ])
+        self.cov_stack = np.array([[[2.0, 0.5], [0.5, 1.5]], [[2.2, 0.3], [0.3, 1.8]], [[1.8, 0.7], [0.7, 1.2]]])
 
         # Single matrix (should return itself)
         self.single_cov = np.array([[[3.0, 1.0], [1.0, 2.0]]])
@@ -253,10 +250,12 @@ class TestCovMean(unittest.TestCase):
     def test_nancheck_functionality(self):
         """Test NaN checking functionality."""
         # Create data that might cause numerical issues
-        problematic_cov = np.array([
-            [[1e10, 0], [0, 1e-10]],  # Very different scales
-            [[1e-10, 0], [0, 1e10]]
-        ])
+        problematic_cov = np.array(
+            [
+                [[1e10, 0], [0, 1e-10]],  # Very different scales
+                [[1e-10, 0], [0, 1e10]],
+            ]
+        )
 
         # Should not raise with nancheck=False (default)
         result = cov_mean(problematic_cov, nancheck=False)
@@ -283,17 +282,10 @@ class TestCovShrinkage(unittest.TestCase):
     def setUp(self):
         """Create test covariance matrices."""
         self.cov_2x2 = np.array([[4.0, 2.0], [2.0, 3.0]])
-        self.cov_3x3 = np.array([
-            [5.0, 1.0, 0.5],
-            [1.0, 4.0, 1.5],
-            [0.5, 1.5, 3.0]
-        ])
+        self.cov_3x3 = np.array([[5.0, 1.0, 0.5], [1.0, 4.0, 1.5], [0.5, 1.5, 3.0]])
 
         # Stack of matrices
-        self.cov_stack = np.array([
-            [[4.0, 2.0], [2.0, 3.0]],
-            [[6.0, 1.0], [1.0, 2.0]]
-        ])
+        self.cov_stack = np.array([[[4.0, 2.0], [2.0, 3.0]], [[6.0, 1.0], [1.0, 2.0]]])
 
     def test_no_shrinkage(self):
         """Test that zero shrinkage returns original matrix."""
@@ -408,7 +400,7 @@ class TestEdgeCases(unittest.TestCase):
         log_result = cov_logm(near_singular)
         exp_result = cov_expm(log_result)
         sqrt_result = cov_sqrtm(near_singular)
-        rsqrt_result = cov_rsqrtm(near_singular)
+        cov_rsqrtm(near_singular)
 
         # Check round-trip accuracy
         np.testing.assert_array_almost_equal(exp_result, near_singular, decimal=8)
@@ -468,4 +460,3 @@ class TestEdgeCases(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-

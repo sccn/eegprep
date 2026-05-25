@@ -23,7 +23,7 @@ import logging
 import numpy as np
 from scipy.linalg import sqrtm, pinv, eig
 from ...plugins.clean_rawdata.private.ransac import rand_permutation
-from ..miscfunc.misc import finite_pinv, round_mat
+from ..miscfunc.misc import finite_pinv
 
 logger = logging.getLogger(__name__)
 
@@ -242,9 +242,7 @@ def runica(data, **kwargs):
     # Initialize all parameters with defaults
     pcaflag = DEFAULT_PCAFLAG
     sphering = DEFAULT_SPHEREFLAG
-    posactflag = DEFAULT_POSACTFLAG
     verbose = DEFAULT_VERBOSE
-    logfile = kwargs_lower.get('logfile', None)
 
     # Heuristic defaults that depend on data size
     DEFAULT_LRATE_DATA = 0.00065 / np.log(chans)
@@ -300,15 +298,14 @@ def runica(data, **kwargs):
         pcaflag = 'on'
         ncomps = pca_val
         if ncomps > chans or ncomps < -1:
-            raise ValueError(f'runica(): pca value must be in range [{-chans+1},{chans}]')
+            raise ValueError(f'runica(): pca value must be in range [{-chans + 1},{chans}]')
         if ncomps < 0:
             ncomps = data.shape[0] + ncomps
         chans = ncomps
 
     # Handle sphering parameter
     if 'sphering' in kwargs_lower or 'sphereing' in kwargs_lower or 'sphere' in kwargs_lower:
-        sphering = kwargs_lower.get('sphering', kwargs_lower.get('sphereing',
-                                    kwargs_lower.get('sphere', sphering)))
+        sphering = kwargs_lower.get('sphering', kwargs_lower.get('sphereing', kwargs_lower.get('sphere', sphering)))
         if sphering not in ['on', 'off', 'none']:
             raise ValueError('runica(): sphering value must be on, off, or none')
 
@@ -368,7 +365,6 @@ def runica(data, **kwargs):
         posact_val = kwargs_lower['posact']
         if posact_val not in ['on', 'off']:
             raise ValueError('runica(): posact value must be on or off')
-        posactflag = posact_val
 
     # =========================================================================
     # 3. SPECIAL PARAMETER ADJUSTMENTS
@@ -454,12 +450,16 @@ def runica(data, **kwargs):
         else:
             logger.info(f'{pca_msg}{ncomps} ICA components using extended ICA.')
             if extblocks > 0:
-                logger.info(f'Kurtosis will be calculated initially every {extblocks} blocks using {kurtsize} data points.')
+                logger.info(
+                    f'Kurtosis will be calculated initially every {extblocks} blocks using {kurtsize} data points.'
+                )
             else:
                 logger.info(f'Kurtosis will not be calculated. Exactly {nsub} sub-Gaussian components assumed.')
 
-        logger.info(f'Decomposing {int(np.floor(frames/ncomps**2))} frames per ICA weight '
-              f'(({ncomps})^2 = {ncomps**2} weights, {frames} frames)')
+        logger.info(
+            f'Decomposing {int(np.floor(frames / ncomps**2))} frames per ICA weight '
+            f'(({ncomps})^2 = {ncomps**2} weights, {frames} frames)'
+        )
         logger.info(f'Initial learning rate will be {lrate:g}, block size {block}.')
 
         if momentum > 0:
@@ -515,12 +515,10 @@ def runica(data, **kwargs):
 
         # Sort by decreasing eigenvalue
         PCindex = np.argsort(PCeigenval)[::-1]  # descending order
-        PCEigenValues = PCeigenval[PCindex]
         PCEigenVectors = PCEigenVec[:, PCindex]
 
         # Project to ncomps dimensions
         eigenvectors = PCEigenVectors
-        eigenvalues = PCEigenValues
         data = _matmul(eigenvectors[:, :ncomps].T, data)
 
     # =========================================================================
@@ -624,6 +622,7 @@ def runica(data, **kwargs):
         # Set seed based on time (random state)
         # Use None to get time-based seed, similar to MATLAB's sum(100*clock)
         import time
+
         seed = int(time.time() * 1000) % (2**32)
         rng = np.random.RandomState(seed)
     else:
@@ -690,16 +689,14 @@ def runica(data, **kwargs):
 
     if biasflag and extended:
         while step < maxsteps:  # MATLAB line 828
-
             # Shuffle data order at each step (MATLAB line 829)
             timeperm = custom_randperm(datalength, rng)
 
             # Process data in blocks (MATLAB line 831)
             for t in range(0, lastt, block):
-
                 # Extract and process block (MATLAB line 846)
                 # MATLAB: u = weights*double(data(:,timeperm(t:t+block-1))) + bias*onesrow
-                u = _matmul(weights, data[:, timeperm[t:t+block]]) + _matmul(bias, onesrow)
+                u = _matmul(weights, data[:, timeperm[t : t + block]]) + _matmul(bias, onesrow)
 
                 # Apply tanh nonlinearity (MATLAB line 848)
                 y = np.tanh(u)
@@ -713,7 +710,7 @@ def runica(data, **kwargs):
 
                 # Bias update for tanh (MATLAB line 850)
                 # bias = bias + lrate*sum((-2*y)')';
-                bias = bias + lrate * np.sum(-2*y, axis=1, keepdims=True)
+                bias = bias + lrate * np.sum(-2 * y, axis=1, keepdims=True)
 
                 # Add momentum if enabled (MATLAB lines 852-856)
                 if momentum > 0:
@@ -741,7 +738,7 @@ def runica(data, **kwargs):
                             partact = _matmul(weights, data)
 
                         # Compute kurtosis (MATLAB lines 880-882)
-                        m2 = np.mean(partact**2, axis=1)**2
+                        m2 = np.mean(partact**2, axis=1) ** 2
                         m4 = np.mean(partact**4, axis=1)
                         # Add epsilon to prevent division by zero for near-zero variance components
                         kk = (m4 / (m2 + 1e-10)) - 3.0  # kurtosis estimates
@@ -783,7 +780,7 @@ def runica(data, **kwargs):
                 step = step + 1
 
                 # Store learning rate (MATLAB line 913)
-                lrates[step-1] = lrate
+                lrates[step - 1] = lrate
 
                 # Compute change magnitude (MATLAB lines 914-916)
                 angledelta = 0.0
@@ -836,7 +833,6 @@ def runica(data, **kwargs):
                     break
 
             else:  # Weights in bounds (MATLAB line 961)
-
                 # Compute angle delta after step 2 (MATLAB lines 965-967)
                 if step > 2:
                     cos_angle = _matmul(delta, olddelta) / np.sqrt(change * oldchange)
@@ -845,8 +841,10 @@ def runica(data, **kwargs):
 
                 # Print progress (MATLAB lines 968-970)
                 if verbose and (step % 10 == 0 or step < 5):
-                    logger.info(f'step {step} - lrate {lrate:5f}, wchange {change:8.8f}, '
-                          f'angledelta {degconst*angledelta:4.1f} deg')
+                    logger.info(
+                        f'step {step} - lrate {lrate:5f}, wchange {change:8.8f}, '
+                        f'angledelta {degconst * angledelta:4.1f} deg'
+                    )
 
                 # Save current values (MATLAB lines 974-975)
                 changes.append(change)
@@ -878,17 +876,15 @@ def runica(data, **kwargs):
 
     elif biasflag and not extended:
         while step < maxsteps:  # MATLAB line 1004
-
             # Shuffle data order at each step (MATLAB line 1005)
             timeperm = custom_randperm(datalength, rng)
 
             # Process data in blocks (MATLAB line 1007)
             for t in range(0, lastt, block):
-
                 # Extract and process block (MATLAB line 1021)
                 # MATLAB: u = weights*double(data(:,timeperm(t:t+block-1))) + bias*onesrow
                 # Note: MATLAB uses 1-based indexing, so t:t+block-1 means t to t+block
-                u = _matmul(weights, data[:, timeperm[t:t+block]]) + _matmul(bias, onesrow)
+                u = _matmul(weights, data[:, timeperm[t : t + block]]) + _matmul(bias, onesrow)
 
                 # Apply logistic nonlinearity (MATLAB line 1022)
                 # Clip u to prevent overflow in exp
@@ -898,11 +894,11 @@ def runica(data, **kwargs):
 
                 # Natural gradient weight update (MATLAB line 1023)
                 # weights = weights + lrate*(BI+(1-2*y)*u')*weights
-                weights = weights + lrate * _matmul(BI + _matmul(1 - 2*y, u.T), weights)
+                weights = weights + lrate * _matmul(BI + _matmul(1 - 2 * y, u.T), weights)
 
                 # Bias update (MATLAB line 1024)
                 # bias = bias + lrate*sum((1-2*y)')';
-                bias = bias + lrate * np.sum(1 - 2*y, axis=1, keepdims=True)
+                bias = bias + lrate * np.sum(1 - 2 * y, axis=1, keepdims=True)
 
                 # Add momentum if enabled (MATLAB lines 1026-1030)
                 if momentum > 0:
@@ -931,7 +927,7 @@ def runica(data, **kwargs):
 
                 # Store learning rate (MATLAB line 1048)
                 # MATLAB uses 1-based indexing: lrates(1,step)
-                lrates[step-1] = lrate
+                lrates[step - 1] = lrate
 
                 # Compute change magnitude (MATLAB lines 1049-1051)
                 angledelta = 0.0
@@ -979,7 +975,6 @@ def runica(data, **kwargs):
                     break
 
             else:  # Weights in bounds (MATLAB line 1086)
-
                 # Compute angle delta after step 2 (MATLAB lines 1090-1092)
                 if step > 2:
                     # acos((delta*olddelta')/sqrt(change*oldchange))
@@ -990,8 +985,10 @@ def runica(data, **kwargs):
 
                 # Print progress (MATLAB lines 1093-1095)
                 if verbose and (step % 10 == 0 or step < 5):
-                    logger.info(f'step {step} - lrate {lrate:5f}, wchange {change:8.8f}, '
-                          f'angledelta {degconst*angledelta:4.1f} deg')
+                    logger.info(
+                        f'step {step} - lrate {lrate:5f}, wchange {change:8.8f}, '
+                        f'angledelta {degconst * angledelta:4.1f} deg'
+                    )
 
                 # Save current values (MATLAB lines 1099-1100)
                 changes.append(change)
@@ -1022,15 +1019,13 @@ def runica(data, **kwargs):
 
     elif not biasflag and extended:
         while step < maxsteps:  # MATLAB line 1128
-
             # Shuffle data order at each step (MATLAB line 1129)
             timeperm = custom_randperm(datalength, rng)
 
             # Process data in blocks (MATLAB line 1131)
             for t in range(0, lastt, block):
-
                 # Extract and process block - NO BIAS (MATLAB line 1145)
-                u = _matmul(weights, data[:, timeperm[t:t+block]])
+                u = _matmul(weights, data[:, timeperm[t : t + block]])
 
                 # Apply tanh nonlinearity (MATLAB line 1146)
                 y = np.tanh(u)
@@ -1064,7 +1059,7 @@ def runica(data, **kwargs):
                         else:
                             partact = _matmul(weights, data)
 
-                        m2 = np.mean(partact**2, axis=1)**2
+                        m2 = np.mean(partact**2, axis=1) ** 2
                         m4 = np.mean(partact**4, axis=1)
                         # Add epsilon to prevent division by zero for near-zero variance components
                         kk = (m4 / (m2 + 1e-10)) - 3.0
@@ -1096,7 +1091,7 @@ def runica(data, **kwargs):
             if not wts_blowup:
                 oldwtchange = weights - oldweights
                 step = step + 1
-                lrates[step-1] = lrate
+                lrates[step - 1] = lrate
                 angledelta = 0.0
                 delta = oldwtchange.flatten()
                 change = _matmul(delta, delta)
@@ -1144,7 +1139,6 @@ def runica(data, **kwargs):
                     break
 
             else:  # Weights in bounds
-
                 # Compute angle delta after step 2 (MATLAB lines 1261-1263)
                 if step > 2:
                     cos_angle = _matmul(delta, olddelta) / np.sqrt(change * oldchange)
@@ -1153,8 +1147,10 @@ def runica(data, **kwargs):
 
                 # Print progress (MATLAB lines 1265-1266)
                 if verbose and (step % 10 == 0 or step < 5):
-                    logger.info(f'step {step} - lrate {lrate:5f}, wchange {change:8.8f}, '
-                          f'angledelta {degconst*angledelta:4.1f} deg')
+                    logger.info(
+                        f'step {step} - lrate {lrate:5f}, wchange {change:8.8f}, '
+                        f'angledelta {degconst * angledelta:4.1f} deg'
+                    )
 
                 # Save current values (MATLAB lines 1270-1271)
                 changes.append(change)
@@ -1185,15 +1181,13 @@ def runica(data, **kwargs):
 
     else:  # not biasflag and not extended
         while step < maxsteps:  # MATLAB line 1299
-
             # Shuffle data order at each step (MATLAB line 1300)
             timeperm = custom_randperm(datalength, rng)
 
             # Process data in blocks (MATLAB line 1302)
             for t in range(0, lastt, block):
-
                 # Extract and process block - NO BIAS (MATLAB line 1315)
-                u = _matmul(weights, data[:, timeperm[t:t+block]])
+                u = _matmul(weights, data[:, timeperm[t : t + block]])
 
                 # Apply logistic nonlinearity (MATLAB line 1316)
                 u = np.maximum(u, -MAX_WEIGHT)
@@ -1201,7 +1195,7 @@ def runica(data, **kwargs):
                 y = 1.0 / (1.0 + np.exp(-u))
 
                 # Natural gradient weight update (MATLAB line 1317)
-                weights = weights + lrate * _matmul(BI + _matmul(1 - 2*y, u.T), weights)
+                weights = weights + lrate * _matmul(BI + _matmul(1 - 2 * y, u.T), weights)
 
                 # NO BIAS UPDATE for no-bias variant
 
@@ -1225,7 +1219,7 @@ def runica(data, **kwargs):
             if not wts_blowup:
                 oldwtchange = weights - oldweights
                 step = step + 1
-                lrates[step-1] = lrate
+                lrates[step - 1] = lrate
                 angledelta = 0.0
                 delta = oldwtchange.flatten()
                 change = _matmul(delta, delta)
@@ -1267,7 +1261,6 @@ def runica(data, **kwargs):
                     break
 
             else:  # Weights in bounds
-
                 # Compute angle delta after step 2 (MATLAB lines 1388-1390)
                 if step > 2:
                     cos_angle = _matmul(delta, olddelta) / np.sqrt(change * oldchange)
@@ -1276,8 +1269,10 @@ def runica(data, **kwargs):
 
                 # Print progress (MATLAB lines 1392-1393)
                 if verbose and (step % 10 == 0 or step < 5):
-                    logger.info(f'step {step} - lrate {lrate:5f}, wchange {change:8.8f}, '
-                          f'angledelta {degconst*angledelta:4.1f} deg')
+                    logger.info(
+                        f'step {step} - lrate {lrate:5f}, wchange {change:8.8f}, '
+                        f'angledelta {degconst * angledelta:4.1f} deg'
+                    )
 
                 # Save current values (MATLAB lines 1397-1398)
                 changes.append(change)
@@ -1340,8 +1335,10 @@ def runica(data, **kwargs):
     # =========================================================================
     if pcaflag == 'on':
         if verbose:
-            logger.info('Composing the eigenvector, weights, and sphere matrices '
-                       f'into a single rectangular weights matrix; sphere=eye({chans})')
+            logger.info(
+                'Composing the eigenvector, weights, and sphere matrices '
+                f'into a single rectangular weights matrix; sphere=eye({chans})'
+            )
         weights = _matmul(_matmul(weights, sphere), eigenvectors[:, :ncomps].T)
         sphere = np.eye(urchans)
 
@@ -1375,7 +1372,6 @@ def runica(data, **kwargs):
     if verbose:
         logger.info('Permuting the activation wave forms ...')
 
-    activations = activations_unsorted[windex, :]  # data is now activations (MATLAB line 1523)
     weights = weights[windex, :]  # reorder the weight matrix (MATLAB line 1527)
     bias = bias[windex]  # reorder bias (MATLAB line 1528)
 

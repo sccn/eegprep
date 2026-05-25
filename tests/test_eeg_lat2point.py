@@ -9,7 +9,6 @@ from eegprep.functions.popfunc.eeg_lat2point import eeg_lat2point
 
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestEegLat2PointParity(unittest.TestCase):
-
     def setUp(self):
         self.eeglab = get_eeglab('MAT')
 
@@ -60,7 +59,6 @@ class TestEegLat2PointParity(unittest.TestCase):
 
 
 class TestEegLat2PointFunctional(unittest.TestCase):
-
     def test_eeg_lat2point_continuous(self):
         # 100 Hz, epoch 0–1 s → 101 points; 0,0.5,1.0 s map to 1,51,101 (1-based)
         srate = 100

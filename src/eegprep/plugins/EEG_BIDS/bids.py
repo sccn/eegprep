@@ -3,6 +3,8 @@
 import os
 from typing import Sequence, Dict, Any, Optional
 
+import bids
+
 
 __all__ = ['root_for_fpath', 'gen_derived_fpath', 'layout_for_fpath', 'layout_get_lenient', 'query_for_adjacent_fpath']
 
@@ -13,9 +15,25 @@ layout_cache = {}
 # incomplete list of bids suffixes that may occur in an EEG/multimodal study
 # (should not be used for verification; authoritative list at:
 # https://github.com/bids-standard/bids-specification/blob/master/src/schema/objects/suffixes.yaml)
-bids_suffixes = ('beh', 'channels', 'coordsystem', 'descriptions', 'desc', 'eeg', 'events', 'electrodes',
-                 'headshape', 'markers', 'meg', 'motion', 'nirs', 'optodes', 'physio', 'sessions',
-                 'stim')
+bids_suffixes = (
+    'beh',
+    'channels',
+    'coordsystem',
+    'descriptions',
+    'desc',
+    'eeg',
+    'events',
+    'electrodes',
+    'headshape',
+    'markers',
+    'meg',
+    'motion',
+    'nirs',
+    'optodes',
+    'physio',
+    'sessions',
+    'stim',
+)
 
 
 def root_for_fpath(fn: str) -> str:
@@ -36,16 +54,13 @@ def root_for_fpath(fn: str) -> str:
         pathparts = pathparts[:-1]
     # check if we have a 'derivatives' folder still further upstream
     if 'derivatives' in pathparts:
-        bids_root = normpath[:normpath.rfind('derivatives') - 1]
+        bids_root = normpath[: normpath.rfind('derivatives') - 1]
     else:
         bids_root = os.sep.join(pathparts)
     return bids_root
 
 
-def query_for_adjacent_fpath(
-        fn: str,
-        **overrides
-) -> Dict[str, Any]:
+def query_for_adjacent_fpath(fn: str, **overrides) -> Dict[str, Any]:
     """Generate a query dictionary (of entities) for a given file path in a BIDS dataset."""
     layout = layout_for_fpath(fn)
     query_entities = layout.parse_file_entities(fn).copy()
@@ -54,12 +69,12 @@ def query_for_adjacent_fpath(
 
 
 def gen_derived_fpath(
-        raw_fn: str,
-        *,
-        outputdir: str = '${root}/derivatives/clean_artifacts',
-        keyword: str = '',
-        suffix: Optional[str] = None,
-        extension: str = '.set'
+    raw_fn: str,
+    *,
+    outputdir: str = '${root}/derivatives/clean_artifacts',
+    keyword: str = '',
+    suffix: Optional[str] = None,
+    extension: str = '.set',
 ) -> str:
     """Generate a file path for a derived EEG file in a BIDS dataset.
 
@@ -117,19 +132,18 @@ def layout_for_fpath(filepath: str) -> 'bids.BIDSLayout':
     try:
         return layout_cache[bids_root]
     except KeyError:
-        import bids
         layout = bids.BIDSLayout(bids_root, validate=False)
         layout_cache[bids_root] = layout
         return layout
 
 
 def layout_get_lenient(
-        layout: 'bids.BIDSLayout',
-        *,
-        return_type: str = 'filename',
-        tolerate_missing: Sequence[str] = ('task', 'run'),
-        expect_one: bool = False,
-        **filters,
+    layout: 'bids.BIDSLayout',
+    *,
+    return_type: str = 'filename',
+    tolerate_missing: Sequence[str] = ('task', 'run'),
+    expect_one: bool = False,
+    **filters,
 ) -> list:
     """Wrap layout.get() to tolerate specific missing entities in the specified order of succession.
 
@@ -155,7 +169,7 @@ def layout_get_lenient(
     list
         List of return values matching the query.
     """
-    result = []
+    results = []
     query_entities = filters.copy()
     for candidate in (None,) + tuple(tolerate_missing):
         if candidate is not None and candidate in query_entities:

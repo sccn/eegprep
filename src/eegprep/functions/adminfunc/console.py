@@ -25,7 +25,9 @@ POP_RESULT_PREVIEW_LIMIT = 96
 ANSI_CLEAR_LINE = "\r\x1b[2K"
 _ACTIVE_TERMINAL_BUFFER = contextvars.ContextVar("_ACTIVE_TERMINAL_BUFFER", default=None)
 _MATLAB_MULTI_ASSIGN_PATTERN = re.compile(r"^\s*\[([A-Za-z_][A-Za-z0-9_]*(?:\s+[A-Za-z_][A-Za-z0-9_]*)+)\]\s*=")
-_TUPLE_ASSIGNMENT_TARGET_PATTERN = re.compile(r"(^|;\s*)\(([A-Za-z_][A-Za-z0-9_]*(?:,\s*[A-Za-z_][A-Za-z0-9_]*)+)\)\s*=")
+_TUPLE_ASSIGNMENT_TARGET_PATTERN = re.compile(
+    r"(^|;\s*)\(([A-Za-z_][A-Za-z0-9_]*(?:,\s*[A-Za-z_][A-Za-z0-9_]*)+)\)\s*="
+)
 _POP_INTERP_CHANNELS_PATTERN = re.compile(r"(pop_interp\s*\(\s*EEG\s*,\s*)\[([0-9,\s]+)\]")
 _PYTHON_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _CONSOLE_COMMAND_EXPORTS = {"pop_newset": pop_newset}
@@ -818,7 +820,11 @@ def _keywordize_option_pairs(
     index = 0
     while index + 1 < len(args):
         key = _option_pair_key(args[index])
-        if key is None or key in existing_keywords or not _can_pass_keyword(key, keyword_parameters, accepts_var_keywords):
+        if (
+            key is None
+            or key in existing_keywords
+            or not _can_pass_keyword(key, keyword_parameters, accepts_var_keywords)
+        ):
             break
         keywords.append(ast.keyword(arg=key, value=args[index + 1]))
         existing_keywords.add(key)
@@ -840,17 +846,17 @@ def _can_pass_keyword(key: str, keyword_parameters: set[str], accepts_var_keywor
 
 
 def _is_workspace_argument(parameter_name: str, arg: ast.expr) -> bool:
-    return parameter_name.upper() in WORKSPACE_NAMES and isinstance(arg, ast.Name) and arg.id.upper() == parameter_name.upper()
+    return (
+        parameter_name.upper() in WORKSPACE_NAMES
+        and isinstance(arg, ast.Name)
+        and arg.id.upper() == parameter_name.upper()
+    )
 
 
 def _console_call_name(node: ast.expr) -> str | None:
     if isinstance(node, ast.Name):
         return node.id
-    if (
-        isinstance(node, ast.Attribute)
-        and isinstance(node.value, ast.Name)
-        and node.value.id == "eegprep"
-    ):
+    if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name) and node.value.id == "eegprep":
         return node.attr
     return None
 

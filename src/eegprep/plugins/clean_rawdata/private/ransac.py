@@ -1,6 +1,6 @@
 """RANSAC utilities for EEG data processing."""
 
-from typing import *
+from typing import Optional
 
 import numpy as np
 
@@ -8,11 +8,8 @@ from ....functions.adminfunc.eeglabcompat import get_eeglab
 from ....functions.miscfunc.misc import round_mat
 from .sphericalSplineInterpolate import sphericalSplineInterpolate
 
-def rand_sample(
-        n: int,
-        m: int,
-        stream: np.random.RandomState
-) -> np.ndarray:
+
+def rand_sample(n: int, m: int, stream: np.random.RandomState) -> np.ndarray:
     """Random sampling without replacement using Fisher-Yates shuffle.
 
     Optimized O(n) implementation using swap-based Fisher-Yates instead of
@@ -53,10 +50,7 @@ def rand_sample(
     return pool[:m].copy()
 
 
-def rand_permutation(
-        n: int,
-        stream: np.random.RandomState
-) -> np.ndarray:
+def rand_permutation(n: int, stream: np.random.RandomState) -> np.ndarray:
     """Random permutation with MATLAB parity using Fisher-Yates shuffle.
 
     This function produces the SAME permutation sequence as MATLAB's
@@ -104,11 +98,11 @@ def rand_permutation(
 
 
 def calc_projector(
-        locs: np.ndarray,
-        num_samples: int,
-        subset_size: int,
-        stream: Optional[np.random.RandomState] = None,
-        subroutine: str = 'sphericalSplineInterpolate'
+    locs: np.ndarray,
+    num_samples: int,
+    subset_size: int,
+    stream: Optional[np.random.RandomState] = None,
+    subroutine: str = 'sphericalSplineInterpolate',
 ) -> np.ndarray:
     """Calculate a bag of reconstruction matrices from random channel subsets.
 
@@ -131,13 +125,22 @@ def calc_projector(
     rand_samples = np.zeros((locs.shape[0], num_samples, locs.shape[0]))
 
     if subroutine == 'sphericalSplineInterpolate':
-        op = lambda src, dest: sphericalSplineInterpolate(src.T, dest.T)[0]
+
+        def op(src, dest):
+            return sphericalSplineInterpolate(src.T, dest.T)[0]
+
     elif subroutine == 'matlab':
         matlab = get_eeglab('MAT')
-        op = lambda src, dest: matlab.sphericalSplineInterpolate(src.T, dest.T)[0]
+
+        def op(src, dest):
+            return matlab.sphericalSplineInterpolate(src.T, dest.T)[0]
+
     elif subroutine == 'octave':
         octave = get_eeglab('OCT')
-        op = lambda src, dest: octave.sphericalSplineInterpolate(src.T, dest.T)[0]
+
+        def op(src, dest):
+            return octave.sphericalSplineInterpolate(src.T, dest.T)[0]
+
     else:
         raise ValueError(f'Unknown subroutine: {subroutine}')
 

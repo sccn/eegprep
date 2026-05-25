@@ -5,6 +5,7 @@
 import numpy as np
 from scipy.linalg import pinv as scipy_pinv
 
+
 def pinv(A, tol=None, method='scipy'):
     """Compute the Moore-Penrose pseudoinverse of a matrix.
 
@@ -57,13 +58,13 @@ def pinv(A, tol=None, method='scipy'):
         if m >= n:
             # Tall or square matrix: A_pinv = (A^T A)^(-1) A^T
             # But use lstsq for numerical stability
-            I = np.eye(m, dtype=A.dtype)
-            A_pinv, residuals, rank, s = lstsq(A, I, lapack_driver='gelsd')
+            identity = np.eye(m, dtype=A.dtype)
+            A_pinv, residuals, rank, s = lstsq(A, identity, lapack_driver='gelsd')
             return A_pinv
         else:
             # Wide matrix: A_pinv = A^T (A A^T)^(-1)
-            I = np.eye(n, dtype=A.dtype)
-            A_pinv, residuals, rank, s = lstsq(A.T, I, lapack_driver='gelsd')
+            identity = np.eye(n, dtype=A.dtype)
+            A_pinv, residuals, rank, s = lstsq(A.T, identity, lapack_driver='gelsd')
             return A_pinv.T
 
     else:

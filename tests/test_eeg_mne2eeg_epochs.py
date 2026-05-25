@@ -6,35 +6,27 @@ This module tests the eeg_mne2eeg_epochs function that converts MNE Epochs with 
 
 import unittest
 import os
-
-if os.getenv('EEGPREP_SKIP_MATLAB') == '1':
-    raise unittest.SkipTest("MATLAB not available")
-import sys
 import numpy as np
 import tempfile
-import os
 import shutil
-import math
 
-# Add src to path for imports
-sys.path.insert(0, 'src')
-# Ensure tests dir is in path for unittest discovery
-test_dir = os.path.dirname(os.path.abspath(__file__))
-if test_dir not in sys.path:
-    sys.path.insert(0, test_dir)
+from eegprep.functions.miscfunc.eeg_mne2eeg_epochs import eeg_mne2eeg_epochs
 
 try:
     import mne
     from mne.preprocessing import ICA
+
     MNE_AVAILABLE = True
 except ImportError:
     MNE_AVAILABLE = False
 
-from eegprep.functions.miscfunc.eeg_mne2eeg_epochs import eeg_mne2eeg_epochs
 try:
     from .fixtures import create_test_eeg
 except (ImportError, ValueError):
     from fixtures import create_test_eeg
+
+if os.getenv('EEGPREP_SKIP_MATLAB') == '1':
+    raise unittest.SkipTest("MATLAB not available")
 
 
 class TestEEGMNE2EEGEpochs(unittest.TestCase):
@@ -148,12 +140,22 @@ class TestEEGMNE2EEGEpochs(unittest.TestCase):
 
         # Add channel locations (MNE requires exactly 12 elements)
         for i, ch in enumerate(info['chs']):
-            ch['loc'] = np.array([
-                np.cos(i * np.pi / 4) * 0.1,  # x
-                np.sin(i * np.pi / 4) * 0.1,  # y
-                0.0,  # z
-                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0  # other fields (12 total)
-            ])
+            ch['loc'] = np.array(
+                [
+                    np.cos(i * np.pi / 4) * 0.1,  # x
+                    np.sin(i * np.pi / 4) * 0.1,  # y
+                    0.0,  # z
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,  # other fields (12 total)
+                ]
+            )
 
         data = np.random.randn(n_epochs, n_channels, n_times)
         events = np.array([[i, 0, 1] for i in range(n_epochs)])
@@ -445,12 +447,22 @@ class TestEEGMNE2EEGEpochs(unittest.TestCase):
 
         # Add realistic channel locations (MNE requires exactly 12 elements)
         for i, ch in enumerate(info['chs']):
-            ch['loc'] = np.array([
-                np.cos(i * np.pi / 16) * 0.1,  # x
-                np.sin(i * np.pi / 16) * 0.1,  # y
-                0.0,  # z
-                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0  # other fields (12 total)
-            ])
+            ch['loc'] = np.array(
+                [
+                    np.cos(i * np.pi / 16) * 0.1,  # x
+                    np.sin(i * np.pi / 16) * 0.1,  # y
+                    0.0,  # z
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,  # other fields (12 total)
+                ]
+            )
 
         data = np.random.randn(n_epochs, n_channels, n_times)
         events = np.array([[i, 0, 1] for i in range(n_epochs)])

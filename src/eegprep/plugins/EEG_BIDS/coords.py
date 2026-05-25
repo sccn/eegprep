@@ -3,8 +3,15 @@
 from typing import Dict, Any, Sequence
 import numpy as np
 
-__all__ = ['coords_to_mm', 'coords_any_to_RAS', 'coords_RAS_to_ALS', 'coords_ALS_to_angular',
-           'clear_chanloc', 'chanloc_has_coords', 'chanlocs_to_coords']
+__all__ = [
+    'coords_to_mm',
+    'coords_any_to_RAS',
+    'coords_RAS_to_ALS',
+    'coords_ALS_to_angular',
+    'clear_chanloc',
+    'chanloc_has_coords',
+    'chanlocs_to_coords',
+]
 
 
 def coords_to_mm(coords: np.ndarray, unit: str) -> np.ndarray:
@@ -16,8 +23,7 @@ def coords_to_mm(coords: np.ndarray, unit: str) -> np.ndarray:
     elif unit in ('m', 'meters'):
         coords *= 1000.0
     else:
-        raise ValueError(f"Unsupported coordinate unit: {unit}. "
-                         f"Supported units are 'mm', 'cm', 'm'.")
+        raise ValueError(f"Unsupported coordinate unit: {unit}. Supported units are 'mm', 'cm', 'm'.")
     return coords
 
 
@@ -55,14 +61,10 @@ def coords_any_to_RAS(coords: np.ndarray, x: str, y: str, z: str) -> np.ndarray:
     if x == 'front' and y == 'left' and z == 'up':
         # +X nose direction
         # rotate 90 degrees clockwise (looking down on head)
-        coords = np.dot(coords, np.array([[0, 1, 0],
-                                          [-1, 0, 0],
-                                          [0, 0, 1]]))
+        coords = np.dot(coords, np.array([[0, 1, 0], [-1, 0, 0], [0, 0, 1]]))
     elif x == 'back' and y == 'right' and z == 'up':
         # -X nose direction
-        coords = np.dot(coords, np.array([[0, -1, 0],
-                                          [1, 0, 0],
-                                          [0, 0, 1]]))
+        coords = np.dot(coords, np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1]]))
     elif not (x == 'right' and y == 'front' and z == 'up'):
         # not +Y nose direction
         raise RuntimeError("Unsupported input coordinate system (%s,%s,%s)" % (x, y, z))
@@ -90,7 +92,7 @@ def coords_ALS_to_angular(coords: np.ndarray) -> np.ndarray:
     polar_radius : np.ndarray
         2d polar coordinates.
     """
-    x,y,z = coords.T
+    x, y, z = coords.T
     hypotxy = np.hypot(x, y)
     theta = np.arctan2(y, x)
     phi = np.arctan2(z, hypotxy)
@@ -133,8 +135,7 @@ def chanloc_has_coords(ch: Dict[str, Any]) -> bool:
 
 def chanlocs_to_coords(chanlocs: Sequence[Dict[str, Any]]) -> np.ndarray:
     """Convert an EEGLAB chanlocs data structure to a Nx3 coordinates array."""
-    coords = np.array([[cl['X'], cl['Y'], cl['Z']]
-                       if chanloc_has_coords(cl)
-                       else [np.nan, np.nan, np.nan]
-                       for cl in chanlocs])
+    coords = np.array(
+        [[cl['X'], cl['Y'], cl['Z']] if chanloc_has_coords(cl) else [np.nan, np.nan, np.nan] for cl in chanlocs]
+    )
     return coords

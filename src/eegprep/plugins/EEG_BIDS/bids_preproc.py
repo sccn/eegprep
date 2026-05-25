@@ -16,7 +16,6 @@ import numpy as np
 from ...functions.adminfunc.git import get_git_commit_id
 from ...functions.miscfunc.misc import (
     ExceptionUnlessDebug,
-    ToolError,
     humanize_seconds,
     is_debug,
     num_cpus_from_reservation,
@@ -34,12 +33,24 @@ logger = logging.getLogger(__name__)
 eeg_extensions = ('.vhdr', '.edf', '.bdf', '.set')
 
 # list of all possible processing stages, in the order in which they apply
-all_stages = ['Import', 'ChannelSelection', 'Resample', 'CleanArtifacts', 'ICA', 'ICLabel', 'ChannelInterp', 'Epoching', 'CommonAverageReference']
+all_stages = [
+    'Import',
+    'ChannelSelection',
+    'Resample',
+    'CleanArtifacts',
+    'ICA',
+    'ICLabel',
+    'ChannelInterp',
+    'Epoching',
+    'CommonAverageReference',
+]
+
 
 def _copy_misc_root_files(root: str, dst: str, exclude: List[str]) -> None:
     """Move miscellaneous description files from the study root to the target directory."""
     from bids import BIDSLayout
     from bids.layout.models import BIDSJSONFile
+
     layout: BIDSLayout = layout_for_fpath(root)
     files = layout.get()
     # apply filter rules
@@ -47,7 +58,11 @@ def _copy_misc_root_files(root: str, dst: str, exclude: List[str]) -> None:
     exclude = set(exclude)
     files = [f for f in files if f.path not in exclude]
     # 2. no files that are in a disallowed path relative to root
-    no_files = {os.path.join(root, 'derivatives'), os.path.join(root, 'sourcedata'), os.path.join(root, 'dataset_description.json')}
+    no_files = {
+        os.path.join(root, 'derivatives'),
+        os.path.join(root, 'sourcedata'),
+        os.path.join(root, 'dataset_description.json'),
+    }
     files = [f for f in files if f.path not in no_files]
     # 3. no (other) files for the eeg modality except if they're json
     files = [f for f in files if f.entities.get('suffix') != 'eeg' or isinstance(f, BIDSJSONFile)]
@@ -60,6 +75,7 @@ def _copy_misc_root_files(root: str, dst: str, exclude: List[str]) -> None:
         relpath = os.path.relpath(srcpath, root)
         dstpath = os.path.join(dst, relpath)
         from shutil import copyfile
+
         os.makedirs(os.path.dirname(dstpath), exist_ok=True)
         try:
             if not os.path.exists(dstpath):
@@ -82,89 +98,87 @@ def _legacy_override(new_and_name: Tuple[Any, str], old_and_name: Tuple[Any, str
 
 
 def bids_preproc(
-        root: str,
-        *,
-        # BIDS loader parameters
-        ApplyChanlocs: Optional[bool] = None,
-        ApplyEvents: Optional[bool] = None,
-        ApplyMetadata: Optional[bool] = None,
-        EventColumn: Optional[str] = None,
-        Subjects: Sequence[str | int] | str | int | None = None,
-        Sessions: Sequence[str | int] | str | int | None = None,
-        Runs: Sequence[str | int] | str | int | None = None,
-        Tasks: Sequence[str | int] | str | int | None = None,
-        # Overall run configuration
-        SkipIfPresent: bool = True,
-        NumJobs: Optional[int] = None,
-        ReservePerJob: str = '',
-        UseHashes: bool = False,
-        ReturnData: bool = False,
-        OutputDir: Optional[str] = None,
-        # Overall processing parameters
-        SamplingRate: Optional[float] = None,
-        OnlyChannelsWithPosition: bool = True,
-        OnlyModalities: Sequence[str] = (),
-        WithInterp: bool = False,
-        WithICA: bool = False,
-        WithPicard: bool = False,
-        ICAAlgorithm: str = 'runica',
-        AmicaArgs: dict | None = None,
-        WithICLabel: bool = False,
-        WithReport: bool = True,
-        CommonAverageReference: bool = True,
-        # Core cleaning parameters
-        ChannelCriterion: Union[float, str] = 0.8,
-        LineNoiseCriterion: Union[float, str] = 4.0,
-        BurstCriterion: Union[float, str] = 5.0,
-        WindowCriterion: Union[float, str] = 0.25,
-        Highpass: Union[str, Tuple[float, float]] = (0.25, 0.75),
-        # Detail cleaning parameters
-        ChannelCriterionMaxBadTime: float = 0.5,
-        BurstCriterionRefMaxBadChns: Union[float, str] = 0.075,
-        BurstCriterionRefTolerances: Union[Tuple[float, float], str] = (-np.inf, 5.5),
-        BurstRejection: str = 'off',
-        WindowCriterionTolerances: Union[Tuple[float, float], str] = (-np.inf, 7),
-        FlatlineCriterion: Union[float, str] = 5.0,
-        NumSamples: int = 50,
-        NoLocsChannelCriterion: float = 0.45,
-        NoLocsChannelCriterionExcluded: float = 0.1,
-        MaxMem: int = 64,
-        Distance: str = 'euclidian',
-        # Misc cleaning config
-        Channels: Optional[Sequence[str]] = None,
-        Channels_ignore: Optional[Sequence[str]] = None,
-        availableRAM_GB: Optional[float] = None,
-        # Optional epoching stage
-        EpochEvents: Optional[Union[str, Sequence[str]]] = None,
-        EpochLimits: Sequence[float] = (-1, 2),
-        EpochBaseline: Optional[Sequence[float]] = None,
-        # Derived data parameters
-        StageNames: Sequence[str] = ('desc-cleaned', 'desc-picard', 'desc-iclabel', 'desc-epoch'),
-        FinalDesc: Optional[str] = None,
-        ReportDir: Optional[str] = None,
-        MinimizeDiskUsage: bool = True,
-        SaveIntermediateStages: bool = False,
-        IntermediateDir: Optional[str] = None,
-
-        # Legacy parameter names for compatibility with EEGLAB
-        bidschanloc: Optional[bool] = None,
-        bidsevent: Optional[bool] = None,
-        bidsmetadata: Optional[bool] = None,
-        eventtype: Optional[str] = None,
-        subjects: Sequence[str | int] | str | int | None = None,
-        sessions: Sequence[str | int] | str | int | None = None,
-        runs: Sequence[str | int] | str | int | None = None,
-        tasks: Sequence[str | int] | str | int | None = None,
-        outputdir: Optional[str] = None,
-
-        # Reserved parameters
-        _lock: Optional[multiprocessing.Lock] = contextlib.nullcontext(),
-        _n_skipped: Optional[multiprocessing.Value] = None,
-        _k: int = 0,
-        _n_total: int = 1,
-        _n_jobs: int = 1,
-        _t0: float = now(),
-) -> Dict[str,Any] | List[Dict[str, Any]] | None:
+    root: str,
+    *,
+    # BIDS loader parameters
+    ApplyChanlocs: Optional[bool] = None,
+    ApplyEvents: Optional[bool] = None,
+    ApplyMetadata: Optional[bool] = None,
+    EventColumn: Optional[str] = None,
+    Subjects: Sequence[str | int] | str | int | None = None,
+    Sessions: Sequence[str | int] | str | int | None = None,
+    Runs: Sequence[str | int] | str | int | None = None,
+    Tasks: Sequence[str | int] | str | int | None = None,
+    # Overall run configuration
+    SkipIfPresent: bool = True,
+    NumJobs: Optional[int] = None,
+    ReservePerJob: str = '',
+    UseHashes: bool = False,
+    ReturnData: bool = False,
+    OutputDir: Optional[str] = None,
+    # Overall processing parameters
+    SamplingRate: Optional[float] = None,
+    OnlyChannelsWithPosition: bool = True,
+    OnlyModalities: Sequence[str] = (),
+    WithInterp: bool = False,
+    WithICA: bool = False,
+    WithPicard: bool = False,
+    ICAAlgorithm: str = 'runica',
+    AmicaArgs: dict | None = None,
+    WithICLabel: bool = False,
+    WithReport: bool = True,
+    CommonAverageReference: bool = True,
+    # Core cleaning parameters
+    ChannelCriterion: Union[float, str] = 0.8,
+    LineNoiseCriterion: Union[float, str] = 4.0,
+    BurstCriterion: Union[float, str] = 5.0,
+    WindowCriterion: Union[float, str] = 0.25,
+    Highpass: Union[str, Tuple[float, float]] = (0.25, 0.75),
+    # Detail cleaning parameters
+    ChannelCriterionMaxBadTime: float = 0.5,
+    BurstCriterionRefMaxBadChns: Union[float, str] = 0.075,
+    BurstCriterionRefTolerances: Union[Tuple[float, float], str] = (-np.inf, 5.5),
+    BurstRejection: str = 'off',
+    WindowCriterionTolerances: Union[Tuple[float, float], str] = (-np.inf, 7),
+    FlatlineCriterion: Union[float, str] = 5.0,
+    NumSamples: int = 50,
+    NoLocsChannelCriterion: float = 0.45,
+    NoLocsChannelCriterionExcluded: float = 0.1,
+    MaxMem: int = 64,
+    Distance: str = 'euclidian',
+    # Misc cleaning config
+    Channels: Optional[Sequence[str]] = None,
+    Channels_ignore: Optional[Sequence[str]] = None,
+    availableRAM_GB: Optional[float] = None,
+    # Optional epoching stage
+    EpochEvents: Optional[Union[str, Sequence[str]]] = None,
+    EpochLimits: Sequence[float] = (-1, 2),
+    EpochBaseline: Optional[Sequence[float]] = None,
+    # Derived data parameters
+    StageNames: Sequence[str] = ('desc-cleaned', 'desc-picard', 'desc-iclabel', 'desc-epoch'),
+    FinalDesc: Optional[str] = None,
+    ReportDir: Optional[str] = None,
+    MinimizeDiskUsage: bool = True,
+    SaveIntermediateStages: bool = False,
+    IntermediateDir: Optional[str] = None,
+    # Legacy parameter names for compatibility with EEGLAB
+    bidschanloc: Optional[bool] = None,
+    bidsevent: Optional[bool] = None,
+    bidsmetadata: Optional[bool] = None,
+    eventtype: Optional[str] = None,
+    subjects: Sequence[str | int] | str | int | None = None,
+    sessions: Sequence[str | int] | str | int | None = None,
+    runs: Sequence[str | int] | str | int | None = None,
+    tasks: Sequence[str | int] | str | int | None = None,
+    outputdir: Optional[str] = None,
+    # Reserved parameters
+    _lock: Optional[multiprocessing.Lock] = contextlib.nullcontext(),
+    _n_skipped: Optional[multiprocessing.Value] = None,
+    _k: int = 0,
+    _n_total: int = 1,
+    _n_jobs: int = 1,
+    _t0: float = now(),
+) -> Dict[str, Any] | List[Dict[str, Any]] | None:
     """Apply data cleaning to EEG files in a BIDS dataset.
 
     Parameters
@@ -384,11 +398,24 @@ def bids_preproc(
     # get a dictionary of all arguments
     kwargs = {k: v for k, v in locals().items() if not k.startswith('_')}
     del kwargs['root']  # we don't need the root here, only in the function body
-    from scipy.io.matlab import loadmat
-    from eegprep import (bids_list_eeg_files, clean_artifacts, pop_load_frombids, eeg_checkset,
-                         pop_saveset, eeg_runica, eeg_picard, iclabel, pop_loadset, pop_resample,
-                         eeg_interp, pop_select, eeg_checkset_strict_mode, pop_reref,
-                         eeg_icflag, pop_subcomp)
+    from eegprep import (
+        bids_list_eeg_files,
+        clean_artifacts,
+        pop_load_frombids,
+        eeg_checkset,
+        pop_saveset,
+        eeg_runica,
+        eeg_picard,
+        iclabel,
+        pop_loadset,
+        pop_resample,
+        eeg_interp,
+        pop_select,
+        eeg_checkset_strict_mode,
+        pop_reref,
+        eeg_icflag,
+        pop_subcomp,
+    )
     from eegprep.functions.popfunc.eeg_amica import eeg_amica
     from .bids import gen_derived_fpath
 
@@ -402,9 +429,24 @@ def bids_preproc(
         # set of options in kwargs that do NOT influence the processing result; all others
         # are used to calc an options hash
         non_proc_options = {
-            'root', 'Subjects', 'Sessions', 'Runs', 'Tasks', 'SkipIfPresent', 'NumJobs',
-            'ReservePerJob', 'ReturnData', 'OutputDir', 'MinimizeDiskUsage', 'UseHashes',
-            'subjects', 'sessions', 'runs', 'tasks', 'outputdir'}
+            'root',
+            'Subjects',
+            'Sessions',
+            'Runs',
+            'Tasks',
+            'SkipIfPresent',
+            'NumJobs',
+            'ReservePerJob',
+            'ReturnData',
+            'OutputDir',
+            'MinimizeDiskUsage',
+            'UseHashes',
+            'subjects',
+            'sessions',
+            'runs',
+            'tasks',
+            'outputdir',
+        }
         if ignore is not None:
             non_proc_options = non_proc_options | ignore
         # and collection of options that DO influence results
@@ -418,24 +460,15 @@ def bids_preproc(
         return prefix + options_hash
 
     # handle support for legacy parameters and defaults
-    ApplyChanlocs = _legacy_override((ApplyChanlocs, 'ApplyChanlocs'), (bidschanloc, 'bidschanloc'),
-                                     True)
-    ApplyEvents = _legacy_override((ApplyEvents, 'ApplyEvents'), (bidsevent, 'bidsevent'),
-                                   False)
-    ApplyMetadata = _legacy_override((ApplyMetadata, 'ApplyMetadata'), (bidsmetadata, 'bidsmetadata'),
-                                     True)
-    EventColumn = _legacy_override((EventColumn, 'EventColumn'), (eventtype, 'eventtype'),
-                                 '')
-    OutputDir = _legacy_override((OutputDir, 'OutputDir'), (outputdir, 'outputdir'),
-                                 '{root}/derivatives/eegprep')
-    Subjects = _legacy_override((Subjects, 'Subjects'), (subjects, 'subjects'),
-                                ())
-    Sessions = _legacy_override((Sessions, 'Sessions'), (sessions, 'sessions'),
-                                ())
-    Runs = _legacy_override((Runs, 'Runs'), (runs, 'runs'),
-                            ())
-    Tasks = _legacy_override((Tasks, 'Tasks'), (tasks, 'tasks'),
-                             ())
+    ApplyChanlocs = _legacy_override((ApplyChanlocs, 'ApplyChanlocs'), (bidschanloc, 'bidschanloc'), True)
+    ApplyEvents = _legacy_override((ApplyEvents, 'ApplyEvents'), (bidsevent, 'bidsevent'), False)
+    ApplyMetadata = _legacy_override((ApplyMetadata, 'ApplyMetadata'), (bidsmetadata, 'bidsmetadata'), True)
+    EventColumn = _legacy_override((EventColumn, 'EventColumn'), (eventtype, 'eventtype'), '')
+    OutputDir = _legacy_override((OutputDir, 'OutputDir'), (outputdir, 'outputdir'), '{root}/derivatives/eegprep')
+    Subjects = _legacy_override((Subjects, 'Subjects'), (subjects, 'subjects'), ())
+    Sessions = _legacy_override((Sessions, 'Sessions'), (sessions, 'sessions'), ())
+    Runs = _legacy_override((Runs, 'Runs'), (runs, 'runs'), ())
+    Tasks = _legacy_override((Tasks, 'Tasks'), (tasks, 'tasks'), ())
 
     # account for the NumJobs parameter
     if NumJobs == -1:
@@ -448,8 +481,10 @@ def bids_preproc(
 
     # other sanity checks
     if len(StageNames) != 4:
-        raise ValueError("StageNames, if given, must be a list of 4 strings, as in: "
-                         "['desc-cleaned', 'desc-picard', 'desc-iclabel', 'desc-epoch'].")
+        raise ValueError(
+            "StageNames, if given, must be a list of 4 strings, as in: "
+            "['desc-cleaned', 'desc-picard', 'desc-iclabel', 'desc-epoch']."
+        )
     # apply FinalDesc override to the last active stage name
     if FinalDesc is not None:
         StageNames = list(StageNames)
@@ -474,12 +509,22 @@ def bids_preproc(
             _n_skipped = multiprocessing.Value('i', 0)
 
         late_opts = {'WithInterp', 'EpochLimits', 'EpochEvents', 'EpochBaseline', 'CommonAverageReference'}
-        fpath_cln = gen_derived_fpath(fn, outputdir=OutputDir, keyword=StageNames[0] + hash_suffix(ignore={'WithICA', 'WithICLabel'} | late_opts))
-        fpath_picard = gen_derived_fpath(fn, outputdir=OutputDir, keyword=StageNames[1] + hash_suffix(ignore={'WithICLabel'} | late_opts))
-        fpath_iclabel = gen_derived_fpath(fn, outputdir=OutputDir, keyword=StageNames[2] + hash_suffix(ignore=late_opts))
-        fpath_epoch = gen_derived_fpath(fn, outputdir=OutputDir, keyword=StageNames[3] + hash_suffix(ignore={'CommonAverageReference'}))
-        fpath_final = gen_derived_fpath(fn, outputdir=OutputDir, keyword=f'desc-final' + hash_suffix())
-        fpath_report = gen_derived_fpath(fn, outputdir=OutputDir, keyword='desc-report' + hash_suffix(), extension='.json')
+        fpath_cln = gen_derived_fpath(
+            fn, outputdir=OutputDir, keyword=StageNames[0] + hash_suffix(ignore={'WithICA', 'WithICLabel'} | late_opts)
+        )
+        fpath_picard = gen_derived_fpath(
+            fn, outputdir=OutputDir, keyword=StageNames[1] + hash_suffix(ignore={'WithICLabel'} | late_opts)
+        )
+        fpath_iclabel = gen_derived_fpath(
+            fn, outputdir=OutputDir, keyword=StageNames[2] + hash_suffix(ignore=late_opts)
+        )
+        fpath_epoch = gen_derived_fpath(
+            fn, outputdir=OutputDir, keyword=StageNames[3] + hash_suffix(ignore={'CommonAverageReference'})
+        )
+        fpath_final = gen_derived_fpath(fn, outputdir=OutputDir, keyword='desc-final' + hash_suffix())
+        fpath_report = gen_derived_fpath(
+            fn, outputdir=OutputDir, keyword='desc-report' + hash_suffix(), extension='.json'
+        )
         if ReportDir is not None:
             # redirect report to a separate directory (e.g., 'code/reports')
             report_base = os.path.basename(fpath_report)
@@ -495,7 +540,9 @@ def bids_preproc(
                 except json.JSONDecodeError as e:
                     logger.warning(f"Failed to parse existing report file {fpath_report}, overwriting.")
                     report = {
-                        "Errors": [f"Failed to parse existing report file: {e}. Prior report was overridden/regenerated."],
+                        "Errors": [
+                            f"Failed to parse existing report file: {e}. Prior report was overridden/regenerated."
+                        ],
                     }
         else:
             report = {}
@@ -572,16 +619,16 @@ def bids_preproc(
             else:
                 ETA = 'estimating...'
 
-            logger.info(f"*** Processing [{_k+1}/{_n_total} | ETA {ETA}] {fn} ***")
+            logger.info(f"*** Processing [{_k + 1}/{_n_total} | ETA {ETA}] {fn} ***")
 
             try:
                 # noinspection PyUnresolvedReferences
                 from threadpoolctl import threadpool_limits
+
                 limit = num_cpus_from_reservation(ReservePerJob, default=4)
                 thread_ctx = threadpool_limits(limits=limit, user_api='blas')
             except ImportError:
-                logger.warning(
-                    "threadpoolctl not installed, using default thread limits.")
+                logger.warning("threadpoolctl not installed, using default thread limits.")
                 thread_ctx = contextlib.nullcontext()
 
             old_chanlocs = None
@@ -592,7 +639,13 @@ def bids_preproc(
                     if SaveIntermediateStages and IntermediateDir:
                         os.makedirs(IntermediateDir, exist_ok=True)
                         # Extract subject/run info from filename for unique identifier
-                        base = os.path.basename(fn).replace('.set', '').replace('.vhdr', '').replace('.edf', '').replace('.bdf', '')
+                        base = (
+                            os.path.basename(fn)
+                            .replace('.set', '')
+                            .replace('.vhdr', '')
+                            .replace('.edf', '')
+                            .replace('.bdf', '')
+                        )
                         stage_file = f'{base}_stage{stage_num:02d}_{stage_name}_py.set'
                         stage_path = os.path.join(IntermediateDir, stage_file)
                         try:
@@ -610,6 +663,7 @@ def bids_preproc(
                         keep &= [chanloc_has_coords(ch) for ch in EEG['chanlocs']]
                     if OnlyModalities:
                         OM = [m.upper() for m in OnlyModalities]
+
                         def get_chan_type(ch):
                             """Get channel type, handling nan and non-string types."""
                             typ = ch.get('type')
@@ -622,6 +676,7 @@ def bids_preproc(
                             if not isinstance(typ, str):
                                 return None
                             return typ.upper()
+
                         keep &= [get_chan_type(ch) in OM for ch in EEG['chanlocs']]
                     retain = [ch['labels'] for ch, kp in zip(EEG['chanlocs'], keep) if kp]
                     if 0 < len(retain) < len(EEG['chanlocs']):
@@ -634,9 +689,7 @@ def bids_preproc(
                     else:
                         detail = 'no' if not retain else 'all'
                         logger.info(f"No channel selection applied: {detail} channels retained")
-                        report["ChannelSelection"] = {
-                            "Applied": False
-                        }
+                        report["ChannelSelection"] = {"Applied": False}
                     return EEG
 
                 if os.path.exists(fpath_cln) and SkipIfPresent:
@@ -659,7 +712,8 @@ def bids_preproc(
                         bidschanloc=ApplyChanlocs,
                         bidsevent=ApplyEvents,
                         eventtype=EventColumn,
-                        return_report=True)
+                        return_report=True,
+                    )
 
                     # Clear any pre-existing ICA if we're going to compute fresh ICA with PICARD
                     # This avoids shape mismatches after channel interpolation
@@ -706,9 +760,7 @@ def bids_preproc(
                         save_stage(EEG, 3, 'resample')
                     else:
                         logger.info("No resampling requested, keeping original sampling rate.")
-                        report["Resample"] = {
-                            "Applied": False
-                        }
+                        report["Resample"] = {"Applied": False}
 
                     old_events = EEG['event']
                     old_chanlocs = EEG['chanlocs']
@@ -720,9 +772,11 @@ def bids_preproc(
                         try:
                             EEG = pop_loadset(fpath_cln)
                             needs_recalc = False
-                        except OSError as e:
-                            logger.warning(f"Encountered read error trying to look up "
-                                           f"cached derivative data {fpath_cln}. Recomputing.")
+                        except OSError:
+                            logger.warning(
+                                f"Encountered read error trying to look up "
+                                f"cached derivative data {fpath_cln}. Recomputing."
+                            )
                     if needs_recalc:
                         EEG, *_ = clean_artifacts(
                             EEG,
@@ -744,7 +798,8 @@ def bids_preproc(
                             Distance=Distance,
                             Channels=Channels,
                             Channels_ignore=Channels_ignore,
-                            availableRAM_GB=availableRAM_GB)
+                            availableRAM_GB=availableRAM_GB,
+                        )
                         report["CleanArtifacts"] = {
                             "Applied": True,
                             "ChannelCriterion": ChannelCriterion,
@@ -806,15 +861,17 @@ def bids_preproc(
                         # Flag components based on ICLabel classifications
                         # Match MATLAB: pop_icflag([NaN NaN;0.9 1;0.9 1;NaN NaN;NaN NaN;NaN NaN;NaN NaN])
                         # This flags Muscle > 0.9 OR Eye > 0.9
-                        thresholds = np.array([
-                            [np.nan, np.nan],  # Brain
-                            [0.9, 1.0],        # Muscle
-                            [0.9, 1.0],        # Eye
-                            [np.nan, np.nan],  # Heart
-                            [np.nan, np.nan],  # Line Noise
-                            [np.nan, np.nan],  # Channel Noise
-                            [np.nan, np.nan],  # Other
-                        ])
+                        thresholds = np.array(
+                            [
+                                [np.nan, np.nan],  # Brain
+                                [0.9, 1.0],  # Muscle
+                                [0.9, 1.0],  # Eye
+                                [np.nan, np.nan],  # Heart
+                                [np.nan, np.nan],  # Line Noise
+                                [np.nan, np.nan],  # Channel Noise
+                                [np.nan, np.nan],  # Other
+                            ]
+                        )
                         EEG = eeg_icflag(EEG, thresholds)
 
                         # Save stage 10 BEFORE component removal (for comparison)
@@ -844,14 +901,15 @@ def bids_preproc(
                             bidschanloc=ApplyChanlocs,
                             bidsevent=ApplyEvents,
                             eventtype=EventColumn,
-                            return_report=True)
+                            return_report=True,
+                        )
                         # apply channel selection to that also
                         if OnlyChannelsWithPosition or OnlyModalities:
                             tmp = select_channels(tmp)
                         old_chanlocs = tmp['chanlocs']
                         del tmp
                     if nDropped := (len(old_chanlocs) - len(EEG['chanlocs'])):
-                        logger.info(F"Reinterpolating {nDropped} dropped channels.")
+                        logger.info(f"Reinterpolating {nDropped} dropped channels.")
                         # note: this assumes that no non-ExG channels were dropped by
                         # the above preproc, since those can't really be restored by
                         # interpolation (although in the worst case they will contain
@@ -863,26 +921,27 @@ def bids_preproc(
                             # fewer channels and is now incompatible with interpolated data
                             if 'icaweights' in EEG and EEG['icaweights'].size > 0:
                                 if EEG['icaweights'].shape[1] != EEG['nbchan']:
-                                    logger.warning(f"Clearing ICA after interpolation: ICA was done on "
-                                                   f"{EEG['icaweights'].shape[1]} channels but data now has "
-                                                   f"{EEG['nbchan']} channels")
+                                    logger.warning(
+                                        f"Clearing ICA after interpolation: ICA was done on "
+                                        f"{EEG['icaweights'].shape[1]} channels but data now has "
+                                        f"{EEG['nbchan']} channels"
+                                    )
                                     EEG['icaweights'] = np.array([])
                                     EEG['icasphere'] = np.array([])
                                     EEG['icawinv'] = np.array([])
                                     EEG['icaact'] = np.array([])
 
-                            report["ChannelInterp"] = {
-                                "Applied": True,
-                                "NumInterpolated": nDropped
-                            }
+                            report["ChannelInterp"] = {"Applied": True, "NumInterpolated": nDropped}
                         except RuntimeError as e:
                             if 'locations required' in str(e):
-                                logger.warning("Cannot reinterpolate dropped channels as original "
-                                               "channel locations are missing and could not be "
-                                               "inferred.")
+                                logger.warning(
+                                    "Cannot reinterpolate dropped channels as original "
+                                    "channel locations are missing and could not be "
+                                    "inferred."
+                                )
                                 report["ChannelInterp"] = {
                                     "Applied": False,
-                                    "Reason": "Original channel locations missing"
+                                    "Reason": "Original channel locations missing",
                                 }
                             else:
                                 raise
@@ -894,23 +953,28 @@ def bids_preproc(
                     }
 
                 if EpochEvents is not None:
-                    from . import pop_epoch
+                    from eegprep.functions.popfunc.pop_epoch import pop_epoch
+
                     assert len(EpochLimits) == 2, "EpochLimits must be a tuple of (min, max) times in seconds."
                     events = EpochEvents
-                    if EpochEvents == [] and len(EEG['event']) == 0 or all([e['type'] == 'boundary' for e in EEG['event']]):
+                    if (
+                        EpochEvents == []
+                        and len(EEG['event']) == 0
+                        or all([e['type'] == 'boundary' for e in EEG['event']])
+                    ):
                         # trying to epoch around any marker but got no events at all, or only boundary events
                         logger.info(f"Dataset {fn!r} has no (non-boundary) events, nothing to epoch")
-                        report["Epoching"] = {
-                            "Applied": False,
-                            "Reason": "No (non-boundary) events in data"
-                        }
+                        report["Epoching"] = {"Applied": False, "Reason": "No (non-boundary) events in data"}
                     else:
                         try:
                             with eeg_checkset_strict_mode(False):
                                 EEG, *_ = pop_epoch(EEG, types=EpochEvents, lim=EpochLimits)
                                 if EpochBaseline is not None:
-                                    from . import pop_rmbase
-                                    assert len(EpochBaseline) == 2, "EpochBaseline must be a tuple of (min, max) times in seconds or None."
+                                    from eegprep.functions.popfunc.pop_rmbase import pop_rmbase
+
+                                    assert len(EpochBaseline) == 2, (
+                                        "EpochBaseline must be a tuple of (min, max) times in seconds or None."
+                                    )
                                     timerange = EpochBaseline
                                     if timerange[0] is None:
                                         timerange = (EEG['times'][0] / 1000, timerange[1])
@@ -930,13 +994,13 @@ def bids_preproc(
                                 "Applied": True,
                                 "TimeLimits": EpochLimits,
                                 "EventTypes": EpochEvents,
-                                "Baseline": EpochBaseline
+                                "Baseline": EpochBaseline,
                             }
                         except ValueError as e:
                             if 'is empty' in str(e) or 'of an empty dataset' in str(e):
                                 report["Epoching"] = {
                                     "Applied": False,
-                                    "Reason": "No events retained (possibly all crossing boundaries)"
+                                    "Reason": "No events retained (possibly all crossing boundaries)",
                                 }
                             else:
                                 raise
@@ -959,8 +1023,7 @@ def bids_preproc(
 
                 # rewrite the events file
                 if len(EEG['event']):
-                    fpath_events = gen_derived_fpath(fn, outputdir=OutputDir,
-                                                     suffix='events', extension='.tsv')
+                    fpath_events = gen_derived_fpath(fn, outputdir=OutputDir, suffix='events', extension='.tsv')
                     have_hed_column = EEG['etc'].get('event_column', None) == 'HED'
                     columns = ['onset', 'duration', 'trial_type'] + (['HED'] if have_hed_column else [])
                     with open(fpath_events, 'w') as fp:
@@ -969,23 +1032,18 @@ def bids_preproc(
                         for e in EEG['event']:
                             ev_type = e['type']
                             try:
-                                ev_time = times[e['latency']]/1000.0  # in ms
+                                ev_time = times[e['latency']] / 1000.0  # in ms
                             except IndexError:
                                 logger.error(f'out-of-bounds event {ev_type} at lat {e["latency"]}; ignoring')
                                 continue
-                            ev_dur = e.get('duration', 0.0)/srate
+                            ev_dur = e.get('duration', 0.0) / srate
                             if np.isnan(ev_dur):
                                 ev_dur = 0.0
-                            row = [
-                                ev_time,
-                                ev_dur,
-                                ev_type
-                            ] + ([ev_type] if have_hed_column else [])
+                            row = [ev_time, ev_dur, ev_type] + ([ev_type] if have_hed_column else [])
                             print('\t'.join(str(r) for r in row), file=fp)
 
                 # rewrite the channels file
-                fpath_channels = gen_derived_fpath(fn, outputdir=OutputDir,
-                                                   suffix='channels', extension='.tsv')
+                fpath_channels = gen_derived_fpath(fn, outputdir=OutputDir, suffix='channels', extension='.tsv')
                 with open(fpath_channels, 'w') as fp:
                     print('name\ttype\tunits', file=fp)
                     for ch in EEG['chanlocs']:
@@ -994,8 +1052,7 @@ def bids_preproc(
                         print(f"{ch['labels']}\t{ch_type}\t{ch_unit}", file=fp)
 
                 # rewrite the electrodes file
-                fpath_elecs = gen_derived_fpath(fn, outputdir=OutputDir,
-                                                suffix='electrodes', extension='.tsv')
+                fpath_elecs = gen_derived_fpath(fn, outputdir=OutputDir, suffix='electrodes', extension='.tsv')
                 with open(fpath_elecs, 'w') as fp:
                     print('name\tx\ty\tz', file=fp)
                     for ch in EEG['chanlocs']:
@@ -1003,20 +1060,20 @@ def bids_preproc(
                             print(f"{ch['labels']}\t{ch['X']}\t{ch['Y']}\t{ch['Z']}", file=fp)
 
                 # rewrite/update the coordsystem file
-                fpath_coordsystem = gen_derived_fpath(fn, outputdir=OutputDir,
-                                                      suffix='coordsystem', extension='.json')
+                fpath_coordsystem = gen_derived_fpath(fn, outputdir=OutputDir, suffix='coordsystem', extension='.json')
                 coordsystem = EEG['etc'].get('BIDSCoordsystem', {})
-                coordsystem.update({
-                    "EEGCoordinateSystem": "EEGLAB",
-                    "EEGCoordinateUnits": "mm",
-                    "EEGCoordinateSystemDescription": "ALS | +x is front, +y is left, +z is up",
-                })
+                coordsystem.update(
+                    {
+                        "EEGCoordinateSystem": "EEGLAB",
+                        "EEGCoordinateUnits": "mm",
+                        "EEGCoordinateSystemDescription": "ALS | +x is front, +y is left, +z is up",
+                    }
+                )
                 with open(fpath_coordsystem, 'w') as fp:
                     json.dump(coordsystem, fp, indent=4)
 
                 # rewrite/update the _eeg.json file
-                fpath_eeg = gen_derived_fpath(fn, outputdir=OutputDir,
-                                              suffix='eeg', extension='.json')
+                fpath_eeg = gen_derived_fpath(fn, outputdir=OutputDir, suffix='eeg', extension='.json')
                 if os.path.exists(fpath_eeg):
                     with open(fpath_eeg, 'r') as fp:
                         content = json.load(fp)
@@ -1032,13 +1089,16 @@ def bids_preproc(
                 content['SamplingFrequency'] = EEG['srate']
 
                 # write channel counts based on the modality
-                labels = [str(lab['type']).lower() if isinstance(lab['type'], str) else repr(lab['type']) for lab in EEG['chanlocs']]
+                labels = [
+                    str(lab['type']).lower() if isinstance(lab['type'], str) else repr(lab['type'])
+                    for lab in EEG['chanlocs']
+                ]
                 content['EEGChannelCount'] = n_eeg = sum(lab == 'eeg' for lab in labels)
                 content['ECGChannelCount'] = n_ecg = sum(lab == 'ecg' for lab in labels)
                 content['EMGChannelCount'] = n_emg = sum(lab == 'emg' for lab in labels)
                 content['EOGChannelCount'] = n_eog = sum(lab == 'eog' for lab in labels)
                 n_trig = sum(lab == 'trig' for lab in labels)
-                content['MiscChannelCount'] = len(EEG['chanlocs']) - (n_eeg+n_ecg+n_emg+n_eog+n_trig)
+                content['MiscChannelCount'] = len(EEG['chanlocs']) - (n_eeg + n_ecg + n_emg + n_eog + n_trig)
 
                 # remove misnamed field that may be present from prior json file
                 if 'MISCChannelCount' in content:
@@ -1082,7 +1142,7 @@ def bids_preproc(
                     'ICA': 'eeg_runica',
                     'ChannelInterp': 'eeg_interp',
                     'Epoching': 'pop_epoch+pop_rmbase' if EpochBaseline is not None else 'pop_epoch',
-                    'CommonAverageReference': 'pop_reref'
+                    'CommonAverageReference': 'pop_reref',
                 }
                 for in_report, in_filters in filter_names.items():
                     if (flt := filter_report.get(in_report, {'Applied': False})).pop('Applied'):
@@ -1110,18 +1170,13 @@ def bids_preproc(
                 if errorStage not in report:
                     report[errorStage] = {}
                 report[errorStage]["Applied"] = 'Error'
-                report[errorStage]["Error"] = {
-                    "Message": str(e)
-                }
+                report[errorStage]["Error"] = {"Message": str(e)}
                 for remaining in StagesToGo:
                     if remaining not in report:
                         report[remaining] = {}
                     report[remaining]["Applied"] = 'Skipped'
                     report[remaining]["Reason"] = "Previous stage failed"
-            report["Errors"].append(
-                {
-                    "Message": str(e)
-                })
+            report["Errors"].append({"Message": str(e)})
             with _lock:
                 _n_skipped.value += 1
             return None
@@ -1143,8 +1198,7 @@ def bids_preproc(
 
     elif os.path.isdir(root):
         # process all files under a BIDS root recursively
-        all_files = bids_list_eeg_files(
-            root, subjects=Subjects, sessions=Sessions, runs=Runs, tasks=Tasks)
+        all_files = bids_list_eeg_files(root, subjects=Subjects, sessions=Sessions, runs=Runs, tasks=Tasks)
         n_jobs = 1 if is_debug() else num_jobs_from_reservation(ReservePerJob)
         n_total = len(all_files)
         t0 = now()
@@ -1157,12 +1211,11 @@ def bids_preproc(
         # rewrite the dataset_description.json file
         dataset_desc_path = os.path.join(root, 'dataset_description.json')
         if os.path.exists(dataset_desc_path):
-            logger.info(
-                f"Updating derived dataset_description.json from {dataset_desc_path}")
+            logger.info(f"Updating derived dataset_description.json from {dataset_desc_path}")
             with open(dataset_desc_path, 'r') as f:
                 desc = json.load(f)
         else:
-            logger.info(f"Creating new derived dataset_description.json")
+            logger.info("Creating new derived dataset_description.json")
             desc = {
                 # these must be present
                 "Name": os.path.basename(root),
@@ -1180,8 +1233,9 @@ def bids_preproc(
                 "Name": "eegprep",
                 "Description": "The EEGPrep data pipeline",
                 "Version": commit or "",
-                "CodeURL": "https://github.com/sccn/eegprep"
-            })
+                "CodeURL": "https://github.com/sccn/eegprep",
+            }
+        )
 
         orig_doi = desc.get("DatasetDOI", "")
 
@@ -1211,8 +1265,7 @@ def bids_preproc(
         # note that the actual epoched data *can* be absent if there were no matching
         # event markers in any study file, which we can't determine at this point
         desc['IsEpoched'] = EpochEvents is not None
-        fpath_dataset_desc = gen_derived_fpath(dataset_desc_path, outputdir=OutputDir, keyword='',
-                                               extension='.json')
+        fpath_dataset_desc = gen_derived_fpath(dataset_desc_path, outputdir=OutputDir, keyword='', extension='.json')
         with open(fpath_dataset_desc, 'w') as f:
             json.dump(desc, f, indent=4)
 
@@ -1224,17 +1277,25 @@ def bids_preproc(
                 # run sequentially
                 results = []
                 for k, fn in enumerate(all_files):
-                    results.append(bids_preproc(
-                        fn,
-                        **kwargs,
-                        # reserved parameters
-                        _lock=lock, _n_skipped=n_skipped, _k=k, _n_total=n_total, _n_jobs=n_jobs, _t0=t0
-                    ))
+                    results.append(
+                        bids_preproc(
+                            fn,
+                            **kwargs,
+                            # reserved parameters
+                            _lock=lock,
+                            _n_skipped=n_skipped,
+                            _k=k,
+                            _n_total=n_total,
+                            _n_jobs=n_jobs,
+                            _t0=t0,
+                        )
+                    )
 
             else:
                 # run in parallel
                 logger.info(f"Running {n_jobs} parallel jobs to process {n_total} files...")
                 from multiprocessing import Pool
+
                 with Pool(n_jobs) as pool:
                     results = [
                         pool.apply_async(
@@ -1242,17 +1303,24 @@ def bids_preproc(
                             args=(fn,),
                             kwds={
                                 **kwargs,
-                                '_lock': lock, '_n_skipped': n_skipped, '_k': k, '_n_total': n_total, '_n_jobs': n_jobs, '_t0': t0
-                            }
+                                '_lock': lock,
+                                '_n_skipped': n_skipped,
+                                '_k': k,
+                                '_n_total': n_total,
+                                '_n_jobs': n_jobs,
+                                '_t0': t0,
+                            },
                         )
                         for k, fn in enumerate(all_files)
                     ]
                     # wait for all jobs to finish
                     results = [result.get() for result in results]
 
-            logger.info(f"Processed {n_total - n_skipped.value} files, "
-                        f"skipped {n_skipped.value} files; total time: "
-                        f"{humanize_seconds(now() - t0)}.")
+            logger.info(
+                f"Processed {n_total - n_skipped.value} files, "
+                f"skipped {n_skipped.value} files; total time: "
+                f"{humanize_seconds(now() - t0)}."
+            )
 
             return results if ReturnData else None
     else:

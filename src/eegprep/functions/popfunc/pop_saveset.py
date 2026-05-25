@@ -15,6 +15,7 @@ import os
 
 default_empty = np.array([])
 
+
 def flatten_dict_sub(d, parent_key='', sep='_'):
     """Flatten a nested dictionary.
 
@@ -121,6 +122,7 @@ def flatten_dict(data):
     rec_array = np.array(data_tuples, dtype=dtype).view(np.recarray)
     return rec_array
 
+
 def saveset(EEG, file_name):
     """Save EEG data to file.
 
@@ -137,6 +139,7 @@ def saveset(EEG, file_name):
         EEG data.
     """
     return pop_saveset(EEG, file_name)
+
 
 # def dictlist_to_recarray(events):
 #     # --- Infer dtype automatically ---
@@ -171,6 +174,7 @@ def saveset(EEG, file_name):
 
 #     return rec_events
 
+
 def pop_saveset_old(EEG, file_path):
     """Save EEG data to file (old version).
 
@@ -204,14 +208,6 @@ def pop_saveset_old(EEG, file_path):
 
     return EEG
 
-
-# Example to export MNE epochs to EEGLAB dataset
-# Events are not handled correctly in this example but it works
-
-import mne
-from mne.datasets import sample
-import numpy as np
-from scipy.io import savemat
 
 def _chanlocs_to_struct_array(chanlocs_list):
     """Convert a list/array of chanloc dicts to a structured numpy array.
@@ -267,11 +263,17 @@ def _chanlocs_to_struct_array(chanlocs_list):
         return np.array([])
 
     dtype = np.dtype([(f, t) for f, t in field_spec if f in retain])
-    arr = np.array([
-        tuple(d[f] if d[f] is not None else (0 if np.issubdtype(t, np.number) else '')
-              for f, t in field_spec if f in retain)
-        for d in d_list
-    ], dtype=dtype)
+    arr = np.array(
+        [
+            tuple(
+                d[f] if d[f] is not None else (0 if np.issubdtype(t, np.number) else '')
+                for f, t in field_spec
+                if f in retain
+            )
+            for d in d_list
+        ],
+        dtype=dtype,
+    )
     return arr
 
 
@@ -317,51 +319,51 @@ def pop_saveset(EEG, file_name):
     save_dir = os.path.dirname(file_name) or '.'
     save_name = os.path.basename(file_name)
     eeglab_dict = {
-        'setname'         : _string_field(EEG.get('setname', '')),
-        'filename'        : save_name,
-        'filepath'        : save_dir,
-        'subject'         : _string_field(EEG.get('subject', '')),
-        'group'           : _string_field(EEG.get('group', '')),
-        'condition'       : _string_field(EEG.get('condition', '')),
-        'session'         : EEG.get('session', np.array([])),
-        'comments'        : _string_field(EEG.get('comments', '')),
-        'nbchan'          : float(EEG['nbchan']),
-        'trials'          : float(EEG['trials']),
-        'pnts'            : float(EEG['pnts']),
-        'srate'           : float(EEG['srate']),
-        'xmin'            : float(EEG['xmin']),
-        'xmax'            : float(EEG['xmax']),
-        'times'           : EEG['times'],
-        'data'            : EEG['data'],
-        'icaact'          : EEG['icaact'] if EEG['icaact'] is not None else np.array([]),
-        'icawinv'         : EEG['icawinv'] if EEG['icawinv'] is not None else np.array([]),
-        'icasphere'       : EEG['icasphere'] if EEG['icasphere'] is not None else np.array([]),
-        'icaweights'      : EEG['icaweights'] if EEG['icaweights'] is not None else np.array([]),
-        'icachansind'     : EEG['icachansind'].copy() if EEG['icachansind'] is not None else np.array([]),
-        'chanlocs'        : EEG['chanlocs'],
-        'urchanlocs'      : EEG['urchanlocs'] if EEG['urchanlocs'] is not None else np.array([]),
-        'chaninfo'        : _serialize_chaninfo(EEG['chaninfo']),
-        'ref'             : EEG['ref'],
-        'event'           : EEG['event'] if 'event' in EEG else np.array([]),
-        'urevent'         : EEG['urevent'] if 'urevent' in EEG else np.array([]),
+        'setname': _string_field(EEG.get('setname', '')),
+        'filename': save_name,
+        'filepath': save_dir,
+        'subject': _string_field(EEG.get('subject', '')),
+        'group': _string_field(EEG.get('group', '')),
+        'condition': _string_field(EEG.get('condition', '')),
+        'session': EEG.get('session', np.array([])),
+        'comments': _string_field(EEG.get('comments', '')),
+        'nbchan': float(EEG['nbchan']),
+        'trials': float(EEG['trials']),
+        'pnts': float(EEG['pnts']),
+        'srate': float(EEG['srate']),
+        'xmin': float(EEG['xmin']),
+        'xmax': float(EEG['xmax']),
+        'times': EEG['times'],
+        'data': EEG['data'],
+        'icaact': EEG['icaact'] if EEG['icaact'] is not None else np.array([]),
+        'icawinv': EEG['icawinv'] if EEG['icawinv'] is not None else np.array([]),
+        'icasphere': EEG['icasphere'] if EEG['icasphere'] is not None else np.array([]),
+        'icaweights': EEG['icaweights'] if EEG['icaweights'] is not None else np.array([]),
+        'icachansind': EEG['icachansind'].copy() if EEG['icachansind'] is not None else np.array([]),
+        'chanlocs': EEG['chanlocs'],
+        'urchanlocs': EEG['urchanlocs'] if EEG['urchanlocs'] is not None else np.array([]),
+        'chaninfo': _serialize_chaninfo(EEG['chaninfo']),
+        'ref': EEG['ref'],
+        'event': EEG['event'] if 'event' in EEG else np.array([]),
+        'urevent': EEG['urevent'] if 'urevent' in EEG else np.array([]),
         'eventdescription': EEG['eventdescription'] if 'eventdescription' in EEG else np.array([]),
-        'epoch'           : EEG['epoch'] if 'epoch' in EEG else np.array([]),
+        'epoch': EEG['epoch'] if 'epoch' in EEG else np.array([]),
         'epochdescription': EEG['epochdescription'] if 'epochdescription' in EEG else np.array([]),
-        'reject'          : EEG['reject'] if 'reject' in EEG else np.array([]),
-        'stats'           : EEG['stats'] if 'stats' in EEG else np.array([]),
-        'specdata'        : EEG['specdata'] if 'specdata' in EEG else np.array([]),
-        'specicaact'      : EEG['specicaact'] if 'specicaact' in EEG else np.array([]),
-        'splinefile'      : EEG['splinefile'] if 'splinefile' in EEG else np.array([]),
-        'icasplinefile'   : EEG['icasplinefile'] if 'icasplinefile' in EEG else np.array([]),
-        'dipfit'          : EEG['dipfit'] if 'dipfit' in EEG else np.array([]),
-        'history'         : EEG['history'],
-        'saved'           : EEG['saved'],
-        'etc'             : EEG['etc'] if EEG['etc'] else np.array([]),
-        'run'             : EEG['run'] if 'run' in EEG else np.array([]),
-        'roi'             : EEG['roi'] if 'roi' in EEG else np.array([]),
+        'reject': EEG['reject'] if 'reject' in EEG else np.array([]),
+        'stats': EEG['stats'] if 'stats' in EEG else np.array([]),
+        'specdata': EEG['specdata'] if 'specdata' in EEG else np.array([]),
+        'specicaact': EEG['specicaact'] if 'specicaact' in EEG else np.array([]),
+        'splinefile': EEG['splinefile'] if 'splinefile' in EEG else np.array([]),
+        'icasplinefile': EEG['icasplinefile'] if 'icasplinefile' in EEG else np.array([]),
+        'dipfit': EEG['dipfit'] if 'dipfit' in EEG else np.array([]),
+        'history': EEG['history'],
+        'saved': EEG['saved'],
+        'etc': EEG['etc'] if EEG['etc'] else np.array([]),
+        'run': EEG['run'] if 'run' in EEG else np.array([]),
+        'roi': EEG['roi'] if 'roi' in EEG else np.array([]),
     }
 
-     # add 1 to EEG['icachansind'] to make it 1-based
+    # add 1 to EEG['icachansind'] to make it 1-based
     if isinstance(eeglab_dict['icachansind'], list):
         eeglab_dict['icachansind'] = np.array(eeglab_dict['icachansind'])
     if 'icachansind' in eeglab_dict and eeglab_dict['icachansind'].size > 0:
@@ -377,48 +379,53 @@ def pop_saveset(EEG, file_name):
         for i in range(len(eeglab_dict['event'])):
             eeglab_dict['event'][i]['urevent'] = eeglab_dict['event'][i]['urevent'] + 1
 
-
     # Create the list of dictionaries with a string field
     if 'chanlocs' in EEG and len(EEG['chanlocs']) > 0:
         matlab_null = np.array([])
-        d_list = [{
-            'labels': c['labels'],
-            'theta':  c['theta']   if not isinstance(c.get('theta', matlab_null), np.ndarray) else None,
-            'radius': c['radius']  if not isinstance(c.get('radius', matlab_null), np.ndarray) else None,
-            'X':      c['X']       if not isinstance(c.get('X', matlab_null), np.ndarray) else None,
-            'Y':      c['Y']       if not isinstance(c.get('Y', matlab_null), np.ndarray) else None,
-            'Z':      c['Z']       if not isinstance(c.get('Z', matlab_null), np.ndarray) else None,
-            'sph_theta':  c['sph_theta']  if not isinstance(c.get('sph_theta', matlab_null), np.ndarray) else None,
-            'sph_phi':    c['sph_phi']    if not isinstance(c.get('sph_phi', matlab_null), np.ndarray) else None,
-            'sph_radius': c['sph_radius'] if not isinstance(c.get('sph_radius', matlab_null), np.ndarray) else None,
-            'type':       c['type']       if not isinstance(c.get('type', matlab_null), np.ndarray) else None,
-            'urchan':     c['urchan']     if not isinstance(c.get('urchan', matlab_null), np.ndarray) else None,
-            'ref':        c['ref']        if not isinstance(c.get('ref', matlab_null), np.ndarray) else None
-        } for c in EEG['chanlocs']]
+        d_list = [
+            {
+                'labels': c['labels'],
+                'theta': c['theta'] if not isinstance(c.get('theta', matlab_null), np.ndarray) else None,
+                'radius': c['radius'] if not isinstance(c.get('radius', matlab_null), np.ndarray) else None,
+                'X': c['X'] if not isinstance(c.get('X', matlab_null), np.ndarray) else None,
+                'Y': c['Y'] if not isinstance(c.get('Y', matlab_null), np.ndarray) else None,
+                'Z': c['Z'] if not isinstance(c.get('Z', matlab_null), np.ndarray) else None,
+                'sph_theta': c['sph_theta'] if not isinstance(c.get('sph_theta', matlab_null), np.ndarray) else None,
+                'sph_phi': c['sph_phi'] if not isinstance(c.get('sph_phi', matlab_null), np.ndarray) else None,
+                'sph_radius': c['sph_radius'] if not isinstance(c.get('sph_radius', matlab_null), np.ndarray) else None,
+                'type': c['type'] if not isinstance(c.get('type', matlab_null), np.ndarray) else None,
+                'urchan': c['urchan'] if not isinstance(c.get('urchan', matlab_null), np.ndarray) else None,
+                'ref': c['ref'] if not isinstance(c.get('ref', matlab_null), np.ndarray) else None,
+            }
+            for c in EEG['chanlocs']
+        ]
 
         # build a list of fields to selectively filter out if all entries are None
         retain_fields = [fld for fld in d_list[0].keys() if not all(d[fld] is None for d in d_list)]
 
-        dtype = np.dtype([(f, t) for f, t in [
-            ('labels', 'U100'),      # String up to 100 characters
-            ('theta', np.float64),
-            ('radius', np.float64),
-            ('X', np.float64),
-            ('Y', np.float64),
-            ('Z', np.float64),
-            ('sph_theta', np.float64),
-            ('sph_phi', np.float64),
-            ('sph_radius', np.float64),
-            ('type', 'U10'),         # String up to 10 characters
-            ('urchan', np.int32),
-            ('ref', 'U100')          # String up to 100 characters
-        ] if f in retain_fields])
+        dtype = np.dtype(
+            [
+                (f, t)
+                for f, t in [
+                    ('labels', 'U100'),  # String up to 100 characters
+                    ('theta', np.float64),
+                    ('radius', np.float64),
+                    ('X', np.float64),
+                    ('Y', np.float64),
+                    ('Z', np.float64),
+                    ('sph_theta', np.float64),
+                    ('sph_phi', np.float64),
+                    ('sph_radius', np.float64),
+                    ('type', 'U10'),  # String up to 10 characters
+                    ('urchan', np.int32),
+                    ('ref', 'U100'),  # String up to 100 characters
+                ]
+                if f in retain_fields
+            ]
+        )
 
         # Convert the list of dictionaries to a structured NumPy array
-        eeglab_dict['chanlocs'] = np.array([
-            tuple(item[fld] for fld in retain_fields)
-            for item in d_list
-        ], dtype=dtype)
+        eeglab_dict['chanlocs'] = np.array([tuple(item[fld] for fld in retain_fields) for item in d_list], dtype=dtype)
 
     # Normalize event latencies to float before saving so MATLAB loads them
     # as double.  Without this, integer stimulus latencies become int64 and
@@ -433,7 +440,11 @@ def pop_saveset(EEG, file_name):
         eeglab_dict['event'] = np.array(eeglab_dict['event'])
 
     for key in eeglab_dict:
-        if isinstance(eeglab_dict[key], np.ndarray) and len(eeglab_dict[key]) > 0 and isinstance(eeglab_dict[key][0], dict):
+        if (
+            isinstance(eeglab_dict[key], np.ndarray)
+            and len(eeglab_dict[key]) > 0
+            and isinstance(eeglab_dict[key][0], dict)
+        ):
             eeglab_dict[key] = flatten_dict(eeglab_dict[key])
 
     if not os.path.exists(save_dir):
@@ -452,15 +463,20 @@ def pop_saveset(EEG, file_name):
                 os.remove(file_name)
             raise
 
+
 def test_pop_saveset():
     """Test pop_saveset function."""
     from eegprep.functions.popfunc.pop_loadset import pop_loadset
+
     file_path = './sample_data/eeglab_data_with_ica_tmp.set'
     EEG = pop_loadset(file_path)
-    pop_saveset( EEG, '/Users/arno/Python/eegprep/sample_data/tmp.set')
-    pop_saveset_old(EEG, '/Users/arno/Python/eegprep/sample_data/tmp2.set') # does not do events and function above is better
+    pop_saveset(EEG, '/Users/arno/Python/eegprep/sample_data/tmp.set')
+    pop_saveset_old(
+        EEG, '/Users/arno/Python/eegprep/sample_data/tmp2.set'
+    )  # does not do events and function above is better
     # print the keys of the EEG dictionary
     print(EEG.keys())
+
 
 if __name__ == '__main__':
     test_pop_saveset()

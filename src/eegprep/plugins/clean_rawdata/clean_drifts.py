@@ -1,7 +1,7 @@
 """EEG drift removal utilities."""
 
-from typing import *
 import logging
+from typing import Any, Dict, Sequence
 
 import numpy as np
 from scipy.signal import filtfilt
@@ -12,10 +12,10 @@ logger = logging.getLogger(__name__)
 
 
 def clean_drifts(
-        EEG: Dict[str, Any],
-        transition: Sequence[float] = (0.5, 1),
-        attenuation: float = 80.0,
-        method: str = 'fft',
+    EEG: Dict[str, Any],
+    transition: Sequence[float] = (0.5, 1),
+    attenuation: float = 80.0,
+    method: str = 'fft',
 ) -> Dict[str, Any]:
     """Remove drifts from the data using a forward-backward high-pass filter.
 
@@ -36,13 +36,9 @@ def clean_drifts(
     EEG['data'] = np.asarray(EEG['data'], dtype=np.float64)
 
     # design highpass FIR filter
-    transition = 2*np.asarray(transition) / EEG['srate']
+    transition = 2 * np.asarray(transition) / EEG['srate']
     wnd = design_kaiser(transition[0], transition[1], attenuation, True)
-    B = design_fir(
-        len(wnd)-1,
-        np.concatenate(([0], transition, [1])),
-        [0, 0, 1, 1],
-        w=wnd)
+    B = design_fir(len(wnd) - 1, np.concatenate(([0], transition, [1])), [0, 0, 1, 1], w=wnd)
 
     op = filtfilt if method == 'fir' else filtfilt_fast
 

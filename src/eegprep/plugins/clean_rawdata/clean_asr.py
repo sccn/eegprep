@@ -5,7 +5,7 @@ on EEG data to remove artifacts.
 """
 
 import logging
-from typing import Dict, Any, Optional, Union, Tuple, Optional
+from typing import Dict, Any, Union, Tuple, Optional
 from copy import deepcopy
 
 import math
@@ -31,7 +31,7 @@ def clean_asr(
     ref_wndlen: Union[float, str, None] = 1.0,
     use_gpu: bool = False,
     useriemannian: Optional[str] = None,
-    maxmem: Optional[int] = 64
+    maxmem: Optional[int] = 64,
 ) -> Dict[str, Any]:
     """Run the Artifact Subspace Reconstruction (ASR) method on EEG data.
 
@@ -87,8 +87,8 @@ def clean_asr(
     C, S = data.shape
 
     if C != nbchan:
-         logger.warning(f"Mismatch between EEG['nbchan'] ({nbchan}) and EEG['data'].shape[0] ({C}). Using shape[0].")
-         nbchan = C # Use the actual dimension from data
+        logger.warning(f"Mismatch between EEG['nbchan'] ({nbchan}) and EEG['data'].shape[0] ({C}). Using shape[0].")
+        nbchan = C  # Use the actual dimension from data
 
     # --- Handle Defaults ---
     if window_len is None:
@@ -99,24 +99,32 @@ def clean_asr(
 
     # --- Determine Reference/Calibration Data ---
     ref_section_data = None
-    if isinstance(ref_maxbadchannels, (int, float)) and isinstance(ref_tolerances, (tuple, list)) and isinstance(ref_wndlen, (int, float)):
+    if (
+        isinstance(ref_maxbadchannels, (int, float))
+        and isinstance(ref_tolerances, (tuple, list))
+        and isinstance(ref_wndlen, (int, float))
+    ):
         logger.info('Finding a clean section of the data for calibration...')
         try:
             # clean_windows is assumed to return the selected data array (C x S_clean)
             # It needs the EEG dict structure, similar to other clean_* funcs
             temp_EEG_for_cleanwin = deepcopy(EEG)
-            temp_EEG_for_cleanwin['data'] = data # ensure it has the float64 data
+            temp_EEG_for_cleanwin['data'] = data  # ensure it has the float64 data
             cleaned_EEG, _ = clean_windows(temp_EEG_for_cleanwin, ref_maxbadchannels, ref_tolerances, ref_wndlen)
             ref_section_data = np.asarray(cleaned_EEG['data'], dtype=np.float64)
             if ref_section_data.size == 0 or ref_section_data.shape[1] == 0:
                 logger.warning("clean_windows returned no data. Falling back to using all data for calibration.")
                 ref_section_data = data
             elif ref_section_data.shape[1] < 64:
-                logger.warning("clean_windows returned insufficient data. Falling back to using all data for calibration.")
+                logger.warning(
+                    "clean_windows returned insufficient data. Falling back to using all data for calibration."
+                )
                 ref_section_data = data
         except Exception as e:
             logger.error(f"An error occurred during clean_windows: {e}")
-            logger.warning("Could not automatically identify clean calibration data. Falling back to using the entire data for calibration.")
+            logger.warning(
+                "Could not automatically identify clean calibration data. Falling back to using the entire data for calibration."
+            )
             ref_section_data = data
     elif (isinstance(ref_maxbadchannels, str) and ref_maxbadchannels.lower() == 'off') or ref_maxbadchannels is None:
         logger.info(f"Using the entire data for calibration ('ref_maxbadchannels' set to {ref_maxbadchannels!r}).")
@@ -131,9 +139,11 @@ def clean_asr(
         logger.info("Using user-supplied data array for calibration.")
         ref_section_data = np.asarray(ref_maxbadchannels, dtype=np.float64)
         if ref_section_data.ndim != 2 or ref_section_data.shape[0] != C:
-             raise ValueError(f"User-supplied calibration data must be a 2D array with shape ({C}, n_samples).")
+            raise ValueError(f"User-supplied calibration data must be a 2D array with shape ({C}, n_samples).")
     else:
-        raise ValueError(f"Unsupported value or type for 'ref_maxbadchannels': {ref_maxbadchannels}. Must be float, None/'off', or numpy array.")
+        raise ValueError(
+            f"Unsupported value or type for 'ref_maxbadchannels': {ref_maxbadchannels}. Must be float, None/'off', or numpy array."
+        )
 
     # --- Calibrate ASR ---
     logger.info('Estimating ASR calibration statistics...')
@@ -142,25 +152,25 @@ def clean_asr(
     try:
         state = asr_calibrate(ref_section_data, srate, cutoff=cutoff, maxmem=maxmem, useriemannian=useriemannian)
     except ValueError as e:
-         # Catch specific errors like not enough calibration data
-         raise ValueError(f"ASR calibration failed: {e}")
+        # Catch specific errors like not enough calibration data
+        raise ValueError(f"ASR calibration failed: {e}")
     # except Exception as e:
     #      # Catch unexpected errors during calibration
     #      logger.exception("An unexpected error occurred during ASR calibration.")
     #      raise RuntimeError(f"ASR calibration failed unexpectedly: {e}")
 
-    del ref_section_data # Free memory
+    del ref_section_data  # Free memory
 
     # --- Prepare for Processing ---
     if step_size is None:
-        step_size = int(math.floor(srate * window_len / 2)) # Samples
+        step_size = int(math.floor(srate * window_len / 2))  # Samples
 
     # --- Extrapolate Signal End ---
     # Required because asr_process needs lookahead data beyond the signal end
     # Based on: sig = [signal.data bsxfun(@minus,2*signal.data(:,end),signal.data(:,(end-1):-1:end-round(windowlen/2*signal.srate)))];
     N_extrap = int(round_mat(window_len / 2 * srate))
     if N_extrap > 0:
-         # Calculate indices for reflection, handling edge case where N_extrap >= S-1
+        # Calculate indices for reflection, handling edge case where N_extrap >= S-1
         extrap_len = min(N_extrap, S - 1 if S > 1 else 0)
         if extrap_len > 0:
             # Indices from second-to-last sample back 'extrap_len' steps
@@ -168,15 +178,14 @@ def clean_asr(
             # Reflect around the last sample: 2*last_sample - samples_before_last
             extrap_part = 2 * data[:, [-1]] - data[:, extrap_indices]
             sig = np.concatenate((data, extrap_part), axis=1)
-        else: # Not enough data to extrapolate
-             sig = data
-    else: # No extrapolation needed
+        else:  # Not enough data to extrapolate
+            sig = data
+    else:  # No extrapolation needed
         sig = data
-
 
     # --- Process Signal using ASR ---
     logger.info('Applying ASR processing...')
-    lookahead_sec = window_len / 2.0 # asr_process expects lookahead in seconds
+    lookahead_sec = window_len / 2.0  # asr_process expects lookahead in seconds
     outdata, _ = asr_process(
         sig,
         srate,
@@ -186,7 +195,7 @@ def clean_asr(
         step_size=step_size,
         max_dims=max_dims,
         max_mem=maxmem,
-        use_gpu=use_gpu # Passed but ignored in current Python port
+        use_gpu=use_gpu,  # Passed but ignored in current Python port
     )
 
     # --- Finalize ---

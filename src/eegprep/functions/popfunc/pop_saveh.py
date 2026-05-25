@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from datetime import date
 from pathlib import Path
-from typing import Any
 
 from eegprep.functions.popfunc._pop_utils import format_history_value
 

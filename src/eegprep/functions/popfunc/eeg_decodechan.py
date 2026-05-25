@@ -1,5 +1,6 @@
 """EEG channel decoding functions."""
 
+
 def eeg_decodechan(
     chanlocs,
     chanstr,

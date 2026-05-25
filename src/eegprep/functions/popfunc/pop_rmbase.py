@@ -1,14 +1,13 @@
 """EEG baseline removal utilities."""
 
 import numpy as np
-from typing import Iterable, List, Optional, Tuple
+from typing import Iterable, Optional, Tuple
 
 from eegprep.functions.popfunc.eeg_findboundaries import eeg_findboundaries
 from eegprep.functions.miscfunc.misc import round_mat
 
-def _normalize_pointrange(
-    pointrange: Optional[Iterable], pnts: int
-) -> np.ndarray:
+
+def _normalize_pointrange(pointrange: Optional[Iterable], pnts: int) -> np.ndarray:
     """Normalize MATLAB-like pointrange into a 0-based numpy index vector within [0, pnts-1].
 
     Accepts:
@@ -106,7 +105,12 @@ def pop_rmbase(
     EEG : dict
         Updated EEG structure with baseline removed. EEG['icaact'] is cleared.
     """
-    if EEG is None or 'data' not in EEG or EEG['data'] is None or (hasattr(EEG['data'], 'size') and EEG['data'].size == 0):
+    if (
+        EEG is None
+        or 'data' not in EEG
+        or EEG['data'] is None
+        or (hasattr(EEG['data'], 'size') and EEG['data'].size == 0)
+    ):
         raise ValueError('pop_rmbase(): cannot remove baseline of an empty dataset')
 
     data = EEG['data']
@@ -200,13 +204,13 @@ def pop_rmbase(
             for index in range(len(boundaries) - 1):
                 # MATLAB: tmprange = [boundaries(index)+1:boundaries(index+1)];
                 start_idx = boundaries[index] + 1  # 1-based in MATLAB
-                end_idx = boundaries[index + 1]    # 1-based in MATLAB
+                end_idx = boundaries[index + 1]  # 1-based in MATLAB
 
                 # Convert to 0-based Python indices within baseline range
                 # pr[0] is 1-based MATLAB index, convert to 0-based Python index
                 baseline_start_py = pr[0] - 1
                 py_start = baseline_start_py + start_idx - 1  # start_idx is 1-based MATLAB
-                py_end = baseline_start_py + end_idx - 1      # end_idx is 1-based MATLAB
+                py_end = baseline_start_py + end_idx - 1  # end_idx is 1-based MATLAB
 
                 tmprange_len = end_idx - start_idx + 1
 
@@ -215,12 +219,12 @@ def pop_rmbase(
 
                 if tmprange_len > 1:
                     # Subtract mean of this segment
-                    seg = EEG['data'][chanlist, py_start:py_end+1]
+                    seg = EEG['data'][chanlist, py_start : py_end + 1]
                     if seg.size > 0:
                         seg_means = np.nanmean(seg, axis=1, keepdims=True)
-                        EEG['data'][chanlist, py_start:py_end+1] = seg - seg_means
+                        EEG['data'][chanlist, py_start : py_end + 1] = seg - seg_means
                 elif tmprange_len == 1:
-                    EEG['data'][chanlist, py_start:py_end+1] = 0.0
+                    EEG['data'][chanlist, py_start : py_end + 1] = 0.0
         else:
             # No boundaries: subtract mean over baseline range from whole record
             EEG['data'][chanlist, :], _ = _subtract_mean_over_indices(EEG['data'][chanlist, :], pr)
