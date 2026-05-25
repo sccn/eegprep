@@ -119,6 +119,7 @@ Primary references:
 - Use `./pre-commit.py --changed-from origin/develop` for PR-scope checks.
 - Use `./pre-commit.py --changed-from origin/develop --fix` to fix only files changed against the base branch.
 - Avoid `./pre-commit.py --all-files --fix` unless the user explicitly wants a repo-wide cleanup.
+- CI also runs `uv run --no-sync ruff check .`, `uv run --no-sync ruff format --check .`, and `uv run --no-sync ty check`; run these locally after broad formatting, import, or typing-sensitive changes.
 - Pre-commit is separate from unit tests; run both when code changes.
 
 ## Dependencies
