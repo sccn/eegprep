@@ -132,11 +132,18 @@ select = ["E4", "E7", "E9", "F"]
 
 [tool.ty.environment]
 python-version = "3.10"
-root = ["./src"]
+root = ["."]
 
 [tool.ty.src]
-include = ["src/eegprep"]
+include = [
+  "src/eegprep",
+  "scripts",
+  "tools",
+]
 exclude = [
+  "scripts/mne_iclabel_script.py",
+  "scripts/test_flask.py",
+  "scripts/tmp_pipeline_for_ppt.py",
   "src/eegprep/eeglab/**",
 ]
 

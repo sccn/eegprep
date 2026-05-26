@@ -14,7 +14,7 @@ from dataclasses import dataclass
 try:
     from .config import DEFAULT_MANIFEST, TargetSpec, VisualCase, format_command, load_manifest
 except ImportError:  # pragma: no cover - supports direct script execution
-    from config import DEFAULT_MANIFEST, TargetSpec, VisualCase, format_command, load_manifest
+    from config import DEFAULT_MANIFEST, TargetSpec, VisualCase, format_command, load_manifest  # ty: ignore[unresolved-import]
 
 
 DEFAULT_OUTPUT_DIR = pathlib.Path(".visual-parity")
