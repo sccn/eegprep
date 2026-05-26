@@ -4,7 +4,6 @@
 # list see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
-import os
 import sys
 from pathlib import Path
 
@@ -19,6 +18,7 @@ author = "EEGPrep contributors"
 # Import version from eegprep package
 try:
     import eegprep
+
     version = eegprep.__version__
     release = version
 except ImportError as e:
@@ -243,4 +243,3 @@ html_search_language = "en"
 html_search_options = {
     "type": "default",
 }
-

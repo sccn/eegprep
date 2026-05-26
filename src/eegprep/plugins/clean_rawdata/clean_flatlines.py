@@ -1,7 +1,6 @@
 """EEG flatline channel removal utilities."""
 
-import traceback
-from typing import *
+from typing import Any, Dict
 import logging
 
 import numpy as np
@@ -51,6 +50,7 @@ def clean_flatlines(EEG: Dict[str, Any], max_flatline_duration: float = 5.0, max
         try:
             # noinspection PyUnresolvedReferences
             from eegprep import pop_select
+
             EEG = pop_select(EEG, nochannel=list(np.where(removed_channels)[0]))
         except Exception as e:
             if isinstance(e, ImportError):

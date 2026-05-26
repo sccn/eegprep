@@ -12,11 +12,11 @@ eeg_extensions = ('.vhdr', '.edf', '.bdf', '.set')
 
 
 def bids_list_eeg_files(
-        root: str,
-        subjects: Sequence[str | int] | str | int = (),
-        sessions: Sequence[str | int] | str | int = (),
-        runs: Sequence[str | int] | str | int = (),
-        tasks: Sequence[str | int] | str | int = (),
+    root: str,
+    subjects: Sequence[str | int] | str | int = (),
+    sessions: Sequence[str | int] | str | int = (),
+    runs: Sequence[str | int] | str | int = (),
+    tasks: Sequence[str | int] | str | int = (),
 ) -> List[str]:
     """Return a list of all EEG raw-data files in a BIDS dataset.
 
@@ -62,13 +62,14 @@ def bids_list_eeg_files(
         for key, query_values in filters.items():
             for v in query_values:
                 if isinstance(v, str) and '-' in v and v.split('-')[0] in ('sub', 'ses', 'run', 'task'):
-                    raise ValueError("Query values should not be formatted with 'sub-', 'ses-', "
-                                     "'run-', or 'task-' prefixes. Use the raw identifiers instead.")
+                    raise ValueError(
+                        "Query values should not be formatted with 'sub-', 'ses-', "
+                        "'run-', or 'task-' prefixes. Use the raw identifiers instead."
+                    )
             data_values = [f.entities.get(key, None) for f in eeg_files]
             if all(v is None for v in data_values):
                 # key is missing from entire dataset: ignore the filter
-                logger.info(f"Dataset at {root} does not contain any files with the key '{key}'; "
-                            f"ignoring the filter.")
+                logger.info(f"Dataset at {root} does not contain any files with the key '{key}'; ignoring the filter.")
             elif all(isinstance(v, int) for v in data_values):
                 # all items are integers; make sure our queries are also integers if they're not already
                 if any(isinstance(v, str) for v in query_values):
@@ -102,8 +103,9 @@ def bids_list_eeg_files(
                     # all query values are strings now, can do a direct lookup
                     eeg_files = [f for f in eeg_files if str(f.entities.get(key)) in query_values]
                 else:
-                    raise ValueError(f"query values for {key} must either all be strings or all "
-                                     f"integers, but were: {query_values}")
+                    raise ValueError(
+                        f"query values for {key} must either all be strings or all integers, but were: {query_values}"
+                    )
         # reduce to file paths
         eeg_files = [eeg_file.path for eeg_file in eeg_files]
 

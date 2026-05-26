@@ -1,19 +1,18 @@
 """EEGLAB compatibility utilities."""
 
-# import sys
-# sys.path.insert(0, 'src/')
-
-import tempfile
-from typing import *
-
-from ..popfunc.pop_loadset import pop_loadset
-from ..popfunc.pop_saveset import pop_saveset
+import importlib
 import logging
 import os
+import tempfile
 from pathlib import Path
+from typing import Any
+
 import numpy as np
-from eegprep.functions.adminfunc.pymat import py2mat
 import scipy.io
+
+from eegprep.functions.adminfunc.pymat import py2mat
+from ..popfunc.pop_loadset import pop_loadset
+from ..popfunc.pop_saveset import pop_saveset
 
 logger = logging.getLogger(__name__)
 PACKAGE_ROOT = Path(__file__).resolve().parents[2]
@@ -32,6 +31,7 @@ else:
     temp_dir = str(REPO_ROOT / 'temp')
     if not os.path.exists(temp_dir):
         os.makedirs(temp_dir, exist_ok=True)
+
 
 class MatlabWrapper:
     """MATLAB engine wrapper that round-trips calls involving the EEGLAB data structure through files."""
@@ -80,6 +80,7 @@ class MatlabWrapper:
         callable
             Wrapper function.
         """
+
         def wrapper(*args, **kwargs):
             # arg list
             new_args = list(args)
@@ -115,19 +116,23 @@ class MatlabWrapper:
             for i, arg in enumerate(new_args):
                 if isinstance(arg, list) and all(isinstance(x, (int, float, np.integer, np.floating)) for x in arg):
                     new_args[i] = np.array(arg, dtype=np.float64)
-                elif isinstance(arg, np.ndarray) and all(isinstance(x, (int, float, np.integer, np.floating)) for x in np.ravel(arg)):
+                elif isinstance(arg, np.ndarray) and all(
+                    isinstance(x, (int, float, np.integer, np.floating)) for x in np.ravel(arg)
+                ):
                     new_args[i] = np.array(arg, dtype=np.float64)
                 elif isinstance(arg, (int, float, np.integer, np.floating)):
                     new_args[i] = np.array(arg, dtype=np.float64)
                 elif isinstance(arg, str):
                     new_args[i] = arg
                 else:
-                    new_args[i] = py2mat(arg) # it is unclear if the flatten function of pop_saveset is better here
+                    new_args[i] = py2mat(arg)  # it is unclear if the flatten function of pop_saveset is better here
 
             try:
                 # temporary files
-                temp_filename1 = tempfile.mktemp(dir=temp_dir, suffix='.set')
-                temp_filename2 = tempfile.mktemp(dir=temp_dir, suffix='.mat')
+                with tempfile.NamedTemporaryFile(dir=temp_dir, suffix='.set', delete=False) as temp_file1:
+                    temp_filename1 = temp_file1.name
+                with tempfile.NamedTemporaryFile(dir=temp_dir, suffix='.mat', delete=False) as temp_file2:
+                    temp_filename2 = temp_file2.name
                 result_filename = temp_filename1 + '.result.set'
                 print(f"temp_filename1: {temp_filename1}")
                 print(f"temp_filename2: {temp_filename2}")
@@ -136,9 +141,13 @@ class MatlabWrapper:
                 # save all parameters in the temp_filename which is a .mat file
                 if len(new_args) > 0:
                     if len(new_args) > 1:
-                        scipy.io.savemat(temp_filename2, {'args': np.array(new_args, dtype=object)}) # object required for passing as cell array
+                        scipy.io.savemat(
+                            temp_filename2, {'args': np.array(new_args, dtype=object)}
+                        )  # object required for passing as cell array
                     else:
-                        scipy.io.savemat(temp_filename2, {'args': new_args[0]}) # [0] because other increase dim of array by 1
+                        scipy.io.savemat(
+                            temp_filename2, {'args': new_args[0]}
+                        )  # [0] because other increase dim of array by 1
                     self.engine.eval(f"args = load('{temp_filename2}');", nargout=0)
                 else:
                     self.engine.eval("args.args = {};", nargout=0)
@@ -179,18 +188,14 @@ class MatlabWrapper:
                 try:
                     # noinspection PyUnboundLocalVariable
                     if os.path.exists(temp_filename1):
-                        #os.remove(temp_filename1)
-                        pass
+                        os.remove(temp_filename1)
                     if os.path.exists(temp_filename2):
-                        #os.remove(temp_filename2)
-                        pass
+                        os.remove(temp_filename2)
                     # noinspection PyUnboundLocalVariable
                     if os.path.exists(result_filename):
-                        #os.remove(result_filename)
-                        pass
-                    if os.path.exists(fdt_file := result_filename.replace('result.set', 'result.fdt')):
-                        #os.remove(fdt_file)
-                        pass
+                        os.remove(result_filename)
+                    if os.path.exists(result_filename.replace('result.set', 'result.fdt')):
+                        os.remove(result_filename.replace('result.set', 'result.fdt'))
                 except OSError as e:
                     logger.warning(f"Error deleting temporary file(s) in temp dir {temp_dir}: {e}")
             # else:
@@ -198,6 +203,7 @@ class MatlabWrapper:
             #     return getattr(self.engine, name)(*args)
 
         return wrapper
+
 
 # noinspection PyDefaultArgument
 def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = True, _cache={}):
@@ -227,13 +233,15 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
         # not yet loaded, do so now
         if rt == 'oct':
             from oct2py import Oct2Py, get_log
+
             engine = Oct2Py(logger=get_log())
             engine.logger = get_log("new_log")
             engine.logger.setLevel(logging.WARNING)
             engine.warning('off', 'backtrace')
         elif rt == 'mat':
             try:
-                import matlab.engine
+                # Use import_module so ty can run before MATLAB Engine is installed.
+                matlab_engine = importlib.import_module("matlab.engine")
             except ImportError:
                 raise ImportError("""\
                     The MATLAB runtime has not been installed into your Python environment.
@@ -244,7 +252,7 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
                     This will insert a wrapper package in the python environment that forwards
                     calls to the MATLAB runtime.
                     """)
-            engine = matlab.engine.start_matlab()
+            engine = matlab_engine.start_matlab()
             # engine.cd(path2eeglab)
             # engine.eval('eeglab nogui;', nargout=0) # starting EEGLAB is too slow
         else:
@@ -272,8 +280,8 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
         engine.cd(path2eeglab + '/plugins/clean_rawdata/private')  # to grant access to util funcs for unit testing
 
         # path2eeglab = 'eeglab' # init >10 seconds
-        #res = eeglab.version()
-        #print('Running EEGLAB commands in compatibility mode with Octave ' + res)
+        # res = eeglab.version()
+        # print('Running EEGLAB commands in compatibility mode with Octave ' + res)
 
         if rt == 'oct':
             engine.logger.setLevel(logging.INFO)
@@ -322,7 +330,7 @@ def clean_drifts(EEG, Transition, Attenuation, eeglab=None):
 #     return EEG3
 
 
-def pop_eegfiltnew(EEG, locutoff=None,hicutoff=None,revfilt=False,plotfreqz=False):
+def pop_eegfiltnew(EEG, locutoff=None, hicutoff=None, revfilt=False, plotfreqz=False):
     """Filter EEG data using EEGLAB's pop_eegfiltnew.
 
     Parameters
@@ -355,10 +363,32 @@ def pop_eegfiltnew(EEG, locutoff=None,hicutoff=None,revfilt=False,plotfreqz=Fals
 
     # Use wrapper which handles EEG struct conversion via file roundtrip
     eeglab = get_eeglab(auto_file_roundtrip=True)
-    return eeglab.pop_eegfiltnew(EEG, 'locutoff', locutoff, 'hicutoff', hicutoff,
-                                  'revfilt', revfilt, 'plotfreqz', plotfreqz)
+    return eeglab.pop_eegfiltnew(
+        EEG, 'locutoff', locutoff, 'hicutoff', hicutoff, 'revfilt', revfilt, 'plotfreqz', plotfreqz
+    )
 
-def clean_artifacts( EEG, ChannelCriterion=False, LineNoiseCriterion=False, FlatlineCriterion=False, BurstCriterion=False, BurstRejection=False, WindowCriterion=0, Highpass=[0.25, 0.75], WindowCriterionTolerances=[float('-inf'), 8]):
+
+def _matlab_false_or_off(value: Any) -> bool:
+    if isinstance(value, str):
+        return value == 'off'
+    if value is False:
+        return True
+    if isinstance(value, (int, float, np.integer, np.floating)):
+        return value == 0
+    return False
+
+
+def clean_artifacts(
+    EEG,
+    ChannelCriterion=False,
+    LineNoiseCriterion=False,
+    FlatlineCriterion=False,
+    BurstCriterion=False,
+    BurstRejection=False,
+    WindowCriterion=0,
+    Highpass=[0.25, 0.75],
+    WindowCriterionTolerances=[float('-inf'), 8],
+):
     """Clean artifacts from EEG data using EEGLAB's clean_artifacts.
 
     Parameters
@@ -389,44 +419,55 @@ def clean_artifacts( EEG, ChannelCriterion=False, LineNoiseCriterion=False, Flat
     """
     eeglab = get_eeglab(auto_file_roundtrip=False)
 
-    if ChannelCriterion == False or ChannelCriterion == 'off':
-        ChannelCriterion='off'
+    if _matlab_false_or_off(ChannelCriterion):
+        ChannelCriterion = 'off'
 
-    if LineNoiseCriterion == False or LineNoiseCriterion == 'off':
-        LineNoiseCriterion='off'
+    if _matlab_false_or_off(LineNoiseCriterion):
+        LineNoiseCriterion = 'off'
 
-    if FlatlineCriterion == False or FlatlineCriterion == 'off':
-        FlatlineCriterion='off'
+    if _matlab_false_or_off(FlatlineCriterion):
+        FlatlineCriterion = 'off'
 
-    if BurstCriterion == False or BurstCriterion == 'off':
-        BurstCriterion='off'
+    if _matlab_false_or_off(BurstCriterion):
+        BurstCriterion = 'off'
 
-    if Highpass == False or Highpass == 'off':
-        Highpass='off'
+    if _matlab_false_or_off(Highpass):
+        Highpass = 'off'
 
-    if BurstRejection == False or BurstRejection == 'off':
-        BurstRejection='off'
+    if _matlab_false_or_off(BurstRejection):
+        BurstRejection = 'off'
     else:
-        BurstRejection='on'
+        BurstRejection = 'on'
 
-
-    pop_saveset(EEG, './tmp.set') # 0.8 seconds
-    EEG2 = eeglab.pop_loadset('./tmp.set') # 2 seconds
-    EEG3 = eeglab.clean_artifacts(EEG2, 'ChannelCriterion', ChannelCriterion, \
-        'LineNoiseCriterion', LineNoiseCriterion, \
-        'FlatlineCriterion', FlatlineCriterion, \
-        'BurstCriterion', BurstCriterion,  \
-        'BurstRejection', BurstRejection,  \
-        'WindowCriterion', WindowCriterion, \
-        'Highpass',Highpass, \
-        'WindowCriterionTolerances', WindowCriterionTolerances)
-    eeglab.pop_saveset(EEG3, './tmp2.set') # 2.4 seconds
-    EEG4 = pop_loadset('./tmp2.set') # 0.2 seconds
+    pop_saveset(EEG, './tmp.set')  # 0.8 seconds
+    EEG2 = eeglab.pop_loadset('./tmp.set')  # 2 seconds
+    EEG3 = eeglab.clean_artifacts(
+        EEG2,
+        'ChannelCriterion',
+        ChannelCriterion,
+        'LineNoiseCriterion',
+        LineNoiseCriterion,
+        'FlatlineCriterion',
+        FlatlineCriterion,
+        'BurstCriterion',
+        BurstCriterion,
+        'BurstRejection',
+        BurstRejection,
+        'WindowCriterion',
+        WindowCriterion,
+        'Highpass',
+        Highpass,
+        'WindowCriterionTolerances',
+        WindowCriterionTolerances,
+    )
+    eeglab.pop_saveset(EEG3, './tmp2.set')  # 2.4 seconds
+    EEG4 = pop_loadset('./tmp2.set')  # 0.2 seconds
 
     # delete temporary files
     os.remove('./tmp.set')
     os.remove('./tmp2.set')
     return EEG4
+
 
 # sys.exit()
 def test_eeglab_compat():
@@ -434,8 +475,18 @@ def test_eeglab_compat():
     eeglab_file_path = '/System/Volumes/Data/data/matlab/eeglab/sample_data/eeglab_data_epochs_ica.set'
 
     EEG = pop_loadset(eeglab_file_path)
-    EEG = pop_eegfiltnew(EEG, locutoff=5,hicutoff=25,revfilt=True,plotfreqz=False)
-    EEG = clean_artifacts(EEG, FlatlineCriterion=5,ChannelCriterion=0.87, LineNoiseCriterion=4,Highpass=False,BurstCriterion= 20, WindowCriterion=0.25, BurstRejection=False, WindowCriterionTolerances=[float('-inf'), 7])
+    EEG = pop_eegfiltnew(EEG, locutoff=5, hicutoff=25, revfilt=True, plotfreqz=False)
+    EEG = clean_artifacts(
+        EEG,
+        FlatlineCriterion=5,
+        ChannelCriterion=0.87,
+        LineNoiseCriterion=4,
+        Highpass=False,
+        BurstCriterion=20,
+        WindowCriterion=0.25,
+        BurstRejection=False,
+        WindowCriterionTolerances=[float('-inf'), 7],
+    )
 
     # EEG = eeglab.pop_loadset(eeglab_file_path)
     # TMPEEG = eeglab.pop_eegfiltnew(EEG, 'locutoff',5,'hicutoff',25,'revfilt',1,'plotfreqz',0)

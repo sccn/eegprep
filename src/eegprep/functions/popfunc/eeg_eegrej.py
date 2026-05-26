@@ -1,8 +1,10 @@
 """EEG data rejection functions."""
+
 from typing import List, Dict, Optional, Tuple
 import numpy as np
 from copy import deepcopy
 from ..miscfunc.misc import round_mat
+
 
 def _is_boundary_event(event: Dict) -> bool:
     t = event.get("type")
@@ -15,7 +17,10 @@ def _is_boundary_event(event: Dict) -> bool:
             return False
     return False
 
-def _eegrej(indata, regions, timelength, events: Optional[List[Dict]] = None) -> Tuple[np.ndarray, float, List[Dict], np.ndarray]:
+
+def _eegrej(
+    indata, regions, timelength, events: Optional[List[Dict]] = None
+) -> Tuple[np.ndarray, float, List[Dict], np.ndarray]:
     """Remove [beg end] sample ranges (1-based, inclusive) from continuous data and update events.
 
     Parameters
@@ -85,7 +90,7 @@ def _eegrej(indata, regions, timelength, events: Optional[List[Dict]] = None) ->
     # To match MATLAB's inclusive end, we need reject[beg-1:end] where end is inclusive
     reject = np.zeros(n, dtype=bool)
     for beg, end in r:
-        reject[beg - 1:end] = True  # This matches MATLAB reject(beg:end) when end is already the inclusive end
+        reject[beg - 1 : end] = True  # This matches MATLAB reject(beg:end) when end is already the inclusive end
 
     # Prepare events
     ori_events: List[Dict] = [] if events is None else [dict(ev) for ev in events]
@@ -189,11 +194,17 @@ def _eegrej(indata, regions, timelength, events: Optional[List[Dict]] = None) ->
         for i in range(len(boundevents)):
             be = float(boundevents[i])
             if be > 0 and be < (newn + 1):
-                events_out.append({
-                    "type": bound_type,
-                    "latency": be,
-                    "duration": float(durations[i] if i < len(durations) else (base_durations[i] if i < len(base_durations) else 0.0)),
-                })
+                events_out.append(
+                    {
+                        "type": bound_type,
+                        "latency": be,
+                        "duration": float(
+                            durations[i]
+                            if i < len(durations)
+                            else (base_durations[i] if i < len(base_durations) else 0.0)
+                        ),
+                    }
+                )
 
     # Remove nested boundary events that were absorbed into new boundaries.
     # These are pre-existing boundaries that fell inside removal regions;
@@ -242,8 +253,12 @@ def _eegrej(indata, regions, timelength, events: Optional[List[Dict]] = None) ->
     if events_out:
         merged_events: List[Dict] = []
         for ev in events_out:
-            if merged_events and _is_boundary_event(ev) and _is_boundary_event(merged_events[-1]) \
-               and np.isclose(float(ev.get("latency", 0.0)), float(merged_events[-1].get("latency", 0.0))):
+            if (
+                merged_events
+                and _is_boundary_event(ev)
+                and _is_boundary_event(merged_events[-1])
+                and np.isclose(float(ev.get("latency", 0.0)), float(merged_events[-1].get("latency", 0.0)))
+            ):
                 prev_dur = float(merged_events[-1].get("duration", 0.0) or 0.0)
                 cur_dur = float(ev.get("duration", 0.0) or 0.0)
                 merged_events[-1]["duration"] = prev_dur + cur_dur
@@ -297,7 +312,6 @@ def eeg_eegrej(EEG, regions):
     data_out, xmax_rel, event2, boundevents = _eegrej(EEG["data"], regions, xdur, events)
 
     # finalize core fields
-    old_pnts = int(EEG["pnts"])
     EEG["data"] = data_out
     EEG["pnts"] = int(data_out.shape[1])
     EEG["xmax"] = float(EEG["xmin"] + xmax_rel)
@@ -331,6 +345,7 @@ def eeg_eegrej(EEG, regions):
 
     return EEG
 
+
 def _combine_regions(regs):
     if len(regs) == 0:
         return regs
@@ -347,6 +362,7 @@ def _combine_regions(regs):
         print("Warning: overlapping regions detected and fixed in eeg_eegrej")
     return newregs
 
+
 def _find_boundary_event_indices(events):
     idx = []
     for i, ev in enumerate(events):
@@ -356,6 +372,7 @@ def _find_boundary_event_indices(events):
         elif isinstance(t, (int, float)) and int(t) == -99:
             idx.append(i)
     return np.array(idx, dtype=int)
+
 
 def _insert_boundaries(events, old_pnts, regions):
     # Build kept segments in 1-based indices
@@ -375,9 +392,11 @@ def _insert_boundaries(events, old_pnts, regions):
         run_len += seg_len
         rem_beg, rem_end = regions[i]
         rem_len = int(rem_end - rem_beg + 1)
-        out.append({
-            "type": "boundary",
-            "latency": float(run_len + 1),
-            "duration": float(rem_len),
-        })
+        out.append(
+            {
+                "type": "boundary",
+                "latency": float(run_len + 1),
+                "duration": float(rem_len),
+            }
+        )
     return out

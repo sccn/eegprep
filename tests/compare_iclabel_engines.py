@@ -32,6 +32,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'
 
 from eegprep import pop_loadset, pop_saveset, iclabel
 
+
 def compare_iclabel_engines(input_file, output_dir=None, engines=None, algorithm='default'):
     """
     Compare the results of applying ICLabel with different engines.
@@ -84,6 +85,7 @@ def compare_iclabel_engines(input_file, output_dir=None, engines=None, algorithm
 
     return results
 
+
 def compare_classifications(results):
     """
     Compare the classifications from different engines.
@@ -105,7 +107,7 @@ def compare_classifications(results):
 
     # Compare each pair of engines
     for i in range(n_engines):
-        for j in range(i+1, n_engines):
+        for j in range(i + 1, n_engines):
             engine1 = engines[i]
             engine2 = engines[j]
 
@@ -126,10 +128,11 @@ def compare_classifications(results):
             comparisons[(engine1, engine2)] = {
                 'correlations': correlations,
                 'mean_correlation': np.mean(correlations),
-                'mean_abs_diff': mean_abs_diff
+                'mean_abs_diff': mean_abs_diff,
             }
 
     return comparisons
+
 
 def plot_comparisons(results, comparisons, output_dir=None, algorithm='default'):
     """
@@ -153,7 +156,7 @@ def plot_comparisons(results, comparisons, output_dir=None, algorithm='default')
     plt.figure(figsize=(15, 5 * n_engines))
 
     for i, engine in enumerate(engines):
-        plt.subplot(n_engines, 1, i+1)
+        plt.subplot(n_engines, 1, i + 1)
         classifications = results[engine]['etc']['ic_classification']['ICLabel']['classifications']
         classes = results[engine]['etc']['ic_classification']['ICLabel']['classes']
 
@@ -172,9 +175,11 @@ def plot_comparisons(results, comparisons, output_dir=None, algorithm='default')
     plt.figure(figsize=(15, 5 * len(comparisons)))
 
     for i, ((engine1, engine2), metrics) in enumerate(comparisons.items()):
-        plt.subplot(len(comparisons), 1, i+1)
+        plt.subplot(len(comparisons), 1, i + 1)
         plt.bar(range(len(metrics['correlations'])), metrics['correlations'])
-        plt.axhline(metrics['mean_correlation'], color='r', linestyle='--', label=f"Mean: {metrics['mean_correlation']:.3f}")
+        plt.axhline(
+            metrics['mean_correlation'], color='r', linestyle='--', label=f"Mean: {metrics['mean_correlation']:.3f}"
+        )
         plt.title(f"Correlation between {engine1} and {engine2}")
         plt.xlabel('Component')
         plt.ylabel('Correlation')
@@ -184,6 +189,7 @@ def plot_comparisons(results, comparisons, output_dir=None, algorithm='default')
 
     if output_dir is not None:
         plt.savefig(os.path.join(output_dir, f'iclabel_correlations_{algorithm}.png'))
+
 
 def main():
     """
@@ -220,6 +226,7 @@ def main():
             print(f"  Mean absolute difference: {metrics['mean_abs_diff']:.3f}")
     else:
         print("Not enough results to compare.")
+
 
 if __name__ == '__main__':
     main()

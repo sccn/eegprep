@@ -249,8 +249,7 @@ def _warn_gui_interpolation() -> None:
 
 def _alleeg_chanlocs(alleeg: list[dict] | None) -> tuple[dict[str, Any], ...]:
     return tuple(
-        {"chanlocs": tuple(copy.deepcopy(_chanlocs_as_list(dataset.get("chanlocs", []))))}
-        for dataset in (alleeg or [])
+        {"chanlocs": tuple(copy.deepcopy(_chanlocs_as_list(dataset.get("chanlocs", []))))} for dataset in (alleeg or [])
     )
 
 
@@ -334,9 +333,7 @@ def _remove_interpolated_removed_channels(EEG: dict, bad_elec: Any) -> dict:
     labels_to_remove = {str(chan.get("labels", "")).lower() for chan in _chanlocs_as_list(bad_elec)}
     EEG_out = copy.deepcopy(EEG)
     chaninfo = copy.deepcopy(EEG_out.get("chaninfo", {}))
-    chaninfo["removedchans"] = [
-        chan for chan in removed if str(chan.get("labels", "")).lower() not in labels_to_remove
-    ]
+    chaninfo["removedchans"] = [chan for chan in removed if str(chan.get("labels", "")).lower() not in labels_to_remove]
     EEG_out["chaninfo"] = chaninfo
     return EEG_out
 

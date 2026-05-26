@@ -12,12 +12,10 @@ Usage:
 
 import argparse
 import os
-import re
 import shutil
 import subprocess
 import sys
 import tarfile
-import tempfile
 
 EEGPREP_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 IMAGE_NAME = 'eegprep-minimal'
@@ -34,8 +32,7 @@ def run(cmd, **kwargs):
 
 
 def docker_is_running():
-    result = subprocess.run('docker info', shell=True,
-                            capture_output=True, timeout=10)
+    result = subprocess.run('docker info', shell=True, capture_output=True, timeout=10)
     return result.returncode == 0
 
 
@@ -48,8 +45,7 @@ def build_docker():
 def run_docker(bids_root, srate, highpass, extra_args=''):
     """Run the Docker container on the dataset."""
     print('\n=== Running preprocessing ===')
-    cmd = (f'docker run --rm -v {bids_root}:/data {IMAGE_NAME}'
-           f' --srate {srate} --highpass {highpass}')
+    cmd = f'docker run --rm -v {bids_root}:/data {IMAGE_NAME} --srate {srate} --highpass {highpass}'
     if extra_args:
         cmd += f' {extra_args}'
     run(cmd)
@@ -94,9 +90,9 @@ def save_pinned_requirements(dest):
     """Extract pinned requirements from the Docker image."""
     print('\n=== Saving pinned requirements ===')
     result = subprocess.run(
-        f'docker run --rm --entrypoint pip {IMAGE_NAME} freeze',
-        shell=True, capture_output=True, text=True)
-    lines = [l for l in result.stdout.splitlines() if not l.startswith('eegprep @')]
+        f'docker run --rm --entrypoint pip {IMAGE_NAME} freeze', shell=True, capture_output=True, text=True
+    )
+    lines = [line for line in result.stdout.splitlines() if not line.startswith('eegprep @')]
     with open(dest, 'w') as f:
         f.write('\n'.join(lines) + '\n')
     print(f'  {len(lines)} packages pinned to {dest}')
@@ -118,9 +114,7 @@ def copy_code_folder(bids_root, deriv_dir, srate, highpass):
     with open(src_dockerfile) as f:
         content = f.read()
     # Adjust paths: in code/ the script is at root level, not scripts/
-    content = content.replace(
-        'COPY scripts/bids_minimal_preproc.py',
-        'COPY bids_minimal_preproc.py')
+    content = content.replace('COPY scripts/bids_minimal_preproc.py', 'COPY bids_minimal_preproc.py')
     with open(dst_dockerfile, 'w') as f:
         f.write(content)
 
@@ -140,6 +134,7 @@ def copy_code_folder(bids_root, deriv_dir, srate, highpass):
     ds_url = ''
     if os.path.exists(ds_desc_path):
         import json
+
         with open(ds_desc_path) as f:
             desc = json.load(f)
         ds_name = desc.get('Name', ds_name)
@@ -273,8 +268,7 @@ def validate_bids(deriv_dir):
     """Run bids-validator if available."""
     print('\n=== Validating BIDS compliance ===')
     if shutil.which('bids-validator'):
-        result = subprocess.run(
-            f'bids-validator {deriv_dir}', shell=True, capture_output=True, text=True)
+        result = subprocess.run(f'bids-validator {deriv_dir}', shell=True, capture_output=True, text=True)
         print(result.stdout)
         if result.stderr:
             print(result.stderr)
@@ -286,19 +280,17 @@ def validate_bids(deriv_dir):
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description='Build a BIDS derivative dataset with Docker.')
+    parser = argparse.ArgumentParser(description='Build a BIDS derivative dataset with Docker.')
     parser.add_argument('bids_root', help='Path to the BIDS dataset')
-    parser.add_argument('--srate', type=float, default=100.0,
-                        help='Target sampling rate (default: 100)')
-    parser.add_argument('--highpass', type=float, default=0.5,
-                        help='Highpass cutoff in Hz (default: 0.5)')
-    parser.add_argument('--skip-docker-build', action='store_true',
-                        help='Skip building the Docker image (reuse existing)')
-    parser.add_argument('--skip-processing', action='store_true',
-                        help='Skip running the pipeline (reuse existing output)')
-    parser.add_argument('--extra-args', default='',
-                        help='Extra args passed to the Docker container')
+    parser.add_argument('--srate', type=float, default=100.0, help='Target sampling rate (default: 100)')
+    parser.add_argument('--highpass', type=float, default=0.5, help='Highpass cutoff in Hz (default: 0.5)')
+    parser.add_argument(
+        '--skip-docker-build', action='store_true', help='Skip building the Docker image (reuse existing)'
+    )
+    parser.add_argument(
+        '--skip-processing', action='store_true', help='Skip running the pipeline (reuse existing output)'
+    )
+    parser.add_argument('--extra-args', default='', help='Extra args passed to the Docker container')
     args = parser.parse_args()
 
     bids_root = os.path.abspath(args.bids_root)
@@ -332,7 +324,7 @@ def main():
     # Validate
     validate_bids(deriv_dir)
 
-    print(f'\n=== Done ===')
+    print('\n=== Done ===')
     print(f'  Derivative: {deriv_dir}')
     print(f'  Code:       {os.path.join(deriv_dir, "code")}')
 

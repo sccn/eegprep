@@ -12,7 +12,6 @@ import io
 import numpy as np
 import math
 from contextlib import redirect_stderr, redirect_stdout
-from unittest.mock import patch
 
 # Add src to path for imports
 sys.path.insert(0, 'src')
@@ -68,7 +67,7 @@ class TestEegCompare(DebuggableTestCase):
             'icachansind': np.array([]),
             'chanlocs': [
                 {
-                    'labels': f'Ch{i+1}',
+                    'labels': f'Ch{i + 1}',
                     'X': np.cos(2 * np.pi * i / nbchan),
                     'Y': np.sin(2 * np.pi * i / nbchan),
                     'Z': 0.0,
@@ -76,8 +75,9 @@ class TestEegCompare(DebuggableTestCase):
                     'radius': 0.5,
                     'sph_theta': 0.0,
                     'sph_phi': 0.0,
-                    'sph_radius': 1.0
-                } for i in range(nbchan)
+                    'sph_radius': 1.0,
+                }
+                for i in range(nbchan)
             ],
             'urchanlocs': np.array([]),
             'chaninfo': {'plotrad': [], 'shrink': [], 'nosedir': '+X'},
@@ -85,7 +85,7 @@ class TestEegCompare(DebuggableTestCase):
             'event': [
                 {'type': 'stimulus', 'latency': 250, 'duration': 0, 'epoch': 1},
                 {'type': 'response', 'latency': 500, 'duration': 0, 'epoch': 1},
-                {'type': 'boundary', 'latency': 750, 'duration': 0, 'epoch': 1}
+                {'type': 'boundary', 'latency': 750, 'duration': 0, 'epoch': 1},
             ],
             'urevent': np.array([]),
             'eventdescription': ['stimulus', 'response', 'boundary'],
@@ -102,7 +102,7 @@ class TestEegCompare(DebuggableTestCase):
             'saved': 'no',
             'etc': {},
             'datfile': '',
-            'comments': 'Test dataset for eeg_compare'
+            'comments': 'Test dataset for eeg_compare',
         }
 
     def test_identical_datasets(self):
@@ -118,7 +118,6 @@ class TestEegCompare(DebuggableTestCase):
         self.assertTrue(result)
 
         # Check output indicates no differences
-        stderr_output = stderr_capture.getvalue()
         stdout_output = stdout_capture.getvalue()
 
         # Should have minimal output for identical datasets
@@ -184,7 +183,7 @@ class TestEegCompare(DebuggableTestCase):
         """Test detection of xmin/xmax differences."""
         eeg2 = self.create_test_eeg()
         eeg2['xmin'] = -0.1  # Different from -0.2
-        eeg2['xmax'] = 4.0   # Different from original
+        eeg2['xmax'] = 4.0  # Different from original
 
         stderr_capture = io.StringIO()
         stdout_capture = io.StringIO()
@@ -353,6 +352,7 @@ class TestEegCompare(DebuggableTestCase):
 
     def test_object_with_dict_interface(self):
         """Test comparison of objects with __dict__ interface."""
+
         class EegObject:
             def __init__(self, eeg_dict):
                 for key, value in eeg_dict.items():
@@ -463,13 +463,13 @@ class TestEegCompare(DebuggableTestCase):
 
         self.assertTrue(result)
 
+
 class TestIsequaln(unittest.TestCase):
     """Test cases for the internal isequaln function."""
 
     def setUp(self):
         """Import the isequaln function for testing."""
         # We need to access the internal function for thorough testing
-        from eegprep.functions.popfunc.eeg_compare import eeg_compare
 
         # Create a dummy function to access isequaln
         def dummy_compare(a, b):
@@ -490,24 +490,24 @@ class TestIsequaln(unittest.TestCase):
                 if isinstance(x, np.ndarray) or isinstance(y, np.ndarray):
                     try:
                         return bool(np.array_equal(np.array(x), np.array(y), equal_nan=True))
-                    except:
+                    except Exception:
                         pass
                 # Handle numpy arrays in general comparison
                 if isinstance(x, np.ndarray) and isinstance(y, np.ndarray):
                     try:
                         return bool(np.array_equal(x, y, equal_nan=True))
-                    except:
+                    except Exception:
                         pass
                 # Handle scalar vs array comparisons
                 if isinstance(x, np.ndarray) and np.isscalar(y):
                     try:
                         return bool(np.all(x == y))
-                    except:
+                    except Exception:
                         pass
                 if isinstance(y, np.ndarray) and np.isscalar(x):
                     try:
                         return bool(np.all(y == x))
-                    except:
+                    except Exception:
                         pass
                 # Final comparison - ensure we return a boolean
                 try:
@@ -515,8 +515,9 @@ class TestIsequaln(unittest.TestCase):
                     if isinstance(result, np.ndarray):
                         return bool(result.all())
                     return bool(result)
-                except:
+                except Exception:
                     return False
+
             return isequaln(a, b)
 
         self.isequaln = dummy_compare

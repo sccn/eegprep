@@ -4,9 +4,9 @@ import copy
 import importlib
 import os
 import types
+from typing import Any
 
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
-from eegprep.functions.popfunc.pop_select import pop_select  # ensure availability via globals
 
 _EEGPREP_FUNCTION_MODULE_PREFIXES = (
     "eegprep.functions.popfunc",
@@ -19,6 +19,11 @@ _EEGPREP_FUNCTION_MODULE_PREFIXES = (
     "eegprep.plugins.EEG_BIDS",
     "eegprep.plugins.firfilt",
 )
+
+
+def _tolist_if_available(value: Any) -> Any:
+    tolist = getattr(value, 'tolist', None)
+    return tolist() if callable(tolist) else value
 
 
 class EEGobj:
@@ -51,6 +56,7 @@ class EEGobj:
             # Try public package exports before probing EEGLAB-style modules.
             try:
                 import eegprep as eegpkg
+
                 cand = getattr(eegpkg, n, None)
                 if callable(cand):
                     return cand
@@ -120,6 +126,7 @@ class EEGobj:
 
         def wrapper(*args, **kwargs):
             return self._call_eegprep(name, *args, **kwargs)
+
         return wrapper
 
     def __setattr__(self, name, value):
@@ -193,9 +200,7 @@ class EEGobj:
             evcnt = 0
         ev_types = {}
         try:
-            iterable_ev = ev
-            if hasattr(ev, 'tolist'):
-                iterable_ev = ev.tolist()
+            iterable_ev = _tolist_if_available(ev)
             if isinstance(iterable_ev, (list, tuple)):
                 for e in iterable_ev:
                     if isinstance(e, dict) and 'type' in e:
@@ -213,10 +218,8 @@ class EEGobj:
         # Channel type summary (if available)
         ch_types = {}
         try:
-            iterable_cl = clocs
-            if hasattr(clocs, 'tolist'):
-                iterable_cl = clocs.tolist()
-            for ch in (iterable_cl if isinstance(iterable_cl, (list, tuple)) else []):
+            iterable_cl = _tolist_if_available(clocs)
+            for ch in iterable_cl if isinstance(iterable_cl, (list, tuple)) else []:
                 if isinstance(ch, dict) and 'type' in ch:
                     t = ch['type']
                     if isinstance(t, bytes):

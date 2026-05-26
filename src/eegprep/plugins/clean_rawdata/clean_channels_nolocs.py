@@ -1,25 +1,22 @@
 """EEG channel cleaning utilities without locations."""
 
-from typing import *
 import logging
-import traceback
+from typing import Any, Dict, Tuple
 
 import numpy as np
-from scipy.signal import filtfilt
 
 from .private.sigproc import design_fir, design_kaiser, filtfilt_fast
 
 logger = logging.getLogger(__name__)
 
 
-
 def clean_channels_nolocs(
-        EEG: Dict[str, Any],
-        min_corr: float = 0.45,
-        ignored_quantile: float = 0.1,
-        window_len: float = 2.0,
-        max_broken_time: float = 0.5,
-        linenoise_aware: bool = True
+    EEG: Dict[str, Any],
+    min_corr: float = 0.45,
+    ignored_quantile: float = 0.1,
+    window_len: float = 2.0,
+    max_broken_time: float = 0.5,
+    linenoise_aware: bool = True,
 ) -> Tuple[Dict[str, Any], np.ndarray]:
     """Remove channels with abnormal data from a continuous data set.
 
@@ -78,18 +75,10 @@ def clean_channels_nolocs(
         if Fs <= 110:
             raise ValueError('Sampling rate must be above 110 Hz')
         elif Fs <= 130:
-            B = design_fir(
-                len(Bwnd) - 1,
-                2 * np.array([0, 45, 50, 55, Fs/2]) / Fs,
-                [1, 1, 0, 1, 1],
-                w=Bwnd
-            )
+            B = design_fir(len(Bwnd) - 1, 2 * np.array([0, 45, 50, 55, Fs / 2]) / Fs, [1, 1, 0, 1, 1], w=Bwnd)
         else:
             B = design_fir(
-                len(Bwnd) - 1,
-                2 * np.array([0, 45, 50, 55, 60, 65, Fs/2]) / Fs,
-                [1, 1, 0, 1, 0, 1, 1],
-                w=Bwnd
+                len(Bwnd) - 1, 2 * np.array([0, 45, 50, 55, 60, 65, Fs / 2]) / Fs, [1, 1, 0, 1, 0, 1, 1], w=Bwnd
             )
 
         X = np.zeros((S, C))
@@ -117,6 +106,7 @@ def clean_channels_nolocs(
         try:
             # Try to use pop_select if available
             from eegprep import pop_select
+
             EEG = pop_select(EEG, nochannel=list(np.where(removed_channels)[0]))
         except Exception as e:
             if isinstance(e, ImportError):
@@ -140,7 +130,11 @@ def clean_channels_nolocs(
                     EEG[field] = np.array([])
 
         # Update clean_channel_mask
-        if 'etc' in EEG and 'clean_channel_mask' in EEG['etc'] and sum(EEG['etc']['clean_channel_mask']) == len(removed_channels):
+        if (
+            'etc' in EEG
+            and 'clean_channel_mask' in EEG['etc']
+            and sum(EEG['etc']['clean_channel_mask']) == len(removed_channels)
+        ):
             mask = EEG['etc']['clean_channel_mask']
             EEG['etc']['clean_channel_mask'] = np.logical_and(mask, ~removed_channels[mask])
         else:

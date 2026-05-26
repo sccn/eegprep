@@ -620,7 +620,9 @@ def test_pop_chansel_formats_sample_channel_display_and_selection(sample_eeg):
 def test_eeg_store_retrieve_newset_and_delset_use_sample_dataset_indices(sample_eeg):
     alleeg, current, current_set = eeg_store(None, sample_eeg, 0)
     retrieved, alleeg, retrieved_set = eeg_retrieve(alleeg, 1)
-    alleeg, current, current_set, newset_command = pop_newset(alleeg, retrieved, current_set, "setname", "Stored sample")
+    alleeg, current, current_set, newset_command = pop_newset(
+        alleeg, retrieved, current_set, "setname", "Stored sample"
+    )
     alleeg, del_command = pop_delset(alleeg, 1)
 
     assert current["data"].shape == sample_eeg["data"].shape

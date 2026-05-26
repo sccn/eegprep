@@ -648,7 +648,8 @@ class QtDialogRenderer:
 
         current_labels = {str(chan.get("labels", "")).lower() for chan in chanlocs}
         selected_indices = [
-            index for index in chanlist
+            index
+            for index in chanlist
             if str(other_chanlocs[index - 1].get("labels", "")).lower() not in current_labels
         ]
         if not selected_indices:

@@ -14,7 +14,7 @@ from dataclasses import dataclass
 try:
     from .config import DEFAULT_MANIFEST, TargetSpec, VisualCase, format_command, load_manifest
 except ImportError:  # pragma: no cover - supports direct script execution
-    from config import DEFAULT_MANIFEST, TargetSpec, VisualCase, format_command, load_manifest
+    from config import DEFAULT_MANIFEST, TargetSpec, VisualCase, format_command, load_manifest  # ty: ignore[unresolved-import]
 
 
 DEFAULT_OUTPUT_DIR = pathlib.Path(".visual-parity")
@@ -49,11 +49,7 @@ def _matlab_string(value: pathlib.Path | str) -> str:
 
 def _matlab_run_expression(script_path: pathlib.Path) -> str:
     script = _matlab_string(script_path.as_posix())
-    return (
-        f"try, run({script}); "
-        "catch ME, disp(getReport(ME, 'extended')); exit(1); "
-        "end; exit(0);"
-    )
+    return f"try, run({script}); catch ME, disp(getReport(ME, 'extended')); exit(1); end; exit(0);"
 
 
 def _split_action(action: str) -> tuple[str, str]:

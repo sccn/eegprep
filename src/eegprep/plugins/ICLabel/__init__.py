@@ -1,2 +1,1 @@
 """ICLabel plugin ports."""
-

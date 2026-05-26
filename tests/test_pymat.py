@@ -1,14 +1,11 @@
 import unittest
 import numpy as np
-import tempfile
-import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from eegprep.functions.adminfunc.pymat import py2mat, mat2py, default_empty
 
 
 class TestPy2Mat(unittest.TestCase):
-
     def test_py2mat_none_input(self):
         """Test py2mat with None input."""
         result = py2mat(None)
@@ -26,10 +23,7 @@ class TestPy2Mat(unittest.TestCase):
 
     def test_py2mat_list_of_dicts(self):
         """Test py2mat with list of dictionaries."""
-        input_dicts = [
-            {'name': 'item1', 'value': 1.5},
-            {'name': 'item2', 'value': 2.5}
-        ]
+        input_dicts = [{'name': 'item1', 'value': 1.5}, {'name': 'item2', 'value': 2.5}]
         result = py2mat(input_dicts)
 
         self.assertEqual(len(result), 2)
@@ -56,10 +50,7 @@ class TestPy2Mat(unittest.TestCase):
 
     def test_py2mat_nested_dict(self):
         """Test py2mat with nested dictionary."""
-        input_dict = {
-            'name': 'parent',
-            'child': {'nested_name': 'child', 'nested_value': 100}
-        }
+        input_dict = {'name': 'parent', 'child': {'nested_name': 'child', 'nested_value': 100}}
         result = py2mat(input_dict)
 
         self.assertEqual(len(result), 1)
@@ -82,10 +73,7 @@ class TestPy2Mat(unittest.TestCase):
 
     def test_py2mat_numpy_array_values(self):
         """Test py2mat with numpy arrays as values."""
-        input_dict = {
-            'data': np.array([1, 2, 3]),
-            'matrix': np.array([[1, 2], [3, 4]])
-        }
+        input_dict = {'data': np.array([1, 2, 3]), 'matrix': np.array([[1, 2], [3, 4]])}
         result = py2mat(input_dict)
 
         self.assertEqual(len(result), 1)
@@ -94,10 +82,7 @@ class TestPy2Mat(unittest.TestCase):
 
     def test_py2mat_numpy_array_of_dicts(self):
         """Test py2mat with numpy array containing dictionaries."""
-        dict_array = np.array([
-            {'sensor': 'A', 'reading': 1.2},
-            {'sensor': 'B', 'reading': 2.3}
-        ], dtype=object)
+        dict_array = np.array([{'sensor': 'A', 'reading': 1.2}, {'sensor': 'B', 'reading': 2.3}], dtype=object)
 
         input_dict = {'measurements': dict_array}
         result = py2mat(input_dict)
@@ -113,7 +98,7 @@ class TestPy2Mat(unittest.TestCase):
             'list_data': [1, 2, 3],
             'tuple_data': (4, 5, 6),
             'empty_list': [],
-            'nested_list': [[1, 2], [3, 4]]
+            'nested_list': [[1, 2], [3, 4]],
         }
         result = py2mat(input_dict)
 
@@ -128,10 +113,7 @@ class TestPy2Mat(unittest.TestCase):
 
     def test_py2mat_string_handling(self):
         """Test py2mat handles strings correctly."""
-        input_dicts = [
-            {'short': 'hi', 'long': 'this is a longer string'},
-            {'short': 'bye', 'long': 'another string'}
-        ]
+        input_dicts = [{'short': 'hi', 'long': 'this is a longer string'}, {'short': 'bye', 'long': 'another string'}]
         result = py2mat(input_dicts)
 
         self.assertEqual(len(result), 2)
@@ -144,7 +126,13 @@ class TestPy2Mat(unittest.TestCase):
         """Test py2mat handles None values appropriately."""
         input_dicts = [
             {'string_field': 'hello', 'int_field': 42, 'float_field': 3.14, 'bool_field': True, 'none_field': None},
-            {'string_field': None, 'int_field': None, 'float_field': None, 'bool_field': None, 'none_field': 'not_none'}
+            {
+                'string_field': None,
+                'int_field': None,
+                'float_field': None,
+                'bool_field': None,
+                'none_field': 'not_none',
+            },
         ]
         result = py2mat(input_dicts)
 
@@ -158,7 +146,7 @@ class TestPy2Mat(unittest.TestCase):
 
         # Second row - check None handling
         self.assertEqual(result[1]['string_field'], '')  # None -> empty string
-        self.assertEqual(result[1]['int_field'], 0)      # None -> 0
+        self.assertEqual(result[1]['int_field'], 0)  # None -> 0
         self.assertTrue(np.isnan(result[1]['float_field']))  # None -> NaN
         self.assertEqual(result[1]['bool_field'], False)  # None -> False
 
@@ -189,7 +177,6 @@ class TestPy2Mat(unittest.TestCase):
 
 
 class TestMat2Py(unittest.TestCase):
-
     def test_mat2py_dict(self):
         """Test mat2py with dictionary input."""
         input_dict = {'a': np.array([1, 2, 3]), 'b': 'hello'}
@@ -319,6 +306,7 @@ class TestMat2Py(unittest.TestCase):
 
     def test_mat2py_scipy_mat_struct(self):
         """Test mat2py with scipy.io.matlab.mat_struct."""
+
         # Create a mock class that behaves like mat_struct
         class MockMatStruct:
             def __init__(self):
@@ -340,6 +328,7 @@ class TestMat2Py(unittest.TestCase):
 
     def test_mat2py_object_with_attributes(self):
         """Test mat2py with object that has attributes."""
+
         class TestObject:
             def __init__(self):
                 self.public_attr = 'public_value'
@@ -360,6 +349,7 @@ class TestMat2Py(unittest.TestCase):
 
     def test_mat2py_object_with_no_accessible_attributes(self):
         """Test mat2py with object that has no accessible attributes."""
+
         class EmptyObject:
             def __init__(self):
                 self._private_only = 'private'
@@ -375,6 +365,7 @@ class TestMat2Py(unittest.TestCase):
 
     def test_mat2py_fallback(self):
         """Test mat2py fallback for unknown types."""
+
         class UnknownType:
             pass
 
@@ -432,13 +423,14 @@ class TestEdgeCases(unittest.TestCase):
 
     def test_mat2py_complex_dtype(self):
         """Test mat2py with complex number arrays."""
-        complex_array = np.array([1+2j, 3+4j])
+        complex_array = np.array([1 + 2j, 3 + 4j])
         result = mat2py(complex_array)
 
         np.testing.assert_array_equal(result, complex_array)
 
     def test_mat2py_attribute_access_error(self):
         """Test mat2py handles attribute access errors gracefully."""
+
         class ProblematicObject:
             @property
             def problematic_attr(self):
@@ -472,11 +464,7 @@ class TestTypeHandling(unittest.TestCase):
 
     def test_py2mat_numpy_scalar_types(self):
         """Test py2mat with numpy scalar types."""
-        input_dict = {
-            'np_int': np.int32(42),
-            'np_float': np.float64(3.14),
-            'np_bool': np.bool_(True)
-        }
+        input_dict = {'np_int': np.int32(42), 'np_float': np.float64(3.14), 'np_bool': np.bool_(True)}
         result = py2mat(input_dict)
 
         self.assertEqual(len(result), 1)
@@ -510,16 +498,10 @@ class TestPyMatEdgeCases(unittest.TestCase):
         """Test py2mat with deeply nested structures."""
         nested_dict = {
             'level1': {
-                'level2': {
-                    'level3': [1, 2, 3],
-                    'data': np.array([4, 5, 6])
-                },
-                'array': np.array([[1, 2], [3, 4]])
+                'level2': {'level3': [1, 2, 3], 'data': np.array([4, 5, 6])},
+                'array': np.array([[1, 2], [3, 4]]),
             },
-            'list_of_dicts': [
-                {'a': 1, 'b': [7, 8]},
-                {'a': 2, 'b': [9, 10]}
-            ]
+            'list_of_dicts': [{'a': 1, 'b': [7, 8]}, {'a': 2, 'b': [9, 10]}],
         }
 
         result = py2mat(nested_dict)
@@ -539,8 +521,8 @@ class TestPyMatEdgeCases(unittest.TestCase):
         test_dict = {
             'int8': np.int8(42),
             'float32': np.float32(2.718),
-            'complex128': np.complex128(3+4j),
-            'bool': np.bool_(True)
+            'complex128': np.complex128(3 + 4j),
+            'bool': np.bool_(True),
         }
 
         result = py2mat(test_dict)
@@ -572,7 +554,7 @@ class TestPyMatEdgeCases(unittest.TestCase):
             'empty_string': '',
             'numeric_string': '12345',
             'special_chars': '!@#$%^&*()',
-            'multiline': 'line1\nline2\nline3'
+            'multiline': 'line1\nline2\nline3',
         }
 
         result = py2mat(test_dict)
@@ -589,7 +571,7 @@ class TestPyMatEdgeCases(unittest.TestCase):
             'inf_value': np.inf,
             'neg_inf': -np.inf,
             'list_with_none': [1, None, 3],
-            'array_with_nan': np.array([1.0, np.nan, 3.0])
+            'array_with_nan': np.array([1.0, np.nan, 3.0]),
         }
 
         result = py2mat(test_dict)
@@ -606,12 +588,7 @@ class TestPyMatEdgeCases(unittest.TestCase):
 
     def test_py2mat_round_trip_validation(self):
         """Test round-trip conversion py2mat -> mat2py."""
-        original_dict = {
-            'string': 'test',
-            'number': 42,
-            'float': 3.14159,
-            'array': np.array([1, 2, 3, 4])
-        }
+        original_dict = {'string': 'test', 'number': 42, 'float': 3.14159, 'array': np.array([1, 2, 3, 4])}
 
         # Convert to MATLAB format
         mat_result = py2mat(original_dict)
@@ -628,11 +605,7 @@ class TestPyMatEdgeCases(unittest.TestCase):
         # Large list of dicts
         large_list = [{'id': i, 'data': np.random.randn(10)} for i in range(100)]
 
-        test_dict = {
-            'large_array': large_array,
-            'large_list': large_list,
-            'metadata': 'test'
-        }
+        test_dict = {'large_array': large_array, 'large_list': large_list, 'metadata': 'test'}
 
         result = py2mat(test_dict)
         self.assertEqual(len(result), 1)
@@ -650,11 +623,7 @@ class TestMat2PyExtended(unittest.TestCase):
     def test_mat2py_basic_conversion(self):
         """Test basic mat2py conversion."""
         # Simulate MATLAB struct-like input
-        matlab_struct = {
-            'string_field': 'test_value',
-            'numeric_field': 42,
-            'array_field': np.array([1, 2, 3, 4])
-        }
+        matlab_struct = {'string_field': 'test_value', 'numeric_field': 42, 'array_field': np.array([1, 2, 3, 4])}
 
         result = mat2py(matlab_struct)
 
@@ -665,13 +634,8 @@ class TestMat2PyExtended(unittest.TestCase):
     def test_mat2py_nested_structures(self):
         """Test mat2py with nested structures."""
         nested_matlab = {
-            'level1': {
-                'level2': {
-                    'data': np.array([1, 2, 3]),
-                    'string': 'nested_value'
-                }
-            },
-            'top_level': 'value'
+            'level1': {'level2': {'data': np.array([1, 2, 3]), 'string': 'nested_value'}},
+            'top_level': 'value',
         }
 
         result = mat2py(nested_matlab)
@@ -687,7 +651,7 @@ class TestMat2PyExtended(unittest.TestCase):
             'scalar': np.array([[42]]),  # 2D scalar that should be squeezed
             'vector': np.array([[1, 2, 3, 4]]),  # Row vector
             'matrix': np.array([[1, 2], [3, 4]]),  # 2D matrix
-            '3d_array': np.random.randn(2, 3, 4)  # 3D array
+            '3d_array': np.random.randn(2, 3, 4),  # 3D array
         }
 
         result = mat2py(test_arrays)
@@ -709,10 +673,7 @@ class TestMat2PyExtended(unittest.TestCase):
         # Simulate MATLAB cell array of strings
         string_cell = np.array(['string1', 'string2', 'string3'], dtype=object)
 
-        test_struct = {
-            'cell_strings': string_cell,
-            'regular_string': 'single_string'
-        }
+        test_struct = {'cell_strings': string_cell, 'regular_string': 'single_string'}
 
         result = mat2py(test_struct)
 
@@ -729,7 +690,7 @@ class TestMat2PyExtended(unittest.TestCase):
             'empty_array': np.array([]),
             'empty_2d': np.array([[]]),
             'none_value': None,
-            'zero_array': np.array([0])
+            'zero_array': np.array([0]),
         }
 
         result = mat2py(test_struct)
@@ -784,14 +745,8 @@ class TestPyMatIntegration(unittest.TestCase):
         # Start with simpler Python structure to avoid complex comparisons
         python_data = {
             'experiment': 'EEG_test',
-            'settings': {
-                'srate': 250.0,
-                'channels': 64
-            },
-            'metadata': {
-                'version': '1.0',
-                'notes': None
-            }
+            'settings': {'srate': 250.0, 'channels': 64},
+            'metadata': {'version': '1.0', 'notes': None},
         }
 
         # Convert to MATLAB format
@@ -826,7 +781,7 @@ class TestPyMatIntegration(unittest.TestCase):
         unusual_dict = {
             'mixed_list': [1, 'string', 3.14, None],
             'empty_nested': {'inner': {}},
-            'list_of_mixed': [1, [2, 3], {'nested': 4}]
+            'list_of_mixed': [1, [2, 3], {'nested': 4}],
         }
 
         result = py2mat(unusual_dict)

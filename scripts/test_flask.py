@@ -1,11 +1,14 @@
 from flask import Flask, request, jsonify
+
 app = Flask(__name__)
+
 
 @app.route('/compute', methods=['POST'])
 def compute():
     data = request.json
     x = data['x']
     return jsonify(result=x**2)
+
 
 if __name__ == '__main__':
     app.run(port=5000)

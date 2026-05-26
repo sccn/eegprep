@@ -1,8 +1,6 @@
 import unittest
 import numpy as np
-import warnings
 import os
-from unittest.mock import patch, MagicMock
 
 from eegprep.plugins.ICLabel.eeg_autocorr_welch import eeg_autocorr_welch
 
@@ -21,6 +19,7 @@ class TestEegAutocorrWelch(unittest.TestCase):
         cls.eeglab = None
         try:
             from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
+
             cls.eeglab = get_eeglab()
             cls.matlab_available = True
         except Exception as e:
@@ -35,7 +34,7 @@ class TestEegAutocorrWelch(unittest.TestCase):
         self.n_channels = 8
         # Use data that creates exactly one segment to avoid the reshape issue
         self.n_points = 750  # Exactly 3 seconds at 250 Hz - creates single segment
-        self.n_trials = 1    # Single trial to avoid the axis issue in the function
+        self.n_trials = 1  # Single trial to avoid the axis issue in the function
         self.srate = 250.0
 
         # Create synthetic ICA activations
@@ -57,7 +56,7 @@ class TestEegAutocorrWelch(unittest.TestCase):
             'icaweights': self.icaweights,
             'pnts': self.n_points,
             'trials': self.n_trials,
-            'srate': self.srate
+            'srate': self.srate,
         }
 
     def test_basic_functionality(self):
@@ -321,7 +320,7 @@ class TestEegAutocorrWelch(unittest.TestCase):
             'icaact': np.random.randn(10, 750, 1) * 0.5,  # Large data, single trial
             'pnts': 750,
             'trials': 1,
-            'srate': 250
+            'srate': 250,
         }
 
         # This should complete without memory errors

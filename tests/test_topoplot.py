@@ -1,5 +1,6 @@
 # Disable multithreading for deterministic numerical results in parity tests
 import os
+
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
 os.environ["NUMEXPR_NUM_THREADS"] = "1"
@@ -10,8 +11,7 @@ import unittest
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
-from unittest.mock import patch, MagicMock
-import warnings
+from unittest.mock import patch
 import tempfile
 import scipy.io
 
@@ -52,7 +52,7 @@ class TestGriddataV4(unittest.TestCase):
         # Find closest grid points to known data points
         for i, (xi, yi, vi) in enumerate(zip(self.x, self.y, self.v)):
             # Find closest grid point
-            dist = np.sqrt((self.xq - xi)**2 + (self.yq - yi)**2)
+            dist = np.sqrt((self.xq - xi) ** 2 + (self.yq - yi) ** 2)
             min_idx = np.unravel_index(np.argmin(dist), dist.shape)
 
             # Value should be close to expected (within interpolation tolerance)
@@ -130,7 +130,7 @@ class TestTopoplot(unittest.TestCase):
             {'labels': 'F3', 'theta': 315, 'radius': 0.5},
             {'labels': 'F4', 'theta': 45, 'radius': 0.5},
             {'labels': 'P3', 'theta': 225, 'radius': 0.5},
-            {'labels': 'P4', 'theta': 135, 'radius': 0.5}
+            {'labels': 'P4', 'theta': 135, 'radius': 0.5},
         ]
 
         # Create synthetic data vector (one value per channel)
@@ -140,7 +140,7 @@ class TestTopoplot(unittest.TestCase):
         self.minimal_chan_locs = [
             {'labels': 'Cz', 'theta': 0, 'radius': 0.0},
             {'labels': 'Fz', 'theta': 0, 'radius': 0.3},
-            {'labels': 'Pz', 'theta': 180, 'radius': 0.3}
+            {'labels': 'Pz', 'theta': 180, 'radius': 0.3},
         ]
         self.minimal_data = np.array([1.0, 0.5, -0.5])
 
@@ -175,11 +175,7 @@ class TestTopoplot(unittest.TestCase):
         # Clear any existing figures first
         plt.close('all')
 
-        handle, Zi, plotrad, xi, yi = topoplot(
-            self.datavector,
-            self.chan_locs,
-            noplot='on'
-        )
+        handle, Zi, plotrad, xi, yi = topoplot(self.datavector, self.chan_locs, noplot='on')
 
         # Should complete without creating plots
         self.assertIsNone(handle)
@@ -191,11 +187,7 @@ class TestTopoplot(unittest.TestCase):
 
     def test_topoplot_with_chanlocs_present(self):
         """Test topoplot with channel locations present."""
-        handle, Zi, plotrad, xi, yi = topoplot(
-            self.datavector,
-            self.chan_locs,
-            noplot='on'
-        )
+        handle, Zi, plotrad, xi, yi = topoplot(self.datavector, self.chan_locs, noplot='on')
 
         # Should successfully process channel locations
         self.assertIsInstance(Zi, np.ndarray)
@@ -210,19 +202,11 @@ class TestTopoplot(unittest.TestCase):
     def test_topoplot_without_chanlocs(self):
         """Test topoplot with minimal or missing channel location info."""
         # Create channel locations without theta/radius
-        incomplete_chanlocs = [
-            {'labels': 'Ch1'},
-            {'labels': 'Ch2'},
-            {'labels': 'Ch3'}
-        ]
+        incomplete_chanlocs = [{'labels': 'Ch1'}, {'labels': 'Ch2'}, {'labels': 'Ch3'}]
 
         # This should handle missing theta/radius gracefully
         try:
-            handle, Zi, plotrad, xi, yi = topoplot(
-                np.array([1, 0, -1]),
-                incomplete_chanlocs,
-                noplot='on'
-            )
+            handle, Zi, plotrad, xi, yi = topoplot(np.array([1, 0, -1]), incomplete_chanlocs, noplot='on')
             # If it completes, check basic properties
             self.assertIsInstance(Zi, np.ndarray)
         except (KeyError, IndexError, ValueError):
@@ -235,17 +219,13 @@ class TestTopoplot(unittest.TestCase):
         nan_chanlocs = [
             {'labels': 'Ch1', 'theta': 0, 'radius': 0.3},
             {'labels': 'Ch2', 'theta': np.nan, 'radius': 0.4},  # NaN theta
-            {'labels': 'Ch3', 'theta': 90, 'radius': np.nan},   # NaN radius
-            {'labels': 'Ch4', 'theta': 180, 'radius': 0.3}
+            {'labels': 'Ch3', 'theta': 90, 'radius': np.nan},  # NaN radius
+            {'labels': 'Ch4', 'theta': 180, 'radius': 0.3},
         ]
 
         datavector_nan = np.array([1.0, 2.0, -1.0, 0.5])
 
-        handle, Zi, plotrad, xi, yi = topoplot(
-            datavector_nan,
-            nan_chanlocs,
-            noplot='on'
-        )
+        handle, Zi, plotrad, xi, yi = topoplot(datavector_nan, nan_chanlocs, noplot='on')
 
         # Should handle NaN positions by excluding them
         self.assertIsInstance(Zi, np.ndarray)
@@ -258,11 +238,7 @@ class TestTopoplot(unittest.TestCase):
         nan_datavector[2] = np.nan  # Set one value to NaN
         nan_datavector[5] = np.inf  # Set one value to inf
 
-        handle, Zi, plotrad, xi, yi = topoplot(
-            nan_datavector,
-            self.chan_locs,
-            noplot='on'
-        )
+        handle, Zi, plotrad, xi, yi = topoplot(nan_datavector, self.chan_locs, noplot='on')
 
         # Should handle NaN/inf data values gracefully
         self.assertIsInstance(Zi, np.ndarray)
@@ -275,7 +251,7 @@ class TestTopoplot(unittest.TestCase):
             handle, Zi, plotrad, xi, yi = topoplot(
                 self.minimal_data,
                 self.minimal_chan_locs,
-                noplot='off'  # Enable plotting
+                noplot='off',  # Enable plotting
             )
 
             # Check that plotting components are created
@@ -284,11 +260,7 @@ class TestTopoplot(unittest.TestCase):
 
     def test_color_limits_and_masking(self):
         """Test color limits and head boundary masking."""
-        handle, Zi, plotrad, xi, yi = topoplot(
-            self.datavector,
-            self.chan_locs,
-            noplot='on'
-        )
+        handle, Zi, plotrad, xi, yi = topoplot(self.datavector, self.chan_locs, noplot='on')
 
         # Check that values outside head boundary are masked (NaN)
         head_mask = np.sqrt(xi**2 + yi**2) <= 0.5  # rmax = 0.5
@@ -310,12 +282,7 @@ class TestTopoplot(unittest.TestCase):
         results = []
         for method in methods:
             with self.subTest(method=method):
-                handle, Zi, plotrad, xi, yi = topoplot(
-                    self.datavector,
-                    self.chan_locs,
-                    noplot='on',
-                    method=method
-                )
+                handle, Zi, plotrad, xi, yi = topoplot(self.datavector, self.chan_locs, noplot='on', method=method)
 
                 results.append(Zi)
 
@@ -330,11 +297,7 @@ class TestTopoplot(unittest.TestCase):
     def test_electrode_display_control(self):
         """Test electrode display control based on number of channels."""
         # Test with few channels (should show electrodes)
-        handle, Zi, plotrad, xi, yi = topoplot(
-            self.minimal_data,
-            self.minimal_chan_locs,
-            noplot='on'
-        )
+        handle, Zi, plotrad, xi, yi = topoplot(self.minimal_data, self.minimal_chan_locs, noplot='on')
         # With 3 channels, ELECTRODES should be 'on'
         self.assertIsInstance(Zi, np.ndarray)
 
@@ -342,31 +305,17 @@ class TestTopoplot(unittest.TestCase):
         many_chanlocs = []
         many_data = []
         for i in range(100):  # More than MAXDEFAULTSHOWLOCS (64)
-            many_chanlocs.append({
-                'labels': f'Ch{i}',
-                'theta': i * 3.6,
-                'radius': 0.3 + (i % 10) * 0.02
-            })
+            many_chanlocs.append({'labels': f'Ch{i}', 'theta': i * 3.6, 'radius': 0.3 + (i % 10) * 0.02})
             many_data.append(np.sin(i * 0.1))
 
-        handle, Zi, plotrad, xi, yi = topoplot(
-            np.array(many_data),
-            many_chanlocs,
-            noplot='on'
-        )
+        handle, Zi, plotrad, xi, yi = topoplot(np.array(many_data), many_chanlocs, noplot='on')
         # With >64 channels, ELECTRODES should be 'off' but still work
         self.assertIsInstance(Zi, np.ndarray)
 
     def test_custom_parameters(self):
         """Test topoplot with custom parameters."""
         handle, Zi, plotrad, xi, yi = topoplot(
-            self.datavector,
-            self.chan_locs,
-            noplot='on',
-            intrad=0.8,
-            plotrad=0.7,
-            headrad=0.6,
-            ELECTRODES='off'
+            self.datavector, self.chan_locs, noplot='on', intrad=0.8, plotrad=0.7, headrad=0.6, ELECTRODES='off'
         )
 
         # Should complete with custom parameters
@@ -375,12 +324,7 @@ class TestTopoplot(unittest.TestCase):
 
     def test_plotgrid_parameter(self):
         """Test plotgrid parameter."""
-        handle, Zi, plotrad, xi, yi = topoplot(
-            self.datavector,
-            self.chan_locs,
-            noplot='on',
-            plotgrid='on'
-        )
+        handle, Zi, plotrad, xi, yi = topoplot(self.datavector, self.chan_locs, noplot='on', plotgrid='on')
 
         # Should complete with plotgrid enabled
         self.assertIsInstance(Zi, np.ndarray)
@@ -392,11 +336,7 @@ class TestTopoplot(unittest.TestCase):
 
         # Single channel may cause issues due to insufficient data for interpolation
         try:
-            handle, Zi, plotrad, xi, yi = topoplot(
-                single_data,
-                single_chanloc,
-                noplot='on'
-            )
+            handle, Zi, plotrad, xi, yi = topoplot(single_data, single_chanloc, noplot='on')
             # If it succeeds, check basic properties
             self.assertIsInstance(Zi, np.ndarray)
         except (UnboundLocalError, IndexError, ValueError, np.linalg.LinAlgError):
@@ -415,11 +355,7 @@ class TestTopoplot(unittest.TestCase):
 
     def test_coordinate_transformation(self):
         """Test coordinate transformation from polar to Cartesian."""
-        handle, Zi, plotrad, xi, yi = topoplot(
-            self.datavector,
-            self.chan_locs,
-            noplot='on'
-        )
+        handle, Zi, plotrad, xi, yi = topoplot(self.datavector, self.chan_locs, noplot='on')
 
         # Check that coordinate grids are reasonable
         # Grid should be centered around origin
@@ -433,33 +369,20 @@ class TestTopoplot(unittest.TestCase):
     def test_radius_calculations(self):
         """Test plotrad and intrad calculations."""
         # Test with default radius calculations
-        handle, Zi, plotrad, xi, yi = topoplot(
-            self.datavector,
-            self.chan_locs,
-            noplot='on'
-        )
+        handle, Zi, plotrad, xi, yi = topoplot(self.datavector, self.chan_locs, noplot='on')
 
         self.assertGreater(plotrad, 0)
         self.assertLessEqual(plotrad, 1.0)
 
         # Test with custom intrad
-        handle2, Zi2, plotrad2, xi2, yi2 = topoplot(
-            self.datavector,
-            self.chan_locs,
-            noplot='on',
-            intrad=0.8
-        )
+        handle2, Zi2, plotrad2, xi2, yi2 = topoplot(self.datavector, self.chan_locs, noplot='on', intrad=0.8)
 
         # plotrad should be adjusted when intrad is specified
         self.assertLessEqual(plotrad2, 0.8)
 
     def test_head_boundary_masking(self):
         """Test that values outside head boundary are properly masked."""
-        handle, Zi, plotrad, xi, yi = topoplot(
-            self.datavector,
-            self.chan_locs,
-            noplot='on'
-        )
+        handle, Zi, plotrad, xi, yi = topoplot(self.datavector, self.chan_locs, noplot='on')
 
         # Calculate head boundary (rmax = 0.5)
         rmax = 0.5
@@ -473,11 +396,7 @@ class TestTopoplot(unittest.TestCase):
 
     def test_interpolation_grid_properties(self):
         """Test properties of the interpolation grid."""
-        handle, Zi, plotrad, xi, yi = topoplot(
-            self.datavector,
-            self.chan_locs,
-            noplot='on'
-        )
+        handle, Zi, plotrad, xi, yi = topoplot(self.datavector, self.chan_locs, noplot='on')
 
         # Grid should be square
         self.assertEqual(xi.shape[0], xi.shape[1])
@@ -498,11 +417,7 @@ class TestTopoplot(unittest.TestCase):
         # Test with 2D data vector
         data_2d = self.datavector.reshape(-1, 1)
 
-        handle, Zi, plotrad, xi, yi = topoplot(
-            data_2d,
-            self.chan_locs,
-            noplot='on'
-        )
+        handle, Zi, plotrad, xi, yi = topoplot(data_2d, self.chan_locs, noplot='on')
 
         # Should handle 2D input by flattening
         self.assertIsInstance(Zi, np.ndarray)
@@ -512,8 +427,8 @@ class TestTopoplot(unittest.TestCase):
         # Test with matching data and channel counts
         handle, Zi, plotrad, xi, yi = topoplot(
             self.datavector,  # 9 elements
-            self.chan_locs,   # 9 elements
-            noplot='on'
+            self.chan_locs,  # 9 elements
+            noplot='on',
         )
 
         # Should handle matching data gracefully
@@ -525,8 +440,8 @@ class TestTopoplot(unittest.TestCase):
         try:
             handle2, Zi2, plotrad2, xi2, yi2 = topoplot(
                 self.datavector,  # 9 elements
-                extra_chanlocs,   # 10 elements
-                noplot='on'
+                extra_chanlocs,  # 10 elements
+                noplot='on',
             )
             self.assertIsInstance(Zi2, np.ndarray)
         except (IndexError, ValueError):
@@ -539,22 +454,14 @@ class TestTopoplot(unittest.TestCase):
         self.assertEqual(matplotlib.get_backend(), 'Agg')
 
         # Test that function works without display
-        handle, Zi, plotrad, xi, yi = topoplot(
-            self.datavector,
-            self.chan_locs,
-            noplot='on'
-        )
+        handle, Zi, plotrad, xi, yi = topoplot(self.datavector, self.chan_locs, noplot='on')
 
         # Should complete successfully with Agg backend
         self.assertIsInstance(Zi, np.ndarray)
 
         # Test with plotting enabled (should not crash with Agg)
         with patch('matplotlib.pyplot.show'):
-            handle, Zi, plotrad, xi, yi = topoplot(
-                self.minimal_data,
-                self.minimal_chan_locs,
-                noplot='off'
-            )
+            handle, Zi, plotrad, xi, yi = topoplot(self.minimal_data, self.minimal_chan_locs, noplot='off')
             self.assertIsInstance(Zi, np.ndarray)
 
 
@@ -613,9 +520,9 @@ class TestTopoplotParity(unittest.TestCase):
         # Compare results
         # Max absolute diff: <1e-6, Nearly perfect parity
         # Max relative diff: <1e-5
-        np.testing.assert_allclose(Zi_py, Zi_ml, rtol=1e-5, atol=1e-8,
-                                   err_msg="topoplot Zi results differ beyond tolerance",
-                                   equal_nan=True)
+        np.testing.assert_allclose(
+            Zi_py, Zi_ml, rtol=1e-5, atol=1e-8, err_msg="topoplot Zi results differ beyond tolerance", equal_nan=True
+        )
 
     def test_parity_multiple_components(self):
         """Test parity with MATLAB for multiple IC topographies."""
@@ -651,9 +558,14 @@ class TestTopoplotParity(unittest.TestCase):
             # Compare results
             # Max absolute diff: <1e-6, Nearly perfect parity
             # Max relative diff: <1e-5
-            np.testing.assert_allclose(Zi_py, Zi_ml, rtol=1e-5, atol=1e-8,
-                                       err_msg=f"topoplot Zi results differ for IC {ic_idx}",
-                                       equal_nan=True)
+            np.testing.assert_allclose(
+                Zi_py,
+                Zi_ml,
+                rtol=1e-5,
+                atol=1e-8,
+                err_msg=f"topoplot Zi results differ for IC {ic_idx}",
+                equal_nan=True,
+            )
 
             # Clean up IC-specific file
             os.remove(f'{temp_file}_ic{ic_idx}.mat')
@@ -701,9 +613,9 @@ class TestTopoplotParity(unittest.TestCase):
         # Compare results
         # Max absolute diff: TBD
         # Max relative diff: TBD
-        np.testing.assert_allclose(Zi_py, Zi_ml, rtol=1e-5, atol=1e-8,
-                                   err_msg="topoplot Zi results differ for gridscale=32",
-                                   equal_nan=True)
+        np.testing.assert_allclose(
+            Zi_py, Zi_ml, rtol=1e-5, atol=1e-8, err_msg="topoplot Zi results differ for gridscale=32", equal_nan=True
+        )
 
 
 if __name__ == '__main__':

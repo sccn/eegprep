@@ -4,12 +4,12 @@
 # Events are not handled correctly in this example but it works
 
 import mne
-from mne.datasets import sample
 from mne.preprocessing import ICA
 import math
 
 import numpy as np
 from scipy.io import savemat
+
 
 # Load example data
 def eeg_mne2eeg_epochs(epochs, ica):
@@ -52,49 +52,49 @@ def eeg_mne2eeg_epochs(epochs, ica):
         ref = 'average'  # Default to average reference
 
     eeglab_dict = {
-        'setname'         : '',
-        'filename'        : '',
-        'filepath'        : '',
-        'subject'         : '',
-        'group'           : '',
-        'condition'       : '',
-        'session'         : np.array([]),
-        'comments'        : '',
-        'nbchan'          : n_channels,
-        'trials'          : n_epochs,
-        'pnts'            : n_times,
-        'srate'           : epochs.info['sfreq'],
-        'xmin'            : epochs.times[0],
-        'xmax'            : epochs.times[-1],
-        'times'           : epochs.times,
-        'data'            : data,
-        'icaact'          : ica_act,
-        'icawinv'         : ica_inverse_weights,
-        'icasphere'       : ica_weights,
-        'icaweights'      : ica_sphere,
-        'icachansind'     : ica_channel_indices,
-        'chanlocs'        : np.array([]),
-        'urchanlocs'      : np.array([]),
-        'chaninfo'        : np.array([]),
-        'ref'             : ref,
-        'event'           : np.array([]),
-        'urevent'         : np.array([]),
+        'setname': '',
+        'filename': '',
+        'filepath': '',
+        'subject': '',
+        'group': '',
+        'condition': '',
+        'session': np.array([]),
+        'comments': '',
+        'nbchan': n_channels,
+        'trials': n_epochs,
+        'pnts': n_times,
+        'srate': epochs.info['sfreq'],
+        'xmin': epochs.times[0],
+        'xmax': epochs.times[-1],
+        'times': epochs.times,
+        'data': data,
+        'icaact': ica_act,
+        'icawinv': ica_inverse_weights,
+        'icasphere': ica_weights,
+        'icaweights': ica_sphere,
+        'icachansind': ica_channel_indices,
+        'chanlocs': np.array([]),
+        'urchanlocs': np.array([]),
+        'chaninfo': np.array([]),
+        'ref': ref,
+        'event': np.array([]),
+        'urevent': np.array([]),
         'eventdescription': np.array([]),
-        'epoch'           : np.array([]),
+        'epoch': np.array([]),
         'epochdescription': np.array([]),
-        'reject'          : np.array([]),
-        'stats'           : np.array([]),
-        'specdata'        : np.array([]),
-        'specicaact'      : np.array([]),
-        'splinefile'      : np.array([]),
-        'icasplinefile'   : np.array([]),
-        'dipfit'          : np.array([]),
-        'history'         : np.array([]),
-        'saved'           : np.array([]),
-        'etc'             : np.array([]),
-        'datfile'         : np.array([]),
-        'run'             : np.array([]),
-        'roi'             : np.array([]),
+        'reject': np.array([]),
+        'stats': np.array([]),
+        'specdata': np.array([]),
+        'specicaact': np.array([]),
+        'splinefile': np.array([]),
+        'icasplinefile': np.array([]),
+        'dipfit': np.array([]),
+        'history': np.array([]),
+        'saved': np.array([]),
+        'etc': np.array([]),
+        'datfile': np.array([]),
+        'run': np.array([]),
+        'roi': np.array([]),
     }
 
     # create channel locations
@@ -104,43 +104,48 @@ def eeg_mne2eeg_epochs(epochs, ica):
 
     theta_all = []
     radius_all = []
-    sph_theta_all  = []
-    sph_phi_all    = []
+    sph_theta_all = []
+    sph_phi_all = []
     sph_radius_all = []
     X_all = []
     Y_all = []
     Z_all = []
     for ch in ch_locs:
         if 'loc' in ch and ch['loc'] is not None:
-            X_all.append(ch['loc'][1]*1000)
-            Y_all.append(-ch['loc'][0]*1000)
-            Z_all.append(ch['loc'][2]*1000)
-            hypotxy = math.hypot(X_all[-1],Y_all[-1])
-            sph_radius_all.append(math.hypot(hypotxy,Z_all[-1]))
+            X_all.append(ch['loc'][1] * 1000)
+            Y_all.append(-ch['loc'][0] * 1000)
+            Z_all.append(ch['loc'][2] * 1000)
+            hypotxy = math.hypot(X_all[-1], Y_all[-1])
+            sph_radius_all.append(math.hypot(hypotxy, Z_all[-1]))
 
-            az = math.atan2(Y_all[-1],X_all[-1])/math.pi*180
-            horiz = math.atan2(Z_all[-1],hypotxy)/math.pi*180
+            az = math.atan2(Y_all[-1], X_all[-1]) / math.pi * 180
+            horiz = math.atan2(Z_all[-1], hypotxy) / math.pi * 180
 
             sph_theta_all.append(az)
             sph_phi_all.append(horiz)
 
-            theta_all.append(-az) # warning inverse notation compared to MATLAB to match
-            radius_all.append(0.5 - horiz/180) # warning inverse notation compared to MATLAB to match
+            theta_all.append(-az)  # warning inverse notation compared to MATLAB to match
+            radius_all.append(0.5 - horiz / 180)  # warning inverse notation compared to MATLAB to match
 
-    d_list = [{
-        'labels': ch_name,
-        'theta': theta,
-        'radius': radius,
-        'X': X,
-        'Y': Y,
-        'Z': Z,
-        'sph_theta': sph_theta,
-        'sph_phi': sph_phi,
-        'sph_radius': sph_radius,
-        'type': 'EEG',
-        'urchan': 0,
-        'ref': ''
-    } for ch_name, theta, radius, X, Y, Z, sph_theta, sph_phi, sph_radius in zip(ch_names, theta_all, radius_all, X_all, Y_all, Z_all, sph_theta_all, sph_phi_all, sph_radius_all)]
+    d_list = [
+        {
+            'labels': ch_name,
+            'theta': theta,
+            'radius': radius,
+            'X': X,
+            'Y': Y,
+            'Z': Z,
+            'sph_theta': sph_theta,
+            'sph_phi': sph_phi,
+            'sph_radius': sph_radius,
+            'type': 'EEG',
+            'urchan': 0,
+            'ref': '',
+        }
+        for ch_name, theta, radius, X, Y, Z, sph_theta, sph_phi, sph_radius in zip(
+            ch_names, theta_all, radius_all, X_all, Y_all, Z_all, sph_theta_all, sph_phi_all, sph_radius_all
+        )
+    ]
     # Create the list of dictionaries with a string field
     # d_list = [{
     #     'labels': ch_name,
@@ -164,14 +169,13 @@ def eeg_mne2eeg_epochs(epochs, ica):
     # # Step 4: Save the EEGLAB dataset as a .mat file
     return eeglab_dict
 
-    #print("EEGLAB dataset saved successfully!")
+    # print("EEGLAB dataset saved successfully!")
+
 
 def test_eeg_mne2eeg_epochs():
     """Test the eeg_mne2eeg_epochs function with sample MNE data."""
     sample_data_folder = mne.datasets.sample.data_path()
-    sample_data_raw_file = (
-        sample_data_folder / "MEG" / "sample" / "sample_audvis_filt-0-40_raw.fif"
-    )
+    sample_data_raw_file = sample_data_folder / "MEG" / "sample" / "sample_audvis_filt-0-40_raw.fif"
 
     raw = mne.io.read_raw_fif(sample_data_raw_file)
 
@@ -198,6 +202,7 @@ def test_eeg_mne2eeg_epochs():
     ica.fit(raw)
 
     EEG = eeg_mne2eeg_epochs(epochs, ica)
-    savemat('output_file.mat', EEG) # use pop_saveset
+    savemat('output_file.mat', EEG)  # use pop_saveset
+
 
 # test_eeg_mne2eeg_epochs()

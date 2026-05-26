@@ -77,8 +77,7 @@ class TestWriteParamFile(unittest.TestCase):
                 kv[parts[0]] = parts[1]
 
         # Required keys must be present
-        for key in ('files', 'outdir', 'data_dim', 'field_dim',
-                     'num_models', 'max_iter', 'num_mix_comps', 'pcakeep'):
+        for key in ('files', 'outdir', 'data_dim', 'field_dim', 'num_models', 'max_iter', 'num_mix_comps', 'pcakeep'):
             self.assertIn(key, kv, f"Missing required param: {key}")
 
         # Integer params should parse as int
@@ -144,9 +143,9 @@ class TestLoadAmicaOutput(unittest.TestCase):
     def setUp(self):
         self.tmpdir = tempfile.mkdtemp(prefix='amica_test_load_')
         self.num_models = 1
-        self.nw = 4          # num_pcs
-        self.data_dim = 4    # number of channels
-        self.num_mix = 3     # num_mix_comps
+        self.nw = 4  # num_pcs
+        self.data_dim = 4  # number of channels
+        self.num_mix = 3  # num_mix_comps
         self.max_iter = 50
         self.field_dim = 2000
 
@@ -272,8 +271,7 @@ class TestFindAmicaBinary(unittest.TestCase):
                 _find_amica_binary()
 
 
-@unittest.skipUnless(is_amica_available(),
-                     "AMICA binary not functional on this platform")
+@unittest.skipUnless(is_amica_available(), "AMICA binary not functional on this platform")
 class TestRunamicaIntegration(unittest.TestCase):
     """Integration test: run AMICA binary on small synthetic data."""
 
@@ -306,10 +304,10 @@ class TestRunamicaIntegration(unittest.TestCase):
         # Reconstruction test: pinv(W@S) @ W @ S @ data ~ data
         WS = weights @ sphere
         from eegprep.functions.miscfunc.pinv import pinv
+
         reconstructed = pinv(WS) @ WS @ data
         np.testing.assert_allclose(
-            reconstructed, data, atol=1e-6,
-            err_msg="AMICA reconstruction should reproduce input data"
+            reconstructed, data, atol=1e-6, err_msg="AMICA reconstruction should reproduce input data"
         )
 
     def test_runamica_custom_outdir(self):
@@ -352,10 +350,9 @@ class TestRunamicaIntegration(unittest.TestCase):
             # LL should generally increase (AMICA maximizes LL).
             # Compare first 10% mean to last 10% mean.
             n = len(LL)
-            early = np.mean(LL[:max(1, n // 10)])
-            late = np.mean(LL[-(max(1, n // 10)):])
-            self.assertGreater(late, early,
-                               "Log-likelihood should increase over training")
+            early = np.mean(LL[: max(1, n // 10)])
+            late = np.mean(LL[-(max(1, n // 10)) :])
+            self.assertGreater(late, early, "Log-likelihood should increase over training")
 
 
 if __name__ == '__main__':

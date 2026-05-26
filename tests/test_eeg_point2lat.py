@@ -4,6 +4,7 @@ from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.functions.popfunc.eeg_point2lat import eeg_point2lat
 import unittest
 
+
 def _matlab_row(x):
     """Convert a 1D numpy array or list into a MATLAB 1xN double."""
     x = np.asarray(x, dtype=float).ravel().tolist()
@@ -12,7 +13,6 @@ def _matlab_row(x):
 
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestEegPoint2LatParity(unittest.TestCase):
-
     def setUp(self):
         self.eeglab = get_eeglab('MAT')
 
@@ -55,7 +55,7 @@ class TestEegPoint2LatParity(unittest.TestCase):
     def test_eeg_point2lat_continuous(self):
         # Continuous data: 100 Hz, 0–1 s
         srate = 100
-        timewin = [0, 1]   # seconds
+        timewin = [0, 1]  # seconds
         lat_array = [1, 51, 101]  # 1-based samples
         # Expected latencies in seconds: [0.0, 0.5, 1.0]
         out = eeg_point2lat(lat_array, [], srate, timewin, 1)
@@ -77,11 +77,12 @@ class TestEegPoint2LatParity(unittest.TestCase):
     def test_eeg_point2lat_milliseconds(self):
         # Output in ms instead of seconds
         srate = 1000
-        timewin = [0, 1]   # sec
+        timewin = [0, 1]  # sec
         lat_array = [1, 1001]
         out = eeg_point2lat(lat_array, [], srate, timewin, 1e-3)  # ms
         expected = np.array([0.0, 1000.0])  # ms
         assert np.allclose(out, expected, atol=1e-9)
+
 
 class TestEegPoint2LatEdgeCases(unittest.TestCase):
     """Test edge cases and error conditions for eeg_point2lat."""

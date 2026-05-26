@@ -1,10 +1,11 @@
 """
 Utility for stage-by-stage pipeline comparison between Python and MATLAB.
 """
+
 import os
+from typing import Any, Dict, List, Tuple, Optional
+
 import numpy as np
-from typing import Dict, List, Tuple, Optional
-import tempfile
 from scipy.optimize import linear_sum_assignment
 
 
@@ -40,7 +41,7 @@ def _match_components_by_scalp_maps(icawinv_py: np.ndarray, icawinv_mat: np.ndar
     return reorder_idx, correlations
 
 
-def compare_ica_decompositions(py_file: str, mat_file: str, subject: str) -> Dict[str, any]:
+def compare_ica_decompositions(py_file: str, mat_file: str, subject: str) -> Dict[str, Any] | None:
     """Compare ICA decompositions between Python and MATLAB.
 
     Returns dict with: avg_corr, min_corr, max_corr, scalp_map_file
@@ -67,7 +68,7 @@ def compare_ica_decompositions(py_file: str, mat_file: str, subject: str) -> Dic
         from eegprep import topoplot
 
         n_comps_to_plot = min(10, len(correlations))
-        fig, axes = plt.subplots(2, n_comps_to_plot, figsize=(3*n_comps_to_plot, 6))
+        fig, axes = plt.subplots(2, n_comps_to_plot, figsize=(3 * n_comps_to_plot, 6))
         if n_comps_to_plot == 1:
             axes = axes.reshape(2, 1)
 
@@ -80,17 +81,17 @@ def compare_ica_decompositions(py_file: str, mat_file: str, subject: str) -> Dic
             ax = axes[0, i] if n_comps_to_plot > 1 else axes[0]
             plt.sca(ax)  # Set current axis
             topoplot(icawinv_mat[:, i], chanlocs_mat, noplot='off', ELECTRODES='off')
-            ax.set_title(f'MAT IC{i+1}', fontsize=10)
+            ax.set_title(f'MAT IC{i + 1}', fontsize=10)
             ax.axis('off')
 
             # Python scalp map (reordered to match MATLAB)
             ax = axes[1, i] if n_comps_to_plot > 1 else axes[1]
             plt.sca(ax)  # Set current axis
             topoplot(icawinv_py[:, reorder_idx[i]], chanlocs_py, noplot='off', ELECTRODES='off')
-            ax.set_title(f'Py IC{i+1}\n(r={correlations[i]:.3f})', fontsize=10)
+            ax.set_title(f'Py IC{i + 1}\n(r={correlations[i]:.3f})', fontsize=10)
             ax.axis('off')
 
-        plt.suptitle(f'ICA Component Scalp Maps: MATLAB (top) vs Python (bottom) - Python Topoplot', fontsize=12, y=0.98)
+        plt.suptitle('ICA Component Scalp Maps: MATLAB (top) vs Python (bottom) - Python Topoplot', fontsize=12, y=0.98)
         plt.tight_layout()
         plt.savefig(scalp_map_file, dpi=150, bbox_inches='tight')
         plt.close()
@@ -116,6 +117,7 @@ def compare_ica_decompositions(py_file: str, mat_file: str, subject: str) -> Dic
         EEG_py_reordered = EEG_py.copy()
         EEG_py_reordered['icawinv'] = icawinv_py[:, reorder_idx]
         from eegprep import pop_saveset
+
         pop_saveset(EEG_py_reordered, temp_py.name)
         pop_saveset(EEG_mat, temp_mat.name)
 
@@ -129,7 +131,7 @@ def compare_ica_decompositions(py_file: str, mat_file: str, subject: str) -> Dic
             os.path.abspath(temp_py.name),
             scalp_map_file_matlab,
             n_comps_to_plot,
-            corr_array
+            corr_array,
         )
 
         # Clean up temp files
@@ -139,6 +141,7 @@ def compare_ica_decompositions(py_file: str, mat_file: str, subject: str) -> Dic
     except Exception as e:
         print(f"Warning: Could not create MATLAB topoplot scalp map: {e}")
         import traceback
+
         traceback.print_exc()
         scalp_map_file_matlab = None
 
@@ -149,11 +152,13 @@ def compare_ica_decompositions(py_file: str, mat_file: str, subject: str) -> Dic
         'n_components': len(correlations),
         'reorder_idx': reorder_idx,
         'scalp_map_file': scalp_map_file,
-        'scalp_map_file_matlab': scalp_map_file_matlab
+        'scalp_map_file_matlab': scalp_map_file_matlab,
     }
 
 
-def compare_iclabel_classifications(py_file: str, mat_file: str, ica_reorder: Optional[np.ndarray] = None) -> Dict[str, any]:
+def compare_iclabel_classifications(
+    py_file: str, mat_file: str, ica_reorder: Optional[np.ndarray] = None
+) -> Dict[str, Any] | None:
     """Compare ICLabel classifications between Python and MATLAB.
 
     Note: Stage 10 files may have different numbers of components if different
@@ -191,7 +196,7 @@ def compare_iclabel_classifications(py_file: str, mat_file: str, ica_reorder: Op
             'max_prob_diff': None,
             'n_components_py': int(n_comps_py),
             'n_components_mat': int(n_comps_mat),
-            'note': f'Different component counts (Python={n_comps_py}, MATLAB={n_comps_mat}). Stage 10 saved after removal.'
+            'note': f'Different component counts (Python={n_comps_py}, MATLAB={n_comps_mat}). Stage 10 saved after removal.',
         }
 
     # Same number of components - can do detailed comparison
@@ -215,7 +220,7 @@ def compare_iclabel_classifications(py_file: str, mat_file: str, ica_reorder: Op
         'n_flagged_py': int(flagged_py),
         'n_flagged_mat': int(flagged_mat),
         'n_components_py': int(n_comps_py),
-        'n_components_mat': int(n_comps_mat)
+        'n_components_mat': int(n_comps_mat),
     }
 
 
@@ -295,40 +300,156 @@ def run_staged_pipeline_python(root: str, stage_dir: str, **kwargs) -> List[str]
     Returns:
         List of saved file paths for each stage
     """
-    from eegprep import bids_preproc, pop_saveset, pop_loadset
-    from .bids import gen_derived_fpath
+    from eegprep import bids_preproc, pop_saveset
 
     # Stage mapping: (output_file, stage_params)
     stages = [
-        ('stage01_import_py.set', {'OnlyChannelsWithPosition': False, 'OnlyModalities': [],
-                                    'SamplingRate': None, 'WithInterp': False, 'WithICA': False,
-                                    'WithICLabel': False, 'EpochEvents': None, 'CommonAverageReference': False}),
-        ('stage02_chansel_py.set', {'OnlyModalities': ['EEG'], 'SamplingRate': None, 'WithInterp': False,
-                                     'WithICA': False, 'WithICLabel': False, 'EpochEvents': None, 'CommonAverageReference': False}),
-        ('stage03_resample_py.set', {'OnlyModalities': ['EEG'], 'SamplingRate': 128, 'WithInterp': False,
-                                      'WithICA': False, 'WithICLabel': False, 'EpochEvents': None, 'CommonAverageReference': False}),
-        ('stage08_window_py.set', {'OnlyModalities': ['EEG'], 'SamplingRate': 128, 'WithInterp': False,
-                                    'WithICA': False, 'WithICLabel': False, 'EpochEvents': None, 'CommonAverageReference': False}),
-        ('stage09_ica_py.set', {'OnlyModalities': ['EEG'], 'SamplingRate': 128, 'WithInterp': False,
-                                 'WithICA': True, 'WithICLabel': False, 'EpochEvents': None, 'CommonAverageReference': False}),
-        ('stage10_iclabel_py.set', {'OnlyModalities': ['EEG'], 'SamplingRate': 128, 'WithInterp': False,
-                                     'WithICA': True, 'WithICLabel': True, 'EpochEvents': None, 'CommonAverageReference': False}),
-        ('stage11_interp_py.set', {'OnlyModalities': ['EEG'], 'SamplingRate': 128, 'WithInterp': True,
-                                    'WithICA': True, 'WithICLabel': True, 'EpochEvents': None, 'CommonAverageReference': False}),
-        ('stage12_epoch_py.set', {'OnlyModalities': ['EEG'], 'SamplingRate': 128, 'WithInterp': True,
-                                   'WithICA': True, 'WithICLabel': True, 'EpochEvents': [], 'EpochLimits': [-0.2, 0.5], 'CommonAverageReference': False}),
-        ('stage13_baseline_py.set', {'OnlyModalities': ['EEG'], 'SamplingRate': 128, 'WithInterp': True,
-                                      'WithICA': True, 'WithICLabel': True, 'EpochEvents': [], 'EpochLimits': [-0.2, 0.5],
-                                      'EpochBaseline': [-0.2, 0], 'CommonAverageReference': False}),
-        ('stage14_reref_py.set', {'OnlyModalities': ['EEG'], 'SamplingRate': 128, 'WithInterp': True,
-                                   'WithICA': True, 'WithICLabel': True, 'EpochEvents': [], 'EpochLimits': [-0.2, 0.5],
-                                   'EpochBaseline': [-0.2, 0], 'CommonAverageReference': True}),
+        (
+            'stage01_import_py.set',
+            {
+                'OnlyChannelsWithPosition': False,
+                'OnlyModalities': [],
+                'SamplingRate': None,
+                'WithInterp': False,
+                'WithICA': False,
+                'WithICLabel': False,
+                'EpochEvents': None,
+                'CommonAverageReference': False,
+            },
+        ),
+        (
+            'stage02_chansel_py.set',
+            {
+                'OnlyModalities': ['EEG'],
+                'SamplingRate': None,
+                'WithInterp': False,
+                'WithICA': False,
+                'WithICLabel': False,
+                'EpochEvents': None,
+                'CommonAverageReference': False,
+            },
+        ),
+        (
+            'stage03_resample_py.set',
+            {
+                'OnlyModalities': ['EEG'],
+                'SamplingRate': 128,
+                'WithInterp': False,
+                'WithICA': False,
+                'WithICLabel': False,
+                'EpochEvents': None,
+                'CommonAverageReference': False,
+            },
+        ),
+        (
+            'stage08_window_py.set',
+            {
+                'OnlyModalities': ['EEG'],
+                'SamplingRate': 128,
+                'WithInterp': False,
+                'WithICA': False,
+                'WithICLabel': False,
+                'EpochEvents': None,
+                'CommonAverageReference': False,
+            },
+        ),
+        (
+            'stage09_ica_py.set',
+            {
+                'OnlyModalities': ['EEG'],
+                'SamplingRate': 128,
+                'WithInterp': False,
+                'WithICA': True,
+                'WithICLabel': False,
+                'EpochEvents': None,
+                'CommonAverageReference': False,
+            },
+        ),
+        (
+            'stage10_iclabel_py.set',
+            {
+                'OnlyModalities': ['EEG'],
+                'SamplingRate': 128,
+                'WithInterp': False,
+                'WithICA': True,
+                'WithICLabel': True,
+                'EpochEvents': None,
+                'CommonAverageReference': False,
+            },
+        ),
+        (
+            'stage11_interp_py.set',
+            {
+                'OnlyModalities': ['EEG'],
+                'SamplingRate': 128,
+                'WithInterp': True,
+                'WithICA': True,
+                'WithICLabel': True,
+                'EpochEvents': None,
+                'CommonAverageReference': False,
+            },
+        ),
+        (
+            'stage12_epoch_py.set',
+            {
+                'OnlyModalities': ['EEG'],
+                'SamplingRate': 128,
+                'WithInterp': True,
+                'WithICA': True,
+                'WithICLabel': True,
+                'EpochEvents': [],
+                'EpochLimits': [-0.2, 0.5],
+                'CommonAverageReference': False,
+            },
+        ),
+        (
+            'stage13_baseline_py.set',
+            {
+                'OnlyModalities': ['EEG'],
+                'SamplingRate': 128,
+                'WithInterp': True,
+                'WithICA': True,
+                'WithICLabel': True,
+                'EpochEvents': [],
+                'EpochLimits': [-0.2, 0.5],
+                'EpochBaseline': [-0.2, 0],
+                'CommonAverageReference': False,
+            },
+        ),
+        (
+            'stage14_reref_py.set',
+            {
+                'OnlyModalities': ['EEG'],
+                'SamplingRate': 128,
+                'WithInterp': True,
+                'WithICA': True,
+                'WithICLabel': True,
+                'EpochEvents': [],
+                'EpochLimits': [-0.2, 0.5],
+                'EpochBaseline': [-0.2, 0],
+                'CommonAverageReference': True,
+            },
+        ),
     ]
 
     saved_files = []
-    base_kwargs = {k: v for k, v in kwargs.items() if k not in ['OnlyChannelsWithPosition', 'OnlyModalities',
-                   'SamplingRate', 'WithInterp', 'WithICA', 'WithICLabel', 'EpochEvents', 'EpochLimits',
-                   'EpochBaseline', 'CommonAverageReference']}
+    base_kwargs = {
+        k: v
+        for k, v in kwargs.items()
+        if k
+        not in [
+            'OnlyChannelsWithPosition',
+            'OnlyModalities',
+            'SamplingRate',
+            'WithInterp',
+            'WithICA',
+            'WithICLabel',
+            'EpochEvents',
+            'EpochLimits',
+            'EpochBaseline',
+            'CommonAverageReference',
+        ]
+    }
 
     for stage_file, stage_params in stages:
         stage_path = os.path.join(stage_dir, stage_file)
@@ -356,7 +477,7 @@ def run_staged_pipeline_python(root: str, stage_dir: str, **kwargs) -> List[str]
     return saved_files
 
 
-def generate_comparison_table(stage_dir: str, stages: List[int] = None) -> str:
+def generate_comparison_table(stage_dir: str, stages: List[int] | None = None) -> str:
     """Generate comparison table for all stage files.
 
     Args:
@@ -371,8 +492,16 @@ def generate_comparison_table(stage_dir: str, stages: List[int] = None) -> str:
         stages = [1, 2, 3, 8, 11, 12, 13, 14]
 
     stage_names = {
-        1: 'Import', 2: 'ChanSel', 3: 'Resample', 8: 'CleanArtifacts',
-        9: 'ICA', 10: 'ICLabel', 11: 'Interp', 12: 'Epoch', 13: 'Baseline', 14: 'Reref'
+        1: 'Import',
+        2: 'ChanSel',
+        3: 'Resample',
+        8: 'CleanArtifacts',
+        9: 'ICA',
+        10: 'ICLabel',
+        11: 'Interp',
+        12: 'Epoch',
+        13: 'Baseline',
+        14: 'Reref',
     }
 
     # First, collect all unique basenames
@@ -394,7 +523,9 @@ def generate_comparison_table(stage_dir: str, stages: List[int] = None) -> str:
         # Collect standard stage comparisons
         for stage in stages:
             py_file = [f for f in all_files if f.startswith(f'{basename}_stage{stage:02d}_') and f.endswith('_py.set')]
-            mat_file = [f for f in all_files if f.startswith(f'{basename}_stage{stage:02d}_') and f.endswith('_mat.set')]
+            mat_file = [
+                f for f in all_files if f.startswith(f'{basename}_stage{stage:02d}_') and f.endswith('_mat.set')
+            ]
 
             if not py_file or not mat_file:
                 continue
@@ -414,7 +545,9 @@ def generate_comparison_table(stage_dir: str, stages: List[int] = None) -> str:
         # Display main table for this subject
         lines.append(f"\n{basename}")
         lines.append("-" * 105)
-        lines.append(f"{'Stage':<6} {'Name':<15} {'Cumul Max':<15} {'Cumul Mean':<15} {'Cumul RMS':<15} {'Incr Max':<15} {'Incr Mean':<15}")
+        lines.append(
+            f"{'Stage':<6} {'Name':<15} {'Cumul Max':<15} {'Cumul Mean':<15} {'Cumul RMS':<15} {'Incr Max':<15} {'Incr Mean':<15}"
+        )
         lines.append("-" * 105)
 
         prev_max = 0.0
@@ -424,9 +557,11 @@ def generate_comparison_table(stage_dir: str, stages: List[int] = None) -> str:
             incr_max = metrics['max_abs'] - prev_max
             incr_mean = metrics['mean_abs'] - prev_mean
 
-            lines.append(f"{stage_num:<6} {stage_name:<15} {metrics['max_abs']:<15.3e} "
-                        f"{metrics['mean_abs']:<15.3e} {metrics['rms']:<15.3e} "
-                        f"{incr_max:<15.3e} {incr_mean:<15.3e}")
+            lines.append(
+                f"{stage_num:<6} {stage_name:<15} {metrics['max_abs']:<15.3e} "
+                f"{metrics['mean_abs']:<15.3e} {metrics['rms']:<15.3e} "
+                f"{incr_max:<15.3e} {incr_mean:<15.3e}"
+            )
 
             prev_max = metrics['max_abs']
             prev_mean = metrics['mean_abs']
@@ -447,20 +582,24 @@ def generate_comparison_table(stage_dir: str, stages: List[int] = None) -> str:
                         ic_metrics = {
                             'max_abs': float(np.max(np.abs(diff))),
                             'mean_abs': float(np.mean(np.abs(diff))),
-                            'rms': float(np.sqrt(np.mean(diff**2)))
+                            'rms': float(np.sqrt(np.mean(diff**2))),
                         }
 
                         incr_max_ic = ic_metrics['max_abs'] - prev_max
                         incr_mean_ic = ic_metrics['mean_abs'] - prev_mean
 
-                        lines.append(f"{'9+10':<6} {'AfterICRemoval':<15} {ic_metrics['max_abs']:<15.3e} "
-                                    f"{ic_metrics['mean_abs']:<15.3e} {ic_metrics['rms']:<15.3e} "
-                                    f"{incr_max_ic:<15.3e} {incr_mean_ic:<15.3e}")
+                        lines.append(
+                            f"{'9+10':<6} {'AfterICRemoval':<15} {ic_metrics['max_abs']:<15.3e} "
+                            f"{ic_metrics['mean_abs']:<15.3e} {ic_metrics['rms']:<15.3e} "
+                            f"{incr_max_ic:<15.3e} {incr_mean_ic:<15.3e}"
+                        )
 
                         prev_max = ic_metrics['max_abs']
                         prev_mean = ic_metrics['mean_abs']
-                    except Exception as e:
-                        lines.append(f"{'9+10':<6} {'AfterICRemoval':<15} {'Error':<15} {'Error':<15} {'Error':<15} {'N/A':<15} {'N/A':<15}")
+                    except Exception:
+                        lines.append(
+                            f"{'9+10':<6} {'AfterICRemoval':<15} {'Error':<15} {'Error':<15} {'Error':<15} {'N/A':<15} {'N/A':<15}"
+                        )
 
         # ICA Analysis
         py_ica = [f for f in all_files if f.startswith(f'{basename}_stage09_') and f.endswith('_py.set')]
@@ -471,19 +610,23 @@ def generate_comparison_table(stage_dir: str, stages: List[int] = None) -> str:
             lines.append("  ICA Decomposition Comparison:")
             try:
                 ica_result = compare_ica_decompositions(
-                    os.path.join(stage_dir, py_ica[0]),
-                    os.path.join(stage_dir, mat_ica[0]),
-                    basename
+                    os.path.join(stage_dir, py_ica[0]), os.path.join(stage_dir, mat_ica[0]), basename
                 )
                 if ica_result:
-                    lines.append(f"    Components: {ica_result['n_components']}, "
-                                f"Avg corr: {ica_result['avg_corr']:.3f}, "
-                                f"Min corr: {ica_result['min_corr']:.3f}, "
-                                f"Max corr: {ica_result['max_corr']:.3f}")
+                    lines.append(
+                        f"    Components: {ica_result['n_components']}, "
+                        f"Avg corr: {ica_result['avg_corr']:.3f}, "
+                        f"Min corr: {ica_result['min_corr']:.3f}, "
+                        f"Max corr: {ica_result['max_corr']:.3f}"
+                    )
                     if ica_result['scalp_map_file']:
-                        lines.append(f"    Scalp maps (Python topoplot): {os.path.basename(ica_result['scalp_map_file'])}")
+                        lines.append(
+                            f"    Scalp maps (Python topoplot): {os.path.basename(ica_result['scalp_map_file'])}"
+                        )
                     if ica_result.get('scalp_map_file_matlab'):
-                        lines.append(f"    Scalp maps (MATLAB topoplot): {os.path.basename(ica_result['scalp_map_file_matlab'])}")
+                        lines.append(
+                            f"    Scalp maps (MATLAB topoplot): {os.path.basename(ica_result['scalp_map_file_matlab'])}"
+                        )
                 else:
                     lines.append("    No ICA data available")
             except Exception as e:
@@ -501,21 +644,29 @@ def generate_comparison_table(stage_dir: str, stages: List[int] = None) -> str:
                     icl_result = compare_iclabel_classifications(
                         os.path.join(stage_dir, py_icl[0]),
                         os.path.join(stage_dir, mat_icl[0]),
-                        ica_result.get('reorder_idx')
+                        ica_result.get('reorder_idx'),
                     )
                     if icl_result:
                         if icl_result['avg_prob_diff'] is not None:
                             # Same component count - full comparison
-                            lines.append(f"    Avg prob diff: {icl_result['avg_prob_diff']:.3f}, "
-                                        f"Max prob diff: {icl_result['max_prob_diff']:.3f}")
-                            lines.append(f"    Components remaining: Python={icl_result['n_components_py']}, "
-                                        f"MATLAB={icl_result['n_components_mat']}")
-                            lines.append(f"    Flagged (should be 0): Python={icl_result['n_flagged_py']}, "
-                                        f"MATLAB={icl_result['n_flagged_mat']}")
+                            lines.append(
+                                f"    Avg prob diff: {icl_result['avg_prob_diff']:.3f}, "
+                                f"Max prob diff: {icl_result['max_prob_diff']:.3f}"
+                            )
+                            lines.append(
+                                f"    Components remaining: Python={icl_result['n_components_py']}, "
+                                f"MATLAB={icl_result['n_components_mat']}"
+                            )
+                            lines.append(
+                                f"    Flagged (should be 0): Python={icl_result['n_flagged_py']}, "
+                                f"MATLAB={icl_result['n_flagged_mat']}"
+                            )
                         else:
                             # Different component counts
-                            lines.append(f"    Components remaining: Python={icl_result['n_components_py']}, "
-                                        f"MATLAB={icl_result['n_components_mat']}")
+                            lines.append(
+                                f"    Components remaining: Python={icl_result['n_components_py']}, "
+                                f"MATLAB={icl_result['n_components_mat']}"
+                            )
                             lines.append(f"    Note: {icl_result['note']}")
                     else:
                         lines.append("    No ICLabel data available")
@@ -544,7 +695,7 @@ def save_comparison_report(stage_dir: str, comparison_table: str, study: str, su
     png_files = sorted([f for f in os.listdir(stage_dir) if f.endswith('.png')])
 
     with open(report_path, 'w') as f:
-        f.write(f"# Stage-by-Stage Pipeline Comparison Report\n\n")
+        f.write("# Stage-by-Stage Pipeline Comparison Report\n\n")
         f.write(f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
         f.write(f"**Study:** {study}\n\n")
         f.write(f"**Subjects:** {', '.join(map(str, subjects))}\n\n")

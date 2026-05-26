@@ -5,6 +5,7 @@ import numpy as np
 from eegprep.functions.popfunc.eeg_eegrej import _eegrej  # replace with the actual module name
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 
+
 class TestEEGRej(unittest.TestCase):
     def setUp(self):
         # 2 channels, 20 samples with simple increasing values
@@ -77,6 +78,7 @@ class TestEEGRej(unittest.TestCase):
         eeglab = get_eeglab()
         eeglab_outdata = eeglab.eegrej(self.data, np.array([[5, 8]]), self.timelength, events)
         np.testing.assert_array_equal(outdata, eeglab_outdata)
+
 
 if __name__ == "__main__":
     unittest.main()

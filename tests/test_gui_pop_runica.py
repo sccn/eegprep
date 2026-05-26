@@ -271,7 +271,9 @@ class PopRunicaGuiTests(unittest.TestCase):
 
         first = dict(_eeg(), setname="first")
         second = dict(_eeg(), setname="second")
-        updated = dict(second, icaweights=np.eye(4), icasphere=np.eye(4), icawinv=np.eye(4), icaact=np.zeros((4, 20, 1)))
+        updated = dict(
+            second, icaweights=np.eye(4), icasphere=np.eye(4), icawinv=np.eye(4), icaact=np.zeros((4, 20, 1))
+        )
 
         with mock.patch("eegprep.functions.popfunc.pop_runica.eeg_runica", return_value=updated) as runica:
             out, com = pop_runica([first, second], gui=True, renderer=Renderer(), return_com=True)
@@ -365,7 +367,9 @@ class PopRunicaGuiTests(unittest.TestCase):
             icachansind=np.arange(4),
             etc={"ic_classification": {"ICLabel": {"version": "default"}}},
         )
-        updated = dict(eeg, icaweights=np.eye(4) * 2, icasphere=np.eye(4), icawinv=np.eye(4), icaact=np.zeros((4, 20, 1)))
+        updated = dict(
+            eeg, icaweights=np.eye(4) * 2, icasphere=np.eye(4), icawinv=np.eye(4), icaact=np.zeros((4, 20, 1))
+        )
 
         with mock.patch("eegprep.functions.popfunc.pop_runica.eeg_runica", return_value=updated):
             out = pop_runica(eeg, options={"extended": 1})

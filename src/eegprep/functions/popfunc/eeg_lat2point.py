@@ -2,6 +2,7 @@
 
 import numpy as np
 
+
 def eeg_lat2point(lat_array, epoch_array, srate, timewin, timeunit=1.0, **kwargs):
     """Convert latencies in time units (relative to per-epoch time 0) to latencies in data points assuming concatenated epochs (EEGLAB style).
 
@@ -58,8 +59,7 @@ def eeg_lat2point(lat_array, epoch_array, srate, timewin, timeunit=1.0, **kwargs
 
     # core formula (EEGLAB):
     # newlat = (lat*timeunit - timewin_scaled(1))*srate + 1 + (epoch-1)*pnts
-    newlat = (lat_array * float(timeunit) - timewin_sec[0]) * float(srate) + 1.0 \
-             + (epoch_array - 1.0) * pnts
+    newlat = (lat_array * float(timeunit) - timewin_sec[0]) * float(srate) + 1.0 + (epoch_array - 1.0) * pnts
 
     flag = 0
     if newlat.size and epoch_array.size:

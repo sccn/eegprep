@@ -20,7 +20,6 @@ from eegprep.functions.popfunc.pop_epoch import pop_epoch, pop_epoch_dialog_spec
 
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestPopEpochParity(unittest.TestCase):
-
     def setUp(self):
         np.random.seed(42)
         try:
@@ -57,7 +56,7 @@ class TestPopEpochParity(unittest.TestCase):
                 {'type': 'S2', 'latency': 350, 'duration': 0},
                 {'type': 'S1', 'latency': 550, 'duration': 0},
                 {'type': 'S3', 'latency': 750, 'duration': 0},
-                {'type': 'S2', 'latency': 850, 'duration': 0}
+                {'type': 'S2', 'latency': 850, 'duration': 0},
             ],
             'epoch': np.array([]),
             'chanlocs': np.array([]),
@@ -83,7 +82,7 @@ class TestPopEpochParity(unittest.TestCase):
             'icawinv': np.array([]),
             'icasphere': np.array([]),
             'icaweights': np.array([]),
-            'icachansind': np.array([])
+            'icachansind': np.array([]),
         }
 
     def test_parity_basic_epoching_all_events(self):
@@ -354,7 +353,7 @@ class TestPopEpochParity(unittest.TestCase):
             # Should return the original EEG and empty indices
             self.assertEqual(eeg_out, test_eeg)
             self.assertEqual(indices, [])
-        except Exception as e:
+        except Exception:
             # If it does raise an exception, that's also acceptable
             pass
 
@@ -386,7 +385,6 @@ class TestPopEpochParity(unittest.TestCase):
 
 
 class TestPopEpochEdgeCases(unittest.TestCase):
-
     def setUp(self):
         np.random.seed(42)
 
@@ -403,12 +401,12 @@ class TestPopEpochEdgeCases(unittest.TestCase):
             'xmax': 4.99,
             'setname': 'boundary_test',
             'event': [
-                {'type': 'edge', 'latency': 10},   # Near start
+                {'type': 'edge', 'latency': 10},  # Near start
                 {'type': 'edge', 'latency': 250},  # Middle
-                {'type': 'edge', 'latency': 490}   # Near end
+                {'type': 'edge', 'latency': 490},  # Near end
             ],
             'epoch': [],
-            'saved': 'no'
+            'saved': 'no',
         }
 
         # Large epoch window that should exclude boundary events
@@ -431,13 +429,9 @@ class TestPopEpochEdgeCases(unittest.TestCase):
             'xmin': 0.0,
             'xmax': 2.99,
             'setname': 'no_match_test',
-            'event': [
-                {'type': 'A', 'latency': 50},
-                {'type': 'B', 'latency': 150},
-                {'type': 'C', 'latency': 250}
-            ],
+            'event': [{'type': 'A', 'latency': 50}, {'type': 'B', 'latency': 150}, {'type': 'C', 'latency': 250}],
             'epoch': [],
-            'saved': 'no'
+            'saved': 'no',
         }
 
         # Look for event type that doesn't exist
@@ -510,7 +504,7 @@ class TestPopEpochEdgeCases(unittest.TestCase):
             'setname': 'single_test',
             'event': [{'type': 'test', 'latency': 100}],
             'epoch': np.array([]),
-            'saved': 'no'
+            'saved': 'no',
         }
 
         eeg_out, indices = pop_epoch([EEG], 'test', [-0.1, 0.1])
@@ -531,7 +525,7 @@ class TestPopEpochEdgeCases(unittest.TestCase):
             'setname': 'epoched_test',
             'event': [],  # No events
             'epoch': np.array([]),
-            'saved': 'no'
+            'saved': 'no',
         }
 
         eeg_out, indices = pop_epoch(EEG, [], [-0.2, 0.2])
@@ -545,7 +539,7 @@ class TestPopEpochEdgeCases(unittest.TestCase):
             'data': np.random.randn(2, 200).astype(np.float32),
             'srate': 100.0,
             'event': [{'type': 'test'}],  # Missing latency
-            'saved': 'no'
+            'saved': 'no',
         }
 
         with self.assertRaises(ValueError):
@@ -564,7 +558,7 @@ class TestPopEpochEdgeCases(unittest.TestCase):
             'times': np.linspace(0, 1.99, 200),
             'event': [{'type': 'test', 'latency': 100}],
             'epoch': np.array([]),
-            'saved': 'no'
+            'saved': 'no',
         }
 
         # Test with None types and lim (should use all events)
@@ -589,7 +583,7 @@ class TestPopEpochEdgeCases(unittest.TestCase):
             'times': np.linspace(0, 1.99, 200),
             'event': [{'type': 'test', 'latency': 100}],
             'epoch': np.array([]),
-            'saved': 'no'
+            'saved': 'no',
         }
 
         eeg_out, indices = pop_epoch(EEG, 'test', [-0.1, 0.1], valuelim=None)
@@ -606,13 +600,9 @@ class TestPopEpochEdgeCases(unittest.TestCase):
             'xmin': 0.0,
             'xmax': 1.99,
             'times': np.linspace(0, 1.99, 200),
-            'event': [
-                {'type': 1, 'latency': 50},
-                {'type': 2, 'latency': 100},
-                {'type': 1.5, 'latency': 150}
-            ],
+            'event': [{'type': 1, 'latency': 50}, {'type': 2, 'latency': 100}, {'type': 1.5, 'latency': 150}],
             'epoch': np.array([]),
-            'saved': 'no'
+            'saved': 'no',
         }
 
         # Test numeric type matching with string.
@@ -625,7 +615,7 @@ class TestPopEpochEdgeCases(unittest.TestCase):
             'data': np.random.randn(2, 200).astype(np.float32),
             'srate': 100.0,
             'event': [{'type': 'test', 'latency': 100}],
-            'saved': 'no'
+            'saved': 'no',
         }
 
         with self.assertRaises(ValueError):
@@ -637,7 +627,7 @@ class TestPopEpochEdgeCases(unittest.TestCase):
             'data': np.random.randn(2, 200).astype(np.float32),
             'srate': 100.0,
             'event': [{'type': 'test', 'latency': 100}],
-            'saved': 'no'
+            'saved': 'no',
         }
 
         with self.assertRaises(ValueError):
@@ -657,7 +647,7 @@ class TestPopEpochEdgeCases(unittest.TestCase):
             'setname': 'test_dataset',
             'event': [{'type': 'test', 'latency': 100}],
             'epoch': np.array([]),
-            'saved': 'no'
+            'saved': 'no',
         }
 
         # Test with list comments
@@ -687,10 +677,10 @@ class TestPopEpochEdgeCases(unittest.TestCase):
             'event': [
                 {'type': 'stimulus', 'latency': 100},
                 {'type': 'stimulus', 'latency': 200},
-                {'type': 'stimulus', 'latency': 300}
+                {'type': 'stimulus', 'latency': 300},
             ],
             'epoch': np.array([]),
-            'saved': 'no'
+            'saved': 'no',
         }
 
         eeg_out, indices = pop_epoch(EEG, 'stimulus', [-0.2, 0.3])
@@ -701,11 +691,13 @@ class TestPopEpochEdgeCases(unittest.TestCase):
             # Convert to list for appending
             eeg_out['event'] = list(eeg_out['event'])
             print("Converted eeg_out['event'] from numpy array to list for appending new event.")
-        eeg_out['event'].append({
-            'type': 'boundary',
-            'latency': 25,  # Within first epoch
-            'epoch': 1
-        })
+        eeg_out['event'].append(
+            {
+                'type': 'boundary',
+                'latency': 25,  # Within first epoch
+                'epoch': 1,
+            }
+        )
 
         # Test the boundary detection (this tests the code path but won't actually remove epochs
         # since pop_select would need proper implementation)
@@ -717,7 +709,7 @@ class TestPopEpochEdgeCases(unittest.TestCase):
             'data': 'filename.dat',  # String instead of array
             'srate': 100.0,
             'event': [{'type': 'test', 'latency': 100}],
-            'saved': 'no'
+            'saved': 'no',
         }
 
         with self.assertRaises(NotImplementedError):
@@ -821,7 +813,9 @@ class TestPopEpochGuiAndHistory(unittest.TestCase):
         spec = pop_epoch_dialog_spec(self.EEG)
         widgets = {"limits": _FakeWidget("0.2 -0.1"), "valuelim": _FakeWidget("")}
 
-        self.assertEqual(QtDialogRenderer._validation_message(spec, widgets), "Epoch start must be lower than epoch end")
+        self.assertEqual(
+            QtDialogRenderer._validation_message(spec, widgets), "Epoch start must be lower than epoch end"
+        )
 
     def test_multiple_datasets_return_com_uses_console_contract(self):
         eeg2 = copy.deepcopy(self.EEG)

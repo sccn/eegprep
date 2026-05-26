@@ -14,10 +14,7 @@ from tools.visual_parity.menu_inventory import compare_menu_trees
 from eegprep.functions.guifunc.visual_capture import _main_window_menu_state as _eegprep_main_window_menu_state
 
 
-ONE_PIXEL_PNG = (
-    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8"
-    "/x8AAwMCAO+/p9sAAAAASUVORK5CYII="
-)
+ONE_PIXEL_PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII="
 
 
 class VisualParityConfigTests(unittest.TestCase):
@@ -30,7 +27,9 @@ class VisualParityConfigTests(unittest.TestCase):
         self.assertIn("eegprep.functions.guifunc.visual_capture", cases["main_window"].targets["eegprep"].command)
         self.assertIn("adjust_events_dialog", cases)
         self.assertEqual(cases["adjust_events_dialog"].targets["eeglab"].type, "matlab_dialog")
-        self.assertIn("eegprep.functions.guifunc.visual_capture", cases["adjust_events_dialog"].targets["eegprep"].command)
+        self.assertIn(
+            "eegprep.functions.guifunc.visual_capture", cases["adjust_events_dialog"].targets["eegprep"].command
+        )
         self.assertIn("reref_dialog", cases)
         self.assertEqual(cases["reref_dialog"].targets["eeglab"].action, "pop_reref")
         self.assertEqual(cases["reref_dialog_channel_ref"].targets["eeglab"].action, "pop_reref:channels")

@@ -2,7 +2,7 @@
 
 import numpy as np
 from numpy.fft import fft
-from scipy.signal.windows import hamming
+
 
 def eeg_rpsd(EEG, nfreqs=None, pct_data=100):
     """Compute relative power spectral density for ICA components.
@@ -47,11 +47,15 @@ def eeg_rpsd(EEG, nfreqs=None, pct_data=100):
         window = np.concatenate([window, window[::-1]])
 
     cutoff = (EEG['pnts'] // n_points) * n_points
-    index = np.add.outer(np.ceil(np.arange(0, cutoff - n_points + 1, n_points/2)).astype(int), np.arange(0, n_points)).astype(int).transpose()
+    index = (
+        np.add.outer(np.ceil(np.arange(0, cutoff - n_points + 1, n_points / 2)).astype(int), np.arange(0, n_points))
+        .astype(int)
+        .transpose()
+    )
 
     np.random.seed(0)  # rng('default') in MATLAB
     n_seg = index.shape[1] * EEG['trials']
-    subset = np.random.permutation(n_seg)[:int(n_seg * pct_data / 100)]
+    subset = np.random.permutation(n_seg)[: int(n_seg * pct_data / 100)]
 
     # calculate windowed spectrums
     psdmed = np.zeros((ncomp, nfreqs))
@@ -60,12 +64,13 @@ def eeg_rpsd(EEG, nfreqs=None, pct_data=100):
         temp = temp[:, :, subset] * window[:, np.newaxis]
         temp = fft(temp, int(n_points), axis=1)
         temp = np.abs(temp) ** 2
-        temp = temp[:, 1:nfreqs + 1, :] * 2 / (EEG['srate'] * np.sum(window ** 2))
+        temp = temp[:, 1 : nfreqs + 1, :] * 2 / (EEG['srate'] * np.sum(window**2))
         if nfreqs == nyquist:
             temp[:, -1, :] /= 2
         psdmed[it, :] = 20 * np.log10(np.median(temp, axis=2))
 
     return psdmed
+
 
 def test_eeg_rpsd():
     """Test the eeg_rpsd function with sample data."""
@@ -74,11 +79,12 @@ def test_eeg_rpsd():
         'icaweights': np.random.randn(10, 256),
         'pnts': 1000,
         'trials': 5,
-        'icaact': np.random.randn(10, 1000, 5)
+        'icaact': np.random.randn(10, 1000, 5),
     }
 
     psdmed = eeg_rpsd(EEG, 100)
     assert psdmed.shape == (10, 100)
     assert np.all(np.isfinite(psdmed))
+
 
 # test_eeg_rpsd()

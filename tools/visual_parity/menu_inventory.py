@@ -59,21 +59,15 @@ def compare_menu_trees(reference: list[dict[str, Any]], candidate: list[dict[str
         cand_node = candidate[index]
         path = _label(ref_node) or f"index {index}"
         if _label(ref_node) != _label(cand_node):
-            differences.append(
-                f"{path}: label mismatch, expected {_label(ref_node)!r}, got {_label(cand_node)!r}"
-            )
+            differences.append(f"{path}: label mismatch, expected {_label(ref_node)!r}, got {_label(cand_node)!r}")
         if _enabled(ref_node) != _enabled(cand_node):
-            differences.append(
-                f"{path}: enabled mismatch, expected {_enabled(ref_node)}, got {_enabled(cand_node)}"
-            )
+            differences.append(f"{path}: enabled mismatch, expected {_enabled(ref_node)}, got {_enabled(cand_node)}")
         if _separator(ref_node) != _separator(cand_node):
             differences.append(
                 f"{path}: separator mismatch, expected {_separator(ref_node)}, got {_separator(cand_node)}"
             )
         if _checked(ref_node) != _checked(cand_node):
-            differences.append(
-                f"{path}: checked mismatch, expected {_checked(ref_node)}, got {_checked(cand_node)}"
-            )
+            differences.append(f"{path}: checked mismatch, expected {_checked(ref_node)}, got {_checked(cand_node)}")
 
         child_differences = compare_menu_trees(
             _children(ref_node),
@@ -101,9 +95,7 @@ def write_report(differences: list[str], report_path: pathlib.Path) -> None:
         report_path.write_text("Menu inventories match.\n")
         return
     report_path.write_text(
-        "Menu inventory differences:\n\n"
-        + "\n".join(f"- {difference}" for difference in differences)
-        + "\n"
+        "Menu inventory differences:\n\n" + "\n".join(f"- {difference}" for difference in differences) + "\n"
     )
 
 

@@ -56,9 +56,7 @@ def pop_adjustevents(
     if eventtypes is None and eventtype is not None:
         eventtypes = eventtype
 
-    has_eventtypes = eventtypes is not None and not (
-        isinstance(eventtypes, str) and eventtypes == ""
-    )
+    has_eventtypes = eventtypes is not None and not (isinstance(eventtypes, str) and eventtypes == "")
     has_processing_args = addms is not None or addsamples is not None or has_eventtypes
     if gui is None:
         gui = not has_processing_args
@@ -134,9 +132,7 @@ def _normalize_options(
     if addms_value is not None and addsamples_value is not None:
         raise ValueError("Specify either addms or addsamples, not both")
     if addms_value is None and addsamples_value is None:
-        raise ValueError(
-            "To adjust event latencies, you need to specify a number of samples or ms"
-        )
+        raise ValueError("To adjust event latencies, you need to specify a number of samples or ms")
 
     return {
         "addms": None if addms_value is None else float(addms_value),
@@ -195,9 +191,7 @@ def _event_indices(events: list[dict[str, Any]], eventtypes: list[Any]) -> list[
 
     indices: list[int] = []
     for event_type in eventtypes:
-        matches = [
-            index for index, event in enumerate(events) if event.get("type") == event_type
-        ]
+        matches = [index for index, event in enumerate(events) if event.get("type") == event_type]
         if not matches:
             logger.warning("Event type %r not found.", event_type)
         indices.extend(matches)
@@ -208,9 +202,7 @@ def _check_force(EEG: dict, events: list[dict[str, Any]], force: str) -> None:
     if force != "off":
         return
     if int(EEG.get("trials", 1)) > 1:
-        raise ValueError(
-            "Be careful when adjusting latencies for data epochs. Use the 'force' option to do so."
-        )
+        raise ValueError("Be careful when adjusting latencies for data epochs. Use the 'force' option to do so.")
     if _has_boundary_event(events):
         raise ValueError(
             "Be careful when adjusting latencies when boundary events are present. Use the 'force' option to do so."
@@ -247,9 +239,7 @@ def pop_adjustevents_dialog_spec(srate: float, event_types: Iterable[object] = (
         geometry=((1, 0.7, 0.5), (1, 0.7, 0.5), (1, 0.7, 0.5), 1),
         content_margins=(42, 36, 42, 13),
         row_spacing=14,
-        known_differences=(
-            "Python callback code is explicit; original MATLAB callback strings are kept as metadata.",
-        ),
+        known_differences=("Python callback code is explicit; original MATLAB callback strings are kept as metadata.",),
         controls=(
             ControlSpec("text", "Event type(s) to adjust (all by default): "),
             ControlSpec("edit", tag="events", value=""),
@@ -280,8 +270,7 @@ def pop_adjustevents_dialog_spec(srate: float, event_types: Iterable[object] = (
                         "srate": float(srate),
                     },
                     matlab_callback=(
-                        "set(findobj('tag','edit_samples'),'string',"
-                        "num2str(str2num(get(gcbo,'string'))*srate))"
+                        "set(findobj('tag','edit_samples'),'string',num2str(str2num(get(gcbo,'string'))*srate))"
                     ),
                 ),
             ),
@@ -299,8 +288,7 @@ def pop_adjustevents_dialog_spec(srate: float, event_types: Iterable[object] = (
                         "srate": float(srate),
                     },
                     matlab_callback=(
-                        "set(findobj('tag','edit_time'),'string',"
-                        "num2str(str2num(get(gcbo,'string'))/srate))"
+                        "set(findobj('tag','edit_time'),'string',num2str(str2num(get(gcbo,'string'))/srate))"
                     ),
                 ),
             ),

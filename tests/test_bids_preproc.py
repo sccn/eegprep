@@ -3,26 +3,30 @@ Test suite for bids_preproc.py
 """
 
 import logging
-import unittest
 import os
-
-if os.getenv('EEGPREP_SKIP_MATLAB') == '1':
-    raise unittest.SkipTest("MATLAB not available")
-import sys
 import socket
+import unittest
+
 import numpy as np
-import os
+
+from eegprep.utils.testing import DebuggableTestCase
 
 logger = logging.getLogger(__name__)
 
-# Add src to path for imports
-sys.path.insert(0, 'src')
-from eegprep.utils.testing import DebuggableTestCase
+if os.getenv('EEGPREP_SKIP_MATLAB') == '1':
+    raise unittest.SkipTest("MATLAB not available")
 
 curhost = socket.gethostname()
 
 # add your host to this list if you want to run the (very) slow tests
-slow_tests_hosts_only = ['ck-carbon', 'MacBook-Pro-10.local', 'MacBook-Pro-10.lan', 'sccn-delorme.ucsd.edu','jamming', 'DESKTOP-TGLFTPM']
+slow_tests_hosts_only = [
+    'ck-carbon',
+    'MacBook-Pro-10.local',
+    'MacBook-Pro-10.lan',
+    'sccn-delorme.ucsd.edu',
+    'jamming',
+    'DESKTOP-TGLFTPM',
+]
 
 # add your host to this list if you want to run things in parallel
 if curhost in ['ck-carbon', 'MacBook-Pro-10.local', 'MacBook-Pro-10.lan', 'jamming', 'sccn-delorme.ucsd.edu']:
@@ -46,22 +50,24 @@ class TestBidsPreproc(DebuggableTestCase):
             self.root_path = os.path.abspath(os.path.expanduser('data'))
         else:
             self.root_path = None
-            logger.warning(f"Skipping test TestBidsPreproc on unknown test host {curhost}; "
-                           f"please add support for your hostname to the above list to "
-                           f"enable this test.")
+            logger.warning(
+                f"Skipping test TestBidsPreproc on unknown test host {curhost}; "
+                f"please add support for your hostname to the above list to "
+                f"enable this test."
+            )
 
         # list of studies to run end-to-end tests on (set to run first 2 recordings in each)
         self.studies = [
             {
                 'studyname': 'ds002680',
                 'subjects': ['002'],  # first subject, has 2 sessions
-                'runs': [], # needs to be >= 10 otherwise MATLAB-side filtering by run fails
+                'runs': [],  # needs to be >= 10 otherwise MATLAB-side filtering by run fails
             },
             {
                 'studyname': 'ds003061',
-                'subjects': ['001'], #, '002'],
+                'subjects': ['001'],  # , '002'],
                 'runs': [2],  # using run 2 to avoid ICA shape issues with cached run 1 files
-            }
+            },
         ]
 
     def test_end2end(self):
@@ -106,11 +112,15 @@ class TestBidsPreproc(DebuggableTestCase):
                 study_path,
                 ReservePerJob=reservation,
                 # just the first few subjects of the main task
-                Subjects=subjects, Runs=runs,
+                Subjects=subjects,
+                Runs=runs,
                 # reuse results for for quicker re-runs
-                SkipIfPresent=True, UseHashes=True, MinimizeDiskUsage=False,
+                SkipIfPresent=True,
+                UseHashes=True,
+                MinimizeDiskUsage=False,
                 # parse events from BIDS, use value column
-                ApplyEvents=True, EventColumn='value', # <- needed for this study to match pop_importbids() in MATLAB
+                ApplyEvents=True,
+                EventColumn='value',  # <- needed for this study to match pop_importbids() in MATLAB
                 # channel selection - match MATLAB's default behavior
                 OnlyModalities=['EEG'],  # <- filter to EEG channels only, matching MATLAB
                 # resample
@@ -118,13 +128,19 @@ class TestBidsPreproc(DebuggableTestCase):
                 # reinterpolate
                 WithInterp=True,
                 # epoch around all events; short limits to reduce disk space
-                EpochEvents=[], EpochLimits=[-0.2, 0.5], EpochBaseline=[-0.2, 0],
+                EpochEvents=[],
+                EpochLimits=[-0.2, 0.5],
+                EpochBaseline=[-0.2, 0],
                 # temporarily disabled for quicker runs
-                WithICA=True, ICAAlgorithm='picard', WithICLabel=True,
+                WithICA=True,
+                ICAAlgorithm='picard',
+                WithICLabel=True,
                 # save intermediate stages for comparison
-                SaveIntermediateStages=True, IntermediateDir=stage_dir,
+                SaveIntermediateStages=True,
+                IntermediateDir=stage_dir,
                 # return so we can compare things
-                ReturnData=True)
+                ReturnData=True,
+            )
 
             print(f"Running bids_pipeline() on {study_path}...")
             eeglab = get_eeglab('MATLAB')
@@ -133,8 +149,11 @@ class TestBidsPreproc(DebuggableTestCase):
                 [f'sub-{s}' for s in subjects],
                 [f'{r}' for r in runs],
                 100,
-                'SaveIntermediateStages', True,
-                'IntermediateDir', stage_dir)
+                'SaveIntermediateStages',
+                True,
+                'IntermediateDir',
+                stage_dir,
+            )
 
             with eeg_checkset_strict_mode(False):
                 ALLEEG_mat = [pop_loadset(p.item()) for p in result_paths.flatten()]
@@ -145,7 +164,7 @@ class TestBidsPreproc(DebuggableTestCase):
 
             # testing up to here because pop_select occasionally retains events on py that
             # are dropped by the MATLAB code, so things go out of sync at that point
-            print(f"Comparing Python vs MATLAB results...")
+            print("Comparing Python vs MATLAB results...")
             print(f"Python returned: {type(ALLEEG_py)}, length: {len(ALLEEG_py) if ALLEEG_py else 'N/A'}")
             print(f"MATLAB returned: {type(ALLEEG_mat)}, length: {len(ALLEEG_mat)}")
             for k in range(min(len(ALLEEG_py) if ALLEEG_py else 0, len(ALLEEG_mat))):
@@ -159,15 +178,13 @@ class TestBidsPreproc(DebuggableTestCase):
                 print(f"  MATLAB: {EEG_mat['data'].shape} (epochs={EEG_mat.get('trials', 'N/A')})")
                 if 'epoch' in EEG_py and 'epoch' in EEG_mat:
                     print(f"  Python epochs: {len(EEG_py['epoch'])}, MATLAB epochs: {len(EEG_mat['epoch'])}")
-                np.testing.assert_allclose(EEG_py['data'][:, :, :],
-                                           EEG_mat['data'][:, :, :],
-                                           rtol=0, atol=abstol)
+                np.testing.assert_allclose(EEG_py['data'][:, :, :], EEG_mat['data'][:, :, :], rtol=0, atol=abstol)
                 # PICARD currently doesn't pass its unit test vs MATLAB, so disabling for now
                 # np.testing.assert_allclose(EEG_py['icaweights'], EEG_mat['icaweights'], rtol=0, atol=1e-5)
                 print("passed.")
 
             # Generate and save stage-by-stage comparison report
-            print("\n" + "="*80)
+            print("\n" + "=" * 80)
             print("Generating stage-by-stage comparison report...")
             try:
                 comparison_table = generate_comparison_table(stage_dir)
@@ -177,14 +194,18 @@ class TestBidsPreproc(DebuggableTestCase):
                 print(f"Report saved to: {os.path.join(stage_dir, 'comparison_report.md')}")
             except Exception as e:
                 print(f"Could not generate comparison report: {e}")
-            print("="*80 + "\n")
+            print("=" * 80 + "\n")
 
-    @unittest.skipIf(curhost not in slow_tests_hosts_only, f"Slow stress test skipped by default on hosts other than {slow_tests_hosts_only}")
+    @unittest.skipIf(
+        curhost not in slow_tests_hosts_only,
+        f"Slow stress test skipped by default on hosts other than {slow_tests_hosts_only}",
+    )
     def test_crashability_slow(self):
         """Test whether bids_preproc chokes on any of the studies in a given
         repository of BIDS-compliant studies (relative to root_path).
         """
         from eegprep import bids_preproc
+
         if self.root_path is None:
             self.skipTest("Skipping test_crashability_slow on unknown host")
 
@@ -198,11 +219,17 @@ class TestBidsPreproc(DebuggableTestCase):
                 os.path.join(self.root_path, p),
                 ReservePerJob=reservation,
                 # process just the first few subjects/sessions/runs, across all tasks
-                subjects=[0,1], sessions=[0,1], runs=[0,1,2],
-                SkipIfPresent=True, # <- for quicker re-runs
+                subjects=[0, 1],
+                sessions=[0, 1],
+                runs=[0, 1, 2],
+                SkipIfPresent=True,  # <- for quicker re-runs
                 # maximal settings enabled to test everything that could go wrong
                 # (except ICA/IClabel, which are too slow for a test)
                 bidsevent=True,
                 SamplingRate=128,
-                WithInterp=True, EpochEvents=[], EpochLimits=[-0.2, 0.5], EpochBaseline=[None, 0],
-                MinimizeDiskUsage=False)
+                WithInterp=True,
+                EpochEvents=[],
+                EpochLimits=[-0.2, 0.5],
+                EpochBaseline=[None, 0],
+                MinimizeDiskUsage=False,
+            )

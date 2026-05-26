@@ -4,6 +4,7 @@ import unittest
 # Bring in the function under test
 from eegprep import eeg_decodechan
 
+
 class TestEEGDecodeChan(unittest.TestCase):
     def setUp(self):
         self.chanlocs = [

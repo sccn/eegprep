@@ -13,7 +13,9 @@ from eegprep.functions.popfunc.pop_importdata import pop_importdata
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 
 
-def pop_fileio(filename: str | Path, *, return_com: bool = False, **kwargs: Any) -> dict[str, Any] | tuple[dict[str, Any], str]:
+def pop_fileio(
+    filename: str | Path, *, return_com: bool = False, **kwargs: Any
+) -> dict[str, Any] | tuple[dict[str, Any], str]:
     """Import a supported EEG data file with MNE/File-IO-style readers."""
     path = Path(filename)
     suffix = path.suffix.lower()

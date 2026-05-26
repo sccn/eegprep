@@ -15,7 +15,8 @@ from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.popfunc._file_io import events_to_records
-from eegprep.plugins.firfilt import firws, firwsord
+from eegprep.plugins.firfilt.firws import firws
+from eegprep.plugins.firfilt.firwsord import firwsord
 
 
 def pop_resample(
@@ -67,10 +68,7 @@ def pop_resample(
     df = 0.2 if df is None else df
 
     if isinstance(EEG, list):
-        output = [
-            pop_resample(item, freq, engine=engine, gui=False, fc=fc, df=df)
-            for item in EEG
-        ]
+        output = [pop_resample(item, freq, engine=engine, gui=False, fc=fc, df=df) for item in EEG]
         command = _history_command(freq)
         return (output, command) if return_com else output
 
@@ -82,7 +80,9 @@ def pop_resample(
         return (EEG_new, command) if return_com else EEG_new
 
     if engine not in {None, "poly", "scipy"}:
-        raise ValueError("Unsupported engine: {engine}. Should be None, 'poly', 'scipy', 'matlab', or 'octave'".format(engine=engine))
+        raise ValueError(
+            "Unsupported engine: {engine}. Should be None, 'poly', 'scipy', 'matlab', or 'octave'".format(engine=engine)
+        )
     EEG_new = resample_eeg(EEG, freq, method="poly" if engine is None else engine, fc=fc, df=df)
     command = _history_command(freq)
     return (EEG_new, command) if return_com else EEG_new
@@ -168,7 +168,7 @@ def resample_eeg(EEG, freq, method='poly', fc=0.9, df=0.2):
     segments = []
     indices = [1]
     for start, stop in zip(bounds[:-1], bounds[1:]):
-        segment = data_3d[:, start - 1:stop - 1, :]
+        segment = data_3d[:, start - 1 : stop - 1, :]
         resampled = _resample_segment(segment, p, q, method=method, fc=fc, df=df)
         segments.append(resampled)
         indices.append(indices[-1] + resampled.shape[1])
@@ -181,7 +181,9 @@ def resample_eeg(EEG, freq, method='poly', fc=0.9, df=0.2):
     output["srate"] = float(freq)
     output["xmin"] = float(output.get("xmin", EEG.get("xmin", 0.0)) or 0.0)
     output["xmax"] = output["xmin"] + ((output["pnts"] - 1) / output["srate"] if output["pnts"] else 0.0)
-    output["times"] = np.linspace(output["xmin"] * 1000, output["xmax"] * 1000, output["pnts"]) if output["pnts"] else np.array([])
+    output["times"] = (
+        np.linspace(output["xmin"] * 1000, output["xmax"] * 1000, output["pnts"]) if output["pnts"] else np.array([])
+    )
     _resample_event_latencies(output, old_pnts, ratio, np.asarray(bounds), indices, EEG)
     output["icaact"] = np.array([])
     if output.get("setname"):
@@ -229,7 +231,11 @@ def _resample_segment(segment, p, q, *, method, fc, df):
     if method == "octave":
         flattened = segment.transpose(1, 0, 2).reshape(segment.shape[1], -1)
         resampled, _h = resample_raw(flattened.astype(np.float64), p, q)
-        return resampled.reshape(resampled.shape[0], segment.shape[0], segment.shape[2]).transpose(1, 0, 2).astype(np.float32)
+        return (
+            resampled.reshape(resampled.shape[0], segment.shape[0], segment.shape[2])
+            .transpose(1, 0, 2)
+            .astype(np.float32)
+        )
     return _resample_poly_segment(segment, p, q, fc=fc, df=df)
 
 
@@ -353,6 +359,7 @@ def upfirdn_raw(x, h, p, q):
 
     return y
 
+
 def resample_raw(x, p, q, h=None):
     """Change the sample rate of x by a factor of p/q.
 
@@ -382,7 +389,6 @@ def resample_raw(x, p, q, h=None):
 
     # Convert x to numpy array and handle row vectors
     x = np.asarray(x)
-    input_shape = x.shape
     is_1d = x.ndim == 1
 
     # Reshape input to 2D array with shape (samples, channels)
@@ -414,7 +420,7 @@ def resample_raw(x, p, q, h=None):
 
         # Determine parameter of Kaiser window
         if 21 <= rejection_dB <= 50:
-            beta = 0.5842 * (rejection_dB - 21.0)**0.4 + 0.07886 * (rejection_dB - 21.0)
+            beta = 0.5842 * (rejection_dB - 21.0) ** 0.4 + 0.07886 * (rejection_dB - 21.0)
         elif rejection_dB > 50:
             beta = 0.1102 * (rejection_dB - 8.7)
         else:
@@ -447,7 +453,7 @@ def resample_raw(x, p, q, h=None):
 
     # Filtering - fixed upfirdn usage
     y = upfirdn_raw(x, h_padded, p, q)
-    y = y[offset:offset + Ly]
+    y = y[offset : offset + Ly]
 
     # Restore original dimensionality
     if is_1d:

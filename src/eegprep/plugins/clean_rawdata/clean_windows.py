@@ -5,7 +5,7 @@ from continuous EEG data.
 """
 
 import logging
-from typing import *
+from typing import Any, Dict, Sequence, Tuple, Union
 
 import numpy as np
 
@@ -16,17 +16,18 @@ from .private.stats import fit_eeg_distribution
 
 logger = logging.getLogger(__name__)
 
+
 def clean_windows(
-        EEG: Dict[str, Any],
-        max_bad_channels: Union[int, float] = 0.2,
-        zthresholds: Tuple[float, float] = (-3.5, 5),
-        window_len: float = 1.0,
-        window_overlap: float = 0.66,
-        max_dropout_fraction: float = 0.1,
-        min_clean_fraction: float = 0.25,
-        truncate_quant: Tuple[float, float] = (0.022, 0.6),
-        step_sizes: Tuple[float, float] = (0.01, 0.01),
-        shape_range: Union[np.ndarray, Sequence[float]] = np.arange(1.7, 3.6, 0.15),
+    EEG: Dict[str, Any],
+    max_bad_channels: Union[int, float] = 0.2,
+    zthresholds: Tuple[float, float] = (-3.5, 5),
+    window_len: float = 1.0,
+    window_overlap: float = 0.66,
+    max_dropout_fraction: float = 0.1,
+    min_clean_fraction: float = 0.25,
+    truncate_quant: Tuple[float, float] = (0.022, 0.6),
+    step_sizes: Tuple[float, float] = (0.01, 0.01),
+    shape_range: Union[np.ndarray, Sequence[float]] = np.arange(1.7, 3.6, 0.15),
 ) -> Tuple[Dict[str, Any], np.ndarray]:
     """Remove periods with abnormally high-power content from continuous data.
 
@@ -174,7 +175,7 @@ def clean_windows(
     sample_mask = np.ones(S, dtype=bool)
     for w in removed_windows:
         start = offsets[w]
-        sample_mask[start:start + N] = False
+        sample_mask[start : start + N] = False
 
     kept_pct = 100.0 * np.mean(sample_mask)
     kept_seconds = np.count_nonzero(sample_mask) / Fs

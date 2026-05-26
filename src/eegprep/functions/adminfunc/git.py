@@ -7,7 +7,7 @@ import os
 __all__ = ['get_git_commit_id']
 
 
-def get_git_commit_id(repo_path: str = None, shorten: int = 8) -> str | None:
+def get_git_commit_id(repo_path: str | None = None, shorten: int = 8) -> str | None:
     """Get the current commit ID (hash) of a Git repository.
 
     Args:
@@ -35,20 +35,13 @@ def get_git_commit_id(repo_path: str = None, shorten: int = 8) -> str | None:
             cwd=repo_path,  # Run command in the specified directory
             capture_output=True,  # Capture stdout and stderr
             text=True,  # Decode output as text
-            check=True  # Raise CalledProcessError if command fails
+            check=True,  # Raise CalledProcessError if command fails
         )
-
 
         # 2. Check for dirty status using the porcelain format
         # This command outputs nothing if the working tree is clean.
         status_cmd = ['git', 'status', '--porcelain']
-        status_result = subprocess.run(
-            status_cmd,
-            cwd=repo_path,
-            capture_output=True,
-            text=True,
-            check=True
-        )
+        status_result = subprocess.run(status_cmd, cwd=repo_path, capture_output=True, text=True, check=True)
 
         # The output is the commit hash, with a trailing newline
         hash = commit_result.stdout.strip()

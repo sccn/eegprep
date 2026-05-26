@@ -8,8 +8,6 @@ prolonged flatline periods from EEG data.
 import unittest
 import sys
 import numpy as np
-import tempfile
-import os
 
 # Add src to path for imports
 sys.path.insert(0, 'src')
@@ -46,7 +44,7 @@ def create_test_eeg():
                 'sph_phi': np.random.uniform(-90, 90),
                 'sph_radius': np.random.uniform(0, 1),
                 'urchan': i + 1,
-                'ref': ''
+                'ref': '',
             }
             for i in range(32)
         ],
@@ -60,7 +58,7 @@ def create_test_eeg():
         'epoch': [],
         'setname': 'test_dataset',
         'filename': 'test.set',
-        'filepath': '/tmp'
+        'filepath': '/tmp',
     }
 
 

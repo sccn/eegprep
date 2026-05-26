@@ -25,7 +25,9 @@ POP_RESULT_PREVIEW_LIMIT = 96
 ANSI_CLEAR_LINE = "\r\x1b[2K"
 _ACTIVE_TERMINAL_BUFFER = contextvars.ContextVar("_ACTIVE_TERMINAL_BUFFER", default=None)
 _MATLAB_MULTI_ASSIGN_PATTERN = re.compile(r"^\s*\[([A-Za-z_][A-Za-z0-9_]*(?:\s+[A-Za-z_][A-Za-z0-9_]*)+)\]\s*=")
-_TUPLE_ASSIGNMENT_TARGET_PATTERN = re.compile(r"(^|;\s*)\(([A-Za-z_][A-Za-z0-9_]*(?:,\s*[A-Za-z_][A-Za-z0-9_]*)+)\)\s*=")
+_TUPLE_ASSIGNMENT_TARGET_PATTERN = re.compile(
+    r"(^|;\s*)\(([A-Za-z_][A-Za-z0-9_]*(?:,\s*[A-Za-z_][A-Za-z0-9_]*)+)\)\s*="
+)
 _POP_INTERP_CHANNELS_PATTERN = re.compile(r"(pop_interp\s*\(\s*EEG\s*,\s*)\[([0-9,\s]+)\]")
 _PYTHON_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _CONSOLE_COMMAND_EXPORTS = {"pop_newset": pop_newset}
@@ -723,18 +725,19 @@ class _ConsoleCommandArgumentConverter(ast.NodeTransformer):
                 node.args[index + 1] = self._zero_base_channel_arg(node.args[index + 1])
 
     def _zero_base_channel_arg(self, node: ast.AST) -> ast.AST:
-        if isinstance(node, ast.List) and all(_is_numeric_ast_constant(item) for item in node.elts):
+        if isinstance(node, ast.List):
+            values = [_numeric_ast_constant_value(item) for item in node.elts]
+            if not all(value is not None for value in values):
+                return node
             self.changed = True
             return ast.List(
-                elts=[
-                    ast.Constant(value=int(float(item.value)) - 1)  # type: ignore[union-attr]
-                    for item in node.elts
-                ],
+                elts=[ast.Constant(value=int(float(value)) - 1) for value in values],
                 ctx=node.ctx,
             )
-        if _is_numeric_ast_constant(node):
+        value = _numeric_ast_constant_value(node)
+        if value is not None:
             self.changed = True
-            return ast.Constant(value=int(float(node.value)) - 1)  # type: ignore[union-attr]
+            return ast.Constant(value=int(float(value)) - 1)
         return node
 
     @staticmethod
@@ -818,7 +821,11 @@ def _keywordize_option_pairs(
     index = 0
     while index + 1 < len(args):
         key = _option_pair_key(args[index])
-        if key is None or key in existing_keywords or not _can_pass_keyword(key, keyword_parameters, accepts_var_keywords):
+        if (
+            key is None
+            or key in existing_keywords
+            or not _can_pass_keyword(key, keyword_parameters, accepts_var_keywords)
+        ):
             break
         keywords.append(ast.keyword(arg=key, value=args[index + 1]))
         existing_keywords.add(key)
@@ -840,17 +847,17 @@ def _can_pass_keyword(key: str, keyword_parameters: set[str], accepts_var_keywor
 
 
 def _is_workspace_argument(parameter_name: str, arg: ast.expr) -> bool:
-    return parameter_name.upper() in WORKSPACE_NAMES and isinstance(arg, ast.Name) and arg.id.upper() == parameter_name.upper()
+    return (
+        parameter_name.upper() in WORKSPACE_NAMES
+        and isinstance(arg, ast.Name)
+        and arg.id.upper() == parameter_name.upper()
+    )
 
 
 def _console_call_name(node: ast.expr) -> str | None:
     if isinstance(node, ast.Name):
         return node.id
-    if (
-        isinstance(node, ast.Attribute)
-        and isinstance(node.value, ast.Name)
-        and node.value.id == "eegprep"
-    ):
+    if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name) and node.value.id == "eegprep":
         return node.attr
     return None
 
@@ -865,8 +872,10 @@ def _resolve_eegprep_callable(name: str) -> Callable[..., Any] | None:
     return value if callable(value) else None
 
 
-def _is_numeric_ast_constant(node: ast.AST) -> bool:
-    return isinstance(node, ast.Constant) and isinstance(node.value, (int, float))
+def _numeric_ast_constant_value(node: ast.AST) -> int | float | None:
+    if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
+        return node.value
+    return None
 
 
 def _make_shell_prompt_dynamic(shell: Any) -> None:

@@ -3,8 +3,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.interpolate import griddata
-from scipy.interpolate import Rbf
-from scipy.spatial import cKDTree
+
 
 def griddata_v4(x, y, v, xq, yq):
     """Python version of MATLAB's GDATAV4 interpolation based on David T. Sandwell's biharmonic spline interpolation.
@@ -62,6 +61,7 @@ def griddata_v4(x, y, v, xq, yq):
 
     return vq
 
+
 def topoplot(datavector, chan_locs, **kwargs):
     """Plot a 2D topographic map of EEG data.
 
@@ -90,21 +90,17 @@ def topoplot(datavector, chan_locs, **kwargs):
     """
     # Set default values
     noplot = kwargs.get('noplot', 'off')
-    plotgrid = kwargs.get('plotgrid', 'off')
     plotchans = kwargs.get('plotchans', [])
     gridscale = kwargs.get('gridscale', 67)  # Default to 67 (EEGLAB default)
     handle = None
     Zi = None
-    chanval = np.nan
     rmax = 0.5  # actual head radius
-    INTERPLIMITS = 'head'
     INTSQUARE = 'on'
     default_intrad = 1
     ELECTRODES = kwargs.get('ELECTRODES', 'on')
     MAXDEFAULTSHOWLOCS = 64
     intrad = kwargs.get('intrad', np.nan)
     plotrad = kwargs.get('plotrad', np.nan)
-    headrad = kwargs.get('headrad', 0.5)
     squeezefac = 1.0
     ContourVals = datavector
     # MATLAB uses 'v4' (biharmonic spline) by default, which extrapolates
@@ -124,13 +120,10 @@ def topoplot(datavector, chan_locs, **kwargs):
             if len(noplot) != 2:
                 raise ValueError("'noplot' location should be [radius, angle]")
             else:
-                chanrad = noplot[0]
-                chantheta = noplot[1]
                 noplot = 'on'
 
     # Set colormap
     cmap = plt.get_cmap('jet')
-    cmaplen = cmap.N
     GRID_SCALE = gridscale
 
     if len(datavector) > MAXDEFAULTSHOWLOCS:
@@ -145,8 +138,18 @@ def topoplot(datavector, chan_locs, **kwargs):
     tmpeloc = chan_locs
     labels = [loc['labels'] for loc in tmpeloc]
     indices = [i for i, loc in enumerate(tmpeloc) if 'theta' in loc]
-    Th = np.array([tmpeloc[i]['theta'] if i in indices and not isinstance(tmpeloc[i]['theta'], np.ndarray) else np.nan for i in range(len(tmpeloc))])
-    Rd = np.array([tmpeloc[i]['radius'] if i in indices and not isinstance(tmpeloc[i]['radius'], np.ndarray) else np.nan for i in range(len(tmpeloc))])
+    Th = np.array(
+        [
+            tmpeloc[i]['theta'] if i in indices and not isinstance(tmpeloc[i]['theta'], np.ndarray) else np.nan
+            for i in range(len(tmpeloc))
+        ]
+    )
+    Rd = np.array(
+        [
+            tmpeloc[i]['radius'] if i in indices and not isinstance(tmpeloc[i]['radius'], np.ndarray) else np.nan
+            for i in range(len(tmpeloc))
+        ]
+    )
     Th = np.deg2rad(Th)
     allchansind = list(range(len(Th)))
     plotchans = indices
@@ -188,8 +191,13 @@ def topoplot(datavector, chan_locs, **kwargs):
         ContourVals = ContourVals[pltchans]
 
     squeezefac = rmax / plotrad
-    Rd, intRd = Rd * squeezefac, Rd[intchans] * squeezefac
-    x, y, intx, inty = x[pltchans] * squeezefac, y[pltchans] * squeezefac, x[intchans] * squeezefac, y[intchans] * squeezefac
+    Rd = Rd * squeezefac
+    x, y, intx, inty = (
+        x[pltchans] * squeezefac,
+        y[pltchans] * squeezefac,
+        x[intchans] * squeezefac,
+        y[intchans] * squeezefac,
+    )
 
     if default_intrad:
         xmin, xmax = min(-rmax, min(intx)), max(rmax, max(intx))
@@ -228,7 +236,7 @@ def topoplot(datavector, chan_locs, **kwargs):
         # Zi = (Zi1 + Zi2) / 2
 
     # Mask outside the head circle (same as MATLAB)
-    mask = (np.sqrt(xi**2 + yi**2) <= rmax)
+    mask = np.sqrt(xi**2 + yi**2) <= rmax
     Zi[~mask] = np.nan
 
     if noplot == 'off':
@@ -254,8 +262,9 @@ def topoplot(datavector, chan_locs, **kwargs):
         # Head circles: a thick white ring at slightly smaller radius fills the
         # gap between the interpolated image edge and the head outline.
         theta_c = np.linspace(0, 2 * np.pi, 100)
-        ax.plot(np.cos(theta_c) * (rmax * 0.99), np.sin(theta_c) * (rmax * 0.99),
-                color='white', linewidth=2.5, zorder=3)
+        ax.plot(
+            np.cos(theta_c) * (rmax * 0.99), np.sin(theta_c) * (rmax * 0.99), color='white', linewidth=2.5, zorder=3
+        )
         ax.plot(np.cos(theta_c) * rmax, np.sin(theta_c) * rmax, 'k', linewidth=1.5, zorder=4)
         # Nose marker
         nose_w = 0.08

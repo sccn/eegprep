@@ -28,7 +28,12 @@ def pop_newset(
 
     if retrieve is not None and retrieve != []:
         current, alleeg, current_set = eeg_retrieve(ALLEEG, retrieve)
-        return alleeg, current, current_set, f"[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, 'retrieve', {retrieve});"
+        return (
+            alleeg,
+            current,
+            current_set,
+            f"[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, 'retrieve', {retrieve});",
+        )
 
     if isinstance(EEG, dict) and setname is not None:
         EEG = dict(EEG)

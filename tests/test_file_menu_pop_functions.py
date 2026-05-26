@@ -300,7 +300,9 @@ def test_pop_importbids_escapes_history_path(monkeypatch, tmp_path):
         "eegprep.plugins.EEG_BIDS.pop_importbids.bids_list_eeg_files",
         lambda _path: [str(source / "sub-01_task-test_eeg.set")],
     )
-    monkeypatch.setattr("eegprep.plugins.EEG_BIDS.pop_importbids.pop_load_frombids", lambda _filename, **_kwargs: _eeg())
+    monkeypatch.setattr(
+        "eegprep.plugins.EEG_BIDS.pop_importbids.pop_load_frombids", lambda _filename, **_kwargs: _eeg()
+    )
 
     eeg, command = pop_importbids(source, return_com=True)
 

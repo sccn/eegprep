@@ -1,6 +1,5 @@
 """Spatial interpolation utilities."""
 
-from typing import *
 import numpy as np
 
 from eegprep.functions.miscfunc.misc import finite_matmul, finite_pinv
@@ -21,20 +20,20 @@ def _interpMx(cosEE, order, tol):
     -------
         tuple[np.ndarray, np.ndarray]: G and H matrices.
     """
-    x = np.asarray(cosEE) # Ensure input is a numpy array
+    x = np.asarray(cosEE)  # Ensure input is a numpy array
 
     # Initialize variables for Legendre polynomial recurrence (vectorized)
     # Using float for n even for integers to ensure float division later
     n = 1.0
     Pns1 = np.ones_like(x)
-    Pn = x.copy() # Use a copy to avoid modifying input if it was passed by reference
+    Pn = x.copy()  # Use a copy to avoid modifying input if it was passed by reference
 
     # Calculate initial terms for G and H sums
-    nn_plus_n = n * n + n # = 2.0 when n=1
+    nn_plus_n = n * n + n  # = 2.0 when n=1
     # Ensure float exponentiation/division
-    tmp = ((2.0 * n + 1.0) * Pn) / (nn_plus_n**float(order))
-    G = tmp.copy() # Start sum for G
-    H = nn_plus_n * tmp # Start sum for H
+    tmp = ((2.0 * n + 1.0) * Pn) / (nn_plus_n ** float(order))
+    G = tmp.copy()  # Start sum for G
+    H = nn_plus_n * tmp  # Start sum for H
 
     # Initialize convergence tracking variables
     # Initialize dG/dH with the magnitude of the first term; avoids issues if G/H start near zero
@@ -44,7 +43,7 @@ def _interpMx(cosEE, order, tol):
     # Summation loop for Legendre polynomial series (vectorized)
     # Max iterations set to 500 as in the MATLAB code
     for n_int in range(2, 501):
-        n = float(n_int) # Use float n for calculations
+        n = float(n_int)  # Use float n for calculations
 
         # Legendre polynomial recurrence relation (vectorized)
         Pns2 = Pns1
@@ -58,11 +57,11 @@ def _interpMx(cosEE, order, tol):
         # Calculate update term 'tmp' (vectorized)
         nn_plus_n = n * n + n
         # Ensure float exponentiation/division
-        tmp = ((2.0 * n + 1.0) * Pn) / (nn_plus_n**float(order))
+        tmp = ((2.0 * n + 1.0) * Pn) / (nn_plus_n ** float(order))
 
         # Update G and H sums (vectorized)
-        G += tmp        # update function estimate, spline interp
-        H += nn_plus_n * tmp # update function estimate, SLAP
+        G += tmp  # update function estimate, spline interp
+        H += nn_plus_n * tmp  # update function estimate, SLAP
 
         # Update moving average gradient estimate for convergence (vectorized)
         # Add small epsilon to denominator to prevent potential division by zero if dG/dH were zero?
@@ -76,10 +75,11 @@ def _interpMx(cosEE, order, tol):
             break
 
     # Final scaling
-    G /= (4.0 * np.pi)
-    H /= (4.0 * np.pi)
+    G /= 4.0 * np.pi
+    H /= 4.0 * np.pi
 
     return G, H
+
 
 # Main function mirroring the MATLAB sphericalSplineInterpolate
 def sphericalSplineInterpolate(src, dest, lambda_reg=1e-5, order=4, type='spline', tol=np.finfo(float).eps):
@@ -148,7 +148,7 @@ def sphericalSplineInterpolate(src, dest, lambda_reg=1e-5, order=4, type='spline
     # If the vectors are on top of each other, the result is 1.
     # Transpose src_norm (N, 3) and dest_norm (M, 3) for matrix multiplication
     cosSS = finite_matmul(src_norm.T, src_norm)  # angles between source positions [N x N]
-    cosDS = finite_matmul(dest_norm.T, src_norm) # angles between destination positions [M x N]
+    cosDS = finite_matmul(dest_norm.T, src_norm)  # angles between destination positions [M x N]
 
     # Ensure cosines are within [-1, 1] due to potential floating point errors
     cosSS = np.clip(cosSS, -1.0, 1.0)
@@ -165,32 +165,32 @@ def sphericalSplineInterpolate(src, dest, lambda_reg=1e-5, order=4, type='spline
 
     # Compute the mapping to the polynomial coefficients space
     # N.B. this can be numerically unstable so use the PINV to solve..
-    muGss = 1.0 # Fixed value as in the MATLAB code (comment mentioned median(diag(Gss)))
+    muGss = 1.0  # Fixed value as in the MATLAB code (comment mentioned median(diag(Gss)))
 
     # Construct matrix C
     # C = [ Gss    muGss*ones(N,1) ]
     #     [ muGss*ones(1,N)    0   ]
     C = np.zeros((n_src + 1, n_src + 1))
     C[:n_src, :n_src] = Gss
-    C[:n_src, n_src] = muGss # Column of ones * muGss
-    C[n_src, :n_src] = muGss # Row of ones * muGss
+    C[:n_src, n_src] = muGss  # Column of ones * muGss
+    C[n_src, :n_src] = muGss  # Row of ones * muGss
     # C[n_src, n_src] remains 0
 
     # Calculate the pseudoinverse of C
-    iC = finite_pinv(C) # [N+1 x N+1]
+    iC = finite_pinv(C)  # [N+1 x N+1]
 
     # Compute the final mapping matrix W based on the specified type
     type_lower = type.lower()
     if type_lower == 'spline':
         # W = [Gds ones(M,1)*muGss] * iC[:, :-1]
         # Construct the [Gds ones(M,1)*muGss] matrix part
-        Gds_augmented = np.hstack((Gds, muGss * np.ones((n_dest, 1)))) # [M x N+1]
+        Gds_augmented = np.hstack((Gds, muGss * np.ones((n_dest, 1))))  # [M x N+1]
         # Multiply by the relevant part of iC
-        W = finite_matmul(Gds_augmented, iC[:, :n_src]) # [M x N+1] @ [N+1 x N] = [M x N]
+        W = finite_matmul(Gds_augmented, iC[:, :n_src])  # [M x N+1] @ [N+1 x N] = [M x N]
 
     elif type_lower == 'slap':
         # W = Hds * iC[:-1, :-1]
-        W = finite_matmul(Hds, iC[:n_src, :n_src]) # [M x N] @ [N x N] = [M x N]
+        W = finite_matmul(Hds, iC[:n_src, :n_src])  # [M x N] @ [N x N] = [M x N]
 
     else:
         raise ValueError(f"Unknown interpolation type specified: '{type}'. Must be 'spline' or 'slap'.")

@@ -5,11 +5,10 @@ fast Fourier transform methods.
 """
 
 import numpy as np
-from scipy import signal
 from scipy.fft import fft, ifft, next_fast_len
 from scipy.signal import resample_poly
 from ...functions.popfunc.pop_loadset import pop_loadset
-from ...functions.popfunc.pop_reref import pop_reref
+
 
 def eeg_autocorr_fftw(EEG, pct_data=100):
     """Compute autocorrelation of EEG ICA components using FFT.
@@ -38,7 +37,7 @@ def eeg_autocorr_fftw(EEG, pct_data=100):
         # Apply FFT
         X = fft(EEG['icaact'][it, :, :], n=nfft, axis=0)
         # Compute the mean of the power spectrum
-        ac[it, :] = np.mean(np.abs(X)**2, axis=1)
+        ac[it, :] = np.mean(np.abs(X) ** 2, axis=1)
 
     # Inverse FFT to get autocorrelation
     ac = ifft(ac, axis=1)
@@ -49,9 +48,9 @@ def eeg_autocorr_fftw(EEG, pct_data=100):
     # Adjust the size of autocorrelation array
     if EEG['pnts'] < EEG['srate']:
         # ac = np.hstack(     [ac[:, :EEG['pnts']], np.zeros((ncomp      , EEG['srate'] - EEG['pnts'] + 1))])
-        ac = np.concatenate((ac[:, :EEG['pnts']], np.zeros((ac.shape[0], EEG['srate'] - EEG['pnts'] + 1))), axis=1)
+        ac = np.concatenate((ac[:, : EEG['pnts']], np.zeros((ac.shape[0], EEG['srate'] - EEG['pnts'] + 1))), axis=1)
     else:
-        ac = ac[:, :int(EEG['srate']) + 1]
+        ac = ac[:, : int(EEG['srate']) + 1]
 
     # Normalize by 0-lag autocorrelation
     ac = ac / ac[:, 0][:, np.newaxis]
@@ -70,7 +69,7 @@ def test_eeg_autocorr_fftw():
         'icaweights': np.random.randn(10, 256),
         'pnts': 1000,
         'trials': 5,
-        'icaact': np.random.randn(10, 1000, 5)
+        'icaact': np.random.randn(10, 1000, 5),
     }
     EEG = pop_loadset('/System/Volumes/Data/data/data/STUDIES/STERN/S01/Memorize.set')
 
@@ -84,5 +83,6 @@ def test_eeg_autocorr_fftw():
     # print information about psdmed
     print(psdmed.shape)
     print(psdmed)
+
 
 # test_eeg_autocorr_fftw()

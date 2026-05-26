@@ -14,7 +14,7 @@ from eegprep.functions.guifunc.eeglab_menu import eeglab_menus
 from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher
 from eegprep.functions.guifunc.menu_placeholders import is_placeholder_action
 from eegprep.functions.guifunc.menu_spec import MenuItemSpec, menu_enabled
-from eegprep.functions.guifunc.session import EEGPrepSession, has_eeg_data
+from eegprep.functions.guifunc.session import EEGPrepSession
 
 try:  # pragma: no cover - optional GUI dependency
     from PySide6 import QtCore, QtGui, QtWidgets
@@ -239,9 +239,15 @@ class EEGPrepMainWindow:
             for index, label, _selected in summaries
         ]
         if len(summaries) > 1:
-            items.append(MenuItemSpec("Select multiple datasets", action="select_multiple_datasets", userdata="study:on", separator=True))
+            items.append(
+                MenuItemSpec(
+                    "Select multiple datasets", action="select_multiple_datasets", userdata="study:on", separator=True
+                )
+            )
         if self.session.CURRENTSTUDY == 1 and self.session.STUDY:
-            items.append(MenuItemSpec("Select the study set", action="select_study_set", userdata="study:on", separator=True))
+            items.append(
+                MenuItemSpec("Select the study set", action="select_study_set", userdata="study:on", separator=True)
+            )
         return tuple(items)
 
     def _add_top_menu(self, menubar: Any, spec: MenuItemSpec, statuses: set[str]) -> Any:
@@ -280,7 +286,9 @@ class EEGPrepMainWindow:
             action.setCheckable(True)
             action.setChecked(True)
         if spec.action and not coming_soon:
-            action.triggered.connect(lambda _checked=False, action_id=spec.action: self._dispatch_menu_action(action_id))
+            action.triggered.connect(
+                lambda _checked=False, action_id=spec.action: self._dispatch_menu_action(action_id)
+            )
         if spec.origin != "core":
             action.setProperty("eegprep_plugin", True)
         return action
@@ -384,7 +392,11 @@ def _summary_for_session(session: EEGPrepSession) -> tuple[str, str, list[tuple[
         ("ICA weights", _yes_no(not _empty_array(eeg.get("icasphere")))),
         ("Dataset size (Mb)", _size_mb(eeg)),
     ]
-    return prefix + _truncate(setname, 31), _short_file_line("Filename", eeg.get("filepath", ""), eeg.get("filename", "")), rows
+    return (
+        prefix + _truncate(setname, 31),
+        _short_file_line("Filename", eeg.get("filepath", ""), eeg.get("filename", "")),
+        rows,
+    )
 
 
 def _startup_lines() -> list[str]:
@@ -680,7 +692,9 @@ def _mark_coming_soon_action(action: Any) -> None:
 
 def _action_inventory(action: Any) -> dict[str, Any]:
     menu = action.menu()
-    children = [_action_inventory(child) for child in menu.actions() if not child.isSeparator()] if menu is not None else []
+    children = (
+        [_action_inventory(child) for child in menu.actions() if not child.isSeparator()] if menu is not None else []
+    )
     return {
         "label": action.text(),
         "source_label": str(action.property("eegprep_label") or action.text()),
@@ -711,7 +725,9 @@ def _format_time(value: Any) -> str:
 
 def _reference_state(eeg: dict[str, Any]) -> str:
     chanlocs = _as_list(eeg.get("chanlocs"))
-    refs = [_display_scalar(chan.get("ref")) for chan in chanlocs if isinstance(chan, dict) and _has_value(chan.get("ref"))]
+    refs = [
+        _display_scalar(chan.get("ref")) for chan in chanlocs if isinstance(chan, dict) and _has_value(chan.get("ref"))
+    ]
     return refs[0] if refs else (_display_scalar(eeg.get("ref")) or "unknown")
 
 

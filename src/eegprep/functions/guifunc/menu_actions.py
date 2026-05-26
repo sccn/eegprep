@@ -307,9 +307,7 @@ class MenuActionDispatcher:
             _apply_save_metadata(eeg, filename)
         stored = datasets if isinstance(selection, list) else datasets[0]
         command = (
-            "EEG = pop_saveset(EEG, 'savemode', 'resave');"
-            if resave
-            else f"EEG = pop_saveset(EEG, {filenames[0]!r});"
+            "EEG = pop_saveset(EEG, 'savemode', 'resave');" if resave else f"EEG = pop_saveset(EEG, {filenames[0]!r});"
         )
         self._store_current_from_gui(stored, command=command, mark_saved=True)
         self._refresh()
@@ -567,7 +565,11 @@ class MenuActionDispatcher:
         from eegprep.functions.popfunc.pop_saveh import pop_saveh
 
         path = Path(filename)
-        history = self.session.EEG.get("history", "") if variant == "dataset" and isinstance(self.session.EEG, dict) else self.session.ALLCOM
+        history = (
+            self.session.EEG.get("history", "")
+            if variant == "dataset" and isinstance(self.session.EEG, dict)
+            else self.session.ALLCOM
+        )
         command = pop_saveh(history, path.name, path.parent)
         self._add_history_from_gui(command)
         self._refresh()
@@ -613,7 +615,9 @@ class MenuActionDispatcher:
             from eegprep.plugins.EEG_BIDS.bids_tools import validate_bids
 
             report = validate_bids(directory)
-            self._info(parent, f"BIDS validation complete: {len(report['errors'])} errors, {len(report['warnings'])} warnings.")
+            self._info(
+                parent, f"BIDS validation complete: {len(report['errors'])} errors, {len(report['warnings'])} warnings."
+            )
             return
         target = self.session.STUDY if self.session.CURRENTSTUDY == 1 and self.session.STUDY else self.session.EEG
         if isinstance(target, list):
@@ -880,7 +884,9 @@ def action_kind(action: str) -> str:
     return "unknown"
 
 
-def _file_dialog_kwargs(qt_widgets: Any, *, native_file_dialogs: bool = True, directories: bool = False) -> dict[str, Any]:
+def _file_dialog_kwargs(
+    qt_widgets: Any, *, native_file_dialogs: bool = True, directories: bool = False
+) -> dict[str, Any]:
     if native_file_dialogs:
         return {}
     # Native macOS file panels can close immediately under IPython's Qt input hook.

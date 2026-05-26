@@ -1,4 +1,5 @@
 """End-to-end test"""
+
 import sys
 from eegprep import bids_preproc
 import os
@@ -15,7 +16,7 @@ if __name__ == '__main__':
         root_path = '/'.join(path_parts[:-1]) if len(path_parts) > 1 else '/'
         bids_collection = [dataset_name]
     else:
-        bids_collection = ['ds003061'] #'ds002680'] # 'ds003061']
+        bids_collection = ['ds003061']  #'ds002680'] # 'ds003061']
         root_path = '../../../openneuro'
 
     print(f"Running bids_preproc() on {root_path}/{bids_collection[0]}...")
@@ -25,7 +26,7 @@ if __name__ == '__main__':
     outputdir = './bids_preproc_output'
     retain = [d for d in os.listdir(root_path) if d in bids_collection]
     if len(retain) != len(bids_collection):
-        self.skipTest(f"Skipping test_end2end because neither {bids_collection} exist in {root_path}")
+        raise SystemExit(f"Skipping end-to-end run because none of {bids_collection} exists in {root_path}")
 
     for bids_study in bids_collection:
         study_path = os.path.join(root_path, bids_study)
@@ -38,15 +39,17 @@ if __name__ == '__main__':
             outputdir=outputdir,
             ReservePerJob='1CPU',
             # just the first 2 subjects of the main task
-            subjects=[0,1],
+            subjects=[0, 1],
             runs=[1],
-            SkipIfPresent=True, # <- for quicker re-runs
+            SkipIfPresent=True,  # <- for quicker re-runs
             bidsevent=True,
             SamplingRate=128,
             WithInterp=True,
             EpochEvents=[],
             EpochLimits=[-0.2, 0.5],
             EpochBaseline=[None, 0],
-            WithICA=True, WithICLabel=True,
+            WithICA=True,
+            WithICLabel=True,
             MinimizeDiskUsage=False,
-            ReturnData=True)
+            ReturnData=True,
+        )

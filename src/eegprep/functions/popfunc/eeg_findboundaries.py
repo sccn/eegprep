@@ -2,6 +2,7 @@
 
 from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
 
+
 def eeg_findboundaries(*, EEG):
     """
     EEG_FINDBOUNDARIES - return indices of boundary events.
@@ -47,12 +48,14 @@ def eeg_findboundaries(*, EEG):
     first_type = tmpevent[0].get('type')
     if isinstance(first_type, str):
         # boundaries = strmatch('boundary', { tmpevent.type });
-        boundaries = [i for i, ev in enumerate(tmpevent)
-                      if isinstance(ev.get('type'), str) and ev.get('type', '').startswith('boundary')]
+        boundaries = [
+            i
+            for i, ev in enumerate(tmpevent)
+            if isinstance(ev.get('type'), str) and ev.get('type', '').startswith('boundary')
+        ]
     elif EEG_OPTIONS['option_boundary99']:
         # boundaries = find([ tmpevent.type ] == -99);
-        boundaries = [i for i, ev in enumerate(tmpevent)
-                      if ev.get('type') == -99]
+        boundaries = [i for i, ev in enumerate(tmpevent) if ev.get('type') == -99]
     else:
         boundaries = []
 

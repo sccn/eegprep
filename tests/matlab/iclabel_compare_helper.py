@@ -1,5 +1,6 @@
 import os
 import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
 
 from eegprep import iclabel
@@ -11,7 +12,7 @@ if len(sys.argv) != 3:
     raise ValueError('Please provide the input and output file paths as command line arguments')
 
 # get first command line argument
-eeglab_file_path_in  = sys.argv[1]
+eeglab_file_path_in = sys.argv[1]
 eeglab_file_path_out = sys.argv[2]
 
 EEG = pop_loadset(eeglab_file_path_in)

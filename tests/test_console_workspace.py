@@ -117,12 +117,16 @@ def test_nested_workspace_gui_buffers_restore_previous_buffer():
     second_stream = io.StringIO()
     first_workspace = EEGPrepConsoleWorkspace(
         first_session,
-        command_echo=lambda command: console_module._terminal_write(f"In [1]: {command}\n", stream=first_stream, sync=True),
+        command_echo=lambda command: console_module._terminal_write(
+            f"In [1]: {command}\n", stream=first_stream, sync=True
+        ),
         exports={},
     )
     second_workspace = EEGPrepConsoleWorkspace(
         second_session,
-        command_echo=lambda command: console_module._terminal_write(f"In [1]: {command}\n", stream=second_stream, sync=True),
+        command_echo=lambda command: console_module._terminal_write(
+            f"In [1]: {command}\n", stream=second_stream, sync=True
+        ),
         exports={},
     )
 
@@ -752,11 +756,14 @@ def test_run_console_forwards_cli_options_to_gui_launcher():
         captured["gui_kwargs"] = kwargs
         return SimpleNamespace(refresh=mock.Mock())
 
-    assert console_module.run_console(
-        ["--full", "--no-plugins", "--window-menu-bar"],
-        shell_factory=shell_factory,
-        gui_launcher=gui_launcher,
-    ) == 0
+    assert (
+        console_module.run_console(
+            ["--full", "--no-plugins", "--window-menu-bar"],
+            shell_factory=shell_factory,
+            gui_launcher=gui_launcher,
+        )
+        == 0
+    )
 
     assert captured["gui_args"] == ("full",)
     assert captured["gui_kwargs"]["include_plugins"] is False
@@ -779,11 +786,14 @@ def test_run_console_native_file_dialogs_are_explicit_opt_in():
         captured["gui_kwargs"] = kwargs
         return SimpleNamespace(refresh=mock.Mock())
 
-    assert console_module.run_console(
-        ["--native-file-dialogs"],
-        shell_factory=shell_factory,
-        gui_launcher=gui_launcher,
-    ) == 0
+    assert (
+        console_module.run_console(
+            ["--native-file-dialogs"],
+            shell_factory=shell_factory,
+            gui_launcher=gui_launcher,
+        )
+        == 0
+    )
 
     assert captured["gui_kwargs"]["native_file_dialogs"] is True
 

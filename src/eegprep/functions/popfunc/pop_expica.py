@@ -25,7 +25,4 @@ def pop_expica(EEG: dict[str, Any], filename: str | Path, matrix: str = "weights
     path = Path(filename)
     path.parent.mkdir(parents=True, exist_ok=True)
     np.savetxt(path, values, delimiter="\t")
-    return (
-        "LASTCOM = pop_expica(EEG, "
-        f"{format_history_value(path)}, {format_history_value(matrix)});"
-    )
+    return f"LASTCOM = pop_expica(EEG, {format_history_value(path)}, {format_history_value(matrix)});"
