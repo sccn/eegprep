@@ -241,26 +241,22 @@ def pop_loadset_h5(file_name):
 
         # Apply string conversion to all fields that might need it
         if key in EEG:
+            value = EEG[key]
             if key in strings:
-                EEG[key] = convert_to_string(EEG[key])
-            elif isinstance(EEG[key], np.ndarray) and EEG[key].dtype == 'uint16':
+                EEG[key] = convert_to_string(value)
+            elif isinstance(value, np.ndarray) and value.dtype == 'uint16':
                 # Apply string conversion to uint16 arrays that aren't in strings list
-                EEG[key] = convert_to_string(EEG[key])
-            elif isinstance(EEG[key], np.ndarray) and EEG[key].dtype.kind in ['S', 'U']:
+                EEG[key] = convert_to_string(value)
+            elif isinstance(value, np.ndarray) and value.dtype.kind in ['S', 'U']:
                 # Apply string conversion to string arrays
-                EEG[key] = convert_to_string(EEG[key])
-            elif (
-                isinstance(EEG[key], np.ndarray)
-                and hasattr(EEG[key].dtype, 'names')
-                and EEG[key].dtype.names is not None
-            ):
+                EEG[key] = convert_to_string(value)
+            elif isinstance(value, np.ndarray) and hasattr(value.dtype, 'names') and value.dtype.names is not None:
                 # Apply string conversion to structured arrays (like chanlocs)
-                for field_name in EEG[key].dtype.names:
-                    if isinstance(EEG[key][field_name][0], bytes):
+                for field_name in value.dtype.names:
+                    if isinstance(value[field_name][0], bytes):
                         # Convert byte strings to unicode strings
-                        EEG[key][field_name] = [
-                            item.decode('utf-8') if isinstance(item, bytes) else str(item)
-                            for item in EEG[key][field_name]
+                        value[field_name] = [
+                            item.decode('utf-8') if isinstance(item, bytes) else str(item) for item in value[field_name]
                         ]
 
         # Apply array transposition (but not for data arrays that are already transposed)
@@ -279,10 +275,11 @@ def pop_loadset_h5(file_name):
 
         # Apply scalar conversion
         if key in scalars and key in EEG:
-            if isinstance(EEG[key], np.ndarray):
-                EEG[key] = float(EEG[key].flatten()[0])
+            value = EEG[key]
+            if isinstance(value, np.ndarray):
+                EEG[key] = float(value.flatten()[0])
             else:
-                EEG[key] = float(EEG[key])
+                EEG[key] = float(value)
 
     # Ensure EEG['data'] has channels x pnts (x trials) shape
     if 'data' in EEG:

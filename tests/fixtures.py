@@ -24,7 +24,7 @@ def matlab_engine_available():
 
     try:
         return importlib.util.find_spec("matlab.engine") is not None
-    except ModuleNotFoundError:
+    except (ImportError, ValueError):
         return False
 
 

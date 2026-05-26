@@ -35,7 +35,7 @@ def pophelp(function_name: str, nonmatlab: bool = False, parent: Any | None = No
     browser.setOpenExternalLinks(True)
     browser.setHtml(_help_html(function_name, source_path, text))
     layout.addWidget(browser)
-    button_box = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Close)
+    button_box = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.StandardButton.Close)
     button_box.rejected.connect(dialog.reject)
     button_box.accepted.connect(dialog.accept)
     layout.addWidget(button_box)

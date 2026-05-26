@@ -157,8 +157,6 @@ no-matching-overload = "ignore"
 not-iterable = "ignore"
 not-subscriptable = "ignore"
 unsupported-operator = "ignore"
-unresolved-attribute = "ignore"
-call-non-callable = "ignore"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

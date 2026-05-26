@@ -1,8 +1,5 @@
 """EEGLAB compatibility utilities."""
 
-# import sys
-# sys.path.insert(0, 'src/')
-
 import importlib
 import logging
 import os
@@ -191,18 +188,14 @@ class MatlabWrapper:
                 try:
                     # noinspection PyUnboundLocalVariable
                     if os.path.exists(temp_filename1):
-                        # os.remove(temp_filename1)
-                        pass
+                        os.remove(temp_filename1)
                     if os.path.exists(temp_filename2):
-                        # os.remove(temp_filename2)
-                        pass
+                        os.remove(temp_filename2)
                     # noinspection PyUnboundLocalVariable
                     if os.path.exists(result_filename):
-                        # os.remove(result_filename)
-                        pass
+                        os.remove(result_filename)
                     if os.path.exists(result_filename.replace('result.set', 'result.fdt')):
-                        # os.remove(fdt_file)
-                        pass
+                        os.remove(result_filename.replace('result.set', 'result.fdt'))
                 except OSError as e:
                     logger.warning(f"Error deleting temporary file(s) in temp dir {temp_dir}: {e}")
             # else:
@@ -247,6 +240,7 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
             engine.warning('off', 'backtrace')
         elif rt == 'mat':
             try:
+                # Use import_module so ty can run before MATLAB Engine is installed.
                 matlab_engine = importlib.import_module("matlab.engine")
             except ImportError:
                 raise ImportError("""\
@@ -374,6 +368,16 @@ def pop_eegfiltnew(EEG, locutoff=None, hicutoff=None, revfilt=False, plotfreqz=F
     )
 
 
+def _matlab_false_or_off(value: Any) -> bool:
+    if isinstance(value, str):
+        return value == 'off'
+    if value is False:
+        return True
+    if isinstance(value, (int, float, np.integer, np.floating)):
+        return value == 0
+    return False
+
+
 def clean_artifacts(
     EEG,
     ChannelCriterion=False,
@@ -415,22 +419,22 @@ def clean_artifacts(
     """
     eeglab = get_eeglab(auto_file_roundtrip=False)
 
-    if not ChannelCriterion or ChannelCriterion == 'off':
+    if _matlab_false_or_off(ChannelCriterion):
         ChannelCriterion = 'off'
 
-    if not LineNoiseCriterion or LineNoiseCriterion == 'off':
+    if _matlab_false_or_off(LineNoiseCriterion):
         LineNoiseCriterion = 'off'
 
-    if not FlatlineCriterion or FlatlineCriterion == 'off':
+    if _matlab_false_or_off(FlatlineCriterion):
         FlatlineCriterion = 'off'
 
-    if not BurstCriterion or BurstCriterion == 'off':
+    if _matlab_false_or_off(BurstCriterion):
         BurstCriterion = 'off'
 
-    if not Highpass or Highpass == 'off':
+    if _matlab_false_or_off(Highpass):
         Highpass = 'off'
 
-    if not BurstRejection or BurstRejection == 'off':
+    if _matlab_false_or_off(BurstRejection):
         BurstRejection = 'off'
     else:
         BurstRejection = 'on'

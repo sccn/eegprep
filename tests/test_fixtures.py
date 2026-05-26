@@ -172,17 +172,14 @@ class TestFixturesFunctions(unittest.TestCase):
         self.assertEqual(eeg['pnts'], 250)
         self.assertEqual(eeg['data'].shape, (8, 250))
 
-    def test_matlab_engine_available_returns_false_when_parent_package_missing(self):
-        """Missing MATLAB package should skip tests instead of failing collection."""
-        with (
-            mock.patch.dict(os.environ, {'EEGPREP_SKIP_MATLAB': '0'}),
-            mock.patch.object(
-                fixtures_module.importlib.util,
-                "find_spec",
-                side_effect=ModuleNotFoundError("No module named 'matlab'"),
-            ),
-        ):
-            self.assertFalse(matlab_engine_available())
+    def test_matlab_engine_available_returns_false_when_discovery_fails(self):
+        """Missing or broken MATLAB package should skip tests instead of failing collection."""
+        for error in (ModuleNotFoundError("No module named 'matlab'"), ValueError("broken package path")):
+            with (
+                mock.patch.dict(os.environ, {'EEGPREP_SKIP_MATLAB': '0'}),
+                mock.patch.object(fixtures_module.importlib.util, "find_spec", side_effect=error),
+            ):
+                self.assertFalse(matlab_engine_available())
 
 
 class TestContextManager(unittest.TestCase):

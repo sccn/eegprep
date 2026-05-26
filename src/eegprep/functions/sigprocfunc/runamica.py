@@ -601,7 +601,7 @@ def _load_amica_output(outdir, num_models, num_pcs, data_dim, num_mix_comps, max
     mu = mu[:, :, gmord]
     sbeta = sbeta[:, :, gmord]
     rho = rho[:, :, gmord]
-    if LLtset:
+    if LLtset and Lht is not None:
         Lht = Lht[gmord, :]
     if complistset:
         comp_list = comp_list[:, gmord]
@@ -652,7 +652,7 @@ def _load_amica_output(outdir, num_models, num_pcs, data_dim, num_mix_comps, max
 
     # 4. Compute log10 posterior model odds
     v = None
-    if LLtset:
+    if LLtset and Lht is not None and Lt is not None:
         v = np.zeros((num_models, Lht.shape[1]))
         for h in range(num_models):
             v[h, :] = 0.4343 * (Lht[h, :] - Lt)
@@ -685,7 +685,7 @@ def _load_amica_output(outdir, num_models, num_pcs, data_dim, num_mix_comps, max
     mods['LL'] = LL
     mods['svar'] = svar
     mods['origord'] = origord
-    if LLtset:
+    if LLtset and Lht is not None and Lt is not None:
         mods['Lht'] = Lht
         mods['Lt'] = Lt
     if v is not None:

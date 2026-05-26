@@ -1214,6 +1214,8 @@ def bids_preproc(
             logger.info(f"Updating derived dataset_description.json from {dataset_desc_path}")
             with open(dataset_desc_path, 'r') as f:
                 desc = json.load(f)
+            if not isinstance(desc, dict):
+                raise ValueError(f"Expected {dataset_desc_path} to contain a JSON object")
         else:
             logger.info("Creating new derived dataset_description.json")
             desc = {
@@ -1223,12 +1225,14 @@ def bids_preproc(
             }
         # update the desc
         desc["DatasetType"] = "derivative"
-        if "GeneratedBy" not in desc:
-            desc["GeneratedBy"] = []
+        generated_by = desc.setdefault("GeneratedBy", [])
+        if not isinstance(generated_by, list):
+            generated_by = []
+            desc["GeneratedBy"] = generated_by
 
         repo_root = os.path.dirname(os.path.abspath(__file__))
         commit = get_git_commit_id(repo_root)
-        desc["GeneratedBy"].append(
+        generated_by.append(
             {
                 "Name": "eegprep",
                 "Description": "The EEGPrep data pipeline",
@@ -1241,8 +1245,11 @@ def bids_preproc(
 
         # determine the dataset URL: prefer existing SourceDatasets URL, then infer
         existing_url = ""
-        for src in desc.get("SourceDatasets", []):
-            if src.get("URL"):
+        source_datasets = desc.get("SourceDatasets", [])
+        if not isinstance(source_datasets, list):
+            source_datasets = []
+        for src in source_datasets:
+            if isinstance(src, dict) and src.get("URL"):
                 existing_url = src["URL"]
                 break
         if existing_url:

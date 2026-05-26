@@ -313,10 +313,10 @@ def firws(
         raise ValueError('Filter order must be a real, even, positive integer.')
 
     # Convert f to array and normalize
-    f = np.asarray(f, dtype=float)
-    if f.ndim == 0:
-        f = f.reshape(1)
-    f = f / 2.0
+    f_arr = np.asarray(f, dtype=float)
+    if f_arr.ndim == 0:
+        f_arr = f_arr.reshape(1)
+    f = f_arr / 2.0
 
     if np.any(f <= 0) or np.any(f >= 0.5):
         raise ValueError('Frequencies must fall in range between 0 and 1.')

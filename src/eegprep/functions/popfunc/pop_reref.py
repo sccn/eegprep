@@ -106,7 +106,7 @@ def pop_reref(
         ref = []
 
     _validate_eeg(EEG)
-    EEG_out = copy.deepcopy(EEG)
+    EEG_out: dict[str, Any] = copy.deepcopy(EEG)
     resolved = _resolve_options(EEG_out, ref, options)
 
     original_nbchan = int(EEG_out["data"].shape[0])

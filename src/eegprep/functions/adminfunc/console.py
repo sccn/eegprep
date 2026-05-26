@@ -725,18 +725,19 @@ class _ConsoleCommandArgumentConverter(ast.NodeTransformer):
                 node.args[index + 1] = self._zero_base_channel_arg(node.args[index + 1])
 
     def _zero_base_channel_arg(self, node: ast.AST) -> ast.AST:
-        if isinstance(node, ast.List) and all(_is_numeric_ast_constant(item) for item in node.elts):
+        if isinstance(node, ast.List):
+            values = [_numeric_ast_constant_value(item) for item in node.elts]
+            if not all(value is not None for value in values):
+                return node
             self.changed = True
             return ast.List(
-                elts=[
-                    ast.Constant(value=int(float(item.value)) - 1)  # type: ignore[union-attr]
-                    for item in node.elts
-                ],
+                elts=[ast.Constant(value=int(float(value)) - 1) for value in values],
                 ctx=node.ctx,
             )
-        if _is_numeric_ast_constant(node):
+        value = _numeric_ast_constant_value(node)
+        if value is not None:
             self.changed = True
-            return ast.Constant(value=int(float(node.value)) - 1)  # type: ignore[union-attr]
+            return ast.Constant(value=int(float(value)) - 1)
         return node
 
     @staticmethod
@@ -871,8 +872,10 @@ def _resolve_eegprep_callable(name: str) -> Callable[..., Any] | None:
     return value if callable(value) else None
 
 
-def _is_numeric_ast_constant(node: ast.AST) -> bool:
-    return isinstance(node, ast.Constant) and isinstance(node.value, (int, float))
+def _numeric_ast_constant_value(node: ast.AST) -> int | float | None:
+    if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
+        return node.value
+    return None
 
 
 def _make_shell_prompt_dynamic(shell: Any) -> None:

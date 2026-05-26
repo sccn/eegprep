@@ -288,4 +288,4 @@ def _notify_vis_artifacts_unavailable():
     if app is None:
         logger.warning(message)
         return
-    QtWidgets.QMessageBox.information(app.activeWindow(), "EEGPrep", message)
+    QtWidgets.QMessageBox.information(QtWidgets.QApplication.activeWindow(), "EEGPrep", message)

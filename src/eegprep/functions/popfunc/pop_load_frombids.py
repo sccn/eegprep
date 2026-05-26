@@ -849,7 +849,7 @@ def pop_load_frombids(
                             {key: values[i] for key, values in events_soa.items()} for i, kp in enumerate(keep) if kp
                         ]
 
-                        EEG_events = EEG['event'].tolist()
+                        EEG_events = np.asarray(EEG['event'], dtype=object).tolist()
 
                         # append any missing fields to existing events with null values
                         for col in ev_extra:
@@ -857,7 +857,7 @@ def pop_load_frombids(
                                 if col not in ev:
                                     ev[col] = numeric_null
 
-                        EEG_events = EEG['event'].tolist() + new_events
+                        EEG_events = np.asarray(EEG['event'], dtype=object).tolist() + new_events
                         EEG['event'] = np.array(EEG_events, dtype=object)
 
                         # re-sort events by latency

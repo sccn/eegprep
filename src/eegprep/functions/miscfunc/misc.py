@@ -25,13 +25,14 @@ __all__ = [
 
 def is_debug() -> bool:
     """Check if a debugger is currently attached to the process."""
-    return getattr(sys, 'gettrace', None)() is not None
+    return sys.gettrace() is not None
 
 
 def aslist(arr_or_list: np.ndarray | list) -> list:
     """Return the given array or list in list form."""
-    if hasattr(arr_or_list, 'tolist'):
-        return arr_or_list.tolist()
+    tolist = getattr(arr_or_list, 'tolist', None)
+    if callable(tolist):
+        return tolist()
     elif isinstance(arr_or_list, list):
         return arr_or_list
     else:

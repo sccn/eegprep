@@ -4,6 +4,7 @@ import copy
 import importlib
 import os
 import types
+from typing import Any
 
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 
@@ -18,6 +19,11 @@ _EEGPREP_FUNCTION_MODULE_PREFIXES = (
     "eegprep.plugins.EEG_BIDS",
     "eegprep.plugins.firfilt",
 )
+
+
+def _tolist_if_available(value: Any) -> Any:
+    tolist = getattr(value, 'tolist', None)
+    return tolist() if callable(tolist) else value
 
 
 class EEGobj:
@@ -194,9 +200,7 @@ class EEGobj:
             evcnt = 0
         ev_types = {}
         try:
-            iterable_ev = ev
-            if hasattr(ev, 'tolist'):
-                iterable_ev = ev.tolist()
+            iterable_ev = _tolist_if_available(ev)
             if isinstance(iterable_ev, (list, tuple)):
                 for e in iterable_ev:
                     if isinstance(e, dict) and 'type' in e:
@@ -214,9 +218,7 @@ class EEGobj:
         # Channel type summary (if available)
         ch_types = {}
         try:
-            iterable_cl = clocs
-            if hasattr(clocs, 'tolist'):
-                iterable_cl = clocs.tolist()
+            iterable_cl = _tolist_if_available(clocs)
             for ch in iterable_cl if isinstance(iterable_cl, (list, tuple)) else []:
                 if isinstance(ch, dict) and 'type' in ch:
                     t = ch['type']

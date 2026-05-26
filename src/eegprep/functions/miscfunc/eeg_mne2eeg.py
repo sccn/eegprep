@@ -39,12 +39,12 @@ def _mne_events_to_eeglab_events(raw_or_epochs):
 
 
 # write a funtion that converts a MNE raw object to an EEGLAB set file
-def eeg_mne2eeg(raw_or_epochs):
+def eeg_mne2eeg(raw):
     """Convert MNE Raw object to EEG data structure.
 
     Parameters
     ----------
-    raw_or_epochs : mne.io.Raw | mne.BaseEpochs
+    raw : mne.io.Raw | mne.BaseEpochs
         MNE Raw or Epochs object.
 
     Returns
@@ -52,6 +52,8 @@ def eeg_mne2eeg(raw_or_epochs):
     EEG : dict
         EEG data structure
     """
+    raw_or_epochs = raw
+
     # Generate a temporary file name
     with tempfile.NamedTemporaryFile(delete=False) as temp_file:
         temp_file_path = temp_file.name

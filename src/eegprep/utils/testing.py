@@ -122,7 +122,7 @@ class DebuggableTestCase(unittest.TestCase):
 
 def is_debug():
     """Determine whether Python is running in debug mode."""
-    return getattr(sys, 'gettrace', None)() is not None
+    return sys.gettrace() is not None
 
 
 def has_optional_dependency(name: str) -> bool:

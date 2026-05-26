@@ -18,15 +18,17 @@ def _normalize_pointrange(pointrange: Optional[Iterable], pnts: int) -> np.ndarr
     if pointrange is None:
         return np.arange(pnts, dtype=int)
 
-    # convert to numpy array of ints/floats
-    arr = np.asarray(list(pointrange)) if not isinstance(pointrange, slice) else None
-
     if isinstance(pointrange, slice):
         start = 0 if pointrange.start is None else int(pointrange.start)
         stop = pnts if pointrange.stop is None else int(pointrange.stop)
         step = 1 if pointrange.step is None else int(pointrange.step)
         idx = np.arange(start, stop, step, dtype=int)
-    elif arr.ndim == 1 and arr.size == 0:
+        return idx.astype(int)
+
+    # convert to numpy array of ints/floats
+    arr = np.asarray(list(pointrange))
+
+    if arr.ndim == 1 and arr.size == 0:
         idx = np.arange(pnts, dtype=int)
     elif arr.ndim == 1 and arr.size == 2:
         # tolerate 1-based inputs; convert to 0-based inclusive
