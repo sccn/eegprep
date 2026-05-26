@@ -9,15 +9,18 @@ import os
 import unittest
 import sys
 import tempfile
+import warnings
 import numpy as np
 import scipy.io
 
 # Add src to path for imports
 sys.path.insert(0, 'src')
+from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_reref import pop_reref
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.utils.testing import DebuggableTestCase
 import importlib
+
 eeg_checkset_module = importlib.import_module('eegprep.functions.adminfunc.eeg_checkset')
 
 
@@ -52,6 +55,17 @@ class PopRerefIcaRegressionTests(unittest.TestCase):
         self.assertTrue(np.issubdtype(result['icachansind'].dtype, np.integer))
         np.testing.assert_allclose(result['icawinv'].mean(axis=0), 0, atol=1e-12)
 
+    def test_sample_data_average_reference_emits_no_runtime_warning(self):
+        """Average-referencing sample data should not leak BLAS warnings."""
+        EEG = pop_loadset("sample_data/eeglab_data.set")
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", RuntimeWarning)
+            result = pop_reref(EEG, ref=[])
+
+        self.assertEqual(result["ref"], "average")
+        self.assertTrue(np.isfinite(result["data"]).all())
+
 
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestPopReref(DebuggableTestCase):
@@ -73,15 +87,17 @@ class TestPopReref(DebuggableTestCase):
         # Create channel locations
         chanlocs = []
         for i in range(nbchan):
-            chanlocs.append({
-                'labels': f'Ch{i+1}',
-                'X': np.cos(2 * np.pi * i / nbchan),
-                'Y': np.sin(2 * np.pi * i / nbchan),
-                'Z': 0.0,
-                'theta': 2 * np.pi * i / nbchan,
-                'radius': 0.5,
-                'ref': 'common'  # Initial reference
-            })
+            chanlocs.append(
+                {
+                    'labels': f'Ch{i + 1}',
+                    'X': np.cos(2 * np.pi * i / nbchan),
+                    'Y': np.sin(2 * np.pi * i / nbchan),
+                    'Z': 0.0,
+                    'theta': 2 * np.pi * i / nbchan,
+                    'radius': 0.5,
+                    'ref': 'common',  # Initial reference
+                }
+            )
 
         # Create ICA components equal to number of channels
         icaweights = np.random.randn(nbchan, nbchan).astype(np.float64)
@@ -99,7 +115,7 @@ class TestPopReref(DebuggableTestCase):
             'icawinv': icawinv,
             'icasphere': icasphere,
             'icachansind': list(range(nbchan)),  # All channels used for ICA
-            'ref': 'common'
+            'ref': 'common',
         }
 
     def create_simple_eeg(self, nbchan=4, pnts=40):
@@ -114,16 +130,18 @@ class TestPopReref(DebuggableTestCase):
         chanlocs = []
         for idx in range(nbchan):
             x, y, z = coords[idx]
-            chanlocs.append({
-                'labels': f'Ch{idx + 1}',
-                'X': x,
-                'Y': y,
-                'Z': z,
-                'theta': 0.0,
-                'radius': 0.5,
-                'type': 'EEG',
-                'ref': 'common',
-            })
+            chanlocs.append(
+                {
+                    'labels': f'Ch{idx + 1}',
+                    'X': x,
+                    'Y': y,
+                    'Z': z,
+                    'theta': 0.0,
+                    'radius': 0.5,
+                    'type': 'EEG',
+                    'ref': 'common',
+                }
+            )
         data = np.arange(nbchan * pnts, dtype=np.float64).reshape(nbchan, pnts) / 10.0
         return {
             'data': data,
@@ -198,14 +216,17 @@ class TestPopReref(DebuggableTestCase):
         icachansind = np.asarray(EEG.get('icachansind', []), dtype=np.float64)
         if icachansind.size:
             icachansind = icachansind + 1
-        scipy.io.savemat(temp_input, {
-            'data_in': EEG['data'],
-            'icaweights_in': EEG.get('icaweights', np.array([])),
-            'icawinv_in': EEG.get('icawinv', np.array([])),
-            'icasphere_in': EEG.get('icasphere', np.array([])),
-            'icaact_in': EEG.get('icaact', np.array([])),
-            'icachansind_in': icachansind,
-        })
+        scipy.io.savemat(
+            temp_input,
+            {
+                'data_in': EEG['data'],
+                'icaweights_in': EEG.get('icaweights', np.array([])),
+                'icawinv_in': EEG.get('icawinv', np.array([])),
+                'icasphere_in': EEG.get('icasphere', np.array([])),
+                'icaact_in': EEG.get('icaact', np.array([])),
+                'icachansind_in': icachansind,
+            },
+        )
 
         chanlocs_code = self._matlab_locs_code('EEG.chanlocs', EEG.get('chanlocs', []))
         urchanlocs_code = self._matlab_locs_code('EEG.urchanlocs', EEG.get('urchanlocs', []))
@@ -467,16 +488,18 @@ class TestPopReref(DebuggableTestCase):
         """Test EEGLAB error path when refloc is provided without removedchans."""
         EEG = self.create_simple_eeg(nbchan=2, pnts=20)
         EEG['chaninfo'] = {
-            'nodatchans': [{
-                'labels': 'M1',
-                'X': 0.0,
-                'Y': -1.0,
-                'Z': 0.0,
-                'theta': -90.0,
-                'radius': 0.5,
-                'type': 'REF',
-                'ref': 'common',
-            }]
+            'nodatchans': [
+                {
+                    'labels': 'M1',
+                    'X': 0.0,
+                    'Y': -1.0,
+                    'Z': 0.0,
+                    'theta': -90.0,
+                    'radius': 0.5,
+                    'type': 'REF',
+                    'ref': 'common',
+                }
+            ]
         }
 
         with self.assertRaisesRegex(ValueError, "Missing reference channel information"):
@@ -516,12 +539,14 @@ class TestPopReref(DebuggableTestCase):
     def test_refica_backwardcomp_rereferences_ica_maps(self):
         """Test EEGLAB backwardcomp path still updates ICA maps."""
         EEG = self.create_simple_eeg(nbchan=4, pnts=20)
-        EEG['icawinv'] = np.array([
-            [1.0, 0.2, 0.1, 0.0],
-            [0.1, 1.0, 0.2, 0.1],
-            [0.0, 0.1, 1.0, 0.2],
-            [0.2, 0.0, 0.1, 1.0],
-        ])
+        EEG['icawinv'] = np.array(
+            [
+                [1.0, 0.2, 0.1, 0.0],
+                [0.1, 1.0, 0.2, 0.1],
+                [0.0, 0.1, 1.0, 0.2],
+                [0.2, 0.0, 0.1, 1.0],
+            ]
+        )
         EEG['icaweights'] = np.linalg.pinv(EEG['icawinv'])
         EEG['icasphere'] = np.eye(4)
         EEG['icaact'] = np.ones((4, EEG['pnts']))
@@ -548,11 +573,13 @@ class TestPopReref(DebuggableTestCase):
         }
         EEG['urchanlocs'] = EEG['chanlocs'] + [removed]
         EEG['chaninfo'] = {'removedchans': [removed]}
-        EEG['icawinv'] = np.array([
-            [1.0, 0.2, 0.1],
-            [0.1, 1.0, 0.2],
-            [0.2, 0.1, 1.0],
-        ])
+        EEG['icawinv'] = np.array(
+            [
+                [1.0, 0.2, 0.1],
+                [0.1, 1.0, 0.2],
+                [0.2, 0.1, 1.0],
+            ]
+        )
         EEG['icaweights'] = np.linalg.pinv(EEG['icawinv'])
         EEG['icasphere'] = np.eye(3)
         EEG['icaact'] = np.ones((3, EEG['pnts']))
@@ -603,7 +630,6 @@ class TestPopReref(DebuggableTestCase):
     def test_single_channel(self):
         """Test with single channel (edge case)."""
         EEG = self.create_test_eeg(nbchan=1, pnts=100)
-        original_data = EEG['data'].copy()
 
         result = pop_reref(EEG, ref=None)
 
@@ -617,14 +643,12 @@ class TestPopReref(DebuggableTestCase):
     def test_multiple_trials(self):
         """Test with multiple trials."""
         EEG = self.create_test_eeg(nbchan=8, pnts=100, trials=5)
-        original_data = EEG['data'].copy()
 
         result = pop_reref(EEG, ref=None)
 
         # Check that mean is subtracted for each time point and trial
         for trial in range(EEG['trials']):
             for time in range(EEG['pnts']):
-                original_mean = np.mean(original_data[:, time, trial])
                 new_mean = np.mean(result['data'][:, time, trial])
                 self.assertAlmostEqual(new_mean, 0, places=6)
 
@@ -658,14 +682,26 @@ class TestPopReref(DebuggableTestCase):
         EEG = self.create_test_eeg(nbchan=8, pnts=100)
 
         # Make copies to avoid modification effects
-        EEG1 = {key: value.copy() if isinstance(value, np.ndarray) else
-                ([item.copy() if isinstance(item, dict) else item for item in value]
-                 if isinstance(value, list) else value)
-                for key, value in EEG.items()}
-        EEG2 = {key: value.copy() if isinstance(value, np.ndarray) else
-                ([item.copy() if isinstance(item, dict) else item for item in value]
-                 if isinstance(value, list) else value)
-                for key, value in EEG.items()}
+        EEG1 = {
+            key: value.copy()
+            if isinstance(value, np.ndarray)
+            else (
+                [item.copy() if isinstance(item, dict) else item for item in value]
+                if isinstance(value, list)
+                else value
+            )
+            for key, value in EEG.items()
+        }
+        EEG2 = {
+            key: value.copy()
+            if isinstance(value, np.ndarray)
+            else (
+                [item.copy() if isinstance(item, dict) else item for item in value]
+                if isinstance(value, list)
+                else value
+            )
+            for key, value in EEG.items()
+        }
 
         result1 = pop_reref(EEG1, ref=None)
         result2 = pop_reref(EEG2, ref=None)
@@ -859,8 +895,9 @@ class TestPopReref(DebuggableTestCase):
 
         # Compare data (should match closely for average reference)
         # Data re-referencing: max abs diff ~1e-4 due to float32/float64 precision
-        np.testing.assert_allclose(py_result['data'], data_ml, rtol=1e-3, atol=1e-3,
-                                   err_msg="Data re-referencing differs from MATLAB")
+        np.testing.assert_allclose(
+            py_result['data'], data_ml, rtol=1e-3, atol=1e-3, err_msg="Data re-referencing differs from MATLAB"
+        )
 
     def test_parity_explicit_reference_keepref_with_matlab(self):
         """Test MATLAB parity for explicit common reference with keepref."""
@@ -951,12 +988,14 @@ class TestPopReref(DebuggableTestCase):
     def test_parity_refica_average_with_matlab(self):
         """Test MATLAB parity for average reference ICA map update."""
         EEG = self.create_simple_eeg(nbchan=4, pnts=20)
-        EEG['icawinv'] = np.array([
-            [1.0, 0.2, 0.1, 0.0],
-            [0.1, 1.0, 0.2, 0.1],
-            [0.0, 0.1, 1.0, 0.2],
-            [0.2, 0.0, 0.1, 1.0],
-        ])
+        EEG['icawinv'] = np.array(
+            [
+                [1.0, 0.2, 0.1, 0.0],
+                [0.1, 1.0, 0.2, 0.1],
+                [0.0, 0.1, 1.0, 0.2],
+                [0.2, 0.0, 0.1, 1.0],
+            ]
+        )
         EEG['icaweights'] = np.linalg.pinv(EEG['icawinv'])
         EEG['icasphere'] = np.eye(4)
         EEG['icaact'] = np.ones((4, EEG['pnts']))
@@ -971,12 +1010,14 @@ class TestPopReref(DebuggableTestCase):
     def test_parity_refica_backwardcomp_with_matlab(self):
         """Test MATLAB parity for backwardcomp ICA handling."""
         EEG = self.create_simple_eeg(nbchan=4, pnts=20)
-        EEG['icawinv'] = np.array([
-            [1.0, 0.2, 0.1, 0.0],
-            [0.1, 1.0, 0.2, 0.1],
-            [0.0, 0.1, 1.0, 0.2],
-            [0.2, 0.0, 0.1, 1.0],
-        ])
+        EEG['icawinv'] = np.array(
+            [
+                [1.0, 0.2, 0.1, 0.0],
+                [0.1, 1.0, 0.2, 0.1],
+                [0.0, 0.1, 1.0, 0.2],
+                [0.2, 0.0, 0.1, 1.0],
+            ]
+        )
         EEG['icaweights'] = np.linalg.pinv(EEG['icawinv'])
         EEG['icasphere'] = np.eye(4)
         EEG['icaact'] = np.ones((4, EEG['pnts']))

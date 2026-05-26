@@ -17,7 +17,9 @@ def _is_boundary_event(event: Dict) -> bool:
     return False
 
 
-def eegrej(indata, regions, timelength, events: Optional[List[Dict]] = None) -> Tuple[np.ndarray, float, List[Dict], np.ndarray]:
+def eegrej(
+    indata, regions, timelength, events: Optional[List[Dict]] = None
+) -> Tuple[np.ndarray, float, List[Dict], np.ndarray]:
     """Remove [beg end] sample ranges (1-based, inclusive) from continuous data and update events.
 
     Parameters
@@ -87,7 +89,7 @@ def eegrej(indata, regions, timelength, events: Optional[List[Dict]] = None) -> 
     # To match MATLAB's inclusive end, we need reject[beg-1:end] where end is inclusive
     reject = np.zeros(n, dtype=bool)
     for beg, end in r:
-        reject[beg - 1:end] = True  # This matches MATLAB reject(beg:end) when end is already the inclusive end
+        reject[beg - 1 : end] = True  # This matches MATLAB reject(beg:end) when end is already the inclusive end
 
     # Prepare events
     ori_events: List[Dict] = [] if events is None else [dict(ev) for ev in events]
@@ -177,11 +179,17 @@ def eegrej(indata, regions, timelength, events: Optional[List[Dict]] = None) -> 
         for i in range(len(boundevents)):
             be = float(boundevents[i])
             if be > 0 and be < (newn + 1):
-                events_out.append({
-                    "type": bound_type,
-                    "latency": be,
-                    "duration": float(durations[i] if i < len(durations) else (base_durations[i] if i < len(base_durations) else 0.0)),
-                })
+                events_out.append(
+                    {
+                        "type": bound_type,
+                        "latency": be,
+                        "duration": float(
+                            durations[i]
+                            if i < len(durations)
+                            else (base_durations[i] if i < len(base_durations) else 0.0)
+                        ),
+                    }
+                )
 
     # Remove events with latency out of bound (> newn+1)
     filtered: List[Dict] = []
@@ -198,8 +206,12 @@ def eegrej(indata, regions, timelength, events: Optional[List[Dict]] = None) -> 
     if events_out:
         merged_events: List[Dict] = []
         for ev in events_out:
-            if merged_events and _is_boundary_event(ev) and _is_boundary_event(merged_events[-1]) \
-               and np.isclose(float(ev.get("latency", 0.0)), float(merged_events[-1].get("latency", 0.0))):
+            if (
+                merged_events
+                and _is_boundary_event(ev)
+                and _is_boundary_event(merged_events[-1])
+                and np.isclose(float(ev.get("latency", 0.0)), float(merged_events[-1].get("latency", 0.0)))
+            ):
                 prev_dur = float(merged_events[-1].get("duration", 0.0) or 0.0)
                 cur_dur = float(ev.get("duration", 0.0) or 0.0)
                 merged_events[-1]["duration"] = prev_dur + cur_dur

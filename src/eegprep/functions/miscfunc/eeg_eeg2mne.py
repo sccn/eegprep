@@ -1,12 +1,11 @@
 """EEG to MNE conversion functions."""
 
-from ...plugins.ICLabel.eeg_autocorr import eeg_autocorr
 from ..popfunc.pop_loadset import pop_loadset
 import mne
 import tempfile
 import os
-from mne.export import export_raw
-from ..popfunc.pop_saveset import pop_saveset # in development
+from ..popfunc.pop_saveset import pop_saveset  # in development
+
 
 # write a funtion that converts a MNE raw object to an EEGLAB set file
 def eeg_eeg2mne(EEG):
@@ -40,6 +39,7 @@ def eeg_eeg2mne(EEG):
 
     return raw
 
+
 def test_eeg_eeg2mne():
     """Test the eeg_eeg2mne function."""
     eeglab_file_path = './eeglab_data_with_ica_tmp.set'
@@ -49,5 +49,6 @@ def test_eeg_eeg2mne():
 
     # print the keys of the EEG dictionary
     print(raw.info)
+
 
 # test_eeg_eeg2mne()

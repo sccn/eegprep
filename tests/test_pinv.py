@@ -100,7 +100,7 @@ class TestPinvParity(unittest.TestCase):
         py_out = pinv(A)
         ml_out = self.eeglab.pinv(A)
 
-        print(f"\nLarge matrix test (64x64):")
+        print("\nLarge matrix test (64x64):")
         print(f"Python output shape: {py_out.shape}, dtype: {py_out.dtype}")
         print(f"MATLAB output shape: {ml_out.shape}, dtype: {ml_out.dtype}")
 
@@ -138,9 +138,10 @@ class TestPinvParity(unittest.TestCase):
         print(f"Adaptive tolerance ({adaptive_tol:.2e}) success: {success_adaptive}")
 
         # The test should pass with adaptive tolerance
-        self.assertTrue(success_adaptive,
-                       f"Large matrix pseudoinverse failed with max_diff={max_diff:.2e}, "
-                       f"rel_error={rel_error:.2e}")
+        self.assertTrue(
+            success_adaptive,
+            f"Large matrix pseudoinverse failed with max_diff={max_diff:.2e}, rel_error={rel_error:.2e}",
+        )
 
     def test_parity_large_matrix_rectangular(self):
         """Test pseudoinverse of a large rectangular matrix (64x32)."""
@@ -150,7 +151,7 @@ class TestPinvParity(unittest.TestCase):
         py_out = pinv(A)
         ml_out = self.eeglab.pinv(A)
 
-        print(f"\nLarge rectangular matrix test (64x32):")
+        print("\nLarge rectangular matrix test (64x32):")
         print(f"Python output shape: {py_out.shape}, dtype: {py_out.dtype}")
         print(f"MATLAB output shape: {ml_out.shape}, dtype: {ml_out.dtype}")
 
@@ -167,8 +168,7 @@ class TestPinvParity(unittest.TestCase):
         success_adaptive = np.allclose(py_out, ml_out, rtol=adaptive_tol, atol=adaptive_tol)
         print(f"Adaptive tolerance ({adaptive_tol:.2e}) success: {success_adaptive}")
 
-        self.assertTrue(success_adaptive,
-                       f"Large rectangular matrix pseudoinverse failed with max_diff={max_diff:.2e}")
+        self.assertTrue(success_adaptive, f"Large rectangular matrix pseudoinverse failed with max_diff={max_diff:.2e}")
 
     def test_parity_ill_conditioned_matrix(self):
         """Test pseudoinverse of an ill-conditioned matrix."""
@@ -183,7 +183,7 @@ class TestPinvParity(unittest.TestCase):
         py_out = pinv(A)
         ml_out = self.eeglab.pinv(A)
 
-        print(f"\nIll-conditioned matrix test (32x32):")
+        print("\nIll-conditioned matrix test (32x32):")
         print(f"Condition number: {np.linalg.cond(A):.2e}")
         print(f"Python output shape: {py_out.shape}, dtype: {py_out.dtype}")
         print(f"MATLAB output shape: {ml_out.shape}, dtype: {ml_out.dtype}")
@@ -198,8 +198,7 @@ class TestPinvParity(unittest.TestCase):
         success_adaptive = np.allclose(py_out, ml_out, rtol=adaptive_tol, atol=adaptive_tol)
         print(f"Adaptive tolerance ({adaptive_tol:.2e}) success: {success_adaptive}")
 
-        self.assertTrue(success_adaptive,
-                       f"Ill-conditioned matrix pseudoinverse failed with max_diff={max_diff:.2e}")
+        self.assertTrue(success_adaptive, f"Ill-conditioned matrix pseudoinverse failed with max_diff={max_diff:.2e}")
 
     def test_alternative_methods_for_precision(self):
         """Test different methods for computing pseudoinverse to improve precision."""
@@ -210,7 +209,7 @@ class TestPinvParity(unittest.TestCase):
         # Get MATLAB result
         ml_out = self.eeglab.pinv(A)
 
-        print(f"\nTesting alternative methods for precision:")
+        print("\nTesting alternative methods for precision:")
         print(f"Matrix condition number: {np.linalg.cond(A):.2e}")
 
         # Test different methods
@@ -257,7 +256,7 @@ class TestPinvParity(unittest.TestCase):
         U, s, Vt = np.linalg.svd(A, full_matrices=False)
         matlab_tol = max(A.shape) * np.finfo(A.dtype).eps * np.max(s)
 
-        print(f"\nMATLAB tolerance matching test:")
+        print("\nMATLAB tolerance matching test:")
         print(f"MATLAB default tolerance: {matlab_tol:.2e}")
         print(f"Max singular value: {np.max(s):.2e}")
         print(f"Min singular value: {np.min(s):.2e}")
@@ -327,8 +326,7 @@ class TestPinvFunctional(unittest.TestCase):
         result = pinv(A)
 
         # Result should be float (may be float64 or complex if needed)
-        self.assertTrue(np.issubdtype(result.dtype, np.floating) or
-                       np.issubdtype(result.dtype, np.complexfloating))
+        self.assertTrue(np.issubdtype(result.dtype, np.floating) or np.issubdtype(result.dtype, np.complexfloating))
 
 
 if __name__ == '__main__':

@@ -8,7 +8,6 @@ from eegprep.utils.testing import compare_eeg, DebuggableTestCase, is_debug
 
 
 class TestCompareEeg(unittest.TestCase):
-
     def test_compare_eeg_identical_arrays(self):
         """Test comparing identical arrays passes."""
         a = np.array([[1.0, 2.0], [3.0, 4.0]])
@@ -126,7 +125,6 @@ class MockTestCase(DebuggableTestCase):
 
 
 class TestDebuggableTestCase(unittest.TestCase):
-
     def test_debugTestCase_loads_and_runs_tests(self):
         """Test that debugTestCase loads and runs test methods."""
         # Mock the test suite and its debug method
@@ -155,19 +153,22 @@ class TestDebuggableTestCase(unittest.TestCase):
 
 
 class TestIsDebug(unittest.TestCase):
-
     def test_is_debug_no_tracer(self):
         """Test is_debug returns False when no tracer is active."""
+
         def mock_gettrace():
             return None
+
         with patch.object(sys, 'gettrace', mock_gettrace):
             self.assertFalse(is_debug())
 
     def test_is_debug_with_tracer(self):
         """Test is_debug returns True when tracer is active."""
         mock_tracer = MagicMock()
+
         def mock_gettrace():
             return mock_tracer
+
         with patch.object(sys, 'gettrace', mock_gettrace):
             self.assertTrue(is_debug())
 
@@ -180,17 +181,19 @@ class TestIsDebug(unittest.TestCase):
 
     def test_is_debug_gettrace_returns_none_function(self):
         """Test is_debug when gettrace returns a function that returns None."""
+
         def mock_gettrace():
             return None
+
         with patch.object(sys, 'gettrace', mock_gettrace):
             self.assertFalse(is_debug())
 
 
 class TestModuleConstants(unittest.TestCase):
-
     def test_module_exports(self):
         """Test that __all__ contains expected exports."""
         from eegprep.utils.testing import __all__
+
         expected_exports = [
             'compare_eeg',
             'DebuggableTestCase',
@@ -204,11 +207,13 @@ class TestModuleConstants(unittest.TestCase):
     def test_default_32_bit_constant(self):
         """Test default_32_bit constant value."""
         from eegprep.utils.testing import default_32_bit
+
         self.assertTrue(default_32_bit)
 
     def test_flatten_to_2d_constant(self):
         """Test flatten_to_2d constant value."""
         from eegprep.utils.testing import flatten_to_2d
+
         self.assertTrue(flatten_to_2d)
 
 

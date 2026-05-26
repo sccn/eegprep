@@ -11,6 +11,7 @@ Use this skill to run an end-to-end manual QA pass that simulates real users exe
 
 - Invoke only when explicitly requested by the user. This workflow is intentionally heavy and should not run for ordinary test requests.
 - Use the Computer/GUI agent or Computer Use tools for UI interactions. Do not replace requested GUI clicking with terminal-only tests.
+- EEGPrep users often alternate between GUI actions and `eegprep-console` commands. Treat that shared workspace as part of the user flow, not a separate unit test surface.
 - Do not edit code during the QA pass unless the user asks for fixes. If defects are found, report them clearly and stop at the report.
 - Keep GUI sessions under control: start one flow at a time, capture terminal output, close/cancel dialogs, and verify no test GUI processes are left running before the final report.
 - Preserve the working tree. Do not revert unrelated changes.
@@ -24,6 +25,7 @@ Use this skill to run an end-to-end manual QA pass that simulates real users exe
 
 2. Build the flow matrix before clicking.
    - Include terminal/API paths, real sample-data paths, synthetic data paths, GUI happy paths, every visible action button, Help, OK, Cancel, close-window behavior, picker dialogs, dropdowns, checkboxes, and textbox edge cases.
+   - Include mixed workspace paths: GUI action then inspect `EEG`/`ALLEEG`/`LASTCOM`/`ALLCOM` in `eegprep-console`; console `pop_*` call then verify GUI summary and history; assignment-style and bare console calls when relevant.
    - Include negative cases: blank inputs, invalid labels/indices, out-of-range numeric values, missing optional datasets/resources, duplicate/no-op selections, and boundary values.
    - Define expected outputs before each run: command history strings, shape/channel-count changes, warnings, no-op behavior, GUI warnings, and whether data should change.
 
@@ -35,6 +37,7 @@ Use this skill to run an end-to-end manual QA pass that simulates real users exe
 4. Drive the GUI like a user.
    - Launch each GUI flow from the terminal so stdout/stderr and returned values are visible.
    - Use the Computer/GUI agent to inspect the app state, click buttons, type into fields, select menu/dropdown choices, open Help, use pickers, and press OK/Cancel.
+   - On macOS, Computer Use may attach more reliably to the Qt GUI when launched through the Python.app executable with `PYTHONPATH=src:<venv site-packages>`. Terminal/iTerm control may still be policy-blocked; use shell PTY for `eegprep-console` input while using Computer Use for GUI windows.
    - For each flow, record the visible UI state, the action taken, terminal output, returned command string, data mutation, and whether the dialog remained open or closed.
    - When a list/picker is hard to inspect via accessibility, use careful keyboard or coordinate interaction, then verify from the resulting UI text and terminal output.
 
@@ -43,6 +46,7 @@ Use this skill to run an end-to-end manual QA pass that simulates real users exe
    - Buttons: each action button, Help, Cancel, OK with incomplete selections, repeated picker use, and missing-resource states.
    - Modes: every checkbox/radio/dropdown combination that maps to a distinct code path.
    - Data: real sample data, small synthetic data, and any special structures needed by the feature such as alternate datasets, removed channels, events, epochs, or package resources.
+   - Console workspace: direct `pop_*`, `eegprep.pop_*`, aliased imports such as `from eegprep import pop_reref as reref`, invalid assignments to `EEG`, and failed pop calls that should not mutate session/history.
 
 6. Finish with cleanup and a report.
    - Verify no GUI test processes or terminal sessions remain running.

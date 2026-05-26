@@ -1,7 +1,5 @@
 """Python-MATLAB data conversion utilities."""
 
-from typing import *
-
 import numpy as np
 import scipy.io
 
@@ -9,7 +7,8 @@ import scipy.io
 # recarray -> struct array
 
 default_empty = np.array([])
-#default_empty = None
+# default_empty = None
+
 
 # convert list of arbitrary dicts to struct array
 def py2mat(dicts):
@@ -99,7 +98,7 @@ def py2mat(dicts):
             elif isinstance(processed_v, (int, np.integer)):
                 if k not in key_types:
                     key_types[k] = int
-                elif key_types[k] != int and key_types[k] != object:
+                elif key_types[k] is not int and key_types[k] is not object:
                     key_types[k] = object
             elif isinstance(processed_v, (float, np.floating)):
                 if k not in key_types:
@@ -109,7 +108,7 @@ def py2mat(dicts):
             elif isinstance(processed_v, bool):
                 if k not in key_types:
                     key_types[k] = bool
-                elif key_types[k] != bool and key_types[k] != object:
+                elif key_types[k] is not bool and key_types[k] is not object:
                     key_types[k] = object
             elif isinstance(processed_v, np.ndarray):
                 # For arrays (including nested struct arrays), use object type
@@ -148,13 +147,13 @@ def py2mat(dicts):
                 if key_types[k] == 'U':
                     # For string fields, use empty string instead of None
                     struct_array[i][k] = ''
-                elif key_types[k] == int:
+                elif key_types[k] is int:
                     # For int fields, use 0
                     struct_array[i][k] = 0
-                elif key_types[k] == float:
+                elif key_types[k] is float:
                     # For float fields, use NaN
                     struct_array[i][k] = np.nan
-                elif key_types[k] == bool:
+                elif key_types[k] is bool:
                     # For bool fields, use False
                     struct_array[i][k] = False
                 else:
@@ -165,6 +164,7 @@ def py2mat(dicts):
 
     return struct_array
 
+
 # def mat2py(mat_dict):
 #     # convert all struct arrays to lists of dicts recursively
 #     for k, v in mat_dict.items():
@@ -173,6 +173,7 @@ def py2mat(dicts):
 #         elif isinstance(v, dict):
 #             mat_dict[k] = mat2py(v)
 #     return mat_dict
+
 
 def mat2py(obj):
     """Convert MATLAB data structures to Python equivalents.
@@ -258,7 +259,7 @@ def mat2py(obj):
                 if not attr_name.startswith('_') and not callable(getattr(obj, attr_name)):
                     attr_value = getattr(obj, attr_name)
                     dict_obj[attr_name] = mat2py(attr_value)
-            except:
+            except Exception:
                 # Skip attributes that can't be accessed or cause errors
                 continue
         return dict_obj if dict_obj else obj
@@ -266,21 +267,18 @@ def mat2py(obj):
         # Fallback: return the object as-is if no conversion rule applies
         return obj
 
+
 def test_py2mat():
     """Test the py2mat and mat2py conversion functions with various data structures."""
     import scipy.io
 
     # Test basic functionality
     print("=== Basic Test ===")
-    dicts = [
-        {'a': 'adsaf1', 'b': 2.0},
-        {'a': 'adsaf', 'b': 4.0},
-        {'a': 'adsaf33', 'b': 7.0}
-    ]
+    dicts = [{'a': 'adsaf1', 'b': 2.0}, {'a': 'adsaf', 'b': 4.0}, {'a': 'adsaf33', 'b': 7.0}]
     struct_array = py2mat(dicts)
     print("Original: ", dicts)
 
-    dicts2 = mat2py(struct_array)
+    mat2py(struct_array)
     scipy.io.savemat('test1.mat', {'struct_array': struct_array})
     struct_array2 = scipy.io.loadmat('test1.mat')
     struct_array2 = struct_array2['struct_array'][0]
@@ -290,18 +288,8 @@ def test_py2mat():
     # Test nested dictionaries
     print("\n=== Nested Dictionary Test ===")
     nested_dicts = [
-        {
-            'name': 'item1',
-            'value': 10.5,
-            'config': {'enabled': True, 'threshold': 0.8},
-            'tags': ['tag1', 'tag2']
-        },
-        {
-            'name': 'item2',
-            'value': 20.3,
-            'config': {'enabled': False, 'threshold': 0.9},
-            'tags': ['tag3']
-        }
+        {'name': 'item1', 'value': 10.5, 'config': {'enabled': True, 'threshold': 0.8}, 'tags': ['tag1', 'tag2']},
+        {'name': 'item2', 'value': 20.3, 'config': {'enabled': False, 'threshold': 0.9}, 'tags': ['tag3']},
     ]
     nested_struct = py2mat(nested_dicts)
     print("Original: ", nested_dicts)
@@ -318,27 +306,21 @@ def test_py2mat():
     # Test list of dictionaries as values
     print("\n=== List of Dictionaries Test ===")
     list_dict_data = [
-        {
-            'id': 1,
-            'measurements': [
-                {'sensor': 'A', 'reading': 1.2},
-                {'sensor': 'B', 'reading': 2.3}
-            ]
-        },
+        {'id': 1, 'measurements': [{'sensor': 'A', 'reading': 1.2}, {'sensor': 'B', 'reading': 2.3}]},
         {
             'id': 2,
             'measurements': [
                 {'sensor': 'A', 'reading': 3.4},
                 {'sensor': 'B', 'reading': 4.5},
-                {'sensor': 'C', 'reading': 5.6}
-            ]
-        }
+                {'sensor': 'C', 'reading': 5.6},
+            ],
+        },
     ]
     list_dict_struct = py2mat(list_dict_data)
     scipy.io.savemat('test3.mat', {'list_dict_struct': list_dict_struct})
     list_dict_struct2 = scipy.io.loadmat('test3.mat')
     list_dict_struct2 = list_dict_struct2['list_dict_struct'][0]
-    list_dict_data3   = mat2py(list_dict_struct2)
+    list_dict_data3 = mat2py(list_dict_struct2)
     print("Original: ", list_dict_data)
     print("Converted: ", list_dict_data3)
 
@@ -353,27 +335,19 @@ def test_py2mat():
     print("Original: ", single_dict)
     print("Converted: ", single_dict2)
 
-
     # Test numpy array of dictionaries
     print("\n=== NumPy Array of Dictionaries Test ===")
-    dict_array = np.array([
-        {'name': 'sensor1', 'value': 1.1},
-        {'name': 'sensor2', 'value': 2.2},
-        {'name': 'sensor3', 'value': 3.3}
-    ], dtype=object)
+    dict_array = np.array(
+        [{'name': 'sensor1', 'value': 1.1}, {'name': 'sensor2', 'value': 2.2}, {'name': 'sensor3', 'value': 3.3}],
+        dtype=object,
+    )
 
     array_dict_data = [
-        {
-            'id': 'device1',
-            'sensors': dict_array
-        },
+        {'id': 'device1', 'sensors': dict_array},
         {
             'id': 'device2',
-            'sensors': np.array([
-                {'name': 'sensorA', 'value': 4.4},
-                {'name': 'sensorB', 'value': 5.5}
-            ], dtype=object)
-        }
+            'sensors': np.array([{'name': 'sensorA', 'value': 4.4}, {'name': 'sensorB', 'value': 5.5}], dtype=object),
+        },
     ]
 
     array_dict_struct = py2mat(array_dict_data)
@@ -382,7 +356,7 @@ def test_py2mat():
     array_dict_struct2 = array_dict_struct2['array_dict_struct'][0]
     array_dict_data2 = mat2py(array_dict_struct2)
     print("Original: ", array_dict_data)
-    print("Converted: ", array_dict_data2) # Numpy array gets converted to a list of dicts
+    print("Converted: ", array_dict_data2)  # Numpy array gets converted to a list of dicts
 
     params = [np.vstack([np.arange(1, 21), np.arange(101, 121)]), [[5, 8]], 10.0, [{'latency': 5.0}, {'latency': 10.0}]]
     params_struct = py2mat(params)
@@ -396,7 +370,8 @@ def test_py2mat():
     # EEGLAB dataset
     eeglab_file_path = '/System/Volumes/Data/data/matlab/eeglab/sample_data/eeglab_data_epochs_ica.set'
     from eegprep.functions.popfunc.pop_loadset import pop_loadset
-    EEG_LOADSET = pop_loadset(eeglab_file_path)
+
+    pop_loadset(eeglab_file_path)
 
     # pop_loadset wihtout index adjustment
     EEG_LOADMAT = scipy.io.loadmat(eeglab_file_path)
@@ -413,8 +388,11 @@ def test_py2mat():
 
     # Limitations
     print("\n=== Limitations ===")
-    print("- Conversion back: py2mat then mat2py does not always work for nested structures (works when the file is saved as a .mat file)")
+    print(
+        "- Conversion back: py2mat then mat2py does not always work for nested structures (works when the file is saved as a .mat file)"
+    )
     print("- Numpy arrays of dicts are converted to lists of dicts (an intented feature)")
+
 
 if __name__ == "__main__":
     test_py2mat()

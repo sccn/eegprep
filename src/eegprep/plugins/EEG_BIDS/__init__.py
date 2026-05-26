@@ -1,2 +1,1 @@
 """EEG-BIDS plugin ports."""
-

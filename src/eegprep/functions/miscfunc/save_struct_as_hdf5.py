@@ -3,6 +3,7 @@
 import numpy as np
 import h5py
 
+
 def save_dict_to_hdf5(data, filename, dataset_name):
     """Save a dictionary to an HDF5 file as a structured dataset.
 
@@ -34,15 +35,24 @@ def save_dict_to_hdf5(data, filename, dataset_name):
     structured_dtype = np.dtype(dtype)
 
     # Convert dictionary values to a structured array
-    structured_data = np.array([tuple(
-        value.encode('utf-8') if isinstance(value, str) else
-        str(value).encode('utf-8') if value is None else
-        value for value in data.values()
-    )], dtype=structured_dtype)
+    structured_data = np.array(
+        [
+            tuple(
+                value.encode('utf-8')
+                if isinstance(value, str)
+                else str(value).encode('utf-8')
+                if value is None
+                else value
+                for value in data.values()
+            )
+        ],
+        dtype=structured_dtype,
+    )
 
     # Save to HDF5
     with h5py.File(filename, 'w') as hdf:
         hdf.create_dataset(dataset_name, data=structured_data)
+
 
 if __name__ == '__main__':
     data = {

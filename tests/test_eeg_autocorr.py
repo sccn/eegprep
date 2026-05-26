@@ -7,6 +7,7 @@ of ICA components for EEG data.
 
 # Disable multithreading for deterministic numerical results
 import os
+
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
 os.environ["NUMEXPR_NUM_THREADS"] = "1"
@@ -53,9 +54,12 @@ class TestEegAutocorr(DebuggableTestCase):
             data = np.random.randn(nbchan, pnts, trials).astype(np.float64)
 
         # Create channel locations
-        chanlocs = np.array([{'labels': f'E{i+1}', 'X': 0.0, 'Y': 0.0, 'Z': 0.0,
-                             'theta': 0.0, 'radius': 0.0, 'type': 'EEG'}
-                            for i in range(nbchan)])
+        chanlocs = np.array(
+            [
+                {'labels': f'E{i + 1}', 'X': 0.0, 'Y': 0.0, 'Z': 0.0, 'theta': 0.0, 'radius': 0.0, 'type': 'EEG'}
+                for i in range(nbchan)
+            ]
+        )
 
         # ICA matrices - consistent dimensions for MATLAB compatibility
         # icaweights: (ncomp, nbchan), icasphere: (nbchan, nbchan)
@@ -133,7 +137,7 @@ class TestEegAutocorr(DebuggableTestCase):
             {'srate': 128, 'expected_samples': 100},
             {'srate': 256, 'expected_samples': 100},
             {'srate': 500, 'expected_samples': 100},
-            {'srate': 1000, 'expected_samples': 100}
+            {'srate': 1000, 'expected_samples': 100},
         ]
 
         for case in test_cases:
@@ -220,10 +224,10 @@ class TestEegAutocorr(DebuggableTestCase):
         """Test that FFT size is calculated correctly."""
         # Test with different data lengths to verify nfft calculation
         test_cases = [
-            {'pnts': 100, 'expected_nfft_min': 128},   # 2^7
-            {'pnts': 256, 'expected_nfft_min': 512},   # 2^9
+            {'pnts': 100, 'expected_nfft_min': 128},  # 2^7
+            {'pnts': 256, 'expected_nfft_min': 512},  # 2^9
             {'pnts': 500, 'expected_nfft_min': 1024},  # 2^10
-            {'pnts': 1000, 'expected_nfft_min': 2048}, # 2^11
+            {'pnts': 1000, 'expected_nfft_min': 2048},  # 2^11
         ]
 
         for case in test_cases:
@@ -343,7 +347,7 @@ class TestEegAutocorr(DebuggableTestCase):
         EEG = self.create_test_eeg(ncomp=3, pnts=256, srate=128)
         original_dtype = EEG['icaact'].dtype
 
-        result = eeg_autocorr(EEG)
+        eeg_autocorr(EEG)
 
         # Function should modify icaact dtype to float32
         self.assertEqual(EEG['icaact'].dtype, np.float32)
@@ -355,10 +359,8 @@ class TestEegAutocorr(DebuggableTestCase):
         EEG = self.create_test_eeg(ncomp=3, pnts=256, srate=128)
 
         # Make copies to avoid modification effects
-        EEG1 = {key: value.copy() if isinstance(value, np.ndarray) else value
-                for key, value in EEG.items()}
-        EEG2 = {key: value.copy() if isinstance(value, np.ndarray) else value
-                for key, value in EEG.items()}
+        EEG1 = {key: value.copy() if isinstance(value, np.ndarray) else value for key, value in EEG.items()}
+        EEG2 = {key: value.copy() if isinstance(value, np.ndarray) else value for key, value in EEG.items()}
 
         result1 = eeg_autocorr(EEG1)
         result2 = eeg_autocorr(EEG2)

@@ -71,25 +71,26 @@ class TestSphericalSplineInterpolate(unittest.TestCase):
         """Set up test fixtures."""
         # Create simple 3D electrode positions (as expected by the function)
         # 4 electrodes on unit sphere
-        self.src_positions = np.array([
-            [1.0, 0.0, 0.0, -1.0],    # x coordinates
-            [0.0, 1.0, 0.0, 0.0],     # y coordinates
-            [0.0, 0.0, 1.0, 0.0]      # z coordinates
-        ])
+        self.src_positions = np.array(
+            [
+                [1.0, 0.0, 0.0, -1.0],  # x coordinates
+                [0.0, 1.0, 0.0, 0.0],  # y coordinates
+                [0.0, 0.0, 1.0, 0.0],  # z coordinates
+            ]
+        )
 
         # Destination positions (where to interpolate)
-        self.dest_positions = np.array([
-            [0.707, -0.707],    # x coordinates
-            [0.707, 0.707],     # y coordinates
-            [0.0, 0.0]          # z coordinates
-        ])
+        self.dest_positions = np.array(
+            [
+                [0.707, -0.707],  # x coordinates
+                [0.707, 0.707],  # y coordinates
+                [0.0, 0.0],  # z coordinates
+            ]
+        )
 
     def test_spherical_spline_interpolate_basic(self):
         """Test basic sphericalSplineInterpolate functionality."""
-        W, Gss, Gds, Hds = sphericalSplineInterpolate(
-            self.src_positions,
-            self.dest_positions
-        )
+        W, Gss, Gds, Hds = sphericalSplineInterpolate(self.src_positions, self.dest_positions)
 
         # Check return value shapes
         n_src = self.src_positions.shape[1]
@@ -109,18 +110,10 @@ class TestSphericalSplineInterpolate(unittest.TestCase):
     def test_spherical_spline_interpolate_different_types(self):
         """Test sphericalSplineInterpolate with different interpolation types."""
         # Test 'spline' type (default)
-        W_spline, _, _, _ = sphericalSplineInterpolate(
-            self.src_positions,
-            self.dest_positions,
-            type='spline'
-        )
+        W_spline, _, _, _ = sphericalSplineInterpolate(self.src_positions, self.dest_positions, type='spline')
 
         # Test 'slap' type
-        W_slap, _, _, _ = sphericalSplineInterpolate(
-            self.src_positions,
-            self.dest_positions,
-            type='slap'
-        )
+        W_slap, _, _, _ = sphericalSplineInterpolate(self.src_positions, self.dest_positions, type='slap')
 
         # Both should return finite matrices of the same shape
         self.assertEqual(W_spline.shape, W_slap.shape)
@@ -133,17 +126,9 @@ class TestSphericalSplineInterpolate(unittest.TestCase):
     def test_spherical_spline_interpolate_regularization(self):
         """Test sphericalSplineInterpolate with different regularization parameters."""
         # Test with different lambda values
-        W_low_reg, _, _, _ = sphericalSplineInterpolate(
-            self.src_positions,
-            self.dest_positions,
-            lambda_reg=1e-10
-        )
+        W_low_reg, _, _, _ = sphericalSplineInterpolate(self.src_positions, self.dest_positions, lambda_reg=1e-10)
 
-        W_high_reg, _, _, _ = sphericalSplineInterpolate(
-            self.src_positions,
-            self.dest_positions,
-            lambda_reg=1e-2
-        )
+        W_high_reg, _, _, _ = sphericalSplineInterpolate(self.src_positions, self.dest_positions, lambda_reg=1e-2)
 
         # Both should be finite and same shape
         self.assertEqual(W_low_reg.shape, W_high_reg.shape)
@@ -153,17 +138,9 @@ class TestSphericalSplineInterpolate(unittest.TestCase):
     def test_spherical_spline_interpolate_different_orders(self):
         """Test sphericalSplineInterpolate with different polynomial orders."""
         # Test with different orders
-        W_order2, _, _, _ = sphericalSplineInterpolate(
-            self.src_positions,
-            self.dest_positions,
-            order=2
-        )
+        W_order2, _, _, _ = sphericalSplineInterpolate(self.src_positions, self.dest_positions, order=2)
 
-        W_order6, _, _, _ = sphericalSplineInterpolate(
-            self.src_positions,
-            self.dest_positions,
-            order=6
-        )
+        W_order6, _, _, _ = sphericalSplineInterpolate(self.src_positions, self.dest_positions, order=6)
 
         # Both should be finite and same shape
         self.assertEqual(W_order2.shape, W_order6.shape)
@@ -186,7 +163,7 @@ class TestSphericalSplineInterpolateErrorHandling(unittest.TestCase):
     def test_invalid_interpolation_type(self):
         """Test error handling for invalid interpolation type."""
         src = np.array([[1, 0], [0, 1], [0, 0]])  # 3x2
-        dest = np.array([[0.5], [0.5], [0.0]])   # 3x1
+        dest = np.array([[0.5], [0.5], [0.0]])  # 3x1
 
         with self.assertRaises(ValueError):
             sphericalSplineInterpolate(src, dest, type='invalid_type')
@@ -208,4 +185,3 @@ class TestSphericalSplineInterpolateErrorHandling(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-

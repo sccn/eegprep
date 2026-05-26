@@ -7,6 +7,7 @@ of ICA components using FFTW-optimized FFT operations.
 
 # Disable multithreading for deterministic numerical results
 import os
+
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
 os.environ["NUMEXPR_NUM_THREADS"] = "1"
@@ -41,7 +42,9 @@ class TestEegAutocorrFftw(DebuggableTestCase):
         """Create a test EEG structure with ICA data."""
         # Create realistic ICA activations
         np.random.seed(42)  # For reproducible tests
-        icaact = np.random.randn(ncomp, pnts, trials).astype(np.float64)  # Use float64 to match MATLAB default precision
+        icaact = np.random.randn(ncomp, pnts, trials).astype(
+            np.float64
+        )  # Use float64 to match MATLAB default precision
 
         return {
             'icaact': icaact,
@@ -98,7 +101,7 @@ class TestEegAutocorrFftw(DebuggableTestCase):
             {'srate': 128, 'expected_samples': 100},
             {'srate': 256, 'expected_samples': 100},
             {'srate': 500, 'expected_samples': 100},
-            {'srate': 1000, 'expected_samples': 100}
+            {'srate': 1000, 'expected_samples': 100},
         ]
 
         for case in test_cases:
@@ -268,10 +271,8 @@ class TestEegAutocorrFftw(DebuggableTestCase):
         EEG = self.create_test_eeg(ncomp=3, pnts=256, srate=128)
 
         # Make copies to avoid modification effects
-        EEG1 = {key: value.copy() if isinstance(value, np.ndarray) else value
-                for key, value in EEG.items()}
-        EEG2 = {key: value.copy() if isinstance(value, np.ndarray) else value
-                for key, value in EEG.items()}
+        EEG1 = {key: value.copy() if isinstance(value, np.ndarray) else value for key, value in EEG.items()}
+        EEG2 = {key: value.copy() if isinstance(value, np.ndarray) else value for key, value in EEG.items()}
 
         result1 = eeg_autocorr_fftw(EEG1)
         result2 = eeg_autocorr_fftw(EEG2)
@@ -301,10 +302,8 @@ class TestEegAutocorrFftw(DebuggableTestCase):
         EEG = self.create_test_eeg(ncomp=3, pnts=256, srate=128)
 
         # Make copies to avoid modification effects
-        EEG_fftw = {key: value.copy() if isinstance(value, np.ndarray) else value
-                   for key, value in EEG.items()}
-        EEG_regular = {key: value.copy() if isinstance(value, np.ndarray) else value
-                      for key, value in EEG.items()}
+        EEG_fftw = {key: value.copy() if isinstance(value, np.ndarray) else value for key, value in EEG.items()}
+        EEG_regular = {key: value.copy() if isinstance(value, np.ndarray) else value for key, value in EEG.items()}
 
         result_fftw = eeg_autocorr_fftw(EEG_fftw)
         result_regular = eeg_autocorr(EEG_regular)

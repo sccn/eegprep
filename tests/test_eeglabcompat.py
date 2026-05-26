@@ -10,8 +10,11 @@ import unittest
 from copy import deepcopy
 
 from eegprep.functions.adminfunc.eeglabcompat import (
-    MatlabWrapper, get_eeglab, clean_drifts, pop_eegfiltnew,
-    eeg_checkset as eeglab_eeg_checkset
+    MatlabWrapper,
+    get_eeglab,
+    clean_drifts,
+    pop_eegfiltnew,
+    eeg_checkset as eeglab_eeg_checkset,
 )
 from eegprep import clean_artifacts, pop_loadset
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
@@ -50,6 +53,7 @@ class TestMatlabWrapper(DebuggableTestCase):
 
     def test_wrapper_creation(self):
         """Test MatlabWrapper creation with mock engine."""
+
         class MockEngine:
             def eval(self, cmd, nargout=0):
                 pass
@@ -61,6 +65,7 @@ class TestMatlabWrapper(DebuggableTestCase):
 
     def test_getattr_returns_wrapper_function(self):
         """Test that __getattr__ returns a callable wrapper function."""
+
         class MockEngine:
             def eval(self, cmd, nargout=0):
                 pass
@@ -271,7 +276,7 @@ class TestCleanArtifacts(DebuggableTestCase):
             LineNoiseCriterion='off',
             FlatlineCriterion='off',
             BurstCriterion='off',
-            Highpass='off'
+            Highpass='off',
         )
         self.assertIsNotNone(result)
         self.assertIn('data', result)
@@ -287,21 +292,20 @@ class TestEeglabCompatIntegration(DebuggableTestCase):
 
         # Test MATLAB runtime
         try:
-            eeglab = get_eeglab('MAT')
+            get_eeglab('MAT')
             runtimes_available.append('MAT')
         except Exception:
             pass
 
         # Test Octave runtime
         try:
-            eeglab = get_eeglab('OCT')
+            get_eeglab('OCT')
             runtimes_available.append('OCT')
         except Exception:
             pass
 
         # At least one runtime should be available for testing
-        self.assertGreater(len(runtimes_available), 0,
-                          "No EEGLAB runtime available for testing")
+        self.assertGreater(len(runtimes_available), 0, "No EEGLAB runtime available for testing")
 
 
 if __name__ == '__main__':

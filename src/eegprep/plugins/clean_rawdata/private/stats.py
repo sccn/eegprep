@@ -10,8 +10,9 @@ from ....functions.miscfunc.misc import round_mat
 logger = logging.getLogger(__name__)
 
 
-def fit_eeg_distribution(X, min_clean_fraction=None, max_dropout_fraction=None,
-                         quants=None, step_sizes=None, beta=None):
+def fit_eeg_distribution(
+    X, min_clean_fraction=None, max_dropout_fraction=None, quants=None, step_sizes=None, beta=None
+):
     """Estimate the mean and standard deviation of clean EEG from contaminated data.
 
     Mu,Sigma,Alpha,Beta = fit_eeg_distribution(X,MinCleanFraction,MaxDropoutFraction,FitQuantiles,StepSizes,ShapeRange)
@@ -72,7 +73,7 @@ def fit_eeg_distribution(X, min_clean_fraction=None, max_dropout_fraction=None,
           - beta (float): estimated shape parameter of the generalized Gaussian
                           clean EEG distribution.
     """
-# --- Assign defaults ---
+    # --- Assign defaults ---
     if min_clean_fraction is None:
         min_clean_fraction = 0.25
     if max_dropout_fraction is None:
@@ -109,8 +110,8 @@ def fit_eeg_distribution(X, min_clean_fraction=None, max_dropout_fraction=None,
     n = len(X)
 
     # --- Calc z bounds for the truncated standard generalized Gaussian pdf and pdf rescaler ---
-    zbounds = [] # Use a list to store bounds for each beta
-    rescale = np.zeros_like(beta, dtype=float) # Pre-allocate rescale array
+    zbounds = []  # Use a list to store bounds for each beta
+    rescale = np.zeros_like(beta, dtype=float)  # Pre-allocate rescale array
     for i, b_val in enumerate(beta):
         # Calculate bounds using gammaincinv
         # Note: MATLAB's gammaincinv(A,X) finds y where gammainc(y,A,'lower') = X.
@@ -131,16 +132,16 @@ def fit_eeg_distribution(X, min_clean_fraction=None, max_dropout_fraction=None,
         rescale[i] = b_val / (2.0 * gamma(1.0 / b_val))
 
     # --- Determine the quantile-dependent limits for the grid search ---
-    lower_min = np.min(quants)                  # we can generally skip the tail below the lower quantile
-    max_width = np.diff(quants)[0]              # maximum width is the fit interval if all data is clean
+    lower_min = np.min(quants)  # we can generally skip the tail below the lower quantile
+    max_width = np.diff(quants)[0]  # maximum width is the fit interval if all data is clean
     min_width = min_clean_fraction * max_width  # minimum width of the fit interval, as fraction of data
 
     # --- Get matrix of shifted data ranges ---
     # Generate start indices based on lower quantile, dropout fraction, and step size
     # Use np.arange; add a small fraction of step_sizes[0] to ensure the endpoint is included if it's a multiple of the step
-    start_indices = round_mat(n * np.arange(lower_min,
-                                            lower_min + max_dropout_fraction + 0.99 * step_sizes[0],
-                                            step_sizes[0])).astype(int)
+    start_indices = round_mat(
+        n * np.arange(lower_min, lower_min + max_dropout_fraction + 0.99 * step_sizes[0], step_sizes[0])
+    ).astype(int)
 
     # Generate indices within each window based on max_width
     max_window_len = int(round_mat(n * max_width))
@@ -154,32 +155,32 @@ def fit_eeg_distribution(X, min_clean_fraction=None, max_dropout_fraction=None,
     X_windows = X[all_indices]
 
     # Get the first element (lower bound) of each window
-    X1 = X_windows[:, 0].copy() # Use .copy() to avoid potential view issues
+    X1 = X_windows[:, 0].copy()  # Use .copy() to avoid potential view issues
 
     # Subtract the lower bound from each element in its respective window (equivalent to bsxfun(@minus, X, X1))
-    X_shifted = X_windows - X1[:, None] # Broadcasting subtraction
+    X_shifted = X_windows - X1[:, None]  # Broadcasting subtraction
 
     # --- Grid search ---
     opt_val = np.inf
     opt_beta = np.nan
     opt_bounds = np.array([np.nan, np.nan])
-    opt_lu = np.array([np.nan, np.nan]) # Lower and Upper data values of the optimal interval
+    opt_lu = np.array([np.nan, np.nan])  # Lower and Upper data values of the optimal interval
 
     # Iterate through possible interval widths 'm' exactly as in-house
     m_steps = np.int32(round_mat(n * np.arange(max_width, min_width, -step_sizes[1])))
 
     for m in m_steps:
-        if m <= 0: continue # Skip if width is non-positive
+        if m <= 0:
+            continue  # Skip if width is non-positive
 
         # --- Scale and bin the data in the intervals ---
         nbins = int(round_mat(3 * math.log2(1 + m / 2)))
-        if nbins <= 0: continue # Skip if nbins is non-positive
-
-        # Get the endpoint of the interval for scaling (width m means index m-1)
-        X_m = X_shifted[:, m - 1]
+        if nbins <= 0:
+            continue  # Skip if nbins is non-positive
 
         # scale and bin the data in the intervals exactly as in the MATLAB code
-        H = np.asarray(X_shifted[:, :m] * nbins / X_shifted[:, m - 1].reshape((-1, 1)))
+        with np.errstate(invalid="ignore", divide="ignore"):
+            H = np.asarray(X_shifted[:, :m] * nbins / X_shifted[:, m - 1].reshape((-1, 1)))
         H[np.isnan(H)] = -1
         bins = list(range(nbins))
         bins.append(np.inf)
@@ -192,7 +193,7 @@ def fit_eeg_distribution(X, min_clean_fraction=None, max_dropout_fraction=None,
         for b in range(len(beta)):
             bounds = zbounds[b]
             x_vals = bounds[0] + (0.5 + np.arange(nbins)) / nbins * np.diff(bounds)
-            p = np.exp(-np.abs(x_vals)**beta[b]) * rescale[b]
+            p = np.exp(-(np.abs(x_vals) ** beta[b])) * rescale[b]
             p /= np.sum(p)
             kl = np.sum(p * (np.log(p) - logq), axis=1) + np.log(m)
             min_val = np.min(kl)
@@ -227,12 +228,12 @@ def fit_eeg_distribution(X, min_clean_fraction=None, max_dropout_fraction=None,
     try:
         gamma_3_over_beta = gamma(3.0 / final_beta)
         gamma_1_over_beta = gamma(1.0 / final_beta)
-        if gamma_1_over_beta < 1e-9: # Avoid division by near-zero
-             sig = np.nan
-             logger.warning("gamma(1/beta) is close to zero; std dev calculation failed.")
+        if gamma_1_over_beta < 1e-9:  # Avoid division by near-zero
+            sig = np.nan
+            logger.warning("gamma(1/beta) is close to zero; std dev calculation failed.")
         else:
-             sig = np.sqrt((alpha**2) * gamma_3_over_beta / gamma_1_over_beta)
-    except ValueError: # Catches potential issues with gamma function inputs (e.g., non-positive)
+            sig = np.sqrt((alpha**2) * gamma_3_over_beta / gamma_1_over_beta)
+    except ValueError:  # Catches potential issues with gamma function inputs (e.g., non-positive)
         sig = np.nan
         logger.warning("Could not calculate std dev due to invalid gamma function input.")
 
@@ -245,7 +246,7 @@ def fit_eeg_distribution(X, min_clean_fraction=None, max_dropout_fraction=None,
     return mu, sig, alpha, final_beta
 
 
-def geometric_median(X, tol=1.e-5, y=None, max_iter=500):
+def geometric_median(X, tol=1.0e-5, y=None, max_iter=500):
     """Calculate the geometric median for a set of observations.
 
     This is the mean under a Laplacian noise distribution, using
@@ -273,7 +274,7 @@ def geometric_median(X, tol=1.e-5, y=None, max_iter=500):
     else:
         y = np.asarray(y)
         if y.shape != (X.shape[1],):
-             raise ValueError(f"Initial guess y must have shape ({X.shape[1]},) matching the number of features in X.")
+            raise ValueError(f"Initial guess y must have shape ({X.shape[1]},) matching the number of features in X.")
 
     # Small constant to prevent division by zero if a point coincides with the median
     epsilon = 1e-9
@@ -282,10 +283,10 @@ def geometric_median(X, tol=1.e-5, y=None, max_iter=500):
         # Calculate squared distances from each point in X to the current median y
         # X shape: (n_samples, n_features), y shape: (n_features,)
         # Broadcasting makes (X - y) shape (n_samples, n_features)
-        squared_distances = np.sum((X - y)**2, axis=1)
+        squared_distances = np.sum((X - y) ** 2, axis=1)
 
         # Calculate inverse norms (distances). Add epsilon for numerical stability.
-        invnorms = 1. / np.sqrt(squared_distances + epsilon)
+        invnorms = 1.0 / np.sqrt(squared_distances + epsilon)
 
         # Check for exact matches (where distance is near zero)
         # If a data point coincides with the current estimate, its weight should be handled carefully.
@@ -307,9 +308,9 @@ def geometric_median(X, tol=1.e-5, y=None, max_iter=500):
         # Check for convergence: relative change in norm
         # Use np.linalg.norm for vector norm
         norm_y = np_norm(y)
-        if norm_y == 0: # Avoid division by zero if the median is the zero vector
-             if np_norm(y - oldy) < tol: # Check absolute difference if norm is zero
-                 break
+        if norm_y == 0:  # Avoid division by zero if the median is the zero vector
+            if np_norm(y - oldy) < tol:  # Check absolute difference if norm is zero
+                break
         elif np_norm(y - oldy) / norm_y < tol:
             break
 
@@ -321,7 +322,7 @@ def geometric_median(X, tol=1.e-5, y=None, max_iter=500):
 
 
 # Helper function ported from asr_calibrate.m
-def block_geometric_median(X, blocksize=1, tol=1.e-5, y=None, max_iter=500):
+def block_geometric_median(X, blocksize=1, tol=1.0e-5, y=None, max_iter=500):
     """Calculate a blockwise geometric median.
 
     Faster and less memory-intensive than the regular geom_median function.
@@ -354,7 +355,7 @@ def block_geometric_median(X, blocksize=1, tol=1.e-5, y=None, max_iter=500):
 
     o, v = X.shape  # #observations & #variables
     if o == 0:
-         # Handle empty input case
+        # Handle empty input case
         return np.full((v,), np.nan)
 
     r = o % blocksize  # #remainder in last block
@@ -363,10 +364,10 @@ def block_geometric_median(X, blocksize=1, tol=1.e-5, y=None, max_iter=500):
     if b > 0:
         # Process full blocks
         # Reshape to (num_blocks, blocksize, num_variables) and sum along axis 1
-        X_blocks = X[:o - r, :].reshape(b, blocksize, v).sum(axis=1)
+        X_blocks = X[: o - r, :].reshape(b, blocksize, v).sum(axis=1)
         if r > 0:
             # Process remainder block if it exists
-            X_rem = X[o - r:, :].sum(axis=0, keepdims=True) * (blocksize / r)
+            X_rem = X[o - r :, :].sum(axis=0, keepdims=True) * (blocksize / r)
             # Combine full blocks and scaled remainder
             X_processed = np.vstack((X_blocks, X_rem))
         else:
@@ -374,11 +375,10 @@ def block_geometric_median(X, blocksize=1, tol=1.e-5, y=None, max_iter=500):
             X_processed = X_blocks
     elif r > 0:
         # Only a remainder block exists
-        X_processed = X[o - r:, :].sum(axis=0, keepdims=True) * (blocksize / r)
+        X_processed = X[o - r :, :].sum(axis=0, keepdims=True) * (blocksize / r)
     else:
         # This case should ideally not be reached if o > 0, but handle defensively
-         return np.full((v,), np.nan)
-
+        return np.full((v,), np.nan)
 
     # Call the standard geometric median function on the processed data
     median_val = geometric_median(X_processed, tol=tol, y=y, max_iter=max_iter)

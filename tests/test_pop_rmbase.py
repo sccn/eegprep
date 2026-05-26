@@ -1,25 +1,19 @@
 import os
-import sys
 import unittest
-import os
 
-if os.getenv('EEGPREP_SKIP_MATLAB') == '1':
-    raise unittest.SkipTest("MATLAB not available")
-import sys
 import numpy as np
-
-# Ensure tests dir is in path for unittest discovery
-test_dir = os.path.dirname(os.path.abspath(__file__))
-if test_dir not in sys.path:
-    sys.path.insert(0, test_dir)
 
 from eegprep.functions.popfunc.pop_rmbase import pop_rmbase
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
+
 try:
     from .fixtures import create_test_eeg
 except (ImportError, ValueError):
     from fixtures import create_test_eeg
+
+if os.getenv('EEGPREP_SKIP_MATLAB') == '1':
+    raise unittest.SkipTest("MATLAB not available")
 
 
 # where the test resources
@@ -33,12 +27,12 @@ def ensure_file(fname: str) -> str:
     local_file = os.path.abspath(f"{local_url}{fname}")
     if not os.path.exists(local_file):
         from urllib.request import urlretrieve
+
         urlretrieve(full_url, local_file)
     return local_file
 
 
 class TestPopRmbaseFunctional(unittest.TestCase):
-
     def test_epoched_pointrange_all_channels(self):
         # Create epoched EEG: nbchan x pnts x trials
         EEG = create_test_eeg(n_channels=4, n_samples=200, srate=200.0, n_trials=3)
@@ -56,7 +50,6 @@ class TestPopRmbaseFunctional(unittest.TestCase):
 
     def test_epoched_chanlist_subset(self):
         EEG = create_test_eeg(n_channels=5, n_samples=100, srate=100.0, n_trials=2)
-        data_before = EEG['data'].copy()
         # Only baseline-correct channels 1 and 3 (0-based indices)
         out = pop_rmbase(EEG, pointrange=[1, 30], chanlist=[1, 3])
         m_sel = np.mean(out['data'][[1, 3], 0:30, :], axis=1)
@@ -77,7 +70,7 @@ class TestPopRmbaseFunctional(unittest.TestCase):
         EEG = create_test_eeg(n_channels=2, n_samples=200, srate=200.0, n_trials=1)
         # Add two boundary events splitting into three segments within baseline window
         EEG['event'] = [
-            {'type': 'boundary', 'latency': 51.0},   # 1-based → between 50 and 51 (0-based split at 50)
+            {'type': 'boundary', 'latency': 51.0},  # 1-based → between 50 and 51 (0-based split at 50)
             {'type': 'boundary', 'latency': 151.0},  # split at 150
         ]
         # Full baseline range
@@ -97,7 +90,7 @@ class TestPopRmbaseFunctional(unittest.TestCase):
         out = pop_rmbase(EEG, timerange=[0.10, 0.49])
         a = 10
         b = 49
-        m = np.mean(out['data'][:, a:b+1], axis=1)
+        m = np.mean(out['data'][:, a : b + 1], axis=1)
         self.assertTrue(np.allclose(m, 0.0, atol=1e-10))
 
     def test_bad_timerange_raises(self):
@@ -114,7 +107,6 @@ class TestPopRmbaseFunctional(unittest.TestCase):
 
 
 class TestPopRmbaseParity(unittest.TestCase):
-
     def setUp(self):
         # Load a real dataset used across tests
         self.EEG = pop_loadset(ensure_file('FlankerTest.set'))
@@ -143,7 +135,6 @@ class TestPopRmbaseParity(unittest.TestCase):
         nbchan = int(self.EEG['nbchan'])
         chanlist = list(range(0, min(5, nbchan)))
 
-
         EEG_py = pop_rmbase(self.EEG.copy(), pointrange=pr, chanlist=chanlist)
         EEG_ml = self.eeglab.pop_rmbase(self.EEG.copy(), [], pr, np.array(chanlist) + 1)  # MATLAB 1-based
 
@@ -154,4 +145,3 @@ class TestPopRmbaseParity(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-

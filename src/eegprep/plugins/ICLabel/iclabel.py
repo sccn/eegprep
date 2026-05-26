@@ -5,6 +5,7 @@ import os
 
 import numpy as np
 
+
 def iclabel(EEG, algorithm='default', engine=None):
     """Apply ICLabel to classify independent components.
 
@@ -57,11 +58,13 @@ def iclabel(EEG, algorithm='default', engine=None):
         from eegprep.plugins.ICLabel.iclabel_net import ICLabelNet
         from eegprep import ICL_feature_extractor
 
-        #ICLABEL Extract ICLabel features from an EEG dataset.
+        # ICLABEL Extract ICLabel features from an EEG dataset.
         features = ICL_feature_extractor(EEG, True)
 
         # Equivalent of MATLAB code reshaping
-        features[0] = np.single(np.concatenate([features[0],-features[0],features[0][:, ::-1, :, :],-features[0][:, ::-1, :, :]], axis=3))
+        features[0] = np.single(
+            np.concatenate([features[0], -features[0], features[0][:, ::-1, :, :], -features[0][:, ::-1, :, :]], axis=3)
+        )
         features[1] = np.single(np.tile(features[1], (1, 1, 1, 4)))
         features[2] = np.single(np.tile(features[2], (1, 1, 1, 4)))
         # print('Feature 0 shape:', features[0].shape)
@@ -92,10 +95,8 @@ def iclabel(EEG, algorithm='default', engine=None):
         if 'ICLabel' not in EEG['etc']['ic_classification']:
             EEG['etc']['ic_classification']['ICLabel'] = {}
 
-        np.object = object
         EEG['etc']['ic_classification']['ICLabel']['classes'] = np.array(
-            ['Brain', 'Muscle', 'Eye', 'Heart', 'Line Noise', 'Channel Noise', 'Other'],
-            dtype=object
+            ['Brain', 'Muscle', 'Eye', 'Heart', 'Line Noise', 'Channel Noise', 'Other'], dtype=object
         )
         EEG['etc']['ic_classification']['ICLabel']['classifications'] = output_np
         EEG['etc']['ic_classification']['ICLabel']['version'] = algorithm

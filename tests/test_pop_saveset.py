@@ -1,8 +1,6 @@
 import os
 import unittest
-import numpy as np
-from eegprep import pop_loadset, pop_resample, pop_saveset  # Explicitly import pop_resample
-
+from eegprep import pop_loadset, pop_saveset  # Explicitly import pop_resample
 
 
 # where the test resources
@@ -12,28 +10,34 @@ local_url = os.path.join(os.path.dirname(__file__), '../sample_data/')
 web_root = 'https://sccntestdatasets.s3.us-east-2.amazonaws.com/'
 local_url = os.path.join(os.path.dirname(__file__), '../sample_data/')
 
+
 def ensure_file(fname: str) -> str:
     """Download a file if it does not exist and return the local path."""
     full_url = f"{web_root}{fname}"
     local_file = f"{local_url}{fname}"
     if not os.path.exists(local_file):
         from urllib.request import urlretrieve
+
         urlretrieve(full_url, local_file)
     return local_file
 
-class TestPopSaveset(unittest.TestCase):
 
+class TestPopSaveset(unittest.TestCase):
     def setUp(self):
         pass
 
     def test_flanker(self):
         pass
         self.EEG = pop_loadset(ensure_file('FlankerTest.set'))
-        pop_saveset(self.EEG, os.path.join(local_url, 'eeglab_data_tmp.set')) # see MATLAB code to compare the results at the end of the file
+        pop_saveset(
+            self.EEG, os.path.join(local_url, 'eeglab_data_tmp.set')
+        )  # see MATLAB code to compare the results at the end of the file
 
     def test_basic(self):
         self.EEG = pop_loadset(os.path.join(local_url, 'eeglab_data_with_ica_tmp.set'))
-        pop_saveset(self.EEG, os.path.join(local_url, 'eeglab_data_tmp.set')) # see MATLAB code to compare the results at the end of the file
+        pop_saveset(
+            self.EEG, os.path.join(local_url, 'eeglab_data_tmp.set')
+        )  # see MATLAB code to compare the results at the end of the file
         # """Test basic resampling functionality with different engines"""
         # # Apply resampling with different engines
         # EEG_python = pop_resample(self.EEG.copy(), self.new_freq, engine='scipy')

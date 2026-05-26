@@ -12,9 +12,21 @@ def iclabel_menu() -> MenuItemSpec:
         userdata="startup:off;study:on;ica:on;roi:off",
         origin="ICLabel",
         children=[
-            menu_item("Label components", action="pop_iclabel", userdata="startup:off;study:on;ica:on", origin="ICLabel"),
-            menu_item("Flag components as artifacts", action="pop_icflag", userdata="startup:off;study:on;ica:on", origin="ICLabel"),
-            menu_item("View extended component properties", action="pop_viewprops:components", userdata="startup:off;ica:on", origin="ICLabel"),
+            menu_item(
+                "Label components", action="pop_iclabel", userdata="startup:off;study:on;ica:on", origin="ICLabel"
+            ),
+            menu_item(
+                "Flag components as artifacts",
+                action="pop_icflag",
+                userdata="startup:off;study:on;ica:on",
+                origin="ICLabel",
+            ),
+            menu_item(
+                "View extended component properties",
+                action="pop_viewprops:components",
+                userdata="startup:off;ica:on",
+                origin="ICLabel",
+            ),
         ],
     )
 

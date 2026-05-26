@@ -3,11 +3,9 @@ import os
 import unittest
 import numpy as np
 import copy
-import os
 
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
-from eegprep.functions.popfunc.pop_loadset_h5 import pop_loadset_h5
 from eegprep.functions.popfunc.pop_select import pop_select
 from eegprep.functions.popfunc.pop_epoch import pop_epoch
 
@@ -15,14 +13,17 @@ from eegprep.functions.popfunc.pop_epoch import pop_epoch
 web_root = 'https://sccntestdatasets.s3.us-east-2.amazonaws.com/'
 local_url = os.path.join(os.path.dirname(__file__), '../sample_data/')
 
-def ensure_file(fname: str) -> str: # duplicate of test_clean_rawdata.py
+
+def ensure_file(fname: str) -> str:  # duplicate of test_clean_rawdata.py
     """Download a file if it does not exist and return the local path."""
     full_url = f"{web_root}{fname}"
     local_file = os.path.abspath(f"{local_url}{fname}")
     if not os.path.exists(local_file):
         from urllib.request import urlretrieve
+
         urlretrieve(full_url, local_file)
     return local_file
+
 
 def _chan_labels(EEG):
     labs = []
@@ -35,11 +36,10 @@ def _chan_labels(EEG):
 
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestPopSelectParity(unittest.TestCase):
-
     def setUp(self):
         # Load the same dataset in both backends
         self.EEG_py = pop_loadset(ensure_file('FlankerTest.set'))
-        self.eeglab = get_eeglab('MAT')       # MATLAB bridge
+        self.eeglab = get_eeglab('MAT')  # MATLAB bridge
 
     def test_parity_channel_by_name(self):
         # Keep first 3 channels by name to avoid 0 vs 1-based index differences
@@ -49,7 +49,7 @@ class TestPopSelectParity(unittest.TestCase):
 
         EEG_py_in1 = copy.deepcopy(self.EEG_py)
         EEG_py_in2 = copy.deepcopy(self.EEG_py)
-        EEG_py_out =              pop_select(EEG_py_in1, channel=keep_names)
+        EEG_py_out = pop_select(EEG_py_in1, channel=keep_names)
         EEG_mat_out = self.eeglab.pop_select(EEG_py_in2, 'channel', keep_names)
 
         # Shapes and metadata
@@ -73,7 +73,7 @@ class TestPopSelectParity(unittest.TestCase):
         k = min(5, trials)
         keep_trials = list(range(1, k + 1))  # 1-based
 
-        EEG_py_out =              pop_select(copy.deepcopy(EEG_py_epochs), trial=keep_trials)
+        EEG_py_out = pop_select(copy.deepcopy(EEG_py_epochs), trial=keep_trials)
         EEG_mat_out = self.eeglab.pop_select(copy.deepcopy(EEG_py_epochs), 'trial', keep_trials)
 
         self.assertEqual(EEG_py_out['trials'], k)
@@ -94,7 +94,7 @@ class TestPopSelectParity(unittest.TestCase):
         tmin = xmin
         tmax = xmin + min(0.2, max(0.05, xmax - xmin))
 
-        EEG_py_out =              pop_select(copy.deepcopy(self.EEG_py), time=np.array([[tmin, tmax]], dtype=float))
+        EEG_py_out = pop_select(copy.deepcopy(self.EEG_py), time=np.array([[tmin, tmax]], dtype=float))
         EEG_mat_out = self.eeglab.pop_select(copy.deepcopy(self.EEG_py), 'time', np.array([tmin, tmax]))
 
         self.assertTrue(np.allclose(EEG_py_out['xmin'], tmin, atol=1e-12))
@@ -120,7 +120,7 @@ class TestPopSelectParity(unittest.TestCase):
         # Remove a middle slice
         rm_seg = np.array([[xmin + 0.1 * span, xmin + 0.2 * span]], dtype=float)
 
-        EEG_py_out =              pop_select(copy.deepcopy(self.EEG_py), rmtime=rm_seg)
+        EEG_py_out = pop_select(copy.deepcopy(self.EEG_py), rmtime=rm_seg)
         EEG_mat_out = self.eeglab.pop_select(copy.deepcopy(self.EEG_py), 'rmtime', rm_seg.flatten())
 
         self.assertEqual(EEG_py_out['pnts'], EEG_mat_out['pnts'])
@@ -128,10 +128,12 @@ class TestPopSelectParity(unittest.TestCase):
         self.assertEqual(EEG_py_out['nbchan'], EEG_mat_out['nbchan'])
         # Compare data only up to the smaller size due to potential boundary differences
         min_pnts = min(EEG_py_out['pnts'], EEG_mat_out['pnts'])
-        self.assertTrue(np.allclose(EEG_py_out['data'][:, :min_pnts], EEG_mat_out['data'][:, :min_pnts], atol=1e-7, equal_nan=True))
+        self.assertTrue(
+            np.allclose(EEG_py_out['data'][:, :min_pnts], EEG_mat_out['data'][:, :min_pnts], atol=1e-7, equal_nan=True)
+        )
+
 
 class TestPopSelectFunctional(unittest.TestCase):
-
     def setUp(self):
         self.EEG = pop_loadset(ensure_file('FlankerTest.set'))
 
@@ -168,7 +170,9 @@ class TestPopSelectFunctional(unittest.TestCase):
         # choose a 10-sample window via points
         pt_start = 1
         pt_end = min(self.EEG['pnts'], 10)
-        EEG_out = pop_select(copy.deepcopy(self.EEG), point=[pt_start, pt_end], time=[[xmin, xmin + 1000.0]])  # absurd time to force precedence
+        EEG_out = pop_select(
+            copy.deepcopy(self.EEG), point=[pt_start, pt_end], time=[[xmin, xmin + 1000.0]]
+        )  # absurd time to force precedence
 
         # Expect exactly pt_end - pt_start + 1 samples in output
         expected_pnts = pt_end - pt_start + 1
@@ -194,9 +198,9 @@ class TestPopSelectFunctional(unittest.TestCase):
     def test_event_epoch_field_removal_on_single_trial(self):
         EEG = copy.deepcopy(self.EEG)
         if int(EEG.get('trials')) > 2:
-            EEG_out = pop_select(EEG, trial=[1,2])
+            EEG_out = pop_select(EEG, trial=[1, 2])
 
-            self.assertTrue(EEG_out.get('epoch') == [])
+            self.assertEqual(np.asarray(EEG_out.get('epoch')).size, 0)
 
 
 class TestPopSelectEdgeCases(unittest.TestCase):
@@ -216,12 +220,12 @@ class TestPopSelectEdgeCases(unittest.TestCase):
                 {'labels': 'Fz', 'X': 0, 'Y': 1, 'Z': 0},
                 {'labels': 'Cz', 'X': 0, 'Y': 0, 'Z': 1},
                 {'labels': 'Pz', 'X': 0, 'Y': -1, 'Z': 0},
-                {'labels': 'Oz', 'X': 0, 'Y': -1, 'Z': -1}
+                {'labels': 'Oz', 'X': 0, 'Y': -1, 'Z': -1},
             ],
             'event': [
                 {'type': 'stimulus', 'latency': 50, 'epoch': 1},
                 {'type': 'response', 'latency': 150, 'epoch': 2},
-                {'type': 'stimulus', 'latency': 250, 'epoch': 3}
+                {'type': 'stimulus', 'latency': 250, 'epoch': 3},
             ],
             'epoch': [{}, {}, {}],
             'icaact': None,
@@ -235,7 +239,7 @@ class TestPopSelectEdgeCases(unittest.TestCase):
             'stats': {},
             'dipfit': None,
             'roi': None,
-            'chaninfo': {}
+            'chaninfo': {},
         }
 
     def test_missing_data_error(self):
@@ -420,8 +424,6 @@ class TestPopSelectEdgeCases(unittest.TestCase):
         # When trials [3, 1] are selected, they become new trials [1, 2]
         # So original epoch 3 becomes new epoch 1, and original epoch 1 becomes new epoch 2
         if len(EEG_out['event']) >= 2:
-            # Find events by their original type to verify mapping
-            event_types = [ev['type'] for ev in EEG_out['event']]
             # The event from original epoch 3 should now be in epoch 1
             # The event from original epoch 1 should now be in epoch 2
             self.assertEqual(len(EEG_out['event']), 2)
@@ -505,8 +507,8 @@ class TestPopSelectEdgeCases(unittest.TestCase):
         EEG_out = pop_select(EEG, channel=[0, 1, 2])  # Remove channel 3
 
         # dipfit and roi should be cleared
-        self.assertEqual(EEG_out['dipfit'], [])
-        self.assertEqual(EEG_out['roi'], [])
+        self.assertEqual(np.asarray(EEG_out['dipfit']).size, 0)
+        self.assertEqual(EEG_out['roi'], {})
 
     def test_single_trial_epoch_field_removal(self):
         """Test that epoch fields are removed from events when only one trial remains."""
@@ -520,7 +522,7 @@ class TestPopSelectEdgeCases(unittest.TestCase):
         for event in EEG_out['event']:
             self.assertNotIn('epoch', event)
         # epoch list should be empty
-        self.assertEqual(EEG_out['epoch'], [])
+        self.assertEqual(np.asarray(EEG_out['epoch']).size, 0)
 
     def test_event_latency_bounds_checking(self):
         """Test that events with invalid latencies are removed."""

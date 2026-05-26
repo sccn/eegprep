@@ -36,6 +36,7 @@ Getting Started
 
    installation
    quickstart
+   interactive_console
 
 Core Concepts
 =============
@@ -70,6 +71,7 @@ Quick Reference
 
 - :ref:`installation` - Install eegprep
 - :ref:`quickstart` - Load, preprocess, and save EEG data
+- :ref:`interactive_console` - Use the GUI and Python console together
 - :ref:`preprocessing_pipeline` - Understand preprocessing steps
 - :ref:`bids_workflow` - Process BIDS datasets
 - :ref:`visual_parity` - Compare future EEGPREP UI states against EEGLAB

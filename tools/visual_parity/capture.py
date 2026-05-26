@@ -14,7 +14,7 @@ from dataclasses import dataclass
 try:
     from .config import DEFAULT_MANIFEST, TargetSpec, VisualCase, format_command, load_manifest
 except ImportError:  # pragma: no cover - supports direct script execution
-    from config import DEFAULT_MANIFEST, TargetSpec, VisualCase, format_command, load_manifest
+    from config import DEFAULT_MANIFEST, TargetSpec, VisualCase, format_command, load_manifest  # ty: ignore[unresolved-import]
 
 
 DEFAULT_OUTPUT_DIR = pathlib.Path(".visual-parity")
@@ -49,11 +49,7 @@ def _matlab_string(value: pathlib.Path | str) -> str:
 
 def _matlab_run_expression(script_path: pathlib.Path) -> str:
     script = _matlab_string(script_path.as_posix())
-    return (
-        f"try, run({script}); "
-        "catch ME, disp(getReport(ME, 'extended')); exit(1); "
-        "end; exit(0);"
-    )
+    return f"try, run({script}); catch ME, disp(getReport(ME, 'extended')); exit(1); end; exit(0);"
 
 
 def _split_action(action: str) -> tuple[str, str]:
@@ -642,6 +638,7 @@ def _write_matlab_simple_pop_dialog_script(
         "pop_interp": "Interpolate channel(s) -- pop_interp()",
         "pop_select": "Select data -- pop_select()",
         "pop_resample": "Resample current dataset -- pop_resample()",
+        "pop_epoch": "Extract data epochs - pop_epoch()",
         "pop_runica": "Run ICA decomposition -- pop_runica()",
         "pop_clean_rawdata": "pop_clean_rawdata()",
         "pop_iclabel": "ICLabel",
@@ -674,6 +671,8 @@ def _write_matlab_simple_pop_dialog_script(
                 "        [EEG, com] = pop_select(EEG);",
                 "    case 'pop_resample'",
                 "        [EEG, com] = pop_resample(EEG);",
+                "    case 'pop_epoch'",
+                "        [EEG, com] = pop_epoch(EEG);",
                 "    case 'pop_runica'",
                 "        [EEG, com] = pop_runica(EEG);",
                 "    case 'pop_clean_rawdata'",
@@ -1128,6 +1127,7 @@ def capture_target(
             "pop_adjustevents",
             "pop_chansel",
             "pop_clean_rawdata",
+            "pop_epoch",
             "pop_iclabel",
             "pop_interp",
             "pop_resample",
@@ -1156,7 +1156,7 @@ def capture_target(
             script_path = _write_matlab_simple_pop_dialog_script(case, output_path, action, variant)
         elif action == "pop_chansel":
             script_path = _write_matlab_pop_chansel_dialog_script(case, output_path)
-        elif action in {"pop_clean_rawdata", "pop_iclabel", "pop_resample", "pop_runica", "pop_select"}:
+        elif action in {"pop_clean_rawdata", "pop_epoch", "pop_iclabel", "pop_resample", "pop_runica", "pop_select"}:
             script_path = _write_matlab_simple_pop_dialog_script(case, output_path, action, variant)
         elif action == "inputdlg2":
             script_path = _write_matlab_dataset_index_dialog_script(case, output_path)

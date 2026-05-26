@@ -9,7 +9,7 @@ eeglab_data_path = '/System/Volumes/Data/data/matlab/eeglab/sample_data/eeglab_d
 
 if 1:
     raw = mne.io.read_epochs_eeglab(eeglab_data_path)
-    raw.filter(1., 40., fir_design='firwin')
+    raw.filter(1.0, 40.0, fir_design='firwin')
 
     # Select the EEG channels
     picks = mne.pick_types(raw.info, meg=False, eeg=True, eog=False, exclude='bads')

@@ -12,8 +12,9 @@ import numpy as np
 from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
 from eegprep.functions.guifunc.eeglab_menu import eeglab_menus
 from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher
+from eegprep.functions.guifunc.menu_placeholders import is_placeholder_action
 from eegprep.functions.guifunc.menu_spec import MenuItemSpec, menu_enabled
-from eegprep.functions.guifunc.session import EEGPrepSession, has_eeg_data
+from eegprep.functions.guifunc.session import EEGPrepSession
 
 try:  # pragma: no cover - optional GUI dependency
     from PySide6 import QtCore, QtGui, QtWidgets
@@ -28,6 +29,8 @@ GUITEXTCOLOR = "#000066"
 PLUGINMENUCOLOR = "#800080"
 APP_NAME = "EEGPrep"
 _MACOS_MENU_BRANDING_RETRY_MS = 100
+COMING_SOON_SUFFIX = " (coming soon)"
+COMING_SOON_TOOLTIP = "This workflow is not available in EEGPrep yet."
 
 
 def _require_qt() -> tuple[Any, Any, Any]:
@@ -49,6 +52,7 @@ class EEGPrepMainWindow:
         all_menus: bool | None = None,
         include_plugins: bool = True,
         native_menu_bar: bool | None = None,
+        native_file_dialogs: bool = True,
     ) -> None:
         qt_core, qt_gui, qt_widgets = _require_qt()
         self._qt_core = qt_core
@@ -69,7 +73,11 @@ class EEGPrepMainWindow:
         self.window.setStyleSheet(_main_window_stylesheet())
         use_native_menu_bar = sys.platform == "darwin" if native_menu_bar is None else bool(native_menu_bar)
         self.window.menuBar().setNativeMenuBar(use_native_menu_bar)
-        self.dispatcher = MenuActionDispatcher(self.session, refresh=self.refresh)
+        self.dispatcher = MenuActionDispatcher(
+            self.session,
+            refresh=self.refresh,
+            native_file_dialogs=native_file_dialogs,
+        )
         self._build_central_widget()
         self.refresh()
 
@@ -180,7 +188,7 @@ class EEGPrepMainWindow:
         for spec in self._current_menu_specs():
             action = self._add_top_menu(menubar, spec, statuses)
             if spec.label == "Study" and "multiple_datasets" in statuses:
-                action.setEnabled(False)
+                _set_menu_enabled(action.menu(), action, False)
         _set_macos_application_menu_title(APP_NAME)
 
     def _apply_application_branding(self) -> None:
@@ -231,16 +239,22 @@ class EEGPrepMainWindow:
             for index, label, _selected in summaries
         ]
         if len(summaries) > 1:
-            items.append(MenuItemSpec("Select multiple datasets", action="select_multiple_datasets", userdata="study:on", separator=True))
+            items.append(
+                MenuItemSpec(
+                    "Select multiple datasets", action="select_multiple_datasets", userdata="study:on", separator=True
+                )
+            )
         if self.session.CURRENTSTUDY == 1 and self.session.STUDY:
-            items.append(MenuItemSpec("Select the study set", action="select_study_set", userdata="study:on", separator=True))
+            items.append(
+                MenuItemSpec("Select the study set", action="select_study_set", userdata="study:on", separator=True)
+            )
         return tuple(items)
 
     def _add_top_menu(self, menubar: Any, spec: MenuItemSpec, statuses: set[str]) -> Any:
         menu = menubar.addMenu(spec.label)
         action = menu.menuAction()
         _apply_action_metadata(action, spec, self._qt_gui)
-        action.setEnabled(menu_enabled(spec, statuses))
+        _set_menu_enabled(menu, action, menu_enabled(spec, statuses))
         if spec.tag:
             menu.setObjectName(spec.tag)
         for child in spec.children:
@@ -256,20 +270,25 @@ class EEGPrepMainWindow:
                 submenu.setObjectName(spec.tag)
             action = submenu.menuAction()
             _apply_action_metadata(action, spec, self._qt_gui)
-            action.setEnabled(menu_enabled(spec, statuses))
+            _set_menu_enabled(submenu, action, menu_enabled(spec, statuses))
             if spec.origin != "core":
                 action.setIconText(spec.label)
             for child in spec.children:
                 self._add_menu_item(submenu, child, statuses)
             return action
-        action = menu.addAction(spec.label)
+        coming_soon = _is_coming_soon_item(spec)
+        action = menu.addAction(_display_menu_label(spec))
         _apply_action_metadata(action, spec, self._qt_gui)
-        action.setEnabled(menu_enabled(spec, statuses))
+        if coming_soon:
+            _mark_coming_soon_action(action)
+        action.setEnabled(menu_enabled(spec, statuses) and not coming_soon)
         if spec.checked:
             action.setCheckable(True)
             action.setChecked(True)
-        if spec.action:
-            action.triggered.connect(lambda _checked=False, action_id=spec.action: self._dispatch_menu_action(action_id))
+        if spec.action and not coming_soon:
+            action.triggered.connect(
+                lambda _checked=False, action_id=spec.action: self._dispatch_menu_action(action_id)
+            )
         if spec.origin != "core":
             action.setProperty("eegprep_plugin", True)
         return action
@@ -304,6 +323,7 @@ def build_main_window(
     all_menus: bool | None = None,
     include_plugins: bool = True,
     native_menu_bar: bool | None = None,
+    native_file_dialogs: bool = True,
 ) -> EEGPrepMainWindow:
     """Build an EEGPrep main window without entering the Qt event loop."""
     return EEGPrepMainWindow(
@@ -311,6 +331,7 @@ def build_main_window(
         all_menus=all_menus,
         include_plugins=include_plugins,
         native_menu_bar=native_menu_bar,
+        native_file_dialogs=native_file_dialogs,
     )
 
 
@@ -371,7 +392,11 @@ def _summary_for_session(session: EEGPrepSession) -> tuple[str, str, list[tuple[
         ("ICA weights", _yes_no(not _empty_array(eeg.get("icasphere")))),
         ("Dataset size (Mb)", _size_mb(eeg)),
     ]
-    return prefix + _truncate(setname, 31), _short_file_line("Filename", eeg.get("filepath", ""), eeg.get("filename", "")), rows
+    return (
+        prefix + _truncate(setname, 31),
+        _short_file_line("Filename", eeg.get("filepath", ""), eeg.get("filename", "")),
+        rows,
+    )
 
 
 def _startup_lines() -> list[str]:
@@ -411,6 +436,27 @@ def _main_window_stylesheet() -> str:
     }}
     QLabel#startup_title {{
         font-weight: bold;
+    }}
+    QMenuBar {{
+        background: #dce8ff;
+        border-bottom: 1px solid #7f8fb4;
+        color: {GUITEXTCOLOR};
+    }}
+    QMenuBar::item {{
+        background: transparent;
+        color: {GUITEXTCOLOR};
+        padding: 4px 10px;
+    }}
+    QMenuBar::item:selected {{
+        background: #c6d9ff;
+    }}
+    QMenuBar::item:disabled {{
+        background: transparent;
+        color: #64708f;
+    }}
+    QMenuBar::item:disabled:selected {{
+        background: transparent;
+        color: #64708f;
     }}
     QFrame#eegprep_frame {{
         border: 1px solid #777777;
@@ -619,12 +665,41 @@ def _apply_action_metadata(action: Any, spec: MenuItemSpec, qt_gui: Any) -> None
         action.setData(spec.action)
 
 
+def _set_menu_enabled(menu: Any | None, action: Any, enabled: bool) -> None:
+    action.setEnabled(enabled)
+    if menu is not None:
+        menu.setEnabled(enabled)
+
+
+def _is_coming_soon_item(spec: MenuItemSpec) -> bool:
+    return bool(spec.action and not spec.children and is_placeholder_action(spec.action))
+
+
+def _display_menu_label(spec: MenuItemSpec) -> str:
+    if _is_coming_soon_item(spec):
+        return f"{spec.label}{COMING_SOON_SUFFIX}"
+    return spec.label
+
+
+def _mark_coming_soon_action(action: Any) -> None:
+    action.setProperty("eegprep_implementation_state", "coming_soon")
+    action.setToolTip(COMING_SOON_TOOLTIP)
+    action.setStatusTip(COMING_SOON_TOOLTIP)
+    font = action.font()
+    font.setItalic(True)
+    action.setFont(font)
+
+
 def _action_inventory(action: Any) -> dict[str, Any]:
     menu = action.menu()
-    children = [_action_inventory(child) for child in menu.actions() if not child.isSeparator()] if menu is not None else []
+    children = (
+        [_action_inventory(child) for child in menu.actions() if not child.isSeparator()] if menu is not None else []
+    )
     return {
         "label": action.text(),
+        "source_label": str(action.property("eegprep_label") or action.text()),
         "enabled": action.isEnabled(),
+        "implementation_state": str(action.property("eegprep_implementation_state") or "implemented"),
         "separator": bool(action.property("eegprep_separator")),
         "checked": action.isChecked(),
         "tag": str(action.property("eegprep_tag") or ""),
@@ -650,7 +725,9 @@ def _format_time(value: Any) -> str:
 
 def _reference_state(eeg: dict[str, Any]) -> str:
     chanlocs = _as_list(eeg.get("chanlocs"))
-    refs = [_display_scalar(chan.get("ref")) for chan in chanlocs if isinstance(chan, dict) and _has_value(chan.get("ref"))]
+    refs = [
+        _display_scalar(chan.get("ref")) for chan in chanlocs if isinstance(chan, dict) and _has_value(chan.get("ref"))
+    ]
     return refs[0] if refs else (_display_scalar(eeg.get("ref")) or "unknown")
 
 

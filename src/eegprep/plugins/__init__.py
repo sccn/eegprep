@@ -1,2 +1,1 @@
 """EEGLAB-style plugin modules."""
-

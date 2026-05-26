@@ -1,10 +1,10 @@
 """
 Test suite for pipeline: clean_artifacts -> eeg_picard -> iclabel
 """
+
 import os
 import re
 import unittest
-import numpy as np
 from copy import deepcopy
 from eegprep import pop_loadset, clean_artifacts, eeg_picard, iclabel
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
@@ -15,6 +15,7 @@ from eegprep.utils.testing import (
     has_optional_dependency,
     matlab_function_exists,
 )
+
 
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 def test_pipeline():
@@ -30,8 +31,15 @@ def test_pipeline():
     eeglab = get_eeglab('MAT')
     EEG_mat_ch = eeglab.clean_artifacts(deepcopy(EEG), 'BurstCriterion', 'off', 'ChannelCriterion', 0.8)
     # eeg_compare(EEG_py_ch, EEG_mat_ch)
-    compare_eeg(EEG_py_ch['data'], EEG_mat_ch['data'], rtol=0.005, atol=1e-5, err_msg='clean_artifacts() channel cleaning Python vs MATLAB failed')
+    compare_eeg(
+        EEG_py_ch['data'],
+        EEG_mat_ch['data'],
+        rtol=0.005,
+        atol=1e-5,
+        err_msg='clean_artifacts() channel cleaning Python vs MATLAB failed',
+    )
     print("clean_artifacts() channel cleaning Python vs MATLAB passed\n\n\n")
+
 
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestPipeline(DebuggableTestCase):
@@ -53,18 +61,18 @@ class TestPipeline(DebuggableTestCase):
         # MATLAB also needs a fresh copy since it may modify the EEG structure
         EEG_mat_ch = self.eeglab.clean_artifacts(deepcopy(self.EEG), 'BurstCriterion', 'off', 'ChannelCriterion', 0.8)
 
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         print("Step 1: clean_artifacts (channel cleaning only)")
-        print("="*80)
+        print("=" * 80)
         summary = compare_eeg(
             EEG_py_ch['data'],
             EEG_mat_ch['data'],
             rtol=0.005,
             atol=1e-5,
-            err_msg='clean_artifacts() channel cleaning Python vs MATLAB failed'
+            err_msg='clean_artifacts() channel cleaning Python vs MATLAB failed',
         )
         print(summary)
-        print("="*80 + "\n")
+        print("=" * 80 + "\n")
 
     def test_clean_artifacts_burst_cleaning(self):
         """Test clean_artifacts burst cleaning step (ChannelCriterion='off')."""
@@ -76,9 +84,9 @@ class TestPipeline(DebuggableTestCase):
         EEG_py, *_ = clean_artifacts(EEG_py_ch, ChannelCriterion='off')
         EEG_mat = self.eeglab.clean_artifacts(EEG_mat_ch, 'ChannelCriterion', 'off', 'BurstCriterion', 5.0)
 
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         print("Step 1b: clean_artifacts (burst cleaning only)")
-        print("="*80)
+        print("=" * 80)
         eeg_summary = eeg_compare(EEG_py, EEG_mat)
         print(f"\n{eeg_summary}")
         data_summary = compare_eeg(
@@ -86,10 +94,10 @@ class TestPipeline(DebuggableTestCase):
             EEG_mat['data'],
             rtol=0.005,
             atol=1e-5,
-            err_msg='clean_artifacts() burst cleaning Python vs MATLAB failed'
+            err_msg='clean_artifacts() burst cleaning Python vs MATLAB failed',
         )
         print(f"\n{data_summary}")
-        print("="*80 + "\n")
+        print("=" * 80 + "\n")
 
     def test_eeg_picard(self):
         """Test eeg_picard ICA decomposition."""
@@ -107,9 +115,9 @@ class TestPipeline(DebuggableTestCase):
         EEG_mat_ica = eeg_picard(EEG_mat, engine=self.eeglab)
 
         # Compare ICA fields
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         print("Step 2: eeg_picard (ICA decomposition)")
-        print("="*80)
+        print("=" * 80)
         for field in ['icaweights', 'icasphere', 'icawinv', 'icaact', 'icachansind']:
             self.assertIn(field, EEG_py_ica, f"Missing ICA field in Python: {field}")
             self.assertIn(field, EEG_mat_ica, f"Missing ICA field in MATLAB: {field}")
@@ -125,7 +133,7 @@ class TestPipeline(DebuggableTestCase):
         print("\nComparing icawinv:")
         winv_summary = eeg_compare(EEG_py_ica['icawinv'], EEG_mat_ica['icawinv'])
         print(winv_summary)
-        print("="*80 + "\n")
+        print("=" * 80 + "\n")
 
     def test_iclabel(self):
         """Test iclabel component classification."""
@@ -147,9 +155,9 @@ class TestPipeline(DebuggableTestCase):
         EEG_mat_lbl = iclabel(EEG_mat_ica, engine='matlab')
 
         # Check ICLabel output structure
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         print("Step 3: iclabel (component classification)")
-        print("="*80)
+        print("=" * 80)
         for EEG_lbl in [EEG_py_lbl, EEG_mat_lbl]:
             self.assertIn('etc', EEG_lbl, 'Missing etc field')
             self.assertIn('ic_classification', EEG_lbl['etc'], 'Missing ic_classification field')
@@ -160,7 +168,7 @@ class TestPipeline(DebuggableTestCase):
         print("\nComparing ICLabel classifications:")
         iclabel_summary = eeg_compare(res_py, res_mat)
         print(iclabel_summary)
-        print("="*80 + "\n")
+        print("=" * 80 + "\n")
 
     def test_z_full_pipeline(self):
         """Test the complete pipeline end-to-end."""
@@ -169,9 +177,9 @@ class TestPipeline(DebuggableTestCase):
         if not has_optional_dependency('torch'):
             self.skipTest("PyTorch is not installed; install eegprep[torch] to run full pipeline parity")
 
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         print("Full Pipeline Test: clean_artifacts -> eeg_picard -> iclabel")
-        print("="*80)
+        print("=" * 80)
 
         # Run the pipeline once and collect all eeg_compare summaries
         summaries = {}
@@ -179,16 +187,26 @@ class TestPipeline(DebuggableTestCase):
         # Step 1: Channel cleaning
         EEG_py_ch, *_ = clean_artifacts(deepcopy(self.EEG), BurstCriterion='off', ChannelCriterion=0.8)
         EEG_mat_ch = self.eeglab.clean_artifacts(deepcopy(self.EEG), 'BurstCriterion', 'off', 'ChannelCriterion', 0.8)
-        data_summary_1 = compare_eeg(EEG_py_ch['data'], EEG_mat_ch['data'], rtol=0.005, atol=1e-5,
-                                     err_msg='clean_artifacts() channel cleaning Python vs MATLAB failed')
+        data_summary_1 = compare_eeg(
+            EEG_py_ch['data'],
+            EEG_mat_ch['data'],
+            rtol=0.005,
+            atol=1e-5,
+            err_msg='clean_artifacts() channel cleaning Python vs MATLAB failed',
+        )
         print(f"\nStep 1 - Channel cleaning data comparison:\n{data_summary_1}")
 
         # Step 1b: Burst cleaning
         EEG_py, *_ = clean_artifacts(EEG_py_ch, ChannelCriterion='off')
         EEG_mat = self.eeglab.clean_artifacts(EEG_mat_ch, 'ChannelCriterion', 'off', 'BurstCriterion', 5.0)
         summaries['burst_cleaning_eeg'] = eeg_compare(EEG_py, EEG_mat)
-        data_summary_1b = compare_eeg(EEG_py['data'], EEG_mat['data'], rtol=0.005, atol=1e-5,
-                                      err_msg='clean_artifacts() burst cleaning Python vs MATLAB failed')
+        data_summary_1b = compare_eeg(
+            EEG_py['data'],
+            EEG_mat['data'],
+            rtol=0.005,
+            atol=1e-5,
+            err_msg='clean_artifacts() burst cleaning Python vs MATLAB failed',
+        )
         print(f"\nStep 1b - Burst cleaning data comparison:\n{data_summary_1b}")
 
         # Step 2: ICA
@@ -206,9 +224,9 @@ class TestPipeline(DebuggableTestCase):
         summaries['iclabel_classifications'] = eeg_compare(res_py, res_mat)
 
         # Print consolidated eeg_compare summary as a table
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         print("Full Pipeline Test - Consolidated eeg_compare Summary Table")
-        print("="*80)
+        print("=" * 80)
 
         # Helper function to extract metrics from summary string
         def extract_metrics(summary_str):
@@ -218,7 +236,7 @@ class TestPipeline(DebuggableTestCase):
                 'mean_abs_diff': 'N/A',
                 'rms_diff': 'N/A',
                 'max_rel_diff': 'N/A',
-                'mismatch_pct': 'N/A'
+                'mismatch_pct': 'N/A',
             }
             if 'Array Comparison Summary' in summary_str:
                 for line in summary_str.split('\n'):
@@ -263,8 +281,7 @@ class TestPipeline(DebuggableTestCase):
                     step_name = 'Step 2: eeg_picard'
                 else:
                     step_name = ''
-                step_data.append((f'  {array_name}' if idx > 0 else step_name,
-                                array_metrics, array_summary))
+                step_data.append((f'  {array_name}' if idx > 0 else step_name, array_metrics, array_summary))
 
         # Step 3: iclabel
         if 'iclabel_classifications' in summaries:
@@ -273,12 +290,16 @@ class TestPipeline(DebuggableTestCase):
             step_data.append(('Step 3: iclabel', step3_metrics, step3_summary))
 
         # Print table
-        print(f"\n{'Step':<30} {'Max Abs Diff':<18} {'Mean Abs Diff':<18} {'RMS Diff':<18} {'Max Rel Diff':<18} {'Mismatch %':<15}")
+        print(
+            f"\n{'Step':<30} {'Max Abs Diff':<18} {'Mean Abs Diff':<18} {'RMS Diff':<18} {'Max Rel Diff':<18} {'Mismatch %':<15}"
+        )
         print("-" * 120)
 
         for step_name, metrics, _ in step_data:
-            print(f"{step_name:<30} {metrics['max_abs_diff']:<18} {metrics['mean_abs_diff']:<18} "
-                  f"{metrics['rms_diff']:<18} {metrics['max_rel_diff']:<18} {metrics['mismatch_pct']:<15}")
+            print(
+                f"{step_name:<30} {metrics['max_abs_diff']:<18} {metrics['mean_abs_diff']:<18} "
+                f"{metrics['rms_diff']:<18} {metrics['max_rel_diff']:<18} {metrics['mismatch_pct']:<15}"
+            )
 
         print("-" * 120)
         print("\nDetailed summaries:")
@@ -286,9 +307,9 @@ class TestPipeline(DebuggableTestCase):
             print(f"\n{step_name}:")
             print(summary)
 
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         print("Full pipeline test completed successfully!")
-        print("="*80 + "\n")
+        print("=" * 80 + "\n")
 
 
 if __name__ == "__main__":

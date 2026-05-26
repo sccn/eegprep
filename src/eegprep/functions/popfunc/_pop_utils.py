@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from pathlib import Path
+from pathlib import PurePath
 from typing import Any, Callable
 
 import numpy as np
@@ -66,8 +66,8 @@ def format_history_value(
     """Format a Python value as an EEGLAB command-history literal."""
     if isinstance(value, np.ndarray):
         value = value.tolist()
-    if isinstance(value, Path):
-        value = str(value)
+    if isinstance(value, PurePath):
+        value = value.as_posix()
     if value is None and none_as_empty:
         return "[]"
     if isinstance(value, str):
@@ -85,19 +85,23 @@ def format_history_value(
         if any(_is_nested_sequence(item) for item in values):
             return "[" + "; ".join(_format_history_row(item, number_formatter) for item in values) + "]"
         if _sequence_should_use_cell(values, cell_for_sequence):
-            return "{" + string_separator.join(
-                format_history_value(
-                    item,
-                    bool_style=bool_style,
-                    cell_for_sequence=cell_for_sequence,
-                    string_separator=string_separator,
-                    empty_sequence=empty_sequence,
-                    none_as_empty=none_as_empty,
-                    dict_formatter=dict_formatter,
-                    number_formatter=number_formatter,
+            return (
+                "{"
+                + string_separator.join(
+                    format_history_value(
+                        item,
+                        bool_style=bool_style,
+                        cell_for_sequence=cell_for_sequence,
+                        string_separator=string_separator,
+                        empty_sequence=empty_sequence,
+                        none_as_empty=none_as_empty,
+                        dict_formatter=dict_formatter,
+                        number_formatter=number_formatter,
+                    )
+                    for item in values
                 )
-                for item in values
-            ) + "}"
+                + "}"
+            )
         return "[" + " ".join(_format_history_number(item, number_formatter) for item in values) + "]"
     if isinstance(value, (np.integer, np.floating)):
         value = value.item()

@@ -5,6 +5,7 @@ import numpy as np
 from eegprep.functions.popfunc.eeg_eegrej import _eegrej  # replace with the actual module name
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 
+
 class TestEEGRej(unittest.TestCase):
     def setUp(self):
         # 2 channels, 20 samples with simple increasing values
@@ -26,7 +27,10 @@ class TestEEGRej(unittest.TestCase):
         np.testing.assert_array_equal(outdata, expected_data)
         self.assertAlmostEqual(newt, self.timelength * (expected_data.shape[1] / self.data.shape[1]))
         self.assertIsInstance(newevents, list)
-        self.assertEqual(len(newevents), 0)
+        self.assertEqual(len(newevents), 1)
+        self.assertEqual(newevents[0]["type"], "boundary")
+        self.assertEqual(newevents[0]["latency"], 4.5)
+        self.assertEqual(newevents[0]["duration"], 4.0)
         np.testing.assert_array_equal(boundevents, [4.5])
 
     def test_event_shifting_and_removed_inside_region(self):
@@ -74,6 +78,7 @@ class TestEEGRej(unittest.TestCase):
         eeglab = get_eeglab()
         eeglab_outdata = eeglab.eegrej(self.data, np.array([[5, 8]]), self.timelength, events)
         np.testing.assert_array_equal(outdata, eeglab_outdata)
+
 
 if __name__ == "__main__":
     unittest.main()

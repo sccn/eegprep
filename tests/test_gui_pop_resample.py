@@ -28,10 +28,13 @@ class PopResampleGuiTests(unittest.TestCase):
         self.assertEqual(spec.title, "Resample current dataset -- pop_resample()")
         self.assertEqual(spec.function_name, "pop_resample")
         self.assertEqual(spec.eeglab_source, "functions/popfunc/pop_resample.m")
-        self.assertEqual([(control.style, control.string, control.tag) for control in spec.controls], [
-            ("text", "New sampling rate", None),
-            ("edit", "", "freq"),
-        ])
+        self.assertEqual(
+            [(control.style, control.string, control.tag) for control in spec.controls],
+            [
+                ("text", "New sampling rate", None),
+                ("edit", "", "freq"),
+            ],
+        )
 
     def test_gui_result_resamples_and_returns_history(self):
         class Renderer:

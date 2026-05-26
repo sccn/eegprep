@@ -1,5 +1,6 @@
 import sys
 import os
+
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
 
 from eegprep import eeg_rpsd
@@ -16,5 +17,6 @@ res = eeg_rpsd(EEG, 100)
 
 # save in a matlab file
 import scipy.io
+
 scipy.io.savemat('eeg_rpsd_data.mat', {'grid': res})
 print('Saved eeg_rpsd_data.mat')

@@ -1,4 +1,5 @@
 import unittest
+from pathlib import PureWindowsPath
 
 import numpy as np
 
@@ -38,6 +39,9 @@ class PopUtilsTests(unittest.TestCase):
         self.assertEqual(format_history_value(np.array([[1, 2], [3, 4]])), "[1 2; 3 4]")
         self.assertEqual(format_history_value(["Fz", "Cz"]), "{'Fz' 'Cz'}")
         self.assertEqual(format_history_value([-np.inf, np.inf]), "[-Inf Inf]")
+        self.assertEqual(
+            format_history_value(PureWindowsPath("sample_data/eeglab_data.set")), "'sample_data/eeglab_data.set'"
+        )
 
     def test_format_history_value_supports_pop_specific_options(self):
         self.assertEqual(format_history_value(True, bool_style="onoff"), "'on'")

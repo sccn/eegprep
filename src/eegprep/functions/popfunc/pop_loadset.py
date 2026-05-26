@@ -3,7 +3,7 @@
 import scipy.io
 import numpy as np
 import os
-import h5py
+from eegprep.functions.popfunc._file_io import normalize_icachansind
 from eegprep.functions.popfunc.pop_loadset_h5 import pop_loadset_h5
 # Allows access using . notation
 # class EEG:
@@ -15,11 +15,13 @@ from eegprep.functions.popfunc.pop_loadset_h5 import pop_loadset_h5
 #         self.__dict__[key] = value
 
 default_empty = np.array([])
-#default_empty = None
+# default_empty = None
+
 
 def loadset(file_path):
     """Load EEGLAB dataset from file (alias for pop_loadset)."""
     return pop_loadset(file_path)
+
 
 def pop_loadset(file_path=None):
     """Load EEGLAB dataset from .set or .mat file.
@@ -38,7 +40,6 @@ def pop_loadset(file_path=None):
 
     if file_path is None:
         raise ValueError("file_path argument is required")
-    from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 
     if file_path is None:
         raise ValueError("file_path argument is required")
@@ -78,14 +79,15 @@ def pop_loadset(file_path=None):
             return dict_obj
 
     # Load MATLAB file
-    print(file_path)  # This will show us the actual path being used
+    loaded_with_h5 = False
     try:
         EEG = scipy.io.loadmat(file_path, struct_as_record=False, squeeze_me=True, appendmat=False)
         EEG = new_check(EEG)
         if 'EEG' in EEG:
             EEG = EEG['EEG']
-    except Exception as e:
+    except Exception:
         EEG = pop_loadset_h5(file_path)
+        loaded_with_h5 = True
 
     EEG['filepath'] = os.path.dirname(file_path)
     EEG['filename'] = os.path.basename(file_path)
@@ -98,9 +100,9 @@ def pop_loadset(file_path=None):
     if '__globals__' in EEG:
         del EEG['__globals__']
 
-    # subtract 1 to EEG['icachansind'] to make it 0-based (must be done before eeg_checkset)
-    if 'icachansind' in EEG and EEG['icachansind'].size > 0:
-        EEG['icachansind'] = EEG['icachansind'] - 1
+    # Convert MATLAB-loaded 1-based doubles to EEGPrep's 0-based integer indices.
+    if 'icachansind' in EEG:
+        EEG['icachansind'] = normalize_icachansind(EEG['icachansind'], matlab_one_based=not loaded_with_h5)
 
     EEG = eeg_checkset(EEG)
     EEG.pop("changes_not_saved", None)
@@ -119,14 +121,16 @@ def pop_loadset(file_path=None):
 
     return EEG
 
+
 def test_pop_loadset():
     """Test the pop_loadset function with a sample file."""
     file_path = './tmp2.set'
-    file_path = '/System/Volumes/Data/data/data/STUDIES/STERN/S04/Memorize.set' #'./eeglab_data_with_ica_tmp.set'
+    file_path = '/System/Volumes/Data/data/data/STUDIES/STERN/S04/Memorize.set'  #'./eeglab_data_with_ica_tmp.set'
     EEG = pop_loadset(file_path)
 
     # print the keys of the EEG dictionary
     print(EEG.keys())
+
 
 if __name__ == "__main__":
     test_pop_loadset()

@@ -7,7 +7,6 @@ from HDF5 format files.
 
 import os
 import unittest
-import os
 
 if os.getenv('EEGPREP_SKIP_MATLAB') == '1':
     raise unittest.SkipTest("MATLAB not available")
@@ -24,6 +23,7 @@ from eegprep.functions.popfunc.pop_loadset_h5 import pop_loadset_h5
 from eegprep.utils.testing import DebuggableTestCase
 from eegprep.functions.popfunc.eeg_compare import eeg_compare
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
+
 
 class TestPopLoadsetH5(DebuggableTestCase):
     """Test cases for pop_loadset_h5 function."""
@@ -74,7 +74,7 @@ class TestPopLoadsetH5(DebuggableTestCase):
             if include_chanlocs:
                 chanlocs_group = eeg_group.create_group('chanlocs')
                 # Create fields as arrays with one element per channel
-                labels_data = [f'Ch{i+1}'.encode() for i in range(32)]
+                labels_data = [f'Ch{i + 1}'.encode() for i in range(32)]
                 x_data = [np.cos(i * 2 * np.pi / 32) for i in range(32)]
                 y_data = [np.sin(i * 2 * np.pi / 32) for i in range(32)]
                 z_data = [0.0 for i in range(32)]
@@ -201,7 +201,7 @@ class TestPopLoadsetH5(DebuggableTestCase):
         # Check individual channel properties
         for i, chan in enumerate(EEG['chanlocs']):
             # Handle both string and bytes format
-            expected_label = f'Ch{i+1}'
+            expected_label = f'Ch{i + 1}'
             actual_label = chan['labels'].decode('utf-8') if isinstance(chan['labels'], bytes) else chan['labels']
             self.assertEqual(actual_label, expected_label)
 
@@ -375,6 +375,7 @@ class TestPopLoadsetH5(DebuggableTestCase):
         # Should handle Unicode strings (special case in the code)
         self.assertEqual(EEG['unicode_string'], 'hello 👖')
 
+
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestPopLoadsetH5Parity(unittest.TestCase):
     """Test parity between Python pop_loadset_h5 and MATLAB pop_loadset for real HDF5 files."""
@@ -383,6 +384,7 @@ class TestPopLoadsetH5Parity(unittest.TestCase):
         """Set up MATLAB connection for parity testing."""
         try:
             from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
+
             self.eeglab = get_eeglab('MAT')
             self.matlab_available = True
         except Exception as e:
@@ -420,6 +422,7 @@ class TestPopLoadsetH5Parity(unittest.TestCase):
         ml_eeg = self.eeglab.pop_loadset('filename', 'eeglab_data_epochs_ica.set', 'filepath', data_dir)
 
         eeg_compare(py_eeg, ml_eeg)
+
 
 class TestPopLoadsetH5RealData(unittest.TestCase):
     """Test pop_loadset_h5 with real HDF5 files without MATLAB dependency."""
@@ -556,6 +559,7 @@ class TestPopLoadsetH5RealData(unittest.TestCase):
         EEG2 = pop_loadset_h5('sample_data/eeglab_data_epochs_ica_hdf5.set')
 
         eeg_compare(EEG1, EEG2)
+
 
 if __name__ == '__main__':
     # test test_load_epoched_data only

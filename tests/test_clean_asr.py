@@ -6,9 +6,7 @@ processing switches.
 """
 
 import unittest
-from unittest.mock import patch, MagicMock
 import numpy as np
-import logging
 
 from eegprep.plugins.clean_rawdata.clean_asr import clean_asr
 
@@ -32,7 +30,7 @@ class TestCleanASRBasic(unittest.TestCase):
             'pnts': self.n_samples,
             'trials': 1,
             'xmin': 0.0,
-            'xmax': (self.n_samples - 1) / self.srate
+            'xmax': (self.n_samples - 1) / self.srate,
         }
 
     def test_clean_asr_missing_required_fields(self):
@@ -100,7 +98,7 @@ class TestCleanASRParameters(unittest.TestCase):
             'srate': self.srate,
             'nbchan': self.n_channels,
             'pnts': self.n_samples,
-            'trials': 1
+            'trials': 1,
         }
 
     def test_clean_asr_parameter_acceptance(self):
@@ -140,7 +138,7 @@ class TestCleanASRCalibrationData(unittest.TestCase):
             'srate': self.srate,
             'nbchan': self.n_channels,
             'pnts': self.n_samples,
-            'trials': 1
+            'trials': 1,
         }
 
     def test_clean_asr_ref_maxbadchannels_off(self):
@@ -232,7 +230,7 @@ class TestCleanASRCalibrationFailure(unittest.TestCase):
             'srate': self.srate,
             'nbchan': self.n_channels,
             'pnts': self.n_samples,
-            'trials': 1
+            'trials': 1,
         }
 
     def test_clean_asr_insufficient_calibration_data(self):
@@ -257,7 +255,7 @@ class TestCleanASRCalibrationFailure(unittest.TestCase):
                     ref_maxbadchannels=0.1,
                     ref_tolerances=(-3.0, 5.0),
                     ref_wndlen=1.0,
-                    cutoff=20.0  # Conservative
+                    cutoff=20.0,  # Conservative
                 )
 
             # Should attempt to find clean calibration data
@@ -286,7 +284,7 @@ class TestCleanASRSignalExtrapolation(unittest.TestCase):
             'srate': self.srate,
             'nbchan': self.n_channels,
             'pnts': self.n_samples,
-            'trials': 1
+            'trials': 1,
         }
 
     def test_clean_asr_with_different_window_lengths(self):
@@ -340,7 +338,7 @@ class TestCleanASREdgeCases(unittest.TestCase):
             'srate': self.srate,
             'nbchan': self.n_channels,
             'pnts': self.n_samples,
-            'trials': 1
+            'trials': 1,
         }
 
     def test_clean_asr_single_channel_data(self):
@@ -350,7 +348,7 @@ class TestCleanASREdgeCases(unittest.TestCase):
             'srate': self.srate,
             'nbchan': 1,
             'pnts': self.n_samples,
-            'trials': 1
+            'trials': 1,
         }
 
         try:

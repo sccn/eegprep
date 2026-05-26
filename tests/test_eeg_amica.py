@@ -20,8 +20,7 @@ from eegprep.functions.popfunc.eeg_amica import eeg_amica, load_amica_model
 from eegprep.functions.sigprocfunc.runamica import is_amica_available
 
 
-def _make_test_eeg(n_channels=4, n_samples=2000, n_trials=1, srate=250.0,
-                   seed=42):
+def _make_test_eeg(n_channels=4, n_samples=2000, n_trials=1, srate=250.0, seed=42):
     """Create a minimal EEG dict with mixed sinusoidal sources.
 
     The data is constructed as mixing @ sources so that ICA can recover
@@ -65,9 +64,13 @@ def _make_test_eeg(n_channels=4, n_samples=2000, n_trials=1, srate=250.0,
         'xmax': (n_samples - 1) / srate,
         'times': np.arange(n_samples) / srate,
         'chanlocs': [
-            {'labels': f'Ch{i+1}', 'type': 'EEG',
-             'X': rng.uniform(-1, 1), 'Y': rng.uniform(-1, 1),
-             'Z': rng.uniform(-1, 1)}
+            {
+                'labels': f'Ch{i + 1}',
+                'type': 'EEG',
+                'X': rng.uniform(-1, 1),
+                'Y': rng.uniform(-1, 1),
+                'Z': rng.uniform(-1, 1),
+            }
             for i in range(n_channels)
         ],
         'event': [],
@@ -84,8 +87,7 @@ def _make_test_eeg(n_channels=4, n_samples=2000, n_trials=1, srate=250.0,
     return EEG
 
 
-@unittest.skipUnless(is_amica_available(),
-                     "AMICA binary not functional on this platform")
+@unittest.skipUnless(is_amica_available(), "AMICA binary not functional on this platform")
 class TestEegAmicaBasic(unittest.TestCase):
     """Basic eeg_amica tests with continuous data."""
 
@@ -129,8 +131,7 @@ class TestEegAmicaBasic(unittest.TestCase):
         self.assertTrue(np.all(np.isfinite(result['icaact'])))
 
 
-@unittest.skipUnless(is_amica_available(),
-                     "AMICA binary not functional on this platform")
+@unittest.skipUnless(is_amica_available(), "AMICA binary not functional on this platform")
 class TestEegAmicaOutputShapes(unittest.TestCase):
     """Test output shapes with 3D (epoched) data."""
 
@@ -149,8 +150,7 @@ class TestEegAmicaOutputShapes(unittest.TestCase):
         self.assertEqual(result['icawinv'].shape[1], ncomps)
 
 
-@unittest.skipUnless(is_amica_available(),
-                     "AMICA binary not functional on this platform")
+@unittest.skipUnless(is_amica_available(), "AMICA binary not functional on this platform")
 class TestEegAmicaReconstruction(unittest.TestCase):
     """Test data reconstruction from ICA decomposition."""
 
@@ -173,13 +173,11 @@ class TestEegAmicaReconstruction(unittest.TestCase):
         # W@S extracts components, A maps back to channels
         reconstructed = A @ (W @ S) @ data
         np.testing.assert_allclose(
-            reconstructed, data, atol=0.01,
-            err_msg="ICA reconstruction should approximate original data"
+            reconstructed, data, atol=0.01, err_msg="ICA reconstruction should approximate original data"
         )
 
 
-@unittest.skipUnless(is_amica_available(),
-                     "AMICA binary not functional on this platform")
+@unittest.skipUnless(is_amica_available(), "AMICA binary not functional on this platform")
 class TestEegAmicaEtcStored(unittest.TestCase):
     """Test that full AMICA output is stored in EEG['etc']['amica']."""
 
@@ -194,8 +192,22 @@ class TestEegAmicaEtcStored(unittest.TestCase):
         self.assertIsInstance(mods, dict)
 
         # Key outputs from _load_amica_output
-        for key in ('W', 'S', 'A', 'mean', 'gm', 'alpha', 'mu', 'sbeta',
-                     'rho', 'LL', 'svar', 'origord', 'num_pcs', 'num_models'):
+        for key in (
+            'W',
+            'S',
+            'A',
+            'mean',
+            'gm',
+            'alpha',
+            'mu',
+            'sbeta',
+            'rho',
+            'LL',
+            'svar',
+            'origord',
+            'num_pcs',
+            'num_models',
+        ):
             self.assertIn(key, mods, f"Missing key in mods: {key}")
 
         # num_models and num_pcs should be correct
@@ -203,8 +215,7 @@ class TestEegAmicaEtcStored(unittest.TestCase):
         self.assertEqual(mods['num_pcs'], 4)
 
 
-@unittest.skipUnless(is_amica_available(),
-                     "AMICA binary not functional on this platform")
+@unittest.skipUnless(is_amica_available(), "AMICA binary not functional on this platform")
 class TestEegAmicaSortcomps(unittest.TestCase):
     """Test component sorting by variance."""
 
@@ -215,22 +226,18 @@ class TestEegAmicaSortcomps(unittest.TestCase):
 
         # Compute variance metric: sum(icawinv^2, axis=0) * sum(icaact^2, axis=1)
         icaact_2d = result['icaact'].reshape(result['icaact'].shape[0], -1)
-        variance_metric = (
-            np.sum(result['icawinv'] ** 2, axis=0)
-            * np.sum(icaact_2d ** 2, axis=1)
-        )
+        variance_metric = np.sum(result['icawinv'] ** 2, axis=0) * np.sum(icaact_2d**2, axis=1)
 
         # Should be in descending order
         for i in range(len(variance_metric) - 1):
             self.assertGreaterEqual(
-                variance_metric[i], variance_metric[i + 1],
-                f"Variance metric not descending at index {i}: "
-                f"{variance_metric[i]} < {variance_metric[i + 1]}"
+                variance_metric[i],
+                variance_metric[i + 1],
+                f"Variance metric not descending at index {i}: {variance_metric[i]} < {variance_metric[i + 1]}",
             )
 
 
-@unittest.skipUnless(is_amica_available(),
-                     "AMICA binary not functional on this platform")
+@unittest.skipUnless(is_amica_available(), "AMICA binary not functional on this platform")
 class TestEegAmicaPosact(unittest.TestCase):
     """Test positive activation sign normalization."""
 
@@ -244,14 +251,10 @@ class TestEegAmicaPosact(unittest.TestCase):
 
         for r in range(ncomps):
             ix = np.argmax(np.abs(icaact_2d[r, :]))
-            self.assertGreaterEqual(
-                icaact_2d[r, ix], 0,
-                f"Component {r}: max abs activation value should be positive"
-            )
+            self.assertGreaterEqual(icaact_2d[r, ix], 0, f"Component {r}: max abs activation value should be positive")
 
 
-@unittest.skipUnless(is_amica_available(),
-                     "AMICA binary not functional on this platform")
+@unittest.skipUnless(is_amica_available(), "AMICA binary not functional on this platform")
 class TestLoadAmicaModel(unittest.TestCase):
     """Test load_amica_model() for model switching."""
 
@@ -269,20 +272,16 @@ class TestLoadAmicaModel(unittest.TestCase):
 
         # Fields should match the original
         np.testing.assert_array_equal(
-            EEG2['icaweights'], result['icaweights'],
-            err_msg="icaweights should match after reloading model 0"
+            EEG2['icaweights'], result['icaweights'], err_msg="icaweights should match after reloading model 0"
         )
         np.testing.assert_array_equal(
-            EEG2['icasphere'], result['icasphere'],
-            err_msg="icasphere should match after reloading model 0"
+            EEG2['icasphere'], result['icasphere'], err_msg="icasphere should match after reloading model 0"
         )
         np.testing.assert_array_equal(
-            EEG2['icawinv'], result['icawinv'],
-            err_msg="icawinv should match after reloading model 0"
+            EEG2['icawinv'], result['icawinv'], err_msg="icawinv should match after reloading model 0"
         )
         np.testing.assert_allclose(
-            EEG2['icaact'], result['icaact'], atol=1e-10,
-            err_msg="icaact should match after reloading model 0"
+            EEG2['icaact'], result['icaact'], atol=1e-10, err_msg="icaact should match after reloading model 0"
         )
 
     def test_load_amica_model_invalid(self):

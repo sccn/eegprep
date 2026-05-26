@@ -18,10 +18,12 @@ option_scaleicarms = True
 # Context variable for strict mode (default True)
 _strict_mode_var = contextvars.ContextVar('strict_mode', default=True)
 
+
 class DummyException(Exception):
     """Exception that should never be raised, used to disable exception handling in strict mode."""
 
     pass
+
 
 @contextmanager
 def strict_mode(enabled: bool):
@@ -70,17 +72,16 @@ def _eventconsistency(EEG):
         return EEG
 
     # 1. Remove events with NaN latency
-    events = [e for e in events if not (
-        'latency' in e and isinstance(e.get('latency'), float) and np.isnan(e['latency'])
-    )]
+    events = [
+        e for e in events if not ('latency' in e and isinstance(e.get('latency'), float) and np.isnan(e['latency']))
+    ]
     if not events:
         EEG['event'] = np.asarray(events, dtype=object)
         return EEG
 
     # 2. First boundary event: if boundary with duration < 1 remove it;
     #    if latency in (0, 1), clamp to 0.5  (MATLAB lines 424-430)
-    if (events[0].get('type', '') == 'boundary'
-            and 'duration' in events[0]):
+    if events[0].get('type', '') == 'boundary' and 'duration' in events[0]:
         if events[0].get('duration', 0) < 1:
             events.pop(0)
         elif 0 < events[0].get('latency', 0) < 1:
@@ -94,9 +95,7 @@ def _eventconsistency(EEG):
     pnts = int(EEG.get('pnts', 0))
     trials = int(EEG.get('trials', 1))
     upper_bound = pnts * trials + 1
-    events = [e for e in events
-              if 'latency' not in e
-              or (e['latency'] >= 0.5 and e['latency'] <= upper_bound)]
+    events = [e for e in events if 'latency' not in e or (e['latency'] >= 0.5 and e['latency'] <= upper_bound)]
     if not events:
         EEG['event'] = np.asarray(events, dtype=object)
         return EEG
@@ -154,6 +153,7 @@ def _eventconsistency(EEG):
         ep = ep if isinstance(ep, (int, float)) else 0
         lat = lat if isinstance(lat, (int, float)) else 0
         return (ep, lat)
+
     events.sort(key=_sort_key)
 
     # 8. Clamp first event latency to >= 0.5  (MATLAB lines 600-604)
@@ -175,7 +175,6 @@ def eeg_checkset(EEG, *checks, load_data=True):
     # In strict mode (True), we catch DummyException (never raised) so exceptions propagate
     # In non-strict mode (False), we catch Exception and handle gracefully
     exception_type = DummyException if _strict_mode_var.get() else Exception
-
 
     # convert EEG['nbchan] to integer
     if 'nbchan' in EEG:
@@ -224,19 +223,26 @@ def eeg_checkset(EEG, *checks, load_data=True):
             file_name = EEG['filepath'] + os.sep + EEG['filename'].replace('.set', '.fdt')
             if not os.path.exists(file_name):
                 raise FileNotFoundError(f"Data file {file_name} not found")
-        EEG['data'] = np.fromfile(file_name, dtype='float32').reshape( EEG['pnts']*EEG['trials'], EEG['nbchan'])
+        EEG['data'] = np.fromfile(file_name, dtype='float32').reshape(EEG['pnts'] * EEG['trials'], EEG['nbchan'])
         EEG['data'] = EEG['data'].T.reshape(EEG['nbchan'], EEG['trials'], EEG['pnts']).transpose(0, 2, 1)
 
     # Scale ICA components to RMS microvolt (matches MATLAB's option_scaleicarms)
-    if (option_scaleicarms and
-        'icaweights' in EEG and 'icasphere' in EEG and 'icawinv' in EEG and
-        hasattr(EEG['icaweights'], 'size') and hasattr(EEG['icasphere'], 'size') and
-        hasattr(EEG['icawinv'], 'size') and
-        EEG['icaweights'].size > 0 and EEG['icasphere'].size > 0 and EEG['icawinv'].size > 0):
-
+    if (
+        option_scaleicarms
+        and 'icaweights' in EEG
+        and 'icasphere' in EEG
+        and 'icawinv' in EEG
+        and hasattr(EEG['icaweights'], 'size')
+        and hasattr(EEG['icasphere'], 'size')
+        and hasattr(EEG['icawinv'], 'size')
+        and EEG['icaweights'].size > 0
+        and EEG['icasphere'].size > 0
+        and EEG['icawinv'].size > 0
+    ):
         try:
             # Check if pinv(icaweights @ icasphere) ≈ icawinv
-            computed_icawinv = np.linalg.pinv(EEG['icaweights'] @ EEG['icasphere'])
+            with np.errstate(divide='ignore', over='ignore', invalid='ignore'):
+                computed_icawinv = np.linalg.pinv(EEG['icaweights'] @ EEG['icasphere'])
             mean_diff = np.mean(np.abs(computed_icawinv - EEG['icawinv']))
 
             if mean_diff < 0.0001:
@@ -256,26 +262,37 @@ def eeg_checkset(EEG, *checks, load_data=True):
                 EEG['icaweights'] = EEG['icaweights'] * scaling[:, np.newaxis]
 
                 # Recompute icawinv
-                EEG['icawinv'] = np.linalg.pinv(EEG['icaweights'] @ EEG['icasphere'])
+                with np.errstate(divide='ignore', over='ignore', invalid='ignore'):
+                    EEG['icawinv'] = np.linalg.pinv(EEG['icaweights'] @ EEG['icasphere'])
         except exception_type as e:
             logger.error("Error scaling ICA components: " + str(e))
 
     # compute ICA activations
-    if ('icaweights' in EEG and 'icasphere' in EEG and
-        hasattr(EEG['icaweights'], 'size') and hasattr(EEG['icasphere'], 'size') and
-        EEG['icaweights'].size > 0 and EEG['icasphere'].size > 0):
-
+    if (
+        'icaweights' in EEG
+        and 'icasphere' in EEG
+        and hasattr(EEG['icaweights'], 'size')
+        and hasattr(EEG['icasphere'], 'size')
+        and EEG['icaweights'].size > 0
+        and EEG['icasphere'].size > 0
+    ):
         try:
             # Use icachansind to select only channels ICA was trained on (matches MATLAB eeg_checkset.m:1030)
-            if ('icachansind' in EEG and EEG['icachansind'] is not None and
-                hasattr(EEG['icachansind'], '__len__') and len(EEG['icachansind']) > 0):
+            if (
+                'icachansind' in EEG
+                and EEG['icachansind'] is not None
+                and hasattr(EEG['icachansind'], '__len__')
+                and len(EEG['icachansind']) > 0
+            ):
                 # Convert to numpy array if it's a list
                 icachansind = np.array(EEG['icachansind'], dtype=int)
                 # Validate indices are within bounds
                 n_channels = EEG['data'].shape[0]
                 if np.any(icachansind < 0) or np.any(icachansind >= n_channels):
-                    logger.warning(f"icachansind contains out-of-bounds indices (valid range: 0-{n_channels-1}). "
-                                 "Using all channels instead.")
+                    logger.warning(
+                        f"icachansind contains out-of-bounds indices (valid range: 0-{n_channels - 1}). "
+                        "Using all channels instead."
+                    )
                     ica_data = EEG['data']
                 else:
                     ica_data = EEG['data'][icachansind, :]
@@ -288,11 +305,15 @@ def eeg_checkset(EEG, *checks, load_data=True):
             actual_channels = ica_data.shape[0]  # Number of channels in ica_data
 
             if expected_channels != actual_channels:
-                logger.warning(f"ICA dimension mismatch: icaweights expects {expected_channels} channels "
-                             f"but ica_data has {actual_channels} channels. Skipping ICA activation computation.")
+                logger.warning(
+                    f"ICA dimension mismatch: icaweights expects {expected_channels} channels "
+                    f"but ica_data has {actual_channels} channels. Skipping ICA activation computation."
+                )
                 EEG['icaact'] = np.array([])
             else:
-                EEG['icaact'] = np.dot(np.dot(EEG['icaweights'], EEG['icasphere']), ica_data.reshape(ica_data.shape[0], -1))
+                EEG['icaact'] = np.dot(
+                    np.dot(EEG['icaweights'], EEG['icasphere']), ica_data.reshape(ica_data.shape[0], -1)
+                )
                 EEG['icaact'] = EEG['icaact'].astype(np.float32)
                 EEG['icaact'] = EEG['icaact'].reshape(EEG['icaweights'].shape[0], -1, int(EEG['trials']))
         except exception_type as e:
@@ -408,29 +429,29 @@ def eeg_checkset(EEG, *checks, load_data=True):
         'group': str,
         'condition': str,
         'session': (str, int),
-        'comments': np.ndarray,
+        'comments': (str, np.ndarray),
         'nbchan': int,
         'trials': int,
         'pnts': int,
-        'srate': (float,int),
+        'srate': (float, int),
         'xmin': float,
         'xmax': float,
         'times': np.ndarray,  # Expecting a float numpy array
-        'data': np.ndarray,   # Expecting a float numpy array
-        'icaact': np.ndarray, # Expecting a float numpy array
-        'icawinv': np.ndarray,# Expecting a float numpy array
-        'icasphere': np.ndarray, # Expecting a float numpy array
-        'icaweights': np.ndarray, # Expecting a float numpy array
-        'icachansind': np.ndarray, # Expecting an integer numpy array
-        'chanlocs': np.ndarray,    # Expecting numpy array of dictionaries
+        'data': np.ndarray,  # Expecting a float numpy array
+        'icaact': np.ndarray,  # Expecting a float numpy array
+        'icawinv': np.ndarray,  # Expecting a float numpy array
+        'icasphere': np.ndarray,  # Expecting a float numpy array
+        'icaweights': np.ndarray,  # Expecting a float numpy array
+        'icachansind': np.ndarray,  # Expecting an integer numpy array
+        'chanlocs': np.ndarray,  # Expecting numpy array of dictionaries
         'urchanlocs': np.ndarray,  # Expecting numpy array of dictionaries
         'chaninfo': dict,
         'ref': str,
-        'event': np.ndarray,       # Expecting numpy array of dictionaries
-        'urevent': np.ndarray,     # Expecting numpy array of dictionaries
-        'eventdescription': np.ndarray, # Expecting numpy array of strings
-        'epoch': np.ndarray,       # Expecting numpy array of dictionaries
-        'epochdescription': np.ndarray, # Expecting numpy array of strings
+        'event': np.ndarray,  # Expecting numpy array of dictionaries
+        'urevent': np.ndarray,  # Expecting numpy array of dictionaries
+        'eventdescription': np.ndarray,  # Expecting numpy array of strings
+        'epoch': np.ndarray,  # Expecting numpy array of dictionaries
+        'epochdescription': np.ndarray,  # Expecting numpy array of strings
         'reject': dict,
         'stats': dict,
         'specdata': dict,
@@ -452,13 +473,13 @@ def eeg_checkset(EEG, *checks, load_data=True):
             logger.debug(f"Field '{field}' is missing from the EEG dictionary, adding it.")
 
             # add default values
-            if expected_type == str:
+            if expected_type is str:
                 EEG[field] = ''
-            elif expected_type == int:
+            elif expected_type is int:
                 EEG[field] = np.array([], dtype=int)
-            elif expected_type == float:
+            elif expected_type is float:
                 EEG[field] = np.array([], dtype=float)
-            elif expected_type == dict:
+            elif expected_type is dict:
                 EEG[field] = {}
             elif expected_type == np.ndarray:
                 EEG[field] = np.array([])
@@ -471,18 +492,26 @@ def eeg_checkset(EEG, *checks, load_data=True):
         # Special cases for numpy arrays with specific content types
         if isinstance(expected_type, type) and expected_type == np.ndarray:
             if not isinstance(value, np.ndarray):
-                logger.warning(f"Field '{field}' is expected to be a numpy array but is of type {type(value).__name__}.")
+                logger.warning(
+                    f"Field '{field}' is expected to be a numpy array but is of type {type(value).__name__}."
+                )
                 continue
             # Further checks for numpy array content types
             if field in ['times', 'data', 'icaact', 'icawinv', 'icasphere', 'icaweights']:
                 if not np.issubdtype(value.dtype, np.floating):
-                    logger.warning(f"Field '{field}' is expected to be a numpy array of floats but has dtype {value.dtype}.")
+                    logger.warning(
+                        f"Field '{field}' is expected to be a numpy array of floats but has dtype {value.dtype}."
+                    )
             elif field in ['icachansind']:
                 if not np.issubdtype(value.dtype, np.integer):
-                    logger.warning(f"Field '{field}' is expected to be a numpy array of integers but has dtype {value.dtype}.")
+                    logger.warning(
+                        f"Field '{field}' is expected to be a numpy array of integers but has dtype {value.dtype}."
+                    )
             elif field in ['chanlocs', 'urchanlocs', 'event', 'urevent', 'epoch']:
                 if not all(isinstance(item, dict) for item in value):
-                    logger.warning(f"Field '{field}' is expected to be a numpy array of dictionaries but contains other types.")
+                    logger.warning(
+                        f"Field '{field}' is expected to be a numpy array of dictionaries but contains other types."
+                    )
             # elif field in ['eventdescription', 'epochdescription']:
             #     if not all(isinstance(item, str) for item in value):
             #         print(f"Field '{field}' is expected to be a numpy array of strings but contains other types.")
@@ -492,9 +521,12 @@ def eeg_checkset(EEG, *checks, load_data=True):
                 # check for empty Ndarray
                 if isinstance(value, np.ndarray) and value.size == 0:
                     continue
-                logger.warning(f"Field '{field}' is expected to be of type {expected_type} but is of type {type(value).__name__}.")
+                logger.warning(
+                    f"Field '{field}' is expected to be of type {expected_type} but is of type {type(value).__name__}."
+                )
 
     return EEG
+
 
 def test_eeg_checkset():
     from eegprep.functions.popfunc.pop_loadset import pop_loadset
@@ -503,6 +535,7 @@ def test_eeg_checkset():
     EEG = pop_loadset(eeglab_file_path)
     EEG = eeg_checkset(EEG)
     logger.info('Checkset done')
+
 
 if __name__ == '__main__':
     test_eeg_checkset()

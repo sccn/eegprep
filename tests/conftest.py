@@ -36,9 +36,7 @@ SLOW_NODEID_PARTS = (
     "tests/test_runamica.py::TestRunamicaIntegration::",
 )
 
-VISUAL_FILE_SUFFIXES = (
-    "tests/test_visual_parity.py",
-)
+VISUAL_FILE_SUFFIXES = ("tests/test_visual_parity.py",)
 
 GUI_FILE_SUFFIXES = (
     "tests/test_gui_pop_adjustevents.py",
@@ -49,9 +47,7 @@ GUI_FILE_SUFFIXES = (
     "tests/test_gui_pop_select.py",
     "tests/test_gui_main_window.py",
 )
-GUI_NODEID_PARTS = (
-    "::test_gui_",
-)
+GUI_NODEID_PARTS = ("::test_gui_",)
 
 MATLAB_FILE_SUFFIXES = (
     "tests/test_ICL_feature_extractor_parity.py",
@@ -101,9 +97,7 @@ MATLAB_NODEID_PARTS = (
     "tests/test_topoplot.py::TestTopoplotParity::",
 )
 
-OCTAVE_NODEID_PARTS = (
-    "tests/test_matlab_path.py::TestMatlabPath::test_get_eeglab_oct",
-)
+OCTAVE_NODEID_PARTS = ("tests/test_matlab_path.py::TestMatlabPath::test_get_eeglab_oct",)
 
 
 def _path_has_suffix(path: str, suffixes: tuple[str, ...]) -> bool:
@@ -128,17 +122,13 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
         if _path_has_suffix(path, VISUAL_FILE_SUFFIXES):
             item.add_marker(pytest.mark.visual)
 
-        if _path_has_suffix(path, GUI_FILE_SUFFIXES) or _nodeid_has_part(
-            lower_nodeid, GUI_NODEID_PARTS
-        ):
+        if _path_has_suffix(path, GUI_FILE_SUFFIXES) or _nodeid_has_part(lower_nodeid, GUI_NODEID_PARTS):
             item.add_marker(pytest.mark.gui)
 
         if "parity" in lower_nodeid:
             item.add_marker(pytest.mark.parity)
 
-        requires_matlab = _path_has_suffix(path, MATLAB_FILE_SUFFIXES) or _nodeid_has_part(
-            nodeid, MATLAB_NODEID_PARTS
-        )
+        requires_matlab = _path_has_suffix(path, MATLAB_FILE_SUFFIXES) or _nodeid_has_part(nodeid, MATLAB_NODEID_PARTS)
         if requires_matlab:
             item.add_marker(pytest.mark.matlab)
 

@@ -4,40 +4,30 @@ This module provides functions for removing periods with abnormally high-power c
 from continuous EEG data.
 """
 
-import warnings
 import logging
-from typing import *
+from typing import Any, Dict, Sequence, Tuple, Union
 
 import numpy as np
 
 from ...functions.miscfunc.misc import round_mat
+from ...functions.popfunc.eeg_eegrej import eeg_eegrej
+from .private.masks import mask_to_intervals
 from .private.stats import fit_eeg_distribution
 
 logger = logging.getLogger(__name__)
 
-_SIGNAL_METADATA_FIELDS = (
-    'event',
-    'urevent',
-    'epoch',
-    'icaact',
-    'reject',
-    'stats',
-    'specdata',
-    'specicaact',
-)
-
 
 def clean_windows(
-        EEG: Dict[str, Any],
-        max_bad_channels: Union[int, float] = 0.2,
-        zthresholds: Tuple[float, float] = (-3.5, 5),
-        window_len: float = 1.0,
-        window_overlap: float = 0.66,
-        max_dropout_fraction: float = 0.1,
-        min_clean_fraction: float = 0.25,
-        truncate_quant: Tuple[float, float] = (0.022, 0.6),
-        step_sizes: Tuple[float, float] = (0.01, 0.01),
-        shape_range: Union[np.ndarray, Sequence[float]] = np.arange(1.7, 3.6, 0.15),
+    EEG: Dict[str, Any],
+    max_bad_channels: Union[int, float] = 0.2,
+    zthresholds: Tuple[float, float] = (-3.5, 5),
+    window_len: float = 1.0,
+    window_overlap: float = 0.66,
+    max_dropout_fraction: float = 0.1,
+    min_clean_fraction: float = 0.25,
+    truncate_quant: Tuple[float, float] = (0.022, 0.6),
+    step_sizes: Tuple[float, float] = (0.01, 0.01),
+    shape_range: Union[np.ndarray, Sequence[float]] = np.arange(1.7, 3.6, 0.15),
 ) -> Tuple[Dict[str, Any], np.ndarray]:
     """Remove periods with abnormally high-power content from continuous data.
 
@@ -89,7 +79,9 @@ def clean_windows(
     # ------------------------------------------------------------------
     #                           Input handling
     # ------------------------------------------------------------------
-    EEG['data'] = np.asarray(EEG['data'], dtype=np.float64)
+    input_data = np.asarray(EEG['data'])
+    output_dtype = input_data.dtype if np.issubdtype(input_data.dtype, np.floating) else np.dtype(np.float64)
+    EEG['data'] = input_data.astype(np.float64, copy=False)
     C, S = EEG['data'].shape
     Fs = EEG['srate']
 
@@ -116,7 +108,7 @@ def clean_windows(
     if step <= 0:
         # Avoid infinite loop when overlap >= 1
         step = 1.0
-    offsets = round_mat(np.arange(0, S - N + 1, step)).astype(int)
+    offsets = round_mat(np.arange(1, S - N + 1, step)).astype(int) - 1
     if len(offsets) == 0:
         raise ValueError('Not enough data for even a single window.')
 
@@ -183,53 +175,19 @@ def clean_windows(
     sample_mask = np.ones(S, dtype=bool)
     for w in removed_windows:
         start = offsets[w]
-        sample_mask[start:start + N] = False
+        sample_mask[start : start + N] = False
 
     kept_pct = 100.0 * np.mean(sample_mask)
     kept_seconds = np.count_nonzero(sample_mask) / Fs
     logger.info(f'Keeping {kept_pct:.1f}% ({kept_seconds:.0f} seconds) of the data.')
 
     # ------------------------------------------------------------------
-    #                    Determine retain intervals (inclusive)
+    #               Apply sample rejection
     # ------------------------------------------------------------------
-    padded = np.concatenate([[False], sample_mask, [False]])
-    diff = np.diff(padded.astype(int))
-    starts = np.where(diff == 1)[0]
-    ends = np.where(diff == -1)[0] - 1
-    # assuming that pop-select will accept 1-based intervals for point
-    retain_intervals = np.stack([starts, ends], axis=1) + 1  # shape (K,2)
-
-    # ------------------------------------------------------------------
-    #               Apply selection (pop_select if available)
-    # ------------------------------------------------------------------
-    try:
-        from eegprep import pop_select  # type: ignore
-        EEG = pop_select(EEG, point=retain_intervals)
-        # pop_select / eeg_eegrej already updated pnts/xmax, shifted event
-        # latencies, and inserted boundary events at each cut. Match EEGLAB by
-        # also casting data to single precision (pop_select keeps the input
-        # dtype).
-        EEG['data'] = np.asarray(EEG['data'], dtype=np.float32)
-        logger.warning("This call to pop_select() assumes that time intervals use "
-                      "1-based indexing; if this has been verified, please remove this warning.")
-    except Exception as e:  # noqa: BLE001 – we really want to catch *everything*
-        # Fall back to manual trimming and minimal bookkeeping. The manual
-        # path below cannot shift event latencies or insert boundary events,
-        # so the metadata wipe is correct only on this branch.
-        if isinstance(e, ImportError):
-            logger.error("Apparently you do not have EEGLAB's pop_select() on the path.")
-        else:
-            logger.error('Could not select time windows using EEGLAB\'s pop_select(); details: %s', str(e))
-            logger.debug('Exception traceback:', exc_info=True)
-
-        logger.info('Falling back to a basic substitute and dropping signal meta-data.')
-        # pop_select() by default truncates to single precision in EEGLAB, which we're mirroring here
-        EEG['data'] = np.asarray(EEG['data'], dtype=np.float32)
-        EEG['data'] = EEG['data'][:, sample_mask]
-        EEG['pnts'] = EEG['data'].shape[1]
-        EEG['xmax'] = EEG['xmin'] + (EEG['pnts'] - 1) / Fs
-        # Wipe or reset fields that are now inconsistent
-        _drop_signal_metadata(EEG)
+    rejected_intervals = mask_to_intervals(sample_mask, value=False)
+    if rejected_intervals.size:
+        EEG = eeg_eegrej(EEG, rejected_intervals)
+    EEG['data'] = np.asarray(EEG['data'], dtype=output_dtype)
 
     # ------------------------------------------------------------------
     #                     Update/insert clean_sample_mask
@@ -251,9 +209,3 @@ def clean_windows(
         etc['clean_sample_mask'] = sample_mask
 
     return EEG, sample_mask
-
-
-def _drop_signal_metadata(EEG: Dict[str, Any]) -> None:
-    for fld in _SIGNAL_METADATA_FIELDS:
-        if fld in EEG:
-            EEG[fld] = [] if isinstance(EEG[fld], list) else np.array([])

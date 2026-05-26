@@ -92,7 +92,9 @@ def _fake_qt_widgets(*, open_file="", save_file="", directory="", double_value=1
         def information(*_args, **_kwargs):
             return None
 
-    return type("FakeQtWidgets", (), {"QFileDialog": QFileDialog, "QInputDialog": QInputDialog, "QMessageBox": QMessageBox})
+    return type(
+        "FakeQtWidgets", (), {"QFileDialog": QFileDialog, "QInputDialog": QInputDialog, "QMessageBox": QMessageBox}
+    )
 
 
 def _demo_eeg(*, epoched=False, chanlocs=True, ica=True):
@@ -285,6 +287,15 @@ class MainMenuSpecTests(unittest.TestCase):
             },
         )
 
+    def test_main_window_stylesheet_makes_in_window_disabled_menus_discernible(self):
+        from eegprep.functions.guifunc.main_window import _main_window_stylesheet
+
+        stylesheet = _main_window_stylesheet()
+
+        self.assertIn("QMenuBar::item:disabled", stylesheet)
+        self.assertIn("color: #64708f", stylesheet)
+        self.assertIn("background: transparent", stylesheet)
+
     def test_all_menu_actions_are_classified(self):
         actions = menu_actions(eeglab_menus(all_menus=True))
 
@@ -292,6 +303,7 @@ class MainMenuSpecTests(unittest.TestCase):
         self.assertEqual(action_kind("pop_reref"), "implemented")
         self.assertEqual(action_kind("pop_select"), "implemented")
         self.assertEqual(action_kind("pop_resample"), "implemented")
+        self.assertEqual(action_kind("pop_epoch"), "implemented")
         self.assertEqual(action_kind("pop_clean_rawdata"), "implemented")
         self.assertEqual(action_kind("pop_runica"), "implemented")
         self.assertEqual(action_kind("pop_iclabel"), "implemented")
@@ -542,10 +554,16 @@ class MenuActionDispatcherTests(unittest.TestCase):
         session.store_current(second, new=True)
         session.STUDY = {"name": "study"}
         session.CURRENTSTUDY = 1
+        echoed = []
+        session.add_command_echo_listener(echoed.append)
         dispatcher = MenuActionDispatcher(session)
 
         dispatcher.dispatch("retrieve_dataset:2")
 
+        self.assertEqual(
+            echoed,
+            ["CURRENTSTUDY = 0;[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, 'retrieve', 2);"],
+        )
         self.assertEqual(session.CURRENTSTUDY, 0)
         self.assertEqual(session.CURRENTSET, [2])
         self.assertEqual(session.EEG["setname"], "second")
@@ -624,6 +642,7 @@ class MenuActionDispatcherTests(unittest.TestCase):
         action_specs = [
             ("pop_select", "eegprep.functions.popfunc.pop_select.pop_select", "selected"),
             ("pop_resample", "eegprep.functions.popfunc.pop_resample.pop_resample", "resampled"),
+            ("pop_epoch", "eegprep.functions.popfunc.pop_epoch.pop_epoch", "epoched"),
             ("pop_clean_rawdata", "eegprep.plugins.clean_rawdata.pop_clean_rawdata.pop_clean_rawdata", "cleaned"),
             ("pop_runica", "eegprep.functions.popfunc.pop_runica.pop_runica", "ica"),
             ("pop_iclabel", "eegprep.plugins.ICLabel.pop_iclabel.pop_iclabel", "labeled"),
@@ -643,6 +662,28 @@ class MenuActionDispatcherTests(unittest.TestCase):
                 self.assertEqual(session.EEG["setname"], setname)
                 self.assertEqual(session.ALLEEG[0]["setname"], setname)
                 self.assertEqual(session.ALLCOM[-1], f"EEG = {action}(EEG);")
+
+    def test_pop_interp_dispatch_uses_generic_gui_command_echo(self):
+        session = EEGPrepSession()
+        session.store_current(_demo_eeg(), new=True)
+        dispatcher = MenuActionDispatcher(session)
+        command = "EEG = pop_interp(EEG, [1], 'spherical');"
+        echoed = []
+        output = dict(session.EEG, setname="interpolated")
+
+        def fake_pop_interp(eeg, *, alleeg, return_com):
+            self.assertIs(eeg, session.EEG)
+            self.assertIs(alleeg, session.ALLEEG)
+            self.assertTrue(return_com)
+            return output, command
+
+        session.add_command_echo_listener(echoed.append)
+        with mock.patch("eegprep.functions.popfunc.pop_interp.pop_interp", side_effect=fake_pop_interp):
+            dispatcher.dispatch("pop_interp")
+
+        self.assertEqual(echoed, [command])
+        self.assertEqual(session.EEG["setname"], "interpolated")
+        self.assertEqual(session.ALLCOM[-1], command)
 
     def test_file_menu_importdata_dispatch_stores_new_dataset(self):
         session = EEGPrepSession()
@@ -664,6 +705,52 @@ class MenuActionDispatcherTests(unittest.TestCase):
         self.assertEqual(session.EEG["setname"], "imported")
         self.assertEqual(session.CURRENTSET, [1])
         self.assertEqual(session.ALLCOM[-1], "EEG = pop_importdata('data', '/tmp/data.tsv');")
+
+    def test_file_menu_import_uses_native_file_dialog_by_default(self):
+        captured = {}
+
+        class QFileDialog:
+            class Option:
+                DontUseNativeDialog = 4
+
+            @staticmethod
+            def getOpenFileName(*args, **kwargs):
+                captured["args"] = args
+                captured["kwargs"] = kwargs
+                return "", ""
+
+        qt_widgets = type("FakeQtWidgets", (), {"QFileDialog": QFileDialog})
+        dispatcher = MenuActionDispatcher(EEGPrepSession())
+
+        with mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets):
+            filename = dispatcher._open_import_filename("pop_fileio", None)
+
+        self.assertEqual(filename, "")
+        self.assertEqual(captured["args"][1], "Import data")
+        self.assertEqual(captured["kwargs"], {})
+
+    def test_file_menu_import_can_use_stable_qt_file_dialog(self):
+        captured = {}
+
+        class QFileDialog:
+            class Option:
+                DontUseNativeDialog = 4
+
+            @staticmethod
+            def getOpenFileName(*args, **kwargs):
+                captured["args"] = args
+                captured["kwargs"] = kwargs
+                return "", ""
+
+        qt_widgets = type("FakeQtWidgets", (), {"QFileDialog": QFileDialog})
+        dispatcher = MenuActionDispatcher(EEGPrepSession(), native_file_dialogs=False)
+
+        with mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets):
+            filename = dispatcher._open_import_filename("pop_fileio", None)
+
+        self.assertEqual(filename, "")
+        self.assertEqual(captured["args"][1], "Import data")
+        self.assertEqual(captured["kwargs"], {"options": QFileDialog.Option.DontUseNativeDialog})
 
     def test_file_menu_export_dispatch_records_history_without_changing_dataset(self):
         session = EEGPrepSession()
@@ -766,6 +853,14 @@ class QtMainWindowTests(unittest.TestCase):
                 "Help": True,
             },
         )
+        top_level_actions = {action.text(): action for action in window.window.menuBar().actions()}
+        self.assertTrue(top_level_actions["File"].menu().isEnabled())
+        self.assertFalse(top_level_actions["Edit"].menu().isEnabled())
+        self.assertFalse(top_level_actions["Tools"].menu().isEnabled())
+        self.assertFalse(top_level_actions["Plot"].menu().isEnabled())
+        self.assertFalse(top_level_actions["Study"].menu().isEnabled())
+        self.assertFalse(top_level_actions["Datasets"].menu().isEnabled())
+        self.assertTrue(top_level_actions["Help"].menu().isEnabled())
         window.window.close()
 
     def test_gui_main_window_inventory_includes_dynamic_dataset_menu(self):
@@ -800,11 +895,56 @@ class QtMainWindowTests(unittest.TestCase):
         session.retrieve(2)
         window = build_main_window(session, all_menus=False)
         datasets = next(action.menu() for action in window.window.menuBar().actions() if action.text() == "Datasets")
-        dataset_actions = {action.text(): action for action in datasets.actions() if action.text().startswith("Dataset")}
+        dataset_actions = {
+            action.text(): action for action in datasets.actions() if action.text().startswith("Dataset")
+        }
 
         self.assertFalse(dataset_actions["Dataset 1:demo"].isChecked())
         self.assertTrue(dataset_actions["Dataset 2:second"].isCheckable())
         self.assertTrue(dataset_actions["Dataset 2:second"].isChecked())
+        window.window.close()
+
+    def test_gui_main_window_marks_unimplemented_actions_distinctly(self):
+        pytest.importorskip("PySide6")
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from eegprep.functions.guifunc.main_window import COMING_SOON_SUFFIX, build_main_window
+
+        session = EEGPrepSession()
+        session.store_current(_demo_eeg(), new=True)
+        window = build_main_window(session, all_menus=False)
+        actions_by_data = {
+            action.data(): action for action in _qt_actions(window.window.menuBar().actions()) if action.data()
+        }
+        placeholder = actions_by_data["pop_eegplot:data"]
+        implemented = actions_by_data["pop_resample"]
+
+        self.assertEqual(placeholder.property("eegprep_label"), "Inspect/reject data by eye")
+        self.assertEqual(placeholder.property("eegprep_implementation_state"), "coming_soon")
+        self.assertTrue(placeholder.text().endswith(COMING_SOON_SUFFIX))
+        self.assertFalse(placeholder.isEnabled())
+        self.assertTrue(placeholder.font().italic())
+        self.assertEqual(implemented.text(), "Change sampling rate")
+        self.assertNotEqual(implemented.property("eegprep_implementation_state"), "coming_soon")
+        self.assertTrue(implemented.isEnabled())
+        window.window.close()
+
+    def test_gui_main_window_inventory_reports_coming_soon_source_label(self):
+        pytest.importorskip("PySide6")
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from eegprep.functions.guifunc.main_window import build_main_window
+
+        session = EEGPrepSession()
+        session.store_current(_demo_eeg(), new=True)
+        window = build_main_window(session, all_menus=False)
+        tools = next(item for item in window.menu_inventory() if item["label"] == "Tools")
+        by_source_label = {item["source_label"]: item for item in tools["children"]}
+
+        coming_soon = by_source_label["Inspect/reject data by eye"]
+        self.assertEqual(coming_soon["implementation_state"], "coming_soon")
+        self.assertFalse(coming_soon["enabled"])
+        self.assertIn("coming soon", coming_soon["label"])
+        self.assertEqual(by_source_label["Change sampling rate"]["implementation_state"], "implemented")
+        self.assertTrue(by_source_label["Change sampling rate"]["enabled"])
         window.window.close()
 
     def test_gui_main_window_uses_native_menu_request_and_non_native_menu_roles(self):
@@ -825,6 +965,20 @@ class QtMainWindowTests(unittest.TestCase):
             self.assertFalse(menubar.isNativeMenuBar())
         self.assertTrue(actions)
         self.assertTrue(all(action.menuRole() == QtGui.QAction.MenuRole.NoRole for action in actions))
+        window.window.close()
+
+    def test_gui_main_window_can_force_in_window_menu_bar(self):
+        pytest.importorskip("PySide6")
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from eegprep.functions.guifunc.main_window import build_main_window
+
+        window = build_main_window(EEGPrepSession(), all_menus=True, native_menu_bar=False)
+
+        self.assertFalse(window.window.menuBar().isNativeMenuBar())
+        self.assertEqual(
+            [action.text() for action in window.window.menuBar().actions()],
+            ["File", "Edit", "Tools", "Plot", "Study", "Datasets", "Help"],
+        )
         window.window.close()
 
     def test_gui_main_window_reapplies_branding_after_menu_action(self):

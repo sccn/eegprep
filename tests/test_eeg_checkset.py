@@ -8,8 +8,7 @@ EEG data structures, ensuring required fields exist and have correct types.
 import unittest
 import sys
 import numpy as np
-import tempfile
-import os
+import logging
 
 # Add src to path for imports
 sys.path.insert(0, 'src')
@@ -50,7 +49,7 @@ def create_complete_eeg():
         'condition': '',
         'session': 1,
         'comments': np.array([]),
-        'chanlocs': np.array([{'labels': f'Ch{i+1}'} for i in range(n_channels)]),
+        'chanlocs': np.array([{'labels': f'Ch{i + 1}'} for i in range(n_channels)]),
         'urchanlocs': np.array([]),
         'chaninfo': {},
         'ref': 'common',
@@ -76,8 +75,18 @@ def create_complete_eeg():
         'icawinv': np.array([]),
         'icasphere': np.array([]),
         'icaweights': np.array([]),
-        'icachansind': np.array([])
+        'icachansind': np.array([]),
     }
+
+
+def test_eeg_checkset_accepts_eeglab_string_comments(caplog):
+    eeg = create_complete_eeg()
+    eeg["comments"] = "Loaded from an EEGLAB dataset"
+    caplog.set_level(logging.WARNING, logger="eegprep.functions.adminfunc.eeg_checkset")
+
+    eeg_checkset(eeg)
+
+    assert "Field 'comments' is expected" not in caplog.text
 
 
 class TestEegChecksetBasic(DebuggableTestCase):
@@ -275,10 +284,7 @@ class TestEegChecksetEventHandling(DebuggableTestCase):
     def test_event_list_to_array(self):
         """Test that event list is converted to numpy array."""
         eeg = create_minimal_eeg()
-        eeg['event'] = [
-            {'type': 'stimulus', 'latency': 100},
-            {'type': 'response', 'latency': 200}
-        ]
+        eeg['event'] = [{'type': 'stimulus', 'latency': 100}, {'type': 'response', 'latency': 200}]
 
         result = eeg_checkset(eeg)
 
@@ -315,10 +321,7 @@ class TestEegChecksetChanlocsHandling(DebuggableTestCase):
     def test_chanlocs_list_to_array(self):
         """Test that chanlocs list is converted to numpy array."""
         eeg = create_minimal_eeg()
-        eeg['chanlocs'] = [
-            {'labels': 'Ch1', 'theta': 0},
-            {'labels': 'Ch2', 'theta': 45}
-        ]
+        eeg['chanlocs'] = [{'labels': 'Ch1', 'theta': 0}, {'labels': 'Ch2', 'theta': 45}]
 
         result = eeg_checkset(eeg)
 
@@ -601,11 +604,8 @@ class TestEegChecksetIntegration(DebuggableTestCase):
             'xmin': -0.5,
             'xmax': 3.5,
             'setname': 'Subject01_Session01',
-            'event': [
-                {'type': 'stimulus', 'latency': 250},
-                {'type': 'response', 'latency': 500}
-            ],
-            'chanlocs': [{'labels': f'EEG{i:03d}'} for i in range(1, 65)]
+            'event': [{'type': 'stimulus', 'latency': 250}, {'type': 'response', 'latency': 500}],
+            'chanlocs': [{'labels': f'EEG{i:03d}'} for i in range(1, 65)],
         }
 
         result = eeg_checkset(eeg)
@@ -628,9 +628,20 @@ class TestEegChecksetIntegration(DebuggableTestCase):
 
         # All standard fields should be present
         required_fields = [
-            'data', 'srate', 'nbchan', 'pnts', 'trials',
-            'xmin', 'xmax', 'setname', 'filename', 'filepath',
-            'event', 'chanlocs', 'chaninfo', 'reject'
+            'data',
+            'srate',
+            'nbchan',
+            'pnts',
+            'trials',
+            'xmin',
+            'xmax',
+            'setname',
+            'filename',
+            'filepath',
+            'event',
+            'chanlocs',
+            'chaninfo',
+            'reject',
         ]
 
         for field in required_fields:

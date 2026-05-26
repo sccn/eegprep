@@ -1,6 +1,6 @@
 """Signal processing utilities."""
 
-from typing import *
+from typing import Optional, Sequence, Tuple, Union
 
 import numpy as np
 from scipy.signal import fftconvolve
@@ -9,13 +9,7 @@ from ....functions.miscfunc.misc import round_mat
 __all__ = ['design_kaiser', 'design_fir', 'filtfilt_fast', 'firwsord', 'firws']
 
 
-def design_kaiser(
-        lo: float,
-        hi: float,
-        atten: float,
-        want_odd: bool,
-        use_scipy: bool = False
-) -> np.ndarray:
+def design_kaiser(lo: float, hi: float, atten: float, want_odd: bool, use_scipy: bool = False) -> np.ndarray:
     """Design a Kaiser window for a low-pass FIR filter.
 
     Parameters
@@ -45,9 +39,9 @@ def design_kaiser(
         if atten < 21:
             beta = 0
         elif atten < 50:
-            beta = 0.5842*(atten-21)**0.4 + 0.07886*(atten-21)
+            beta = 0.5842 * (atten - 21) ** 0.4 + 0.07886 * (atten - 21)
         else:
-            beta = 0.1102*(atten-8.7)
+            beta = 0.1102 * (atten - 8.7)
 
         #  determine the number of points
         N = int(round_mat((atten - 7.95) / (2 * np.pi * 2.285 * (hi - lo))) + 1)
@@ -61,13 +55,13 @@ def design_kaiser(
 
 
 def design_fir(
-        n: int,
-        f: Union[np.ndarray, Sequence[float]],
-        a: Union[np.ndarray, Sequence[float]],
-        *,
-        nfft: Optional[int] = None,
-        w: Optional[np.ndarray] = None,
-        compat: bool = True,
+    n: int,
+    f: Union[np.ndarray, Sequence[float]],
+    a: Union[np.ndarray, Sequence[float]],
+    *,
+    nfft: Optional[int] = None,
+    w: Optional[np.ndarray] = None,
+    compat: bool = True,
 ) -> np.ndarray:
     """Design an FIR filter using the frequency-sampling method.
 
@@ -97,14 +91,16 @@ def design_fir(
         The filter coefficients.
     """
     from scipy.interpolate import PchipInterpolator
+
     f, a = np.asarray(f), np.asarray(a)
     if nfft is None:
-        nfft = max([512, 2**np.ceil(np.log(n) / np.log(2))])
+        nfft = max([512, 2 ** np.ceil(np.log(n) / np.log(2))])
     if w is None:
         if compat:
-            w = 0.54 - 0.46*np.cos(2*np.pi*np.arange(n+1)/n)
+            w = 0.54 - 0.46 * np.cos(2 * np.pi * np.arange(n + 1) / n)
         else:
             from scipy.signal.windows import hamming
+
             w = hamming(n)
 
     # calculate interpolated frequency response
@@ -116,13 +112,13 @@ def design_fir(
     b = np.real(np.fft.ifft(np.concatenate((f, np.conj(f[::-1][1:-1])))))
 
     # apply window to kernel
-    return b[:len(w)] * w
+    return b[: len(w)] * w
 
 
 def filtfilt_fast(
-        b: np.ndarray,
-        a: Union[float, np.ndarray],
-        x: np.ndarray,
+    b: np.ndarray,
+    a: Union[float, np.ndarray],
+    x: np.ndarray,
 ) -> np.ndarray:
     """Apply a zero-phase forward-backward filter to a signal using FFTs.
 
@@ -153,7 +149,7 @@ def filtfilt_fast(
     y_filtered = fftconvolve(y_forward, b, mode='full')[::-1]
     # trim off padding
     excess = len(y_filtered) - len(x)
-    y_depadded = y_filtered[excess//2:-excess//2]
+    y_depadded = y_filtered[excess // 2 : -excess // 2]
     return y_depadded
 
 
@@ -215,6 +211,7 @@ def moving_average(X, *, N=3, axis=-1, Z=None, inplace=False, transform=None, in
     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
     SOFTWARE.
     """
+
     class MovAvgState:
         """State representation for moving_average() filter function."""
 
@@ -224,7 +221,9 @@ def moving_average(X, *, N=3, axis=-1, Z=None, inplace=False, transform=None, in
     if transform and inplace:
         raise ValueError("You cannot use inplace and transform at the same time.")
     if transform is None:
-        def transform(x): return x
+
+        def transform(x):
+            return x
     # we're doing some extra homework here to be able to buffer and transform the data
     # without swizzling axes (which creates temporaries that can exceed the memory),
     # so we have to be able to do all operations on input and output along the desired axis,
@@ -232,7 +231,7 @@ def moving_average(X, *, N=3, axis=-1, Z=None, inplace=False, transform=None, in
 
     def slice_at(x, k):
         """Generate an index slice that will slice x at the desired axis."""
-        slices = [slice(None)]*x.ndim
+        slices = [slice(None)] * x.ndim
         slices[axis] = k
         return tuple(slices)
 
@@ -251,8 +250,9 @@ def moving_average(X, *, N=3, axis=-1, Z=None, inplace=False, transform=None, in
             init_n = N
         else:
             raise ValueError("init must be 0 or None")
-        Z = MovAvgState(p=0, buf=np.zeros_like(X[slice_at(X, [0]*N)]),
-                        acc=np.zeros_like(transform(X[slice_at(X, 0)])), n=init_n)
+        Z = MovAvgState(
+            p=0, buf=np.zeros_like(X[slice_at(X, [0] * N)]), acc=np.zeros_like(transform(X[slice_at(X, 0)])), n=init_n
+        )
 
     for k in range(X.shape[axis]):
         # this is basically the buffered moving average trick (updating/downdating
@@ -272,7 +272,9 @@ def moving_average(X, *, N=3, axis=-1, Z=None, inplace=False, transform=None, in
     return (X if inplace else Y), Z
 
 
-def firws(m: int, f: Union[float, Sequence[float]], t: Optional[str] = None, w: Optional[np.ndarray] = None) -> Tuple[np.ndarray, float]:
+def firws(
+    m: int, f: Union[float, Sequence[float]], t: Optional[str] = None, w: Optional[np.ndarray] = None
+) -> Tuple[np.ndarray, float]:
     """Designs windowed sinc type I linear phase FIR filter.
 
     Parameters
@@ -311,10 +313,10 @@ def firws(m: int, f: Union[float, Sequence[float]], t: Optional[str] = None, w: 
         raise ValueError('Filter order must be a real, even, positive integer.')
 
     # Convert f to array and normalize
-    f = np.asarray(f, dtype=float)
-    if f.ndim == 0:
-        f = f.reshape(1)
-    f = f / 2.0
+    f_arr = np.asarray(f, dtype=float)
+    if f_arr.ndim == 0:
+        f_arr = f_arr.reshape(1)
+    f = f_arr / 2.0
 
     if np.any(f <= 0) or np.any(f >= 0.5):
         raise ValueError('Frequencies must fall in range between 0 and 1.')
@@ -364,17 +366,17 @@ def _fkernel(m: int, f: float, w: np.ndarray) -> np.ndarray:
         Filter kernel.
     """
     # Create range -m/2 : m/2
-    n = np.arange(-m//2, m//2 + 1, dtype=float)
+    n = np.arange(-m // 2, m // 2 + 1, dtype=float)
 
     # Compute sinc function
     b = np.zeros_like(n)
 
     # Handle n == 0 case (no division by zero)
-    zero_idx = (n == 0)
+    zero_idx = n == 0
     b[zero_idx] = 2 * np.pi * f
 
     # Handle n != 0 case
-    nonzero_idx = (n != 0)
+    nonzero_idx = n != 0
     b[nonzero_idx] = np.sin(2 * np.pi * f * n[nonzero_idx]) / n[nonzero_idx]
 
     # Apply window

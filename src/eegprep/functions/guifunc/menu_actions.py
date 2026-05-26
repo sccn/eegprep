@@ -16,6 +16,8 @@ from eegprep.functions.popfunc._coming_soon import coming_soon
 
 logger = logging.getLogger(__name__)
 
+# Action handlers import user-facing pop/plugin modules lazily so launching the
+# main GUI does not eagerly load heavier signal-processing and optional stacks.
 IMPLEMENTED_ACTIONS = {
     "clear_study",
     "docs",
@@ -29,6 +31,7 @@ IMPLEMENTED_ACTIONS = {
     "pop_clean_rawdata",
     "pop_delset",
     "pop_editoptions",
+    "pop_epoch",
     "pop_eventinfo",
     "pop_expevents",
     "pop_expica",
@@ -104,6 +107,7 @@ HELP_UNAVAILABLE_TOPICS = frozenset(set(HELP_TOPIC_LABELS) - set(HELP_DOC_PATHS)
 
 _MULTIPLE_DATASET_ACTIONS = {
     "pop_clean_rawdata",
+    "pop_epoch",
     "pop_iclabel",
     "pop_reref",
     "pop_resample",
@@ -115,19 +119,27 @@ _MULTIPLE_DATASET_ACTIONS = {
 class MenuActionDispatcher:
     """Dispatch menu action identifiers to real functions or placeholders."""
 
-    def __init__(self, session: EEGPrepSession, refresh: Callable[[], None] | None = None):
+    def __init__(
+        self,
+        session: EEGPrepSession,
+        refresh: Callable[[], None] | None = None,
+        *,
+        native_file_dialogs: bool = True,
+    ):
         self.session = session
         self.refresh = refresh
+        self.native_file_dialogs = native_file_dialogs
 
     def dispatch_gui(self, action: str, parent: Any | None = None) -> None:
         """Run a menu action from Qt and show user-facing errors."""
-        try:
-            self.dispatch(action, parent)
-        except Exception as exc:
-            logger.exception("EEGPrep GUI menu action failed: %s", action)
-            if parent is None:
-                raise
-            self._warn(parent, str(exc))
+        with self.session.gui_action(action):
+            try:
+                self.dispatch(action, parent)
+            except Exception as exc:
+                logger.exception("EEGPrep GUI menu action failed: %s", action)
+                if parent is None:
+                    raise
+                self._warn(parent, str(exc))
 
     def dispatch(self, action: str, parent: Any | None = None) -> None:
         """Run a menu action."""
@@ -216,6 +228,9 @@ class MenuActionDispatcher:
         if base == "pop_clean_rawdata":
             self._run_pop_function("pop_clean_rawdata", parent)
             return
+        if base == "pop_epoch":
+            self._run_pop_function("pop_epoch", parent)
+            return
         if base == "pop_reref":
             self._run_pop_function("pop_reref", parent)
             return
@@ -254,11 +269,13 @@ class MenuActionDispatcher:
             "Load existing dataset",
             "",
             "EEGPrep/EEGLAB datasets (*.set *.mat);;All files (*)",
+            **self._file_dialog_kwargs(qt_widgets),
         )
         if not filename:
             return
+        command = f"EEG = pop_loadset({filename!r});"
         eeg = pop_loadset(filename)
-        self.session.store_current(eeg, new=True, command=f"EEG = pop_loadset({filename!r});")
+        self._store_current_from_gui(eeg, new=True, command=command)
         self._refresh()
 
     def _saveset(self, parent: Any | None, *, resave: bool = False) -> None:
@@ -278,6 +295,7 @@ class MenuActionDispatcher:
                 "Save current dataset as",
                 str(datasets[0].get("filename") or ""),
                 "EEGPrep/EEGLAB datasets (*.set);;All files (*)",
+                **self._file_dialog_kwargs(qt_widgets),
             )
             filenames = [filename]
         if len(datasets) == 1 and not filename:
@@ -289,17 +307,20 @@ class MenuActionDispatcher:
             _apply_save_metadata(eeg, filename)
         stored = datasets if isinstance(selection, list) else datasets[0]
         command = (
-            "EEG = pop_saveset(EEG, 'savemode', 'resave');"
-            if resave
-            else f"EEG = pop_saveset(EEG, {filenames[0]!r});"
+            "EEG = pop_saveset(EEG, 'savemode', 'resave');" if resave else f"EEG = pop_saveset(EEG, {filenames[0]!r});"
         )
-        self.session.store_current(stored, command=command, mark_saved=True)
+        self._store_current_from_gui(stored, command=command, mark_saved=True)
         self._refresh()
 
     def _import_dataset(self, action: str, parent: Any | None) -> None:
         qt_widgets = _require_qt_widgets()
         if action == "pop_importbids":
-            source = qt_widgets.QFileDialog.getExistingDirectory(parent, "Import BIDS folder structure", "")
+            source = qt_widgets.QFileDialog.getExistingDirectory(
+                parent,
+                "Import BIDS folder structure",
+                "",
+                **self._file_dialog_kwargs(qt_widgets, directories=True),
+            )
             if not source:
                 return
             from eegprep.plugins.EEG_BIDS.pop_importbids import pop_importbids
@@ -324,7 +345,7 @@ class MenuActionDispatcher:
                 from eegprep.functions.popfunc.pop_fileio import pop_fileio
 
                 eeg_out, command = pop_fileio(filename, return_com=True)
-        self.session.store_current(eeg_out, new=True, command=command)
+        self._store_current_from_gui(eeg_out, new=True, command=command)
         self._refresh()
 
     def _open_import_filename(self, action: str, parent: Any | None) -> str:
@@ -342,6 +363,7 @@ class MenuActionDispatcher:
             "Import data",
             "",
             filters.get(action, "EEG files (*.set *.edf *.bdf *.gdf *.vhdr *.mff *.cnt *.eeg);;All files (*)"),
+            **self._file_dialog_kwargs(qt_widgets),
         )
         return filename
 
@@ -363,6 +385,7 @@ class MenuActionDispatcher:
                 "Import event/epoch info",
                 "",
                 "Text tables (*.txt *.tsv *.csv *.log);;All files (*)",
+                **self._file_dialog_kwargs(qt_widgets),
             )
             if not filename:
                 return
@@ -382,7 +405,7 @@ class MenuActionDispatcher:
                 from eegprep.functions.popfunc.pop_importevent import pop_importevent
 
                 eeg_out, command = pop_importevent(selection, "event", filename, return_com=True)
-        self.session.store_current(eeg_out, command=command)
+        self._store_current_from_gui(eeg_out, command=command)
         self._refresh()
 
     def _export_current_dataset(self, action: str, variant: str, parent: Any | None) -> None:
@@ -392,7 +415,12 @@ class MenuActionDispatcher:
             return
         qt_widgets = _require_qt_widgets()
         if action in {"pop_exportbids", "bids_exporter"}:
-            directory = qt_widgets.QFileDialog.getExistingDirectory(parent, "Export to BIDS folder structure", "")
+            directory = qt_widgets.QFileDialog.getExistingDirectory(
+                parent,
+                "Export to BIDS folder structure",
+                "",
+                **self._file_dialog_kwargs(qt_widgets, directories=True),
+            )
             if not directory:
                 return
             from eegprep.plugins.EEG_BIDS.pop_exportbids import pop_exportbids
@@ -404,6 +432,7 @@ class MenuActionDispatcher:
                 "Export data",
                 "",
                 _export_filter(action),
+                **self._file_dialog_kwargs(qt_widgets),
             )
             if not filename:
                 return
@@ -423,13 +452,19 @@ class MenuActionDispatcher:
                 from eegprep.functions.popfunc.pop_writeeeg import pop_writeeeg
 
                 command = pop_writeeeg(selection, filename)
-        self.session.add_history(command)
+        self._add_history_from_gui(command)
         self._refresh()
 
     def _study_action(self, action: str, variant: str, parent: Any | None) -> None:
         qt_widgets = _require_qt_widgets()
         if action == "pop_loadstudy":
-            filename, _filter = qt_widgets.QFileDialog.getOpenFileName(parent, "Load existing study", "", "STUDY files (*.study *.json);;All files (*)")
+            filename, _filter = qt_widgets.QFileDialog.getOpenFileName(
+                parent,
+                "Load existing study",
+                "",
+                "STUDY files (*.study *.json);;All files (*)",
+                **self._file_dialog_kwargs(qt_widgets),
+            )
             if not filename:
                 return
             from eegprep.functions.studyfunc.pop_loadstudy import pop_loadstudy
@@ -439,7 +474,7 @@ class MenuActionDispatcher:
             if alleeg:
                 self.session.ALLEEG = alleeg
             self.session.CURRENTSTUDY = 1
-            self.session.add_history(command)
+            self._add_history_from_gui(command)
             self._refresh()
             return
         if action == "pop_savestudy":
@@ -448,18 +483,30 @@ class MenuActionDispatcher:
                 return
             filename = _existing_study_filename(self.session.STUDY) if variant == "resave" else ""
             if not filename:
-                filename, _filter = qt_widgets.QFileDialog.getSaveFileName(parent, "Save current study as", "", "STUDY files (*.study);;All files (*)")
+                filename, _filter = qt_widgets.QFileDialog.getSaveFileName(
+                    parent,
+                    "Save current study as",
+                    "",
+                    "STUDY files (*.study);;All files (*)",
+                    **self._file_dialog_kwargs(qt_widgets),
+                )
             if not filename:
                 return
             from eegprep.functions.studyfunc.pop_savestudy import pop_savestudy
 
             study, command = pop_savestudy(self.session.STUDY, self.session.EEG, filename, savemode=variant or None)
             self.session.STUDY = study
-            self.session.add_history(command)
+            self._add_history_from_gui(command)
             self._refresh()
             return
         if action == "pop_studywizard":
-            filenames, _filter = qt_widgets.QFileDialog.getOpenFileNames(parent, "Browse for datasets", "", "EEGPrep/EEGLAB datasets (*.set *.mat);;All files (*)")
+            filenames, _filter = qt_widgets.QFileDialog.getOpenFileNames(
+                parent,
+                "Browse for datasets",
+                "",
+                "EEGPrep/EEGLAB datasets (*.set *.mat);;All files (*)",
+                **self._file_dialog_kwargs(qt_widgets),
+            )
             if not filenames:
                 return
             from eegprep.functions.studyfunc.pop_studywizard import pop_studywizard
@@ -479,7 +526,7 @@ class MenuActionDispatcher:
         self.session.STUDY = study
         self.session.ALLEEG = alleeg
         self.session.CURRENTSTUDY = 1
-        self.session.add_history(command)
+        self._add_history_from_gui(command)
         self._refresh()
 
     def _edit_options(self, parent: Any | None) -> None:
@@ -500,26 +547,42 @@ class MenuActionDispatcher:
                 return
             enabled = int(result == qt_widgets.QMessageBox.Yes)
         command = pop_editoptions(option_allmenus=enabled)
-        self.session.add_history(command)
+        self._add_history_from_gui(command)
         self._info(parent, "Preferences updated. Reopen the main window to rebuild the menu mode.")
         self._refresh()
 
     def _save_history(self, variant: str, parent: Any | None) -> None:
         qt_widgets = _require_qt_widgets()
-        filename, _filter = qt_widgets.QFileDialog.getSaveFileName(parent, "Save history script", "eegprephist.m", "MATLAB scripts (*.m);;All files (*)")
+        filename, _filter = qt_widgets.QFileDialog.getSaveFileName(
+            parent,
+            "Save history script",
+            "eegprephist.m",
+            "MATLAB scripts (*.m);;All files (*)",
+            **self._file_dialog_kwargs(qt_widgets),
+        )
         if not filename:
             return
         from eegprep.functions.popfunc.pop_saveh import pop_saveh
 
         path = Path(filename)
-        history = self.session.EEG.get("history", "") if variant == "dataset" and isinstance(self.session.EEG, dict) else self.session.ALLCOM
+        history = (
+            self.session.EEG.get("history", "")
+            if variant == "dataset" and isinstance(self.session.EEG, dict)
+            else self.session.ALLCOM
+        )
         command = pop_saveh(history, path.name, path.parent)
-        self.session.add_history(command)
+        self._add_history_from_gui(command)
         self._refresh()
 
     def _run_script(self, parent: Any | None) -> None:
         qt_widgets = _require_qt_widgets()
-        filename, _filter = qt_widgets.QFileDialog.getOpenFileName(parent, "Run history script", "", "Scripts (*.py *.m *.txt);;All files (*)")
+        filename, _filter = qt_widgets.QFileDialog.getOpenFileName(
+            parent,
+            "Run history script",
+            "",
+            "Scripts (*.py *.m *.txt);;All files (*)",
+            **self._file_dialog_kwargs(qt_widgets),
+        )
         if not filename:
             return
         from eegprep.functions.popfunc.pop_runscript import pop_runscript
@@ -535,19 +598,26 @@ class MenuActionDispatcher:
         self.session.ALLEEG = namespace.get("ALLEEG", self.session.ALLEEG)
         self.session.CURRENTSET = _currentset_list(namespace.get("CURRENTSET", self.session.current_set_value()))
         self.session.STUDY = namespace.get("STUDY", self.session.STUDY)
-        self.session.add_history(command)
+        self._add_history_from_gui(command)
         self._refresh()
 
     def _bids_tool_action(self, action: str, parent: Any | None) -> None:
         if action == "validate_bids":
             qt_widgets = _require_qt_widgets()
-            directory = qt_widgets.QFileDialog.getExistingDirectory(parent, "Validate BIDS dataset", "")
+            directory = qt_widgets.QFileDialog.getExistingDirectory(
+                parent,
+                "Validate BIDS dataset",
+                "",
+                **self._file_dialog_kwargs(qt_widgets, directories=True),
+            )
             if not directory:
                 return
             from eegprep.plugins.EEG_BIDS.bids_tools import validate_bids
 
             report = validate_bids(directory)
-            self._info(parent, f"BIDS validation complete: {len(report['errors'])} errors, {len(report['warnings'])} warnings.")
+            self._info(
+                parent, f"BIDS validation complete: {len(report['errors'])} errors, {len(report['warnings'])} warnings."
+            )
             return
         target = self.session.STUDY if self.session.CURRENTSTUDY == 1 and self.session.STUDY else self.session.EEG
         if isinstance(target, list):
@@ -561,9 +631,9 @@ class MenuActionDispatcher:
         updated, command = getattr(bids_tools, action)(target, **metadata)
         if self.session.CURRENTSTUDY == 1 and self.session.STUDY:
             self.session.STUDY = updated
-            self.session.add_history(command)
+            self._add_history_from_gui(command)
         else:
-            self.session.store_current(updated, command=command)
+            self._store_current_from_gui(updated, command=command)
         self._refresh()
 
     def _show_extension_manager(self, parent: Any | None) -> None:
@@ -582,6 +652,10 @@ class MenuActionDispatcher:
             from eegprep.plugins.clean_rawdata.pop_clean_rawdata import pop_clean_rawdata
 
             out = pop_clean_rawdata(selection, return_com=True)
+        elif name == "pop_epoch":
+            from eegprep.functions.popfunc.pop_epoch import pop_epoch
+
+            out = pop_epoch(selection, return_com=True)
         elif name == "pop_reref":
             from eegprep.functions.popfunc.pop_reref import pop_reref
 
@@ -614,8 +688,17 @@ class MenuActionDispatcher:
         else:
             eeg_out, command = out, ""
         if command:
-            self.session.store_current(eeg_out, command=command)
+            self._store_current_from_gui(eeg_out, command=command)
             self._refresh()
+
+    def _store_current_from_gui(self, eeg: Any, **kwargs: Any) -> Any:
+        command = kwargs.get("command")
+        self.session.echo_command(command)
+        return self.session.store_current(eeg, **kwargs)
+
+    def _add_history_from_gui(self, command: str | None) -> None:
+        self.session.echo_command(command)
+        self.session.add_history(command)
 
     def _retrieve_dataset(self, index: int) -> None:
         was_study = self.session.CURRENTSTUDY == 1
@@ -624,7 +707,7 @@ class MenuActionDispatcher:
         if was_study:
             self.session.CURRENTSTUDY = 0
             command = f"CURRENTSTUDY = 0;{command}"
-        self.session.add_history(command)
+        self._add_history_from_gui(command)
         self._refresh()
 
     def _show_help(self, function_name: str, parent: Any | None) -> None:
@@ -706,6 +789,13 @@ class MenuActionDispatcher:
     def _refresh(self) -> None:
         if self.refresh is not None:
             self.refresh()
+
+    def _file_dialog_kwargs(self, qt_widgets: Any, *, directories: bool = False) -> dict[str, Any]:
+        return _file_dialog_kwargs(
+            qt_widgets,
+            native_file_dialogs=self.native_file_dialogs,
+            directories=directories,
+        )
 
 
 def _existing_dataset_filename(eeg: dict[str, Any]) -> str:
@@ -792,6 +882,30 @@ def action_kind(action: str) -> str:
     if is_placeholder_action(action):
         return "placeholder"
     return "unknown"
+
+
+def _file_dialog_kwargs(
+    qt_widgets: Any, *, native_file_dialogs: bool = True, directories: bool = False
+) -> dict[str, Any]:
+    if native_file_dialogs:
+        return {}
+    # Native macOS file panels can close immediately under IPython's Qt input hook.
+    options = _qt_enum_value(qt_widgets.QFileDialog, "Option", "DontUseNativeDialog")
+    if directories:
+        show_dirs = _qt_enum_value(qt_widgets.QFileDialog, "Option", "ShowDirsOnly")
+        if options is None:
+            options = show_dirs
+        elif show_dirs is not None:
+            options = options | show_dirs
+    return {"options": options} if options is not None else {}
+
+
+def _qt_enum_value(owner: Any, enum_name: str, value_name: str) -> Any | None:
+    enum = getattr(owner, enum_name, None)
+    value = getattr(enum, value_name, None) if enum is not None else None
+    if value is not None:
+        return value
+    return getattr(owner, value_name, None)
 
 
 def _qt_widgets() -> Any | None:

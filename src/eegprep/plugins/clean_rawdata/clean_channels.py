@@ -1,12 +1,11 @@
 """EEG channel cleaning utilities."""
 
-from typing import *
 import logging
-import traceback
+from typing import Any, Dict
 
 import numpy as np
 
-from ...functions.miscfunc.misc import round_mat
+from ...functions.miscfunc.misc import finite_matmul, round_mat
 from .private.ransac import calc_projector
 from .private.sigproc import design_fir, filtfilt_fast
 from .private.stats import mad
@@ -15,13 +14,13 @@ logger = logging.getLogger(__name__)
 
 
 def clean_channels(
-        EEG: Dict[str, Any],
-        corr_threshold: float = 0.8,
-        noise_threshold: float = 5.0,
-        window_len: float = 5,
-        max_broken_time: float = 0.4,
-        num_samples: int = 50,
-        subset_size: float = 0.25,
+    EEG: Dict[str, Any],
+    corr_threshold: float = 0.8,
+    noise_threshold: float = 5.0,
+    window_len: float = 5,
+    max_broken_time: float = 0.4,
+    num_samples: int = 50,
+    subset_size: float = 0.25,
 ) -> Dict[str, Any]:
     """Remove channels with problematic data from a continuous data set.
 
@@ -80,7 +79,7 @@ def clean_channels(
 
     if Fs > 100:
         # remove signal content above 50Hz
-        B = design_fir(100, 2 * np.array([0, 45, 50, Fs/2]) / Fs, [1, 1, 0, 0])
+        B = design_fir(100, 2 * np.array([0, 45, 50, Fs / 2]) / Fs, [1, 1, 0, 0])
         X = np.zeros((S, C))
         for c in range(C):
             X[:, c] = filtfilt_fast(B, 1, EEG['data'][c, :])
@@ -96,14 +95,11 @@ def clean_channels(
         noise_mask = np.zeros(C, dtype=bool)  # transpose added in MATLAB comment
 
     # get the matrix of all channel locations [3xN]
-    xyz = [
-        [ch.get(coord, np.nan) for ch in EEG['chanlocs']]
-        for coord in ['X', 'Y', 'Z']]
+    xyz = [[ch.get(coord, np.nan) for ch in EEG['chanlocs']] for coord in ['X', 'Y', 'Z']]
     xyz = [[x if not (isinstance(x, np.ndarray) and x.size == 0) else np.nan for x in xyz_sub] for xyz_sub in xyz]
     xyz = np.asarray([np.asarray([np.nan if x is None else x for x in row], dtype=float) for row in xyz])
     if np.mean(np.any(np.isnan(xyz), axis=0)) > 0.5:
-        raise ValueError(
-            'To use this function most of your channels should have X,Y,Z location measurements.')
+        raise ValueError('To use this function most of your channels should have X,Y,Z location measurements.')
     usable_channels = np.where(~np.any(np.isnan(xyz), axis=0))[0]
 
     locs = xyz[:, usable_channels].T
@@ -118,22 +114,23 @@ def clean_channels(
     time_passed_list = np.zeros(W)
     for o in range(W):
         import time
+
         start_time = time.time()
 
         XX = X[offsets[o] + wnd, :]
-        YY = np.sort(np.reshape((XX @ P).T, (num_samples, -1)), axis=0)
+        YY = np.sort(np.reshape(finite_matmul(XX, P).T, (num_samples, -1)), axis=0)
         YY = np.reshape(YY[int(round_mat(num_samples / 2)) - 1, :], (-1, window_len)).T
 
         # Calculate correlation for each channel
         for c in range(len(usable_channels)):
             numerator = np.sum(XX[:, c] * YY[:, c])
-            denominator = np.sqrt(np.sum(XX[:, c]**2)) * np.sqrt(np.sum(YY[:, c]**2))
+            denominator = np.sqrt(np.sum(XX[:, c] ** 2)) * np.sqrt(np.sum(YY[:, c] ** 2))
             corrs[c, o] = numerator / denominator
 
         time_passed_list[o] = time.time() - start_time
-        median_time_passed = np.median(time_passed_list[:o+1])
+        median_time_passed = np.median(time_passed_list[: o + 1])
         if o % 50 == 0:
-            logger.info(f'{o+1:3d}/{W} blocks, {median_time_passed*(W-o-1)/60:.1f} minutes remaining.')
+            logger.info(f'{o + 1:3d}/{W} blocks, {median_time_passed * (W - o - 1) / 60:.1f} minutes remaining.')
 
     flagged = corrs < corr_threshold
 
@@ -145,10 +142,13 @@ def clean_channels(
 
     # apply removal
     if np.mean(removed_channels) > 0.75:
-        raise ValueError('More than 75% of your channels were removed -- this is probably caused by incorrect channel location measurements (e.g., wrong cap design).')
+        raise ValueError(
+            'More than 75% of your channels were removed -- this is probably caused by incorrect channel location measurements (e.g., wrong cap design).'
+        )
     elif np.any(removed_channels):
         try:
             from eegprep import pop_select
+
             EEG = pop_select(EEG, nochannel=list(np.where(removed_channels)[0]))
         except Exception as e:
             if isinstance(e, ImportError):

@@ -12,11 +12,13 @@ with seed 5489 (MATLAB default). This allows exact comparison of results.
 import os
 import unittest
 import tempfile
+import warnings
 import numpy as np
 import scipy.io
 
 from eegprep.functions.sigprocfunc.runica import runica
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
+from eegprep.functions.popfunc.pop_loadset import pop_loadset
 
 
 class TestRunicaFunctionality(unittest.TestCase):
@@ -29,9 +31,7 @@ class TestRunicaFunctionality(unittest.TestCase):
         data = np.random.randn(10, 1000)
 
         # Run ICA with limited steps for speed
-        weights, sphere, compvars, bias, signs, lrates = runica(
-            data, maxsteps=10, verbose=False, rndreset='off'
-        )
+        weights, sphere, compvars, bias, signs, lrates = runica(data, maxsteps=10, verbose=False, rndreset='off')
 
         # Check output shapes
         self.assertEqual(weights.shape, (10, 10))
@@ -54,15 +54,30 @@ class TestRunicaFunctionality(unittest.TestCase):
         data = np.random.randn(10, 1000)
 
         # Run extended ICA
-        w, s, compvars, bias, signs, lrates = runica(
-            data, extended=1, maxsteps=10, verbose=False, rndreset='off'
-        )
+        w, s, compvars, bias, signs, lrates = runica(data, extended=1, maxsteps=10, verbose=False, rndreset='off')
 
         # Check signs is a vector (not diagonal matrix)
         self.assertEqual(signs.shape, (10,))
 
         # Signs should be +1 or -1
         self.assertTrue(np.all(np.isin(signs, [-1, 1])))
+
+    def test_sample_data_extended_ica_does_not_surface_finite_matmul_warnings(self):
+        """Finite sample-data ICA should not leak NumPy BLAS warnings."""
+        eeg = pop_loadset("sample_data/eeglab_data.set")
+        data = eeg["data"].astype("float64").reshape(eeg["nbchan"], -1)
+
+        with warnings.catch_warnings(record=True) as captured:
+            warnings.simplefilter("always", RuntimeWarning)
+            weights, sphere, _compvars, bias, signs, _lrates = runica(
+                data, extended=1, maxsteps=1, verbose=False, rndreset="off"
+            )
+
+        self.assertTrue(np.isfinite(weights).all())
+        self.assertTrue(np.isfinite(sphere).all())
+        self.assertTrue(np.isfinite(bias).all())
+        self.assertTrue(np.isfinite(signs).all())
+        self.assertFalse([warning for warning in captured if "matmul" in str(warning.message)])
 
     def test_pca_reduction(self):
         """Test PCA dimension reduction."""
@@ -85,9 +100,7 @@ class TestRunicaFunctionality(unittest.TestCase):
         np.random.seed(42)
         data = np.random.randn(5, 500)
 
-        w, s, compvars, bias, signs, lrates = runica(
-            data, sphering='on', maxsteps=5, verbose=False, rndreset='off'
-        )
+        w, s, compvars, bias, signs, lrates = runica(data, sphering='on', maxsteps=5, verbose=False, rndreset='off')
 
         # Sphere should not be identity
         self.assertFalse(np.allclose(s, np.eye(5)))
@@ -97,9 +110,7 @@ class TestRunicaFunctionality(unittest.TestCase):
         np.random.seed(42)
         data = np.random.randn(5, 500)
 
-        w, s, compvars, bias, signs, lrates = runica(
-            data, sphering='off', maxsteps=5, verbose=False, rndreset='off'
-        )
+        w, s, compvars, bias, signs, lrates = runica(data, sphering='off', maxsteps=5, verbose=False, rndreset='off')
 
         # Sphere should be identity
         self.assertTrue(np.allclose(s, np.eye(5)))
@@ -111,9 +122,7 @@ class TestRunicaFunctionality(unittest.TestCase):
         np.random.seed(42)
         data = np.random.randn(5, 500)
 
-        w, s, compvars, bias, signs, lrates = runica(
-            data, sphering='none', maxsteps=5, verbose=False, rndreset='off'
-        )
+        w, s, compvars, bias, signs, lrates = runica(data, sphering='none', maxsteps=5, verbose=False, rndreset='off')
 
         # Sphere should be identity
         self.assertTrue(np.allclose(s, np.eye(5)))
@@ -124,14 +133,10 @@ class TestRunicaFunctionality(unittest.TestCase):
         data = np.random.randn(5, 500)
 
         # First run (copy data to avoid modification)
-        w1, s1, cv1, b1, sg1, lr1 = runica(
-            data.copy(), rndreset='off', maxsteps=10, verbose=False
-        )
+        w1, s1, cv1, b1, sg1, lr1 = runica(data.copy(), rndreset='off', maxsteps=10, verbose=False)
 
         # Second run (same data)
-        w2, s2, cv2, b2, sg2, lr2 = runica(
-            data.copy(), rndreset='off', maxsteps=10, verbose=False
-        )
+        w2, s2, cv2, b2, sg2, lr2 = runica(data.copy(), rndreset='off', maxsteps=10, verbose=False)
 
         # Results should be identical
         np.testing.assert_allclose(w1, w2, rtol=1e-12, atol=1e-12)
@@ -145,9 +150,7 @@ class TestRunicaFunctionality(unittest.TestCase):
         np.random.seed(42)
         data = np.random.randn(5, 500)
 
-        w, s, cv, bias, sg, lr = runica(
-            data, bias='on', maxsteps=5, verbose=False, rndreset='off'
-        )
+        w, s, cv, bias, sg, lr = runica(data, bias='on', maxsteps=5, verbose=False, rndreset='off')
 
         # Bias should be non-zero after training
         self.assertTrue(np.any(bias != 0))
@@ -157,9 +160,7 @@ class TestRunicaFunctionality(unittest.TestCase):
         np.random.seed(42)
         data = np.random.randn(5, 500)
 
-        w, s, cv, bias, sg, lr = runica(
-            data, bias='off', maxsteps=5, verbose=False, rndreset='off'
-        )
+        w, s, cv, bias, sg, lr = runica(data, bias='off', maxsteps=5, verbose=False, rndreset='off')
 
         # Bias should remain zero
         self.assertTrue(np.all(bias == 0))
@@ -170,9 +171,7 @@ class TestRunicaFunctionality(unittest.TestCase):
         data = np.random.randn(5, 500)
 
         # Run with momentum
-        w, s, cv, bias, sg, lr = runica(
-            data, momentum=0.5, maxsteps=10, verbose=False, rndreset='off'
-        )
+        w, s, cv, bias, sg, lr = runica(data, momentum=0.5, maxsteps=10, verbose=False, rndreset='off')
 
         # Should complete without error
         self.assertEqual(w.shape, (5, 5))
@@ -183,9 +182,7 @@ class TestRunicaFunctionality(unittest.TestCase):
         data = np.random.randn(5, 500)
 
         # Run with custom learning rate
-        w, s, cv, bias, sg, lr = runica(
-            data, lrate=0.001, maxsteps=10, verbose=False, rndreset='off'
-        )
+        w, s, cv, bias, sg, lr = runica(data, lrate=0.001, maxsteps=10, verbose=False, rndreset='off')
 
         # First learning rate should match input
         self.assertAlmostEqual(lr[0], 0.001, places=6)
@@ -196,9 +193,7 @@ class TestRunicaFunctionality(unittest.TestCase):
         data = np.random.randn(5, 500)
 
         # Run with custom block size
-        w, s, cv, bias, sg, lr = runica(
-            data, block=50, maxsteps=5, verbose=False, rndreset='off'
-        )
+        w, s, cv, bias, sg, lr = runica(data, block=50, maxsteps=5, verbose=False, rndreset='off')
 
         # Should complete without error
         self.assertEqual(w.shape, (5, 5))
@@ -209,10 +204,7 @@ class TestRunicaFunctionality(unittest.TestCase):
         data = np.random.randn(5, 500)
 
         # Run with custom annealing
-        w, s, cv, bias, sg, lr = runica(
-            data, anneal=0.95, annealdeg=45, maxsteps=10,
-            verbose=False, rndreset='off'
-        )
+        w, s, cv, bias, sg, lr = runica(data, anneal=0.95, annealdeg=45, maxsteps=10, verbose=False, rndreset='off')
 
         # Should complete without error
         self.assertEqual(w.shape, (5, 5))
@@ -223,9 +215,7 @@ class TestRunicaFunctionality(unittest.TestCase):
         data = np.random.randn(5, 500)
 
         # Run with tight stopping criterion
-        w, s, cv, bias, sg, lr = runica(
-            data, stop=1e-8, maxsteps=100, verbose=False, rndreset='off'
-        )
+        w, s, cv, bias, sg, lr = runica(data, stop=1e-8, maxsteps=100, verbose=False, rndreset='off')
 
         # Should converge before maxsteps
         self.assertLessEqual(len(lr), 100)
@@ -235,9 +225,7 @@ class TestRunicaFunctionality(unittest.TestCase):
         np.random.seed(42)
         data = np.random.randn(5, 500)
 
-        w, s, compvars, bias, sg, lr = runica(
-            data, maxsteps=50, verbose=False, rndreset='off'
-        )
+        w, s, compvars, bias, sg, lr = runica(data, maxsteps=50, verbose=False, rndreset='off')
 
         # Component variances should be in descending order
         self.assertTrue(np.all(compvars[:-1] >= compvars[1:]))
@@ -247,9 +235,7 @@ class TestRunicaFunctionality(unittest.TestCase):
         np.random.seed(42)
         data = np.random.randn(3, 300)
 
-        w, s, cv, bias, sg, lr = runica(
-            data, maxsteps=10, verbose=False, rndreset='off'
-        )
+        w, s, cv, bias, sg, lr = runica(data, maxsteps=10, verbose=False, rndreset='off')
 
         self.assertEqual(w.shape, (3, 3))
 
@@ -258,9 +244,7 @@ class TestRunicaFunctionality(unittest.TestCase):
         np.random.seed(42)
         data = np.random.randn(35, 1000)
 
-        w, s, cv, bias, sg, lr = runica(
-            data, maxsteps=5, verbose=False, rndreset='off'
-        )
+        w, s, cv, bias, sg, lr = runica(data, maxsteps=5, verbose=False, rndreset='off')
 
         # Should use 1e-7 stopping threshold for >32 channels
         self.assertEqual(w.shape, (35, 35))
@@ -326,9 +310,7 @@ class TestRunicaParity(unittest.TestCase):
         data = np.random.randn(5, 500).astype(np.float64)
 
         # Python runica
-        w_py, s_py, cv_py, b_py, sg_py, lr_py = runica(
-            data.copy(), rndreset='off', maxsteps=50, verbose=False
-        )
+        w_py, s_py, cv_py, b_py, sg_py, lr_py = runica(data.copy(), rndreset='off', maxsteps=50, verbose=False)
 
         # MATLAB runica
         temp_file = tempfile.mktemp(suffix='.mat')
@@ -345,7 +327,6 @@ class TestRunicaParity(unittest.TestCase):
         ml_data = scipy.io.loadmat(temp_file + '_out.mat')
         w_ml = ml_data['w_ml']
         s_ml = ml_data['s_ml']
-        b_ml = ml_data['b_ml']
 
         # Clean up
         os.remove(temp_file)
@@ -353,10 +334,9 @@ class TestRunicaParity(unittest.TestCase):
 
         # Compare sphere (should be exact - computed before randomness)
         max_sphere_diff = np.max(np.abs(s_py - s_ml))
-        print(f"\nBasic ICA parity:")
+        print("\nBasic ICA parity:")
         print(f"  Max sphere diff: {max_sphere_diff:.2e}")
-        np.testing.assert_allclose(s_py, s_ml, rtol=1e-10, atol=1e-12,
-                                  err_msg="Sphere matrices should match")
+        np.testing.assert_allclose(s_py, s_ml, rtol=1e-10, atol=1e-12, err_msg="Sphere matrices should match")
 
         # Verify both produced valid ICA decompositions
         # Check that unmixing matrices are invertible
@@ -375,7 +355,6 @@ class TestRunicaParity(unittest.TestCase):
 
         # Verify component variances sum to approximately total variance
         total_var_py = np.sum(cv_py)
-        total_var_ml = np.sum(cv_py)  # Use same Python variance for comparison
 
         print(f"  Python total component variance: {total_var_py:.6f}")
         print(f"  Component variances are ordered: {np.all(cv_py[:-1] >= cv_py[1:])}")
@@ -417,7 +396,6 @@ class TestRunicaParity(unittest.TestCase):
         ml_data = scipy.io.loadmat(temp_file + '_out.mat')
         w_ml = ml_data['w_ml']
         s_ml = ml_data['s_ml']
-        b_ml = ml_data['b_ml']
         sg_ml = ml_data['sg_ml'].flatten()
 
         # Clean up
@@ -426,10 +404,9 @@ class TestRunicaParity(unittest.TestCase):
 
         # Compare sphere (should be exact)
         max_sphere_diff = np.max(np.abs(s_py - s_ml))
-        print(f"\nExtended ICA parity:")
+        print("\nExtended ICA parity:")
         print(f"  Max sphere diff: {max_sphere_diff:.2e}")
-        np.testing.assert_allclose(s_py, s_ml, rtol=1e-10, atol=1e-12,
-                                  err_msg="Sphere matrices should match")
+        np.testing.assert_allclose(s_py, s_ml, rtol=1e-10, atol=1e-12, err_msg="Sphere matrices should match")
 
         # Compare signs (may differ due to kurtosis estimation randomness)
         print(f"  Python signs: {sg_py}")
@@ -452,6 +429,50 @@ class TestRunicaParity(unittest.TestCase):
         self.assertGreater(np.abs(det_py), 1e-10, "Python unmixing matrix is singular")
         self.assertGreater(np.abs(det_ml), 1e-10, "MATLAB unmixing matrix is singular")
 
+    def test_parity_sample_data_extended_ica_initial_sphere(self):
+        """Sample-data extended ICA should match EEGLAB's initial sphering."""
+        if not self.matlab_available:
+            self.skipTest("MATLAB not available")
+
+        eeg = pop_loadset("sample_data/eeglab_data.set")
+        data = eeg["data"].astype(np.float64).reshape(eeg["nbchan"], -1)
+
+        w_py, s_py, _cv_py, b_py, sg_py, lr_py = runica(
+            data.copy(), extended=1, rndreset="off", maxsteps=1, verbose=False
+        )
+
+        temp_file = tempfile.mktemp(suffix=".mat")
+        scipy.io.savemat(temp_file, {"data": data})
+        try:
+            matlab_code = f"""
+            load('{temp_file}');
+            [w_ml, s_ml, ~, b_ml, sg_ml, lr_ml] = runica(data, 'extended', 1, 'maxsteps', 1, 'verbose', 'off', 'pythoncompat', 'on');
+            save('{temp_file}_out.mat', 'w_ml', 's_ml', 'b_ml', 'sg_ml', 'lr_ml');
+            """
+            self.eeglab.eval(matlab_code, nargout=0)
+            ml_data = scipy.io.loadmat(temp_file + "_out.mat")
+        finally:
+            if os.path.exists(temp_file):
+                os.remove(temp_file)
+            if os.path.exists(temp_file + "_out.mat"):
+                os.remove(temp_file + "_out.mat")
+
+        w_ml = ml_data["w_ml"]
+        s_ml = ml_data["s_ml"]
+        b_ml = ml_data["b_ml"]
+        sg_ml = ml_data["sg_ml"].flatten()
+        lr_ml = ml_data["lr_ml"].flatten()
+
+        np.testing.assert_allclose(s_py, s_ml, rtol=1e-10, atol=1e-12)
+        self.assertEqual(w_py.shape, w_ml.shape)
+        self.assertEqual(b_py.shape, b_ml.shape)
+        np.testing.assert_array_equal(sg_py, sg_ml)
+        np.testing.assert_allclose(lr_py, lr_ml, rtol=1e-12, atol=1e-15)
+        self.assertTrue(np.isfinite(w_py).all())
+        self.assertTrue(np.isfinite(w_ml).all())
+        self.assertTrue(np.isfinite(s_py).all())
+        self.assertTrue(np.isfinite(s_ml).all())
+
     def test_parity_pca_reduction(self):
         """
         Test parity for PCA reduction.
@@ -469,9 +490,7 @@ class TestRunicaParity(unittest.TestCase):
         data = np.random.randn(10, 500).astype(np.float64)
 
         # Python runica
-        w_py, s_py, cv_py, b_py, sg_py, lr_py = runica(
-            data.copy(), pca=5, rndreset='off', maxsteps=50, verbose=False
-        )
+        w_py, s_py, cv_py, b_py, sg_py, lr_py = runica(data.copy(), pca=5, rndreset='off', maxsteps=50, verbose=False)
 
         # MATLAB runica
         temp_file = tempfile.mktemp(suffix='.mat')
@@ -494,7 +513,7 @@ class TestRunicaParity(unittest.TestCase):
         os.remove(temp_file + '_out.mat')
 
         # Compare sphere (should be identity)
-        print(f"\nPCA reduction parity:")
+        print("\nPCA reduction parity:")
         print(f"  Python sphere is identity: {np.allclose(s_py, np.eye(10))}")
         print(f"  MATLAB sphere is identity: {np.allclose(s_ml, np.eye(10))}")
         self.assertTrue(np.allclose(s_py, np.eye(10)))
@@ -553,7 +572,7 @@ class TestRunicaParity(unittest.TestCase):
         os.remove(temp_file + '_out.mat')
 
         # Compare sphere (should be identity)
-        print(f"\nSpheringOff parity:")
+        print("\nSpheringOff parity:")
         print(f"  Python sphere is identity: {np.allclose(s_py, np.eye(5))}")
         print(f"  MATLAB sphere is identity: {np.allclose(s_ml, np.eye(5))}")
         np.testing.assert_allclose(s_py, s_ml, rtol=1e-10, atol=1e-12)
@@ -609,7 +628,7 @@ class TestRunicaParity(unittest.TestCase):
 
         # Compare sphere
         max_sphere_diff = np.max(np.abs(s_py - s_ml))
-        print(f"\nBiasOff parity:")
+        print("\nBiasOff parity:")
         print(f"  Max sphere diff: {max_sphere_diff:.2e}")
         np.testing.assert_allclose(s_py, s_ml, rtol=1e-10, atol=1e-12)
 
@@ -645,9 +664,7 @@ class TestRunicaParity(unittest.TestCase):
         data = np.random.randn(5, 1000).astype(np.float64)
 
         # Python runica (more steps for better convergence)
-        w_py, s_py, cv_py, b_py, sg_py, lr_py = runica(
-            data.copy(), rndreset='off', maxsteps=200, verbose=False
-        )
+        w_py, s_py, cv_py, b_py, sg_py, lr_py = runica(data.copy(), rndreset='off', maxsteps=200, verbose=False)
 
         # MATLAB runica
         temp_file = tempfile.mktemp(suffix='.mat')
@@ -671,7 +688,7 @@ class TestRunicaParity(unittest.TestCase):
         os.remove(temp_file + '_out.mat')
 
         # Compare convergence behavior
-        print(f"\nConvergence parity:")
+        print("\nConvergence parity:")
         print(f"  Python steps: {len(lr_py)}")
         print(f"  MATLAB steps: {len(lr_ml)}")
         print(f"  Python final lrate: {lr_py[-1]:.6e}")

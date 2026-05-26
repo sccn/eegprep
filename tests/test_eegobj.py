@@ -4,9 +4,8 @@ import os
 import tempfile
 import shutil
 from eegprep.functions.eegobj.eegobj import EEGobj
-from eegprep.functions.popfunc.pop_select import pop_select # Import pop_select for direct testing if needed
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
-import copy
+
 
 # Helper function to create a dummy EEG dictionary
 def create_test_eeg(n_channels=32, n_samples=1000, srate=250.0, n_trials=1):
@@ -22,21 +21,21 @@ def create_test_eeg(n_channels=32, n_samples=1000, srate=250.0, n_trials=1):
         'filename': 'test.set',
         'filepath': '/tmp',
         'event': [],
-        'chanlocs': [{'labels': f'Ch{i+1}', 'type': 'EEG'} for i in range(n_channels)],
+        'chanlocs': [{'labels': f'Ch{i + 1}', 'type': 'EEG'} for i in range(n_channels)],
         'icaact': [],  # Add missing field
         'icawinv': [],
         'icasphere': [],
         'icaweights': [],
         'icachansind': [],
-        'chaninfo': {}  # Add missing chaninfo field
+        'chaninfo': {},  # Add missing chaninfo field
     }
     eeg = eeg_checkset(eeg)
     return eeg
 
-class TestEEGobj(unittest.TestCase):
 
+class TestEEGobj(unittest.TestCase):
     def setUp(self):
-        self.test_file_path = 'sample_data/eeglab_data.set' # Assuming this file exists for path-based init
+        self.test_file_path = 'sample_data/eeglab_data.set'  # Assuming this file exists for path-based init
         self.temp_dir = tempfile.mkdtemp()
 
     def tearDown(self):
@@ -60,7 +59,7 @@ class TestEEGobj(unittest.TestCase):
         obj = EEGobj(self.test_file_path)
         self.assertIsInstance(obj.EEG, dict)
         self.assertGreater(obj.nbchan, 0)
-        self.assertIn("EEG |", repr(obj)) # Check for header
+        self.assertIn("EEG |", repr(obj))  # Check for header
 
     def test_init_invalid_type(self):
         """Test initialization with invalid type."""
@@ -82,7 +81,7 @@ class TestEEGobj(unittest.TestCase):
         self.assertEqual(out['trials'], 3)
         self.assertEqual(out['data'].shape[2], 3)
         # Ensure original object is not modified
-        self.assertEqual(obj.EEG['trials'], 3) # obj.EEG should be updated
+        self.assertEqual(obj.EEG['trials'], 3)  # obj.EEG should be updated
         self.assertEqual(obj.EEG['data'].shape[2], 3)
 
     def test_forward_pop_select_keyval(self):
@@ -92,7 +91,7 @@ class TestEEGobj(unittest.TestCase):
         self.assertEqual(out['nbchan'], 2)
         self.assertEqual(out['data'].shape[0], 2)
         # Ensure original object is not modified
-        self.assertEqual(obj.EEG['nbchan'], 2) # obj.EEG should be updated
+        self.assertEqual(obj.EEG['nbchan'], 2)  # obj.EEG should be updated
         self.assertEqual(obj.EEG['data'].shape[0], 2)
 
     def test_forward_pop_select_normalized_keys(self):
@@ -152,8 +151,6 @@ class TestEEGobj(unittest.TestCase):
 
         # Test with a function that actually returns a tuple
         # We'll use a simple test that doesn't interfere with pop_select
-        original_eeg = copy.deepcopy(eeg)
-
         # The test verifies that tuple return values are handled correctly
         # by checking that the object is updated properly
         result = obj.pop_select(channel=[0, 1])
@@ -167,8 +164,6 @@ class TestEEGobj(unittest.TestCase):
 
         # Test with a function that returns None
         # We'll use a simple test that doesn't interfere with pop_select
-        original_eeg = copy.deepcopy(eeg)
-
         # The test verifies that None return values are handled correctly
         # by checking that the object is updated properly
         result = obj.pop_select(channel=[0, 1])
@@ -217,7 +212,7 @@ class TestEEGobj(unittest.TestCase):
             'nbchan': 16,
             'pnts': 100,
             'trials': 1,
-            'srate': 250.0
+            'srate': 250.0,
             # Missing setname, filename, filepath, event, chanlocs
         }
         obj = EEGobj(eeg)
@@ -233,16 +228,10 @@ class TestEEGobj(unittest.TestCase):
         eeg = create_test_eeg()
 
         # Add numpy array events
-        eeg['event'] = np.array([
-            {'latency': 1, 'type': 'event1'},
-            {'latency': 50, 'type': 'event2'}
-        ])
+        eeg['event'] = np.array([{'latency': 1, 'type': 'event1'}, {'latency': 50, 'type': 'event2'}])
 
         # Add numpy array chanlocs
-        eeg['chanlocs'] = np.array([
-            {'labels': 'Ch1', 'type': 'EEG'},
-            {'labels': 'Ch2', 'type': 'EEG'}
-        ])
+        eeg['chanlocs'] = np.array([{'labels': 'Ch1', 'type': 'EEG'}, {'labels': 'Ch2', 'type': 'EEG'}])
 
         obj = EEGobj(eeg)
         repr_str = repr(obj)
@@ -256,15 +245,9 @@ class TestEEGobj(unittest.TestCase):
         eeg = create_test_eeg()
 
         # Add bytes strings
-        eeg['event'] = [
-            {'latency': 1, 'type': b'event1'},
-            {'latency': 50, 'type': b'event2'}
-        ]
+        eeg['event'] = [{'latency': 1, 'type': b'event1'}, {'latency': 50, 'type': b'event2'}]
 
-        eeg['chanlocs'] = [
-            {'labels': b'Ch1', 'type': b'EEG'},
-            {'labels': b'Ch2', 'type': b'EEG'}
-        ]
+        eeg['chanlocs'] = [{'labels': b'Ch1', 'type': b'EEG'}, {'labels': b'Ch2', 'type': b'EEG'}]
 
         obj = EEGobj(eeg)
         repr_str = repr(obj)
@@ -311,11 +294,9 @@ class TestEEGobj(unittest.TestCase):
         eeg['event'] = [
             {'latency': 1, 'type': 'stimulus'},
             {'latency': 100, 'type': 'response'},
-            {'latency': 200, 'type': 'feedback'}
+            {'latency': 200, 'type': 'feedback'},
         ]
-        eeg['chanlocs'] = [
-            {'labels': f'EEG{i:03d}', 'type': 'EEG'} for i in range(64)
-        ]
+        eeg['chanlocs'] = [{'labels': f'EEG{i:03d}', 'type': 'EEG'} for i in range(64)]
 
         obj = EEGobj(eeg)
         repr_str = repr(obj)
@@ -345,9 +326,6 @@ class TestEEGobj(unittest.TestCase):
         obj = EEGobj(eeg)
 
         # Store original data
-        original_data = obj.EEG['data'].copy()
-        original_nbchan = obj.EEG['nbchan']
-
         # Call a method that modifies data
         result = obj.pop_select(channel=[0, 1])
 
@@ -388,6 +366,6 @@ class TestEEGobj(unittest.TestCase):
             # This is expected if pop_select is not available
             pass
 
+
 if __name__ == '__main__':
     unittest.main()
-

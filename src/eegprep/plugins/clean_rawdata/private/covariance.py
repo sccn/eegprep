@@ -20,10 +20,11 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-
 import logging
 
 import numpy as np
+
+from eegprep.functions.miscfunc.misc import finite_matmul
 
 logger = logging.getLogger(__name__)
 
@@ -43,42 +44,44 @@ def diag_nd(M):
 def cov_logm(C):
     """Calculate the matrix logarithm of a covariance matrix or ...,N,N array."""
     D, V = np.linalg.eigh(C)
-    return V @ diag_nd(np.log(D)) @ V.swapaxes(-2, -1)
+    return finite_matmul(finite_matmul(V, diag_nd(np.log(D))), V.swapaxes(-2, -1))
 
 
 def cov_expm(C):
     """Calculate the matrix exponent of a covariance matrix or ...,N,N array."""
     D, V = np.linalg.eigh(C)
-    return V @ diag_nd(np.exp(D)) @ V.swapaxes(-2, -1)
+    return finite_matmul(finite_matmul(V, diag_nd(np.exp(D))), V.swapaxes(-2, -1))
 
 
 def cov_powm(C, exp):
     """Calculate a matrix power of a covariance matrix or ...,N,N array."""
     D, V = np.linalg.eigh(C)
-    return V @ diag_nd(D**exp) @ V.swapaxes(-2, -1)
+    return finite_matmul(finite_matmul(V, diag_nd(D**exp)), V.swapaxes(-2, -1))
 
 
 def cov_sqrtm(C):
     """Calculate the matrix square root of a covariance matrix or ...,N,N array."""
     D, V = np.linalg.eigh(C)
-    return V @ diag_nd(np.sqrt(D)) @ V.swapaxes(-2, -1)
+    return finite_matmul(finite_matmul(V, diag_nd(np.sqrt(D))), V.swapaxes(-2, -1))
 
 
 def cov_rsqrtm(C):
     """Calculate the matrix reciprocal square root of a covariance matrix or ...,N,N array."""
     D, V = np.linalg.eigh(C)
-    return V @ diag_nd(1./np.sqrt(D)) @ V.swapaxes(-2, -1)
+    return finite_matmul(finite_matmul(V, diag_nd(1.0 / np.sqrt(D))), V.swapaxes(-2, -1))
 
 
 def cov_sqrtm2(C):
     """Calculate the matrix square root, and its reciprocal, for a covariance matrix or ...,N,N array."""
     D, V = np.linalg.eigh(C)
     sqrtD = np.sqrt(D)
-    return V @ diag_nd(sqrtD) @ V.swapaxes(-2, -1), V @ diag_nd(1./sqrtD) @ V.swapaxes(-2, -1)
+    return (
+        finite_matmul(finite_matmul(V, diag_nd(sqrtD)), V.swapaxes(-2, -1)),
+        finite_matmul(finite_matmul(V, diag_nd(1.0 / sqrtD)), V.swapaxes(-2, -1)),
+    )
 
 
-def cov_mean(X, *, weights=None, robust=False, iters=50, tol=1e-5, huber=0,
-             nancheck=False, verbose=False):
+def cov_mean(X, *, weights=None, robust=False, iters=50, tol=1e-5, huber=0, nancheck=False, verbose=False):
     """Calculate the (weighted) average of a set of covariance matrices on the manifold of SPD matrices, optionally robustly using the geometric median or Huber mean.
 
     Args:
@@ -106,7 +109,7 @@ def cov_mean(X, *, weights=None, robust=False, iters=50, tol=1e-5, huber=0,
     weights = np.ones(len(X)) if weights is None else np.asarray(weights)
     scales = weights
 
-    mu = np.sum(X * weights[:, None, None], axis=0)/np.sum(weights)
+    mu = np.sum(X * weights[:, None, None], axis=0) / np.sum(weights)
     # step size and divergence check threshold
     step, thresh = 1.0, 1e20
     for i in range(iters):
@@ -114,7 +117,7 @@ def cov_mean(X, *, weights=None, robust=False, iters=50, tol=1e-5, huber=0,
         # linearize around mu (this would be the tangent space, but we omit
         # the pre/post-multiplied mu_sqrt terms since they cancel in both
         # the scale calculation and the exponential map)
-        Xt = cov_logm(mu_rsqrt @ X @ mu_rsqrt)
+        Xt = cov_logm(finite_matmul(finite_matmul(mu_rsqrt, X), mu_rsqrt))
         # geometric-median correction (downweight each pt by its riemannian
         # distance from mu, which we calc here after linearization)
         if robust:
@@ -131,9 +134,9 @@ def cov_mean(X, *, weights=None, robust=False, iters=50, tol=1e-5, huber=0,
                 w = np.where(d <= huber, 1, huber / d)
                 scales = weights * w
         # get update Jacobian (np.average takes care of renormalization)
-        J = np.sum(Xt * scales[:, None, None], axis=0)/np.sum(scales)
+        J = np.sum(Xt * scales[:, None, None], axis=0) / np.sum(scales)
         # apply update on manifold
-        mu = mu_sqrt @ cov_expm(step * J) @ mu_sqrt
+        mu = finite_matmul(finite_matmul(mu_sqrt, cov_expm(step * J)), mu_sqrt)
         # convergence checks
         Jnorm = np.sqrt(np.sum(np.square(J)))
         if Jnorm < tol or step < tol:

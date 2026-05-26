@@ -38,7 +38,9 @@ def pop_chanevent(
         x = data[channel - 1, :]
         if "oper" in options and options["oper"]:
             x = _apply_oper(x, str(options["oper"]))
-        events.extend(_events_from_channel(x, channel, edge=edge, duration=duration, edgelen=int(options.get("edgelen", 1))))
+        events.extend(
+            _events_from_channel(x, channel, edge=edge, duration=duration, edgelen=int(options.get("edgelen", 1)))
+        )
     out = deepcopy(EEG)
     delete_events = str(options.get("delevent", "on")).lower() in {"on", "yes", "true", "1"}
     if delete_events:
@@ -58,7 +60,9 @@ def pop_chanevent(
         keep = [index for index in range(data.shape[0]) if index + 1 not in channels]
         out["data"] = data[keep, :]
         out["nbchan"] = len(keep)
-        out["chanlocs"] = [loc for index, loc in enumerate(list(out.get("chanlocs", [])), start=1) if index not in channels]
+        out["chanlocs"] = [
+            loc for index, loc in enumerate(list(out.get("chanlocs", [])), start=1) if index not in channels
+        ]
     out["saved"] = "no"
     with strict_mode(False):
         out = eeg_checkset(out)
@@ -67,7 +71,9 @@ def pop_chanevent(
     return (out, command) if return_com else out
 
 
-def _events_from_channel(x: np.ndarray, channel: int, *, edge: str, duration: bool, edgelen: int) -> list[dict[str, Any]]:
+def _events_from_channel(
+    x: np.ndarray, channel: int, *, edge: str, duration: bool, edgelen: int
+) -> list[dict[str, Any]]:
     values = np.asarray(x)
     diff = np.diff(np.r_[values, values[-1]])
     leading = np.flatnonzero(diff > 0) + 1

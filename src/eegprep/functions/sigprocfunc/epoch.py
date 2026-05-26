@@ -80,24 +80,22 @@ def epoch(data, events, lim, **kwargs):
 
     for index in range(len(events)):
         # Match MATLAB exactly: pos0 is 0-based, but MATLAB treats indices as 1-based when slicing
-        pos0 = int(np.floor(events[index] * g['srate']))      # 0-based sample index (same as MATLAB)
-        posinit = pos0 + reallim[0]                           # 0-based + offset
-        posend = pos0 + reallim[1]                            # 0-based + offset
-
+        pos0 = int(np.floor(events[index] * g['srate']))  # 0-based sample index (same as MATLAB)
+        posinit = pos0 + reallim[0]  # 0-based + offset
+        posend = pos0 + reallim[1]  # 0-based + offset
 
         # Boundary check: MATLAB uses 1-based logic for boundary checks
         # Convert to 1-based for the boundary check only
         posinit_1based = posinit + 1
         posend_1based = posend + 1
-        within_one_epoch = (np.floor((posinit_1based - 1) / dataframes) == np.floor((posend_1based - 1) / dataframes))
+        within_one_epoch = np.floor((posinit_1based - 1) / dataframes) == np.floor((posend_1based - 1) / dataframes)
         within_bounds = (posinit_1based >= 1) and (posend_1based <= datawidth)
 
         if within_one_epoch and within_bounds:
             # Extract contiguous slice. MATLAB does data(:,posinit:posend) with posinit/posend in MATLAB coordinates
             # Since MATLAB uses 1-based indexing and Python uses 0-based, we need to adjust
             start = posinit - 1  # Convert MATLAB 1-based to Python 0-based
-            end_excl = posend        # MATLAB inclusive end to Python exclusive end
-
+            end_excl = posend  # MATLAB inclusive end to Python exclusive end
 
             if data.ndim == 2:
                 tmpdata = data[:, start:end_excl]

@@ -11,7 +11,6 @@ from eegprep.functions.popfunc.eeg_findboundaries import eeg_findboundaries
 
 
 class TestEegFindBoundariesParity(unittest.TestCase):
-
     def setUp(self):
         self.eeglab = get_eeglab('MAT')
 
@@ -23,12 +22,12 @@ class TestEegFindBoundariesParity(unittest.TestCase):
                 {'type': 'stim', 'latency': 20},
                 {'type': 'boundary123', 'latency': 30},
                 {'type': 'resp', 'latency': 40},
-            ]
+            ],
         }
         py_out = eeg_findboundaries(EEG=EEG)
         ml_out = self.eeglab.eeg_findboundaries(EEG)
         # MATLAB returns column vector, Python returns list - compare flattened versions
-        self.assertTrue(np.array_equal(np.array(py_out), ml_out.flatten()-1))
+        self.assertTrue(np.array_equal(np.array(py_out), ml_out.flatten() - 1))
 
     def test_parity_string_types_eventlist(self):
         tmpevent = [
@@ -40,11 +39,10 @@ class TestEegFindBoundariesParity(unittest.TestCase):
         py_out = eeg_findboundaries(EEG=tmpevent)
         ml_out = self.eeglab.eeg_findboundaries(tmpevent)
         # MATLAB returns column vector, Python returns list - compare flattened versions
-        self.assertTrue(np.array_equal(np.array(py_out), ml_out.flatten()-1))
+        self.assertTrue(np.array_equal(np.array(py_out), ml_out.flatten() - 1))
 
 
 class TestEegFindBoundariesFunctional(unittest.TestCase):
-
     def test_returns_empty_on_empty_input(self):
         self.assertEqual(eeg_findboundaries(EEG={}), [])
         self.assertEqual(eeg_findboundaries(EEG=[]), [])
@@ -66,6 +64,7 @@ class TestEegFindBoundariesFunctional(unittest.TestCase):
     def test_numeric_option_boundary99_true(self):
         # Toggle the EEG_OPTIONS option_boundary99 for this test
         from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
+
         old = EEG_OPTIONS['option_boundary99']
         EEG_OPTIONS['option_boundary99'] = 1  # Use 1 to match MATLAB convention
         try:
@@ -78,6 +77,7 @@ class TestEegFindBoundariesFunctional(unittest.TestCase):
     def test_numeric_option_boundary99_false(self):
         # Toggle the EEG_OPTIONS option_boundary99 for this test
         from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
+
         old = EEG_OPTIONS['option_boundary99']
         EEG_OPTIONS['option_boundary99'] = 0  # Use 0 to match MATLAB convention
         try:
@@ -88,10 +88,7 @@ class TestEegFindBoundariesFunctional(unittest.TestCase):
             EEG_OPTIONS['option_boundary99'] = old
 
     def test_struct_vs_eventlist_path(self):
-        EEG = {
-            'setname': 'test',
-            'event': [{'type': 'stim'}, {'type': 'boundary'}]
-        }
+        EEG = {'setname': 'test', 'event': [{'type': 'stim'}, {'type': 'boundary'}]}
         out_struct = eeg_findboundaries(EEG=EEG)
         out_list = eeg_findboundaries(EEG=EEG['event'])
         self.assertEqual(out_struct, out_list)
@@ -145,7 +142,7 @@ class TestEegFindBoundariesEdgeCases(unittest.TestCase):
         events = [
             {'latency': 100},  # No type field
             {'type': 'boundary', 'latency': 200},
-            {'latency': 300}   # No type field
+            {'latency': 300},  # No type field
         ]
         result = eeg_findboundaries(EEG=events)
         self.assertEqual(result, [])  # Should return empty due to missing type in first event
@@ -155,7 +152,7 @@ class TestEegFindBoundariesEdgeCases(unittest.TestCase):
         events = [
             {'type': 'boundary', 'latency': 100},
             {'type': 1, 'latency': 200},  # Numeric type
-            {'type': 'boundary_end', 'latency': 300}
+            {'type': 'boundary_end', 'latency': 300},
         ]
         result = eeg_findboundaries(EEG=events)
         # Should find string boundaries at indices 0 and 2
@@ -181,7 +178,7 @@ class TestEegFindBoundariesEdgeCases(unittest.TestCase):
         events = [
             {'type': 'stimulus', 'latency': 100},
             {'type': 'response', 'latency': 200},
-            {'type': 'target', 'latency': 300}
+            {'type': 'target', 'latency': 300},
         ]
         result = eeg_findboundaries(EEG=events)
         self.assertEqual(result, [])
@@ -193,7 +190,7 @@ class TestEegFindBoundariesEdgeCases(unittest.TestCase):
             {'type': 'boundary', 'latency': 101},
             {'type': 'boundary', 'latency': 102},
             {'type': 'stimulus', 'latency': 200},
-            {'type': 'boundary', 'latency': 300}
+            {'type': 'boundary', 'latency': 300},
         ]
         result = eeg_findboundaries(EEG=events)
         self.assertEqual(result, [0, 1, 2, 4])
@@ -201,21 +198,18 @@ class TestEegFindBoundariesEdgeCases(unittest.TestCase):
     def test_correct_indexing(self):
         """Test that correct 0-based indices are returned."""
         events = [
-            {'type': 'start', 'latency': 0},      # Index 0
-            {'type': 'boundary', 'latency': 100}, # Index 1 - should be found
-            {'type': 'stimulus', 'latency': 200}, # Index 2
-            {'type': 'boundary', 'latency': 300}, # Index 3 - should be found
-            {'type': 'end', 'latency': 400}       # Index 4
+            {'type': 'start', 'latency': 0},  # Index 0
+            {'type': 'boundary', 'latency': 100},  # Index 1 - should be found
+            {'type': 'stimulus', 'latency': 200},  # Index 2
+            {'type': 'boundary', 'latency': 300},  # Index 3 - should be found
+            {'type': 'end', 'latency': 400},  # Index 4
         ]
         result = eeg_findboundaries(EEG=events)
         self.assertEqual(result, [1, 3])
 
     def test_boundary_labels_preserved(self):
         """Test that function correctly identifies boundaries without modifying input."""
-        events = [
-            {'type': 'boundary', 'latency': 100, 'duration': 0},
-            {'type': 'stimulus', 'latency': 200, 'code': 1}
-        ]
+        events = [{'type': 'boundary', 'latency': 100, 'duration': 0}, {'type': 'stimulus', 'latency': 200, 'code': 1}]
         original_events = [ev.copy() for ev in events]  # Deep copy
 
         result = eeg_findboundaries(EEG=events)
@@ -228,15 +222,16 @@ class TestEegFindBoundariesEdgeCases(unittest.TestCase):
     def test_numeric_boundary99_enabled(self):
         """Test numeric boundary detection with option_boundary99 enabled."""
         from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
+
         old_value = EEG_OPTIONS['option_boundary99']
         EEG_OPTIONS['option_boundary99'] = 1
 
         try:
             events = [
-                {'type': -99, 'latency': 100},   # Should be found
-                {'type': 1, 'latency': 200},     # Should not be found
-                {'type': -99, 'latency': 300},   # Should be found
-                {'type': 'boundary', 'latency': 400}  # Should not be found (numeric mode)
+                {'type': -99, 'latency': 100},  # Should be found
+                {'type': 1, 'latency': 200},  # Should not be found
+                {'type': -99, 'latency': 300},  # Should be found
+                {'type': 'boundary', 'latency': 400},  # Should not be found (numeric mode)
             ]
             result = eeg_findboundaries(EEG=events)
             self.assertEqual(result, [0, 2])
@@ -246,14 +241,15 @@ class TestEegFindBoundariesEdgeCases(unittest.TestCase):
     def test_numeric_boundary99_disabled(self):
         """Test numeric boundary detection with option_boundary99 disabled."""
         from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
+
         old_value = EEG_OPTIONS['option_boundary99']
         EEG_OPTIONS['option_boundary99'] = 0
 
         try:
             events = [
-                {'type': -99, 'latency': 100},   # Should not be found
-                {'type': 1, 'latency': 200},     # Should not be found
-                {'type': -99, 'latency': 300},   # Should not be found
+                {'type': -99, 'latency': 100},  # Should not be found
+                {'type': 1, 'latency': 200},  # Should not be found
+                {'type': -99, 'latency': 300},  # Should not be found
             ]
             result = eeg_findboundaries(EEG=events)
             self.assertEqual(result, [])
@@ -263,6 +259,7 @@ class TestEegFindBoundariesEdgeCases(unittest.TestCase):
     def test_mixed_string_numeric_types_with_boundary99(self):
         """Test mixed string and numeric types with boundary99 option."""
         from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
+
         old_value = EEG_OPTIONS['option_boundary99']
         EEG_OPTIONS['option_boundary99'] = 1
 
@@ -270,17 +267,17 @@ class TestEegFindBoundariesEdgeCases(unittest.TestCase):
             # When first event has string type, function uses string matching mode
             events = [
                 {'type': 'boundary', 'latency': 100},  # String type - will be found (string mode)
-                {'type': -99, 'latency': 200},          # Numeric type - not found in string mode
-                {'type': 'stimulus', 'latency': 300}    # String type - not found
+                {'type': -99, 'latency': 200},  # Numeric type - not found in string mode
+                {'type': 'stimulus', 'latency': 300},  # String type - not found
             ]
             result = eeg_findboundaries(EEG=events)
             self.assertEqual(result, [0])  # String 'boundary' found in string mode
 
             # When first event has numeric type, function uses numeric mode
             events_numeric_first = [
-                {'type': -99, 'latency': 100},          # Numeric type - will be found (numeric mode)
-                {'type': 'boundary', 'latency': 200},   # String type - not found in numeric mode
-                {'type': -99, 'latency': 300}           # Numeric type - will be found
+                {'type': -99, 'latency': 100},  # Numeric type - will be found (numeric mode)
+                {'type': 'boundary', 'latency': 200},  # String type - not found in numeric mode
+                {'type': -99, 'latency': 300},  # Numeric type - will be found
             ]
             result = eeg_findboundaries(EEG=events_numeric_first)
             self.assertEqual(result, [0, 2])  # Numeric -99s found in numeric mode
@@ -304,10 +301,7 @@ class TestEegFindBoundariesEdgeCases(unittest.TestCase):
     def test_eeg_struct_without_setname(self):
         """Test EEG dict that has events but no setname field."""
         EEG = {
-            'event': [
-                {'type': 'boundary', 'latency': 100},
-                {'type': 'stimulus', 'latency': 200}
-            ]
+            'event': [{'type': 'boundary', 'latency': 100}, {'type': 'stimulus', 'latency': 200}]
             # Missing 'setname' field - should still be treated as event list
         }
         result = eeg_findboundaries(EEG=EEG)
@@ -318,17 +312,12 @@ class TestEegFindBoundariesEdgeCases(unittest.TestCase):
     def test_eeg_struct_identification(self):
         """Test proper identification of EEG struct vs event list."""
         # Valid EEG struct (has both 'event' and 'setname')
-        EEG_struct = {
-            'setname': 'test',
-            'event': [{'type': 'boundary', 'latency': 100}]
-        }
+        EEG_struct = {'setname': 'test', 'event': [{'type': 'boundary', 'latency': 100}]}
         result = eeg_findboundaries(EEG=EEG_struct)
         self.assertEqual(result, [0])
 
         # Dict with only 'event' (treated as event list)
-        event_dict = {
-            'event': [{'type': 'boundary', 'latency': 100}]
-        }
+        event_dict = {'event': [{'type': 'boundary', 'latency': 100}]}
         result = eeg_findboundaries(EEG=event_dict)
         self.assertEqual(result, [])  # No 'type' field at top level
 
@@ -357,13 +346,9 @@ class TestEegFindBoundariesEdgeCases(unittest.TestCase):
                 'latency': 100,
                 'duration': 0,
                 'code': 'boundary_marker',
-                'description': 'Data discontinuity'
+                'description': 'Data discontinuity',
             },
-            {
-                'type': 'stimulus',
-                'latency': 200,
-                'code': 'S1'
-            }
+            {'type': 'stimulus', 'latency': 200, 'code': 'S1'},
         ]
         result = eeg_findboundaries(EEG=events)
         self.assertEqual(result, [0])

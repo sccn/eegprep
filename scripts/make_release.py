@@ -42,13 +42,16 @@ from importlib.util import find_spec
 # Use colorama for colored output (already a dependency)
 try:
     from colorama import init, Fore, Style
+
     init(autoreset=True)
 except ImportError:
     # Fallback if colorama not available
     class Fore:
         RED = GREEN = YELLOW = CYAN = BLUE = MAGENTA = ""
+
     class Style:
         BRIGHT = RESET_ALL = ""
+
 
 # Find project root (parent of scripts directory)
 SCRIPT_DIR = Path(__file__).parent
@@ -140,11 +143,7 @@ def set_package_name(new_name):
 
         # Replace the name field
         modified_content = re.sub(
-            r'^name\s*=\s*["\']([^"\']+)["\']',
-            f'name = "{new_name}"',
-            content,
-            count=1,
-            flags=re.MULTILINE
+            r'^name\s*=\s*["\']([^"\']+)["\']', f'name = "{new_name}"', content, count=1, flags=re.MULTILINE
         )
 
         with open(PYPROJECT_PATH, 'w') as f:
@@ -238,54 +237,50 @@ def update_version_files(old_version, new_version):
     print_step(3, f"Updating version from {old_version} to {new_version}")
 
     # Update pyproject.toml
-    print_info(f"Updating pyproject.toml...")
+    print_info("Updating pyproject.toml...")
     cmd = f"sed -i '' 's/version = \"{old_version}\"/version = \"{new_version}\"/' {PYPROJECT_PATH}"
     print(f"Running: {cmd}")
     try:
         subprocess.run(
             ["sed", "-i", "", f's/version = "{old_version}"/version = "{new_version}"/', str(PYPROJECT_PATH)],
             cwd=PROJECT_ROOT,
-            check=True
+            check=True,
         )
-        print_success(f"Updated pyproject.toml")
+        print_success("Updated pyproject.toml")
     except subprocess.CalledProcessError:
         # Fallback to Python method
         if not update_version_in_file(PYPROJECT_PATH, f'version = "{old_version}"', f'version = "{new_version}"'):
             return False
-        print_success(f"Updated pyproject.toml")
+        print_success("Updated pyproject.toml")
 
     # Update HPC wrapper
-    print_info(f"Updating HPC wrapper...")
+    print_info("Updating HPC wrapper...")
     cmd = f"sed -i '' 's/eegprep:{old_version}/eegprep:{new_version}/g' {MAIN_PATH}"
     print(f"Running: {cmd}")
     try:
         subprocess.run(
             ["sed", "-i", "", f's/eegprep:{old_version}/eegprep:{new_version}/g', str(MAIN_PATH)],
             cwd=PROJECT_ROOT,
-            check=True
+            check=True,
         )
-        print_success(f"Updated HPC wrapper")
+        print_success("Updated HPC wrapper")
     except subprocess.CalledProcessError:
         # Fallback to Python method
         if not update_version_in_file(MAIN_PATH, f'eegprep:{old_version}', f'eegprep:{new_version}'):
             return False
-        print_success(f"Updated HPC wrapper")
+        print_success("Updated HPC wrapper")
 
     return True
 
 
 def commit_version_changes(version):
     """Commit version changes."""
-    print_step(4, f"Committing version changes")
+    print_step(4, "Committing version changes")
 
     cmd = f"git add {PYPROJECT_PATH} {MAIN_PATH}"
     print(f"Running: {cmd}")
     try:
-        subprocess.run(
-            ["git", "add", str(PYPROJECT_PATH), str(MAIN_PATH)],
-            cwd=PROJECT_ROOT,
-            check=True
-        )
+        subprocess.run(["git", "add", str(PYPROJECT_PATH), str(MAIN_PATH)], cwd=PROJECT_ROOT, check=True)
         print_success("Staged version files")
     except subprocess.CalledProcessError as e:
         print_error(f"Failed to stage files: {e}")
@@ -295,11 +290,7 @@ def commit_version_changes(version):
     cmd = f'git commit -m "{commit_msg}"'
     print(f"Running: {cmd}")
     try:
-        subprocess.run(
-            ["git", "commit", "-m", commit_msg],
-            cwd=PROJECT_ROOT,
-            check=True
-        )
+        subprocess.run(["git", "commit", "-m", commit_msg], cwd=PROJECT_ROOT, check=True)
         print_success(f"Committed version changes: {commit_msg}")
         return True
     except subprocess.CalledProcessError as e:
@@ -329,7 +320,7 @@ def choose_release_type():
 def clean_dist():
     """Remove old dist directory."""
     if DIST_DIR.exists():
-        print_info(f"Removing old dist directory...")
+        print_info("Removing old dist directory...")
         shutil.rmtree(DIST_DIR)
         print_success("Old dist directory removed")
 
@@ -355,11 +346,7 @@ def build_package(package_name=None):
     cmd = f"{sys.executable} -m build"
     print(f"Running: {cmd}")
     try:
-        subprocess.run(
-            [sys.executable, "-m", "build"],
-            cwd=PROJECT_ROOT,
-            check=True
-        )
+        subprocess.run([sys.executable, "-m", "build"], cwd=PROJECT_ROOT, check=True)
         print_success("Package built successfully")
 
         # Show what was built
@@ -409,12 +396,7 @@ def upload_to_testpypi():
         env = None
 
     try:
-        subprocess.run(
-            cmd,
-            cwd=PROJECT_ROOT,
-            check=True,
-            env=env
-        )
+        subprocess.run(cmd, cwd=PROJECT_ROOT, check=True, env=env)
         print_success(f"Uploaded to TestPyPI successfully as '{TESTPYPI_PACKAGE_NAME}'")
         return True
     except subprocess.CalledProcessError as e:
@@ -444,12 +426,7 @@ def upload_to_pypi():
         env = None
 
     try:
-        subprocess.run(
-            [sys.executable, "-m", "twine", "upload", "dist/*"],
-            cwd=PROJECT_ROOT,
-            check=True,
-            env=env
-        )
+        subprocess.run([sys.executable, "-m", "twine", "upload", "dist/*"], cwd=PROJECT_ROOT, check=True, env=env)
         print_success("Uploaded to PyPI successfully")
         return True
     except subprocess.CalledProcessError as e:
@@ -465,11 +442,7 @@ def push_git_changes():
     cmd = "git push"
     print(f"Running: {cmd}")
     try:
-        subprocess.run(
-            ["git", "push"],
-            cwd=PROJECT_ROOT,
-            check=True
-        )
+        subprocess.run(["git", "push"], cwd=PROJECT_ROOT, check=True)
         print_success("Pushed git changes successfully")
         return True
     except subprocess.CalledProcessError as e:
@@ -489,11 +462,7 @@ def create_and_push_tag(version):
     cmd = f'git tag -a {tag_name} -m "Release version {version}"'
     print(f"Running: {cmd}")
     try:
-        subprocess.run(
-            ["git", "tag", "-a", tag_name, "-m", f"Release version {version}"],
-            cwd=PROJECT_ROOT,
-            check=True
-        )
+        subprocess.run(["git", "tag", "-a", tag_name, "-m", f"Release version {version}"], cwd=PROJECT_ROOT, check=True)
         print_success(f"Created git tag: {tag_name}")
     except subprocess.CalledProcessError as e:
         print_error(f"Failed to create tag: {e}")
@@ -503,11 +472,7 @@ def create_and_push_tag(version):
     cmd = f"git push origin {tag_name}"
     print(f"Running: {cmd}")
     try:
-        subprocess.run(
-            ["git", "push", "origin", tag_name],
-            cwd=PROJECT_ROOT,
-            check=True
-        )
+        subprocess.run(["git", "push", "origin", tag_name], cwd=PROJECT_ROOT, check=True)
         print_success(f"Pushed tag {tag_name} to origin")
         return True
     except subprocess.CalledProcessError as e:
@@ -519,16 +484,14 @@ def create_and_push_tag(version):
 
 def build_and_push_docker(version):
     """Build and push Docker image."""
-    print_step(9, f"Building and pushing Docker image")
+    print_step(9, "Building and pushing Docker image")
 
     # Build Docker image
     cmd = f"docker build -t eegprep:{version} -f DOCKERFILE ."
     print(f"Running: {cmd}")
     try:
         subprocess.run(
-            ["docker", "build", "-t", f"eegprep:{version}", "-f", "DOCKERFILE", "."],
-            cwd=PROJECT_ROOT,
-            check=True
+            ["docker", "build", "-t", f"eegprep:{version}", "-f", "DOCKERFILE", "."], cwd=PROJECT_ROOT, check=True
         )
         print_success(f"Built Docker image: eegprep:{version}")
     except subprocess.CalledProcessError as e:
@@ -540,9 +503,7 @@ def build_and_push_docker(version):
     print(f"Running: {cmd}")
     try:
         subprocess.run(
-            ["docker", "tag", f"eegprep:{version}", f"arnodelorme/eegprep:{version}"],
-            cwd=PROJECT_ROOT,
-            check=True
+            ["docker", "tag", f"eegprep:{version}", f"arnodelorme/eegprep:{version}"], cwd=PROJECT_ROOT, check=True
         )
         print_success(f"Tagged Docker image: arnodelorme/eegprep:{version}")
     except subprocess.CalledProcessError as e:
@@ -553,11 +514,7 @@ def build_and_push_docker(version):
     cmd = f"docker push arnodelorme/eegprep:{version}"
     print(f"Running: {cmd}")
     try:
-        subprocess.run(
-            ["docker", "push", f"arnodelorme/eegprep:{version}"],
-            cwd=PROJECT_ROOT,
-            check=True
-        )
+        subprocess.run(["docker", "push", f"arnodelorme/eegprep:{version}"], cwd=PROJECT_ROOT, check=True)
         print_success(f"Pushed Docker image: arnodelorme/eegprep:{version}")
         return True
     except subprocess.CalledProcessError as e:
@@ -573,10 +530,12 @@ def print_test_instructions(version, release_type):
     if release_type in ['test', 'both']:
         print(f"{Fore.MAGENTA}To test the TestPyPI release:{Style.RESET_ALL}")
         print(f"{Fore.YELLOW}  NOTE: The test package is named '{TESTPYPI_PACKAGE_NAME}' on TestPyPI{Style.RESET_ALL}")
-        print(f"  uv pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ {TESTPYPI_PACKAGE_NAME}=={version}")
+        print(
+            f"  uv pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ {TESTPYPI_PACKAGE_NAME}=={version}"
+        )
         print()
         print(f"{Fore.CYAN}  After installing, you can still import it as 'eegprep':{Style.RESET_ALL}")
-        print(f"  python -c 'import eegprep; print(eegprep.__version__)'")
+        print("  python -c 'import eegprep; print(eegprep.__version__)'")
         print()
 
     if release_type in ['prod', 'both']:
@@ -602,11 +561,7 @@ def main():
     print(f"Running: {cmd}")
     try:
         result = subprocess.run(
-            ["git", "status", "--porcelain"],
-            cwd=PROJECT_ROOT,
-            capture_output=True,
-            text=True,
-            check=True
+            ["git", "status", "--porcelain"], cwd=PROJECT_ROOT, capture_output=True, text=True, check=True
         )
 
         if result.stdout.strip():

@@ -4,8 +4,8 @@ Note: This project uses matlab.engine Python API, not the matlab CLI.
 The matlab.engine finds MATLAB through its own mechanism and doesn't
 require 'matlab' to be in PATH.
 """
+
 import os
-import subprocess
 import unittest
 
 
@@ -18,6 +18,7 @@ class TestMatlabPath(unittest.TestCase):
             self.skipTest("MATLAB tests disabled via EEGPREP_SKIP_MATLAB")
         try:
             import matlab.engine
+
             print(f"MATLAB engine module found at: {matlab.engine.__file__}")
         except ImportError as e:
             self.skipTest(f"matlab.engine not installed: {e}")
@@ -42,6 +43,7 @@ class TestMatlabPath(unittest.TestCase):
         """Test get_eeglab with Octave runtime (informational)."""
         try:
             from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
+
             print("Attempting to get EEGLAB with Octave runtime...")
             eeglab = get_eeglab('OCT')
             print(f"EEGLAB (Octave) loaded successfully: {type(eeglab)}")
@@ -54,6 +56,7 @@ class TestMatlabPath(unittest.TestCase):
             self.skipTest("MATLAB tests disabled via EEGPREP_SKIP_MATLAB")
         try:
             from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
+
             print("Attempting to get EEGLAB with MATLAB runtime...")
             eeglab = get_eeglab('MAT')
             print(f"EEGLAB (MATLAB) loaded successfully: {type(eeglab)}")

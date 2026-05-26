@@ -16,6 +16,7 @@ sys.path.insert(0, 'src')
 
 try:
     import mne
+
     MNE_AVAILABLE = True
 except ImportError:
     MNE_AVAILABLE = False
@@ -29,6 +30,7 @@ try:
 except (ImportError, ValueError):
     # Fallback for unittest: add tests dir to path if needed
     import os
+
     test_dir = os.path.dirname(os.path.abspath(__file__))
     if test_dir not in sys.path:
         sys.path.insert(0, test_dir)
@@ -152,9 +154,7 @@ class TestEEGMNE2EEG(unittest.TestCase):
 
         # Add annotations using set_annotations method
         annotations = mne.Annotations(
-            onset=[0.1, 0.5, 0.9],
-            duration=[0.05, 0.05, 0.05],
-            description=['event1', 'event2', 'event3']
+            onset=[0.1, 0.5, 0.9], duration=[0.05, 0.05, 0.05], description=['event1', 'event2', 'event3']
         )
         raw.set_annotations(annotations)
 
@@ -195,13 +195,15 @@ class TestEEGMNE2EEG(unittest.TestCase):
         data = np.random.randn(n_epochs, n_channels, n_times)
 
         # Create events with different types
-        events = np.array([
-            [0, 0, 1],  # event type 1
-            [1, 0, 2],  # event type 2
-            [2, 0, 1],  # event type 1
-            [3, 0, 3],  # event type 3
-            [4, 0, 2],  # event type 2
-        ])
+        events = np.array(
+            [
+                [0, 0, 1],  # event type 1
+                [1, 0, 2],  # event type 2
+                [2, 0, 1],  # event type 1
+                [3, 0, 3],  # event type 3
+                [4, 0, 2],  # event type 2
+            ]
+        )
         event_id = {'stimulus': 1, 'response': 2, 'feedback': 3}
 
         epochs = mne.EpochsArray(data, info, events, tmin=0, event_id=event_id)
@@ -419,7 +421,7 @@ class TestEEGMNE2EEG(unittest.TestCase):
         annotations = mne.Annotations(
             onset=[0.1, 0.5, 1.0, 1.5, 2.0],
             duration=[0.05, 0.05, 0.05, 0.05, 0.05],
-            description=['stimulus', 'response', 'stimulus', 'response', 'stimulus']
+            description=['stimulus', 'response', 'stimulus', 'response', 'stimulus'],
         )
         raw.set_annotations(annotations)
 
@@ -456,9 +458,7 @@ class TestMNEEventsToEEGLABEvents(unittest.TestCase):
         """Test conversion of MNE annotations to EEGLAB events."""
         # Create MNE annotations
         annotations = mne.Annotations(
-            onset=[0.1, 0.5, 1.0],
-            duration=[0.05, 0.05, 0.05],
-            description=['event1', 'event2', 'event3']
+            onset=[0.1, 0.5, 1.0], duration=[0.05, 0.05, 0.05], description=['event1', 'event2', 'event3']
         )
 
         # Create a mock raw object with annotations
@@ -495,11 +495,13 @@ class TestMNEEventsToEEGLABEvents(unittest.TestCase):
     def test_mne_events_to_eeglab_events_events_array(self):
         """Test conversion of MNE events array to EEGLAB events."""
         # Create MNE events array
-        events = np.array([
-            [0, 0, 1],   # sample 0, event type 1
-            [100, 0, 2], # sample 100, event type 2
-            [200, 0, 1], # sample 200, event type 1
-        ])
+        events = np.array(
+            [
+                [0, 0, 1],  # sample 0, event type 1
+                [100, 0, 2],  # sample 100, event type 2
+                [200, 0, 1],  # sample 200, event type 1
+            ]
+        )
 
         # Create a mock epochs object with events and event_id
         class MockEpochs:
@@ -542,10 +544,12 @@ class TestMNEEventsToEEGLABEvents(unittest.TestCase):
     def test_mne_events_to_eeglab_events_no_event_id(self):
         """Test conversion when event_id is not available."""
         # Create MNE events array
-        events = np.array([
-            [0, 0, 1],
-            [100, 0, 2],
-        ])
+        events = np.array(
+            [
+                [0, 0, 1],
+                [100, 0, 2],
+            ]
+        )
 
         # Create a mock epochs object without event_id
         class MockEpochs:

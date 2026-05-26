@@ -1,10 +1,9 @@
 """EEG artifact cleaning functions."""
 
-from typing import *
 import logging
+from typing import Any, Dict, Optional, Sequence, Tuple, Union
 
 import numpy as np
-import warnings
 
 # Local imports from the eegprep package
 from .clean_flatlines import clean_flatlines
@@ -13,7 +12,9 @@ from .clean_channels import clean_channels
 from .clean_channels_nolocs import clean_channels_nolocs
 from .clean_asr import clean_asr
 from .clean_windows import clean_windows
+from .private.masks import mask_to_intervals
 from ...functions.miscfunc.misc import round_mat
+from ...functions.popfunc.eeg_eegrej import eeg_eegrej
 
 
 logger = logging.getLogger(__name__)
@@ -21,6 +22,7 @@ logger = logging.getLogger(__name__)
 # -----------------------------------------------------------------------------
 #                               Public API
 # -----------------------------------------------------------------------------
+
 
 def clean_artifacts(
     EEG: Dict[str, Any],
@@ -137,19 +139,14 @@ def clean_artifacts(
     if 'etc' not in EEG:
         EEG['etc'] = {}
 
-    # Keep an untouched copy if we need to re‑insert channels later.
-    oriEEG = None
-    oriEEG_without_ignored_channels = None
-
     # ------------------------------------------------------------------
     #             Optional: restrict to / ignore certain channels
     # ------------------------------------------------------------------
     if Channels is not None and len(Channels):
-        # copy original
-        oriEEG = EEG.copy()
         # Attempt pop_select based on labels; fall back to manual
         try:
-            from eegprep import pop_select  # type: ignore
+            from eegprep import pop_select
+
             EEG = pop_select(EEG, channel=list(Channels))
         except Exception:
             # Manual selection on labels
@@ -158,12 +155,11 @@ def clean_artifacts(
             EEG['data'] = EEG['data'][keep_idx, :]
             EEG['chanlocs'] = [EEG['chanlocs'][i] for i in keep_idx]
             EEG['nbchan'] = len(keep_idx)
-        oriEEG_without_ignored_channels = EEG.copy()
         EEG['event'] = []  # will be restored later
     elif Channels_ignore is not None and len(Channels_ignore):
-        oriEEG = EEG.copy()
         try:
-            from eegprep import pop_select  # type: ignore
+            from eegprep import pop_select
+
             EEG = pop_select(EEG, nochannel=list(Channels_ignore))
         except Exception:
             lbl_to_idx = {ch['labels']: idx for idx, ch in enumerate(EEG['chanlocs'])}
@@ -172,7 +168,6 @@ def clean_artifacts(
             EEG['data'] = EEG['data'][keep_idx, :]
             EEG['chanlocs'] = [EEG['chanlocs'][i] for i in keep_idx]
             EEG['nbchan'] = len(keep_idx)
-        oriEEG_without_ignored_channels = EEG.copy()
         EEG['event'] = []
 
     # ------------------------------------------------------------------
@@ -217,9 +212,7 @@ def clean_artifacts(
             removed_channels = ~EEG['etc']['clean_channel_mask']
         except Exception as e:
             # Fall back to "no‑locs" version if location dependent failure
-            logger.warning(
-                f'clean_channels failed ({e}); falling back to clean_channels_nolocs.'
-            )
+            logger.warning(f'clean_channels failed ({e}); falling back to clean_channels_nolocs.')
             EEG, removed_channels = clean_channels_nolocs(
                 EEG,
                 min_corr=float(NoLocsChannelCriterion),
@@ -265,35 +258,20 @@ def clean_artifacts(
             # Use original_data saved before clean_asr modified EEG['data'] in place.
             sample_mask = np.sum(np.abs(original_data - BUR['data']), axis=0) < 1e-8
             del original_data
-            # Convert to intervals (start,end) inclusive, 0-based
-            padded = np.concatenate([[False], sample_mask, [False]])
-            diff = np.diff(padded.astype(int))
-            starts = np.where(diff == 1)[0]
-            ends = np.where(diff == -1)[0] - 1
-            retain_intervals = np.stack([starts, ends], axis=1)
+            # Convert retained samples to inclusive zero-based intervals.
+            retain_intervals = mask_to_intervals(sample_mask, value=True) - 1
 
             # Remove very short intervals < 5 samples
             if retain_intervals.size:
                 lengths = retain_intervals[:, 1] - retain_intervals[:, 0]
                 small = lengths < 5
                 for s, e in retain_intervals[small]:
-                    sample_mask[s:e + 1] = False
+                    sample_mask[s : e + 1] = False
                 retain_intervals = retain_intervals[~small]
 
-            # Apply selection to EEG
-            try:
-                from eegprep import pop_select  # type: ignore
-                # Convert to 1-based indexing (MATLAB convention) for pop_select
-                EEG = pop_select(EEG, point=retain_intervals + 1)
-            except Exception:
-                # Manual trimming
-                EEG['data'] = EEG['data'][:, sample_mask]
-                EEG['pnts'] = EEG['data'].shape[1]
-                EEG['xmax'] = EEG['xmin'] + (EEG['pnts'] - 1) / EEG['srate']
-                # Wipe inconsistent fields
-                for fld in ['event', 'urevent', 'epoch', 'icaact', 'reject',
-                            'stats', 'specdata', 'specicaact']:
-                    EEG[fld] = [] if fld in EEG else []
+            rejected_intervals = mask_to_intervals(sample_mask, value=False)
+            if rejected_intervals.size:
+                EEG = eeg_eegrej(EEG, rejected_intervals)
 
             # Update mask in EEG.etc
             EEG['etc']['clean_sample_mask'] = sample_mask

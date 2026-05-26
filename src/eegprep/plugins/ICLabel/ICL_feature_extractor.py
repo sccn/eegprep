@@ -3,6 +3,7 @@
 from copy import deepcopy
 import numpy as np
 
+
 def ICL_feature_extractor(EEG, flag_autocorr=False):
     """Extract features for ICLabel classification.
 
@@ -24,13 +25,14 @@ def ICL_feature_extractor(EEG, flag_autocorr=False):
     from eegprep import eeg_autocorr
     from eegprep import eeg_autocorr_fftw
     from eegprep import pop_reref
+
     EEG = deepcopy(EEG)
 
     # Check inputs
     ncomp = EEG['icawinv'].shape[1]
 
     # Check for ICA key and if it is not empty
-    if not 'icawinv' in EEG.keys() or EEG['icawinv'].size == 0:
+    if 'icawinv' not in EEG.keys() or EEG['icawinv'].size == 0:
         raise ValueError('You must have an ICA decomposition to use ICLabel')
 
     # Assuming chanlocs are correct
@@ -90,7 +92,9 @@ def ICL_feature_extractor(EEG, flag_autocorr=False):
             autocorr = eeg_autocorr_fftw(EEG)
 
         # Reshape and cast
-        autocorr = np.transpose(np.expand_dims(np.expand_dims(autocorr, axis=-1), axis=-1), (2, 1, 3, 0)).astype(np.float32)
+        autocorr = np.transpose(np.expand_dims(np.expand_dims(autocorr, axis=-1), axis=-1), (2, 1, 3, 0)).astype(
+            np.float32
+        )
 
     # Format outputs
     if flag_autocorr:
@@ -99,10 +103,3 @@ def ICL_feature_extractor(EEG, flag_autocorr=False):
         features = [0.99 * topo, 0.99 * psd]
 
     return features
-
-def test_ICL_feature_extractor():
-    """Test the ICL_feature_extractor function."""
-    flag_autocorr = True
-    EEG = EEG2
-    EEG['ref'] = 'averef'
-    EEG['chanlocs'] = np.random.randn(32, 3)

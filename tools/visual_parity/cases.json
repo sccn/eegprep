@@ -380,6 +380,31 @@
       }
     },
     {
+      "id": "pop_epoch_dialog",
+      "description": "Epoch-extraction dialog opened from pop_epoch.",
+      "window_size": [665, 264],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_epoch"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_epoch_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
       "id": "pop_runica_dialog",
       "description": "ICA decomposition dialog opened from pop_runica.",
       "window_size": [824, 334],

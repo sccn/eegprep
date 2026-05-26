@@ -6,35 +6,28 @@ This module tests the eeg_eeg2mne function that converts EEGLAB datasets to MNE 
 
 import unittest
 import os
-
-if os.getenv('EEGPREP_SKIP_MATLAB') == '1':
-    raise unittest.SkipTest("MATLAB not available")
-
-import sys
 import numpy as np
 import tempfile
-import os
 import shutil
 
-# Ensure tests dir is in path for unittest discovery
-test_dir = os.path.dirname(os.path.abspath(__file__))
-if test_dir not in sys.path:
-    sys.path.insert(0, test_dir)
+from eegprep.functions.miscfunc.eeg_eeg2mne import eeg_eeg2mne
 
 try:
     import mne
     from mne.io.base import BaseRaw
+
     MNE_AVAILABLE = True
 except ImportError:
     MNE_AVAILABLE = False
     BaseRaw = None
 
-from eegprep.functions.miscfunc.eeg_eeg2mne import eeg_eeg2mne
-from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 try:
     from .fixtures import create_test_eeg
 except (ImportError, ValueError):
     from fixtures import create_test_eeg
+
+if os.getenv('EEGPREP_SKIP_MATLAB') == '1':
+    raise unittest.SkipTest("MATLAB not available")
 
 
 class TestEEGEEG2MNE(unittest.TestCase):
@@ -179,11 +172,13 @@ class TestEEGEEG2MNE(unittest.TestCase):
         eeg_with_events['data'] = np.random.randn(32, 100, 5)
 
         # Add some additional events (already has epoch events from fixture)
-        eeg_with_events['event'].extend([
-            {'latency': 1, 'type': 'event1', 'duration': 0, 'urevent': 100},
-            {'latency': 50, 'type': 'event2', 'duration': 0, 'urevent': 101},
-            {'latency': 100, 'type': 'event3', 'duration': 0, 'urevent': 102},
-        ])
+        eeg_with_events['event'].extend(
+            [
+                {'latency': 1, 'type': 'event1', 'duration': 0, 'urevent': 100},
+                {'latency': 50, 'type': 'event2', 'duration': 0, 'urevent': 101},
+                {'latency': 100, 'type': 'event3', 'duration': 0, 'urevent': 102},
+            ]
+        )
 
         try:
             result = eeg_eeg2mne(eeg_with_events)
@@ -262,10 +257,12 @@ class TestEEGEEG2MNE(unittest.TestCase):
         realistic_eeg = create_test_eeg(n_samples=1000, n_trials=10, srate=500.0)
 
         # Add some additional events (already has epoch events from fixture)
-        realistic_eeg['event'].extend([
-            {'latency': 1, 'type': 'stimulus', 'duration': 0, 'urevent': 100},
-            {'latency': 500, 'type': 'response', 'duration': 0, 'urevent': 101},
-        ])
+        realistic_eeg['event'].extend(
+            [
+                {'latency': 1, 'type': 'stimulus', 'duration': 0, 'urevent': 100},
+                {'latency': 500, 'type': 'response', 'duration': 0, 'urevent': 101},
+            ]
+        )
 
         try:
             result = eeg_eeg2mne(realistic_eeg)

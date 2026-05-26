@@ -1,6 +1,5 @@
 """MNE to EEG conversion functions."""
 
-from ...plugins.ICLabel.eeg_autocorr import eeg_autocorr
 from ..popfunc.pop_loadset import pop_loadset
 import mne
 import tempfile
@@ -8,12 +7,17 @@ import os
 from mne.export import export_raw, export_epochs
 import numpy as np
 
+
 def _mne_events_to_eeglab_events(raw_or_epochs):
     """Convert MNE Annotations or events to EEGLAB event structure (list of dicts)."""
     events = []
     sfreq = raw_or_epochs.info['sfreq']
     # Handle Annotations (Raw)
-    if hasattr(raw_or_epochs, 'annotations') and raw_or_epochs.annotations is not None and len(raw_or_epochs.annotations) > 0:
+    if (
+        hasattr(raw_or_epochs, 'annotations')
+        and raw_or_epochs.annotations is not None
+        and len(raw_or_epochs.annotations) > 0
+    ):
         for ann in raw_or_epochs.annotations:
             latency = int(ann['onset'] * sfreq) + 1  # EEGLAB is 1-based
             events.append({'latency': latency, 'type': ann['description']})
@@ -33,20 +37,23 @@ def _mne_events_to_eeglab_events(raw_or_epochs):
             events.append({'latency': latency, 'type': event_type})
     return events
 
+
 # write a funtion that converts a MNE raw object to an EEGLAB set file
 def eeg_mne2eeg(raw):
     """Convert MNE Raw object to EEG data structure.
 
     Parameters
     ----------
-    raw : mne.io.Raw
-        MNE Raw object
+    raw : mne.io.Raw | mne.BaseEpochs
+        MNE Raw or Epochs object.
 
     Returns
     -------
     EEG : dict
         EEG data structure
     """
+    raw_or_epochs = raw
+
     # Generate a temporary file name
     with tempfile.NamedTemporaryFile(delete=False) as temp_file:
         temp_file_path = temp_file.name
@@ -70,6 +77,7 @@ def eeg_mne2eeg(raw):
 
     return EEG
 
+
 def test_eeg_mne2eeg():
     """Test the eeg_mne2eeg function."""
     eeglab_file_path = './eeglab_data_with_ica_tmp.set'
@@ -77,11 +85,11 @@ def test_eeg_mne2eeg():
     EEG = pop_loadset(eeglab_file_path)
 
     # create MNE info structure
-    info = mne.create_info(ch_names=[ x['labels'] for x in EEG['chanlocs']], sfreq=EEG['srate'], ch_types='eeg')
+    info = mne.create_info(ch_names=[x['labels'] for x in EEG['chanlocs']], sfreq=EEG['srate'], ch_types='eeg')
     if EEG['trials'] > 1:
-        events = np.array([[i, 0, 1] for i in range(EEG['trials'])]) # NOT CORRECT CONVERTION JUST FOR TESTING
+        events = np.array([[i, 0, 1] for i in range(EEG['trials'])])  # NOT CORRECT CONVERTION JUST FOR TESTING
         event_id = dict(dummy=1)
-        raw = mne.EpochsArray(EEG['data'].transpose(2,0,1), info, events, tmin=0, event_id=event_id)
+        raw = mne.EpochsArray(EEG['data'].transpose(2, 0, 1), info, events, tmin=0, event_id=event_id)
     else:
         raw = mne.io.RawArray(EEG['data'], info)
 
@@ -89,5 +97,6 @@ def test_eeg_mne2eeg():
 
     # print the keys of the EEG dictionary
     print(EEG2.keys())
+
 
 # test_eeg_mne2eeg()

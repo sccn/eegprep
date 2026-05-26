@@ -10,7 +10,7 @@ Primary references:
 
 - `src/eegprep/functions/popfunc/`: EEGLAB-style `pop_*` user-facing wrappers and `eeg_*` functions that operate on EEG structures, such as ICA wrappers. Keep each pop function in a `pop_<name>.py` module that mirrors `functions/popfunc/` in EEGLAB.
 - `src/eegprep/functions/guifunc/`: EEGLAB-style GUI helpers such as `inputgui`, dialog specs, and Qt rendering. Keep GUI infrastructure parallel to `functions/guifunc/` in EEGLAB.
-- `src/eegprep/functions/adminfunc/`: EEGLAB-style administrative helpers such as `eeg_checkset.py` and `eeg_options.py`.
+- `src/eegprep/functions/adminfunc/`: EEGLAB-style administrative helpers such as `eeg_checkset.py`, `eeg_options.py`, the main GUI launcher, and the synchronized `eegprep-console` workspace.
 - `src/eegprep/functions/sigprocfunc/`: EEGLAB-style low-level signal processing functions such as `runica.py`, `runamica.py`, `topoplot.py`, `epoch.py`, and `eegrej.py`.
 - `src/eegprep/plugins/clean_rawdata/`: Python ports of the EEGLAB clean_rawdata plugin, including `clean_*` and ASR modules.
 - `src/eegprep/plugins/clean_rawdata/private/`: ports of clean_rawdata private helpers such as `fit_eeg_distribution`, `geometric_median`, FIR helpers, covariance helpers, and spherical-spline interpolation.
@@ -56,6 +56,13 @@ Primary references:
 - Prefer explicit inputs and return values. Do not introduce hidden global state; EEGLAB avoids globals for processing functions.
 - Do not force MATLAB style blindly. If Python style and EEGLAB parity conflict, choose the simpler maintainable implementation and document the tradeoff in code, tests, or PR notes.
 
+## GUI And Console Workspace
+
+- EEGPrep's primary interactive workflow is mixed GUI plus `eegprep-console`. Both share one `EEGPrepSession`; `EEG`, `ALLEEG`, `CURRENTSET`, `LASTCOM`, `ALLCOM`, `STUDY`, and `CURRENTSTUDY` must stay synchronized.
+- GUI/menu actions must update datasets and history through `EEGPrepSession` helpers such as `store_current`, `add_history`, and `notify_changed`; do not mutate GUI-only state that the console cannot see.
+- User-facing `pop_*` functions should support `return_com=True` and return EEGLAB-style history commands. The console wrappers rely on `(EEG, com)` results to auto-store bare calls like `pop_reref(EEG, [])`.
+- When adding or changing a GUI-reachable function, test both interaction directions when relevant: GUI action then console inspection, and console command then GUI refresh/history.
+
 ## Code Style
 
 - Make the smallest change that solves the request. Every changed line should trace to the task.
@@ -97,6 +104,7 @@ Primary references:
   - No MATLAB locally: `EEGPREP_SKIP_MATLAB=1 uv run pytest tests`
 - Some parity tests require MATLAB Engine or Octave via `src/eegprep/functions/adminfunc/eeglabcompat.py`; preserve skip behavior instead of weakening assertions.
 - Prefer integration-style tests that validate externally observable behavior on EEG dicts, BIDS outputs, files, or MATLAB parity results.
+- For features reachable from `eegprep-console`, add or update `tests/test_console_workspace.py` coverage when namespace sync, history, import aliases, or bare `pop_*` auto-store behavior can be affected.
 - Search existing test files before creating new ones. Extend the closest existing test first.
 - No mocks unless testing I/O boundaries such as network or filesystem. Test real behavior for numerical transforms.
 - Do not write tautological tests that only assert types, constants, or implementation details.
@@ -111,6 +119,7 @@ Primary references:
 - Use `./pre-commit.py --changed-from origin/develop` for PR-scope checks.
 - Use `./pre-commit.py --changed-from origin/develop --fix` to fix only files changed against the base branch.
 - Avoid `./pre-commit.py --all-files --fix` unless the user explicitly wants a repo-wide cleanup.
+- CI also runs `uv run --no-sync ruff check .`, `uv run --no-sync ruff format --check .`, and `uv run --no-sync ty check`; run these locally after broad formatting, import, or typing-sensitive changes.
 - Pre-commit is separate from unit tests; run both when code changes.
 
 ## Dependencies

@@ -14,14 +14,17 @@ from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 web_root = 'https://sccntestdatasets.s3.us-east-2.amazonaws.com/'
 local_url = os.path.join(os.path.dirname(__file__), '../sample_data/')
 
-def ensure_file(fname: str) -> str: # duplicate of test_clean_rawdata.py
+
+def ensure_file(fname: str) -> str:  # duplicate of test_clean_rawdata.py
     """Download a file if it does not exist and return the local path."""
     full_url = f"{web_root}{fname}"
     local_file = os.path.abspath(f"{local_url}{fname}")
     if not os.path.exists(local_file):
         from urllib.request import urlretrieve
+
         urlretrieve(full_url, local_file)
     return local_file
+
 
 def _make_continuous_eeg():
     # 2 channels × 20 samples, 1-based event latencies
@@ -42,40 +45,45 @@ def _make_continuous_eeg():
     }
     return EEG
 
+
 def _make_continuous_eeg2():
     # 2 channels × 20 samples, 1-based event latencies
-    data     = np.arange(75350*4, dtype=float).reshape(4, 75350)
-    timevals = np.array(range(data.shape[1]))/100
-    EEG = dict({
-        "data": data,
-        "xmin": 0.0,
-        "xmax": 753.4900,
-        "pnts": data.shape[1],
-        "srate": 100,
-        "nbchan": 4,
-        "trials": 1,
-        "times": timevals,
-        "event": [
-            {"type": "stim", "latency": 3.0},
-            {"type": "boundary", "latency": 6.0, "duration": 0.0},
-            {"type": "stim", "latency": 7.0},
-            {"type": "resp", "latency": 12.0},
-        ],
-    })
+    data = np.arange(75350 * 4, dtype=float).reshape(4, 75350)
+    timevals = np.array(range(data.shape[1])) / 100
+    EEG = dict(
+        {
+            "data": data,
+            "xmin": 0.0,
+            "xmax": 753.4900,
+            "pnts": data.shape[1],
+            "srate": 100,
+            "nbchan": 4,
+            "trials": 1,
+            "times": timevals,
+            "event": [
+                {"type": "stim", "latency": 3.0},
+                {"type": "boundary", "latency": 6.0, "duration": 0.0},
+                {"type": "stim", "latency": 7.0},
+                {"type": "resp", "latency": 12.0},
+            ],
+        }
+    )
     EEG = eeg_checkset(EEG)
     return EEG
+
 
 def _save_eeg(path, EEG):
     # Save as a single file object array for simplicity
     np.save(path, EEG, allow_pickle=True)
 
+
 def _load_eeg(path):
     return np.load(path, allow_pickle=True).item()
+
 
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestEEGEegrej(unittest.TestCase):
     def setUp(self):
-        EEG = _make_continuous_eeg2()
         self.tmpdir = tempfile.TemporaryDirectory()
         self.fpath = os.path.join(self.tmpdir.name, "eeg.npy")
         self.fpath_eeglab = ensure_file('FlankerTest.set')
@@ -98,18 +106,21 @@ class TestEEGEegrej(unittest.TestCase):
         self.assertEqual(EEG_out["pnts"], 15)
         self.assertEqual(EEG_out["data"].shape, (2, 15))
 
-        # Event at latency 7 is removed because it is inside the rejected region
-        # Boundary event at original 6 is preserved and a new boundary is inserted at new latency 6 with duration 5
-        # Event at 12 shifts by 5 to latency 7. Event at 3 stays at 3.
+        # Event at latency 7 is removed because it is inside the rejected region.
+        # The original boundary at 6 is preserved, while the new rejection
+        # boundary is inserted at 5.5 with duration 5. Event at 12 shifts by 5
+        # to latency 7. Event at 3 stays at 3.
         ev = EEG_out["event"]
         lats = [e.get("latency") for e in ev]
         types = [e.get("type") for e in ev]
 
-        # Must contain exactly one boundary we inserted at new position 6 with duration 5
-        self.assertIn(6.0, lats)
-        bidx = lats.index(6.0)
-        self.assertEqual(types[bidx], "boundary")
-        self.assertEqual(ev[bidx].get("duration"), 5.0)
+        inserted_boundaries = [e for e in ev if e.get("type") == "boundary" and e.get("duration") == 5.0]
+        self.assertEqual(len(inserted_boundaries), 1)
+        self.assertEqual(inserted_boundaries[0].get("latency"), 5.5)
+
+        preserved_boundaries = [e for e in ev if e.get("type") == "boundary" and e.get("duration") == 0.0]
+        self.assertEqual(len(preserved_boundaries), 1)
+        self.assertEqual(preserved_boundaries[0].get("latency"), 6.0)
 
         # Stim at 3 remains
         self.assertIn(3.0, lats)
@@ -148,7 +159,7 @@ class TestEEGEegrej(unittest.TestCase):
 
     def test_rmtime_continuous2(self):
         EEG = pop_loadset(self.fpath_eeglab)
-        rm_seg = np.array([[7535.900000,15070.800000]], dtype=float)
+        rm_seg = np.array([[7535.900000, 15070.800000]], dtype=float)
         EEG_py = eeg_eegrej(EEG, rm_seg)
 
         EEG_mat = self.eeglab.eeg_eegrej(EEG, rm_seg)
@@ -203,10 +214,13 @@ class TestEEGEegrejExtended(unittest.TestCase):
         self.assertEqual(result['data'].shape[1], 16)
 
         # Check that data is correctly concatenated
-        expected_data = np.concatenate([
-            EEG['data'][:, :4],   # samples 1-4 (0-3 in 0-based)
-            EEG['data'][:, 8:]    # samples 9-20 (8-19 in 0-based)
-        ], axis=1)
+        expected_data = np.concatenate(
+            [
+                EEG['data'][:, :4],  # samples 1-4 (0-3 in 0-based)
+                EEG['data'][:, 8:],  # samples 9-20 (8-19 in 0-based)
+            ],
+            axis=1,
+        )
         np.testing.assert_array_equal(result['data'], expected_data)
 
     def test_eeg_eegrej_multiple_regions(self):
@@ -222,11 +236,14 @@ class TestEEGEegrejExtended(unittest.TestCase):
         self.assertEqual(result['data'].shape[1], 14)
 
         # Check that data is correctly concatenated
-        expected_data = np.concatenate([
-            EEG['data'][:, :2],    # samples 1-2 (0-1 in 0-based)
-            EEG['data'][:, 5:14],  # samples 6-14 (5-13 in 0-based)
-            EEG['data'][:, 17:]    # samples 18-20 (17-19 in 0-based)
-        ], axis=1)
+        expected_data = np.concatenate(
+            [
+                EEG['data'][:, :2],  # samples 1-2 (0-1 in 0-based)
+                EEG['data'][:, 5:14],  # samples 6-14 (5-13 in 0-based)
+                EEG['data'][:, 17:],  # samples 18-20 (17-19 in 0-based)
+            ],
+            axis=1,
+        )
         np.testing.assert_array_equal(result['data'], expected_data)
 
     def test_eeg_eegrej_overlapping_regions(self):
@@ -303,8 +320,8 @@ class TestEEGEegrejExtended(unittest.TestCase):
 
         # Add more events for comprehensive testing
         EEG['event'] = [
-            {"type": "stim", "latency": 2.0},   # Before rejection region
-            {"type": "resp", "latency": 9.0},   # Inside rejection region (should be removed)
+            {"type": "stim", "latency": 2.0},  # Before rejection region
+            {"type": "resp", "latency": 9.0},  # Inside rejection region (should be removed)
             {"type": "stim", "latency": 15.0},  # After rejection region (should shift)
         ]
 
@@ -352,9 +369,9 @@ class TestEEGEegrejExtended(unittest.TestCase):
 
         # Add problematic events that should be cleaned up
         EEG['event'] = [
-            {"type": "boundary", "latency": 0.0},    # Should be removed (latency 0)
+            {"type": "boundary", "latency": 0.0},  # Should be removed (latency 0)
             {"type": "stim", "latency": 5.0},
-            {"type": "boundary", "latency": 20.0},   # Should be removed (latency == pnts)
+            {"type": "boundary", "latency": 20.0},  # Should be removed (latency == pnts)
         ]
 
         regions = np.array([[10, 12]])
@@ -436,20 +453,26 @@ class TestEEGEegrejExtended(unittest.TestCase):
         EEG = self.base_eeg.copy()
 
         # Use specific data pattern to verify integrity
-        EEG['data'] = np.array([
-            [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29],
-            [30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49]
-        ], dtype=float)
+        EEG['data'] = np.array(
+            [
+                [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29],
+                [30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49],
+            ],
+            dtype=float,
+        )
 
         # Remove samples 6-10 (1-based) = indices 5-9 (0-based)
         regions = np.array([[6, 10]])
         result = eeg_eegrej(EEG, regions)
 
         # Expected result: keep samples 1-5 and 11-20 (0-based: 0-4 and 10-19)
-        expected_data = np.array([
-            [10, 11, 12, 13, 14, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29],
-            [30, 31, 32, 33, 34, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49]
-        ], dtype=float)
+        expected_data = np.array(
+            [
+                [10, 11, 12, 13, 14, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29],
+                [30, 31, 32, 33, 34, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49],
+            ],
+            dtype=float,
+        )
 
         np.testing.assert_array_equal(result['data'], expected_data)
 
@@ -466,7 +489,7 @@ class TestEEGEegrejExtended(unittest.TestCase):
 
         # Core fields should be updated
         self.assertEqual(result['pnts'], 16)
-        self.assertAlmostEqual(result['xmax'], EEG['xmin'] + (EEG['xmax'] - EEG['xmin']) * (16/20))
+        self.assertAlmostEqual(result['xmax'], EEG['xmin'] + (EEG['xmax'] - EEG['xmin']) * (16 / 20))
 
         # Other fields should be preserved
         self.assertEqual(result['srate'], 250.0)

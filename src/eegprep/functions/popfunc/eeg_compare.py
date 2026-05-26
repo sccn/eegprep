@@ -9,6 +9,7 @@ import math
 from collections.abc import Sequence
 import numpy as np
 
+
 def eeg_compare(eeg1, eeg2, verbose_level=0, trigger_error=False):
     """Compare two EEG-like structures, reporting differences to stderr.
 
@@ -47,24 +48,24 @@ def eeg_compare(eeg1, eeg2, verbose_level=0, trigger_error=False):
         if isinstance(a, np.ndarray) or isinstance(b, np.ndarray):
             try:
                 return bool(np.array_equal(np.array(a), np.array(b), equal_nan=True))
-            except:
+            except Exception:
                 pass
         # Handle numpy arrays in general comparison
         if isinstance(a, np.ndarray) and isinstance(b, np.ndarray):
             try:
                 return bool(np.array_equal(a, b, equal_nan=True))
-            except:
+            except Exception:
                 pass
         # Handle scalar vs array comparisons
         if isinstance(a, np.ndarray) and np.isscalar(b):
             try:
                 return bool(np.all(a == b))
-            except:
+            except Exception:
                 pass
         if isinstance(b, np.ndarray) and np.isscalar(a):
             try:
                 return bool(np.all(b == a))
-            except:
+            except Exception:
                 pass
         # Final comparison - ensure we return a boolean
         try:
@@ -72,7 +73,7 @@ def eeg_compare(eeg1, eeg2, verbose_level=0, trigger_error=False):
             if isinstance(result, np.ndarray):
                 return bool(result.all())
             return bool(result)
-        except:
+        except Exception:
             return False
 
     def _numeric_distance(a, b):
@@ -128,7 +129,7 @@ def eeg_compare(eeg1, eeg2, verbose_level=0, trigger_error=False):
         mismatch_pct = 100.0 * mismatched / total_elements if total_elements > 0 else 0.0
 
         summary_lines = [
-            f"Array Comparison Summary:",
+            "Array Comparison Summary:",
             f"  Shape: {eeg1.shape}",
             f"  Total elements: {total_elements:,}",
             f"  Mismatched elements (> 1e-10): {mismatched:,} ({mismatch_pct:.2f}%)",
@@ -146,20 +147,39 @@ def eeg_compare(eeg1, eeg2, verbose_level=0, trigger_error=False):
     if hasattr(eeg1, 'keys'):
         # Dictionary-like object
         fields1 = eeg1.keys()
-        get_val1 = lambda f: eeg1.get(f, None)
+
+        def get_val1(f):
+            return eeg1.get(f, None)
+
         # Handle case where eeg2 might be a numpy array or other non-dict object
         if hasattr(eeg2, 'keys'):
-            has_field2 = lambda f: f in eeg2
-            get_val2 = lambda f: eeg2.get(f, None)
+
+            def has_field2(f):
+                return f in eeg2
+
+            def get_val2(f):
+                return eeg2.get(f, None)
+
         else:
-            has_field2 = lambda f: False  # No fields available
-            get_val2 = lambda f: None
+
+            def has_field2(f):
+                return False
+
+            def get_val2(f):
+                return None
+
     else:
         # Object with __dict__
         fields1 = getattr(eeg1, '__dict__', {}).keys()
-        get_val1 = lambda f: getattr(eeg1, f, None)
-        has_field2 = lambda f: hasattr(eeg2, f)
-        get_val2 = lambda f: getattr(eeg2, f, None)
+
+        def get_val1(f):
+            return getattr(eeg1, f, None)
+
+        def has_field2(f):
+            return hasattr(eeg2, f)
+
+        def get_val2(f):
+            return getattr(eeg2, f, None)
 
     for field in fields1:
         if not has_field2(field):
@@ -206,7 +226,9 @@ def eeg_compare(eeg1, eeg2, verbose_level=0, trigger_error=False):
                             error_msg = f'Field {field} differs (max_abs={max_abs_diff:.6e}, mean_abs={mean_abs_diff:.6e}, rms={rms_diff:.6e}, max_rel={max_rel_diff:.6e})'
                             print(f'    {error_msg}', file=sys.stderr)
                             differences.append(error_msg)
-                            summary_parts.append(f"  {field}: max_abs={max_abs_diff:.6e}, mean_abs={mean_abs_diff:.6e}, rms={rms_diff:.6e}")
+                            summary_parts.append(
+                                f"  {field}: max_abs={max_abs_diff:.6e}, mean_abs={mean_abs_diff:.6e}, rms={rms_diff:.6e}"
+                            )
                         else:
                             error_msg = f'Field {field} differs (shape mismatch: {v1.shape} vs {v2.shape})'
                             print(f'    {error_msg}', file=sys.stderr)
@@ -360,16 +382,20 @@ def eeg_compare(eeg1, eeg2, verbose_level=0, trigger_error=False):
 
     # Raise error if differences found and trigger_error is True
     if trigger_error and differences:
-        error_message = f"EEG comparison failed with {len(differences)} differences:\n" + "\n".join(f"  - {diff}" for diff in differences)
+        error_message = f"EEG comparison failed with {len(differences)} differences:\n" + "\n".join(
+            f"  - {diff}" for diff in differences
+        )
         raise ValueError(error_message)
 
     return summary
+
 
 # add test data and compare with it
 
 # load test data
 if __name__ == '__main__':
     from eegprep import pop_loadset
+
     eeg1 = pop_loadset('../../sample_data/eeglab_data_tmp.set')
     eeg2 = pop_loadset('../../sample_data/eeglab_data_tmp.set')
 

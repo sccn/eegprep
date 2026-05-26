@@ -7,6 +7,7 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.miscfunc.misc import finite_matmul
 from eegprep.functions.popfunc._pop_utils import format_history_value
 
 
@@ -14,7 +15,7 @@ def pop_expica(EEG: dict[str, Any], filename: str | Path, matrix: str = "weights
     """Export the ICA weight matrix or inverse weight matrix."""
     matrix = str(matrix).lower()
     if matrix in {"weights", "weight"}:
-        values = np.asarray(EEG.get("icaweights", [])) @ np.asarray(EEG.get("icasphere", []))
+        values = finite_matmul(np.asarray(EEG.get("icaweights", [])), np.asarray(EEG.get("icasphere", [])))
     elif matrix in {"inv", "inverse", "icawinv"}:
         values = np.asarray(EEG.get("icawinv", []))
     else:
@@ -24,7 +25,4 @@ def pop_expica(EEG: dict[str, Any], filename: str | Path, matrix: str = "weights
     path = Path(filename)
     path.parent.mkdir(parents=True, exist_ok=True)
     np.savetxt(path, values, delimiter="\t")
-    return (
-        "LASTCOM = pop_expica(EEG, "
-        f"{format_history_value(path)}, {format_history_value(matrix)});"
-    )
+    return f"LASTCOM = pop_expica(EEG, {format_history_value(path)}, {format_history_value(matrix)});"

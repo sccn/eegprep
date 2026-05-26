@@ -3,9 +3,9 @@
 import unittest
 import sys
 import os
+from unittest import mock
+
 import numpy as np
-import os
-import sys
 import matplotlib
 import matplotlib.pyplot as plt
 
@@ -16,17 +16,31 @@ if test_dir not in sys.path:
 
 try:
     # Try pytest-style relative import first
-    from . import fixtures
+    from . import fixtures as fixtures_module
     from .fixtures import (
-        mpl_use_agg, rng_seed, create_test_eeg, create_test_eeg_with_ica,
-        create_test_events, cleanup_matplotlib, TestFixturesContextManager, small_eeg
+        mpl_use_agg,
+        matlab_engine_available,
+        rng_seed,
+        create_test_eeg,
+        create_test_eeg_with_ica,
+        create_test_events,
+        cleanup_matplotlib,
+        TestFixturesContextManager,
+        small_eeg,
     )
 except (ImportError, ValueError):
     # Fallback for unittest discovery
-    import fixtures
+    import fixtures as fixtures_module
     from fixtures import (
-        mpl_use_agg, rng_seed, create_test_eeg, create_test_eeg_with_ica,
-        create_test_events, cleanup_matplotlib, TestFixturesContextManager, small_eeg
+        mpl_use_agg,
+        matlab_engine_available,
+        rng_seed,
+        create_test_eeg,
+        create_test_eeg_with_ica,
+        create_test_events,
+        cleanup_matplotlib,
+        TestFixturesContextManager,
+        small_eeg,
     )
 
 
@@ -111,7 +125,7 @@ class TestFixturesFunctions(unittest.TestCase):
         self.assertEqual(len(eeg['chanlocs']), 16)
         for i, ch in enumerate(eeg['chanlocs']):
             self.assertIn('labels', ch)
-            self.assertEqual(ch['labels'], f'Ch{i+1}')
+            self.assertEqual(ch['labels'], f'Ch{i + 1}')
 
     def test_create_test_events(self):
         """Test event creation."""
@@ -157,6 +171,15 @@ class TestFixturesFunctions(unittest.TestCase):
         self.assertEqual(eeg['nbchan'], 8)
         self.assertEqual(eeg['pnts'], 250)
         self.assertEqual(eeg['data'].shape, (8, 250))
+
+    def test_matlab_engine_available_returns_false_when_discovery_fails(self):
+        """Missing or broken MATLAB package should skip tests instead of failing collection."""
+        for error in (ModuleNotFoundError("No module named 'matlab'"), ValueError("broken package path")):
+            with (
+                mock.patch.dict(os.environ, {'EEGPREP_SKIP_MATLAB': '0'}),
+                mock.patch.object(fixtures_module.importlib.util, "find_spec", side_effect=error),
+            ):
+                self.assertFalse(matlab_engine_available())
 
 
 class TestContextManager(unittest.TestCase):
@@ -242,7 +265,7 @@ class TestFixturesIntegration(unittest.TestCase):
 
         for i in range(5):
             with TestFixturesContextManager() as fixtures:
-                eeg = fixtures.create_eeg(n_channels=2, n_samples=10)
+                fixtures.create_eeg(n_channels=2, n_samples=10)
                 plt.figure()  # Create figure that should be cleaned up
 
         # Should not accumulate figures

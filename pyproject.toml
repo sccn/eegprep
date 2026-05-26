@@ -50,6 +50,10 @@ eeglabio = [
 gui = [
   "PySide6>=6.6"
 ]
+console = [
+  "eegprep[gui]",
+  "ipython>=8.0",
+]
 docs = [
   "sphinx>=7.0",
   "pydata-sphinx-theme>=0.14.0",
@@ -66,17 +70,21 @@ all = [
   "eegprep[torch]",
   "eegprep[eeglabio]",
   "eegprep[gui]",
+  "eegprep[console]",
   "eegprep[docs]",
 ]
 
 [project.scripts]
 eegprep-gui = "eegprep.functions.adminfunc.eeglab:main"
+eegprep-console = "eegprep.functions.adminfunc.console:main"
 
 [dependency-groups]
 dev = [
   "pytest>=8.0",
   "pyyaml>=6.0",
+  "ruff>=0.15.14",
   "tomli>=2.0; python_version < '3.11'",
+  "ty>=0.0.39",
 ]
 release = [
   "build>=1.2",
@@ -100,6 +108,62 @@ constraint-dependencies = [
 required-environments = [
   "sys_platform == 'linux' and platform_machine == 'x86_64'",
 ]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+extend-exclude = [
+  "pre-commit.py",
+  "sample_notebooks/**",
+  "scripts/tmp_pipeline_for_ppt.py",
+  "src/eegprep/eeglab/**",
+]
+
+[tool.ruff.format]
+quote-style = "preserve"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
+
+[tool.ruff.lint.per-file-ignores]
+# These development scripts adjust sys.path before importing package modules.
+"tools/visual_parity/export_eegprep_menu_inventory.py" = ["E402"]
+"tests/matlab/*.py" = ["E402"]
+
+[tool.ty.environment]
+python-version = "3.10"
+root = ["."]
+
+[tool.ty.src]
+include = [
+  "src/eegprep",
+  "scripts",
+  "tools",
+]
+exclude = [
+  "scripts/mne_iclabel_script.py",
+  "scripts/test_flask.py",
+  "scripts/tmp_pipeline_for_ppt.py",
+  "src/eegprep/eeglab/**",
+]
+
+[tool.ty.terminal]
+output-format = "concise"
+
+[tool.ty.rules]
+# EEGPrep currently uses dynamic EEGLAB-style EEG dictionaries and optional GUI
+# modules extensively. Keep ty blocking on high-signal name/import/syntax
+# failures now, while avoiding CI noise from broad annotation migration work.
+invalid-argument-type = "ignore"
+invalid-assignment = "ignore"
+invalid-context-manager = "ignore"
+invalid-parameter-default = "ignore"
+invalid-return-type = "ignore"
+invalid-type-form = "ignore"
+no-matching-overload = "ignore"
+not-iterable = "ignore"
+not-subscriptable = "ignore"
+unsupported-operator = "ignore"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

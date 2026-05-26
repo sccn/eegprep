@@ -82,13 +82,13 @@ def reref(
         # reref.m: refmatrix = eye(n) - ones(n)/n; data = refmatrix * data.
         # This produces results numerically closer to MATLAB than the
         # algebraically equivalent data - mean(data) because the float32
-        # accumulation order in matmul matches MATLAB's BLAS path, while
+        # accumulation order in BLAS matrix multiplication matches MATLAB, while
         # np.mean uses pairwise summation which can diverge enough to
         # cascade through nonlinear downstream operations (e.g. ASR).
         n = len(chansin)
         dt = original_dtype
         refmatrix = np.eye(n, dtype=dt) - np.ones((n, n), dtype=dt) / dt.type(n)
-        work[chansin_array, :] = refmatrix @ work[chansin_array, :].astype(dt)
+        work[chansin_array, :] = np.dot(refmatrix, work[chansin_array, :].astype(dt))
         mean_data = None
 
     if locs is not None:
@@ -150,11 +150,7 @@ def _update_references(locs: list[dict[str, Any]], chansin: list[int], ref_indic
     if not ref_indices:
         ref_text = "average"
     else:
-        labels = [
-            str(locs[idx].get("labels", idx))
-            for idx in ref_indices
-            if idx < len(locs)
-        ]
+        labels = [str(locs[idx].get("labels", idx)) for idx in ref_indices if idx < len(locs)]
         ref_text = labels[0] if len(labels) == 1 else " ".join(labels)
     for idx in chansin:
         if idx < len(locs):

@@ -1,8 +1,6 @@
 import unittest
 import numpy as np
-import warnings
-from unittest.mock import patch, MagicMock
-import logging
+from unittest.mock import patch
 
 from eegprep.plugins.clean_rawdata.clean_windows import clean_windows
 
@@ -41,7 +39,7 @@ class TestCleanWindows(unittest.TestCase):
             'pnts': self.n_samples,
             'nbchan': self.n_channels,
             'xmin': 0.0,
-            'xmax': (self.n_samples - 1) / self.srate
+            'xmax': (self.n_samples - 1) / self.srate,
         }
 
         self.EEG_artifacts = {
@@ -50,7 +48,7 @@ class TestCleanWindows(unittest.TestCase):
             'pnts': self.n_samples,
             'nbchan': self.n_channels,
             'xmin': 0.0,
-            'xmax': (self.n_samples - 1) / self.srate
+            'xmax': (self.n_samples - 1) / self.srate,
         }
 
     def test_basic_functionality(self):
@@ -79,10 +77,7 @@ class TestCleanWindows(unittest.TestCase):
         results = []
         for zthresh in test_thresholds:
             with self.subTest(zthresholds=zthresh):
-                EEG_out, sample_mask = clean_windows(
-                    self.EEG_artifacts.copy(),
-                    zthresholds=zthresh
-                )
+                EEG_out, sample_mask = clean_windows(self.EEG_artifacts.copy(), zthresholds=zthresh)
                 results.append((EEG_out, sample_mask))
 
                 # More lenient thresholds should retain more data
@@ -101,13 +96,13 @@ class TestCleanWindows(unittest.TestCase):
         # Test as fraction
         EEG_out1, mask1 = clean_windows(
             self.EEG_artifacts.copy(),
-            max_bad_channels=0.25  # 25% of channels
+            max_bad_channels=0.25,  # 25% of channels
         )
 
         # Test as absolute count
         EEG_out2, mask2 = clean_windows(
             self.EEG_artifacts.copy(),
-            max_bad_channels=2  # 2 channels
+            max_bad_channels=2,  # 2 channels
         )
 
         # Both should work and produce valid results
@@ -123,15 +118,12 @@ class TestCleanWindows(unittest.TestCase):
         test_params = [
             {'window_len': 0.5, 'window_overlap': 0.5},
             {'window_len': 1.0, 'window_overlap': 0.66},
-            {'window_len': 2.0, 'window_overlap': 0.8}
+            {'window_len': 2.0, 'window_overlap': 0.8},
         ]
 
         for params in test_params:
             with self.subTest(**params):
-                EEG_out, sample_mask = clean_windows(
-                    self.EEG_artifacts.copy(),
-                    **params
-                )
+                EEG_out, sample_mask = clean_windows(self.EEG_artifacts.copy(), **params)
 
                 # Should complete without errors
                 self.assertIsInstance(EEG_out, dict)
@@ -146,7 +138,7 @@ class TestCleanWindows(unittest.TestCase):
             min_clean_fraction=0.3,
             truncate_quant=(0.05, 0.7),
             step_sizes=(0.02, 0.02),
-            shape_range=np.arange(1.5, 4.0, 0.2)
+            shape_range=np.arange(1.5, 4.0, 0.2),
         )
 
         # Should complete successfully
@@ -173,7 +165,7 @@ class TestCleanWindows(unittest.TestCase):
         EEG_out, sample_mask = clean_windows(
             self.EEG_clean.copy(),
             zthresholds=(-10, 10),  # Very lenient
-            max_bad_channels=self.n_channels  # Allow all channels to be bad
+            max_bad_channels=self.n_channels,  # Allow all channels to be bad
         )
 
         # Should keep most/all data
@@ -196,7 +188,7 @@ class TestCleanWindows(unittest.TestCase):
         EEG_out, sample_mask = clean_windows(
             EEG_extreme,
             zthresholds=(-0.1, 0.1),  # Very strict
-            max_bad_channels=0  # No bad channels allowed
+            max_bad_channels=0,  # No bad channels allowed
         )
 
         # Should remove most data
@@ -210,18 +202,11 @@ class TestCleanWindows(unittest.TestCase):
     def test_tolerances_array_shape_range(self):
         """Test different shape_range (beta parameter) arrays."""
         # Test different shape ranges for the generalized Gaussian
-        shape_ranges = [
-            np.arange(1.0, 2.5, 0.1),
-            np.arange(2.0, 4.0, 0.2),
-            np.array([1.5, 2.0, 2.5, 3.0])
-        ]
+        shape_ranges = [np.arange(1.0, 2.5, 0.1), np.arange(2.0, 4.0, 0.2), np.array([1.5, 2.0, 2.5, 3.0])]
 
         for shape_range in shape_ranges:
             with self.subTest(shape_range=shape_range):
-                EEG_out, sample_mask = clean_windows(
-                    self.EEG_artifacts.copy(),
-                    shape_range=shape_range
-                )
+                EEG_out, sample_mask = clean_windows(self.EEG_artifacts.copy(), shape_range=shape_range)
 
                 # Should complete successfully
                 self.assertIsInstance(EEG_out, dict)
@@ -229,12 +214,7 @@ class TestCleanWindows(unittest.TestCase):
 
     def test_edge_case_empty_data(self):
         """Test error handling with empty data."""
-        empty_EEG = {
-            'data': np.empty((0, 0)),
-            'srate': 250.0,
-            'pnts': 0,
-            'nbchan': 0
-        }
+        empty_EEG = {'data': np.empty((0, 0)), 'srate': 250.0, 'pnts': 0, 'nbchan': 0}
 
         with self.assertRaises(ValueError) as cm:
             clean_windows(empty_EEG)
@@ -250,7 +230,7 @@ class TestCleanWindows(unittest.TestCase):
             'pnts': self.n_samples,
             'nbchan': 1,
             'xmin': 0.0,
-            'xmax': (self.n_samples - 1) / self.srate
+            'xmax': (self.n_samples - 1) / self.srate,
         }
 
         EEG_out, sample_mask = clean_windows(single_ch_EEG)
@@ -268,7 +248,7 @@ class TestCleanWindows(unittest.TestCase):
             'pnts': 100,
             'nbchan': self.n_channels,
             'xmin': 0.0,
-            'xmax': 99 / self.srate
+            'xmax': 99 / self.srate,
         }
 
         # With default window_len=1.0s (250 samples), this should raise an error
@@ -299,7 +279,7 @@ class TestCleanWindows(unittest.TestCase):
         # Test overlap >= 1 (should be handled gracefully)
         EEG_out, sample_mask = clean_windows(
             self.EEG_artifacts.copy(),
-            window_overlap=1.0  # 100% overlap
+            window_overlap=1.0,  # 100% overlap
         )
 
         # Should work (function sets step=1 to avoid infinite loop)
@@ -309,7 +289,7 @@ class TestCleanWindows(unittest.TestCase):
         # Test overlap > 1
         EEG_out2, sample_mask2 = clean_windows(
             self.EEG_artifacts.copy(),
-            window_overlap=1.5  # 150% overlap
+            window_overlap=1.5,  # 150% overlap
         )
 
         # Should also work
@@ -321,14 +301,7 @@ class TestCleanWindows(unittest.TestCase):
         # The function has built-in fallback logic for when sigma=0 or NaN
         # We can test this by creating data that might cause fitting issues
         constant_data = np.ones((4, 1000)) * 0.5  # Constant data might cause sigma=0
-        constant_EEG = {
-            'data': constant_data,
-            'srate': 250.0,
-            'pnts': 1000,
-            'nbchan': 4,
-            'xmin': 0.0,
-            'xmax': 3.996
-        }
+        constant_EEG = {'data': constant_data, 'srate': 250.0, 'pnts': 1000, 'nbchan': 4, 'xmin': 0.0, 'xmax': 3.996}
 
         # Should complete using MAD fallback if distribution fitting fails
         EEG_out, sample_mask = clean_windows(constant_EEG)
@@ -349,27 +322,26 @@ class TestCleanWindows(unittest.TestCase):
             self.assertTrue(np.all(np.isfinite(EEG_out['data'])))
 
     def test_pop_select_integration(self):
-        """pop_select success path should produce a float32 dataset."""
+        """pop_select success path should preserve the input data dtype."""
+        original_dtype = self.EEG_artifacts['data'].dtype
         EEG_out, sample_mask = clean_windows(self.EEG_artifacts.copy())
 
         # Should complete successfully via pop_select
         self.assertIsInstance(EEG_out, dict)
         self.assertTrue(np.all(np.isfinite(EEG_out['data'])))
 
-        # clean_windows casts to float32 to match EEGLAB's pop_select behavior
-        self.assertEqual(EEG_out['data'].dtype, np.float32)
+        self.assertEqual(EEG_out['data'].dtype, original_dtype)
 
-    def test_pop_select_fallback(self):
-        """Manual-fallback path should also yield a valid float32 dataset."""
-        with patch('eegprep.pop_select', side_effect=RuntimeError('forced fallback')):
-            EEG_out, sample_mask = clean_windows(self.EEG_artifacts.copy())
+    def test_direct_rejection_preserves_dtype(self):
+        """Direct eeg_eegrej sample rejection should preserve the input data dtype."""
+        original_dtype = self.EEG_artifacts['data'].dtype
+        EEG_out, sample_mask = clean_windows(self.EEG_artifacts.copy())
 
-        # Should produce valid output using fallback
+        # Should produce valid output using direct sample rejection.
         self.assertIsInstance(EEG_out, dict)
         self.assertTrue(np.all(np.isfinite(EEG_out['data'])))
 
-        # Data should be converted to float32 in fallback mode
-        self.assertEqual(EEG_out['data'].dtype, np.float32)
+        self.assertEqual(EEG_out['data'].dtype, original_dtype)
 
     def test_clean_sample_mask_handling(self):
         """Test handling of EEG.etc.clean_sample_mask field."""
@@ -405,28 +377,18 @@ class TestCleanWindows(unittest.TestCase):
         self.assertTrue(any('incompatible' in msg for msg in log.output))
         np.testing.assert_array_equal(EEG_out3['etc']['clean_sample_mask'], sample_mask3)
 
-    def test_fallback_data_processing(self):
-        """Fallback path clears signal metadata when pop_select cannot be used."""
-        with patch('eegprep.pop_select', side_effect=RuntimeError('forced fallback')):
-            EEG_out, sample_mask = clean_windows(self.EEG_artifacts.copy())
+    def test_direct_rejection_data_processing(self):
+        """Direct sample rejection keeps EEGLAB eegrej timing semantics."""
+        EEG_out, sample_mask = clean_windows(self.EEG_artifacts.copy())
 
-        # Check that fallback processing was applied
-        # Data should be converted to float32
-        self.assertEqual(EEG_out['data'].dtype, np.float32)
+        # Check that fallback processing was applied without changing precision.
+        self.assertEqual(EEG_out['data'].dtype, self.EEG_artifacts['data'].dtype)
 
         # pnts and xmax should be updated
         self.assertEqual(EEG_out['pnts'], EEG_out['data'].shape[1])
-        expected_xmax = EEG_out['xmin'] + (EEG_out['pnts'] - 1) / self.srate
+        old_duration = self.EEG_artifacts['xmax'] - self.EEG_artifacts['xmin']
+        expected_xmax = self.EEG_artifacts['xmin'] + old_duration * EEG_out['pnts'] / self.EEG_artifacts['pnts']
         self.assertAlmostEqual(EEG_out['xmax'], expected_xmax, places=6)
-
-        # Metadata fields should be cleared in fallback mode because the manual
-        # path cannot shift event latencies or insert boundary events.
-        for field in ['event', 'urevent', 'epoch', 'icaact', 'reject', 'stats', 'specdata', 'specicaact']:
-            if field in EEG_out:
-                if isinstance(EEG_out[field], list):
-                    self.assertEqual(len(EEG_out[field]), 0)
-                else:
-                    self.assertEqual(len(EEG_out[field]), 0)
 
     def test_pop_select_success_preserves_events_and_inserts_boundaries(self):
         """pop_select success path keeps events and inserts boundaries at cuts.
@@ -442,7 +404,7 @@ class TestCleanWindows(unittest.TestCase):
         # artifact so we can verify post-cut latency shifting.
         EEG_in['event'] = [
             {'type': 'S1', 'latency': 100.0, 'duration': 0.0},
-            {'type': 'S2', 'latency': 600.0, 'duration': 0.0},   # inside first artifact (500:750)
+            {'type': 'S2', 'latency': 600.0, 'duration': 0.0},  # inside first artifact (500:750)
             {'type': 'S3', 'latency': 1000.0, 'duration': 0.0},
             {'type': 'S4', 'latency': 2000.0, 'duration': 0.0},
         ]
@@ -478,9 +440,7 @@ class TestCleanWindows(unittest.TestCase):
             self.assertGreater(float(ev.get('duration', 0.0)), 0.0)
             self.assertLessEqual(float(ev.get('duration', 0.0)), float(total_removed))
 
-        # Output data should still be float32 (clean_windows casts to single
-        # precision to match EEGLAB).
-        self.assertEqual(EEG_out['data'].dtype, np.float32)
+        self.assertEqual(EEG_out['data'].dtype, EEG_in['data'].dtype)
 
     def test_logging_output(self):
         """Test that appropriate logging messages are generated."""
@@ -505,8 +465,11 @@ class TestCleanWindows(unittest.TestCase):
                 self.assertIsInstance(EEG_out, dict)
                 self.assertTrue(np.all(np.isfinite(EEG_out['data'])))
 
-                # Function converts to float64 internally
                 self.assertTrue(np.issubdtype(EEG_out['data'].dtype, np.floating))
+                if np.issubdtype(np.dtype(dtype), np.floating):
+                    self.assertEqual(EEG_out['data'].dtype, np.dtype(dtype))
+                else:
+                    self.assertEqual(EEG_out['data'].dtype, np.dtype(np.float64))
 
     def test_sample_mask_consistency(self):
         """Test that sample_mask correctly corresponds to retained data."""
