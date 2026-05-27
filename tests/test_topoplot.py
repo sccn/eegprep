@@ -345,9 +345,10 @@ class TestTopoplot(unittest.TestCase):
 
     def test_empty_data_handling(self):
         """Test topoplot with empty or invalid data."""
-        # Test with empty data - expect various possible errors
-        with self.assertRaises((IndexError, ValueError, UnboundLocalError)):
-            topoplot(np.array([]), self.chan_locs, noplot='on')
+        # Empty data is EEGLAB's channel-location plotting mode.
+        handle, Zi, plotrad, xi, yi = topoplot(np.array([]), self.chan_locs, noplot='on')
+        self.assertIsNone(handle)
+        self.assertIsInstance(Zi, np.ndarray)
 
         # Test with mismatched data and channel count - expect various possible errors
         with self.assertRaises((IndexError, ValueError, UnboundLocalError)):

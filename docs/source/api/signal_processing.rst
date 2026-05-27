@@ -32,4 +32,6 @@ Topography
 
 .. autofunction:: eegprep.cart2topo
 
+.. autofunction:: eegprep.pop_topoplot
+
 .. autofunction:: eegprep.topoplot

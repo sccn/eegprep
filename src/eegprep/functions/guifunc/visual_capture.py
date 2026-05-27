@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import math
 import pathlib
 import sys
 
@@ -25,6 +26,7 @@ from eegprep.functions.popfunc.pop_rmbase import pop_rmbase_dialog_spec
 from eegprep.functions.popfunc.pop_runica import pop_runica_dialog_spec
 from eegprep.functions.popfunc.pop_select import pop_select_dialog_spec
 from eegprep.functions.popfunc.pop_subcomp import pop_subcomp_dialog_spec
+from eegprep.functions.popfunc.pop_topoplot import pop_topoplot_dialog_spec
 from eegprep.plugins.ICLabel.pop_icflag import pop_icflag_dialog_spec
 from eegprep.plugins.ICLabel.pop_iclabel import pop_iclabel_dialog_spec
 from eegprep.plugins.clean_rawdata.pop_clean_rawdata import pop_clean_rawdata_dialog_spec
@@ -293,11 +295,11 @@ def _matlab_scaled_pixmap(pixmap, app):
     ratio = float(pixmap.devicePixelRatio() or 1)
     if screen is not None:
         ratio = max(ratio, float(screen.devicePixelRatio() or 1))
-    if ratio <= 1:
-        return pixmap
     matlab_ratio = 1.5
     scale = matlab_ratio / ratio
-    return pixmap.scaled(max(1, round(pixmap.width() * scale)), max(1, round(pixmap.height() * scale)))
+    if math.isclose(scale, 1.0):
+        return pixmap
+    return pixmap.scaled(max(1, math.floor(pixmap.width() * scale)), max(1, math.floor(pixmap.height() * scale)))
 
 
 def capture_adjust_events_dialog(output: pathlib.Path) -> None:
@@ -392,6 +394,15 @@ def capture_pop_epoch_dialog(output: pathlib.Path) -> None:
     """Render and capture the pop_epoch dialog."""
     eeg = _demo_main_eeg(setname="pop demo")
     spec = pop_epoch_dialog_spec(eeg)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_topoplot_dialog(output: pathlib.Path, *, variant: str = "erp") -> None:
+    """Render and capture the pop_topoplot dialog."""
+    eeg = _demo_main_eeg(setname="pop demo")
+    spec = pop_topoplot_dialog_spec(eeg, typeplot=0 if variant == "components" else 1)
     renderer = QtDialogRenderer()
     app, dialog, _widgets = renderer.build_dialog(spec)
     _grab_dialog(dialog, output, app)
@@ -586,6 +597,10 @@ def main(argv: list[str] | None = None) -> int:
         capture_pop_rmbase_dialog(args.output)
     elif args.case == "pop_epoch_dialog":
         capture_pop_epoch_dialog(args.output)
+    elif args.case == "pop_topoplot_erp_dialog":
+        capture_pop_topoplot_dialog(args.output, variant="erp")
+    elif args.case == "pop_topoplot_components_dialog":
+        capture_pop_topoplot_dialog(args.output, variant="components")
     elif args.case == "pop_runica_dialog":
         capture_pop_runica_dialog(args.output)
     elif args.case == "pop_runica_multiple_dialog":

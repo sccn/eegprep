@@ -43,6 +43,11 @@ def _fake_pop_without_command(eeg, *, return_com=False):
     return (output, "") if return_com else output
 
 
+def _fake_pop_topoplot(eeg, *, return_com=False):
+    command = "pop_topoplot(EEG, typeplot=1, items=[0])"
+    return (["figure"], command) if return_com else ["figure"]
+
+
 def test_workspace_starts_with_eeglab_style_names():
     session = EEGPrepSession()
     workspace = EEGPrepConsoleWorkspace(session, exports={})
@@ -493,6 +498,19 @@ def test_pop_call_without_history_command_records_raw_console_source():
     assert command == ""
     assert session.EEG["setname"] == "no-history-command"
     assert session.ALLCOM == ["pop_interp(EEG)"]
+
+
+def test_non_mutating_pop_plot_call_records_history_without_storing_dataset():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(), new=True)
+    original_eeg = session.EEG
+    workspace = EEGPrepConsoleWorkspace(session, exports={"pop_topoplot": _fake_pop_topoplot})
+
+    result = workspace.namespace["pop_topoplot"](workspace.namespace["EEG"])
+
+    assert result == (["figure"], "pop_topoplot(EEG, typeplot=1, items=[0])")
+    assert session.EEG is original_eeg
+    assert session.ALLCOM == ["pop_topoplot(EEG, typeplot=1, items=[0])"]
 
 
 def test_single_assignment_pop_call_without_history_resets_namespace_to_session_eeg():

@@ -650,6 +650,7 @@ def _write_matlab_simple_pop_dialog_script(
         "pop_resample": "Resample current dataset -- pop_resample()",
         "pop_epoch": "Extract data epochs - pop_epoch()",
         "pop_rmbase": "Baseline removal - pop_rmbase()",
+        "pop_topoplot": "Plot ERP scalp maps in 2-D -- pop_topoplot()",
         "pop_runica": "Run ICA decomposition -- pop_runica()",
         "pop_subcomp": "Remove components from data -- pop_subcomp()",
         "pop_clean_rawdata": "pop_clean_rawdata()",
@@ -658,13 +659,17 @@ def _write_matlab_simple_pop_dialog_script(
         "pop_iclabel": "ICLabel",
         "pop_icflag": "Flag components using ICLabel -- pop_icflag()",
     }
+    if action == "pop_topoplot" and variant == "components":
+        target_title = "Plot component scalp maps in 2-D -- pop_topoplot()"
+    else:
+        target_title = title_by_action[action]
     script_path.write_text(
         "\n".join(
             [
                 "function eegprep_visual_capture()",
                 "try",
                 f"output_file = {_matlab_string(output_path)};",
-                f"target_title = {_matlab_string(title_by_action[action])};",
+                f"target_title = {_matlab_string(target_title)};",
                 f"action = {_matlab_string(action)};",
                 f"variant = {_matlab_string(variant)};",
                 f"eeglab_root = {_matlab_string(eeglab_root)};",
@@ -691,6 +696,12 @@ def _write_matlab_simple_pop_dialog_script(
                 "        [EEG, com] = pop_epoch(EEG);",
                 "    case 'pop_rmbase'",
                 "        [EEG, com] = pop_rmbase(EEG);",
+                "    case 'pop_topoplot'",
+                "        if strcmp(variant, 'components')",
+                "            com = pop_topoplot(EEG, 0);",
+                "        else",
+                "            com = pop_topoplot(EEG, 1);",
+                "        end",
                 "    case 'pop_runica'",
                 "        [EEG, com] = pop_runica(EEG);",
                 "    case 'pop_subcomp'",
@@ -1253,6 +1264,7 @@ def capture_target(
             "pop_runica",
             "pop_select",
             "pop_subcomp",
+            "pop_topoplot",
             "inputdlg2",
             "pophelp",
         }:
@@ -1288,6 +1300,7 @@ def capture_target(
             "pop_runica",
             "pop_select",
             "pop_subcomp",
+            "pop_topoplot",
         }:
             script_path = _write_matlab_simple_pop_dialog_script(case, output_path, action, variant)
         elif action == "inputdlg2":

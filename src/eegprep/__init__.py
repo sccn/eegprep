@@ -105,6 +105,7 @@ _LAZY_EXPORTS = {
     "pop_studyerp": ("eegprep.functions.studyfunc.pop_studyerp", "pop_studyerp"),
     "pop_studywizard": ("eegprep.functions.studyfunc.pop_studywizard", "pop_studywizard"),
     "pop_subcomp": ("eegprep.functions.popfunc.pop_subcomp", "pop_subcomp"),
+    "pop_topoplot": ("eegprep.functions.popfunc.pop_topoplot", "pop_topoplot"),
     "pop_writeeeg": ("eegprep.functions.popfunc.pop_writeeeg", "pop_writeeeg"),
     "reref": ("eegprep.functions.redefine_functions", "reref"),
     "resample": ("eegprep.functions.redefine_functions", "resample"),

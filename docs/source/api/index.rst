@@ -114,6 +114,7 @@ Visualization
    :toctree: generated/
 
    eegprep.cart2topo
+   eegprep.pop_topoplot
    eegprep.topoplot
 
 Format Conversion

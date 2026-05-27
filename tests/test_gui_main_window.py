@@ -311,7 +311,7 @@ class MainMenuSpecTests(unittest.TestCase):
         self.assertEqual(action_kind("pop_subcomp"), "implemented")
         self.assertEqual(action_kind("pop_exportbids"), "implemented")
         self.assertEqual(action_kind("select_multiple_datasets"), "placeholder")
-        self.assertEqual(action_kind("topoplot:labels"), "placeholder")
+        self.assertEqual(action_kind("topoplot:labels"), "implemented")
         self.assertTrue(all(action_kind(action) in {"implemented", "placeholder"} for action in actions))
         self.assertTrue(
             all(action_kind(action) == "implemented" or is_placeholder_action(action) for action in actions)
@@ -661,6 +661,43 @@ class MenuActionDispatcherTests(unittest.TestCase):
                 self.assertEqual(session.EEG["setname"], setname)
                 self.assertEqual(session.ALLEEG[0]["setname"], setname)
                 self.assertEqual(session.ALLCOM[-1], f"EEG = {action}(EEG);")
+
+    def test_topoplot_menu_actions_record_history_without_replacing_dataset(self):
+        session = EEGPrepSession()
+        session.store_current(_demo_eeg(), new=True)
+        dispatcher = MenuActionDispatcher(session)
+        original_eeg = session.EEG
+
+        with mock.patch(
+            "eegprep.functions.popfunc.pop_topoplot.plot_channel_locations",
+            return_value=("figure", "topoplot([], EEG['chanlocs'], style='blank', electrodes='labelpoint')"),
+        ) as locations:
+            dispatcher.dispatch("topoplot:labels")
+
+        locations.assert_called_once_with(original_eeg, mode="labels", return_com=True)
+        self.assertIs(session.EEG, original_eeg)
+        self.assertIs(session.ALLEEG[0], original_eeg)
+        self.assertEqual(
+            session.ALLCOM[-1],
+            "topoplot([], EEG['chanlocs'], style='blank', electrodes='labelpoint')",
+        )
+
+    def test_pop_topoplot_menu_actions_record_history_without_replacing_dataset(self):
+        session = EEGPrepSession()
+        session.store_current(_demo_eeg(epoched=True), new=True)
+        dispatcher = MenuActionDispatcher(session)
+        original_eeg = session.EEG
+
+        with mock.patch(
+            "eegprep.functions.popfunc.pop_topoplot.pop_topoplot",
+            return_value=(["figure"], "pop_topoplot(EEG, typeplot=1, items=[0])"),
+        ) as topoplot_func:
+            dispatcher.dispatch("pop_topoplot:erp")
+
+        topoplot_func.assert_called_once_with(original_eeg, typeplot=1, return_com=True)
+        self.assertIs(session.EEG, original_eeg)
+        self.assertIs(session.ALLEEG[0], original_eeg)
+        self.assertEqual(session.ALLCOM[-1], "pop_topoplot(EEG, typeplot=1, items=[0])")
 
     def test_pop_interp_dispatch_uses_generic_gui_command_echo(self):
         session = EEGPrepSession()
