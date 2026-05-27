@@ -66,8 +66,6 @@ def pop_rmbase(
 
     output, history_pointrange, history_chanlist = _apply_pop_rmbase_one(EEG, timerange, pointrange, chanlist)
     history_timerange = timerange if _has_values(timerange) else []
-    if _has_values(history_timerange):
-        history_pointrange = []
     command = _history_command(history_timerange, history_pointrange, history_chanlist, int(output["nbchan"]))
     return (output, command) if return_com else output
 
@@ -165,7 +163,7 @@ def _run_gui(EEG: dict[str, Any], *, renderer: Any | None = None, multiple: bool
         if not _is_blank_text(chantypes):
             chanlist = _resolve_channel_types(EEG, chantypes)
         elif not _is_blank_text(channels):
-            chanlist = _resolve_channel_indices(EEG, channels, one_based=True)[1]
+            chanlist = _resolve_channel_indices(EEG, channels)[1]
     return {"timerange": timerange, "pointrange": pointrange, "chanlist": chanlist}
 
 
@@ -190,7 +188,7 @@ def _apply_pop_rmbase_one(
         raise ValueError("pop_rmbase(): EEG data must be 2D or 3D")
 
     baseline_indices, history_pointrange = _baseline_indices(output, timerange, pointrange, pnts)
-    channel_indices, history_chanlist = _resolve_channel_indices(output, chanlist, one_based=True)
+    channel_indices, history_chanlist = _resolve_channel_indices(output, chanlist)
     if data.ndim == 2:
         data = _remove_continuous_baseline(output, data, channel_indices, baseline_indices)
     else:
@@ -222,13 +220,15 @@ def _remove_continuous_baseline(
         segment_baseline = baseline_indices[(baseline_indices >= start) & (baseline_indices < stop)]
         if segment_baseline.size == 0:
             continue
-        if stop - start == 1:
-            data[channel_indices, start:stop] = 0
+        # EEGLAB's boundary path only writes the selected baseline window.
+        window = np.ix_(channel_indices, segment_baseline)
+        if segment_baseline.size == 1:
+            data[window] = 0
             continue
-        data[channel_indices, start:stop] = rmbase(
-            data[channel_indices, start:stop],
-            stop - start,
-            segment_baseline - start + 1,
+        data[window] = rmbase(
+            data[window],
+            segment_baseline.size,
+            np.arange(1, segment_baseline.size + 1),
         )
     return data
 
@@ -251,7 +251,7 @@ def _baseline_indices(
         indices = np.where((times >= values[0]) & (times <= values[-1]))[0]
         if indices.size == 0:
             raise ValueError("pop_rmbase(): time range does not contain samples")
-        return indices.astype(int), (indices + 1).astype(int).tolist()
+        return indices.astype(int), []
     if _has_values(pointrange):
         values = _parse_numeric_vector(pointrange, dtype=float)
         indices = _point_indices_from_values(values, pnts)
@@ -289,27 +289,18 @@ def _continuous_boundary_starts(EEG: dict[str, Any], pnts: int) -> list[int]:
     return sorted(set(starts))
 
 
-def _resolve_channel_indices(
-    EEG: dict[str, Any],
-    chanlist: Any,
-    *,
-    one_based: bool,
-) -> tuple[list[int], list[int] | None]:
+def _resolve_channel_indices(EEG: dict[str, Any], chanlist: Any) -> tuple[list[int], list[int] | None]:
     nbchan = int(EEG.get("nbchan", np.asarray(EEG.get("data")).shape[0]))
     if not _has_values(chanlist):
         return list(range(nbchan)), None
     tokens = _channel_tokens(chanlist)
     numeric = _numeric_channel_tokens(tokens)
     if numeric is not None:
-        if not one_based:
-            indices = numeric
-            history = [index + 1 for index in numeric]
-        else:
-            indices = [index - 1 for index in numeric]
-            history = numeric
+        indices = [index - 1 for index in numeric]
+        history = numeric
         if any(index < 0 or index >= nbchan for index in indices):
             raise ValueError("chanlist indices must be 1-based and within EEG.nbchan")
-        return sorted(dict.fromkeys(indices)), sorted(dict.fromkeys(history))
+        return list(dict.fromkeys(indices)), list(dict.fromkeys(history))
     labels = _channel_field_values(EEG, "labels")
     lookup = {label.lower(): index for index, label in enumerate(labels)}
     indices = []
@@ -318,7 +309,7 @@ def _resolve_channel_indices(
         if key not in lookup:
             raise ValueError(f"Channel '{token}' not found")
         indices.append(lookup[key])
-    indices = sorted(dict.fromkeys(indices))
+    indices = list(dict.fromkeys(indices))
     return indices, [index + 1 for index in indices]
 
 

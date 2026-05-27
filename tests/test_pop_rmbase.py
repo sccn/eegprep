@@ -91,6 +91,18 @@ def test_pop_rmbase_continuous_with_boundaries_is_segmentwise():
         np.testing.assert_allclose(np.mean(out["data"][:, start:stop], axis=1), 0, atol=1e-10)
 
 
+def test_pop_rmbase_continuous_boundary_partial_pointrange_only_changes_selected_samples():
+    eeg = create_test_eeg(n_channels=2, n_samples=100, srate=100.0, n_trials=1)
+    eeg["data"] = np.vstack([np.arange(100, dtype=float), np.arange(100, dtype=float) + 100.0])
+    eeg["event"] = [{"type": "boundary", "latency": 50.5}]
+    before = eeg["data"].copy()
+
+    out = pop_rmbase(eeg, pointrange=range(1, 31))
+
+    np.testing.assert_allclose(np.mean(out["data"][:, :30], axis=1), 0, atol=1e-10)
+    np.testing.assert_allclose(out["data"][:, 30:], before[:, 30:])
+
+
 def test_pop_rmbase_timerange_uses_eeg_times_units():
     eeg = create_test_eeg(n_channels=2, n_samples=100, srate=100.0, n_trials=1)
     eeg["times"] = np.arange(100, dtype=float)
@@ -133,6 +145,27 @@ def test_pop_rmbase_return_com_is_replayable_python_console_input():
     assert command == "EEG = pop_rmbase( EEG, [], [1 2 3 4 5], [1 2]);"
     converted = _console_python_command(command)
     assert converted == "EEG = pop_rmbase(EEG, timerange=[], pointrange=[1, 2, 3, 4, 5], chanlist=[1, 2])"
+
+
+def test_pop_rmbase_return_com_preserves_channel_order():
+    eeg = create_test_eeg(n_channels=3, n_samples=40, srate=100.0, n_trials=1)
+
+    _out, command = pop_rmbase(eeg, pointrange=range(1, 6), chanlist=[3, 1], return_com=True)
+
+    assert command == "EEG = pop_rmbase( EEG, [], [1 2 3 4 5], [3 1]);"
+    converted = _console_python_command(command)
+    assert converted == "EEG = pop_rmbase(EEG, timerange=[], pointrange=[1, 2, 3, 4, 5], chanlist=[3, 1])"
+
+
+def test_pop_rmbase_return_com_timerange_uses_eeglab_history_shape():
+    eeg = create_test_eeg(n_channels=2, n_samples=40, srate=100.0, n_trials=1)
+    eeg["times"] = np.arange(40, dtype=float)
+
+    _out, command = pop_rmbase(eeg, timerange=[10, 19], return_com=True)
+
+    assert command == "EEG = pop_rmbase( EEG, [10 19], []);"
+    converted = _console_python_command(command)
+    assert converted == "EEG = pop_rmbase(EEG, timerange=[10, 19], pointrange=[])"
 
 
 def test_pop_rmbase_gui_cancel_returns_original_dataset():
@@ -198,6 +231,18 @@ class TestPopRmbaseParity(unittest.TestCase):
 
         py_eeg = pop_rmbase(copy.deepcopy(self.eeg), pointrange=pointrange, chanlist=chanlist)
         ml_eeg = self.eeglab.pop_rmbase(copy.deepcopy(self.eeg), [], pointrange, chanlist)
+
+        self.assertEqual(py_eeg["data"].shape, ml_eeg["data"].shape)
+        np.testing.assert_allclose(py_eeg["data"], ml_eeg["data"], atol=1e-6, rtol=1e-6)
+
+    def test_parity_continuous_boundary_partial_pointrange(self):
+        eeg = create_test_eeg(n_channels=2, n_samples=100, srate=100.0, n_trials=1)
+        eeg["data"] = np.vstack([np.arange(100, dtype=float), np.arange(100, dtype=float) + 100.0])
+        eeg["event"] = [{"type": "boundary", "latency": 50.5}]
+        pointrange = list(range(1, 31))
+
+        py_eeg = pop_rmbase(copy.deepcopy(eeg), pointrange=pointrange)
+        ml_eeg = self.eeglab.pop_rmbase(copy.deepcopy(eeg), [], pointrange, [])
 
         self.assertEqual(py_eeg["data"].shape, ml_eeg["data"].shape)
         np.testing.assert_allclose(py_eeg["data"], ml_eeg["data"], atol=1e-6, rtol=1e-6)
