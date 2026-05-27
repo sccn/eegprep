@@ -16,7 +16,6 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 
-from eegprep.functions.adminfunc.console import _console_python_command
 from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 
@@ -301,6 +300,8 @@ def assert_history_contains_once(session: EEGPrepSession, command: str) -> None:
 
 def assert_history_replayable(command: str) -> str:
     """Assert that an EEGLAB-style command converts to valid Python input."""
+    from eegprep.functions.adminfunc.console import _console_python_command
+
     converted = _console_python_command(command)
     ast.parse(converted)
     return converted

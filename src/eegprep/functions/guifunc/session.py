@@ -32,7 +32,12 @@ def has_eeg_data(eeg: Any) -> bool:
 
 
 def normalize_dataset_indices(indices: Any, *, allow_empty: bool = True) -> list[int]:
-    """Normalize EEGLAB-facing 1-based dataset indices for session state."""
+    """Normalize EEGLAB-facing 1-based dataset indices for session state.
+
+    Empty selection is represented by ``None``, ``""``, scalar ``0``, an empty
+    iterable, or a single-item iterable containing ``0`` when ``allow_empty`` is
+    true. Mixed non-positive entries such as ``[0, 1]`` are invalid.
+    """
     if indices is None or (isinstance(indices, str) and indices == ""):
         if allow_empty:
             return []

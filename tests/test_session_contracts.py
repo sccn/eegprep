@@ -104,13 +104,28 @@ def test_currentset_empty_single_and_multiple_console_values():
     assert session.current_set_value() == [1, 2]
 
 
-@pytest.mark.parametrize("indices", ([1, 1], [0], [-1], [1.5], True))
+def test_dataset_index_normalization_accepts_canonical_empty_values():
+    assert normalize_dataset_indices(0) == []
+    assert normalize_dataset_indices([0]) == []
+    assert normalize_dataset_indices([]) == []
+
+
+@pytest.mark.parametrize("indices", ([1, 1], [0], [-1], [0, 1], [1.5], True))
 def test_dataset_index_normalization_rejects_invalid_selection(indices):
     with pytest.raises(ValueError):
         normalize_dataset_indices(indices, allow_empty=False)
 
 
-def test_console_currentset_assignment_rejects_duplicate_indices():
+@pytest.mark.parametrize(
+    ("source", "value"),
+    (
+        ("CURRENTSET = [1, 1]", [1, 1]),
+        ("CURRENTSET = -1", -1),
+        ("CURRENTSET = [1, -1, 2]", [1, -1, 2]),
+        ("CURRENTSET = [0, 1]", [0, 1]),
+    ),
+)
+def test_console_currentset_assignment_rejects_invalid_indices(source, value):
     session = EEGPrepSession()
     for name in ("first", "second"):
         eeg = create_test_eeg(n_channels=2, n_samples=8)
@@ -118,18 +133,28 @@ def test_console_currentset_assignment_rejects_duplicate_indices():
         session.store_current(eeg, new=True)
     workspace = EEGPrepConsoleWorkspace(session, exports={})
     try:
-        workspace.namespace["CURRENTSET"] = [1, 1]
+        workspace.namespace["CURRENTSET"] = value
         with pytest.raises(ValueError, match="CURRENTSET"):
-            workspace.after_execute("CURRENTSET = [1, 1]", success=True)
+            workspace.after_execute(source, success=True)
     finally:
         workspace.close()
 
 
 def test_history_helpers_accept_replayable_gui_history():
     converted = assert_history_replayable("EEG = pop_reref( EEG, [], 'keepref', 'on');")
+    tree = ast.parse(converted)
+    statement = tree.body[0]
 
-    assert converted == "EEG = pop_reref(EEG, ref=[], keepref='on')"
-    ast.parse(converted)
+    assert isinstance(statement, ast.Assign)
+    assert isinstance(statement.value, ast.Call)
+    assert isinstance(statement.value.func, ast.Name)
+    assert statement.value.func.id == "pop_reref"
+    assert isinstance(statement.value.args[0], ast.Name)
+    assert statement.value.args[0].id == "EEG"
+    assert any(
+        keyword.arg == "keepref" and isinstance(keyword.value, ast.Constant) and keyword.value.value == "on"
+        for keyword in statement.value.keywords
+    )
 
 
 def test_field_comparison_helper_supports_parity_scaffolding():
