@@ -28,11 +28,9 @@ PLACEHOLDER_ACTION_METADATA: Mapping[str, PlaceholderMetadata] = {
         "1b",
         (
             "pop_chanedit",
-            "pop_comments",
             "pop_copyset",
             "pop_editeventfield",
             "pop_editeventvals",
-            "pop_editset",
             "pop_fileio_brainvision_mat",
             "pop_mergeset",
             "pop_rmdat",

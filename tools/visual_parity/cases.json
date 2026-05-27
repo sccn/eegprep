@@ -180,6 +180,56 @@
       }
     },
     {
+      "id": "pop_comments_dialog",
+      "description": "Dataset comments dialog opened from pop_comments.",
+      "window_size": [560, 390],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_comments"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_comments_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_editset_dialog",
+      "description": "Dataset metadata dialog opened from pop_editset.",
+      "window_size": [760, 420],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_editset"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_editset_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
       "id": "reref_dialog_channel_ref",
       "description": "pop_reref dialog with the common-reference channel path enabled.",
       "window_size": [616, 281],

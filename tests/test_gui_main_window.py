@@ -640,6 +640,8 @@ class MenuActionDispatcherTests(unittest.TestCase):
 
     def test_new_main_window_pop_actions_dispatch_to_real_wrappers(self):
         action_specs = [
+            ("pop_comments", "eegprep.functions.popfunc.pop_comments.pop_comments", "commented"),
+            ("pop_editset", "eegprep.functions.popfunc.pop_editset.pop_editset", "edited"),
             ("pop_select", "eegprep.functions.popfunc.pop_select.pop_select", "selected"),
             ("pop_resample", "eegprep.functions.popfunc.pop_resample.pop_resample", "resampled"),
             ("pop_rmbase", "eegprep.functions.popfunc.pop_rmbase.pop_rmbase", "baseline"),
@@ -659,7 +661,10 @@ class MenuActionDispatcherTests(unittest.TestCase):
                 with mock.patch(patch_target, return_value=(output, f"EEG = {action}(EEG);")) as pop_func:
                     dispatcher.dispatch(action)
 
-                pop_func.assert_called_once_with(mock.ANY, return_com=True)
+                if action == "pop_comments":
+                    pop_func.assert_called_once_with(mock.ANY, "About this dataset", return_com=True)
+                else:
+                    pop_func.assert_called_once_with(mock.ANY, return_com=True)
                 self.assertEqual(session.EEG["setname"], setname)
                 self.assertEqual(session.ALLEEG[0]["setname"], setname)
                 self.assertEqual(session.ALLCOM[-1], f"EEG = {action}(EEG);")

@@ -6,6 +6,8 @@ import eegprep
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset, strict_mode
 from eegprep.functions.adminfunc.eeglab import eeglab, gui
 from eegprep.functions.popfunc.eeg_eegrej import eeg_eegrej
+from eegprep.functions.popfunc.pop_comments import pop_comments
+from eegprep.functions.popfunc.pop_editset import pop_editset
 from eegprep.functions.popfunc.pop_epoch import pop_epoch
 from eegprep.functions.popfunc.pop_rmbase import pop_rmbase
 from eegprep.functions.popfunc.pop_select import pop_select
@@ -25,6 +27,8 @@ class TestPackageExports(unittest.TestCase):
         self.assertIs(eegprep.gui, gui)
         self.assertIs(eegprep.eeg_checkset, eeg_checkset)
         self.assertIs(eegprep.eeg_checkset_strict_mode, strict_mode)
+        self.assertIs(eegprep.pop_comments, pop_comments)
+        self.assertIs(eegprep.pop_editset, pop_editset)
         self.assertIs(eegprep.pop_epoch, pop_epoch)
         self.assertIs(eegprep.pop_rmbase, pop_rmbase)
         self.assertIs(eegprep.pop_select, pop_select)

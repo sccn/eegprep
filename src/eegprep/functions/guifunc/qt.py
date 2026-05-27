@@ -95,6 +95,9 @@ class QtDialogRenderer:
                 stretch = max(1, round(float(weight) * 100))
                 if control.style.lower() == "spacer":
                     row_layout.addStretch(stretch)
+                elif control.style.lower() == "textarea":
+                    row_layout.addWidget(widget, stretch)
+                    added_visible_widget = True
                 else:
                     row_layout.addWidget(widget, stretch, qt_core.Qt.AlignVCenter)
                     added_visible_widget = True
@@ -121,7 +124,7 @@ class QtDialogRenderer:
                 color: #000066;
                 font-size: 16px;
             }
-            QLabel, QCheckBox, QPushButton, QLineEdit, QComboBox, QListWidget {
+            QLabel, QCheckBox, QPushButton, QLineEdit, QTextEdit, QComboBox, QListWidget {
                 font-size: 16px;
             }
             QLabel, QCheckBox {
@@ -140,6 +143,11 @@ class QtDialogRenderer:
             QLineEdit:disabled {
                 background: #dce6ff;
                 color: #7c86a8;
+            }
+            QTextEdit {
+                background: white;
+                border: 1px solid #7f7f7f;
+                color: #000066;
             }
             QComboBox {
                 background: white;
@@ -204,6 +212,15 @@ class QtDialogRenderer:
                 min-height: 102px;
                 max-height: 102px;
             }
+            QDialog#pop_editset QLabel,
+            QDialog#pop_editset QLineEdit,
+            QDialog#pop_editset QPushButton {
+                font-size: 11px;
+            }
+            QDialog#pop_comments QPushButton {
+                min-height: 45px;
+                max-height: 45px;
+            }
             QCheckBox {
                 spacing: 4px;
             }
@@ -246,21 +263,30 @@ class QtDialogRenderer:
         button_layout = QtWidgets.QHBoxLayout(button_container)
         button_layout.setContentsMargins(0, 18, 0, 0)
         button_layout.setSpacing(16)
-        if spec.help_text:
+        if spec.help_text and spec.show_help_button:
             help_button = QtWidgets.QPushButton("Help")
             help_button.setObjectName("help")
             help_button.setFixedWidth(80)
             help_button.clicked.connect(lambda: QtDialogRenderer._show_help(QtWidgets, dialog, spec))
             button_layout.addWidget(help_button)
         button_layout.addStretch(1)
-        cancel_button = QtWidgets.QPushButton("Cancel")
-        ok_button = QtWidgets.QPushButton("OK")
+        cancel_button = QtWidgets.QPushButton(spec.cancel_label)
+        ok_button = QtWidgets.QPushButton(spec.ok_label)
         cancel_button.setObjectName("cancel")
         ok_button.setObjectName("ok")
-        cancel_button.setFixedWidth(80)
-        ok_button.setFixedWidth(80)
+        if spec.function_name == "pop_comments":
+            cancel_button.setFixedSize(150, 45)
+            ok_button.setFixedSize(150, 45)
+        else:
+            cancel_button.setFixedWidth(80)
+            ok_button.setFixedWidth(80)
         cancel_button.clicked.connect(dialog.reject)
         ok_button.clicked.connect(lambda: QtDialogRenderer._accept_if_valid(dialog, spec, widgets))
+        if spec.function_name == "pop_comments":
+            button_layout.insertWidget(0, cancel_button)
+            button_layout.addWidget(ok_button)
+            layout.addWidget(button_container)
+            return
         button_layout.addWidget(cancel_button)
         button_layout.addWidget(ok_button)
         layout.addWidget(button_container)
@@ -278,6 +304,8 @@ class QtDialogRenderer:
             widget = QtWidgets.QLabel(control.string)
         elif style == "edit":
             widget = QtWidgets.QLineEdit("" if value is None else str(value))
+        elif style == "textarea":
+            widget = QtWidgets.QTextEdit("" if value is None else str(value))
         elif style == "pushbutton":
             widget = QtWidgets.QPushButton(control.string)
         elif style == "checkbox":
@@ -338,6 +366,9 @@ class QtDialogRenderer:
         policy = QtWidgets.QSizePolicy
         if style in {"edit", "popupmenu", "listbox", "pushbutton"}:
             widget.setSizePolicy(policy.Expanding, policy.Fixed)
+            return
+        if style == "textarea":
+            widget.setSizePolicy(policy.Expanding, policy.Expanding)
             return
         if style in {"text", "checkbox"}:
             widget.setMinimumWidth(0)
@@ -717,6 +748,8 @@ class QtDialogRenderer:
             return widget.currentRow() + 1
         if hasattr(widget, "currentIndex"):
             return widget.currentIndex() + 1
+        if hasattr(widget, "toPlainText"):
+            return widget.toPlainText()
         if hasattr(widget, "text"):
             return widget.text()
         return None
