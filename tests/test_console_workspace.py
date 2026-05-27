@@ -355,6 +355,8 @@ def test_gui_action_without_command_releases_output_through_terminal_redraw():
     [
         ("pop_adjustevents", "eegprep.functions.popfunc.pop_adjustevents.pop_adjustevents"),
         ("pop_clean_rawdata", "eegprep.plugins.clean_rawdata.pop_clean_rawdata.pop_clean_rawdata"),
+        ("pop_comments", "eegprep.functions.popfunc.pop_comments.pop_comments"),
+        ("pop_editset", "eegprep.functions.popfunc.pop_editset.pop_editset"),
         ("pop_epoch", "eegprep.functions.popfunc.pop_epoch.pop_epoch"),
         ("pop_reref", "eegprep.functions.popfunc.pop_reref.pop_reref"),
         ("pop_interp", "eegprep.functions.popfunc.pop_interp.pop_interp"),
@@ -381,7 +383,7 @@ def test_gui_pop_action_warning_output_follows_echoed_command(action, patch_targ
     dispatcher = MenuActionDispatcher(session)
     command = f"EEG = {action}(EEG);"
 
-    def fake_pop(eeg, **kwargs):
+    def fake_pop(eeg, *args, **kwargs):
         assert kwargs["return_com"] is True
         warnings.warn("warning before command", RuntimeWarning, stacklevel=2)
         return dict(eeg, setname=action), command
@@ -868,6 +870,9 @@ def test_console_python_command_converts_common_eeglab_history_syntax():
         "EEG = pop_select(EEG, 'channel', [1 2], 'chantype', {'EEG' 'EOG'});",
         "LASTCOM = pop_export(EEG, '/tmp/demo''s data.tsv');",
         "EEG = pop_resample( EEG, 64);",
+        "EEG = pop_comments(EEG, '', 'sample notes');",
+        "comments = pop_comments(comments, '', {'second' 'third'}, 1);",
+        "EEG = pop_editset(EEG, 'setname', 'edited', 'subject', 'S01');",
         "EEG = pop_reref( EEG, [1], 'exclude', [4]);",
         "EEG = pop_reref( EEG, [], 'huber', 25);",
         "(ALLEEG, EEG, CURRENTSET) = pop_newset(ALLEEG, EEG, CURRENTSET, retrieve=3)",
@@ -881,6 +886,9 @@ def test_console_python_command_converts_common_eeglab_history_syntax():
         "EEG = pop_select(EEG, channel=[1, 2], chantype=['EEG', 'EOG'])",
         'LASTCOM = pop_export(EEG, filename="/tmp/demo\'s data.tsv")',
         "EEG = pop_resample(EEG, freq=64)",
+        "EEG = pop_comments(EEG, plottitle='', newcomments='sample notes')",
+        "comments = pop_comments(EEG=comments, plottitle='', newcomments=['second', 'third'], concat=1)",
+        "EEG = pop_editset(EEG, setname='edited', subject='S01')",
         "EEG = pop_reref(EEG, ref=[0], exclude=[3])",
         "EEG = pop_reref(EEG, ref=[], huber=25)",
         "ALLEEG, EEG, CURRENTSET = pop_newset(ALLEEG, EEG, CURRENTSET, retrieve=3)",

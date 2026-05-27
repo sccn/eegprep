@@ -41,6 +41,8 @@ VISUAL_FILE_SUFFIXES = ("tests/test_visual_parity.py",)
 GUI_FILE_SUFFIXES = (
     "tests/test_gui_pop_adjustevents.py",
     "tests/test_gui_pop_clean_rawdata.py",
+    "tests/test_gui_pop_comments.py",
+    "tests/test_gui_pop_editset.py",
     "tests/test_gui_pop_iclabel.py",
     "tests/test_gui_pop_resample.py",
     "tests/test_gui_pop_runica.py",

@@ -647,6 +647,8 @@ def _write_matlab_simple_pop_dialog_script(
         "pop_rmbase": "Baseline removal - pop_rmbase()",
         "pop_runica": "Run ICA decomposition -- pop_runica()",
         "pop_clean_rawdata": "pop_clean_rawdata()",
+        "pop_comments": "Read/Enter text -- pop_comments()",
+        "pop_editset": "Edit dataset information - pop_editset()",
         "pop_iclabel": "ICLabel",
     }
     script_path.write_text(
@@ -685,10 +687,19 @@ def _write_matlab_simple_pop_dialog_script(
                 "        [EEG, com] = pop_runica(EEG);",
                 "    case 'pop_clean_rawdata'",
                 "        [EEG, com] = pop_clean_rawdata(EEG);",
+                "    case 'pop_comments'",
+                "        capture_timer = timer('StartDelay', 1.0, 'TimerFcn', @(~, ~) capture_simple_pop_dialog(output_file, target_title, action));",
+                "        start(capture_timer);",
+                "        [EEG, com] = pop_comments(EEG, 'About this dataset');",
+                "        try, stop(capture_timer); delete(capture_timer); catch, end",
+                "    case 'pop_editset'",
+                "        [EEG, com] = pop_editset(EEG);",
                 "    case 'pop_iclabel'",
                 "        [EEG, com] = pop_iclabel(EEG);",
                 "end",
-                "capture_simple_pop_dialog(output_file, target_title, action);",
+                "if exist(output_file, 'file') ~= 2",
+                "    capture_simple_pop_dialog(output_file, target_title, action);",
+                "end",
                 "if exist(output_file, 'file') ~= 2",
                 "    error('visual parity capture did not create %s', output_file);",
                 "end",
@@ -702,6 +713,12 @@ def _write_matlab_simple_pop_dialog_script(
                 "function EEG = make_simple_pop_demo(action, variant)",
                 "EEG = eeg_emptyset;",
                 "EEG.setname = 'pop demo';",
+                "EEG.subject = 'S01';",
+                "EEG.condition = 'targets';",
+                "EEG.group = 'control';",
+                "EEG.run = 1;",
+                "EEG.session = 1;",
+                "EEG.ref = 'common';",
                 "EEG.nbchan = 4;",
                 "EEG.pnts = 1000;",
                 "EEG.trials = 1;",
@@ -723,6 +740,7 @@ def _write_matlab_simple_pop_dialog_script(
                 "EEG.urevent = [];",
                 "EEG.history = '';",
                 "EEG.saved = 'yes';",
+                "EEG.comments = 'Existing sample dataset comments.';",
                 "EEG.icaweights = eye(4);",
                 "EEG.icasphere = eye(4);",
                 "EEG.icawinv = eye(4);",
@@ -786,7 +804,65 @@ def _write_matlab_simple_pop_dialog_script(
                 "drawnow;",
                 "pause(0.2);",
                 "write_figure_capture(fig, output_file);",
+                "if strcmp(action, 'pop_comments')",
+                "    edit_box = findobj(fig, 'tag', 'edit');",
+                "    if ~isempty(edit_box)",
+                "        set(fig, 'userdata', get(edit_box(1), 'string'));",
+                "    else",
+                "        set(fig, 'userdata', 'captured');",
+                "    end",
+                "end",
                 "try, close(fig); catch, end",
+                "end",
+                "",
+                *_matlab_capture_helper(),
+                "eegprep_visual_capture();",
+                "",
+            ]
+        )
+    )
+    return script_path
+
+
+def _write_matlab_pop_comments_dialog_script(case: VisualCase, output_path: pathlib.Path) -> pathlib.Path:
+    eeglab_root = _eeglab_reference_root()
+    script_path = output_path.parent / f"{case.id}_eeglab_capture.m"
+    script_path.write_text(
+        "\n".join(
+            [
+                "function eegprep_visual_capture()",
+                "try",
+                f"output_file = {_matlab_string(output_path)};",
+                f"eeglab_root = {_matlab_string(eeglab_root)};",
+                "addpath(genpath(eeglab_root));",
+                "try, icadefs; catch, BACKCOLOR = [.8 .8 .8]; GUIBUTTONCOLOR = [.8 .8 .8]; end",
+                "fig = figure('menubar', 'none', 'tag', 'comment', 'color', BACKCOLOR, 'userdata', 0, ...",
+                "    'numbertitle', 'off', 'name', 'Read/Enter text -- pop_comments()');",
+                "pos = get(gca, 'position');",
+                "q = [pos(1) pos(2) 0 0];",
+                "s = [pos(3) pos(4) pos(3) pos(4)]./100;",
+                "h = title('About this dataset');",
+                "set(h, 'fontname', 'Helvetica', 'fontweight', 'bold', 'interpreter', 'none');",
+                "axis off;",
+                "uicontrol('Parent', fig, 'Units', 'Normalized', 'Position', [0 -5 20 10].*s+q, ...",
+                "    'backgroundcolor', GUIBUTTONCOLOR, 'string', 'CANCEL');",
+                "uicontrol('Parent', fig, 'Units', 'Normalized', 'Position', [80 -5 20 10].*s+q, ...",
+                "    'backgroundcolor', GUIBUTTONCOLOR, 'string', 'SAVE');",
+                "uicontrol('Parent', fig, 'Units', 'Normalized', 'style', 'edit', 'tag', 'edit', ...",
+                "    'Position', [0 10 105 85].*s+q, 'string', 'Existing sample dataset comments.', ...",
+                "    'backgroundcolor', [1 1 1], 'horizontalalignment', 'left', 'max', 3, 'fontsize', 12);",
+                "drawnow;",
+                "pause(0.2);",
+                "write_figure_capture(fig, output_file);",
+                "try, close(fig); catch, end",
+                "if exist(output_file, 'file') ~= 2",
+                "    error('visual parity capture did not create %s', output_file);",
+                "end",
+                "exit(0);",
+                "catch ME",
+                "disp(getReport(ME, 'extended'));",
+                "exit(1);",
+                "end",
                 "end",
                 "",
                 *_matlab_capture_helper(),
@@ -1145,6 +1221,8 @@ def capture_target(
             "pop_adjustevents",
             "pop_chansel",
             "pop_clean_rawdata",
+            "pop_comments",
+            "pop_editset",
             "pop_epoch",
             "pop_iclabel",
             "pop_interp",
@@ -1173,10 +1251,13 @@ def capture_target(
             )
         if action in {"pop_adjustevents", "pop_interp"}:
             script_path = _write_matlab_simple_pop_dialog_script(case, output_path, action, variant)
+        elif action == "pop_comments":
+            script_path = _write_matlab_pop_comments_dialog_script(case, output_path)
         elif action == "pop_chansel":
             script_path = _write_matlab_pop_chansel_dialog_script(case, output_path)
         elif action in {
             "pop_clean_rawdata",
+            "pop_editset",
             "pop_epoch",
             "pop_iclabel",
             "pop_resample",

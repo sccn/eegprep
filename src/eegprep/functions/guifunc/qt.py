@@ -68,7 +68,7 @@ class QtDialogRenderer:
         dialog = qt_widgets.QDialog()
         dialog.setObjectName(spec.function_name)
         dialog.setWindowTitle(spec.title)
-        self._apply_eeglab_style(dialog)
+        self._apply_eeglab_style(dialog, spec)
         layout = qt_widgets.QVBoxLayout(dialog)
         layout.setContentsMargins(*spec.content_margins)
         layout.setSpacing(spec.row_spacing)
@@ -95,6 +95,9 @@ class QtDialogRenderer:
                 stretch = max(1, round(float(weight) * 100))
                 if control.style.lower() == "spacer":
                     row_layout.addStretch(stretch)
+                elif control.style.lower() == "textarea":
+                    row_layout.addWidget(widget, stretch)
+                    added_visible_widget = True
                 else:
                     row_layout.addWidget(widget, stretch, qt_core.Qt.AlignVCenter)
                     added_visible_widget = True
@@ -113,15 +116,14 @@ class QtDialogRenderer:
         return app, dialog, widgets
 
     @staticmethod
-    def _apply_eeglab_style(dialog: Any) -> None:
-        dialog.setStyleSheet(
-            """
+    def _apply_eeglab_style(dialog: Any, spec: DialogSpec) -> None:
+        base_stylesheet = """
             QDialog {
                 background: #a8c2ff;
                 color: #000066;
                 font-size: 16px;
             }
-            QLabel, QCheckBox, QPushButton, QLineEdit, QComboBox, QListWidget {
+            QLabel, QCheckBox, QPushButton, QLineEdit, QTextEdit, QComboBox, QListWidget {
                 font-size: 16px;
             }
             QLabel, QCheckBox {
@@ -140,6 +142,11 @@ class QtDialogRenderer:
             QLineEdit:disabled {
                 background: #dce6ff;
                 color: #7c86a8;
+            }
+            QTextEdit {
+                background: white;
+                border: 1px solid #7f7f7f;
+                color: #000066;
             }
             QComboBox {
                 background: white;
@@ -216,7 +223,7 @@ class QtDialogRenderer:
                 border: 1px solid #7f7f7f;
             }
             """
-        )
+        dialog.setStyleSheet(base_stylesheet + (spec.extra_stylesheet or ""))
 
     @staticmethod
     def _row_weights(row_geometry: Any) -> list[float]:
@@ -246,23 +253,31 @@ class QtDialogRenderer:
         button_layout = QtWidgets.QHBoxLayout(button_container)
         button_layout.setContentsMargins(0, 18, 0, 0)
         button_layout.setSpacing(16)
-        if spec.help_text:
+        if spec.help_text and spec.show_help_button:
             help_button = QtWidgets.QPushButton("Help")
             help_button.setObjectName("help")
             help_button.setFixedWidth(80)
             help_button.clicked.connect(lambda: QtDialogRenderer._show_help(QtWidgets, dialog, spec))
             button_layout.addWidget(help_button)
         button_layout.addStretch(1)
-        cancel_button = QtWidgets.QPushButton("Cancel")
-        ok_button = QtWidgets.QPushButton("OK")
+        cancel_button = QtWidgets.QPushButton(spec.cancel_label)
+        ok_button = QtWidgets.QPushButton(spec.ok_label)
         cancel_button.setObjectName("cancel")
         ok_button.setObjectName("ok")
-        cancel_button.setFixedWidth(80)
-        ok_button.setFixedWidth(80)
+        if spec.button_size is not None:
+            cancel_button.setFixedSize(*spec.button_size)
+            ok_button.setFixedSize(*spec.button_size)
+        else:
+            cancel_button.setFixedWidth(80)
+            ok_button.setFixedWidth(80)
         cancel_button.clicked.connect(dialog.reject)
         ok_button.clicked.connect(lambda: QtDialogRenderer._accept_if_valid(dialog, spec, widgets))
-        button_layout.addWidget(cancel_button)
-        button_layout.addWidget(ok_button)
+        if spec.cancel_first:
+            button_layout.insertWidget(0, cancel_button)
+            button_layout.addWidget(ok_button)
+        else:
+            button_layout.addWidget(cancel_button)
+            button_layout.addWidget(ok_button)
         layout.addWidget(button_container)
 
     @staticmethod
@@ -278,6 +293,8 @@ class QtDialogRenderer:
             widget = QtWidgets.QLabel(control.string)
         elif style == "edit":
             widget = QtWidgets.QLineEdit("" if value is None else str(value))
+        elif style == "textarea":
+            widget = QtWidgets.QTextEdit("" if value is None else str(value))
         elif style == "pushbutton":
             widget = QtWidgets.QPushButton(control.string)
         elif style == "checkbox":
@@ -338,6 +355,9 @@ class QtDialogRenderer:
         policy = QtWidgets.QSizePolicy
         if style in {"edit", "popupmenu", "listbox", "pushbutton"}:
             widget.setSizePolicy(policy.Expanding, policy.Fixed)
+            return
+        if style == "textarea":
+            widget.setSizePolicy(policy.Expanding, policy.Expanding)
             return
         if style in {"text", "checkbox"}:
             widget.setMinimumWidth(0)
@@ -717,6 +737,8 @@ class QtDialogRenderer:
             return widget.currentRow() + 1
         if hasattr(widget, "currentIndex"):
             return widget.currentIndex() + 1
+        if hasattr(widget, "toPlainText"):
+            return widget.toPlainText()
         if hasattr(widget, "text"):
             return widget.text()
         return None

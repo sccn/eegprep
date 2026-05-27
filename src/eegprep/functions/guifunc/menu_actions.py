@@ -30,6 +30,8 @@ IMPLEMENTED_ACTIONS = {
     "pop_chanevent",
     "pop_clean_rawdata",
     "pop_delset",
+    "pop_comments",
+    "pop_editset",
     "pop_editoptions",
     "pop_epoch",
     "pop_eventinfo",
@@ -226,6 +228,12 @@ class MenuActionDispatcher:
             return
         if base == "pop_adjustevents":
             self._run_pop_function("pop_adjustevents", parent)
+            return
+        if base == "pop_comments":
+            self._run_pop_function("pop_comments", parent)
+            return
+        if base == "pop_editset":
+            self._run_pop_function("pop_editset", parent)
             return
         if base == "pop_clean_rawdata":
             self._run_pop_function("pop_clean_rawdata", parent)
@@ -653,6 +661,14 @@ class MenuActionDispatcher:
             from eegprep.functions.popfunc.pop_adjustevents import pop_adjustevents
 
             out = pop_adjustevents(selection, return_com=True)
+        elif name == "pop_comments":
+            from eegprep.functions.popfunc.pop_comments import pop_comments
+
+            out = pop_comments(selection, "About this dataset", return_com=True)
+        elif name == "pop_editset":
+            from eegprep.functions.popfunc.pop_editset import pop_editset
+
+            out = pop_editset(selection, return_com=True)
         elif name == "pop_clean_rawdata":
             from eegprep.plugins.clean_rawdata.pop_clean_rawdata import pop_clean_rawdata
 

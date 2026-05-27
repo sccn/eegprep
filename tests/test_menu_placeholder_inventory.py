@@ -36,7 +36,7 @@ def test_no_implemented_action_remains_marked_as_placeholder():
 
 
 def test_placeholder_inventory_classifies_representative_phase_work():
-    assert placeholder_metadata("pop_editset").phase == "1b"
+    assert placeholder_metadata("pop_editeventfield").phase == "1b"
     assert placeholder_metadata("pop_eegfilt").phase == "2"
     assert placeholder_metadata("pop_rejchan").phase == "3"
     assert placeholder_metadata("pop_spectopo").phase == "4"
