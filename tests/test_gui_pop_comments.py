@@ -16,6 +16,8 @@ class PopCommentsGuiSpecTests(unittest.TestCase):
         self.assertFalse(spec.show_help_button)
         self.assertEqual(spec.cancel_label, "CANCEL")
         self.assertEqual(spec.ok_label, "SAVE")
+        self.assertEqual(spec.button_size, (150, 45))
+        self.assertTrue(spec.cancel_first)
         self.assertEqual(
             [(control.style, control.string, control.tag) for control in spec.controls],
             [

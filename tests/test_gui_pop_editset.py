@@ -28,6 +28,9 @@ class PopEditsetGuiSpecTests(unittest.TestCase):
         self.assertEqual(spec.function_name, "pop_editset")
         self.assertEqual(spec.eeglab_source, "functions/popfunc/pop_editset.m")
         self.assertEqual(spec.size, (688, 389))
+        self.assertIsNotNone(spec.extra_stylesheet)
+        self.assertIn("QDialog#pop_editset QLabel", spec.extra_stylesheet or "")
+        self.assertIn("fields are visible for parity but disabled", spec.known_differences[0])
         self.assertEqual(
             [(control.style, control.string, control.tag) for control in spec.controls[:24]],
             [

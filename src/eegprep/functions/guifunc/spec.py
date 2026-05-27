@@ -47,6 +47,9 @@ class DialogSpec:
     show_help_button: bool = True
     ok_label: str = "OK"
     cancel_label: str = "Cancel"
+    button_size: tuple[int, int] | None = None
+    cancel_first: bool = False
+    extra_stylesheet: str | None = None
     known_differences: tuple[str, ...] = ()
     content_margins: tuple[int, int, int, int] = (42, 17, 42, 13)
     row_spacing: int = 4

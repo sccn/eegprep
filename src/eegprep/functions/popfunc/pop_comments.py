@@ -28,7 +28,7 @@ def pop_comments(
     EEG dictionary. Passing a string/list returns the edited comment text.
     """
     is_eeg = isinstance(EEG, dict)
-    original = copy.deepcopy(EEG) if is_eeg else EEG
+    original = copy.copy(EEG) if is_eeg else EEG
     old_text = _comments_to_text(EEG.get("comments", "") if is_eeg else EEG)
     if gui is None:
         gui = newcomments is None
@@ -78,6 +78,8 @@ def pop_comments_dialog_spec(title: str = "", comments: str = "") -> DialogSpec:
         show_help_button=False,
         ok_label="SAVE",
         cancel_label="CANCEL",
+        button_size=(150, 45),
+        cancel_first=True,
         controls=tuple(controls),
         known_differences=("EEGPrep renders the editable comment area with Qt QTextEdit.", display_title),
     )
@@ -113,10 +115,17 @@ def _truthy_concat(value: bool | int) -> bool:
 
 def _history_command(newcomments: str, *, concat: bool, is_eeg: bool) -> str:
     target = "EEG" if is_eeg else "comments"
-    command = f"{target} = pop_comments({target}, '', {format_history_value(newcomments)}"
+    command = f"{target} = pop_comments({target}, '', {_history_comments_value(newcomments)}"
     if concat:
         command += ", 1"
     return command + ");"
+
+
+def _history_comments_value(comments: str) -> str:
+    if "\n" not in comments:
+        return format_history_value(comments)
+    lines = [line if line else " " for line in comments.split("\n")]
+    return format_history_value(lines, cell_for_sequence="always")
 
 
 __all__ = ["pop_comments", "pop_comments_dialog_spec"]

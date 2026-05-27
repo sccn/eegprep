@@ -68,7 +68,7 @@ class QtDialogRenderer:
         dialog = qt_widgets.QDialog()
         dialog.setObjectName(spec.function_name)
         dialog.setWindowTitle(spec.title)
-        self._apply_eeglab_style(dialog)
+        self._apply_eeglab_style(dialog, spec)
         layout = qt_widgets.QVBoxLayout(dialog)
         layout.setContentsMargins(*spec.content_margins)
         layout.setSpacing(spec.row_spacing)
@@ -116,9 +116,8 @@ class QtDialogRenderer:
         return app, dialog, widgets
 
     @staticmethod
-    def _apply_eeglab_style(dialog: Any) -> None:
-        dialog.setStyleSheet(
-            """
+    def _apply_eeglab_style(dialog: Any, spec: DialogSpec) -> None:
+        base_stylesheet = """
             QDialog {
                 background: #a8c2ff;
                 color: #000066;
@@ -212,15 +211,6 @@ class QtDialogRenderer:
                 min-height: 102px;
                 max-height: 102px;
             }
-            QDialog#pop_editset QLabel,
-            QDialog#pop_editset QLineEdit,
-            QDialog#pop_editset QPushButton {
-                font-size: 11px;
-            }
-            QDialog#pop_comments QPushButton {
-                min-height: 45px;
-                max-height: 45px;
-            }
             QCheckBox {
                 spacing: 4px;
             }
@@ -233,7 +223,7 @@ class QtDialogRenderer:
                 border: 1px solid #7f7f7f;
             }
             """
-        )
+        dialog.setStyleSheet(base_stylesheet + (spec.extra_stylesheet or ""))
 
     @staticmethod
     def _row_weights(row_geometry: Any) -> list[float]:
@@ -274,21 +264,20 @@ class QtDialogRenderer:
         ok_button = QtWidgets.QPushButton(spec.ok_label)
         cancel_button.setObjectName("cancel")
         ok_button.setObjectName("ok")
-        if spec.function_name == "pop_comments":
-            cancel_button.setFixedSize(150, 45)
-            ok_button.setFixedSize(150, 45)
+        if spec.button_size is not None:
+            cancel_button.setFixedSize(*spec.button_size)
+            ok_button.setFixedSize(*spec.button_size)
         else:
             cancel_button.setFixedWidth(80)
             ok_button.setFixedWidth(80)
         cancel_button.clicked.connect(dialog.reject)
         ok_button.clicked.connect(lambda: QtDialogRenderer._accept_if_valid(dialog, spec, widgets))
-        if spec.function_name == "pop_comments":
+        if spec.cancel_first:
             button_layout.insertWidget(0, cancel_button)
             button_layout.addWidget(ok_button)
-            layout.addWidget(button_container)
-            return
-        button_layout.addWidget(cancel_button)
-        button_layout.addWidget(ok_button)
+        else:
+            button_layout.addWidget(cancel_button)
+            button_layout.addWidget(ok_button)
         layout.addWidget(button_container)
 
     @staticmethod

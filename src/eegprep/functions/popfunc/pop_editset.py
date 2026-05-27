@@ -51,11 +51,11 @@ def pop_editset(
     if gui:
         result = inputgui(pop_editset_dialog_spec(EEG), renderer=renderer)
         if result is None:
-            original = copy.deepcopy(EEG)
+            original = copy.copy(EEG)
             return (original, "") if return_com else original
         options = _changed_options_from_gui(EEG, result)
         if not options:
-            original = copy.deepcopy(EEG)
+            original = copy.copy(EEG)
             return (original, "") if return_com else original
 
     unknown = sorted(set(options) - _SUPPORTED_FIELDS)
@@ -73,7 +73,7 @@ def pop_editset(
 
     if "xmin" in options:
         _adjust_event_latencies_for_xmin_change(output, old_xmin, old_srate)
-    _normalize_data_dimensions(output)
+    _normalize_data_dimensions(output, strict_pnts="pnts" in options)
     _normalize_ica_index_field(output)
     _refresh_time_fields(output)
     output = eeg_checkset(output)
@@ -153,8 +153,15 @@ def pop_editset_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("spacer"),
         ),
         known_differences=(
-            "Channel-location and ICA file pickers are visible for parity but disabled until later Phase 1b channel workflows.",
+            "Channel-location and ICA file pickers and fields are visible for parity but disabled until later Phase 1b channel workflows.",
         ),
+        extra_stylesheet="""
+            QDialog#pop_editset QLabel,
+            QDialog#pop_editset QLineEdit,
+            QDialog#pop_editset QPushButton {
+                font-size: 11px;
+            }
+        """,
     )
 
 
@@ -278,7 +285,7 @@ def _clear_ica_fields(output: dict[str, Any]) -> None:
         output[key] = np.array([])
 
 
-def _normalize_data_dimensions(output: dict[str, Any]) -> None:
+def _normalize_data_dimensions(output: dict[str, Any], *, strict_pnts: bool) -> None:
     data = output.get("data")
     if isinstance(data, str) or data is None:
         return
@@ -301,6 +308,8 @@ def _normalize_data_dimensions(output: dict[str, Any]) -> None:
     if data.ndim == 2 and pnts > 1:
         frames = int(data.shape[1])
         if frames % pnts:
+            if strict_pnts:
+                raise ValueError(f"pnts={pnts} does not evenly divide {frames} data frames")
             if trials > 1 and frames // pnts > 0:
                 trials = frames // pnts
                 data = data[:, : trials * pnts]
@@ -313,6 +322,8 @@ def _normalize_data_dimensions(output: dict[str, Any]) -> None:
             data = _continuous_to_epoched(data, pnts, trials)
 
     if data.ndim == 3:
+        if strict_pnts and int(data.shape[1]) != pnts:
+            raise ValueError(f"pnts={pnts} does not match the data epoch length {data.shape[1]}")
         pnts = int(data.shape[1])
         trials = int(data.shape[2])
     output["data"] = data
@@ -380,12 +391,12 @@ def _history_command(options: Mapping[str, Any]) -> str:
 def _history_value(value: Any) -> str:
     if _is_empty_value(value):
         return "[]"
+    if isinstance(value, np.ndarray) and value.dtype == object:
+        value = value.tolist()
     if isinstance(value, Mapping):
         raise NotImplementedError("pop_editset history cannot serialize mapping values yet")
     if isinstance(value, (list, tuple)) and any(isinstance(item, Mapping) for item in value):
         raise NotImplementedError("pop_editset history cannot serialize channel-location structures yet")
-    if isinstance(value, np.ndarray) and value.dtype == object:
-        value = value.tolist()
     return format_history_value(value)
 
 

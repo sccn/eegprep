@@ -46,7 +46,7 @@ def test_pop_comments_concatenates_string_comments():
     out, com = pop_comments("first", "", ["second", "third"], 1, return_com=True)
 
     assert out == "first\nsecond\nthird"
-    assert com == "comments = pop_comments(comments, '', 'second\nthird', 1);"
+    assert com == "comments = pop_comments(comments, '', {'second' 'third'}, 1);"
 
 
 def test_pop_comments_concat_accepts_only_eeglab_numeric_flag():

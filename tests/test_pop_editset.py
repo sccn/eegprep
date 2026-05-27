@@ -214,13 +214,11 @@ def test_pop_editset_pnts_metadata_keeps_data_dimensions_consistent():
     eeg = _eeg()
 
     epoched = pop_editset(eeg, "pnts", 5)
-    corrected = pop_editset(eeg, "pnts", 7)
 
     assert epoched["data"].shape == (2, 5, 4)
     assert epoched["trials"] == 4
-    assert corrected["data"].shape == (2, 20)
-    assert corrected["pnts"] == 20
-    assert corrected["trials"] == 1
+    with pytest.raises(ValueError, match="pnts=7"):
+        pop_editset(eeg, "pnts", 7)
 
 
 def test_pop_editset_history_rejects_unserializable_channel_structures():
@@ -231,6 +229,8 @@ def test_pop_editset_history_rejects_unserializable_channel_structures():
     assert list(out["chanlocs"])[0]["labels"] == "Fz"
     with pytest.raises(NotImplementedError, match="channel-location"):
         pop_editset(eeg, "chanlocs", [{"labels": "Fz"}], return_com=True)
+    with pytest.raises(NotImplementedError, match="channel-location"):
+        pop_editset(eeg, "chanlocs", np.array([{"labels": "Fz"}], dtype=object), return_com=True)
 
 
 def test_pop_editset_rejects_unsupported_file_workspace_expressions():
