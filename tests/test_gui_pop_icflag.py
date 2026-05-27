@@ -98,6 +98,14 @@ class PopIcflagGuiTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Run pop_iclabel first"):
             pop_icflag(eeg, DEFAULT_ICFLAG_THRESHOLDS)
 
+    def test_missing_iclabel_in_dataset_list_raises_clear_error(self):
+        eeg = _eeg()
+        missing = _eeg()
+        missing["etc"] = {}
+
+        with self.assertRaisesRegex(ValueError, "Run pop_iclabel first"):
+            pop_icflag([eeg, missing], DEFAULT_ICFLAG_THRESHOLDS)
+
 
 if __name__ == "__main__":
     unittest.main()

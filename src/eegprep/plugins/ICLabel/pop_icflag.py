@@ -62,14 +62,18 @@ def pop_icflag(
     thresholds = _normalize_thresholds(thresholds)
 
     if isinstance(EEG, list):
-        output = [pop_icflag(item, thresholds, gui=False, return_com=False) for item in EEG]
+        output = [_flag_dataset(item, thresholds) for item in EEG]
         command = _history_command(thresholds)
         return (output, command) if return_com else output
 
-    _require_iclabel(EEG)
-    output = eeg_icflag(copy.deepcopy(EEG), thresholds)
+    output = _flag_dataset(EEG, thresholds)
     command = _history_command(thresholds)
     return (output, command) if return_com else output
+
+
+def _flag_dataset(EEG: dict, thresholds: np.ndarray) -> dict:
+    _require_iclabel(EEG)
+    return eeg_icflag(copy.deepcopy(EEG), thresholds)
 
 
 def pop_icflag_dialog_spec() -> DialogSpec:

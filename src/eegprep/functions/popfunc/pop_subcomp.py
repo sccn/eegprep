@@ -51,8 +51,9 @@ def pop_subcomp(
         keepcomp = result["keepcomp"]
 
     if isinstance(EEG, list):
-        outputs = [pop_subcomp(item, components, plotag, keepcomp, gui=False, return_com=False) for item in EEG]
-        command = _history_command(components, plotag, keepcomp)
+        results = [pop_subcomp(item, components, plotag, keepcomp, gui=False, return_com=True) for item in EEG]
+        outputs = [result[0] for result in results]
+        command = _history_command(components, plotag, keepcomp) if any(result[1] for result in results) else ""
         return (outputs, command) if return_com else outputs
 
     output, removed = _remove_components(EEG, components, keepcomp)
@@ -87,8 +88,6 @@ def pop_subcomp_dialog_spec(EEG: dict | list[dict]) -> DialogSpec:
 
 
 def _run_gui(EEG: dict | list[dict], renderer: Any | None = None) -> dict[str, Any] | None:
-    if isinstance(EEG, list) and not any(_flagged_components(item) for item in EEG):
-        raise ValueError("No components are flagged for rejection. Flag components first or pass components.")
     result = inputgui(pop_subcomp_dialog_spec(EEG), renderer=renderer)
     if result is None:
         return None
@@ -113,7 +112,7 @@ def _remove_components(EEG: dict, components: Any, keepcomp: int | bool) -> tupl
     icachansind = _icachansind(output)
     data = np.asarray(output["data"])
     data_shape = data.shape
-    data_2d = data.reshape(data_shape[0], -1)
+    data_2d = data.reshape(data_shape[0], -1, order="F")
 
     weights = np.asarray(output["icaweights"], dtype=float)
     sphere = np.asarray(output["icasphere"], dtype=float)
@@ -127,14 +126,15 @@ def _remove_components(EEG: dict, components: Any, keepcomp: int | bool) -> tupl
 
     cleaned = data_2d.copy()
     cleaned[icachansind] = projected
-    output["data"] = cleaned.reshape(data_shape)
+    output["data"] = cleaned.reshape(data_shape, order="F")
     output["setname"] = f"{output.get('setname', '')} pruned with ICA".strip()
     output["icaact"] = np.array([])
     output["icaweights"] = weights[keep_mask, :]
     output["icawinv"] = mixing[:, keep_mask]
     output["specicaact"] = np.array([])
     output["specdata"] = np.array([])
-    output["reject"] = {}
+    output["reject"] = dict(output.get("reject") or {})
+    output["reject"]["gcompreject"] = np.zeros(int(keep_mask.sum()), dtype=int)
     _trim_iclabel_classifications(output, keep_mask)
     _trim_dipfit_model(output, keep_mask)
     return output, True
@@ -166,7 +166,28 @@ def _parse_components_text(text: Any) -> list[int] | None:
     values = [value for value in re.split(r"[\s,]+", str(text).strip().strip("[]")) if value]
     if not values:
         return None
-    return [int(value) for value in values]
+    parsed: list[int] = []
+    for value in values:
+        parsed.extend(_parse_component_token(value))
+    return parsed
+
+
+def _parse_component_token(value: str) -> list[int]:
+    if ":" not in value:
+        return [int(value)]
+    parts = [int(part) for part in value.split(":")]
+    if len(parts) == 2:
+        start, stop = parts
+        step = 1
+    elif len(parts) == 3:
+        start, step, stop = parts
+    else:
+        raise ValueError("Component ranges must use start:stop or start:step:stop")
+    if step == 0:
+        raise ValueError("Component range step cannot be zero")
+    if (step > 0 and start > stop) or (step < 0 and start < stop):
+        return []
+    return list(range(start, stop + (1 if step > 0 else -1), step))
 
 
 def _flagged_components(EEG: dict) -> list[int]:
