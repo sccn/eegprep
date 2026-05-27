@@ -307,7 +307,8 @@ class MainMenuSpecTests(unittest.TestCase):
         self.assertEqual(action_kind("pop_clean_rawdata"), "implemented")
         self.assertEqual(action_kind("pop_runica"), "implemented")
         self.assertEqual(action_kind("pop_iclabel"), "implemented")
-        self.assertEqual(action_kind("pop_subcomp"), "placeholder")
+        self.assertEqual(action_kind("pop_icflag"), "implemented")
+        self.assertEqual(action_kind("pop_subcomp"), "implemented")
         self.assertEqual(action_kind("pop_exportbids"), "implemented")
         self.assertEqual(action_kind("select_multiple_datasets"), "placeholder")
         self.assertEqual(action_kind("topoplot:labels"), "placeholder")
@@ -425,16 +426,8 @@ class EEGPrepSessionTests(unittest.TestCase):
 
 
 class MenuActionDispatcherTests(unittest.TestCase):
-    def test_pop_subcomp_menu_action_uses_placeholder_until_gui_flow_exists(self):
-        dispatcher = MenuActionDispatcher(EEGPrepSession())
-
-        with mock.patch.object(dispatcher, "show_coming_soon") as coming_soon:
-            dispatcher.dispatch("pop_subcomp")
-
-        coming_soon.assert_called_once_with("pop_subcomp", None)
-
     def test_placeholder_message_is_user_facing(self):
-        message = placeholder_message("pop_subcomp")
+        message = placeholder_message("pop_selectcomps")
 
         self.assertIn("not yet available in EEGPrep", message)
         self.assertIn("https://github.com/sccn/eegprep/issues", message)

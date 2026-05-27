@@ -79,6 +79,7 @@ _LAZY_EXPORTS = {
     "pop_export": ("eegprep.functions.popfunc.pop_export", "pop_export"),
     "pop_exportbids": ("eegprep.plugins.EEG_BIDS.pop_exportbids", "pop_exportbids"),
     "pop_fileio": ("eegprep.functions.popfunc.pop_fileio", "pop_fileio"),
+    "pop_icflag": ("eegprep.plugins.ICLabel.pop_icflag", "pop_icflag"),
     "pop_iclabel": ("eegprep.plugins.ICLabel.pop_iclabel", "pop_iclabel"),
     "pop_importbids": ("eegprep.plugins.EEG_BIDS.pop_importbids", "pop_importbids"),
     "pop_importdata": ("eegprep.functions.popfunc.pop_importdata", "pop_importdata"),

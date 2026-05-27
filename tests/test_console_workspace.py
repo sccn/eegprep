@@ -364,6 +364,8 @@ def test_gui_action_without_command_releases_output_through_terminal_redraw():
         ("pop_runica", "eegprep.functions.popfunc.pop_runica.pop_runica"),
         ("pop_select", "eegprep.functions.popfunc.pop_select.pop_select"),
         ("pop_iclabel", "eegprep.plugins.ICLabel.pop_iclabel.pop_iclabel"),
+        ("pop_icflag", "eegprep.plugins.ICLabel.pop_icflag.pop_icflag"),
+        ("pop_subcomp", "eegprep.functions.popfunc.pop_subcomp.pop_subcomp"),
     ],
 )
 def test_gui_pop_action_warning_output_follows_echoed_command(action, patch_target):

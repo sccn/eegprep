@@ -24,6 +24,8 @@ from eegprep.functions.popfunc.pop_resample import pop_resample_dialog_spec
 from eegprep.functions.popfunc.pop_rmbase import pop_rmbase_dialog_spec
 from eegprep.functions.popfunc.pop_runica import pop_runica_dialog_spec
 from eegprep.functions.popfunc.pop_select import pop_select_dialog_spec
+from eegprep.functions.popfunc.pop_subcomp import pop_subcomp_dialog_spec
+from eegprep.plugins.ICLabel.pop_icflag import pop_icflag_dialog_spec
 from eegprep.plugins.ICLabel.pop_iclabel import pop_iclabel_dialog_spec
 from eegprep.plugins.clean_rawdata.pop_clean_rawdata import pop_clean_rawdata_dialog_spec
 
@@ -423,6 +425,24 @@ def capture_pop_iclabel_dialog(output: pathlib.Path) -> None:
     _grab_dialog(dialog, output, app)
 
 
+def capture_pop_icflag_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_icflag dialog."""
+    spec = pop_icflag_dialog_spec()
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_subcomp_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_subcomp dialog."""
+    eeg = _demo_main_eeg()
+    eeg["reject"] = {"gcompreject": np.zeros(4, dtype=int)}
+    spec = pop_subcomp_dialog_spec(eeg)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
 def capture_pop_clean_rawdata_dialog(output: pathlib.Path) -> None:
     """Render and capture the pop_clean_rawdata dialog."""
     eeg = _demo_main_eeg()
@@ -572,6 +592,10 @@ def main(argv: list[str] | None = None) -> int:
         capture_pop_runica_multiple_dialog(args.output)
     elif args.case == "pop_iclabel_dialog":
         capture_pop_iclabel_dialog(args.output)
+    elif args.case == "pop_icflag_dialog":
+        capture_pop_icflag_dialog(args.output)
+    elif args.case == "pop_subcomp_dialog":
+        capture_pop_subcomp_dialog(args.output)
     elif args.case == "pop_clean_rawdata_dialog":
         capture_pop_clean_rawdata_dialog(args.output)
     elif args.case == "pop_chansel_dialog":
