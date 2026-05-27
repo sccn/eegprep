@@ -222,14 +222,7 @@ def _remove_continuous_baseline(
             continue
         # EEGLAB's boundary path only writes the selected baseline window.
         window = np.ix_(channel_indices, segment_baseline)
-        if segment_baseline.size == 1:
-            data[window] = 0
-            continue
-        data[window] = rmbase(
-            data[window],
-            segment_baseline.size,
-            np.arange(1, segment_baseline.size + 1),
-        )
+        data[window] = rmbase(data[window])
     return data
 
 

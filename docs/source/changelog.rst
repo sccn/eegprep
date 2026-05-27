@@ -14,6 +14,14 @@ For a complete list of releases and detailed release notes, see the `GitHub Rele
 Release Notes
 =============
 
+Unreleased
+----------
+
+Breaking Changes
+~~~~~~~~~~~~~~~~
+
+- ``eegprep.rmbase`` now exposes the low-level EEGLAB-style numeric baseline helper; use ``pop_rmbase`` for EEG dataset dictionaries.
+
 Version 1.0.0 (Current)
 -----------------------
 
