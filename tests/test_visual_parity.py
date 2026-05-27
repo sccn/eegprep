@@ -40,6 +40,7 @@ class VisualParityConfigTests(unittest.TestCase):
         self.assertEqual(cases["pop_select_dialog"].targets["eeglab"].action, "pop_select")
         self.assertEqual(cases["pop_resample_dialog"].targets["eeglab"].action, "pop_resample")
         self.assertEqual(cases["pop_epoch_dialog"].targets["eeglab"].action, "pop_epoch")
+        self.assertEqual(cases["pop_rmbase_dialog"].targets["eeglab"].action, "pop_rmbase")
         self.assertEqual(cases["pop_runica_dialog"].targets["eeglab"].action, "pop_runica")
         self.assertEqual(cases["pop_iclabel_dialog"].targets["eeglab"].action, "pop_iclabel")
         self.assertEqual(cases["pop_clean_rawdata_dialog"].targets["eeglab"].action, "pop_clean_rawdata")
@@ -111,6 +112,27 @@ class VisualParityCaptureTests(unittest.TestCase):
             self.assertNotIn("-batch", captured_command)
             script_text = next((tmp_path / "main_window").glob("*.m")).read_text()
             self.assertIn("'Units', 'pixels'", script_text)
+
+    def test_matlab_capture_honors_eeglab_root_environment(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = pathlib.Path(tmpdir)
+            eeglab_root = tmp_path / "reference-eeglab"
+            case = load_manifest()["main_window"]
+
+            def fake_run_subprocess(target_name, output_path, command, env, timeout_seconds):
+                output_path.write_bytes(base64.b64decode(ONE_PIXEL_PNG))
+                return CaptureResult(target_name, output_path, command, 0)
+
+            with (
+                mock.patch.dict("tools.visual_parity.capture.os.environ", {"EEGPREP_EEGLAB_ROOT": str(eeglab_root)}),
+                mock.patch("tools.visual_parity.capture.shutil.which", return_value="/usr/common/bin/matlab"),
+                mock.patch("tools.visual_parity.capture._run_subprocess", side_effect=fake_run_subprocess),
+            ):
+                results = capture_case(case, "eeglab", output_dir=tmp_path)
+
+            self.assertTrue(results[0].ok)
+            script_text = next((tmp_path / "main_window").glob("*.m")).read_text()
+            self.assertIn(f"eeglab_root = '{eeglab_root.resolve().as_posix()}';", script_text)
 
     def test_matlab_figure_capture_generates_open_menu_script(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -264,6 +286,7 @@ class VisualParityCaptureTests(unittest.TestCase):
         cases = [
             ("pop_resample_dialog", "pop_resample"),
             ("pop_epoch_dialog", "pop_epoch"),
+            ("pop_rmbase_dialog", "pop_rmbase"),
         ]
         for case_id, action in cases:
             with self.subTest(case_id=case_id), tempfile.TemporaryDirectory() as tmpdir:

@@ -23,6 +23,8 @@ Resampling
 Baseline Removal
 ================
 
+.. autofunction:: eegprep.rmbase
+
 .. autofunction:: eegprep.pop_rmbase
 
 Topography

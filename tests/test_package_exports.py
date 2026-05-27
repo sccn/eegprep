@@ -10,6 +10,7 @@ from eegprep.functions.popfunc.pop_epoch import pop_epoch
 from eegprep.functions.popfunc.pop_rmbase import pop_rmbase
 from eegprep.functions.popfunc.pop_select import pop_select
 from eegprep.functions.sigprocfunc.eegrej import eegrej as sigproc_eegrej
+from eegprep.functions.sigprocfunc.rmbase import rmbase as sigproc_rmbase
 
 
 class TestPackageExports(unittest.TestCase):
@@ -17,6 +18,7 @@ class TestPackageExports(unittest.TestCase):
         self.assertIs(eegprep.eegrej, sigproc_eegrej)
         self.assertIs(eegprep.eeg_eegrej, eeg_eegrej)
         self.assertIsNot(eegprep.eegrej, eegprep.eeg_eegrej)
+        self.assertIs(eegprep.rmbase, sigproc_rmbase)
 
     def test_direct_exports_survive_explicit_wrapper_imports(self):
         self.assertIs(eegprep.eeglab, eeglab)

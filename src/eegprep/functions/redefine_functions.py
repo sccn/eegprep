@@ -30,9 +30,9 @@ from eegprep.functions.popfunc.pop_epoch import pop_epoch
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_reref import pop_reref
 from eegprep.functions.popfunc.pop_resample import pop_resample
-from eegprep.functions.popfunc.pop_rmbase import pop_rmbase
 from eegprep.functions.popfunc.pop_saveset import pop_saveset
 from eegprep.functions.popfunc.pop_select import pop_select
+from eegprep.functions.sigprocfunc.rmbase import rmbase as sigproc_rmbase
 
 
 def checkset(*args, **kwargs):
@@ -121,8 +121,8 @@ def resample(*args, **kwargs):
 
 
 def rmbase(*args, **kwargs):
-    """Wrap pop_rmbase."""
-    return pop_rmbase(*args, **kwargs)
+    """Wrap low-level rmbase."""
+    return sigproc_rmbase(*args, **kwargs)
 
 
 def saveset(*args, **kwargs):

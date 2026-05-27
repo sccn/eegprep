@@ -69,7 +69,6 @@ MATLAB_FILE_SUFFIXES = (
     "tests/test_pop_epoch.py",
     "tests/test_pop_loadset_h5.py",
     "tests/test_pop_resample.py",
-    "tests/test_pop_rmbase.py",
 )
 
 MATLAB_NODEID_PARTS = (
@@ -92,6 +91,7 @@ MATLAB_NODEID_PARTS = (
     "tests/test_matlab_path.py::TestMatlabPath::test_python_matlab_engine",
     "tests/test_matlab_path.py::TestMatlabPath::test_start_matlab_engine",
     "tests/test_pop_reref.py::TestPopReref::test_parity_",
+    "tests/test_pop_rmbase.py::TestPopRmbaseParity::",
     "tests/test_pop_select.py::TestPopSelectParity::",
     "tests/test_runica.py::TestRunicaParity::",
     "tests/test_topoplot.py::TestTopoplotParity::",
