@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from contextlib import contextmanager
 from copy import deepcopy
 from dataclasses import dataclass, field
@@ -28,6 +29,48 @@ def has_eeg_data(eeg: Any) -> bool:
     if isinstance(data, list):
         return len(data) > 0
     return True
+
+
+def normalize_dataset_indices(indices: Any, *, allow_empty: bool = True) -> list[int]:
+    """Normalize EEGLAB-facing 1-based dataset indices for session state."""
+    if indices is None or (isinstance(indices, str) and indices == ""):
+        if allow_empty:
+            return []
+        raise ValueError("Dataset selection must contain at least one index")
+    if isinstance(indices, bool):
+        raise ValueError("Dataset indices must be 1-based integers")
+    if isinstance(indices, np.ndarray):
+        values = [indices.item()] if indices.ndim == 0 else indices.ravel().tolist()
+    elif isinstance(indices, (int, np.integer)):
+        values = [int(indices)]
+    elif isinstance(indices, (float, np.floating)):
+        if not float(indices).is_integer():
+            raise ValueError("Dataset indices must be integers")
+        values = [int(indices)]
+    elif isinstance(indices, Iterable) and not isinstance(indices, (str, bytes, dict)):
+        values = list(indices)
+    else:
+        raise ValueError("Dataset selection must be a 1-based integer or iterable of integers")
+
+    normalized: list[int] = []
+    seen: set[int] = set()
+    for value in values:
+        if isinstance(value, bool):
+            raise ValueError("Dataset indices must be 1-based integers")
+        if isinstance(value, (float, np.floating)) and not float(value).is_integer():
+            raise ValueError("Dataset indices must be integers")
+        index = int(value)
+        if index < 1:
+            if allow_empty and len(values) == 1 and index == 0:
+                continue
+            raise ValueError("EEGLAB dataset indices are 1-based")
+        if index in seen:
+            raise ValueError("Dataset selection cannot contain duplicate indices")
+        seen.add(index)
+        normalized.append(index)
+    if not normalized and not allow_empty:
+        raise ValueError("Dataset selection must contain at least one index")
+    return normalized
 
 
 @dataclass
@@ -119,6 +162,10 @@ class EEGPrepSession:
             return self.CURRENTSET[0]
         return list(self.CURRENTSET)
 
+    def selected_dataset_indices(self) -> list[int]:
+        """Return the selected EEGLAB-facing dataset indices in order."""
+        return list(self.CURRENTSET)
+
     def store_current(
         self,
         eeg: dict[str, Any] | list[dict[str, Any]],
@@ -139,7 +186,7 @@ class EEGPrepSession:
             index = 0 if new or not self.CURRENTSET else self.CURRENTSET[0]
         self.ALLEEG, checked, stored_index = eeg_store(self.ALLEEG, eeg, index)
         self.EEG = checked
-        self.CURRENTSET = list(stored_index) if isinstance(stored_index, list) else [int(stored_index)]
+        self.CURRENTSET = normalize_dataset_indices(stored_index, allow_empty=False)
         if mark_saved:
             self.mark_current_saved()
         self.add_history(command, notify=False)
@@ -148,9 +195,11 @@ class EEGPrepSession:
 
     def retrieve(self, indices: int | list[int]) -> dict[str, Any] | list[dict[str, Any]]:
         """Select dataset(s) from ALLEEG using 1-based indices."""
-        eeg, self.ALLEEG, current = eeg_retrieve(self.ALLEEG, indices)
+        selection = normalize_dataset_indices(indices, allow_empty=False)
+        use_vector = isinstance(indices, (list, tuple)) or (isinstance(indices, np.ndarray) and indices.ndim > 0)
+        eeg, self.ALLEEG, current = eeg_retrieve(self.ALLEEG, selection if use_vector else selection[0])
         self.EEG = eeg
-        self.CURRENTSET = list(current) if isinstance(current, list) else [int(current)]
+        self.CURRENTSET = normalize_dataset_indices(current, allow_empty=False)
         self.notify_changed()
         return eeg
 

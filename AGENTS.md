@@ -59,9 +59,11 @@ Primary references:
 ## GUI And Console Workspace
 
 - EEGPrep's primary interactive workflow is mixed GUI plus `eegprep-console`. Both share one `EEGPrepSession`; `EEG`, `ALLEEG`, `CURRENTSET`, `LASTCOM`, `ALLCOM`, `STUDY`, and `CURRENTSTUDY` must stay synchronized.
+- `EEGPrepSession.CURRENTSET` is a list of EEGLAB-facing 1-based dataset indices; expose it as `0`, scalar `n`, or list `[n, ...]` in the console. Use `selected_dataset_indices()` for read-only multi-dataset state.
 - GUI/menu actions must update datasets and history through `EEGPrepSession` helpers such as `store_current`, `add_history`, and `notify_changed`; do not mutate GUI-only state that the console cannot see.
 - User-facing `pop_*` functions should support `return_com=True` and return EEGLAB-style history commands. The console wrappers rely on `(EEG, com)` results to auto-store bare calls like `pop_reref(EEG, [])`.
 - When adding or changing a GUI-reachable function, test both interaction directions when relevant: GUI action then console inspection, and console command then GUI refresh/history.
+- Menu placeholders must carry phase/exclusion metadata in `menu_placeholders.py`; mark EEGBrowser/eegplot-style scrolling workflows with an explicit exclusion instead of treating them as ordinary TODOs.
 
 ## Code Style
 

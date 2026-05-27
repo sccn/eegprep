@@ -119,6 +119,66 @@ Tests run automatically on:
 
 Check CI status on GitHub Actions.
 
+EEG And Session Contracts
+=========================
+
+EEGPrep follows EEGLAB's public data model while keeping Python internals
+explicit and testable. Feature code should treat the following contracts as
+shared foundations rather than per-function conventions.
+
+EEG Dictionaries
+----------------
+
+Stored EEG dictionaries should be normalized through ``eeg_checkset`` or an
+``EEGPrepSession`` storage helper before other code relies on shape or type
+invariants. The core fields are ``data``, ``nbchan``, ``pnts``, ``trials``,
+``srate``, ``xmin``, ``xmax``, ``times``, ``event``, ``urevent``, ``epoch``,
+``chanlocs``, ``chaninfo``, ``history``, ``icaact``, ``icawinv``,
+``icasphere``, ``icaweights``, and ``icachansind``.
+
+Continuous data is channel-major with shape ``(nbchan, pnts)``. Epoched data
+is channel-major with shape ``(nbchan, pnts, trials)``. Event latencies and
+user-visible dataset, channel, epoch, and component indices are EEGLAB-style
+1-based values. Python array indexing remains 0-based inside numerical code.
+
+``event`` entries should keep EEGLAB-facing ``latency`` values and, when
+available, ``urevent`` pointers back to ``urevent`` entries. ``urevent`` is the
+original-event table; functions that create, delete, or reorder events must
+state whether they preserve, extend, or rebuild it. ``epoch`` stores per-epoch
+event metadata for epoched datasets. ``chanlocs`` entries use EEGLAB-style
+channel dictionaries, and ``chaninfo`` stores global channel-location metadata.
+ICA fields must be cleared or recomputed consistently when data, channel
+order, or channel count changes.
+
+Session Selection
+-----------------
+
+``EEGPrepSession.CURRENTSET`` is always a Python ``list[int]`` containing
+EEGLAB-facing 1-based dataset indices. An empty selection is ``[]`` internally
+and ``0`` in the console workspace. A single selected dataset is exposed as
+``CURRENTSET == n`` in the console. Multiple selected datasets are exposed as
+``CURRENTSET == [n, ...]``. Selection order is preserved and duplicate dataset
+indices are invalid.
+
+Read selection state through ``EEGPrepSession.selected_dataset_indices()`` when
+future STUDY or group-level code needs the current dataset vector. Phase 1a
+defines this read contract only; user-facing multi-selection mutation belongs
+to later feature work.
+
+History And Menu Inventory
+--------------------------
+
+User-facing ``pop_*`` functions should support ``return_com=True`` and return a
+history command that can be converted to valid ``eegprep-console`` input. GUI
+and console code should append each successful command once through
+``EEGPrepSession.add_history`` or storage helpers.
+
+Menu placeholders are machine-readable. Each placeholder action has either a
+target epic phase or an explicit exclusion reason such as ``eegbrowser`` for
+EEGBrowser/eegplot-style scrolling workflows. Runtime package code must not
+read, import, or shell out to ``src/eegprep/eeglab``; that tree is only a
+development parity reference.
+
 Building Documentation
 ======================
 

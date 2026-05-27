@@ -16,7 +16,7 @@ from typing import Any
 
 import eegprep
 from eegprep.functions.adminfunc.eeglab import gui
-from eegprep.functions.guifunc.session import EEGPrepSession
+from eegprep.functions.guifunc.session import EEGPrepSession, normalize_dataset_indices
 from eegprep.functions.popfunc.pop_newset import pop_newset
 
 
@@ -1086,15 +1086,10 @@ def _is_eeg_selection(value: Any) -> bool:
 
 
 def _normalize_currentset(value: Any) -> list[int]:
-    if value in (None, "", 0):
-        return []
-    if isinstance(value, (int, float)):
-        return [int(value)] if int(value) > 0 else []
-    if isinstance(value, tuple):
-        value = list(value)
-    if isinstance(value, list):
-        return [int(item) for item in value if int(item) > 0]
-    raise ValueError("CURRENTSET must be a 1-based integer or list of integers")
+    try:
+        return normalize_dataset_indices(value)
+    except ValueError as exc:
+        raise ValueError("CURRENTSET must be a 1-based integer or list of integers") from exc
 
 
 def _workspace_assignment_targets(source: str) -> set[str]:
