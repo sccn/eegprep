@@ -6,6 +6,7 @@ import unittest
 
 import numpy as np
 import numpy.testing as npt
+import pytest
 
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.functions.popfunc.pop_comments import pop_comments
@@ -46,6 +47,11 @@ def test_pop_comments_concatenates_string_comments():
 
     assert out == "first\nsecond\nthird"
     assert com == "comments = pop_comments(comments, '', 'second\nthird', 1);"
+
+
+def test_pop_comments_concat_accepts_only_eeglab_numeric_flag():
+    with pytest.raises(TypeError, match="concat"):
+        pop_comments("first", "", "second", "on")
 
 
 def test_pop_comments_gui_uses_renderer_text_and_cancel_returns_original():

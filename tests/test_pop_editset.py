@@ -90,6 +90,8 @@ def test_pop_editset_updates_timing_fields_and_shifts_event_latencies_for_xmin()
 
     assert out["srate"] == 200
     assert out["pnts"] == 10
+    assert out["trials"] == 2
+    assert out["data"].shape == (2, 10, 2)
     assert out["xmin"] == -0.1
     assert out["xmax"] == pytest.approx(-0.055)
     assert out["event"][0]["latency"] == 20.0
@@ -137,7 +139,8 @@ def test_pop_editset_gui_cancel_or_no_changes_returns_original_without_history()
 
     eeg = _eeg()
     cancelled, com = pop_editset(eeg, gui=True, renderer=Renderer(None), return_com=True)
-    assert cancelled is eeg
+    assert cancelled is not eeg
+    np.testing.assert_array_equal(cancelled["data"], eeg["data"])
     assert com == ""
 
     unchanged, com = pop_editset(
@@ -160,7 +163,8 @@ def test_pop_editset_gui_cancel_or_no_changes_returns_original_without_history()
         ),
         return_com=True,
     )
-    assert unchanged is eeg
+    assert unchanged is not eeg
+    np.testing.assert_array_equal(unchanged["data"], eeg["data"])
     assert com == ""
 
 
@@ -188,11 +192,54 @@ def test_pop_editset_direct_data_and_ica_assignments_update_shape_and_clear_ica_
     np.testing.assert_array_equal(out["icachansind"], [0, 1, 2])
 
 
+def test_pop_editset_data_replacement_clears_stale_ica_when_not_supplied():
+    eeg = _eeg()
+    eeg["icaweights"] = np.eye(2)
+    eeg["icasphere"] = np.eye(2)
+    eeg["icawinv"] = np.eye(2)
+    eeg["icaact"] = np.ones((2, 20, 1), dtype=np.float32)
+    eeg["icachansind"] = np.array([0, 1])
+
+    out = pop_editset(eeg, "data", np.ones((3, 5), dtype=np.float32))
+
+    assert out["data"].shape == (3, 5)
+    assert out["nbchan"] == 3
+    assert out["pnts"] == 5
+    assert out["trials"] == 1
+    for key in ("icaweights", "icasphere", "icawinv", "icaact", "icachansind"):
+        assert out[key].size == 0
+
+
+def test_pop_editset_pnts_metadata_keeps_data_dimensions_consistent():
+    eeg = _eeg()
+
+    epoched = pop_editset(eeg, "pnts", 5)
+    corrected = pop_editset(eeg, "pnts", 7)
+
+    assert epoched["data"].shape == (2, 5, 4)
+    assert epoched["trials"] == 4
+    assert corrected["data"].shape == (2, 20)
+    assert corrected["pnts"] == 20
+    assert corrected["trials"] == 1
+
+
+def test_pop_editset_history_rejects_unserializable_channel_structures():
+    eeg = _eeg()
+
+    out = pop_editset(eeg, "chanlocs", [{"labels": "Fz"}])
+
+    assert list(out["chanlocs"])[0]["labels"] == "Fz"
+    with pytest.raises(NotImplementedError, match="channel-location"):
+        pop_editset(eeg, "chanlocs", [{"labels": "Fz"}], return_com=True)
+
+
 def test_pop_editset_rejects_unsupported_file_workspace_expressions():
     with pytest.raises(NotImplementedError, match="pop_importdata"):
         pop_editset(_eeg(), "data", "raw.mat")
     with pytest.raises(NotImplementedError, match="pop_chanedit"):
         pop_editset(_eeg(), "chanlocs", "locs.elp")
+    with pytest.raises(ValueError, match="dataformat"):
+        pop_editset(_eeg(), "dataformat", "ascii")
 
 
 def test_pop_editset_accepts_sample_data_metadata_edit():

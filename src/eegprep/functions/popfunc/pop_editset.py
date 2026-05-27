@@ -22,7 +22,6 @@ _NUMERIC_FIELDS = ("srate", "pnts", "xmin", "nbchan")
 _OPTIONAL_NUMERIC_FIELDS = ("run", "session")
 _DIRECT_ASSIGNMENT_FIELDS = ("chanlocs", "icaweights", "icasphere", "icachansind", "data")
 _SUPPORTED_FIELDS = {
-    "dataformat",
     "ref",
     *_TEXT_FIELDS,
     *_NUMERIC_FIELDS,
@@ -52,30 +51,33 @@ def pop_editset(
     if gui:
         result = inputgui(pop_editset_dialog_spec(EEG), renderer=renderer)
         if result is None:
-            return (EEG, "") if return_com else EEG
+            original = copy.deepcopy(EEG)
+            return (original, "") if return_com else original
         options = _changed_options_from_gui(EEG, result)
         if not options:
-            return (EEG, "") if return_com else EEG
+            original = copy.deepcopy(EEG)
+            return (original, "") if return_com else original
 
     unknown = sorted(set(options) - _SUPPORTED_FIELDS)
     if unknown:
         raise ValueError(f"Unknown pop_editset option(s): {', '.join(unknown)}")
 
     output = copy.deepcopy(EEG)
+    if "data" in options:
+        _clear_ica_fields(output)
     old_xmin = float(output.get("xmin", 0.0) or 0.0)
     old_srate = float(output.get("srate", 1.0) or 1.0)
 
     for key, value in options.items():
-        if key == "dataformat":
-            continue
-        _assign_option(output, key, value, dataformat=str(options.get("dataformat", "ascii")))
+        _assign_option(output, key, value)
 
     if "xmin" in options:
         _adjust_event_latencies_for_xmin_change(output, old_xmin, old_srate)
+    _normalize_data_dimensions(output)
     _normalize_ica_index_field(output)
     _refresh_time_fields(output)
     output = eeg_checkset(output)
-    command = _history_command(options)
+    command = _history_command(options) if return_com else ""
     return (output, command) if return_com else output
 
 
@@ -150,7 +152,9 @@ def pop_editset_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("edit", tag="icainds", enabled=False),
             ControlSpec("spacer"),
         ),
-        known_differences=("Channel-location and ICA file pickers are handled by later Phase 1b channel workflows.",),
+        known_differences=(
+            "Channel-location and ICA file pickers are visible for parity but disabled until later Phase 1b channel workflows.",
+        ),
     )
 
 
@@ -175,7 +179,7 @@ def _changed_options_from_gui(EEG: dict[str, Any], result: Mapping[str, Any]) ->
     return options
 
 
-def _assign_option(output: dict[str, Any], key: str, value: Any, *, dataformat: str) -> None:
+def _assign_option(output: dict[str, Any], key: str, value: Any) -> None:
     if key in _TEXT_FIELDS:
         output[key] = "" if value is None else str(value)
         return
@@ -210,7 +214,7 @@ def _assign_option(output: dict[str, Any], key: str, value: Any, *, dataformat: 
         output[key] = _as_int_array(value)
         return
     if key == "data":
-        _assign_data(output, value, dataformat=dataformat)
+        _assign_data(output, value)
 
 
 def _assign_chanlocs(output: dict[str, Any], value: Any) -> None:
@@ -253,11 +257,10 @@ def _assign_ica_matrix(output: dict[str, Any], key: str, value: Any) -> None:
         output["icasphere"] = np.eye(np.asarray(output["icaweights"]).shape[1])
 
 
-def _assign_data(output: dict[str, Any], value: Any, *, dataformat: str) -> None:
+def _assign_data(output: dict[str, Any], value: Any) -> None:
     if isinstance(value, str):
         raise NotImplementedError(
-            f"pop_editset data file/workspace expressions are not supported for dataformat={dataformat!r}; "
-            "use pop_importdata instead."
+            "pop_editset data file/workspace expressions are not supported; use pop_importdata instead."
         )
     data = np.asarray(value)
     if data.ndim == 1:
@@ -268,6 +271,57 @@ def _assign_data(output: dict[str, Any], value: Any, *, dataformat: str) -> None
     output["nbchan"] = int(data.shape[0])
     output["pnts"] = int(data.shape[1])
     output["trials"] = int(data.shape[2]) if data.ndim == 3 else 1
+
+
+def _clear_ica_fields(output: dict[str, Any]) -> None:
+    for key in ("icaweights", "icasphere", "icawinv", "icaact", "icachansind"):
+        output[key] = np.array([])
+
+
+def _normalize_data_dimensions(output: dict[str, Any]) -> None:
+    data = output.get("data")
+    if isinstance(data, str) or data is None:
+        return
+    data = np.asarray(data)
+    if data.size == 0:
+        output["data"] = data
+        return
+    if data.ndim == 1:
+        data = data.reshape(1, -1)
+    if data.ndim not in {2, 3}:
+        raise ValueError("data must be a 2-D or 3-D channel-major array")
+
+    output["nbchan"] = int(data.shape[0])
+    pnts = int(output.get("pnts", data.shape[1]) or 0)
+    trials = int(output.get("trials", 1) or 1)
+    if pnts <= 0:
+        pnts = int(data.shape[1])
+        trials = int(data.shape[2]) if data.ndim == 3 else 1
+
+    if data.ndim == 2 and pnts > 1:
+        frames = int(data.shape[1])
+        if frames % pnts:
+            if trials > 1 and frames // pnts > 0:
+                trials = frames // pnts
+                data = data[:, : trials * pnts]
+                data = _continuous_to_epoched(data, pnts, trials)
+            else:
+                pnts = frames
+                trials = 1
+        elif frames != pnts:
+            trials = frames // pnts
+            data = _continuous_to_epoched(data, pnts, trials)
+
+    if data.ndim == 3:
+        pnts = int(data.shape[1])
+        trials = int(data.shape[2])
+    output["data"] = data
+    output["pnts"] = pnts
+    output["trials"] = trials
+
+
+def _continuous_to_epoched(data: np.ndarray, pnts: int, trials: int) -> np.ndarray:
+    return data.reshape(data.shape[0], trials, pnts).transpose(0, 2, 1)
 
 
 def _adjust_event_latencies_for_xmin_change(output: dict[str, Any], old_xmin: float, old_srate: float) -> None:
@@ -312,13 +366,13 @@ def _normalize_ica_index_field(output: dict[str, Any]) -> None:
     array = np.asarray(value)
     if array.size == 0:
         output["icachansind"] = np.array([], dtype=int)
+        return
+    output["icachansind"] = _as_int_array(array)
 
 
 def _history_command(options: Mapping[str, Any]) -> str:
     command = "EEG = pop_editset(EEG"
     for key, value in options.items():
-        if key == "dataformat" and len(options) == 1:
-            continue
         command += f", {format_history_value(key)}, {_history_value(value)}"
     return command + ");"
 
@@ -327,11 +381,11 @@ def _history_value(value: Any) -> str:
     if _is_empty_value(value):
         return "[]"
     if isinstance(value, Mapping):
-        return repr(dict(value))
+        raise NotImplementedError("pop_editset history cannot serialize mapping values yet")
+    if isinstance(value, (list, tuple)) and any(isinstance(item, Mapping) for item in value):
+        raise NotImplementedError("pop_editset history cannot serialize channel-location structures yet")
     if isinstance(value, np.ndarray) and value.dtype == object:
         value = value.tolist()
-    if isinstance(value, (list, tuple)) and any(isinstance(item, Mapping) for item in value):
-        return repr(value)
     return format_history_value(value)
 
 

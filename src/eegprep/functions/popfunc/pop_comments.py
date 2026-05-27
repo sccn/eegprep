@@ -16,7 +16,7 @@ def pop_comments(
     EEG: dict[str, Any] | str | list[str] | tuple[str, ...] | np.ndarray,
     plottitle: str = "",
     newcomments: Any = None,
-    concat: bool | int | str = False,
+    concat: bool | int = False,
     *,
     gui: bool | None = None,
     renderer: Any | None = None,
@@ -45,10 +45,11 @@ def pop_comments(
             new_text = _comments_to_text(newcomments)
 
     command_text = new_text
-    if _truthy_concat(concat):
+    concat_enabled = _truthy_concat(concat)
+    if concat_enabled:
         new_text = _join_comments(old_text, new_text)
 
-    command = _history_command(command_text, concat=_truthy_concat(concat), is_eeg=is_eeg)
+    command = _history_command(command_text, concat=concat_enabled, is_eeg=is_eeg) if return_com else ""
     if is_eeg:
         output = copy.deepcopy(EEG)
         output["comments"] = new_text
@@ -104,9 +105,9 @@ def _join_comments(old_text: str, new_text: str) -> str:
     return f"{old_text.rstrip()}\n{new_text.lstrip()}".rstrip()
 
 
-def _truthy_concat(value: bool | int | str) -> bool:
+def _truthy_concat(value: bool | int) -> bool:
     if isinstance(value, str):
-        return value.strip().lower() in {"1", "true", "yes", "on"}
+        raise TypeError("concat must be 0 or 1")
     return bool(value)
 
 
