@@ -58,8 +58,7 @@ class PopSubcompGuiTests(unittest.TestCase):
         self.assertEqual(out["data"].shape, (3, 8))
         self.assertEqual(out["icaweights"].shape, (1, 3))
         self.assertEqual(out["icawinv"].shape, (3, 1))
-        np.testing.assert_array_equal(out["reject"]["gcompreject"], [0])
-        np.testing.assert_array_equal(out["reject"]["rejmanual"], [1, 0])
+        self.assertEqual(out["reject"], {})
         self.assertEqual(out["etc"]["ic_classification"]["ICLabel"]["classifications"].shape, (1, 7))
         self.assertEqual(_console_python_command(com), "EEG = pop_subcomp(EEG, components=[1, 3], plotag=0)")
 

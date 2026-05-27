@@ -133,8 +133,7 @@ def _remove_components(EEG: dict, components: Any, keepcomp: int | bool) -> tupl
     output["icawinv"] = mixing[:, keep_mask]
     output["specicaact"] = np.array([])
     output["specdata"] = np.array([])
-    output["reject"] = dict(output.get("reject") or {})
-    output["reject"]["gcompreject"] = np.zeros(int(keep_mask.sum()), dtype=int)
+    output["reject"] = {}
     _trim_iclabel_classifications(output, keep_mask)
     _trim_dipfit_model(output, keep_mask)
     return output, True
