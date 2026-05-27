@@ -6,7 +6,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
-from eegprep.functions.popfunc.pop_topoplot import plot_channel_locations, pop_topoplot, pop_topoplot_dialog_spec
+from eegprep.functions.popfunc.pop_topoplot import (
+    _parse_items_text,
+    plot_channel_locations,
+    pop_topoplot,
+    pop_topoplot_dialog_spec,
+)
 from eegprep.functions.sigprocfunc.topoplot import topoplot
 from tests.fixtures import SAMPLE_DATASET_PATH, create_test_eeg_with_ica
 
@@ -59,6 +64,24 @@ def test_pop_topoplot_plots_sample_data_erp_maps_headlessly():
     plt.close(figures[0])
 
 
+def test_pop_topoplot_multi_map_pages_include_shared_colorbar_by_default():
+    eeg = create_test_eeg_with_ica(n_channels=6, n_samples=30)
+
+    figures = pop_topoplot(
+        eeg,
+        typeplot=1,
+        items=[0, 20],
+        topotitle="shared scale",
+        rowcols=[1, 2],
+        electrodes="off",
+    )
+
+    assert len(figures) == 1
+    assert [axis.get_title() for axis in figures[0].axes[:2]] == ["0 ms", "20 ms"]
+    assert len(figures[0].axes) == 3
+    plt.close(figures[0])
+
+
 def test_pop_topoplot_plots_component_maps_with_inverted_and_blank_items():
     eeg = create_test_eeg_with_ica(n_channels=6, n_samples=50, n_components=3)
 
@@ -78,6 +101,37 @@ def test_pop_topoplot_plots_component_maps_with_inverted_and_blank_items():
     plt.close(figures[0])
 
 
+def test_pop_topoplot_item_text_parses_eeglab_colon_ranges():
+    assert _parse_items_text("-100:50:0") == [-100.0, -50.0, 0.0]
+    assert _parse_items_text("0.5:0.25:1") == [0.5, 0.75, 1.0]
+    parsed = _parse_items_text("1:2 NaN 5")
+    assert parsed[:2] == [1.0, 2.0]
+    assert np.isnan(parsed[2])
+    assert parsed[3] == 5.0
+
+
+def test_pop_topoplot_gui_parses_signed_decimal_step_ranges():
+    eeg = create_test_eeg_with_ica(n_channels=4, n_samples=5, n_trials=2)
+    eeg["xmin"] = -0.1
+    eeg["xmax"] = 0.1
+    eeg["times"] = np.linspace(-100, 100, eeg["pnts"])
+
+    class Renderer:
+        def run(self, spec, initial_values=None):
+            return {
+                "items": "-100:50.0:0",
+                "topotitle": "range",
+                "rowcols": "[1 3]",
+                "options": "'electrodes', 'off', 'colorbar', 'off'",
+            }
+
+    figures, command = pop_topoplot(eeg, typeplot=1, renderer=Renderer(), return_com=True)
+
+    assert [axis.get_title() for axis in figures[0].axes[:3]] == ["-100 ms", "-50 ms", "0 ms"]
+    assert "items=[-100, -50, 0]" in command
+    plt.close(figures[0])
+
+
 def test_pop_topoplot_all_blank_items_do_not_crash():
     eeg = create_test_eeg_with_ica(n_channels=4, n_samples=20, n_components=2)
 
@@ -92,6 +146,23 @@ def test_pop_topoplot_all_blank_items_do_not_crash():
 
     assert len(figures) == 1
     assert "items=[float('nan')]" in command
+    plt.close(figures[0])
+
+
+def test_pop_topoplot_rejects_finite_latency_when_epoch_range_collapsed():
+    eeg = create_test_eeg_with_ica(n_channels=4, n_samples=5)
+    eeg["xmin"] = 0.0
+    eeg["xmax"] = 0.0
+
+    try:
+        pop_topoplot(eeg, typeplot=1, items=[0])
+    except ValueError as exc:
+        assert "outside the epoch time range" in str(exc)
+    else:
+        raise AssertionError("expected collapsed epoch range ValueError")
+
+    figures = pop_topoplot(eeg, typeplot=1, items=[float("nan")], rowcols=[1, 1], colorbar="off")
+    assert len(figures) == 1
     plt.close(figures[0])
 
 
@@ -133,6 +204,31 @@ def test_pop_topoplot_rejects_missing_ica_or_chanlocs():
     eeg["chanlocs"] = []
     try:
         pop_topoplot(eeg, typeplot=1, items=[0])
+    except ValueError as exc:
+        assert "channel location" in str(exc)
+    else:
+        raise AssertionError("expected missing channel location ValueError")
+
+
+def test_pop_topoplot_gui_preflights_missing_inputs_before_dialog():
+    class Renderer:
+        def run(self, spec, initial_values=None):
+            raise AssertionError("renderer should not run when preflight fails")
+
+    eeg = create_test_eeg_with_ica(n_channels=4, n_samples=20, n_components=4)
+    eeg["icawinv"] = None
+
+    try:
+        pop_topoplot(eeg, typeplot=0, renderer=Renderer())
+    except ValueError as exc:
+        assert "no ICA data" in str(exc)
+    else:
+        raise AssertionError("expected missing ICA ValueError")
+
+    eeg = create_test_eeg_with_ica(n_channels=4, n_samples=20)
+    eeg["chanlocs"] = []
+    try:
+        pop_topoplot(eeg, typeplot=1, renderer=Renderer())
     except ValueError as exc:
         assert "channel location" in str(exc)
     else:

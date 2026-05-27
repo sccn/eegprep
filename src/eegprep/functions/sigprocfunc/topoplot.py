@@ -302,6 +302,8 @@ def _blank_topoplot(chan_locs, *, noplot='off', electrodes='on', gridscale=67, *
     xi_1d = np.linspace(-0.5, 0.5, int(gridscale))
     yi_1d = np.linspace(-0.5, 0.5, int(gridscale))
     xi, yi = np.meshgrid(xi_1d, yi_1d)
+    # Blank topoplots are decorative channel-location views; Zi is not a
+    # numerical interpolation result.
     Zi = np.full_like(xi, np.nan, dtype=float)
     if str(noplot).lower() != 'off':
         return None, Zi, 0.5, xi, yi

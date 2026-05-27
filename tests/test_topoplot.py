@@ -349,6 +349,13 @@ class TestTopoplot(unittest.TestCase):
         handle, Zi, plotrad, xi, yi = topoplot(np.array([]), self.chan_locs, noplot='on')
         self.assertIsNone(handle)
         self.assertIsInstance(Zi, np.ndarray)
+        self.assertTrue(np.all(np.isnan(Zi)))
+        self.assertEqual(plotrad, 0.5)
+        self.assertEqual(xi.shape, yi.shape)
+        self.assertAlmostEqual(xi[0, 0], -0.5)
+        self.assertAlmostEqual(xi[0, -1], 0.5)
+        self.assertAlmostEqual(yi[0, 0], -0.5)
+        self.assertAlmostEqual(yi[-1, 0], 0.5)
 
         # Test with mismatched data and channel count - expect various possible errors
         with self.assertRaises((IndexError, ValueError, UnboundLocalError)):

@@ -54,6 +54,9 @@ def pop_topoplot(
     typeplot = int(typeplot)
     if gui is None:
         gui = items is None
+    if typeplot not in {0, 1}:
+        raise ValueError("typeplot must be 1 for ERP maps or 0 for component maps")
+    _validate_topoplot_inputs(EEG, typeplot)
     if gui:
         result = _run_gui(EEG, typeplot=typeplot, renderer=renderer)
         if result is None:
@@ -175,7 +178,11 @@ def pop_topoplot_dialog_spec(EEG: dict[str, Any], *, typeplot: int = 1) -> Dialo
 
 
 def plot_channel_locations(EEG: dict[str, Any], *, mode: str = "labels", return_com: bool = False):
-    """Plot channel locations by name or by number, matching EEGLAB menu actions."""
+    """Plot channel locations by name or by number, matching EEGLAB menu actions.
+
+    The returned command is valid ``eegprep-console`` Python, matching the
+    Python-callable history shape used by ``pop_topoplot``.
+    """
     chanlocs = chanlocs_as_list(EEG.get("chanlocs", []))
     if not chanlocs:
         raise ValueError("cannot plot topography without channel location file")
@@ -218,20 +225,33 @@ def _plot_map_pages(
     for page_start in range(0, len(maps), per_page):
         page_maps = maps[page_start : page_start + per_page]
         page_labels = labels[page_start : page_start + per_page]
+        plotted_map_count = sum(values is not None for values in page_maps)
         fig, axes = plt.subplots(rows, cols, squeeze=False, figsize=(cols * 2.1, rows * 2.0))
+        colorbar_image = None
+        plotted_axes = []
         for ax, values, label in zip(axes.ravel(), page_maps, page_labels):
             if values is None:
                 ax.axis("off")
                 continue
             topoplot(
-                values, chanlocs, axes=ax, colorbar=colorbar and len(page_maps) == 1, maplimits=maplimits, **options
+                values,
+                chanlocs,
+                axes=ax,
+                colorbar=colorbar and plotted_map_count == 1,
+                maplimits=maplimits,
+                **options,
             )
+            if ax.images:
+                colorbar_image = ax.images[-1]
+                plotted_axes.append(ax)
             ax.set_title(label)
         for ax in axes.ravel()[len(page_maps) :]:
             ax.axis("off")
         if topotitle:
             fig.suptitle(topotitle, fontweight="bold")
         fig.tight_layout()
+        if colorbar and plotted_map_count > 1 and colorbar_image is not None:
+            fig.colorbar(colorbar_image, ax=plotted_axes, shrink=0.7)
         figures.append(fig)
     return figures
 
@@ -258,9 +278,8 @@ def _erp_maps(EEG: dict[str, Any], latencies_ms: np.ndarray) -> tuple[list[np.nd
 
 def _component_maps(EEG: dict[str, Any], components: np.ndarray) -> tuple[list[np.ndarray | None], list[str]]:
     _require_chanlocs(EEG)
+    _require_ica(EEG)
     icawinv = np.asarray(EEG.get("icawinv", []), dtype=float)
-    if icawinv.size == 0:
-        raise ValueError("no ICA data for this set, first run ICA")
     maps = []
     labels = []
     for component in components:
@@ -273,6 +292,7 @@ def _component_maps(EEG: dict[str, Any], components: np.ndarray) -> tuple[list[n
             raise ValueError(f"component index {index} is outside available ICA components")
         values = icawinv[:, index - 1]
         maps.append(-values if component < 0 else values)
+        # EEGLAB titles inverted-polarity maps with the negative component index.
         labels.append(f"IC {int(component)}")
     return maps, labels
 
@@ -285,9 +305,14 @@ def _latency_positions(EEG: dict[str, Any], latencies_ms: np.ndarray) -> np.ndar
         raise ValueError("EEG.pnts must be positive")
     positions = np.zeros_like(latencies_ms, dtype=int)
     finite = np.isfinite(latencies_ms)
+    invalid = ~finite & ~np.isnan(latencies_ms)
+    if np.any(invalid):
+        raise ValueError("requested latency is outside the epoch time range")
+    if xmax == xmin and np.any(finite):
+        raise ValueError("requested latency is outside the epoch time range")
     if xmax != xmin and np.any(finite):
         positions[finite] = np.rint(((latencies_ms[finite] / 1000.0) - xmin) / (xmax - xmin) * (pnts - 1)).astype(int)
-    valid = ~finite | ((positions >= 0) & (positions < pnts))
+    valid = np.isnan(latencies_ms) | ((positions >= 0) & (positions < pnts))
     if not np.all(valid):
         raise ValueError("requested latency is outside the epoch time range")
     positions[np.isnan(latencies_ms)] = 0
@@ -333,12 +358,47 @@ def _normalise_rowcols(rowcols: Any, count: int) -> tuple[int, int]:
 
 
 def _parse_items_text(text: str) -> list[float]:
-    stripped = text.strip()
-    if re.fullmatch(r"\d+\s*:\s*\d+", stripped):
-        start, stop = [int(part.strip()) for part in stripped.split(":")]
-        step = 1 if stop >= start else -1
-        return [float(value) for value in range(start, stop + step, step)]
-    return _parse_numeric_sequence(stripped).tolist()
+    stripped = re.sub(r"\s*:\s*", ":", text.strip().strip("[]"))
+    if not stripped:
+        return []
+    values = []
+    for token in re.split(r"[\s,]+", stripped):
+        if not token:
+            continue
+        if ":" in token:
+            values.extend(_parse_colon_sequence(token))
+        else:
+            values.append(_parse_float_token(token))
+    return values
+
+
+def _parse_colon_sequence(token: str) -> list[float]:
+    pieces = token.split(":")
+    if len(pieces) not in {2, 3}:
+        raise ValueError(f"Invalid colon range: {token}")
+    start = _parse_float_token(pieces[0])
+    if len(pieces) == 2:
+        stop = _parse_float_token(pieces[1])
+        step = 1.0 if stop >= start else -1.0
+    else:
+        step = _parse_float_token(pieces[1])
+        stop = _parse_float_token(pieces[2])
+    if step == 0 or not np.all(np.isfinite([start, step, stop])):
+        raise ValueError(f"Invalid colon range: {token}")
+    if (stop - start) * step < 0:
+        return []
+    values = []
+    current = start
+    tolerance = abs(step) * 1e-10
+    if step > 0:
+        while current <= stop + tolerance:
+            values.append(float(current))
+            current += step
+    else:
+        while current >= stop - tolerance:
+            values.append(float(current))
+            current += step
+    return values
 
 
 def _parse_rowcols_text(text: str) -> list[float]:
@@ -395,6 +455,18 @@ def _parse_float_token(token: str) -> float:
 def _require_chanlocs(EEG: dict[str, Any]) -> None:
     if not chanlocs_as_list(EEG.get("chanlocs", [])):
         raise ValueError("cannot plot topography without channel location file")
+
+
+def _require_ica(EEG: dict[str, Any]) -> None:
+    icawinv = EEG.get("icawinv", [])
+    if icawinv is None or np.asarray(icawinv).size == 0:
+        raise ValueError("no ICA data for this set, first run ICA")
+
+
+def _validate_topoplot_inputs(EEG: dict[str, Any], typeplot: int) -> None:
+    _require_chanlocs(EEG)
+    if typeplot == 0:
+        _require_ica(EEG)
 
 
 def _is_on(value: Any) -> bool:
