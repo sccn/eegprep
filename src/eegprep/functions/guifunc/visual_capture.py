@@ -19,6 +19,7 @@ from eegprep.functions.popfunc.pop_epoch import pop_epoch_dialog_spec
 from eegprep.functions.popfunc.pop_interp import pop_interp_dialog_spec
 from eegprep.functions.popfunc.pop_reref import pop_reref_dialog_spec
 from eegprep.functions.popfunc.pop_resample import pop_resample_dialog_spec
+from eegprep.functions.popfunc.pop_rmbase import pop_rmbase_dialog_spec
 from eegprep.functions.popfunc.pop_runica import pop_runica_dialog_spec
 from eegprep.functions.popfunc.pop_select import pop_select_dialog_spec
 from eegprep.plugins.ICLabel.pop_iclabel import pop_iclabel_dialog_spec
@@ -149,6 +150,7 @@ def _demo_main_eeg(*, epoched: bool = False, setname: str = "menu demo") -> dict
                 "trials": 2,
                 "xmin": -0.2,
                 "xmax": 0.796,
+                "times": np.linspace(-200, 796, 250),
                 "epoch": [{"event": [1]}, {"event": [2]}],
             }
         )
@@ -355,6 +357,15 @@ def capture_pop_resample_dialog(output: pathlib.Path) -> None:
     _grab_dialog(dialog, output, app)
 
 
+def capture_pop_rmbase_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_rmbase dialog."""
+    eeg = _demo_main_eeg(epoched=True, setname="baseline demo")
+    spec = pop_rmbase_dialog_spec(eeg)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
 def capture_pop_epoch_dialog(output: pathlib.Path) -> None:
     """Render and capture the pop_epoch dialog."""
     eeg = _demo_main_eeg(setname="pop demo")
@@ -527,6 +538,8 @@ def main(argv: list[str] | None = None) -> int:
         capture_pop_select_dialog(args.output)
     elif args.case == "pop_resample_dialog":
         capture_pop_resample_dialog(args.output)
+    elif args.case == "pop_rmbase_dialog":
+        capture_pop_rmbase_dialog(args.output)
     elif args.case == "pop_epoch_dialog":
         capture_pop_epoch_dialog(args.output)
     elif args.case == "pop_runica_dialog":

@@ -19,11 +19,16 @@ except ImportError:  # pragma: no cover - supports direct script execution
 
 DEFAULT_OUTPUT_DIR = pathlib.Path(".visual-parity")
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
-EEGLAB_REFERENCE_ROOT = (
-    REPO_ROOT.parent / "eeglab"
-    if (REPO_ROOT.parent / "eeglab" / "eeglab.m").exists()
-    else REPO_ROOT / "src" / "eegprep" / "eeglab"
-)
+EEGLAB_REFERENCE_ENV = "EEGPREP_EEGLAB_ROOT"
+
+
+def _eeglab_reference_root() -> pathlib.Path:
+    configured = os.environ.get(EEGLAB_REFERENCE_ENV)
+    if configured:
+        return pathlib.Path(configured).expanduser().resolve()
+    if (REPO_ROOT.parent / "eeglab" / "eeglab.m").exists():
+        return REPO_ROOT.parent / "eeglab"
+    return REPO_ROOT / "src" / "eegprep" / "eeglab"
 
 
 @dataclass(frozen=True)
@@ -394,7 +399,7 @@ def _target_env(case: VisualCase, target_name: str, target: TargetSpec, output_p
 
 def _write_matlab_figure_script(case: VisualCase, target: TargetSpec, output_path: pathlib.Path) -> pathlib.Path:
     width, height = case.window_size
-    eeglab_root = EEGLAB_REFERENCE_ROOT
+    eeglab_root = _eeglab_reference_root()
     script_path = output_path.parent / f"{case.id}_eeglab_capture.m"
     matlab_command = target.matlab_command.strip() or "eeglab;"
     action, variant = _split_action(target.action)
@@ -459,7 +464,7 @@ def _write_matlab_reref_dialog_script(
     output_path: pathlib.Path,
     variant: str = "default",
 ) -> pathlib.Path:
-    eeglab_root = EEGLAB_REFERENCE_ROOT
+    eeglab_root = _eeglab_reference_root()
     script_path = output_path.parent / f"{case.id}_eeglab_capture.m"
     script_path.write_text(
         "\n".join(
@@ -590,7 +595,7 @@ def _write_matlab_simple_pop_dialog_script(
     action: str,
     variant: str = "default",
 ) -> pathlib.Path:
-    eeglab_root = EEGLAB_REFERENCE_ROOT
+    eeglab_root = _eeglab_reference_root()
     script_path = output_path.parent / f"{case.id}_eeglab_capture.m"
     inputgui_override_dir = output_path.parent / "inputgui_plot_override"
     inputgui_override_dir.mkdir(exist_ok=True)
@@ -639,6 +644,7 @@ def _write_matlab_simple_pop_dialog_script(
         "pop_select": "Select data -- pop_select()",
         "pop_resample": "Resample current dataset -- pop_resample()",
         "pop_epoch": "Extract data epochs - pop_epoch()",
+        "pop_rmbase": "Baseline removal - pop_rmbase()",
         "pop_runica": "Run ICA decomposition -- pop_runica()",
         "pop_clean_rawdata": "pop_clean_rawdata()",
         "pop_iclabel": "ICLabel",
@@ -673,6 +679,8 @@ def _write_matlab_simple_pop_dialog_script(
                 "        [EEG, com] = pop_resample(EEG);",
                 "    case 'pop_epoch'",
                 "        [EEG, com] = pop_epoch(EEG);",
+                "    case 'pop_rmbase'",
+                "        [EEG, com] = pop_rmbase(EEG);",
                 "    case 'pop_runica'",
                 "        [EEG, com] = pop_runica(EEG);",
                 "    case 'pop_clean_rawdata'",
@@ -748,6 +756,16 @@ def _write_matlab_simple_pop_dialog_script(
                 "    EEG.epoch = struct('event', {1, 2});",
                 "    EEG.icaact = zeros(4, EEG.pnts, EEG.trials);",
                 "end",
+                "if strcmp(action, 'pop_rmbase')",
+                "    EEG.pnts = 500;",
+                "    EEG.trials = 2;",
+                "    EEG.xmin = -0.2;",
+                "    EEG.xmax = 0.796;",
+                "    EEG.times = linspace(-200, 796, EEG.pnts);",
+                "    EEG.data = zeros(4, EEG.pnts, EEG.trials);",
+                "    EEG.epoch = struct('event', {1, 2});",
+                "    EEG.icaact = zeros(4, EEG.pnts, EEG.trials);",
+                "end",
                 "end",
                 "",
                 "function capture_simple_pop_dialog(output_file, target_title, action)",
@@ -781,7 +799,7 @@ def _write_matlab_simple_pop_dialog_script(
 
 
 def _write_matlab_dataset_index_dialog_script(case: VisualCase, output_path: pathlib.Path) -> pathlib.Path:
-    eeglab_root = EEGLAB_REFERENCE_ROOT
+    eeglab_root = _eeglab_reference_root()
     script_path = output_path.parent / f"{case.id}_eeglab_capture.m"
     script_path.write_text(
         "\n".join(
@@ -850,7 +868,7 @@ def _write_matlab_pophelp_dialog_script(
     output_path: pathlib.Path,
     function_name: str,
 ) -> pathlib.Path:
-    eeglab_root = EEGLAB_REFERENCE_ROOT
+    eeglab_root = _eeglab_reference_root()
     script_path = output_path.parent / f"{case.id}_eeglab_capture.m"
     script_path.write_text(
         "\n".join(
@@ -991,7 +1009,7 @@ def _write_matlab_pophelp_dialog_script(
 
 
 def _write_matlab_pop_chansel_dialog_script(case: VisualCase, output_path: pathlib.Path) -> pathlib.Path:
-    eeglab_root = EEGLAB_REFERENCE_ROOT
+    eeglab_root = _eeglab_reference_root()
     script_path = output_path.parent / f"{case.id}_eeglab_capture.m"
     script_path.write_text(
         "\n".join(
@@ -1132,6 +1150,7 @@ def capture_target(
             "pop_interp",
             "pop_resample",
             "pop_reref",
+            "pop_rmbase",
             "pop_runica",
             "pop_select",
             "inputdlg2",
@@ -1156,7 +1175,15 @@ def capture_target(
             script_path = _write_matlab_simple_pop_dialog_script(case, output_path, action, variant)
         elif action == "pop_chansel":
             script_path = _write_matlab_pop_chansel_dialog_script(case, output_path)
-        elif action in {"pop_clean_rawdata", "pop_epoch", "pop_iclabel", "pop_resample", "pop_runica", "pop_select"}:
+        elif action in {
+            "pop_clean_rawdata",
+            "pop_epoch",
+            "pop_iclabel",
+            "pop_resample",
+            "pop_rmbase",
+            "pop_runica",
+            "pop_select",
+        }:
             script_path = _write_matlab_simple_pop_dialog_script(case, output_path, action, variant)
         elif action == "inputdlg2":
             script_path = _write_matlab_dataset_index_dialog_script(case, output_path)

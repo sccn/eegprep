@@ -48,7 +48,6 @@ PLACEHOLDER_ACTION_METADATA: Mapping[str, PlaceholderMetadata] = {
             "pop_firma",
             "pop_firpm",
             "pop_firws",
-            "pop_rmbase",
         ),
     ),
     **_phase_entries(

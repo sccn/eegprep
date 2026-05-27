@@ -320,7 +320,7 @@ def test_pop_clean_rawdata_riemannian_asr_runs_on_sample_data_without_warning_no
 
 
 def test_pop_rmbase_zeroes_selected_sample_baseline_channels(sample_eeg):
-    baseline = pop_rmbase(sample_eeg, pointrange=[1, 20], chanlist=[0, 1])
+    baseline = pop_rmbase(sample_eeg, pointrange=range(1, 21), chanlist=[1, 2])
 
     assert baseline["data"].shape == sample_eeg["data"].shape
     assert np.nanmean(baseline["data"][0, :20]) == pytest.approx(0, abs=1e-5)

@@ -57,6 +57,7 @@ IMPLEMENTED_ACTIONS = {
     "pop_savestudy",
     "pop_reref",
     "pop_resample",
+    "pop_rmbase",
     "pop_runica",
     "pop_saveset",
     "pop_select",
@@ -111,6 +112,7 @@ _MULTIPLE_DATASET_ACTIONS = {
     "pop_iclabel",
     "pop_reref",
     "pop_resample",
+    "pop_rmbase",
     "pop_runica",
     "pop_select",
 }
@@ -239,6 +241,9 @@ class MenuActionDispatcher:
             return
         if base == "pop_resample":
             self._run_pop_function("pop_resample", parent)
+            return
+        if base == "pop_rmbase":
+            self._run_pop_function("pop_rmbase", parent)
             return
         if base == "pop_runica":
             self._run_pop_function("pop_runica", parent)
@@ -672,6 +677,10 @@ class MenuActionDispatcher:
             from eegprep.functions.popfunc.pop_resample import pop_resample
 
             out = pop_resample(selection, return_com=True)
+        elif name == "pop_rmbase":
+            from eegprep.functions.popfunc.pop_rmbase import pop_rmbase
+
+            out = pop_rmbase(selection, return_com=True)
         elif name == "pop_runica":
             from eegprep.functions.popfunc.pop_runica import pop_runica
 

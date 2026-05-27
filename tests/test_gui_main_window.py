@@ -642,6 +642,7 @@ class MenuActionDispatcherTests(unittest.TestCase):
         action_specs = [
             ("pop_select", "eegprep.functions.popfunc.pop_select.pop_select", "selected"),
             ("pop_resample", "eegprep.functions.popfunc.pop_resample.pop_resample", "resampled"),
+            ("pop_rmbase", "eegprep.functions.popfunc.pop_rmbase.pop_rmbase", "baseline"),
             ("pop_epoch", "eegprep.functions.popfunc.pop_epoch.pop_epoch", "epoched"),
             ("pop_clean_rawdata", "eegprep.plugins.clean_rawdata.pop_clean_rawdata.pop_clean_rawdata", "cleaned"),
             ("pop_runica", "eegprep.functions.popfunc.pop_runica.pop_runica", "ica"),

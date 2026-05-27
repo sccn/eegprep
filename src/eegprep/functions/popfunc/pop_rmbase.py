@@ -1,244 +1,469 @@
-"""EEG baseline removal utilities."""
+"""EEGLAB-style baseline removal pop function."""
+
+from __future__ import annotations
+
+from copy import deepcopy
+import re
+from typing import Any
 
 import numpy as np
-from typing import Iterable, Optional, Tuple
 
-from eegprep.functions.popfunc.eeg_findboundaries import eeg_findboundaries
+from eegprep.functions.guifunc.inputgui import inputgui
+from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.miscfunc.misc import round_mat
+from eegprep.functions.popfunc._pop_utils import format_history_value, parse_text_tokens
+from eegprep.functions.popfunc.eeg_findboundaries import eeg_findboundaries
+from eegprep.functions.sigprocfunc.rmbase import rmbase
 
 
-def _normalize_pointrange(pointrange: Optional[Iterable], pnts: int) -> np.ndarray:
-    """Normalize MATLAB-like pointrange into a 0-based numpy index vector within [0, pnts-1].
-
-    Accepts:
-      - None or empty → full range
-      - two-element iterable [start, end] inclusive (1-based or 0-based tolerated)
-      - any iterable of indices → will be clipped and uniqued in ascending order
-    """
-    if pointrange is None:
-        return np.arange(pnts, dtype=int)
-
-    if isinstance(pointrange, slice):
-        start = 0 if pointrange.start is None else int(pointrange.start)
-        stop = pnts if pointrange.stop is None else int(pointrange.stop)
-        step = 1 if pointrange.step is None else int(pointrange.step)
-        idx = np.arange(start, stop, step, dtype=int)
-        return idx.astype(int)
-
-    # convert to numpy array of ints/floats
-    arr = np.asarray(list(pointrange))
-
-    if arr.ndim == 1 and arr.size == 0:
-        idx = np.arange(pnts, dtype=int)
-    elif arr.ndim == 1 and arr.size == 2:
-        # tolerate 1-based inputs; convert to 0-based inclusive
-        a = int(arr[0])
-        b = int(arr[1])
-        # if clearly 1-based, shift; otherwise assume 0-based
-        if a >= 1 and b >= 1:
-            a -= 1
-            b -= 1
-        if a < 0:
-            a = 0
-        if b >= pnts:
-            b = pnts - 1
-        if b < a:
-            a, b = b, a
-        idx = np.arange(a, b + 1, dtype=int)
-    else:
-        # arbitrary index list; clip and uniquify sorted
-        idx = np.unique(arr.astype(int))
-        idx = idx[(idx >= 0) & (idx < pnts)]
-
-    return idx.astype(int)
-
-
-def _indices_from_timerange(times: np.ndarray, timerange: Iterable[float]) -> np.ndarray:
-    """Build 0-based indices from a millisecond timerange using EEG['times'] (ms)."""
-    tr = np.asarray(list(timerange), dtype=float)
-    if tr.size != 2:
-        raise ValueError('timerange must contain 2 elements [min_ms, max_ms]')
-    tmin, tmax = float(tr[0]), float(tr[1])
-    if tmin < float(times[0]) or tmax > float(times[-1]):
-        raise ValueError('pop_rmbase(): Bad time range')
-    mask = (times >= tmin) & (times <= tmax)
-    idx = np.where(mask)[0]
-    if idx.size == 0:
-        # fallback to nearest
-        idx = np.array([np.argmin(np.abs(times - tmin))], dtype=int)
-    return idx.astype(int)
-
-
-def _subtract_mean_over_indices(data: np.ndarray, idx: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-    """Subtract mean over the provided indices from each channel for 2D data (chans x frames).
-
-    Returns (data_out, means) where means is chans x 1.
-    """
-    if data.ndim != 2:
-        raise ValueError('Expected 2D array (channels x frames)')
-    if idx.size == 0:
-        return data, np.zeros((data.shape[0], 1))
-    means = np.nanmean(data[:, idx], axis=1, keepdims=True)
-    return data - means, means
+_UNSET = object()
+_RANGE_TOKEN = re.compile(r"^(-?\d+(?:\.\d+)?)(?::(-?\d+(?:\.\d+)?))?(?::(-?\d+(?:\.\d+)?))?$")
 
 
 def pop_rmbase(
-    EEG: dict,
-    timerange: Optional[Iterable[float]] = None,
-    pointrange: Optional[Iterable[int]] = None,
-    chanlist: Optional[Iterable[int]] = None,
-) -> dict:
+    EEG: Any = _UNSET,
+    timerange: Any = None,
+    pointrange: Any = None,
+    chanlist: Any = None,
+    *,
+    gui: bool | None = None,
+    renderer: Any | None = None,
+    return_com: bool = False,
+):
+    """Remove baseline means from an epoched or continuous EEG dataset.
+
+    ``timerange`` uses the units stored in ``EEG["times"]``. ``pointrange``
+    and numeric ``chanlist`` values use EEGLAB-facing 1-based indices.
+    Calling ``pop_rmbase(EEG)`` opens the GUI; pass explicit ranges or
+    ``gui=False`` for direct command-line use.
     """
-    POP_RMBASE - remove channel baseline means from an epoched or continuous EEG dataset.
+    if EEG is _UNSET or EEG is None:
+        raise ValueError("pop_rmbase(): EEG dataset is required")
+    if gui is None:
+        gui = timerange is None and pointrange is None and chanlist is None
 
-    Parameters
-    ----------
-    EEG : dict
-        EEGLAB-like EEG structure with keys: 'data', 'nbchan', 'pnts', 'trials', 'times', 'event'.
-        Event latencies are 1-based indices (EEGLAB convention).
-    timerange : [min_ms, max_ms] or None
-        Baseline latency range in milliseconds; overrides pointrange when provided.
-    pointrange : iterable of indices or [start, end]
-        Baseline sample indices (0-based or 1-based tolerated). If None/empty, use whole epoch.
-    chanlist : iterable of channel indices (0-based). If None, all channels are used.
+    if isinstance(EEG, list):
+        if not EEG:
+            return ([], "") if return_com else []
+        if gui:
+            result = _run_gui(EEG[0], renderer=renderer, multiple=True)
+            if result is None:
+                return (EEG, "") if return_com else EEG
+            timerange = result["timerange"]
+            pointrange = result["pointrange"]
+            chanlist = None
+        outputs = [pop_rmbase(item, timerange, pointrange, chanlist, gui=False) for item in EEG]
+        command = _history_command(timerange, pointrange, None, None)
+        return (outputs, command) if return_com else outputs
 
-    Returns
-    -------
-    EEG : dict
-        Updated EEG structure with baseline removed. EEG['icaact'] is cleared.
-    """
-    if (
-        EEG is None
-        or 'data' not in EEG
-        or EEG['data'] is None
-        or (hasattr(EEG['data'], 'size') and EEG['data'].size == 0)
-    ):
-        raise ValueError('pop_rmbase(): cannot remove baseline of an empty dataset')
+    if gui:
+        result = _run_gui(EEG, renderer=renderer, multiple=False)
+        if result is None:
+            return (EEG, "") if return_com else EEG
+        timerange = result["timerange"]
+        pointrange = result["pointrange"]
+        chanlist = result["chanlist"]
 
-    data = EEG['data']
-    nbchan = int(EEG.get('nbchan', data.shape[0]))
-    pnts = int(EEG.get('pnts', data.shape[1] if data.ndim >= 2 else 0))
-    trials = int(EEG.get('trials', data.shape[2] if data.ndim == 3 else 1))
+    output, history_pointrange, history_chanlist = _apply_pop_rmbase_one(EEG, timerange, pointrange, chanlist)
+    history_timerange = timerange if _has_values(timerange) else []
+    if _has_values(history_timerange):
+        history_pointrange = []
+    command = _history_command(history_timerange, history_pointrange, history_chanlist, int(output["nbchan"]))
+    return (output, command) if return_com else output
 
-    if chanlist is None or (isinstance(chanlist, (list, tuple, np.ndarray)) and len(chanlist) == 0):
-        chanlist = list(range(nbchan))
-    else:
-        chanlist = list(map(int, list(chanlist)))
 
-    # Determine baseline indices
-    if timerange is not None and len(list(timerange)) > 0:
-        if 'times' not in EEG or EEG['times'] is None:
-            raise ValueError('EEG["times"] is required when using timerange')
-        pr = _indices_from_timerange(np.asarray(EEG['times'], dtype=float), timerange)
-    elif pointrange is not None and len(list(pointrange)) > 0:
-        pr = _normalize_pointrange(pointrange, pnts)
-    else:
-        pr = np.arange(pnts, dtype=int)
-
-    # Epoched vs continuous handling
-    epoched = trials > 1 or (data.ndim == 3 and data.shape[-1] > 1)
-
-    # Ensure data dimensionality conforms
-    if epoched:
-        if data.ndim != 3:
-            # normalize to (nbchan, pnts, trials)
-            data = data.reshape((nbchan, pnts, trials))
-            EEG['data'] = data
-    else:
-        if data.ndim == 3:
-            data = data[:, :, 0]
-            EEG['data'] = data
-
-    # Remove baseline
-    if not epoched:
-        # Continuous data
-        events = EEG.get('event', [])
-        # Normalize events to list
-        if isinstance(events, np.ndarray):
-            try:
-                events = events.tolist()
-            except Exception:
-                events = []
-        use_boundaries = (
-            isinstance(events, list)
-            and len(events) > 0
-            and isinstance(events[0], dict)
-            and isinstance(events[0].get('type', None), str)
+def pop_rmbase_dialog_spec(EEG: dict[str, Any], *, multiple: bool = False) -> DialogSpec:
+    """Return the EEGLAB-like dialog spec for ``pop_rmbase``."""
+    trials = int(EEG.get("trials", 1) or 1)
+    labels = _channel_field_values(EEG, "labels")
+    types = _channel_field_values(EEG, "type", unique=True)
+    channel_enabled = not multiple
+    controls: list[ControlSpec] = []
+    geometry: list[tuple[float, ...]] = []
+    if trials > 1:
+        controls.extend(
+            [
+                ControlSpec("text", "Baseline latency range ([min max] in ms) ([ ] = whole epoch):"),
+                ControlSpec("edit", tag="timerange", value=_default_baseline_timerange(EEG)),
+                ControlSpec("text", "Or remove baseline points vector (ex:1:56):"),
+                ControlSpec("edit", tag="pointrange", value=""),
+                ControlSpec("text", "Note: press Cancel if you do not want to remove the baseline"),
+            ]
         )
-        if use_boundaries:
-            bidx = eeg_findboundaries(EEG=EEG)
-            if len(bidx) == 0:
-                # Manual check for boundaries - use this instead
-                bidx = [i for i, ev in enumerate(events) if ev.get('type', '') == 'boundary']
-        else:
-            bidx = []
-
-        if bidx:
-            # MATLAB-compatible boundary processing
-            # boundaries = round([ tmpevent(boundaries).latency ] -0.5-pointrange(1)+1);
-            boundary_lats = []
-            for i in bidx:
-                try:
-                    lat = float(events[i].get('latency', np.nan))
-                    if not np.isnan(lat):
-                        boundary_lats.append(lat)
-                except Exception:
-                    continue
-
-            # Convert to MATLAB's boundary indices (relative to baseline start)
-            # MATLAB formula: round(lat - 0.5 - pointrange(1) + 1)
-            boundaries = []
-            for lat in boundary_lats:
-                boundary_idx = int(round_mat(lat - 0.5 - pr[0] + 1))
-                boundaries.append(boundary_idx)
-
-            # Filter boundaries to be within the baseline range
-            # MATLAB: boundaries(boundaries>=pointrange(end)-pointrange(1)) = [];
-            #         boundaries(boundaries<1) = [];
-            baseline_len = pr[-1] - pr[0] + 1  # pointrange(end) - pointrange(1) + 1
-            boundaries = [b for b in boundaries if 1 <= b < baseline_len]
-
-            # Add start and end boundaries
-            # MATLAB: boundaries = [0 boundaries pointrange(end)-pointrange(1)+1];
-            boundaries = [0] + sorted(boundaries) + [baseline_len]
-
-            # Process each segment
-            for index in range(len(boundaries) - 1):
-                # MATLAB: tmprange = [boundaries(index)+1:boundaries(index+1)];
-                start_idx = boundaries[index] + 1  # 1-based in MATLAB
-                end_idx = boundaries[index + 1]  # 1-based in MATLAB
-
-                # Convert to 0-based Python indices within baseline range
-                # pr[0] is 1-based MATLAB index, convert to 0-based Python index
-                baseline_start_py = pr[0] - 1
-                py_start = baseline_start_py + start_idx - 1  # start_idx is 1-based MATLAB
-                py_end = baseline_start_py + end_idx - 1  # end_idx is 1-based MATLAB
-
-                tmprange_len = end_idx - start_idx + 1
-
-                if py_start < 0 or py_end < py_start:
-                    continue
-
-                if tmprange_len > 1:
-                    # Subtract mean of this segment
-                    seg = EEG['data'][chanlist, py_start : py_end + 1]
-                    if seg.size > 0:
-                        seg_means = np.nanmean(seg, axis=1, keepdims=True)
-                        EEG['data'][chanlist, py_start : py_end + 1] = seg - seg_means
-                elif tmprange_len == 1:
-                    EEG['data'][chanlist, py_start : py_end + 1] = 0.0
-        else:
-            # No boundaries: subtract mean over baseline range from whole record
-            EEG['data'][chanlist, :], _ = _subtract_mean_over_indices(EEG['data'][chanlist, :], pr)
+        geometry.extend([(3, 1), (3, 1), (1,)])
+        size = (716, 299)
     else:
-        # Epoched data: for each channel, subtract mean over baseline indices per epoch
-        # data shape: (nbchan, pnts, trials)
-        for indc in chanlist:
-            # mean across baseline points for each epoch → shape (trials,)
-            m = np.nanmean(EEG['data'][indc, pr, :], axis=0)
-            EEG['data'][indc, :, :] = EEG['data'][indc, :, :] - m[np.newaxis, :]
+        controls.append(ControlSpec("text", "Removing the mean of each data channel (press cancel to skip)"))
+        geometry.append((1,))
+        size = (626, 198)
 
-    # Clear ICA activations to remain consistent with EEGLAB behavior
-    EEG['icaact'] = []
+    controls.extend(
+        [
+            ControlSpec("text", "Channel type(s)", enabled=channel_enabled),
+            ControlSpec("edit", tag="chantypes", value="", enabled=channel_enabled),
+            ControlSpec(
+                "pushbutton",
+                "...",
+                tag="chantypes_button",
+                enabled=channel_enabled and bool(types),
+                callback=CallbackSpec(
+                    "select_channels",
+                    params={"button": "chantypes_button", "target": "chantypes", "channels": types},
+                    matlab_callback="pop_chansel({tmpchanlocs.type}, 'withindex', 'off')",
+                ),
+            ),
+            ControlSpec("text", "OR channel(s) (default all)", enabled=channel_enabled),
+            ControlSpec("edit", tag="channels", value="", enabled=channel_enabled),
+            ControlSpec(
+                "pushbutton",
+                "...",
+                tag="channels_button",
+                enabled=channel_enabled and bool(labels),
+                callback=CallbackSpec(
+                    "select_channels",
+                    params={"button": "channels_button", "target": "channels", "channels": labels},
+                    matlab_callback="pop_chansel({tmpchanlocs.labels}, 'withindex', 'on')",
+                ),
+            ),
+        ]
+    )
+    geometry.extend([(2, 1.5, 0.5), (2, 1.5, 0.5)])
+    return DialogSpec(
+        title="Baseline removal - pop_rmbase()",
+        function_name="pop_rmbase",
+        eeglab_source="functions/popfunc/pop_rmbase.m",
+        geometry=tuple(geometry),
+        size=size,
+        help_text="pophelp('pop_rmbase')",
+        controls=tuple(controls),
+        content_margins=(42, 35, 42, 35),
+        row_spacing=18,
+    )
 
-    return EEG
+
+def _run_gui(EEG: dict[str, Any], *, renderer: Any | None = None, multiple: bool = False) -> dict[str, Any] | None:
+    spec = pop_rmbase_dialog_spec(EEG, multiple=multiple)
+    result = inputgui(spec, renderer=renderer)
+    if result is None:
+        return None
+    trials = int(EEG.get("trials", 1) or 1)
+    timerange: Any = []
+    pointrange: Any = []
+    if trials > 1:
+        timerange_text = str(result.get("timerange", "")).strip()
+        pointrange_text = str(result.get("pointrange", "")).strip()
+        if _is_blank_text(timerange_text) and _is_blank_text(pointrange_text):
+            times = np.asarray(EEG["times"], dtype=float).ravel()
+            timerange = [float(times[0]), float(times[-1])]
+        else:
+            timerange = _parse_numeric_vector(timerange_text)
+            pointrange = _parse_numeric_vector(pointrange_text)
+    chanlist = None
+    if not multiple:
+        chantypes = str(result.get("chantypes", "")).strip()
+        channels = str(result.get("channels", "")).strip()
+        if not _is_blank_text(chantypes):
+            chanlist = _resolve_channel_types(EEG, chantypes)
+        elif not _is_blank_text(channels):
+            chanlist = _resolve_channel_indices(EEG, channels, one_based=True)[1]
+    return {"timerange": timerange, "pointrange": pointrange, "chanlist": chanlist}
+
+
+def _apply_pop_rmbase_one(
+    EEG: dict[str, Any],
+    timerange: Any,
+    pointrange: Any,
+    chanlist: Any,
+) -> tuple[dict[str, Any], list[int], list[int] | None]:
+    _validate_eeg(EEG)
+    output = deepcopy(EEG)
+    data = np.asarray(output["data"])
+    nbchan = int(output.get("nbchan", data.shape[0]))
+    pnts = int(output.get("pnts", data.shape[1]))
+    trials = int(output.get("trials", data.shape[2] if data.ndim == 3 else 1))
+    if data.ndim == 2 and trials > 1:
+        data = data.reshape(nbchan, pnts, trials)
+    elif data.ndim == 3 and trials <= 1:
+        data = data[:, :, 0]
+        trials = 1
+    elif data.ndim not in {2, 3}:
+        raise ValueError("pop_rmbase(): EEG data must be 2D or 3D")
+
+    baseline_indices, history_pointrange = _baseline_indices(output, timerange, pointrange, pnts)
+    channel_indices, history_chanlist = _resolve_channel_indices(output, chanlist, one_based=True)
+    if data.ndim == 2:
+        data = _remove_continuous_baseline(output, data, channel_indices, baseline_indices)
+    else:
+        data[channel_indices, :, :] = rmbase(data[channel_indices, :, :], pnts, baseline_indices + 1)
+
+    output["data"] = data
+    output["nbchan"] = nbchan
+    output["pnts"] = pnts
+    output["trials"] = trials
+    output["icaact"] = np.array([])
+    output["saved"] = "no"
+    return output, history_pointrange, history_chanlist
+
+
+def _remove_continuous_baseline(
+    EEG: dict[str, Any],
+    data: np.ndarray,
+    channel_indices: list[int],
+    baseline_indices: np.ndarray,
+) -> np.ndarray:
+    boundaries = _continuous_boundary_starts(EEG, data.shape[1])
+    if not boundaries:
+        data[channel_indices, :] = rmbase(data[channel_indices, :], data.shape[1], baseline_indices + 1)
+        return data
+    segment_bounds = [0, *boundaries, data.shape[1]]
+    for start, stop in zip(segment_bounds[:-1], segment_bounds[1:]):
+        if stop <= start:
+            continue
+        segment_baseline = baseline_indices[(baseline_indices >= start) & (baseline_indices < stop)]
+        if segment_baseline.size == 0:
+            continue
+        if stop - start == 1:
+            data[channel_indices, start:stop] = 0
+            continue
+        data[channel_indices, start:stop] = rmbase(
+            data[channel_indices, start:stop],
+            stop - start,
+            segment_baseline - start + 1,
+        )
+    return data
+
+
+def _baseline_indices(
+    EEG: dict[str, Any],
+    timerange: Any,
+    pointrange: Any,
+    pnts: int,
+) -> tuple[np.ndarray, list[int]]:
+    if _has_values(timerange):
+        times = np.asarray(EEG.get("times"), dtype=float).ravel()
+        if times.size == 0:
+            raise ValueError('EEG["times"] is required when using timerange')
+        values = _parse_numeric_vector(timerange, dtype=float)
+        if len(values) != 2:
+            raise ValueError("timerange must contain [min max]")
+        if values[0] < float(times[0]) or values[-1] > float(times[-1]):
+            raise ValueError("pop_rmbase(): Bad time range")
+        indices = np.where((times >= values[0]) & (times <= values[-1]))[0]
+        if indices.size == 0:
+            raise ValueError("pop_rmbase(): time range does not contain samples")
+        return indices.astype(int), (indices + 1).astype(int).tolist()
+    if _has_values(pointrange):
+        values = _parse_numeric_vector(pointrange, dtype=float)
+        indices = _point_indices_from_values(values, pnts)
+        return indices, (indices + 1).astype(int).tolist()
+    indices = np.arange(pnts, dtype=int)
+    return indices, []
+
+
+def _point_indices_from_values(values: list[float], pnts: int) -> np.ndarray:
+    if not values:
+        return np.arange(pnts, dtype=int)
+    indices = np.asarray(values, dtype=int)
+    indices = indices[(indices >= 1) & (indices <= pnts)]
+    if indices.size == 0:
+        raise ValueError("pointrange does not overlap the data")
+    return np.unique(indices - 1)
+
+
+def _continuous_boundary_starts(EEG: dict[str, Any], pnts: int) -> list[int]:
+    events = EEG.get("event", [])
+    if isinstance(events, np.ndarray):
+        events = events.tolist()
+    if not isinstance(events, list) or not events:
+        return []
+    starts = []
+    for event_index in eeg_findboundaries(EEG=EEG):
+        event = events[event_index]
+        try:
+            latency = float(event.get("latency"))
+        except (AttributeError, TypeError, ValueError):
+            continue
+        start = int(round_mat(latency - 0.5))
+        if 0 < start < pnts:
+            starts.append(start)
+    return sorted(set(starts))
+
+
+def _resolve_channel_indices(
+    EEG: dict[str, Any],
+    chanlist: Any,
+    *,
+    one_based: bool,
+) -> tuple[list[int], list[int] | None]:
+    nbchan = int(EEG.get("nbchan", np.asarray(EEG.get("data")).shape[0]))
+    if not _has_values(chanlist):
+        return list(range(nbchan)), None
+    tokens = _channel_tokens(chanlist)
+    numeric = _numeric_channel_tokens(tokens)
+    if numeric is not None:
+        if not one_based:
+            indices = numeric
+            history = [index + 1 for index in numeric]
+        else:
+            indices = [index - 1 for index in numeric]
+            history = numeric
+        if any(index < 0 or index >= nbchan for index in indices):
+            raise ValueError("chanlist indices must be 1-based and within EEG.nbchan")
+        return sorted(dict.fromkeys(indices)), sorted(dict.fromkeys(history))
+    labels = _channel_field_values(EEG, "labels")
+    lookup = {label.lower(): index for index, label in enumerate(labels)}
+    indices = []
+    for token in tokens:
+        key = str(token).strip().lower()
+        if key not in lookup:
+            raise ValueError(f"Channel '{token}' not found")
+        indices.append(lookup[key])
+    indices = sorted(dict.fromkeys(indices))
+    return indices, [index + 1 for index in indices]
+
+
+def _resolve_channel_types(EEG: dict[str, Any], text: str) -> list[int]:
+    requested = {str(token).strip().lower() for token in parse_text_tokens(text) if str(token).strip()}
+    chanlocs = _chanlocs(EEG)
+    indices = [
+        index + 1 for index, chan in enumerate(chanlocs) if str(chan.get("type", "")).strip().lower() in requested
+    ]
+    if not indices:
+        raise ValueError("No channels matched the selected channel type(s)")
+    return indices
+
+
+def _numeric_channel_tokens(tokens: list[Any]) -> list[int] | None:
+    values = []
+    for token in tokens:
+        if isinstance(token, (int, float, np.integer, np.floating)) and float(token).is_integer():
+            values.append(int(token))
+            continue
+        text = str(token).strip()
+        if not text.isdigit():
+            return None
+        values.append(int(text))
+    return values
+
+
+def _channel_tokens(value: Any) -> list[Any]:
+    if isinstance(value, str):
+        return parse_text_tokens(value, parse_ints=True)
+    if isinstance(value, np.ndarray):
+        return value.ravel().tolist()
+    if isinstance(value, (int, float, np.integer, np.floating)):
+        return [value]
+    return list(value)
+
+
+def _parse_numeric_vector(value: Any, *, dtype: type = float) -> list[Any]:
+    if not _has_values(value):
+        return []
+    if isinstance(value, str):
+        text = value.strip().strip("[]")
+        if not text:
+            return []
+        values = []
+        for token in text.replace(",", " ").split():
+            values.extend(_parse_range_token(token))
+        return [dtype(item) for item in values]
+    if isinstance(value, np.ndarray):
+        values = value.ravel().tolist()
+    elif isinstance(value, (int, float, np.integer, np.floating)):
+        values = [value]
+    else:
+        values = list(np.asarray(value).ravel())
+    return [dtype(item) for item in values]
+
+
+def _parse_range_token(token: str) -> list[float]:
+    match = _RANGE_TOKEN.match(token)
+    if match is None or match.group(2) is None:
+        return [float(token)]
+    first = float(match.group(1))
+    if match.group(3) is None:
+        step = 1.0 if float(match.group(2)) >= first else -1.0
+        last = float(match.group(2))
+    else:
+        step = float(match.group(2))
+        last = float(match.group(3))
+    if step == 0:
+        raise ValueError("range step cannot be zero")
+    values = []
+    current = first
+    compare = (lambda left, right: left <= right) if step > 0 else (lambda left, right: left >= right)
+    while compare(current, last):
+        values.append(current)
+        current += step
+    return values
+
+
+def _history_command(timerange: Any, pointrange: Any, chanlist: Any, nbchan: int | None) -> str:
+    timerange_text = format_history_value(_history_sequence(timerange), cell_for_sequence=None)
+    pointrange_text = format_history_value(_history_sequence(pointrange), cell_for_sequence=None)
+    parts = [timerange_text, pointrange_text]
+    if _has_values(chanlist):
+        chan_values = _history_sequence(chanlist)
+        if nbchan is None or chan_values != list(range(1, nbchan + 1)):
+            parts.append(format_history_value(chan_values, cell_for_sequence=None))
+    return f"EEG = pop_rmbase( EEG, {', '.join(parts)});"
+
+
+def _history_sequence(value: Any) -> list[Any]:
+    if not _has_values(value):
+        return []
+    if isinstance(value, np.ndarray):
+        return value.ravel().tolist()
+    if isinstance(value, (int, float, np.integer, np.floating)):
+        return [value]
+    return list(value)
+
+
+def _channel_field_values(EEG: dict[str, Any], field: str, *, unique: bool = False) -> list[str]:
+    values = [str(chan.get(field, "")) for chan in _chanlocs(EEG)]
+    if not unique:
+        return values
+    deduped = []
+    for value in values:
+        if value and value not in deduped:
+            deduped.append(value)
+    return deduped
+
+
+def _chanlocs(EEG: dict[str, Any]) -> list[dict[str, Any]]:
+    chanlocs = EEG.get("chanlocs", [])
+    if isinstance(chanlocs, np.ndarray):
+        chanlocs = chanlocs.tolist()
+    return [chan if isinstance(chan, dict) else {} for chan in list(chanlocs or [])]
+
+
+def _default_baseline_timerange(EEG: dict[str, Any]) -> str:
+    times = np.asarray(EEG.get("times", []), dtype=float).ravel()
+    if times.size == 0 or times[0] >= 0:
+        return "[ ]"
+    return f"{times[0]:g} 0"
+
+
+def _validate_eeg(EEG: dict[str, Any]) -> None:
+    if not isinstance(EEG, dict):
+        raise ValueError("pop_rmbase(): EEG must be a dataset dictionary")
+    data = EEG.get("data")
+    if data is None or np.asarray(data).size == 0:
+        raise ValueError("pop_rmbase(): cannot remove baseline of an empty dataset")
+
+
+def _has_values(value: Any) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, str):
+        return not _is_blank_text(value)
+    if isinstance(value, np.ndarray):
+        return value.size > 0
+    if isinstance(value, (list, tuple)):
+        return len(value) > 0
+    return True
+
+
+def _is_blank_text(text: str) -> bool:
+    stripped = text.strip()
+    return stripped in {"", "[]", "[ ]"}

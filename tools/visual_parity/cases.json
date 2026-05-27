@@ -405,6 +405,31 @@
       }
     },
     {
+      "id": "pop_rmbase_dialog",
+      "description": "Baseline-removal dialog opened from pop_rmbase.",
+      "window_size": [716, 299],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_rmbase"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_rmbase_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
       "id": "pop_runica_dialog",
       "description": "ICA decomposition dialog opened from pop_runica.",
       "window_size": [824, 334],

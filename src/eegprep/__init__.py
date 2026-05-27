@@ -105,7 +105,7 @@ _LAZY_EXPORTS = {
     "pop_writeeeg": ("eegprep.functions.popfunc.pop_writeeeg", "pop_writeeeg"),
     "reref": ("eegprep.functions.redefine_functions", "reref"),
     "resample": ("eegprep.functions.redefine_functions", "resample"),
-    "rmbase": ("eegprep.functions.redefine_functions", "rmbase"),
+    "rmbase": ("eegprep.functions.sigprocfunc.rmbase", "rmbase"),
     "saveset": ("eegprep.functions.redefine_functions", "saveset"),
     "select": ("eegprep.functions.redefine_functions", "select"),
     "topoplot": ("eegprep.functions.sigprocfunc.topoplot", "topoplot"),
