@@ -4,12 +4,23 @@ This module provides common test fixtures and utilities that can be reused
 across different test modules.
 """
 
-import os
-import unittest
+import ast
+from copy import deepcopy
 import importlib.util
+import os
+from pathlib import Path
+from typing import Any
+import unittest
+
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
+
+from eegprep.functions.guifunc.session import EEGPrepSession
+from eegprep.functions.popfunc.pop_loadset import pop_loadset
+
+
+SAMPLE_DATASET_PATH = Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data.set"
 
 
 def matlab_engine_available():
@@ -256,6 +267,62 @@ def cleanup_matplotlib():
     memory leaks and interference between tests.
     """
     plt.close('all')
+
+
+def fresh_sample_eeg() -> dict[str, Any]:
+    """Load a fresh copy of the checked-in EEGLAB sample dataset."""
+    return deepcopy(pop_loadset(str(SAMPLE_DATASET_PATH)))
+
+
+def fresh_session_with_sample(command: str = "EEG = pop_loadset('eeglab_data.set');") -> EEGPrepSession:
+    """Return a new session with one freshly loaded sample dataset selected."""
+    session = EEGPrepSession()
+    session.store_current(fresh_sample_eeg(), new=True, command=command)
+    return session
+
+
+def assert_session_synced(session: EEGPrepSession, namespace: dict[str, Any]) -> None:
+    """Assert that an EEGPrep console namespace mirrors ``session``."""
+    assert namespace["EEG"] is session.EEG
+    assert namespace["ALLEEG"] is session.ALLEEG
+    assert namespace["CURRENTSET"] == session.current_set_value()
+    assert namespace["ALLCOM"] is session.ALLCOM
+    assert namespace["LASTCOM"] == session.LASTCOM
+    assert namespace["STUDY"] is session.STUDY
+    assert namespace["CURRENTSTUDY"] == session.CURRENTSTUDY
+
+
+def assert_history_contains_once(session: EEGPrepSession, command: str) -> None:
+    """Assert that ``command`` was appended exactly once to session history."""
+    assert session.ALLCOM.count(command) == 1
+    assert session.LASTCOM == command
+
+
+def assert_history_replayable(command: str) -> str:
+    """Assert that an EEGLAB-style command converts to valid Python input."""
+    from eegprep.functions.adminfunc.console import _console_python_command
+
+    converted = _console_python_command(command)
+    ast.parse(converted)
+    return converted
+
+
+def assert_eeg_fields_close(
+    left: dict[str, Any],
+    right: dict[str, Any],
+    fields: tuple[str, ...] | list[str],
+    *,
+    rtol: float = 1e-7,
+    atol: float = 1e-7,
+) -> None:
+    """Assert selected EEG fields match for lightweight parity scaffolding."""
+    for field in fields:
+        left_value = left[field]
+        right_value = right[field]
+        if isinstance(left_value, np.ndarray) or isinstance(right_value, np.ndarray):
+            np.testing.assert_allclose(left_value, right_value, rtol=rtol, atol=atol)
+        else:
+            assert left_value == right_value
 
 
 class TestFixturesContextManager:
