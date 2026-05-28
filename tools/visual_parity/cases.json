@@ -830,6 +830,356 @@
       }
     },
     {
+      "id": "pop_spectopo_channels_dialog",
+      "description": "Channel spectra/maps dialog opened from pop_spectopo.",
+      "window_size": [646, 299],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_spectopo:channels"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_spectopo_channels_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_spectopo_components_dialog",
+      "description": "Component spectra/maps dialog opened from pop_spectopo.",
+      "window_size": [937, 476],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_spectopo:components"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_spectopo_components_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_prop_channels_dialog",
+      "description": "Channel properties dialog opened from pop_prop.",
+      "window_size": [615, 199],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_prop:channels"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_prop_channels_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_prop_components_dialog",
+      "description": "Component properties dialog opened from pop_prop.",
+      "window_size": [615, 199],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_prop:components"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_prop_components_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_timtopo_dialog",
+      "description": "Time/topography ERP dialog opened from pop_timtopo.",
+      "window_size": [597, 299],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_timtopo"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_timtopo_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_plottopo_dialog",
+      "description": "ERP array dialog opened from pop_plottopo.",
+      "window_size": [524, 299],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_plottopo"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_plottopo_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_headplot_erp_dialog",
+      "description": "3-D ERP map dialog opened from pop_headplot.",
+      "window_size": [620, 230],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_headplot:erp"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_headplot_erp_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_headplot_components_dialog",
+      "description": "3-D component map dialog opened from pop_headplot.",
+      "window_size": [620, 230],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_headplot:components"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_headplot_components_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_plotdata_dialog",
+      "description": "Component ERP array dialog opened from pop_plotdata.",
+      "window_size": [490, 231],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_plotdata"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_plotdata_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_erpimage_channels_dialog",
+      "description": "Channel ERP-image dialog opened from pop_erpimage.",
+      "window_size": [1113, 834],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_erpimage:channels"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_erpimage_channels_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_erpimage_components_dialog",
+      "description": "Component ERP-image dialog opened from pop_erpimage.",
+      "window_size": [1113, 870],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_erpimage:components"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_erpimage_components_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_envtopo_dialog",
+      "description": "ERP/component envelope dialog opened from pop_envtopo.",
+      "window_size": [825, 369],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_envtopo"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_envtopo_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_comperp_channels_dialog",
+      "description": "Channel ERP comparison dialog opened from pop_comperp.",
+      "window_size": [938, 476],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_comperp:channels"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_comperp_channels_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_comperp_components_dialog",
+      "description": "Component ERP comparison dialog opened from pop_comperp.",
+      "window_size": [938, 476],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_comperp:components"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_comperp_components_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
       "id": "pop_runica_dialog",
       "description": "ICA decomposition dialog opened from pop_runica.",
       "window_size": [824, 334],

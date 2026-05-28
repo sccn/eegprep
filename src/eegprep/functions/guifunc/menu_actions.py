@@ -30,8 +30,10 @@ IMPLEMENTED_ACTIONS = {
     "pop_autorej",
     "pop_biosig",
     "pop_chanevent",
+    "pop_chanplot",
     "pop_clean_rawdata",
     "pop_chanedit",
+    "pop_comperp",
     "pop_delset",
     "pop_comments",
     "pop_copyset",
@@ -41,7 +43,9 @@ IMPLEMENTED_ACTIONS = {
     "pop_editoptions",
     "pop_eegfilt",
     "pop_eegfiltnew",
+    "pop_envtopo",
     "pop_epoch",
+    "pop_erpimage",
     "pop_eventinfo",
     "pop_expevents",
     "pop_expica",
@@ -56,6 +60,7 @@ IMPLEMENTED_ACTIONS = {
     "pop_firma",
     "pop_firpm",
     "pop_firws",
+    "pop_headplot",
     "pop_icflag",
     "pop_iclabel",
     "pop_jointprob",
@@ -68,6 +73,9 @@ IMPLEMENTED_ACTIONS = {
     "pop_interp",
     "pop_loadstudy",
     "pop_loadset",
+    "pop_plotdata",
+    "pop_plottopo",
+    "pop_prop",
     "pop_runscript",
     "pop_saveh",
     "pop_savestudy",
@@ -88,10 +96,12 @@ IMPLEMENTED_ACTIONS = {
     "pop_select",
     "pop_selectevent",
     "pop_selectcomps",
+    "pop_spectopo",
     "pop_study",
     "pop_studyerp",
     "pop_studywizard",
     "pop_subcomp",
+    "pop_timtopo",
     "pop_taskinfo",
     "pop_topoplot",
     "pop_viewprops",
@@ -381,6 +391,22 @@ class MenuActionDispatcher:
             return
         if base == "pop_topoplot":
             self._run_topoplot(variant, parent)
+            return
+        if base in {
+            "pop_spectopo",
+            "pop_prop",
+            "pop_timtopo",
+            "pop_plottopo",
+            "pop_headplot",
+            "pop_plotdata",
+            "pop_erpimage",
+            "pop_envtopo",
+            "pop_comperp",
+        }:
+            self._run_plot_function(base, variant, parent)
+            return
+        if base == "pop_chanplot":
+            self._run_chanplot(parent)
             return
         self.show_coming_soon(action, parent)
 
@@ -1018,6 +1044,65 @@ class MenuActionDispatcher:
 
         typeplot = 0 if variant == "components" else 1
         _figures, command = pop_topoplot(selection, typeplot=typeplot, return_com=True)
+        self._add_history_from_gui(command)
+        self._refresh()
+
+    def _run_plot_function(self, name: str, variant: str, parent: Any | None) -> None:
+        allow_multiple = name == "pop_comperp"
+        selection = self._current_selection_or_warn(parent, allow_multiple=allow_multiple)
+        if selection is None:
+            return
+        if name == "pop_spectopo":
+            from eegprep.functions.popfunc.pop_spectopo import pop_spectopo
+
+            _result, command = pop_spectopo(selection, dataflag=0 if variant == "components" else 1, return_com=True)
+        elif name == "pop_prop":
+            from eegprep.functions.popfunc.pop_prop import pop_prop
+
+            _result, command = pop_prop(selection, typecomp=0 if variant == "components" else 1, return_com=True)
+        elif name == "pop_timtopo":
+            from eegprep.functions.popfunc.pop_timtopo import pop_timtopo
+
+            _result, command = pop_timtopo(selection, return_com=True)
+        elif name == "pop_plottopo":
+            from eegprep.functions.popfunc.pop_plottopo import pop_plottopo
+
+            _result, command = pop_plottopo(selection, return_com=True)
+        elif name == "pop_headplot":
+            from eegprep.functions.popfunc.pop_headplot import pop_headplot
+
+            _result, command = pop_headplot(selection, typeplot=0 if variant == "components" else 1, return_com=True)
+        elif name == "pop_plotdata":
+            from eegprep.functions.popfunc.pop_plotdata import pop_plotdata
+
+            _result, command = pop_plotdata(selection, return_com=True)
+        elif name == "pop_erpimage":
+            from eegprep.functions.popfunc.pop_erpimage import pop_erpimage
+
+            _result, command = pop_erpimage(selection, typeplot=0 if variant == "components" else 1, return_com=True)
+        elif name == "pop_envtopo":
+            from eegprep.functions.popfunc.pop_envtopo import pop_envtopo
+
+            _result, command = pop_envtopo(selection, return_com=True)
+        elif name == "pop_comperp":
+            from eegprep.functions.popfunc.pop_comperp import pop_comperp
+
+            datasets = self.session.ALLEEG or (selection if isinstance(selection, list) else [selection])
+            _result, command = pop_comperp(datasets, flag=0 if variant == "components" else 1, return_com=True)
+        else:
+            self.show_coming_soon(name, parent)
+            return
+        self._add_history_from_gui(command)
+        self._refresh()
+
+    def _run_chanplot(self, parent: Any | None) -> None:
+        if not self.session.STUDY:
+            self._warn(parent, "Select or create a STUDY before plotting channel measures.")
+            return
+        from eegprep.functions.studyfunc.pop_chanplot import pop_chanplot
+
+        study, command, _figure = pop_chanplot(self.session.STUDY, self.session.ALLEEG, gui=True, return_com=True)
+        self.session.STUDY = study
         self._add_history_from_gui(command)
         self._refresh()
 
