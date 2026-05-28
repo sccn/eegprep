@@ -68,6 +68,20 @@ def _string_field(value):
     return str(value)
 
 
+def _matlab_empty_if_missing(EEG, key):
+    """Return an EEGLAB empty array for optional fields missing from EEG."""
+    value = EEG.get(key, default_empty)
+    return default_empty if value is None else value
+
+
+def _matlab_empty_struct_if_missing(EEG, key):
+    """Return an EEGLAB empty array for optional empty struct-like fields."""
+    value = _matlab_empty_if_missing(EEG, key)
+    if isinstance(value, dict) and not value:
+        return default_empty
+    return value
+
+
 def flatten_dict(data):
     """Flatten dictionary data.
 
@@ -335,32 +349,32 @@ def pop_saveset(EEG, file_name):
         'xmax': float(EEG['xmax']),
         'times': EEG['times'],
         'data': EEG['data'],
-        'icaact': EEG['icaact'] if EEG['icaact'] is not None else np.array([]),
-        'icawinv': EEG['icawinv'] if EEG['icawinv'] is not None else np.array([]),
-        'icasphere': EEG['icasphere'] if EEG['icasphere'] is not None else np.array([]),
-        'icaweights': EEG['icaweights'] if EEG['icaweights'] is not None else np.array([]),
-        'icachansind': EEG['icachansind'].copy() if EEG['icachansind'] is not None else np.array([]),
-        'chanlocs': EEG['chanlocs'],
-        'urchanlocs': EEG['urchanlocs'] if EEG['urchanlocs'] is not None else np.array([]),
-        'chaninfo': _serialize_chaninfo(EEG['chaninfo']),
-        'ref': EEG['ref'],
-        'event': EEG['event'] if 'event' in EEG else np.array([]),
-        'urevent': EEG['urevent'] if 'urevent' in EEG else np.array([]),
-        'eventdescription': EEG['eventdescription'] if 'eventdescription' in EEG else np.array([]),
-        'epoch': EEG['epoch'] if 'epoch' in EEG else np.array([]),
-        'epochdescription': EEG['epochdescription'] if 'epochdescription' in EEG else np.array([]),
-        'reject': EEG['reject'] if 'reject' in EEG else np.array([]),
-        'stats': EEG['stats'] if 'stats' in EEG else np.array([]),
-        'specdata': EEG['specdata'] if 'specdata' in EEG else np.array([]),
-        'specicaact': EEG['specicaact'] if 'specicaact' in EEG else np.array([]),
-        'splinefile': EEG['splinefile'] if 'splinefile' in EEG else np.array([]),
-        'icasplinefile': EEG['icasplinefile'] if 'icasplinefile' in EEG else np.array([]),
-        'dipfit': EEG['dipfit'] if 'dipfit' in EEG else np.array([]),
-        'history': EEG['history'],
-        'saved': EEG['saved'],
-        'etc': EEG['etc'] if EEG['etc'] else np.array([]),
-        'run': EEG['run'] if 'run' in EEG else np.array([]),
-        'roi': EEG['roi'] if 'roi' in EEG else np.array([]),
+        'icaact': _matlab_empty_if_missing(EEG, 'icaact'),
+        'icawinv': _matlab_empty_if_missing(EEG, 'icawinv'),
+        'icasphere': _matlab_empty_if_missing(EEG, 'icasphere'),
+        'icaweights': _matlab_empty_if_missing(EEG, 'icaweights'),
+        'icachansind': _matlab_empty_if_missing(EEG, 'icachansind').copy(),
+        'chanlocs': _matlab_empty_if_missing(EEG, 'chanlocs'),
+        'urchanlocs': _matlab_empty_if_missing(EEG, 'urchanlocs'),
+        'chaninfo': _serialize_chaninfo(EEG.get('chaninfo', {})),
+        'ref': EEG.get('ref', 'common'),
+        'event': _matlab_empty_if_missing(EEG, 'event'),
+        'urevent': _matlab_empty_if_missing(EEG, 'urevent'),
+        'eventdescription': _matlab_empty_if_missing(EEG, 'eventdescription'),
+        'epoch': _matlab_empty_if_missing(EEG, 'epoch'),
+        'epochdescription': _matlab_empty_if_missing(EEG, 'epochdescription'),
+        'reject': _matlab_empty_if_missing(EEG, 'reject'),
+        'stats': _matlab_empty_if_missing(EEG, 'stats'),
+        'specdata': _matlab_empty_if_missing(EEG, 'specdata'),
+        'specicaact': _matlab_empty_if_missing(EEG, 'specicaact'),
+        'splinefile': _matlab_empty_if_missing(EEG, 'splinefile'),
+        'icasplinefile': _matlab_empty_if_missing(EEG, 'icasplinefile'),
+        'dipfit': _matlab_empty_if_missing(EEG, 'dipfit'),
+        'history': EEG.get('history', ''),
+        'saved': EEG.get('saved', 'yes'),
+        'etc': _matlab_empty_struct_if_missing(EEG, 'etc'),
+        'run': _matlab_empty_if_missing(EEG, 'run'),
+        'roi': _matlab_empty_if_missing(EEG, 'roi'),
     }
 
     # add 1 to EEG['icachansind'] to make it 1-based

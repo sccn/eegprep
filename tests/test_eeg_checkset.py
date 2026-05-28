@@ -247,13 +247,13 @@ class TestEegChecksetTypeConversion(DebuggableTestCase):
         self.assertIsInstance(result['xmin'], float)
 
     def test_xmax_converted_to_float(self):
-        """Test that xmax is converted to float."""
+        """Test that xmax is converted to float and EEGLAB-consistent timing."""
         eeg = create_minimal_eeg()
         eeg['xmax'] = 4  # Int
 
         result = eeg_checkset(eeg)
 
-        self.assertEqual(result['xmax'], 4.0)
+        self.assertEqual(result['xmax'], 3.996)
         self.assertIsInstance(result['xmax'], float)
 
     def test_srate_converted_to_float(self):

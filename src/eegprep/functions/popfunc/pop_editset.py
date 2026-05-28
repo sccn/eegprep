@@ -71,9 +71,9 @@ def pop_editset(
     for key, value in options.items():
         _assign_option(output, key, value)
 
-    if "xmin" in options:
-        _adjust_event_latencies_for_xmin_change(output, old_xmin, old_srate)
     _normalize_data_dimensions(output, strict_pnts="pnts" in options)
+    if "xmin" in options and int(output.get("trials", 1) or 1) > 1:
+        _adjust_event_latencies_for_xmin_change(output, old_xmin, old_srate)
     _normalize_ica_index_field(output)
     _refresh_time_fields(output)
     output = eeg_checkset(output)
