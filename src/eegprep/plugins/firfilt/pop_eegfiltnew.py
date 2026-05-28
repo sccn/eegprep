@@ -146,7 +146,10 @@ def _run_gui(EEG: dict[str, Any], *, renderer: Any | None = None) -> dict[str, A
     if chantype:
         options["chantype"] = chantype.split()
     elif channels:
-        parsed = vector_or_none(channels)
+        try:
+            parsed = vector_or_none(channels)
+        except ValueError:
+            parsed = None
         options["channels"] = parsed if parsed is not None else channels.split()
     return options
 

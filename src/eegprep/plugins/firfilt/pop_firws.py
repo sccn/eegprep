@@ -86,10 +86,21 @@ def pop_firws_dialog_spec(_EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("spacer"),
             ControlSpec("text", "Kaiser window beta:", tag="warg_label", enabled=False),
             ControlSpec("edit", tag="warg", value="", enabled=False),
-            ControlSpec("pushbutton", "Estimate", tag="wargpush", enabled=False),
+            ControlSpec(
+                "pushbutton",
+                "Estimate",
+                tag="wargpush",
+                enabled=False,
+                tooltip="Kaiser beta estimation is not yet implemented in EEGPrep.",
+            ),
             ControlSpec("text", "Filter order (mandatory even):"),
             ControlSpec("edit", tag="forder", value=""),
-            ControlSpec("pushbutton", "Estimate"),
+            ControlSpec(
+                "pushbutton",
+                "Estimate",
+                enabled=False,
+                tooltip="Filter-order estimation is not yet implemented in EEGPrep.",
+            ),
             ControlSpec("spacer"),
             ControlSpec(
                 "checkbox", "Use minimum-phase converted causal filter (non-linear!)", tag="minphase", value=False
@@ -104,7 +115,12 @@ def pop_firws_dialog_spec(_EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("edit", tag="dev", value="", enabled=False),
             ControlSpec("spacer"),
             ControlSpec("spacer"),
-            ControlSpec("pushbutton", "Plot filter responses"),
+            ControlSpec(
+                "pushbutton",
+                "Plot filter responses",
+                enabled=False,
+                tooltip="Filter-response plotting from this dialog is not yet implemented in EEGPrep.",
+            ),
         ),
     )
 

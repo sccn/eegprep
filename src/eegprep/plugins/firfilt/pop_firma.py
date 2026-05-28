@@ -59,7 +59,12 @@ def pop_firma_dialog_spec(_EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("spacer"),
             ControlSpec("spacer"),
             ControlSpec("spacer"),
-            ControlSpec("pushbutton", "Plot filter responses"),
+            ControlSpec(
+                "pushbutton",
+                "Plot filter responses",
+                enabled=False,
+                tooltip="Filter-response plotting from this dialog is not yet implemented in EEGPrep.",
+            ),
         ),
     )
 

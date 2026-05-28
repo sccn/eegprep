@@ -6,7 +6,7 @@ from copy import deepcopy
 from typing import Any
 
 import numpy as np
-from scipy.signal import fftconvolve, lfilter, minimum_phase, remez
+from scipy.signal import fftconvolve, filtfilt, firls, firwin, lfilter, minimum_phase, remez
 from scipy.signal import windows as signal_windows
 
 from eegprep.functions.miscfunc.misc import round_mat
@@ -92,6 +92,47 @@ def design_eegfiltnew(
         "df": float(df),
     }
     return np.asarray(b, dtype=float), metadata
+
+
+def design_eegfilt_legacy(
+    srate: float,
+    *,
+    locutoff: float,
+    hicutoff: float,
+    filtorder: int | None = None,
+    revfilt: bool = False,
+    firtype: str = "firls",
+) -> tuple[np.ndarray, int]:
+    """Design the legacy FIR used by EEGLAB ``eegfilt``/``pop_eegfilt``."""
+    nyquist = float(srate) / 2.0
+    locutoff = float(locutoff or 0.0)
+    hicutoff = float(hicutoff or 0.0)
+    if locutoff > 0 and hicutoff > 0 and locutoff > hicutoff:
+        raise ValueError("locutoff > hicutoff ???")
+    if locutoff < 0 or hicutoff < 0:
+        raise ValueError("locutoff | hicutoff < 0 ???")
+    if locutoff > nyquist:
+        raise ValueError("Low cutoff frequency cannot be > srate/2")
+    if hicutoff > nyquist:
+        raise ValueError("High cutoff frequency cannot be > srate/2")
+    if locutoff == 0 and hicutoff == 0:
+        raise ValueError("You must provide a non-0 low or high cut-off frequency")
+    trans = 0.15
+    if hicutoff > 0 and (1.0 + trans) * hicutoff / nyquist > 1.0:
+        raise ValueError("high cutoff frequency too close to Nyquist frequency")
+    order = _legacy_filter_order(srate, locutoff, hicutoff, filtorder)
+    firtype = str(firtype or "firls").lower()
+    if firtype not in {"firls", "fir1"}:
+        raise ValueError("firtype must be 'firls' or 'fir1'")
+    if firtype == "fir1":
+        if revfilt:
+            raise ValueError("Cannot reverse filter using 'fir1' option")
+        return _legacy_fir1(order, srate, locutoff, hicutoff), order
+
+    bands, desired = _legacy_firls_shape(nyquist, locutoff, hicutoff, trans)
+    if revfilt:
+        desired = [1.0 - value for value in desired]
+    return np.asarray(firls(order + 1, bands, desired, fs=2.0), dtype=float), order
 
 
 def design_firws(
@@ -196,6 +237,41 @@ def apply_fir_filter(
     return output
 
 
+def apply_eegfilt_legacy(
+    EEG: dict[str, Any],
+    coefficients: Any,
+    *,
+    causal: bool = False,
+    filtorder: int | None = None,
+) -> dict[str, Any]:
+    """Apply legacy ``eegfilt`` coefficients with EEGLAB epoch/boundary semantics."""
+    b = np.asarray(coefficients, dtype=float).ravel()
+    if b.size < 2:
+        raise ValueError("Filter coefficients are required")
+    output = deepcopy(EEG)
+    data = np.asarray(output["data"])
+    if data.ndim not in {2, 3}:
+        raise ValueError("FIR filtering supports continuous or epoched EEG data")
+    nbchan = int(output.get("nbchan", data.shape[0]))
+    pnts = int(output.get("pnts", data.shape[1]))
+    trials = int(output.get("trials", data.shape[2] if data.ndim == 3 else 1))
+    flattened = data.transpose(0, 2, 1).reshape(nbchan, pnts * trials) if data.ndim == 3 else data.copy()
+    filtered = flattened.astype(np.float64, copy=True)
+    bounds = _epoched_bounds(pnts, trials) if trials > 1 else _continuous_bounds(output, pnts)
+    order = int(filtorder if filtorder is not None else b.size - 1)
+    for start, stop in zip(bounds[:-1], bounds[1:]):
+        if stop <= start:
+            continue
+        segment = filtered[:, start:stop]
+        if segment.shape[1] <= order * 3 and not causal:
+            raise ValueError("epochframes must be at least 3 times the filtorder.")
+        filtered[:, start:stop] = _legacy_filter_segment(b, segment, causal=causal)
+    output["data"] = filtered.reshape(nbchan, trials, pnts).transpose(0, 2, 1) if data.ndim == 3 else filtered
+    output["icaact"] = np.array([])
+    output["saved"] = "no"
+    return output
+
+
 def resolve_channel_indices(
     EEG: dict[str, Any], channels: Any = None, chantype: Any = None
 ) -> tuple[list[int], list[int] | None]:
@@ -247,6 +323,8 @@ def _filter_segment(b: np.ndarray, segment: np.ndarray, *, causal: bool, usefftf
         return segment.copy()
     if segment.shape[1] == 0:
         return segment.copy()
+    # EEGLAB fir_filterdcpadded uses two group delays of DC padding even for
+    # minimum-phase causal FIR filters, then trims that padding after filtering.
     start_width = 2 * group_delay if causal else group_delay
     start_pad = np.repeat(segment[:, :1], start_width, axis=1)
     end_pad = (
@@ -260,6 +338,12 @@ def _filter_segment(b: np.ndarray, segment: np.ndarray, *, causal: bool, usefftf
     else:
         filtered = lfilter(b, [1.0], padded, axis=1)
     return filtered[:, 2 * group_delay :]
+
+
+def _legacy_filter_segment(b: np.ndarray, segment: np.ndarray, *, causal: bool) -> np.ndarray:
+    if causal:
+        return lfilter(b, [1.0], segment, axis=1)
+    return filtfilt(b, [1.0], segment, axis=1)
 
 
 def _continuous_bounds(EEG: dict[str, Any], pnts: int) -> np.ndarray:
@@ -319,6 +403,47 @@ def _validate_even_order(value: Any) -> int:
     if order < 2 or order % 2 != 0:
         raise ValueError("Filter order must be a real, even, positive integer.")
     return order
+
+
+def _legacy_filter_order(srate: float, locutoff: float, hicutoff: float, filtorder: int | None) -> int:
+    if filtorder is not None and int(filtorder) != 0:
+        return int(filtorder)
+    if locutoff > 0:
+        order = 3 * int(float(srate) / locutoff)
+    else:
+        order = 3 * int(float(srate) / hicutoff)
+    return max(order, 15)
+
+
+def _legacy_firls_shape(
+    nyquist: float, locutoff: float, hicutoff: float, transition: float
+) -> tuple[list[float], list[float]]:
+    minfreq = 0.0
+    if locutoff > 0 and hicutoff > 0:
+        bands = [
+            minfreq,
+            (1.0 - transition) * locutoff / nyquist,
+            locutoff / nyquist,
+            hicutoff / nyquist,
+            (1.0 + transition) * hicutoff / nyquist,
+            1.0,
+        ]
+        desired = [0.0, 0.0, 1.0, 1.0, 0.0, 0.0]
+    elif locutoff > 0:
+        bands = [minfreq, locutoff * (1.0 - transition) / nyquist, locutoff / nyquist, 1.0]
+        desired = [0.0, 0.0, 1.0, 1.0]
+    else:
+        bands = [minfreq, hicutoff / nyquist, hicutoff * (1.0 + transition) / nyquist, 1.0]
+        desired = [1.0, 1.0, 0.0, 0.0]
+    return bands, desired
+
+
+def _legacy_fir1(order: int, srate: float, locutoff: float, hicutoff: float) -> np.ndarray:
+    if locutoff > 0 and hicutoff > 0:
+        return np.asarray(firwin(order + 1, [locutoff, hicutoff], pass_zero=False, fs=srate), dtype=float)
+    if locutoff > 0:
+        return np.asarray(firwin(order + 1, locutoff, pass_zero=False, fs=srate), dtype=float)
+    return np.asarray(firwin(order + 1, hicutoff, pass_zero=True, fs=srate), dtype=float)
 
 
 def _none_if_zero(value: Any) -> float | None:

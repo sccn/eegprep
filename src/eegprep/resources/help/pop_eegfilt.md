@@ -4,6 +4,9 @@ Legacy EEGLAB-style FIR filtering interface.
 
 `pop_eegfilt` is kept for menu and command-history compatibility. New EEGPrep
 workflows should prefer `pop_eegfiltnew` or the firfilt plugin wrappers.
+The legacy `firls` and `fir1` FIR design modes are supported. The old EEGLAB
+`usefft` fallback is not implemented; use `pop_eegfiltnew(..., usefftfilt=True)`
+for frequency-domain FIR filtering.
 
 ```python
 EEG = pop_eegfilt(EEG, 1, 40)

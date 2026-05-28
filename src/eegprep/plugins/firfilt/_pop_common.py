@@ -97,7 +97,7 @@ def history_command(function_name: str, options: dict[str, Any]) -> str:
         if isinstance(value, bool) and value is False:
             continue
         history_value = int(value) if isinstance(value, bool) else value
-        parts.extend([format_history_value(key), format_history_value(history_value, cell_for_sequence=None)])
+        parts.extend([format_history_value(key), format_history_value(history_value)])
     if not parts:
         return f"EEG = {function_name}(EEG);"
     return f"EEG = {function_name}(EEG, {', '.join(parts)});"

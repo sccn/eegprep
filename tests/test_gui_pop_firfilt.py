@@ -70,6 +70,29 @@ class PopFirfiltGuiTests(unittest.TestCase):
             "EEG = pop_eegfiltnew(EEG, 'hicutoff', 30, 'filtorder', 80, 'usefftfilt', 1, 'channels', [2]);",
         )
 
+    def test_pop_eegfiltnew_gui_accepts_channel_labels(self):
+        class Renderer:
+            def run(self, spec, initial_values=None):
+                return {
+                    "locutoff": "",
+                    "hicutoff": "30",
+                    "filtorder": "80",
+                    "revfilt": False,
+                    "minphase": False,
+                    "plotfreqz": False,
+                    "chantype": "",
+                    "channels": "Cz Pz",
+                    "usefftfilt": False,
+                }
+
+        eeg = _eeg()
+        before = eeg["data"].copy()
+        out, command = pop_eegfiltnew(eeg, gui=True, renderer=Renderer(), return_com=True)
+
+        self.assertFalse(np.allclose(out["data"][:2], before[:2]))
+        np.testing.assert_allclose(out["data"][2], before[2])
+        self.assertIn("'channels', {'Cz' 'Pz'}", command)
+
     def test_legacy_pop_eegfilt_dialog_and_gui_result(self):
         spec = pop_eegfilt_dialog_spec(_eeg())
 
@@ -82,7 +105,7 @@ class PopFirfiltGuiTests(unittest.TestCase):
                 return {
                     "locutoff": "1",
                     "hicutoff": "40",
-                    "filtorder": "500",
+                    "filtorder": "100",
                     "revfilt": False,
                     "usefft": False,
                     "plotfreqz": False,
@@ -93,7 +116,7 @@ class PopFirfiltGuiTests(unittest.TestCase):
         out, command = pop_eegfilt(_eeg(), gui=True, renderer=Renderer(), return_com=True)
 
         self.assertEqual(out["data"].shape, (3, 600))
-        self.assertEqual(command, "EEG = pop_eegfilt( EEG, 1, 40, [500], [0], 0, 0, 'fir1', 0);")
+        self.assertEqual(command, "EEG = pop_eegfilt( EEG, 1, 40, [100], [0], 0, 0, 'fir1', 0);")
 
     def test_firfilt_plugin_dialog_specs_are_eeglab_labeled(self):
         specs = [
@@ -107,6 +130,13 @@ class PopFirfiltGuiTests(unittest.TestCase):
             [spec.eeglab_source for spec in specs],
             ["plugins/firfilt/pop_firws.m", "plugins/firfilt/pop_firpm.m", "plugins/firfilt/pop_firma.m"],
         )
+
+    def test_unimplemented_firfilt_dialog_buttons_are_disabled(self):
+        for spec in (pop_firws_dialog_spec(_eeg()), pop_firpm_dialog_spec(_eeg()), pop_firma_dialog_spec(_eeg())):
+            for control in spec.controls:
+                if control.style == "pushbutton" and control.string in {"Estimate", "Plot filter responses"}:
+                    self.assertFalse(control.enabled)
+                    self.assertIsNotNone(control.tooltip)
 
     def test_firws_gui_result_filters_and_returns_history(self):
         class Renderer:

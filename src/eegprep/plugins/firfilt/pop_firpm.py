@@ -85,11 +85,23 @@ def pop_firpm_dialog_spec(_EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("spacer"),
             ControlSpec("text", "Filter order (mandatory even):"),
             ControlSpec("edit", tag="forder", value=""),
-            ControlSpec("pushbutton", "Estimate", tag="orderpush"),
+            ControlSpec(
+                "pushbutton",
+                "Estimate",
+                tag="orderpush",
+                enabled=False,
+                tooltip="Filter-order estimation is not yet implemented in EEGPrep.",
+            ),
             ControlSpec("spacer"),
             ControlSpec("spacer"),
             ControlSpec("spacer"),
-            ControlSpec("pushbutton", "Plot filter responses", tag="plotpush"),
+            ControlSpec(
+                "pushbutton",
+                "Plot filter responses",
+                tag="plotpush",
+                enabled=False,
+                tooltip="Filter-response plotting from this dialog is not yet implemented in EEGPrep.",
+            ),
         ),
     )
 

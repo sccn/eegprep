@@ -7,7 +7,7 @@ from typing import Any
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.popfunc._pop_utils import format_history_value
-from eegprep.plugins.firfilt._filtering import apply_fir_filter, design_eegfiltnew
+from eegprep.plugins.firfilt._filtering import apply_eegfilt_legacy, design_eegfilt_legacy
 from eegprep.plugins.firfilt._pop_common import bool_value, int_or_none, numeric_or_none
 
 
@@ -55,6 +55,11 @@ def pop_eegfilt(
     causal = bool_value(causal)
     if locutoff == 0 and hicutoff == 0:
         return (EEG, "") if return_com else EEG
+    if usefft:
+        raise NotImplementedError(
+            "Legacy pop_eegfilt FFT filtering is not implemented. "
+            "Use pop_eegfiltnew(..., usefftfilt=True) for frequency-domain FIR filtering."
+        )
 
     if isinstance(EEG, list):
         output = [
@@ -64,14 +69,15 @@ def pop_eegfilt(
         command = _history_command(locutoff, hicutoff, filtorder, revfilt, usefft, plotfreqz, firtype, causal)
         return (output, command) if return_com else output
 
-    b, _metadata = design_eegfiltnew(
+    b, order = design_eegfilt_legacy(
         float(EEG["srate"]),
         locutoff=locutoff,
         hicutoff=hicutoff,
         filtorder=filtorder,
         revfilt=revfilt,
+        firtype=firtype,
     )
-    output = apply_fir_filter(EEG, b, causal=causal, usefftfilt=usefft)
+    output = apply_eegfilt_legacy(EEG, b, causal=causal, filtorder=order)
     command = _history_command(locutoff, hicutoff, filtorder, revfilt, usefft, plotfreqz, firtype, causal)
     return (output, command) if return_com else output
 
