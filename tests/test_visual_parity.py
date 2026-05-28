@@ -54,6 +54,7 @@ class VisualParityConfigTests(unittest.TestCase):
         self.assertEqual(cases["pop_plottopo_dialog"].targets["eeglab"].action, "pop_plottopo")
         self.assertEqual(cases["pop_headplot_erp_dialog"].targets["eeglab"].action, "pop_headplot:erp")
         self.assertEqual(cases["pop_headplot_components_dialog"].targets["eeglab"].action, "pop_headplot:components")
+        self.assertEqual(cases["coregister_dialog"].targets["eeglab"].action, "coregister")
         self.assertEqual(cases["pop_plotdata_dialog"].targets["eeglab"].action, "pop_plotdata")
         self.assertEqual(cases["pop_erpimage_channels_dialog"].targets["eeglab"].action, "pop_erpimage:channels")
         self.assertEqual(cases["pop_erpimage_components_dialog"].targets["eeglab"].action, "pop_erpimage:components")
@@ -409,6 +410,7 @@ class VisualParityCaptureTests(unittest.TestCase):
             ("pop_plottopo_dialog", "pop_plottopo", "com = pop_plottopo(EEG);"),
             ("pop_headplot_erp_dialog", "pop_headplot", "com = pop_headplot(EEG, 1);"),
             ("pop_headplot_components_dialog", "pop_headplot", "com = pop_headplot(EEG, 0);"),
+            ("coregister_dialog", "coregister", "coregister(EEG.chanlocs"),
             ("pop_plotdata_dialog", "pop_plotdata", "com = pop_plotdata(EEG);"),
             ("pop_erpimage_channels_dialog", "pop_erpimage", "com = pop_erpimage(EEG, 1);"),
             ("pop_erpimage_components_dialog", "pop_erpimage", "com = pop_erpimage(EEG, 0);"),

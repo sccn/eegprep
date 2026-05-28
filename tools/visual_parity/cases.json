@@ -982,7 +982,7 @@
     {
       "id": "pop_headplot_erp_dialog",
       "description": "3-D ERP map dialog opened from pop_headplot.",
-      "window_size": [620, 230],
+      "window_size": [790, 440],
       "timeout_seconds": 120,
       "targets": {
         "eeglab": {
@@ -1007,7 +1007,7 @@
     {
       "id": "pop_headplot_components_dialog",
       "description": "3-D component map dialog opened from pop_headplot.",
-      "window_size": [620, 230],
+      "window_size": [790, 440],
       "timeout_seconds": 120,
       "targets": {
         "eeglab": {
@@ -1017,6 +1017,31 @@
         "eegprep": {
           "type": "command",
           "action": "pop_headplot_components_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "coregister_dialog",
+      "description": "Manual 3-D coregistration editor opened from pop_headplot.",
+      "window_size": [980, 720],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "coregister"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "coregister_dialog",
           "command": [
             "{python}",
             "-m",

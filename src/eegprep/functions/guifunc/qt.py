@@ -7,6 +7,7 @@ import math
 import re
 from typing import Any
 
+from eegprep.functions.guifunc.coregister import run_coregister_dialog
 from eegprep.functions.guifunc.pophelp import pophelp
 from eegprep.functions.popfunc.pop_chansel import pop_chansel
 
@@ -397,6 +398,27 @@ class QtDialogRenderer:
             button = widgets[params["button"]]
             target = widgets[params["target"]]
             button.clicked.connect(lambda: self._select_interp_channels(button, target, params))
+        elif callback.name == "select_file":
+            button = widgets[params["button"]]
+            target = widgets[params["target"]]
+            button.clicked.connect(lambda: self._select_file(button, target, params, widgets))
+        elif callback.name == "headplot_setup_mode":
+            source = widgets[params["source"]]
+            source.toggled.connect(lambda checked: self._set_headplot_setup_mode(widgets, params, checked))
+            if source.isChecked():
+                self._set_headplot_setup_mode(widgets, params, True)
+        elif callback.name == "headplot_mesh_choice":
+            source = widgets.get(params["source"])
+            if source is not None:
+                source.currentIndexChanged.connect(lambda index: self._set_headplot_mesh_choice(widgets, params, index))
+        elif callback.name == "show_message":
+            source = widgets.get(params["button"])
+            if source is not None:
+                source.clicked.connect(lambda: self._show_callback_message(source, params))
+        elif callback.name == "headplot_manual_coreg":
+            source = widgets.get(params["button"])
+            if source is not None:
+                source.clicked.connect(lambda: self._run_headplot_manual_coreg(source, widgets, params))
 
     @staticmethod
     def _accept_if_valid(dialog: Any, spec: DialogSpec, widgets: dict[str, Any]) -> None:
@@ -446,6 +468,22 @@ class QtDialogRenderer:
         if spec.function_name == "pop_runica" and "dataset" in widgets:
             if not QtDialogRenderer._read_widget(widgets["dataset"]):
                 return "Select at least one dataset"
+        if spec.function_name == "pop_headplot":
+            if QtDialogRenderer._widget_checked(widgets.get("loadcb")):
+                if not QtDialogRenderer._widget_text(widgets.get("load")).strip():
+                    return "Select a spline file to load"
+            else:
+                if not QtDialogRenderer._widget_text(widgets.get("setup_file")).strip():
+                    return "Enter an output spline file name"
+                transform_text = QtDialogRenderer._widget_text(widgets.get("transform")).strip()
+                if not transform_text:
+                    return "Enter a Talairach transformation matrix"
+                try:
+                    transform = QtDialogRenderer._parse_numeric_text(transform_text)
+                except ValueError:
+                    return "Talairach transformation matrix must contain numeric values"
+                if len(transform) not in {6, 9}:
+                    return "Talairach transformation matrix must contain 6 or 9 values"
         return None
 
     @staticmethod
@@ -615,6 +653,114 @@ class QtDialogRenderer:
         if not accepted or not value:
             return
         target.setText(value.strip())
+
+    @staticmethod
+    def _select_file(button: Any, target: Any, params: Mapping[str, Any], widgets: Mapping[str, Any]) -> None:
+        _qt_core, qt_widgets = _require_qt()
+        caption = str(params.get("caption", "Select file"))
+        file_filter = str(params.get("filter", "All files (*)"))
+        if params.get("mode") == "save":
+            filename, _selected_filter = qt_widgets.QFileDialog.getSaveFileName(button, caption, "", file_filter)
+        else:
+            filename, _selected_filter = qt_widgets.QFileDialog.getOpenFileName(button, caption, "", file_filter)
+        if not filename:
+            return
+        if hasattr(target, "setText"):
+            target.setText(filename)
+            return
+        if hasattr(target, "setEditable") and hasattr(target, "setEditText"):
+            target.setEditable(True)
+            target.setEditText(filename)
+            target.setProperty(_VALUE_PROPERTY, filename)
+        transform_target = widgets.get(params.get("transform_target", ""))
+        if transform_target is not None and params.get("custom_transform") is not None:
+            transform_target.setText(str(params["custom_transform"]))
+
+    @staticmethod
+    def _set_headplot_setup_mode(widgets: Mapping[str, Any], params: Mapping[str, Any], checked: bool) -> None:
+        source = widgets.get(params["source"])
+        if not checked:
+            if source is not None and hasattr(source, "blockSignals"):
+                source.blockSignals(True)
+                source.setChecked(True)
+                source.blockSignals(False)
+            return
+        peer = widgets.get(params["peer"])
+        if peer is not None:
+            peer.blockSignals(True)
+            peer.setChecked(False)
+            peer.blockSignals(False)
+        load_enabled = params["mode"] == "load"
+        QtDialogRenderer._set_enabled(
+            [widgets[tag] for tag in params.get("load_targets", ()) if tag in widgets],
+            load_enabled,
+        )
+        QtDialogRenderer._set_enabled(
+            [widgets[tag] for tag in params.get("setup_targets", ()) if tag in widgets],
+            not load_enabled,
+        )
+
+    @staticmethod
+    def _set_headplot_mesh_choice(widgets: Mapping[str, Any], params: Mapping[str, Any], index: int) -> None:
+        reference_target = widgets.get(params.get("reference_target", ""))
+        if (
+            reference_target is not None
+            and hasattr(reference_target, "setCurrentIndex")
+            and index < reference_target.count()
+        ):
+            reference_target.setCurrentIndex(index)
+        target = widgets.get(params.get("transform_target", ""))
+        transforms = tuple(str(value) for value in params.get("transform_choices", ()))
+        if target is not None and 0 <= index < len(transforms) and transforms[index]:
+            target.setText(transforms[index])
+
+    @staticmethod
+    def _run_headplot_manual_coreg(parent: Any, widgets: Mapping[str, Any], params: Mapping[str, Any]) -> None:
+        transform_target = widgets.get(params.get("transform_target", ""))
+        if transform_target is None or not hasattr(transform_target, "setText"):
+            return
+        try:
+            meshfile = QtDialogRenderer._choice_or_text(
+                widgets.get(params.get("mesh_source", "")),
+                tuple(str(value) for value in params.get("mesh_choices", ())),
+            )
+            reference = QtDialogRenderer._choice_or_text(
+                widgets.get(params.get("reference_source", "")),
+                tuple(str(value) for value in params.get("reference_choices", ())),
+            )
+            transform = run_coregister_dialog(
+                params.get("chanlocs", ()),
+                reference,
+                chaninfo=dict(params.get("chaninfo") or {}),
+                meshfile=meshfile,
+                transform=QtDialogRenderer._widget_text(transform_target),
+                parent=parent,
+                title=str(params.get("title", "Co-registration plot for headplot mesh")),
+            )
+        except (RuntimeError, OSError, ValueError) as exc:
+            _qt_core, qt_widgets = _require_qt()
+            qt_widgets.QMessageBox.warning(parent, "Warning", str(exc))
+            return
+        if transform is not None:
+            transform_target.setText(" ".join(f"{value:.6g}" for value in transform))
+
+    @staticmethod
+    def _choice_or_text(widget: Any, choices: tuple[str, ...]) -> str:
+        stored_value = widget.property(_VALUE_PROPERTY) if widget is not None and hasattr(widget, "property") else None
+        if stored_value is not None:
+            return str(stored_value)
+        if widget is not None and hasattr(widget, "currentIndex"):
+            index = int(widget.currentIndex())
+            if 0 <= index < len(choices):
+                return choices[index]
+        if widget is not None and hasattr(widget, "text"):
+            return str(widget.text())
+        return choices[0] if choices else ""
+
+    @staticmethod
+    def _show_callback_message(parent: Any, params: Mapping[str, Any]) -> None:
+        _qt_core, qt_widgets = _require_qt()
+        qt_widgets.QMessageBox.information(parent, str(params.get("title", "EEGPrep")), str(params.get("message", "")))
 
     @staticmethod
     def _select_interp_channels(button: Any, target: Any, params: Mapping[str, Any]) -> None:

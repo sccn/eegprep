@@ -9,6 +9,7 @@ import sys
 
 import numpy as np
 
+from eegprep.functions.guifunc.coregister import prepare_coregister_display
 from eegprep.functions.guifunc.qt import QtDialogRenderer
 from eegprep.functions.guifunc.listdlg2 import build_listdlg2_dialog
 from eegprep.functions.guifunc.main_window import build_main_window
@@ -593,6 +594,21 @@ def capture_pop_headplot_dialog(output: pathlib.Path, *, variant: str = "erp") -
     _grab_dialog(dialog, output, app)
 
 
+def capture_coregister_dialog(output: pathlib.Path) -> None:
+    """Render and capture the manual headplot coregistration dialog."""
+    eeg = _demo_main_eeg(epoched=True, setname="pop demo")
+    app, dialog = prepare_coregister_display(
+        eeg["chanlocs"],
+        "mheadnew.xyz",
+        chaninfo=eeg.get("chaninfo", {}),
+        meshfile="mheadnew.mat",
+        transform=[0, -10, 0, -0.1, 0, -1.6, 1100, 1100, 1100],
+        parent=None,
+        title="Co-registration plot for headplot mesh",
+    )
+    _grab_dialog(dialog, output, app)
+
+
 def capture_pop_plotdata_dialog(output: pathlib.Path) -> None:
     """Render and capture the pop_plotdata dialog."""
     eeg = _demo_main_eeg(epoched=True, setname="pop demo")
@@ -927,6 +943,8 @@ def main(argv: list[str] | None = None) -> int:
         capture_pop_headplot_dialog(args.output, variant="erp")
     elif args.case == "pop_headplot_components_dialog":
         capture_pop_headplot_dialog(args.output, variant="components")
+    elif args.case == "coregister_dialog":
+        capture_coregister_dialog(args.output)
     elif args.case == "pop_plotdata_dialog":
         capture_pop_plotdata_dialog(args.output)
     elif args.case == "pop_erpimage_channels_dialog":
