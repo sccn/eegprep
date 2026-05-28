@@ -99,8 +99,14 @@ def pop_chanedit_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
         geometry.append((1.5, 1, 0.2, 1))
     controls.extend(
         [
+            ControlSpec("spacer"),
             ControlSpec("pushbutton", "Delete chan", tag="delete_button", enabled=False),
-            ControlSpec("text", f"Channel number (of {len(chanlocs)})"),
+            ControlSpec("spacer"),
+            ControlSpec("spacer"),
+            ControlSpec("text", f"Channel number (of {len(chanlocs)})", tag="chaneditscantitle", font_weight="bold"),
+            ControlSpec("spacer"),
+            ControlSpec("spacer"),
+            ControlSpec("spacer"),
             ControlSpec("pushbutton", "Insert chan", tag="insert_button", enabled=False),
             ControlSpec("pushbutton", "<<", tag="back10", enabled=False),
             ControlSpec("pushbutton", "<", tag="back1", enabled=False),
@@ -133,7 +139,9 @@ def pop_chanedit_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
     )
     geometry.extend(
         [
-            (1.15, 0.7, 0.7, 0.4, 0.4, 1, 0.4, 0.4, 1.15),
+            (1,),
+            (1.15, 0.5, 0.6, 1.9, 0.4, 0.4, 1.15),
+            (1.15, 0.7, 0.7, 1, 0.7, 0.7, 1.15),
             (0.9, 1.3, 0.6, 1.1, 0.9),
             (1,),
             (1, 1, 1, 1, 1),
