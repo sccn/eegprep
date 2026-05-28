@@ -368,9 +368,9 @@ def test_headplot_setup_spline_metadata_matches_eeglab(sample_eeg, tmp_path):
                 'chaninfo', EEG.chaninfo, 'meshfile', 'mheadnew.mat', ...
                 'transform', [{_matlab_vector(transform)}]);
             S = load('{_matlab_string(matlab_spline)}', '-mat');
-            G = S.G; gx = S.gx; Xe = S.Xe; Ye = S.Ye; Ze = S.Ze;
+            G = S.G; gx = S.gx; Xe = S.Xe; Ye = S.Ye; Ze = S.Ze; newElect = S.newElect;
             indices = S.indices; transform = S.transform;
-            save('{_matlab_string(matlab_output)}', 'G', 'gx', 'Xe', 'Ye', 'Ze', 'indices', 'transform');
+            save('{_matlab_string(matlab_output)}', 'G', 'gx', 'Xe', 'Ye', 'Ze', 'newElect', 'indices', 'transform');
             """,
             nargout=0,
         )
@@ -382,6 +382,9 @@ def test_headplot_setup_spline_metadata_matches_eeglab(sample_eeg, tmp_path):
     np.testing.assert_allclose(py_spline.g, ml["G"], rtol=1e-10, atol=1e-10)
     np.testing.assert_allclose(py_spline.gx, ml["gx"], rtol=1e-10, atol=1e-10)
     np.testing.assert_allclose(py_spline.xe, ml["Xe"], rtol=1e-10, atol=1e-10)
+    np.testing.assert_allclose(py_spline.ye, ml["Ye"], rtol=1e-10, atol=1e-10)
+    np.testing.assert_allclose(py_spline.ze, ml["Ze"], rtol=1e-10, atol=1e-10)
+    np.testing.assert_allclose(py_spline.new_electrodes, ml["newElect"], rtol=1e-10, atol=1e-10)
     np.testing.assert_array_equal(py_spline.indices + 1, np.asarray(ml["indices"], dtype=int).ravel())
     np.testing.assert_allclose(py_spline.transform, np.asarray(ml["transform"], dtype=float).ravel())
 

@@ -114,8 +114,9 @@ def pop_headplot_dialog_spec(EEG: dict[str, Any], *, typeplot: int = 1) -> Dialo
     _validate_chanlocs(EEG)
     compute_file = not _spline_file_is_ready(EEG, typeplot)
     spline_value = str(_current_spline_file(EEG, typeplot) or "")
-    transform = _default_transform_text(EEG, 0)
-    mesh_transforms = tuple(_default_transform_text(EEG, index) for index, _mesh in enumerate(_MESH_CHOICES))
+    default_mesh = _MESH_CHOICES[0]
+    transform = _default_transform_text(EEG, default_mesh)
+    mesh_transforms = tuple(_default_transform_text(EEG, mesh) for mesh in _MESH_CHOICES)
     setup_file = _default_spline_path(EEG)
     plot_label = (
         f"Making headplots for these latencies (from {round(float(EEG.get('xmin', 0)) * 1000)} "
@@ -266,7 +267,7 @@ def pop_headplot_dialog_spec(EEG: dict[str, Any], *, typeplot: int = 1) -> Dialo
                     "caption": "Select a head mesh file",
                     "filter": "MAT files (*.mat)",
                     "transform_target": "transform",
-                    "custom_transform": _default_transform_text(EEG, 0),
+                    "custom_transform": _default_transform_text(EEG, default_mesh),
                 },
                 matlab_callback="uigetfile('*.mat')",
             ),
@@ -638,8 +639,7 @@ def _default_title(EEG: dict[str, Any], typeplot: int) -> str:
     return f"{prefix} {setname}".rstrip()
 
 
-def _default_transform_text(EEG: dict[str, Any], mesh_index: int) -> str:
-    meshfile = _MESH_CHOICES[mesh_index] if 0 <= mesh_index < len(_MESH_CHOICES) else DEFAULT_MESH
+def _default_transform_text(EEG: dict[str, Any], meshfile: str | Path) -> str:
     transform = default_headplot_mesh_transform(meshfile, dict(EEG.get("chaninfo") or {}))
     return " ".join(f"{value:g}" for value in transform)
 
