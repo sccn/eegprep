@@ -21,7 +21,7 @@ from eegprep.functions.guifunc.spec import controls_by_tag
 from eegprep.functions.popfunc.pop_comperp import pop_comperp, pop_comperp_dialog_spec
 from eegprep.functions.popfunc.pop_envtopo import pop_envtopo
 from eegprep.functions.popfunc.pop_erpimage import pop_erpimage, pop_erpimage_dialog_spec
-from eegprep.functions.popfunc.pop_headplot import pop_headplot, pop_headplot_dialog_spec
+from eegprep.functions.popfunc.pop_headplot import pop_headplot, pop_headplot_dialog_spec, _shared_maplimits
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_epoch import pop_epoch
 from eegprep.functions.popfunc._plot_utils import component_activations
@@ -42,10 +42,13 @@ from eegprep.functions.sigprocfunc.coregister import (
     traditional_transform_matrix,
 )
 from eegprep.functions.sigprocfunc.headplot import (
+    MAPLIMIT_PADDING,
+    default_headplot_mesh_transform,
     headplot,
     headplot_setup,
     load_headplot_spline,
     packaged_headplot_path,
+    _interpolate_values,
 )
 from tests.fixtures import SAMPLE_DATASET_PATH, create_test_eeg_with_ica
 
@@ -115,6 +118,26 @@ def test_headplot_setup_file_can_be_reused_for_sample_data(sample_eeg, tmp_path)
     assert spline.gx.shape[1] == sample_eeg["nbchan"]
     assert len(figure.axes) >= 1
     plt.close(figure)
+
+
+def test_pop_headplot_setup_reuses_existing_spline_file(sample_eeg, tmp_path):
+    eeg = deepcopy(sample_eeg)
+    splinefile = tmp_path / "existing.spl"
+    original_transform = [0, -10, 0, -0.1, 0, -1.6, 1100, 1100, 1100]
+    replay_transform = [1, 2, 3, 0.1, 0.2, 0.3, 4, 5, 6]
+    headplot_setup(sample_eeg["chanlocs"], splinefile, chaninfo=sample_eeg["chaninfo"], transform=original_transform)
+
+    figures, command = pop_headplot(
+        eeg,
+        typeplot=1,
+        items=[0],
+        setup={"splinefile": str(splinefile), "transform": replay_transform},
+        return_com=True,
+    )
+
+    np.testing.assert_allclose(load_headplot_spline(splinefile).transform, original_transform)
+    assert "setup={" in command
+    plt.close(figures[0])
 
 
 def test_headplot_setup_falls_back_when_xyz_fields_are_empty_arrays(sample_eeg, tmp_path):
@@ -267,6 +290,12 @@ def test_pop_headplot_shared_string_maplimits_are_replayable(ica_epoch, tmp_path
     plt.close(figures[0])
 
 
+def test_headplot_maplimits_use_eeglab_padding(ica_epoch):
+    values = np.asarray(ica_epoch["icawinv"], dtype=float)[:, 0]
+    expected = float(np.nanmax(np.abs(values)) * MAPLIMIT_PADDING)
+    np.testing.assert_allclose(_shared_maplimits([values], "absmax"), [-expected, expected])
+
+
 def test_pop_headplot_gui_setup_result_is_replayable(sample_eeg, tmp_path):
     class Renderer:
         def __init__(self):
@@ -353,6 +382,119 @@ def test_headplot_setup_spline_metadata_matches_eeglab(sample_eeg, tmp_path):
     np.testing.assert_allclose(py_spline.g, ml["G"], rtol=1e-10, atol=1e-10)
     np.testing.assert_allclose(py_spline.gx, ml["gx"], rtol=1e-10, atol=1e-10)
     np.testing.assert_allclose(py_spline.xe, ml["Xe"], rtol=1e-10, atol=1e-10)
+    np.testing.assert_array_equal(py_spline.indices + 1, np.asarray(ml["indices"], dtype=int).ravel())
+    np.testing.assert_allclose(py_spline.transform, np.asarray(ml["transform"], dtype=float).ravel())
+
+
+@pytest.mark.matlab
+def test_headplot_interpolated_values_match_eeglab(sample_eeg, tmp_path):
+    if os.environ.get("EEGPREP_SKIP_MATLAB") == "1":
+        pytest.skip("MATLAB tests disabled via EEGPREP_SKIP_MATLAB")
+    try:
+        matlab_engine = importlib.import_module("matlab.engine")
+    except ImportError as exc:
+        pytest.skip(f"MATLAB not available: {exc}")
+    eeglab_root = _eeglab_reference_root()
+    if not eeglab_root.exists():
+        pytest.skip("EEGLAB reference checkout not available")
+
+    transform = [0, -10, 0, -0.1, 0, -1.6, 1100, 1100, 1100]
+    values = np.linspace(-4.0, 6.0, int(sample_eeg["nbchan"]))
+    python_spline = tmp_path / "python_interp.spl"
+    matlab_spline = tmp_path / "matlab_interp.spl"
+    matlab_output = tmp_path / "headplot_interp.mat"
+    headplot_setup(sample_eeg["chanlocs"], python_spline, chaninfo=sample_eeg["chaninfo"], transform=transform)
+
+    engine = matlab_engine.start_matlab()
+    try:
+        for relative in (
+            "functions/guifunc",
+            "functions/popfunc",
+            "functions/adminfunc",
+            "functions/sigprocfunc",
+            "functions/miscfunc",
+            "functions/supportfiles",
+            "plugins/dipfit",
+        ):
+            engine.addpath(str(eeglab_root / relative), nargout=0)
+        engine.eval(
+            f"""
+            EEG = pop_loadset('{_matlab_string(SAMPLE_DATASET_PATH)}');
+            headplot('setup', EEG.chanlocs, '{_matlab_string(matlab_spline)}', ...
+                'chaninfo', EEG.chaninfo, 'meshfile', 'mheadnew.mat', ...
+                'transform', [{_matlab_vector(transform)}]);
+            S = load('{_matlab_string(matlab_spline)}', '-mat');
+            values = [{_matlab_vector(values)}]';
+            meanval = mean(values);
+            centered = values - meanval;
+            enum = length(values);
+            lamd = 0.1;
+            C = pinv([(S.G + lamd); ones(1, enum)]) * [centered(:); 0];
+            P = S.gx * C + meanval;
+            save('{_matlab_string(matlab_output)}', 'P');
+            """,
+            nargout=0,
+        )
+    finally:
+        engine.quit()
+
+    py_values = _interpolate_values(values, load_headplot_spline(python_spline))
+    ml = scipy.io.loadmat(matlab_output, squeeze_me=True)
+    np.testing.assert_allclose(py_values, np.asarray(ml["P"], dtype=float).ravel(), rtol=1e-10, atol=1e-10)
+
+
+@pytest.mark.matlab
+def test_headplot_setup_ica_metadata_matches_eeglab(tmp_path):
+    if os.environ.get("EEGPREP_SKIP_MATLAB") == "1":
+        pytest.skip("MATLAB tests disabled via EEGPREP_SKIP_MATLAB")
+    try:
+        matlab_engine = importlib.import_module("matlab.engine")
+    except ImportError as exc:
+        pytest.skip(f"MATLAB not available: {exc}")
+    eeglab_root = _eeglab_reference_root()
+    if not eeglab_root.exists():
+        pytest.skip("EEGLAB reference checkout not available")
+
+    sample_ica = SAMPLE_DATASET_PATH.parent / "eeglab_data_with_ica_tmp.set"
+    transform = [0, -10, 0, -0.1, 0, -1.6, 1100, 1100, 1100]
+    eeg = pop_loadset(sample_ica)
+    python_spline = tmp_path / "python_ica.spl"
+    matlab_spline = tmp_path / "matlab_ica.spl"
+    matlab_output = tmp_path / "headplot_ica.mat"
+    headplot_setup(eeg["chanlocs"], python_spline, chaninfo=eeg["chaninfo"], transform=transform, ica="on")
+
+    engine = matlab_engine.start_matlab()
+    try:
+        for relative in (
+            "functions/guifunc",
+            "functions/popfunc",
+            "functions/adminfunc",
+            "functions/sigprocfunc",
+            "functions/miscfunc",
+            "functions/supportfiles",
+            "plugins/dipfit",
+        ):
+            engine.addpath(str(eeglab_root / relative), nargout=0)
+        engine.eval(
+            f"""
+            EEG = pop_loadset('{_matlab_string(sample_ica)}');
+            headplot('setup', EEG.chanlocs, '{_matlab_string(matlab_spline)}', ...
+                'chaninfo', EEG.chaninfo, 'ica', 'on', 'meshfile', 'mheadnew.mat', ...
+                'transform', [{_matlab_vector(transform)}]);
+            S = load('{_matlab_string(matlab_spline)}', '-mat');
+            G = S.G; gx = S.gx; Xe = S.Xe; indices = S.indices; transform = S.transform;
+            save('{_matlab_string(matlab_output)}', 'G', 'gx', 'Xe', 'indices', 'transform');
+            """,
+            nargout=0,
+        )
+    finally:
+        engine.quit()
+
+    py_spline = load_headplot_spline(python_spline)
+    ml = scipy.io.loadmat(matlab_output, squeeze_me=True)
+    assert py_spline.g.shape == np.asarray(ml["G"]).shape
+    assert py_spline.gx.shape == np.asarray(ml["gx"]).shape
+    np.testing.assert_allclose(py_spline.xe, np.asarray(ml["Xe"], dtype=float).ravel(), rtol=1e-10, atol=1e-10)
     np.testing.assert_array_equal(py_spline.indices + 1, np.asarray(ml["indices"], dtype=int).ravel())
     np.testing.assert_allclose(py_spline.transform, np.asarray(ml["transform"], dtype=float).ravel())
 
@@ -470,9 +612,141 @@ def test_phase4_dialog_specs_match_eeglab_selector_layouts(sample_eeg, ica_epoch
     assert headplot_controls["loadcb"].callback.name == "headplot_setup_mode"
     assert headplot_controls["compcb"].callback.name == "headplot_setup_mode"
     assert headplot_controls["setup_browse"].callback.name == "select_file"
+    np.testing.assert_allclose(
+        default_headplot_mesh_transform("mheadnew.mat"), [0, -10, 0, -0.1, 0, -1.6, 1100, 1100, 1100]
+    )
+    assert headplot_controls["meshfile"].callback.params["transform_choices"] == (
+        "0 -10 0 -0.1 0 -1.6 1100 1100 1100",
+        "0 -15 -15 0.05 0 -1.57 100 88 110",
+    )
+    assert headplot_controls["mesh_browse"].callback.params["custom_transform"] == "0 -10 0 -0.1 0 -1.6 1100 1100 1100"
     assert headplot_controls["manual_coreg"].callback.name == "headplot_manual_coreg"
     assert headplot_controls["manual_coreg"].callback.params["mesh_source"] == "meshfile"
     assert headplot_controls["transform"].enabled is True
+
+
+def test_headplot_setup_mode_checkboxes_behave_like_radio_buttons():
+    class Toggle:
+        def __init__(self, checked):
+            self.checked = checked
+            self.signals_blocked = False
+
+        def isChecked(self):
+            return self.checked
+
+        def setChecked(self, value):
+            self.checked = bool(value)
+
+        def blockSignals(self, value):
+            self.signals_blocked = bool(value)
+
+        def setEnabled(self, _enabled):
+            pass
+
+    load = Toggle(False)
+    comp = Toggle(True)
+    widgets = {
+        "loadcb": load,
+        "compcb": comp,
+        "load": Toggle(False),
+        "setup_file": Toggle(True),
+    }
+
+    QtDialogRenderer._set_headplot_setup_mode(
+        widgets,
+        {
+            "source": "compcb",
+            "mode": "compute",
+            "peer": "loadcb",
+            "load_targets": ("load",),
+            "setup_targets": ("setup_file",),
+        },
+        False,
+    )
+
+    assert comp.isChecked() is True
+    assert load.isChecked() is False
+
+
+def test_headplot_mesh_choice_restores_each_template_transform(sample_eeg):
+    class Text:
+        def __init__(self):
+            self.value = ""
+
+        def setText(self, value):
+            self.value = value
+
+    class Combo:
+        def __init__(self):
+            self.index = 0
+
+        def setCurrentIndex(self, index):
+            self.index = index
+
+        def count(self):
+            return 2
+
+    spec = pop_headplot_dialog_spec(sample_eeg, typeplot=1)
+    params = controls_by_tag(spec)["meshfile"].callback.params
+    transform = Text()
+    reference = Combo()
+
+    QtDialogRenderer._set_headplot_mesh_choice(
+        {"meshchanfile": reference, "transform": transform},
+        params,
+        1,
+    )
+    assert transform.value == "0 -15 -15 0.05 0 -1.57 100 88 110"
+    assert reference.index == 1
+
+    QtDialogRenderer._set_headplot_mesh_choice(
+        {"meshchanfile": reference, "transform": transform},
+        params,
+        0,
+    )
+    assert transform.value == "0 -10 0 -0.1 0 -1.6 1100 1100 1100"
+    assert reference.index == 0
+
+
+def test_headplot_mesh_browse_resets_to_generic_transform(monkeypatch, sample_eeg, tmp_path):
+    class FileDialog:
+        @staticmethod
+        def getOpenFileName(*_args):
+            return str(tmp_path / "custom.mat"), ""
+
+    class QtWidgets:
+        QFileDialog = FileDialog
+
+    class Combo:
+        def __init__(self):
+            self.value = None
+            self.text = ""
+
+        def setEditable(self, _editable):
+            pass
+
+        def setEditText(self, value):
+            self.text = value
+
+        def setProperty(self, _name, value):
+            self.value = value
+
+    class Text:
+        def __init__(self):
+            self.value = ""
+
+        def setText(self, value):
+            self.value = value
+
+    monkeypatch.setattr("eegprep.functions.guifunc.qt._require_qt", lambda: (None, QtWidgets))
+    params = controls_by_tag(pop_headplot_dialog_spec(sample_eeg, typeplot=1))["mesh_browse"].callback.params
+    target = Combo()
+    transform = Text()
+
+    QtDialogRenderer._select_file(object(), target, params, {"transform": transform})
+
+    assert target.value == str(tmp_path / "custom.mat")
+    assert transform.value == "0 -10 0 -0.1 0 -1.6 1100 1100 1100"
 
 
 def test_headplot_manual_coreg_callback_writes_transform(monkeypatch, sample_eeg):

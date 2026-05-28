@@ -401,11 +401,12 @@ class QtDialogRenderer:
         elif callback.name == "select_file":
             button = widgets[params["button"]]
             target = widgets[params["target"]]
-            button.clicked.connect(lambda: self._select_file(button, target, params))
+            button.clicked.connect(lambda: self._select_file(button, target, params, widgets))
         elif callback.name == "headplot_setup_mode":
             source = widgets[params["source"]]
             source.toggled.connect(lambda checked: self._set_headplot_setup_mode(widgets, params, checked))
-            self._set_headplot_setup_mode(widgets, params, source.isChecked())
+            if source.isChecked():
+                self._set_headplot_setup_mode(widgets, params, True)
         elif callback.name == "headplot_mesh_choice":
             source = widgets.get(params["source"])
             if source is not None:
@@ -654,7 +655,7 @@ class QtDialogRenderer:
         target.setText(value.strip())
 
     @staticmethod
-    def _select_file(button: Any, target: Any, params: Mapping[str, Any]) -> None:
+    def _select_file(button: Any, target: Any, params: Mapping[str, Any], widgets: Mapping[str, Any]) -> None:
         _qt_core, qt_widgets = _require_qt()
         caption = str(params.get("caption", "Select file"))
         file_filter = str(params.get("filter", "All files (*)"))
@@ -671,14 +672,24 @@ class QtDialogRenderer:
             target.setEditable(True)
             target.setEditText(filename)
             target.setProperty(_VALUE_PROPERTY, filename)
+        transform_target = widgets.get(params.get("transform_target", ""))
+        if transform_target is not None and params.get("custom_transform") is not None:
+            transform_target.setText(str(params["custom_transform"]))
 
     @staticmethod
     def _set_headplot_setup_mode(widgets: Mapping[str, Any], params: Mapping[str, Any], checked: bool) -> None:
+        source = widgets.get(params["source"])
         if not checked:
+            if source is not None and hasattr(source, "blockSignals"):
+                source.blockSignals(True)
+                source.setChecked(True)
+                source.blockSignals(False)
             return
         peer = widgets.get(params["peer"])
         if peer is not None:
+            peer.blockSignals(True)
             peer.setChecked(False)
+            peer.blockSignals(False)
         load_enabled = params["mode"] == "load"
         QtDialogRenderer._set_enabled(
             [widgets[tag] for tag in params.get("load_targets", ()) if tag in widgets],
@@ -690,15 +701,6 @@ class QtDialogRenderer:
         )
 
     @staticmethod
-    def _set_headplot_transform_text(target: Any, index: int) -> None:
-        transforms = (
-            "",
-            "0 -15 -15 0.05 0 -1.57 100 88 110",
-        )
-        if index < len(transforms) and transforms[index]:
-            target.setText(transforms[index])
-
-    @staticmethod
     def _set_headplot_mesh_choice(widgets: Mapping[str, Any], params: Mapping[str, Any], index: int) -> None:
         reference_target = widgets.get(params.get("reference_target", ""))
         if (
@@ -708,8 +710,9 @@ class QtDialogRenderer:
         ):
             reference_target.setCurrentIndex(index)
         target = widgets.get(params.get("transform_target", ""))
-        if target is not None:
-            QtDialogRenderer._set_headplot_transform_text(target, index)
+        transforms = tuple(str(value) for value in params.get("transform_choices", ()))
+        if target is not None and 0 <= index < len(transforms) and transforms[index]:
+            target.setText(transforms[index])
 
     @staticmethod
     def _run_headplot_manual_coreg(parent: Any, widgets: Mapping[str, Any], params: Mapping[str, Any]) -> None:

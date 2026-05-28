@@ -22,15 +22,14 @@ from eegprep.functions.popfunc._plot_utils import (
 )
 from eegprep.functions.sigprocfunc.headplot import (
     DEFAULT_MESH,
-    default_headplot_transform,
+    MAPLIMIT_PADDING,
+    default_headplot_mesh_transform,
     headplot,
     headplot_setup,
-    packaged_headplot_path,
 )
 
 _MESH_CHOICES = ("mheadnew.mat", "colin27headmesh.mat")
 _MESH_CHANNEL_CHOICES = ("mheadnew.xyz", "colin27headmesh.xyz")
-_COLIN27_TRANSFORM = [0, -15, -15, 0.05, 0, -1.57, 100, 88, 110]
 _DEFAULT_COMPONENT_ITEMS = "1"
 
 
@@ -116,6 +115,7 @@ def pop_headplot_dialog_spec(EEG: dict[str, Any], *, typeplot: int = 1) -> Dialo
     compute_file = not _spline_file_is_ready(EEG, typeplot)
     spline_value = str(_current_spline_file(EEG, typeplot) or "")
     transform = _default_transform_text(EEG, 0)
+    mesh_transforms = tuple(_default_transform_text(EEG, index) for index, _mesh in enumerate(_MESH_CHOICES))
     setup_file = _default_spline_path(EEG)
     plot_label = (
         f"Making headplots for these latencies (from {round(float(EEG.get('xmin', 0)) * 1000)} "
@@ -243,7 +243,12 @@ def pop_headplot_dialog_spec(EEG: dict[str, Any], *, typeplot: int = 1) -> Dialo
             enabled=compute_file,
             callback=CallbackSpec(
                 "headplot_mesh_choice",
-                params={"source": "meshfile", "reference_target": "meshchanfile", "transform_target": "transform"},
+                params={
+                    "source": "meshfile",
+                    "reference_target": "meshchanfile",
+                    "transform_target": "transform",
+                    "transform_choices": mesh_transforms,
+                },
                 matlab_callback="cb_selectmesh",
             ),
         ),
@@ -260,6 +265,8 @@ def pop_headplot_dialog_spec(EEG: dict[str, Any], *, typeplot: int = 1) -> Dialo
                     "mode": "open",
                     "caption": "Select a head mesh file",
                     "filter": "MAT files (*.mat)",
+                    "transform_target": "transform",
+                    "custom_transform": _default_transform_text(EEG, 0),
                 },
                 matlab_callback="uigetfile('*.mat')",
             ),
@@ -400,13 +407,15 @@ def _prepare_spline_file(EEG: dict[str, Any], typeplot: int, *, setup: Any, load
         chaninfo = dict(EEG.get("chaninfo") or {})
         if "icachansind" not in chaninfo and not _is_empty(EEG.get("icachansind")):
             chaninfo["icachansind"] = EEG["icachansind"]
-        headplot_setup(
-            EEG.get("chanlocs", []),
-            splinefile,
-            chaninfo=chaninfo,
-            ica="on" if int(typeplot) == 0 else "off",
-            **setup_options,
-        )
+        recompute = _is_on(setup_options.pop("recompute", False))
+        if recompute or not Path(splinefile).expanduser().exists():
+            headplot_setup(
+                EEG.get("chanlocs", []),
+                splinefile,
+                chaninfo=chaninfo,
+                ica="on" if int(typeplot) == 0 else "off",
+                **setup_options,
+            )
         EEG[fieldname] = splinefile
         EEG["headplotmeshfile"] = "" if Path(str(meshfile)).name == DEFAULT_MESH else str(meshfile)
         return splinefile
@@ -542,7 +551,7 @@ def _normalise_rowcols(rowcols: Any, count: int) -> tuple[int, int]:
 def _erp_maplimits(EEG: dict[str, Any], items: np.ndarray) -> list[float]:
     maps, _labels = _headplot_maps(EEG, 1, items)
     data = np.asarray(maps, dtype=float)
-    limit = float(np.nanmax(np.abs(data)) * 1.1)
+    limit = float(np.nanmax(np.abs(data)) * MAPLIMIT_PADDING)
     if not np.isfinite(limit) or limit == 0:
         limit = 1.0
     return [-limit, limit]
@@ -556,9 +565,12 @@ def _shared_maplimits(maps: list[np.ndarray], setting: Any) -> list[float]:
         if finite_values.size == 0:
             finite_values = np.asarray([0.0])
         if lower in {"maxmin", "minmax"}:
-            return [float(np.nanmin(finite_values) * 1.02), float(np.nanmax(finite_values) * 1.02)]
+            return [
+                float(np.nanmin(finite_values) * MAPLIMIT_PADDING),
+                float(np.nanmax(finite_values) * MAPLIMIT_PADDING),
+            ]
         if lower == "absmax":
-            limit = float(np.nanmax(np.abs(finite_values)) * 1.02)
+            limit = float(np.nanmax(np.abs(finite_values)) * MAPLIMIT_PADDING)
             if not np.isfinite(limit) or limit == 0:
                 limit = 1.0
             return [-limit, limit]
@@ -627,15 +639,8 @@ def _default_title(EEG: dict[str, Any], typeplot: int) -> str:
 
 
 def _default_transform_text(EEG: dict[str, Any], mesh_index: int) -> str:
-    if mesh_index == 1:
-        transform = np.asarray(_COLIN27_TRANSFORM, dtype=float)
-    else:
-        transform = default_headplot_transform(dict(EEG.get("chaninfo") or {}))
-    if transform.size == 0:
-        try:
-            transform = numeric_vector(Path(packaged_headplot_path("mheadnew.transform")).read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            transform = np.asarray([], dtype=float)
+    meshfile = _MESH_CHOICES[mesh_index] if 0 <= mesh_index < len(_MESH_CHOICES) else DEFAULT_MESH
+    transform = default_headplot_mesh_transform(meshfile, dict(EEG.get("chaninfo") or {}))
     return " ".join(f"{value:g}" for value in transform)
 
 
@@ -687,6 +692,12 @@ def _is_empty(value: Any) -> bool:
     if isinstance(value, np.ndarray):
         return value.size == 0
     return isinstance(value, (list, tuple, dict)) and len(value) == 0
+
+
+def _is_on(value: Any) -> bool:
+    if isinstance(value, str):
+        return value.lower() in {"1", "true", "yes", "on"}
+    return bool(value)
 
 
 __all__ = ["pop_headplot", "pop_headplot_dialog_spec"]

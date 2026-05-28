@@ -25,9 +25,14 @@ from eegprep.functions.sigprocfunc.coregister import (
 
 DEFAULT_MESH = "mheadnew.mat"
 DEFAULT_TRANSFORM = DEFAULT_COREGISTER_TRANSFORM
+COLIN27_TRANSFORM = np.asarray([0.0, -15.0, -15.0, 0.05, 0.0, -1.57, 100.0, 88.0, 110.0])
 HEAD_CENTER = np.asarray([0.0, 0.0, 30.0], dtype=float)
 ELECTRODE_DISPLAY_FACTOR = 1.06
-SPLINE_REGULARIZATION = 0.1
+MAPLIMIT_PADDING = 1.1
+# EEGLAB's headplot.m adds this scalar to G before solving the constrained
+# spline system. This is intentionally not a diagonal ridge; keep it for
+# numerical parity with EEGLAB history/setup replays.
+EEGLAB_SPLINE_LAMBDA = 0.1
 
 
 @dataclass(frozen=True)
@@ -254,6 +259,19 @@ def default_headplot_transform(chaninfo: dict[str, Any] | None = None) -> np.nda
     if "egi" in filename or "elp" in filename:
         return np.asarray([0.0773, -5.3235, -14.72, -0.1187, -0.0023, -1.5940, 92.4, 92.5, 110.9], dtype=float)
     return np.asarray([], dtype=float)
+
+
+def default_headplot_mesh_transform(
+    meshfile: str | Path | None = None, chaninfo: dict[str, Any] | None = None
+) -> np.ndarray:
+    """Return the default transform for a ``pop_headplot`` mesh selection."""
+    filename = Path(str(meshfile or DEFAULT_MESH)).name.lower()
+    if filename == "colin27headmesh.mat":
+        return COLIN27_TRANSFORM.copy()
+    template_transform = default_headplot_transform(chaninfo)
+    if template_transform.size:
+        return template_transform
+    return DEFAULT_TRANSFORM.copy()
 
 
 def packaged_headplot_path(name: str) -> Path:
@@ -486,7 +504,7 @@ def _values_for_spline(values: Any, spline: HeadplotSpline) -> np.ndarray:
 def _interpolate_values(values: np.ndarray, spline: HeadplotSpline) -> np.ndarray:
     centered = values - np.nanmean(values)
     enum = values.size
-    system = np.vstack([spline.g + SPLINE_REGULARIZATION, np.ones((1, enum))])
+    system = np.vstack([spline.g + EEGLAB_SPLINE_LAMBDA, np.ones((1, enum))])
     target = np.concatenate([centered, [0.0]])
     coefficients = finite_matmul(finite_pinv(system), target)
     return finite_matmul(spline.gx, coefficients) + np.nanmean(values)
@@ -496,9 +514,9 @@ def _map_limits(values: np.ndarray, setting: Any) -> tuple[float, float]:
     if isinstance(setting, str):
         lower = setting.lower()
         if lower in {"maxmin", "minmax"}:
-            return float(np.nanmin(values) * 1.02), float(np.nanmax(values) * 1.02)
+            return float(np.nanmin(values) * MAPLIMIT_PADDING), float(np.nanmax(values) * MAPLIMIT_PADDING)
         if lower == "absmax":
-            limit = float(np.nanmax(np.abs(values)) * 1.02)
+            limit = float(np.nanmax(np.abs(values)) * MAPLIMIT_PADDING)
             return -limit, limit
     numeric = np.asarray(setting, dtype=float).ravel()
     if numeric.size == 2:
@@ -607,7 +625,9 @@ def _is_on(value: str | bool) -> bool:
 __all__ = [
     "HeadplotMesh",
     "HeadplotSpline",
+    "MAPLIMIT_PADDING",
     "default_headplot_transform",
+    "default_headplot_mesh_transform",
     "headplot",
     "headplot_setup",
     "load_headplot_mesh",

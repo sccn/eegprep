@@ -23,6 +23,8 @@ in EEGLAB:
 - Use `load="my_montage.spl"` to reuse an existing spline file.
 - Use `setup={...}` to create a new spline file from channel locations, a head
   mesh, and a Talairach transformation matrix.
+- Replaying a history command with `setup={...}` reuses an existing `.spl` file;
+  pass `recompute=True` inside `setup` to force regeneration.
 - The GUI exposes the same load-or-recompute workflow used by EEGLAB, including
   Manual coregistration for editing the Talairach transform against the selected
   head mesh and reference electrode file.
