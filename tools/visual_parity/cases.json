@@ -555,6 +555,56 @@
       }
     },
     {
+      "id": "pop_icflag_dialog",
+      "description": "ICLabel flagging threshold dialog opened from pop_icflag.",
+      "window_size": [467, 440],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_icflag"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_icflag_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_subcomp_dialog",
+      "description": "Component removal dialog opened from pop_subcomp.",
+      "window_size": [538, 231],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_subcomp"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_subcomp_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
       "id": "pop_clean_rawdata_dialog",
       "description": "clean_rawdata configuration dialog opened from pop_clean_rawdata.",
       "window_size": [681, 733],

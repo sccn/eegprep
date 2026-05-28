@@ -13,6 +13,7 @@ from eegprep.functions.popfunc.pop_rmbase import pop_rmbase
 from eegprep.functions.popfunc.pop_select import pop_select
 from eegprep.functions.sigprocfunc.eegrej import eegrej as sigproc_eegrej
 from eegprep.functions.sigprocfunc.rmbase import rmbase as sigproc_rmbase
+from eegprep.plugins.ICLabel.pop_icflag import pop_icflag
 
 
 class TestPackageExports(unittest.TestCase):
@@ -32,6 +33,7 @@ class TestPackageExports(unittest.TestCase):
         self.assertIs(eegprep.pop_epoch, pop_epoch)
         self.assertIs(eegprep.pop_rmbase, pop_rmbase)
         self.assertIs(eegprep.pop_select, pop_select)
+        self.assertIs(eegprep.pop_icflag, pop_icflag)
 
 
 if __name__ == "__main__":

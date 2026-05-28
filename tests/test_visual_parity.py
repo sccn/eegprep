@@ -43,6 +43,8 @@ class VisualParityConfigTests(unittest.TestCase):
         self.assertEqual(cases["pop_rmbase_dialog"].targets["eeglab"].action, "pop_rmbase")
         self.assertEqual(cases["pop_runica_dialog"].targets["eeglab"].action, "pop_runica")
         self.assertEqual(cases["pop_iclabel_dialog"].targets["eeglab"].action, "pop_iclabel")
+        self.assertEqual(cases["pop_icflag_dialog"].targets["eeglab"].action, "pop_icflag")
+        self.assertEqual(cases["pop_subcomp_dialog"].targets["eeglab"].action, "pop_subcomp")
         self.assertEqual(cases["pop_clean_rawdata_dialog"].targets["eeglab"].action, "pop_clean_rawdata")
         self.assertIn("pop_chansel_dialog", cases)
         self.assertEqual(cases["pop_chansel_dialog"].targets["eeglab"].action, "pop_chansel")

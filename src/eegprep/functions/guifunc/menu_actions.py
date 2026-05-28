@@ -44,6 +44,7 @@ IMPLEMENTED_ACTIONS = {
     "pop_fileio_cnt",
     "pop_fileio_eeg",
     "pop_fileio_mff",
+    "pop_icflag",
     "pop_iclabel",
     "pop_importbids",
     "pop_importdata",
@@ -66,6 +67,7 @@ IMPLEMENTED_ACTIONS = {
     "pop_study",
     "pop_studyerp",
     "pop_studywizard",
+    "pop_subcomp",
     "pop_taskinfo",
     "pop_participantinfo",
     "pop_writeeeg",
@@ -111,12 +113,14 @@ HELP_UNAVAILABLE_TOPICS = frozenset(set(HELP_TOPIC_LABELS) - set(HELP_DOC_PATHS)
 _MULTIPLE_DATASET_ACTIONS = {
     "pop_clean_rawdata",
     "pop_epoch",
+    "pop_icflag",
     "pop_iclabel",
     "pop_reref",
     "pop_resample",
     "pop_rmbase",
     "pop_runica",
     "pop_select",
+    "pop_subcomp",
 }
 
 
@@ -261,6 +265,12 @@ class MenuActionDispatcher:
             return
         if base == "pop_iclabel":
             self._run_pop_function("pop_iclabel", parent)
+            return
+        if base == "pop_icflag":
+            self._run_pop_function("pop_icflag", parent)
+            return
+        if base == "pop_subcomp":
+            self._run_pop_function("pop_subcomp", parent)
             return
         self.show_coming_soon(action, parent)
 
@@ -689,6 +699,10 @@ class MenuActionDispatcher:
             from eegprep.plugins.ICLabel.pop_iclabel import pop_iclabel
 
             out = pop_iclabel(selection, return_com=True)
+        elif name == "pop_icflag":
+            from eegprep.plugins.ICLabel.pop_icflag import pop_icflag
+
+            out = pop_icflag(selection, return_com=True)
         elif name == "pop_resample":
             from eegprep.functions.popfunc.pop_resample import pop_resample
 
@@ -705,6 +719,10 @@ class MenuActionDispatcher:
             from eegprep.functions.popfunc.pop_select import pop_select
 
             out = pop_select(selection, return_com=True)
+        elif name == "pop_subcomp":
+            from eegprep.functions.popfunc.pop_subcomp import pop_subcomp
+
+            out = pop_subcomp(selection, return_com=True)
         else:
             self.show_coming_soon(name, parent)
             return
