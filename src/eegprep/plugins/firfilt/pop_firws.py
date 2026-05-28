@@ -9,6 +9,7 @@ from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.plugins.firfilt._filtering import FILTER_TYPES, WINDOW_TYPES, apply_fir_filter, design_firws
 from eegprep.plugins.firfilt._pop_common import (
     bool_value,
+    has_value,
     history_command,
     int_or_none,
     normalize_pop_options,
@@ -41,10 +42,17 @@ def pop_firws(
         output = [pop_firws(item, gui=False, **parsed) for item in EEG]
         command = history_command("pop_firws", parsed)
         return (output, command) if return_com else output
-    design_options = {key: value for key, value in parsed.items() if key not in {"plotfresp", "usefftfilt"}}
+    design_options = {
+        key: value for key, value in parsed.items() if key not in {"channels", "chantype", "plotfresp", "usefftfilt"}
+    }
     b = design_firws(float(EEG["srate"]), **design_options)
     output = apply_fir_filter(
-        EEG, b, causal=bool_value(parsed.get("minphase")), usefftfilt=bool_value(parsed.get("usefftfilt"))
+        EEG,
+        b,
+        channels=parsed.get("channels"),
+        chantype=parsed.get("chantype"),
+        causal=bool_value(parsed.get("minphase")),
+        usefftfilt=bool_value(parsed.get("usefftfilt")),
     )
     command = history_command("pop_firws", parsed)
     return (output, command) if return_com else output
@@ -165,4 +173,7 @@ def _parsed_options(options: dict[str, Any]) -> dict[str, Any]:
     for key in ("minphase", "usefftfilt", "plotfresp"):
         if bool_value(options.get(key)):
             parsed[key] = True
+    for key in ("channels", "chantype"):
+        if has_value(options.get(key)):
+            parsed[key] = options[key]
     return parsed

@@ -8,6 +8,7 @@ from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.plugins.firfilt._filtering import FILTER_TYPES, apply_fir_filter, design_firpm
 from eegprep.plugins.firfilt._pop_common import (
+    has_value,
     history_command,
     int_or_none,
     normalize_pop_options,
@@ -40,8 +41,9 @@ def pop_firpm(
         output = [pop_firpm(item, gui=False, **parsed) for item in EEG]
         command = history_command("pop_firpm", parsed)
         return (output, command) if return_com else output
-    b = design_firpm(float(EEG["srate"]), **parsed)
-    output = apply_fir_filter(EEG, b)
+    design_options = {key: value for key, value in parsed.items() if key not in {"channels", "chantype"}}
+    b = design_firpm(float(EEG["srate"]), **design_options)
+    output = apply_fir_filter(EEG, b, channels=parsed.get("channels"), chantype=parsed.get("chantype"))
     command = history_command("pop_firpm", parsed)
     return (output, command) if return_com else output
 
@@ -141,4 +143,7 @@ def _parsed_options(options: dict[str, Any]) -> dict[str, Any]:
         value = numeric_or_none(options.get(key))
         if value is not None:
             parsed[key] = value
+    for key in ("channels", "chantype"):
+        if has_value(options.get(key)):
+            parsed[key] = options[key]
     return parsed

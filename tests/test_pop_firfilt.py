@@ -140,6 +140,23 @@ def test_pop_firws_usefftfilt_matches_time_domain_filtering():
     np.testing.assert_allclose(fft_domain["data"], time_domain["data"], atol=1e-10, rtol=1e-10)
 
 
+def test_pop_firws_and_firpm_filter_requested_channels_only():
+    eeg = _continuous_eeg()
+    before = eeg["data"].copy()
+
+    ws_out = pop_firws(eeg, fcutoff=30, forder=80, ftype="lowpass", channels=[2])
+    pm_out, pm_command = pop_firpm(
+        eeg, fcutoff=30, ftrans=4, ftype="lowpass", forder=80, chantype=["EOG"], return_com=True
+    )
+
+    np.testing.assert_allclose(ws_out["data"][0], before[0])
+    assert not np.allclose(ws_out["data"][1], before[1])
+    np.testing.assert_allclose(ws_out["data"][2], before[2])
+    np.testing.assert_allclose(pm_out["data"][:2], before[:2])
+    assert not np.allclose(pm_out["data"][2], before[2])
+    assert "'chantype', {'EOG'}" in pm_command
+
+
 def test_pop_eegfilt_legacy_history_replays_with_same_boolean_semantics():
     eeg = _continuous_eeg()
 
@@ -210,6 +227,25 @@ class TestPopFirfiltParity(unittest.TestCase):
 
         self.assertEqual(py_eeg["data"].shape, ml_eeg["data"].shape)
         np.testing.assert_allclose(py_eeg["data"], ml_eeg["data"], atol=3e-8, rtol=3e-8)
+
+    def test_parity_pop_firws_bandpass_sample_data(self):
+        py_eeg = pop_firws(copy.deepcopy(self.eeg), fcutoff=[8, 30], forder=120, ftype="bandpass", wtype="hamming")
+        ml_eeg = self.eeglab.pop_firws(
+            copy.deepcopy(self.eeg),
+            "fcutoff",
+            [8, 30],
+            "forder",
+            120,
+            "ftype",
+            "bandpass",
+            "wtype",
+            "hamming",
+            "plotfresp",
+            0,
+        )
+
+        self.assertEqual(py_eeg["data"].shape, ml_eeg["data"].shape)
+        np.testing.assert_allclose(py_eeg["data"], ml_eeg["data"], atol=2e-5, rtol=2e-5)
 
     def test_parity_pop_eegfilt_legacy_firls_sample_data(self):
         py_eeg = pop_eegfilt(copy.deepcopy(self.eeg), 1, 40, 100, 0, 0, 0, "firls", 0)

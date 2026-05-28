@@ -88,6 +88,19 @@ def vector_or_none(value: Any) -> list[float] | None:
     return [float(item) for item in values]
 
 
+def has_value(value: Any) -> bool:
+    """Return whether an EEGLAB option carries a non-empty value."""
+    if value is None:
+        return False
+    if isinstance(value, str):
+        return bool(value.strip().strip("[]"))
+    if isinstance(value, np.ndarray):
+        return value.size > 0
+    if isinstance(value, (list, tuple, set)):
+        return len(value) > 0
+    return True
+
+
 def history_command(function_name: str, options: dict[str, Any]) -> str:
     """Build an EEGLAB-style key/value history command."""
     parts = []
