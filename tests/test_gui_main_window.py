@@ -304,6 +304,11 @@ class MainMenuSpecTests(unittest.TestCase):
         self.assertEqual(action_kind("pop_select"), "implemented")
         self.assertEqual(action_kind("pop_resample"), "implemented")
         self.assertEqual(action_kind("pop_epoch"), "implemented")
+        self.assertEqual(action_kind("pop_eegfilt"), "implemented")
+        self.assertEqual(action_kind("pop_eegfiltnew"), "implemented")
+        self.assertEqual(action_kind("pop_firws"), "implemented")
+        self.assertEqual(action_kind("pop_firpm"), "implemented")
+        self.assertEqual(action_kind("pop_firma"), "implemented")
         self.assertEqual(action_kind("pop_clean_rawdata"), "implemented")
         self.assertEqual(action_kind("pop_runica"), "implemented")
         self.assertEqual(action_kind("pop_iclabel"), "implemented")
@@ -644,6 +649,11 @@ class MenuActionDispatcherTests(unittest.TestCase):
             ("pop_rmbase", "eegprep.functions.popfunc.pop_rmbase.pop_rmbase", "baseline"),
             ("pop_rmdat", "eegprep.functions.popfunc.pop_rmdat.pop_rmdat", "rmdat"),
             ("pop_epoch", "eegprep.functions.popfunc.pop_epoch.pop_epoch", "epoched"),
+            ("pop_eegfilt", "eegprep.functions.popfunc.pop_eegfilt.pop_eegfilt", "legacy_filtered"),
+            ("pop_eegfiltnew", "eegprep.plugins.firfilt.pop_eegfiltnew.pop_eegfiltnew", "filtered"),
+            ("pop_firws", "eegprep.plugins.firfilt.pop_firws.pop_firws", "firws"),
+            ("pop_firpm", "eegprep.plugins.firfilt.pop_firpm.pop_firpm", "firpm"),
+            ("pop_firma", "eegprep.plugins.firfilt.pop_firma.pop_firma", "firma"),
             ("pop_clean_rawdata", "eegprep.plugins.clean_rawdata.pop_clean_rawdata.pop_clean_rawdata", "cleaned"),
             ("pop_runica", "eegprep.functions.popfunc.pop_runica.pop_runica", "ica"),
             ("pop_iclabel", "eegprep.plugins.ICLabel.pop_iclabel.pop_iclabel", "labeled"),

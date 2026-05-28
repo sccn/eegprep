@@ -37,6 +37,8 @@ IMPLEMENTED_ACTIONS = {
     "pop_editeventfield",
     "pop_editeventvals",
     "pop_editoptions",
+    "pop_eegfilt",
+    "pop_eegfiltnew",
     "pop_epoch",
     "pop_eventinfo",
     "pop_expevents",
@@ -49,6 +51,9 @@ IMPLEMENTED_ACTIONS = {
     "pop_fileio_cnt",
     "pop_fileio_eeg",
     "pop_fileio_mff",
+    "pop_firma",
+    "pop_firpm",
+    "pop_firws",
     "pop_icflag",
     "pop_iclabel",
     "pop_importbids",
@@ -124,7 +129,12 @@ HELP_UNAVAILABLE_TOPICS = frozenset(set(HELP_TOPIC_LABELS) - set(HELP_DOC_PATHS)
 _MULTIPLE_DATASET_ACTIONS = {
     "pop_clean_rawdata",
     "pop_chanedit",
+    "pop_eegfilt",
+    "pop_eegfiltnew",
     "pop_epoch",
+    "pop_firma",
+    "pop_firpm",
+    "pop_firws",
     "pop_icflag",
     "pop_iclabel",
     "pop_reref",
@@ -275,8 +285,23 @@ class MenuActionDispatcher:
         if base == "pop_clean_rawdata":
             self._run_pop_function("pop_clean_rawdata", parent)
             return
+        if base == "pop_eegfilt":
+            self._run_pop_function("pop_eegfilt", parent)
+            return
+        if base == "pop_eegfiltnew":
+            self._run_pop_function("pop_eegfiltnew", parent)
+            return
         if base == "pop_epoch":
             self._run_pop_function("pop_epoch", parent)
+            return
+        if base == "pop_firma":
+            self._run_pop_function("pop_firma", parent)
+            return
+        if base == "pop_firpm":
+            self._run_pop_function("pop_firpm", parent)
+            return
+        if base == "pop_firws":
+            self._run_pop_function("pop_firws", parent)
             return
         if base == "pop_reref":
             self._run_pop_function("pop_reref", parent)
@@ -746,10 +771,30 @@ class MenuActionDispatcher:
             from eegprep.plugins.clean_rawdata.pop_clean_rawdata import pop_clean_rawdata
 
             out = pop_clean_rawdata(selection, return_com=True)
+        elif name == "pop_eegfilt":
+            from eegprep.functions.popfunc.pop_eegfilt import pop_eegfilt
+
+            out = pop_eegfilt(selection, return_com=True)
+        elif name == "pop_eegfiltnew":
+            from eegprep.plugins.firfilt.pop_eegfiltnew import pop_eegfiltnew
+
+            out = pop_eegfiltnew(selection, return_com=True)
         elif name == "pop_epoch":
             from eegprep.functions.popfunc.pop_epoch import pop_epoch
 
             out = pop_epoch(selection, return_com=True)
+        elif name == "pop_firma":
+            from eegprep.plugins.firfilt.pop_firma import pop_firma
+
+            out = pop_firma(selection, return_com=True)
+        elif name == "pop_firpm":
+            from eegprep.plugins.firfilt.pop_firpm import pop_firpm
+
+            out = pop_firpm(selection, return_com=True)
+        elif name == "pop_firws":
+            from eegprep.plugins.firfilt.pop_firws import pop_firws
+
+            out = pop_firws(selection, return_com=True)
         elif name == "pop_reref":
             from eegprep.functions.popfunc.pop_reref import pop_reref
 

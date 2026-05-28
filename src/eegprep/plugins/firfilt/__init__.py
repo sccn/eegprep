@@ -8,9 +8,13 @@ from typing import Any
 _LAZY_EXPORTS = {
     "firws": ("eegprep.plugins.firfilt.firws", "firws"),
     "firwsord": ("eegprep.plugins.firfilt.firwsord", "firwsord"),
+    "pop_eegfiltnew": ("eegprep.plugins.firfilt.pop_eegfiltnew", "pop_eegfiltnew"),
+    "pop_firma": ("eegprep.plugins.firfilt.pop_firma", "pop_firma"),
+    "pop_firpm": ("eegprep.plugins.firfilt.pop_firpm", "pop_firpm"),
+    "pop_firws": ("eegprep.plugins.firfilt.pop_firws", "pop_firws"),
 }
 
-__all__ = ["firws", "firwsord"]
+__all__ = ["firws", "firwsord", "pop_eegfiltnew", "pop_firma", "pop_firpm", "pop_firws"]
 
 
 def __getattr__(name: str) -> Any:
