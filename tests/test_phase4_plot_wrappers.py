@@ -11,16 +11,17 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
-from eegprep.functions.popfunc.pop_comperp import pop_comperp
+from eegprep.functions.guifunc.spec import controls_by_tag
+from eegprep.functions.popfunc.pop_comperp import pop_comperp, pop_comperp_dialog_spec
 from eegprep.functions.popfunc.pop_envtopo import pop_envtopo
-from eegprep.functions.popfunc.pop_erpimage import pop_erpimage
+from eegprep.functions.popfunc.pop_erpimage import pop_erpimage, pop_erpimage_dialog_spec
 from eegprep.functions.popfunc.pop_headplot import pop_headplot
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_epoch import pop_epoch
 from eegprep.functions.popfunc._plot_utils import component_activations
 from eegprep.functions.popfunc.pop_plotdata import pop_plotdata
 from eegprep.functions.popfunc.pop_plottopo import pop_plottopo
-from eegprep.functions.popfunc.pop_prop import pop_prop
+from eegprep.functions.popfunc.pop_prop import pop_prop, pop_prop_dialog_spec
 from eegprep.functions.popfunc.pop_spectopo import pop_spectopo
 from eegprep.functions.popfunc.pop_timtopo import pop_timtopo
 from eegprep.functions.studyfunc.pop_chanplot import pop_chanplot
@@ -104,6 +105,43 @@ def test_component_plot_wrappers_work_when_ica_fields_exist(ica_epoch):
     plt.close(plotdata_fig)
     plt.close(envtopo_fig)
     plt.close(erpimage_result["figure"])
+
+
+def test_pop_erpimage_projects_components_to_selected_channel(ica_epoch):
+    result, command = pop_erpimage(ica_epoch, typeplot=0, index=1, projchan=[2], return_com=True)
+
+    expected = component_activations(ica_epoch)[0].T * np.asarray(ica_epoch["icawinv"], dtype=float)[1, 0]
+    np.testing.assert_allclose(result["image"], expected)
+    assert "projchan=[2]" in command
+    _assert_python_command(command)
+    plt.close(result["figure"])
+
+
+def test_phase4_dialog_specs_match_eeglab_selector_layouts(sample_eeg, ica_epoch):
+    prop_controls = controls_by_tag(pop_prop_dialog_spec(sample_eeg, typecomp=1))
+    assert prop_controls["chanorcomp_button"].callback is not None
+    assert prop_controls["chanorcomp_button"].callback.params["return_indices"] is True
+
+    erpimage_spec = pop_erpimage_dialog_spec(ica_epoch, typeplot=0)
+    assert erpimage_spec.geometry[0] == (1, 1, 0.1, 0.8, 2.1)
+    assert erpimage_spec.geometry[1] == (1, 1, 0.4, 0.5, 2.1)
+    assert [control.tag for control in erpimage_spec.controls[:10]] == [
+        None,
+        "index",
+        None,
+        None,
+        None,
+        None,
+        "projchan",
+        "projchan_button",
+        None,
+        "title",
+    ]
+
+    comperp_spec = pop_comperp_dialog_spec([sample_eeg], flag=1)
+    assert [control.string for control in comperp_spec.controls[2:5]] == ["avg.", "std.", "all ERPs"]
+    assert comperp_spec.geometry[0] == comperp_spec.geometry[1]
+    assert comperp_spec.geometry[-1] == (1.48, 1.03, 1)
 
 
 def test_component_activations_use_icachansind_subset(ica_epoch):

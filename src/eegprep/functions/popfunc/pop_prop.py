@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
-from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
+from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.popfunc._plot_utils import (
     channel_labels,
     component_activations,
@@ -61,15 +61,35 @@ def pop_prop(
 def pop_prop_dialog_spec(EEG: dict[str, Any], *, typecomp: int = 1) -> DialogSpec:
     """Return the EEGLAB-like dialog spec for ``pop_prop``."""
     label = "Channel" if int(typecomp) else "Component"
+    labels = channel_labels(EEG)
+    selector_enabled = bool(int(typecomp)) and bool(labels)
     return DialogSpec(
         title=f"{label} properties - pop_prop()",
         controls=(
             ControlSpec("text", f"{label} index(ices) to plot:"),
             ControlSpec("edit", tag="chanorcomp", value="1"),
+            ControlSpec(
+                "pushbutton",
+                "...",
+                tag="chanorcomp_button",
+                enabled=selector_enabled,
+                callback=CallbackSpec(
+                    "select_channels",
+                    params={
+                        "button": "chanorcomp_button",
+                        "target": "chanorcomp",
+                        "channels": labels,
+                        "selectionmode": "single",
+                        "return_indices": True,
+                    },
+                    matlab_callback=("pop_chansel({tmpchanlocs.labels}, 'withindex', 'on', 'selectionmode', 'single')"),
+                ),
+            ),
             ControlSpec("text", "Spectral options (see spectopo() help):"),
             ControlSpec("edit", tag="spec_opt", value="'freqrange', [2, 50]"),
+            ControlSpec("spacer"),
         ),
-        geometry=((2, 1), (2, 1)),
+        geometry=((2, 1, 0.5), (2, 1, 0.5)),
         function_name="pop_prop",
         eeglab_source="functions/popfunc/pop_prop.m",
         help_text="pophelp('pop_prop')",

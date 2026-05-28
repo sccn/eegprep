@@ -7,9 +7,11 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
-from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
+from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.popfunc._plot_utils import (
+    channel_labels,
     component_activations,
+    component_maps,
     eeg_epoch_data,
     eeg_times_ms,
     history_command,
@@ -44,7 +46,8 @@ def pop_erpimage(
         index = 1
     _raise_for_unsupported_kwargs(kwargs)
     command_kwargs = dict(kwargs)
-    values = _erpimage_values(EEG, typeplot, int(index))
+    projchan = kwargs.pop("projchan", None)
+    values = _erpimage_values(EEG, typeplot, int(index), projchan=projchan)
     times = eeg_times_ms(EEG)
     limits = numeric_vector(kwargs.pop("limits", []))
     if limits.size == 2:
@@ -56,7 +59,7 @@ def pop_erpimage(
     figure, image = erpimage(
         values,
         times=times,
-        title=str(kwargs.pop("title", _default_title(typeplot, int(index)))),
+        title=str(kwargs.pop("title", _default_title(typeplot, int(index), projchan=projchan))),
         sort_values=kwargs.pop("sort_values", None),
         smooth=kwargs.pop("smooth", None),
         decimate=_first_int(kwargs.pop("decimate", None), default=1),
@@ -75,24 +78,68 @@ def pop_erpimage_dialog_spec(EEG: dict[str, Any], *, typeplot: int = 1) -> Dialo
     label = "Channel" if is_channel else "Component(s)"
     title_label = "Channel" if is_channel else "Component"
     smooth = min(max(int(EEG.get("trials", 1) or 1) - 5, 0), 10)
-    controls = [
+    labels = channel_labels(EEG)
+    channel_selector = ControlSpec(
+        "pushbutton",
+        "...",
+        tag="index_button",
+        enabled=is_channel and bool(labels),
+        callback=CallbackSpec(
+            "select_channels",
+            params={
+                "button": "index_button",
+                "target": "index",
+                "channels": labels,
+                "selectionmode": "single",
+                "return_indices": True,
+            },
+            matlab_callback="pop_chansel({tmpchanlocs.labels}, 'withindex', 'on', 'selectionmode', 'single')",
+        ),
+    )
+    controls: list[ControlSpec] = [
         ControlSpec("text", label, font_weight="bold"),
         ControlSpec("edit", tag="index", value="1"),
-        ControlSpec("pushbutton", "...", enabled=is_channel),
-        ControlSpec("text", "Fig. title", font_weight="bold"),
-        ControlSpec("edit", tag="title", value=""),
     ]
-    if not is_channel:
+    if is_channel:
+        controls.append(channel_selector)
+    else:
+        controls.append(ControlSpec("spacer"))
         controls.extend(
             [
                 ControlSpec("spacer"),
+                ControlSpec("spacer"),
+                ControlSpec("text", "Project to channel #", font_weight="bold"),
                 ControlSpec("edit", tag="projchan", value=""),
-                ControlSpec("spacer"),
-                ControlSpec("spacer"),
-                ControlSpec("spacer"),
+                ControlSpec(
+                    "pushbutton",
+                    "...",
+                    tag="projchan_button",
+                    enabled=bool(labels),
+                    callback=CallbackSpec(
+                        "select_channels",
+                        params={
+                            "button": "projchan_button",
+                            "target": "projchan",
+                            "channels": labels,
+                            "selectionmode": "single",
+                            "return_indices": True,
+                        },
+                        matlab_callback=(
+                            "pop_chansel({tmpchanlocs.labels}, 'withindex', 'on', 'selectionmode', 'single')"
+                        ),
+                    ),
+                ),
+                ControlSpec("text", "Fig. title", font_weight="bold"),
+                ControlSpec("edit", tag="title", value=""),
             ]
         )
-        controls[5] = ControlSpec("text", "Project to channel #", font_weight="bold")
+    if is_channel:
+        controls.extend(
+            [
+                ControlSpec("text", "Fig. title", font_weight="bold"),
+                ControlSpec("edit", tag="title", value=""),
+            ]
+        )
     controls.extend(
         [
             ControlSpec("text", "Smoothing", font_weight="bold"),
@@ -196,6 +243,7 @@ def pop_erpimage_dialog_spec(EEG: dict[str, Any], *, typeplot: int = 1) -> Dialo
         eeglab_source="functions/popfunc/pop_erpimage.m",
         help_text="pophelp('pop_erpimage')",
         size=(1113, 834 if is_channel else 870),
+        row_spacing=20,
     )
 
 
@@ -205,22 +253,26 @@ def _run_gui(EEG: dict[str, Any], *, typeplot: int, renderer: Any | None = None)
         return None
     _raise_for_unsupported_gui_options(result)
     values = numeric_vector(result.get("index", 1), dtype=int)
+    options = {
+        "title": str(result.get("title", "") or ""),
+        "smooth": numeric_vector(result.get("smooth", [])).tolist(),
+        "decimate": numeric_vector(result.get("decimate", [])).tolist(),
+        "limits": numeric_vector(result.get("limtime", [])).tolist(),
+        "erp": bool(result.get("erp", True)),
+        "cbar": bool(result.get("cbar", True)),
+        "caxis": numeric_vector(result.get("caxis", [])).tolist(),
+        "vert": numeric_vector(result.get("vert", [])).tolist(),
+    }
+    projchan = numeric_vector(result.get("projchan", []), dtype=int)
+    if projchan.size:
+        options["projchan"] = projchan.tolist()
     return {
         "index": int(values[0]) if values.size else 1,
-        "options": {
-            "title": str(result.get("title", "") or ""),
-            "smooth": numeric_vector(result.get("smooth", [])).tolist(),
-            "decimate": numeric_vector(result.get("decimate", [])).tolist(),
-            "limits": numeric_vector(result.get("limtime", [])).tolist(),
-            "erp": bool(result.get("erp", True)),
-            "cbar": bool(result.get("cbar", True)),
-            "caxis": numeric_vector(result.get("caxis", [])).tolist(),
-            "vert": numeric_vector(result.get("vert", [])).tolist(),
-        },
+        "options": options,
     }
 
 
-def _erpimage_values(EEG: dict[str, Any], typeplot: int, index: int) -> np.ndarray:
+def _erpimage_values(EEG: dict[str, Any], typeplot: int, index: int, *, projchan: Any = None) -> np.ndarray:
     if int(EEG.get("trials", 1) or 1) <= 1:
         raise ValueError("pop_erpimage requires epoched data")
     if typeplot:
@@ -231,11 +283,25 @@ def _erpimage_values(EEG: dict[str, Any], typeplot: int, index: int) -> np.ndarr
     acts = component_activations(EEG)
     if index < 1 or index > acts.shape[0]:
         raise ValueError("component index is outside available ICA components")
-    return acts[index - 1, :, :]
+    values = acts[index - 1, :, :]
+    proj_indices = numeric_vector(projchan, dtype=int)
+    if proj_indices.size == 0:
+        return values
+    maps = component_maps(EEG)
+    if np.any(proj_indices < 1) or np.any(proj_indices > maps.shape[0]):
+        raise ValueError(f"projected channel indices must be 1-based and within 1..{maps.shape[0]}")
+    weights = maps[proj_indices - 1, index - 1]
+    projected = values[np.newaxis, :, :] * weights[:, np.newaxis, np.newaxis]
+    return np.nanmean(projected, axis=0)
 
 
-def _default_title(typeplot: int, index: int) -> str:
-    return f"{'Channel' if typeplot else 'Component'} {index} ERP image"
+def _default_title(typeplot: int, index: int, *, projchan: Any = None) -> str:
+    if typeplot:
+        return f"Channel {index} ERP image"
+    proj_indices = numeric_vector(projchan, dtype=int)
+    if proj_indices.size:
+        return f"Component {index} -> Channel {' '.join(str(value) for value in proj_indices.tolist())} ERP image"
+    return f"Component {index} ERP image"
 
 
 def _first_int(value: Any, *, default: int) -> int:
@@ -276,7 +342,7 @@ def _raise_for_unsupported_gui_options(result: dict[str, Any]) -> None:
 
 
 def _raise_for_unsupported_kwargs(kwargs: dict[str, Any]) -> None:
-    supported = {"title", "sort_values", "smooth", "decimate", "limits", "caxis", "cbar", "erp", "vert"}
+    supported = {"title", "sort_values", "smooth", "decimate", "limits", "caxis", "cbar", "erp", "vert", "projchan"}
     unsupported = sorted(set(kwargs) - supported)
     if unsupported:
         raise NotImplementedError(f"pop_erpimage does not yet support option(s): {', '.join(unsupported)}")

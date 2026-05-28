@@ -591,13 +591,15 @@ class QtDialogRenderer:
     def _select_channels(button: Any, target: Any, params: Mapping[str, Any]) -> None:
         channels = [str(value) for value in params.get("channels", ())]
         if channels:
-            _chanlist, value, _allchanstr = pop_chansel(
+            chanlist, value, _allchanstr = pop_chansel(
                 channels,
                 withindex="on",
                 select=target.text().strip(),
                 selectionmode=str(params.get("selectionmode", "multiple")),
                 parent=button,
             )
+            if params.get("return_indices"):
+                value = " ".join(str(index) for index in chanlist)
             accepted = bool(value)
         else:
             _qt_core, qt_widgets = _require_qt()

@@ -80,7 +80,11 @@ def pop_comperp_dialog_spec(_datasets: list[dict[str, Any]], *, flag: int = 1) -
         title="ERP grand average/RMS - pop_comperp()",
         controls=(
             ControlSpec("spacer"),
-            ControlSpec("text", "avg.        std.      all ERPs"),
+            ControlSpec("spacer"),
+            ControlSpec("text", "avg."),
+            ControlSpec("text", "std."),
+            ControlSpec("text", "all ERPs"),
+            ControlSpec("spacer"),
             ControlSpec("text", "Datasets to average (ex: 1 3 4):"),
             ControlSpec("edit", tag="datadd", value=""),
             ControlSpec("checkbox", tag="addavg", value=True),
@@ -117,7 +121,7 @@ def pop_comperp_dialog_spec(_datasets: list[dict[str, Any]], *, flag: int = 1) -
             ControlSpec("pushbutton", "Help"),
         ),
         geometry=(
-            (2.6, 0.95),
+            (1.1, 0.8, 0.21, 0.21, 0.21, 0.1),
             (1.1, 0.8, 0.21, 0.21, 0.21, 0.1),
             (1.1, 0.8, 0.21, 0.21, 0.21, 0.1),
             (1.1, 0.8, 0.21, 0.21, 0.21, 0.1),
@@ -126,12 +130,13 @@ def pop_comperp_dialog_spec(_datasets: list[dict[str, Any]], *, flag: int = 1) -
             (1.48, 1.03, 1),
             (1.48, 1.03, 1),
             (1.48, 1.03, 1),
-            (1.48, 0.25, 1.75),
+            (1.48, 1.03, 1),
         ),
         function_name="pop_comperp",
         eeglab_source="functions/popfunc/pop_comperp.m",
         help_text="pophelp('pop_comperp')",
         size=(938, 476),
+        row_spacing=14,
     )
 
 
