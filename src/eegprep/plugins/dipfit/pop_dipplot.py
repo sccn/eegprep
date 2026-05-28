@@ -39,7 +39,7 @@ def pop_dipplot(
         comps = gui_result.pop("comps")
         options.update(gui_result)
     default_components = localized_components(EEG)
-    components = one_based_indices(comps, limit=len(models), default_all=not bool(comps))
+    components = one_based_indices(comps, limit=len(models), default_all=False)
     if not components:
         components = default_components
     if not components:
@@ -151,7 +151,7 @@ def _plot_dipoles(EEG: dict[str, Any], models: list[dict[str, Any]], components:
             continue
         rv = model.get("rv", np.nan)
         label = f"IC {component}"
-        if np.isfinite(float(rv)) if _is_scalar(rv) else False:
+        if _is_scalar(rv) and np.isfinite(float(rv)):
             label += f" (RV {float(rv) * 100:.1f}%)"
         axis.scatter(positions[:, 0], positions[:, 1], positions[:, 2], s=55, label=label)
         for row in positions:

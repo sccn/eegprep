@@ -1064,7 +1064,11 @@ class MenuActionDispatcher:
         if name == "pop_dipplot":
             from eegprep.plugins.dipfit.pop_dipplot import pop_dipplot
 
-            _figures, command = pop_dipplot(selection, return_com=True)
+            figures, command = pop_dipplot(selection, return_com=True)
+            for figure in figures:
+                show = getattr(figure, "show", None)
+                if callable(show):
+                    show()
             self._add_history_from_gui(command)
             self._refresh()
             return

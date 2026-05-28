@@ -94,6 +94,27 @@ def test_pop_dipfit_settings_gui_uses_first_dataset_and_applies_to_all():
     assert "chanomit=[2]" in com
 
 
+def test_pop_dipfit_settings_gui_empty_transform_preserves_template_default():
+    eeg = _ica_eeg()
+
+    with mock.patch(
+        "eegprep.plugins.dipfit.pop_dipfit_settings.inputgui",
+        return_value={
+            "model": 2,
+            "coordformat": 2,
+            "hdmfile": "standard_BEM/standard_vol.mat",
+            "mrifile": "standard_BEM/standard_mri.mat",
+            "chanfile": "standard_BEM/elec/standard_1005.elc",
+            "coord_transform": "",
+            "no_coreg": False,
+            "chanomit": "",
+        },
+    ):
+        out, _com = pop_dipfit_settings(eeg, gui=True, return_com=True)
+
+    assert out["dipfit"]["coord_transform"] == [0.0, 0.0, 0.0, 0.0, 0.0, -1.5708, 1.0, 1.0, 1.0]
+
+
 def test_dipfit_dialog_specs_keep_eeglab_source_and_key_defaults():
     eeg = _configured_ica_eeg()
     specs = [
@@ -157,6 +178,17 @@ def test_pop_dipplot_plots_existing_models_and_records_replayable_command():
     plt.close(figures[0])
 
 
+def test_pop_dipplot_defaults_to_localized_components_when_some_models_are_empty():
+    eeg = _configured_ica_eeg()
+    eeg["dipfit"]["model"].append({"posxyz": [], "momxyz": [], "rv": 1.0, "component": 3})
+
+    figures, com = pop_dipplot(eeg, "", gui=False, plot=True, return_com=True)
+
+    assert len(figures) == 1
+    assert _console_python_command(com) == "pop_dipplot(EEG, comps=[1, 2])"
+    plt.close(figures[0])
+
+
 def test_pop_dipplot_errors_on_missing_or_unlocalized_models():
     eeg = _configured_ica_eeg()
     eeg["dipfit"]["model"][0]["posxyz"] = []
@@ -188,11 +220,13 @@ def test_dipfit_menu_actions_are_implemented_and_dispatchable():
     session.store_current(eeg, new=True)
     dispatcher = MenuActionDispatcher(session)
 
+    figure = mock.Mock()
     with mock.patch(
         "eegprep.plugins.dipfit.pop_dipplot.pop_dipplot",
-        return_value=(["figure"], "pop_dipplot(EEG, [1])"),
+        return_value=([figure], "pop_dipplot(EEG, [1])"),
     ) as dipplot:
         dispatcher.dispatch("pop_dipplot")
 
     dipplot.assert_called_once()
+    figure.show.assert_called_once()
     assert session.ALLCOM[-1] == "pop_dipplot(EEG, [1])"

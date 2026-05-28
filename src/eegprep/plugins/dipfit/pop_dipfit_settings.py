@@ -164,7 +164,9 @@ def _apply_settings(EEG: dict[str, Any], options: dict[str, Any]) -> dict[str, A
         if value not in (None, ""):
             dipfit[key] = value
     if "coord_transform" in options:
-        dipfit["coord_transform"] = _numeric_list(options["coord_transform"])
+        transform = _numeric_list(options["coord_transform"])
+        if transform:
+            dipfit["coord_transform"] = transform
     usable = coordinate_channel_indices(out)
     nbchan = int(out.get("nbchan", len(usable)) or len(usable))
     if "chanomit" in options and str(options.get("chanomit", "")).strip():
