@@ -955,6 +955,160 @@
       }
     },
     {
+      "id": "pop_eegthresh_dialog",
+      "description": "Extreme-value epoch rejection dialog opened from pop_eegthresh.",
+      "window_size": [600, 318],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {"type": "matlab_dialog", "action": "pop_eegthresh"},
+        "eegprep": {
+          "type": "command",
+          "action": "pop_eegthresh_dialog",
+          "command": ["{python}", "-m", "eegprep.functions.guifunc.visual_capture", "--case", "{case_id}", "--output", "{output}"]
+        }
+      }
+    },
+    {
+      "id": "pop_jointprob_dialog",
+      "description": "Joint-probability epoch rejection dialog opened from pop_jointprob.",
+      "window_size": [600, 284],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {"type": "matlab_dialog", "action": "pop_jointprob"},
+        "eegprep": {
+          "type": "command",
+          "action": "pop_jointprob_dialog",
+          "command": ["{python}", "-m", "eegprep.functions.guifunc.visual_capture", "--case", "{case_id}", "--output", "{output}"]
+        }
+      }
+    },
+    {
+      "id": "pop_rejkurt_dialog",
+      "description": "Kurtosis epoch rejection dialog opened from pop_rejkurt.",
+      "window_size": [600, 284],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {"type": "matlab_dialog", "action": "pop_rejkurt"},
+        "eegprep": {
+          "type": "command",
+          "action": "pop_rejkurt_dialog",
+          "command": ["{python}", "-m", "eegprep.functions.guifunc.visual_capture", "--case", "{case_id}", "--output", "{output}"]
+        }
+      }
+    },
+    {
+      "id": "pop_rejtrend_dialog",
+      "description": "Linear-trend epoch rejection dialog opened from pop_rejtrend.",
+      "window_size": [600, 304],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {"type": "matlab_dialog", "action": "pop_rejtrend"},
+        "eegprep": {
+          "type": "command",
+          "action": "pop_rejtrend_dialog",
+          "command": ["{python}", "-m", "eegprep.functions.guifunc.visual_capture", "--case", "{case_id}", "--output", "{output}"]
+        }
+      }
+    },
+    {
+      "id": "pop_rejspec_dialog",
+      "description": "Spectral epoch rejection dialog opened from pop_rejspec.",
+      "window_size": [620, 356],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {"type": "matlab_dialog", "action": "pop_rejspec"},
+        "eegprep": {
+          "type": "command",
+          "action": "pop_rejspec_dialog",
+          "command": ["{python}", "-m", "eegprep.functions.guifunc.visual_capture", "--case", "{case_id}", "--output", "{output}"]
+        }
+      }
+    },
+    {
+      "id": "pop_rejmenu_dialog",
+      "description": "Non-browser rejection mark manager opened from pop_rejmenu.",
+      "window_size": [560, 344],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {"type": "matlab_dialog", "action": "pop_rejmenu"},
+        "eegprep": {
+          "type": "command",
+          "action": "pop_rejmenu_dialog",
+          "command": ["{python}", "-m", "eegprep.functions.guifunc.visual_capture", "--case", "{case_id}", "--output", "{output}"]
+        }
+      }
+    },
+    {
+      "id": "pop_autorej_dialog",
+      "description": "Automatic epoch rejection dialog opened from pop_autorej.",
+      "window_size": [610, 404],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {"type": "matlab_dialog", "action": "pop_autorej"},
+        "eegprep": {
+          "type": "command",
+          "action": "pop_autorej_dialog",
+          "command": ["{python}", "-m", "eegprep.functions.guifunc.visual_capture", "--case", "{case_id}", "--output", "{output}"]
+        }
+      }
+    },
+    {
+      "id": "pop_rejchan_dialog",
+      "description": "Automatic channel rejection dialog opened from pop_rejchan.",
+      "window_size": [520, 282],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {"type": "matlab_dialog", "action": "pop_rejchan"},
+        "eegprep": {
+          "type": "command",
+          "action": "pop_rejchan_dialog",
+          "command": ["{python}", "-m", "eegprep.functions.guifunc.visual_capture", "--case", "{case_id}", "--output", "{output}"]
+        }
+      }
+    },
+    {
+      "id": "pop_rejcont_dialog",
+      "description": "Continuous spectral rejection dialog opened from pop_rejcont.",
+      "window_size": [560, 332],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {"type": "matlab_dialog", "action": "pop_rejcont"},
+        "eegprep": {
+          "type": "command",
+          "action": "pop_rejcont_dialog",
+          "command": ["{python}", "-m", "eegprep.functions.guifunc.visual_capture", "--case", "{case_id}", "--output", "{output}"]
+        }
+      }
+    },
+    {
+      "id": "pop_selectcomps_dialog",
+      "description": "Component marking dialog opened from pop_selectcomps.",
+      "window_size": [560, 282],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {"type": "matlab_dialog", "action": "pop_selectcomps"},
+        "eegprep": {
+          "type": "command",
+          "action": "pop_selectcomps_dialog",
+          "command": ["{python}", "-m", "eegprep.functions.guifunc.visual_capture", "--case", "{case_id}", "--output", "{output}"]
+        }
+      }
+    },
+    {
+      "id": "pop_viewprops_dialog",
+      "description": "Component properties overview dialog opened from pop_viewprops.",
+      "window_size": [600, 288],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {"type": "matlab_dialog", "action": "pop_viewprops"},
+        "eegprep": {
+          "type": "command",
+          "action": "pop_viewprops_dialog",
+          "command": ["{python}", "-m", "eegprep.functions.guifunc.visual_capture", "--case", "{case_id}", "--output", "{output}"]
+        }
+      }
+    },
+    {
       "id": "pop_clean_rawdata_dialog",
       "description": "clean_rawdata configuration dialog opened from pop_clean_rawdata.",
       "window_size": [681, 733],

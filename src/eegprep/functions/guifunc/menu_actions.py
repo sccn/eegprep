@@ -25,7 +25,9 @@ IMPLEMENTED_ACTIONS = {
     "issues",
     "license",
     "mailto",
+    "eeg_rejsuperpose",
     "pop_adjustevents",
+    "pop_autorej",
     "pop_biosig",
     "pop_chanevent",
     "pop_clean_rawdata",
@@ -56,6 +58,7 @@ IMPLEMENTED_ACTIONS = {
     "pop_firws",
     "pop_icflag",
     "pop_iclabel",
+    "pop_jointprob",
     "pop_importbids",
     "pop_importdata",
     "pop_importepoch",
@@ -68,6 +71,14 @@ IMPLEMENTED_ACTIONS = {
     "pop_runscript",
     "pop_saveh",
     "pop_savestudy",
+    "pop_eegthresh",
+    "pop_rejchan",
+    "pop_rejcont",
+    "pop_rejepoch",
+    "pop_rejkurt",
+    "pop_rejmenu",
+    "pop_rejspec",
+    "pop_rejtrend",
     "pop_reref",
     "pop_resample",
     "pop_rmbase",
@@ -76,12 +87,14 @@ IMPLEMENTED_ACTIONS = {
     "pop_saveset",
     "pop_select",
     "pop_selectevent",
+    "pop_selectcomps",
     "pop_study",
     "pop_studyerp",
     "pop_studywizard",
     "pop_subcomp",
     "pop_taskinfo",
     "pop_topoplot",
+    "pop_viewprops",
     "pop_participantinfo",
     "pop_mergeset",
     "pop_writeeeg",
@@ -144,6 +157,11 @@ _MULTIPLE_DATASET_ACTIONS = {
     "pop_runica",
     "pop_select",
     "pop_selectevent",
+    "pop_eegthresh",
+    "pop_jointprob",
+    "pop_rejkurt",
+    "pop_rejspec",
+    "pop_rejtrend",
     "pop_subcomp",
 }
 
@@ -335,6 +353,25 @@ class MenuActionDispatcher:
             return
         if base == "pop_subcomp":
             self._run_pop_function("pop_subcomp", parent)
+            return
+        if base in {
+            "pop_autorej",
+            "pop_eegthresh",
+            "pop_jointprob",
+            "pop_rejchan",
+            "pop_rejcont",
+            "pop_rejepoch",
+            "pop_rejkurt",
+            "pop_rejmenu",
+            "pop_rejspec",
+            "pop_rejtrend",
+            "pop_selectcomps",
+            "pop_viewprops",
+        }:
+            self._run_pop_function(base, parent, variant=variant)
+            return
+        if base == "eeg_rejsuperpose":
+            self._run_rejsuperpose(variant, parent)
             return
         if base == "topoplot":
             self._plot_channel_locations(variant, parent)
@@ -738,7 +775,7 @@ class MenuActionDispatcher:
         plugins = ["clean_rawdata", "ICLabel/viewprops", "firfilt", "DIPFIT", "EEG-BIDS/File-IO"]
         self._info(parent, "Available EEGPrep extensions:\n" + "\n".join(f"- {plugin}" for plugin in plugins))
 
-    def _run_pop_function(self, name: str, parent: Any | None) -> None:
+    def _run_pop_function(self, name: str, parent: Any | None, *, variant: str = "") -> None:
         selection = self._current_selection_or_warn(parent, allow_multiple=name in _MULTIPLE_DATASET_ACTIONS)
         if selection is None:
             return
@@ -839,6 +876,58 @@ class MenuActionDispatcher:
             from eegprep.functions.popfunc.pop_subcomp import pop_subcomp
 
             out = pop_subcomp(selection, return_com=True)
+        elif name == "pop_autorej":
+            from eegprep.functions.popfunc.pop_autorej import pop_autorej
+
+            out = pop_autorej(selection, return_com=True)
+        elif name == "pop_eegthresh":
+            from eegprep.functions.popfunc.pop_eegthresh import pop_eegthresh
+
+            out = pop_eegthresh(selection, _icacomp_from_variant(variant), return_com=True)
+        elif name == "pop_jointprob":
+            from eegprep.functions.popfunc.pop_jointprob import pop_jointprob
+
+            out = pop_jointprob(selection, _icacomp_from_variant(variant), return_com=True)
+        elif name == "pop_rejchan":
+            from eegprep.functions.popfunc.pop_rejchan import pop_rejchan
+
+            out = pop_rejchan(selection, return_com=True)
+        elif name == "pop_rejcont":
+            from eegprep.functions.popfunc.pop_rejcont import pop_rejcont
+
+            out = pop_rejcont(selection, return_com=True)
+        elif name == "pop_rejepoch":
+            from eegprep.functions.popfunc.pop_rejepoch import pop_rejepoch
+
+            if isinstance(selection, list):
+                self._warn(parent, "Select one dataset before rejecting marked epochs.")
+                return
+            marks = (selection.get("reject") or {}).get("icarejglobal" if variant == "ica" else "rejglobal", [])
+            out = pop_rejepoch(selection, marks, return_com=True)
+        elif name == "pop_rejkurt":
+            from eegprep.functions.popfunc.pop_rejkurt import pop_rejkurt
+
+            out = pop_rejkurt(selection, _icacomp_from_variant(variant), return_com=True)
+        elif name == "pop_rejmenu":
+            from eegprep.functions.popfunc.pop_rejmenu import pop_rejmenu
+
+            out = pop_rejmenu(selection, _icacomp_from_variant(variant), return_com=True)
+        elif name == "pop_rejspec":
+            from eegprep.functions.popfunc.pop_rejspec import pop_rejspec
+
+            out = pop_rejspec(selection, _icacomp_from_variant(variant), return_com=True)
+        elif name == "pop_rejtrend":
+            from eegprep.functions.popfunc.pop_rejtrend import pop_rejtrend
+
+            out = pop_rejtrend(selection, _icacomp_from_variant(variant), return_com=True)
+        elif name == "pop_selectcomps":
+            from eegprep.functions.popfunc.pop_selectcomps import pop_selectcomps
+
+            out = pop_selectcomps(selection, return_com=True)
+        elif name == "pop_viewprops":
+            from eegprep.plugins.ICLabel.pop_viewprops import pop_viewprops
+
+            out = pop_viewprops(selection, typecomp=0 if variant == "components" else 1, return_com=True)
         else:
             self.show_coming_soon(name, parent)
             return
@@ -846,6 +935,10 @@ class MenuActionDispatcher:
             eeg_out, command = out[0], out[1] if len(out) > 1 else ""
         else:
             eeg_out, command = out, ""
+        if name == "pop_viewprops":
+            self._add_history_from_gui(command)
+            self._refresh()
+            return
         if command:
             self._store_current_from_gui(eeg_out, command=command)
             self._refresh()
@@ -892,6 +985,17 @@ class MenuActionDispatcher:
         if command:
             self._store_current_from_gui(eeg_out, new=True, command=command)
             self._refresh()
+
+    def _run_rejsuperpose(self, variant: str, parent: Any | None) -> None:
+        selection = self._current_selection_or_warn(parent)
+        if selection is None:
+            return
+        from eegprep.functions.popfunc.eeg_rejsuperpose import eeg_rejsuperpose
+
+        typerej = 0 if variant == "data_to_ica" else 1
+        eeg_out, command = eeg_rejsuperpose(selection, typerej, 1, 1, 1, 1, 1, 1, 1, return_com=True)
+        self._store_current_from_gui(eeg_out, command=command)
+        self._refresh()
 
     def _plot_channel_locations(self, variant: str, parent: Any | None) -> None:
         selection = self._current_selection_or_warn(parent)
@@ -1059,6 +1163,10 @@ def _default_bids_metadata(action: str) -> str:
     if action == "pop_participantinfo":
         return "participant_id=sub-01"
     return "trial_type=event"
+
+
+def _icacomp_from_variant(variant: str) -> int:
+    return 0 if variant == "ica" else 1
 
 
 def _currentset_list(value: Any) -> list[int]:
