@@ -41,6 +41,7 @@ def pop_plottopo(
     command_kwargs = dict(kwargs)
     data, times = data_time_slice(EEG, kwargs.pop("timerange", None))
     singletrials = bool(kwargs.pop("singletrials", False))
+    rect = bool(kwargs.pop("rect", False))
     plot_options = parse_plot_options_text(kwargs.pop("options", ""))
     ydir = int(plot_options.pop("ydir", kwargs.pop("ydir", -1)))
     if singletrials:
@@ -59,6 +60,7 @@ def pop_plottopo(
         channels=plot_channels,
         title=str(kwargs.pop("title", EEG.get("setname") or "Channel ERPs")),
         ydir=ydir,
+        rect=rect,
     )
     command = history_command("pop_plottopo", chans, **command_kwargs)
     return (figure, command) if return_com else figure
@@ -78,7 +80,7 @@ def pop_plottopo_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("text", "Plot in rect. array"),
             ControlSpec("checkbox", "(set=yes)", tag="rect", value=False),
             ControlSpec("text", "Other plot options (see help)"),
-            ControlSpec("edit", tag="options", value="'ydir', 1"),
+            ControlSpec("edit", tag="options", value="'ydir', -1"),
         ),
         geometry=((1, 1), (1, 1), (1, 1), (1, 1), (1, 1)),
         function_name="pop_plottopo",

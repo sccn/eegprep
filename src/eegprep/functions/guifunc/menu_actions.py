@@ -1101,7 +1101,7 @@ class MenuActionDispatcher:
             return
         from eegprep.functions.studyfunc.pop_chanplot import pop_chanplot
 
-        study, command, _figure = pop_chanplot(self.session.STUDY, self.session.ALLEEG, return_com=True)
+        study, command, _figure = pop_chanplot(self.session.STUDY, self.session.ALLEEG, gui=True, return_com=True)
         self.session.STUDY = study
         self._add_history_from_gui(command)
         self._refresh()

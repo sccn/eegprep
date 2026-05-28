@@ -20,11 +20,11 @@ from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_epoch import pop_epoch
 from eegprep.functions.popfunc._plot_utils import component_activations
 from eegprep.functions.popfunc.pop_plotdata import pop_plotdata
-from eegprep.functions.popfunc.pop_plottopo import pop_plottopo
+from eegprep.functions.popfunc.pop_plottopo import pop_plottopo, pop_plottopo_dialog_spec
 from eegprep.functions.popfunc.pop_prop import pop_prop, pop_prop_dialog_spec
 from eegprep.functions.popfunc.pop_spectopo import pop_spectopo
 from eegprep.functions.popfunc.pop_timtopo import pop_timtopo
-from eegprep.functions.studyfunc.pop_chanplot import pop_chanplot
+from eegprep.functions.studyfunc.pop_chanplot import pop_chanplot, pop_chanplot_dialog_spec
 from tests.fixtures import SAMPLE_DATASET_PATH, create_test_eeg_with_ica
 
 
@@ -143,6 +143,39 @@ def test_phase4_dialog_specs_match_eeglab_selector_layouts(sample_eeg, ica_epoch
     assert comperp_spec.geometry[0] == comperp_spec.geometry[1]
     assert comperp_spec.geometry[-1] == (1.48, 1.03, 1)
 
+    plottopo_controls = controls_by_tag(pop_plottopo_dialog_spec(sample_eeg))
+    assert plottopo_controls["rect"].value is False
+    assert plottopo_controls["options"].value == "'ydir', -1"
+
+    chanplot_controls = controls_by_tag(pop_chanplot_dialog_spec({"name": "demo study"}, [sample_eeg]))
+    assert chanplot_controls["channels_button"].callback is not None
+    assert chanplot_controls["channels_button"].callback.params["return_indices"] is True
+    assert chanplot_controls["measure"].string == "ERP"
+
+
+def test_pop_plottopo_rect_option_switches_layout(sample_epoch):
+    eeg = deepcopy(sample_epoch)
+    eeg["data"] = eeg["data"][:4]
+    eeg["nbchan"] = 4
+    eeg["chanlocs"] = [
+        {"labels": "Fz", "theta": 0, "radius": 0.5},
+        {"labels": "C4", "theta": 90, "radius": 0.5},
+        {"labels": "Pz", "theta": 180, "radius": 0.5},
+        {"labels": "C3", "theta": -90, "radius": 0.5},
+    ]
+
+    topo_fig, topo_command = pop_plottopo(eeg, chans=[1, 2, 3, 4], return_com=True)
+    rect_fig, rect_command = pop_plottopo(eeg, chans=[1, 2, 3, 4], rect=True, return_com=True)
+
+    topo_positions = [axis.get_position().bounds for axis in topo_fig.axes]
+    rect_positions = [axis.get_position().bounds for axis in rect_fig.axes]
+    assert topo_positions != rect_positions
+    assert "rect=True" in rect_command
+    _assert_python_command(topo_command)
+    _assert_python_command(rect_command)
+    plt.close(topo_fig)
+    plt.close(rect_fig)
+
 
 def test_component_activations_use_icachansind_subset(ica_epoch):
     eeg = deepcopy(ica_epoch)
@@ -190,6 +223,29 @@ def test_pop_comperp_and_chanplot_work_on_epoched_dataset_lists(sample_epoch):
     _assert_python_command(chanplot_command)
     plt.close(comperp_result["figure"])
     plt.close(chanplot_fig)
+
+
+def test_pop_chanplot_gui_filters_channels(sample_epoch):
+    class Renderer:
+        def __init__(self):
+            self.spec = None
+
+        def run(self, spec, initial_values=None):
+            self.spec = spec
+            return {"channels": "1 2", "measure": 1}
+
+    second = deepcopy(sample_epoch)
+    renderer = Renderer()
+    study, command, figure = pop_chanplot(
+        {"name": "demo study"}, [sample_epoch, second], gui=True, renderer=renderer, return_com=True
+    )
+
+    assert renderer.spec is not None
+    assert study["etc"]["last_chanplot"]["channels"] == [1, 2]
+    assert "channels=[1, 2]" in command
+    assert "measure='erp'" in command
+    _assert_python_command(command)
+    plt.close(figure)
 
 
 def test_pop_comperp_rms_mode_and_grid_validation(sample_epoch):

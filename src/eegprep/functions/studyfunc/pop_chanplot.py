@@ -7,6 +7,8 @@ from typing import Any
 import matplotlib.pyplot as plt
 import numpy as np
 
+from eegprep.functions.guifunc.inputgui import inputgui
+from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.popfunc._plot_utils import (
     as_eeg_list,
     channel_labels,
@@ -23,6 +25,8 @@ def pop_chanplot(
     *,
     channels: Any = None,
     measure: str = "erp",
+    gui: bool = False,
+    renderer: Any | None = None,
     return_com: bool = False,
 ):
     """Plot STUDY channel measures from loaded datasets.
@@ -36,6 +40,12 @@ def pop_chanplot(
     datasets = as_eeg_list(ALLEEG)
     if not datasets:
         raise ValueError("pop_chanplot requires ALLEEG datasets")
+    if gui:
+        result = _run_gui(STUDY, datasets, renderer=renderer)
+        if result is None:
+            return (STUDY, "", None) if return_com else STUDY
+        channels = result["channels"]
+        measure = result["measure"]
     if measure.lower() != "erp":
         raise NotImplementedError("pop_chanplot currently supports ERP channel measures; STUDY measure UI is Phase 5")
     _validate_time_grid(datasets)
@@ -61,6 +71,55 @@ def pop_chanplot(
     STUDY.setdefault("etc", {})["last_chanplot"] = {"measure": measure.lower(), "channels": (selected + 1).tolist()}
     command = f"pop_chanplot(STUDY, ALLEEG, channels={python_literal(channels)}, measure={python_literal(measure)})"
     return (STUDY, command, fig) if return_com else STUDY
+
+
+def pop_chanplot_dialog_spec(STUDY: dict[str, Any], ALLEEG: Any) -> DialogSpec:
+    """Return the Phase 4 STUDY channel-measure dialog spec."""
+    datasets = as_eeg_list(ALLEEG)
+    labels = channel_labels(datasets[0]) if datasets else []
+    return DialogSpec(
+        title="Plot channel measures - pop_chanplot()",
+        controls=(
+            ControlSpec("text", "Channels ([] = all)"),
+            ControlSpec("edit", tag="channels", value=""),
+            ControlSpec(
+                "pushbutton",
+                "...",
+                tag="channels_button",
+                callback=CallbackSpec(
+                    "select_channels",
+                    params={
+                        "button": "channels_button",
+                        "target": "channels",
+                        "channels": labels,
+                        "return_indices": True,
+                    },
+                    matlab_callback="pop_chansel({tmpchanlocs.labels}, 'withindex', 'on')",
+                ),
+            ),
+            ControlSpec("text", "Measure"),
+            ControlSpec("popupmenu", "ERP", tag="measure", value=1),
+            ControlSpec("text", f"STUDY: {STUDY.get('name') or ''}"),
+        ),
+        geometry=((1, 1, 0.22), (1, 1), (1,)),
+        function_name="pop_chanplot",
+        eeglab_source="functions/studyfunc/pop_chanplot.m",
+        help_text="pophelp('pop_chanplot')",
+        size=(520, 215),
+    )
+
+
+def _run_gui(STUDY: dict[str, Any], ALLEEG: Any, *, renderer: Any | None = None) -> dict[str, Any] | None:
+    result = inputgui(pop_chanplot_dialog_spec(STUDY, ALLEEG), renderer=renderer)
+    if result is None:
+        return None
+    measure_options = ["erp"]
+    try:
+        measure_index = int(result.get("measure", 1)) - 1
+    except (TypeError, ValueError):
+        measure_index = 0
+    measure = measure_options[measure_index] if 0 <= measure_index < len(measure_options) else "erp"
+    return {"channels": numeric_vector(result.get("channels", []), dtype=int).tolist(), "measure": measure}
 
 
 def _selected_channels(values: Any, count: int) -> np.ndarray:
@@ -90,4 +149,4 @@ def _validate_time_grid(datasets: list[dict[str, Any]]) -> None:
             raise ValueError(f"Dataset {index} does not share the same time grid")
 
 
-__all__ = ["pop_chanplot"]
+__all__ = ["pop_chanplot", "pop_chanplot_dialog_spec"]
