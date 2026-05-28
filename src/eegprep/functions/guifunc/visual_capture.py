@@ -59,6 +59,14 @@ from eegprep.plugins.ICLabel.pop_icflag import pop_icflag_dialog_spec
 from eegprep.plugins.ICLabel.pop_iclabel import pop_iclabel_dialog_spec
 from eegprep.plugins.ICLabel.pop_viewprops import pop_viewprops_dialog_spec
 from eegprep.plugins.clean_rawdata.pop_clean_rawdata import pop_clean_rawdata_dialog_spec
+from eegprep.plugins.dipfit.pop_dipfit_gridsearch import pop_dipfit_gridsearch_dialog_spec
+from eegprep.plugins.dipfit.pop_dipfit_headmodel import pop_dipfit_headmodel_dialog_spec
+from eegprep.plugins.dipfit.pop_dipfit_loreta import pop_dipfit_loreta_dialog_spec
+from eegprep.plugins.dipfit.pop_dipfit_nonlinear import pop_dipfit_nonlinear_dialog_spec
+from eegprep.plugins.dipfit.pop_dipfit_settings import pop_dipfit_settings_dialog_spec
+from eegprep.plugins.dipfit.pop_dipplot import pop_dipplot_dialog_spec
+from eegprep.plugins.dipfit.pop_leadfield import pop_leadfield_dialog_spec
+from eegprep.plugins.dipfit.pop_multifit import pop_multifit_dialog_spec
 from eegprep.plugins.firfilt.pop_eegfiltnew import pop_eegfiltnew_dialog_spec
 from eegprep.plugins.firfilt.pop_firma import pop_firma_dialog_spec
 from eegprep.plugins.firfilt.pop_firpm import pop_firpm_dialog_spec
@@ -743,6 +751,57 @@ def capture_rejection_dialog(output: pathlib.Path, *, case_id: str) -> None:
     _grab_dialog(dialog, output, app)
 
 
+def _dipfit_demo_eeg() -> dict:
+    eeg = _demo_main_eeg(epoched=True, setname="dipfit demo")
+    eeg["icaweights"] = np.eye(4)
+    eeg["icasphere"] = np.eye(4)
+    eeg["icawinv"] = np.eye(4)
+    eeg["icachansind"] = np.arange(4)
+    eeg["dipfit"] = {
+        "hdmfile": "standard_BEM/standard_vol.mat",
+        "mrifile": "standard_BEM/standard_mri.mat",
+        "chanfile": "standard_BEM/elec/standard_1005.elc",
+        "coordformat": "MNI",
+        "coord_transform": [0, 0, 0, 0, 0, -1.5708, 1, 1, 1],
+        "chansel": [1, 2, 3, 4],
+        "model": [
+            {"posxyz": [0, -20, 40], "momxyz": [1, 0, 0], "rv": 0.12, "component": 1},
+            {"posxyz": [25, 10, 35], "momxyz": [0, 1, 0], "rv": 0.2, "component": 2},
+        ],
+    }
+    return eeg
+
+
+def _dipfit_spec(case_id: str):
+    eeg = _dipfit_demo_eeg()
+    if case_id == "pop_dipfit_settings_dialog":
+        return pop_dipfit_settings_dialog_spec(eeg)
+    if case_id == "pop_dipfit_headmodel_dialog":
+        return pop_dipfit_headmodel_dialog_spec(eeg, "subject_T1.nii")
+    if case_id == "pop_dipfit_gridsearch_dialog":
+        return pop_dipfit_gridsearch_dialog_spec(eeg)
+    if case_id == "pop_dipfit_nonlinear_dialog":
+        return pop_dipfit_nonlinear_dialog_spec(eeg)
+    if case_id == "pop_dipplot_dialog":
+        return pop_dipplot_dialog_spec(eeg)
+    if case_id == "pop_multifit_dialog":
+        return pop_multifit_dialog_spec(eeg)
+    if case_id == "pop_leadfield_dialog":
+        return pop_leadfield_dialog_spec(eeg)
+    if case_id == "pop_dipfit_loreta_dialog":
+        eeg["dipfit"]["sourcemodel"] = {"pos": [[0, 0, 0]], "leadfield": []}
+        return pop_dipfit_loreta_dialog_spec(eeg)
+    raise ValueError(f"unsupported DIPFIT visual case: {case_id}")
+
+
+def capture_dipfit_dialog(output: pathlib.Path, *, case_id: str) -> None:
+    """Render and capture a DIPFIT dialog."""
+    spec = _dipfit_spec(case_id)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
 def capture_pop_clean_rawdata_dialog(output: pathlib.Path) -> None:
     """Render and capture the pop_clean_rawdata dialog."""
     eeg = _demo_main_eeg()
@@ -981,6 +1040,17 @@ def main(argv: list[str] | None = None) -> int:
         "pop_viewprops_dialog",
     }:
         capture_rejection_dialog(args.output, case_id=args.case)
+    elif args.case in {
+        "pop_dipfit_settings_dialog",
+        "pop_dipfit_headmodel_dialog",
+        "pop_dipfit_gridsearch_dialog",
+        "pop_dipfit_nonlinear_dialog",
+        "pop_dipplot_dialog",
+        "pop_multifit_dialog",
+        "pop_leadfield_dialog",
+        "pop_dipfit_loreta_dialog",
+    }:
+        capture_dipfit_dialog(args.output, case_id=args.case)
     elif args.case == "pop_clean_rawdata_dialog":
         capture_pop_clean_rawdata_dialog(args.output)
     elif args.case == "pop_chansel_dialog":

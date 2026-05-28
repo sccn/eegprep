@@ -1484,6 +1484,117 @@
       }
     },
     {
+      "id": "pop_dipfit_settings_dialog",
+      "description": "DIPFIT settings dialog opened from pop_dipfit_settings.",
+      "window_size": [690, 360],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {"type": "matlab_dialog", "action": "pop_dipfit_settings"},
+        "eegprep": {
+          "type": "command",
+          "action": "pop_dipfit_settings_dialog",
+          "command": ["{python}", "-m", "eegprep.functions.guifunc.visual_capture", "--case", "{case_id}", "--output", "{output}"]
+        }
+      }
+    },
+    {
+      "id": "pop_dipfit_gridsearch_dialog",
+      "description": "DIPFIT coarse grid-search dialog opened from pop_dipfit_gridsearch.",
+      "window_size": [520, 260],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {"type": "matlab_dialog", "action": "pop_dipfit_gridsearch"},
+        "eegprep": {
+          "type": "command",
+          "action": "pop_dipfit_gridsearch_dialog",
+          "command": ["{python}", "-m", "eegprep.functions.guifunc.visual_capture", "--case", "{case_id}", "--output", "{output}"]
+        }
+      }
+    },
+    {
+      "id": "pop_dipfit_nonlinear_dialog",
+      "description": "DIPFIT manual nonlinear fitting dialog opened from pop_dipfit_nonlinear.",
+      "window_size": [650, 330],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {"type": "matlab_dialog", "action": "pop_dipfit_nonlinear"},
+        "eegprep": {
+          "type": "command",
+          "action": "pop_dipfit_nonlinear_dialog",
+          "command": ["{python}", "-m", "eegprep.functions.guifunc.visual_capture", "--case", "{case_id}", "--output", "{output}"]
+        }
+      }
+    },
+    {
+      "id": "pop_dipplot_dialog",
+      "description": "DIPFIT dipole plotting dialog opened from pop_dipplot.",
+      "window_size": [660, 410],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {"type": "matlab_dialog", "action": "pop_dipplot"},
+        "eegprep": {
+          "type": "command",
+          "action": "pop_dipplot_dialog",
+          "command": ["{python}", "-m", "eegprep.functions.guifunc.visual_capture", "--case", "{case_id}", "--output", "{output}"]
+        }
+      }
+    },
+    {
+      "id": "pop_multifit_dialog",
+      "description": "DIPFIT multi-component autofit dialog opened from pop_multifit.",
+      "window_size": [560, 300],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {"type": "matlab_dialog", "action": "pop_multifit"},
+        "eegprep": {
+          "type": "command",
+          "action": "pop_multifit_dialog",
+          "command": ["{python}", "-m", "eegprep.functions.guifunc.visual_capture", "--case", "{case_id}", "--output", "{output}"]
+        }
+      }
+    },
+    {
+      "id": "pop_leadfield_dialog",
+      "description": "DIPFIT leadfield source-model dialog opened from pop_leadfield.",
+      "window_size": [650, 230],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {"type": "matlab_dialog", "action": "pop_leadfield"},
+        "eegprep": {
+          "type": "command",
+          "action": "pop_leadfield_dialog",
+          "command": ["{python}", "-m", "eegprep.functions.guifunc.visual_capture", "--case", "{case_id}", "--output", "{output}"]
+        }
+      }
+    },
+    {
+      "id": "pop_dipfit_loreta_dialog",
+      "description": "DIPFIT LORETA dialog opened from pop_dipfit_loreta.",
+      "window_size": [620, 250],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {"type": "matlab_dialog", "action": "pop_dipfit_loreta"},
+        "eegprep": {
+          "type": "command",
+          "action": "pop_dipfit_loreta_dialog",
+          "command": ["{python}", "-m", "eegprep.functions.guifunc.visual_capture", "--case", "{case_id}", "--output", "{output}"]
+        }
+      }
+    },
+    {
+      "id": "pop_dipfit_headmodel_dialog",
+      "description": "DIPFIT MRI headmodel parameter dialog after MRI selection.",
+      "window_size": [650, 280],
+      "timeout_seconds": 120,
+      "targets": {
+        "eegprep": {
+          "type": "command",
+          "action": "pop_dipfit_headmodel_dialog",
+          "command": ["{python}", "-m", "eegprep.functions.guifunc.visual_capture", "--case", "{case_id}", "--output", "{output}"]
+        }
+      }
+    },
+    {
       "id": "pop_clean_rawdata_dialog",
       "description": "clean_rawdata configuration dialog opened from pop_clean_rawdata.",
       "window_size": [681, 733],

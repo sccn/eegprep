@@ -39,7 +39,10 @@ def test_no_implemented_action_remains_marked_as_placeholder():
 def test_placeholder_inventory_classifies_representative_phase_work():
     assert placeholder_metadata("pop_editeventfield") is None
     assert placeholder_metadata("pop_eegfilt") is None
-    assert placeholder_metadata("pop_dipfit_settings").phase == "3"
+    assert placeholder_metadata("pop_dipfit_settings") is None
+    assert action_kind("pop_dipfit_settings") == "implemented"
+    assert action_kind("pop_dipfit_gridsearch") == "implemented"
+    assert not any(metadata.phase == "3" for metadata in placeholder_inventory().values())
     assert action_kind("pop_rejchan") == "implemented"
     assert placeholder_metadata("pop_spectopo") is None
     assert action_kind("pop_spectopo") == "implemented"
