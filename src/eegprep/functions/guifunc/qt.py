@@ -397,6 +397,23 @@ class QtDialogRenderer:
             button = widgets[params["button"]]
             target = widgets[params["target"]]
             button.clicked.connect(lambda: self._select_interp_channels(button, target, params))
+        elif callback.name == "select_file":
+            button = widgets[params["button"]]
+            target = widgets[params["target"]]
+            button.clicked.connect(lambda: self._select_file(button, target, params))
+        elif callback.name == "headplot_setup_mode":
+            source = widgets[params["source"]]
+            source.toggled.connect(lambda checked: self._set_headplot_setup_mode(widgets, params, checked))
+            self._set_headplot_setup_mode(widgets, params, source.isChecked())
+        elif callback.name == "headplot_mesh_choice":
+            source = widgets.get(params["source"])
+            target = widgets.get(params["transform_target"])
+            if source is not None and target is not None:
+                source.currentIndexChanged.connect(lambda index: self._set_headplot_transform_text(target, index))
+        elif callback.name == "show_message":
+            source = widgets.get(params["button"])
+            if source is not None:
+                source.clicked.connect(lambda: self._show_callback_message(source, params))
 
     @staticmethod
     def _accept_if_valid(dialog: Any, spec: DialogSpec, widgets: dict[str, Any]) -> None:
@@ -446,6 +463,22 @@ class QtDialogRenderer:
         if spec.function_name == "pop_runica" and "dataset" in widgets:
             if not QtDialogRenderer._read_widget(widgets["dataset"]):
                 return "Select at least one dataset"
+        if spec.function_name == "pop_headplot":
+            if QtDialogRenderer._widget_checked(widgets.get("loadcb")):
+                if not QtDialogRenderer._widget_text(widgets.get("load")).strip():
+                    return "Select a spline file to load"
+            else:
+                if not QtDialogRenderer._widget_text(widgets.get("setup_file")).strip():
+                    return "Enter an output spline file name"
+                transform_text = QtDialogRenderer._widget_text(widgets.get("transform")).strip()
+                if not transform_text:
+                    return "Enter a Talairach transformation matrix"
+                try:
+                    transform = QtDialogRenderer._parse_numeric_text(transform_text)
+                except ValueError:
+                    return "Talairach transformation matrix must contain numeric values"
+                if len(transform) not in {6, 9}:
+                    return "Talairach transformation matrix must contain 6 or 9 values"
         return None
 
     @staticmethod
@@ -615,6 +648,56 @@ class QtDialogRenderer:
         if not accepted or not value:
             return
         target.setText(value.strip())
+
+    @staticmethod
+    def _select_file(button: Any, target: Any, params: Mapping[str, Any]) -> None:
+        _qt_core, qt_widgets = _require_qt()
+        caption = str(params.get("caption", "Select file"))
+        file_filter = str(params.get("filter", "All files (*)"))
+        if params.get("mode") == "save":
+            filename, _selected_filter = qt_widgets.QFileDialog.getSaveFileName(button, caption, "", file_filter)
+        else:
+            filename, _selected_filter = qt_widgets.QFileDialog.getOpenFileName(button, caption, "", file_filter)
+        if not filename:
+            return
+        if hasattr(target, "setText"):
+            target.setText(filename)
+            return
+        if hasattr(target, "setEditable") and hasattr(target, "setEditText"):
+            target.setEditable(True)
+            target.setEditText(filename)
+            target.setProperty(_VALUE_PROPERTY, filename)
+
+    @staticmethod
+    def _set_headplot_setup_mode(widgets: Mapping[str, Any], params: Mapping[str, Any], checked: bool) -> None:
+        if not checked:
+            return
+        peer = widgets.get(params["peer"])
+        if peer is not None:
+            peer.setChecked(False)
+        load_enabled = params["mode"] == "load"
+        QtDialogRenderer._set_enabled(
+            [widgets[tag] for tag in params.get("load_targets", ()) if tag in widgets],
+            load_enabled,
+        )
+        QtDialogRenderer._set_enabled(
+            [widgets[tag] for tag in params.get("setup_targets", ()) if tag in widgets],
+            not load_enabled,
+        )
+
+    @staticmethod
+    def _set_headplot_transform_text(target: Any, index: int) -> None:
+        transforms = (
+            "",
+            "0 -15 -15 0.05 0 -1.57 100 88 110",
+        )
+        if index < len(transforms) and transforms[index]:
+            target.setText(transforms[index])
+
+    @staticmethod
+    def _show_callback_message(parent: Any, params: Mapping[str, Any]) -> None:
+        _qt_core, qt_widgets = _require_qt()
+        qt_widgets.QMessageBox.information(parent, str(params.get("title", "EEGPrep")), str(params.get("message", "")))
 
     @staticmethod
     def _select_interp_channels(button: Any, target: Any, params: Mapping[str, Any]) -> None:

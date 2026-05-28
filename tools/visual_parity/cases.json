@@ -982,7 +982,7 @@
     {
       "id": "pop_headplot_erp_dialog",
       "description": "3-D ERP map dialog opened from pop_headplot.",
-      "window_size": [620, 230],
+      "window_size": [790, 440],
       "timeout_seconds": 120,
       "targets": {
         "eeglab": {
@@ -1007,7 +1007,7 @@
     {
       "id": "pop_headplot_components_dialog",
       "description": "3-D component map dialog opened from pop_headplot.",
-      "window_size": [620, 230],
+      "window_size": [790, 440],
       "timeout_seconds": 120,
       "targets": {
         "eeglab": {

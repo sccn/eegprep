@@ -678,7 +678,7 @@ def _write_matlab_simple_pop_dialog_script(
         "pop_prop": "Channel properties - pop_prop()",
         "pop_timtopo": "Channel ERPs with scalp maps -- pop_timtopo()",
         "pop_plottopo": "Topographic ERP plot - pop_plottopo()",
-        "pop_headplot": "ERP map series in 3-D -- pop_headplot()",
+        "pop_headplot": "ERP head plot(s) -- pop_headplot()",
         "pop_plotdata": "Component ERPs in rect. array -- pop_plotdata()",
         "pop_erpimage": "Channel ERP image -- pop_erpimage()",
         "pop_envtopo": "Plot component and ERP envelopes -- pop_envtopo()",
@@ -716,7 +716,7 @@ def _write_matlab_simple_pop_dialog_script(
     elif action == "pop_prop" and variant == "components":
         target_title = "Component properties - pop_prop()"
     elif action == "pop_headplot" and variant == "components":
-        target_title = "Component map series in 3-D -- pop_headplot()"
+        target_title = "Component head plot(s) -- pop_headplot()"
     elif action == "pop_erpimage" and variant == "components":
         target_title = "Component ERP image -- pop_erpimage()"
     else:
@@ -787,11 +787,16 @@ def _write_matlab_simple_pop_dialog_script(
                 "    case 'pop_plottopo'",
                 "        com = pop_plottopo(EEG);",
                 "    case 'pop_headplot'",
+                "        warning_timer = timer('ExecutionMode', 'fixedSpacing', 'Period', 0.5, 'StartDelay', 0.5, 'TimerFcn', @(~, ~) close_headplot_warning());",
+                "        capture_timer = timer('ExecutionMode', 'fixedSpacing', 'Period', 0.5, 'StartDelay', 1.0, 'TimerFcn', @(~, ~) capture_simple_pop_dialog(output_file, target_title, action));",
+                "        start(warning_timer); start(capture_timer);",
                 "        if strcmp(variant, 'components')",
                 "            com = pop_headplot(EEG, 0);",
                 "        else",
                 "            com = pop_headplot(EEG, 1);",
                 "        end",
+                "        try, stop(capture_timer); delete(capture_timer); catch, end",
+                "        try, stop(warning_timer); delete(warning_timer); catch, end",
                 "    case 'pop_plotdata'",
                 "        com = pop_plotdata(EEG);",
                 "    case 'pop_erpimage'",
@@ -1012,6 +1017,7 @@ def _write_matlab_simple_pop_dialog_script(
                 "    EEG.reject.rejkurtcol = [1 0.6 0.6];",
                 "    EEG.reject.rejfreqcol = [1 0.6 0.6];",
                 "end",
+                "end",
                 "",
                 "function capture_simple_pop_dialog(output_file, target_title, action)",
                 "fig = findall(0, 'Type', 'figure', 'Name', target_title);",
@@ -1044,6 +1050,11 @@ def _write_matlab_simple_pop_dialog_script(
                 "    set(ok_button(1), 'userdata', 'retuninginputui');",
                 "end",
                 "try, close(fig); catch, end",
+                "end",
+                "",
+                "function close_headplot_warning()",
+                "fig = findall(0, 'Type', 'figure', 'Name', 'Headplot() warning');",
+                "if ~isempty(fig), try, close(fig(1)); catch, end, end",
                 "end",
                 "",
                 *_matlab_capture_helper(),
