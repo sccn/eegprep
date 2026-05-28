@@ -842,10 +842,8 @@ class MenuActionDispatcher:
         from eegprep.functions.popfunc.pop_mergeset import pop_mergeset
 
         selected = self.session.selected_dataset_indices()
-        if len(selected) >= 2:
-            eeg_out, command = pop_mergeset(self.session.ALLEEG, selected, return_com=True)
-        else:
-            eeg_out, command = pop_mergeset(self.session.ALLEEG, gui=True, return_com=True)
+        default_indices = selected if len(selected) >= 2 else None
+        eeg_out, command = pop_mergeset(self.session.ALLEEG, default_indices, gui=True, return_com=True)
         if command:
             self._store_current_from_gui(eeg_out, new=True, command=command)
             self._refresh()

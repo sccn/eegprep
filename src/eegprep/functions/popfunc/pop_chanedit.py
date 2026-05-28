@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import csv
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
@@ -16,6 +17,7 @@ from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key
 
 
 _CHANNEL_FIELDS = ("labels", "theta", "radius", "X", "Y", "Z", "sph_theta", "sph_phi", "sph_radius", "type", "ref")
+_CHANNEL_FIELD_ALIASES = {field.lower(): field for field in _CHANNEL_FIELDS}
 
 
 def pop_chanedit(
@@ -33,14 +35,20 @@ def pop_chanedit(
     returns ``(chanlocs, chaninfo, urchanlocs)`` like EEGLAB's lower-level path.
     """
     options = parse_key_value_args(args, kwargs, lowercase_keys=True)
-    is_eeg = isinstance(chans, dict) and "chanlocs" in chans
+    is_eeg = _is_eeg_dataset(chans)
+    is_eeg_list = _is_eeg_dataset_list(chans)
     if gui is None:
         gui = not bool(options)
     if gui:
-        result = _run_gui(chans if is_eeg else {"chanlocs": chans}, renderer=renderer)
+        gui_eeg = chans[0] if is_eeg_list else chans
+        result = _run_gui(gui_eeg if is_eeg or is_eeg_list else {"chanlocs": gui_eeg}, renderer=renderer)
         if result is None:
             return (chans, "") if return_com else chans
         options.update(result)
+    if is_eeg_list:
+        outputs = [_apply_chanedit(dataset, options, is_eeg=True)[0] for dataset in chans]
+        command = _history_command(options)
+        return (outputs, command) if return_com else outputs
     output, chaninfo, urchans = _apply_chanedit(chans, options, is_eeg=is_eeg)
     command = _history_command(options)
     return (output, command) if return_com else output
@@ -105,10 +113,12 @@ def _run_gui(EEG: dict[str, Any], *, renderer: Any | None = None) -> dict[str, A
     if result is None:
         return None
     channel = int(float(result.get("channel") or 1))
+    chanlocs = chanlocs_as_list(EEG.get("chanlocs"))
+    current = chanlocs[_single_index(channel, len(chanlocs))]
     options: dict[str, Any] = {}
     for field in _CHANNEL_FIELDS:
         text = str(result.get(f"field_{field}") or "").strip()
-        if text:
+        if text != _display_value(current.get(field, "")).strip():
             options.setdefault("changefield", []).append([channel, field, _parse_field_value(text)])
     return options
 
@@ -265,16 +275,30 @@ def _topo_to_all(chan: dict[str, Any]) -> None:
 
 def _read_chanloc_file(value: Any) -> list[dict[str, Any]]:
     path = Path(value[0] if isinstance(value, (list, tuple)) else value)
-    rows = [line.split() for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    rows = [_split_chanloc_row(line) for line in path.read_text(encoding="utf-8").splitlines()]
+    rows = [row for row in rows if row]
     if not rows:
         return []
     header = [item.lower() for item in rows[0]]
     has_header = any(item in {"labels", "theta", "radius", "x", "y", "z"} for item in header)
-    fields = rows.pop(0) if has_header else ["labels", "theta", "radius"]
+    fields = [_canonical_channel_field(item) for item in rows.pop(0)] if has_header else ["labels", "theta", "radius"]
     chanlocs = []
     for row in rows:
         chanlocs.append({field: _parse_field_value(item) for field, item in zip(fields, row)})
     return chanlocs
+
+
+def _split_chanloc_row(line: str) -> list[str]:
+    text = line.strip()
+    if not text or text.startswith(("%", "#")):
+        return []
+    if "," in text:
+        return [item.strip() for item in next(csv.reader([text], skipinitialspace=True)) if item.strip()]
+    return text.split()
+
+
+def _canonical_channel_field(field: str) -> str:
+    return _CHANNEL_FIELD_ALIASES.get(str(field).lower(), field)
 
 
 def _write_chanloc_file(value: Any, chanlocs: list[dict[str, Any]]) -> None:
@@ -334,6 +358,14 @@ def _display_value(value: Any) -> str:
     if isinstance(value, np.ndarray) and value.size == 0:
         return ""
     return str(value)
+
+
+def _is_eeg_dataset(value: Any) -> bool:
+    return isinstance(value, dict) and "chanlocs" in value
+
+
+def _is_eeg_dataset_list(value: Any) -> bool:
+    return isinstance(value, list) and bool(value) and all(_is_eeg_dataset(item) for item in value)
 
 
 def _wrap_degrees(value: float) -> float:

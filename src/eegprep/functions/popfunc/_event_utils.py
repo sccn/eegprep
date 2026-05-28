@@ -90,7 +90,10 @@ def sort_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 def is_boundary_event(event: dict[str, Any]) -> bool:
     """Return true for EEGLAB boundary events."""
-    return str(event.get("type", "")).lower() == "boundary"
+    event_type = event.get("type", "")
+    if isinstance(event_type, (int, float, np.integer, np.floating)) and float(event_type) == -1:
+        return True
+    return str(event_type).lower() == "boundary"
 
 
 def event_value_for_history(value: Any) -> Any:

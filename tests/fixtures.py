@@ -13,8 +13,6 @@ from typing import Any
 import unittest
 
 import numpy as np
-import matplotlib
-import matplotlib.pyplot as plt
 
 from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
@@ -57,6 +55,8 @@ def mpl_use_agg():
     This should be called before importing matplotlib.pyplot or other
     matplotlib modules that require a display.
     """
+    import matplotlib
+
     matplotlib.use('Agg')
 
 
@@ -266,6 +266,8 @@ def cleanup_matplotlib():
     This should be called in test tearDown methods to prevent
     memory leaks and interference between tests.
     """
+    import matplotlib.pyplot as plt
+
     plt.close('all')
 
 
@@ -355,6 +357,8 @@ class TestFixturesContextManager:
 
         # Set matplotlib backend
         if self.mpl_backend is not None:
+            import matplotlib
+
             self.original_backend = matplotlib.get_backend()
             matplotlib.use(self.mpl_backend)
 
@@ -367,6 +371,8 @@ class TestFixturesContextManager:
 
         # Restore original backend if changed
         if self.original_backend is not None:
+            import matplotlib
+
             matplotlib.use(self.original_backend)
 
     def create_eeg(self, **kwargs):

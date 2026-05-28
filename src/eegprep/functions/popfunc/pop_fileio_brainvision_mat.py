@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from eegprep.functions.popfunc._pop_utils import format_history_value
 from eegprep.functions.popfunc.pop_fileio import pop_fileio
@@ -24,9 +24,10 @@ def pop_fileio_brainvision_mat(
     path = Path(filename)
     if path.suffix.lower() not in _BRAINVISION_ANALYZER_SUFFIXES:
         raise ValueError("pop_fileio_brainvision_mat supports BrainVision Analyzer .mat files")
-    eeg, _command = pop_fileio(path, return_com=True, **kwargs)
+    eeg, _command = cast(tuple[dict[str, Any], str], pop_fileio(path, return_com=True, **kwargs))
     command = f"EEG = pop_fileio_brainvision_mat({format_history_value(path)});"
-    eeg["history"] = command
+    history = str(eeg.get("history") or "").strip()
+    eeg["history"] = f"{history}\n{command}".lstrip()
     return (eeg, command) if return_com else eeg
 
 

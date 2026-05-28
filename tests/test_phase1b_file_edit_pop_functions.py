@@ -125,6 +125,21 @@ def test_pop_editeventvals_change_insert_delete_and_sort_events():
     assert len(deleted["event"]) == 2
 
 
+def test_pop_editeventvals_insert_preserves_existing_urevent_links():
+    eeg = _eeg()
+    eeg["event"][0]["urevent"] = 2
+    eeg["event"][1]["urevent"] = 1
+    eeg["urevent"] = [
+        {"type": "resp", "latency": 50.0, "duration": 0.0},
+        {"type": "stim", "latency": 10.0, "duration": 0.0},
+    ]
+
+    inserted = pop_editeventvals(eeg, "insert", [2, "new", 25.0, 0.0, 99])
+
+    assert [event["urevent"] for event in inserted["event"]] == [2, 3, 1]
+    assert [event["type"] for event in inserted["urevent"]] == ["resp", "stim", "new"]
+
+
 def test_pop_selectevent_matches_nonnumeric_event_types_without_selecting_every_string():
     eeg = _eeg()
     eeg["event"][0]["type"] = "target"
@@ -153,6 +168,45 @@ def test_pop_selectevent_renames_selected_types_and_keeps_old_type_field():
     _assert_python_echo_is_parseable(command)
 
 
+def test_pop_selectevent_renames_events_before_epoched_trial_selection():
+    eeg = _eeg()
+    eeg["data"] = eeg["data"].reshape(2, 50, 2)
+    eeg["pnts"] = 50
+    eeg["trials"] = 2
+    eeg["times"] = np.arange(50, dtype=float)
+    eeg["event"] = [
+        {"type": "stim", "latency": 10.0, "duration": 0.0, "urevent": 1, "epoch": 1},
+        {"type": "resp", "latency": 60.0, "duration": 0.0, "urevent": 2, "epoch": 2},
+    ]
+
+    out, selected = pop_selectevent(
+        eeg,
+        "type",
+        "stim",
+        "renametype",
+        "target",
+        "deleteepochs",
+        "on",
+        "deleteevents",
+        "off",
+    )
+
+    assert selected == [1]
+    assert out["trials"] == 1
+    assert any(event["type"] == "target" for event in out["event"])
+
+
+def test_pop_selectevent_keeps_numeric_boundary_when_deleting_continuous_events():
+    eeg = _eeg()
+    eeg["event"].insert(1, {"type": -1, "latency": 25.0, "duration": 0.0, "urevent": 3})
+    eeg["urevent"].append({"type": -1, "latency": 25.0, "duration": 0.0})
+
+    out, selected = pop_selectevent(eeg, "type", "stim", "deleteevents", "on")
+
+    assert selected == [1, 2]
+    assert [event["type"] for event in out["event"]] == ["stim", -1]
+
+
 def test_pop_rmdat_removes_or_keeps_continuous_windows_around_events():
     eeg = _eeg()
 
@@ -163,6 +217,22 @@ def test_pop_rmdat_removes_or_keeps_continuous_windows_around_events():
     assert kept["pnts"] < eeg["pnts"]
     assert kept["pnts"] < removed["pnts"]
     _assert_python_echo_is_parseable(command)
+
+
+def test_pop_rmdat_matches_sorted_event_behavior_when_events_are_unsorted():
+    unsorted_eeg = _eeg()
+    unsorted_eeg["event"] = [
+        {"type": "stim", "latency": 50.0, "duration": 0.0, "urevent": 2},
+        {"type": "stim", "latency": 10.0, "duration": 0.0, "urevent": 1},
+    ]
+    sorted_eeg = deepcopy(unsorted_eeg)
+    sorted_eeg["event"] = list(reversed(unsorted_eeg["event"]))
+
+    unsorted_out = pop_rmdat(unsorted_eeg, ["stim"], [-0.01, 0.01], 1)
+    sorted_out = pop_rmdat(sorted_eeg, ["stim"], [-0.01, 0.01], 1)
+
+    assert unsorted_out["pnts"] == sorted_out["pnts"]
+    assert np.array_equal(unsorted_out["data"], sorted_out["data"])
 
 
 def test_pop_chanedit_changes_fields_converts_coordinates_and_round_trips_files(tmp_path):
@@ -187,6 +257,39 @@ def test_pop_chanedit_changes_fields_converts_coordinates_and_round_trips_files(
 
     loaded = pop_chanedit(eeg, "load", loc_file)
     assert loaded["chanlocs"][0]["labels"] == "Fz"
+
+
+def test_pop_chanedit_applies_same_edit_to_selected_datasets():
+    first = _eeg("first")
+    second = _eeg("second")
+
+    outputs, command = pop_chanedit([first, second], "changefield", [1, "type", "EEG"], return_com=True)
+
+    assert [output["chanlocs"][0]["type"] for output in outputs] == ["EEG", "EEG"]
+    _assert_python_echo_is_parseable(command)
+
+
+def test_pop_chanedit_gui_unchanged_submission_does_not_emit_history():
+    class UnchangedRenderer:
+        def run(self, spec, initial_values=None):
+            return {control.tag: control.value for control in spec.controls if control.tag}
+
+    eeg = _eeg()
+
+    output, command = pop_chanedit(eeg, gui=True, renderer=UnchangedRenderer(), return_com=True)
+
+    assert output["chanlocs"][0]["labels"] == eeg["chanlocs"][0]["labels"]
+    assert command == ""
+
+
+def test_pop_chanedit_reads_comma_delimited_ced_with_comments(tmp_path):
+    loc_file = tmp_path / "locs.ced"
+    loc_file.write_text("% exported by EEGLAB\nlabels,X,Y,Z\nFz,0,1,0\nCz,0,0,1\n", encoding="utf-8")
+
+    loaded = pop_chanedit(_eeg(), "load", loc_file)
+
+    assert [chan["labels"] for chan in loaded["chanlocs"]] == ["Fz", "Cz"]
+    assert loaded["chanlocs"][0]["X"] == 0
 
 
 def test_pop_copyset_uses_one_based_indices_and_preserves_source_order():
@@ -218,10 +321,29 @@ def test_pop_mergeset_continuous_offsets_events_and_inserts_boundary():
     _assert_python_echo_is_parseable(command)
 
 
+def test_pop_mergeset_gui_uses_selected_indices_as_defaults():
+    first = _eeg("first")
+    second = _eeg("second")
+    seen = {}
+
+    class MergeRenderer:
+        def run(self, spec, initial_values=None):
+            controls = {control.tag: control.value for control in spec.controls if control.tag}
+            seen["indices"] = controls["indices"]
+            return controls
+
+    merged, command = pop_mergeset([first, second], [2, 1], gui=True, renderer=MergeRenderer(), return_com=True)
+
+    assert seen["indices"] == "2 1"
+    assert merged["pnts"] == first["pnts"] + second["pnts"]
+    assert command == "EEG = pop_mergeset( ALLEEG, [2 1], 0);"
+
+
 def test_pop_fileio_brainvision_mat_delegates_to_fileio_mat_import(monkeypatch, tmp_path):
     mat_path = tmp_path / "brainvision.mat"
     mat_path.write_bytes(b"placeholder")
     imported = _eeg("brainvision")
+    imported["history"] = "EEG = pop_fileio('brainvision.mat');"
 
     def fake_pop_fileio(filename, *, return_com=False, **kwargs):
         assert filename == mat_path
@@ -238,7 +360,7 @@ def test_pop_fileio_brainvision_mat_delegates_to_fileio_mat_import(monkeypatch, 
 
     assert out is imported
     assert command == f"EEG = pop_fileio_brainvision_mat('{mat_path.as_posix()}');"
-    assert out["history"] == command
+    assert out["history"] == f"EEG = pop_fileio('brainvision.mat');\n{command}"
     _assert_python_echo_is_parseable(command)
 
 

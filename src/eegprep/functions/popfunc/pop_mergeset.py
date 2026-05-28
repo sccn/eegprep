@@ -35,7 +35,12 @@ def pop_mergeset(
         gui = INEEG2 is None and isinstance(INEEG1, list)
     indices: list[int] | None = None
     if gui:
-        result = _run_gui(INEEG1 if isinstance(INEEG1, list) else [INEEG1], renderer=renderer)
+        result = _run_gui(
+            INEEG1 if isinstance(INEEG1, list) else [INEEG1],
+            default_indices=INEEG2,
+            default_keepall=keepall,
+            renderer=renderer,
+        )
         if result is None:
             return (INEEG1, "") if return_com else INEEG1
         INEEG2 = result["indices"]
@@ -58,9 +63,11 @@ def pop_mergeset(
     return (merged, command) if return_com else merged
 
 
-def pop_mergeset_dialog_spec(ALLEEG: list[dict[str, Any]]) -> DialogSpec:
+def pop_mergeset_dialog_spec(
+    ALLEEG: list[dict[str, Any]], default_indices: Any = None, default_keepall: int | bool = 0
+) -> DialogSpec:
     """Return the EEGLAB-like ``pop_mergeset`` dialog spec."""
-    default_indices = " ".join(str(index) for index in range(1, min(len(ALLEEG), 2) + 1)) or "1"
+    default_indices_text = _default_indices_text(ALLEEG, default_indices)
     return DialogSpec(
         title="Merge datasets -- pop_mergeset()",
         function_name="pop_mergeset",
@@ -72,21 +79,40 @@ def pop_mergeset_dialog_spec(ALLEEG: list[dict[str, Any]]) -> DialogSpec:
         geometry=((3, 1), (3, 1)),
         controls=(
             ControlSpec("text", "Dataset indices to merge"),
-            ControlSpec("edit", tag="indices", value=default_indices),
+            ControlSpec("edit", tag="indices", value=default_indices_text),
             ControlSpec("text", "Preserve ICA weights of the first dataset ?"),
-            ControlSpec("checkbox", tag="keepall", value=False),
+            ControlSpec("checkbox", tag="keepall", value=bool(default_keepall)),
         ),
     )
 
 
-def _run_gui(ALLEEG: list[dict[str, Any]], *, renderer: Any | None = None) -> dict[str, Any] | None:
-    result = inputgui(pop_mergeset_dialog_spec(ALLEEG), renderer=renderer)
+def _run_gui(
+    ALLEEG: list[dict[str, Any]],
+    *,
+    default_indices: Any = None,
+    default_keepall: int | bool = 0,
+    renderer: Any | None = None,
+) -> dict[str, Any] | None:
+    result = inputgui(
+        pop_mergeset_dialog_spec(ALLEEG, default_indices=default_indices, default_keepall=default_keepall),
+        renderer=renderer,
+    )
     if result is None:
         return None
     return {
-        "indices": [int(float(token)) for token in str(result.get("indices") or "").strip("[]").split() if token],
+        "indices": [
+            int(float(token))
+            for token in str(result.get("indices") or "").strip("[]").replace(",", " ").split()
+            if token
+        ],
         "keepall": int(bool(result.get("keepall"))),
     }
+
+
+def _default_indices_text(ALLEEG: list[dict[str, Any]], default_indices: Any) -> str:
+    if default_indices is None:
+        return " ".join(str(index) for index in range(1, min(len(ALLEEG), 2) + 1)) or "1"
+    return " ".join(str(index) for index in normalize_dataset_indices(default_indices, allow_empty=False))
 
 
 def _merge_two(first: dict[str, Any], second: dict[str, Any], keepall: bool) -> dict[str, Any]:

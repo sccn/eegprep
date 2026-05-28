@@ -770,7 +770,7 @@ class MenuActionDispatcherTests(unittest.TestCase):
         mergeset.assert_called_once()
         self.assertEqual(len(mergeset.call_args.args[0]), 2)
         self.assertEqual(mergeset.call_args.args[1], [1, 2])
-        self.assertEqual(mergeset.call_args.kwargs, {"return_com": True})
+        self.assertEqual(mergeset.call_args.kwargs, {"gui": True, "return_com": True})
         self.assertEqual(session.CURRENTSET, [3])
         self.assertEqual(session.EEG["setname"], "merged")
         self.assertEqual(session.ALLEEG[2]["setname"], "merged")

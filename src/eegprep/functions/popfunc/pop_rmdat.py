@@ -122,6 +122,7 @@ def _event_windows(
     pnts = int(EEG.get("pnts", 0))
     boundary_latencies = [float(event.get("latency")) for event in events if is_boundary_event(event)]
     windows: list[list[float]] = []
+    selected = sorted(selected, key=lambda item: float(events[item].get("latency", np.inf)))
     for index in selected:
         latency = float(events[index]["latency"])
         start = latency + srate * float(timelims[0])

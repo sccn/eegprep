@@ -137,8 +137,9 @@ def _apply_options(EEG: dict[str, Any], options: list[tuple[str, Any]]) -> dict[
             event_index, new_event = _insert_args(events, value)
             if action == "append":
                 event_index += 1
-            events.insert(max(0, min(event_index, len(events))), new_event)
-            _renumber_urevent(events)
+            insert_position = max(0, min(event_index, len(events)))
+            events.insert(insert_position, new_event)
+            _allocate_inserted_urevent(output, events, insert_position)
         elif action == "sort":
             events = _sort_events(events, value)
         else:
@@ -255,10 +256,15 @@ def _sort_value(value: Any) -> Any:
     return value
 
 
-def _renumber_urevent(events: list[dict[str, Any]]) -> None:
-    for index, event in enumerate(events, start=1):
-        if "urevent" in event and not _is_empty(event["urevent"]):
-            event["urevent"] = index
+def _allocate_inserted_urevent(output: dict[str, Any], events: list[dict[str, Any]], insert_position: int) -> None:
+    if not any("urevent" in event for event in events):
+        return
+    urevents = events_as_list(output.get("urevent"))
+    inserted = events[insert_position]
+    inserted["urevent"] = len(urevents) + 1
+    urevent = {field: deepcopy(value) for field, value in inserted.items() if field != "urevent"}
+    urevents.append(urevent)
+    output["urevent"] = urevents
 
 
 def _parse_gui_value(value: Any) -> Any:

@@ -162,8 +162,8 @@ def _apply_options(EEG: dict[str, Any], options: list[tuple[str, Any]]) -> dict[
             continue
         if delold:
             values = _coerce_field_values(value)
-            events = [{key_text: item} for item in values]
-            indices = list(range(len(events)))
+            events = [{} for _item in values]
+            indices = list(range(len(values)))
             eventdescription = [""]
             delold = False
         else:

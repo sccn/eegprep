@@ -220,6 +220,7 @@ def _apply_selectevent_one(EEG: dict[str, Any], options: dict[str, Any]) -> tupl
 
     deleteevents = str(options.get("deleteevents", "off")).lower() in {"on", "yes"}
     deleteepochs = str(options.get("deleteepochs", "on")).lower() in {"on", "yes"}
+    output["event"] = events
     if deleteepochs and int(output.get("trials", 1) or 1) > 1:
         epochs = _selected_epochs(events, selected_indices, int(output.get("trials", 1) or 1))
         if str(options.get("invertepochs", "off")).lower() == "on":
