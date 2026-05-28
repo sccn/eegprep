@@ -23,11 +23,14 @@ in EEGLAB:
 - Use `load="my_montage.spl"` to reuse an existing spline file.
 - Use `setup={...}` to create a new spline file from channel locations, a head
   mesh, and a Talairach transformation matrix.
-- The GUI exposes the same load-or-recompute workflow used by EEGLAB.
+- The GUI exposes the same load-or-recompute workflow used by EEGLAB, including
+  Manual coregistration for editing the Talairach transform against the selected
+  head mesh and reference electrode file.
 
 EEGPrep packages the standard EEGLAB head meshes needed for this workflow, so it
 does not depend on an EEGLAB checkout at runtime.
 
-Current limitation: EEGLAB's interactive manual 3-D coregistration editor is not
-yet ported. EEGPrep supports transform-entry setup and shows a clear message if
-the Manual coreg. button is pressed.
+The Manual coreg. window shows user electrodes in green and reference electrodes
+in brown. `Align montages` fits a shared-scale transform to common labels;
+`Warp montage` fits the EEGLAB-style 9-parameter transform. The transform field
+is then written back to the `pop_headplot` setup dialog.

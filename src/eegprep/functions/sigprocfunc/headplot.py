@@ -16,9 +16,15 @@ from scipy.special import eval_legendre
 
 from eegprep.functions.miscfunc.misc import finite_matmul, finite_pinv
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
+from eegprep.functions.sigprocfunc.coregister import (
+    DEFAULT_COREGISTER_TRANSFORM,
+    apply_coregistration_transform,
+    normalise_coregistration_transform,
+    traditional_transform_matrix,
+)
 
 DEFAULT_MESH = "mheadnew.mat"
-DEFAULT_TRANSFORM = np.asarray([0, -10, 0, -0.1000, 0, -1.600, 1100, 1100, 1100], dtype=float)
+DEFAULT_TRANSFORM = DEFAULT_COREGISTER_TRANSFORM
 HEAD_CENTER = np.asarray([0.0, 0.0, 30.0], dtype=float)
 ELECTRODE_DISPLAY_FACTOR = 1.06
 SPLINE_REGULARIZATION = 0.1
@@ -274,14 +280,10 @@ def _resolve_headplot_file(value: str | Path) -> Path:
 
 
 def _normalise_transform(transform: Any) -> np.ndarray:
-    if transform is None or (isinstance(transform, str) and not transform.strip()):
-        return DEFAULT_TRANSFORM.copy()
-    values = np.asarray(_parse_numeric_sequence(transform), dtype=float).ravel()
-    if values.size == 6:
-        values = np.concatenate([values, np.ones(3)])
-    if values.size != 9 or not np.isfinite(values).all():
-        raise ValueError("headplot transform must contain 9 finite values")
-    return values
+    try:
+        return normalise_coregistration_transform(transform, default=DEFAULT_TRANSFORM)
+    except ValueError as exc:
+        raise ValueError("headplot transform must contain 9 finite values") from exc
 
 
 def _parse_numeric_sequence(value: Any) -> list[float]:
@@ -368,8 +370,8 @@ def _channel_xyz(locs: list[dict[str, Any]], indices: np.ndarray) -> np.ndarray:
             coords.append([_coordinate_value(loc["X"]), _coordinate_value(loc["Y"]), _coordinate_value(loc["Z"])])
             continue
         if "theta" in loc and "radius" in loc:
-            theta = np.deg2rad(float(loc.get("theta", 0) or 0))
-            radius = float(loc.get("radius", 0.5) or 0.5)
+            theta = np.deg2rad(_coordinate_value(loc["theta"]))
+            radius = _coordinate_value(loc["radius"])
             coords.append([radius * np.sin(theta), radius * np.cos(theta), 0.0])
             continue
         raise ValueError("headplot setup requires channel locations with X/Y/Z or theta/radius coordinates")
@@ -416,30 +418,11 @@ def _rotate_for_nosedir(coordinates: np.ndarray, nosedir: str) -> np.ndarray:
 
 
 def _traditional_transform_matrix(transform: np.ndarray) -> np.ndarray:
-    values = _normalise_transform(transform)
-    tx, ty, tz, pitch, roll, yaw, sx, sy, sz = values
-    c_x, c_y, c_z = np.cos([pitch, roll, yaw])
-    s_x, s_y, s_z = np.sin([pitch, roll, yaw])
-    translation = np.eye(4)
-    translation[:3, 3] = [tx, ty, tz]
-    rotation = np.eye(4)
-    rotation[0, 0] = c_z * c_y + s_z * s_x * s_y
-    rotation[0, 1] = s_z * c_y + c_z * s_x * s_y
-    rotation[0, 2] = c_x * s_y
-    rotation[1, 0] = -s_z * c_x
-    rotation[1, 1] = c_z * c_x
-    rotation[1, 2] = s_x
-    rotation[2, 0] = s_z * s_x * c_y - c_z * s_y
-    rotation[2, 1] = -c_z * s_x * c_y - s_z * s_y
-    rotation[2, 2] = c_x * c_y
-    scale = np.diag([sx, sy, sz, 1.0])
-    return translation @ rotation @ scale
+    return traditional_transform_matrix(transform)
 
 
 def _apply_transform(coordinates: np.ndarray, transform: np.ndarray) -> np.ndarray:
-    homogeneous = np.column_stack([coordinates, np.ones(coordinates.shape[0])])
-    transformed = _traditional_transform_matrix(transform) @ homogeneous.T
-    return transformed[:3].T
+    return apply_coregistration_transform(coordinates, transform)
 
 
 def _normalise_to_head_sphere(coordinates: np.ndarray) -> np.ndarray:

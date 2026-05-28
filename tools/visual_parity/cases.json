@@ -1030,6 +1030,31 @@
       }
     },
     {
+      "id": "coregister_dialog",
+      "description": "Manual 3-D coregistration editor opened from pop_headplot.",
+      "window_size": [980, 720],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "coregister"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "coregister_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
       "id": "pop_plotdata_dialog",
       "description": "Component ERP array dialog opened from pop_plotdata.",
       "window_size": [490, 231],

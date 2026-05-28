@@ -28,6 +28,7 @@ _LAZY_EXPORTS = {
     "clean_flatlines": ("eegprep.plugins.clean_rawdata.clean_flatlines", "clean_flatlines"),
     "clean_windows": ("eegprep.plugins.clean_rawdata.clean_windows", "clean_windows"),
     "compare": ("eegprep.functions.redefine_functions", "compare"),
+    "coregister": ("eegprep.functions.sigprocfunc.coregister", "coregister"),
     "decodechan": ("eegprep.functions.redefine_functions", "decodechan"),
     "eeg2mne": ("eegprep.functions.redefine_functions", "eeg2mne"),
     "eeg_amica": ("eegprep.functions.popfunc.eeg_amica", "eeg_amica"),

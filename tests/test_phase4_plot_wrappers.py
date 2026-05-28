@@ -16,6 +16,7 @@ import numpy as np
 import pytest
 import scipy.io
 
+from eegprep.functions.guifunc.qt import QtDialogRenderer
 from eegprep.functions.guifunc.spec import controls_by_tag
 from eegprep.functions.popfunc.pop_comperp import pop_comperp, pop_comperp_dialog_spec
 from eegprep.functions.popfunc.pop_envtopo import pop_envtopo
@@ -30,7 +31,22 @@ from eegprep.functions.popfunc.pop_prop import pop_prop, pop_prop_dialog_spec
 from eegprep.functions.popfunc.pop_spectopo import pop_spectopo
 from eegprep.functions.popfunc.pop_timtopo import pop_timtopo
 from eegprep.functions.studyfunc.pop_chanplot import pop_chanplot, pop_chanplot_dialog_spec
-from eegprep.functions.sigprocfunc.headplot import headplot, headplot_setup, load_headplot_spline
+from eegprep.functions.sigprocfunc.coregister import (
+    ElectrodeSet,
+    apply_coregistration_transform,
+    coregister,
+    estimate_coregistration_transform,
+    load_coregistration_electrodes,
+    match_electrodes,
+    read_electrode_file,
+    traditional_transform_matrix,
+)
+from eegprep.functions.sigprocfunc.headplot import (
+    headplot,
+    headplot_setup,
+    load_headplot_spline,
+    packaged_headplot_path,
+)
 from tests.fixtures import SAMPLE_DATASET_PATH, create_test_eeg_with_ica
 
 
@@ -115,6 +131,74 @@ def test_headplot_setup_falls_back_when_xyz_fields_are_empty_arrays(sample_eeg, 
     )
 
     assert created.exists()
+
+
+def test_coregister_reads_packaged_reference_and_matches_sample_labels(sample_eeg):
+    source = load_coregistration_electrodes(sample_eeg["chanlocs"], chaninfo=sample_eeg["chaninfo"])
+    target = read_electrode_file(packaged_headplot_path("mheadnew.xyz"))
+
+    source_indices, target_indices, labels = match_electrodes(source, target)
+    transform = estimate_coregistration_transform(source, target, method="traditional")
+    transformed = apply_coregistration_transform(source.points[source_indices], transform)
+
+    assert len(labels) >= 20
+    assert source_indices.shape == target_indices.shape
+    assert transform.shape == (9,)
+    assert np.isfinite(transformed).all()
+
+
+def test_coregister_sample_warp_reports_positive_resize_fields(sample_eeg):
+    source = load_coregistration_electrodes(sample_eeg["chanlocs"], chaninfo=sample_eeg["chaninfo"])
+    target = read_electrode_file(packaged_headplot_path("mheadnew.xyz"))
+
+    transform = estimate_coregistration_transform(source, target, method="traditional")
+
+    assert np.all(transform[6:9] > 0)
+    assert np.all(np.abs(transform[3:6]) <= np.pi)
+
+
+def test_coregister_fits_traditional_and_shared_scale_transforms():
+    source = ElectrodeSet(
+        ["Nz", "LPA", "RPA", "Cz", "Pz"],
+        np.asarray(
+            [
+                [0.0, 1.0, 0.0],
+                [-1.0, 0.0, -0.2],
+                [1.0, 0.0, -0.2],
+                [0.0, 0.0, 1.0],
+                [0.0, -1.0, 0.0],
+            ],
+            dtype=float,
+        ),
+    )
+    traditional = np.asarray([5.0, -3.0, 2.0, 0.05, -0.04, 0.03, 2.0, 1.5, 1.2])
+    target = ElectrodeSet(source.labels, apply_coregistration_transform(source.points, traditional))
+
+    fitted = estimate_coregistration_transform(source, target, method="traditional")
+    shared = estimate_coregistration_transform(
+        source,
+        ElectrodeSet(
+            source.labels, apply_coregistration_transform(source.points, [1, 2, 3, 0.02, 0.01, -0.02, 2, 2, 2])
+        ),
+        method="globalrescale",
+    )
+
+    np.testing.assert_allclose(apply_coregistration_transform(source.points, fitted), target.points, atol=1e-6)
+    np.testing.assert_allclose(shared[6], shared[7])
+    np.testing.assert_allclose(shared[7], shared[8])
+
+
+def test_coregister_noninteractive_path_returns_transformed_electrodes(sample_eeg):
+    result = coregister(
+        sample_eeg["chanlocs"],
+        packaged_headplot_path("mheadnew.xyz"),
+        chaninfo1=sample_eeg["chaninfo"],
+        warp="auto",
+    )
+
+    assert result.electrodes.points.shape[1] == 3
+    assert result.transform.shape == (9,)
+    assert np.isfinite(result.electrodes.points).all()
 
 
 def test_pop_headplot_component_path_creates_ica_spline(ica_epoch, tmp_path):
@@ -273,6 +357,37 @@ def test_headplot_setup_spline_metadata_matches_eeglab(sample_eeg, tmp_path):
     np.testing.assert_allclose(py_spline.transform, np.asarray(ml["transform"], dtype=float).ravel())
 
 
+@pytest.mark.matlab
+def test_traditional_transform_matrix_matches_eeglab(tmp_path):
+    if os.environ.get("EEGPREP_SKIP_MATLAB") == "1":
+        pytest.skip("MATLAB tests disabled via EEGPREP_SKIP_MATLAB")
+    try:
+        matlab_engine = importlib.import_module("matlab.engine")
+    except ImportError as exc:
+        pytest.skip(f"MATLAB not available: {exc}")
+    eeglab_root = _eeglab_reference_root()
+    if not eeglab_root.exists():
+        pytest.skip("EEGLAB reference checkout not available")
+
+    transform = [5, -3, 2, 0.05, -0.04, 0.03, 2, 1.5, 1.2]
+    matlab_output = tmp_path / "traditionaldipfit.mat"
+    engine = matlab_engine.start_matlab()
+    try:
+        engine.addpath(str(eeglab_root / "plugins" / "dipfit"), nargout=0)
+        engine.eval(
+            f"""
+            H = traditionaldipfit([{_matlab_vector(transform)}]);
+            save('{_matlab_string(matlab_output)}', 'H');
+            """,
+            nargout=0,
+        )
+    finally:
+        engine.quit()
+
+    ml = scipy.io.loadmat(matlab_output, squeeze_me=True)
+    np.testing.assert_allclose(traditional_transform_matrix(transform), ml["H"], rtol=1e-12, atol=1e-12)
+
+
 def test_channel_erp_plot_wrappers_work_on_sample_epochs(sample_epoch):
     timtopo_fig, timtopo_command = pop_timtopo(sample_epoch, plottimes=[0], return_com=True)
     plottopo_fig, plottopo_command = pop_plottopo(sample_epoch, chans=[1, 2], return_com=True)
@@ -355,8 +470,51 @@ def test_phase4_dialog_specs_match_eeglab_selector_layouts(sample_eeg, ica_epoch
     assert headplot_controls["loadcb"].callback.name == "headplot_setup_mode"
     assert headplot_controls["compcb"].callback.name == "headplot_setup_mode"
     assert headplot_controls["setup_browse"].callback.name == "select_file"
-    assert headplot_controls["manual_coreg"].callback.params["message"].startswith("EEGPrep can create")
+    assert headplot_controls["manual_coreg"].callback.name == "headplot_manual_coreg"
+    assert headplot_controls["manual_coreg"].callback.params["mesh_source"] == "meshfile"
     assert headplot_controls["transform"].enabled is True
+
+
+def test_headplot_manual_coreg_callback_writes_transform(monkeypatch, sample_eeg):
+    class Text:
+        def __init__(self, value=""):
+            self.value = value
+
+        def text(self):
+            return self.value
+
+        def setText(self, value):
+            self.value = value
+
+    class Combo:
+        def __init__(self, index=0):
+            self.index = index
+
+        def currentIndex(self):
+            return self.index
+
+        def property(self, _name):
+            return None
+
+    calls = []
+
+    def fake_coregister(*args, **kwargs):
+        calls.append((args, kwargs))
+        return [1, 2, 3, 0.1, 0.2, 0.3, 4, 5, 6]
+
+    monkeypatch.setattr("eegprep.functions.guifunc.qt.run_coregister_dialog", fake_coregister)
+    params = controls_by_tag(pop_headplot_dialog_spec(sample_eeg, typeplot=1))["manual_coreg"].callback.params
+    transform = Text("0 -10 0 -0.1 0 -1.6 1100 1100 1100")
+
+    QtDialogRenderer._run_headplot_manual_coreg(
+        object(),
+        {"meshfile": Combo(0), "meshchanfile": Combo(0), "transform": transform},
+        params,
+    )
+
+    assert transform.value == "1 2 3 0.1 0.2 0.3 4 5 6"
+    assert calls[0][1]["meshfile"] == "mheadnew.mat"
+    assert calls[0][1]["transform"] == "0 -10 0 -0.1 0 -1.6 1100 1100 1100"
 
 
 def test_pop_plottopo_rect_option_switches_layout(sample_epoch):

@@ -7,6 +7,7 @@ import math
 import re
 from typing import Any
 
+from eegprep.functions.guifunc.coregister import run_coregister_dialog
 from eegprep.functions.guifunc.pophelp import pophelp
 from eegprep.functions.popfunc.pop_chansel import pop_chansel
 
@@ -407,13 +408,16 @@ class QtDialogRenderer:
             self._set_headplot_setup_mode(widgets, params, source.isChecked())
         elif callback.name == "headplot_mesh_choice":
             source = widgets.get(params["source"])
-            target = widgets.get(params["transform_target"])
-            if source is not None and target is not None:
-                source.currentIndexChanged.connect(lambda index: self._set_headplot_transform_text(target, index))
+            if source is not None:
+                source.currentIndexChanged.connect(lambda index: self._set_headplot_mesh_choice(widgets, params, index))
         elif callback.name == "show_message":
             source = widgets.get(params["button"])
             if source is not None:
                 source.clicked.connect(lambda: self._show_callback_message(source, params))
+        elif callback.name == "headplot_manual_coreg":
+            source = widgets.get(params["button"])
+            if source is not None:
+                source.clicked.connect(lambda: self._run_headplot_manual_coreg(source, widgets, params))
 
     @staticmethod
     def _accept_if_valid(dialog: Any, spec: DialogSpec, widgets: dict[str, Any]) -> None:
@@ -693,6 +697,62 @@ class QtDialogRenderer:
         )
         if index < len(transforms) and transforms[index]:
             target.setText(transforms[index])
+
+    @staticmethod
+    def _set_headplot_mesh_choice(widgets: Mapping[str, Any], params: Mapping[str, Any], index: int) -> None:
+        reference_target = widgets.get(params.get("reference_target", ""))
+        if (
+            reference_target is not None
+            and hasattr(reference_target, "setCurrentIndex")
+            and index < reference_target.count()
+        ):
+            reference_target.setCurrentIndex(index)
+        target = widgets.get(params.get("transform_target", ""))
+        if target is not None:
+            QtDialogRenderer._set_headplot_transform_text(target, index)
+
+    @staticmethod
+    def _run_headplot_manual_coreg(parent: Any, widgets: Mapping[str, Any], params: Mapping[str, Any]) -> None:
+        transform_target = widgets.get(params.get("transform_target", ""))
+        if transform_target is None or not hasattr(transform_target, "setText"):
+            return
+        try:
+            meshfile = QtDialogRenderer._choice_or_text(
+                widgets.get(params.get("mesh_source", "")),
+                tuple(str(value) for value in params.get("mesh_choices", ())),
+            )
+            reference = QtDialogRenderer._choice_or_text(
+                widgets.get(params.get("reference_source", "")),
+                tuple(str(value) for value in params.get("reference_choices", ())),
+            )
+            transform = run_coregister_dialog(
+                params.get("chanlocs", ()),
+                reference,
+                chaninfo=dict(params.get("chaninfo") or {}),
+                meshfile=meshfile,
+                transform=QtDialogRenderer._widget_text(transform_target),
+                parent=parent,
+                title=str(params.get("title", "Co-registration plot for headplot mesh")),
+            )
+        except (RuntimeError, OSError, ValueError) as exc:
+            _qt_core, qt_widgets = _require_qt()
+            qt_widgets.QMessageBox.warning(parent, "Warning", str(exc))
+            return
+        if transform is not None:
+            transform_target.setText(" ".join(f"{value:.6g}" for value in transform))
+
+    @staticmethod
+    def _choice_or_text(widget: Any, choices: tuple[str, ...]) -> str:
+        stored_value = widget.property(_VALUE_PROPERTY) if widget is not None and hasattr(widget, "property") else None
+        if stored_value is not None:
+            return str(stored_value)
+        if widget is not None and hasattr(widget, "currentIndex"):
+            index = int(widget.currentIndex())
+            if 0 <= index < len(choices):
+                return choices[index]
+        if widget is not None and hasattr(widget, "text"):
+            return str(widget.text())
+        return choices[0] if choices else ""
 
     @staticmethod
     def _show_callback_message(parent: Any, params: Mapping[str, Any]) -> None:

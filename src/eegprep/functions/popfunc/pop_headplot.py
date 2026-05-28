@@ -243,7 +243,7 @@ def pop_headplot_dialog_spec(EEG: dict[str, Any], *, typeplot: int = 1) -> Dialo
             enabled=compute_file,
             callback=CallbackSpec(
                 "headplot_mesh_choice",
-                params={"source": "meshfile", "transform_target": "transform"},
+                params={"source": "meshfile", "reference_target": "meshchanfile", "transform_target": "transform"},
                 matlab_callback="cb_selectmesh",
             ),
         ),
@@ -298,14 +298,17 @@ def pop_headplot_dialog_spec(EEG: dict[str, Any], *, typeplot: int = 1) -> Dialo
             tag="manual_coreg",
             enabled=compute_file,
             callback=CallbackSpec(
-                "show_message",
+                "headplot_manual_coreg",
                 params={
                     "button": "manual_coreg",
-                    "title": "Manual coregistration",
-                    "message": (
-                        "EEGPrep can create and reuse headplot spline files from an entered transform. "
-                        "The interactive manual 3-D coregistration editor from EEGLAB is not yet available."
-                    ),
+                    "chanlocs": chanlocs_as_list(EEG.get("chanlocs", [])),
+                    "chaninfo": dict(EEG.get("chaninfo") or {}),
+                    "mesh_source": "meshfile",
+                    "mesh_choices": _MESH_CHOICES,
+                    "reference_source": "meshchanfile",
+                    "reference_choices": _MESH_CHANNEL_CHOICES,
+                    "transform_target": "transform",
+                    "title": "Co-registration plot for headplot mesh",
                 },
                 matlab_callback="coregister(...)",
             ),
@@ -348,9 +351,6 @@ def pop_headplot_dialog_spec(EEG: dict[str, Any], *, typeplot: int = 1) -> Dialo
         eeglab_source="functions/popfunc/pop_headplot.m",
         help_text="pophelp('pop_headplot')",
         show_help_button=False,
-        known_differences=(
-            "EEGPrep supports transform-entry spline setup and reuse. EEGLAB's interactive manual 3-D coregistration editor is not yet ported.",
-        ),
     )
 
 
