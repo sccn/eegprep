@@ -15,16 +15,23 @@ from eegprep.functions.guifunc.main_window import build_main_window
 from eegprep.functions.guifunc.pophelp import pophelp
 from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.functions.popfunc.pop_adjustevents import pop_adjustevents_dialog_spec
+from eegprep.functions.popfunc.pop_chanedit import pop_chanedit_dialog_spec
 from eegprep.functions.popfunc.pop_chansel import pop_chansel_display_values
 from eegprep.functions.popfunc.pop_comments import pop_comments_dialog_spec
+from eegprep.functions.popfunc.pop_copyset import pop_copyset_dialog_spec
 from eegprep.functions.popfunc.pop_editset import pop_editset_dialog_spec
 from eegprep.functions.popfunc.pop_epoch import pop_epoch_dialog_spec
+from eegprep.functions.popfunc.pop_editeventfield import pop_editeventfield_dialog_spec
+from eegprep.functions.popfunc.pop_editeventvals import pop_editeventvals_dialog_spec
 from eegprep.functions.popfunc.pop_interp import pop_interp_dialog_spec
+from eegprep.functions.popfunc.pop_mergeset import pop_mergeset_dialog_spec
 from eegprep.functions.popfunc.pop_reref import pop_reref_dialog_spec
 from eegprep.functions.popfunc.pop_resample import pop_resample_dialog_spec
+from eegprep.functions.popfunc.pop_rmdat import pop_rmdat_dialog_spec
 from eegprep.functions.popfunc.pop_rmbase import pop_rmbase_dialog_spec
 from eegprep.functions.popfunc.pop_runica import pop_runica_dialog_spec
 from eegprep.functions.popfunc.pop_select import pop_select_dialog_spec
+from eegprep.functions.popfunc.pop_selectevent import pop_selectevent_dialog_spec
 from eegprep.functions.popfunc.pop_subcomp import pop_subcomp_dialog_spec
 from eegprep.functions.popfunc.pop_topoplot import pop_topoplot_dialog_spec
 from eegprep.plugins.ICLabel.pop_icflag import pop_icflag_dialog_spec
@@ -330,6 +337,69 @@ def capture_pop_editset_dialog(output: pathlib.Path) -> None:
     _grab_dialog(dialog, output, app)
 
 
+def capture_pop_editeventfield_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_editeventfield dialog."""
+    eeg = _demo_main_eeg()
+    spec = pop_editeventfield_dialog_spec(eeg)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_editeventvals_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_editeventvals dialog."""
+    eeg = _demo_main_eeg()
+    spec = pop_editeventvals_dialog_spec(eeg)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_selectevent_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_selectevent dialog."""
+    eeg = _demo_main_eeg(setname="event demo")
+    spec = pop_selectevent_dialog_spec(eeg)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_rmdat_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_rmdat dialog."""
+    eeg = _demo_main_eeg()
+    spec = pop_rmdat_dialog_spec(eeg)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_chanedit_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_chanedit dialog."""
+    eeg = _demo_main_eeg()
+    spec = pop_chanedit_dialog_spec(eeg)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_copyset_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_copyset dialog."""
+    spec = pop_copyset_dialog_spec(1)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_mergeset_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_mergeset dialog."""
+    eeg = _demo_main_eeg(setname="merge one")
+    second = _demo_main_eeg(setname="merge two")
+    spec = pop_mergeset_dialog_spec([eeg, second], default_indices=[1])
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
 def capture_reref_dialog(output: pathlib.Path, *, variant: str = "average") -> None:
     """Render and capture the pop_reref dialog."""
     eeg = _demo_reref_eeg()
@@ -475,6 +545,19 @@ def capture_pop_chansel_dialog(output: pathlib.Path) -> None:
     _grab_dialog(dialog, output, app)
 
 
+def capture_select_multiple_datasets_dialog(output: pathlib.Path) -> None:
+    """Render and capture the EEGLAB-style multiple-dataset picker."""
+    labels = ["Dataset 1:menu one", "Dataset 2:menu two", "Dataset 3:menu three"]
+    display_values = pop_chansel_display_values(labels, withindex=[1, 2, 3])
+    app, dialog = build_listdlg2_dialog(
+        promptstring="(use shift|Ctrl to\nselect several)",
+        liststring=display_values,
+        selectionmode="multiple",
+        initialvalue=[1, 2],
+    )
+    _grab_dialog(dialog, output, app)
+
+
 def capture_dataset_index_dialog(output: pathlib.Path) -> None:
     """Render and capture the dataset index prompt used by pop_interp."""
     from PySide6 import QtWidgets
@@ -575,6 +658,20 @@ def main(argv: list[str] | None = None) -> int:
         capture_pop_comments_dialog(args.output)
     elif args.case == "pop_editset_dialog":
         capture_pop_editset_dialog(args.output)
+    elif args.case == "pop_editeventfield_dialog":
+        capture_pop_editeventfield_dialog(args.output)
+    elif args.case == "pop_editeventvals_dialog":
+        capture_pop_editeventvals_dialog(args.output)
+    elif args.case == "pop_selectevent_dialog":
+        capture_pop_selectevent_dialog(args.output)
+    elif args.case == "pop_rmdat_dialog":
+        capture_pop_rmdat_dialog(args.output)
+    elif args.case == "pop_chanedit_dialog":
+        capture_pop_chanedit_dialog(args.output)
+    elif args.case == "pop_copyset_dialog":
+        capture_pop_copyset_dialog(args.output)
+    elif args.case == "pop_mergeset_dialog":
+        capture_pop_mergeset_dialog(args.output)
     elif args.case == "reref_dialog":
         capture_reref_dialog(args.output)
     elif args.case == "reref_dialog_channel_ref":
@@ -615,6 +712,8 @@ def main(argv: list[str] | None = None) -> int:
         capture_pop_clean_rawdata_dialog(args.output)
     elif args.case == "pop_chansel_dialog":
         capture_pop_chansel_dialog(args.output)
+    elif args.case == "select_multiple_datasets_dialog":
+        capture_select_multiple_datasets_dialog(args.output)
     elif args.case == "pop_interp_dataset_index_dialog":
         capture_dataset_index_dialog(args.output)
     elif args.case == "pop_reref_help_dialog":

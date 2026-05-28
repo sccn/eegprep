@@ -25,20 +25,6 @@ def _phase_entries(phase: str, actions: tuple[str, ...]) -> dict[str, Placeholde
 
 PLACEHOLDER_ACTION_METADATA: Mapping[str, PlaceholderMetadata] = {
     **_phase_entries(
-        "1b",
-        (
-            "pop_chanedit",
-            "pop_copyset",
-            "pop_editeventfield",
-            "pop_editeventvals",
-            "pop_fileio_brainvision_mat",
-            "pop_mergeset",
-            "pop_rmdat",
-            "pop_selectevent",
-            "select_multiple_datasets",
-        ),
-    ),
-    **_phase_entries(
         "2",
         (
             "pop_eegfilt",

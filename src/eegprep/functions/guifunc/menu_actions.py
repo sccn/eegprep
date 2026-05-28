@@ -29,9 +29,13 @@ IMPLEMENTED_ACTIONS = {
     "pop_biosig",
     "pop_chanevent",
     "pop_clean_rawdata",
+    "pop_chanedit",
     "pop_delset",
     "pop_comments",
+    "pop_copyset",
     "pop_editset",
+    "pop_editeventfield",
+    "pop_editeventvals",
     "pop_editoptions",
     "pop_epoch",
     "pop_eventinfo",
@@ -41,6 +45,7 @@ IMPLEMENTED_ACTIONS = {
     "pop_exportbids",
     "pop_fileio",
     "pop_fileio_brainvision",
+    "pop_fileio_brainvision_mat",
     "pop_fileio_cnt",
     "pop_fileio_eeg",
     "pop_fileio_mff",
@@ -61,9 +66,11 @@ IMPLEMENTED_ACTIONS = {
     "pop_reref",
     "pop_resample",
     "pop_rmbase",
+    "pop_rmdat",
     "pop_runica",
     "pop_saveset",
     "pop_select",
+    "pop_selectevent",
     "pop_study",
     "pop_studyerp",
     "pop_studywizard",
@@ -71,11 +78,13 @@ IMPLEMENTED_ACTIONS = {
     "pop_taskinfo",
     "pop_topoplot",
     "pop_participantinfo",
+    "pop_mergeset",
     "pop_writeeeg",
     "bids_exporter",
     "plugin_menu",
     "quit",
     "retrieve_dataset",
+    "select_multiple_datasets",
     "topoplot",
     "tutorial",
     "updates",
@@ -114,14 +123,17 @@ HELP_UNAVAILABLE_TOPICS = frozenset(set(HELP_TOPIC_LABELS) - set(HELP_DOC_PATHS)
 
 _MULTIPLE_DATASET_ACTIONS = {
     "pop_clean_rawdata",
+    "pop_chanedit",
     "pop_epoch",
     "pop_icflag",
     "pop_iclabel",
     "pop_reref",
+    "pop_rmdat",
     "pop_resample",
     "pop_rmbase",
     "pop_runica",
     "pop_select",
+    "pop_selectevent",
     "pop_subcomp",
 }
 
@@ -193,6 +205,7 @@ class MenuActionDispatcher:
             "pop_biosig",
             "pop_fileio",
             "pop_fileio_brainvision",
+            "pop_fileio_brainvision_mat",
             "pop_fileio_cnt",
             "pop_fileio_eeg",
             "pop_fileio_mff",
@@ -216,6 +229,15 @@ class MenuActionDispatcher:
             return
         if base == "retrieve_dataset":
             self._retrieve_dataset(int(variant))
+            return
+        if base == "select_multiple_datasets":
+            self._select_multiple_datasets(parent)
+            return
+        if base == "pop_copyset":
+            self._copy_current_dataset(parent)
+            return
+        if base == "pop_mergeset":
+            self._merge_datasets(parent)
             return
         if base in {"pop_study", "pop_studywizard", "pop_studyerp", "pop_loadstudy", "pop_savestudy"}:
             self._study_action(base, variant, parent)
@@ -241,6 +263,15 @@ class MenuActionDispatcher:
         if base == "pop_editset":
             self._run_pop_function("pop_editset", parent)
             return
+        if base == "pop_editeventfield":
+            self._run_pop_function("pop_editeventfield", parent)
+            return
+        if base == "pop_editeventvals":
+            self._run_pop_function("pop_editeventvals", parent)
+            return
+        if base == "pop_chanedit":
+            self._run_pop_function("pop_chanedit", parent)
+            return
         if base == "pop_clean_rawdata":
             self._run_pop_function("pop_clean_rawdata", parent)
             return
@@ -259,11 +290,17 @@ class MenuActionDispatcher:
         if base == "pop_rmbase":
             self._run_pop_function("pop_rmbase", parent)
             return
+        if base == "pop_rmdat":
+            self._run_pop_function("pop_rmdat", parent)
+            return
         if base == "pop_runica":
             self._run_pop_function("pop_runica", parent)
             return
         if base == "pop_select":
             self._run_pop_function("pop_select", parent)
+            return
+        if base == "pop_selectevent":
+            self._run_pop_function("pop_selectevent", parent)
             return
         if base == "pop_iclabel":
             self._run_pop_function("pop_iclabel", parent)
@@ -372,6 +409,10 @@ class MenuActionDispatcher:
                 from eegprep.functions.popfunc.pop_biosig import pop_biosig
 
                 eeg_out, command = pop_biosig(filename, return_com=True)
+            elif action == "pop_fileio_brainvision_mat":
+                from eegprep.functions.popfunc.pop_fileio_brainvision_mat import pop_fileio_brainvision_mat
+
+                eeg_out, command = pop_fileio_brainvision_mat(filename, return_com=True)
             else:
                 from eegprep.functions.popfunc.pop_fileio import pop_fileio
 
@@ -388,6 +429,7 @@ class MenuActionDispatcher:
             "pop_fileio_cnt": "Neuroscan CNT (*.cnt);;All files (*)",
             "pop_fileio_eeg": "Neuroscan/BrainVision EEG (*.eeg);;All files (*)",
             "pop_fileio_brainvision": "BrainVision header (*.vhdr);;All files (*)",
+            "pop_fileio_brainvision_mat": "BrainVision Analyzer MATLAB (*.mat);;All files (*)",
         }
         filename, _filter = qt_widgets.QFileDialog.getOpenFileName(
             parent,
@@ -682,11 +724,24 @@ class MenuActionDispatcher:
         elif name == "pop_comments":
             from eegprep.functions.popfunc.pop_comments import pop_comments
 
-            out = pop_comments(selection, "About this dataset", return_com=True)
+            title = _dataset_comments_title(selection)
+            out = pop_comments(selection, title, return_com=True)
         elif name == "pop_editset":
             from eegprep.functions.popfunc.pop_editset import pop_editset
 
             out = pop_editset(selection, return_com=True)
+        elif name == "pop_editeventfield":
+            from eegprep.functions.popfunc.pop_editeventfield import pop_editeventfield
+
+            out = pop_editeventfield(selection, return_com=True)
+        elif name == "pop_editeventvals":
+            from eegprep.functions.popfunc.pop_editeventvals import pop_editeventvals
+
+            out = pop_editeventvals(selection, return_com=True)
+        elif name == "pop_chanedit":
+            from eegprep.functions.popfunc.pop_chanedit import pop_chanedit
+
+            out = pop_chanedit(selection, return_com=True)
         elif name == "pop_clean_rawdata":
             from eegprep.plugins.clean_rawdata.pop_clean_rawdata import pop_clean_rawdata
 
@@ -719,6 +774,10 @@ class MenuActionDispatcher:
             from eegprep.functions.popfunc.pop_rmbase import pop_rmbase
 
             out = pop_rmbase(selection, return_com=True)
+        elif name == "pop_rmdat":
+            from eegprep.functions.popfunc.pop_rmdat import pop_rmdat
+
+            out = pop_rmdat(selection, return_com=True)
         elif name == "pop_runica":
             from eegprep.functions.popfunc.pop_runica import pop_runica
 
@@ -727,6 +786,10 @@ class MenuActionDispatcher:
             from eegprep.functions.popfunc.pop_select import pop_select
 
             out = pop_select(selection, return_com=True)
+        elif name == "pop_selectevent":
+            from eegprep.functions.popfunc.pop_selectevent import pop_selectevent
+
+            out = pop_selectevent(selection, return_com=True)
         elif name == "pop_subcomp":
             from eegprep.functions.popfunc.pop_subcomp import pop_subcomp
 
@@ -740,6 +803,49 @@ class MenuActionDispatcher:
             eeg_out, command = out, ""
         if command:
             self._store_current_from_gui(eeg_out, command=command)
+            self._refresh()
+
+    def _select_multiple_datasets(self, parent: Any | None) -> None:
+        if not self.session.ALLEEG:
+            self._warn(parent, "No datasets available")
+            return
+        from eegprep.functions.guifunc.select_multiple_datasets import select_multiple_datasets
+
+        eeg_out, command = select_multiple_datasets(self.session, gui=True, return_com=True)
+        if command:
+            self.session.echo_command(command)
+            self.session.add_history(command, notify=False)
+            self.session.notify_changed()
+            self._refresh()
+
+    def _copy_current_dataset(self, parent: Any | None) -> None:
+        if not self.session.CURRENTSET:
+            self._warn(parent, "No current dataset")
+            return
+        from eegprep.functions.popfunc.pop_copyset import pop_copyset
+
+        set_in = self.session.CURRENTSET[0]
+        alleeg, eeg_out, current_set, command = pop_copyset(self.session.ALLEEG, set_in, gui=True, return_com=True)
+        if not command:
+            return
+        self.session.ALLEEG = alleeg
+        self.session.EEG = eeg_out
+        self.session.CURRENTSET = _currentset_list(current_set)
+        self._add_history_from_gui(command)
+        self.session.notify_changed()
+        self._refresh()
+
+    def _merge_datasets(self, parent: Any | None) -> None:
+        if len(self.session.ALLEEG) < 2:
+            self._warn(parent, "Load at least two datasets before merging")
+            return
+        from eegprep.functions.popfunc.pop_mergeset import pop_mergeset
+
+        selected = self.session.selected_dataset_indices()
+        default_indices = selected if len(selected) >= 2 else None
+        eeg_out, command = pop_mergeset(self.session.ALLEEG, default_indices, gui=True, return_com=True)
+        if command:
+            self._store_current_from_gui(eeg_out, new=True, command=command)
             self._refresh()
 
     def _plot_channel_locations(self, variant: str, parent: Any | None) -> None:
@@ -884,6 +990,14 @@ def _existing_study_filename(study: dict[str, Any]) -> str:
     if filepath and filename:
         return str(Path(filepath) / filename)
     return filename
+
+
+def _dataset_comments_title(eeg: dict[str, Any] | list[dict[str, Any]]) -> str:
+    dataset = eeg[0] if isinstance(eeg, list) and eeg else eeg
+    if not isinstance(dataset, dict):
+        return ""
+    setname = str(dataset.get("setname") or "").strip()
+    return f"Comments of dataset: {setname}" if setname else "Comments of dataset"
 
 
 def _export_filter(action: str) -> str:

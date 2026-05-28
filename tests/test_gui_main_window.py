@@ -310,7 +310,7 @@ class MainMenuSpecTests(unittest.TestCase):
         self.assertEqual(action_kind("pop_icflag"), "implemented")
         self.assertEqual(action_kind("pop_subcomp"), "implemented")
         self.assertEqual(action_kind("pop_exportbids"), "implemented")
-        self.assertEqual(action_kind("select_multiple_datasets"), "placeholder")
+        self.assertEqual(action_kind("select_multiple_datasets"), "implemented")
         self.assertEqual(action_kind("topoplot:labels"), "implemented")
         self.assertTrue(all(action_kind(action) in {"implemented", "placeholder"} for action in actions))
         self.assertTrue(
@@ -326,9 +326,9 @@ class MainMenuSpecTests(unittest.TestCase):
         self.assertIn("pop_saveh:dataset", file_actions)
         self.assertEqual(
             [action for action in sorted(file_actions) if action_kind(action) != "implemented"],
-            ["pop_fileio_brainvision_mat"],
+            [],
         )
-        self.assertEqual(action_kind("pop_fileio_brainvision_mat"), "placeholder")
+        self.assertEqual(action_kind("pop_fileio_brainvision_mat"), "implemented")
 
 
 class EEGPrepSessionTests(unittest.TestCase):
@@ -634,10 +634,15 @@ class MenuActionDispatcherTests(unittest.TestCase):
     def test_new_main_window_pop_actions_dispatch_to_real_wrappers(self):
         action_specs = [
             ("pop_comments", "eegprep.functions.popfunc.pop_comments.pop_comments", "commented"),
+            ("pop_chanedit", "eegprep.functions.popfunc.pop_chanedit.pop_chanedit", "chanedited"),
             ("pop_editset", "eegprep.functions.popfunc.pop_editset.pop_editset", "edited"),
+            ("pop_editeventfield", "eegprep.functions.popfunc.pop_editeventfield.pop_editeventfield", "eventfields"),
+            ("pop_editeventvals", "eegprep.functions.popfunc.pop_editeventvals.pop_editeventvals", "eventvals"),
             ("pop_select", "eegprep.functions.popfunc.pop_select.pop_select", "selected"),
+            ("pop_selectevent", "eegprep.functions.popfunc.pop_selectevent.pop_selectevent", "selectedevent"),
             ("pop_resample", "eegprep.functions.popfunc.pop_resample.pop_resample", "resampled"),
             ("pop_rmbase", "eegprep.functions.popfunc.pop_rmbase.pop_rmbase", "baseline"),
+            ("pop_rmdat", "eegprep.functions.popfunc.pop_rmdat.pop_rmdat", "rmdat"),
             ("pop_epoch", "eegprep.functions.popfunc.pop_epoch.pop_epoch", "epoched"),
             ("pop_clean_rawdata", "eegprep.plugins.clean_rawdata.pop_clean_rawdata.pop_clean_rawdata", "cleaned"),
             ("pop_runica", "eegprep.functions.popfunc.pop_runica.pop_runica", "ica"),
@@ -655,7 +660,7 @@ class MenuActionDispatcherTests(unittest.TestCase):
                     dispatcher.dispatch(action)
 
                 if action == "pop_comments":
-                    pop_func.assert_called_once_with(mock.ANY, "About this dataset", return_com=True)
+                    pop_func.assert_called_once_with(mock.ANY, "Comments of dataset: demo", return_com=True)
                 else:
                     pop_func.assert_called_once_with(mock.ANY, return_com=True)
                 self.assertEqual(session.EEG["setname"], setname)
@@ -698,6 +703,77 @@ class MenuActionDispatcherTests(unittest.TestCase):
         self.assertIs(session.EEG, original_eeg)
         self.assertIs(session.ALLEEG[0], original_eeg)
         self.assertEqual(session.ALLCOM[-1], "pop_topoplot(EEG, typeplot=1, items=[0])")
+
+    def test_copyset_menu_updates_alleeg_eeg_currentset_and_history(self):
+        session = EEGPrepSession()
+        session.store_current(_demo_eeg(), new=True)
+        dispatcher = MenuActionDispatcher(session)
+        copied = dict(session.EEG, setname="copied")
+
+        with mock.patch(
+            "eegprep.functions.popfunc.pop_copyset.pop_copyset",
+            return_value=(
+                [session.EEG, copied],
+                copied,
+                2,
+                "[ALLEEG EEG CURRENTSET LASTCOM] = pop_copyset(ALLEEG, 1, 2);",
+            ),
+        ) as copyset:
+            dispatcher.dispatch("pop_copyset")
+
+        copyset.assert_called_once_with([session.ALLEEG[0]], 1, gui=True, return_com=True)
+        self.assertEqual(session.CURRENTSET, [2])
+        self.assertEqual(session.EEG["setname"], "copied")
+        self.assertEqual(session.ALLEEG[1]["setname"], "copied")
+        self.assertEqual(session.LASTCOM, "[ALLEEG EEG CURRENTSET LASTCOM] = pop_copyset(ALLEEG, 1, 2);")
+
+    def test_select_multiple_datasets_menu_preserves_ordered_session_selection(self):
+        session = EEGPrepSession()
+        first = _demo_eeg()
+        first["setname"] = "first"
+        second = _demo_eeg()
+        second["setname"] = "second"
+        session.store_current(first, new=True)
+        session.store_current(second, new=True)
+        dispatcher = MenuActionDispatcher(session)
+
+        with mock.patch(
+            "eegprep.functions.guifunc.select_multiple_datasets.select_multiple_datasets",
+            side_effect=lambda session_arg, **_kwargs: (
+                session_arg.retrieve([2, 1]),
+                "[ALLEEG EEG CURRENTSET LASTCOM] = pop_newset(ALLEEG, EEG, CURRENTSET, 'retrieve', [2 1]);",
+            ),
+        ):
+            dispatcher.dispatch("select_multiple_datasets")
+
+        self.assertEqual(session.CURRENTSET, [2, 1])
+        self.assertEqual([item["setname"] for item in session.EEG], ["second", "first"])
+        self.assertIn("pop_newset", session.ALLCOM[-1])
+
+    def test_mergeset_menu_stores_merged_dataset_as_new_dataset(self):
+        session = EEGPrepSession()
+        first = _demo_eeg()
+        second = _demo_eeg()
+        second["setname"] = "second"
+        session.store_current(first, new=True)
+        session.store_current(second, new=True)
+        session.retrieve([1, 2])
+        dispatcher = MenuActionDispatcher(session)
+        merged = dict(first, setname="merged")
+
+        with mock.patch(
+            "eegprep.functions.popfunc.pop_mergeset.pop_mergeset",
+            return_value=(merged, "EEG = pop_mergeset( ALLEEG, [1 2], 0);"),
+        ) as mergeset:
+            dispatcher.dispatch("pop_mergeset")
+
+        mergeset.assert_called_once()
+        self.assertEqual(len(mergeset.call_args.args[0]), 2)
+        self.assertEqual(mergeset.call_args.args[1], [1, 2])
+        self.assertEqual(mergeset.call_args.kwargs, {"gui": True, "return_com": True})
+        self.assertEqual(session.CURRENTSET, [3])
+        self.assertEqual(session.EEG["setname"], "merged")
+        self.assertEqual(session.ALLEEG[2]["setname"], "merged")
 
     def test_pop_interp_dispatch_uses_generic_gui_command_echo(self):
         session = EEGPrepSession()

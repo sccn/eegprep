@@ -36,12 +36,16 @@ def test_no_implemented_action_remains_marked_as_placeholder():
 
 
 def test_placeholder_inventory_classifies_representative_phase_work():
-    assert placeholder_metadata("pop_editeventfield").phase == "1b"
+    assert placeholder_metadata("pop_editeventfield") is None
     assert placeholder_metadata("pop_eegfilt").phase == "2"
     assert placeholder_metadata("pop_rejchan").phase == "3"
     assert placeholder_metadata("pop_spectopo").phase == "4"
     assert placeholder_metadata("pop_studydesign").phase == "5"
     assert placeholder_metadata("eeglab_update").phase == "6"
+
+
+def test_phase1b_placeholders_are_removed_after_file_edit_completion():
+    assert not any(metadata.phase == "1b" for metadata in placeholder_inventory().values())
 
 
 def test_eegbrowser_scrolling_actions_are_explicitly_excluded():
