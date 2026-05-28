@@ -48,6 +48,14 @@ def _fake_pop_topoplot(eeg, *, return_com=False):
     return (["figure"], command) if return_com else ["figure"]
 
 
+def _fake_pop_copyset(ALLEEG, set_in, set_out=None, *, return_com=False):
+    copied = dict(ALLEEG[int(set_in) - 1], setname="copied")
+    output = list(ALLEEG)
+    output.append(copied)
+    command = "[ALLEEG EEG CURRENTSET LASTCOM] = pop_copyset(ALLEEG, 1, 2);"
+    return (output, copied, 2, command) if return_com else (output, copied, 2)
+
+
 def test_workspace_starts_with_eeglab_style_names():
     session = EEGPrepSession()
     workspace = EEGPrepConsoleWorkspace(session, exports={})
@@ -359,15 +367,20 @@ def test_gui_action_without_command_releases_output_through_terminal_redraw():
     ("action", "patch_target"),
     [
         ("pop_adjustevents", "eegprep.functions.popfunc.pop_adjustevents.pop_adjustevents"),
+        ("pop_chanedit", "eegprep.functions.popfunc.pop_chanedit.pop_chanedit"),
         ("pop_clean_rawdata", "eegprep.plugins.clean_rawdata.pop_clean_rawdata.pop_clean_rawdata"),
         ("pop_comments", "eegprep.functions.popfunc.pop_comments.pop_comments"),
         ("pop_editset", "eegprep.functions.popfunc.pop_editset.pop_editset"),
+        ("pop_editeventfield", "eegprep.functions.popfunc.pop_editeventfield.pop_editeventfield"),
+        ("pop_editeventvals", "eegprep.functions.popfunc.pop_editeventvals.pop_editeventvals"),
         ("pop_epoch", "eegprep.functions.popfunc.pop_epoch.pop_epoch"),
         ("pop_reref", "eegprep.functions.popfunc.pop_reref.pop_reref"),
         ("pop_interp", "eegprep.functions.popfunc.pop_interp.pop_interp"),
         ("pop_resample", "eegprep.functions.popfunc.pop_resample.pop_resample"),
+        ("pop_rmdat", "eegprep.functions.popfunc.pop_rmdat.pop_rmdat"),
         ("pop_runica", "eegprep.functions.popfunc.pop_runica.pop_runica"),
         ("pop_select", "eegprep.functions.popfunc.pop_select.pop_select"),
+        ("pop_selectevent", "eegprep.functions.popfunc.pop_selectevent.pop_selectevent"),
         ("pop_iclabel", "eegprep.plugins.ICLabel.pop_iclabel.pop_iclabel"),
         ("pop_icflag", "eegprep.plugins.ICLabel.pop_icflag.pop_icflag"),
         ("pop_subcomp", "eegprep.functions.popfunc.pop_subcomp.pop_subcomp"),
@@ -480,7 +493,7 @@ def test_bare_pop_call_updates_session_and_returns_compact_unpackable_result():
     assert command == "EEG = pop_reref(EEG, []);"
     assert session.EEG["setname"] == "reref"
     assert session.ALLCOM == ["EEG = pop_reref(EEG, []);"]
-    assert "data" not in repr(result)
+    assert "array" not in repr(result)
     assert writes == []
     refresh.assert_called_once()
 
@@ -511,6 +524,27 @@ def test_non_mutating_pop_plot_call_records_history_without_storing_dataset():
     assert result == (["figure"], "pop_topoplot(EEG, typeplot=1, items=[0])")
     assert session.EEG is original_eeg
     assert session.ALLCOM == ["pop_topoplot(EEG, typeplot=1, items=[0])"]
+
+
+def test_bare_dataset_pop_call_updates_alleeg_eeg_currentset_and_history():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(), new=True)
+    refresh = mock.Mock()
+    workspace = EEGPrepConsoleWorkspace(session, refresh=refresh, exports={"pop_copyset": _fake_pop_copyset})
+
+    result = workspace.namespace["pop_copyset"](workspace.namespace["ALLEEG"], 1, 2)
+    workspace.after_execute("pop_copyset(ALLEEG, 1, 2)")
+
+    alleeg, eeg, currentset, command = result
+    assert alleeg is session.ALLEEG
+    assert eeg is session.EEG
+    assert currentset == 2
+    assert command == "[ALLEEG EEG CURRENTSET LASTCOM] = pop_copyset(ALLEEG, 1, 2);"
+    assert session.CURRENTSET == [2]
+    assert session.EEG["setname"] == "copied"
+    assert session.ALLCOM == [command]
+    assert "array" not in repr(result)
+    refresh.assert_called_once()
 
 
 def test_single_assignment_pop_call_without_history_resets_namespace_to_session_eeg():

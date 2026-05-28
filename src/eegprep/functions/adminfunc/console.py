@@ -59,6 +59,34 @@ class ConsolePopResult:
         return f"<EEGPrep pop result: {state}, LASTCOM={command!r}>"
 
 
+class ConsoleDatasetResult:
+    """Compact, unpackable result for dataset-list ``pop_*`` calls."""
+
+    def __init__(self, alleeg: list[dict[str, Any]], eeg: Any, currentset: Any, command: str) -> None:
+        self.alleeg = alleeg
+        self.eeg = eeg
+        self.currentset = currentset
+        self.command = command
+
+    def __iter__(self) -> Iterator[Any]:
+        yield self.alleeg
+        yield self.eeg
+        yield self.currentset
+        yield self.command
+
+    def __getitem__(self, index: int) -> Any:
+        return (self.alleeg, self.eeg, self.currentset, self.command)[index]
+
+    def __len__(self) -> int:
+        return 4
+
+    def __repr__(self) -> str:
+        command = self.command or "(no history command)"
+        if len(command) > POP_RESULT_PREVIEW_LIMIT:
+            command = command[: POP_RESULT_PREVIEW_LIMIT - 3] + "..."
+        return f"<EEGPrep dataset result: CURRENTSET={self.currentset!r}, LASTCOM={command!r}>"
+
+
 class LazyWorkspaceExport:
     """Lazy proxy for public EEGPrep exports in the console namespace."""
 
@@ -233,6 +261,22 @@ class EEGPrepConsoleWorkspace:
 
     def accept_pop_result(self, result: Any, args: tuple[Any, ...], kwargs: Mapping[str, Any] | None = None) -> Any:
         """Store a ``pop_*`` result in the current session when appropriate."""
+        dataset_state = _extract_pop_dataset_state(result)
+        if dataset_state is not None:
+            alleeg, eeg, currentset, command = dataset_state
+            self.session.ALLEEG = alleeg
+            self.session.EEG = eeg
+            self.session.CURRENTSET = _normalize_currentset(currentset)
+            if command:
+                self.session.add_history(command, notify=False)
+            self.session.notify_changed()
+            self._pop_updated_session = True
+            self.pull_from_session()
+            self._refresh()
+            return ConsoleDatasetResult(
+                self.session.ALLEEG, self.session.EEG, self.session.current_set_value(), command
+            )
+
         eeg, command = _extract_pop_eeg_and_command(result)
         if eeg is None:
             if command:
@@ -1071,6 +1115,15 @@ def _extract_pop_eeg_and_command(result: Any) -> tuple[Any | None, str]:
     if isinstance(result, str):
         return None, result.strip()
     return None, ""
+
+
+def _extract_pop_dataset_state(result: Any) -> tuple[list[dict[str, Any]], Any, Any, str] | None:
+    if not isinstance(result, tuple) or len(result) < 4:
+        return None
+    alleeg, eeg, currentset, command = result[0], result[1], result[2], result[3]
+    if not isinstance(alleeg, list) or not _is_eeg_selection(eeg) or not isinstance(command, str):
+        return None
+    return alleeg, eeg, currentset, command.strip()
 
 
 def _first_call_eeg_argument(args: tuple[Any, ...], kwargs: Mapping[str, Any]) -> Any | None:

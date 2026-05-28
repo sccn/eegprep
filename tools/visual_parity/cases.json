@@ -230,6 +230,181 @@
       }
     },
     {
+      "id": "pop_editeventfield_dialog",
+      "description": "Event field editor dialog opened from pop_editeventfield.",
+      "window_size": [760, 360],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_editeventfield"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_editeventfield_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_editeventvals_dialog",
+      "description": "Event values editor dialog opened from pop_editeventvals.",
+      "window_size": [560, 270],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_editeventvals"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_editeventvals_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_selectevent_dialog",
+      "description": "Event selection dialog opened from pop_selectevent.",
+      "window_size": [760, 430],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_selectevent"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_selectevent_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_rmdat_dialog",
+      "description": "Event-window data removal dialog opened from pop_rmdat.",
+      "window_size": [616, 221],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_rmdat"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_rmdat_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_chanedit_dialog",
+      "description": "Channel metadata editor dialog opened from pop_chanedit.",
+      "window_size": [680, 620],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_chanedit"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_chanedit_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_copyset_dialog",
+      "description": "Dataset copy dialog opened from pop_copyset.",
+      "window_size": [385, 141],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_copyset"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_copyset_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_mergeset_dialog",
+      "description": "Dataset merge dialog opened from pop_mergeset.",
+      "window_size": [445, 165],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_mergeset"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_mergeset_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
       "id": "reref_dialog_channel_ref",
       "description": "pop_reref dialog with the common-reference channel path enabled.",
       "window_size": [616, 281],
@@ -692,6 +867,31 @@
         "eegprep": {
           "type": "command",
           "action": "pop_chansel_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "select_multiple_datasets_dialog",
+      "description": "Multiple-dataset selector opened from the Datasets menu.",
+      "window_size": [300, 195],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "select_multiple_datasets"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "select_multiple_datasets_dialog",
           "command": [
             "{python}",
             "-m",

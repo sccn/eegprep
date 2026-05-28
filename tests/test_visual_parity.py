@@ -46,8 +46,16 @@ class VisualParityConfigTests(unittest.TestCase):
         self.assertEqual(cases["pop_icflag_dialog"].targets["eeglab"].action, "pop_icflag")
         self.assertEqual(cases["pop_subcomp_dialog"].targets["eeglab"].action, "pop_subcomp")
         self.assertEqual(cases["pop_clean_rawdata_dialog"].targets["eeglab"].action, "pop_clean_rawdata")
+        self.assertEqual(cases["pop_editeventfield_dialog"].targets["eeglab"].action, "pop_editeventfield")
+        self.assertEqual(cases["pop_editeventvals_dialog"].targets["eeglab"].action, "pop_editeventvals")
+        self.assertEqual(cases["pop_selectevent_dialog"].targets["eeglab"].action, "pop_selectevent")
+        self.assertEqual(cases["pop_rmdat_dialog"].targets["eeglab"].action, "pop_rmdat")
+        self.assertEqual(cases["pop_chanedit_dialog"].targets["eeglab"].action, "pop_chanedit")
+        self.assertEqual(cases["pop_copyset_dialog"].targets["eeglab"].action, "pop_copyset")
+        self.assertEqual(cases["pop_mergeset_dialog"].targets["eeglab"].action, "pop_mergeset")
         self.assertIn("pop_chansel_dialog", cases)
         self.assertEqual(cases["pop_chansel_dialog"].targets["eeglab"].action, "pop_chansel")
+        self.assertEqual(cases["select_multiple_datasets_dialog"].targets["eeglab"].action, "select_multiple_datasets")
         self.assertEqual(cases["pop_interp_dataset_index_dialog"].targets["eeglab"].action, "inputdlg2:dataset_index")
         self.assertEqual(cases["pop_reref_help_dialog"].targets["eeglab"].action, "pophelp:pop_reref")
 
@@ -289,6 +297,10 @@ class VisualParityCaptureTests(unittest.TestCase):
             ("pop_resample_dialog", "pop_resample"),
             ("pop_epoch_dialog", "pop_epoch"),
             ("pop_rmbase_dialog", "pop_rmbase"),
+            ("pop_editeventfield_dialog", "pop_editeventfield"),
+            ("pop_selectevent_dialog", "pop_selectevent"),
+            ("pop_rmdat_dialog", "pop_rmdat"),
+            ("pop_chanedit_dialog", "pop_chanedit"),
         ]
         for case_id, action in cases:
             with self.subTest(case_id=case_id), tempfile.TemporaryDirectory() as tmpdir:
@@ -316,6 +328,88 @@ class VisualParityCaptureTests(unittest.TestCase):
                 override_text = next((tmp_path / case_id / "inputgui_plot_override").glob("inputgui.m")).read_text()
                 self.assertIn("args{6} = 'plot';", override_text)
                 self.assertIn("args = [args {'mode' 'plot'}];", override_text)
+
+    def test_matlab_dialog_capture_generates_pop_editeventvals_script(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = pathlib.Path(tmpdir)
+            case = load_manifest()["pop_editeventvals_dialog"]
+
+            def fake_run_subprocess(target_name, output_path, command, env, timeout_seconds):
+                output_path.write_bytes(base64.b64decode(ONE_PIXEL_PNG))
+                return CaptureResult(target_name, output_path, command, 0)
+
+            with (
+                mock.patch("tools.visual_parity.capture.shutil.which", return_value="/usr/common/bin/matlab"),
+                mock.patch("tools.visual_parity.capture._run_subprocess", side_effect=fake_run_subprocess),
+            ):
+                results = capture_case(case, "eeglab", output_dir=tmp_path)
+
+            self.assertTrue(results[0].ok)
+            script_text = next((tmp_path / "pop_editeventvals_dialog").glob("*.m")).read_text()
+            self.assertIn("inputgui(geometry, uilist", script_text)
+            self.assertIn("pop_editeventvals('goto', 0)", script_text)
+
+    def test_matlab_dialog_capture_generates_dataset_pop_function_scripts(self):
+        cases = [("pop_copyset_dialog", "pop_copyset", "pop_copyset(ALLEEG, 1)")]
+        for case_id, action, call in cases:
+            with self.subTest(case_id=case_id), tempfile.TemporaryDirectory() as tmpdir:
+                tmp_path = pathlib.Path(tmpdir)
+                case = load_manifest()[case_id]
+
+                def fake_run_subprocess(target_name, output_path, command, env, timeout_seconds):
+                    output_path.write_bytes(base64.b64decode(ONE_PIXEL_PNG))
+                    return CaptureResult(target_name, output_path, command, 0)
+
+                with (
+                    mock.patch("tools.visual_parity.capture.shutil.which", return_value="/usr/common/bin/matlab"),
+                    mock.patch("tools.visual_parity.capture._run_subprocess", side_effect=fake_run_subprocess),
+                ):
+                    results = capture_case(case, "eeglab", output_dir=tmp_path)
+
+                self.assertTrue(results[0].ok)
+                script_text = next((tmp_path / case_id).glob("*.m")).read_text()
+                self.assertIn(f"action = '{action}';", script_text)
+                self.assertIn(call, script_text)
+
+    def test_matlab_dialog_capture_generates_pop_mergeset_script(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = pathlib.Path(tmpdir)
+            case = load_manifest()["pop_mergeset_dialog"]
+
+            def fake_run_subprocess(target_name, output_path, command, env, timeout_seconds):
+                output_path.write_bytes(base64.b64decode(ONE_PIXEL_PNG))
+                return CaptureResult(target_name, output_path, command, 0)
+
+            with (
+                mock.patch("tools.visual_parity.capture.shutil.which", return_value="/usr/common/bin/matlab"),
+                mock.patch("tools.visual_parity.capture._run_subprocess", side_effect=fake_run_subprocess),
+            ):
+                results = capture_case(case, "eeglab", output_dir=tmp_path)
+
+            self.assertTrue(results[0].ok)
+            script_text = next((tmp_path / "pop_mergeset_dialog").glob("*.m")).read_text()
+            self.assertIn("Merge datasets -- pop_mergeset()", script_text)
+            self.assertIn("Dataset indices to merge", script_text)
+
+    def test_matlab_dialog_capture_generates_select_multiple_dataset_script(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = pathlib.Path(tmpdir)
+            case = load_manifest()["select_multiple_datasets_dialog"]
+
+            def fake_run_subprocess(target_name, output_path, command, env, timeout_seconds):
+                output_path.write_bytes(base64.b64decode(ONE_PIXEL_PNG))
+                return CaptureResult(target_name, output_path, command, 0)
+
+            with (
+                mock.patch("tools.visual_parity.capture.shutil.which", return_value="/usr/common/bin/matlab"),
+                mock.patch("tools.visual_parity.capture._run_subprocess", side_effect=fake_run_subprocess),
+            ):
+                results = capture_case(case, "eeglab", output_dir=tmp_path)
+
+            self.assertTrue(results[0].ok)
+            script_text = next((tmp_path / "select_multiple_datasets_dialog").glob("*.m")).read_text()
+            self.assertIn("Dataset 1:menu one", script_text)
+            self.assertIn("'Tag', 'listboxvals'", script_text)
 
     def test_matlab_dialog_capture_generates_pophelp_script(self):
         with tempfile.TemporaryDirectory() as tmpdir:
