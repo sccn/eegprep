@@ -27,27 +27,14 @@ PLACEHOLDER_ACTION_METADATA: Mapping[str, PlaceholderMetadata] = {
     **_phase_entries(
         "3",
         (
-            "eeg_rejsuperpose",
-            "pop_autorej",
             "pop_dipfit_gridsearch",
             "pop_dipfit_headmodel",
             "pop_dipfit_loreta",
             "pop_dipfit_nonlinear",
             "pop_dipfit_settings",
             "pop_dipplot",
-            "pop_eegthresh",
-            "pop_jointprob",
             "pop_leadfield",
             "pop_multifit",
-            "pop_rejchan",
-            "pop_rejcont",
-            "pop_rejepoch",
-            "pop_rejkurt",
-            "pop_rejmenu",
-            "pop_rejspec",
-            "pop_rejtrend",
-            "pop_selectcomps",
-            "pop_viewprops",
         ),
     ),
     **_phase_entries(
@@ -67,6 +54,7 @@ PLACEHOLDER_ACTION_METADATA: Mapping[str, PlaceholderMetadata] = {
             "pop_signalstat",
             "pop_spectopo",
             "pop_timtopo",
+            "pop_viewprops:channels",
         ),
     ),
     **_phase_entries(
@@ -88,7 +76,7 @@ PLACEHOLDER_ACTIONS = frozenset(PLACEHOLDER_ACTION_METADATA)
 
 def placeholder_metadata(action: str) -> PlaceholderMetadata | None:
     """Return placeholder metadata for ``action`` when registered."""
-    return PLACEHOLDER_ACTION_METADATA.get(action.partition(":")[0])
+    return PLACEHOLDER_ACTION_METADATA.get(action) or PLACEHOLDER_ACTION_METADATA.get(action.partition(":")[0])
 
 
 def placeholder_inventory() -> Mapping[str, PlaceholderMetadata]:

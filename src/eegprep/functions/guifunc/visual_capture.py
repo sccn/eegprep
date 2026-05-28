@@ -15,28 +15,39 @@ from eegprep.functions.guifunc.main_window import build_main_window
 from eegprep.functions.guifunc.pophelp import pophelp
 from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.functions.popfunc.pop_adjustevents import pop_adjustevents_dialog_spec
+from eegprep.functions.popfunc.pop_autorej import pop_autorej_dialog_spec
 from eegprep.functions.popfunc.pop_chanedit import pop_chanedit_dialog_spec
 from eegprep.functions.popfunc.pop_chansel import pop_chansel_display_values
 from eegprep.functions.popfunc.pop_comments import pop_comments_dialog_spec
 from eegprep.functions.popfunc.pop_copyset import pop_copyset_dialog_spec
+from eegprep.functions.popfunc.pop_eegthresh import pop_eegthresh_dialog_spec
 from eegprep.functions.popfunc.pop_editset import pop_editset_dialog_spec
 from eegprep.functions.popfunc.pop_eegfilt import pop_eegfilt_dialog_spec
 from eegprep.functions.popfunc.pop_epoch import pop_epoch_dialog_spec
 from eegprep.functions.popfunc.pop_editeventfield import pop_editeventfield_dialog_spec
 from eegprep.functions.popfunc.pop_editeventvals import pop_editeventvals_dialog_spec
 from eegprep.functions.popfunc.pop_interp import pop_interp_dialog_spec
+from eegprep.functions.popfunc.pop_jointprob import pop_jointprob_dialog_spec
 from eegprep.functions.popfunc.pop_mergeset import pop_mergeset_dialog_spec
 from eegprep.functions.popfunc.pop_reref import pop_reref_dialog_spec
+from eegprep.functions.popfunc.pop_rejchan import pop_rejchan_dialog_spec
+from eegprep.functions.popfunc.pop_rejcont import pop_rejcont_dialog_spec
+from eegprep.functions.popfunc.pop_rejkurt import pop_rejkurt_dialog_spec
+from eegprep.functions.popfunc.pop_rejmenu import pop_rejmenu_dialog_spec
+from eegprep.functions.popfunc.pop_rejspec import pop_rejspec_dialog_spec
+from eegprep.functions.popfunc.pop_rejtrend import pop_rejtrend_dialog_spec
 from eegprep.functions.popfunc.pop_resample import pop_resample_dialog_spec
 from eegprep.functions.popfunc.pop_rmdat import pop_rmdat_dialog_spec
 from eegprep.functions.popfunc.pop_rmbase import pop_rmbase_dialog_spec
 from eegprep.functions.popfunc.pop_runica import pop_runica_dialog_spec
 from eegprep.functions.popfunc.pop_select import pop_select_dialog_spec
 from eegprep.functions.popfunc.pop_selectevent import pop_selectevent_dialog_spec
+from eegprep.functions.popfunc.pop_selectcomps import pop_selectcomps_dialog_spec
 from eegprep.functions.popfunc.pop_subcomp import pop_subcomp_dialog_spec
 from eegprep.functions.popfunc.pop_topoplot import pop_topoplot_dialog_spec
 from eegprep.plugins.ICLabel.pop_icflag import pop_icflag_dialog_spec
 from eegprep.plugins.ICLabel.pop_iclabel import pop_iclabel_dialog_spec
+from eegprep.plugins.ICLabel.pop_viewprops import pop_viewprops_dialog_spec
 from eegprep.plugins.clean_rawdata.pop_clean_rawdata import pop_clean_rawdata_dialog_spec
 from eegprep.plugins.firfilt.pop_eegfiltnew import pop_eegfiltnew_dialog_spec
 from eegprep.plugins.firfilt.pop_firma import pop_firma_dialog_spec
@@ -574,6 +585,55 @@ def capture_pop_subcomp_dialog(output: pathlib.Path) -> None:
     _grab_dialog(dialog, output, app)
 
 
+def _rejection_spec(case_id: str):
+    eeg = _demo_main_eeg(epoched=True, setname="reject demo")
+    eeg["reject"] = {
+        "gcompreject": np.array([0, 1, 0, 0]),
+        "rejthresh": np.array([0, 1], dtype=bool),
+        "rejthreshE": np.zeros((4, 2), dtype=bool),
+    }
+    continuous = _demo_main_eeg()
+    if case_id == "pop_eegthresh_dialog":
+        return pop_eegthresh_dialog_spec(eeg, 1)
+    if case_id == "pop_jointprob_dialog":
+        return pop_jointprob_dialog_spec(eeg, 1)
+    if case_id == "pop_rejkurt_dialog":
+        return pop_rejkurt_dialog_spec(eeg, 1)
+    if case_id == "pop_rejtrend_dialog":
+        return pop_rejtrend_dialog_spec(eeg, 1)
+    if case_id == "pop_rejspec_dialog":
+        return pop_rejspec_dialog_spec(eeg, 1)
+    if case_id == "pop_rejmenu_dialog":
+        return pop_rejmenu_dialog_spec(eeg, 1)
+    if case_id == "pop_autorej_dialog":
+        return pop_autorej_dialog_spec(eeg)
+    if case_id == "pop_selectcomps_dialog":
+        return pop_selectcomps_dialog_spec(eeg)
+    if case_id == "pop_viewprops_dialog":
+        eeg["etc"] = {
+            "ic_classification": {
+                "ICLabel": {
+                    "classifications": np.array([[0.7, 0.1, 0.1, 0.03, 0.02, 0.03, 0.02]] * 4),
+                    "classes": ["Brain", "Muscle", "Eye", "Heart", "Line Noise", "Channel Noise", "Other"],
+                }
+            }
+        }
+        return pop_viewprops_dialog_spec(eeg, 0)
+    if case_id == "pop_rejchan_dialog":
+        return pop_rejchan_dialog_spec(continuous)
+    if case_id == "pop_rejcont_dialog":
+        return pop_rejcont_dialog_spec(continuous)
+    raise ValueError(f"unsupported rejection visual case: {case_id}")
+
+
+def capture_rejection_dialog(output: pathlib.Path, *, case_id: str) -> None:
+    """Render and capture a rejection/component dialog."""
+    spec = _rejection_spec(case_id)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
 def capture_pop_clean_rawdata_dialog(output: pathlib.Path) -> None:
     """Render and capture the pop_clean_rawdata dialog."""
     eeg = _demo_main_eeg()
@@ -768,6 +828,20 @@ def main(argv: list[str] | None = None) -> int:
         capture_pop_icflag_dialog(args.output)
     elif args.case == "pop_subcomp_dialog":
         capture_pop_subcomp_dialog(args.output)
+    elif args.case in {
+        "pop_autorej_dialog",
+        "pop_eegthresh_dialog",
+        "pop_jointprob_dialog",
+        "pop_rejchan_dialog",
+        "pop_rejcont_dialog",
+        "pop_rejkurt_dialog",
+        "pop_rejmenu_dialog",
+        "pop_rejspec_dialog",
+        "pop_rejtrend_dialog",
+        "pop_selectcomps_dialog",
+        "pop_viewprops_dialog",
+    }:
+        capture_rejection_dialog(args.output, case_id=args.case)
     elif args.case == "pop_clean_rawdata_dialog":
         capture_pop_clean_rawdata_dialog(args.output)
     elif args.case == "pop_chansel_dialog":
