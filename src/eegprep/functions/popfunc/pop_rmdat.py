@@ -76,7 +76,7 @@ def pop_rmdat_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ),
             ControlSpec("text", "Time limits [start, end] in sec."),
             ControlSpec("edit", tag="timelims", value="-1 1"),
-            ControlSpec("popupmenu", "Keep selected|Remove selected", tag="mode", value=2),
+            ControlSpec("popupmenu", "Keep selected|Remove selected", tag="mode", value=1),
         ),
     )
 

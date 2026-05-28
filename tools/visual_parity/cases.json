@@ -232,7 +232,7 @@
     {
       "id": "pop_editeventfield_dialog",
       "description": "Event field editor dialog opened from pop_editeventfield.",
-      "window_size": [760, 360],
+      "window_size": [900, 360],
       "timeout_seconds": 120,
       "targets": {
         "eeglab": {
@@ -257,7 +257,7 @@
     {
       "id": "pop_editeventvals_dialog",
       "description": "Event values editor dialog opened from pop_editeventvals.",
-      "window_size": [560, 270],
+      "window_size": [680, 360],
       "timeout_seconds": 120,
       "targets": {
         "eeglab": {
@@ -282,7 +282,7 @@
     {
       "id": "pop_selectevent_dialog",
       "description": "Event selection dialog opened from pop_selectevent.",
-      "window_size": [760, 430],
+      "window_size": [960, 500],
       "timeout_seconds": 120,
       "targets": {
         "eeglab": {
@@ -332,7 +332,7 @@
     {
       "id": "pop_chanedit_dialog",
       "description": "Channel metadata editor dialog opened from pop_chanedit.",
-      "window_size": [680, 620],
+      "window_size": [900, 900],
       "timeout_seconds": 120,
       "targets": {
         "eeglab": {
@@ -357,7 +357,7 @@
     {
       "id": "pop_copyset_dialog",
       "description": "Dataset copy dialog opened from pop_copyset.",
-      "window_size": [385, 141],
+      "window_size": [385, 160],
       "timeout_seconds": 120,
       "targets": {
         "eeglab": {

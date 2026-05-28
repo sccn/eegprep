@@ -58,7 +58,7 @@ def pop_editeventvals_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
         controls.extend(
             [
                 ControlSpec("spacer"),
-                ControlSpec("text", label),
+                ControlSpec("pushbutton", label, enabled=False),
                 ControlSpec("edit", tag=f"field_{field}", value=_display_event_value(EEG, current, field)),
                 ControlSpec("spacer"),
             ]
@@ -80,14 +80,23 @@ def pop_editeventvals_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("pushbutton", ">", tag="next1", enabled=False),
             ControlSpec("pushbutton", ">>", tag="next10", enabled=False),
             ControlSpec("pushbutton", "Append event", tag="append_button", enabled=False),
+            ControlSpec("spacer"),
+            ControlSpec("text", "Original value below", tag="original"),
+            ControlSpec("spacer"),
         ]
     )
-    geometry.extend([(1,), (1.2, 0.6, 0.6, 1, 0.6, 0.6, 1.2)])
+    geometry.extend(
+        [
+            (1.2, 0.6, 0.6, 1, 0.6, 0.6, 1.2),
+            (1.2, 0.6, 0.6, 1, 0.6, 0.6, 1.2),
+            (2, 1, 2),
+        ]
+    )
     return DialogSpec(
         title="Edit event values -- pop_editeventvals()",
         function_name="pop_editeventvals",
         eeglab_source="functions/popfunc/pop_editeventvals.m",
-        size=(560, max(270, 130 + 34 * len(fields))),
+        size=(680, max(360, 170 + 34 * len(fields))),
         content_margins=(42, 26, 42, 30),
         row_spacing=7,
         help_text="pophelp('pop_editeventvals')",
@@ -199,10 +208,10 @@ def _display_event_value(EEG: dict[str, Any], event: dict[str, Any], field: str)
 
 def _display_field_label(EEG: dict[str, Any], field: str) -> str:
     if field == "latency":
-        return "latency (ms)" if int(EEG.get("trials", 1) or 1) > 1 else "latency (sec)"
+        return "Latency (ms)" if int(EEG.get("trials", 1) or 1) > 1 else "Latency (sec)"
     if field == "duration":
-        return "duration (ms)" if int(EEG.get("trials", 1) or 1) > 1 else "duration (sec)"
-    return field
+        return "Duration (ms)" if int(EEG.get("trials", 1) or 1) > 1 else "Duration (sec)"
+    return field.capitalize()
 
 
 def _ordered_options(args: tuple[Any, ...], kwargs: dict[str, Any]) -> list[tuple[str, Any]]:

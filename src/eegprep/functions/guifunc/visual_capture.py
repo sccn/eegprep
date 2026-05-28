@@ -357,7 +357,7 @@ def capture_pop_editeventvals_dialog(output: pathlib.Path) -> None:
 
 def capture_pop_selectevent_dialog(output: pathlib.Path) -> None:
     """Render and capture the pop_selectevent dialog."""
-    eeg = _demo_main_eeg(epoched=True, setname="event demo")
+    eeg = _demo_main_eeg(setname="event demo")
     spec = pop_selectevent_dialog_spec(eeg)
     renderer = QtDialogRenderer()
     app, dialog, _widgets = renderer.build_dialog(spec)
@@ -394,7 +394,7 @@ def capture_pop_mergeset_dialog(output: pathlib.Path) -> None:
     """Render and capture the pop_mergeset dialog."""
     eeg = _demo_main_eeg(setname="merge one")
     second = _demo_main_eeg(setname="merge two")
-    spec = pop_mergeset_dialog_spec([eeg, second])
+    spec = pop_mergeset_dialog_spec([eeg, second], default_indices=[1])
     renderer = QtDialogRenderer()
     app, dialog, _widgets = renderer.build_dialog(spec)
     _grab_dialog(dialog, output, app)

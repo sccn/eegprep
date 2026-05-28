@@ -58,9 +58,9 @@ def pop_copyset_dialog_spec(set_in: int) -> DialogSpec:
         title="Copy dataset -- pop_copyset()",
         function_name="pop_copyset",
         eeglab_source="functions/popfunc/pop_copyset.m",
-        size=(385, 141),
+        size=(385, 160),
         help_text="pophelp('pop_copyset')",
-        geometry=((1,),),
+        geometry=((1,), (1,)),
         controls=(
             ControlSpec("text", "Index of the new dataset:"),
             ControlSpec("edit", tag="set_out", value=str(set_in + 1)),

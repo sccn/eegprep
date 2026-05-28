@@ -57,37 +57,56 @@ def pop_editeventfield_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
     """Return the EEGLAB-like ``pop_editeventfield`` dialog spec."""
     fields = event_field_names(EEG.get("event"))
     field_choices = "|".join(["No field selected", *fields])
+    descriptions = _description_list(EEG.get("eventdescription"), fields)
+    controls: list[ControlSpec] = [
+        ControlSpec("text", "Event fields", font_weight="bold"),
+        ControlSpec("text", "Description", font_weight="bold"),
+        ControlSpec("text", f"File/array with {len(events_as_list(EEG.get('event')))} values", font_weight="bold"),
+        ControlSpec("spacer"),
+        ControlSpec("text", "Type", font_weight="bold"),
+        ControlSpec("text", "Delete", font_weight="bold"),
+    ]
+    geometry: list[tuple[float, ...]] = [(1, 1, 1.2, 0.05, 0.3, 0.42)]
+    for field in fields:
+        controls.extend(
+            [
+                ControlSpec("text", _display_field_label(field)),
+                ControlSpec("pushbutton", descriptions[fields.index(field)], enabled=False),
+                ControlSpec("edit", tag=f"value_{field}", value=""),
+                ControlSpec("pushbutton", "...", tag=f"browse_{field}", enabled=False),
+                ControlSpec("popupmenu", "Char|Num", tag=f"type_{field}", value=_field_type_index(EEG, field)),
+                ControlSpec("checkbox", tag=f"delete_{field}", value=False),
+            ]
+        )
+        geometry.append((1, 1, 1, 0.25, 0.6, 0.32))
+    controls.extend(
+        [
+            ControlSpec("edit", tag="newfield_name", value=""),
+            ControlSpec("pushbutton", "", tag="newfield_description", enabled=False),
+            ControlSpec("edit", tag="newfield_values", value=""),
+            ControlSpec("pushbutton", "...", tag="newfield_browse", enabled=False),
+            ControlSpec("popupmenu", "Char|Num", tag="newfield_type", value=1),
+            ControlSpec("spacer"),
+            ControlSpec("text", "Rename field", font_weight="bold"),
+            ControlSpec("popupmenu", field_choices, tag="rename_field", value=1),
+            ControlSpec("text", "as", font_weight="bold"),
+            ControlSpec("edit", tag="rename_as", value=""),
+            ControlSpec("spacer"),
+        ]
+    )
+    geometry.extend([(1, 1, 1, 0.25, 0.6, 0.32), (0.8, 1.4, 0.35, 1.2, 1)])
     return DialogSpec(
         title="Edit event field(s) -- pop_editeventfield()",
         function_name="pop_editeventfield",
         eeglab_source="functions/popfunc/pop_editeventfield.m",
-        size=(760, 360),
+        size=(900, max(360, 112 + 34 * (len(fields) + 2))),
         content_margins=(42, 26, 42, 30),
-        row_spacing=8,
+        row_spacing=6,
         help_text="pophelp('pop_editeventfield')",
-        geometry=((1, 1, 1), (1, 1, 1), (1, 1, 1), (1, 1, 1), (1, 1, 1), (1, 1, 1)),
-        controls=(
-            ControlSpec("text", "Event fields", font_weight="bold"),
-            ControlSpec("text", "File/array/value", font_weight="bold"),
-            ControlSpec("text", "Event indices ([]=all)", font_weight="bold"),
-            ControlSpec("edit", tag="field", value=""),
-            ControlSpec("edit", tag="values", value=""),
-            ControlSpec("edit", tag="indices", value=""),
-            ControlSpec("text", "Rename old->new"),
-            ControlSpec("edit", tag="rename", value=""),
-            ControlSpec("text", "Delete field"),
-            ControlSpec("popupmenu", field_choices, tag="deletefield", value=1),
-            ControlSpec("text", "Field description"),
-            ControlSpec("edit", tag="description", value=""),
-            ControlSpec("text", "Field type"),
-            ControlSpec("popupmenu", "Keep|Char|Num", tag="fieldtype", value=1),
-            ControlSpec("text", "Delete old events first"),
-            ControlSpec("checkbox", tag="delold", value=False),
-            ControlSpec("spacer"),
-            ControlSpec("spacer"),
-        ),
+        geometry=tuple(geometry),
+        controls=tuple(controls),
         known_differences=(
-            "EEGPrep presents a compact field editor; command-line behavior covers EEGLAB's add/delete/rename/type/info paths.",
+            "EEGPrep supports EEGLAB's visible field table; file-array picker buttons are visible but disabled.",
         ),
     )
 
@@ -97,29 +116,25 @@ def _run_gui(EEG: dict[str, Any], *, renderer: Any | None = None) -> list[tuple[
     if result is None:
         return None
     options: list[tuple[str, Any]] = []
-    indices = _parse_numeric_text(result.get("indices"))
-    if indices:
-        options.append(("indices", indices))
-    if result.get("delold"):
-        options.append(("delold", "yes"))
-    rename = str(result.get("rename") or "").strip()
-    if rename:
-        options.append(("rename", rename))
-    delete_index = int(result.get("deletefield") or 1)
     fields = event_field_names(EEG.get("event"))
-    if delete_index > 1 and delete_index - 2 < len(fields):
-        options.append((fields[delete_index - 2], []))
-    field = str(result.get("field") or "").strip()
-    if field:
-        options.append((field, _parse_value_text(result.get("values"))))
-        description = str(result.get("description") or "").strip()
-        if description:
-            options.append((f"{field}info", description))
-        fieldtype = int(result.get("fieldtype") or 1)
-        if fieldtype == 2:
-            options.append((f"{field}type", "Char"))
-        elif fieldtype == 3:
-            options.append((f"{field}type", "Num"))
+    for field in fields:
+        if result.get(f"delete_{field}"):
+            options.append((field, []))
+            continue
+        value_text = str(result.get(f"value_{field}") or "").strip()
+        if value_text:
+            options.append((field, _parse_value_text(value_text)))
+        field_type = int(result.get(f"type_{field}") or _field_type_index(EEG, field))
+        if field_type != _field_type_index(EEG, field):
+            options.append((f"{field}type", "Char" if field_type == 1 else "Num"))
+    new_field = str(result.get("newfield_name") or "").strip()
+    if new_field:
+        options.append((new_field, _parse_value_text(result.get("newfield_values"))))
+        options.append((f"{new_field}type", "Char" if int(result.get("newfield_type") or 1) == 1 else "Num"))
+    rename_index = int(result.get("rename_field") or 1)
+    rename_as = str(result.get("rename_as") or "").strip()
+    if rename_index > 1 and rename_as and rename_index - 2 < len(fields):
+        options.append(("rename", f"{fields[rename_index - 2]}->{rename_as}"))
     return options
 
 
@@ -315,11 +330,20 @@ def _parse_value_text(value: Any) -> Any:
     return _to_number(values[0]) if values else text
 
 
-def _parse_numeric_text(value: Any) -> list[int]:
-    text = str(value or "").strip()
-    if not text:
-        return []
-    return [int(float(token)) for token in text.strip("[]").replace(",", " ").split() if token]
+def _display_field_label(field: str) -> str:
+    if field == "latency":
+        return "latency(s)"
+    if field == "duration":
+        return "duration(s)"
+    return field
+
+
+def _field_type_index(EEG: dict[str, Any], field: str) -> int:
+    for event in events_as_list(EEG.get("event")):
+        value = event.get(field)
+        if not _is_empty(value):
+            return 1 if isinstance(value, str) else 2
+    return 1
 
 
 def _to_number(value: Any) -> Any:

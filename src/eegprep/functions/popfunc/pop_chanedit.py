@@ -58,52 +58,101 @@ def pop_chanedit_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
     """Return the EEGLAB-like ``pop_chanedit`` dialog spec."""
     chanlocs = chanlocs_as_list(EEG.get("chanlocs"))
     current = chanlocs[0] if chanlocs else {}
-    controls: list[ControlSpec] = [
-        ControlSpec("text", "Channel information ('field name')", font_weight="bold"),
-        ControlSpec("text", "Value", font_weight="bold"),
-        ControlSpec("text", ""),
+    field_rows = [
+        ('Channel label ("label")', "labels", "Opt. head center"),
+        ('Polar angle ("theta")', "theta", "Rotate axis"),
+        ('Polar radius ("radius")', "radius", "Transform axes"),
+        ('Cartesian X ("X")', "X", ""),
+        ('Cartesian Y ("Y")', "Y", "xyz -> polar & sph."),
+        ('Cartesian Z ("Z")', "Z", "sph. -> polar & xyz"),
+        ('Spherical horiz. angle ("sph_theta")', "sph_theta", "polar -> sph. & xyz"),
+        ('Spherical azimuth angle ("sph_phi")', "sph_phi", ""),
+        ('Spherical radius ("sph_radius")', "sph_radius", "Set head radius"),
+        ("Channel type", "type", "Set channel types"),
+        ("Reference", "ref", "Set reference"),
+        ('Index in backup "urchanlocs" structure', "urchan", ""),
+        ("Channel in data array (set=yes)", "datachan", ""),
     ]
-    geometry: list[tuple[float, ...]] = [(1.5, 1, 0.7)]
-    for field in _CHANNEL_FIELDS:
+    controls: list[ControlSpec] = [
+        ControlSpec('text', 'Channel information ("field_name"):', font_weight="bold"),
+        ControlSpec("spacer"),
+        ControlSpec("spacer"),
+        ControlSpec("spacer"),
+    ]
+    geometry: list[tuple[float, ...]] = [(1.5, 1, 0.2, 1)]
+    for label, field, button_label in field_rows:
+        value = current.get(field, "")
+        if field == "urchan":
+            value = current.get("urchan", "")
+        elif field == "datachan":
+            value = bool(current.get("datachan", True))
+        else:
+            value = _display_channel_value(current, field)
         controls.extend(
             [
-                ControlSpec("text", field),
-                ControlSpec("edit", tag=f"field_{field}", value=_display_value(current.get(field, ""))),
+                ControlSpec("text", label),
+                _channel_value_control(field, value),
                 ControlSpec("spacer"),
+                _channel_side_button(button_label),
             ]
         )
-        geometry.append((1.5, 1, 0.7))
+        geometry.append((1.5, 1, 0.2, 1))
     controls.extend(
         [
             ControlSpec("pushbutton", "Delete chan", tag="delete_button", enabled=False),
+            ControlSpec("text", f"Channel number (of {len(chanlocs)})"),
             ControlSpec("pushbutton", "Insert chan", tag="insert_button", enabled=False),
-            ControlSpec("pushbutton", "Append chan", tag="append_button", enabled=False),
             ControlSpec("pushbutton", "<<", tag="back10", enabled=False),
             ControlSpec("pushbutton", "<", tag="back1", enabled=False),
             ControlSpec("edit", tag="channel", value="1"),
             ControlSpec("pushbutton", ">", tag="next1", enabled=False),
             ControlSpec("pushbutton", ">>", tag="next10", enabled=False),
-            ControlSpec("pushbutton", "xyz -> polar & sph.", tag="cart2all", enabled=False),
-            ControlSpec("pushbutton", "sph. -> polar & xyz", tag="sph2all", enabled=False),
-            ControlSpec("pushbutton", "polar -> sph. & xyz", tag="topo2all", enabled=False),
+            ControlSpec("pushbutton", "Append chan", tag="append_button", enabled=False),
+            ControlSpec("pushbutton", "Plot 2-D", tag="plot2d", enabled=False),
+            ControlSpec("text", "Plot radius (0.2-1, []=auto)"),
+            ControlSpec("edit", tag="plotrad", value=_display_value(EEG.get("chaninfo", {}).get("plotrad", ""))),
+            ControlSpec(
+                "popupmenu",
+                "Nose along +X|Nose along -X|Nose along +Y|Nose along -Y",
+                tag="nosedir",
+                value=_nosedir_index(EEG.get("chaninfo", {}).get("nosedir", "+X")),
+            ),
+            ControlSpec("pushbutton", "Plot 3-D (xyz)", tag="plot3d", enabled=False),
+            ControlSpec("spacer"),
             ControlSpec("pushbutton", "Read locations", tag="load", enabled=False),
+            ControlSpec("pushbutton", "Read locs help", tag="readhelp", enabled=False),
+            ControlSpec("pushbutton", "Look up locs", tag="lookup", enabled=False),
             ControlSpec("pushbutton", "Save (as .ced)", tag="save", enabled=False),
             ControlSpec("pushbutton", "Save (other types)", tag="saveothers", enabled=False),
+            ControlSpec("spacer"),
+            ControlSpec("spacer"),
+            ControlSpec("checkbox", "Overwrite Original Channels", tag="rplurchan", value=False),
+            ControlSpec("spacer"),
+            ControlSpec("spacer"),
         ]
     )
-    geometry.extend([(1, 1, 1), (0.5, 0.4, 0.5, 0.4, 0.5), (1, 1, 1), (1, 1, 1)])
+    geometry.extend(
+        [
+            (1.15, 0.7, 0.7, 0.4, 0.4, 1, 0.4, 0.4, 1.15),
+            (0.9, 1.3, 0.6, 1.1, 0.9),
+            (1,),
+            (1, 1, 1, 1, 1),
+            (0.5, 0.5, 1, 0.5, 0.5),
+        ]
+    )
     return DialogSpec(
         title="Edit channel info -- pop_chanedit()",
         function_name="pop_chanedit",
         eeglab_source="functions/popfunc/pop_chanedit.m",
-        size=(680, 620),
+        size=(900, 900),
         content_margins=(42, 26, 42, 30),
         row_spacing=5,
         help_text="pophelp('pop_chanedit')",
         geometry=tuple(geometry),
         controls=tuple(controls),
+        geomvert=tuple(1 for _row in geometry),
         known_differences=(
-            "EEGPrep supports command-line channel edits and one-channel GUI edits; navigation and file buttons are visible but disabled.",
+            "EEGPrep supports command-line channel edits and one-channel GUI edits; navigation, plotting, and file buttons are visible but disabled.",
         ),
     )
 
@@ -118,9 +167,42 @@ def _run_gui(EEG: dict[str, Any], *, renderer: Any | None = None) -> dict[str, A
     options: dict[str, Any] = {}
     for field in _CHANNEL_FIELDS:
         text = str(result.get(f"field_{field}") or "").strip()
-        if text != _display_value(current.get(field, "")).strip():
+        if text != _display_channel_value(current, field).strip():
             options.setdefault("changefield", []).append([channel, field, _parse_field_value(text)])
+    if options and result.get("rplurchan"):
+        options["rplurchanloc"] = "on"
     return options
+
+
+def _channel_value_control(field: str, value: Any) -> ControlSpec:
+    if field == "datachan":
+        return ControlSpec("checkbox", tag="field_datachan", value=bool(value), enabled=False)
+    if field == "urchan":
+        return ControlSpec("text", _display_value(value), tag="field_urchan")
+    return ControlSpec("edit", tag=f"field_{field}", value=_display_value(value))
+
+
+def _display_channel_value(chan: dict[str, Any], field: str) -> str:
+    if field not in {"theta", "radius", "sph_theta", "sph_phi", "sph_radius"}:
+        return _display_value(chan.get(field, ""))
+    converted = dict(chan)
+    if all(not _is_blank(converted.get(item)) for item in ("X", "Y", "Z")):
+        _cart_to_all(converted)
+    return _display_value(converted.get(field, chan.get(field, "")))
+
+
+def _channel_side_button(label: str) -> ControlSpec:
+    if not label:
+        return ControlSpec("spacer")
+    return ControlSpec("pushbutton", label, tag=f"button_{label.lower().replace(' ', '_')}", enabled=False)
+
+
+def _nosedir_index(value: Any) -> int:
+    choices = ["+X", "-X", "+Y", "-Y"]
+    try:
+        return choices.index(str(value)) + 1
+    except ValueError:
+        return 1
 
 
 def _apply_chanedit(
@@ -351,13 +433,19 @@ def _parse_field_value(value: str) -> Any:
 
 
 def _display_value(value: Any) -> str:
-    if value is None:
+    if _is_blank(value):
         return ""
-    if isinstance(value, (list, tuple, dict, str)) and len(value) == 0:
-        return ""
-    if isinstance(value, np.ndarray) and value.size == 0:
-        return ""
+    if isinstance(value, (int, float, np.integer, np.floating)):
+        return f"{float(value):.5g}"
     return str(value)
+
+
+def _is_blank(value: Any) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, (list, tuple, dict, str)) and len(value) == 0:
+        return True
+    return isinstance(value, np.ndarray) and value.size == 0
 
 
 def _is_eeg_dataset(value: Any) -> bool:

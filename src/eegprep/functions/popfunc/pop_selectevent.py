@@ -59,25 +59,31 @@ def pop_selectevent_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
     event_types = tuple(sorted({str(event.get("type")) for event in events if event.get("type") not in {None, ""}}))
     controls: list[ControlSpec] = [
         ControlSpec("text", "Field", font_weight="bold"),
+        ControlSpec("spacer"),
         ControlSpec("text", "Selection", font_weight="bold"),
         ControlSpec("text", "Set=NOT THESE", font_weight="bold"),
     ]
-    geometry: list[tuple[float, ...]] = [(0.6, 2.1, 0.8)]
+    geometry: list[tuple[float, ...]] = [(0.6, 0.8, 2.1, 0.8)]
     for field in fields:
+        description = _field_description(EEG, fields, field)
         if field in {"latency", "duration"}:
             controls.extend(
                 [
                     ControlSpec("text", _display_field_label(EEG, field)),
+                    ControlSpec("pushbutton", description, enabled=False),
+                    ControlSpec("text", "min"),
                     ControlSpec("edit", tag=f"min_{field}", value=""),
+                    ControlSpec("text", "max"),
                     ControlSpec("edit", tag=f"max_{field}", value=""),
                     ControlSpec("checkbox", tag=f"not_{field}", value=False),
                 ]
             )
-            geometry.append((0.55, 0.55, 0.55, 0.22))
+            geometry.append((0.55, 0.65, 0.3, 0.35, 0.3, 0.35, 0.22))
         elif field == "type":
             controls.extend(
                 [
                     ControlSpec("text", "type"),
+                    ControlSpec("pushbutton", description, enabled=False),
                     ControlSpec("edit", tag="type", value=""),
                     ControlSpec(
                         "pushbutton",
@@ -88,30 +94,40 @@ def pop_selectevent_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
                             params={"button": "type_button", "target": "type", "event_types": event_types},
                         ),
                     ),
+                    ControlSpec("spacer"),
+                    ControlSpec("spacer"),
                     ControlSpec("checkbox", tag="not_type", value=False),
                 ]
             )
-            geometry.append((0.55, 1.1, 0.3, 0.22))
+            geometry.append((0.55, 0.65, 0.95, 0.35, 0.1, 0.1, 0.22))
         else:
             controls.extend(
                 [
                     ControlSpec("text", field),
+                    ControlSpec("pushbutton", description, enabled=False),
                     ControlSpec("edit", tag=field, value=""),
+                    ControlSpec("spacer"),
+                    ControlSpec("spacer"),
                     ControlSpec("spacer"),
                     ControlSpec("checkbox", tag=f"not_{field}", value=False),
                 ]
             )
-            geometry.append((0.55, 1.3, 0.1, 0.22))
+            geometry.append((0.55, 0.65, 1.3, 0.1, 0.1, 0.1, 0.22))
     controls.extend(
         [
             ControlSpec("text", "Event indices"),
+            ControlSpec("spacer"),
             ControlSpec("edit", tag="indices", value=""),
             ControlSpec("spacer"),
             ControlSpec("checkbox", tag="not_indices", value=False),
-            ControlSpec("spacer"),
             ControlSpec("text", "Event selection", font_weight="bold"),
             ControlSpec("spacer"),
-            ControlSpec("checkbox", "Select all events NOT selected above", tag="invertevent", value=False),
+            ControlSpec(
+                "checkbox",
+                'Select all events NOT selected above (Set this button and "all BUT" buttons (above) for logical OR)',
+                tag="invertevent",
+                value=False,
+            ),
             ControlSpec("spacer"),
             ControlSpec(
                 "checkbox",
@@ -125,15 +141,28 @@ def pop_selectevent_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("edit", tag="oldtypefield", value=""),
         ]
     )
-    geometry.extend([(0.55, 1.3, 0.1, 0.22), (1,), (0.1, 2, 0.5, 0.5), (0.1, 2, 0.5, 0.5), (1, 1)])
+    geometry.extend(
+        [
+            (0.55, 0.65, 1.3, 0.1, 0.22),
+            (1,),
+            (0.1, 3.2, 0.5),
+            (1,),
+            (1.6, 1),
+            (1.6, 1),
+        ]
+    )
     if int(EEG.get("trials", 1) or 1) > 1:
         controls.extend(
             [
                 ControlSpec("text", "Epoch selection", font_weight="bold"),
+                ControlSpec("spacer"),
                 ControlSpec(
                     "checkbox", "Remove epochs not referenced by any selected event", tag="deleteepochs", value=True
                 ),
+                ControlSpec("spacer"),
+                ControlSpec("spacer"),
                 ControlSpec("checkbox", "Invert epoch selection", tag="invertepochs", value=False),
+                ControlSpec("spacer"),
             ]
         )
         geometry.extend([(1,), (0.1, 2, 0.5), (0.1, 2, 0.5)])
@@ -141,7 +170,7 @@ def pop_selectevent_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
         title="Select events -- pop_selectevent()",
         function_name="pop_selectevent",
         eeglab_source="functions/popfunc/pop_selectevent.m",
-        size=(760, max(430, 180 + 34 * len(fields))),
+        size=(960, max(500, 210 + 34 * len(fields))),
         content_margins=(42, 26, 42, 30),
         row_spacing=6,
         help_text="pophelp('pop_selectevent')",
@@ -305,6 +334,20 @@ def _display_field_label(EEG: dict[str, Any], field: str) -> str:
     if field == "duration":
         return "duration (ms)" if int(EEG.get("trials", 1) or 1) > 1 else "duration (s)"
     return field
+
+
+def _field_description(EEG: dict[str, Any], fields: list[str], field: str) -> str:
+    descriptions = EEG.get("eventdescription")
+    if isinstance(descriptions, dict):
+        text = descriptions.get(field, "")
+        return str(text) if text else "No description"
+    if isinstance(descriptions, np.ndarray):
+        descriptions = descriptions.tolist()
+    if isinstance(descriptions, list) and field in fields:
+        index = fields.index(field)
+        if index < len(descriptions) and descriptions[index]:
+            return str(descriptions[index])
+    return "No description"
 
 
 def _parse_field_text(text: str) -> Any:
