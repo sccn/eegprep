@@ -20,6 +20,7 @@ from eegprep.functions.popfunc.pop_chansel import pop_chansel_display_values
 from eegprep.functions.popfunc.pop_comments import pop_comments_dialog_spec
 from eegprep.functions.popfunc.pop_copyset import pop_copyset_dialog_spec
 from eegprep.functions.popfunc.pop_editset import pop_editset_dialog_spec
+from eegprep.functions.popfunc.pop_eegfilt import pop_eegfilt_dialog_spec
 from eegprep.functions.popfunc.pop_epoch import pop_epoch_dialog_spec
 from eegprep.functions.popfunc.pop_editeventfield import pop_editeventfield_dialog_spec
 from eegprep.functions.popfunc.pop_editeventvals import pop_editeventvals_dialog_spec
@@ -37,6 +38,10 @@ from eegprep.functions.popfunc.pop_topoplot import pop_topoplot_dialog_spec
 from eegprep.plugins.ICLabel.pop_icflag import pop_icflag_dialog_spec
 from eegprep.plugins.ICLabel.pop_iclabel import pop_iclabel_dialog_spec
 from eegprep.plugins.clean_rawdata.pop_clean_rawdata import pop_clean_rawdata_dialog_spec
+from eegprep.plugins.firfilt.pop_eegfiltnew import pop_eegfiltnew_dialog_spec
+from eegprep.plugins.firfilt.pop_firma import pop_firma_dialog_spec
+from eegprep.plugins.firfilt.pop_firpm import pop_firpm_dialog_spec
+from eegprep.plugins.firfilt.pop_firws import pop_firws_dialog_spec
 
 
 def _demo_eeg() -> dict:
@@ -460,6 +465,51 @@ def capture_pop_rmbase_dialog(output: pathlib.Path) -> None:
     _grab_dialog(dialog, output, app)
 
 
+def capture_pop_eegfilt_dialog(output: pathlib.Path) -> None:
+    """Render and capture the legacy pop_eegfilt dialog."""
+    eeg = _demo_main_eeg()
+    spec = pop_eegfilt_dialog_spec(eeg)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_eegfiltnew_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_eegfiltnew dialog."""
+    eeg = _demo_main_eeg()
+    spec = pop_eegfiltnew_dialog_spec(eeg)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_firws_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_firws dialog."""
+    eeg = _demo_main_eeg()
+    spec = pop_firws_dialog_spec(eeg)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_firpm_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_firpm dialog."""
+    eeg = _demo_main_eeg()
+    spec = pop_firpm_dialog_spec(eeg)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_firma_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_firma dialog."""
+    eeg = _demo_main_eeg()
+    spec = pop_firma_dialog_spec(eeg)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
 def capture_pop_epoch_dialog(output: pathlib.Path) -> None:
     """Render and capture the pop_epoch dialog."""
     eeg = _demo_main_eeg(setname="pop demo")
@@ -692,6 +742,16 @@ def main(argv: list[str] | None = None) -> int:
         capture_pop_resample_dialog(args.output)
     elif args.case == "pop_rmbase_dialog":
         capture_pop_rmbase_dialog(args.output)
+    elif args.case == "pop_eegfilt_dialog":
+        capture_pop_eegfilt_dialog(args.output)
+    elif args.case == "pop_eegfiltnew_dialog":
+        capture_pop_eegfiltnew_dialog(args.output)
+    elif args.case == "pop_firws_dialog":
+        capture_pop_firws_dialog(args.output)
+    elif args.case == "pop_firpm_dialog":
+        capture_pop_firpm_dialog(args.output)
+    elif args.case == "pop_firma_dialog":
+        capture_pop_firma_dialog(args.output)
     elif args.case == "pop_epoch_dialog":
         capture_pop_epoch_dialog(args.output)
     elif args.case == "pop_topoplot_erp_dialog":

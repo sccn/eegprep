@@ -655,6 +655,131 @@
       }
     },
     {
+      "id": "pop_eegfilt_dialog",
+      "description": "Legacy FIR filtering dialog opened from pop_eegfilt.",
+      "window_size": [943, 660],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_eegfilt"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_eegfilt_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_eegfiltnew_dialog",
+      "description": "Default firfilt dialog opened from pop_eegfiltnew.",
+      "window_size": [981, 766],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_eegfiltnew"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_eegfiltnew_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_firws_dialog",
+      "description": "Windowed-sinc FIR dialog opened from pop_firws.",
+      "window_size": [2092, 714],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_firws"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_firws_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_firpm_dialog",
+      "description": "Parks-McClellan FIR dialog opened from pop_firpm.",
+      "window_size": [1443, 660],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_firpm"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_firpm_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_firma_dialog",
+      "description": "Moving-average FIR dialog opened from pop_firma.",
+      "window_size": [1293, 346],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_firma"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_firma_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
       "id": "pop_topoplot_erp_dialog",
       "description": "ERP scalp-map dialog opened from pop_topoplot.",
       "window_size": [650, 383],
