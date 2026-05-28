@@ -610,6 +610,14 @@ def _rejection_spec(case_id: str):
     if case_id == "pop_selectcomps_dialog":
         return pop_selectcomps_dialog_spec(eeg)
     if case_id == "pop_viewprops_dialog":
+        eeg["etc"] = {
+            "ic_classification": {
+                "ICLabel": {
+                    "classifications": np.array([[0.7, 0.1, 0.1, 0.03, 0.02, 0.03, 0.02]] * 4),
+                    "classes": ["Brain", "Muscle", "Eye", "Heart", "Line Noise", "Channel Noise", "Other"],
+                }
+            }
+        }
         return pop_viewprops_dialog_spec(eeg, 0)
     if case_id == "pop_rejchan_dialog":
         return pop_rejchan_dialog_spec(continuous)

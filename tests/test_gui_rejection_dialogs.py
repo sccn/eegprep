@@ -9,15 +9,15 @@ from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.functions.guifunc.spec import controls_by_tag
 from eegprep.functions.popfunc.pop_autorej import pop_autorej_dialog_spec
 from eegprep.functions.popfunc.pop_eegthresh import pop_eegthresh, pop_eegthresh_dialog_spec
-from eegprep.functions.popfunc.pop_jointprob import pop_jointprob_dialog_spec
+from eegprep.functions.popfunc.pop_jointprob import pop_jointprob, pop_jointprob_dialog_spec
 from eegprep.functions.popfunc.pop_rejchan import pop_rejchan_dialog_spec
 from eegprep.functions.popfunc.pop_rejcont import pop_rejcont_dialog_spec
-from eegprep.functions.popfunc.pop_rejkurt import pop_rejkurt_dialog_spec
+from eegprep.functions.popfunc.pop_rejkurt import pop_rejkurt, pop_rejkurt_dialog_spec
 from eegprep.functions.popfunc.pop_rejmenu import pop_rejmenu_dialog_spec
 from eegprep.functions.popfunc.pop_rejspec import pop_rejspec_dialog_spec
 from eegprep.functions.popfunc.pop_rejtrend import pop_rejtrend_dialog_spec
 from eegprep.functions.popfunc.pop_selectcomps import pop_selectcomps_dialog_spec
-from eegprep.plugins.ICLabel.pop_viewprops import pop_viewprops_dialog_spec
+from eegprep.plugins.ICLabel.pop_viewprops import pop_viewprops, pop_viewprops_dialog_spec
 from tests.fixtures import create_test_eeg
 
 
@@ -59,7 +59,27 @@ class RejectionDialogTests(unittest.TestCase):
             self.assertIsNotNone(spec.size)
 
         self.assertEqual(controls_by_tag(specs[0])["elecrange"].value, "1:3")
-        self.assertFalse(controls_by_tag(specs[10])["scroll_event"].enabled)
+        self.assertEqual(controls_by_tag(specs[1])["vistype"].value, 2)
+        self.assertTrue(controls_by_tag(specs[1])["superpose"].value)
+        self.assertEqual(controls_by_tag(specs[2])["vistype"].value, 2)
+        self.assertTrue(controls_by_tag(specs[2])["superpose"].value)
+        self.assertTrue(controls_by_tag(specs[10])["scroll_event"].enabled)
+
+    def test_viewprops_component_dialog_includes_classifier_dropdown(self):
+        eeg = _epoched_ica_eeg()
+        eeg["etc"] = {"ic_classification": {"Other": {}, "ICLabel": {}}}
+        controls = controls_by_tag(pop_viewprops_dialog_spec(eeg, 0))
+
+        self.assertEqual(controls["classifier_name"].string, "Other|ICLabel")
+        self.assertEqual(controls["classifier_name"].value, 2)
+
+    def test_component_probability_dialog_defaults_match_eeglab(self):
+        eeg = _epoched_ica_eeg()
+
+        self.assertEqual(controls_by_tag(pop_jointprob_dialog_spec(eeg, 0))["locthresh"].value, "5")
+        self.assertEqual(controls_by_tag(pop_jointprob_dialog_spec(eeg, 0))["globthresh"].value, "5")
+        self.assertEqual(controls_by_tag(pop_rejkurt_dialog_spec(eeg, 0))["locthresh"].value, "5")
+        self.assertEqual(controls_by_tag(pop_rejkurt_dialog_spec(eeg, 0))["globthresh"].value, "5")
 
     def test_rejection_menu_actions_are_implemented_or_browser_excluded(self):
         implemented = [
@@ -103,6 +123,54 @@ class RejectionDialogTests(unittest.TestCase):
             _console_python_command(com),
             "EEG = pop_eegthresh(EEG, icacomp=1, elecrange=[1], negthresh=[-5], "
             "posthresh=[5], starttime=[0], endtime=[0.39], superpose=0, reject=0)",
+        )
+
+    def test_probability_dialog_commands_include_visualization_mode(self):
+        class Renderer:
+            def run(self, spec, initial_values=None):
+                return {
+                    "elecrange": "1",
+                    "locthresh": "4",
+                    "globthresh": "6",
+                    "vistype": 2,
+                    "superpose": True,
+                    "reject": False,
+                }
+
+        eeg = _epoched_ica_eeg()
+        _joint_out, joint_com = pop_jointprob(eeg, gui=True, renderer=Renderer(), return_com=True)
+        _kurt_out, kurt_com = pop_rejkurt(eeg, gui=True, renderer=Renderer(), return_com=True)
+
+        self.assertEqual(
+            _console_python_command(joint_com),
+            "EEG = pop_jointprob(EEG, icacomp=1, elecrange=[1], locthresh=[4], "
+            "globthresh=[6], superpose=1, reject=0, vistype=1, topcommand=[], plotflag=0)",
+        )
+        self.assertEqual(
+            _console_python_command(kurt_com),
+            "EEG = pop_rejkurt(EEG, icacomp=1, elecrange=[1], locthresh=[4], "
+            "globthresh=[6], superpose=1, reject=0, vistype=1, topcommand=[], plotflag=0)",
+        )
+
+    def test_viewprops_gui_records_options_and_classifier(self):
+        class Renderer:
+            def run(self, spec, initial_values=None):
+                return {
+                    "chanorcomp": "1",
+                    "spec_opt": "'freqrange', [2 40]",
+                    "erp_opt": "'limits', [-100 500]",
+                    "scroll_event": False,
+                    "classifier_name": 2,
+                }
+
+        eeg = _epoched_ica_eeg()
+        eeg["etc"] = {"ic_classification": {"Other": {}, "ICLabel": {}}}
+        _figures, com = pop_viewprops(eeg, 0, gui=True, renderer=Renderer(), plot=False, return_com=True)
+
+        self.assertEqual(
+            _console_python_command(com),
+            "pop_viewprops(EEG, typecomp=0, chanorcomp=[1], spec_opt=\"'freqrange', [2 40]\", "
+            "erp_opt=\"'limits', [-100 500]\", scroll_event=0, classifier_name='ICLabel')",
         )
 
     def test_viewprops_dispatch_records_history_without_replacing_dataset(self):

@@ -75,13 +75,21 @@ def pop_rejmenu_dialog_spec(EEG: dict[str, Any], icacomp: int | bool = 1) -> Dia
             ControlSpec("spacer"),
         )
 
-    def threshold_rows(prefix_text: str, edit_prefix: str, count_tag: str, count_value: Any) -> None:
-        section(prefix_text, f"but{edit_prefix}")
+    def threshold_rows(
+        prefix_text: str,
+        edit_prefix: str,
+        count_tag: str,
+        count_value: Any,
+        swatch_tag: str | None = None,
+        unit_label: str | None = None,
+    ) -> None:
+        display_unit = unit_label or unit
+        section(prefix_text, swatch_tag or f"but{edit_prefix}")
         add_row(
             (1.2, 0.75, 1.2, 0.75),
-            ControlSpec("text", f"Upper limit(s) ({unit})"),
+            ControlSpec("text", f"Upper limit(s) ({display_unit})"),
             ControlSpec("edit", tag=f"{edit_prefix}pos", value="25"),
-            ControlSpec("text", f"Lower limit(s) ({unit})"),
+            ControlSpec("text", f"Lower limit(s) ({display_unit})"),
             ControlSpec("edit", tag=f"{edit_prefix}neg", value="-25"),
         )
         add_row(
@@ -188,7 +196,14 @@ def pop_rejmenu_dialog_spec(EEG: dict[str, Any], icacomp: int | bool = 1) -> Dia
         )
         spacer_row()
 
-    threshold_rows("Find abnormal spectra (slow)", "freq", "freqtrial", reject.get(prefix + "rejfreq"))
+    threshold_rows(
+        "Find abnormal spectra (slow)",
+        "freq",
+        "freqtrial",
+        reject.get(prefix + "rejfreq"),
+        "butspec",
+        "dB",
+    )
     add_row((1,), ControlSpec("text", "Plotting options", font_weight="bold"))
     add_row(
         (1,),
@@ -222,21 +237,21 @@ def pop_rejmenu_dialog_spec(EEG: dict[str, Any], icacomp: int | bool = 1) -> Dia
         function_name="pop_rejmenu",
         eeglab_source="functions/adminfunc/pop_rejmenu.m",
         help_text="pophelp('pop_rejmenu')",
-        size=(1000, 790),
+        size=(1000, 1160),
         geometry=tuple(geometry),
         controls=tuple(controls),
         ok_label="Close (keep marks)",
         cancel_label="Cancel",
         button_size=(168, 22),
-        content_margins=(32, 18, 32, 13),
-        row_spacing=3,
+        content_margins=(32, 30, 32, 24),
+        row_spacing=12,
         extra_stylesheet="""
             QPushButton#butmanual { background: #ff9999; max-width: 30px; padding: 0; }
             QPushButton#butthresh { background: #ff6666; max-width: 30px; padding: 0; }
             QPushButton#buttrend { background: #ffcc66; max-width: 30px; padding: 0; }
             QPushButton#butjp { background: #99ccff; max-width: 30px; padding: 0; }
             QPushButton#butkurt { background: #99ff99; max-width: 30px; padding: 0; }
-            QPushButton#butfreq { background: #cc99ff; max-width: 30px; padding: 0; }
+            QPushButton#butspec { background: #cc99ff; max-width: 30px; padding: 0; }
             QDialog#pop_rejmenu QPushButton:disabled {
                 color: #777777;
             }

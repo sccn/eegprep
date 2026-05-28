@@ -42,7 +42,11 @@ def pop_viewprops(
         if result is None:
             return ([], "") if return_com else []
         chanorcomp = result.get("chanorcomp", "")
+        spec_opt = result.get("spec_opt", "")
+        erp_opt = result.get("erp_opt", "")
         scroll_event = int(bool(result.get("scroll_event", True)))
+        if not int(bool(typecomp)):
+            classifier_name = _classifier_name_from_gui(EEG, result.get("classifier_name", classifier_name))
     limit = int(EEG.get("nbchan", 0) or 0) if int(bool(typecomp)) else _component_count(EEG)
     indices = one_based_indices(chanorcomp, limit=limit, default_all=True)
     figures = []
@@ -58,22 +62,39 @@ def pop_viewprops_dialog_spec(EEG: dict[str, Any], typecomp: int | bool = 1) -> 
     limit = int(EEG.get("nbchan", 0) or 0) if is_channel else _component_count(EEG)
     label = "Channel indices to plot:" if is_channel else "Component indices to plot:"
     title = "View many chan or comp. properties -- pop_viewprops"
+    geometry = [(1.3, 1), (1.3, 1), (1.3, 1), (1,)]
+    controls = [
+        ControlSpec("text", label),
+        ControlSpec("edit", tag="chanorcomp", value=f"1:{limit}"),
+        ControlSpec("text", "Spectral options (see spectopo() help):"),
+        ControlSpec("edit", tag="spec_opt", value=f"'freqrange', [2 {min(80, float(EEG.get('srate', 1)) / 2):g}]"),
+        ControlSpec("text", "Erpimage options (see erpimage() help):"),
+        ControlSpec("edit", tag="erp_opt", value=""),
+        ControlSpec(
+            "checkbox",
+            f"Draw events over scrolling {'channel' if is_channel else 'component'} activity",
+            tag="scroll_event",
+            value=True,
+        ),
+    ]
+    classifiers = _classifier_names(EEG) if not is_channel else []
+    if classifiers:
+        geometry.append((1,))
+        controls.append(
+            ControlSpec(
+                "popupmenu",
+                "|".join(classifiers),
+                tag="classifier_name",
+                value=_classifier_default_index(classifiers),
+            )
+        )
     return DialogSpec(
         title=title,
         function_name="pop_viewprops",
         eeglab_source="plugins/ICLabel/viewprops/pop_viewprops.m",
-        size=(600, 288),
-        geometry=((1.3, 1), (1.3, 1), (1.3, 1), (1.3, 0.3)),
-        controls=(
-            ControlSpec("text", label),
-            ControlSpec("edit", tag="chanorcomp", value=f"1:{limit}"),
-            ControlSpec("text", "Spectral options (see spectopo() help):"),
-            ControlSpec("edit", tag="spec_opt", value=f"'freqrange', [2 {min(80, float(EEG.get('srate', 1)) / 2):g}]"),
-            ControlSpec("text", "Erpimage options (see erpimage() help):"),
-            ControlSpec("edit", tag="erp_opt", value=""),
-            ControlSpec("text", f"Draw events over scrolling {'channel' if is_channel else 'component'} activity"),
-            ControlSpec("checkbox", tag="scroll_event", value=True, enabled=False),
-        ),
+        size=(600, 318 if classifiers else 288),
+        geometry=tuple(geometry),
+        controls=tuple(controls),
         known_differences=(
             "EEGPrep omits EEGBrowser/eegplot scrolling activity from the property overview.",
             "Extended channel-property panels are scheduled for Phase 4 plotting work; "
@@ -128,6 +149,38 @@ def _component_count(EEG: dict[str, Any]) -> int:
     if winv.ndim == 2 and winv.size:
         return int(winv.shape[1])
     return 0
+
+
+def _classifier_names(EEG: dict[str, Any]) -> list[str]:
+    etc = EEG.get("etc") or {}
+    if not isinstance(etc, dict):
+        return []
+    classifications = etc.get("ic_classification") or {}
+    if isinstance(classifications, dict):
+        return [str(name) for name in classifications if str(name)]
+    return []
+
+
+def _classifier_default_index(classifiers: list[str]) -> int:
+    for index, name in enumerate(classifiers, start=1):
+        if name.lower() == "iclabel":
+            return index
+    return 1
+
+
+def _classifier_name_from_gui(EEG: dict[str, Any], value: Any) -> str:
+    classifiers = _classifier_names(EEG)
+    if not classifiers:
+        return ""
+    if isinstance(value, str):
+        return value if value in classifiers else classifiers[_classifier_default_index(classifiers) - 1]
+    try:
+        index = int(value) - 1
+    except (TypeError, ValueError):
+        index = _classifier_default_index(classifiers) - 1
+    if 0 <= index < len(classifiers):
+        return classifiers[index]
+    return classifiers[_classifier_default_index(classifiers) - 1]
 
 
 def _channel_labels(EEG: dict[str, Any]) -> list[str]:

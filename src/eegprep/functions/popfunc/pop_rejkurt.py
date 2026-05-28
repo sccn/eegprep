@@ -68,29 +68,47 @@ def pop_rejkurt_dialog_spec(EEG: dict[str, Any], icacomp: int | bool = 1) -> Dia
     """Return the EEGLAB-like dialog spec for ``pop_rejkurt``."""
     is_data = int(bool(icacomp))
     rows = int(EEG.get("nbchan", 0) or 0) if is_data else int(np.asarray(EEG.get("icaweights", [])).shape[0])
-    title = "Data kurtosis rejection -- pop_rejkurt()" if is_data else "Component kurtosis rejection -- pop_rejkurt()"
+    title = (
+        "Trial rejection using data kurtosis -- pop_rejkurt()"
+        if is_data
+        else "Trial rejection using comp. kurtosis -- pop_rejkurt()"
+    )
     row_label = "Electrode (indices; Ex: 2 6:8 10):" if is_data else "Component (indices; Ex: 2 6:8 10):"
+    local_label = (
+        "Single-channel limit(s) (std. dev(s): Ex: 2 2 2 2.5):"
+        if is_data
+        else "Single-component limit(s) (std. dev(s): Ex: 2 2 2 2.5):"
+    )
+    global_label = (
+        "All-channel limit(s) (std. dev(s): Ex: 2.1 2 2 2):"
+        if is_data
+        else "All-component limit(s) (std. dev(s): Ex: 2.1 2 2 2):"
+    )
+    threshold_default = "3" if is_data else "5"
     return DialogSpec(
         title=title,
         function_name="pop_rejkurt",
         eeglab_source="functions/popfunc/pop_rejkurt.m",
         help_text="pophelp('pop_rejkurt')",
-        size=(600, 284),
-        geometry=((1, 0.1, 0.75),) * 3 + (1,) + ((1, 0.22, 0.85),) * 2,
+        size=(600, 320),
+        geometry=((1, 0.1, 0.75),) * 3 + ((1, 0.26, 0.9),) + (1,) + ((1, 0.22, 0.85),) * 2,
         controls=(
             ControlSpec("text", row_label),
             ControlSpec("spacer"),
             ControlSpec("edit", tag="elecrange", value=f"1:{rows}"),
-            ControlSpec("text", "Single-channel/component limit(s) (std. dev.)"),
+            ControlSpec("text", local_label),
             ControlSpec("spacer"),
-            ControlSpec("edit", tag="locthresh", value="3"),
-            ControlSpec("text", "All-channel/component limit(s) (std. dev.)"),
+            ControlSpec("edit", tag="locthresh", value=threshold_default),
+            ControlSpec("text", global_label),
             ControlSpec("spacer"),
-            ControlSpec("edit", tag="globthresh", value="3"),
+            ControlSpec("edit", tag="globthresh", value=threshold_default),
+            ControlSpec("text", "Visualization mode"),
+            ControlSpec("spacer"),
+            ControlSpec("popupmenu", "REJECTTRIALS|EEGPLOT", tag="vistype", value=2),
             ControlSpec("spacer"),
             ControlSpec("text", "Display previous rejection marks"),
             ControlSpec("spacer"),
-            ControlSpec("checkbox", tag="superpose", value=False),
+            ControlSpec("checkbox", tag="superpose", value=True),
             ControlSpec("text", "Reject marked trial(s)"),
             ControlSpec("spacer"),
             ControlSpec("checkbox", tag="reject", value=False),
@@ -102,14 +120,24 @@ def _run_gui(EEG: dict[str, Any], icacomp: int, renderer: Any | None) -> tuple[A
     result = inputgui(pop_rejkurt_dialog_spec(EEG, icacomp), renderer=renderer)
     if result is None:
         return None
+    threshold_default = "3" if int(bool(icacomp)) else "5"
     return (
         result.get("elecrange", ""),
-        result.get("locthresh", "3"),
-        result.get("globthresh", "3"),
-        int(bool(result.get("superpose", False))),
+        result.get("locthresh", threshold_default),
+        result.get("globthresh", threshold_default),
+        int(bool(result.get("superpose", True))),
         int(bool(result.get("reject", False))),
-        0,
+        _vistype_from_gui(result.get("vistype", 2)),
     )
+
+
+def _vistype_from_gui(value: Any) -> int:
+    if isinstance(value, str):
+        return 0 if value.strip().lower() in {"rejecttrials", "reject trials", "0"} else 1
+    try:
+        return 0 if int(value) == 1 else 1
+    except (TypeError, ValueError):
+        return 1
 
 
 def _apply_one(
