@@ -89,6 +89,8 @@ def _headplot_maps(EEG: dict[str, Any], typeplot: int, items: np.ndarray) -> tup
         maps = []
         labels = []
         for latency in items:
+            if latency < np.nanmin(all_times) or latency > np.nanmax(all_times):
+                raise ValueError("requested latency is outside the epoch time range")
             frame = int(np.argmin(np.abs(all_times - latency)))
             maps.append(erp[:, frame])
             labels.append(f"{latency:g} ms")

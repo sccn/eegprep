@@ -42,14 +42,30 @@ def pop_erpimage(
         kwargs.update(result["options"])
     if index is None:
         index = 1
+    _raise_for_unsupported_kwargs(kwargs)
+    command_kwargs = dict(kwargs)
     values = _erpimage_values(EEG, typeplot, int(index))
+    times = eeg_times_ms(EEG)
+    limits = numeric_vector(kwargs.pop("limits", []))
+    if limits.size == 2:
+        mask = (times >= limits[0]) & (times <= limits[1])
+        if not np.any(mask):
+            raise ValueError("limits do not contain any samples")
+        values = values[mask, :]
+        times = times[mask]
     figure, image = erpimage(
         values,
-        times=eeg_times_ms(EEG),
+        times=times,
         title=str(kwargs.pop("title", _default_title(typeplot, int(index)))),
         sort_values=kwargs.pop("sort_values", None),
+        smooth=kwargs.pop("smooth", None),
+        decimate=_first_int(kwargs.pop("decimate", None), default=1),
+        caxis=kwargs.pop("caxis", None),
+        cbar=bool(kwargs.pop("cbar", True)),
+        plot_erp=bool(kwargs.pop("erp", True)),
+        vert=kwargs.pop("vert", None),
     )
-    command = history_command("pop_erpimage", typeplot, int(index), **kwargs)
+    command = history_command("pop_erpimage", typeplot, int(index), **command_kwargs)
     return ({"figure": figure, "image": image}, command) if return_com else {"figure": figure, "image": image}
 
 
@@ -187,6 +203,7 @@ def _run_gui(EEG: dict[str, Any], *, typeplot: int, renderer: Any | None = None)
     result = inputgui(pop_erpimage_dialog_spec(EEG, typeplot=typeplot), renderer=renderer)
     if result is None:
         return None
+    _raise_for_unsupported_gui_options(result)
     values = numeric_vector(result.get("index", 1), dtype=int)
     return {
         "index": int(values[0]) if values.size else 1,
@@ -195,23 +212,10 @@ def _run_gui(EEG: dict[str, Any], *, typeplot: int, renderer: Any | None = None)
             "smooth": numeric_vector(result.get("smooth", [])).tolist(),
             "decimate": numeric_vector(result.get("decimate", [])).tolist(),
             "limits": numeric_vector(result.get("limtime", [])).tolist(),
-            "plotmap": bool(result.get("plotmap", False)),
             "erp": bool(result.get("erp", True)),
             "cbar": bool(result.get("cbar", True)),
             "caxis": numeric_vector(result.get("caxis", [])).tolist(),
-            "sortingeventfield": str(result.get("field", "") or ""),
-            "sortingtype": str(result.get("type", "") or ""),
-            "sortingwin": numeric_vector(result.get("eventrange", [])).tolist(),
-            "renorm": str(result.get("renorm", "") or ""),
-            "align": numeric_vector(result.get("align", [])).tolist(),
-            "nosort": bool(result.get("nosort", False)),
-            "noplot": bool(result.get("noplot", False)),
-            "phasesort": numeric_vector(result.get("phase", [])).tolist(),
-            "coher": numeric_vector(result.get("coher", [])).tolist(),
-            "plotamps": bool(result.get("plotamps", False)),
-            "spec": numeric_vector(result.get("spec", [])).tolist(),
             "vert": numeric_vector(result.get("vert", [])).tolist(),
-            "others": str(result.get("others", "") or ""),
         },
     }
 
@@ -232,6 +236,50 @@ def _erpimage_values(EEG: dict[str, Any], typeplot: int, index: int) -> np.ndarr
 
 def _default_title(typeplot: int, index: int) -> str:
     return f"{'Channel' if typeplot else 'Component'} {index} ERP image"
+
+
+def _first_int(value: Any, *, default: int) -> int:
+    vector = numeric_vector(value, dtype=int)
+    if vector.size == 0:
+        return default
+    return int(vector[0])
+
+
+def _raise_for_unsupported_gui_options(result: dict[str, Any]) -> None:
+    unsupported_text_fields = {
+        "field": "event-field sorting",
+        "type": "event-type sorting",
+        "eventrange": "event-window sorting",
+        "align": "event alignment",
+        "phase": "phase sorting",
+        "phase2": "phase sorting",
+        "phase3": "phase sorting",
+        "coher": "inter-trial coherence",
+        "coher2": "inter-trial coherence",
+        "limamp": "inter-trial coherence amplitude limits",
+        "limcoher": "inter-trial coherence limits",
+        "spec": "spectrum inset",
+        "limbaseamp": "baseline amplitude limits",
+        "others": "free-form erpimage options",
+    }
+    for field, label in unsupported_text_fields.items():
+        if str(result.get(field, "") or "").strip():
+            raise NotImplementedError(f"pop_erpimage does not yet support {label}")
+    unsupported_checks = {
+        "nosort": "value-sort disabling",
+        "noplot": "value-plot disabling",
+        "plotamps": "amplitude image mode",
+    }
+    for field, label in unsupported_checks.items():
+        if bool(result.get(field, False)):
+            raise NotImplementedError(f"pop_erpimage does not yet support {label}")
+
+
+def _raise_for_unsupported_kwargs(kwargs: dict[str, Any]) -> None:
+    supported = {"title", "sort_values", "smooth", "decimate", "limits", "caxis", "cbar", "erp", "vert"}
+    unsupported = sorted(set(kwargs) - supported)
+    if unsupported:
+        raise NotImplementedError(f"pop_erpimage does not yet support option(s): {', '.join(unsupported)}")
 
 
 __all__ = ["pop_erpimage", "pop_erpimage_dialog_spec"]

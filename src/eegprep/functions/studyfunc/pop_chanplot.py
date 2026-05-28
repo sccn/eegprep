@@ -38,6 +38,7 @@ def pop_chanplot(
         raise ValueError("pop_chanplot requires ALLEEG datasets")
     if measure.lower() != "erp":
         raise NotImplementedError("pop_chanplot currently supports ERP channel measures; STUDY measure UI is Phase 5")
+    _validate_time_grid(datasets)
     selected = _selected_channels(channels, int(datasets[0].get("nbchan", 0) or 0))
     times = eeg_times_ms(datasets[0])
     fig, ax = plt.subplots(figsize=(8, 4.5))
@@ -69,6 +70,24 @@ def _selected_channels(values: Any, count: int) -> np.ndarray:
     if np.any(vector < 1) or np.any(vector > count):
         raise ValueError(f"channels must be 1-based and within 1..{count}")
     return vector - 1
+
+
+def _validate_time_grid(datasets: list[dict[str, Any]]) -> None:
+    reference = (
+        int(datasets[0].get("pnts", 0) or 0),
+        float(datasets[0].get("srate", 0) or 0),
+        float(datasets[0].get("xmin", 0) or 0),
+        float(datasets[0].get("xmax", 0) or 0),
+    )
+    for index, eeg in enumerate(datasets[1:], start=2):
+        candidate = (
+            int(eeg.get("pnts", 0) or 0),
+            float(eeg.get("srate", 0) or 0),
+            float(eeg.get("xmin", 0) or 0),
+            float(eeg.get("xmax", 0) or 0),
+        )
+        if candidate != reference:
+            raise ValueError(f"Dataset {index} does not share the same time grid")
 
 
 __all__ = ["pop_chanplot"]

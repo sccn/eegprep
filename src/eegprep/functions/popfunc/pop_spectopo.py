@@ -10,11 +10,14 @@ from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.popfunc._plot_utils import (
     component_activations,
+    component_map_data,
     data_time_slice,
+    history_command,
     numeric_vector,
-    python_literal,
+    parse_plot_options_text,
+    selected_indices,
 )
-from eegprep.functions.popfunc._pop_utils import parse_key_value_args, parse_text_tokens
+from eegprep.functions.popfunc._pop_utils import parse_key_value_args
 from eegprep.functions.sigprocfunc.spectopo import spectopo
 
 
@@ -45,15 +48,29 @@ def pop_spectopo(
         options.update(result["options"])
 
     data, times = data_time_slice(EEG, timerange)
+    history_options = {key: value for key, value in options.items() if key not in {"plotchan", "icamode"}}
     if dataflag:
         plot_data = _channel_spectral_data(data, process)
+        chanlocs = EEG.get("chanlocs", [])
+        map_values = None
+        map_labels = None
         title = "Channel spectra and maps"
     else:
-        plot_data = _component_spectral_data(EEG, timerange)
+        plot_data, component_numbers = _component_spectral_data(EEG, timerange, options.get("icacomps"))
+        maps, chanlocs = component_map_data(EEG)
+        map_numbers = _component_map_numbers(
+            options.get("icamaps"),
+            options.get("nicamaps"),
+            component_numbers,
+            maps.shape[1],
+        )
+        map_values = maps[:, map_numbers - 1] if map_numbers.size else None
+        map_labels = [f"IC {number}" for number in map_numbers.tolist()]
         title = "Component spectra and maps"
     freqs = numeric_vector(options.pop("freqs", options.pop("freq", []))).tolist()
     freqrange = numeric_vector(options.pop("freqrange", [])).tolist()
     percent = float(options.pop("percent", 100))
+    spectral_options, topoplot_options = _split_spectopo_options(options)
     spectra, frequency_values, speccomp, contrib, specstd, figure = spectopo(
         plot_data,
         int(plot_data.shape[1]),
@@ -61,9 +78,12 @@ def pop_spectopo(
         percent=percent,
         freqs=freqs,
         freqrange=freqrange,
-        chanlocs=EEG.get("chanlocs", []) if dataflag else None,
+        chanlocs=chanlocs,
+        map_values=map_values,
+        map_labels=map_labels,
+        topoplot_options=topoplot_options,
         title=title,
-        **options,
+        **spectral_options,
     )
     result = {
         "spectra": spectra,
@@ -74,7 +94,14 @@ def pop_spectopo(
         "figure": figure,
         "times": times,
     }
-    command = _history_command(dataflag, timerange, process, freqs, freqrange, percent, options)
+    command = history_command(
+        "pop_spectopo",
+        eeg_name="EEG",
+        dataflag=dataflag,
+        timerange=timerange,
+        process=None if process == "EEG" else process,
+        **history_options,
+    )
     return (result, command) if return_com else result
 
 
@@ -147,13 +174,23 @@ def _run_gui(EEG: dict[str, Any], *, dataflag: int, renderer: Any | None = None)
     result = inputgui(spec, renderer=renderer)
     if result is None:
         return None
-    options = _parse_options_text(result.get("options", ""))
+    options = parse_plot_options_text(result.get("options", ""))
     gui_options = {
         **options,
         "percent": float(result.get("percent", 100) or 100),
         "freqs": numeric_vector(result.get("freqs", [])).tolist(),
         "freqrange": numeric_vector(result.get("freqrange", [])).tolist(),
     }
+    if not dataflag:
+        gui_options.update(
+            {
+                "plotchan": numeric_vector(result.get("plotchan", [])).tolist(),
+                "icacomps": numeric_vector(result.get("icacomps", []), dtype=int).tolist(),
+                "nicamaps": numeric_vector(result.get("nicamaps", []), dtype=int).tolist(),
+                "icamaps": numeric_vector(result.get("icamaps", []), dtype=int).tolist(),
+                "icamode": bool(result.get("icamode", True)),
+            }
+        )
     return {
         "timerange": numeric_vector(result.get("timerange", [])).tolist(),
         "process": str(result.get("process", "EEG") or "EEG"),
@@ -170,7 +207,7 @@ def _channel_spectral_data(data: np.ndarray, process: str) -> np.ndarray:
     return data.reshape(data.shape[0], -1)
 
 
-def _component_spectral_data(EEG: dict[str, Any], timerange: Any) -> np.ndarray:
+def _component_spectral_data(EEG: dict[str, Any], timerange: Any, components: Any) -> tuple[np.ndarray, np.ndarray]:
     acts = component_activations(EEG)
     times = np.asarray([])
     if timerange is not None:
@@ -179,38 +216,38 @@ def _component_spectral_data(EEG: dict[str, Any], timerange: Any) -> np.ndarray:
         full_times = np.linspace(float(EEG.get("xmin", 0)) * 1000.0, float(EEG.get("xmax", 0)) * 1000.0, acts.shape[1])
         mask = (full_times >= times[0]) & (full_times <= times[-1])
         acts = acts[:, mask, :]
-    return acts.reshape(acts.shape[0], -1)
+    indices = selected_indices(components, acts.shape[0])
+    return acts[indices, :, :].reshape(indices.size, -1), indices + 1
 
 
-def _parse_options_text(text: Any) -> dict[str, Any]:
-    tokens = parse_text_tokens(text)
-    if not tokens:
-        return {}
-    if len(tokens) % 2:
-        raise ValueError("Spectral options must be key/value pairs")
-    return {str(tokens[index]).lower(): tokens[index + 1] for index in range(0, len(tokens), 2)}
+def _component_map_numbers(
+    map_values: Any, count_values: Any, component_numbers: np.ndarray, map_count: int
+) -> np.ndarray:
+    explicit = numeric_vector(map_values, dtype=int)
+    if explicit.size:
+        numbers = explicit
+    else:
+        counts = numeric_vector(count_values, dtype=int)
+        count = int(counts[0]) if counts.size else min(5, component_numbers.size)
+        numbers = component_numbers[: max(0, count)]
+    if np.any(numbers < 1) or np.any(numbers > map_count):
+        raise ValueError(f"component map indices must be within 1..{map_count}")
+    return numbers.astype(int)
 
 
-def _history_command(
-    dataflag: int,
-    timerange: Any,
-    process: str,
-    freqs: list[float],
-    freqrange: list[float],
-    percent: float,
-    options: dict[str, Any],
-) -> str:
-    kwargs: dict[str, Any] = {
-        "dataflag": int(dataflag),
-        "timerange": timerange,
-        "process": process,
-        "freqs": freqs,
-        "freqrange": freqrange,
-        "percent": percent,
-    }
-    kwargs.update(options)
-    pieces = ["EEG", *(f"{key}={python_literal(value)}" for key, value in kwargs.items())]
-    return f"pop_spectopo({', '.join(pieces)})"
+def _split_spectopo_options(options: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+    spectral_keys = {"plot", "winsize", "overlap", "nfft"}
+    spectral = {key: options[key] for key in spectral_keys if key in options}
+    if "winsize" in spectral:
+        spectral["winsize"] = int(numeric_vector(spectral["winsize"])[0])
+    if "overlap" in spectral:
+        spectral["overlap"] = int(numeric_vector(spectral["overlap"])[0])
+    if "nfft" in spectral:
+        spectral["nfft"] = int(numeric_vector(spectral["nfft"])[0])
+    topoplot = {key: value for key, value in options.items() if key not in spectral_keys}
+    for unused in {"icacomps", "icamaps", "nicamaps", "plotchan", "icamode"}:
+        topoplot.pop(unused, None)
+    return spectral, topoplot
 
 
 __all__ = ["pop_spectopo", "pop_spectopo_dialog_spec"]

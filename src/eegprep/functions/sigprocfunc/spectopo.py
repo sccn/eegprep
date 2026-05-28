@@ -21,6 +21,9 @@ def spectopo(
     freqs: Any = None,
     freqrange: Any = None,
     chanlocs: Any = None,
+    map_values: Any = None,
+    map_labels: Any = None,
+    topoplot_options: dict[str, Any] | None = None,
     title: str = "",
     plot: str = "on",
     winsize: int | None = None,
@@ -51,6 +54,9 @@ def spectopo(
             freqs=freqs,
             freqrange=freqrange,
             chanlocs=chanlocs,
+            map_values=map_values,
+            map_labels=map_labels,
+            topoplot_options=topoplot_options,
             title=title,
         )
     return spectra, frequency_values, None, None, specstd, figure
@@ -65,7 +71,7 @@ def compute_spectra(
     winsize: int | None = None,
     overlap: int = 0,
     nfft: int | None = None,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, None]:
     """Return Welch spectra in dB as ``channels x frequencies``."""
     values = np.asarray(data, dtype=float)
     if values.ndim == 3:
@@ -96,8 +102,7 @@ def compute_spectra(
         scaling="density",
     )
     spectra = 10.0 * np.log10(np.maximum(power, np.finfo(float).tiny))
-    specstd = np.zeros_like(spectra)
-    return spectra, freqs, specstd
+    return spectra, freqs, None
 
 
 def plot_spectra(
@@ -107,17 +112,21 @@ def plot_spectra(
     freqs: Any = None,
     freqrange: Any = None,
     chanlocs: Any = None,
+    map_values: Any = None,
+    map_labels: Any = None,
+    topoplot_options: dict[str, Any] | None = None,
     title: str = "",
 ):
     """Plot spectra and optional scalp maps at selected frequencies."""
     requested_freqs = _numeric_values(freqs)
-    if requested_freqs.size and chanlocs_as_list(chanlocs):
-        rows = 1 + int(np.ceil(requested_freqs.size / 3))
+    scalp_values, scalp_labels = _scalp_maps(spectra, frequency_values, requested_freqs, map_values, map_labels)
+    if scalp_values and chanlocs_as_list(chanlocs):
+        rows = 1 + int(np.ceil(len(scalp_values) / 3))
         fig = plt.figure(figsize=(8, 2.8 + rows * 1.7))
         ax = fig.add_subplot(rows, 1, 1)
         topo_axes = [
-            fig.add_subplot(rows, min(3, requested_freqs.size), index + 1 + min(3, requested_freqs.size))
-            for index in range(requested_freqs.size)
+            fig.add_subplot(rows, min(3, len(scalp_values)), index + 1 + min(3, len(scalp_values)))
+            for index in range(len(scalp_values))
         ]
     else:
         fig, ax = plt.subplots(figsize=(7, 4))
@@ -135,12 +144,36 @@ def plot_spectra(
     elif requested_freqs.size:
         ax.set_xlim(0, max(float(np.nanmax(requested_freqs)) * 1.15, 1.0))
     ax.grid(True, alpha=0.25)
-    for topo_ax, freq in zip(topo_axes, requested_freqs):
-        freq_index = int(np.argmin(np.abs(frequency_values - freq)))
-        topoplot(spectra[:, freq_index], chanlocs_as_list(chanlocs), axes=topo_ax, electrodes="off")
-        topo_ax.set_title(f"{freq:g} Hz")
+    for topo_ax, values, label in zip(topo_axes, scalp_values, scalp_labels):
+        plot_options = {"electrodes": "off", **(topoplot_options or {})}
+        topoplot(values, chanlocs_as_list(chanlocs), axes=topo_ax, **plot_options)
+        topo_ax.set_title(label)
     fig.tight_layout()
     return fig
+
+
+def _scalp_maps(
+    spectra: np.ndarray,
+    frequency_values: np.ndarray,
+    requested_freqs: np.ndarray,
+    map_values: Any,
+    map_labels: Any,
+) -> tuple[list[np.ndarray], list[str]]:
+    if map_values is not None and np.asarray(map_values).size:
+        values = np.asarray(map_values, dtype=float)
+        if values.ndim != 2:
+            raise ValueError("map_values must be channels x maps")
+        labels = [str(label) for label in (map_labels or [])]
+        while len(labels) < values.shape[1]:
+            labels.append(f"Map {len(labels) + 1}")
+        return [values[:, index] for index in range(values.shape[1])], labels[: values.shape[1]]
+    maps = []
+    labels = []
+    for freq in requested_freqs:
+        freq_index = int(np.argmin(np.abs(frequency_values - freq)))
+        maps.append(spectra[:, freq_index])
+        labels.append(f"{freq:g} Hz")
+    return maps, labels
 
 
 def _numeric_values(value: Any) -> np.ndarray:

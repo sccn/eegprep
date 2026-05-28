@@ -34,14 +34,17 @@ def pop_plotdata(
         kwargs.update(result["options"])
     acts = component_activations(EEG)
     erp = np.nanmean(acts, axis=2)
+    command_kwargs = dict(kwargs)
+    ylimits = kwargs.pop("ylimits", None)
     figure = plottopo(
         erp,
         times=eeg_times_ms(EEG),
         channels=components,
         title=str(kwargs.pop("title", EEG.get("setname") or "Component ERPs")),
         ydir=int(kwargs.pop("ydir", -1)),
+        ylimits=ylimits,
     )
-    command = history_command("pop_plotdata", components, **kwargs)
+    command = history_command("pop_plotdata", components, **command_kwargs)
     return (figure, command) if return_com else figure
 
 

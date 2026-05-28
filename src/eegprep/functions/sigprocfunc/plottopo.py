@@ -18,6 +18,7 @@ def plottopo(
     title: str = "",
     channels: Any = None,
     ydir: int = -1,
+    ylimits: Any = None,
 ):
     """Plot channel/component traces in an EEGLAB-like array."""
     values = np.asarray(data, dtype=float)
@@ -43,6 +44,9 @@ def plottopo(
         ax.set_title(labels[index], fontsize=9)
         if ydir < 0:
             ax.invert_yaxis()
+        limits = _limits(ylimits)
+        if limits is not None:
+            ax.set_ylim(limits)
         ax.tick_params(labelsize=7)
     for ax in axes.ravel()[len(indices) :]:
         ax.axis("off")
@@ -74,6 +78,15 @@ def _labels(chanlocs: Any, count: int) -> list[str]:
     while len(labels) < count:
         labels.append(str(len(labels) + 1))
     return labels
+
+
+def _limits(value: Any) -> tuple[float, float] | None:
+    if value is None:
+        return None
+    values = np.asarray(value, dtype=float).ravel()
+    if values.size != 2 or np.all(values == 0):
+        return None
+    return float(values[0]), float(values[1])
 
 
 __all__ = ["plottopo"]

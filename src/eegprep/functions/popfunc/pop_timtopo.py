@@ -8,7 +8,12 @@ import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
-from eegprep.functions.popfunc._plot_utils import data_time_slice, history_command, numeric_vector
+from eegprep.functions.popfunc._plot_utils import (
+    data_time_slice,
+    history_command,
+    numeric_vector,
+    parse_plot_options_text,
+)
 from eegprep.functions.sigprocfunc.timtopo import timtopo
 
 
@@ -32,16 +37,21 @@ def pop_timtopo(
             return (None, "") if return_com else None
         plottimes = result["plottimes"]
         kwargs.update(result["options"])
+    command_kwargs = dict(kwargs)
     data, times = data_time_slice(EEG, kwargs.pop("timerange", None))
     erp = np.nanmean(data, axis=2)
+    winsize = _first_float(kwargs.pop("winsize", None), default=0.0)
+    topoplot_options = parse_plot_options_text(kwargs.pop("options", ""))
     figure = timtopo(
         erp,
         EEG.get("chanlocs", []),
         times=times,
         plottimes=numeric_vector(plottimes).tolist(),
+        winsize=winsize,
         title=str(kwargs.pop("title", EEG.get("setname") or "Channel ERPs")),
+        topoplot_options=topoplot_options,
     )
-    command = history_command("pop_timtopo", plottimes, **kwargs)
+    command = history_command("pop_timtopo", plottimes, **command_kwargs)
     return (figure, command) if return_com else figure
 
 
@@ -88,6 +98,13 @@ def _run_gui(EEG: dict[str, Any], *, renderer: Any | None = None) -> dict[str, A
             "options": str(result.get("options", "") or ""),
         },
     }
+
+
+def _first_float(value: Any, *, default: float) -> float:
+    vector = numeric_vector(value)
+    if vector.size == 0:
+        return default
+    return float(vector[0])
 
 
 __all__ = ["pop_timtopo", "pop_timtopo_dialog_spec"]

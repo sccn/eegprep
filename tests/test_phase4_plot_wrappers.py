@@ -17,6 +17,7 @@ from eegprep.functions.popfunc.pop_erpimage import pop_erpimage
 from eegprep.functions.popfunc.pop_headplot import pop_headplot
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_epoch import pop_epoch
+from eegprep.functions.popfunc._plot_utils import component_activations
 from eegprep.functions.popfunc.pop_plotdata import pop_plotdata
 from eegprep.functions.popfunc.pop_plottopo import pop_plottopo
 from eegprep.functions.popfunc.pop_prop import pop_prop
@@ -105,6 +106,37 @@ def test_component_plot_wrappers_work_when_ica_fields_exist(ica_epoch):
     plt.close(erpimage_result["figure"])
 
 
+def test_component_activations_use_icachansind_subset(ica_epoch):
+    eeg = deepcopy(ica_epoch)
+    eeg["icaact"] = None
+    eeg["icachansind"] = np.array([1, 3])
+    eeg["icaweights"] = np.eye(2)
+    eeg["icasphere"] = np.eye(2)
+    eeg["icawinv"] = np.eye(2)
+
+    activations = component_activations(eeg)
+
+    np.testing.assert_allclose(activations[0], eeg["data"][1])
+    np.testing.assert_allclose(activations[1], eeg["data"][3])
+
+
+def test_pop_envtopo_uses_icachansind_subset_and_rejects_multiple(ica_epoch):
+    eeg = deepcopy(ica_epoch)
+    eeg["icaact"] = None
+    eeg["icachansind"] = np.array([1, 3])
+    eeg["icaweights"] = np.eye(2)
+    eeg["icasphere"] = np.eye(2)
+    eeg["icawinv"] = np.eye(2)
+
+    figure, command = pop_envtopo(eeg, components=[1], return_com=True)
+
+    assert len(figure.axes) >= 2
+    _assert_python_command(command)
+    plt.close(figure)
+    with pytest.raises(NotImplementedError, match="one dataset"):
+        pop_envtopo([ica_epoch, deepcopy(ica_epoch)], components=[1])
+
+
 def test_pop_comperp_and_chanplot_work_on_epoched_dataset_lists(sample_epoch):
     second = deepcopy(sample_epoch)
     second["setname"] = "second"
@@ -122,6 +154,108 @@ def test_pop_comperp_and_chanplot_work_on_epoched_dataset_lists(sample_epoch):
     plt.close(chanplot_fig)
 
 
+def test_pop_comperp_rms_mode_and_grid_validation(sample_epoch):
+    first = deepcopy(sample_epoch)
+    second = deepcopy(sample_epoch)
+    first["data"] = np.ones_like(first["data"])
+    second["data"] = -np.ones_like(second["data"])
+
+    ave, _command = pop_comperp([first, second], flag=1, datadd=[1, 2], mode="ave", return_com=True)
+    rms, _command = pop_comperp([first, second], flag=1, datadd=[1, 2], mode="rms", return_com=True)
+
+    np.testing.assert_allclose(ave["erp1"], 0)
+    np.testing.assert_allclose(rms["erp1"], 1)
+    plt.close(ave["figure"])
+    plt.close(rms["figure"])
+    second["xmax"] = float(second["xmax"]) + 0.1
+    with pytest.raises(ValueError, match="time grid"):
+        pop_comperp([first, second], flag=1, datadd=[1, 2])
+
+
+def test_pop_chanplot_validates_time_grid(sample_epoch):
+    second = deepcopy(sample_epoch)
+    second["xmax"] = float(second["xmax"]) + 0.1
+
+    with pytest.raises(ValueError, match="time grid"):
+        pop_chanplot({"name": "demo study"}, [sample_epoch, second], channels=[1])
+
+
+def test_pop_erpimage_applies_time_limits_and_decimation(sample_epoch):
+    result, command = pop_erpimage(
+        sample_epoch,
+        typeplot=1,
+        index=1,
+        limits=[-50, 100],
+        decimate=2,
+        caxis=[-1, 1],
+        cbar=False,
+        return_com=True,
+    )
+
+    expected_samples = np.count_nonzero((sample_epoch["times"] >= -50) & (sample_epoch["times"] <= 100))
+    assert result["image"].shape[1] == expected_samples
+    assert result["image"].shape[0] == int(np.ceil(sample_epoch["trials"] / 2))
+    assert "limits=[-50, 100]" in command
+    _assert_python_command(command)
+    plt.close(result["figure"])
+
+
+def test_plot_history_preserves_effective_options(sample_epoch, ica_epoch):
+    timtopo_fig, timtopo_command = pop_timtopo(
+        sample_epoch,
+        plottimes=[0],
+        timerange=[-50, 100],
+        winsize=[10],
+        title="custom timtopo",
+        return_com=True,
+    )
+    plottopo_fig, plottopo_command = pop_plottopo(
+        sample_epoch,
+        chans=[1],
+        timerange=[-50, 100],
+        title="custom plottopo",
+        return_com=True,
+    )
+    envtopo_fig, envtopo_command = pop_envtopo(
+        ica_epoch,
+        timerange=[0, 100],
+        components=[1],
+        title="custom envtopo",
+        return_com=True,
+    )
+
+    assert "timerange=[-50, 100]" in timtopo_command
+    assert "winsize=[10]" in timtopo_command
+    assert "title='custom timtopo'" in timtopo_command
+    assert "timerange=[-50, 100]" in plottopo_command
+    assert "title='custom plottopo'" in plottopo_command
+    assert "components=[1]" in envtopo_command
+    assert "title='custom envtopo'" in envtopo_command
+    for command in (timtopo_command, plottopo_command, envtopo_command):
+        _assert_python_command(command)
+    plt.close(timtopo_fig)
+    plt.close(plottopo_fig)
+    plt.close(envtopo_fig)
+
+
+def test_pop_spectopo_component_path_plots_component_maps(ica_epoch):
+    result, command = pop_spectopo(
+        ica_epoch,
+        dataflag=0,
+        freqs=[10],
+        icacomps=[1, 2],
+        icamaps=[1],
+        return_com=True,
+    )
+
+    assert result["figure"] is not None
+    assert len(result["figure"].axes) >= 2
+    assert result["specstd"] is None
+    assert "icamaps=[1]" in command
+    _assert_python_command(command)
+    plt.close(result["figure"])
+
+
 def test_plot_wrappers_fail_clearly_when_required_fields_are_missing(sample_epoch):
     with pytest.raises(ValueError, match="ICA"):
         pop_plotdata(sample_epoch, components=[1])
@@ -130,6 +264,8 @@ def test_plot_wrappers_fail_clearly_when_required_fields_are_missing(sample_epoc
     continuous["data"] = continuous["data"][:, :, 0]
     with pytest.raises(ValueError, match="epoched"):
         pop_erpimage(continuous, typeplot=1, index=1)
+    with pytest.raises(ValueError, match="outside the epoch time range"):
+        pop_headplot(sample_epoch, typeplot=1, items=[1e6])
 
 
 def _assert_python_command(command: str) -> None:

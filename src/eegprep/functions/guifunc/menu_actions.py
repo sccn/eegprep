@@ -1048,7 +1048,7 @@ class MenuActionDispatcher:
         self._refresh()
 
     def _run_plot_function(self, name: str, variant: str, parent: Any | None) -> None:
-        allow_multiple = name in {"pop_comperp", "pop_envtopo"}
+        allow_multiple = name == "pop_comperp"
         selection = self._current_selection_or_warn(parent, allow_multiple=allow_multiple)
         if selection is None:
             return

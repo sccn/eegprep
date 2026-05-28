@@ -8,7 +8,13 @@ import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
-from eegprep.functions.popfunc._plot_utils import data_time_slice, history_command, numeric_vector
+from eegprep.functions.popfunc._plot_utils import (
+    data_time_slice,
+    history_command,
+    numeric_vector,
+    parse_plot_options_text,
+    selected_indices,
+)
 from eegprep.functions.sigprocfunc.plottopo import plottopo
 
 
@@ -32,17 +38,29 @@ def pop_plottopo(
             return (None, "") if return_com else None
         chans = result["chans"]
         kwargs.update(result["options"])
+    command_kwargs = dict(kwargs)
     data, times = data_time_slice(EEG, kwargs.pop("timerange", None))
-    erp = np.nanmean(data, axis=2)
+    singletrials = bool(kwargs.pop("singletrials", False))
+    plot_options = parse_plot_options_text(kwargs.pop("options", ""))
+    ydir = int(plot_options.pop("ydir", kwargs.pop("ydir", -1)))
+    if singletrials:
+        selected = selected_indices(chans, data.shape[0])
+        plot_data = data[selected, :, :].transpose(0, 2, 1).reshape(selected.size * data.shape[2], data.shape[1])
+        plot_channels = None
+        chanlocs = []
+    else:
+        plot_data = np.nanmean(data, axis=2)
+        plot_channels = chans
+        chanlocs = EEG.get("chanlocs", [])
     figure = plottopo(
-        erp,
+        plot_data,
         times=times,
-        chanlocs=EEG.get("chanlocs", []),
-        channels=chans,
+        chanlocs=chanlocs,
+        channels=plot_channels,
         title=str(kwargs.pop("title", EEG.get("setname") or "Channel ERPs")),
-        ydir=int(kwargs.pop("ydir", -1)),
+        ydir=ydir,
     )
-    command = history_command("pop_plottopo", chans, **kwargs)
+    command = history_command("pop_plottopo", chans, **command_kwargs)
     return (figure, command) if return_com else figure
 
 

@@ -17,6 +17,7 @@ from eegprep.functions.popfunc._plot_utils import (
     eeg_times_ms,
     history_command,
     numeric_vector,
+    parse_plot_options_text,
 )
 from eegprep.functions.sigprocfunc.spectopo import compute_spectra
 from eegprep.functions.sigprocfunc.topoplot import topoplot
@@ -86,7 +87,7 @@ def _run_gui(EEG: dict[str, Any], *, typecomp: int, renderer: Any | None = None)
     }
 
 
-def _plot_one_property(EEG: dict[str, Any], typecomp: int, index: int, _spec_opt: Any):
+def _plot_one_property(EEG: dict[str, Any], typecomp: int, index: int, spec_opt: Any):
     data = eeg_epoch_data(EEG)
     times = eeg_times_ms(EEG)
     labels = channel_labels(EEG)
@@ -113,14 +114,33 @@ def _plot_one_property(EEG: dict[str, Any], typecomp: int, index: int, _spec_opt
     erp_ax.axhline(0, color="0.7", linewidth=0.6)
     erp_ax.set_xlabel("Time (ms)")
     erp_ax.set_ylabel("uV")
-    spectra, freqs, _std = compute_spectra(trace_2d.T, trace_2d.shape[0], float(EEG.get("srate", 1) or 1))
+    spec_options = parse_plot_options_text(spec_opt)
+    flat = trace_2d.reshape(1, -1)
+    spectra, freqs, _std = compute_spectra(
+        flat,
+        flat.shape[1],
+        float(EEG.get("srate", 1) or 1),
+        winsize=_first_int(spec_options.get("winsize")),
+        overlap=_first_int(spec_options.get("overlap")) or 0,
+        nfft=_first_int(spec_options.get("nfft")),
+    )
     spec_ax.plot(freqs, spectra[0], color="black")
+    freqrange = numeric_vector(spec_options.get("freqrange", []))
+    if freqrange.size == 2:
+        spec_ax.set_xlim(float(freqrange[0]), float(freqrange[1]))
     spec_ax.set_xlabel("Frequency (Hz)")
     spec_ax.set_ylabel("dB")
     spec_ax.grid(True, alpha=0.25)
     fig.suptitle(f"pop_prop() - {title} properties", fontweight="bold")
     fig.tight_layout()
     return fig
+
+
+def _first_int(value: Any) -> int | None:
+    vector = numeric_vector(value)
+    if vector.size == 0:
+        return None
+    return int(vector[0])
 
 
 __all__ = ["pop_prop", "pop_prop_dialog_spec"]

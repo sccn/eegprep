@@ -11,7 +11,16 @@ from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.sigprocfunc.topoplot import topoplot
 
 
-def timtopo(data: Any, chanlocs: Any, *, times: Any = None, plottimes: Any = None, title: str = ""):
+def timtopo(
+    data: Any,
+    chanlocs: Any,
+    *,
+    times: Any = None,
+    plottimes: Any = None,
+    winsize: float = 0.0,
+    title: str = "",
+    topoplot_options: dict[str, Any] | None = None,
+):
     """Plot all channel traces and scalp maps at selected latencies."""
     values = np.asarray(data, dtype=float)
     if values.ndim == 3:
@@ -38,8 +47,8 @@ def timtopo(data: Any, chanlocs: Any, *, times: Any = None, plottimes: Any = Non
     trace_ax.set_title(title or "Channel ERPs with scalp maps")
     for index, latency in enumerate(map_times, start=1):
         ax = fig.add_subplot(2, max(len(map_times), 1), max(len(map_times), 1) + index)
-        frame = int(np.argmin(np.abs(x_values - latency)))
-        topoplot(values[:, frame], chanlocs_as_list(chanlocs), axes=ax, electrodes="off")
+        map_values = _latency_values(values, x_values, latency, winsize)
+        topoplot(map_values, chanlocs_as_list(chanlocs), axes=ax, electrodes="off", **(topoplot_options or {}))
         ax.set_title(f"{latency:g} ms")
     fig.tight_layout()
     return fig
@@ -53,6 +62,17 @@ def _plot_times(values: np.ndarray, x_values: np.ndarray, plottimes: Any) -> np.
             return requested
     variance = np.nanvar(values, axis=0)
     return np.asarray([x_values[int(np.nanargmax(variance))]], dtype=float)
+
+
+def _latency_values(values: np.ndarray, x_values: np.ndarray, latency: float, winsize: float) -> np.ndarray:
+    if winsize <= 0:
+        frame = int(np.argmin(np.abs(x_values - latency)))
+        return values[:, frame]
+    half_window = winsize / 2.0
+    mask = (x_values >= latency - half_window) & (x_values <= latency + half_window)
+    if not np.any(mask):
+        raise ValueError("winsize does not include any samples around requested latency")
+    return np.nanmean(values[:, mask], axis=1)
 
 
 __all__ = ["timtopo"]

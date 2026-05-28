@@ -8,12 +8,15 @@ import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
+from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc._plot_utils import (
+    component_channel_indices,
     component_maps,
     data_time_slice,
     eeg_times_ms,
     history_command,
     numeric_vector,
+    parse_plot_options_text,
 )
 from eegprep.functions.sigprocfunc.envtopo import envtopo
 
@@ -30,7 +33,14 @@ def pop_envtopo(
     """Plot largest component ERP envelopes and component maps."""
     if EEG is None:
         return (None, "") if return_com else None
-    dataset = EEG[-1] if isinstance(EEG, list) else EEG
+    if isinstance(EEG, list):
+        if len(EEG) != 1:
+            raise NotImplementedError(
+                "pop_envtopo currently accepts one dataset; multi-dataset envelopes are Phase 5 work"
+            )
+        dataset = EEG[0]
+    else:
+        dataset = EEG
     if gui is None:
         gui = timerange is None and not kwargs
     if gui:
@@ -39,22 +49,37 @@ def pop_envtopo(
             return (None, "") if return_com else None
         timerange = result["timerange"]
         kwargs.update(result["options"])
+    command_kwargs = dict(kwargs)
     data, times = data_time_slice(dataset, timerange)
     icaweights = np.asarray(dataset.get("icaweights", []), dtype=float)
     icasphere = np.asarray(dataset.get("icasphere", []), dtype=float)
     if icaweights.size == 0 or icasphere.size == 0:
         raise ValueError("pop_envtopo requires ICA weights")
+    icachansind = component_channel_indices(dataset, data.shape[0])
+    data = data[icachansind, :, :]
     weights = icaweights @ icasphere
+    if weights.shape[1] != data.shape[0]:
+        raise ValueError("ICA weights do not match EEG.icachansind channel count")
+    maps = component_maps(dataset)
+    chanlocs = _component_chanlocs(dataset, maps, icachansind)
+    components = kwargs.pop("compnums", kwargs.pop("components", None))
+    max_components = _first_int(kwargs.pop("compsplot", None), default=7)
+    title = str(kwargs.pop("title", dataset.get("setname") or "Largest ERP components"))
+    topoplot_options = parse_plot_options_text(kwargs.pop("options", ""))
     figure = envtopo(
         np.nanmean(data, axis=2),
         weights,
         times=times if times.size else eeg_times_ms(dataset),
-        chanlocs=dataset.get("chanlocs", []),
-        icawinv=component_maps(dataset),
-        components=kwargs.pop("compnums", kwargs.pop("components", None)),
-        title=str(kwargs.pop("title", dataset.get("setname") or "Largest ERP components")),
+        chanlocs=chanlocs,
+        icawinv=maps,
+        components=components,
+        max_components=max_components,
+        rank_window=kwargs.pop("limcontrib", None),
+        exclude_components=kwargs.pop("subcomps", None),
+        topoplot_options=topoplot_options,
+        title=title,
     )
-    command = history_command("pop_envtopo", timerange, **kwargs)
+    command = history_command("pop_envtopo", timerange, **command_kwargs)
     return (figure, command) if return_com else figure
 
 
@@ -109,6 +134,22 @@ def _run_gui(EEG: dict[str, Any], *, renderer: Any | None = None) -> dict[str, A
             "options": str(result.get("options", "") or ""),
         },
     }
+
+
+def _component_chanlocs(EEG: dict[str, Any], maps: np.ndarray, icachansind: np.ndarray) -> Any:
+    chanlocs = chanlocs_as_list(EEG.get("chanlocs", []))
+    if maps.shape[0] == len(chanlocs):
+        return chanlocs
+    if maps.shape[0] == icachansind.size and chanlocs and np.max(icachansind) < len(chanlocs):
+        return [chanlocs[index] for index in icachansind]
+    raise ValueError("EEG.icawinv must have one row per channel location or ICA channel")
+
+
+def _first_int(value: Any, *, default: int) -> int:
+    vector = numeric_vector(value, dtype=int)
+    if vector.size == 0:
+        return default
+    return int(vector[0])
 
 
 __all__ = ["pop_envtopo", "pop_envtopo_dialog_spec"]

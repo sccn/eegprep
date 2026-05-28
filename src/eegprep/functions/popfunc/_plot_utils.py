@@ -44,9 +44,6 @@ def eeg_times_ms(EEG: dict[str, Any]) -> np.ndarray:
         raise ValueError("EEG.pnts must be positive")
     times = np.asarray(EEG.get("times", []), dtype=float).ravel()
     if times.size == pnts:
-        xmax = float(EEG.get("xmax", 0) or 0)
-        if times.size > 1 and np.nanmax(np.abs(times)) <= max(abs(xmax), 1.0) * 2:
-            return times * 1000.0
         return times
     xmin = float(EEG.get("xmin", 0) or 0)
     xmax = float(EEG.get("xmax", xmin) or xmin)
@@ -111,9 +108,27 @@ def component_activations(EEG: dict[str, Any]) -> np.ndarray:
     if weights.size == 0 or sphere.size == 0:
         raise ValueError("no ICA activations or weights for this dataset")
     data = eeg_epoch_data(EEG)
-    flat = data.reshape(data.shape[0], -1)
-    acts = (weights @ sphere) @ flat
+    icachansind = component_channel_indices(EEG, data.shape[0])
+    flat = data[icachansind, :, :].reshape(icachansind.size, -1)
+    unmixing = weights @ sphere
+    if unmixing.shape[1] != flat.shape[0]:
+        raise ValueError("ICA weights do not match EEG.icachansind channel count")
+    acts = unmixing @ flat
     return acts.reshape(weights.shape[0], data.shape[1], data.shape[2])
+
+
+def component_channel_indices(EEG: dict[str, Any], channel_count: int) -> np.ndarray:
+    """Return 0-based channel indices used by ICA."""
+    value = EEG.get("icachansind")
+    if _is_empty_sequence(value):
+        return np.arange(channel_count, dtype=int)
+    indices = np.asarray(value, dtype=float).ravel()
+    if np.any(indices != indices.astype(int)):
+        raise ValueError("EEG.icachansind must contain integer channel indices")
+    indices = indices.astype(int)
+    if np.any(indices < 0) or np.any(indices >= channel_count):
+        raise ValueError(f"EEG.icachansind values must be 0-based and within 0..{channel_count - 1}")
+    return indices
 
 
 def component_maps(EEG: dict[str, Any]) -> np.ndarray:
@@ -124,6 +139,18 @@ def component_maps(EEG: dict[str, Any]) -> np.ndarray:
     if icawinv.ndim != 2:
         raise ValueError("EEG.icawinv must be 2-D")
     return icawinv
+
+
+def component_map_data(EEG: dict[str, Any]) -> tuple[np.ndarray, list[dict[str, Any]]]:
+    """Return ICA maps and matching channel locations for plotting."""
+    maps = component_maps(EEG)
+    chanlocs = chanlocs_as_list(EEG.get("chanlocs", []))
+    if maps.shape[0] == len(chanlocs):
+        return maps, chanlocs
+    indices = component_channel_indices(EEG, int(EEG.get("nbchan", len(chanlocs)) or len(chanlocs)))
+    if maps.shape[0] == indices.size and chanlocs and np.max(indices) < len(chanlocs):
+        return maps, [chanlocs[index] for index in indices]
+    raise ValueError("EEG.icawinv must have one row per channel location or ICA channel")
 
 
 def numeric_vector(value: Any, *, dtype: Any = float) -> np.ndarray:
@@ -195,11 +222,30 @@ def python_literal(value: Any) -> str:
     return repr(value)
 
 
+def parse_plot_options_text(text: Any) -> dict[str, Any]:
+    """Parse simple EEGLAB-style ``'key', value`` plot option text."""
+    stripped = str(text or "").strip()
+    if not stripped or stripped in {"[]", "{}"}:
+        return {}
+    parts = _split_top_level_commas(stripped)
+    if len(parts) % 2:
+        raise ValueError("Plot options must be key/value pairs")
+    options: dict[str, Any] = {}
+    for index in range(0, len(parts), 2):
+        key = _parse_option_atom(parts[index])
+        if not isinstance(key, str):
+            raise ValueError("Plot option keys must be strings")
+        options[key.lower()] = _parse_option_atom(parts[index + 1])
+    return options
+
+
 def history_command(function_name: str, *args: Any, eeg_name: str = "EEG", **kwargs: Any) -> str:
     """Build a valid Python console command for a plotting pop function."""
     pieces = [eeg_name]
     pieces.extend(python_literal(arg) for arg in args)
-    pieces.extend(f"{key}={python_literal(value)}" for key, value in kwargs.items() if value is not None)
+    pieces.extend(
+        f"{key}={python_literal(value)}" for key, value in kwargs.items() if not _is_empty_history_value(value)
+    )
     return f"{function_name}({', '.join(pieces)})"
 
 
@@ -211,3 +257,56 @@ def _is_empty_sequence(value: Any) -> bool:
     if isinstance(value, np.ndarray):
         return value.size == 0
     return isinstance(value, (list, tuple)) and len(value) == 0
+
+
+def _is_empty_history_value(value: Any) -> bool:
+    return value is None or _is_empty_sequence(value)
+
+
+def _split_top_level_commas(text: str) -> list[str]:
+    parts: list[str] = []
+    current: list[str] = []
+    quote: str | None = None
+    bracket_depth = 0
+    for char in text:
+        if quote is not None:
+            current.append(char)
+            if char == quote:
+                quote = None
+            continue
+        if char in {"'", '"'}:
+            quote = char
+            current.append(char)
+            continue
+        if char in "[({":
+            bracket_depth += 1
+        elif char in "])}" and bracket_depth:
+            bracket_depth -= 1
+        if char == "," and bracket_depth == 0:
+            parts.append("".join(current).strip())
+            current = []
+        else:
+            current.append(char)
+    if quote is not None:
+        raise ValueError("Unterminated quoted plot option")
+    if bracket_depth:
+        raise ValueError("Unbalanced bracket in plot options")
+    parts.append("".join(current).strip())
+    return [part for part in parts if part]
+
+
+def _parse_option_atom(text: str) -> Any:
+    stripped = text.strip()
+    if len(stripped) >= 2 and stripped[0] == stripped[-1] and stripped[0] in {"'", '"'}:
+        return stripped[1:-1]
+    if len(stripped) >= 2 and stripped[0] == "[" and stripped[-1] == "]":
+        return numeric_vector(stripped).tolist()
+    if stripped.lower() == "true":
+        return True
+    if stripped.lower() == "false":
+        return False
+    try:
+        value = float(stripped)
+    except ValueError:
+        return stripped
+    return int(value) if value.is_integer() else value
