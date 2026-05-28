@@ -11,6 +11,7 @@ import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
+from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc._pop_utils import parse_key_value_args, parse_text_tokens
 from eegprep.functions.sigprocfunc.topoplot import topoplot
@@ -95,7 +96,6 @@ def pop_topoplot(
         topotitle=topotitle,
         rowcols=rowcols_array,
         options=dict(options),
-        typeplot=typeplot,
     )
     command = _history_command(typeplot, items_array, topotitle, rowcols_array, int(bool(plotdip)), options)
     return (figures, command) if return_com else figures
@@ -186,6 +186,8 @@ def plot_channel_locations(EEG: dict[str, Any], *, mode: str = "labels", return_
     chanlocs = chanlocs_as_list(EEG.get("chanlocs", []))
     if not chanlocs:
         raise ValueError("cannot plot topography without channel location file")
+    if mode not in {"labels", "numbers"}:
+        raise ValueError("mode must be 'labels' or 'numbers'")
     electrodes = "numpoint" if mode == "numbers" else "labelpoint"
     fig, *_ = topoplot([], chanlocs, style="blank", electrodes=electrodes, title="Channel locations")
     command = f"topoplot([], EEG['chanlocs'], style='blank', electrodes={electrodes!r})"
@@ -215,13 +217,14 @@ def _plot_map_pages(
     topotitle: str,
     rowcols: tuple[int, int],
     options: dict[str, Any],
-    typeplot: int,
 ) -> list[Any]:
     rows, cols = rowcols
     per_page = rows * cols
     figures = []
     colorbar = _is_on(options.pop("colorbar", "on"))
-    maplimits = options.pop("maplimits", _default_maplimits(maps, typeplot))
+    maplimits = options.pop("maplimits", None)
+    if maplimits is None or _is_absmax_maplimits(maplimits):
+        maplimits = _default_maplimits(maps)
     for page_start in range(0, len(maps), per_page):
         page_maps = maps[page_start : page_start + per_page]
         page_labels = labels[page_start : page_start + per_page]
@@ -311,7 +314,7 @@ def _latency_positions(EEG: dict[str, Any], latencies_ms: np.ndarray) -> np.ndar
     if xmax == xmin and np.any(finite):
         raise ValueError("requested latency is outside the epoch time range")
     if xmax != xmin and np.any(finite):
-        positions[finite] = np.rint(((latencies_ms[finite] / 1000.0) - xmin) / (xmax - xmin) * (pnts - 1)).astype(int)
+        positions[finite] = round_mat(((latencies_ms[finite] / 1000.0) - xmin) / (xmax - xmin) * (pnts - 1)).astype(int)
     valid = np.isnan(latencies_ms) | ((positions >= 0) & (positions < pnts))
     if not np.all(valid):
         raise ValueError("requested latency is outside the epoch time range")
@@ -329,9 +332,7 @@ def _default_options_text(EEG: dict[str, Any]) -> str:
     return "'electrodes', 'off'" if int(EEG.get("nbchan", 0) or 0) > 64 else "'electrodes', 'on'"
 
 
-def _default_maplimits(maps: list[np.ndarray | None], typeplot: int) -> str | list[float]:
-    if not int(typeplot):
-        return "absmax"
+def _default_maplimits(maps: list[np.ndarray | None]) -> list[float]:
     finite_maps = [np.asarray(values).ravel() for values in maps if values is not None]
     if not finite_maps:
         return [-1.0, 1.0]
@@ -387,17 +388,10 @@ def _parse_colon_sequence(token: str) -> list[float]:
         raise ValueError(f"Invalid colon range: {token}")
     if (stop - start) * step < 0:
         return []
-    values = []
-    current = start
-    tolerance = abs(step) * 1e-10
-    if step > 0:
-        while current <= stop + tolerance:
-            values.append(float(current))
-            current += step
-    else:
-        while current >= stop - tolerance:
-            values.append(float(current))
-            current += step
+    count = int(math.floor((stop - start) / step + 1e-9)) + 1
+    values = [float(start + index * step) for index in range(max(count, 0))]
+    if values and math.isclose(values[-1], stop, rel_tol=0.0, abs_tol=max(abs(step), 1.0) * 1e-12):
+        values[-1] = float(stop)
     return values
 
 
@@ -471,6 +465,10 @@ def _validate_topoplot_inputs(EEG: dict[str, Any], typeplot: int) -> None:
 
 def _is_on(value: Any) -> bool:
     return str(value).lower() in {"on", "yes", "true", "1"}
+
+
+def _is_absmax_maplimits(value: Any) -> bool:
+    return isinstance(value, str) and value.lower() == "absmax"
 
 
 def _is_plotdip_value(value: Any) -> bool:

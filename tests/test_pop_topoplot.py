@@ -7,6 +7,7 @@ import numpy as np
 
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_topoplot import (
+    _latency_positions,
     _parse_items_text,
     plot_channel_locations,
     pop_topoplot,
@@ -40,6 +41,17 @@ def test_plot_channel_locations_returns_valid_console_command():
     assert command == "topoplot([], EEG['chanlocs'], style='blank', electrodes='numpoint')"
     assert figure.axes[0].get_title() == "Channel locations"
     plt.close(figure)
+
+
+def test_plot_channel_locations_rejects_unknown_mode():
+    eeg = create_test_eeg_with_ica(n_channels=4, n_samples=20)
+
+    try:
+        plot_channel_locations(eeg, mode="bad")
+    except ValueError as exc:
+        assert "mode must be" in str(exc)
+    else:
+        raise AssertionError("expected invalid channel-location mode ValueError")
 
 
 def test_pop_topoplot_plots_sample_data_erp_maps_headlessly():
@@ -82,6 +94,25 @@ def test_pop_topoplot_multi_map_pages_include_shared_colorbar_by_default():
     plt.close(figures[0])
 
 
+def test_pop_topoplot_component_pages_use_shared_default_scale():
+    eeg = create_test_eeg_with_ica(n_channels=6, n_samples=30, n_components=2)
+    eeg["icawinv"] = np.column_stack([np.ones(6), np.arange(1, 7) * 10.0])
+
+    figures = pop_topoplot(
+        eeg,
+        typeplot=0,
+        items=[1, 2],
+        topotitle="component scale",
+        rowcols=[1, 2],
+        electrodes="off",
+    )
+
+    clims = [axis.images[0].get_clim() for axis in figures[0].axes[:2]]
+    assert clims[0] == clims[1] == (-60.0, 60.0)
+    assert len(figures[0].axes) == 3
+    plt.close(figures[0])
+
+
 def test_pop_topoplot_plots_component_maps_with_inverted_and_blank_items():
     eeg = create_test_eeg_with_ica(n_channels=6, n_samples=50, n_components=3)
 
@@ -104,10 +135,22 @@ def test_pop_topoplot_plots_component_maps_with_inverted_and_blank_items():
 def test_pop_topoplot_item_text_parses_eeglab_colon_ranges():
     assert _parse_items_text("-100:50:0") == [-100.0, -50.0, 0.0]
     assert _parse_items_text("0.5:0.25:1") == [0.5, 0.75, 1.0]
+    tenth_steps = _parse_items_text("0:0.1:1")
+    assert len(tenth_steps) == 11
+    assert tenth_steps[-1] == 1.0
     parsed = _parse_items_text("1:2 NaN 5")
     assert parsed[:2] == [1.0, 2.0]
     assert np.isnan(parsed[2])
     assert parsed[3] == 5.0
+
+
+def test_pop_topoplot_latency_positions_use_matlab_rounding():
+    eeg = create_test_eeg_with_ica(n_channels=4, n_samples=4)
+    eeg["xmin"] = 0.0
+    eeg["xmax"] = 3.0
+    eeg["pnts"] = 4
+
+    assert _latency_positions(eeg, np.array([500.0, 2500.0])).tolist() == [1, 3]
 
 
 def test_pop_topoplot_gui_parses_signed_decimal_step_ranges():
