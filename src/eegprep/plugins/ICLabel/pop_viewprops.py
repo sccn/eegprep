@@ -74,7 +74,11 @@ def pop_viewprops_dialog_spec(EEG: dict[str, Any], typecomp: int | bool = 1) -> 
             ControlSpec("text", f"Draw events over scrolling {'channel' if is_channel else 'component'} activity"),
             ControlSpec("checkbox", tag="scroll_event", value=True, enabled=False),
         ),
-        known_differences=("EEGPrep omits EEGBrowser/eegplot scrolling activity from the property overview.",),
+        known_differences=(
+            "EEGPrep omits EEGBrowser/eegplot scrolling activity from the property overview.",
+            "Extended channel-property panels are scheduled for Phase 4 plotting work; "
+            "the GUI menu shows a coming-soon placeholder for channel mode.",
+        ),
     )
 
 

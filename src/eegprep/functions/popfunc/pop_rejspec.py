@@ -160,7 +160,10 @@ def _apply_one(
     elecrange = one_based_indices(options.get("elecrange"), limit=row_count, default_all=True)
     threshold = options.get("threshold", [-30, 30])
     freqlimits = options.get("freqlimits", [15, 30])
-    marks, marks_e, spectra = spectrum_marks(data, elecrange, float(out.get("srate", 1.0)), threshold, freqlimits)
+    method = str(options.get("method", "multitaper")).lower()
+    marks, marks_e, spectra = spectrum_marks(
+        data, elecrange, float(out.get("srate", 1.0)), threshold, freqlimits, method
+    )
     if int(bool(icacomp)):
         out["specdata"] = spectra
     else:
@@ -171,7 +174,7 @@ def _apply_one(
         out = pop_rejepoch(out, rejected, 0)
     normalized_options = dict(options)
     normalized_options["elecrange"] = elecrange
-    normalized_options.setdefault("method", "multitaper")
+    normalized_options["method"] = method
     normalized_options.setdefault("threshold", threshold)
     normalized_options.setdefault("freqlimits", freqlimits)
     normalized_options.setdefault("eegplotplotallrej", 0)

@@ -75,11 +75,12 @@ class RejectionDialogTests(unittest.TestCase):
             "pop_rejspec:ica",
             "pop_rejtrend:data",
             "pop_selectcomps",
-            "pop_viewprops",
+            "pop_viewprops:components",
         ]
         for action in implemented:
             self.assertEqual(action_kind(action), "implemented")
         self.assertEqual(action_kind("pop_eegplot:reject_data"), "placeholder")
+        self.assertEqual(action_kind("pop_viewprops:channels"), "placeholder")
 
     def test_gui_command_is_valid_python_with_keywords(self):
         class Renderer:
@@ -120,6 +121,23 @@ class RejectionDialogTests(unittest.TestCase):
         self.assertIs(viewprops.call_args.args[0], session.EEG)
         self.assertEqual(viewprops.call_args.kwargs, {"typecomp": 0, "return_com": True})
         self.assertEqual(session.ALLCOM[-1], "pop_viewprops(EEG, 0, [1], [], [], 1, '')")
+
+    def test_reject_marked_epochs_uses_rejglobal_for_ica_menu(self):
+        session = EEGPrepSession()
+        eeg = _epoched_ica_eeg()
+        eeg["reject"]["rejglobal"] = np.array([False, True, False])
+        eeg["reject"]["icarejglobal"] = np.array([False, False, False])
+        session.store_current(eeg, new=True)
+        dispatcher = MenuActionDispatcher(session)
+
+        with mock.patch(
+            "eegprep.functions.popfunc.pop_rejepoch.pop_rejepoch",
+            return_value=(eeg, "EEG = pop_rejepoch(EEG, [2], 1);"),
+        ) as rejepoch:
+            dispatcher.dispatch("pop_rejepoch:ica")
+
+        rejepoch.assert_called_once()
+        np.testing.assert_array_equal(rejepoch.call_args.args[1], np.array([False, True, False]))
 
 
 if __name__ == "__main__":

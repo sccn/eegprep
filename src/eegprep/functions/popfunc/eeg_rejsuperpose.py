@@ -34,12 +34,16 @@ def eeg_rejsuperpose(
     rejglobal = np.zeros(trials, dtype=bool)
     rejglobal_e = np.zeros((row_count, trials), dtype=bool)
 
-    if int(bool(typerej)) or int(bool(Rothertype)):
+    is_data_rejection = int(bool(typerej))
+    include_other = int(bool(Rothertype))
+
+    if is_data_rejection or include_other:
         rejglobal, rejglobal_e = _add_family(
             reject,
             "",
             rejglobal,
             rejglobal_e,
+            include_rows=bool(is_data_rejection),
             manual=Rmanual,
             thres=Rthres,
             const=Rconst,
@@ -47,12 +51,13 @@ def eeg_rejsuperpose(
             kurt=Rkurt,
             freq=Rfreq,
         )
-    if not int(bool(typerej)) or int(bool(Rothertype)):
+    if not is_data_rejection or include_other:
         rejglobal, rejglobal_e = _add_family(
             reject,
             "ica",
             rejglobal,
             rejglobal_e,
+            include_rows=not bool(is_data_rejection),
             manual=Rmanual,
             thres=Rthres,
             const=Rconst,
@@ -78,6 +83,7 @@ def _add_family(
     rejglobal: np.ndarray,
     rejglobal_e: np.ndarray,
     *,
+    include_rows: bool,
     manual: int | bool,
     thres: int | bool,
     const: int | bool,
@@ -97,7 +103,8 @@ def _add_family(
         if not int(bool(enabled)):
             continue
         rejglobal = _or_vector(rejglobal, reject.get(f"{prefix}{name}"))
-        rejglobal_e = _or_matrix(rejglobal_e, reject.get(f"{prefix}{name}E"))
+        if include_rows:
+            rejglobal_e = _or_matrix(rejglobal_e, reject.get(f"{prefix}{name}E"))
     return rejglobal, rejglobal_e
 
 

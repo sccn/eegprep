@@ -66,6 +66,22 @@ def test_rejection_statistics_store_data_and_component_marks():
     spec_out, spec_indices = pop_rejspec(
         eeg,
         1,
+        "method",
+        "multitaper",
+        "elecrange",
+        [3],
+        "threshold",
+        [-10, 10],
+        "freqlimits",
+        [20, 30],
+        "eegplotreject",
+        0,
+    )
+    fft_spec_out, fft_spec_indices = pop_rejspec(
+        eeg,
+        1,
+        "method",
+        "fft",
         "elecrange",
         [3],
         "threshold",
@@ -83,7 +99,10 @@ def test_rejection_statistics_store_data_and_component_marks():
     assert kurt_out["reject"]["rejkurtE"].shape == (4, 5)
     assert trend_out["reject"]["rejconst"][2]
     assert spec_indices
+    assert fft_spec_indices
     assert spec_out["specdata"].shape[:2] == (4, 40)
+    assert fft_spec_out["specdata"].shape == spec_out["specdata"].shape
+    assert not np.allclose(fft_spec_out["specdata"], spec_out["specdata"])
     assert comp_count >= 1
     assert "icarejjp" in comp_out["reject"]
 
@@ -103,6 +122,24 @@ def test_eeg_rejsuperpose_and_pop_rejepoch_remove_marked_epochs():
     assert removed["trials"] == 3
     assert _console_python_command(com) == "EEG = eeg_rejsuperpose(EEG, 1, 1, 0, 0, 0, 0, 0, 0)"
     assert _console_python_command(reject_com) == "EEG = pop_rejepoch(EEG, tmprej=[2, 5], confirm=0)"
+
+
+def test_eeg_rejsuperpose_only_crosses_trial_marks_between_data_and_ica_families():
+    eeg = _epoched_eeg()
+    eeg["icaweights"] = np.ones((2, 4))
+    eeg["icawinv"] = np.ones((4, 2))
+    eeg["reject"] = {
+        "rejmanual": np.array([False, True, False, False, False]),
+        "rejmanualE": np.zeros((4, 5), dtype=bool),
+        "icarejmanual": np.array([False, False, True, False, False]),
+        "icarejmanualE": np.ones((2, 5), dtype=bool),
+    }
+
+    marked = eeg_rejsuperpose(eeg, 1, 1, 0, 0, 0, 0, 0, 1)
+
+    assert marked["reject"]["rejglobal"].tolist() == [False, True, True, False, False]
+    assert marked["reject"]["rejglobalE"].shape == (4, 5)
+    assert not marked["reject"]["rejglobalE"].any()
 
 
 @pytest.mark.matlab
@@ -194,8 +231,7 @@ def test_pop_autorej_preserves_original_epoch_numbers_during_iterative_rejection
 
     out, rejected = pop_autorej(eeg, "threshold", 10, "startprob", 20, "maxrej", 40, "nogui", "on")
 
-    assert 2 in rejected
-    assert out["trials"] <= eeg["trials"]
+    assert eeg["trials"] - out["trials"] == len(rejected)
     assert rejected == sorted(set(rejected))
 
 
@@ -222,6 +258,44 @@ def test_channel_and_continuous_rejection_work_on_sample_data_without_ica():
     assert selected_regions.shape == (0, 2)
     with pytest.raises(ValueError, match="ICA decomposition is required"):
         pop_eegthresh(sample, 0, [1], -10, 10, 0, 1)
+
+
+def test_pop_rejchan_default_threshold_matches_gui_zscore_default():
+    eeg = create_test_eeg(n_channels=2, n_samples=20, n_trials=1, srate=100)
+    eeg["data"] = np.zeros((2, 20))
+    eeg["data"][0, 10] = 100
+
+    _out, rejected_channels, _measure = pop_rejchan(eeg, "measure", "std", "indexonly", "on")
+
+    assert rejected_channels == [1]
+
+
+def test_pop_rejcont_history_replays_effectful_mode_and_overlap_options():
+    sample = pop_loadset(SAMPLE_DATASET_PATH)
+
+    _out, command = pop_rejcont(
+        sample,
+        "elecrange",
+        [1],
+        "freqlimit",
+        [20, 40],
+        "threshold",
+        1e9,
+        "epochlength",
+        0.5,
+        "overlap",
+        0.1,
+        "mode",
+        "mean",
+        "onlyreturnselection",
+        "on",
+        return_com=True,
+    )
+
+    assert _console_python_command(command) == (
+        "EEG = pop_rejcont(EEG, elecrange=[1], freqlimit=[20, 40], threshold=1000000000, "
+        "epochlength=0.5, overlap=0.1, mode='mean', onlyreturnselection='on')"
+    )
 
 
 def test_component_selection_and_viewprops_are_replayable_without_scrolling_browser():

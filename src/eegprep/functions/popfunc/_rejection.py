@@ -8,7 +8,7 @@ import warnings
 from typing import Any
 
 import numpy as np
-from scipy import stats
+from scipy import signal, stats
 
 from eegprep.functions.miscfunc.misc import finite_matmul
 
@@ -209,8 +209,9 @@ def spectrum_marks(
     srate: float,
     threshold: Any,
     freqlimits: Any,
+    method: str = "multitaper",
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Return spectral threshold rejection marks using EEGLAB's FFT path."""
+    """Return spectral threshold rejection marks."""
     selected = [item - 1 for item in elecrange]
     thresholds = np.asarray(_matrix_arg(threshold, columns=2, default=[-30.0, 30.0]), dtype=float)
     freqs_limits = np.asarray(_matrix_arg(freqlimits, columns=2, default=[15.0, 30.0]), dtype=float)
@@ -218,13 +219,14 @@ def spectrum_marks(
         thresholds = np.vstack([thresholds, np.tile(thresholds[-1], (len(selected) - thresholds.shape[0], 1))])
     if freqs_limits.shape[0] < len(selected):
         freqs_limits = np.vstack([freqs_limits, np.tile(freqs_limits[-1], (len(selected) - freqs_limits.shape[0], 1))])
-    demeaned = data - data.mean(axis=1, keepdims=True)
-    spectra = np.fft.fft(demeaned, axis=1)
-    max_bin = data.shape[1] // 2
-    spectra = spectra[:, 1 : max_bin + 1, :]
-    power = 10 * np.log10(np.maximum(np.abs(spectra) ** 2, np.finfo(float).tiny))
+    method = str(method).lower()
+    if method == "fft":
+        power, freqs = _fft_power(data, srate)
+    elif method == "multitaper":
+        power, freqs = _multitaper_power(data, srate)
+    else:
+        raise ValueError("method must be 'fft' or 'multitaper'")
     power = power - power.mean(axis=2, keepdims=True)
-    freqs = np.arange(1, max_bin + 1, dtype=float) * float(srate) / data.shape[1]
     row_marks = np.zeros((data.shape[0], data.shape[2]), dtype=bool)
     for out_index, row_index in enumerate(selected):
         low, high = freqs_limits[out_index]
@@ -236,6 +238,29 @@ def spectrum_marks(
             segment.max(axis=0) > thresholds[out_index, 1]
         )
     return row_marks.any(axis=0), row_marks, power
+
+
+def _fft_power(data: np.ndarray, srate: float) -> tuple[np.ndarray, np.ndarray]:
+    demeaned = data - data.mean(axis=1, keepdims=True)
+    spectra = np.fft.rfft(demeaned, axis=1)[:, 1:, :]
+    freqs = np.fft.rfftfreq(data.shape[1], d=1 / float(srate))[1:]
+    power = 10 * np.log10(np.maximum(np.abs(spectra) ** 2, np.finfo(float).tiny))
+    return power, freqs
+
+
+def _multitaper_power(data: np.ndarray, srate: float) -> tuple[np.ndarray, np.ndarray]:
+    points = data.shape[1]
+    nw = min(4.0, max(0.5, (points - 1) / 2 - np.finfo(float).eps))
+    kmax = max(1, min(int(2 * nw) - 1, points))
+    tapers = signal.windows.dpss(points, nw, Kmax=kmax, sym=False)
+    if tapers.ndim == 1:
+        tapers = tapers[np.newaxis, :]
+    demeaned = data - data.mean(axis=1, keepdims=True)
+    tapered = demeaned[:, np.newaxis, :, :] * tapers[np.newaxis, :, :, np.newaxis]
+    spectra = np.fft.rfft(tapered, axis=2)[:, :, 1:, :]
+    freqs = np.fft.rfftfreq(points, d=1 / float(srate))[1:]
+    power = np.mean(np.abs(spectra) ** 2, axis=1)
+    return 10 * np.log10(np.maximum(power, np.finfo(float).tiny)), freqs
 
 
 def jointprob(

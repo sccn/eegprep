@@ -104,8 +104,10 @@ def _apply_one(EEG: dict[str, Any], options: dict[str, Any]) -> tuple[dict[str, 
     out, _command = pop_eegthresh(
         EEG, 1, electrodes, -threshold, threshold, EEG.get("xmin", 0), EEG.get("xmax", 0), 0, 0, return_com=True
     )
-    marks = np.asarray((out.get("reject") or {}).get("rejthresh", []), dtype=bool)
-    rejected = set((np.flatnonzero(marks) + 1).tolist())
+    # EEGLAB computes high-amplitude threshold marks here but leaves the
+    # removal block commented out, so rmep only reports epochs actually pruned
+    # by the following probability/kurtosis passes.
+    rejected: set[int] = set()
     process_data = not bool(icacomps)
     rows = electrodes if process_data else icacomps
     work = out

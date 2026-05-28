@@ -237,7 +237,6 @@ def pop_rejmenu_dialog_spec(EEG: dict[str, Any], icacomp: int | bool = 1) -> Dia
             QPushButton#butjp { background: #99ccff; max-width: 30px; padding: 0; }
             QPushButton#butkurt { background: #99ff99; max-width: 30px; padding: 0; }
             QPushButton#butfreq { background: #cc99ff; max-width: 30px; padding: 0; }
-            QPushButton#butspec { background: #cc99ff; max-width: 30px; padding: 0; }
             QDialog#pop_rejmenu QPushButton:disabled {
                 color: #777777;
             }

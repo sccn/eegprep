@@ -196,6 +196,8 @@ def _history_command(options: dict[str, Any]) -> str:
         "freqlimit",
         "threshold",
         "epochlength",
+        "overlap",
+        "mode",
         "contiguous",
         "addlength",
         "taper",

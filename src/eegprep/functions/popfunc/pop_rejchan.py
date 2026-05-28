@@ -49,7 +49,7 @@ def pop_rejchan_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("text", "Electrode (number(s); Ex: 2 4 5)"),
             ControlSpec("edit", tag="elec", value=f"1:{int(EEG.get('nbchan', 0) or 0)}"),
             ControlSpec("text", "Measure to use"),
-            ControlSpec("popupmenu", "Probability|Kurtosis|Spectrum", tag="measure", value=2),
+            ControlSpec("popupmenu", "Probability|Kurtosis|Spectrum|Standard deviation", tag="measure", value=2),
             ControlSpec("text", "Normalize measure (check=on)"),
             ControlSpec("checkbox", tag="norm", value=True),
             ControlSpec("spacer"),
@@ -65,7 +65,7 @@ def _run_gui(EEG: dict[str, Any], renderer: Any | None) -> dict[str, Any] | None
     result = inputgui(pop_rejchan_dialog_spec(EEG), renderer=renderer)
     if result is None:
         return None
-    measures = ("prob", "kurt", "spec")
+    measures = ("prob", "kurt", "spec", "std")
     value = result.get("measure", 2)
     measure = measures[int(value) - 1] if isinstance(value, int) else str(value).lower()
     options = {
@@ -90,7 +90,7 @@ def _apply_one(EEG: dict[str, Any], options: dict[str, Any]) -> tuple[dict[str, 
         raise ValueError("EEG data must be 2-D or 3-D")
     elec = one_based_indices(options.get("elec"), limit=int(out.get("nbchan", flat.shape[0])), default_all=True)
     selected = [item - 1 for item in elec]
-    threshold = parse_numeric_sequence(options.get("threshold", 400), dtype=float)
+    threshold = parse_numeric_sequence(options.get("threshold", 5), dtype=float)
     measure_name = str(options.get("measure", "kurt")).lower()
     norm = str(options.get("norm", "off")).lower() == "on"
     measure = _channel_measure(flat[selected], measure_name, threshold, norm, out, options)

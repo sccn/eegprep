@@ -8,7 +8,7 @@ from collections.abc import Callable, Iterable
 from pathlib import Path
 from typing import Any
 
-from eegprep.functions.guifunc.menu_placeholders import is_placeholder_action, placeholder_message
+from eegprep.functions.guifunc.menu_placeholders import PLACEHOLDER_ACTIONS, is_placeholder_action, placeholder_message
 from eegprep.functions.guifunc.pophelp import pophelp
 from eegprep.functions.guifunc.session import EEGPrepSession, has_eeg_data
 from eegprep.functions.popfunc._coming_soon import coming_soon
@@ -194,6 +194,9 @@ class MenuActionDispatcher:
     def dispatch(self, action: str, parent: Any | None = None) -> None:
         """Run a menu action."""
         base, _sep, variant = action.partition(":")
+        if action_kind(action) == "placeholder":
+            self.show_coming_soon(action, parent)
+            return
         if base == "quit":
             if parent is not None:
                 parent.close()
@@ -902,7 +905,7 @@ class MenuActionDispatcher:
             if isinstance(selection, list):
                 self._warn(parent, "Select one dataset before rejecting marked epochs.")
                 return
-            marks = (selection.get("reject") or {}).get("icarejglobal" if variant == "ica" else "rejglobal", [])
+            marks = (selection.get("reject") or {}).get("rejglobal", [])
             out = pop_rejepoch(selection, marks, return_com=True)
         elif name == "pop_rejkurt":
             from eegprep.functions.popfunc.pop_rejkurt import pop_rejkurt
@@ -1216,6 +1219,8 @@ def unavailable_help_message(function_name: str) -> str:
 def action_kind(action: str) -> str:
     """Return ``implemented``, ``placeholder``, or ``unknown`` for an action id."""
     base = action.partition(":")[0]
+    if action in PLACEHOLDER_ACTIONS:
+        return "placeholder"
     if base in IMPLEMENTED_ACTIONS:
         return "implemented"
     if is_placeholder_action(action):
