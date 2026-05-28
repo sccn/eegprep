@@ -41,7 +41,9 @@ def test_placeholder_inventory_classifies_representative_phase_work():
     assert placeholder_metadata("pop_eegfilt") is None
     assert placeholder_metadata("pop_dipfit_settings").phase == "3"
     assert action_kind("pop_rejchan") == "implemented"
-    assert placeholder_metadata("pop_spectopo").phase == "4"
+    assert placeholder_metadata("pop_spectopo") is None
+    assert action_kind("pop_spectopo") == "implemented"
+    assert placeholder_metadata("pop_signalstat").phase == "4"
     assert placeholder_metadata("pop_viewprops:channels").phase == "4"
     assert action_kind("pop_viewprops:channels") == "placeholder"
     assert action_kind("pop_viewprops:components") == "implemented"

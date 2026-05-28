@@ -1,0 +1,126 @@
+"""EEGLAB-style channel/component properties plot."""
+
+from __future__ import annotations
+
+from typing import Any
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+from eegprep.functions.guifunc.inputgui import inputgui
+from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
+from eegprep.functions.popfunc._plot_utils import (
+    channel_labels,
+    component_activations,
+    component_maps,
+    eeg_epoch_data,
+    eeg_times_ms,
+    history_command,
+    numeric_vector,
+)
+from eegprep.functions.sigprocfunc.spectopo import compute_spectra
+from eegprep.functions.sigprocfunc.topoplot import topoplot
+
+
+def pop_prop(
+    EEG: dict[str, Any] | None = None,
+    typecomp: int = 1,
+    chanorcomp: Any = None,
+    winhandle: Any = None,
+    spec_opt: Any = None,
+    *,
+    gui: bool | None = None,
+    renderer: Any | None = None,
+    return_com: bool = False,
+):
+    """Plot properties of one channel or independent component."""
+    if EEG is None:
+        return (None, "") if return_com else None
+    typecomp = int(typecomp)
+    if gui is None:
+        gui = chanorcomp is None
+    if gui:
+        result = _run_gui(EEG, typecomp=typecomp, renderer=renderer)
+        if result is None:
+            return (None, "") if return_com else None
+        chanorcomp = result["chanorcomp"]
+        spec_opt = result["spec_opt"]
+    indices = numeric_vector(chanorcomp if chanorcomp is not None else 1, dtype=int)
+    figures = [_plot_one_property(EEG, typecomp, int(index), spec_opt) for index in indices]
+    command = history_command("pop_prop", typecomp, indices.astype(int).tolist(), winhandle, spec_opt)
+    return (
+        (figures[0] if len(figures) == 1 else figures, command)
+        if return_com
+        else figures[0]
+        if len(figures) == 1
+        else figures
+    )
+
+
+def pop_prop_dialog_spec(EEG: dict[str, Any], *, typecomp: int = 1) -> DialogSpec:
+    """Return the EEGLAB-like dialog spec for ``pop_prop``."""
+    label = "Channel" if int(typecomp) else "Component"
+    return DialogSpec(
+        title=f"{label} properties - pop_prop()",
+        controls=(
+            ControlSpec("text", f"{label} index(ices) to plot:"),
+            ControlSpec("edit", tag="chanorcomp", value="1"),
+            ControlSpec("text", "Spectral options (see spectopo() help):"),
+            ControlSpec("edit", tag="spec_opt", value="'freqrange', [2, 50]"),
+        ),
+        geometry=((2, 1), (2, 1)),
+        function_name="pop_prop",
+        eeglab_source="functions/popfunc/pop_prop.m",
+        help_text="pophelp('pop_prop')",
+        size=(615, 199),
+    )
+
+
+def _run_gui(EEG: dict[str, Any], *, typecomp: int, renderer: Any | None = None) -> dict[str, Any] | None:
+    result = inputgui(pop_prop_dialog_spec(EEG, typecomp=typecomp), renderer=renderer)
+    if result is None:
+        return None
+    return {
+        "chanorcomp": numeric_vector(result.get("chanorcomp", 1), dtype=int).tolist(),
+        "spec_opt": str(result.get("spec_opt", "") or ""),
+    }
+
+
+def _plot_one_property(EEG: dict[str, Any], typecomp: int, index: int, _spec_opt: Any):
+    data = eeg_epoch_data(EEG)
+    times = eeg_times_ms(EEG)
+    labels = channel_labels(EEG)
+    fig = plt.figure(figsize=(8, 6))
+    topo_ax = fig.add_subplot(2, 2, 1)
+    erp_ax = fig.add_subplot(2, 2, 2)
+    spec_ax = fig.add_subplot(2, 1, 2)
+    if typecomp:
+        if index < 1 or index > data.shape[0]:
+            raise ValueError("channel index is outside available channels")
+        trace = data[index - 1]
+        topoplot(index, EEG.get("chanlocs", []), axes=topo_ax, style="blank", electrodes="off")
+        title = f"Channel {labels[index - 1]}"
+    else:
+        acts = component_activations(EEG)
+        maps = component_maps(EEG)
+        if index < 1 or index > acts.shape[0]:
+            raise ValueError("component index is outside available ICA components")
+        trace = acts[index - 1]
+        topoplot(maps[:, index - 1], EEG.get("chanlocs", []), axes=topo_ax, electrodes="off")
+        title = f"IC {index}"
+    trace_2d = trace if trace.ndim == 2 else trace[:, np.newaxis]
+    erp_ax.plot(times, np.nanmean(trace_2d, axis=1), color="black")
+    erp_ax.axhline(0, color="0.7", linewidth=0.6)
+    erp_ax.set_xlabel("Time (ms)")
+    erp_ax.set_ylabel("uV")
+    spectra, freqs, _std = compute_spectra(trace_2d.T, trace_2d.shape[0], float(EEG.get("srate", 1) or 1))
+    spec_ax.plot(freqs, spectra[0], color="black")
+    spec_ax.set_xlabel("Frequency (Hz)")
+    spec_ax.set_ylabel("dB")
+    spec_ax.grid(True, alpha=0.25)
+    fig.suptitle(f"pop_prop() - {title} properties", fontweight="bold")
+    fig.tight_layout()
+    return fig
+
+
+__all__ = ["pop_prop", "pop_prop_dialog_spec"]
