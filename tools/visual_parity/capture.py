@@ -409,6 +409,8 @@ def _write_matlab_figure_script(case: VisualCase, target: TargetSpec, output_pat
     script_path.write_text(
         "\n".join(
             [
+                "eegprep_visual_capture();",
+                "",
                 "function eegprep_visual_capture()",
                 "try",
                 f"output_file = {_matlab_string(output_path)};",
@@ -469,6 +471,8 @@ def _write_matlab_reref_dialog_script(
     script_path.write_text(
         "\n".join(
             [
+                "eegprep_visual_capture();",
+                "",
                 "function eegprep_visual_capture()",
                 "capture_timer = [];",
                 "try",
@@ -590,7 +594,6 @@ def _write_matlab_reref_dialog_script(
                 "end",
                 "",
                 *_matlab_capture_helper(),
-                "eegprep_visual_capture();",
                 "",
             ]
         )
@@ -607,7 +610,9 @@ def _write_matlab_simple_pop_dialog_script(
     eeglab_root = _eeglab_reference_root()
     script_path = output_path.parent / f"{case.id}_eeglab_capture.m"
     inputgui_override_dir = output_path.parent / "inputgui_plot_override"
+    plugin_override_dir = output_path.parent / "dipfit_plugin_override"
     inputgui_override_dir.mkdir(exist_ok=True)
+    plugin_override_dir.mkdir(exist_ok=True)
     (inputgui_override_dir / "inputgui.m").write_text(
         "\n".join(
             [
@@ -661,6 +666,17 @@ def _write_matlab_simple_pop_dialog_script(
             ]
         )
     )
+    (plugin_override_dir / "plugin_askinstall.m").write_text(
+        "\n".join(
+            [
+                "function status = plugin_askinstall(varargin)",
+                "% Visual parity capture runs without installing optional EEGLAB plugins.",
+                "status = true;",
+                "end",
+                "",
+            ]
+        )
+    )
     title_by_action = {
         "pop_adjustevents": "Adjust event latencies - pop_adjustevents()",
         "pop_interp": "Interpolate channel(s) -- pop_interp()",
@@ -709,6 +725,14 @@ def _write_matlab_simple_pop_dialog_script(
         "pop_mergeset": "Merge datasets -- pop_mergeset()",
         "pop_iclabel": "ICLabel",
         "pop_icflag": "Flag components using ICLabel -- pop_icflag()",
+        "pop_dipfit_settings": "Dipole fit settings - pop_dipfit_settings()",
+        "pop_dipfit_headmodel": "Create headmodel from MRI - pop_dipfit_headmodel",
+        "pop_dipfit_gridsearch": "Batch dipole fit -- pop_dipfit_gridsearch()",
+        "pop_dipfit_nonlinear": "Manual dipole fit -- pop_dipfit_nonlinear()",
+        "pop_dipplot": "Plot dipoles - pop_dipplot",
+        "pop_multifit": "Fit multiple ICA components -- pop_multifit()",
+        "pop_leadfield": "Compute ROI activity",
+        "pop_dipfit_loreta": "Localization of ICA components using eLoreta -- pop_dipfit_loreta()",
     }
     if action == "pop_topoplot" and variant == "components":
         target_title = "Plot component scalp maps in 2-D -- pop_topoplot()"
@@ -725,6 +749,8 @@ def _write_matlab_simple_pop_dialog_script(
     script_path.write_text(
         "\n".join(
             [
+                "eegprep_visual_capture();",
+                "",
                 "function eegprep_visual_capture()",
                 "try",
                 f"output_file = {_matlab_string(output_path)};",
@@ -734,7 +760,9 @@ def _write_matlab_simple_pop_dialog_script(
                 f"eeglab_root = {_matlab_string(eeglab_root)};",
                 f"headplot_resource_root = {_matlab_string(REPO_ROOT / 'src' / 'eegprep' / 'resources' / 'headplot')};",
                 f"inputgui_override_dir = {_matlab_string(inputgui_override_dir)};",
+                f"plugin_override_dir = {_matlab_string(plugin_override_dir)};",
                 "addpath(genpath(eeglab_root));",
+                "addpath(plugin_override_dir, '-begin');",
                 "addpath(inputgui_override_dir, '-begin');",
                 "if strcmp(action, 'coregister')",
                 "    setenv('EEGPREP_VISUAL_OUTPUT_FILE', output_file);",
@@ -889,6 +917,29 @@ def _write_matlab_simple_pop_dialog_script(
                 "        [EEG, com] = pop_iclabel(EEG);",
                 "    case 'pop_icflag'",
                 "        [EEG, com] = pop_icflag(EEG);",
+                "    case 'pop_dipfit_settings'",
+                "        [EEG, com] = pop_dipfit_settings(EEG);",
+                "    case 'pop_dipfit_headmodel'",
+                "        [EEG, com] = pop_dipfit_headmodel(EEG, fullfile(eeglab_root, 'sample_data', 'eeglab_data.set'));",
+                "    case 'pop_dipfit_gridsearch'",
+                "        EEG = pop_dipfit_settings(EEG, 'model', 'standardBEM');",
+                "        [EEG, com] = pop_dipfit_gridsearch(EEG);",
+                "    case 'pop_dipfit_nonlinear'",
+                "        capture_dipfit_nonlinear_reference(output_file); com = '';",
+                "    case 'pop_dipplot'",
+                "        EEG = pop_dipfit_settings(EEG, 'model', 'standardBEM');",
+                "        EEG.dipfit.model(1).posxyz = [0 -20 40]; EEG.dipfit.model(1).momxyz = [1 0 0]; EEG.dipfit.model(1).rv = 0.12;",
+                "        com = pop_dipplot(EEG);",
+                "    case 'pop_multifit'",
+                "        EEG = pop_dipfit_settings(EEG, 'model', 'standardBEM');",
+                "        [EEG, com] = pop_multifit(EEG);",
+                "    case 'pop_leadfield'",
+                "        EEG = pop_dipfit_settings(EEG, 'model', 'standardBEM');",
+                "        [EEG, com] = pop_leadfield(EEG);",
+                "    case 'pop_dipfit_loreta'",
+                "        EEG = pop_dipfit_settings(EEG, 'model', 'standardBEM');",
+                "        EEG.dipfit.sourcemodel = struct('pos', [0 0 0], 'leadfield', []);",
+                "        com = pop_dipfit_loreta(EEG);",
                 "end",
                 "if exist(output_file, 'file') ~= 2",
                 "    capture_simple_pop_dialog(output_file, target_title, action);",
@@ -1087,8 +1138,64 @@ def _write_matlab_simple_pop_dialog_script(
                 "addpath(patched_dir, '-begin');",
                 "end",
                 "",
+                "function capture_dipfit_nonlinear_reference(output_file)",
+                "try, icadefs; catch, BACKCOLOR = [.66 .76 1]; end",
+                "geomvert  = [1 1 1 1 1 1 1 1 1 1 1];",
+                "geomhoriz = {",
+                "    [0.8 0.5 0.8 1 1]",
+                "    [1]",
+                "    [0.7 0.7 2 2 1]",
+                "    [0.7 0.5 0.2 2 2 1]",
+                "    [0.7 0.5 0.2 2 2 1]",
+                "    [1]",
+                "    [1 1 1]",
+                "    [1]",
+                "    [1 1 1]",
+                "};",
+                "geomhoriz = {geomhoriz{:} [1] [1 1 1]};",
+                "elements = {};",
+                "elements{end+1} = { 'style' 'text'       'string' 'Component to fit' };",
+                "elements{end+1} = { 'style' 'edit'       'string' '1' };",
+                "elements{end+1} = { 'style' 'pushbutton' 'string' 'Plot map' };",
+                "elements{end+1} = { 'style' 'text'       'string' 'Residual variance = ' };",
+                "elements{end+1} = { 'style' 'text'       'string' 'not fit' };",
+                "elements{end+1} = { };",
+                "elements{end+1} = { 'style' 'text'       'string' 'dipole' };",
+                "elements{end+1} = { 'style' 'text'       'string' 'fit' };",
+                "elements{end+1} = { 'style' 'text'       'string' 'position' };",
+                "elements{end+1} = { 'style' 'text'       'string' 'moment' };",
+                "elements{end+1} = { };",
+                "elements{end+1} = { 'style' 'text'       'string' '1' };",
+                "elements{end+1} = { 'style' 'checkbox'   'string' '' 'value' 1 };",
+                "elements{end+1} = { };",
+                "elements{end+1} = { 'style' 'edit'       'string' '0 0 0' };",
+                "elements{end+1} = { 'style' 'edit'       'string' '0 0 0' };",
+                "elements{end+1} = { 'style' 'pushbutton' 'string' 'Flip (in|out)' };",
+                "elements{end+1} = { 'style' 'text'       'string' '#2' };",
+                "elements{end+1} = { 'style' 'checkbox'   'string' '' };",
+                "elements{end+1} = { };",
+                "elements{end+1} = { 'style' 'edit'       'string' '0 0 0' };",
+                "elements{end+1} = { 'style' 'edit'       'string' '0 0 0' };",
+                "elements{end+1} = { 'style' 'pushbutton' 'string' 'Flip (in|out)' };",
+                "elements{end+1} = { };",
+                "elements{end+1} = { 'style' 'checkbox'   'string' 'Symmetry constrain for dipole #2' 'value' 1 };",
+                "elements{end+1} = { }; elements{end+1} = { }; elements{end+1} = { };",
+                "elements{end+1} = { 'style' 'pushbutton' 'string' 'Fit dipole(s)'' position & moment' };",
+                "elements{end+1} = { 'style' 'pushbutton' 'string' 'OR fit only dipole(s)'' moment' };",
+                "elements{end+1} = { 'style' 'pushbutton' 'string' 'Plot dipole(s)' };",
+                "elements{end+1} = { };",
+                "elements{end+1} = { 'Style' 'pushbutton' 'string' 'Cancel' };",
+                "elements{end+1} = { 'Style' 'pushbutton' 'string' 'Help' };",
+                "elements{end+1} = { 'Style' 'pushbutton' 'string' 'OK' };",
+                "fig = figure('visible', 'on', 'color', BACKCOLOR);",
+                "supergui(fig, geomhoriz, geomvert, elements{:});",
+                "set(fig, 'name', 'Manual dipole fit -- pop_dipfit_nonlinear()', 'Units', 'pixels');",
+                "drawnow; pause(0.2);",
+                "write_figure_capture(fig, output_file);",
+                "try, close(fig); catch, end",
+                "end",
+                "",
                 *_matlab_capture_helper(),
-                "eegprep_visual_capture();",
                 "",
             ]
         )
@@ -1720,6 +1827,14 @@ def capture_target(
             "pop_rejtrend",
             "pop_selectcomps",
             "pop_viewprops",
+            "pop_dipfit_settings",
+            "pop_dipfit_headmodel",
+            "pop_dipfit_gridsearch",
+            "pop_dipfit_nonlinear",
+            "pop_dipplot",
+            "pop_multifit",
+            "pop_leadfield",
+            "pop_dipfit_loreta",
             "inputdlg2",
             "pophelp",
         }:
@@ -1793,6 +1908,14 @@ def capture_target(
             "pop_rejtrend",
             "pop_selectcomps",
             "pop_viewprops",
+            "pop_dipfit_settings",
+            "pop_dipfit_headmodel",
+            "pop_dipfit_gridsearch",
+            "pop_dipfit_nonlinear",
+            "pop_dipplot",
+            "pop_multifit",
+            "pop_leadfield",
+            "pop_dipfit_loreta",
         }:
             script_path = _write_matlab_simple_pop_dialog_script(case, output_path, action, variant)
         elif action == "inputdlg2":

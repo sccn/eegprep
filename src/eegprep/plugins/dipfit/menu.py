@@ -1,7 +1,4 @@
-"""DIPFIT plugin menu spec for the EEGPrep main window.
-
-TODO: replace placeholder actions with Python DIPFIT ports when available.
-"""
+"""DIPFIT plugin menu spec for the EEGPrep main window."""
 
 from __future__ import annotations
 

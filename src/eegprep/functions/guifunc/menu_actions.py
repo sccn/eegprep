@@ -35,6 +35,12 @@ IMPLEMENTED_ACTIONS = {
     "pop_chanedit",
     "pop_comperp",
     "pop_delset",
+    "pop_dipfit_gridsearch",
+    "pop_dipfit_headmodel",
+    "pop_dipfit_loreta",
+    "pop_dipfit_nonlinear",
+    "pop_dipfit_settings",
+    "pop_dipplot",
     "pop_comments",
     "pop_copyset",
     "pop_editset",
@@ -64,6 +70,7 @@ IMPLEMENTED_ACTIONS = {
     "pop_icflag",
     "pop_iclabel",
     "pop_jointprob",
+    "pop_leadfield",
     "pop_importbids",
     "pop_importdata",
     "pop_importepoch",
@@ -107,6 +114,7 @@ IMPLEMENTED_ACTIONS = {
     "pop_viewprops",
     "pop_participantinfo",
     "pop_mergeset",
+    "pop_multifit",
     "pop_writeeeg",
     "bids_exporter",
     "plugin_menu",
@@ -173,6 +181,18 @@ _MULTIPLE_DATASET_ACTIONS = {
     "pop_rejspec",
     "pop_rejtrend",
     "pop_subcomp",
+    "pop_dipfit_settings",
+}
+
+_DIPFIT_ACTIONS = {
+    "pop_dipfit_gridsearch",
+    "pop_dipfit_headmodel",
+    "pop_dipfit_loreta",
+    "pop_dipfit_nonlinear",
+    "pop_dipfit_settings",
+    "pop_dipplot",
+    "pop_leadfield",
+    "pop_multifit",
 }
 
 
@@ -385,6 +405,9 @@ class MenuActionDispatcher:
             return
         if base == "eeg_rejsuperpose":
             self._run_rejsuperpose(variant, parent)
+            return
+        if base in _DIPFIT_ACTIONS:
+            self._run_dipfit_function(base, parent)
             return
         if base == "topoplot":
             self._plot_channel_locations(variant, parent)
@@ -1025,6 +1048,57 @@ class MenuActionDispatcher:
         eeg_out, command = eeg_rejsuperpose(selection, typerej, 1, 1, 1, 1, 1, 1, 1, return_com=True)
         self._store_current_from_gui(eeg_out, command=command)
         self._refresh()
+
+    def _run_dipfit_function(self, name: str, parent: Any | None) -> None:
+        selection = self._current_selection_or_warn(parent, allow_multiple=name in _MULTIPLE_DATASET_ACTIONS)
+        if selection is None:
+            return
+        if name == "pop_dipfit_settings":
+            from eegprep.plugins.dipfit.pop_dipfit_settings import pop_dipfit_settings
+
+            eeg_out, command = pop_dipfit_settings(selection, return_com=True)
+            if command:
+                self._store_current_from_gui(eeg_out, command=command)
+                self._refresh()
+            return
+        if name == "pop_dipplot":
+            from eegprep.plugins.dipfit.pop_dipplot import pop_dipplot
+
+            _figures, command = pop_dipplot(selection, return_com=True)
+            self._add_history_from_gui(command)
+            self._refresh()
+            return
+        if name == "pop_dipfit_headmodel":
+            from eegprep.plugins.dipfit.pop_dipfit_headmodel import pop_dipfit_headmodel
+
+            pop_dipfit_headmodel(selection, return_com=True)
+            return
+        if name == "pop_dipfit_gridsearch":
+            from eegprep.plugins.dipfit.pop_dipfit_gridsearch import pop_dipfit_gridsearch
+
+            pop_dipfit_gridsearch(selection, return_com=True)
+            return
+        if name == "pop_dipfit_nonlinear":
+            from eegprep.plugins.dipfit.pop_dipfit_nonlinear import pop_dipfit_nonlinear
+
+            pop_dipfit_nonlinear(selection, return_com=True)
+            return
+        if name == "pop_multifit":
+            from eegprep.plugins.dipfit.pop_multifit import pop_multifit
+
+            pop_multifit(selection, return_com=True)
+            return
+        if name == "pop_leadfield":
+            from eegprep.plugins.dipfit.pop_leadfield import pop_leadfield
+
+            pop_leadfield(selection, return_com=True)
+            return
+        if name == "pop_dipfit_loreta":
+            from eegprep.plugins.dipfit.pop_dipfit_loreta import pop_dipfit_loreta
+
+            pop_dipfit_loreta(selection, return_com=True)
+            return
+        self.show_coming_soon(name, parent)
 
     def _plot_channel_locations(self, variant: str, parent: Any | None) -> None:
         selection = self._current_selection_or_warn(parent)
