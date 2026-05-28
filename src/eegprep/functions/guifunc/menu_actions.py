@@ -69,12 +69,14 @@ IMPLEMENTED_ACTIONS = {
     "pop_studywizard",
     "pop_subcomp",
     "pop_taskinfo",
+    "pop_topoplot",
     "pop_participantinfo",
     "pop_writeeeg",
     "bids_exporter",
     "plugin_menu",
     "quit",
     "retrieve_dataset",
+    "topoplot",
     "tutorial",
     "updates",
     "validate_bids",
@@ -271,6 +273,12 @@ class MenuActionDispatcher:
             return
         if base == "pop_subcomp":
             self._run_pop_function("pop_subcomp", parent)
+            return
+        if base == "topoplot":
+            self._plot_channel_locations(variant, parent)
+            return
+        if base == "pop_topoplot":
+            self._run_topoplot(variant, parent)
             return
         self.show_coming_soon(action, parent)
 
@@ -733,6 +741,27 @@ class MenuActionDispatcher:
         if command:
             self._store_current_from_gui(eeg_out, command=command)
             self._refresh()
+
+    def _plot_channel_locations(self, variant: str, parent: Any | None) -> None:
+        selection = self._current_selection_or_warn(parent)
+        if selection is None:
+            return
+        from eegprep.functions.popfunc.pop_topoplot import plot_channel_locations
+
+        _figure, command = plot_channel_locations(selection, mode=variant or "labels", return_com=True)
+        self._add_history_from_gui(command)
+        self._refresh()
+
+    def _run_topoplot(self, variant: str, parent: Any | None) -> None:
+        selection = self._current_selection_or_warn(parent)
+        if selection is None:
+            return
+        from eegprep.functions.popfunc.pop_topoplot import pop_topoplot
+
+        typeplot = 0 if variant == "components" else 1
+        _figures, command = pop_topoplot(selection, typeplot=typeplot, return_com=True)
+        self._add_history_from_gui(command)
+        self._refresh()
 
     def _store_current_from_gui(self, eeg: Any, **kwargs: Any) -> Any:
         command = kwargs.get("command")

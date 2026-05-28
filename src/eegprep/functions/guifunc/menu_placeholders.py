@@ -91,8 +91,6 @@ PLACEHOLDER_ACTION_METADATA: Mapping[str, PlaceholderMetadata] = {
             "pop_signalstat",
             "pop_spectopo",
             "pop_timtopo",
-            "pop_topoplot",
-            "topoplot",
         ),
     ),
     **_phase_entries(

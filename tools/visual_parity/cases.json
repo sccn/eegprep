@@ -480,6 +480,56 @@
       }
     },
     {
+      "id": "pop_topoplot_erp_dialog",
+      "description": "ERP scalp-map dialog opened from pop_topoplot.",
+      "window_size": [650, 383],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_topoplot:erp"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_topoplot_erp_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_topoplot_components_dialog",
+      "description": "Component scalp-map dialog opened from pop_topoplot.",
+      "window_size": [650, 445],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_topoplot:components"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_topoplot_components_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
       "id": "pop_runica_dialog",
       "description": "ICA decomposition dialog opened from pop_runica.",
       "window_size": [824, 334],

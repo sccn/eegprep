@@ -97,7 +97,7 @@ def topoplot(datavector, chan_locs, **kwargs):
     rmax = 0.5  # actual head radius
     INTSQUARE = 'on'
     default_intrad = 1
-    ELECTRODES = kwargs.get('ELECTRODES', 'on')
+    ELECTRODES = kwargs.get('electrodes', kwargs.get('ELECTRODES', 'on'))
     MAXDEFAULTSHOWLOCS = 64
     intrad = kwargs.get('intrad', np.nan)
     plotrad = kwargs.get('plotrad', np.nan)
@@ -109,6 +109,7 @@ def topoplot(datavector, chan_locs, **kwargs):
     # This matches MATLAB's coverage and properly interpolates frontal regions.
     # Users can override with method='griddata' for scipy's cubic interpolation (56.2% coverage).
     method = kwargs.get('method', 'v4')
+    style = str(kwargs.get('style', 'map')).lower()
 
     # print method
     # print(f'method = {method}')
@@ -126,12 +127,19 @@ def topoplot(datavector, chan_locs, **kwargs):
     cmap = plt.get_cmap('jet')
     GRID_SCALE = gridscale
 
-    if len(datavector) > MAXDEFAULTSHOWLOCS:
+    datavector = np.array([] if datavector is None else datavector).flatten()
+    if datavector.size == 0 or style == 'blank':
+        blank_kwargs = dict(kwargs)
+        blank_kwargs.pop('noplot', None)
+        blank_kwargs.pop('electrodes', None)
+        blank_kwargs.pop('ELECTRODES', None)
+        return _blank_topoplot(chan_locs, noplot=noplot, electrodes=ELECTRODES, gridscale=gridscale, **blank_kwargs)
+
+    if len(datavector) > MAXDEFAULTSHOWLOCS and str(ELECTRODES).lower() == 'on':
         ELECTRODES = 'off'
-    else:
+    elif str(ELECTRODES).lower() == 'on':
         ELECTRODES = 'on'
 
-    datavector = np.array(datavector).flatten()
     ContourVals = np.array(ContourVals).flatten()
 
     # Read the channel location information
@@ -252,12 +260,14 @@ def topoplot(datavector, chan_locs, **kwargs):
         y_rotated = x.copy()
         extent_rotated = (ymin, ymax, -xmax, -xmin)
 
-        im = ax.imshow(Zi, extent=extent_rotated, origin='lower', cmap=cmap)
+        im = ax.imshow(
+            Zi, extent=extent_rotated, origin='lower', cmap=cmap, **_maplimits_kwargs(kwargs.get('maplimits'), Zi)
+        )
         if kwargs.get('colorbar', own_figure):
             fig.colorbar(im, ax=ax, shrink=0.7)
 
         markersize = kwargs.get('markersize', 6)
-        if ELECTRODES == 'on':
+        if str(ELECTRODES).lower() == 'on':
             ax.scatter(x_rotated, y_rotated, c='k', s=markersize, zorder=5)
         # Head circles: a thick white ring at slightly smaller radius fills the
         # gap between the interpolated image edge and the head outline.
@@ -270,9 +280,7 @@ def topoplot(datavector, chan_locs, **kwargs):
         nose_w = 0.08
         ax.plot([nose_w, 0, -nose_w], [rmax, rmax + 0.06, rmax], 'k', linewidth=1.5, zorder=4)
 
-        if kwargs.get('showlabels', False):
-            for i, txt in enumerate(labels):
-                ax.annotate(txt, (x_rotated[i], y_rotated[i]), fontsize=7, ha='right')
+        _draw_electrode_labels(ax, x_rotated, y_rotated, labels, ELECTRODES, showlabels=kwargs.get('showlabels', False))
 
         ax.set_xlim(-0.6, 0.6)
         ax.set_ylim(-0.6, 0.65)
@@ -281,8 +289,105 @@ def topoplot(datavector, chan_locs, **kwargs):
 
         if own_figure:
             ax.set_title('Topoplot')
-            plt.show()
+            _show_if_interactive()
 
         handle = fig
 
     return handle, Zi, plotrad, xi, yi
+
+
+def _blank_topoplot(chan_locs, *, noplot='off', electrodes='on', gridscale=67, **kwargs):
+    """Draw channel locations without interpolated data."""
+    labels, x_rotated, y_rotated = _channel_location_points(chan_locs)
+    xi_1d = np.linspace(-0.5, 0.5, int(gridscale))
+    yi_1d = np.linspace(-0.5, 0.5, int(gridscale))
+    xi, yi = np.meshgrid(xi_1d, yi_1d)
+    # Blank topoplots are decorative channel-location views; Zi is not a
+    # numerical interpolation result.
+    Zi = np.full_like(xi, np.nan, dtype=float)
+    if str(noplot).lower() != 'off':
+        return None, Zi, 0.5, xi, yi
+
+    ax = kwargs.get('axes', None)
+    own_figure = ax is None
+    if own_figure:
+        fig, ax = plt.subplots(1, 1)
+    else:
+        fig = ax.figure
+
+    _draw_head(ax)
+    markersize = kwargs.get('markersize', 6)
+    electrode_mode = str(electrodes).lower()
+    if electrode_mode in {'on', 'labelpoint', 'numpoint'}:
+        ax.scatter(x_rotated, y_rotated, c='k', s=markersize, zorder=5)
+    _draw_electrode_labels(ax, x_rotated, y_rotated, labels, electrodes)
+    ax.set_xlim(-0.6, 0.6)
+    ax.set_ylim(-0.6, 0.65)
+    ax.set_aspect('equal')
+    ax.axis('off')
+    ax.set_title(kwargs.get('title', 'Channel locations'))
+    if own_figure:
+        _show_if_interactive()
+    return fig, Zi, 0.5, xi, yi
+
+
+def _channel_location_points(chan_locs):
+    labels = []
+    xs = []
+    ys = []
+    for index, loc in enumerate(chan_locs):
+        if 'theta' not in loc or 'radius' not in loc:
+            continue
+        try:
+            theta_rad = np.deg2rad(float(loc.get('theta')))
+            radius_value = float(loc.get('radius'))
+        except (TypeError, ValueError):
+            continue
+        if not np.isfinite(theta_rad) or not np.isfinite(radius_value):
+            continue
+        labels.append(str(loc.get('labels', index + 1)))
+        x = np.cos(theta_rad) * radius_value
+        y = np.sin(theta_rad) * radius_value
+        xs.append(-y)
+        ys.append(x)
+    return np.asarray(labels), np.asarray(xs), np.asarray(ys)
+
+
+def _draw_head(ax):
+    theta_c = np.linspace(0, 2 * np.pi, 100)
+    rmax = 0.5
+    ax.plot(np.cos(theta_c) * rmax, np.sin(theta_c) * rmax, 'k', linewidth=1.5, zorder=4)
+    nose_w = 0.08
+    ax.plot([nose_w, 0, -nose_w], [rmax, rmax + 0.06, rmax], 'k', linewidth=1.5, zorder=4)
+
+
+def _draw_electrode_labels(ax, x, y, labels, electrodes, *, showlabels=False):
+    electrode_mode = str(electrodes).lower()
+    if electrode_mode == 'numpoint':
+        text_labels = [str(index + 1) for index in range(len(labels))]
+    elif electrode_mode in {'labelpoint', 'labels'} or showlabels:
+        text_labels = labels
+    else:
+        return
+    for x_pos, y_pos, text in zip(x, y, text_labels):
+        ax.annotate(text, (x_pos, y_pos), fontsize=7, ha='center', va='center')
+
+
+def _show_if_interactive():
+    if 'agg' not in plt.get_backend().lower():
+        plt.show()
+
+
+def _maplimits_kwargs(maplimits, data):
+    if maplimits is None:
+        return {}
+    if isinstance(maplimits, str):
+        if maplimits.lower() == 'absmax':
+            limit = np.nanmax(np.abs(data))
+            return {"vmin": -limit, "vmax": limit} if np.isfinite(limit) and limit > 0 else {}
+        if maplimits.lower() == 'maxmin':
+            return {}
+    values = np.asarray(maplimits, dtype=float).ravel()
+    if values.size >= 2 and np.all(np.isfinite(values[:2])):
+        return {"vmin": float(values[0]), "vmax": float(values[1])}
+    return {}
