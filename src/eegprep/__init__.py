@@ -64,6 +64,8 @@ _LAZY_EXPORTS = {
     "loadset": ("eegprep.functions.popfunc.pop_loadset", "loadset"),
     "mne2eeg": ("eegprep.functions.redefine_functions", "mne2eeg"),
     "mne2eeg_epochs": ("eegprep.functions.redefine_functions", "mne2eeg_epochs"),
+    "newcrossf": ("eegprep.functions.timefreqfunc.newcrossf", "newcrossf"),
+    "newtimef": ("eegprep.functions.timefreqfunc.newtimef", "newtimef"),
     "options": ("eegprep.functions.redefine_functions", "options"),
     "picard": ("eegprep.functions.redefine_functions", "picard"),
     "point2lat": ("eegprep.functions.redefine_functions", "point2lat"),
@@ -98,6 +100,7 @@ _LAZY_EXPORTS = {
     "pop_comperp": ("eegprep.functions.popfunc.pop_comperp", "pop_comperp"),
     "pop_envtopo": ("eegprep.functions.popfunc.pop_envtopo", "pop_envtopo"),
     "pop_erpimage": ("eegprep.functions.popfunc.pop_erpimage", "pop_erpimage"),
+    "pop_eventstat": ("eegprep.functions.popfunc.pop_eventstat", "pop_eventstat"),
     "pop_fileio_brainvision_mat": (
         "eegprep.functions.popfunc.pop_fileio_brainvision_mat",
         "pop_fileio_brainvision_mat",
@@ -123,6 +126,8 @@ _LAZY_EXPORTS = {
     "pop_leadfield": ("eegprep.plugins.dipfit.pop_leadfield", "pop_leadfield"),
     "pop_mergeset": ("eegprep.functions.popfunc.pop_mergeset", "pop_mergeset"),
     "pop_multifit": ("eegprep.plugins.dipfit.pop_multifit", "pop_multifit"),
+    "pop_newcrossf": ("eegprep.functions.popfunc.pop_newcrossf", "pop_newcrossf"),
+    "pop_newtimef": ("eegprep.functions.popfunc.pop_newtimef", "pop_newtimef"),
     "pop_plotdata": ("eegprep.functions.popfunc.pop_plotdata", "pop_plotdata"),
     "pop_plottopo": ("eegprep.functions.popfunc.pop_plottopo", "pop_plottopo"),
     "pop_prop": ("eegprep.functions.popfunc.pop_prop", "pop_prop"),
@@ -145,6 +150,7 @@ _LAZY_EXPORTS = {
     "pop_select": ("eegprep.functions.popfunc.pop_select", "pop_select"),
     "pop_selectevent": ("eegprep.functions.popfunc.pop_selectevent", "pop_selectevent"),
     "pop_selectcomps": ("eegprep.functions.popfunc.pop_selectcomps", "pop_selectcomps"),
+    "pop_signalstat": ("eegprep.functions.popfunc.pop_signalstat", "pop_signalstat"),
     "pop_study": ("eegprep.functions.studyfunc.pop_study", "pop_study"),
     "pop_studyerp": ("eegprep.functions.studyfunc.pop_studyerp", "pop_studyerp"),
     "pop_studywizard": ("eegprep.functions.studyfunc.pop_studywizard", "pop_studywizard"),
@@ -163,6 +169,7 @@ _LAZY_EXPORTS = {
         "eegprep.functions.guifunc.select_multiple_datasets",
         "select_multiple_datasets",
     ),
+    "signalstat": ("eegprep.functions.sigprocfunc.signalstat", "signalstat"),
     "topoplot": ("eegprep.functions.sigprocfunc.topoplot", "topoplot"),
 }
 

@@ -34,9 +34,12 @@ from eegprep.functions.popfunc.pop_headplot import pop_headplot_dialog_spec
 from eegprep.functions.popfunc.pop_interp import pop_interp_dialog_spec
 from eegprep.functions.popfunc.pop_jointprob import pop_jointprob_dialog_spec
 from eegprep.functions.popfunc.pop_mergeset import pop_mergeset_dialog_spec
+from eegprep.functions.popfunc.pop_eventstat import pop_eventstat_dialog_spec
 from eegprep.functions.popfunc.pop_plotdata import pop_plotdata_dialog_spec
 from eegprep.functions.popfunc.pop_plottopo import pop_plottopo_dialog_spec
 from eegprep.functions.popfunc.pop_prop import pop_prop_dialog_spec
+from eegprep.functions.popfunc.pop_newcrossf import pop_newcrossf_dialog_spec
+from eegprep.functions.popfunc.pop_newtimef import pop_newtimef_dialog_spec
 from eegprep.functions.popfunc.pop_reref import pop_reref_dialog_spec
 from eegprep.functions.popfunc.pop_rejchan import pop_rejchan_dialog_spec
 from eegprep.functions.popfunc.pop_rejcont import pop_rejcont_dialog_spec
@@ -50,6 +53,7 @@ from eegprep.functions.popfunc.pop_rmbase import pop_rmbase_dialog_spec
 from eegprep.functions.popfunc.pop_runica import pop_runica_dialog_spec
 from eegprep.functions.popfunc.pop_select import pop_select_dialog_spec
 from eegprep.functions.popfunc.pop_selectevent import pop_selectevent_dialog_spec
+from eegprep.functions.popfunc.pop_signalstat import pop_signalstat_dialog_spec
 from eegprep.functions.popfunc.pop_selectcomps import pop_selectcomps_dialog_spec
 from eegprep.functions.popfunc.pop_spectopo import pop_spectopo_dialog_spec
 from eegprep.functions.popfunc.pop_subcomp import pop_subcomp_dialog_spec
@@ -656,6 +660,42 @@ def capture_pop_comperp_dialog(output: pathlib.Path, *, variant: str = "channels
     _grab_dialog(dialog, output, app)
 
 
+def capture_pop_newtimef_dialog(output: pathlib.Path, *, variant: str = "channels") -> None:
+    """Render and capture the pop_newtimef dialog."""
+    eeg = _demo_main_eeg(epoched=True, setname="pop demo")
+    spec = pop_newtimef_dialog_spec(eeg, typeproc=0 if variant == "components" else 1)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_newcrossf_dialog(output: pathlib.Path, *, variant: str = "channels") -> None:
+    """Render and capture the pop_newcrossf dialog."""
+    eeg = _demo_main_eeg(epoched=True, setname="pop demo")
+    spec = pop_newcrossf_dialog_spec(eeg, typeproc=0 if variant == "components" else 1)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_signalstat_dialog(output: pathlib.Path, *, variant: str = "channels") -> None:
+    """Render and capture the pop_signalstat dialog."""
+    eeg = _demo_main_eeg(epoched=True, setname="pop demo")
+    spec = pop_signalstat_dialog_spec(eeg, typeproc=0 if variant == "components" else 1)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_eventstat_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_eventstat dialog."""
+    eeg = _demo_main_eeg(epoched=True, setname="pop demo")
+    spec = pop_eventstat_dialog_spec(eeg)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
 def capture_pop_runica_dialog(output: pathlib.Path) -> None:
     """Render and capture the pop_runica dialog."""
     eeg = _demo_main_eeg()
@@ -1016,6 +1056,20 @@ def main(argv: list[str] | None = None) -> int:
         capture_pop_comperp_dialog(args.output, variant="channels")
     elif args.case == "pop_comperp_components_dialog":
         capture_pop_comperp_dialog(args.output, variant="components")
+    elif args.case == "pop_newtimef_channels_dialog":
+        capture_pop_newtimef_dialog(args.output, variant="channels")
+    elif args.case == "pop_newtimef_components_dialog":
+        capture_pop_newtimef_dialog(args.output, variant="components")
+    elif args.case == "pop_newcrossf_channels_dialog":
+        capture_pop_newcrossf_dialog(args.output, variant="channels")
+    elif args.case == "pop_newcrossf_components_dialog":
+        capture_pop_newcrossf_dialog(args.output, variant="components")
+    elif args.case == "pop_signalstat_channels_dialog":
+        capture_pop_signalstat_dialog(args.output, variant="channels")
+    elif args.case == "pop_signalstat_components_dialog":
+        capture_pop_signalstat_dialog(args.output, variant="components")
+    elif args.case == "pop_eventstat_dialog":
+        capture_pop_eventstat_dialog(args.output)
     elif args.case == "pop_runica_dialog":
         capture_pop_runica_dialog(args.output)
     elif args.case == "pop_runica_multiple_dialog":

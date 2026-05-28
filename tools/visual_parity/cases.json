@@ -1205,6 +1205,181 @@
       }
     },
     {
+      "id": "pop_newtimef_channels_dialog",
+      "description": "Channel time-frequency dialog opened from pop_newtimef.",
+      "window_size": [930, 531],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_newtimef:channels"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_newtimef_channels_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_newtimef_components_dialog",
+      "description": "Component time-frequency dialog opened from pop_newtimef.",
+      "window_size": [930, 531],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_newtimef:components"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_newtimef_components_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_newcrossf_channels_dialog",
+      "description": "Channel cross-coherence dialog opened from pop_newcrossf.",
+      "window_size": [809, 430],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_newcrossf:channels"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_newcrossf_channels_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_newcrossf_components_dialog",
+      "description": "Component cross-coherence dialog opened from pop_newcrossf.",
+      "window_size": [809, 430],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_newcrossf:components"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_newcrossf_components_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_signalstat_channels_dialog",
+      "description": "Channel signal-statistics dialog opened from pop_signalstat.",
+      "window_size": [420, 150],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_signalstat:channels"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_signalstat_channels_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_signalstat_components_dialog",
+      "description": "Component signal-statistics dialog opened from pop_signalstat.",
+      "window_size": [420, 150],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_signalstat:components"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_signalstat_components_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_eventstat_dialog",
+      "description": "Event-statistics dialog opened from pop_eventstat.",
+      "window_size": [560, 230],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_eventstat"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_eventstat_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
       "id": "pop_runica_dialog",
       "description": "ICA decomposition dialog opened from pop_runica.",
       "window_size": [824, 334],

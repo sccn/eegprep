@@ -61,6 +61,15 @@ class VisualParityConfigTests(unittest.TestCase):
         self.assertEqual(cases["pop_envtopo_dialog"].targets["eeglab"].action, "pop_envtopo")
         self.assertEqual(cases["pop_comperp_channels_dialog"].targets["eeglab"].action, "pop_comperp:channels")
         self.assertEqual(cases["pop_comperp_components_dialog"].targets["eeglab"].action, "pop_comperp:components")
+        self.assertEqual(cases["pop_newtimef_channels_dialog"].targets["eeglab"].action, "pop_newtimef:channels")
+        self.assertEqual(cases["pop_newtimef_components_dialog"].targets["eeglab"].action, "pop_newtimef:components")
+        self.assertEqual(cases["pop_newcrossf_channels_dialog"].targets["eeglab"].action, "pop_newcrossf:channels")
+        self.assertEqual(cases["pop_newcrossf_components_dialog"].targets["eeglab"].action, "pop_newcrossf:components")
+        self.assertEqual(cases["pop_signalstat_channels_dialog"].targets["eeglab"].action, "pop_signalstat:channels")
+        self.assertEqual(
+            cases["pop_signalstat_components_dialog"].targets["eeglab"].action, "pop_signalstat:components"
+        )
+        self.assertEqual(cases["pop_eventstat_dialog"].targets["eeglab"].action, "pop_eventstat")
         self.assertEqual(cases["pop_runica_dialog"].targets["eeglab"].action, "pop_runica")
         self.assertEqual(cases["pop_iclabel_dialog"].targets["eeglab"].action, "pop_iclabel")
         self.assertEqual(cases["pop_icflag_dialog"].targets["eeglab"].action, "pop_icflag")
@@ -425,6 +434,13 @@ class VisualParityCaptureTests(unittest.TestCase):
             ("pop_envtopo_dialog", "pop_envtopo", "com = pop_envtopo(EEG);"),
             ("pop_comperp_channels_dialog", "pop_comperp", "pop_comperp(ALLEEG, 1);"),
             ("pop_comperp_components_dialog", "pop_comperp", "pop_comperp(ALLEEG, 0);"),
+            ("pop_newtimef_channels_dialog", "pop_newtimef", "com = pop_newtimef(EEG, 1);"),
+            ("pop_newtimef_components_dialog", "pop_newtimef", "com = pop_newtimef(EEG, 0);"),
+            ("pop_newcrossf_channels_dialog", "pop_newcrossf", "com = pop_newcrossf(EEG, 1);"),
+            ("pop_newcrossf_components_dialog", "pop_newcrossf", "com = pop_newcrossf(EEG, 0);"),
+            ("pop_signalstat_channels_dialog", "pop_signalstat", "com = pop_signalstat(EEG, 1);"),
+            ("pop_signalstat_components_dialog", "pop_signalstat", "com = pop_signalstat(EEG, 0);"),
+            ("pop_eventstat_dialog", "pop_eventstat", "com = pop_eventstat(EEG);"),
         ]
         for case_id, action, expected_call in cases:
             with self.subTest(case_id=case_id), tempfile.TemporaryDirectory() as tmpdir:

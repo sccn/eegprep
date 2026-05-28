@@ -97,8 +97,7 @@ def pop_viewprops_dialog_spec(EEG: dict[str, Any], typecomp: int | bool = 1) -> 
         controls=tuple(controls),
         known_differences=(
             "EEGPrep omits EEGBrowser/eegplot scrolling activity from the property overview.",
-            "Extended channel-property panels are scheduled for Phase 4 plotting work; "
-            "the GUI menu shows a coming-soon placeholder for channel mode.",
+            "Channel mode renders a non-scrolling overview so the GUI and console remain usable without EEGBrowser.",
         ),
     )
 
