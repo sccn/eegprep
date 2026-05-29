@@ -103,6 +103,20 @@ def test_pop_rmbase_continuous_boundary_partial_pointrange_only_changes_selected
     np.testing.assert_allclose(out["data"][:, 30:], before[:, 30:])
 
 
+def test_pop_rmbase_continuous_boundary_pointrange_can_span_boundary():
+    eeg = create_test_eeg(n_channels=1, n_samples=60, srate=100.0, n_trials=1)
+    eeg["data"] = np.arange(60, dtype=float)[np.newaxis, :]
+    eeg["event"] = [{"type": "boundary", "latency": 30.5}]
+    before = eeg["data"].copy()
+
+    out = pop_rmbase(eeg, pointrange=range(21, 41))
+
+    np.testing.assert_allclose(np.mean(out["data"][:, 20:30], axis=1), 0, atol=1e-10)
+    np.testing.assert_allclose(np.mean(out["data"][:, 30:40], axis=1), 0, atol=1e-10)
+    np.testing.assert_allclose(out["data"][:, :20], before[:, :20])
+    np.testing.assert_allclose(out["data"][:, 40:], before[:, 40:])
+
+
 def test_pop_rmbase_continuous_boundary_segment_without_baseline_is_unchanged():
     eeg = create_test_eeg(n_channels=1, n_samples=90, srate=100.0, n_trials=1)
     eeg["data"] = np.arange(90, dtype=float)[np.newaxis, :]
@@ -116,6 +130,15 @@ def test_pop_rmbase_continuous_boundary_segment_without_baseline_is_unchanged():
 
     np.testing.assert_allclose(np.mean(out["data"][:, :20], axis=1), 0, atol=1e-10)
     np.testing.assert_allclose(out["data"][:, 20:], before[:, 20:])
+
+
+def test_pop_rmbase_chanlist_subset_still_clears_icaact_like_eeglab():
+    eeg = create_test_eeg(n_channels=3, n_samples=40, srate=100.0, n_trials=1)
+    eeg["icaact"] = np.ones((3, 40))
+
+    out = pop_rmbase(eeg, pointrange=range(1, 6), chanlist=[2])
+
+    assert out["icaact"].size == 0
 
 
 def test_pop_rmbase_timerange_uses_eeg_times_units():

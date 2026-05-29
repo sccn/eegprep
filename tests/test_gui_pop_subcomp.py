@@ -65,6 +65,14 @@ class PopSubcompGuiTests(unittest.TestCase):
         self.assertEqual(out["etc"]["ic_classification"]["ICLabel"]["classifications"].shape, (1, 7))
         self.assertEqual(_console_python_command(com), "EEG = pop_subcomp(EEG, components=[1, 3], plotag=0)")
 
+    def test_component_removal_preserves_stats_like_eeglab(self):
+        eeg = _eeg()
+        eeg["stats"] = {"jp": np.array([1.0, 2.0, 3.0])}
+
+        out = pop_subcomp(eeg, [1])
+
+        np.testing.assert_array_equal(out["stats"]["jp"], eeg["stats"]["jp"])
+
     def test_gui_accepts_eeglab_style_component_ranges(self):
         class Renderer:
             def run(self, spec, initial_values=None):

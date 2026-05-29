@@ -125,7 +125,7 @@ def jointprob_marks(
     row_marks = np.zeros((data.shape[0], data.shape[2]), dtype=bool)
     row_marks[selected, :] = local_reject
     # Match EEGLAB pop_jointprob.m: trials become rows, then jointprob()
-    # computes and normalizes one score per trial.
+    # normalizes that 2-D score vector across trial rows.
     global_data = data[selected].transpose(2, 0, 1).reshape(data.shape[2], -1)
     global_scores, global_reject = jointprob(global_data, globthresh, normalize=1)
     reject = local_reject.any(axis=0) | global_reject.ravel()
@@ -144,7 +144,7 @@ def kurtosis_marks(
     row_marks = np.zeros((data.shape[0], data.shape[2]), dtype=bool)
     row_marks[selected, :] = local_reject
     # Match EEGLAB pop_rejkurt.m global mode: trials become rows before
-    # rejkurt() computes one normalized score per trial.
+    # rejkurt() normalizes that 2-D score vector across trial rows.
     global_data = data[selected].transpose(2, 0, 1).reshape(data.shape[2], -1)
     global_scores, global_reject = rejkurt(global_data, globthresh, normalize=1)
     reject = local_reject.any(axis=0) | global_reject.ravel()
@@ -244,6 +244,7 @@ def jointprob(
     if oldjp is not None and np.asarray(oldjp).size:
         scores = np.asarray(oldjp, dtype=float)
     else:
+        signal_ndim = np.asarray(signal).ndim
         arr = _as_rows_points_trials(signal)
         scores = np.zeros((arr.shape[0], arr.shape[2]), dtype=float)
         for row in range(arr.shape[0]):
@@ -251,7 +252,7 @@ def jointprob(
             for trial in range(arr.shape[2]):
                 data_prob = probabilities[trial * arr.shape[1] : (trial + 1) * arr.shape[1]]
                 scores[row, trial] = -np.sum(np.log(np.maximum(data_prob, np.finfo(float).tiny)))
-        scores = _normalize_scores(scores, int(normalize))
+        scores = _normalize_scores(scores, int(normalize), signal_ndim=signal_ndim)
     reject = _threshold_scores(scores, threshold)
     return scores, reject
 
@@ -263,6 +264,7 @@ def rejkurt(
     if oldkurtosis is not None and np.asarray(oldkurtosis).size:
         scores = np.asarray(oldkurtosis, dtype=float)
     else:
+        signal_ndim = np.asarray(signal).ndim
         arr = _as_rows_points_trials(signal)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", RuntimeWarning)
@@ -271,7 +273,7 @@ def rejkurt(
         if scores.ndim == 1:
             scores = scores[:, np.newaxis]
         scores = np.nan_to_num(scores, nan=0.0, posinf=0.0, neginf=0.0)
-        scores = _normalize_scores(scores, int(normalize))
+        scores = _normalize_scores(scores, int(normalize), signal_ndim=signal_ndim)
     reject = _threshold_scores(scores, threshold)
     return scores, reject
 
@@ -344,7 +346,7 @@ def _realproba(data: np.ndarray, bins: int = 1000) -> np.ndarray:
     return counts[indices] / data.size
 
 
-def _normalize_scores(scores: np.ndarray, mode: int) -> np.ndarray:
+def _normalize_scores(scores: np.ndarray, mode: int, *, signal_ndim: int) -> np.ndarray:
     if not mode:
         return scores
     baseline = np.asarray(scores, dtype=float)
@@ -353,10 +355,23 @@ def _normalize_scores(scores: np.ndarray, mode: int) -> np.ndarray:
         trim = np.maximum(np.rint(sorted_scores.shape[1] * 0.1).astype(int), 1)
         if sorted_scores.shape[1] > 2 * trim:
             baseline = sorted_scores[:, trim:-trim]
-    mean = baseline.mean(axis=1, keepdims=True)
-    std = baseline.std(axis=1, ddof=0, keepdims=True)
-    std[std == 0] = 1.0
+    if signal_ndim == 2:
+        mean = np.mean(baseline)
+        std = _nonzero_std(baseline, axis=None)
+    else:
+        mean = baseline.mean(axis=1, keepdims=True)
+        std = _nonzero_std(baseline, axis=1)
     return (scores - mean) / std
+
+
+def _nonzero_std(values: np.ndarray, *, axis: int | None) -> np.ndarray | float:
+    count = values.size if axis is None else values.shape[axis]
+    std = np.std(values, axis=axis, ddof=1 if count > 1 else 0, keepdims=axis is not None)
+    std = np.asarray(std, dtype=float)
+    std[~np.isfinite(std) | (std == 0)] = 1.0
+    if axis is None:
+        return float(std)
+    return std
 
 
 def _threshold_scores(scores: np.ndarray, threshold: Any) -> np.ndarray:

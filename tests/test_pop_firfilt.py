@@ -184,6 +184,11 @@ def test_pop_eegfilt_legacy_usefft_fails_clearly():
         pop_eegfilt(_continuous_eeg(), 1, 40, 100, 0, 1, 0, "firls", 0)
 
 
+def test_pop_eegfiltnew_legacy_usefft_errors_like_eeglab():
+    with pytest.raises(ValueError, match="FFT filtering is not supported"):
+        pop_eegfiltnew(_continuous_eeg(), hicutoff=40, filtorder=100, usefft=True)
+
+
 def test_bool_value_matches_eeglab_singleton_numeric_flags():
     assert bool_value([0]) is False
     assert bool_value(np.asarray([0])) is False

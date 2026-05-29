@@ -154,6 +154,47 @@ def test_jointprob_global_marks_match_eeglab_trial_rows_for_duplicate_channels()
     np.testing.assert_array_equal(row_marks[2], expected_local[2])
 
 
+def test_jointprob_global_threshold_can_reject_when_local_threshold_does_not():
+    data = np.array(
+        [
+            [
+                [4.0, 3.0],
+                [2.0, 1.0],
+                [1.0, 0.0],
+                [0.0, 0.0],
+                [0.0, 4.0],
+                [3.0, 4.0],
+                [2.0, 3.0],
+                [4.0, 3.0],
+                [3.0, 2.0],
+                [2.0, 4.0],
+                [1.0, 4.0],
+                [3.0, 0.0],
+            ],
+            [
+                [1.0, 4.0],
+                [2.0, 0.0],
+                [3.0, 3.0],
+                [4.0, 0.0],
+                [0.0, 4.0],
+                [0.0, 2.0],
+                [0.0, 1.0],
+                [2.0, 2.0],
+                [2.0, 0.0],
+                [0.0, 0.0],
+                [0.0, 3.0],
+                [2.0, 3.0],
+            ],
+        ]
+    )
+
+    reject, row_marks, _local_scores, global_scores = jointprob_marks(data, [1, 2], 10, 0.5)
+
+    np.testing.assert_array_equal(row_marks.any(axis=0), [False, False])
+    np.testing.assert_allclose(global_scores, [1 / np.sqrt(2), -1 / np.sqrt(2)])
+    np.testing.assert_array_equal(reject, [True, True])
+
+
 def test_kurtosis_global_marks_match_eeglab_trial_rows_for_duplicate_channels():
     rng = np.random.default_rng(7)
     data = rng.normal(size=(3, 16, 4))
@@ -172,6 +213,18 @@ def test_kurtosis_global_marks_match_eeglab_trial_rows_for_duplicate_channels():
     np.testing.assert_array_equal(reject, expected_reject)
     np.testing.assert_array_equal(row_marks[0], expected_local[1])
     np.testing.assert_array_equal(row_marks[1], expected_local[2])
+
+
+def test_kurtosis_global_threshold_can_reject_when_local_threshold_does_not():
+    rng = np.random.default_rng(0)
+    data = rng.normal(size=(2, 12, 2))
+    data[:, :, 1] *= 0.1
+
+    reject, row_marks, _local_scores, global_scores = kurtosis_marks(data, [1, 2], 10, 0.5)
+
+    np.testing.assert_array_equal(row_marks.any(axis=0), [False, False])
+    np.testing.assert_allclose(global_scores, [1 / np.sqrt(2), -1 / np.sqrt(2)])
+    np.testing.assert_array_equal(reject, [True, True])
 
 
 def test_trend_marks_match_reference_window_loop():
