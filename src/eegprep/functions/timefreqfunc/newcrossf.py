@@ -8,15 +8,7 @@ from typing import Any
 import matplotlib.pyplot as plt
 import numpy as np
 
-from eegprep.functions.timefreqfunc.newtimef import (
-    _as_epochs,
-    _limits,
-    _numeric_vector,
-    _select_freqs,
-    _select_times,
-    _trial_stft,
-    _winsize,
-)
+from eegprep.functions.timefreqfunc.newtimef import compute_time_frequency
 
 
 @dataclass(frozen=True)
@@ -43,30 +35,15 @@ def newcrossf(
     **kwargs: Any,
 ) -> CrossFrequencyResult:
     """Compute an EEGLAB-like event-related coherence decomposition."""
-    x_epochs = _as_epochs(x, int(frames))
-    y_epochs = _as_epochs(y, int(frames))
-    if x_epochs.shape != y_epochs.shape:
-        raise ValueError("newcrossf inputs must have matching frames and trials")
-    frames = x_epochs.shape[0]
-    tlimits = _limits(tlimits, frames, float(srate))
-    cycles_array = _numeric_vector(cycles)
-    winsize = _winsize(frames, float(srate), cycles_array, kwargs.get("winsize"), kwargs.get("freqs"))
-    padratio = int(_first_numeric(kwargs.get("padratio"), 2))
-    nfft = max(winsize, int(2 ** np.ceil(np.log2(max(winsize, 1)))) * max(padratio, 1))
-    noverlap = min(winsize - 1, max(0, int(_first_numeric(kwargs.get("overlap"), winsize // 2))))
-
-    full_freqs, times_seconds, tf_x = _trial_stft(x_epochs, float(srate), winsize, noverlap, nfft)
-    _freqs_y, _times_y, tf_y = _trial_stft(y_epochs, float(srate), winsize, noverlap, nfft)
-    freqs, tf_x = _select_freqs(full_freqs, tf_x, kwargs.get("freqs"), kwargs.get("nfreqs"), kwargs.get("freqscale"))
-    freq_indices = np.asarray([int(np.argmin(np.abs(full_freqs - freq))) for freq in freqs], dtype=int)
-    tf_y = tf_y[freq_indices, :, :]
-    full_times = tlimits[0] + times_seconds * 1000.0
-    times, tf_x = _select_times(full_times, tf_x, kwargs.get("timesout"))
-    time_indices = np.asarray([int(np.argmin(np.abs(full_times - time))) for time in times], dtype=int)
-    tf_y = tf_y[:, time_indices, :]
+    freqs, times, tf_x = compute_time_frequency(x, frames, tlimits, srate, cycles, **kwargs)
+    freqs_y, times_y, tf_y = compute_time_frequency(y, frames, tlimits, srate, cycles, **kwargs)
+    if tf_x.shape != tf_y.shape or not np.array_equal(freqs, freqs_y) or not np.array_equal(times, times_y):
+        raise ValueError("newcrossf inputs must have matching frames, trials, times, and frequencies")
 
     cross = tf_x * np.conjugate(tf_y)
     mode = str(kwargs.get("type", "phasecoher")).lower()
+    if tf_x.shape[2] == 1 and mode != "crossspec":
+        mode = "crossspec"
     if mode == "coher":
         denominator = np.sqrt(np.nanmean(np.abs(tf_x) ** 2, axis=2) * np.nanmean(np.abs(tf_y) ** 2, axis=2))
         coherence_complex = np.nanmean(cross, axis=2) / np.maximum(denominator, np.finfo(float).tiny)
@@ -140,11 +117,6 @@ def _plot_cross_frequency(
         fig.colorbar(image, ax=axes[row, 0], label="Phase (rad)")
     fig.tight_layout()
     return fig
-
-
-def _first_numeric(value: Any, default: float) -> float:
-    values = _numeric_vector(value)
-    return float(values[0]) if values.size else float(default)
 
 
 def _is_on(value: Any) -> bool:

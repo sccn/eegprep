@@ -94,6 +94,13 @@ Spectral Analysis
    eegprep.eeg_autocorr
    eegprep.eeg_autocorr_welch
    eegprep.eeg_autocorr_fftw
+   eegprep.newtimef
+   eegprep.newcrossf
+   eegprep.signalstat
+   eegprep.pop_newtimef
+   eegprep.pop_newcrossf
+   eegprep.pop_signalstat
+   eegprep.pop_eventstat
 
 Epoching and Selection
 ======================

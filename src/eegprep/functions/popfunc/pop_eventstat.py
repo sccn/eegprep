@@ -8,6 +8,7 @@ import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
+from eegprep.functions.popfunc.eeg_point2lat import eeg_point2lat
 from eegprep.functions.popfunc._plot_utils import history_command, numeric_vector
 from eegprep.functions.sigprocfunc.signalstat import signalstat
 
@@ -140,9 +141,19 @@ def _event_in_latency_range(EEG: dict[str, Any], event: dict[str, Any], bounds: 
         latency = float(np.asarray(event.get("latency")).squeeze())
     except (TypeError, ValueError):
         return False
-    srate = float(EEG.get("srate", 1) or 1)
-    xmin = float(EEG.get("xmin", 0) or 0)
-    latency_ms = (latency - 1) / srate * 1000.0 + xmin * 1000.0
+    try:
+        epoch = float(np.asarray(event.get("epoch", 1)).squeeze())
+    except (TypeError, ValueError):
+        epoch = 1.0
+    latency_ms = float(
+        eeg_point2lat(
+            [latency],
+            [epoch],
+            float(EEG.get("srate", 1) or 1),
+            [float(EEG.get("xmin", 0) or 0) * 1000.0, float(EEG.get("xmax", 0) or 0) * 1000.0],
+            1e-3,
+        )[0]
+    )
     return bool(bounds[0] <= latency_ms <= bounds[1])
 
 

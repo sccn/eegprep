@@ -13,4 +13,5 @@ stats = pop_signalstat(EEG, 0, 2, 10)
 ```
 
 The GUI asks for the channel/component number and trim percentage, then renders
-a histogram, boxplot, QQ plot, and statistics panel.
+a histogram, boxplot, QQ plot, topographic context when channel locations are
+available, and statistics panel.

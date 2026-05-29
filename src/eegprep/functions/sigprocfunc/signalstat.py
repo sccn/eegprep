@@ -10,6 +10,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import stats
 
+from eegprep.functions.sigprocfunc.topoplot import topoplot
+
 
 @dataclass(frozen=True)
 class SignalStatResult:
@@ -113,7 +115,8 @@ def _plot_signalstat(
     map_values: Any,
     chan_locs: Any,
 ):
-    fig, axes = plt.subplots(2, 2, figsize=(8.0, 6.0))
+    has_map = _has_topomap(map_values, chan_locs)
+    fig, axes = plt.subplots(2, 3 if has_map else 2, figsize=(9.5 if has_map else 8.0, 6.0))
     axes = axes.ravel()
     axes[0].hist(values, bins=max(10, min(80, round(values.size / 100))), color=(0.56, 0.66, 0.9), edgecolor="black")
     axes[0].set_title("Data histogram")
@@ -127,7 +130,13 @@ def _plot_signalstat(
     axes[1].set_title("Boxplot")
     stats.probplot(values, dist="norm", plot=axes[2])
     axes[2].set_title("QQ plot")
-    axes[3].axis("off")
+    if has_map:
+        _plot_stat_topomap(axes[3], map_values, chan_locs)
+        text_axis = axes[4]
+        axes[5].axis("off")
+    else:
+        text_axis = axes[3]
+    text_axis.axis("off")
     text = (
         f"Mean: {mean:.6g}\n"
         f"Std: {std:.6g}\n"
@@ -135,12 +144,30 @@ def _plot_signalstat(
         f"Skewness: {stats.skew(values, bias=False) if values.size > 2 and std else 0:.6g}\n"
         f"Kurtosis: {stats.kurtosis(values, fisher=True, bias=False) if values.size > 3 and std else 0:.6g}"
     )
-    axes[3].text(0.02, 0.98, text, va="top", family="monospace")
+    text_axis.text(0.02, 0.98, text, va="top", family="monospace")
     if dlabel2:
         fig.suptitle(dlabel2)
-    _ = map_values, chan_locs
     fig.tight_layout()
     return fig
+
+
+def _has_topomap(map_values: Any, chan_locs: Any) -> bool:
+    if chan_locs is None:
+        return False
+    return (
+        np.asarray([] if map_values is None else map_values).size > 0
+        and len(np.asarray(chan_locs, dtype=object).ravel()) > 0
+    )
+
+
+def _plot_stat_topomap(axis: Any, map_values: Any, chan_locs: Any) -> None:
+    values = np.asarray(map_values, dtype=float).ravel()
+    if values.size == 1:
+        topoplot([], chan_locs, style="blank", electrodes="off", axes=axis)
+        axis.set_title(f"Channel {int(values[0])}")
+        return
+    topoplot(values, chan_locs, electrodes="off", axes=axis, colorbar=False)
+    axis.set_title("Topographic map")
 
 
 def _matlab_quantile(values: np.ndarray, probability: float) -> float:

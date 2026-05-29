@@ -31,27 +31,8 @@ def newtimef(
     cycles: Any = 0,
     **kwargs: Any,
 ) -> TimeFrequencyResult:
-    """Compute an EEGLAB-like ERSP/ITC time-frequency decomposition.
-
-    This standalone core intentionally implements the deterministic STFT path
-    used by EEGPrep's plot wrappers. EEGLAB's full ``newtimef`` also includes
-    multiple wavelet implementations, bootstrapping, and time-warping; those are
-    outside this stable numerical core and are rejected clearly by the wrappers.
-    """
-    epochs = _as_epochs(data, int(frames))
-    frames = epochs.shape[0]
-    srate = float(srate)
-    tlimits = _limits(tlimits, frames, srate)
-    cycles_array = _numeric_vector(cycles)
-    winsize = _winsize(frames, srate, cycles_array, kwargs.get("winsize"), kwargs.get("freqs"))
-    padratio = int(_first_numeric(kwargs.get("padratio"), 2))
-    nfft = max(winsize, int(2 ** np.ceil(np.log2(max(winsize, 1)))) * max(padratio, 1))
-    noverlap = min(winsize - 1, max(0, int(_first_numeric(kwargs.get("overlap"), winsize // 2))))
-
-    freqs, times_seconds, tfdata = _trial_stft(epochs, srate, winsize, noverlap, nfft)
-    freqs, tfdata = _select_freqs(freqs, tfdata, kwargs.get("freqs"), kwargs.get("nfreqs"), kwargs.get("freqscale"))
-    times = tlimits[0] + times_seconds * 1000.0
-    times, tfdata = _select_times(times, tfdata, kwargs.get("timesout"))
+    """Compute an EEGLAB-like ERSP/ITC time-frequency decomposition."""
+    freqs, times, tfdata = compute_time_frequency(data, frames, tlimits, srate, cycles, **kwargs)
 
     power = np.abs(tfdata) ** 2
     powbase = _baseline_power(power, times, kwargs.get("baseline", 0))
@@ -77,6 +58,44 @@ def newtimef(
             plotitc=_is_on(kwargs.get("plotitc", "on")),
         )
     return TimeFrequencyResult(ersp, itc, powbase, times, freqs, tfdata, figure)
+
+
+def compute_time_frequency(
+    data: Any,
+    frames: int,
+    tlimits: Any,
+    srate: float,
+    cycles: Any = 0,
+    **kwargs: Any,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Return ``(freqs, times_ms, tfdata)`` for one signal using EEGLAB-like defaults."""
+    epochs = _as_epochs(data, int(frames))
+    frames = epochs.shape[0]
+    srate = float(srate)
+    tlimits = _limits(tlimits, frames, srate)
+    cycles_array = _numeric_vector(cycles)
+    if cycles_array.size and cycles_array[0] > 0:
+        return _trial_wavelet(
+            epochs,
+            srate,
+            tlimits,
+            cycles_array,
+            kwargs.get("winsize"),
+            kwargs.get("freqs"),
+            kwargs.get("nfreqs"),
+            kwargs.get("freqscale"),
+            kwargs.get("timesout"),
+            kwargs.get("padratio"),
+        )
+    winsize = _winsize(frames, srate, cycles_array, kwargs.get("winsize"), kwargs.get("freqs"))
+    padratio = int(_first_numeric(kwargs.get("padratio"), 2))
+    nfft = max(winsize, int(2 ** np.ceil(np.log2(max(winsize, 1)))) * max(padratio, 1))
+    noverlap = min(winsize - 1, max(0, int(_first_numeric(kwargs.get("overlap"), winsize // 2))))
+    freqs, times_seconds, tfdata = _trial_stft(epochs, srate, winsize, noverlap, nfft)
+    freqs, tfdata = _select_freqs(freqs, tfdata, kwargs.get("freqs"), kwargs.get("nfreqs"), kwargs.get("freqscale"))
+    times = tlimits[0] + times_seconds * 1000.0
+    times, tfdata = _select_times(times, tfdata, kwargs.get("timesout"))
+    return freqs, times, tfdata
 
 
 def _as_epochs(data: Any, frames: int) -> np.ndarray:
@@ -124,14 +143,43 @@ def _trial_stft(
     return freqs, times, tfdata
 
 
+def _trial_wavelet(
+    epochs: np.ndarray,
+    srate: float,
+    tlimits: np.ndarray,
+    cycles: np.ndarray,
+    explicit_winsize: Any,
+    requested_freqs: Any,
+    nfreqs: Any,
+    freqscale: Any,
+    timesout: Any,
+    padratio: Any,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    winsize = _winsize(epochs.shape[0], srate, np.asarray([0.0]), explicit_winsize, None)
+    freqs = _wavelet_freqs(srate, epochs.shape[0], winsize, cycles, requested_freqs, nfreqs, freqscale, padratio)
+    wavelets = _morlet_wavelets(freqs, _wavelet_cycles(freqs, cycles), srate)
+    max_winsize = max(len(wavelet) for wavelet in wavelets)
+    times, indices = _time_output_indices(epochs.shape[0], tlimits, max_winsize, timesout)
+    tfdata = np.empty((len(freqs), len(indices), epochs.shape[1]), dtype=complex)
+    for trial in range(epochs.shape[1]):
+        signal_values = epochs[:, trial]
+        for freq_index, wavelet in enumerate(wavelets):
+            half_width = len(wavelet) // 2
+            for time_index, center in enumerate(indices):
+                segment = signal_values[center - half_width : center + half_width + 1]
+                segment = segment - np.nanmean(segment)
+                tfdata[freq_index, time_index, trial] = np.sum(wavelet * segment)
+    return freqs, times, tfdata
+
+
 def _winsize(frames: int, srate: float, cycles: np.ndarray, explicit: Any, freqs: Any) -> int:
     if explicit is not None and not _empty(explicit):
         return _bounded_window(int(_first_numeric(explicit, frames)), frames)
-    if cycles.size and cycles[0] > 0:
+    if cycles.size and cycles[0] > 0 and not _empty(freqs):
         freq_values = _numeric_vector(freqs)
         fmin = float(np.nanmin(freq_values)) if freq_values.size else max(1.0, srate / max(frames, 1))
         return _bounded_window(int(round(cycles[0] * srate / max(fmin, np.finfo(float).eps))), frames)
-    default = min(frames, max(8, int(2 ** np.floor(np.log2(max(frames / 8, 1))))))
+    default = min(frames, max(4, int(2 ** max(np.ceil(np.log2(max(frames, 2))) - 3, 2))))
     return _bounded_window(default, frames)
 
 
@@ -183,6 +231,97 @@ def _select_times(times: np.ndarray, tfdata: np.ndarray, timesout: Any) -> tuple
     else:
         indices = np.unique([int(np.argmin(np.abs(times - value))) for value in values])
     return times[indices], tfdata[:, indices, :]
+
+
+def _wavelet_freqs(
+    srate: float,
+    frames: int,
+    winsize: int,
+    cycles: np.ndarray,
+    requested: Any,
+    nfreqs: Any,
+    freqscale: Any,
+    padratio: Any,
+) -> np.ndarray:
+    freq_values = _numeric_vector(requested)
+    if freq_values.size > 2:
+        return freq_values.astype(float)
+    min_freq = max(float(cycles[0]) * float(srate) / max(winsize, 1), float(srate) / max(frames, 1))
+    max_freq = min(50.0, float(srate) / 2.0)
+    if freq_values.size == 1:
+        return freq_values.astype(float)
+    if freq_values.size == 2:
+        min_freq = float(freq_values[0])
+        max_freq = float(freq_values[1])
+    if min_freq > max_freq:
+        min_freq = max_freq
+    count_values = _numeric_vector(nfreqs, dtype=int)
+    if count_values.size and count_values[0] > 0:
+        count = int(count_values[0])
+    else:
+        count = max(1, int(round(winsize / 2 * max(1, int(_first_numeric(padratio, 2))))))
+    if count == 1:
+        return np.asarray([min_freq], dtype=float)
+    if str(freqscale).lower() == "log" and min_freq > 0 and max_freq > 0:
+        return np.geomspace(min_freq, max_freq, count)
+    return np.linspace(min_freq, max_freq, count)
+
+
+def _wavelet_cycles(freqs: np.ndarray, cycles: np.ndarray) -> np.ndarray:
+    if cycles.size == 1:
+        return np.full(freqs.shape, float(cycles[0]))
+    if cycles.size == 2:
+        high_cycles = float(cycles[1])
+        if high_cycles < 1 and freqs.size and freqs[0] > 0:
+            high_cycles = float(cycles[0]) * float(freqs[-1]) / float(freqs[0]) * (1.0 - high_cycles)
+        return np.linspace(float(cycles[0]), high_cycles, freqs.size)
+    if cycles.size != freqs.size:
+        raise ValueError("cycles must be scalar, length two, or match the number of frequencies")
+    return cycles.astype(float)
+
+
+def _morlet_wavelets(freqs: np.ndarray, cycles: np.ndarray, srate: float) -> list[np.ndarray]:
+    wavelets = []
+    for freq, cycle_count in zip(freqs, cycles):
+        normalized_freq = float(freq) / float(srate)
+        sigma_freq = normalized_freq / max(float(cycle_count), np.finfo(float).eps)
+        sigma_time = 1.0 / (2.0 * np.pi * sigma_freq)
+        half_width = int(np.floor(sigma_time * 7.0 / 2.0))
+        samples = np.arange(0, half_width * 2 + 1, dtype=float) - half_width
+        amplitude = 1.0 / np.sqrt(sigma_time * np.sqrt(np.pi))
+        wavelet = (
+            amplitude * np.exp(-(samples**2) / (2.0 * sigma_time**2)) * np.exp(2j * np.pi * normalized_freq * samples)
+        )
+        wavelets.append(wavelet)
+    return wavelets
+
+
+def _time_output_indices(
+    frames: int, tlimits: np.ndarray, winsize: int, timesout: Any
+) -> tuple[np.ndarray, np.ndarray]:
+    full_times = np.linspace(float(tlimits[0]), float(tlimits[1]), int(frames))
+    half_width = int(winsize) // 2
+    start = half_width
+    stop = int(frames) - half_width - 1
+    if stop < start:
+        raise ValueError("Not enough data points, reduce the window size or lowest frequency")
+    requested = _numeric_vector(timesout)
+    if requested.size == 0:
+        count = 200
+        indices = np.linspace(start, stop, min(count, stop - start + 1)).round().astype(int)
+    elif requested.size == 1 and requested[0] > 0:
+        count = min(int(requested[0]), stop - start + 1)
+        indices = np.linspace(start, stop, count).round().astype(int)
+    elif requested.size == 1 and requested[0] < 0:
+        step = max(1, int(abs(requested[0])))
+        indices = np.arange(start, stop + 1, step)
+    else:
+        indices = np.asarray([int(np.argmin(np.abs(full_times - value))) for value in requested], dtype=int)
+        indices = indices[(indices >= start) & (indices <= stop)]
+        if indices.size == 0:
+            raise ValueError("No time points. Reduce time window or minimum frequency.")
+    indices = np.unique(indices)
+    return full_times[indices], indices
 
 
 def _baseline_power(power: np.ndarray, times: np.ndarray, baseline: Any) -> np.ndarray:
@@ -316,4 +455,4 @@ def _is_on(value: Any) -> bool:
     return str(value).lower() not in {"0", "false", "off", "no", "none"}
 
 
-__all__ = ["TimeFrequencyResult", "newtimef"]
+__all__ = ["TimeFrequencyResult", "compute_time_frequency", "newtimef"]

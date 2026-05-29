@@ -114,15 +114,22 @@ def pop_newtimef_dialog_spec(EEG: dict[str, Any], *, typeproc: int = 1) -> Dialo
         ControlSpec("checkbox", "plot ITC phase (set)", tag="plotphase", value=False),
         ControlSpec("spacer"),
         ControlSpec("text", "Bootstrap significance level (Ex: 0.01 -> 1%)", font_weight="bold"),
-        ControlSpec("edit", tag="alpha", value=""),
-        ControlSpec("checkbox", "FDR correct (set)", tag="fdr", value=False),
+        ControlSpec("edit", tag="alpha", value="", enabled=False, tooltip="Bootstrap masking is not yet available."),
+        ControlSpec("checkbox", "FDR correct (set)", tag="fdr", value=False, enabled=False),
         ControlSpec("spacer"),
         ControlSpec("text", "Optional newtimef() arguments (see Help)", font_weight="bold"),
         ControlSpec("edit", tag="options", value=""),
         ControlSpec("spacer"),
         ControlSpec("checkbox", "Plot Event Related Spectral Power", tag="plotersp", value=True),
         ControlSpec("checkbox", "Plot Inter Trial Coherence", tag="plotitc", value=True),
-        ControlSpec("checkbox", "Plot curve at each frequency", tag="plotcurve", value=False),
+        ControlSpec(
+            "checkbox",
+            "Plot curve at each frequency",
+            tag="plotcurve",
+            value=False,
+            enabled=False,
+            tooltip="Curve plots are not yet available in EEGPrep.",
+        ),
     ]
     return DialogSpec(
         title=(
@@ -159,8 +166,6 @@ def _run_gui(EEG: dict[str, Any], *, typeproc: int, renderer: Any | None = None)
         options["freqscale"] = "log"
     if not bool(result.get("scale", True)):
         options["scale"] = "abs"
-    if not bool(result.get("plotphase", False)):
-        options["plotphase"] = "off"
     if not bool(result.get("plotersp", True)):
         options["plotersp"] = "off"
     if not bool(result.get("plotitc", True)):
@@ -174,6 +179,8 @@ def _run_gui(EEG: dict[str, Any], *, typeproc: int, renderer: Any | None = None)
         int(result.get("basenorm", 1) or 1),
         freqs,
     )
+    if freqs == [] and "winsize" not in options and float(EEG.get("xmin", 0) or 0) < 0:
+        options["winsize"] = max(2, int(round(-float(EEG.get("xmin", 0)) * float(EEG.get("srate", 1) or 1))))
     cycles = [0] if bool(result.get("fft", False)) else numeric_vector(result.get("cycles", "3 0.8")).tolist()
     return {
         "num": _first_index(result.get("num", 1)),
@@ -203,7 +210,7 @@ def _selected_signal(EEG: dict[str, Any], typeproc: int, num: Any, tlimits: Any)
 
 
 def _add_popup_options(options: dict[str, Any], ntimesout: int, nfreqs: int, basenorm: int, freqs: list[float]) -> None:
-    ntimes_values = {1: 50, 2: 100, 3: 150, 5: 300, 6: 400}
+    ntimes_values = {1: 50, 2: 100, 3: 150, 4: 200, 5: 300, 6: 400}
     if ntimesout in ntimes_values:
         options["timesout"] = ntimes_values[ntimesout]
     padratio_values = {1: 1, 2: 2, 3: 4}
@@ -224,6 +231,8 @@ def _reject_unsupported_options(options: dict[str, Any]) -> None:
         raise NotImplementedError(f"pop_newtimef does not yet support: {', '.join(present)}")
     if "alpha" in options and _first_numeric_option(options["alpha"]) != 0:
         raise NotImplementedError("pop_newtimef bootstrap significance is not yet available")
+    if str(options.get("basenorm", "off")).lower() == "on" or str(options.get("trialbase", "off")).lower() != "off":
+        raise NotImplementedError("pop_newtimef baseline normalization modes are not yet available")
     if str(options.get("plottype", "image")).lower() != "image":
         raise NotImplementedError("pop_newtimef curve plots are not yet available")
 

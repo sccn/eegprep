@@ -23,6 +23,7 @@ from eegprep.functions.popfunc.pop_epoch import pop_epoch
 from eegprep.functions.popfunc.pop_eventstat import event_values, pop_eventstat, pop_eventstat_dialog_spec
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_newcrossf import pop_newcrossf, pop_newcrossf_dialog_spec
+from eegprep.functions.popfunc.pop_newtimef import _run_gui as run_newtimef_gui
 from eegprep.functions.popfunc.pop_newtimef import pop_newtimef, pop_newtimef_dialog_spec
 from eegprep.functions.popfunc.pop_signalstat import pop_signalstat, pop_signalstat_dialog_spec
 from eegprep.functions.sigprocfunc.signalstat import signalstat
@@ -61,6 +62,14 @@ def test_newtimef_synthetic_returns_deterministic_shapes():
     assert np.all(np.abs(result.itc) <= 1 + 1e-12)
 
 
+def test_newtimef_nonzero_cycles_use_wavelet_time_grid(sample_epoch):
+    result = pop_newtimef(sample_epoch, 1, 1, [-100, 200], [3, 0.8], plot="off")
+
+    assert result.times.size > 1
+    assert result.freqs.size > 0
+    assert result.tfdata.shape == (result.freqs.size, result.times.size, sample_epoch["trials"])
+
+
 def test_newcrossf_identical_synthetic_signals_have_unit_phase_coherence():
     srate = 128
     times = np.arange(0, 1, 1 / srate)
@@ -71,6 +80,16 @@ def test_newcrossf_identical_synthetic_signals_have_unit_phase_coherence():
     assert result.coherence.shape == result.phase.shape
     assert np.nanmean(result.coherence) > 0.99
     assert np.nanmax(np.abs(result.phase)) < 1e-10
+
+
+def test_newcrossf_single_trial_switches_to_cross_spectrum():
+    rng = np.random.default_rng(0)
+    first = rng.normal(size=512)
+    second = rng.normal(size=512)
+
+    result = newcrossf(first, second, 512, [0, 511], 256, 0, plot="off")
+
+    assert np.nanmean(result.coherence) < 0.5
 
 
 def test_pop_newtimef_channel_and_component_paths_are_replayable(sample_epoch, ica_epoch):
@@ -127,6 +146,26 @@ def test_pop_eventstat_extracts_sample_event_latencies(sample_eeg):
     plt.close(result.figure)
 
 
+def test_pop_eventstat_epoched_latrange_uses_epoch_relative_latency(sample_epoch):
+    all_values = event_values(sample_epoch, "latency", type=["square"])
+    ranged_values = event_values(sample_epoch, "latency", type=["square"], latrange=[-100, 200])
+
+    assert ranged_values.size == all_values.size == sample_epoch["trials"]
+
+
+def test_pop_newtimef_gui_defaults_are_replayable_and_honest(sample_eeg):
+    result = run_newtimef_gui(sample_eeg, typeproc=1, renderer=_DefaultDialogRenderer())
+
+    assert result["options"]["timesout"] == 200
+    assert "plotphase" not in result["options"]
+    assert "plottype" not in result["options"]
+
+
+def test_pop_newtimef_rejects_unimplemented_baseline_modes(sample_epoch):
+    with pytest.raises(NotImplementedError, match="baseline normalization"):
+        pop_newtimef(sample_epoch, 1, 1, [-100, 200], [3, 0.8], basenorm="on", plot="off")
+
+
 def test_timefreq_statistics_dialog_specs_match_eeglab_control_inventory(sample_eeg):
     newtimef = pop_newtimef_dialog_spec(sample_eeg, typeproc=1)
     newcrossf = pop_newcrossf_dialog_spec(sample_eeg, typeproc=1)
@@ -136,6 +175,8 @@ def test_timefreq_statistics_dialog_specs_match_eeglab_control_inventory(sample_
     assert newtimef.title == "Plot channel time frequency -- pop_newtimef()"
     assert controls_by_tag(newtimef)["num_button"].callback.name == "select_channels"
     assert controls_by_tag(newtimef)["baseline"].value == "0"
+    assert controls_by_tag(newtimef)["plotcurve"].enabled is False
+    assert controls_by_tag(newtimef)["alpha"].enabled is False
     assert controls_by_tag(newcrossf)["coher"].value is False
     assert signal_spec.title == "Plot signal statistics -- pop_signalstat()"
     assert controls_by_tag(signal_spec)["percent"].value == "5"
@@ -208,6 +249,14 @@ def test_signalstat_matches_numpy_for_known_vector():
     assert result.trimmed_indices.tolist() == [1, 2, 3]
 
 
+def test_signalstat_plots_topographic_context_when_map_is_available(ica_epoch):
+    result = pop_signalstat(ica_epoch, 0, 1, 5)
+
+    titles = [axis.get_title() for axis in result.figure.axes]
+    assert "Topographic map" in titles
+    plt.close(result.figure)
+
+
 @pytest.mark.matlab
 def test_signalstat_statistics_match_eeglab(tmp_path):
     if os.environ.get("EEGPREP_SKIP_MATLAB") == "1":
@@ -216,8 +265,8 @@ def test_signalstat_statistics_match_eeglab(tmp_path):
         matlab_engine = importlib.import_module("matlab.engine")
     except ImportError as exc:
         pytest.skip(f"MATLAB not available: {exc}")
-    eeglab_root = Path("/tmp/eeglab-timefreq-ref")
-    if not eeglab_root.exists():
+    eeglab_root = _eeglab_reference_root()
+    if eeglab_root is None:
         pytest.skip("EEGLAB reference checkout not available")
 
     values = np.asarray([1.0, 2.5, -3.0, 4.25, 5.5, 9.0, 12.0, 20.0])
@@ -260,3 +309,27 @@ def _matlab_vector(values: np.ndarray) -> str:
 
 def _matlab_string(path: Path) -> str:
     return str(path).replace("'", "''")
+
+
+def _eeglab_reference_root() -> Path | None:
+    repo_root = Path(__file__).resolve().parents[1]
+    candidates = []
+    if os.environ.get("EEGPREP_EEGLAB_ROOT"):
+        candidates.append(Path(os.environ["EEGPREP_EEGLAB_ROOT"]))
+    candidates.extend(
+        [
+            repo_root / "src" / "eegprep" / "eeglab",
+            repo_root.parent / "eeglab",
+            Path("/tmp/eeglab-timefreq-ref"),
+        ]
+    )
+    for candidate in candidates:
+        if (candidate / "functions" / "sigprocfunc" / "signalstat.m").exists():
+            return candidate
+    return None
+
+
+class _DefaultDialogRenderer:
+    def run(self, spec, initial_values=None):
+        _ = initial_values
+        return {control.tag: control.value for control in spec.controls if control.tag}
