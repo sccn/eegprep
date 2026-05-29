@@ -359,6 +359,9 @@ def pop_headplot_dialog_spec(EEG: dict[str, Any], *, typeplot: int = 1) -> Dialo
         geometry=geometry,
         function_name="pop_headplot",
         eeglab_source="functions/popfunc/pop_headplot.m",
+        size=(1290, 547),
+        content_margins=(42, 35, 42, 13),
+        row_spacing=7,
         help_text="pophelp('pop_headplot')",
         show_help_button=False,
     )
@@ -513,7 +516,8 @@ def _plot_pages(
     for page_start in range(0, len(maps), per_page):
         page_maps = maps[page_start : page_start + per_page]
         page_labels = labels[page_start : page_start + per_page]
-        fig = plt.figure(figsize=(5.0 * columns, 4.6 * rows))
+        single_map = len(page_maps) == 1
+        fig = plt.figure(figsize=(8.6, 6.6) if single_map else (5.0 * columns, 4.6 * rows))
         fig.suptitle(topotitle, fontweight="bold")
         for offset, values in enumerate(page_maps):
             ax = fig.add_subplot(rows, columns, offset + 1, projection="3d")
@@ -523,7 +527,7 @@ def _plot_pages(
             headplot(
                 values,
                 splinefile,
-                title=page_labels[offset] if len(page_maps) > 1 else topotitle,
+                title=page_labels[offset] if len(page_maps) > 1 else "",
                 maplimits=maplimits,
                 cbar=0 if colorbar and len(page_maps) == 1 else None,
                 ax=ax,
@@ -534,6 +538,8 @@ def _plot_pages(
             mappable = plt.cm.ScalarMappable(norm=plt.Normalize(*np.asarray(maplimits, dtype=float).ravel()[:2]))
             fig.colorbar(mappable, ax=fig.axes, shrink=0.75)
             fig.subplots_adjust(right=0.9)
+        elif single_map:
+            fig.subplots_adjust(left=0.02, right=0.98, bottom=0.02, top=0.88)
         else:
             fig.tight_layout()
         figures.append(fig)

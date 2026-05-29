@@ -29,6 +29,12 @@ DEFAULT_MESH = "mheadnew.mat"
 DEFAULT_TRANSFORM = DEFAULT_COREGISTER_TRANSFORM
 COLIN27_TRANSFORM = np.asarray([0.0, -15.0, -15.0, 0.05, 0.0, -1.57, 100.0, 88.0, 110.0])
 HEAD_CENTER = np.asarray([0.0, 0.0, 30.0], dtype=float)
+HEADPLOT_FACE_COLOR = np.asarray([0.88, 0.605, 0.385, 1.0], dtype=float)
+DEFAULT_HEADPLOT_LIGHTS = np.asarray(
+    [[-125.0, 125.0, 80.0], [125.0, 125.0, 80.0], [125.0, -125.0, 125.0], [-125.0, -125.0, 125.0]],
+    dtype=float,
+)
+HEADPLOT_VIEW_SCALE = 0.78
 ELECTRODE_DISPLAY_FACTOR = 1.06
 MAPLIMIT_PADDING = 1.1
 # EEGLAB's headplot.m adds this scalar to G before solving the constrained
@@ -528,17 +534,71 @@ def _plot_head_mesh(
     if indices.size != interpolated.size:
         indices = mesh.scalp_indices[: interpolated.size]
     vertex_values[indices] = interpolated
-    face_values = np.nanmean(vertex_values[mesh.faces], axis=1)
+    with np.errstate(invalid="ignore"):
+        face_values = np.nanmean(vertex_values[mesh.faces], axis=1)
     cmap = plt.get_cmap("turbo")
     norm = colors.Normalize(*maplimits)
     facecolors = cmap(norm(face_values))
-    collection = Poly3DCollection(mesh.vertices[mesh.faces], facecolors=facecolors, linewidths=0.05)
+    facecolors[~np.isfinite(face_values)] = HEADPLOT_FACE_COLOR
     if str(kwargs.get("lighting", "on")).lower() == "off":
+        collection = Poly3DCollection(mesh.vertices[mesh.faces], facecolors=facecolors, linewidths=0.15)
         collection.set_edgecolor("0.45")
     else:
+        facecolors = _lit_facecolors(mesh.vertices, mesh.faces, facecolors, kwargs.get("lights"))
+        collection = Poly3DCollection(mesh.vertices[mesh.faces], facecolors=facecolors, linewidths=0.0)
         collection.set_edgecolor("none")
+        collection.set_antialiased(False)
     ax.add_collection3d(collection)
     _autoscale_3d(ax, mesh.vertices)
+
+
+def _lit_facecolors(
+    vertices: np.ndarray,
+    faces: np.ndarray,
+    facecolors: np.ndarray,
+    lights: Any,
+) -> np.ndarray:
+    triangles = vertices[faces]
+    normals = np.cross(triangles[:, 1] - triangles[:, 0], triangles[:, 2] - triangles[:, 0])
+    normal_lengths = np.linalg.norm(normals, axis=1)
+    valid = normal_lengths > 0
+    normals[valid] = normals[valid] / normal_lengths[valid, None]
+    centroids = np.nanmean(triangles, axis=1)
+    outward = centroids - HEAD_CENTER
+    flipped = np.sum(normals * outward, axis=1) < 0
+    normals[flipped] *= -1
+
+    light_positions = _normalise_lights(lights)
+    light_dirs = light_positions - HEAD_CENTER
+    light_lengths = np.linalg.norm(light_dirs, axis=1)
+    light_dirs = light_dirs[light_lengths > 0] / light_lengths[light_lengths > 0, None]
+    if light_dirs.size == 0:
+        light_dirs = DEFAULT_HEADPLOT_LIGHTS - HEAD_CENTER
+        light_dirs = light_dirs / np.linalg.norm(light_dirs, axis=1)[:, None]
+
+    diffuse = np.maximum(0.0, finite_matmul(normals, light_dirs.T))
+    intensity = 0.78 + 0.28 * np.nanmax(diffuse, axis=1)
+    intensity = np.clip(intensity, 0.75, 1.06)
+    shaded = np.asarray(facecolors, dtype=float).copy()
+    finite = np.isfinite(shaded[:, :3]).all(axis=1)
+    shaded[finite, :3] = np.clip(shaded[finite, :3] * intensity[finite, None], 0.0, 1.0)
+    return shaded
+
+
+def _normalise_lights(value: Any) -> np.ndarray:
+    if value is None:
+        return DEFAULT_HEADPLOT_LIGHTS
+    try:
+        lights = np.asarray(value, dtype=float)
+    except (TypeError, ValueError):
+        return DEFAULT_HEADPLOT_LIGHTS
+    if lights.ndim == 1:
+        if lights.size != 3:
+            return DEFAULT_HEADPLOT_LIGHTS
+        lights = lights.reshape(1, 3)
+    if lights.ndim != 2 or lights.shape[1] != 3:
+        return DEFAULT_HEADPLOT_LIGHTS
+    return lights
 
 
 def _plot_electrodes(ax: Any, spline: HeadplotSpline, *, labels: int = 0) -> None:
@@ -596,7 +656,7 @@ def _set_view(ax: Any, value: Any) -> None:
 
 def _autoscale_3d(ax: Any, vertices: np.ndarray) -> None:
     center = np.nanmean(vertices, axis=0)
-    span = np.nanmax(np.ptp(vertices, axis=0)) / 2
+    span = np.nanmax(np.ptp(vertices, axis=0)) / 2 * HEADPLOT_VIEW_SCALE
     ax.set_xlim(center[0] - span, center[0] + span)
     ax.set_ylim(center[1] - span, center[1] + span)
     ax.set_zlim(center[2] - span, center[2] + span)

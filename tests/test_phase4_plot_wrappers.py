@@ -108,6 +108,35 @@ def test_pop_headplot_plots_sample_latency_map_with_spline_setup(sample_eeg, tmp
     plt.close(figures[0])
 
 
+def test_pop_headplot_single_map_has_eeglab_like_title_and_surface(sample_eeg, tmp_path):
+    eeg = deepcopy(sample_eeg)
+    title = "ERP scalp maps of dataset: eeglab_data"
+    splinefile = tmp_path / "single_map.spl"
+
+    figures, _command = pop_headplot(
+        eeg,
+        typeplot=1,
+        items=[0],
+        topotitle=title,
+        setup={"splinefile": str(splinefile), "transform": [0, -10, 0, -0.1, 0, -1.6, 1100, 1100, 1100]},
+        colorbar="off",
+        return_com=True,
+    )
+
+    figure = figures[0]
+    assert figure._suptitle is not None
+    assert figure._suptitle.get_text() == title
+    assert figure.axes[0].get_title() == ""
+    width, height = figure.get_size_inches()
+    assert width >= 8.0
+    assert height >= 6.0
+    assert figure.axes[0].get_position().width > 0.6
+    facecolors = np.asarray(figure.axes[0].collections[0].get_facecolors())
+    assert np.isfinite(facecolors).all()
+    assert np.all(facecolors[:, 3] == 1)
+    plt.close(figure)
+
+
 def test_headplot_setup_file_can_be_reused_for_sample_data(sample_eeg, tmp_path):
     splinefile = tmp_path / "reuse.spl"
     transform = [0, -10, 0, -0.1, 0, -1.6, 1100, 1100, 1100]
@@ -614,6 +643,9 @@ def test_phase4_dialog_specs_match_eeglab_selector_layouts(sample_eeg, ica_epoch
     assert chanplot_controls["measure"].string == "ERP"
 
     headplot_controls = controls_by_tag(pop_headplot_dialog_spec(sample_eeg, typeplot=1))
+    headplot_spec = pop_headplot_dialog_spec(sample_eeg, typeplot=1)
+    assert headplot_spec.size == (1290, 547)
+    assert headplot_spec.content_margins == (42, 35, 42, 13)
     assert headplot_controls["loadcb"].callback.name == "headplot_setup_mode"
     assert headplot_controls["compcb"].callback.name == "headplot_setup_mode"
     assert headplot_controls["setup_browse"].callback.name == "select_file"

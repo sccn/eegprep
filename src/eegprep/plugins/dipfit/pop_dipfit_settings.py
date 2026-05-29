@@ -70,7 +70,7 @@ def pop_dipfit_settings_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
         function_name="pop_dipfit_settings",
         eeglab_source="plugins/dipfit/pop_dipfit_settings.m",
         help_text="pophelp('pop_dipfit_settings')",
-        size=(690, 360),
+        size=(1170, 404),
         geometry=(
             (1, 2),
             (0.25, 1, 1.3, 0.8, 0.6),
@@ -128,7 +128,7 @@ def pop_dipfit_settings_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             "EEGPrep records DIPFIT settings but does not yet run FieldTrip co-registration.",
             "Browse/Coregister buttons are disabled until standalone model-asset loading is implemented.",
         ),
-        row_spacing=5,
+        row_spacing=10,
     )
 
 

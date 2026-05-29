@@ -246,12 +246,16 @@ def pop_rejmenu_dialog_spec(EEG: dict[str, Any], icacomp: int | bool = 1) -> Dia
         content_margins=(32, 30, 32, 24),
         row_spacing=12,
         extra_stylesheet="""
-            QPushButton#butmanual { background: #ff9999; max-width: 30px; padding: 0; }
-            QPushButton#butthresh { background: #ff6666; max-width: 30px; padding: 0; }
-            QPushButton#buttrend { background: #ffcc66; max-width: 30px; padding: 0; }
-            QPushButton#butjp { background: #99ccff; max-width: 30px; padding: 0; }
-            QPushButton#butkurt { background: #99ff99; max-width: 30px; padding: 0; }
-            QPushButton#butspec { background: #cc99ff; max-width: 30px; padding: 0; }
+            QDialog#pop_rejmenu QPushButton {
+                min-width: 145px;
+                max-width: 245px;
+            }
+            QDialog#pop_rejmenu QPushButton#butmanual { background: #ff9999; min-width: 30px; max-width: 30px; padding: 0; }
+            QDialog#pop_rejmenu QPushButton#butthresh { background: #ff6666; min-width: 30px; max-width: 30px; padding: 0; }
+            QDialog#pop_rejmenu QPushButton#buttrend { background: #ffcc66; min-width: 30px; max-width: 30px; padding: 0; }
+            QDialog#pop_rejmenu QPushButton#butjp { background: #99ccff; min-width: 30px; max-width: 30px; padding: 0; }
+            QDialog#pop_rejmenu QPushButton#butkurt { background: #99ff99; min-width: 30px; max-width: 30px; padding: 0; }
+            QDialog#pop_rejmenu QPushButton#butspec { background: #cc99ff; min-width: 30px; max-width: 30px; padding: 0; }
             QDialog#pop_rejmenu QPushButton:disabled {
                 color: #777777;
             }

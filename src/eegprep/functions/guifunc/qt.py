@@ -105,7 +105,7 @@ class QtDialogRenderer:
             if added_visible_widget:
                 layout.addWidget(row_container, self._row_stretch(spec, row_index))
             else:
-                layout.addSpacing(8)
+                layout.addSpacing(self._spacer_row_height(spec, row_index))
 
         for control in spec.controls:
             self._connect_callback(control.callback, widgets)
@@ -239,6 +239,13 @@ class QtDialogRenderer:
         return max(1, round(float(value) * 100))
 
     @staticmethod
+    def _spacer_row_height(spec: DialogSpec, row_index: int) -> int:
+        if spec.geomvert is not None:
+            value = spec.geomvert[min(row_index, len(spec.geomvert) - 1)]
+            return max(8, round(float(value) * 55))
+        return max(8, spec.row_spacing * 7)
+
+    @staticmethod
     def _add_buttons(
         QtWidgets: Any,
         layout: Any,
@@ -353,8 +360,11 @@ class QtDialogRenderer:
     @staticmethod
     def _apply_widget_size_policy(QtWidgets: Any, widget: Any, style: str) -> None:
         policy = QtWidgets.QSizePolicy
-        if style in {"edit", "popupmenu", "listbox", "pushbutton"}:
+        if style in {"edit", "popupmenu", "listbox"}:
             widget.setSizePolicy(policy.Expanding, policy.Fixed)
+            return
+        if style == "pushbutton":
+            widget.setSizePolicy(policy.Fixed, policy.Fixed)
             return
         if style == "textarea":
             widget.setSizePolicy(policy.Expanding, policy.Expanding)

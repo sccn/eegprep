@@ -45,7 +45,7 @@ class DialogSpec:
     size: tuple[int, int] | None = None
     help_text: str | None = None
     show_help_button: bool = True
-    ok_label: str = "OK"
+    ok_label: str = "Ok"
     cancel_label: str = "Cancel"
     button_size: tuple[int, int] | None = None
     cancel_first: bool = False
