@@ -385,12 +385,12 @@ def _store_removed_ref_channels(EEG: dict, removed: list[dict[str, Any]]) -> Non
     if not removed:
         return
     chaninfo = EEG.setdefault("chaninfo", {})
-    existing = chaninfo.get("removedchans", [])
+    existing = chaninfo.get("nodatchans", [])
     if isinstance(existing, np.ndarray):
         existing = existing.tolist()
     if isinstance(existing, dict):
         existing = [existing]
-    chaninfo["removedchans"] = list(existing) + removed
+    chaninfo["nodatchans"] = list(existing) + removed
 
 
 def _remove_channels_by_labels(EEG: dict, labels: list[str]) -> dict:
@@ -413,14 +413,14 @@ def _remove_refloc_from_removed_channels(EEG: dict, refloc: Any) -> None:
     if _is_empty(refloc):
         return
     chaninfo = EEG.get("chaninfo", {})
-    removed = chaninfo.get("removedchans", [])
-    if not removed:
+    nodatchans = chaninfo.get("nodatchans", [])
+    if not nodatchans:
         raise ValueError("Missing reference channel information. Edit channels and add reference first.")
     labels = {str(loc.get("labels", "")).lower() for loc in _normalise_reflocs(refloc)}
     if not labels:
         return
-    chaninfo["removedchans"] = [
-        loc for loc in _chanlocs_as_list(removed) if str(loc.get("labels", "")).lower() not in labels
+    chaninfo["nodatchans"] = [
+        loc for loc in _chanlocs_as_list(nodatchans) if str(loc.get("labels", "")).lower() not in labels
     ]
 
 
