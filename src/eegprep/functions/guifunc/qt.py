@@ -7,7 +7,6 @@ import math
 import re
 from typing import Any
 
-from eegprep.functions.guifunc.coregister import run_coregister_dialog
 from eegprep.functions.guifunc.pophelp import pophelp
 from eegprep.functions.popfunc.pop_chansel import pop_chansel
 
@@ -720,6 +719,11 @@ class QtDialogRenderer:
         if transform_target is None or not hasattr(transform_target, "setText"):
             return
         try:
+            # Manual headplot co-registration is the only generic Qt dialog path
+            # that needs matplotlib's 3-D stack, so keep it out of normal
+            # inputgui imports and startup.
+            from eegprep.functions.guifunc.coregister import run_coregister_dialog
+
             meshfile = QtDialogRenderer._choice_or_text(
                 widgets.get(params.get("mesh_source", "")),
                 tuple(str(value) for value in params.get("mesh_choices", ())),

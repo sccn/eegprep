@@ -13,6 +13,7 @@ from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
+from eegprep.functions.popfunc._plot_utils import component_map_data
 from eegprep.functions.popfunc._pop_utils import parse_key_value_args, parse_text_tokens
 from eegprep.functions.sigprocfunc.topoplot import topoplot
 
@@ -84,15 +85,16 @@ def pop_topoplot(
 
     if typeplot == 1:
         maps, labels = _erp_maps(EEG, items_array)
+        plot_chanlocs = chanlocs_as_list(EEG.get("chanlocs", []))
     elif typeplot == 0:
-        maps, labels = _component_maps(EEG, items_array)
+        maps, labels, plot_chanlocs = _component_maps(EEG, items_array)
     else:
         raise ValueError("typeplot must be 1 for ERP maps or 0 for component maps")
 
     figures = _plot_map_pages(
         maps,
         labels,
-        chanlocs_as_list(EEG.get("chanlocs", [])),
+        plot_chanlocs,
         topotitle=topotitle,
         rowcols=rowcols_array,
         options=dict(options),
@@ -279,10 +281,12 @@ def _erp_maps(EEG: dict[str, Any], latencies_ms: np.ndarray) -> tuple[list[np.nd
     return maps, labels
 
 
-def _component_maps(EEG: dict[str, Any], components: np.ndarray) -> tuple[list[np.ndarray | None], list[str]]:
+def _component_maps(
+    EEG: dict[str, Any], components: np.ndarray
+) -> tuple[list[np.ndarray | None], list[str], list[dict[str, Any]]]:
     _require_chanlocs(EEG)
     _require_ica(EEG)
-    icawinv = np.asarray(EEG.get("icawinv", []), dtype=float)
+    icawinv, chanlocs = component_map_data(EEG)
     maps = []
     labels = []
     for component in components:
@@ -297,7 +301,7 @@ def _component_maps(EEG: dict[str, Any], components: np.ndarray) -> tuple[list[n
         maps.append(-values if component < 0 else values)
         # EEGLAB titles inverted-polarity maps with the negative component index.
         labels.append(f"IC {int(component)}")
-    return maps, labels
+    return maps, labels, chanlocs
 
 
 def _latency_positions(EEG: dict[str, Any], latencies_ms: np.ndarray) -> np.ndarray:

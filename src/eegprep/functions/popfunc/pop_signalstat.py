@@ -8,7 +8,12 @@ import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
-from eegprep.functions.popfunc._plot_utils import component_activations, history_command, numeric_vector
+from eegprep.functions.popfunc._plot_utils import (
+    component_activations,
+    component_map_data,
+    history_command,
+    numeric_vector,
+)
 from eegprep.functions.sigprocfunc.signalstat import signalstat
 
 
@@ -37,6 +42,7 @@ def pop_signalstat(
     if cnum is None:
         cnum = 1
     index = _single_index(cnum)
+    stat_chanlocs = EEG.get("chanlocs", [])
     if typeproc == 1:
         data = np.asarray(EEG.get("data"), dtype=float)
         if data.ndim == 3:
@@ -54,12 +60,9 @@ def pop_signalstat(
         values = acts[index - 1, :, :].reshape(-1)
         dlabel = "Component Activity"
         dlabel2 = f"Component {index}"
-        map_value = (
-            np.asarray(EEG.get("icawinv", []), dtype=float)[:, index - 1]
-            if np.asarray(EEG.get("icawinv", [])).size
-            else None
-        )
-    result = signalstat(values, 1, dlabel, float(percent), dlabel2, map_value, EEG.get("chanlocs", []))
+        maps, stat_chanlocs = component_map_data(EEG)
+        map_value = maps[:, index - 1]
+    result = signalstat(values, 1, dlabel, float(percent), dlabel2, map_value, stat_chanlocs)
     command = history_command("pop_signalstat", typeproc, index, percent)
     return (result, command) if return_com else result
 

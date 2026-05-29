@@ -28,8 +28,10 @@ from eegprep.functions.popfunc._plot_utils import component_activations
 from eegprep.functions.popfunc.pop_plotdata import pop_plotdata
 from eegprep.functions.popfunc.pop_plottopo import pop_plottopo, pop_plottopo_dialog_spec
 from eegprep.functions.popfunc.pop_prop import pop_prop, pop_prop_dialog_spec
+from eegprep.functions.popfunc.pop_signalstat import pop_signalstat
 from eegprep.functions.popfunc.pop_spectopo import pop_spectopo
 from eegprep.functions.popfunc.pop_timtopo import pop_timtopo
+from eegprep.functions.popfunc.pop_topoplot import pop_topoplot
 from eegprep.functions.studyfunc.pop_chanplot import pop_chanplot, pop_chanplot_dialog_spec
 from eegprep.functions.sigprocfunc.coregister import (
     ElectrodeSet,
@@ -779,7 +781,7 @@ def test_headplot_manual_coreg_callback_writes_transform(monkeypatch, sample_eeg
         calls.append((args, kwargs))
         return [1, 2, 3, 0.1, 0.2, 0.3, 4, 5, 6]
 
-    monkeypatch.setattr("eegprep.functions.guifunc.qt.run_coregister_dialog", fake_coregister)
+    monkeypatch.setattr("eegprep.functions.guifunc.coregister.run_coregister_dialog", fake_coregister)
     params = controls_by_tag(pop_headplot_dialog_spec(sample_eeg, typeplot=1))["manual_coreg"].callback.params
     transform = Text("0 -10 0 -0.1 0 -1.6 1100 1100 1100")
 
@@ -830,6 +832,29 @@ def test_component_activations_use_icachansind_subset(ica_epoch):
 
     np.testing.assert_allclose(activations[0], eeg["data"][1])
     np.testing.assert_allclose(activations[1], eeg["data"][3])
+
+
+def test_component_map_plots_use_icachansind_subset(ica_epoch):
+    eeg = deepcopy(ica_epoch)
+    eeg["icaact"] = None
+    eeg["icachansind"] = np.array([1, 3])
+    eeg["icaweights"] = np.eye(2)
+    eeg["icasphere"] = np.eye(2)
+    eeg["icawinv"] = np.eye(2)
+
+    figures, topoplot_command = pop_topoplot(eeg, typeplot=0, items=[1], colorbar="off", return_com=True)
+    prop_figure, prop_command = pop_prop(eeg, typecomp=0, chanorcomp=1, return_com=True)
+    stat_result, stat_command = pop_signalstat(eeg, typeproc=0, cnum=1, return_com=True)
+
+    assert len(figures) == 1
+    assert prop_figure is not None
+    assert stat_result.figure is not None
+    _assert_python_command(topoplot_command)
+    _assert_python_command(prop_command)
+    _assert_python_command(stat_command)
+    plt.close(figures[0])
+    plt.close(prop_figure)
+    plt.close(stat_result.figure)
 
 
 def test_pop_envtopo_uses_icachansind_subset_and_rejects_multiple(ica_epoch):

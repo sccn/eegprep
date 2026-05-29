@@ -12,7 +12,7 @@ from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.popfunc._plot_utils import (
     channel_labels,
     component_activations,
-    component_maps,
+    component_map_data,
     eeg_epoch_data,
     eeg_times_ms,
     history_command,
@@ -123,11 +123,11 @@ def _plot_one_property(EEG: dict[str, Any], typecomp: int, index: int, spec_opt:
         title = f"Channel {labels[index - 1]}"
     else:
         acts = component_activations(EEG)
-        maps = component_maps(EEG)
+        maps, map_chanlocs = component_map_data(EEG)
         if index < 1 or index > acts.shape[0]:
             raise ValueError("component index is outside available ICA components")
         trace = acts[index - 1]
-        topoplot(maps[:, index - 1], EEG.get("chanlocs", []), axes=topo_ax, electrodes="off")
+        topoplot(maps[:, index - 1], map_chanlocs, axes=topo_ax, electrodes="off")
         title = f"IC {index}"
     trace_2d = trace if trace.ndim == 2 else trace[:, np.newaxis]
     erp_ax.plot(times, np.nanmean(trace_2d, axis=1), color="black")
