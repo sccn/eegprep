@@ -98,6 +98,20 @@ class PopSubcompGuiTests(unittest.TestCase):
 
         np.testing.assert_array_equal(out["icawinv"], eeg["icawinv"][:, 1:2])
 
+    def test_component_removal_trims_dipfit_model_like_eeglab(self):
+        eeg = _eeg()
+        eeg["dipfit"] = {
+            "model": [
+                {"component": 1, "rv": 0.1},
+                {"component": 2, "rv": 0.2},
+                {"component": 3, "rv": 0.3},
+            ]
+        }
+
+        out = pop_subcomp(eeg, [1, 3])
+
+        self.assertEqual(out["dipfit"]["model"], [{"component": 2, "rv": 0.2}])
+
     def test_blank_components_use_reject_flags(self):
         out, com = pop_subcomp(_eeg(), [], return_com=True)
 

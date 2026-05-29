@@ -130,6 +130,8 @@ def _plot_cross_frequency(
 
 
 def _is_on(value: Any) -> bool:
+    # Time-frequency plot options follow EEGLAB's default-on convention:
+    # unknown/non-empty values stay enabled unless explicitly set off.
     return str(value).lower() not in {"0", "false", "off", "no", "none"}
 
 

@@ -220,7 +220,10 @@ def _remove_continuous_baseline(
         segment_baseline = baseline_indices[(baseline_indices >= start) & (baseline_indices < stop)]
         if segment_baseline.size == 0:
             continue
-        # EEGLAB's boundary path only writes the selected baseline window.
+        # Intentionally diverge from pop_rmbase.m's offset-boundary bug: MATLAB
+        # builds segment-relative indices, then applies them as absolute data
+        # indices when pointrange starts after sample 1. EEGPrep writes only the
+        # true baseline samples inside each continuous segment.
         window = np.ix_(channel_indices, segment_baseline)
         data[window] = rmbase(data[window])
     return data
