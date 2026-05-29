@@ -25,16 +25,6 @@ def _phase_entries(phase: str, actions: tuple[str, ...]) -> dict[str, Placeholde
 
 PLACEHOLDER_ACTION_METADATA: Mapping[str, PlaceholderMetadata] = {
     **_phase_entries(
-        "4",
-        (
-            "pop_eventstat",
-            "pop_newcrossf",
-            "pop_newtimef",
-            "pop_signalstat",
-            "pop_viewprops:channels",
-        ),
-    ),
-    **_phase_entries(
         "5",
         (
             "pop_clust",

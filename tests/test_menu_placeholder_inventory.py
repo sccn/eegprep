@@ -46,9 +46,13 @@ def test_placeholder_inventory_classifies_representative_phase_work():
     assert action_kind("pop_rejchan") == "implemented"
     assert placeholder_metadata("pop_spectopo") is None
     assert action_kind("pop_spectopo") == "implemented"
-    assert placeholder_metadata("pop_signalstat").phase == "4"
-    assert placeholder_metadata("pop_viewprops:channels").phase == "4"
-    assert action_kind("pop_viewprops:channels") == "placeholder"
+    assert placeholder_metadata("pop_signalstat") is None
+    assert action_kind("pop_signalstat") == "implemented"
+    assert action_kind("pop_newtimef") == "implemented"
+    assert action_kind("pop_newcrossf") == "implemented"
+    assert action_kind("pop_eventstat") == "implemented"
+    assert placeholder_metadata("pop_viewprops:channels") is None
+    assert action_kind("pop_viewprops:channels") == "implemented"
     assert action_kind("pop_viewprops:components") == "implemented"
     assert placeholder_metadata("pop_studydesign").phase == "5"
     assert placeholder_metadata("eeglab_update").phase == "6"

@@ -52,6 +52,7 @@ IMPLEMENTED_ACTIONS = {
     "pop_envtopo",
     "pop_epoch",
     "pop_erpimage",
+    "pop_eventstat",
     "pop_eventinfo",
     "pop_expevents",
     "pop_expica",
@@ -115,7 +116,10 @@ IMPLEMENTED_ACTIONS = {
     "pop_participantinfo",
     "pop_mergeset",
     "pop_multifit",
+    "pop_newcrossf",
+    "pop_newtimef",
     "pop_writeeeg",
+    "pop_signalstat",
     "bids_exporter",
     "plugin_menu",
     "quit",
@@ -425,6 +429,10 @@ class MenuActionDispatcher:
             "pop_erpimage",
             "pop_envtopo",
             "pop_comperp",
+            "pop_newtimef",
+            "pop_newcrossf",
+            "pop_signalstat",
+            "pop_eventstat",
         }:
             self._run_plot_function(base, variant, parent)
             return
@@ -1167,6 +1175,22 @@ class MenuActionDispatcher:
 
             datasets = self.session.ALLEEG or (selection if isinstance(selection, list) else [selection])
             _result, command = pop_comperp(datasets, flag=0 if variant == "components" else 1, return_com=True)
+        elif name == "pop_newtimef":
+            from eegprep.functions.popfunc.pop_newtimef import pop_newtimef
+
+            _result, command = pop_newtimef(selection, typeproc=0 if variant == "components" else 1, return_com=True)
+        elif name == "pop_newcrossf":
+            from eegprep.functions.popfunc.pop_newcrossf import pop_newcrossf
+
+            _result, command = pop_newcrossf(selection, typeproc=0 if variant == "components" else 1, return_com=True)
+        elif name == "pop_signalstat":
+            from eegprep.functions.popfunc.pop_signalstat import pop_signalstat
+
+            _result, command = pop_signalstat(selection, typeproc=0 if variant == "components" else 1, return_com=True)
+        elif name == "pop_eventstat":
+            from eegprep.functions.popfunc.pop_eventstat import pop_eventstat
+
+            _result, command = pop_eventstat(selection, return_com=True)
         else:
             self.show_coming_soon(name, parent)
             return

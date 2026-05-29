@@ -15,6 +15,23 @@ Spectral Analysis
 
 .. autofunction:: eegprep.eeg_rpsd
 
+Time-Frequency And Statistics
+=============================
+
+.. autofunction:: eegprep.newtimef
+
+.. autofunction:: eegprep.newcrossf
+
+.. autofunction:: eegprep.signalstat
+
+.. autofunction:: eegprep.pop_newtimef
+
+.. autofunction:: eegprep.pop_newcrossf
+
+.. autofunction:: eegprep.pop_signalstat
+
+.. autofunction:: eegprep.pop_eventstat
+
 Resampling
 ==========
 

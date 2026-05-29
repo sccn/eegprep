@@ -95,12 +95,12 @@ class RejectionDialogTests(unittest.TestCase):
             "pop_rejspec:ica",
             "pop_rejtrend:data",
             "pop_selectcomps",
+            "pop_viewprops:channels",
             "pop_viewprops:components",
         ]
         for action in implemented:
             self.assertEqual(action_kind(action), "implemented")
         self.assertEqual(action_kind("pop_eegplot:reject_data"), "placeholder")
-        self.assertEqual(action_kind("pop_viewprops:channels"), "placeholder")
 
     def test_gui_command_is_valid_python_with_keywords(self):
         class Renderer:

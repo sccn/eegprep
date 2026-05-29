@@ -700,6 +700,10 @@ def _write_matlab_simple_pop_dialog_script(
         "pop_erpimage": "Channel ERP image -- pop_erpimage()",
         "pop_envtopo": "Plot component and ERP envelopes -- pop_envtopo()",
         "pop_comperp": "ERP grand average/RMS - pop_comperp()",
+        "pop_newtimef": "Plot channel time frequency -- pop_newtimef()",
+        "pop_newcrossf": "Plot channel cross-coherence -- pop_newcrossf()",
+        "pop_signalstat": "Plot signal statistics -- pop_signalstat()",
+        "pop_eventstat": "Plot event statistics -- pop_eventstat()",
         "pop_runica": "Run ICA decomposition -- pop_runica()",
         "pop_subcomp": "Remove components from data -- pop_subcomp()",
         "pop_autorej": "Automatic epoch rejection -- pop_autorej()",
@@ -744,6 +748,10 @@ def _write_matlab_simple_pop_dialog_script(
         target_title = "Component head plot(s) -- pop_headplot()"
     elif action == "pop_erpimage" and variant == "components":
         target_title = "Component ERP image -- pop_erpimage()"
+    elif action == "pop_newtimef" and variant == "components":
+        target_title = "Plot component time frequency -- pop_newtimef()"
+    elif action == "pop_newcrossf" and variant == "components":
+        target_title = "Plot component cross-coherence -- pop_newcrossf()"
     else:
         target_title = title_by_action[action]
     script_path.write_text(
@@ -854,6 +862,26 @@ def _write_matlab_simple_pop_dialog_script(
                 "        else",
                 "            pop_comperp(ALLEEG, 1);",
                 "        end",
+                "    case 'pop_newtimef'",
+                "        if strcmp(variant, 'components')",
+                "            com = pop_newtimef(EEG, 0);",
+                "        else",
+                "            com = pop_newtimef(EEG, 1);",
+                "        end",
+                "    case 'pop_newcrossf'",
+                "        if strcmp(variant, 'components')",
+                "            com = pop_newcrossf(EEG, 0);",
+                "        else",
+                "            com = pop_newcrossf(EEG, 1);",
+                "        end",
+                "    case 'pop_signalstat'",
+                "        if strcmp(variant, 'components')",
+                "            com = pop_signalstat(EEG, 0);",
+                "        else",
+                "            com = pop_signalstat(EEG, 1);",
+                "        end",
+                "    case 'pop_eventstat'",
+                "        com = pop_eventstat(EEG);",
                 "    case 'pop_runica'",
                 "        [EEG, com] = pop_runica(EEG);",
                 "    case 'pop_subcomp'",
@@ -1036,7 +1064,7 @@ def _write_matlab_simple_pop_dialog_script(
                 "    EEG.epoch = struct('event', {1, 2});",
                 "    EEG.icaact = zeros(4, EEG.pnts, EEG.trials);",
                 "end",
-                "if any(strcmp(action, {'pop_autorej', 'pop_eegthresh', 'pop_jointprob', 'pop_rejkurt', 'pop_rejmenu', 'pop_rejspec', 'pop_rejtrend'})) || ismember(action, {'pop_timtopo', 'pop_plottopo', 'pop_plotdata', 'pop_erpimage', 'pop_envtopo', 'pop_comperp'})",
+                "if any(strcmp(action, {'pop_autorej', 'pop_eegthresh', 'pop_jointprob', 'pop_rejkurt', 'pop_rejmenu', 'pop_rejspec', 'pop_rejtrend'})) || ismember(action, {'pop_timtopo', 'pop_plottopo', 'pop_plotdata', 'pop_erpimage', 'pop_envtopo', 'pop_comperp', 'pop_newtimef', 'pop_newcrossf', 'pop_signalstat', 'pop_eventstat'})",
                 "    EEG.pnts = 250;",
                 "    EEG.trials = 2;",
                 "    EEG.xmin = -0.2;",
@@ -1813,6 +1841,10 @@ def capture_target(
             "pop_erpimage",
             "pop_envtopo",
             "pop_comperp",
+            "pop_newtimef",
+            "pop_newcrossf",
+            "pop_signalstat",
+            "pop_eventstat",
             "pop_topoplot",
             "coregister",
             "select_multiple_datasets",
@@ -1895,6 +1927,10 @@ def capture_target(
             "pop_erpimage",
             "pop_envtopo",
             "pop_comperp",
+            "pop_newtimef",
+            "pop_newcrossf",
+            "pop_signalstat",
+            "pop_eventstat",
             "pop_topoplot",
             "coregister",
             "pop_autorej",
