@@ -62,6 +62,13 @@ def test_newtimef_synthetic_returns_deterministic_shapes():
     assert np.all(np.abs(result.itc) <= 1 + 1e-12)
 
 
+def test_newtimef_rejects_unknown_options():
+    signal = np.sin(2 * np.pi * 10 * np.arange(128) / 128)
+
+    with pytest.raises(TypeError, match="unexpected keyword"):
+        newtimef(signal, 128, [0, 1000], 128, 0, unsupported_option=1)
+
+
 def test_newtimef_nonzero_cycles_use_wavelet_time_grid(sample_epoch):
     result = pop_newtimef(sample_epoch, 1, 1, [-100, 200], [3, 0.8], plot="off")
 
@@ -90,6 +97,13 @@ def test_newcrossf_single_trial_switches_to_cross_spectrum():
     result = newcrossf(first, second, 512, [0, 511], 256, 0, plot="off")
 
     assert np.nanmean(result.coherence) < 0.5
+
+
+def test_newcrossf_rejects_unknown_options():
+    signal = np.sin(2 * np.pi * 10 * np.arange(128) / 128)
+
+    with pytest.raises(TypeError, match="Unsupported newcrossf option"):
+        newcrossf(signal, signal, 128, [0, 1000], 128, 0, unsupported_option=1, plot="off")
 
 
 def test_pop_newtimef_channel_and_component_paths_are_replayable(sample_epoch, ica_epoch):

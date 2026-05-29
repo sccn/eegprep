@@ -16,7 +16,13 @@ from eegprep.functions.popfunc._event_utils import (
     is_boundary_event,
     normalize_event_indices,
 )
-from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args, parse_text_tokens
+from eegprep.functions.popfunc._pop_utils import (
+    format_history_value,
+    is_empty_value as _is_empty,
+    parse_key_value_args,
+    parse_numeric_sequence,
+    parse_text_tokens,
+)
 from eegprep.functions.popfunc.eeg_point2lat import eeg_point2lat
 from eegprep.functions.popfunc.pop_select import pop_select
 
@@ -356,10 +362,7 @@ def _parse_field_text(text: str) -> Any:
 
 
 def _parse_numeric_vector(value: Any) -> list[int]:
-    text = str(value or "").strip()
-    if not text:
-        return []
-    return [int(float(token)) for token in text.strip("[]").replace(",", " ").split() if token]
+    return parse_numeric_sequence(value, dtype=int)
 
 
 def _history_command(options: dict[str, Any]) -> str:
@@ -377,16 +380,6 @@ def _to_float(value: Any) -> float | None:
         return float(value)
     except (TypeError, ValueError):
         return None
-
-
-def _is_empty(value: Any) -> bool:
-    if value is None:
-        return True
-    if isinstance(value, np.ndarray):
-        return value.size == 0
-    if isinstance(value, (list, tuple, set, dict, str)):
-        return len(value) == 0
-    return False
 
 
 __all__ = ["pop_selectevent", "pop_selectevent_dialog_spec"]

@@ -229,11 +229,15 @@ def _reject_unsupported_options(options: dict[str, Any]) -> None:
     present = sorted(key for key in unsupported if key in options)
     if present:
         raise NotImplementedError(f"pop_newtimef does not yet support: {', '.join(present)}")
-    if "alpha" in options and _first_numeric_option(options["alpha"]) != 0:
+    alpha = options.pop("alpha", None)
+    if alpha is not None and _first_numeric_option(alpha) != 0:
         raise NotImplementedError("pop_newtimef bootstrap significance is not yet available")
-    if str(options.get("basenorm", "off")).lower() == "on" or str(options.get("trialbase", "off")).lower() != "off":
+    basenorm = options.pop("basenorm", "off")
+    trialbase = options.pop("trialbase", "off")
+    if str(basenorm).lower() == "on" or str(trialbase).lower() != "off":
         raise NotImplementedError("pop_newtimef baseline normalization modes are not yet available")
-    if str(options.get("plottype", "image")).lower() != "image":
+    plottype = options.pop("plottype", "image")
+    if str(plottype).lower() != "image":
         raise NotImplementedError("pop_newtimef curve plots are not yet available")
 
 

@@ -7,6 +7,8 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.popfunc._pop_utils import is_empty_value as _is_empty
+
 
 def events_as_list(events: Any) -> list[dict[str, Any]]:
     """Return EEG events as a mutable list of dictionaries."""
@@ -111,13 +113,3 @@ def _as_flat_list(value: Any) -> list[Any]:
     if isinstance(value, Iterable):
         return list(value)
     return [value]
-
-
-def _is_empty(value: Any) -> bool:
-    if value is None:
-        return True
-    if isinstance(value, np.ndarray):
-        return value.size == 0
-    if isinstance(value, (list, tuple, set, dict, str)):
-        return len(value) == 0
-    return False

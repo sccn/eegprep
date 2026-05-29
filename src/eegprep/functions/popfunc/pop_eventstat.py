@@ -8,8 +8,9 @@ import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
-from eegprep.functions.popfunc.eeg_point2lat import eeg_point2lat
 from eegprep.functions.popfunc._plot_utils import history_command, numeric_vector
+from eegprep.functions.popfunc._pop_utils import is_empty_value as _is_empty
+from eegprep.functions.popfunc.eeg_point2lat import eeg_point2lat
 from eegprep.functions.sigprocfunc.signalstat import signalstat
 
 
@@ -155,16 +156,6 @@ def _event_in_latency_range(EEG: dict[str, Any], event: dict[str, Any], bounds: 
         )[0]
     )
     return bool(bounds[0] <= latency_ms <= bounds[1])
-
-
-def _is_empty(value: Any) -> bool:
-    if value is None:
-        return True
-    if isinstance(value, str):
-        return value.strip().strip("[]{}") == ""
-    if isinstance(value, np.ndarray):
-        return value.size == 0
-    return isinstance(value, (list, tuple, set)) and len(value) == 0
 
 
 __all__ = ["event_values", "pop_eventstat", "pop_eventstat_dialog_spec"]

@@ -12,7 +12,7 @@ import numpy as np
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.miscfunc.misc import finite_matmul, finite_pinv
-from eegprep.functions.popfunc._pop_utils import format_history_value
+from eegprep.functions.popfunc._pop_utils import format_history_value, is_on as _is_on
 
 logger = logging.getLogger(__name__)
 
@@ -246,10 +246,6 @@ def _unique_preserve_order(values: list[int]) -> list[int]:
         seen.add(value)
         unique.append(value)
     return unique
-
-
-def _is_on(value: Any) -> bool:
-    return str(value).lower() in {"1", "on", "true", "yes"}
 
 
 def _history_command(components: Any, plotag: int | bool, keepcomp: int | bool) -> str:

@@ -12,6 +12,7 @@ import numpy as np
 from scipy.optimize import least_squares
 
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
+from eegprep.functions.popfunc._pop_utils import parse_numeric_sequence as _parse_numeric_sequence_value
 
 DEFAULT_COREGISTER_TRANSFORM = np.asarray([0.0, -10.0, 0.0, -0.1, 0.0, -1.6, 1100.0, 1100.0, 1100.0])
 _SCALE_LOWER_BOUND = 1e-9
@@ -447,18 +448,7 @@ def _coordinate_value(value: Any) -> float:
 
 
 def _parse_numeric_sequence(value: Any) -> list[float]:
-    if value is None:
-        return []
-    if isinstance(value, np.ndarray):
-        return value.astype(float).ravel().tolist()
-    if isinstance(value, (list, tuple)):
-        return np.asarray(value, dtype=float).ravel().tolist()
-    if isinstance(value, (int, float, np.integer, np.floating)):
-        return [float(value)]
-    text = str(value).strip().strip("[]")
-    if not text:
-        return []
-    return [float(item) for item in re.split(r"[\s,]+", text) if item]
+    return _parse_numeric_sequence_value(value, dtype=float)
 
 
 def _normalise_label(label: str) -> str:

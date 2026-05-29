@@ -29,17 +29,43 @@ def newtimef(
     tlimits: Any,
     srate: float,
     cycles: Any = 0,
-    **kwargs: Any,
+    *,
+    winsize: Any = None,
+    freqs: Any = None,
+    nfreqs: Any = None,
+    freqscale: Any = None,
+    timesout: Any = None,
+    padratio: Any = None,
+    overlap: Any = None,
+    baseline: Any = 0,
+    scale: str = "log",
+    plot: Any = "on",
+    plotersp: Any = "on",
+    plotitc: Any = "on",
+    title: str = "Time-frequency",
 ) -> TimeFrequencyResult:
     """Compute an EEGLAB-like ERSP/ITC time-frequency decomposition."""
-    freqs, times, tfdata = compute_time_frequency(data, frames, tlimits, srate, cycles, **kwargs)
+    freqs, times, tfdata = compute_time_frequency(
+        data,
+        frames,
+        tlimits,
+        srate,
+        cycles,
+        winsize=winsize,
+        freqs=freqs,
+        nfreqs=nfreqs,
+        freqscale=freqscale,
+        timesout=timesout,
+        padratio=padratio,
+        overlap=overlap,
+    )
 
     power = np.abs(tfdata) ** 2
-    powbase = _baseline_power(power, times, kwargs.get("baseline", 0))
-    scale = str(kwargs.get("scale", "log")).lower()
-    if scale == "abs":
+    powbase = _baseline_power(power, times, baseline)
+    scale_mode = str(scale).lower()
+    if scale_mode == "abs":
         ersp = np.nanmean(power, axis=2) / powbase[:, np.newaxis]
-    elif scale == "log":
+    elif scale_mode == "log":
         ersp = 10.0 * np.log10(np.maximum(np.nanmean(power, axis=2), np.finfo(float).tiny) / powbase[:, np.newaxis])
     else:
         raise ValueError("scale must be 'log' or 'abs'")
@@ -47,15 +73,15 @@ def newtimef(
     itc = np.nanmean(phase, axis=2)
 
     figure = None
-    if _is_on(kwargs.get("plot", "on")):
+    if _is_on(plot):
         figure = _plot_time_frequency(
             ersp,
             np.abs(itc),
             times,
             freqs,
-            title=str(kwargs.get("title", "Time-frequency")),
-            plotersp=_is_on(kwargs.get("plotersp", "on")),
-            plotitc=_is_on(kwargs.get("plotitc", "on")),
+            title=str(title),
+            plotersp=_is_on(plotersp),
+            plotitc=_is_on(plotitc),
         )
     return TimeFrequencyResult(ersp, itc, powbase, times, freqs, tfdata, figure)
 
@@ -66,7 +92,14 @@ def compute_time_frequency(
     tlimits: Any,
     srate: float,
     cycles: Any = 0,
-    **kwargs: Any,
+    *,
+    winsize: Any = None,
+    freqs: Any = None,
+    nfreqs: Any = None,
+    freqscale: Any = None,
+    timesout: Any = None,
+    padratio: Any = None,
+    overlap: Any = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Return ``(freqs, times_ms, tfdata)`` for one signal using EEGLAB-like defaults."""
     epochs = _as_epochs(data, int(frames))
@@ -80,22 +113,22 @@ def compute_time_frequency(
             srate,
             tlimits,
             cycles_array,
-            kwargs.get("winsize"),
-            kwargs.get("freqs"),
-            kwargs.get("nfreqs"),
-            kwargs.get("freqscale"),
-            kwargs.get("timesout"),
-            kwargs.get("padratio"),
+            winsize,
+            freqs,
+            nfreqs,
+            freqscale,
+            timesout,
+            padratio,
         )
-    winsize = _winsize(frames, srate, cycles_array, kwargs.get("winsize"), kwargs.get("freqs"))
-    padratio = int(_first_numeric(kwargs.get("padratio"), 2))
-    nfft = max(winsize, int(2 ** np.ceil(np.log2(max(winsize, 1)))) * max(padratio, 1))
-    noverlap = min(winsize - 1, max(0, int(_first_numeric(kwargs.get("overlap"), winsize // 2))))
-    freqs, times_seconds, tfdata = _trial_stft(epochs, srate, winsize, noverlap, nfft)
-    freqs, tfdata = _select_freqs(freqs, tfdata, kwargs.get("freqs"), kwargs.get("nfreqs"), kwargs.get("freqscale"))
+    winsize = _winsize(frames, srate, cycles_array, winsize, freqs)
+    padratio_value = int(_first_numeric(padratio, 2))
+    nfft = max(winsize, int(2 ** np.ceil(np.log2(max(winsize, 1)))) * max(padratio_value, 1))
+    noverlap = min(winsize - 1, max(0, int(_first_numeric(overlap, winsize // 2))))
+    stft_freqs, times_seconds, tfdata = _trial_stft(epochs, srate, winsize, noverlap, nfft)
+    selected_freqs, tfdata = _select_freqs(stft_freqs, tfdata, freqs, nfreqs, freqscale)
     times = tlimits[0] + times_seconds * 1000.0
-    times, tfdata = _select_times(times, tfdata, kwargs.get("timesout"))
-    return freqs, times, tfdata
+    times, tfdata = _select_times(times, tfdata, timesout)
+    return selected_freqs, times, tfdata
 
 
 def _as_epochs(data: Any, frames: int) -> np.ndarray:

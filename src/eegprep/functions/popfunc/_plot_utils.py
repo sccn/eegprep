@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
 from typing import Any
 
 import numpy as np
 
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
+from eegprep.functions.popfunc._pop_utils import is_empty_value, parse_numeric_sequence
 
 
 def as_eeg_list(value: Any) -> list[dict[str, Any]]:
@@ -155,49 +155,14 @@ def component_map_data(EEG: dict[str, Any]) -> tuple[np.ndarray, list[dict[str, 
 
 def numeric_vector(value: Any, *, dtype: Any = float) -> np.ndarray:
     """Parse EEGLAB-style numeric vectors from strings, lists, or arrays."""
-    if value is None:
-        return np.asarray([], dtype=dtype)
     if isinstance(value, np.ndarray):
         return value.astype(dtype).ravel()
-    if isinstance(value, (int, float, np.integer, np.floating)):
-        return np.asarray([value], dtype=dtype)
-    if isinstance(value, str):
-        text = value.strip().strip("[]")
-        if not text:
-            return np.asarray([], dtype=dtype)
-        values = []
-        for token in text.replace(",", " ").split():
-            if ":" in token:
-                values.extend(colon_sequence(token))
-            else:
-                values.append(float(token))
-        return np.asarray(values, dtype=dtype)
-    if isinstance(value, Iterable):
-        return np.asarray(list(value), dtype=dtype).ravel()
-    return np.asarray([value], dtype=dtype)
+    return np.asarray(parse_numeric_sequence(value, dtype=dtype), dtype=dtype)
 
 
 def colon_sequence(token: str) -> list[float]:
     """Parse MATLAB ``start:stop`` or ``start:step:stop`` tokens."""
-    pieces = token.split(":")
-    if len(pieces) not in {2, 3}:
-        raise ValueError(f"Invalid colon range: {token}")
-    start = float(pieces[0])
-    if len(pieces) == 2:
-        stop = float(pieces[1])
-        step = 1.0 if stop >= start else -1.0
-    else:
-        step = float(pieces[1])
-        stop = float(pieces[2])
-    if step == 0 or not np.all(np.isfinite([start, step, stop])):
-        raise ValueError(f"Invalid colon range: {token}")
-    if (stop - start) * step < 0:
-        return []
-    count = int(np.floor((stop - start) / step + 1e-9)) + 1
-    values = [float(start + index * step) for index in range(max(count, 0))]
-    if values and np.isclose(values[-1], stop, rtol=0.0, atol=max(abs(step), 1.0) * 1e-12):
-        values[-1] = float(stop)
-    return values
+    return parse_numeric_sequence(token, dtype=float)
 
 
 def python_literal(value: Any) -> str:
@@ -250,13 +215,7 @@ def history_command(function_name: str, *args: Any, eeg_name: str = "EEG", **kwa
 
 
 def _is_empty_sequence(value: Any) -> bool:
-    if value is None:
-        return True
-    if isinstance(value, str):
-        return value.strip().strip("[]") == ""
-    if isinstance(value, np.ndarray):
-        return value.size == 0
-    return isinstance(value, (list, tuple)) and len(value) == 0
+    return is_empty_value(value)
 
 
 def _is_empty_history_value(value: Any) -> bool:

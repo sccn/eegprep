@@ -98,6 +98,16 @@ def test_pop_editset_updates_timing_fields_and_shifts_event_latencies_for_xmin()
     np.testing.assert_allclose(out["times"], np.linspace(-100.0, -55.0, 10))
 
 
+def test_pop_editset_continuous_xmin_shift_updates_event_latencies():
+    eeg = _eeg()
+
+    out = pop_editset(eeg, xmin=0.05)
+
+    assert out["trials"] == 1
+    assert out["event"][0]["latency"] == 5.0
+    assert eeg["event"][0]["latency"] == 10.0
+
+
 def test_pop_editset_gui_renderer_returns_only_changed_fields():
     class Renderer:
         def __init__(self):

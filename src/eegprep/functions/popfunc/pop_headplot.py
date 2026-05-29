@@ -20,6 +20,8 @@ from eegprep.functions.popfunc._plot_utils import (
     numeric_vector,
     parse_plot_options_text,
 )
+from eegprep.functions.popfunc._pop_utils import is_empty_value as _is_empty
+from eegprep.functions.popfunc._pop_utils import is_on as _is_on
 from eegprep.functions.sigprocfunc.headplot import (
     DEFAULT_MESH,
     MAPLIMIT_PADDING,
@@ -682,22 +684,6 @@ def _ica_uses_all_channels(EEG: dict[str, Any]) -> bool:
 def _validate_chanlocs(EEG: dict[str, Any]) -> None:
     if not chanlocs_as_list(EEG.get("chanlocs", [])):
         raise ValueError("Pop_headplot: this dataset does not contain channel locations. Use Edit > Channel locations.")
-
-
-def _is_empty(value: Any) -> bool:
-    if value is None:
-        return True
-    if isinstance(value, str):
-        return not value.strip()
-    if isinstance(value, np.ndarray):
-        return value.size == 0
-    return isinstance(value, (list, tuple, dict)) and len(value) == 0
-
-
-def _is_on(value: Any) -> bool:
-    if isinstance(value, str):
-        return value.lower() in {"1", "true", "yes", "on"}
-    return bool(value)
 
 
 __all__ = ["pop_headplot", "pop_headplot_dialog_spec"]

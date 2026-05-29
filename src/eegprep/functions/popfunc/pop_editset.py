@@ -12,7 +12,11 @@ import numpy as np
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
-from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args
+from eegprep.functions.popfunc._pop_utils import (
+    format_history_value,
+    is_empty_value as _is_empty_value,
+    parse_key_value_args,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -72,7 +76,7 @@ def pop_editset(
         _assign_option(output, key, value)
 
     _normalize_data_dimensions(output, strict_pnts="pnts" in options)
-    if "xmin" in options and int(output.get("trials", 1) or 1) > 1:
+    if "xmin" in options:
         _adjust_event_latencies_for_xmin_change(output, old_xmin, old_srate)
     _normalize_ica_index_field(output)
     _refresh_time_fields(output)
@@ -445,18 +449,6 @@ def _as_int_array(value: Any) -> np.ndarray:
     if np.any(array != np.floor(array)):
         raise ValueError("icachansind must contain integer indices")
     return array.astype(int).ravel()
-
-
-def _is_empty_value(value: Any) -> bool:
-    if value is None:
-        return True
-    if isinstance(value, str):
-        return value.strip() == ""
-    if isinstance(value, np.ndarray):
-        return value.size == 0
-    if isinstance(value, Sequence) and not isinstance(value, (bytes, bytearray)):
-        return len(value) == 0
-    return False
 
 
 def _looks_like_chanloc_package(value: Any) -> bool:

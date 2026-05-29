@@ -17,7 +17,7 @@ from eegprep.functions.popfunc._event_utils import (
     sort_events,
     value_sequence,
 )
-from eegprep.functions.popfunc._pop_utils import format_history_value, parse_text_tokens
+from eegprep.functions.popfunc._pop_utils import format_history_value, is_empty_value as _is_empty, parse_text_tokens
 
 
 _RESERVED_OPTIONS = {"delold", "indices", "timeunit", "skipline", "delim", "rename"}
@@ -354,16 +354,6 @@ def _to_number(value: Any) -> Any:
     except (TypeError, ValueError):
         return value
     return int(numeric) if numeric.is_integer() else numeric
-
-
-def _is_empty(value: Any) -> bool:
-    if value is None:
-        return True
-    if isinstance(value, np.ndarray):
-        return value.size == 0
-    if isinstance(value, (list, tuple, dict, str)):
-        return len(value) == 0
-    return False
 
 
 __all__ = ["pop_editeventfield", "pop_editeventfield_dialog_spec"]

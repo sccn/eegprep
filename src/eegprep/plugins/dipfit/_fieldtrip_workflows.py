@@ -15,6 +15,11 @@ from eegprep.plugins.dipfit._utils import (
     unavailable,
 )
 
+# These dialogs are deliberate placeholders: they keep bundled DIPFIT menu
+# surfaces visually recognizable while failing before any FieldTrip-dependent
+# computation. Programmatic calls with ``gui=False`` skip the dialogs and raise
+# the same explicit unavailable error after prerequisite validation.
+
 
 def pop_dipfit_headmodel(
     EEG: dict[str, Any] | None = None,

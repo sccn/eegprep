@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib
 from unittest import mock
 
 import matplotlib.pyplot as plt
@@ -47,6 +48,13 @@ def test_pop_dipfit_settings_stores_standard_model_and_python_history():
     assert out["dipfit"]["hdmfile"].endswith("standard_vol.mat")
     assert out["dipfit"]["chansel"] == [1, 3, 4]
     assert _console_python_command(com) == "EEG = pop_dipfit_settings(EEG, model='standardBEM', chanomit=[2])"
+
+
+def test_dipfit_submodules_are_not_shadowed_by_package_reexports():
+    module = importlib.import_module("eegprep.plugins.dipfit.pop_dipfit_settings")
+
+    assert module.__name__ == "eegprep.plugins.dipfit.pop_dipfit_settings"
+    assert module.pop_dipfit_settings is pop_dipfit_settings
 
 
 def test_pop_dipfit_settings_works_on_sample_data():
@@ -141,6 +149,11 @@ def test_dipfit_dialog_specs_keep_eeglab_source_and_key_defaults():
 
 def test_dipfit_fieldtrip_workflows_fail_clearly_after_prerequisites():
     eeg = _configured_ica_eeg()
+
+    with mock.patch("eegprep.plugins.dipfit._fieldtrip_workflows.inputgui") as inputgui:
+        with pytest.raises(DIPFITUnavailableError, match="FieldTrip"):
+            pop_dipfit_gridsearch(eeg, [1], [0], [0], [0], 40, gui=False)
+    inputgui.assert_not_called()
 
     with pytest.raises(DIPFITUnavailableError, match="FieldTrip"):
         pop_dipfit_gridsearch(eeg, [1], [0], [0], [0], 40)

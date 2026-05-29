@@ -16,6 +16,8 @@ from scipy.special import eval_legendre
 
 from eegprep.functions.miscfunc.misc import finite_matmul, finite_pinv
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
+from eegprep.functions.popfunc._pop_utils import is_on as _is_on_value
+from eegprep.functions.popfunc._pop_utils import parse_numeric_sequence as _parse_numeric_sequence_value
 from eegprep.functions.sigprocfunc.coregister import (
     DEFAULT_COREGISTER_TRANSFORM,
     apply_coregistration_transform,
@@ -305,18 +307,7 @@ def _normalise_transform(transform: Any) -> np.ndarray:
 
 
 def _parse_numeric_sequence(value: Any) -> list[float]:
-    if value is None:
-        return []
-    if isinstance(value, np.ndarray):
-        return value.astype(float).ravel().tolist()
-    if isinstance(value, (list, tuple)):
-        return np.asarray(value, dtype=float).ravel().tolist()
-    if isinstance(value, (int, float, np.integer, np.floating)):
-        return [float(value)]
-    text = str(value).strip().strip("[]")
-    if not text:
-        return []
-    return [float(item) for item in text.replace(",", " ").split()]
+    return _parse_numeric_sequence_value(value, dtype=float)
 
 
 def _setup_channel_selection(
@@ -619,7 +610,7 @@ def _zero_based_faces(faces: np.ndarray) -> np.ndarray:
 
 
 def _is_on(value: str | bool) -> bool:
-    return bool(value is True or str(value).lower() == "on")
+    return _is_on_value(value)
 
 
 __all__ = [

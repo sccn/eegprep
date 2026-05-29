@@ -13,7 +13,7 @@ from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.session import normalize_dataset_indices
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.popfunc._event_utils import events_as_list
-from eegprep.functions.popfunc._pop_utils import format_history_value
+from eegprep.functions.popfunc._pop_utils import format_history_value, is_empty_value as _is_empty
 
 
 def pop_mergeset(
@@ -226,16 +226,6 @@ def _epoch_list(epochs: Any, trials: int) -> list[dict[str, Any]]:
     if isinstance(epochs, list) and epochs:
         return [dict(epoch) for epoch in epochs]
     return [{} for _index in range(trials)]
-
-
-def _is_empty(value: Any) -> bool:
-    if value is None:
-        return True
-    if isinstance(value, np.ndarray):
-        return value.size == 0
-    if isinstance(value, (list, tuple, set, dict, str)):
-        return len(value) == 0
-    return False
 
 
 def _history_command(indices: list[int] | None, keepall: int | bool) -> str:

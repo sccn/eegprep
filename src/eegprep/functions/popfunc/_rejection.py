@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import copy
-import re
 import warnings
 from typing import Any
 
@@ -11,40 +10,12 @@ import numpy as np
 from scipy import signal, stats
 
 from eegprep.functions.miscfunc.misc import finite_matmul
-
-
-_RANGE_TOKEN = re.compile(r"^(-?\d+(?:\.\d+)?)(?::(-?\d+(?:\.\d+)?))?(?::(-?\d+(?:\.\d+)?))?$")
+from eegprep.functions.popfunc._pop_utils import parse_numeric_sequence
 
 
 def copy_eeg(EEG: dict[str, Any]) -> dict[str, Any]:
     """Return a deep copy suitable for pop-function mutation."""
     return copy.deepcopy(EEG)
-
-
-def parse_numeric_sequence(value: Any, *, dtype: type = float) -> list[Any]:
-    """Parse EEGLAB text vectors, including ``start:stop`` ranges."""
-    if value is None:
-        return []
-    if isinstance(value, np.ndarray):
-        return [dtype(item) for item in value.ravel().tolist()]
-    if isinstance(value, (list, tuple)):
-        values: list[Any] = []
-        for item in value:
-            values.extend(parse_numeric_sequence(item, dtype=dtype) if isinstance(item, str) else [dtype(item)])
-        return values
-    text = str(value).strip().strip("[]")
-    if not text:
-        return []
-    values = []
-    for token in re.split(r"[\s,]+", text):
-        if not token:
-            continue
-        match = _RANGE_TOKEN.match(token)
-        if match and match.group(2) is not None:
-            values.extend(_parse_range_token(match, dtype=dtype))
-        else:
-            values.append(dtype(float(token)) if dtype is int else dtype(token))
-    return values
 
 
 def one_based_indices(value: Any, *, limit: int, default_all: bool = False) -> list[int]:
@@ -153,9 +124,11 @@ def jointprob_marks(
     local_scores, local_reject = jointprob(data[selected], locthresh, normalize=1)
     row_marks = np.zeros((data.shape[0], data.shape[2]), dtype=bool)
     row_marks[selected, :] = local_reject
+    # Match EEGLAB pop_jointprob.m: trials become rows, then jointprob()
+    # computes and normalizes one score per trial.
     global_data = data[selected].transpose(2, 0, 1).reshape(data.shape[2], -1)
     global_scores, global_reject = jointprob(global_data, globthresh, normalize=1)
-    reject = row_marks[selected, :].any(axis=0) | global_reject.ravel()
+    reject = local_reject.any(axis=0) | global_reject.ravel()
     return reject, row_marks, local_scores, global_scores.ravel()
 
 
@@ -170,9 +143,11 @@ def kurtosis_marks(
     local_scores, local_reject = rejkurt(data[selected], locthresh, normalize=1)
     row_marks = np.zeros((data.shape[0], data.shape[2]), dtype=bool)
     row_marks[selected, :] = local_reject
+    # Match EEGLAB pop_rejkurt.m global mode: trials become rows before
+    # rejkurt() computes one normalized score per trial.
     global_data = data[selected].transpose(2, 0, 1).reshape(data.shape[2], -1)
     global_scores, global_reject = rejkurt(global_data, globthresh, normalize=1)
-    reject = row_marks[selected, :].any(axis=0) | global_reject.ravel()
+    reject = local_reject.any(axis=0) | global_reject.ravel()
     return reject, row_marks, local_scores, global_scores.ravel()
 
 
@@ -186,20 +161,19 @@ def trend_marks(
         raise ValueError("winsize must be between 2 and EEG.pnts")
     row_marks = np.zeros((data.shape[0], data.shape[2]), dtype=bool)
     x = np.linspace(1 / winsize, 1, winsize)
+    x_centered = x - np.mean(x)
+    x_denom = float(np.sum(x_centered**2))
     tolerance = 1000 * winsize * 1.1921e-7
+    starts = range(0, data.shape[1] - winsize + 1, winsize)
     for row_index in selected:
-        for trial in range(data.shape[2]):
-            for start in range(0, data.shape[1] - winsize + 1, winsize):
-                y = data[row_index, start : start + winsize, trial]
-                slope, intercept = np.polyfit(x, y, 1)
-                if abs(slope) < maxslope:
-                    continue
-                fitted = slope * x + intercept
-                sst = max(float(np.sum((y - np.mean(y)) ** 2)), tolerance)
-                sse = float(np.sum((y - fitted) ** 2))
-                if 1 - sse / sst > min_r:
-                    row_marks[row_index, trial] = True
-                    break
+        windows = np.stack([data[row_index, start : start + winsize, :].T for start in starts], axis=1)
+        means = np.mean(windows, axis=2, keepdims=True)
+        slopes = np.tensordot(windows - means, x_centered, axes=([2], [0])) / x_denom
+        intercepts = means[:, :, 0] - slopes * float(np.mean(x))
+        fitted = slopes[:, :, np.newaxis] * x + intercepts[:, :, np.newaxis]
+        sst = np.maximum(np.sum((windows - means) ** 2, axis=2), tolerance)
+        sse = np.sum((windows - fitted) ** 2, axis=2)
+        row_marks[row_index, :] = ((np.abs(slopes) >= maxslope) & (1 - sse / sst > min_r)).any(axis=1)
     return row_marks.any(axis=0), row_marks
 
 
@@ -330,30 +304,6 @@ def history_vector(value: Any) -> str:
         return "[]"
     formatted = [str(int(item)) if float(item).is_integer() else f"{float(item):g}" for item in values]
     return "[" + " ".join(formatted) + "]"
-
-
-def _parse_range_token(match: re.Match[str], *, dtype: type) -> list[Any]:
-    first = float(match.group(1))
-    second = float(match.group(2))
-    third = match.group(3)
-    if third is None:
-        start, stop = first, second
-        step = 1.0 if stop >= start else -1.0
-    else:
-        start, step, stop = first, second, float(third)
-    if step == 0:
-        raise ValueError("Range step cannot be zero")
-    values = []
-    current = start
-    if step > 0:
-        while current <= stop:
-            values.append(dtype(current))
-            current += step
-    else:
-        while current >= stop:
-            values.append(dtype(current))
-            current += step
-    return values
 
 
 def _time_window(pnts: int, timerange: tuple[float, float], start: float, end: float) -> tuple[int, int]:

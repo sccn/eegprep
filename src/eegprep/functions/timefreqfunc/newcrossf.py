@@ -35,8 +35,9 @@ def newcrossf(
     **kwargs: Any,
 ) -> CrossFrequencyResult:
     """Compute an EEGLAB-like event-related coherence decomposition."""
-    freqs, times, tf_x = compute_time_frequency(x, frames, tlimits, srate, cycles, **kwargs)
-    freqs_y, times_y, tf_y = compute_time_frequency(y, frames, tlimits, srate, cycles, **kwargs)
+    compute_options = _compute_time_frequency_options(kwargs)
+    freqs, times, tf_x = compute_time_frequency(x, frames, tlimits, srate, cycles, **compute_options)
+    freqs_y, times_y, tf_y = compute_time_frequency(y, frames, tlimits, srate, cycles, **compute_options)
     if tf_x.shape != tf_y.shape or not np.array_equal(freqs, freqs_y) or not np.array_equal(times, times_y):
         raise ValueError("newcrossf inputs must have matching frames, trials, times, and frequencies")
 
@@ -71,6 +72,15 @@ def newcrossf(
             plotphase=_is_on(kwargs.get("plotphase", "on")),
         )
     return CrossFrequencyResult(coherence, phase, times, freqs, cross, tf_x, tf_y, figure)
+
+
+def _compute_time_frequency_options(options: dict[str, Any]) -> dict[str, Any]:
+    compute_keys = {"winsize", "freqs", "nfreqs", "freqscale", "timesout", "padratio", "overlap"}
+    supported_keys = compute_keys | {"type", "plot", "plotamp", "plotphase", "plotersp", "title"}
+    unknown = sorted(set(options) - supported_keys)
+    if unknown:
+        raise TypeError(f"Unsupported newcrossf option(s): {', '.join(unknown)}")
+    return {key: options[key] for key in compute_keys if key in options}
 
 
 def _plot_cross_frequency(

@@ -5,7 +5,10 @@ import numpy as np
 
 from eegprep.functions.popfunc._pop_utils import (
     format_history_value,
+    is_empty_value,
+    is_on,
     parse_key_value_args,
+    parse_numeric_sequence,
     parse_text_tokens,
 )
 
@@ -32,6 +35,34 @@ class PopUtilsTests(unittest.TestCase):
 
         self.assertEqual(parse_text_tokens(text), ["Fz", "Cz", "3"])
         self.assertEqual(parse_text_tokens(text, parse_ints=True), ["Fz", "Cz", 3])
+
+    def test_parse_numeric_sequence_handles_eeglab_colon_ranges(self):
+        self.assertEqual(parse_numeric_sequence("1:3", dtype=int), [1, 2, 3])
+        self.assertEqual(parse_numeric_sequence("5:-2:1", dtype=int), [5, 3, 1])
+        self.assertEqual(parse_numeric_sequence("[1, 2.5 4]", dtype=float), [1.0, 2.5, 4.0])
+        self.assertEqual(parse_numeric_sequence(["1:2", 4], dtype=int), [1, 2, 4])
+
+        parsed = parse_numeric_sequence("nan Inf -Inf", dtype=float)
+        self.assertTrue(np.isnan(parsed[0]))
+        self.assertEqual(parsed[1:], [np.inf, -np.inf])
+
+    def test_is_empty_value_matches_gui_dialog_empty_literals(self):
+        self.assertTrue(is_empty_value(None))
+        self.assertTrue(is_empty_value(""))
+        self.assertTrue(is_empty_value("[]"))
+        self.assertTrue(is_empty_value("{}"))
+        self.assertTrue(is_empty_value(np.array([])))
+        self.assertTrue(is_empty_value([]))
+        self.assertFalse(is_empty_value("0"))
+        self.assertFalse(is_empty_value([0]))
+
+    def test_is_on_normalizes_eeglab_on_off_values(self):
+        self.assertTrue(is_on("on"))
+        self.assertTrue(is_on("1"))
+        self.assertTrue(is_on(True))
+        self.assertFalse(is_on("off"))
+        self.assertFalse(is_on("0"))
+        self.assertFalse(is_on(False))
 
     def test_format_history_value_defaults_to_eeglab_like_literals(self):
         self.assertEqual(format_history_value("F'z"), "'F''z'")

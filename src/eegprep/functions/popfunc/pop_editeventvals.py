@@ -11,7 +11,7 @@ from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.popfunc._event_utils import event_field_names, events_as_list, normalize_one_based_indices
-from eegprep.functions.popfunc._pop_utils import format_history_value
+from eegprep.functions.popfunc._pop_utils import format_history_value, is_empty_value as _is_empty
 from eegprep.functions.popfunc.eeg_lat2point import eeg_lat2point
 
 
@@ -285,16 +285,6 @@ def _parse_gui_value(value: Any) -> Any:
     except ValueError:
         return text
     return int(numeric) if numeric.is_integer() else numeric
-
-
-def _is_empty(value: Any) -> bool:
-    if value is None:
-        return True
-    if isinstance(value, np.ndarray):
-        return value.size == 0
-    if isinstance(value, (list, tuple, set, dict, str)):
-        return len(value) == 0
-    return False
 
 
 def _history_command(options: list[tuple[str, Any]]) -> str:

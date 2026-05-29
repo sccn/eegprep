@@ -11,6 +11,13 @@ import scipy.io
 
 from eegprep.functions.adminfunc.console import _console_python_command
 from eegprep.functions.popfunc.eeg_rejsuperpose import eeg_rejsuperpose
+from eegprep.functions.popfunc._rejection import (
+    jointprob,
+    jointprob_marks,
+    kurtosis_marks,
+    rejkurt,
+    trend_marks,
+)
 from eegprep.functions.popfunc.pop_autorej import pop_autorej
 from eegprep.functions.popfunc.pop_eegthresh import pop_eegthresh
 from eegprep.functions.popfunc.pop_jointprob import pop_jointprob
@@ -42,6 +49,26 @@ def _epoched_eeg() -> dict:
     eeg["icaact"] = None
     eeg["reject"] = {}
     return eeg
+
+
+def _reference_trend_marks(
+    data: np.ndarray, selected_rows: list[int], *, winsize: int, maxslope: float, min_r: float
+) -> np.ndarray:
+    row_marks = np.zeros((data.shape[0], data.shape[2]), dtype=bool)
+    x = np.linspace(1 / winsize, 1, winsize)
+    tolerance = 1000 * winsize * 1.1921e-7
+    for row_index in selected_rows:
+        for trial in range(data.shape[2]):
+            for start in range(0, data.shape[1] - winsize + 1, winsize):
+                y = data[row_index, start : start + winsize, trial]
+                slope, intercept = np.polyfit(x, y, 1)
+                fit = slope * x + intercept
+                sst = max(float(np.sum((y - y.mean()) ** 2)), tolerance)
+                r2 = 1 - float(np.sum((y - fit) ** 2)) / sst
+                if abs(slope) >= maxslope and r2 > min_r:
+                    row_marks[row_index, trial] = True
+                    break
+    return row_marks
 
 
 def test_pop_eegthresh_marks_epochs_and_emits_replayable_python():
@@ -105,6 +132,59 @@ def test_rejection_statistics_store_data_and_component_marks():
     assert not np.allclose(fft_spec_out["specdata"], spec_out["specdata"])
     assert comp_count >= 1
     assert "icarejjp" in comp_out["reject"]
+
+
+def test_jointprob_global_marks_match_eeglab_trial_rows_for_duplicate_channels():
+    rng = np.random.default_rng(42)
+    data = rng.normal(size=(3, 12, 4))
+    elecrange = [3, 1, 3]
+
+    reject, row_marks, local_scores, global_scores = jointprob_marks(data, elecrange, 0.8, 0.8)
+
+    selected = [2, 0, 2]
+    expected_local_scores, expected_local = jointprob(data[selected], 0.8, normalize=1)
+    global_data = data[selected].transpose(2, 0, 1).reshape(data.shape[2], -1)
+    expected_global_scores, expected_global = jointprob(global_data, 0.8, normalize=1)
+    expected_reject = expected_local.any(axis=0) | expected_global.ravel()
+
+    np.testing.assert_allclose(local_scores, expected_local_scores)
+    np.testing.assert_allclose(global_scores, expected_global_scores.ravel())
+    np.testing.assert_array_equal(reject, expected_reject)
+    np.testing.assert_array_equal(row_marks[0], expected_local[1])
+    np.testing.assert_array_equal(row_marks[2], expected_local[2])
+
+
+def test_kurtosis_global_marks_match_eeglab_trial_rows_for_duplicate_channels():
+    rng = np.random.default_rng(7)
+    data = rng.normal(size=(3, 16, 4))
+    elecrange = [2, 1, 2]
+
+    reject, row_marks, local_scores, global_scores = kurtosis_marks(data, elecrange, 0.6, 0.6)
+
+    selected = [1, 0, 1]
+    expected_local_scores, expected_local = rejkurt(data[selected], 0.6, normalize=1)
+    global_data = data[selected].transpose(2, 0, 1).reshape(data.shape[2], -1)
+    expected_global_scores, expected_global = rejkurt(global_data, 0.6, normalize=1)
+    expected_reject = expected_local.any(axis=0) | expected_global.ravel()
+
+    np.testing.assert_allclose(local_scores, expected_local_scores)
+    np.testing.assert_allclose(global_scores, expected_global_scores.ravel())
+    np.testing.assert_array_equal(reject, expected_reject)
+    np.testing.assert_array_equal(row_marks[0], expected_local[1])
+    np.testing.assert_array_equal(row_marks[1], expected_local[2])
+
+
+def test_trend_marks_match_reference_window_loop():
+    data = np.zeros((2, 12, 3), dtype=float)
+    data[0, :, 0] = np.arange(12, dtype=float)
+    data[0, :, 1] = 0.1
+    data[1, :, 2] = np.r_[np.arange(6, dtype=float), np.zeros(6)]
+
+    reject, row_marks = trend_marks(data, [1, 2], winsize=6, maxslope=0.3, min_r=0.8)
+    expected = _reference_trend_marks(data, [0, 1], winsize=6, maxslope=0.3, min_r=0.8)
+
+    np.testing.assert_array_equal(row_marks, expected)
+    np.testing.assert_array_equal(reject, expected.any(axis=0))
 
 
 def test_eeg_rejsuperpose_and_pop_rejepoch_remove_marked_epochs():

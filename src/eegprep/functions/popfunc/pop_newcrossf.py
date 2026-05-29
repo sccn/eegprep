@@ -169,7 +169,8 @@ def _reject_unsupported_options(options: dict[str, Any]) -> None:
     present = sorted(key for key in unsupported if key in options)
     if present:
         raise NotImplementedError(f"pop_newcrossf does not yet support: {', '.join(present)}")
-    if "alpha" in options and _first_numeric_option(options["alpha"]) != 0:
+    alpha = options.pop("alpha", None)
+    if alpha is not None and _first_numeric_option(alpha) != 0:
         raise NotImplementedError("pop_newcrossf bootstrap significance is not yet available")
 
 

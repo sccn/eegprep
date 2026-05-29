@@ -14,7 +14,8 @@ from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc._plot_utils import component_map_data
-from eegprep.functions.popfunc._pop_utils import parse_key_value_args, parse_text_tokens
+from eegprep.functions.popfunc._pop_utils import is_on as _is_on
+from eegprep.functions.popfunc._pop_utils import parse_key_value_args, parse_numeric_sequence, parse_text_tokens
 from eegprep.functions.sigprocfunc.topoplot import topoplot
 
 
@@ -364,39 +365,7 @@ def _normalise_rowcols(rowcols: Any, count: int) -> tuple[int, int]:
 
 def _parse_items_text(text: str) -> list[float]:
     stripped = re.sub(r"\s*:\s*", ":", text.strip().strip("[]"))
-    if not stripped:
-        return []
-    values = []
-    for token in re.split(r"[\s,]+", stripped):
-        if not token:
-            continue
-        if ":" in token:
-            values.extend(_parse_colon_sequence(token))
-        else:
-            values.append(_parse_float_token(token))
-    return values
-
-
-def _parse_colon_sequence(token: str) -> list[float]:
-    pieces = token.split(":")
-    if len(pieces) not in {2, 3}:
-        raise ValueError(f"Invalid colon range: {token}")
-    start = _parse_float_token(pieces[0])
-    if len(pieces) == 2:
-        stop = _parse_float_token(pieces[1])
-        step = 1.0 if stop >= start else -1.0
-    else:
-        step = _parse_float_token(pieces[1])
-        stop = _parse_float_token(pieces[2])
-    if step == 0 or not np.all(np.isfinite([start, step, stop])):
-        raise ValueError(f"Invalid colon range: {token}")
-    if (stop - start) * step < 0:
-        return []
-    count = int(math.floor((stop - start) / step + 1e-9)) + 1
-    values = [float(start + index * step) for index in range(max(count, 0))]
-    if values and math.isclose(values[-1], stop, rel_tol=0.0, abs_tol=max(abs(step), 1.0) * 1e-12):
-        values[-1] = float(stop)
-    return values
+    return parse_numeric_sequence(stripped, dtype=float)
 
 
 def _parse_rowcols_text(text: str) -> list[float]:
@@ -404,18 +373,7 @@ def _parse_rowcols_text(text: str) -> list[float]:
 
 
 def _parse_numeric_sequence(value: Any) -> np.ndarray:
-    if value is None:
-        return np.asarray([], dtype=float)
-    if isinstance(value, np.ndarray):
-        return value.astype(float).ravel()
-    if isinstance(value, (list, tuple)):
-        return np.asarray(value, dtype=float).ravel()
-    if isinstance(value, (int, float, np.integer, np.floating)):
-        return np.asarray([value], dtype=float)
-    text = str(value).strip().strip("[]")
-    if not text:
-        return np.asarray([], dtype=float)
-    return np.asarray([_parse_float_token(token) for token in re.split(r"[\s,]+", text) if token], dtype=float)
+    return np.asarray(parse_numeric_sequence(value, dtype=float), dtype=float)
 
 
 def _parse_options_text(text: str) -> dict[str, Any]:
@@ -433,21 +391,10 @@ def _parse_option_value(value: Any) -> Any:
         if text.startswith("[") and text.endswith("]"):
             return _parse_numeric_sequence(text).tolist()
         try:
-            return _parse_float_token(text)
-        except ValueError:
+            return parse_numeric_sequence(text, dtype=float)[0]
+        except (IndexError, ValueError):
             return text
     return value
-
-
-def _parse_float_token(token: str) -> float:
-    text = str(token).strip()
-    if text.lower() == "nan":
-        return float("nan")
-    if text.lower() == "inf":
-        return float("inf")
-    if text.lower() == "-inf":
-        return float("-inf")
-    return float(text)
 
 
 def _require_chanlocs(EEG: dict[str, Any]) -> None:
@@ -465,10 +412,6 @@ def _validate_topoplot_inputs(EEG: dict[str, Any], typeplot: int) -> None:
     _require_chanlocs(EEG)
     if typeplot == 0:
         _require_ica(EEG)
-
-
-def _is_on(value: Any) -> bool:
-    return str(value).lower() in {"on", "yes", "true", "1"}
 
 
 def _is_absmax_maplimits(value: Any) -> bool:
