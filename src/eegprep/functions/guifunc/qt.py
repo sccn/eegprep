@@ -68,7 +68,7 @@ class QtDialogRenderer:
         dialog = qt_widgets.QDialog()
         dialog.setObjectName(spec.function_name)
         dialog.setWindowTitle(spec.title)
-        self._apply_eeglab_style(dialog)
+        self._apply_eeglab_style(dialog, spec)
         layout = qt_widgets.QVBoxLayout(dialog)
         layout.setContentsMargins(*spec.content_margins)
         layout.setSpacing(spec.row_spacing)
@@ -95,6 +95,9 @@ class QtDialogRenderer:
                 stretch = max(1, round(float(weight) * 100))
                 if control.style.lower() == "spacer":
                     row_layout.addStretch(stretch)
+                elif control.style.lower() == "textarea":
+                    row_layout.addWidget(widget, stretch)
+                    added_visible_widget = True
                 else:
                     row_layout.addWidget(widget, stretch, qt_core.Qt.AlignVCenter)
                     added_visible_widget = True
@@ -102,7 +105,7 @@ class QtDialogRenderer:
             if added_visible_widget:
                 layout.addWidget(row_container, self._row_stretch(spec, row_index))
             else:
-                layout.addSpacing(8)
+                layout.addSpacing(self._spacer_row_height(spec, row_index))
 
         for control in spec.controls:
             self._connect_callback(control.callback, widgets)
@@ -113,15 +116,14 @@ class QtDialogRenderer:
         return app, dialog, widgets
 
     @staticmethod
-    def _apply_eeglab_style(dialog: Any) -> None:
-        dialog.setStyleSheet(
-            """
+    def _apply_eeglab_style(dialog: Any, spec: DialogSpec) -> None:
+        base_stylesheet = """
             QDialog {
                 background: #a8c2ff;
                 color: #000066;
                 font-size: 16px;
             }
-            QLabel, QCheckBox, QPushButton, QLineEdit, QComboBox, QListWidget {
+            QLabel, QCheckBox, QPushButton, QLineEdit, QTextEdit, QComboBox, QListWidget {
                 font-size: 16px;
             }
             QLabel, QCheckBox {
@@ -140,6 +142,11 @@ class QtDialogRenderer:
             QLineEdit:disabled {
                 background: #dce6ff;
                 color: #7c86a8;
+            }
+            QTextEdit {
+                background: white;
+                border: 1px solid #7f7f7f;
+                color: #000066;
             }
             QComboBox {
                 background: white;
@@ -216,7 +223,7 @@ class QtDialogRenderer:
                 border: 1px solid #7f7f7f;
             }
             """
-        )
+        dialog.setStyleSheet(base_stylesheet + (spec.extra_stylesheet or ""))
 
     @staticmethod
     def _row_weights(row_geometry: Any) -> list[float]:
@@ -230,6 +237,13 @@ class QtDialogRenderer:
             return 0
         value = spec.geomvert[min(row_index, len(spec.geomvert) - 1)]
         return max(1, round(float(value) * 100))
+
+    @staticmethod
+    def _spacer_row_height(spec: DialogSpec, row_index: int) -> int:
+        if spec.geomvert is not None:
+            value = spec.geomvert[min(row_index, len(spec.geomvert) - 1)]
+            return max(8, round(float(value) * 55))
+        return max(8, spec.row_spacing * 7)
 
     @staticmethod
     def _add_buttons(
@@ -246,23 +260,31 @@ class QtDialogRenderer:
         button_layout = QtWidgets.QHBoxLayout(button_container)
         button_layout.setContentsMargins(0, 18, 0, 0)
         button_layout.setSpacing(16)
-        if spec.help_text:
+        if spec.help_text and spec.show_help_button:
             help_button = QtWidgets.QPushButton("Help")
             help_button.setObjectName("help")
             help_button.setFixedWidth(80)
             help_button.clicked.connect(lambda: QtDialogRenderer._show_help(QtWidgets, dialog, spec))
             button_layout.addWidget(help_button)
         button_layout.addStretch(1)
-        cancel_button = QtWidgets.QPushButton("Cancel")
-        ok_button = QtWidgets.QPushButton("OK")
+        cancel_button = QtWidgets.QPushButton(spec.cancel_label)
+        ok_button = QtWidgets.QPushButton(spec.ok_label)
         cancel_button.setObjectName("cancel")
         ok_button.setObjectName("ok")
-        cancel_button.setFixedWidth(80)
-        ok_button.setFixedWidth(80)
+        if spec.button_size is not None:
+            cancel_button.setFixedSize(*spec.button_size)
+            ok_button.setFixedSize(*spec.button_size)
+        else:
+            cancel_button.setFixedWidth(80)
+            ok_button.setFixedWidth(80)
         cancel_button.clicked.connect(dialog.reject)
         ok_button.clicked.connect(lambda: QtDialogRenderer._accept_if_valid(dialog, spec, widgets))
-        button_layout.addWidget(cancel_button)
-        button_layout.addWidget(ok_button)
+        if spec.cancel_first:
+            button_layout.insertWidget(0, cancel_button)
+            button_layout.addWidget(ok_button)
+        else:
+            button_layout.addWidget(cancel_button)
+            button_layout.addWidget(ok_button)
         layout.addWidget(button_container)
 
     @staticmethod
@@ -278,6 +300,8 @@ class QtDialogRenderer:
             widget = QtWidgets.QLabel(control.string)
         elif style == "edit":
             widget = QtWidgets.QLineEdit("" if value is None else str(value))
+        elif style == "textarea":
+            widget = QtWidgets.QTextEdit("" if value is None else str(value))
         elif style == "pushbutton":
             widget = QtWidgets.QPushButton(control.string)
         elif style == "checkbox":
@@ -336,8 +360,14 @@ class QtDialogRenderer:
     @staticmethod
     def _apply_widget_size_policy(QtWidgets: Any, widget: Any, style: str) -> None:
         policy = QtWidgets.QSizePolicy
-        if style in {"edit", "popupmenu", "listbox", "pushbutton"}:
+        if style in {"edit", "popupmenu", "listbox"}:
             widget.setSizePolicy(policy.Expanding, policy.Fixed)
+            return
+        if style == "pushbutton":
+            widget.setSizePolicy(policy.Fixed, policy.Fixed)
+            return
+        if style == "textarea":
+            widget.setSizePolicy(policy.Expanding, policy.Expanding)
             return
         if style in {"text", "checkbox"}:
             widget.setMinimumWidth(0)
@@ -377,6 +407,27 @@ class QtDialogRenderer:
             button = widgets[params["button"]]
             target = widgets[params["target"]]
             button.clicked.connect(lambda: self._select_interp_channels(button, target, params))
+        elif callback.name == "select_file":
+            button = widgets[params["button"]]
+            target = widgets[params["target"]]
+            button.clicked.connect(lambda: self._select_file(button, target, params, widgets))
+        elif callback.name == "headplot_setup_mode":
+            source = widgets[params["source"]]
+            source.toggled.connect(lambda checked: self._set_headplot_setup_mode(widgets, params, checked))
+            if source.isChecked():
+                self._set_headplot_setup_mode(widgets, params, True)
+        elif callback.name == "headplot_mesh_choice":
+            source = widgets.get(params["source"])
+            if source is not None:
+                source.currentIndexChanged.connect(lambda index: self._set_headplot_mesh_choice(widgets, params, index))
+        elif callback.name == "show_message":
+            source = widgets.get(params["button"])
+            if source is not None:
+                source.clicked.connect(lambda: self._show_callback_message(source, params))
+        elif callback.name == "headplot_manual_coreg":
+            source = widgets.get(params["button"])
+            if source is not None:
+                source.clicked.connect(lambda: self._run_headplot_manual_coreg(source, widgets, params))
 
     @staticmethod
     def _accept_if_valid(dialog: Any, spec: DialogSpec, widgets: dict[str, Any]) -> None:
@@ -426,6 +477,22 @@ class QtDialogRenderer:
         if spec.function_name == "pop_runica" and "dataset" in widgets:
             if not QtDialogRenderer._read_widget(widgets["dataset"]):
                 return "Select at least one dataset"
+        if spec.function_name == "pop_headplot":
+            if QtDialogRenderer._widget_checked(widgets.get("loadcb")):
+                if not QtDialogRenderer._widget_text(widgets.get("load")).strip():
+                    return "Select a spline file to load"
+            else:
+                if not QtDialogRenderer._widget_text(widgets.get("setup_file")).strip():
+                    return "Enter an output spline file name"
+                transform_text = QtDialogRenderer._widget_text(widgets.get("transform")).strip()
+                if not transform_text:
+                    return "Enter a Talairach transformation matrix"
+                try:
+                    transform = QtDialogRenderer._parse_numeric_text(transform_text)
+                except ValueError:
+                    return "Talairach transformation matrix must contain numeric values"
+                if len(transform) not in {6, 9}:
+                    return "Talairach transformation matrix must contain 6 or 9 values"
         return None
 
     @staticmethod
@@ -571,13 +638,15 @@ class QtDialogRenderer:
     def _select_channels(button: Any, target: Any, params: Mapping[str, Any]) -> None:
         channels = [str(value) for value in params.get("channels", ())]
         if channels:
-            _chanlist, value, _allchanstr = pop_chansel(
+            chanlist, value, _allchanstr = pop_chansel(
                 channels,
                 withindex="on",
                 select=target.text().strip(),
                 selectionmode=str(params.get("selectionmode", "multiple")),
                 parent=button,
             )
+            if params.get("return_indices"):
+                value = " ".join(str(index) for index in chanlist)
             accepted = bool(value)
         else:
             _qt_core, qt_widgets = _require_qt()
@@ -593,6 +662,119 @@ class QtDialogRenderer:
         if not accepted or not value:
             return
         target.setText(value.strip())
+
+    @staticmethod
+    def _select_file(button: Any, target: Any, params: Mapping[str, Any], widgets: Mapping[str, Any]) -> None:
+        _qt_core, qt_widgets = _require_qt()
+        caption = str(params.get("caption", "Select file"))
+        file_filter = str(params.get("filter", "All files (*)"))
+        if params.get("mode") == "save":
+            filename, _selected_filter = qt_widgets.QFileDialog.getSaveFileName(button, caption, "", file_filter)
+        else:
+            filename, _selected_filter = qt_widgets.QFileDialog.getOpenFileName(button, caption, "", file_filter)
+        if not filename:
+            return
+        if hasattr(target, "setText"):
+            target.setText(filename)
+            return
+        if hasattr(target, "setEditable") and hasattr(target, "setEditText"):
+            target.setEditable(True)
+            target.setEditText(filename)
+            target.setProperty(_VALUE_PROPERTY, filename)
+        transform_target = widgets.get(params.get("transform_target", ""))
+        if transform_target is not None and params.get("custom_transform") is not None:
+            transform_target.setText(str(params["custom_transform"]))
+
+    @staticmethod
+    def _set_headplot_setup_mode(widgets: Mapping[str, Any], params: Mapping[str, Any], checked: bool) -> None:
+        source = widgets.get(params["source"])
+        if not checked:
+            if source is not None and hasattr(source, "blockSignals"):
+                source.blockSignals(True)
+                source.setChecked(True)
+                source.blockSignals(False)
+            return
+        peer = widgets.get(params["peer"])
+        if peer is not None:
+            peer.blockSignals(True)
+            peer.setChecked(False)
+            peer.blockSignals(False)
+        load_enabled = params["mode"] == "load"
+        QtDialogRenderer._set_enabled(
+            [widgets[tag] for tag in params.get("load_targets", ()) if tag in widgets],
+            load_enabled,
+        )
+        QtDialogRenderer._set_enabled(
+            [widgets[tag] for tag in params.get("setup_targets", ()) if tag in widgets],
+            not load_enabled,
+        )
+
+    @staticmethod
+    def _set_headplot_mesh_choice(widgets: Mapping[str, Any], params: Mapping[str, Any], index: int) -> None:
+        reference_target = widgets.get(params.get("reference_target", ""))
+        if (
+            reference_target is not None
+            and hasattr(reference_target, "setCurrentIndex")
+            and index < reference_target.count()
+        ):
+            reference_target.setCurrentIndex(index)
+        target = widgets.get(params.get("transform_target", ""))
+        transforms = tuple(str(value) for value in params.get("transform_choices", ()))
+        if target is not None and 0 <= index < len(transforms) and transforms[index]:
+            target.setText(transforms[index])
+
+    @staticmethod
+    def _run_headplot_manual_coreg(parent: Any, widgets: Mapping[str, Any], params: Mapping[str, Any]) -> None:
+        transform_target = widgets.get(params.get("transform_target", ""))
+        if transform_target is None or not hasattr(transform_target, "setText"):
+            return
+        try:
+            # Manual headplot co-registration is the only generic Qt dialog path
+            # that needs matplotlib's 3-D stack, so keep it out of normal
+            # inputgui imports and startup.
+            from eegprep.functions.guifunc.coregister import run_coregister_dialog
+
+            meshfile = QtDialogRenderer._choice_or_text(
+                widgets.get(params.get("mesh_source", "")),
+                tuple(str(value) for value in params.get("mesh_choices", ())),
+            )
+            reference = QtDialogRenderer._choice_or_text(
+                widgets.get(params.get("reference_source", "")),
+                tuple(str(value) for value in params.get("reference_choices", ())),
+            )
+            transform = run_coregister_dialog(
+                params.get("chanlocs", ()),
+                reference,
+                chaninfo=dict(params.get("chaninfo") or {}),
+                meshfile=meshfile,
+                transform=QtDialogRenderer._widget_text(transform_target),
+                parent=parent,
+                title=str(params.get("title", "Co-registration plot for headplot mesh")),
+            )
+        except (RuntimeError, OSError, ValueError) as exc:
+            _qt_core, qt_widgets = _require_qt()
+            qt_widgets.QMessageBox.warning(parent, "Warning", str(exc))
+            return
+        if transform is not None:
+            transform_target.setText(" ".join(f"{value:.6g}" for value in transform))
+
+    @staticmethod
+    def _choice_or_text(widget: Any, choices: tuple[str, ...]) -> str:
+        stored_value = widget.property(_VALUE_PROPERTY) if widget is not None and hasattr(widget, "property") else None
+        if stored_value is not None:
+            return str(stored_value)
+        if widget is not None and hasattr(widget, "currentIndex"):
+            index = int(widget.currentIndex())
+            if 0 <= index < len(choices):
+                return choices[index]
+        if widget is not None and hasattr(widget, "text"):
+            return str(widget.text())
+        return choices[0] if choices else ""
+
+    @staticmethod
+    def _show_callback_message(parent: Any, params: Mapping[str, Any]) -> None:
+        _qt_core, qt_widgets = _require_qt()
+        qt_widgets.QMessageBox.information(parent, str(params.get("title", "EEGPrep")), str(params.get("message", "")))
 
     @staticmethod
     def _select_interp_channels(button: Any, target: Any, params: Mapping[str, Any]) -> None:
@@ -717,6 +899,8 @@ class QtDialogRenderer:
             return widget.currentRow() + 1
         if hasattr(widget, "currentIndex"):
             return widget.currentIndex() + 1
+        if hasattr(widget, "toPlainText"):
+            return widget.toPlainText()
         if hasattr(widget, "text"):
             return widget.text()
         return None

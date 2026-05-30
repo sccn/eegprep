@@ -420,6 +420,20 @@ def eeg_checkset(EEG, *checks, load_data=True):
     if 'srate' in EEG:
         EEG['srate'] = float(EEG['srate'])
 
+    if 'xmin' in EEG and int(EEG.get('trials', 1) or 1) == 1 and EEG['xmin'] != 0:
+        EEG['xmin'] = 0.0
+        logger.info('eeg_checkset: xmin set to 0 for continuous data')
+
+    if all(key in EEG for key in ('srate', 'xmin', 'xmax', 'pnts')):
+        if EEG['srate'] == 0:
+            EEG['srate'] = 1.0
+        expected_pnts = round(EEG['srate'] * (EEG['xmax'] - EEG['xmin']) + 1)
+        if expected_pnts != EEG['pnts']:
+            EEG['xmax'] = (EEG['pnts'] - 1) / EEG['srate'] + EEG['xmin']
+            logger.info('eeg_checkset: xmax adjusted to match pnts, xmin, and srate')
+        if EEG['pnts'] > 0:
+            EEG['times'] = np.linspace(EEG['xmin'] * 1000, EEG['xmax'] * 1000, EEG['pnts'])
+
     # Define the expected types
     expected_types = {
         'setname': str,

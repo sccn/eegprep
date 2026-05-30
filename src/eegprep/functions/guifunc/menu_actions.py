@@ -8,7 +8,7 @@ from collections.abc import Callable, Iterable
 from pathlib import Path
 from typing import Any
 
-from eegprep.functions.guifunc.menu_placeholders import is_placeholder_action, placeholder_message
+from eegprep.functions.guifunc.menu_placeholders import PLACEHOLDER_ACTIONS, is_placeholder_action, placeholder_message
 from eegprep.functions.guifunc.pophelp import pophelp
 from eegprep.functions.guifunc.session import EEGPrepSession, has_eeg_data
 from eegprep.functions.popfunc._coming_soon import coming_soon
@@ -25,13 +25,34 @@ IMPLEMENTED_ACTIONS = {
     "issues",
     "license",
     "mailto",
+    "eeg_rejsuperpose",
     "pop_adjustevents",
+    "pop_autorej",
     "pop_biosig",
     "pop_chanevent",
+    "pop_chanplot",
     "pop_clean_rawdata",
+    "pop_chanedit",
+    "pop_comperp",
     "pop_delset",
+    "pop_dipfit_gridsearch",
+    "pop_dipfit_headmodel",
+    "pop_dipfit_loreta",
+    "pop_dipfit_nonlinear",
+    "pop_dipfit_settings",
+    "pop_dipplot",
+    "pop_comments",
+    "pop_copyset",
+    "pop_editset",
+    "pop_editeventfield",
+    "pop_editeventvals",
     "pop_editoptions",
+    "pop_eegfilt",
+    "pop_eegfiltnew",
+    "pop_envtopo",
     "pop_epoch",
+    "pop_erpimage",
+    "pop_eventstat",
     "pop_eventinfo",
     "pop_expevents",
     "pop_expica",
@@ -39,10 +60,18 @@ IMPLEMENTED_ACTIONS = {
     "pop_exportbids",
     "pop_fileio",
     "pop_fileio_brainvision",
+    "pop_fileio_brainvision_mat",
     "pop_fileio_cnt",
     "pop_fileio_eeg",
     "pop_fileio_mff",
+    "pop_firma",
+    "pop_firpm",
+    "pop_firws",
+    "pop_headplot",
+    "pop_icflag",
     "pop_iclabel",
+    "pop_jointprob",
+    "pop_leadfield",
     "pop_importbids",
     "pop_importdata",
     "pop_importepoch",
@@ -52,24 +81,51 @@ IMPLEMENTED_ACTIONS = {
     "pop_interp",
     "pop_loadstudy",
     "pop_loadset",
+    "pop_plotdata",
+    "pop_plottopo",
+    "pop_prop",
     "pop_runscript",
     "pop_saveh",
     "pop_savestudy",
+    "pop_eegthresh",
+    "pop_rejchan",
+    "pop_rejcont",
+    "pop_rejepoch",
+    "pop_rejkurt",
+    "pop_rejmenu",
+    "pop_rejspec",
+    "pop_rejtrend",
     "pop_reref",
     "pop_resample",
+    "pop_rmbase",
+    "pop_rmdat",
     "pop_runica",
     "pop_saveset",
     "pop_select",
+    "pop_selectevent",
+    "pop_selectcomps",
+    "pop_spectopo",
     "pop_study",
     "pop_studyerp",
     "pop_studywizard",
+    "pop_subcomp",
+    "pop_timtopo",
     "pop_taskinfo",
+    "pop_topoplot",
+    "pop_viewprops",
     "pop_participantinfo",
+    "pop_mergeset",
+    "pop_multifit",
+    "pop_newcrossf",
+    "pop_newtimef",
     "pop_writeeeg",
+    "pop_signalstat",
     "bids_exporter",
     "plugin_menu",
     "quit",
     "retrieve_dataset",
+    "select_multiple_datasets",
+    "topoplot",
     "tutorial",
     "updates",
     "validate_bids",
@@ -107,12 +163,40 @@ HELP_UNAVAILABLE_TOPICS = frozenset(set(HELP_TOPIC_LABELS) - set(HELP_DOC_PATHS)
 
 _MULTIPLE_DATASET_ACTIONS = {
     "pop_clean_rawdata",
+    "pop_chanedit",
+    "pop_eegfilt",
+    "pop_eegfiltnew",
     "pop_epoch",
+    "pop_firma",
+    "pop_firpm",
+    "pop_firws",
+    "pop_icflag",
     "pop_iclabel",
     "pop_reref",
+    "pop_rmdat",
     "pop_resample",
+    "pop_rmbase",
     "pop_runica",
     "pop_select",
+    "pop_selectevent",
+    "pop_eegthresh",
+    "pop_jointprob",
+    "pop_rejkurt",
+    "pop_rejspec",
+    "pop_rejtrend",
+    "pop_subcomp",
+    "pop_dipfit_settings",
+}
+
+_DIPFIT_ACTIONS = {
+    "pop_dipfit_gridsearch",
+    "pop_dipfit_headmodel",
+    "pop_dipfit_loreta",
+    "pop_dipfit_nonlinear",
+    "pop_dipfit_settings",
+    "pop_dipplot",
+    "pop_leadfield",
+    "pop_multifit",
 }
 
 
@@ -144,6 +228,9 @@ class MenuActionDispatcher:
     def dispatch(self, action: str, parent: Any | None = None) -> None:
         """Run a menu action."""
         base, _sep, variant = action.partition(":")
+        if action_kind(action) == "placeholder":
+            self.show_coming_soon(action, parent)
+            return
         if base == "quit":
             if parent is not None:
                 parent.close()
@@ -183,6 +270,7 @@ class MenuActionDispatcher:
             "pop_biosig",
             "pop_fileio",
             "pop_fileio_brainvision",
+            "pop_fileio_brainvision_mat",
             "pop_fileio_cnt",
             "pop_fileio_eeg",
             "pop_fileio_mff",
@@ -207,6 +295,15 @@ class MenuActionDispatcher:
         if base == "retrieve_dataset":
             self._retrieve_dataset(int(variant))
             return
+        if base == "select_multiple_datasets":
+            self._select_multiple_datasets(parent)
+            return
+        if base == "pop_copyset":
+            self._copy_current_dataset(parent)
+            return
+        if base == "pop_mergeset":
+            self._merge_datasets(parent)
+            return
         if base in {"pop_study", "pop_studywizard", "pop_studyerp", "pop_loadstudy", "pop_savestudy"}:
             self._study_action(base, variant, parent)
             return
@@ -225,11 +322,41 @@ class MenuActionDispatcher:
         if base == "pop_adjustevents":
             self._run_pop_function("pop_adjustevents", parent)
             return
+        if base == "pop_comments":
+            self._run_pop_function("pop_comments", parent)
+            return
+        if base == "pop_editset":
+            self._run_pop_function("pop_editset", parent)
+            return
+        if base == "pop_editeventfield":
+            self._run_pop_function("pop_editeventfield", parent)
+            return
+        if base == "pop_editeventvals":
+            self._run_pop_function("pop_editeventvals", parent)
+            return
+        if base == "pop_chanedit":
+            self._run_pop_function("pop_chanedit", parent)
+            return
         if base == "pop_clean_rawdata":
             self._run_pop_function("pop_clean_rawdata", parent)
             return
+        if base == "pop_eegfilt":
+            self._run_pop_function("pop_eegfilt", parent)
+            return
+        if base == "pop_eegfiltnew":
+            self._run_pop_function("pop_eegfiltnew", parent)
+            return
         if base == "pop_epoch":
             self._run_pop_function("pop_epoch", parent)
+            return
+        if base == "pop_firma":
+            self._run_pop_function("pop_firma", parent)
+            return
+        if base == "pop_firpm":
+            self._run_pop_function("pop_firpm", parent)
+            return
+        if base == "pop_firws":
+            self._run_pop_function("pop_firws", parent)
             return
         if base == "pop_reref":
             self._run_pop_function("pop_reref", parent)
@@ -240,14 +367,77 @@ class MenuActionDispatcher:
         if base == "pop_resample":
             self._run_pop_function("pop_resample", parent)
             return
+        if base == "pop_rmbase":
+            self._run_pop_function("pop_rmbase", parent)
+            return
+        if base == "pop_rmdat":
+            self._run_pop_function("pop_rmdat", parent)
+            return
         if base == "pop_runica":
             self._run_pop_function("pop_runica", parent)
             return
         if base == "pop_select":
             self._run_pop_function("pop_select", parent)
             return
+        if base == "pop_selectevent":
+            self._run_pop_function("pop_selectevent", parent)
+            return
         if base == "pop_iclabel":
             self._run_pop_function("pop_iclabel", parent)
+            return
+        if base == "pop_icflag":
+            self._run_pop_function("pop_icflag", parent)
+            return
+        if base == "pop_subcomp":
+            self._run_pop_function("pop_subcomp", parent)
+            return
+        if base in {
+            "pop_autorej",
+            "pop_eegthresh",
+            "pop_jointprob",
+            "pop_rejchan",
+            "pop_rejcont",
+            "pop_rejepoch",
+            "pop_rejkurt",
+            "pop_rejmenu",
+            "pop_rejspec",
+            "pop_rejtrend",
+            "pop_selectcomps",
+            "pop_viewprops",
+        }:
+            self._run_pop_function(base, parent, variant=variant)
+            return
+        if base == "eeg_rejsuperpose":
+            self._run_rejsuperpose(variant, parent)
+            return
+        if base in _DIPFIT_ACTIONS:
+            self._run_dipfit_function(base, parent)
+            return
+        if base == "topoplot":
+            self._plot_channel_locations(variant, parent)
+            return
+        if base == "pop_topoplot":
+            self._run_topoplot(variant, parent)
+            return
+        if base in {
+            "pop_spectopo",
+            "pop_prop",
+            "pop_timtopo",
+            "pop_plottopo",
+            "pop_headplot",
+            "pop_plotdata",
+            "pop_erpimage",
+            "pop_envtopo",
+            "pop_comperp",
+            "pop_newtimef",
+            "pop_newcrossf",
+            "pop_signalstat",
+            "pop_eventstat",
+        }:
+            self._run_plot_function(base, variant, parent)
+            return
+        if base == "pop_chanplot":
+            self._run_chanplot(parent)
             return
         self.show_coming_soon(action, parent)
 
@@ -341,6 +531,10 @@ class MenuActionDispatcher:
                 from eegprep.functions.popfunc.pop_biosig import pop_biosig
 
                 eeg_out, command = pop_biosig(filename, return_com=True)
+            elif action == "pop_fileio_brainvision_mat":
+                from eegprep.functions.popfunc.pop_fileio_brainvision_mat import pop_fileio_brainvision_mat
+
+                eeg_out, command = pop_fileio_brainvision_mat(filename, return_com=True)
             else:
                 from eegprep.functions.popfunc.pop_fileio import pop_fileio
 
@@ -357,6 +551,7 @@ class MenuActionDispatcher:
             "pop_fileio_cnt": "Neuroscan CNT (*.cnt);;All files (*)",
             "pop_fileio_eeg": "Neuroscan/BrainVision EEG (*.eeg);;All files (*)",
             "pop_fileio_brainvision": "BrainVision header (*.vhdr);;All files (*)",
+            "pop_fileio_brainvision_mat": "BrainVision Analyzer MATLAB (*.mat);;All files (*)",
         }
         filename, _filter = qt_widgets.QFileDialog.getOpenFileName(
             parent,
@@ -640,7 +835,7 @@ class MenuActionDispatcher:
         plugins = ["clean_rawdata", "ICLabel/viewprops", "firfilt", "DIPFIT", "EEG-BIDS/File-IO"]
         self._info(parent, "Available EEGPrep extensions:\n" + "\n".join(f"- {plugin}" for plugin in plugins))
 
-    def _run_pop_function(self, name: str, parent: Any | None) -> None:
+    def _run_pop_function(self, name: str, parent: Any | None, *, variant: str = "") -> None:
         selection = self._current_selection_or_warn(parent, allow_multiple=name in _MULTIPLE_DATASET_ACTIONS)
         if selection is None:
             return
@@ -648,14 +843,55 @@ class MenuActionDispatcher:
             from eegprep.functions.popfunc.pop_adjustevents import pop_adjustevents
 
             out = pop_adjustevents(selection, return_com=True)
+        elif name == "pop_comments":
+            from eegprep.functions.popfunc.pop_comments import pop_comments
+
+            title = _dataset_comments_title(selection)
+            out = pop_comments(selection, title, return_com=True)
+        elif name == "pop_editset":
+            from eegprep.functions.popfunc.pop_editset import pop_editset
+
+            out = pop_editset(selection, return_com=True)
+        elif name == "pop_editeventfield":
+            from eegprep.functions.popfunc.pop_editeventfield import pop_editeventfield
+
+            out = pop_editeventfield(selection, return_com=True)
+        elif name == "pop_editeventvals":
+            from eegprep.functions.popfunc.pop_editeventvals import pop_editeventvals
+
+            out = pop_editeventvals(selection, return_com=True)
+        elif name == "pop_chanedit":
+            from eegprep.functions.popfunc.pop_chanedit import pop_chanedit
+
+            out = pop_chanedit(selection, return_com=True)
         elif name == "pop_clean_rawdata":
             from eegprep.plugins.clean_rawdata.pop_clean_rawdata import pop_clean_rawdata
 
             out = pop_clean_rawdata(selection, return_com=True)
+        elif name == "pop_eegfilt":
+            from eegprep.functions.popfunc.pop_eegfilt import pop_eegfilt
+
+            out = pop_eegfilt(selection, return_com=True)
+        elif name == "pop_eegfiltnew":
+            from eegprep.plugins.firfilt.pop_eegfiltnew import pop_eegfiltnew
+
+            out = pop_eegfiltnew(selection, return_com=True)
         elif name == "pop_epoch":
             from eegprep.functions.popfunc.pop_epoch import pop_epoch
 
             out = pop_epoch(selection, return_com=True)
+        elif name == "pop_firma":
+            from eegprep.plugins.firfilt.pop_firma import pop_firma
+
+            out = pop_firma(selection, return_com=True)
+        elif name == "pop_firpm":
+            from eegprep.plugins.firfilt.pop_firpm import pop_firpm
+
+            out = pop_firpm(selection, return_com=True)
+        elif name == "pop_firws":
+            from eegprep.plugins.firfilt.pop_firws import pop_firws
+
+            out = pop_firws(selection, return_com=True)
         elif name == "pop_reref":
             from eegprep.functions.popfunc.pop_reref import pop_reref
 
@@ -668,10 +904,22 @@ class MenuActionDispatcher:
             from eegprep.plugins.ICLabel.pop_iclabel import pop_iclabel
 
             out = pop_iclabel(selection, return_com=True)
+        elif name == "pop_icflag":
+            from eegprep.plugins.ICLabel.pop_icflag import pop_icflag
+
+            out = pop_icflag(selection, return_com=True)
         elif name == "pop_resample":
             from eegprep.functions.popfunc.pop_resample import pop_resample
 
             out = pop_resample(selection, return_com=True)
+        elif name == "pop_rmbase":
+            from eegprep.functions.popfunc.pop_rmbase import pop_rmbase
+
+            out = pop_rmbase(selection, return_com=True)
+        elif name == "pop_rmdat":
+            from eegprep.functions.popfunc.pop_rmdat import pop_rmdat
+
+            out = pop_rmdat(selection, return_com=True)
         elif name == "pop_runica":
             from eegprep.functions.popfunc.pop_runica import pop_runica
 
@@ -680,6 +928,66 @@ class MenuActionDispatcher:
             from eegprep.functions.popfunc.pop_select import pop_select
 
             out = pop_select(selection, return_com=True)
+        elif name == "pop_selectevent":
+            from eegprep.functions.popfunc.pop_selectevent import pop_selectevent
+
+            out = pop_selectevent(selection, return_com=True)
+        elif name == "pop_subcomp":
+            from eegprep.functions.popfunc.pop_subcomp import pop_subcomp
+
+            out = pop_subcomp(selection, return_com=True)
+        elif name == "pop_autorej":
+            from eegprep.functions.popfunc.pop_autorej import pop_autorej
+
+            out = pop_autorej(selection, return_com=True)
+        elif name == "pop_eegthresh":
+            from eegprep.functions.popfunc.pop_eegthresh import pop_eegthresh
+
+            out = pop_eegthresh(selection, _icacomp_from_variant(variant), return_com=True)
+        elif name == "pop_jointprob":
+            from eegprep.functions.popfunc.pop_jointprob import pop_jointprob
+
+            out = pop_jointprob(selection, _icacomp_from_variant(variant), return_com=True)
+        elif name == "pop_rejchan":
+            from eegprep.functions.popfunc.pop_rejchan import pop_rejchan
+
+            out = pop_rejchan(selection, return_com=True)
+        elif name == "pop_rejcont":
+            from eegprep.functions.popfunc.pop_rejcont import pop_rejcont
+
+            out = pop_rejcont(selection, return_com=True)
+        elif name == "pop_rejepoch":
+            from eegprep.functions.popfunc.pop_rejepoch import pop_rejepoch
+
+            if isinstance(selection, list):
+                self._warn(parent, "Select one dataset before rejecting marked epochs.")
+                return
+            marks = (selection.get("reject") or {}).get("rejglobal", [])
+            out = pop_rejepoch(selection, marks, return_com=True)
+        elif name == "pop_rejkurt":
+            from eegprep.functions.popfunc.pop_rejkurt import pop_rejkurt
+
+            out = pop_rejkurt(selection, _icacomp_from_variant(variant), return_com=True)
+        elif name == "pop_rejmenu":
+            from eegprep.functions.popfunc.pop_rejmenu import pop_rejmenu
+
+            out = pop_rejmenu(selection, _icacomp_from_variant(variant), return_com=True)
+        elif name == "pop_rejspec":
+            from eegprep.functions.popfunc.pop_rejspec import pop_rejspec
+
+            out = pop_rejspec(selection, _icacomp_from_variant(variant), return_com=True)
+        elif name == "pop_rejtrend":
+            from eegprep.functions.popfunc.pop_rejtrend import pop_rejtrend
+
+            out = pop_rejtrend(selection, _icacomp_from_variant(variant), return_com=True)
+        elif name == "pop_selectcomps":
+            from eegprep.functions.popfunc.pop_selectcomps import pop_selectcomps
+
+            out = pop_selectcomps(selection, return_com=True)
+        elif name == "pop_viewprops":
+            from eegprep.plugins.ICLabel.pop_viewprops import pop_viewprops
+
+            out = pop_viewprops(selection, typecomp=0 if variant == "components" else 1, return_com=True)
         else:
             self.show_coming_soon(name, parent)
             return
@@ -687,9 +995,218 @@ class MenuActionDispatcher:
             eeg_out, command = out[0], out[1] if len(out) > 1 else ""
         else:
             eeg_out, command = out, ""
+        if name == "pop_viewprops":
+            self._add_history_from_gui(command)
+            self._refresh()
+            return
         if command:
             self._store_current_from_gui(eeg_out, command=command)
             self._refresh()
+
+    def _select_multiple_datasets(self, parent: Any | None) -> None:
+        if not self.session.ALLEEG:
+            self._warn(parent, "No datasets available")
+            return
+        from eegprep.functions.guifunc.select_multiple_datasets import select_multiple_datasets
+
+        eeg_out, command = select_multiple_datasets(self.session, gui=True, return_com=True)
+        if command:
+            self.session.echo_command(command)
+            self.session.add_history(command, notify=False)
+            self.session.notify_changed()
+            self._refresh()
+
+    def _copy_current_dataset(self, parent: Any | None) -> None:
+        if not self.session.CURRENTSET:
+            self._warn(parent, "No current dataset")
+            return
+        from eegprep.functions.popfunc.pop_copyset import pop_copyset
+
+        set_in = self.session.CURRENTSET[0]
+        alleeg, eeg_out, current_set, command = pop_copyset(self.session.ALLEEG, set_in, gui=True, return_com=True)
+        if not command:
+            return
+        self.session.ALLEEG = alleeg
+        self.session.EEG = eeg_out
+        self.session.CURRENTSET = _currentset_list(current_set)
+        self._add_history_from_gui(command)
+        self.session.notify_changed()
+        self._refresh()
+
+    def _merge_datasets(self, parent: Any | None) -> None:
+        if len(self.session.ALLEEG) < 2:
+            self._warn(parent, "Load at least two datasets before merging")
+            return
+        from eegprep.functions.popfunc.pop_mergeset import pop_mergeset
+
+        selected = self.session.selected_dataset_indices()
+        default_indices = selected if len(selected) >= 2 else None
+        eeg_out, command = pop_mergeset(self.session.ALLEEG, default_indices, gui=True, return_com=True)
+        if command:
+            self._store_current_from_gui(eeg_out, new=True, command=command)
+            self._refresh()
+
+    def _run_rejsuperpose(self, variant: str, parent: Any | None) -> None:
+        selection = self._current_selection_or_warn(parent)
+        if selection is None:
+            return
+        from eegprep.functions.popfunc.eeg_rejsuperpose import eeg_rejsuperpose
+
+        typerej = 0 if variant == "data_to_ica" else 1
+        eeg_out, command = eeg_rejsuperpose(selection, typerej, 1, 1, 1, 1, 1, 1, 1, return_com=True)
+        self._store_current_from_gui(eeg_out, command=command)
+        self._refresh()
+
+    def _run_dipfit_function(self, name: str, parent: Any | None) -> None:
+        selection = self._current_selection_or_warn(parent, allow_multiple=name in _MULTIPLE_DATASET_ACTIONS)
+        if selection is None:
+            return
+        if name == "pop_dipfit_settings":
+            from eegprep.plugins.dipfit.pop_dipfit_settings import pop_dipfit_settings
+
+            eeg_out, command = pop_dipfit_settings(selection, return_com=True)
+            if command:
+                self._store_current_from_gui(eeg_out, command=command)
+                self._refresh()
+            return
+        if name == "pop_dipplot":
+            from eegprep.plugins.dipfit.pop_dipplot import pop_dipplot
+
+            figures, command = pop_dipplot(selection, return_com=True)
+            for figure in figures:
+                show = getattr(figure, "show", None)
+                if callable(show):
+                    show()
+            self._add_history_from_gui(command)
+            self._refresh()
+            return
+        if name == "pop_dipfit_headmodel":
+            from eegprep.plugins.dipfit.pop_dipfit_headmodel import pop_dipfit_headmodel
+
+            pop_dipfit_headmodel(selection, return_com=True)
+            return
+        if name == "pop_dipfit_gridsearch":
+            from eegprep.plugins.dipfit.pop_dipfit_gridsearch import pop_dipfit_gridsearch
+
+            pop_dipfit_gridsearch(selection, return_com=True)
+            return
+        if name == "pop_dipfit_nonlinear":
+            from eegprep.plugins.dipfit.pop_dipfit_nonlinear import pop_dipfit_nonlinear
+
+            pop_dipfit_nonlinear(selection, return_com=True)
+            return
+        if name == "pop_multifit":
+            from eegprep.plugins.dipfit.pop_multifit import pop_multifit
+
+            pop_multifit(selection, return_com=True)
+            return
+        if name == "pop_leadfield":
+            from eegprep.plugins.dipfit.pop_leadfield import pop_leadfield
+
+            pop_leadfield(selection, return_com=True)
+            return
+        if name == "pop_dipfit_loreta":
+            from eegprep.plugins.dipfit.pop_dipfit_loreta import pop_dipfit_loreta
+
+            pop_dipfit_loreta(selection, return_com=True)
+            return
+        self.show_coming_soon(name, parent)
+
+    def _plot_channel_locations(self, variant: str, parent: Any | None) -> None:
+        selection = self._current_selection_or_warn(parent)
+        if selection is None:
+            return
+        from eegprep.functions.popfunc.pop_topoplot import plot_channel_locations
+
+        _figure, command = plot_channel_locations(selection, mode=variant or "labels", return_com=True)
+        self._add_history_from_gui(command)
+        self._refresh()
+
+    def _run_topoplot(self, variant: str, parent: Any | None) -> None:
+        selection = self._current_selection_or_warn(parent)
+        if selection is None:
+            return
+        from eegprep.functions.popfunc.pop_topoplot import pop_topoplot
+
+        typeplot = 0 if variant == "components" else 1
+        _figures, command = pop_topoplot(selection, typeplot=typeplot, return_com=True)
+        self._add_history_from_gui(command)
+        self._refresh()
+
+    def _run_plot_function(self, name: str, variant: str, parent: Any | None) -> None:
+        allow_multiple = name == "pop_comperp"
+        selection = self._current_selection_or_warn(parent, allow_multiple=allow_multiple)
+        if selection is None:
+            return
+        if name == "pop_spectopo":
+            from eegprep.functions.popfunc.pop_spectopo import pop_spectopo
+
+            _result, command = pop_spectopo(selection, dataflag=0 if variant == "components" else 1, return_com=True)
+        elif name == "pop_prop":
+            from eegprep.functions.popfunc.pop_prop import pop_prop
+
+            _result, command = pop_prop(selection, typecomp=0 if variant == "components" else 1, return_com=True)
+        elif name == "pop_timtopo":
+            from eegprep.functions.popfunc.pop_timtopo import pop_timtopo
+
+            _result, command = pop_timtopo(selection, return_com=True)
+        elif name == "pop_plottopo":
+            from eegprep.functions.popfunc.pop_plottopo import pop_plottopo
+
+            _result, command = pop_plottopo(selection, return_com=True)
+        elif name == "pop_headplot":
+            from eegprep.functions.popfunc.pop_headplot import pop_headplot
+
+            _result, command = pop_headplot(selection, typeplot=0 if variant == "components" else 1, return_com=True)
+        elif name == "pop_plotdata":
+            from eegprep.functions.popfunc.pop_plotdata import pop_plotdata
+
+            _result, command = pop_plotdata(selection, return_com=True)
+        elif name == "pop_erpimage":
+            from eegprep.functions.popfunc.pop_erpimage import pop_erpimage
+
+            _result, command = pop_erpimage(selection, typeplot=0 if variant == "components" else 1, return_com=True)
+        elif name == "pop_envtopo":
+            from eegprep.functions.popfunc.pop_envtopo import pop_envtopo
+
+            _result, command = pop_envtopo(selection, return_com=True)
+        elif name == "pop_comperp":
+            from eegprep.functions.popfunc.pop_comperp import pop_comperp
+
+            datasets = self.session.ALLEEG or (selection if isinstance(selection, list) else [selection])
+            _result, command = pop_comperp(datasets, flag=0 if variant == "components" else 1, return_com=True)
+        elif name == "pop_newtimef":
+            from eegprep.functions.popfunc.pop_newtimef import pop_newtimef
+
+            _result, command = pop_newtimef(selection, typeproc=0 if variant == "components" else 1, return_com=True)
+        elif name == "pop_newcrossf":
+            from eegprep.functions.popfunc.pop_newcrossf import pop_newcrossf
+
+            _result, command = pop_newcrossf(selection, typeproc=0 if variant == "components" else 1, return_com=True)
+        elif name == "pop_signalstat":
+            from eegprep.functions.popfunc.pop_signalstat import pop_signalstat
+
+            _result, command = pop_signalstat(selection, typeproc=0 if variant == "components" else 1, return_com=True)
+        elif name == "pop_eventstat":
+            from eegprep.functions.popfunc.pop_eventstat import pop_eventstat
+
+            _result, command = pop_eventstat(selection, return_com=True)
+        else:
+            self.show_coming_soon(name, parent)
+            return
+        self._add_history_from_gui(command)
+        self._refresh()
+
+    def _run_chanplot(self, parent: Any | None) -> None:
+        if not self.session.STUDY:
+            self._warn(parent, "Select or create a STUDY before plotting channel measures.")
+            return
+        from eegprep.functions.studyfunc.pop_chanplot import pop_chanplot
+
+        study, command, _figure = pop_chanplot(self.session.STUDY, self.session.ALLEEG, gui=True, return_com=True)
+        self.session.STUDY = study
+        self._add_history_from_gui(command)
+        self._refresh()
 
     def _store_current_from_gui(self, eeg: Any, **kwargs: Any) -> Any:
         command = kwargs.get("command")
@@ -814,6 +1331,14 @@ def _existing_study_filename(study: dict[str, Any]) -> str:
     return filename
 
 
+def _dataset_comments_title(eeg: dict[str, Any] | list[dict[str, Any]]) -> str:
+    dataset = eeg[0] if isinstance(eeg, list) and eeg else eeg
+    if not isinstance(dataset, dict):
+        return ""
+    setname = str(dataset.get("setname") or "").strip()
+    return f"Comments of dataset: {setname}" if setname else "Comments of dataset"
+
+
 def _export_filter(action: str) -> str:
     if action == "pop_writeeeg":
         return "EDF/BDF/GDF files (*.edf *.bdf *.gdf);;All files (*)"
@@ -828,6 +1353,10 @@ def _default_bids_metadata(action: str) -> str:
     if action == "pop_participantinfo":
         return "participant_id=sub-01"
     return "trial_type=event"
+
+
+def _icacomp_from_variant(variant: str) -> int:
+    return 0 if variant == "ica" else 1
 
 
 def _currentset_list(value: Any) -> list[int]:
@@ -877,6 +1406,8 @@ def unavailable_help_message(function_name: str) -> str:
 def action_kind(action: str) -> str:
     """Return ``implemented``, ``placeholder``, or ``unknown`` for an action id."""
     base = action.partition(":")[0]
+    if action in PLACEHOLDER_ACTIONS:
+        return "placeholder"
     if base in IMPLEMENTED_ACTIONS:
         return "implemented"
     if is_placeholder_action(action):

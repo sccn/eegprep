@@ -3,26 +3,78 @@
 from __future__ import annotations
 
 import argparse
+import math
 import pathlib
 import sys
 
 import numpy as np
 
+from eegprep.functions.guifunc.coregister import prepare_coregister_display
 from eegprep.functions.guifunc.qt import QtDialogRenderer
 from eegprep.functions.guifunc.listdlg2 import build_listdlg2_dialog
 from eegprep.functions.guifunc.main_window import build_main_window
 from eegprep.functions.guifunc.pophelp import pophelp
 from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.functions.popfunc.pop_adjustevents import pop_adjustevents_dialog_spec
+from eegprep.functions.popfunc.pop_autorej import pop_autorej_dialog_spec
+from eegprep.functions.popfunc.pop_chanedit import pop_chanedit_dialog_spec
 from eegprep.functions.popfunc.pop_chansel import pop_chansel_display_values
+from eegprep.functions.popfunc.pop_comperp import pop_comperp_dialog_spec
+from eegprep.functions.popfunc.pop_comments import pop_comments_dialog_spec
+from eegprep.functions.popfunc.pop_copyset import pop_copyset_dialog_spec
+from eegprep.functions.popfunc.pop_eegthresh import pop_eegthresh_dialog_spec
+from eegprep.functions.popfunc.pop_editset import pop_editset_dialog_spec
+from eegprep.functions.popfunc.pop_eegfilt import pop_eegfilt_dialog_spec
 from eegprep.functions.popfunc.pop_epoch import pop_epoch_dialog_spec
+from eegprep.functions.popfunc.pop_editeventfield import pop_editeventfield_dialog_spec
+from eegprep.functions.popfunc.pop_editeventvals import pop_editeventvals_dialog_spec
+from eegprep.functions.popfunc.pop_envtopo import pop_envtopo_dialog_spec
+from eegprep.functions.popfunc.pop_erpimage import pop_erpimage_dialog_spec
+from eegprep.functions.popfunc.pop_headplot import pop_headplot_dialog_spec
 from eegprep.functions.popfunc.pop_interp import pop_interp_dialog_spec
+from eegprep.functions.popfunc.pop_jointprob import pop_jointprob_dialog_spec
+from eegprep.functions.popfunc.pop_mergeset import pop_mergeset_dialog_spec
+from eegprep.functions.popfunc.pop_eventstat import pop_eventstat_dialog_spec
+from eegprep.functions.popfunc.pop_plotdata import pop_plotdata_dialog_spec
+from eegprep.functions.popfunc.pop_plottopo import pop_plottopo_dialog_spec
+from eegprep.functions.popfunc.pop_prop import pop_prop_dialog_spec
+from eegprep.functions.popfunc.pop_newcrossf import pop_newcrossf_dialog_spec
+from eegprep.functions.popfunc.pop_newtimef import pop_newtimef_dialog_spec
 from eegprep.functions.popfunc.pop_reref import pop_reref_dialog_spec
+from eegprep.functions.popfunc.pop_rejchan import pop_rejchan_dialog_spec
+from eegprep.functions.popfunc.pop_rejcont import pop_rejcont_dialog_spec
+from eegprep.functions.popfunc.pop_rejkurt import pop_rejkurt_dialog_spec
+from eegprep.functions.popfunc.pop_rejmenu import pop_rejmenu_dialog_spec
+from eegprep.functions.popfunc.pop_rejspec import pop_rejspec_dialog_spec
+from eegprep.functions.popfunc.pop_rejtrend import pop_rejtrend_dialog_spec
 from eegprep.functions.popfunc.pop_resample import pop_resample_dialog_spec
+from eegprep.functions.popfunc.pop_rmdat import pop_rmdat_dialog_spec
+from eegprep.functions.popfunc.pop_rmbase import pop_rmbase_dialog_spec
 from eegprep.functions.popfunc.pop_runica import pop_runica_dialog_spec
 from eegprep.functions.popfunc.pop_select import pop_select_dialog_spec
+from eegprep.functions.popfunc.pop_selectevent import pop_selectevent_dialog_spec
+from eegprep.functions.popfunc.pop_signalstat import pop_signalstat_dialog_spec
+from eegprep.functions.popfunc.pop_selectcomps import pop_selectcomps_dialog_spec
+from eegprep.functions.popfunc.pop_spectopo import pop_spectopo_dialog_spec
+from eegprep.functions.popfunc.pop_subcomp import pop_subcomp_dialog_spec
+from eegprep.functions.popfunc.pop_timtopo import pop_timtopo_dialog_spec
+from eegprep.functions.popfunc.pop_topoplot import pop_topoplot_dialog_spec
+from eegprep.plugins.ICLabel.pop_icflag import pop_icflag_dialog_spec
 from eegprep.plugins.ICLabel.pop_iclabel import pop_iclabel_dialog_spec
+from eegprep.plugins.ICLabel.pop_viewprops import pop_viewprops_dialog_spec
 from eegprep.plugins.clean_rawdata.pop_clean_rawdata import pop_clean_rawdata_dialog_spec
+from eegprep.plugins.dipfit.pop_dipfit_gridsearch import pop_dipfit_gridsearch_dialog_spec
+from eegprep.plugins.dipfit.pop_dipfit_headmodel import pop_dipfit_headmodel_dialog_spec
+from eegprep.plugins.dipfit.pop_dipfit_loreta import pop_dipfit_loreta_dialog_spec
+from eegprep.plugins.dipfit.pop_dipfit_nonlinear import pop_dipfit_nonlinear_dialog_spec
+from eegprep.plugins.dipfit.pop_dipfit_settings import pop_dipfit_settings_dialog_spec
+from eegprep.plugins.dipfit.pop_dipplot import pop_dipplot_dialog_spec
+from eegprep.plugins.dipfit.pop_leadfield import pop_leadfield_dialog_spec
+from eegprep.plugins.dipfit.pop_multifit import pop_multifit_dialog_spec
+from eegprep.plugins.firfilt.pop_eegfiltnew import pop_eegfiltnew_dialog_spec
+from eegprep.plugins.firfilt.pop_firma import pop_firma_dialog_spec
+from eegprep.plugins.firfilt.pop_firpm import pop_firpm_dialog_spec
+from eegprep.plugins.firfilt.pop_firws import pop_firws_dialog_spec
 
 
 def _demo_eeg() -> dict:
@@ -149,6 +201,7 @@ def _demo_main_eeg(*, epoched: bool = False, setname: str = "menu demo") -> dict
                 "trials": 2,
                 "xmin": -0.2,
                 "xmax": 0.796,
+                "times": np.linspace(-200, 796, 250),
                 "epoch": [{"event": [1]}, {"event": [2]}],
             }
         )
@@ -287,11 +340,11 @@ def _matlab_scaled_pixmap(pixmap, app):
     ratio = float(pixmap.devicePixelRatio() or 1)
     if screen is not None:
         ratio = max(ratio, float(screen.devicePixelRatio() or 1))
-    if ratio <= 1:
-        return pixmap
     matlab_ratio = 1.5
     scale = matlab_ratio / ratio
-    return pixmap.scaled(max(1, round(pixmap.width() * scale)), max(1, round(pixmap.height() * scale)))
+    if math.isclose(scale, 1.0):
+        return pixmap
+    return pixmap.scaled(max(1, math.floor(pixmap.width() * scale)), max(1, math.floor(pixmap.height() * scale)))
 
 
 def capture_adjust_events_dialog(output: pathlib.Path) -> None:
@@ -299,6 +352,87 @@ def capture_adjust_events_dialog(output: pathlib.Path) -> None:
     eeg = _demo_eeg()
     event_types = [event["type"] for event in eeg["event"]]
     spec = pop_adjustevents_dialog_spec(float(eeg["srate"]), event_types)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_comments_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_comments dialog."""
+    spec = pop_comments_dialog_spec("About this dataset", "Existing sample dataset comments.")
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_editset_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_editset dialog."""
+    eeg = _demo_main_eeg()
+    eeg.update({"subject": "S01", "condition": "targets", "group": "control", "run": 1, "session": 1})
+    spec = pop_editset_dialog_spec(eeg)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_editeventfield_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_editeventfield dialog."""
+    eeg = _demo_main_eeg()
+    spec = pop_editeventfield_dialog_spec(eeg)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_editeventvals_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_editeventvals dialog."""
+    eeg = _demo_main_eeg()
+    spec = pop_editeventvals_dialog_spec(eeg)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_selectevent_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_selectevent dialog."""
+    eeg = _demo_main_eeg(setname="event demo")
+    spec = pop_selectevent_dialog_spec(eeg)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_rmdat_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_rmdat dialog."""
+    eeg = _demo_main_eeg()
+    spec = pop_rmdat_dialog_spec(eeg)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_chanedit_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_chanedit dialog."""
+    eeg = _demo_main_eeg()
+    spec = pop_chanedit_dialog_spec(eeg)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_copyset_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_copyset dialog."""
+    spec = pop_copyset_dialog_spec(1)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_mergeset_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_mergeset dialog."""
+    eeg = _demo_main_eeg(setname="merge one")
+    second = _demo_main_eeg(setname="merge two")
+    spec = pop_mergeset_dialog_spec([eeg, second], default_indices=[1])
     renderer = QtDialogRenderer()
     app, dialog, _widgets = renderer.build_dialog(spec)
     _grab_dialog(dialog, output, app)
@@ -355,10 +489,208 @@ def capture_pop_resample_dialog(output: pathlib.Path) -> None:
     _grab_dialog(dialog, output, app)
 
 
+def capture_pop_rmbase_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_rmbase dialog."""
+    eeg = _demo_main_eeg(epoched=True, setname="baseline demo")
+    spec = pop_rmbase_dialog_spec(eeg)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_eegfilt_dialog(output: pathlib.Path) -> None:
+    """Render and capture the legacy pop_eegfilt dialog."""
+    eeg = _demo_main_eeg()
+    spec = pop_eegfilt_dialog_spec(eeg)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_eegfiltnew_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_eegfiltnew dialog."""
+    eeg = _demo_main_eeg()
+    spec = pop_eegfiltnew_dialog_spec(eeg)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_firws_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_firws dialog."""
+    eeg = _demo_main_eeg()
+    spec = pop_firws_dialog_spec(eeg)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_firpm_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_firpm dialog."""
+    eeg = _demo_main_eeg()
+    spec = pop_firpm_dialog_spec(eeg)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_firma_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_firma dialog."""
+    eeg = _demo_main_eeg()
+    spec = pop_firma_dialog_spec(eeg)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
 def capture_pop_epoch_dialog(output: pathlib.Path) -> None:
     """Render and capture the pop_epoch dialog."""
     eeg = _demo_main_eeg(setname="pop demo")
     spec = pop_epoch_dialog_spec(eeg)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_topoplot_dialog(output: pathlib.Path, *, variant: str = "erp") -> None:
+    """Render and capture the pop_topoplot dialog."""
+    eeg = _demo_main_eeg(setname="pop demo")
+    spec = pop_topoplot_dialog_spec(eeg, typeplot=0 if variant == "components" else 1)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_spectopo_dialog(output: pathlib.Path, *, variant: str = "channels") -> None:
+    """Render and capture the pop_spectopo dialog."""
+    eeg = _demo_main_eeg(epoched=variant == "channels_epoched", setname="pop demo")
+    spec = pop_spectopo_dialog_spec(eeg, dataflag=0 if variant == "components" else 1)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_prop_dialog(output: pathlib.Path, *, variant: str = "channels") -> None:
+    """Render and capture the pop_prop dialog."""
+    eeg = _demo_main_eeg(epoched=True, setname="pop demo")
+    spec = pop_prop_dialog_spec(eeg, typecomp=0 if variant == "components" else 1)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_timtopo_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_timtopo dialog."""
+    eeg = _demo_main_eeg(epoched=True, setname="pop demo")
+    spec = pop_timtopo_dialog_spec(eeg)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_plottopo_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_plottopo dialog."""
+    eeg = _demo_main_eeg(epoched=True, setname="pop demo")
+    spec = pop_plottopo_dialog_spec(eeg)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_headplot_dialog(output: pathlib.Path, *, variant: str = "erp") -> None:
+    """Render and capture the pop_headplot dialog."""
+    eeg = _demo_main_eeg(epoched=True, setname="pop demo")
+    spec = pop_headplot_dialog_spec(eeg, typeplot=0 if variant == "components" else 1)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_coregister_dialog(output: pathlib.Path) -> None:
+    """Render and capture the manual headplot coregistration dialog."""
+    eeg = _demo_main_eeg(epoched=True, setname="pop demo")
+    app, dialog = prepare_coregister_display(
+        eeg["chanlocs"],
+        "mheadnew.xyz",
+        chaninfo=eeg.get("chaninfo", {}),
+        meshfile="mheadnew.mat",
+        transform=[0, -10, 0, -0.1, 0, -1.6, 1100, 1100, 1100],
+        parent=None,
+        title="Co-registration plot for headplot mesh",
+    )
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_plotdata_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_plotdata dialog."""
+    eeg = _demo_main_eeg(epoched=True, setname="pop demo")
+    spec = pop_plotdata_dialog_spec(eeg)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_erpimage_dialog(output: pathlib.Path, *, variant: str = "channels") -> None:
+    """Render and capture the pop_erpimage dialog."""
+    eeg = _demo_main_eeg(epoched=True, setname="pop demo")
+    spec = pop_erpimage_dialog_spec(eeg, typeplot=0 if variant == "components" else 1)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_envtopo_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_envtopo dialog."""
+    eeg = _demo_main_eeg(epoched=True, setname="pop demo")
+    spec = pop_envtopo_dialog_spec(eeg)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_comperp_dialog(output: pathlib.Path, *, variant: str = "channels") -> None:
+    """Render and capture the pop_comperp dialog."""
+    datasets = [
+        _demo_main_eeg(epoched=True, setname="pop demo"),
+        _demo_main_eeg(epoched=True, setname="pop demo two"),
+    ]
+    spec = pop_comperp_dialog_spec(datasets, flag=0 if variant == "components" else 1)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_newtimef_dialog(output: pathlib.Path, *, variant: str = "channels") -> None:
+    """Render and capture the pop_newtimef dialog."""
+    eeg = _demo_main_eeg(epoched=True, setname="pop demo")
+    spec = pop_newtimef_dialog_spec(eeg, typeproc=0 if variant == "components" else 1)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_newcrossf_dialog(output: pathlib.Path, *, variant: str = "channels") -> None:
+    """Render and capture the pop_newcrossf dialog."""
+    eeg = _demo_main_eeg(epoched=True, setname="pop demo")
+    spec = pop_newcrossf_dialog_spec(eeg, typeproc=0 if variant == "components" else 1)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_signalstat_dialog(output: pathlib.Path, *, variant: str = "channels") -> None:
+    """Render and capture the pop_signalstat dialog."""
+    eeg = _demo_main_eeg(epoched=True, setname="pop demo")
+    spec = pop_signalstat_dialog_spec(eeg, typeproc=0 if variant == "components" else 1)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_eventstat_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_eventstat dialog."""
+    eeg = _demo_main_eeg(epoched=True, setname="pop demo")
+    spec = pop_eventstat_dialog_spec(eeg)
     renderer = QtDialogRenderer()
     app, dialog, _widgets = renderer.build_dialog(spec)
     _grab_dialog(dialog, output, app)
@@ -392,6 +724,124 @@ def capture_pop_iclabel_dialog(output: pathlib.Path) -> None:
     _grab_dialog(dialog, output, app)
 
 
+def capture_pop_icflag_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_icflag dialog."""
+    spec = pop_icflag_dialog_spec()
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_subcomp_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_subcomp dialog."""
+    eeg = _demo_main_eeg()
+    eeg["reject"] = {"gcompreject": np.zeros(4, dtype=int)}
+    spec = pop_subcomp_dialog_spec(eeg)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def _rejection_spec(case_id: str):
+    eeg = _demo_main_eeg(epoched=True, setname="reject demo")
+    eeg["reject"] = {
+        "gcompreject": np.array([0, 1, 0, 0]),
+        "rejthresh": np.array([0, 1], dtype=bool),
+        "rejthreshE": np.zeros((4, 2), dtype=bool),
+    }
+    continuous = _demo_main_eeg()
+    if case_id == "pop_eegthresh_dialog":
+        return pop_eegthresh_dialog_spec(eeg, 1)
+    if case_id == "pop_jointprob_dialog":
+        return pop_jointprob_dialog_spec(eeg, 1)
+    if case_id == "pop_rejkurt_dialog":
+        return pop_rejkurt_dialog_spec(eeg, 1)
+    if case_id == "pop_rejtrend_dialog":
+        return pop_rejtrend_dialog_spec(eeg, 1)
+    if case_id == "pop_rejspec_dialog":
+        return pop_rejspec_dialog_spec(eeg, 1)
+    if case_id == "pop_rejmenu_dialog":
+        return pop_rejmenu_dialog_spec(eeg, 1)
+    if case_id == "pop_autorej_dialog":
+        return pop_autorej_dialog_spec(eeg)
+    if case_id == "pop_selectcomps_dialog":
+        return pop_selectcomps_dialog_spec(eeg)
+    if case_id == "pop_viewprops_dialog":
+        eeg["etc"] = {
+            "ic_classification": {
+                "ICLabel": {
+                    "classifications": np.array([[0.7, 0.1, 0.1, 0.03, 0.02, 0.03, 0.02]] * 4),
+                    "classes": ["Brain", "Muscle", "Eye", "Heart", "Line Noise", "Channel Noise", "Other"],
+                }
+            }
+        }
+        return pop_viewprops_dialog_spec(eeg, 0)
+    if case_id == "pop_rejchan_dialog":
+        return pop_rejchan_dialog_spec(continuous)
+    if case_id == "pop_rejcont_dialog":
+        return pop_rejcont_dialog_spec(continuous)
+    raise ValueError(f"unsupported rejection visual case: {case_id}")
+
+
+def capture_rejection_dialog(output: pathlib.Path, *, case_id: str) -> None:
+    """Render and capture a rejection/component dialog."""
+    spec = _rejection_spec(case_id)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def _dipfit_demo_eeg() -> dict:
+    eeg = _demo_main_eeg(epoched=True, setname="dipfit demo")
+    eeg["icaweights"] = np.eye(4)
+    eeg["icasphere"] = np.eye(4)
+    eeg["icawinv"] = np.eye(4)
+    eeg["icachansind"] = np.arange(4)
+    eeg["dipfit"] = {
+        "hdmfile": "standard_BEM/standard_vol.mat",
+        "mrifile": "standard_BEM/standard_mri.mat",
+        "chanfile": "standard_BEM/elec/standard_1005.elc",
+        "coordformat": "MNI",
+        "coord_transform": [0, 0, 0, 0, 0, -1.5708, 1, 1, 1],
+        "chansel": [1, 2, 3, 4],
+        "model": [
+            {"posxyz": [0, -20, 40], "momxyz": [1, 0, 0], "rv": 0.12, "component": 1},
+            {"posxyz": [25, 10, 35], "momxyz": [0, 1, 0], "rv": 0.2, "component": 2},
+        ],
+    }
+    return eeg
+
+
+def _dipfit_spec(case_id: str):
+    eeg = _dipfit_demo_eeg()
+    if case_id == "pop_dipfit_settings_dialog":
+        return pop_dipfit_settings_dialog_spec(eeg)
+    if case_id == "pop_dipfit_headmodel_dialog":
+        return pop_dipfit_headmodel_dialog_spec(eeg, "subject_T1.nii")
+    if case_id == "pop_dipfit_gridsearch_dialog":
+        return pop_dipfit_gridsearch_dialog_spec(eeg)
+    if case_id == "pop_dipfit_nonlinear_dialog":
+        return pop_dipfit_nonlinear_dialog_spec(eeg)
+    if case_id == "pop_dipplot_dialog":
+        return pop_dipplot_dialog_spec(eeg)
+    if case_id == "pop_multifit_dialog":
+        return pop_multifit_dialog_spec(eeg)
+    if case_id == "pop_leadfield_dialog":
+        return pop_leadfield_dialog_spec(eeg)
+    if case_id == "pop_dipfit_loreta_dialog":
+        eeg["dipfit"]["sourcemodel"] = {"pos": [[0, 0, 0]], "leadfield": []}
+        return pop_dipfit_loreta_dialog_spec(eeg)
+    raise ValueError(f"unsupported DIPFIT visual case: {case_id}")
+
+
+def capture_dipfit_dialog(output: pathlib.Path, *, case_id: str) -> None:
+    """Render and capture a DIPFIT dialog."""
+    spec = _dipfit_spec(case_id)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
 def capture_pop_clean_rawdata_dialog(output: pathlib.Path) -> None:
     """Render and capture the pop_clean_rawdata dialog."""
     eeg = _demo_main_eeg()
@@ -409,6 +859,19 @@ def capture_pop_chansel_dialog(output: pathlib.Path) -> None:
         promptstring="(use shift|Ctrl to\nselect several)",
         liststring=display_values,
         selectionmode="multiple",
+    )
+    _grab_dialog(dialog, output, app)
+
+
+def capture_select_multiple_datasets_dialog(output: pathlib.Path) -> None:
+    """Render and capture the EEGLAB-style multiple-dataset picker."""
+    labels = ["Dataset 1:menu one", "Dataset 2:menu two", "Dataset 3:menu three"]
+    display_values = pop_chansel_display_values(labels, withindex=[1, 2, 3])
+    app, dialog = build_listdlg2_dialog(
+        promptstring="(use shift|Ctrl to\nselect several)",
+        liststring=display_values,
+        selectionmode="multiple",
+        initialvalue=[1, 2],
     )
     _grab_dialog(dialog, output, app)
 
@@ -509,6 +972,24 @@ def main(argv: list[str] | None = None) -> int:
         capture_main_window(args.output, menu_label="Datasets")
     elif args.case == "help_menu":
         capture_main_window(args.output, menu_label="Help")
+    elif args.case == "pop_comments_dialog":
+        capture_pop_comments_dialog(args.output)
+    elif args.case == "pop_editset_dialog":
+        capture_pop_editset_dialog(args.output)
+    elif args.case == "pop_editeventfield_dialog":
+        capture_pop_editeventfield_dialog(args.output)
+    elif args.case == "pop_editeventvals_dialog":
+        capture_pop_editeventvals_dialog(args.output)
+    elif args.case == "pop_selectevent_dialog":
+        capture_pop_selectevent_dialog(args.output)
+    elif args.case == "pop_rmdat_dialog":
+        capture_pop_rmdat_dialog(args.output)
+    elif args.case == "pop_chanedit_dialog":
+        capture_pop_chanedit_dialog(args.output)
+    elif args.case == "pop_copyset_dialog":
+        capture_pop_copyset_dialog(args.output)
+    elif args.case == "pop_mergeset_dialog":
+        capture_pop_mergeset_dialog(args.output)
     elif args.case == "reref_dialog":
         capture_reref_dialog(args.output)
     elif args.case == "reref_dialog_channel_ref":
@@ -527,18 +1008,109 @@ def main(argv: list[str] | None = None) -> int:
         capture_pop_select_dialog(args.output)
     elif args.case == "pop_resample_dialog":
         capture_pop_resample_dialog(args.output)
+    elif args.case == "pop_rmbase_dialog":
+        capture_pop_rmbase_dialog(args.output)
+    elif args.case == "pop_eegfilt_dialog":
+        capture_pop_eegfilt_dialog(args.output)
+    elif args.case == "pop_eegfiltnew_dialog":
+        capture_pop_eegfiltnew_dialog(args.output)
+    elif args.case == "pop_firws_dialog":
+        capture_pop_firws_dialog(args.output)
+    elif args.case == "pop_firpm_dialog":
+        capture_pop_firpm_dialog(args.output)
+    elif args.case == "pop_firma_dialog":
+        capture_pop_firma_dialog(args.output)
     elif args.case == "pop_epoch_dialog":
         capture_pop_epoch_dialog(args.output)
+    elif args.case == "pop_topoplot_erp_dialog":
+        capture_pop_topoplot_dialog(args.output, variant="erp")
+    elif args.case == "pop_topoplot_components_dialog":
+        capture_pop_topoplot_dialog(args.output, variant="components")
+    elif args.case == "pop_spectopo_channels_dialog":
+        capture_pop_spectopo_dialog(args.output, variant="channels")
+    elif args.case == "pop_spectopo_components_dialog":
+        capture_pop_spectopo_dialog(args.output, variant="components")
+    elif args.case == "pop_prop_channels_dialog":
+        capture_pop_prop_dialog(args.output, variant="channels")
+    elif args.case == "pop_prop_components_dialog":
+        capture_pop_prop_dialog(args.output, variant="components")
+    elif args.case == "pop_timtopo_dialog":
+        capture_pop_timtopo_dialog(args.output)
+    elif args.case == "pop_plottopo_dialog":
+        capture_pop_plottopo_dialog(args.output)
+    elif args.case == "pop_headplot_erp_dialog":
+        capture_pop_headplot_dialog(args.output, variant="erp")
+    elif args.case == "pop_headplot_components_dialog":
+        capture_pop_headplot_dialog(args.output, variant="components")
+    elif args.case == "coregister_dialog":
+        capture_coregister_dialog(args.output)
+    elif args.case == "pop_plotdata_dialog":
+        capture_pop_plotdata_dialog(args.output)
+    elif args.case == "pop_erpimage_channels_dialog":
+        capture_pop_erpimage_dialog(args.output, variant="channels")
+    elif args.case == "pop_erpimage_components_dialog":
+        capture_pop_erpimage_dialog(args.output, variant="components")
+    elif args.case == "pop_envtopo_dialog":
+        capture_pop_envtopo_dialog(args.output)
+    elif args.case == "pop_comperp_channels_dialog":
+        capture_pop_comperp_dialog(args.output, variant="channels")
+    elif args.case == "pop_comperp_components_dialog":
+        capture_pop_comperp_dialog(args.output, variant="components")
+    elif args.case == "pop_newtimef_channels_dialog":
+        capture_pop_newtimef_dialog(args.output, variant="channels")
+    elif args.case == "pop_newtimef_components_dialog":
+        capture_pop_newtimef_dialog(args.output, variant="components")
+    elif args.case == "pop_newcrossf_channels_dialog":
+        capture_pop_newcrossf_dialog(args.output, variant="channels")
+    elif args.case == "pop_newcrossf_components_dialog":
+        capture_pop_newcrossf_dialog(args.output, variant="components")
+    elif args.case == "pop_signalstat_channels_dialog":
+        capture_pop_signalstat_dialog(args.output, variant="channels")
+    elif args.case == "pop_signalstat_components_dialog":
+        capture_pop_signalstat_dialog(args.output, variant="components")
+    elif args.case == "pop_eventstat_dialog":
+        capture_pop_eventstat_dialog(args.output)
     elif args.case == "pop_runica_dialog":
         capture_pop_runica_dialog(args.output)
     elif args.case == "pop_runica_multiple_dialog":
         capture_pop_runica_multiple_dialog(args.output)
     elif args.case == "pop_iclabel_dialog":
         capture_pop_iclabel_dialog(args.output)
+    elif args.case == "pop_icflag_dialog":
+        capture_pop_icflag_dialog(args.output)
+    elif args.case == "pop_subcomp_dialog":
+        capture_pop_subcomp_dialog(args.output)
+    elif args.case in {
+        "pop_autorej_dialog",
+        "pop_eegthresh_dialog",
+        "pop_jointprob_dialog",
+        "pop_rejchan_dialog",
+        "pop_rejcont_dialog",
+        "pop_rejkurt_dialog",
+        "pop_rejmenu_dialog",
+        "pop_rejspec_dialog",
+        "pop_rejtrend_dialog",
+        "pop_selectcomps_dialog",
+        "pop_viewprops_dialog",
+    }:
+        capture_rejection_dialog(args.output, case_id=args.case)
+    elif args.case in {
+        "pop_dipfit_settings_dialog",
+        "pop_dipfit_headmodel_dialog",
+        "pop_dipfit_gridsearch_dialog",
+        "pop_dipfit_nonlinear_dialog",
+        "pop_dipplot_dialog",
+        "pop_multifit_dialog",
+        "pop_leadfield_dialog",
+        "pop_dipfit_loreta_dialog",
+    }:
+        capture_dipfit_dialog(args.output, case_id=args.case)
     elif args.case == "pop_clean_rawdata_dialog":
         capture_pop_clean_rawdata_dialog(args.output)
     elif args.case == "pop_chansel_dialog":
         capture_pop_chansel_dialog(args.output)
+    elif args.case == "select_multiple_datasets_dialog":
+        capture_select_multiple_datasets_dialog(args.output)
     elif args.case == "pop_interp_dataset_index_dialog":
         capture_dataset_index_dialog(args.output)
     elif args.case == "pop_reref_help_dialog":

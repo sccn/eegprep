@@ -107,7 +107,8 @@ def _create_dialog(
     if listsize is not None:
         width, height = listsize
     else:
-        width, height = 176, 115 + visible_rows * 19
+        width = max(176, min(420, 12 * max((len(item) for item in list_items), default=0) + 64))
+        height = 115 + visible_rows * 19
     dialog.resize(width, height)
 
     if promptstring:

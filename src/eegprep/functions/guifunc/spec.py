@@ -44,6 +44,12 @@ class DialogSpec:
     eeglab_source: str
     size: tuple[int, int] | None = None
     help_text: str | None = None
+    show_help_button: bool = True
+    ok_label: str = "Ok"
+    cancel_label: str = "Cancel"
+    button_size: tuple[int, int] | None = None
+    cancel_first: bool = False
+    extra_stylesheet: str | None = None
     known_differences: tuple[str, ...] = ()
     content_margins: tuple[int, int, int, int] = (42, 17, 42, 13)
     row_spacing: int = 4

@@ -51,6 +51,7 @@ from eegprep.plugins.EEG_BIDS.bids_tools import pop_eventinfo, pop_participantin
 from eegprep.plugins.EEG_BIDS.pop_exportbids import pop_exportbids
 from eegprep.plugins.EEG_BIDS.pop_importbids import pop_importbids
 from eegprep.plugins.ICLabel.pop_iclabel import pop_iclabel
+from eegprep.plugins.ICLabel.pop_icflag import DEFAULT_ICFLAG_THRESHOLDS, pop_icflag
 from eegprep.plugins.clean_rawdata.clean_artifacts import clean_artifacts
 from eegprep.plugins.clean_rawdata.clean_asr import clean_asr
 from eegprep.plugins.clean_rawdata.clean_channels import clean_channels
@@ -320,7 +321,7 @@ def test_pop_clean_rawdata_riemannian_asr_runs_on_sample_data_without_warning_no
 
 
 def test_pop_rmbase_zeroes_selected_sample_baseline_channels(sample_eeg):
-    baseline = pop_rmbase(sample_eeg, pointrange=[1, 20], chanlist=[0, 1])
+    baseline = pop_rmbase(sample_eeg, pointrange=range(1, 21), chanlist=[1, 2])
 
     assert baseline["data"].shape == sample_eeg["data"].shape
     assert np.nanmean(baseline["data"][0, :20]) == pytest.approx(0, abs=1e-5)
@@ -353,12 +354,31 @@ def test_eeg_runica_one_step_matches_pop_runica_sample_output_contract(sample_ee
 def test_pop_subcomp_removes_requested_sample_component(sample_eeg_with_ica):
     with warnings.catch_warnings():
         warnings.simplefilter("error", RuntimeWarning)
-        out = pop_subcomp(sample_eeg_with_ica, [1])
+        out, command = pop_subcomp(sample_eeg_with_ica, [1], return_com=True)
 
     assert out["data"].shape == sample_eeg_with_ica["data"].shape
     assert out["icaweights"].shape == (31, 32)
     assert out["icawinv"].shape == (32, 31)
     assert np.isfinite(out["data"]).all()
+    assert command == "EEG = pop_subcomp(EEG, [1], 0);"
+
+
+def test_pop_icflag_flags_sample_components_with_iclabel_probabilities(sample_eeg_with_ica):
+    eeg = copy.deepcopy(sample_eeg_with_ica)
+    classes = np.zeros((eeg["icaweights"].shape[0], 7), dtype=float)
+    classes[:, 0] = 0.8
+    classes[0, 1] = 0.95
+    classes[1, 2] = 0.96
+    eeg.setdefault("etc", {})["ic_classification"] = {
+        "ICLabel": {
+            "classifications": classes,
+        }
+    }
+
+    out, command = pop_icflag(eeg, DEFAULT_ICFLAG_THRESHOLDS, return_com=True)
+
+    np.testing.assert_array_equal(out["reject"]["gcompreject"][:3], [1, 1, 0])
+    assert "pop_icflag" in command
 
 
 def test_pop_expica_exports_sample_ica_weights(sample_eeg_with_ica, tmp_path):
