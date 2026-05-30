@@ -1,0 +1,82 @@
+"""Move STUDY cluster components to an outlier cluster."""
+
+from __future__ import annotations
+
+from copy import deepcopy
+from typing import Any
+
+import numpy as np
+
+from eegprep.functions.studyfunc._cluster_utils import (
+    checked_study_and_datasets,
+    cluster_at,
+    cluster_command,
+    cluster_list,
+    next_cluster_number,
+)
+from eegprep.functions.studyfunc.std_movecomp import std_movecomp
+
+
+def std_moveoutlier(
+    STUDY: dict[str, Any] | None,
+    ALLEEG: Any,
+    old_clus: int,
+    comps: Any,
+    *,
+    return_com: bool = False,
+) -> Any:
+    """Move component positions from a cluster into its outlier cluster."""
+    study, datasets = checked_study_and_datasets(STUDY, ALLEEG)
+    cluster_index = int(old_clus)
+    cluster = cluster_at(study, cluster_index)
+    lower = str(cluster.get("name") or "").lower()
+    if lower.startswith(("notclust", "outlier")):
+        raise ValueError("Cannot move components from Notclust or Outliers clusters")
+    if cluster.get("child"):
+        raise ValueError("Cannot move components if cluster has child clusters")
+    outlier_index = _find_outlier_cluster(study, cluster_index)
+    if outlier_index == 0:
+        study = _create_outlier_cluster(study, cluster_index)
+        outlier_index = len(study["cluster"])
+    study = std_movecomp(study, datasets, cluster_index, outlier_index, comps)
+    command = cluster_command(
+        "std_moveoutlier",
+        ("STUDY",),
+        "STUDY",
+        "ALLEEG",
+        str(cluster_index),
+        comps=np.asarray(comps, dtype=int).ravel().tolist(),
+    )
+    return (study, command) if return_com else study
+
+
+def _find_outlier_cluster(study: dict[str, Any], cluster_index: int) -> int:
+    cluster_name = str(cluster_at(study, cluster_index).get("name") or "")
+    prefix = f"outliers {cluster_name} ".lower()
+    for index, cluster in enumerate(cluster_list(study), start=1):
+        if str(cluster.get("name") or "").lower().startswith(prefix):
+            return index
+    return 0
+
+
+def _create_outlier_cluster(study: dict[str, Any], cluster_index: int) -> dict[str, Any]:
+    study = deepcopy(study)
+    clusters = cluster_list(study)
+    source = clusters[cluster_index - 1]
+    name = f"Outliers {source.get('name')} {next_cluster_number(clusters)}"
+    clusters.append(
+        {
+            "name": name,
+            "sets": [],
+            "comps": [],
+            "parent": list(source.get("parent") or []),
+            "child": [],
+            "algorithm": ["manual_outlier"],
+            "preclust": deepcopy(source.get("preclust") or {"preclustparams": [], "preclustdata": []}),
+        }
+    )
+    study["cluster"] = clusters
+    return study
+
+
+__all__ = ["std_moveoutlier"]

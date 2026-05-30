@@ -6,6 +6,7 @@ import argparse
 import math
 import pathlib
 import sys
+from typing import Any
 
 import numpy as np
 
@@ -59,6 +60,9 @@ from eegprep.functions.popfunc.pop_spectopo import pop_spectopo_dialog_spec
 from eegprep.functions.popfunc.pop_subcomp import pop_subcomp_dialog_spec
 from eegprep.functions.popfunc.pop_timtopo import pop_timtopo_dialog_spec
 from eegprep.functions.popfunc.pop_topoplot import pop_topoplot_dialog_spec
+from eegprep.functions.studyfunc.pop_clust import pop_clust_dialog_spec
+from eegprep.functions.studyfunc.pop_clustedit import pop_clustedit_dialog_spec
+from eegprep.functions.studyfunc.pop_preclust import pop_preclust_dialog_spec
 from eegprep.functions.studyfunc.pop_study import pop_study_dialog_spec
 from eegprep.functions.studyfunc.pop_studydesign import pop_studydesign_dialog_spec
 from eegprep.functions.studyfunc.std_checkset import std_checkset
@@ -463,6 +467,69 @@ def capture_pop_studydesign_dialog(output: pathlib.Path) -> None:
     """Render and capture the pop_studydesign dialog."""
     study, alleeg = _demo_study()
     spec = pop_studydesign_dialog_spec(study, alleeg)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def _demo_cluster_study() -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    first, second = _demo_study()[1]
+    first = dict(first)
+    second = dict(second)
+    first["icaweights"] = np.eye(3, 4)
+    second["icaweights"] = np.eye(3, 4)
+    first["icawinv"] = np.array([[1.0, 0.1, 0.2], [0.2, 1.2, 0.3], [0.1, 0.4, 1.4], [0.0, 0.2, 0.5]])
+    second["icawinv"] = first["icawinv"] + 0.2
+    study, alleeg = std_checkset({"name": "menu study", "task": "demo task"}, [first, second])
+    study["cluster"] = [
+        {"name": "ParentCluster", "sets": [[1, 1, 1, 2, 2, 2]], "comps": [1, 2, 3, 1, 2, 3], "child": []},
+        {
+            "name": "Cls 1",
+            "sets": [[1, 1, 2]],
+            "comps": [1, 2, 1],
+            "parent": ["ParentCluster"],
+            "child": [],
+            "preclust": {"preclustdata": [[0.0], [0.1], [0.2]], "preclustparams": []},
+        },
+        {
+            "name": "Cls 2",
+            "sets": [[1, 2, 2]],
+            "comps": [3, 2, 3],
+            "parent": ["ParentCluster"],
+            "child": [],
+            "preclust": {"preclustdata": [[1.0], [1.1], [1.2]], "preclustparams": []},
+        },
+    ]
+    study.setdefault("etc", {})["preclust"] = {
+        "preclustdata": [[0.0, 0.1], [0.1, 0.1], [0.2, 0.0], [1.0, 1.1], [1.1, 1.0], [1.2, 1.1]],
+        "preclustparams": [{"measure": "scalp", "npca": 2}],
+        "clustlevel": 1,
+    }
+    return study, alleeg
+
+
+def capture_pop_preclust_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_preclust dialog."""
+    study, _alleeg = _demo_cluster_study()
+    spec = pop_preclust_dialog_spec(study)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_clust_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_clust dialog."""
+    study, _alleeg = _demo_cluster_study()
+    spec = pop_clust_dialog_spec(study)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_clustedit_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_clustedit dialog."""
+    study, _alleeg = _demo_cluster_study()
+    spec = pop_clustedit_dialog_spec(study)
     renderer = QtDialogRenderer()
     app, dialog, _widgets = renderer.build_dialog(spec)
     _grab_dialog(dialog, output, app)
@@ -1024,6 +1091,12 @@ def main(argv: list[str] | None = None) -> int:
         capture_pop_study_dialog(args.output)
     elif args.case == "pop_studydesign_dialog":
         capture_pop_studydesign_dialog(args.output)
+    elif args.case == "pop_preclust_dialog":
+        capture_pop_preclust_dialog(args.output)
+    elif args.case == "pop_clust_dialog":
+        capture_pop_clust_dialog(args.output)
+    elif args.case == "pop_clustedit_dialog":
+        capture_pop_clustedit_dialog(args.output)
     elif args.case == "reref_dialog":
         capture_reref_dialog(args.output)
     elif args.case == "reref_dialog_channel_ref":

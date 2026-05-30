@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Phase 5c STUDY clustering implementation notes</title>
+</head>
+<body>
+  <h1>Phase 5c STUDY clustering implementation notes</h1>
+
+  <h2>Parity references inspected</h2>
+  <ul>
+    <li>EEGLAB <code>functions/studyfunc/std_preclust.m</code></li>
+    <li>EEGLAB <code>functions/studyfunc/pop_preclust.m</code></li>
+    <li>EEGLAB <code>functions/studyfunc/pop_clust.m</code></li>
+    <li>EEGLAB <code>functions/studyfunc/std_createclust.m</code></li>
+    <li>EEGLAB <code>functions/studyfunc/pop_clustedit.m</code></li>
+    <li>EEGLAB <code>functions/studyfunc/std_renameclust.m</code>,
+      <code>std_mergeclust.m</code>, <code>std_movecomp.m</code>,
+      <code>std_moveoutlier.m</code>, and <code>std_rejectoutliers.m</code></li>
+  </ul>
+
+  <h2>Phase 5b component-measure contract</h2>
+  <p>
+    Phase 5c does not precompute ERP, spectrum, ERSP, or ITC component measures.
+    It expects Phase 5b or tests to provide component measures at
+    <code>STUDY["etc"]["eegprep"]["component_measures"]</code>.
+  </p>
+  <pre><code>{
+  "erp": {
+    "times": [-100.0, 0.0, 100.0],
+    "data": {
+      "1": [[...], [...]],  // components x times for STUDY dataset 1
+      "2": [[...], [...]]
+    }
+  },
+  "spec": {
+    "freqs": [3.0, 4.0, 5.0],
+    "data": {"1": [[...]], "2": [[...]]}
+  },
+  "ersp": {
+    "freqs": [...],
+    "times": [...],
+    "data": {"1": [[[...]]]}  // components x freqs x times
+  },
+  "itc": { "...": "same shape as ersp" }
+}</code></pre>
+  <p>
+    Keys may be strings or integers. Dataset keys are 1-based STUDY datasetinfo
+    indices, not zero-based Python indices. Component rows are 1-based in
+    public inputs and zero-based only inside NumPy indexing.
+  </p>
+
+  <h2>Design decisions</h2>
+  <ul>
+    <li>Scalp-map preclustering is available without Phase 5b by reading
+      <code>EEG.icawinv</code>. This gives a usable deterministic clustering
+      path before measure precompute lands.</li>
+    <li>K-means uses scikit-learn with an explicit <code>random_state</code>.
+      EEGLAB defaults to MATLAB kmeans with replicates; deterministic seeding is
+      required for reviewable Python tests.</li>
+    <li>Unsupported EEGLAB clustering branches, including neural networks,
+      affinity propagation, and optimal k-means, raise clear
+      <code>NotImplementedError</code> messages.</li>
+    <li>The Phase 5c cluster plot hook intentionally plots cluster membership
+      summaries. Full component ERP/spectrum/ERSP/ITC visualization remains
+      coordinated with Phase 5b plotting outputs.</li>
+  </ul>
+
+  <h2>Open risks</h2>
+  <ul>
+    <li>Phase 5b may choose a different storage location for component measure
+      arrays. If so, add a tiny adapter rather than changing clustering tests to
+      hide the mismatch.</li>
+    <li>MATLAB parity for exact k-means labels is sensitive to implementation
+      differences. Deterministic parity should compare data structures and
+      component coverage unless MATLAB and sklearn seeds are explicitly aligned.</li>
+    <li>GUI visual parity captures still need to be generated in the final
+      verification pass and attached to the PR as user attachments.</li>
+  </ul>
+
+  <h2>Test evidence</h2>
+  <ul>
+    <li><code>uv run --no-sync pytest tests/test_study_clustering.py</code>:
+      8 passed.</li>
+    <li><code>uv run --no-sync pytest tests/test_plugin_menu.py tests/test_menu_placeholder_inventory.py tests/test_console_workspace.py tests/test_gui_pop_study.py tests/test_study_metadata.py tests/test_study_clustering.py</code>:
+      108 passed.</li>
+    <li><code>uv run --no-sync ruff check .</code>: passed.</li>
+    <li><code>uv run --no-sync ruff format --check .</code>: passed.</li>
+    <li><code>uv run --no-sync ty check</code>: passed after syncing
+      <code>gui</code> and <code>torch</code> extras for optional imports.</li>
+    <li><code>EEGPREP_SKIP_MATLAB=1 uv run --no-sync pytest -m "not slow"</code>:
+      1583 passed, 228 skipped, 11 deselected, 163 warnings.</li>
+    <li>Visual parity captures generated for <code>pop_preclust_dialog</code>,
+      <code>pop_clust_dialog</code>, and <code>pop_clustedit_dialog</code>
+      using <code>EEGPREP_EEGLAB_ROOT=/Users/suraj/Desktop/eeglab</code>.
+      Side-by-side artifacts are under <code>.visual-parity/</code> and are
+      intentionally not committed.</li>
+    <li>GUI Agent QA: Computer Use inspected the <code>pop_clust</code> Qt
+      dialog and canceled it cleanly.</li>
+    <li>Console QA: an <code>EEGPrepConsoleWorkspace</code> flow ran
+      <code>pop_preclust</code>, <code>pop_clust</code>, and
+      <code>pop_clustedit(action="rename")</code>; <code>CURRENTSTUDY</code>,
+      <code>STUDY.cluster</code>, and <code>LASTCOM</code> stayed synchronized.</li>
+  </ul>
+</body>
+</html>

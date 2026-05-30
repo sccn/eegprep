@@ -44,6 +44,21 @@ Plot currently supported STUDY channel measures:
 
    STUDY, com, fig = pop_chanplot(STUDY, ALLEEG, measure="erp", return_com=True)
 
+Precluster and cluster ICA components:
+
+.. code-block:: python
+
+   from eegprep import pop_clust, pop_clustedit, pop_preclust
+
+   STUDY, ALLEEG, com = pop_preclust(
+       STUDY,
+       ALLEEG,
+       preproc=[{"measure": "scalp", "npca": 3, "norm": 1, "weight": 1}],
+       return_com=True,
+   )
+   STUDY, com = pop_clust(STUDY, ALLEEG, clus_num=4, random_state=0, return_com=True)
+   STUDY, com, fig = pop_clustedit(STUDY, ALLEEG, action="plot", return_com=True)
+
 Session Synchronization
 =======================
 
@@ -52,13 +67,13 @@ The GUI and ``eegprep-console`` share ``STUDY`` and ``CURRENTSTUDY`` through
 ``CURRENTSTUDY`` to ``1``. Retrieving a dataset from the Datasets menu returns
 ``CURRENTSTUDY`` to ``0`` and records that transition in history.
 
-Pending Phase 5 Surfaces
-========================
+Phase 5 Coordination
+====================
 
-STUDY design editing, precompute, preclustering, clustering, and cluster-edit
-actions remain Phase 5 placeholders until those branches land. Help text for
-implemented STUDY actions is packaged now; pending actions should receive
-expanded help resources when their implementation merges.
+STUDY precompute and full measure plotting remain coordinated with Phase 5b.
+Phase 5c reads component ERP, spectrum, ERSP, and ITC clustering inputs from
+``STUDY["etc"]["eegprep"]["component_measures"]`` and can build scalp-map
+features directly from loaded ICA maps.
 
 See the :ref:`interactive_console` guide for mixed GUI plus console usage and
 the :ref:`gui_help_menus` guide for menu inventory behavior.

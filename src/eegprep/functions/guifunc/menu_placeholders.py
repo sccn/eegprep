@@ -26,12 +26,7 @@ def _phase_entries(phase: str, actions: tuple[str, ...]) -> dict[str, Placeholde
 PLACEHOLDER_ACTION_METADATA: Mapping[str, PlaceholderMetadata] = {
     **_phase_entries(
         "5",
-        (
-            "pop_clust",
-            "pop_clustedit",
-            "pop_preclust",
-            "pop_precomp",
-        ),
+        ("pop_precomp",),
     ),
     "pop_eegplot": PlaceholderMetadata(excluded_reason="eegbrowser"),
 }
