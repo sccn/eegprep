@@ -568,6 +568,22 @@ class MenuActionDispatcherTests(unittest.TestCase):
         self.assertEqual(session.menu_statuses(), {"continuous_dataset"})
         self.assertIn("CURRENTSTUDY = 0;", session.ALLCOM[-1])
 
+    def test_select_study_set_menu_action_restores_study_mode(self):
+        session = EEGPrepSession()
+        session.store_current(_demo_eeg(), new=True)
+        session.STUDY = {"name": "study", "datasetinfo": [], "design": []}
+        session.CURRENTSTUDY = 0
+        echoed = []
+        session.add_command_echo_listener(echoed.append)
+        dispatcher = MenuActionDispatcher(session)
+
+        dispatcher.dispatch("select_study_set")
+
+        self.assertEqual(session.CURRENTSTUDY, 1)
+        self.assertEqual(echoed, ["CURRENTSTUDY = 1"])
+        self.assertEqual(session.ALLCOM[-1], "CURRENTSTUDY = 1")
+        self.assertEqual(session.menu_statuses(), {"study"})
+
     def test_multiple_dataset_reref_preserves_selection(self):
         session = EEGPrepSession()
         first = _demo_eeg()

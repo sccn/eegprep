@@ -31,8 +31,6 @@ PLACEHOLDER_ACTION_METADATA: Mapping[str, PlaceholderMetadata] = {
             "pop_clustedit",
             "pop_preclust",
             "pop_precomp",
-            "pop_studydesign",
-            "select_study_set",
         ),
     ),
     **_phase_entries("6", ("eeglab_update",)),

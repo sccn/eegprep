@@ -87,6 +87,41 @@ class ConsoleDatasetResult:
         return f"<EEGPrep dataset result: CURRENTSET={self.currentset!r}, LASTCOM={command!r}>"
 
 
+class ConsoleStudyResult:
+    """Compact, unpackable result for STUDY ``pop_*`` calls."""
+
+    def __init__(
+        self,
+        study: dict[str, Any],
+        alleeg: list[dict[str, Any]] | None,
+        command: str,
+        *,
+        includes_alleeg: bool,
+    ) -> None:
+        self.study = study
+        self.alleeg = alleeg
+        self.command = command
+        self.includes_alleeg = includes_alleeg
+
+    def __iter__(self) -> Iterator[Any]:
+        yield self.study
+        if self.includes_alleeg:
+            yield self.alleeg
+        yield self.command
+
+    def __getitem__(self, index: int) -> Any:
+        return tuple(self)[index]
+
+    def __len__(self) -> int:
+        return 3 if self.includes_alleeg else 2
+
+    def __repr__(self) -> str:
+        command = self.command or "(no history command)"
+        if len(command) > POP_RESULT_PREVIEW_LIMIT:
+            command = command[: POP_RESULT_PREVIEW_LIMIT - 3] + "..."
+        return f"<EEGPrep STUDY result: CURRENTSTUDY=1, LASTCOM={command!r}>"
+
+
 class LazyWorkspaceExport:
     """Lazy proxy for public EEGPrep exports in the console namespace."""
 
@@ -246,6 +281,8 @@ class EEGPrepConsoleWorkspace:
 
         if "STUDY" in targets:
             self.session.STUDY = self.namespace.get("STUDY")
+            if "CURRENTSTUDY" not in targets:
+                self.session.CURRENTSTUDY = 1 if self.session.STUDY else 0
             changed = True
         if "CURRENTSTUDY" in targets:
             self.session.CURRENTSTUDY = int(self.namespace.get("CURRENTSTUDY") or 0)
@@ -276,6 +313,15 @@ class EEGPrepConsoleWorkspace:
             return ConsoleDatasetResult(
                 self.session.ALLEEG, self.session.EEG, self.session.current_set_value(), command
             )
+
+        study_state = _extract_pop_study_state(result)
+        if study_state is not None:
+            study, alleeg, command, includes_alleeg = study_state
+            self.session.set_study(study, alleeg, command=command)
+            self._pop_updated_session = True
+            self.pull_from_session()
+            self._refresh()
+            return ConsoleStudyResult(study, alleeg, command, includes_alleeg=includes_alleeg)
 
         eeg, command = _extract_pop_eeg_and_command(result)
         if eeg is None:
@@ -492,7 +538,7 @@ class _IPythonShellAdapter:
 def _console_banner() -> str:
     return (
         "EEGPrep interactive console\n"
-        "The GUI and these workspace names share one session: EEG, ALLEEG, CURRENTSET, ALLCOM, LASTCOM, STUDY.\n"
+        "The GUI and these workspace names share one session: EEG, ALLEEG, CURRENTSET, ALLCOM, LASTCOM, STUDY, CURRENTSTUDY.\n"
         "Call pop_* functions directly, for example: pop_reref(EEG, [])\n"
     )
 
@@ -1126,6 +1172,21 @@ def _extract_pop_dataset_state(result: Any) -> tuple[list[dict[str, Any]], Any, 
     return alleeg, eeg, currentset, command.strip()
 
 
+def _extract_pop_study_state(
+    result: Any,
+) -> tuple[dict[str, Any], list[dict[str, Any]] | None, str, bool] | None:
+    if not isinstance(result, tuple) or not result:
+        return None
+    study = result[0]
+    if not _is_study_selection(study):
+        return None
+    if len(result) >= 3 and isinstance(result[1], list) and isinstance(result[2], str):
+        return study, result[1], result[2].strip(), True
+    if len(result) >= 2 and isinstance(result[1], str):
+        return study, None, result[1].strip(), False
+    return None
+
+
 def _first_call_eeg_argument(args: tuple[Any, ...], kwargs: Mapping[str, Any]) -> Any | None:
     if args:
         return args[0]
@@ -1136,6 +1197,14 @@ def _is_eeg_selection(value: Any) -> bool:
     if isinstance(value, dict):
         return any(key in value for key in ("data", "nbchan", "setname"))
     return isinstance(value, list) and all(isinstance(item, dict) for item in value)
+
+
+def _is_study_selection(value: Any) -> bool:
+    return (
+        isinstance(value, dict)
+        and not _is_eeg_selection(value)
+        and any(key in value for key in ("datasetinfo", "design", "currentdesign"))
+    )
 
 
 def _normalize_currentset(value: Any) -> list[int]:
