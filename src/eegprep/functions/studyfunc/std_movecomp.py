@@ -57,8 +57,6 @@ def std_movecomp(
     new["comps"] = new_comps[order].tolist()
     new["sets"] = new_sets[:, order].tolist()
     new["preclust"] = _reorder_preclust_rows(new_preclust, order)
-    if not new.get("parent"):
-        new["parent"] = list(old.get("parent") or [])
 
     clusters[old_index - 1] = old
     clusters[new_index - 1] = new

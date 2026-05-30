@@ -46,7 +46,7 @@ def pop_clustedit(
         comps = numeric_vector(result.get("comps", []), dtype=int).tolist()
         clusters = numeric_vector(result.get("clusters", []), dtype=int).tolist()
         name = str(result.get("name") or name)
-        threshold = float(numeric_vector(result.get("threshold", threshold), dtype=float)[0])
+        threshold = _optional_float(result.get("threshold"), threshold)
 
     figure = None
     command_kwargs = {"action": action}
@@ -128,6 +128,11 @@ def _action_from_gui(value: Any) -> str:
 def _optional_int(value: Any) -> int | None:
     values = numeric_vector(value, dtype=int)
     return int(values[0]) if values.size else None
+
+
+def _optional_float(value: Any, default: float) -> float:
+    values = numeric_vector(value, dtype=float)
+    return float(values[0]) if values.size else float(default)
 
 
 __all__ = ["pop_clustedit", "pop_clustedit_dialog_spec"]

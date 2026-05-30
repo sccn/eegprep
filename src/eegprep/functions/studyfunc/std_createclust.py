@@ -44,7 +44,8 @@ def std_createclust(
     clusters = cluster_list(study)
     parent = clusters[parent_index - 1]
     parent_name = str(parent.get("name") or "ParentCluster")
-    next_number = next_cluster_number(clusters)
+    next_number = next_cluster_number(clusters, prefix=name)
+    next_outlier_number = next_cluster_number(clusters, prefix="outlier")
     labels_to_make = [label for label in sorted(set(labels.tolist())) if label > 0 or ignore0 == "off"]
     preclustdata = np.asarray(study.get("etc", {}).get("preclust", {}).get("preclustdata", []), dtype=float)
     preclustparams = study.get("etc", {}).get("preclust", {}).get("preclustparams", [])
@@ -54,7 +55,12 @@ def std_createclust(
         selected = np.flatnonzero(labels == label)
         if selected.size == 0:
             continue
-        cluster_name = f"outlier {next_number}" if label == 0 else f"{name} {next_number}"
+        if label == 0:
+            cluster_name = f"outlier {next_outlier_number}"
+            next_outlier_number += 1
+        else:
+            cluster_name = f"{name} {next_number}"
+            next_number += 1
         entry: dict[str, Any] = {
             "name": cluster_name,
             "sets": sets[:, selected].astype(int).tolist(),
@@ -69,7 +75,6 @@ def std_createclust(
         }
         clusters.append(entry)
         parent["child"].append(cluster_name)
-        next_number += 1
 
     clusters[parent_index - 1] = parent
     study = deepcopy(study)

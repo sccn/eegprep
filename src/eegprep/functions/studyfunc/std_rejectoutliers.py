@@ -25,6 +25,9 @@ def std_rejectoutliers(
 ) -> Any:
     """Move components farther than ``th`` cluster-distance stds to outliers."""
     study, datasets = checked_study_and_datasets(STUDY, ALLEEG)
+    threshold = float(th)
+    if threshold <= 0:
+        raise ValueError("Outlier threshold must be greater than 0")
     selected = _selected_clusters(study, clusters)
     for cluster_index in selected:
         cluster = cluster_at(study, cluster_index)
@@ -35,11 +38,11 @@ def std_rejectoutliers(
         if data.ndim != 2 or data.shape[0] < 2:
             continue
         centroid = np.mean(data, axis=0, keepdims=True)
-        distances = np.sum((data - centroid) ** 2, axis=1)
+        distances = np.linalg.norm(data - centroid, axis=1)
         spread = float(np.std(distances))
         if spread == 0:
             continue
-        outliers = np.flatnonzero(distances > spread * float(th)) + 1
+        outliers = np.flatnonzero(distances > spread * threshold) + 1
         if outliers.size:
             study = std_moveoutlier(study, datasets, cluster_index, outliers.tolist())
     command = cluster_command(

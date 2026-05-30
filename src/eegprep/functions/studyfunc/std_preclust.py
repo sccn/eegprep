@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from copy import deepcopy
 from typing import Any
 
 import numpy as np
@@ -64,7 +63,6 @@ def std_preclust(
     if finaldim is not None and finaldim > 0 and clustdata.shape[1] > finaldim:
         clustdata = _pca_scores(clustdata, finaldim)
 
-    study = deepcopy(study)
     study.setdefault("etc", {}).setdefault("eegprep", {})
     preclust = {
         "preclustdata": clustdata.tolist(),

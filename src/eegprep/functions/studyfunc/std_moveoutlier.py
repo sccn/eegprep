@@ -17,6 +17,9 @@ from eegprep.functions.studyfunc._cluster_utils import (
 from eegprep.functions.studyfunc.std_movecomp import std_movecomp
 
 
+OUTLIER_SOURCE_FIELD = "outlier_parent_cluster"
+
+
 def std_moveoutlier(
     STUDY: dict[str, Any] | None,
     ALLEEG: Any,
@@ -52,6 +55,9 @@ def std_moveoutlier(
 
 def _find_outlier_cluster(study: dict[str, Any], cluster_index: int) -> int:
     cluster_name = str(cluster_at(study, cluster_index).get("name") or "")
+    for index, cluster in enumerate(cluster_list(study), start=1):
+        if str(cluster.get(OUTLIER_SOURCE_FIELD) or "") == cluster_name:
+            return index
     prefix = f"outliers {cluster_name} ".lower()
     for index, cluster in enumerate(cluster_list(study), start=1):
         if str(cluster.get("name") or "").lower().startswith(prefix):
@@ -63,18 +69,26 @@ def _create_outlier_cluster(study: dict[str, Any], cluster_index: int) -> dict[s
     study = deepcopy(study)
     clusters = cluster_list(study)
     source = clusters[cluster_index - 1]
-    name = f"Outliers {source.get('name')} {next_cluster_number(clusters)}"
+    source_name = str(source.get("name") or "")
+    name = f"Outliers {source_name} {next_cluster_number(clusters)}"
+    parent_names = list(source.get("parent") or [])
     clusters.append(
         {
             "name": name,
             "sets": [],
             "comps": [],
-            "parent": list(source.get("parent") or []),
+            "parent": parent_names,
             "child": [],
             "algorithm": ["manual_outlier"],
             "preclust": deepcopy(source.get("preclust") or {"preclustparams": [], "preclustdata": []}),
+            OUTLIER_SOURCE_FIELD: source_name,
         }
     )
+    for parent in parent_names:
+        for entry in clusters:
+            if str(entry.get("name") or "") == parent and name not in entry.get("child", []):
+                entry.setdefault("child", []).append(name)
+                break
     study["cluster"] = clusters
     return study
 

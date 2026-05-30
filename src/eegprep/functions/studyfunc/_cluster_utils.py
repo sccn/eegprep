@@ -89,7 +89,11 @@ def normalize_cluster(cluster: dict[str, Any]) -> dict[str, Any]:
 
 
 def cluster_at(study: dict[str, Any], cluster_index: int) -> dict[str, Any]:
-    """Return a 1-based cluster entry."""
+    """Return a normalized 1-based cluster snapshot.
+
+    The returned dictionary is a deepcopy-normalized snapshot; mutating it does
+    not update ``study`` until callers assign it back into ``STUDY.cluster``.
+    """
     clusters = cluster_list(study)
     if cluster_index < 1 or cluster_index > len(clusters):
         raise ValueError(f"cluster index must be 1-based and within 1..{len(clusters)}")
@@ -138,11 +142,15 @@ def rows_for_cluster(
     return sets, comps
 
 
-def next_cluster_number(clusters: list[dict[str, Any]]) -> int:
+def next_cluster_number(clusters: list[dict[str, Any]], prefix: str | None = None) -> int:
     """Return the next trailing numeric cluster suffix."""
     highest = 0
+    prefix_lower = str(prefix).lower() if prefix is not None else None
     for cluster in clusters:
-        match = re.search(r"(\d+)\s*$", str(cluster.get("name") or ""))
+        name = str(cluster.get("name") or "")
+        if prefix_lower is not None and not name.lower().startswith(f"{prefix_lower} "):
+            continue
+        match = re.search(r"(\d+)\s*$", name)
         if match:
             highest = max(highest, int(match.group(1)))
     return highest + 1

@@ -64,12 +64,14 @@ def pop_clust(
     if algorithm not in ALGORITHMS:
         raise NotImplementedError("pop_clust currently supports kmeans and kmeanscluster")
     if clus_num < 2:
-        clus_num = 2
+        raise ValueError("Number of clusters must be at least 2")
     if clus_num > data.shape[0]:
         raise ValueError("Number of clusters cannot exceed the number of preclustered components")
 
     labels, centers = _kmeans_labels(data, clus_num, random_state)
     if np.isfinite(outliers):
+        if outliers <= 0:
+            raise ValueError("Outlier threshold must be greater than 0")
         labels = _mark_outliers(data, labels, centers, outliers)
     study = std_createclust(
         study,
@@ -125,7 +127,7 @@ def _mark_outliers(data: np.ndarray, labels: np.ndarray, centers: np.ndarray, th
     output = labels.copy()
     for label in sorted(set(labels.tolist())):
         rows = np.flatnonzero(labels == label)
-        distances = np.sum((data[rows] - centers[label - 1]) ** 2, axis=1)
+        distances = np.linalg.norm(data[rows] - centers[label - 1], axis=1)
         spread = float(np.std(distances))
         if spread == 0:
             continue

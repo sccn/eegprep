@@ -10,9 +10,12 @@ from eegprep.functions.studyfunc.pop_clust import pop_clust, pop_clust_dialog_sp
 from eegprep.functions.studyfunc.pop_clustedit import pop_clustedit, pop_clustedit_dialog_spec
 from eegprep.functions.studyfunc.pop_preclust import pop_preclust, pop_preclust_dialog_spec
 from eegprep.functions.studyfunc.pop_study import pop_study
+from eegprep.functions.studyfunc.std_createclust import std_createclust
 from eegprep.functions.studyfunc.std_mergeclust import std_mergeclust
+from eegprep.functions.studyfunc.std_movecomp import std_movecomp
 from eegprep.functions.studyfunc.std_moveoutlier import std_moveoutlier
 from eegprep.functions.studyfunc.std_preclust import std_preclust
+from eegprep.functions.studyfunc.std_rejectoutliers import std_rejectoutliers
 
 
 class _Renderer:
@@ -131,6 +134,24 @@ def test_pop_clust_creates_deterministic_child_clusters():
     assert clustered["cluster"][0]["child"] == [cluster["name"] for cluster in clustered["cluster"][1:]]
 
 
+def test_pop_clust_rejects_invalid_cluster_counts_and_outlier_thresholds():
+    study, alleeg = _preclustered_study()
+
+    with pytest.raises(ValueError, match="at least 2"):
+        pop_clust(study, alleeg, clus_num=1)
+
+    with pytest.raises(ValueError, match="greater than 0"):
+        pop_clust(study, alleeg, clus_num=2, outliers=-1)
+
+
+def test_std_createclust_numbers_outliers_separately_from_clusters():
+    study, alleeg = _preclustered_study()
+
+    clustered = std_createclust(study, alleeg, clusterind=[0, 1, 1, 2, 2, 2])
+
+    assert [cluster["name"] for cluster in clustered["cluster"][1:]] == ["outlier 1", "Cls 1", "Cls 2"]
+
+
 def test_cluster_edit_rename_merge_moveoutlier_and_plot():
     study, alleeg = _preclustered_study()
     study = pop_clust(study, alleeg, clus_num=2, random_state=11)
@@ -157,6 +178,76 @@ def test_cluster_edit_rename_merge_moveoutlier_and_plot():
     plotted, _command, figure = pop_clustedit(renamed, alleeg, action="plot", clusters=[2, 3], return_com=True)
     assert plotted["cluster"][1]["name"].startswith("Alpha")
     assert figure is not None
+
+
+def test_moveoutlier_reuses_outlier_cluster_after_source_rename():
+    study, alleeg = _preclustered_study()
+    study = pop_clust(study, alleeg, clus_num=2, random_state=11)
+    source = 2 if len(study["cluster"][1]["comps"]) > 1 else 3
+
+    moved = std_moveoutlier(study, alleeg, source, [1])
+    renamed, _command, _figure = pop_clustedit(
+        moved,
+        alleeg,
+        action="rename",
+        cluster=source,
+        name="Alpha",
+        return_com=True,
+    )
+    moved_again = std_moveoutlier(renamed, alleeg, source, [1])
+
+    outliers = [cluster for cluster in moved_again["cluster"] if str(cluster["name"]).startswith("Outliers")]
+    assert len(outliers) == 1
+    assert "Alpha" in outliers[0]["name"]
+
+
+def test_movecomp_does_not_rewrite_destination_parent():
+    study, alleeg = _preclustered_study()
+    study = pop_clust(study, alleeg, clus_num=2, random_state=11)
+    study["cluster"].append(
+        {
+            "name": "Manual 99",
+            "sets": [],
+            "comps": [],
+            "parent": [],
+            "child": [],
+            "preclust": {"preclustparams": [], "preclustdata": []},
+        }
+    )
+
+    moved = std_movecomp(study, alleeg, 2, 4, [1])
+
+    assert moved["cluster"][3]["parent"] == []
+
+
+def test_std_rejectoutliers_uses_euclidean_distance_threshold():
+    study, alleeg = _study_with_ica()
+    study["cluster"] = [
+        {
+            "name": "ParentCluster",
+            "sets": [[1, 1, 1]],
+            "comps": [1, 2, 3],
+            "parent": [],
+            "child": ["Cls 1"],
+            "preclust": {"preclustparams": [], "preclustdata": []},
+        },
+        {
+            "name": "Cls 1",
+            "sets": [[1, 1, 1]],
+            "comps": [1, 2, 3],
+            "parent": ["ParentCluster"],
+            "child": [],
+            "preclust": {
+                "preclustparams": [{"measure": "fixture"}],
+                "preclustdata": [[0.0], [1.0], [4.0]],
+            },
+        },
+    ]
+
+    rejected = std_rejectoutliers(study, alleeg, clusters=[2], th=2.7)
+
+    assert rejected["cluster"][1]["comps"] == [1, 2]
+    assert rejected["cluster"][-1]["comps"] == [3]
 
 
 def test_pop_preclust_clust_and_clustedit_history_replays():
@@ -221,3 +312,24 @@ def test_cluster_gui_specs_and_cancel_paths_are_stable():
     assert pop_preclust(study, alleeg, gui=True, renderer=_Renderer(None), return_com=True)[2] == ""
     assert pop_clust(study, alleeg, gui=True, renderer=_Renderer(None), return_com=True)[1] == ""
     assert pop_clustedit(study, alleeg, gui=True, renderer=_Renderer(None), return_com=True)[1] == ""
+
+
+def test_clustedit_gui_empty_threshold_falls_back_for_non_reject_actions():
+    study, alleeg = _preclustered_study()
+    study = pop_clust(study, alleeg, clus_num=2, random_state=11)
+    renderer = _Renderer(
+        {
+            "action": 1,
+            "cluster": "",
+            "clusters": "2 3",
+            "comps": "",
+            "to_cluster": "",
+            "name": "",
+            "threshold": "",
+        }
+    )
+
+    _study, command, figure = pop_clustedit(study, alleeg, gui=True, renderer=renderer, return_com=True)
+
+    assert "action='plot'" in command
+    assert figure is not None

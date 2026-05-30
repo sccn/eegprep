@@ -64,6 +64,24 @@
     <li>The Phase 5c cluster plot hook intentionally plots cluster membership
       summaries. Full component ERP/spectrum/ERSP/ITC visualization remains
       coordinated with Phase 5b plotting outputs.</li>
+    <li>Claude Code review follow-up tightened parity and API behavior:
+      invalid <code>pop_clust(clus_num &lt; 2)</code> and non-positive outlier
+      thresholds now raise, outlier detection uses Euclidean distance standard
+      deviations, <code>std_createclust</code> numbers <code>Cls</code> and
+      <code>outlier</code> clusters independently, and GUI
+      <code>pop_clustedit</code> falls back when the threshold field is blank
+      for non-rejection actions.</li>
+    <li><code>std_moveoutlier</code> now stores an EEGPrep-owned
+      <code>outlier_parent_cluster</code> back-reference and
+      <code>std_renameclust</code> keeps outlier cluster names paired with the
+      renamed source cluster. EEGLAB's <code>std_renameclust.m</code> performs
+      the same visible outlier-name update.</li>
+    <li><code>std_mergeclust</code> intentionally keeps the EEGLAB
+      <code>std_mergeclust.m</code> hierarchy where the merged cluster lists the
+      merged source clusters as parents and the source clusters list the merge
+      as a child. A Claude review note suggested reparenting the merge to the
+      shared upstream parent, but the local EEGLAB sources do not support that
+      change.</li>
   </ul>
 
   <h2>Open risks</h2>
@@ -74,22 +92,23 @@
     <li>MATLAB parity for exact k-means labels is sensitive to implementation
       differences. Deterministic parity should compare data structures and
       component coverage unless MATLAB and sklearn seeds are explicitly aligned.</li>
-    <li>GUI visual parity captures still need to be generated in the final
-      verification pass and attached to the PR as user attachments.</li>
+    <li>GUI visual parity captures have been generated and attached to the PR
+      as GitHub user attachments. The local artifacts remain uncommitted under
+      <code>.visual-parity/</code>.</li>
   </ul>
 
   <h2>Test evidence</h2>
   <ul>
     <li><code>uv run --no-sync pytest tests/test_study_clustering.py</code>:
-      8 passed.</li>
+      14 passed after Claude Code review follow-up.</li>
     <li><code>uv run --no-sync pytest tests/test_plugin_menu.py tests/test_menu_placeholder_inventory.py tests/test_console_workspace.py tests/test_gui_pop_study.py tests/test_study_metadata.py tests/test_study_clustering.py</code>:
-      108 passed.</li>
+      114 passed after Claude Code review follow-up.</li>
     <li><code>uv run --no-sync ruff check .</code>: passed.</li>
     <li><code>uv run --no-sync ruff format --check .</code>: passed.</li>
     <li><code>uv run --no-sync ty check</code>: passed after syncing
       <code>gui</code> and <code>torch</code> extras for optional imports.</li>
     <li><code>EEGPREP_SKIP_MATLAB=1 uv run --no-sync pytest -m "not slow"</code>:
-      1583 passed, 228 skipped, 11 deselected, 163 warnings.</li>
+      1589 passed, 228 skipped, 11 deselected, 163 warnings.</li>
     <li>Visual parity captures generated for <code>pop_preclust_dialog</code>,
       <code>pop_clust_dialog</code>, and <code>pop_clustedit_dialog</code>
       using <code>EEGPREP_EEGLAB_ROOT=/Users/suraj/Desktop/eeglab</code>.
