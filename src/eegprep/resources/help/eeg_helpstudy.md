@@ -13,9 +13,11 @@ Implemented STUDY actions:
 - `pop_savestudy`: save the current STUDY.
 - `pop_precomp`: precompute channel or component ERP, spectrum, ERSP, and ITC measures.
 - `pop_chanplot`: plot cached channel or parent-cluster component measures.
+- `pop_preclust`: build ICA component preclustering arrays.
+- `pop_clust`: cluster preclustered ICA components.
+- `pop_clustedit`: edit clusters and plot cluster summaries.
 
-Pending preclustering, clustering, and cluster-edit actions remain Phase 5c
-placeholders until that branch lands. Component measures are currently stored on
-the parent cluster for later Phase 5c consumption.
+Component ERP, spectrum, ERSP, and ITC clustering inputs are cached on the
+parent `STUDY.cluster[0]` entry by `pop_precomp`.
 
-See also: POP_STUDY, POP_PRECOMP, POP_CHANPLOT, POP_LOADSTUDY, POP_SAVESTUDY
+See also: POP_STUDY, POP_PRECOMP, POP_CHANPLOT, POP_LOADSTUDY, POP_SAVESTUDY, POP_PRECLUST, POP_CLUST, POP_CLUSTEDIT

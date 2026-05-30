@@ -31,6 +31,8 @@ IMPLEMENTED_ACTIONS = {
     "pop_biosig",
     "pop_chanevent",
     "pop_chanplot",
+    "pop_clust",
+    "pop_clustedit",
     "pop_clean_rawdata",
     "pop_chanedit",
     "pop_comperp",
@@ -83,6 +85,7 @@ IMPLEMENTED_ACTIONS = {
     "pop_loadset",
     "pop_plotdata",
     "pop_plottopo",
+    "pop_preclust",
     "pop_precomp",
     "pop_prop",
     "pop_runscript",
@@ -291,6 +294,9 @@ class MenuActionDispatcher:
             "pop_studyerp",
             "pop_loadstudy",
             "pop_savestudy",
+            "pop_preclust",
+            "pop_clust",
+            "pop_clustedit",
             "pop_precomp",
         }:
             self._study_action(base, variant, parent)
@@ -695,6 +701,19 @@ class MenuActionDispatcher:
             self.session.set_study(study, alleeg, command=command)
             self._refresh()
             return
+        if action == "pop_preclust":
+            if not self.session.STUDY:
+                self._warn(parent, "Create or load a STUDY before preclustering components")
+                return
+            from eegprep.functions.studyfunc.pop_preclust import pop_preclust
+
+            study, alleeg, command = pop_preclust(self.session.STUDY, self.session.ALLEEG, gui=True, return_com=True)
+            if not command:
+                return
+            self.session.echo_command(command)
+            self.session.set_study(study, alleeg, command=command)
+            self._refresh()
+            return
         if action == "pop_precomp":
             if not self.session.STUDY:
                 self._warn(parent, "Create or load a STUDY before precomputing measures")
@@ -709,6 +728,32 @@ class MenuActionDispatcher:
                 return
             self.session.echo_command(command)
             self.session.set_study(study, alleeg, command=command)
+            self._refresh()
+            return
+        if action == "pop_clust":
+            if not self.session.STUDY:
+                self._warn(parent, "Create or load a STUDY before clustering components")
+                return
+            from eegprep.functions.studyfunc.pop_clust import pop_clust
+
+            study, command = pop_clust(self.session.STUDY, self.session.ALLEEG, gui=True, return_com=True)
+            if not command:
+                return
+            self.session.echo_command(command)
+            self.session.set_study(study, command=command)
+            self._refresh()
+            return
+        if action == "pop_clustedit":
+            if not self.session.STUDY:
+                self._warn(parent, "Create or load a STUDY before editing clusters")
+                return
+            from eegprep.functions.studyfunc.pop_clustedit import pop_clustedit
+
+            study, command, _figure = pop_clustedit(self.session.STUDY, self.session.ALLEEG, gui=True, return_com=True)
+            if not command:
+                return
+            self.session.echo_command(command)
+            self.session.set_study(study, command=command)
             self._refresh()
             return
         if action == "pop_studywizard":

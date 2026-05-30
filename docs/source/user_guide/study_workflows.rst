@@ -54,11 +54,26 @@ Precompute and plot STUDY measures:
    STUDY, erpdata, erptimes, fig = std_erpplot(STUDY, ALLEEG, channels=[1])
 
 Channel measures are stored in ``STUDY.changrp``. Component measures are stored
-on ``STUDY.cluster[0]`` until preclustering and cluster editing land in the next
-STUDY phase. Cached measure fields follow EEGLAB names such as ``erpdata``,
+on the parent ``STUDY.cluster[0]`` entry so preclustering can read the same
+cached arrays. Cached measure fields follow EEGLAB names such as ``erpdata``,
 ``specdata``, ``erspdata``, and ``itcdata``. The selected ``design`` is recorded
 in each measure group's metadata, but Phase 5b arrays are dataset-level averages
 and are not split into EEGLAB design cells yet.
+
+Precluster and cluster ICA components:
+
+.. code-block:: python
+
+   from eegprep import pop_clust, pop_clustedit, pop_preclust
+
+   STUDY, ALLEEG, com = pop_preclust(
+       STUDY,
+       ALLEEG,
+       preproc=[{"measure": "scalp", "npca": 3, "norm": 1, "weight": 1}],
+       return_com=True,
+   )
+   STUDY, com = pop_clust(STUDY, ALLEEG, clus_num=4, random_state=0, return_com=True)
+   STUDY, com, fig = pop_clustedit(STUDY, ALLEEG, action="plot", return_com=True)
 
 Session Synchronization
 =======================
@@ -68,13 +83,13 @@ The GUI and ``eegprep-console`` share ``STUDY`` and ``CURRENTSTUDY`` through
 ``CURRENTSTUDY`` to ``1``. Retrieving a dataset from the Datasets menu returns
 ``CURRENTSTUDY`` to ``0`` and records that transition in history.
 
-Pending Phase 5 Surfaces
-========================
+Phase 5 Coordination
+====================
 
-Preclustering, clustering, and cluster-edit actions remain Phase 5 placeholders
-until those branches land. Help text for implemented STUDY actions is packaged
-now; pending actions should receive expanded help resources when their
-implementation merges.
+Phase 5b precomputes component ERP, spectrum, ERSP, and ITC arrays on the
+parent ``STUDY.cluster[0]`` entry. Phase 5c preclustering reads those cached
+component arrays and can also build scalp-map features directly from loaded ICA
+maps.
 
 See the :ref:`interactive_console` guide for mixed GUI plus console usage and
 the :ref:`gui_help_menus` guide for menu inventory behavior.
