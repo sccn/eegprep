@@ -466,6 +466,40 @@ class MenuActionDispatcherTests(unittest.TestCase):
 
         help_dialog.assert_called_once_with("eeg_helpadmin", parent=None)
 
+    def test_bare_help_action_defaults_to_eegprep_topic(self):
+        dispatcher = MenuActionDispatcher(EEGPrepSession())
+
+        with mock.patch("eegprep.functions.guifunc.menu_actions.pophelp") as help_dialog:
+            dispatcher.dispatch("help")
+
+        help_dialog.assert_called_once_with("eegprep", parent=None)
+
+    def test_help_and_admin_link_actions_do_not_mutate_session_history(self):
+        session = EEGPrepSession()
+        session.store_current(_demo_eeg(), new=True)
+        original_currentset = list(session.CURRENTSET)
+        original_history = list(session.ALLCOM)
+        dispatcher = MenuActionDispatcher(session)
+
+        with (
+            mock.patch("eegprep.functions.guifunc.menu_actions.pophelp"),
+            mock.patch("eegprep.functions.guifunc.menu_actions.webbrowser.open"),
+        ):
+            for action in (
+                "help:eeg_helpadmin",
+                "help:eeg_helpmenu",
+                "tutorial",
+                "mailto:eeglab@sccn.ucsd.edu",
+                "updates",
+                "issues",
+                "license",
+            ):
+                dispatcher.dispatch(action)
+
+        self.assertEqual(session.CURRENTSET, original_currentset)
+        self.assertEqual(session.ALLCOM, original_history)
+        self.assertEqual(session.EEG["setname"], "demo")
+
     def test_tutorial_mailto_updates_and_issue_actions_open_expected_targets(self):
         dispatcher = MenuActionDispatcher(EEGPrepSession())
 

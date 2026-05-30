@@ -1,6 +1,7 @@
 import unittest
 from importlib import resources
 from pathlib import Path
+import tomllib
 
 from eegprep.functions.guifunc.eeglab_menu import eeglab_menus, menu_actions
 from eegprep.functions.guifunc.menu_actions import action_kind
@@ -60,6 +61,12 @@ class PopHelpAndChanSelTests(unittest.TestCase):
         self.assertTrue(help_files.joinpath("eegprep.md").is_file())
         self.assertTrue(help_files.joinpath("eeg_helpadmin.md").is_file())
         self.assertIn("EEGPrep", help_files.joinpath("eegprep.md").read_text(encoding="utf-8"))
+
+    def test_help_resources_are_declared_as_package_data(self):
+        pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+        package_data = pyproject["tool"]["setuptools"]["package-data"]["eegprep"]
+
+        self.assertIn("resources/help/*.md", package_data)
 
     def test_implemented_menu_help_actions_have_packaged_resources(self):
         full_menu_actions = menu_actions(eeglab_menus(all_menus=True, include_plugins=True))

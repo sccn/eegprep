@@ -55,7 +55,9 @@ def test_placeholder_inventory_classifies_representative_phase_work():
     assert action_kind("pop_viewprops:channels") == "implemented"
     assert action_kind("pop_viewprops:components") == "implemented"
     assert placeholder_metadata("pop_studydesign").phase == "5"
-    assert placeholder_metadata("eeglab_update").phase == "6"
+    assert placeholder_metadata("eeglab_update") is None
+    assert action_kind("updates") == "implemented"
+    assert not any(metadata.phase == "6" for metadata in placeholder_inventory().values())
 
 
 def test_phase1b_placeholders_are_removed_after_file_edit_completion():
