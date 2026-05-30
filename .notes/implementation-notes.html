@@ -82,6 +82,12 @@
       as a child. A Claude review note suggested reparenting the merge to the
       shared upstream parent, but the local EEGLAB sources do not support that
       change.</li>
+    <li>Phase completion audit follow-up made GUI submit paths tolerate blank
+      optional numeric fields for clustering, kept outlier cluster
+      <code>preclustdata</code> empty until components are moved into it, and
+      added bare <code>eegprep-console</code> coverage for
+      <code>pop_preclust</code>, <code>pop_clustedit(action="rename")</code>,
+      and <code>pop_clustedit(action="plot")</code>.</li>
   </ul>
 
   <h2>Open risks</h2>
@@ -100,15 +106,15 @@
   <h2>Test evidence</h2>
   <ul>
     <li><code>uv run --no-sync pytest tests/test_study_clustering.py</code>:
-      14 passed after Claude Code review follow-up.</li>
+      16 passed after the Phase completion audit follow-up.</li>
     <li><code>uv run --no-sync pytest tests/test_plugin_menu.py tests/test_menu_placeholder_inventory.py tests/test_console_workspace.py tests/test_gui_pop_study.py tests/test_study_metadata.py tests/test_study_clustering.py</code>:
-      114 passed after Claude Code review follow-up.</li>
+      116 passed after the Phase completion audit follow-up.</li>
     <li><code>uv run --no-sync ruff check .</code>: passed.</li>
     <li><code>uv run --no-sync ruff format --check .</code>: passed.</li>
     <li><code>uv run --no-sync ty check</code>: passed after syncing
       <code>gui</code> and <code>torch</code> extras for optional imports.</li>
     <li><code>EEGPREP_SKIP_MATLAB=1 uv run --no-sync pytest -m "not slow"</code>:
-      1589 passed, 228 skipped, 11 deselected, 163 warnings.</li>
+      1591 passed, 228 skipped, 11 deselected, 163 warnings.</li>
     <li>Visual parity captures generated for <code>pop_preclust_dialog</code>,
       <code>pop_clust_dialog</code>, and <code>pop_clustedit_dialog</code>
       using <code>EEGPREP_EEGLAB_ROOT=/Users/suraj/Desktop/eeglab</code>.

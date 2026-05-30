@@ -37,7 +37,7 @@ def pop_preclust(
         result = inputgui(pop_preclust_dialog_spec(study), renderer=renderer)
         if result is None:
             return (study, datasets, "") if return_com else (study, datasets)
-        cluster_ind = int(numeric_vector(result.get("cluster_ind", cluster_ind), dtype=int)[0])
+        cluster_ind = _int_field(result, "cluster_ind", int(cluster_ind or 1))
         preproc = _specs_from_gui(result)
     elif preproc is None:
         preproc = _specs_from_measures(measures)

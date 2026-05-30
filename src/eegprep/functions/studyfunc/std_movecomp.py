@@ -86,7 +86,8 @@ def _append_preclust_rows(new: dict[str, Any], old: dict[str, Any], selected: np
     else:
         merged = np.concatenate([new_data, old_data[selected, :]], axis=0)
     new_preclust["preclustdata"] = merged.tolist()
-    new_preclust.setdefault("preclustparams", deepcopy((old.get("preclust") or {}).get("preclustparams", [])))
+    if not new_preclust.get("preclustparams"):
+        new_preclust["preclustparams"] = deepcopy((old.get("preclust") or {}).get("preclustparams", []))
     return new_preclust
 
 

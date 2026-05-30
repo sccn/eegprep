@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+from matplotlib import pyplot as plt
 
 from eegprep.functions.adminfunc.console import EEGPrepConsoleWorkspace
 from eegprep.functions.guifunc.session import EEGPrepSession
@@ -174,10 +175,12 @@ def test_cluster_edit_rename_merge_moveoutlier_and_plot():
     moved = std_moveoutlier(renamed, alleeg, 2, [1])
     assert moved["cluster"][1]["comps"] != renamed["cluster"][1]["comps"]
     assert moved["cluster"][-1]["name"].startswith("Outliers")
+    assert np.asarray(moved["cluster"][-1]["preclust"]["preclustdata"]).shape[0] == 1
 
     plotted, _command, figure = pop_clustedit(renamed, alleeg, action="plot", clusters=[2, 3], return_com=True)
     assert plotted["cluster"][1]["name"].startswith("Alpha")
     assert figure is not None
+    plt.close(figure)
 
 
 def test_moveoutlier_reuses_outlier_cluster_after_source_rename():
@@ -299,6 +302,52 @@ def test_console_bare_pop_clust_updates_study_workspace():
     assert session.ALLCOM[-1].startswith("STUDY = pop_clust(")
 
 
+def test_console_bare_preclust_clustedit_and_plot_update_study_workspace():
+    study, alleeg = _study_with_ica()
+    session = EEGPrepSession()
+    session.ALLEEG = alleeg
+    session.STUDY = study
+    session.CURRENTSTUDY = 1
+    workspace = EEGPrepConsoleWorkspace(
+        session,
+        exports={"pop_preclust": pop_preclust, "pop_clust": pop_clust, "pop_clustedit": pop_clustedit},
+    )
+
+    preclust_result = workspace.namespace["pop_preclust"](
+        workspace.namespace["STUDY"],
+        workspace.namespace["ALLEEG"],
+        preproc=[{"measure": "scalp", "npca": 2}],
+    )
+    cluster_result = workspace.namespace["pop_clust"](
+        workspace.namespace["STUDY"],
+        workspace.namespace["ALLEEG"],
+        clus_num=2,
+        random_state=11,
+    )
+    edit_result = workspace.namespace["pop_clustedit"](
+        workspace.namespace["STUDY"],
+        workspace.namespace["ALLEEG"],
+        action="rename",
+        cluster=2,
+        name="Console",
+    )
+    plot_result = workspace.namespace["pop_clustedit"](
+        workspace.namespace["STUDY"],
+        workspace.namespace["ALLEEG"],
+        action="plot",
+        clusters=[2, 3],
+    )
+
+    assert preclust_result.command.startswith("STUDY, ALLEEG = pop_preclust(")
+    assert cluster_result.command.startswith("STUDY = pop_clust(")
+    assert edit_result.command.startswith("STUDY = pop_clustedit(")
+    assert plot_result.command.startswith("STUDY = pop_clustedit(")
+    assert session.CURRENTSTUDY == 1
+    assert session.STUDY["cluster"][1]["name"].startswith("Console")
+    assert session.ALLCOM[-1] == plot_result.command
+    plt.close("all")
+
+
 def test_cluster_gui_specs_and_cancel_paths_are_stable():
     study, alleeg = _preclustered_study()
     preclust_spec = pop_preclust_dialog_spec(study)
@@ -312,6 +361,27 @@ def test_cluster_gui_specs_and_cancel_paths_are_stable():
     assert pop_preclust(study, alleeg, gui=True, renderer=_Renderer(None), return_com=True)[2] == ""
     assert pop_clust(study, alleeg, gui=True, renderer=_Renderer(None), return_com=True)[1] == ""
     assert pop_clustedit(study, alleeg, gui=True, renderer=_Renderer(None), return_com=True)[1] == ""
+
+
+def test_cluster_gui_submit_paths_accept_blank_optional_numeric_fields():
+    study, alleeg = _study_with_ica()
+    preclust_renderer = _Renderer(
+        {"cluster_ind": "", "scalp_on": 1, "scalp_npca": "2", "scalp_weight": "", "scalp_abso": 1}
+    )
+    study, alleeg, preclust_command = pop_preclust(
+        study,
+        alleeg,
+        gui=True,
+        renderer=preclust_renderer,
+        return_com=True,
+    )
+    clust_renderer = _Renderer({"algorithm": 1, "clus_num": "", "outliers_on": 1, "outliers": ""})
+
+    clustered, clust_command = pop_clust(study, alleeg, gui=True, renderer=clust_renderer, return_com=True)
+
+    assert preclust_command.startswith("STUDY, ALLEEG = pop_preclust(")
+    assert clust_command.startswith("STUDY = pop_clust(")
+    assert len(clustered["cluster"]) >= 3
 
 
 def test_clustedit_gui_empty_threshold_falls_back_for_non_reject_actions():
@@ -333,3 +403,4 @@ def test_clustedit_gui_empty_threshold_falls_back_for_non_reject_actions():
 
     assert "action='plot'" in command
     assert figure is not None
+    plt.close(figure)

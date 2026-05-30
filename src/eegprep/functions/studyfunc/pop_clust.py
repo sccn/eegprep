@@ -48,12 +48,8 @@ def pop_clust(
         if result is None:
             return (study, "") if return_com else study
         algorithm = _algorithm_from_gui(result.get("algorithm"))
-        clus_num = int(numeric_vector(result.get("clus_num", clus_num), dtype=int)[0])
-        outliers = (
-            float(numeric_vector(result.get("outliers", 3), dtype=float)[0])
-            if bool(result.get("outliers_on"))
-            else float("inf")
-        )
+        clus_num = _optional_int(result.get("clus_num"), _default_cluster_count(study))
+        outliers = _optional_float(result.get("outliers"), 3.0) if bool(result.get("outliers_on")) else float("inf")
 
     preclust = study.get("etc", {}).get("preclust")
     if not isinstance(preclust, dict) or not preclust.get("preclustdata"):
@@ -95,9 +91,7 @@ def pop_clust(
 
 def pop_clust_dialog_spec(STUDY: dict[str, Any]) -> DialogSpec:
     """Return the EEGLAB-like clustering algorithm dialog spec."""
-    preclust = STUDY.get("etc", {}).get("preclust", {})
-    rows = len(preclust.get("preclustdata") or [])
-    default_clusters = max(2, min(20, int(np.ceil(rows / 2)) if rows else 2))
+    default_clusters = _default_cluster_count(STUDY)
     return DialogSpec(
         title="Set clustering algorithm -- pop_clust()",
         controls=(
@@ -141,6 +135,22 @@ def _algorithm_from_gui(value: Any) -> str:
     except (TypeError, ValueError):
         index = 0
     return ALGORITHMS[index] if 0 <= index < len(ALGORITHMS) else "kmeans"
+
+
+def _default_cluster_count(study: dict[str, Any]) -> int:
+    preclust = study.get("etc", {}).get("preclust", {})
+    rows = len(preclust.get("preclustdata") or [])
+    return max(2, min(20, int(np.ceil(rows / 2)) if rows else 2))
+
+
+def _optional_int(value: Any, default: int) -> int:
+    values = numeric_vector(value, dtype=int)
+    return int(values[0]) if values.size else int(default)
+
+
+def _optional_float(value: Any, default: float) -> float:
+    values = numeric_vector(value, dtype=float)
+    return float(values[0]) if values.size else float(default)
 
 
 __all__ = ["pop_clust", "pop_clust_dialog_spec"]

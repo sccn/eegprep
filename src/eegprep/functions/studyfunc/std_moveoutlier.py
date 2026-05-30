@@ -80,7 +80,10 @@ def _create_outlier_cluster(study: dict[str, Any], cluster_index: int) -> dict[s
             "parent": parent_names,
             "child": [],
             "algorithm": ["manual_outlier"],
-            "preclust": deepcopy(source.get("preclust") or {"preclustparams": [], "preclustdata": []}),
+            "preclust": {
+                "preclustparams": deepcopy((source.get("preclust") or {}).get("preclustparams", [])),
+                "preclustdata": [],
+            },
             OUTLIER_SOURCE_FIELD: source_name,
         }
     )
