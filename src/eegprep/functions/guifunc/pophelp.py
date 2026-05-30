@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import html
+from importlib.abc import Traversable
 from importlib import resources
 import re
 from typing import Any
@@ -68,7 +69,7 @@ def _normalise_function_name(function_name: str) -> str:
     return function_name
 
 
-def _find_source(function_name: str, *, missing_ok: bool = False) -> Any | None:
+def _find_source(function_name: str, *, missing_ok: bool = False) -> Traversable | None:
     direct = resources.files(HELP_PACKAGE).joinpath(f"{function_name}.md")
     if direct.is_file():
         return direct
@@ -81,13 +82,14 @@ def _find_source(function_name: str, *, missing_ok: bool = False) -> Any | None:
     )
 
 
-def _read_help_source(path: Any | None, *, nonmatlab: bool) -> str:
+def _read_help_source(path: Traversable | None, *, nonmatlab: bool) -> str:
     if path is None:
         return ""
-    return path.read_text(encoding="utf-8").strip() or f"No help found for {path.stem}."
+    function_name = path.name.rsplit(".", 1)[0]
+    return path.read_text(encoding="utf-8").strip() or f"No help found for {function_name}."
 
 
-def _resource_source_name(path: Any) -> str:
+def _resource_source_name(path: Traversable) -> str:
     return f"eegprep/resources/help/{path.name}"
 
 

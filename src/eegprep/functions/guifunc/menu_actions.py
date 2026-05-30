@@ -217,7 +217,7 @@ class MenuActionDispatcher:
             self._show_extension_manager(parent)
             return
         if base == "help":
-            self._show_help(variant or "eeglab", parent)
+            self._show_help(variant or "eegprep", parent)
             return
         if base == "docs":
             webbrowser.open(_docs_url(variant))
