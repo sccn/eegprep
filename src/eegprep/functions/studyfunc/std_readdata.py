@@ -36,7 +36,8 @@ def std_readdata(
         cluster = _component_cluster(study, clusters)
         data = _data_array(cluster, measure)
         if components is not None:
-            selected = _selected_components(components, data.shape[1] if data.ndim >= 2 else 0)
+            component_axis = component_measure_axis(cluster, data.shape[1] if data.ndim >= 2 else 0)
+            selected = component_measure_selection(components, component_axis)
             data = data[:, selected, ...]
         return study, [data], _x_axis(cluster, measure), _y_axis(cluster, measure)
     raise ValueError("std_readdata requires channels or clusters/components")
@@ -103,15 +104,49 @@ def _component_cluster(study: dict[str, Any], clusters: Any) -> dict[str, Any]:
     return cluster_list[index - 1]
 
 
-def _selected_components(components: Any, count: int) -> np.ndarray:
+def component_measure_axis(group: dict[str, Any], count: int) -> np.ndarray:
+    """Return cached component IDs for a STUDY component-measure axis."""
+    raw_measureinfo = group.get("measureinfo")
+    measureinfo: dict[str, Any] = raw_measureinfo if isinstance(raw_measureinfo, dict) else {}
+    values = numeric_vector(measureinfo.get("components"), dtype=int)
+    if values.size == count:
+        return values.astype(int)
+    values = numeric_vector(group.get("comps"), dtype=int)
+    unique_values = np.asarray(_unique_preserving_order(values.tolist()), dtype=int)
+    if unique_values.size == count:
+        return unique_values
+    return np.arange(1, count + 1, dtype=int)
+
+
+def component_measure_selection(components: Any, axis: np.ndarray) -> np.ndarray:
+    """Map EEGLAB-facing component IDs to cached component-axis positions."""
+    axis = np.asarray(axis, dtype=int).ravel()
     if isinstance(components, str) and components.lower() == "all":
-        return np.arange(count, dtype=int)
+        return np.arange(axis.size, dtype=int)
     indices = numeric_vector(components, dtype=int)
     if indices.size == 0:
-        return np.arange(count, dtype=int)
-    if np.any(indices < 1) or np.any(indices > count):
-        raise ValueError(f"components must be 1-based and within 1..{count}")
-    return indices - 1
+        return np.arange(axis.size, dtype=int)
+    selected = []
+    missing = []
+    for value in indices.tolist():
+        matches = np.where(axis == int(value))[0]
+        if matches.size == 0:
+            missing.append(int(value))
+        else:
+            selected.append(int(matches[0]))
+    if missing:
+        available = ", ".join(str(value) for value in axis.tolist()) or "none"
+        requested = ", ".join(str(value) for value in missing)
+        raise ValueError(f"components {requested} are not cached; available component IDs: {available}")
+    return np.asarray(selected, dtype=int)
+
+
+def _unique_preserving_order(values: list[int]) -> list[int]:
+    output = []
+    for value in values:
+        if value not in output:
+            output.append(value)
+    return output
 
 
 def _all_channels_requested(channels: Any) -> bool:
@@ -141,4 +176,11 @@ def _y_axis(group: dict[str, Any], measure: str) -> np.ndarray:
     return np.asarray(group.get(field, []), dtype=float)
 
 
-__all__ = ["std_readdata", "std_readerp", "std_readspec", "std_readersp"]
+__all__ = [
+    "component_measure_axis",
+    "component_measure_selection",
+    "std_readdata",
+    "std_readerp",
+    "std_readspec",
+    "std_readersp",
+]

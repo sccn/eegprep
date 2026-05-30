@@ -211,6 +211,31 @@ def test_std_precomp_component_measures_and_parent_cluster_plot():
     plt.close(figure)
 
 
+def test_component_measure_reads_map_requested_component_ids_to_cached_axis():
+    eeg = create_test_eeg_with_ica(n_channels=5, n_samples=72, n_trials=3, n_components=4)
+    eeg.update({"setname": "ica1", "subject": "S01", "condition": "target"})
+    study, alleeg = pop_study(None, [eeg], name="Component subset study")
+    study["datasetinfo"][0]["comps"] = [2, 4]
+    study, alleeg = pop_precomp(study, alleeg, "components", erp="on", allcomps="off")
+    cluster = study["cluster"][0]
+    raw = np.asarray(cluster["erpdata"], dtype=float)
+
+    _study, selected, _times, _freqs = std_readerp(study, alleeg, clusters=1, components=[2])
+
+    assert cluster["measureinfo"]["components"] == [2, 4]
+    np.testing.assert_allclose(selected[0], raw[:, [0], :])
+    with pytest.raises(ValueError, match="available component IDs: 2, 4"):
+        std_readerp(study, alleeg, clusters=1, components=[1])
+
+    study, _command, figure = pop_chanplot(
+        study, alleeg, components=[4], measure="erp", mode="components", return_com=True
+    )
+
+    assert study["etc"]["last_chanplot"]["components"] == [4]
+    assert figure.axes[0].get_legend().get_texts()[0].get_text() == "IC 4"
+    plt.close(figure)
+
+
 def test_precomp_missing_ica_and_unknown_channel_paths_fail_clearly():
     study, alleeg = _study_pair()
 

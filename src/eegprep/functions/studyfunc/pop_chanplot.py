@@ -17,7 +17,7 @@ from eegprep.functions.popfunc._plot_utils import (
     numeric_vector,
     python_literal,
 )
-from eegprep.functions.studyfunc.std_readdata import std_readdata
+from eegprep.functions.studyfunc.std_readdata import component_measure_axis, component_measure_selection, std_readdata
 
 
 MEASURE_OPTIONS = ("erp", "spec", "ersp", "itc")
@@ -198,11 +198,13 @@ def _plot_channel_measure(
 
 
 def _plot_component_measure(study: dict[str, Any], components: Any, measure: str) -> tuple[Any, list[int]]:
-    _study, data, x_axis, y_axis = std_readdata(study, datatype=measure, clusters=1)
+    parent = (study.get("cluster") or [{}])[0]
+    raw_data = np.asarray(parent.get(_field(measure), []), dtype=float)
+    component_axis = component_measure_axis(parent, raw_data.shape[1] if raw_data.ndim >= 2 else 0)
+    positions = component_measure_selection(components, component_axis)
+    selected = component_axis[positions].astype(int).tolist()
+    _study, data, x_axis, y_axis = std_readdata(study, datatype=measure, clusters=1, components=components)
     values = data[0]
-    selected = _component_selection(components, values.shape[1] if values.ndim >= 2 else 0)
-    indices = np.asarray(selected, dtype=int) - 1
-    values = values[:, indices, ...]
     if measure in {"erp", "spec"}:
         fig, ax = plt.subplots(figsize=(8, 4.5))
         y_values = np.nanmean(values, axis=0)
@@ -377,17 +379,6 @@ def _selected_channels(values: Any, count: int) -> np.ndarray:
     if np.any(vector < 1) or np.any(vector > count):
         raise ValueError(f"channels must be 1-based and within 1..{count}")
     return vector - 1
-
-
-def _component_selection(values: Any, count: int) -> list[int]:
-    if isinstance(values, str) and values.lower() == "all":
-        return list(range(1, count + 1))
-    vector = numeric_vector(values, dtype=int)
-    if vector.size == 0:
-        return list(range(1, count + 1))
-    if np.any(vector < 1) or np.any(vector > count):
-        raise ValueError(f"components must be 1-based and within 1..{count}")
-    return vector.tolist()
 
 
 def _validate_time_grid(datasets: list[dict[str, Any]]) -> None:

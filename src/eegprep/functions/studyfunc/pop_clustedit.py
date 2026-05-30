@@ -129,10 +129,10 @@ def pop_clustedit_dialog_spec(STUDY: dict[str, Any]) -> DialogSpec:
         ControlSpec("spacer"),
         _clustedit_button("Plot ITC(s)", "plot", "plot_comp_itc", enabled=False),
         ControlSpec("spacer", tag="action"),
-        _clustedit_button("Create new cluster", "plot", "create_cluster"),
+        _clustedit_button("Create new cluster", "plot", "create_cluster", enabled=False),
         ControlSpec("spacer"),
-        _clustedit_button("Reassign selected component(s)", "movecomp", "move_comp"),
-        _clustedit_button("Rename selected cluster", "rename", "rename_cluster"),
+        _clustedit_button("Reassign selected component(s)", "movecomp", "move_comp", enabled=False),
+        _clustedit_button("Rename selected cluster", "rename", "rename_cluster", enabled=False),
         ControlSpec("spacer"),
         _clustedit_button("Remove selected outlier comps.", "moveoutlier", "move_outlier"),
     ]

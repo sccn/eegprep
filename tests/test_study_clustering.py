@@ -359,6 +359,9 @@ def test_cluster_gui_specs_and_cancel_paths_are_stable():
     assert controls_by_tag(edit_spec)["clus_list"].string.startswith("All cluster centroids|ParentCluster")
     assert controls_by_tag(edit_spec)["plot_clus_maps"].string == "Plot scalp maps"
     assert controls_by_tag(edit_spec)["move_outlier"].string == "Remove selected outlier comps."
+    assert controls_by_tag(edit_spec)["create_cluster"].enabled is False
+    assert controls_by_tag(edit_spec)["move_comp"].enabled is False
+    assert controls_by_tag(edit_spec)["rename_cluster"].enabled is False
 
     assert pop_preclust(study, alleeg, gui=True, renderer=_Renderer(None), return_com=True)[2] == ""
     assert pop_clust(study, alleeg, gui=True, renderer=_Renderer(None), return_com=True)[1] == ""
