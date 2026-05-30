@@ -146,6 +146,9 @@ class QtDialogRenderer:
                 color: #000066;
                 background: transparent;
             }
+            QLabel:disabled, QCheckBox:disabled {
+                color: #7c86a8;
+            }
             QLineEdit {
                 background: white;
                 border: 1px solid #7f7f7f;
@@ -171,6 +174,10 @@ class QtDialogRenderer:
                 max-height: 20px;
                 color: #000066;
             }
+            QComboBox:disabled {
+                background: #dce6ff;
+                color: #7c86a8;
+            }
             QListWidget {
                 background: white;
                 border: 1px solid #7f7f7f;
@@ -188,6 +195,10 @@ class QtDialogRenderer:
             }
             QPushButton:disabled {
                 color: #b0b0b0;
+            }
+            QPushButton#double_dip_help {
+                min-width: 150px;
+                max-width: 150px;
             }
             QPushButton#events_button {
                 min-width: 130px;
@@ -334,7 +345,7 @@ class QtDialogRenderer:
                 widget.setCurrentIndex(index)
         elif style == "listbox":
             widget = QtWidgets.QListWidget()
-            widget.addItems([item.strip() for item in control.string.split("|")])
+            widget.addItems(list(control.string.split("|")))
             if _is_sequence_value(value):
                 widget.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
                 widget.setProperty(_MULTI_SELECT_PROPERTY, True)
@@ -440,6 +451,11 @@ class QtDialogRenderer:
             source = widgets.get(params["button"])
             if source is not None:
                 source.clicked.connect(lambda: self._show_callback_message(source, params))
+        elif callback.name == "set_value":
+            source = widgets.get(params["source"])
+            target = widgets.get(params["target"])
+            if source is not None and target is not None:
+                source.clicked.connect(lambda: target.setProperty(_VALUE_PROPERTY, params["value"]))
         elif callback.name == "headplot_manual_coreg":
             source = widgets.get(params["button"])
             if source is not None:

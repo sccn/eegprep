@@ -350,8 +350,15 @@ def test_cluster_gui_specs_and_cancel_paths_are_stable():
     edit_spec = pop_clustedit_dialog_spec(study)
 
     assert controls_by_tag(preclust_spec)["scalp_on"].value == 0
+    assert (
+        controls_by_tag(preclust_spec)["scalp_choice"].string
+        == "Use channel values|Use Laplacian values|Use Gradient values"
+    )
+    assert "double_dip_help" in controls_by_tag(preclust_spec)
     assert controls_by_tag(clust_spec)["clus_num"].value
-    assert controls_by_tag(edit_spec)["action"].value == 1
+    assert controls_by_tag(edit_spec)["clus_list"].string.startswith("All cluster centroids|ParentCluster")
+    assert controls_by_tag(edit_spec)["plot_clus_maps"].string == "Plot scalp maps"
+    assert controls_by_tag(edit_spec)["move_outlier"].string == "Remove selected outlier comps."
 
     assert pop_preclust(study, alleeg, gui=True, renderer=_Renderer(None), return_com=True)[2] == ""
     assert pop_clust(study, alleeg, gui=True, renderer=_Renderer(None), return_com=True)[1] == ""
@@ -361,7 +368,7 @@ def test_cluster_gui_specs_and_cancel_paths_are_stable():
 def test_cluster_gui_submit_paths_accept_blank_optional_numeric_fields():
     study, alleeg = _study_with_ica()
     preclust_renderer = _Renderer(
-        {"cluster_ind": "", "scalp_on": 1, "scalp_npca": "2", "scalp_weight": "", "scalp_abso": 1}
+        {"cluster_ind": "", "scalp_on": 1, "scalp_PCA": "2", "scalp_weight": "", "scalp_absolute": 1}
     )
     study, alleeg, preclust_command = pop_preclust(
         study,

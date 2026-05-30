@@ -475,35 +475,33 @@ def capture_pop_studydesign_dialog(output: pathlib.Path) -> None:
 
 
 def _demo_cluster_study() -> tuple[dict[str, Any], list[dict[str, Any]]]:
-    first, second = _demo_study()[1]
+    first = _demo_study()[1][0]
     first = dict(first)
-    second = dict(second)
-    first["icaweights"] = np.eye(3, 4)
-    second["icaweights"] = np.eye(3, 4)
-    first["icawinv"] = np.array([[1.0, 0.1, 0.2], [0.2, 1.2, 0.3], [0.1, 0.4, 1.4], [0.0, 0.2, 0.5]])
-    second["icawinv"] = first["icawinv"] + 0.2
-    study, alleeg = std_checkset({"name": "menu study", "task": "demo task"}, [first, second])
+    first["icaweights"] = np.eye(4)
+    first["icasphere"] = np.eye(4)
+    first["icawinv"] = np.eye(4)
+    study, alleeg = std_checkset({"name": "menu study", "task": "demo task"}, [first])
     study["cluster"] = [
-        {"name": "ParentCluster", "sets": [[1, 1, 1, 2, 2, 2]], "comps": [1, 2, 3, 1, 2, 3], "child": []},
+        {"name": "ParentCluster", "sets": [[1, 1, 1, 1]], "comps": [1, 2, 3, 4], "child": ["Cls 1", "Cls 2"]},
         {
             "name": "Cls 1",
-            "sets": [[1, 1, 2]],
-            "comps": [1, 2, 1],
+            "sets": [[1, 1]],
+            "comps": [1, 2],
             "parent": ["ParentCluster"],
             "child": [],
-            "preclust": {"preclustdata": [[0.0], [0.1], [0.2]], "preclustparams": []},
+            "preclust": {"preclustdata": [[0.0], [0.1]], "preclustparams": []},
         },
         {
             "name": "Cls 2",
-            "sets": [[1, 2, 2]],
-            "comps": [3, 2, 3],
+            "sets": [[1, 1]],
+            "comps": [3, 4],
             "parent": ["ParentCluster"],
             "child": [],
-            "preclust": {"preclustdata": [[1.0], [1.1], [1.2]], "preclustparams": []},
+            "preclust": {"preclustdata": [[1.0], [1.1]], "preclustparams": []},
         },
     ]
     study.setdefault("etc", {})["preclust"] = {
-        "preclustdata": [[0.0, 0.1], [0.1, 0.1], [0.2, 0.0], [1.0, 1.1], [1.1, 1.0], [1.2, 1.1]],
+        "preclustdata": [[0.0, 0.1], [0.1, 0.1], [1.0, 1.1], [1.1, 1.0]],
         "preclustparams": [{"measure": "scalp", "npca": 2}],
         "clustlevel": 1,
     }

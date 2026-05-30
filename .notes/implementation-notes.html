@@ -87,6 +87,12 @@
       added bare <code>eegprep-console</code> coverage for
       <code>pop_preclust</code>, <code>pop_clustedit(action="rename")</code>,
       and <code>pop_clustedit(action="plot")</code>.</li>
+    <li>The <code>pop_preclust</code> and <code>pop_clustedit</code> dialog
+      specs now mirror the local EEGLAB source row geometry and
+      <code>geomvert</code> values. The follow-up added the missing in-dialog
+      double-dipping Help button, ERP low-pass field, ERSP/ITC frequency-range
+      fields, scalp-map mode popup, clustedit design/list/button matrix, and
+      source-style cluster editing buttons.</li>
   </ul>
 
   <h2>Open risks</h2>
@@ -107,6 +113,11 @@
   <ul>
     <li><code>uv run --no-sync pytest tests/test_study_clustering.py</code>:
       16 passed after the Phase completion audit follow-up.</li>
+    <li><code>uv run --no-sync pytest tests/test_study_clustering.py</code>:
+      16 passed after the <code>pop_preclust</code> and
+      <code>pop_clustedit</code> visual parity follow-up.</li>
+    <li><code>uv run --no-sync pytest tests/test_visual_parity.py</code>:
+      24 passed after updating the dialog visual-parity case sizes.</li>
     <li><code>uv run --no-sync pytest tests/test_study_clustering.py tests/test_study_measures.py</code>:
       28 passed after merging Phase 5b and switching preclustering measure
       reads to the parent-cluster cache.</li>
@@ -121,11 +132,20 @@
     <li><code>EEGPREP_SKIP_MATLAB=1 uv run --no-sync pytest -m "not slow"</code>:
       1615 passed, 228 skipped, 11 deselected, 163 warnings after merging
       Phase 5b.</li>
+    <li><code>EEGPREP_SKIP_MATLAB=1 uv run --no-sync pytest -m "not slow"</code>:
+      1615 passed, 228 skipped, 11 deselected, 163 warnings after the dialog
+      visual parity follow-up.</li>
     <li>Visual parity captures generated for <code>pop_preclust_dialog</code>,
       <code>pop_clust_dialog</code>, and <code>pop_clustedit_dialog</code>
       using <code>EEGPREP_EEGLAB_ROOT=/Users/suraj/Desktop/eeglab</code>.
       Side-by-side artifacts are under <code>.visual-parity/</code> and are
       intentionally not committed.</li>
+    <li><code>uv run --no-sync python tools/visual_parity/capture.py --case pop_preclust_dialog --target both --timeout 180</code>
+      and <code>uv run --no-sync python tools/visual_parity/capture.py --case pop_clustedit_dialog --target both --timeout 180</code>:
+      regenerated MATLAB/EEGPrep captures after the dialog geometry follow-up.
+      <code>compare.py</code> reports were regenerated for both cases; the
+      remaining visual differences are native MATLAB versus Qt widget styling
+      and selection colors, not missing controls.</li>
     <li>GUI Agent QA: Computer Use inspected the <code>pop_clust</code> Qt
       dialog and canceled it cleanly.</li>
     <li>Console QA: an <code>EEGPrepConsoleWorkspace</code> flow ran

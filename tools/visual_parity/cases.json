@@ -332,7 +332,7 @@
     {
       "id": "pop_preclust_dialog",
       "description": "STUDY component preclustering dialog opened from pop_preclust.",
-      "window_size": [800, 560],
+      "window_size": [880, 565],
       "timeout_seconds": 120,
       "targets": {
         "eeglab": {
@@ -382,7 +382,7 @@
     {
       "id": "pop_clustedit_dialog",
       "description": "STUDY component cluster edit and plot dialog opened from pop_clustedit.",
-      "window_size": [760, 460],
+      "window_size": [770, 672],
       "timeout_seconds": 120,
       "targets": {
         "eeglab": {
