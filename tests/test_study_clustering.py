@@ -140,6 +140,15 @@ def test_pop_clust_rejects_invalid_cluster_counts_and_outlier_thresholds():
         pop_clust(study, alleeg, clus_num=2, outliers=-1)
 
 
+def test_pop_clust_outlier_threshold_uses_mean_distance_guard():
+    study, alleeg = _preclustered_study()
+    study["etc"]["preclust"]["preclustdata"] = [[0.0], [0.1], [0.2], [10.0], [10.1], [10.2]]
+
+    clustered = pop_clust(study, alleeg, clus_num=2, outliers=2, random_state=11)
+
+    assert not any(str(cluster["name"]).startswith("outlier") for cluster in clustered["cluster"])
+
+
 def test_std_createclust_numbers_outliers_separately_from_clusters():
     study, alleeg = _preclustered_study()
 

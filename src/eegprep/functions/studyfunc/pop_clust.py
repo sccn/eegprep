@@ -138,13 +138,22 @@ def _kmeans_labels(data: np.ndarray, clus_num: int, random_state: int) -> tuple[
 
 def _mark_outliers(data: np.ndarray, labels: np.ndarray, centers: np.ndarray, threshold: float) -> np.ndarray:
     output = labels.copy()
+    cluster_distances = []
     for label in sorted(set(labels.tolist())):
+        rows = np.flatnonzero(labels == label)
+        if rows.size:
+            cluster_distances.append(np.linalg.norm(data[rows] - centers[label - 1], axis=1))
+    if not cluster_distances:
+        return output
+    reference_distance = float(np.mean([np.mean(distances) for distances in cluster_distances if distances.size]))
+    for label, distances in zip(sorted(set(labels.tolist())), cluster_distances):
         rows = np.flatnonzero(labels == label)
         distances = np.linalg.norm(data[rows] - centers[label - 1], axis=1)
         spread = float(np.std(distances))
         if spread == 0:
             continue
-        output[rows[distances > spread * threshold]] = 0
+        outlier_mask = (distances > spread * threshold) & (distances > reference_distance * threshold)
+        output[rows[outlier_mask]] = 0
     return output
 
 

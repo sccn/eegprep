@@ -16,7 +16,9 @@ from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher, action_
 from eegprep.functions.guifunc.spec import controls_by_tag
 from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.functions.studyfunc.pop_chanplot import pop_chanplot
+from eegprep.functions.studyfunc.pop_clust import pop_clust
 from eegprep.functions.studyfunc.pop_loadstudy import pop_loadstudy
+from eegprep.functions.studyfunc.pop_preclust import pop_preclust
 from eegprep.functions.studyfunc.pop_precomp import pop_precomp, pop_precomp_dialog_spec
 from eegprep.functions.studyfunc.pop_savestudy import pop_savestudy
 from eegprep.functions.studyfunc.pop_study import pop_study
@@ -234,6 +236,23 @@ def test_component_measure_reads_map_requested_component_ids_to_cached_axis():
     assert study["etc"]["last_chanplot"]["components"] == [4]
     assert figure.axes[0].get_legend().get_texts()[0].get_text() == "IC 4"
     plt.close(figure)
+
+
+def test_child_cluster_measure_reads_slice_parent_component_cache():
+    first = create_test_eeg_with_ica(n_channels=5, n_samples=72, n_trials=3, n_components=3)
+    first.update({"setname": "ica1", "subject": "S01", "condition": "target"})
+    second = deepcopy(first)
+    second.update({"setname": "ica2", "subject": "S02", "condition": "standard"})
+    study, alleeg = pop_study(None, [first, second], name="Cluster measure study")
+    study, alleeg = pop_precomp(study, alleeg, "components", erp="on")
+    study, alleeg = pop_preclust(study, alleeg, preproc=[{"measure": "erp", "npca": 2}])
+    study = pop_clust(study, alleeg, clus_num=2, random_state=11)
+    child = study["cluster"][1]
+
+    _study, erpdata, _times, figure, _command = std_erpplot(study, alleeg, clusters=[2], noplot="on", return_com=True)
+
+    assert erpdata[0].shape == (len(child["comps"]), first["pnts"])
+    assert figure is None
 
 
 def test_precomp_missing_ica_and_unknown_channel_paths_fail_clearly():

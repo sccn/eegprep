@@ -7,6 +7,7 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.popfunc._plot_utils import numeric_vector
+from eegprep.functions.studyfunc._cluster_utils import cluster_list, sets_array
 from eegprep.functions.studyfunc._study_utils import ensure_study
 
 
@@ -33,13 +34,18 @@ def std_readdata(
             _y_axis(groups[0], measure),
         )
     if clusters is not None or components is not None:
-        cluster = _component_cluster(study, clusters)
-        data = _data_array(cluster, measure)
-        if components is not None:
+        cluster_index = _component_cluster_index(study, clusters)
+        clusters_list = cluster_list(study)
+        cluster = clusters_list[cluster_index - 1]
+        source = clusters_list[0] if cluster_index > 1 else cluster
+        data = _data_array(source, measure)
+        if cluster_index > 1:
+            data = _cluster_component_data(source, cluster, data, components)
+        elif components is not None:
             component_axis = component_measure_axis(cluster, data.shape[1] if data.ndim >= 2 else 0)
             selected = component_measure_selection(components, component_axis)
             data = data[:, selected, ...]
-        return study, [data], _x_axis(cluster, measure), _y_axis(cluster, measure)
+        return study, [data], _x_axis(source, measure), _y_axis(source, measure)
     raise ValueError("std_readdata requires channels or clusters/components")
 
 
@@ -89,33 +95,44 @@ def _channel_groups(study: dict[str, Any], channels: Any) -> list[dict[str, Any]
     return [lookup[label.lower()] for label in requested]
 
 
-def _component_cluster(study: dict[str, Any], clusters: Any) -> dict[str, Any]:
+def _component_cluster_index(study: dict[str, Any], clusters: Any) -> int:
     cluster_list = [group for group in study.get("cluster") or [] if isinstance(group, dict)]
     if not cluster_list:
         raise ValueError("No component measures are stored in STUDY.cluster")
     if _parent_cluster_requested(clusters):
-        return cluster_list[0]
+        return 1
     indices = numeric_vector(clusters, dtype=int)
     if indices.size != 1:
         raise ValueError("Only one component cluster can be read at a time")
     index = int(indices[0])
     if index < 1 or index > len(cluster_list):
         raise ValueError(f"clusters must be 1-based and within 1..{len(cluster_list)}")
-    return cluster_list[index - 1]
+    return index
 
 
 def component_measure_axis(group: dict[str, Any], count: int) -> np.ndarray:
     """Return cached component IDs for a STUDY component-measure axis."""
+    return _cached_axis_values(group, "components", "comps", count, fallback_start=1)
+
+
+def component_dataset_axis(group: dict[str, Any], count: int) -> np.ndarray:
+    """Return cached STUDY dataset IDs for a component-measure axis."""
+    return _cached_axis_values(group, "datasets", "sets", count, fallback_start=1)
+
+
+def _cached_axis_values(
+    group: dict[str, Any], measureinfo_key: str, fallback_key: str, count: int, *, fallback_start: int
+) -> np.ndarray:
     raw_measureinfo = group.get("measureinfo")
     measureinfo: dict[str, Any] = raw_measureinfo if isinstance(raw_measureinfo, dict) else {}
-    values = numeric_vector(measureinfo.get("components"), dtype=int)
+    values = numeric_vector(measureinfo.get(measureinfo_key), dtype=int)
     if values.size == count:
         return values.astype(int)
-    values = numeric_vector(group.get("comps"), dtype=int)
+    values = numeric_vector(group.get(fallback_key), dtype=int)
     unique_values = np.asarray(_unique_preserving_order(values.tolist()), dtype=int)
     if unique_values.size == count:
         return unique_values
-    return np.arange(1, count + 1, dtype=int)
+    return np.arange(fallback_start, fallback_start + count, dtype=int)
 
 
 def component_measure_selection(components: Any, axis: np.ndarray) -> np.ndarray:
@@ -149,6 +166,42 @@ def _unique_preserving_order(values: list[int]) -> list[int]:
     return output
 
 
+def _cluster_component_data(
+    parent: dict[str, Any], cluster: dict[str, Any], data: np.ndarray, components: Any
+) -> np.ndarray:
+    if data.ndim < 2:
+        raise ValueError("Component measure cache must have dataset and component axes")
+    sets = sets_array(cluster.get("sets")).astype(int)
+    comps = np.asarray(cluster.get("comps") or [], dtype=int).ravel()
+    if sets.shape[1] != comps.size:
+        raise ValueError("STUDY.cluster sets and comps lengths do not match")
+    if comps.size == 0:
+        raise ValueError("Selected STUDY cluster contains no components")
+    if components is not None:
+        requested = numeric_vector(components, dtype=int)
+        if requested.size:
+            keep = np.isin(comps, requested)
+            sets = sets[:, keep]
+            comps = comps[keep]
+    if comps.size == 0:
+        raise ValueError("Selected STUDY cluster contains no cached components")
+    dataset_axis = component_dataset_axis(parent, data.shape[0])
+    component_axis = component_measure_axis(parent, data.shape[1])
+    rows = []
+    for study_set, component in zip(sets[0].tolist(), comps.tolist()):
+        dataset_position = _axis_position(dataset_axis, int(study_set), f"dataset {study_set}")
+        component_position = _axis_position(component_axis, int(component), f"component {component}")
+        rows.append(data[dataset_position, component_position, ...])
+    return np.asarray(rows, dtype=float)
+
+
+def _axis_position(axis: np.ndarray, value: int, label: str) -> int:
+    matches = np.where(axis == value)[0]
+    if matches.size == 0:
+        raise ValueError(f"Component measure cache is missing {label}")
+    return int(matches[0])
+
+
 def _all_channels_requested(channels: Any) -> bool:
     return channels is None or (isinstance(channels, str) and channels in {"", "channels"})
 
@@ -177,6 +230,7 @@ def _y_axis(group: dict[str, Any], measure: str) -> np.ndarray:
 
 
 __all__ = [
+    "component_dataset_axis",
     "component_measure_axis",
     "component_measure_selection",
     "std_readdata",
