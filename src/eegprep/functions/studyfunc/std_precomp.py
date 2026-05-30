@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+import logging
 from typing import Any
 
 import numpy as np
@@ -23,6 +24,7 @@ from eegprep.functions.timefreqfunc.newtimef import newtimef
 
 
 MEASURE_NAMES = ("erp", "spec", "ersp", "itc")
+logger = logging.getLogger(__name__)
 
 
 def std_precomp(
@@ -67,6 +69,9 @@ def std_precomp(
     specparams = options.pop("specparams", specparams)
     erspparams = options.pop("erspparams", erspparams)
     ignored = {"interp", "savetrials", "rmicacomps", "rmclust", "cell", "erpim", "erpimparams"}
+    ignored_present = sorted(key for key in options if key in ignored)
+    if ignored_present:
+        logger.warning("std_precomp: ignoring EEGLAB-only option(s): %s", ", ".join(ignored_present))
     unsupported = sorted(key for key in options if key not in ignored)
     if unsupported:
         raise ValueError(f"Unknown std_precomp option(s): {', '.join(unsupported)}")

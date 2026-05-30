@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ast
 from copy import deepcopy
+import logging
 
 import matplotlib
 
@@ -65,14 +66,48 @@ def test_std_precomp_channel_measures_store_eeglab_named_fields():
     assert freqs.size == specdata[0].shape[1]
 
 
+def test_std_precomp_baseline_and_design_contract(caplog):
+    study, alleeg = _study_pair()
+    alleeg[0]["times"] = np.asarray([-100.0, 0.0, 100.0, 200.0])
+    alleeg[0]["xmin"] = -0.1
+    alleeg[0]["xmax"] = 0.2
+    alleeg[0]["pnts"] = 4
+    alleeg[0]["data"] = np.asarray([[[1.0, 3.0], [5.0, 7.0], [20.0, 30.0], [40.0, 50.0]]])
+    alleeg[0]["nbchan"] = 1
+    alleeg[0]["chanlocs"] = [{"labels": "Cz"}]
+    alleeg[1] = deepcopy(alleeg[0])
+    alleeg[1]["data"] = alleeg[1]["data"] + 10.0
+
+    with caplog.at_level(logging.WARNING, logger="eegprep.functions.studyfunc.std_precomp"):
+        study, _alleeg, _command = std_precomp(
+            study,
+            alleeg,
+            [1],
+            erp="on",
+            design=2,
+            erpparams={"rmbase": [-100, 0]},
+            interp="on",
+            return_com=True,
+        )
+
+    erpdata = np.asarray(study["changrp"][0]["erpdata"])
+    assert study["changrp"][0]["measureinfo"]["design"] == 2
+    assert study["etc"]["eegprep"]["study_measures"]["design"] == 2
+    np.testing.assert_allclose(np.mean(erpdata[:, :2], axis=1), 0.0)
+    assert "ignoring EEGLAB-only option(s): interp" in caplog.text
+
+
 def test_pop_precomp_channel_measures_and_cached_plot_are_replayable():
     study, alleeg = _study_pair()
 
     study, alleeg, command = pop_precomp(study, alleeg, "channels", erp="on", spec="on", return_com=True)
-    study, plot_command, figure = pop_chanplot(study, alleeg, channels=[1], measure="spec", return_com=True)
+    original_etc = study["etc"]
+    study, plot_command, figure = pop_chanplot(study, alleeg, channels=np.asarray([1]), measure="spec", return_com=True)
 
     assert command.startswith("STUDY, ALLEEG = pop_precomp(")
     assert study["etc"]["last_chanplot"] == {"measure": "spec", "mode": "channels", "channels": [1]}
+    assert "last_chanplot" not in original_etc
+    assert "channels=[1]" in plot_command
     ast.parse(command)
     ast.parse(plot_command)
     plt.close(figure)
@@ -163,7 +198,7 @@ def test_pop_chanplot_gui_component_mode_uses_cached_measures():
     first.update({"subject": "S01", "condition": "target"})
     study, alleeg = pop_study(None, [first], name="Component study")
     study, alleeg = pop_precomp(study, alleeg, "components", erp="on")
-    renderer = _Renderer({"mode": 2, "channels": "", "components": "1", "measure": 1})
+    renderer = _Renderer({"mode": 4, "channels": "", "components": "1", "measure": 1})
 
     study, command, figure = pop_chanplot(study, alleeg, gui=True, renderer=renderer, return_com=True)
 
@@ -193,3 +228,20 @@ def test_study_measure_gui_dispatch_updates_session_history(monkeypatch):
 
     assert session.STUDY["changrp"]
     assert session.LASTCOM.startswith("STUDY, ALLEEG = pop_precomp(")
+
+
+def test_study_chanplot_gui_dispatch_cancel_leaves_history_empty(monkeypatch):
+    study, alleeg = _study_pair()
+    session = EEGPrepSession(STUDY=study, ALLEEG=alleeg, CURRENTSTUDY=1)
+    dispatcher = MenuActionDispatcher(session)
+
+    def fake_pop_chanplot(STUDY, ALLEEG, *args, **kwargs):
+        return STUDY, "", None
+
+    monkeypatch.setattr("eegprep.functions.studyfunc.pop_chanplot.pop_chanplot", fake_pop_chanplot)
+
+    dispatcher.dispatch("pop_chanplot")
+
+    assert session.STUDY is study
+    assert session.LASTCOM == ""
+    assert session.ALLCOM == []

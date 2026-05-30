@@ -23,4 +23,7 @@ EEGPrep stores measures in the `.study` JSON structure instead of EEGLAB
 `.dat*` and `.ica*` sidecar files. This keeps runtime behavior standalone and
 replayable from `eegprep-console`.
 
+The selected STUDY design is recorded in measure metadata, but Phase 5b cached
+arrays are dataset-level averages and are not split into EEGLAB design cells.
+
 See also: POP_CHANPLOT, STD_PRECOMP, STD_READDATA

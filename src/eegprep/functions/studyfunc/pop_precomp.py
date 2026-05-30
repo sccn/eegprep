@@ -90,6 +90,8 @@ def pop_precomp_dialog_spec(
         size=(760, 360),
         known_differences=(
             "EEGPrep stores STUDY measures in the STUDY dictionary instead of EEGLAB .dat/.ica sidecar files.",
+            "The selected design is recorded in measure metadata; Phase 5b cached arrays are dataset-level averages and "
+            "are not split into EEGLAB design cells.",
         ),
     )
 

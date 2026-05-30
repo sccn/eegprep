@@ -58,7 +58,7 @@ def pop_chanplot(
         fig, selected = _plot_component_measure(STUDY, components, measure)
         last_selection = {"measure": measure, "mode": mode, "components": selected}
     study = dict(STUDY)
-    study.setdefault("etc", {})["last_chanplot"] = last_selection
+    study["etc"] = {**(STUDY.get("etc") or {}), "last_chanplot": last_selection}
     command = _history_command(channels=channels, components=components, measure=measure, mode=mode)
     return (study, command, fig) if return_com else study
 
@@ -111,7 +111,7 @@ def _run_gui(STUDY: dict[str, Any], ALLEEG: Any, *, renderer: Any | None = None)
     if result is None:
         return None
     measure_index = _popup_index(result.get("measure"), 1)
-    mode_index = _popup_index(result.get("mode"), 1)
+    mode_index = _popup_index(result.get("mode"), 1, maximum=2)
     return {
         "channels": numeric_vector(result.get("channels", []), dtype=int).tolist(),
         "components": numeric_vector(result.get("components", []), dtype=int).tolist(),
@@ -311,12 +311,12 @@ def _mode_name(value: Any) -> str:
     return text
 
 
-def _popup_index(value: Any, default: int) -> int:
+def _popup_index(value: Any, default: int, *, maximum: int = len(MEASURE_OPTIONS)) -> int:
     try:
         index = int(value)
     except (TypeError, ValueError):
         index = default
-    return max(1, min(index, len(MEASURE_OPTIONS)))
+    return max(1, min(index, maximum))
 
 
 def _history_command(*, channels: Any, components: Any, measure: str, mode: str) -> str:
@@ -328,8 +328,18 @@ def _history_command(*, channels: Any, components: Any, measure: str, mode: str)
         "mode": mode,
     }
     rendered = [python_literal(piece) if piece not in {"STUDY", "ALLEEG"} else piece for piece in pieces]
-    rendered.extend(f"{key}={python_literal(value)}" for key, value in kwargs.items() if value not in (None, []))
+    rendered.extend(f"{key}={python_literal(value)}" for key, value in kwargs.items() if not _is_empty_arg(value))
     return f"pop_chanplot({', '.join(rendered)})"
+
+
+def _is_empty_arg(value: Any) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, np.ndarray):
+        return value.size == 0
+    if isinstance(value, (list, tuple)):
+        return len(value) == 0
+    return False
 
 
 __all__ = ["pop_chanplot", "pop_chanplot_dialog_spec"]

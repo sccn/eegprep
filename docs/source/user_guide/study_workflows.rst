@@ -55,7 +55,9 @@ Precompute and plot STUDY measures:
 Channel measures are stored in ``STUDY.changrp``. Component measures are stored
 on ``STUDY.cluster[0]`` until preclustering and cluster editing land in the next
 STUDY phase. Cached measure fields follow EEGLAB names such as ``erpdata``,
-``specdata``, ``erspdata``, and ``itcdata``.
+``specdata``, ``erspdata``, and ``itcdata``. The selected ``design`` is recorded
+in each measure group's metadata, but Phase 5b arrays are dataset-level averages
+and are not split into EEGLAB design cells yet.
 
 Session Synchronization
 =======================
