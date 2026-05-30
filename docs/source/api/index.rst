@@ -56,6 +56,16 @@ Dataset Workspace Helpers
    eegprep.pop_delset
    eegprep.pop_editoptions
 
+GUI and Session Entry Points
+============================
+
+.. autosummary::
+   :toctree: generated/
+
+   eegprep.gui
+   eegprep.eeglab
+   eegprep.select_multiple_datasets
+
 Data Loading and Saving
 ========================
 
@@ -231,6 +241,19 @@ STUDY Workflows
 The current STUDY wrappers are exported for parity with EEGLAB menu workflows.
 Phase 5a owns the final STUDY data/session contracts, so avoid treating helper
 objects beyond these wrappers as stable until that phase lands.
+
+.. autosummary::
+   :toctree: generated/
+
+   eegprep.pop_study
+   eegprep.pop_studywizard
+   eegprep.pop_studyerp
+   eegprep.pop_loadstudy
+   eegprep.pop_savestudy
+   eegprep.pop_chanplot
+
+STUDY Workflows
+===============
 
 .. autosummary::
    :toctree: generated/

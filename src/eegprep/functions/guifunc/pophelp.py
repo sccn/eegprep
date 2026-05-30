@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import html
+from importlib.abc import Traversable
+from importlib import resources
 import re
-from pathlib import Path
 from typing import Any
 
 
-PACKAGE_ROOT = Path(__file__).resolve().parents[2]
-HELP_ROOT = PACKAGE_ROOT / "resources" / "help"
+HELP_PACKAGE = "eegprep.resources.help"
 
 
 def pophelp(function_name: str, nonmatlab: bool = False, parent: Any | None = None) -> Any:
@@ -55,7 +55,7 @@ def pophelp_text(function_name: str, nonmatlab: bool = False) -> tuple[str, str]
         if called_source is not None:
             called_doc = _read_help_source(called_source, nonmatlab=False)
             doc = _append_called_help(doc, called_doc)
-    return doc, str(source_path)
+    return doc, _resource_source_name(source_path)
 
 
 def _normalise_function_name(function_name: str) -> str:
@@ -69,9 +69,9 @@ def _normalise_function_name(function_name: str) -> str:
     return function_name
 
 
-def _find_source(function_name: str, *, missing_ok: bool = False) -> Path | None:
-    direct = HELP_ROOT / f"{function_name}.md"
-    if direct.exists():
+def _find_source(function_name: str, *, missing_ok: bool = False) -> Traversable | None:
+    direct = resources.files(HELP_PACKAGE).joinpath(f"{function_name}.md")
+    if direct.is_file():
         return direct
     if missing_ok:
         return None
@@ -82,10 +82,15 @@ def _find_source(function_name: str, *, missing_ok: bool = False) -> Path | None
     )
 
 
-def _read_help_source(path: Path | None, *, nonmatlab: bool) -> str:
+def _read_help_source(path: Traversable | None, *, nonmatlab: bool) -> str:
     if path is None:
         return ""
-    return path.read_text(encoding="utf-8", errors="replace").strip() or f"No help found for {path.stem}."
+    function_name = path.name.rsplit(".", 1)[0]
+    return path.read_text(encoding="utf-8").strip() or f"No help found for {function_name}."
+
+
+def _resource_source_name(path: Traversable) -> str:
+    return f"eegprep/resources/help/{path.name}"
 
 
 def _append_called_help(doc: str, called_doc: str) -> str:

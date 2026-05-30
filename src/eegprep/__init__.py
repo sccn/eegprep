@@ -173,6 +173,7 @@ _LAZY_EXPORTS = {
     "pop_selectcomps": ("eegprep.functions.popfunc.pop_selectcomps", "pop_selectcomps"),
     "pop_signalstat": ("eegprep.functions.popfunc.pop_signalstat", "pop_signalstat"),
     "pop_study": ("eegprep.functions.studyfunc.pop_study", "pop_study"),
+    "pop_studydesign": ("eegprep.functions.studyfunc.pop_studydesign", "pop_studydesign"),
     "pop_studyerp": ("eegprep.functions.studyfunc.pop_studyerp", "pop_studyerp"),
     "pop_studywizard": ("eegprep.functions.studyfunc.pop_studywizard", "pop_studywizard"),
     "pop_subcomp": ("eegprep.functions.popfunc.pop_subcomp", "pop_subcomp"),
@@ -192,6 +193,11 @@ _LAZY_EXPORTS = {
         "select_multiple_datasets",
     ),
     "signalstat": ("eegprep.functions.sigprocfunc.signalstat", "signalstat"),
+    "std_checkdatasetinfo": ("eegprep.functions.studyfunc.std_checkset", "std_checkdatasetinfo"),
+    "std_checkset": ("eegprep.functions.studyfunc.std_checkset", "std_checkset"),
+    "std_editset": ("eegprep.functions.studyfunc.std_editset", "std_editset"),
+    "std_makedesign": ("eegprep.functions.studyfunc.std_makedesign", "std_makedesign"),
+    "std_selectdesign": ("eegprep.functions.studyfunc.std_selectdesign", "std_selectdesign"),
     "topoplot": ("eegprep.functions.sigprocfunc.topoplot", "topoplot"),
 }
 

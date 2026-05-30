@@ -9,11 +9,8 @@ import pytest
 
 from eegprep.functions.guifunc.eeglab_menu import eeglab_menus, menu_actions
 from eegprep.functions.guifunc.menu_actions import (
-    HELP_DOC_PATHS,
-    HELP_UNAVAILABLE_TOPICS,
     MenuActionDispatcher,
     action_kind,
-    unavailable_help_message,
 )
 from eegprep.functions.guifunc.menu_placeholders import is_placeholder_action, placeholder_message
 from eegprep.functions.guifunc.menu_spec import menu_enabled
@@ -224,7 +221,7 @@ class MainMenuSpecTests(unittest.TestCase):
             },
         )
 
-    def test_help_menu_pophelp_actions_have_eegprep_docs_or_unavailable_popups(self):
+    def test_help_menu_pophelp_actions_have_packaged_topics(self):
         help_menu = _child(eeglab_menus(all_menus=False), "Help")
         help_actions = [action for action in menu_actions((help_menu,)) if action.startswith("help:")]
         help_topics = {action.split(":", 1)[1] for action in help_actions}
@@ -245,9 +242,6 @@ class MainMenuSpecTests(unittest.TestCase):
                 "eeg_helpmisc",
             },
         )
-        self.assertTrue(help_topics.issubset(set(HELP_DOC_PATHS) | set(HELP_UNAVAILABLE_TOPICS)))
-        self.assertIn("troubleshooting_data_formats", HELP_DOC_PATHS)
-        self.assertTrue(all("eeglab" not in path.lower() for path in HELP_DOC_PATHS.values()))
 
     def test_viewprops_plugin_items_match_plot_menu_locations(self):
         plot_menu = _child(eeglab_menus(all_menus=False), "Plot")
@@ -464,53 +458,47 @@ class MenuActionDispatcherTests(unittest.TestCase):
 
         coming_soon.assert_not_called()
 
-    def test_show_help_uses_eegprep_docs_for_available_help_topics(self):
+    def test_show_help_uses_packaged_pophelp_for_help_topics(self):
         dispatcher = MenuActionDispatcher(EEGPrepSession())
 
-        with (
-            mock.patch(
-                "eegprep.functions.guifunc.menu_actions.pophelp",
-                side_effect=FileNotFoundError("missing packaged help"),
-            ),
-            mock.patch("eegprep.functions.guifunc.menu_actions.webbrowser.open") as open_url,
-        ):
+        with mock.patch("eegprep.functions.guifunc.menu_actions.pophelp") as help_dialog:
             dispatcher.dispatch("help:eeg_helpadmin")
 
-        open_url.assert_called_once_with("https://sccn.github.io/eegprep/api/core.html")
+        help_dialog.assert_called_once_with("eeg_helpadmin", parent=None)
 
-    def test_show_help_uses_unavailable_popup_for_missing_eegprep_help_topics(self):
+    def test_bare_help_action_defaults_to_eegprep_topic(self):
         dispatcher = MenuActionDispatcher(EEGPrepSession())
 
-        with (
-            mock.patch(
-                "eegprep.functions.guifunc.menu_actions.pophelp",
-                side_effect=FileNotFoundError("missing packaged help"),
-            ),
-            mock.patch.object(dispatcher, "_show_unavailable_help") as unavailable,
-        ):
-            dispatcher.dispatch("help:eeg_helpstudy", parent="window")
+        with mock.patch("eegprep.functions.guifunc.menu_actions.pophelp") as help_dialog:
+            dispatcher.dispatch("help")
 
-        unavailable.assert_called_once_with("eeg_helpstudy", "window")
+        help_dialog.assert_called_once_with("eegprep", parent=None)
 
-    def test_unavailable_help_without_gui_parent_raises_clear_message(self):
-        dispatcher = MenuActionDispatcher(EEGPrepSession())
+    def test_help_and_admin_link_actions_do_not_mutate_session_history(self):
+        session = EEGPrepSession()
+        session.store_current(_demo_eeg(), new=True)
+        original_currentset = list(session.CURRENTSET)
+        original_history = list(session.ALLCOM)
+        dispatcher = MenuActionDispatcher(session)
 
         with (
-            mock.patch(
-                "eegprep.functions.guifunc.menu_actions.pophelp",
-                side_effect=FileNotFoundError("missing packaged help"),
-            ),
-            self.assertRaisesRegex(FileNotFoundError, "Group data .* not available yet"),
+            mock.patch("eegprep.functions.guifunc.menu_actions.pophelp"),
+            mock.patch("eegprep.functions.guifunc.menu_actions.webbrowser.open"),
         ):
-            dispatcher.dispatch("help:eeg_helpstudy")
+            for action in (
+                "help:eeg_helpadmin",
+                "help:eeg_helpmenu",
+                "tutorial",
+                "mailto:eeglab@sccn.ucsd.edu",
+                "updates",
+                "issues",
+                "license",
+            ):
+                dispatcher.dispatch(action)
 
-    def test_unavailable_help_message_is_user_facing(self):
-        message = unavailable_help_message("eeg_helpmenu")
-
-        self.assertIn("EEGPrep help for EEGPrep menus is not available yet", message)
-        self.assertIn("https://github.com/sccn/eegprep/issues", message)
-        self.assertNotIn("TODO", message)
-        self.assertNotIn("eeglab", message.lower())
+        self.assertEqual(session.CURRENTSET, original_currentset)
+        self.assertEqual(session.ALLCOM, original_history)
+        self.assertEqual(session.EEG["setname"], "demo")
 
     def test_tutorial_mailto_updates_and_issue_actions_open_expected_targets(self):
         dispatcher = MenuActionDispatcher(EEGPrepSession())
@@ -567,6 +555,22 @@ class MenuActionDispatcherTests(unittest.TestCase):
         self.assertEqual(session.EEG["setname"], "second")
         self.assertEqual(session.menu_statuses(), {"continuous_dataset"})
         self.assertIn("CURRENTSTUDY = 0;", session.ALLCOM[-1])
+
+    def test_select_study_set_menu_action_restores_study_mode(self):
+        session = EEGPrepSession()
+        session.store_current(_demo_eeg(), new=True)
+        session.STUDY = {"name": "study", "datasetinfo": [], "design": []}
+        session.CURRENTSTUDY = 0
+        echoed = []
+        session.add_command_echo_listener(echoed.append)
+        dispatcher = MenuActionDispatcher(session)
+
+        dispatcher.dispatch("select_study_set")
+
+        self.assertEqual(session.CURRENTSTUDY, 1)
+        self.assertEqual(echoed, ["CURRENTSTUDY = 1"])
+        self.assertEqual(session.ALLCOM[-1], "CURRENTSTUDY = 1")
+        self.assertEqual(session.menu_statuses(), {"study"})
 
     def test_multiple_dataset_reref_preserves_selection(self):
         session = EEGPrepSession()
@@ -898,9 +902,14 @@ class MenuActionDispatcherTests(unittest.TestCase):
         session.store_current(_demo_eeg(), new=True)
         dispatcher = MenuActionDispatcher(session)
         qt_widgets = _fake_qt_widgets(save_file="/tmp/history.m")
+        study = {"name": "study", "datasetinfo": [{"index": 1, "setname": "demo"}], "design": []}
 
         with (
             mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets),
+            mock.patch(
+                "eegprep.functions.studyfunc.pop_study.pop_study",
+                return_value=(study, session.ALLEEG, "STUDY, ALLEEG = pop_study(STUDY, ALLEEG);"),
+            ) as pop_study,
             mock.patch(
                 "eegprep.functions.popfunc.pop_saveh.pop_saveh",
                 return_value="pop_saveh(ALLCOM, 'history.m', '/tmp');",
@@ -909,10 +918,133 @@ class MenuActionDispatcherTests(unittest.TestCase):
             dispatcher.dispatch("pop_study")
             dispatcher.dispatch("pop_saveh:session")
 
+        pop_study.assert_called_once_with(None, mock.ANY, gui=True, return_com=True)
         saveh.assert_called_once()
         self.assertEqual(session.CURRENTSTUDY, 1)
         self.assertEqual(session.STUDY["datasetinfo"][0]["setname"], "demo")
         self.assertEqual(session.ALLCOM[-1], "pop_saveh(ALLCOM, 'history.m', '/tmp');")
+
+    def test_file_menu_savestudy_uses_all_loaded_datasets(self):
+        session = EEGPrepSession()
+        session.store_current(_demo_eeg(), new=True)
+        session.store_current(dict(_demo_eeg(), setname="second"), new=True)
+        session.retrieve(1)
+        session.STUDY = {
+            "name": "study",
+            "datasetinfo": [{"index": 1, "setname": "demo"}, {"index": 2, "setname": "second"}],
+            "design": [],
+        }
+        dispatcher = MenuActionDispatcher(session)
+        qt_widgets = _fake_qt_widgets(save_file="/tmp/study.study")
+        saved = dict(session.STUDY, saved="yes")
+
+        with (
+            mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets),
+            mock.patch(
+                "eegprep.functions.studyfunc.pop_savestudy.pop_savestudy",
+                return_value=(saved, "STUDY = pop_savestudy(STUDY, ALLEEG, filename='study.study');"),
+            ) as pop_savestudy,
+        ):
+            dispatcher.dispatch("pop_savestudy")
+
+        pop_savestudy.assert_called_once_with(
+            mock.ANY, session.ALLEEG, "/tmp/study.study", savemode=None, return_com=True
+        )
+        self.assertEqual(session.STUDY["saved"], "yes")
+        self.assertEqual(session.ALLCOM[-1], "STUDY = pop_savestudy(STUDY, ALLEEG, filename='study.study');")
+
+    def test_file_menu_loadstudy_updates_shared_session(self):
+        session = EEGPrepSession()
+        dispatcher = MenuActionDispatcher(session)
+        qt_widgets = _fake_qt_widgets(open_file="/tmp/study.study")
+        eeg = _demo_eeg()
+        study = {"name": "loaded study", "datasetinfo": [{"index": 1, "setname": "demo"}], "design": []}
+
+        with (
+            mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets),
+            mock.patch(
+                "eegprep.functions.studyfunc.pop_loadstudy.pop_loadstudy",
+                return_value=(study, [eeg], "STUDY, ALLEEG = pop_loadstudy(filename='study.study');"),
+            ) as pop_loadstudy,
+        ):
+            dispatcher.dispatch("pop_loadstudy")
+
+        pop_loadstudy.assert_called_once_with("/tmp/study.study", return_com=True)
+        self.assertEqual(session.CURRENTSTUDY, 1)
+        self.assertEqual(session.STUDY["name"], "loaded study")
+        self.assertEqual(session.ALLEEG[0]["setname"], "demo")
+        self.assertEqual(session.ALLCOM[-1], "STUDY, ALLEEG = pop_loadstudy(filename='study.study');")
+
+    def test_file_menu_studywizard_uses_browsed_datasets(self):
+        session = EEGPrepSession()
+        dispatcher = MenuActionDispatcher(session)
+        qt_widgets = _fake_qt_widgets(open_file="/tmp/one.set")
+        eeg = _demo_eeg()
+        study = {"name": "wizard study", "datasetinfo": [{"index": 1, "setname": "demo"}], "design": []}
+
+        with (
+            mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets),
+            mock.patch(
+                "eegprep.functions.studyfunc.pop_studywizard.pop_studywizard",
+                return_value=(study, [eeg], "STUDY, ALLEEG = pop_studywizard(filenames=['/tmp/one.set']);"),
+            ) as pop_studywizard,
+        ):
+            dispatcher.dispatch("pop_studywizard")
+
+        pop_studywizard.assert_called_once_with(["/tmp/one.set"], return_com=True)
+        self.assertEqual(session.CURRENTSTUDY, 1)
+        self.assertEqual(session.STUDY["name"], "wizard study")
+        self.assertEqual(session.ALLCOM[-1], "STUDY, ALLEEG = pop_studywizard(filenames=['/tmp/one.set']);")
+
+    def test_study_menu_design_action_updates_shared_session(self):
+        session = EEGPrepSession()
+        session.store_current(_demo_eeg(), new=True)
+        study = {"name": "study", "datasetinfo": [{"index": 1, "setname": "demo"}], "design": []}
+        session.STUDY = study
+        session.CURRENTSTUDY = 1
+        dispatcher = MenuActionDispatcher(session)
+        edited = dict(session.STUDY, currentdesign=1)
+
+        with mock.patch(
+            "eegprep.functions.studyfunc.pop_studydesign.pop_studydesign",
+            return_value=(edited, session.ALLEEG, "STUDY = std_makedesign(STUDY, ALLEEG, 1);"),
+        ) as pop_studydesign:
+            dispatcher.dispatch("pop_studydesign")
+
+        pop_studydesign.assert_called_once_with(study, session.ALLEEG, gui=True, return_com=True)
+        self.assertEqual(session.STUDY["currentdesign"], 1)
+        self.assertEqual(session.ALLCOM[-1], "STUDY = std_makedesign(STUDY, ALLEEG, 1);")
+
+    def test_file_menu_simple_erp_study_uses_loaded_datasets(self):
+        session = EEGPrepSession()
+        session.store_current(_demo_eeg(), new=True)
+        dispatcher = MenuActionDispatcher(session)
+        study = {"name": "Simple ERP STUDY", "datasetinfo": [{"index": 1, "setname": "demo"}], "design": []}
+
+        with mock.patch(
+            "eegprep.functions.studyfunc.pop_studyerp.pop_studyerp",
+            return_value=(study, session.ALLEEG, "STUDY, ALLEEG = pop_studyerp(ALLEEG);"),
+        ) as pop_studyerp:
+            dispatcher.dispatch("pop_studyerp")
+
+        pop_studyerp.assert_called_once_with(session.ALLEEG, return_com=True)
+        self.assertEqual(session.STUDY["name"], "Simple ERP STUDY")
+        self.assertEqual(session.ALLCOM[-1], "STUDY, ALLEEG = pop_studyerp(ALLEEG);")
+
+    def test_file_menu_clear_study_matches_eeglab_clear_all(self):
+        session = EEGPrepSession()
+        session.store_current(_demo_eeg(), new=True)
+        session.STUDY = {"name": "study", "datasetinfo": [{"index": 1, "setname": "demo"}], "design": []}
+        session.CURRENTSTUDY = 1
+        dispatcher = MenuActionDispatcher(session)
+
+        dispatcher.dispatch("clear_study")
+
+        self.assertEqual(session.ALLEEG, [])
+        self.assertEqual(session.CURRENTSET, [])
+        self.assertIsNone(session.STUDY)
+        self.assertEqual(session.CURRENTSTUDY, 0)
+        self.assertEqual(session.ALLCOM[-1], "STUDY = []; CURRENTSTUDY = 0; ALLEEG = []; EEG=[]; CURRENTSET=[];")
 
     def test_file_menu_runscript_updates_currentset_from_namespace(self):
         session = EEGPrepSession()
