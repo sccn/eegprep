@@ -832,8 +832,10 @@ class MenuActionDispatcher:
         self._refresh()
 
     def _show_extension_manager(self, parent: Any | None) -> None:
-        plugins = ["clean_rawdata", "ICLabel/viewprops", "firfilt", "DIPFIT", "EEG-BIDS/File-IO"]
-        self._info(parent, "Available EEGPrep extensions:\n" + "\n".join(f"- {plugin}" for plugin in plugins))
+        from eegprep.functions.adminfunc.plugin_menu import plugin_menu
+
+        show_dialog = parent is not None and _qt_widgets() is not None
+        plugin_menu(parent=parent if show_dialog else None, session=self.session, show=show_dialog)
 
     def _run_pop_function(self, name: str, parent: Any | None, *, variant: str = "") -> None:
         selection = self._current_selection_or_warn(parent, allow_multiple=name in _MULTIPLE_DATASET_ACTIONS)

@@ -18,6 +18,19 @@ Data Validation
 
 .. autofunction:: eegprep.eeg_checkset
 
+Interactive Session
+===================
+
+.. autoclass:: eegprep.EEGPrepSession
+   :members:
+
+.. autoclass:: eegprep.EEGPrepConsoleWorkspace
+   :members:
+
+.. autofunction:: eegprep.plugin_menu
+
+.. autofunction:: eegprep.plugin_status
+
 Object-Oriented Interface
 ==========================
 
