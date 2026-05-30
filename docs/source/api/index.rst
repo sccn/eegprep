@@ -250,6 +250,7 @@ objects beyond these wrappers as stable until that phase lands.
    eegprep.pop_studyerp
    eegprep.pop_loadstudy
    eegprep.pop_savestudy
+   eegprep.pop_precomp
    eegprep.pop_chanplot
 
 STUDY Workflows
@@ -263,6 +264,7 @@ STUDY Workflows
    eegprep.pop_studyerp
    eegprep.pop_loadstudy
    eegprep.pop_savestudy
+   eegprep.pop_precomp
    eegprep.pop_chanplot
 
 Configuration

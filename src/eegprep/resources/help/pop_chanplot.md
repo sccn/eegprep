@@ -1,15 +1,24 @@
 # pop_chanplot
 
-Plots STUDY channel measures from loaded datasets.
+Plots precomputed STUDY channel or component measures.
 
 ```python
 STUDY, com, fig = pop_chanplot(STUDY, ALLEEG, channels=[1], return_com=True)
+STUDY, com, fig = pop_chanplot(
+    STUDY,
+    ALLEEG,
+    components=[1],
+    measure="erp",
+    mode="components",
+    return_com=True,
+)
 ```
 
-Phase 4 supports ERP channel-measure plotting from epoched `ALLEEG` datasets.
-Full STUDY precompute, clustering, and measure-management workflows remain in
-the STUDY phase.
+`pop_chanplot` reads cached measures from `STUDY.changrp` for channels and the
+parent `STUDY.cluster` entry for components. Run `pop_precomp` first for
+spectra, ERSP, ITC, and component measures. ERP channel plots can still fall
+back to loaded epoched `ALLEEG` datasets when no cache is present.
 
-The GUI currently exposes channel selection and the ERP measure. Additional
-STUDY measure controls such as spectra, ERSP, ITC, ERPimage, clustering, and
-design-specific plotting are Phase 5 work.
+Supported measures are ERP, spectrum, ERSP, and ITC. Component plotting is
+parent-cluster based until Phase 5c adds preclustering, clustering, and cluster
+editing.

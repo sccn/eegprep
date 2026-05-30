@@ -11,10 +11,11 @@ Implemented STUDY actions:
 - `pop_studyerp`: create a simple ERP STUDY.
 - `pop_loadstudy`: load an EEGPrep `.study` JSON file.
 - `pop_savestudy`: save the current STUDY.
-- `pop_chanplot`: plot ERP channel measures from epoched datasets.
+- `pop_precomp`: precompute channel or component ERP, spectrum, ERSP, and ITC measures.
+- `pop_chanplot`: plot cached channel or parent-cluster component measures.
 
-Pending STUDY design, precompute, preclustering, clustering, and cluster-edit
-actions remain Phase 5 placeholders until those branches land. Their Help
-entries should be expanded when the corresponding implementation is merged.
+Pending preclustering, clustering, and cluster-edit actions remain Phase 5c
+placeholders until that branch lands. Component measures are currently stored on
+the parent cluster for later Phase 5c consumption.
 
-See also: POP_STUDY, POP_LOADSTUDY, POP_SAVESTUDY, POP_CHANPLOT
+See also: POP_STUDY, POP_PRECOMP, POP_CHANPLOT, POP_LOADSTUDY, POP_SAVESTUDY

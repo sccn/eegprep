@@ -6,6 +6,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+import matplotlib.pyplot as plt
 
 from eegprep.functions.adminfunc.eegh import eegh
 from eegprep.functions.adminfunc.eeg_retrieve import eeg_retrieve
@@ -43,6 +44,8 @@ from eegprep.functions.popfunc.pop_select import pop_select
 from eegprep.functions.popfunc.pop_subcomp import pop_subcomp
 from eegprep.functions.popfunc.pop_writeeeg import pop_writeeeg
 from eegprep.functions.studyfunc.pop_loadstudy import pop_loadstudy
+from eegprep.functions.studyfunc.pop_chanplot import pop_chanplot
+from eegprep.functions.studyfunc.pop_precomp import pop_precomp
 from eegprep.functions.studyfunc.pop_savestudy import pop_savestudy
 from eegprep.functions.studyfunc.pop_study import pop_study
 from eegprep.functions.studyfunc.pop_studyerp import pop_studyerp
@@ -536,6 +539,18 @@ def test_pop_savestudy_and_pop_loadstudy_roundtrip_sample_study(tmp_path, sample
     assert loaded_alleeg[0]["data"].shape == sample_eeg["data"].shape
     assert "pop_savestudy" in save_command
     assert "pop_loadstudy" in load_command
+
+
+def test_pop_precomp_and_chanplot_work_on_sample_study(sample_eeg):
+    study, alleeg = pop_study(None, [sample_eeg], name="Sample study")
+
+    study, alleeg, precomp_command = pop_precomp(study, alleeg, "channels", spec="on", return_com=True)
+    study, plot_command, figure = pop_chanplot(study, alleeg, channels=[1], measure="spec", return_com=True)
+
+    assert study["changrp"][0]["specdata"]
+    assert precomp_command.startswith("STUDY, ALLEEG = pop_precomp(")
+    assert "measure='spec'" in plot_command
+    plt.close(figure)
 
 
 def test_pop_studywizard_builds_study_from_saved_sample_set(tmp_path, sample_eeg):

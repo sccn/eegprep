@@ -280,6 +280,31 @@
       }
     },
     {
+      "id": "pop_precomp_dialog",
+      "description": "STUDY measure precompute dialog opened from pop_precomp.",
+      "window_size": [780, 430],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_precomp"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_precomp_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
       "id": "pop_editeventfield_dialog",
       "description": "Event field editor dialog opened from pop_editeventfield.",
       "window_size": [900, 360],

@@ -139,6 +139,30 @@ def test_console_pop_savestudy_result_updates_study_without_replacing_alleeg():
     assert session.ALLCOM[-1].startswith("STUDY = pop_savestudy(")
 
 
+def test_console_pop_precomp_result_updates_shared_study_history():
+    from eegprep.functions.studyfunc.pop_precomp import pop_precomp
+    from eegprep.functions.studyfunc.pop_study import pop_study
+
+    session = EEGPrepSession()
+    eeg = _demo_eeg()
+    eeg["data"] = np.dstack([eeg["data"], eeg["data"] + 1.0])
+    eeg["trials"] = 2
+    session.store_current(eeg, new=True)
+    session.STUDY, session.ALLEEG = pop_study(None, session.ALLEEG, name="console measures")
+    session.CURRENTSTUDY = 1
+    workspace = EEGPrepConsoleWorkspace(session, exports={"pop_precomp": pop_precomp})
+
+    result = workspace.namespace["pop_precomp"](
+        workspace.namespace["STUDY"], workspace.namespace["ALLEEG"], "channels", erp="on"
+    )
+    assigned_study, assigned_alleeg = result
+
+    assert assigned_study is session.STUDY
+    assert assigned_alleeg is session.ALLEEG
+    assert session.STUDY["changrp"][0]["erpdata"]
+    assert session.ALLCOM[-1].startswith("STUDY, ALLEEG = pop_precomp(")
+
+
 def test_session_history_commands_do_not_echo_to_console():
     session = EEGPrepSession()
     writes = []
