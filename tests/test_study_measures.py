@@ -247,6 +247,30 @@ def test_component_measure_reads_map_requested_component_ids_to_cached_axis():
     plt.close(figure)
 
 
+def test_component_precompute_preserves_per_dataset_component_pairs():
+    first = create_test_eeg_with_ica(n_channels=5, n_samples=72, n_trials=3, n_components=4)
+    first.update({"setname": "ica1", "subject": "S01", "condition": "target"})
+    second = deepcopy(first)
+    second.update({"setname": "ica2", "subject": "S02", "condition": "standard"})
+    study, alleeg = pop_study(None, [first, second], name="Component pair study")
+    study["datasetinfo"][0]["comps"] = [1, 2]
+    study["datasetinfo"][1]["comps"] = [3, 4]
+
+    study, alleeg = pop_precomp(study, alleeg, "components", erp="on", allcomps="off")
+    cluster = study["cluster"][0]
+    study, alleeg = pop_preclust(study, alleeg, preproc=[{"measure": "erp", "npca": 2, "norm": 0}])
+
+    assert cluster["sets"] == [[1, 1, 2, 2]]
+    assert cluster["comps"] == [1, 2, 3, 4]
+    assert np.asarray(cluster["erpdata"], dtype=float).shape == (2, 4, first["pnts"])
+    assert study["etc"]["preclust"]["preclustcomps"] == [
+        {"set": 1, "comp": 1},
+        {"set": 1, "comp": 2},
+        {"set": 2, "comp": 3},
+        {"set": 2, "comp": 4},
+    ]
+
+
 def test_child_cluster_measure_reads_slice_parent_component_cache():
     first = create_test_eeg_with_ica(n_channels=5, n_samples=72, n_trials=3, n_components=3)
     first.update({"setname": "ica1", "subject": "S01", "condition": "target"})

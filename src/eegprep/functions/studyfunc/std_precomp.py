@@ -194,11 +194,13 @@ def _precompute_components(
         activations = [component_activations(eeg) for eeg in datasets]
     except ValueError as exc:
         raise ValueError("component precompute requires ICA activations or weights for every dataset") from exc
-    selected = _component_indices(chanorcomp, study, activations, allcomps=allcomps)
+    selected, selection_mask, pair_sets, pair_comps = _component_selection(
+        chanorcomp, study, activations, allcomps=allcomps
+    )
     cluster: dict[str, Any] = {
         "name": "ParentCluster",
-        "sets": list(range(1, len(datasets) + 1)),
-        "comps": (selected + 1).tolist(),
+        "sets": [pair_sets],
+        "comps": pair_comps,
         "child": [],
         "measureinfo": {
             "kind": "components",
@@ -209,13 +211,17 @@ def _precompute_components(
         },
     }
     if scalp:
-        cluster["topo"] = _component_topographies(datasets, selected)
+        cluster["topo"] = _component_topographies(datasets, selected, selection_mask)
     if "erp" in computed:
-        cluster["erpdata"], cluster["erptimes"] = _component_erp(datasets, activations, selected, erpparams)
+        cluster["erpdata"], cluster["erptimes"] = _component_erp(
+            datasets, activations, selected, selection_mask, erpparams
+        )
     if "spec" in computed:
-        cluster["specdata"], cluster["specfreqs"] = _component_spec(datasets, activations, selected, specparams)
+        cluster["specdata"], cluster["specfreqs"] = _component_spec(
+            datasets, activations, selected, selection_mask, specparams
+        )
     if "ersp" in computed or "itc" in computed:
-        tf = _component_time_frequency(datasets, activations, selected, erspparams)
+        tf = _component_time_frequency(datasets, activations, selected, selection_mask, erspparams)
         if "ersp" in computed:
             cluster["erspdata"] = tf["erspdata"]
             cluster["ersptimes"] = tf["times"]
@@ -245,16 +251,20 @@ def _component_erp(
     datasets: list[dict[str, Any]],
     activations: list[np.ndarray],
     selected: np.ndarray,
+    selection_mask: np.ndarray,
     params: dict[str, Any],
 ) -> tuple[list[Any], list[float]]:
     times = _shared_times(datasets)
     baseline = params.get("rmbase")
     values = []
-    for eeg, acts in zip(datasets, activations):
+    for dataset_index, (eeg, acts) in enumerate(zip(datasets, activations)):
         maps = np.asarray(eeg.get("icawinv", []), dtype=float)
-        scales = np.sqrt(np.nanmean(maps[:, selected] ** 2, axis=0)) if maps.size else np.ones(selected.size)
         dataset_values = []
-        for scale, component_index in zip(scales, selected):
+        for component_position, component_index in enumerate(selected):
+            if not selection_mask[dataset_index, component_position]:
+                dataset_values.append(np.full(times.shape, np.nan))
+                continue
+            scale = _component_scale(maps, int(component_index))
             data = _remove_baseline(acts[component_index, :, :], times, baseline)
             dataset_values.append(np.nanmean(data, axis=1) * scale)
         values.append(np.asarray(dataset_values, dtype=float))
@@ -285,22 +295,31 @@ def _component_spec(
     datasets: list[dict[str, Any]],
     activations: list[np.ndarray],
     selected: np.ndarray,
+    selection_mask: np.ndarray,
     params: dict[str, Any],
 ) -> tuple[list[Any], list[float]]:
-    spectra = []
+    spectra: list[list[np.ndarray | None]] = []
     freqs = None
-    for eeg, acts in zip(datasets, activations):
-        spectrum, frequency_values, _specstd = compute_spectra(
-            acts[selected, :, :],
-            int(eeg.get("pnts", acts.shape[1]) or acts.shape[1]),
-            float(eeg.get("srate", 1.0) or 1.0),
-            winsize=_optional_int(params.get("winsize")),
-            overlap=_optional_int(params.get("overlap"), default=0),
-            nfft=_optional_int(params.get("nfft")),
-        )
-        freqs = _check_axis(freqs, frequency_values, "spectrum frequencies")
-        spectra.append(spectrum)
-    return np.asarray(spectra, dtype=float).tolist(), np.asarray(freqs, dtype=float).tolist()
+    for dataset_index, (eeg, acts) in enumerate(zip(datasets, activations)):
+        dataset_values = []
+        for component_position, component_index in enumerate(selected):
+            if not selection_mask[dataset_index, component_position]:
+                dataset_values.append(None)
+                continue
+            spectrum, frequency_values, _specstd = compute_spectra(
+                acts[component_index : component_index + 1, :, :],
+                int(eeg.get("pnts", acts.shape[1]) or acts.shape[1]),
+                float(eeg.get("srate", 1.0) or 1.0),
+                winsize=_optional_int(params.get("winsize")),
+                overlap=_optional_int(params.get("overlap"), default=0),
+                nfft=_optional_int(params.get("nfft")),
+            )
+            freqs = _check_axis(freqs, frequency_values, "spectrum frequencies")
+            dataset_values.append(np.asarray(spectrum[0], dtype=float))
+        spectra.append(dataset_values)
+    if freqs is None:
+        raise ValueError("component spectrum precompute has no selected components")
+    return _fill_missing_component_rows(spectra, len(freqs)).tolist(), np.asarray(freqs, dtype=float).tolist()
 
 
 def _channel_time_frequency(
@@ -331,34 +350,62 @@ def _component_time_frequency(
     datasets: list[dict[str, Any]],
     activations: list[np.ndarray],
     selected: np.ndarray,
+    selection_mask: np.ndarray,
     params: dict[str, Any],
 ) -> dict[str, Any]:
-    values = []
-    itc_values = []
-    powbase_values = []
+    values: list[list[np.ndarray | None]] = []
+    itc_values: list[list[np.ndarray | None]] = []
+    powbase_values: list[list[np.ndarray | None]] = []
     times = None
     freqs = None
-    for eeg, acts in zip(datasets, activations):
+    for dataset_index, (eeg, acts) in enumerate(zip(datasets, activations)):
         dataset_ersp = []
         dataset_itc = []
         dataset_powbase = []
-        for component_index in selected:
+        for component_position, component_index in enumerate(selected):
+            if not selection_mask[dataset_index, component_position]:
+                dataset_ersp.append(None)
+                dataset_itc.append(None)
+                dataset_powbase.append(None)
+                continue
             result = _newtimef(acts[component_index, :, :], eeg, params)
             times = _check_axis(times, result.times, "time-frequency times")
             freqs = _check_axis(freqs, result.freqs, "time-frequency frequencies")
             dataset_ersp.append(result.ersp)
             dataset_itc.append(np.abs(result.itc))
             dataset_powbase.append(result.powbase)
-        values.append(np.asarray(dataset_ersp, dtype=float))
-        itc_values.append(np.asarray(dataset_itc, dtype=float))
-        powbase_values.append(np.asarray(dataset_powbase, dtype=float))
+        values.append(dataset_ersp)
+        itc_values.append(dataset_itc)
+        powbase_values.append(dataset_powbase)
+    if times is None or freqs is None:
+        raise ValueError("component time-frequency precompute has no selected components")
+    tf_shape = (len(freqs), len(times))
     return {
-        "erspdata": np.asarray(values, dtype=float).tolist(),
-        "itcdata": np.asarray(itc_values, dtype=float).tolist(),
-        "powbase": np.asarray(powbase_values, dtype=float).tolist(),
+        "erspdata": _fill_missing_component_rows(values, tf_shape).tolist(),
+        "itcdata": _fill_missing_component_rows(itc_values, tf_shape).tolist(),
+        "powbase": _fill_missing_component_rows(powbase_values, len(freqs)).tolist(),
         "times": np.asarray(times, dtype=float).tolist(),
         "freqs": np.asarray(freqs, dtype=float).tolist(),
     }
+
+
+def _component_scale(maps: np.ndarray, component_index: int) -> float:
+    if maps.size == 0:
+        return 1.0
+    if component_index >= maps.shape[1]:
+        raise ValueError("requested components exceed EEG.icawinv columns")
+    return float(np.sqrt(np.nanmean(maps[:, component_index] ** 2)))
+
+
+def _fill_missing_component_rows(values: list[list[np.ndarray | None]], shape: int | tuple[int, ...]) -> np.ndarray:
+    fill_shape = (shape,) if isinstance(shape, int) else shape
+    return np.asarray(
+        [
+            [np.full(fill_shape, np.nan) if item is None else item for item in dataset_values]
+            for dataset_values in values
+        ],
+        dtype=float,
+    )
 
 
 def _newtimef(data: np.ndarray, eeg: dict[str, Any], params: dict[str, Any]):
@@ -380,15 +427,23 @@ def _newtimef(data: np.ndarray, eeg: dict[str, Any], params: dict[str, Any]):
     )
 
 
-def _component_topographies(datasets: list[dict[str, Any]], selected: np.ndarray) -> list[Any]:
+def _component_topographies(
+    datasets: list[dict[str, Any]], selected: np.ndarray, selection_mask: np.ndarray
+) -> list[Any]:
     topographies = []
-    for eeg in datasets:
+    for dataset_index, eeg in enumerate(datasets):
         maps = np.asarray(eeg.get("icawinv", []), dtype=float)
         if maps.size == 0:
             raise ValueError("scalp component precompute requires EEG.icawinv")
-        if np.any(selected >= maps.shape[1]):
-            raise ValueError("requested components exceed EEG.icawinv columns")
-        topographies.append(maps[:, selected].T)
+        dataset_maps = []
+        for component_position, component_index in enumerate(selected):
+            if not selection_mask[dataset_index, component_position]:
+                dataset_maps.append(np.full(maps.shape[0], np.nan))
+                continue
+            if component_index >= maps.shape[1]:
+                raise ValueError("requested components exceed EEG.icawinv columns")
+            dataset_maps.append(maps[:, component_index])
+        topographies.append(np.asarray(dataset_maps, dtype=float))
     return np.asarray(topographies, dtype=float).tolist()
 
 
@@ -450,6 +505,48 @@ def _component_indices(
     return np.unique(values - 1)
 
 
+def _component_selection(
+    chanorcomp: Any,
+    study: dict[str, Any],
+    activations: list[np.ndarray],
+    *,
+    allcomps: bool,
+) -> tuple[np.ndarray, np.ndarray, list[int], list[int]]:
+    if not activations or min(acts.shape[0] for acts in activations) <= 0:
+        raise ValueError("component precompute requires ICA activations or weights")
+    if not isinstance(chanorcomp, str) or chanorcomp.lower() != "components" or allcomps:
+        selected = _component_indices(chanorcomp, study, activations, allcomps=allcomps)
+        mask = np.ones((len(activations), selected.size), dtype=bool)
+        pair_sets = [study_set for study_set in range(1, len(activations) + 1) for _component in selected]
+        pair_comps = [int(component + 1) for _study_set in range(len(activations)) for component in selected]
+        return selected, mask, pair_sets, pair_comps
+
+    pair_sets = []
+    pair_comps = []
+    for study_set, acts in enumerate(activations, start=1):
+        selected = _dataset_component_values(study, study_set, acts.shape[0])
+        for component in selected:
+            pair_sets.append(study_set)
+            pair_comps.append(int(component))
+    component_axis = np.asarray(_unique_preserving_order(pair_comps), dtype=int)
+    mask = np.zeros((len(activations), component_axis.size), dtype=bool)
+    for study_set, component in zip(pair_sets, pair_comps):
+        mask[study_set - 1, int(np.where(component_axis == component)[0][0])] = True
+    return component_axis - 1, mask, pair_sets, pair_comps
+
+
+def _dataset_component_values(study: dict[str, Any], study_set: int, count: int) -> np.ndarray:
+    info = (study.get("datasetinfo") or [{}])[study_set - 1]
+    values = (
+        numeric_vector(info.get("comps"), dtype=int) if isinstance(info, dict) and info.get("comps") else np.asarray([])
+    )
+    if values.size == 0:
+        values = np.arange(1, count + 1, dtype=int)
+    if np.any(values < 1) or np.any(values > count):
+        raise ValueError(f"dataset {study_set} components must be 1-based and within 1..{count}")
+    return np.unique(values.astype(int))
+
+
 def _datasetinfo_components(study: dict[str, Any], count: int) -> np.ndarray:
     values = []
     for info in study.get("datasetinfo") or []:
@@ -459,6 +556,14 @@ def _datasetinfo_components(study: dict[str, Any], count: int) -> np.ndarray:
     if not values:
         return np.arange(1, count + 1, dtype=int)
     return np.asarray(values, dtype=int)
+
+
+def _unique_preserving_order(values: list[int]) -> list[int]:
+    output = []
+    for value in values:
+        if value not in output:
+            output.append(value)
+    return output
 
 
 def _shared_times(datasets: list[dict[str, Any]]) -> np.ndarray:

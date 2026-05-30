@@ -148,6 +148,24 @@ def test_pop_savestudy_resave_uses_existing_study_path(tmp_path):
     assert "savemode='resave'" in command
 
 
+def test_pop_savestudy_resavedatasets_writes_loaded_dataset_files(tmp_path):
+    eeg = _eeg("saved", subject="S01", condition="target")
+    eeg["filepath"] = str(tmp_path)
+    eeg["saved"] = "no"
+    study, alleeg = pop_study(None, [eeg], name="Dataset resave study")
+
+    saved, command = pop_savestudy(
+        study, alleeg, filename="saved.study", filepath=tmp_path, resavedatasets="on", return_com=True
+    )
+    reloaded, loaded_alleeg = pop_loadstudy(saved["filename"], filepath=saved["filepath"])
+
+    assert (tmp_path / "saved.set").exists()
+    assert alleeg[0]["saved"] == "yes"
+    assert loaded_alleeg[0]["setname"] == "saved"
+    assert reloaded["name"] == "Dataset resave study"
+    assert "resavedatasets='on'" in command
+
+
 def test_pop_loadstudy_missing_dataset_fails_without_realigning_metadata(tmp_path):
     first = _eeg("first", subject="S01", condition="target", session=1, run=1)
     second = _eeg("second", subject="S02", condition="standard", session=2, run=2)

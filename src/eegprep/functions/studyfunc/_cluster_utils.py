@@ -68,6 +68,10 @@ def _normalize_parent_cluster(parent: dict[str, Any]) -> dict[str, Any]:
     measureinfo: dict[str, Any] = raw_measureinfo if isinstance(raw_measureinfo, dict) else {}
     if measureinfo.get("kind") != "components":
         return cluster
+    sets = sets_array(cluster.get("sets"))
+    comps = cluster.get("comps") or []
+    if sets.shape[1] == len(comps):
+        return cluster
     datasets = _axis_values(measureinfo.get("datasets"), cluster.get("sets"))
     components = _axis_values(measureinfo.get("components"), cluster.get("comps"))
     if not datasets or not components:
