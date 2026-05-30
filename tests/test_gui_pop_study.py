@@ -75,7 +75,12 @@ def test_pop_study_gui_updates_metadata_and_returns_python_history():
     assert edited["datasetinfo"][0]["subject"] == "S02"
     assert edited["datasetinfo"][0]["session"] == 2
     assert edited_alleeg[0]["condition"] == "standard"
+    assert "commands=" in command
     ast.parse(command)
+    namespace = {"STUDY": study, "ALLEEG": alleeg, "pop_study": pop_study}
+    exec(command, namespace)
+    assert namespace["STUDY"]["datasetinfo"][0]["subject"] == "S02"
+    assert namespace["ALLEEG"][0]["condition"] == "standard"
 
 
 def test_pop_study_gui_cancel_is_noop():

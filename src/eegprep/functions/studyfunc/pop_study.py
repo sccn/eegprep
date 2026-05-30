@@ -26,6 +26,7 @@ def pop_study(
     task: str | None = None,
     notes: str | None = None,
     design: str | None = None,
+    commands: Any = None,
     gui: bool | str | None = None,
     renderer: Any | None = None,
     return_com: bool = False,
@@ -39,6 +40,7 @@ def pop_study(
     task = options.pop("task", task)
     notes = options.pop("notes", notes)
     design = options.pop("design", design)
+    commands = options.pop("commands", commands)
     if options:
         raise ValueError(f"Unknown pop_study option(s): {', '.join(sorted(options))}")
     use_gui = is_on(gui) if gui is not None else False
@@ -52,9 +54,6 @@ def pop_study(
         task = result.get("task", study.get("task", ""))
         notes = result.get("notes", study.get("notes", ""))
         commands = _dataset_row_commands(datasets, result)
-    else:
-        commands = None
-
     if not datasets:
         raise ValueError("pop_study requires at least one loaded dataset")
     study, datasets, _edit_command = std_editset(
@@ -81,6 +80,7 @@ def pop_study(
         task=study.get("task", ""),
         notes=study.get("notes", ""),
         design=design,
+        commands=commands,
     )
     return (study, datasets, command) if return_com else (study, datasets)
 
