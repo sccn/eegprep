@@ -392,7 +392,7 @@ class TestPopReref(DebuggableTestCase):
         self.assertEqual(result['nbchan'], 3)
         self.assertEqual([chan['labels'] for chan in result['chanlocs']], ['Ch1', 'Ch3', 'Ch4'])
         self.assertEqual(result['ref'], 'common')
-        self.assertEqual(result['chaninfo']['removedchans'][0]['labels'], 'Ch2')
+        self.assertEqual(result['chaninfo']['nodatchans'][0]['labels'], 'Ch2')
 
     def test_explicit_reference_label_keepref(self):
         """Test common reference to a channel label while keeping the reference row."""
@@ -485,25 +485,12 @@ class TestPopReref(DebuggableTestCase):
         np.testing.assert_allclose(result['data'].mean(axis=0), 0, atol=1e-6)
 
     def test_refloc_requires_removed_reference_information_like_eeglab(self):
-        """Test EEGLAB error path when refloc is provided without removedchans."""
+        """Test EEGLAB error path when refloc is provided without nodatchans."""
         EEG = self.create_simple_eeg(nbchan=2, pnts=20)
-        EEG['chaninfo'] = {
-            'nodatchans': [
-                {
-                    'labels': 'M1',
-                    'X': 0.0,
-                    'Y': -1.0,
-                    'Z': 0.0,
-                    'theta': -90.0,
-                    'radius': 0.5,
-                    'type': 'REF',
-                    'ref': 'common',
-                }
-            ]
-        }
+        EEG['chaninfo'] = {}
 
         with self.assertRaisesRegex(ValueError, "Missing reference channel information"):
-            pop_reref(EEG, ref=[], refloc='M1')
+            pop_reref(EEG, ref=[], refloc={'labels': 'M1', 'X': 0.0, 'Y': -1.0, 'Z': 0.0})
 
     def test_refica_remove_and_off_modes(self):
         """Test refica options that intentionally do not re-reference ICA maps."""
