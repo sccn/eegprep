@@ -365,6 +365,8 @@ class TestPopSelectEdgeCases(unittest.TestCase):
         # This should fail during eeg_decodechan call
         with self.assertRaises(Exception):  # Could be ValueError or IndexError
             pop_select(EEG, channel=[-1])
+        with self.assertRaises(Exception):
+            pop_select(EEG, nochannel=[-1])
 
     def test_float_indices_error(self):
         """Test that float channel indices raise appropriate errors."""

@@ -139,7 +139,7 @@ def refresh_study_summaries(study: dict[str, Any]) -> None:
     """Refresh STUDY.subject/group/condition/session/run summary fields."""
     infos = _datasetinfo_list(study.get("datasetinfo"))
     for field in SUMMARY_FIELDS:
-        study[field] = _unique_values(info.get(field) for info in infos)
+        study[field] = _unique_eeglab_values(info.get(field) for info in infos)
 
 
 def check_datasetinfo(study: dict[str, Any], datasets: list[dict[str, Any]]) -> dict[str, Any]:
@@ -390,6 +390,14 @@ def _unique_values(values: Any) -> list[Any]:
         seen.add(key)
         unique.append(json_safe(value))
     return unique
+
+
+def _unique_eeglab_values(values: Any) -> list[Any]:
+    unique = _unique_values(values)
+    try:
+        return sorted(unique)
+    except TypeError:
+        return unique
 
 
 def _empty_value(value: Any) -> bool:

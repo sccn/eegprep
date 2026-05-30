@@ -43,7 +43,7 @@ def test_pop_study_builds_full_metadata_and_default_design():
     assert study["datasetinfo"][0]["subject"] == "S01"
     assert study["datasetinfo"][1]["subject"] == "S2"
     assert study["subject"] == ["S01", "S2"]
-    assert study["condition"] == ["target", "standard"]
+    assert study["condition"] == ["standard", "target"]
     assert study["currentdesign"] == 1
     assert study["design"][0]["variable"][0]["label"] == "condition"
     assert alleeg[1]["setname"] == "two"
