@@ -69,3 +69,26 @@ console, while retrieving a dataset from the Datasets menu returns
 ``CURRENTSTUDY`` to ``0``. Dialog Help buttons and Help-menu topics open
 packaged EEGPrep Markdown resources; missing help is treated as a packaging
 error rather than falling back to the vendored EEGLAB reference tree.
+
+The same session also tracks bundled plugin metadata. Choose
+``File > Manage EEGPrep extensions`` in the GUI, then inspect the mirrored
+inventory from the console:
+
+.. code-block:: python
+
+   PLUGINLIST = session.PLUGINLIST
+   [plugin["plugin"] for plugin in PLUGINLIST]
+
+Headless scripts can use the same public API without opening Qt:
+
+.. code-block:: python
+
+   import eegprep
+
+   session = eegprep.EEGPrepSession()
+   plugins = eegprep.plugin_menu(session=session, show=False)
+   eegprep.plugin_status("ICLabel", exactmatch=True)
+
+External EEGLAB plugin installation, updates, and removal are not managed by
+EEGPrep. The plugin inventory describes the in-repo extensions bundled with the
+installed Python package.

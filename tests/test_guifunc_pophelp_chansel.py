@@ -14,6 +14,9 @@ from eegprep.functions.popfunc.pop_chansel import (
 from eegprep.functions.popfunc.pop_reref import pop_reref_dialog_spec
 
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
 class PopHelpAndChanSelTests(unittest.TestCase):
     def test_pophelp_reads_packaged_markdown_and_appends_called_function(self):
         text, source_path = pophelp_text("pop_reref")
@@ -63,10 +66,19 @@ class PopHelpAndChanSelTests(unittest.TestCase):
         self.assertIn("EEGPrep", help_files.joinpath("eegprep.md").read_text(encoding="utf-8"))
 
     def test_help_resources_are_declared_as_package_data(self):
-        pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+        pyproject = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
         package_data = pyproject["tool"]["setuptools"]["package-data"]["eegprep"]
+        package_root = REPO_ROOT / "src/eegprep"
+        packaged = {
+            path.relative_to(package_root).as_posix()
+            for pattern in package_data
+            for path in package_root.glob(pattern)
+            if path.is_file()
+        }
 
-        self.assertIn("resources/help/*.md", package_data)
+        self.assertIn("resources/help/eegprep.md", packaged)
+        self.assertIn("resources/help/eeg_helpadmin.md", packaged)
+        self.assertIn("resources/help/pop_reref.md", packaged)
 
     def test_implemented_menu_help_actions_have_packaged_resources(self):
         full_menu_actions = menu_actions(eeglab_menus(all_menus=True, include_plugins=True))

@@ -23,6 +23,38 @@ Core Classes
    :toctree: generated/
 
    eegprep.EEGobj
+   eegprep.EEGPrepSession
+
+Interactive GUI and Console
+===========================
+
+.. autosummary::
+   :toctree: generated/
+
+   eegprep.gui
+   eegprep.eeglab
+   eegprep.EEGPrepConsoleWorkspace
+   eegprep.ConsolePopResult
+   eegprep.ConsoleDatasetResult
+   eegprep.inputgui
+   eegprep.listdlg2
+   eegprep.pophelp
+   eegprep.DialogSpec
+   eegprep.ControlSpec
+   eegprep.CallbackSpec
+
+Dataset Workspace Helpers
+=========================
+
+.. autosummary::
+   :toctree: generated/
+
+   eegprep.eeg_emptyset
+   eegprep.eeg_store
+   eegprep.eeg_retrieve
+   eegprep.pop_newset
+   eegprep.pop_delset
+   eegprep.pop_editoptions
 
 GUI and Session Entry Points
 ============================
@@ -167,6 +199,58 @@ BIDS Pipeline
    eegprep.bids_preproc
    eegprep.bids_list_eeg_files
    eegprep.pop_load_frombids
+   eegprep.pop_importbids
+   eegprep.pop_exportbids
+
+Bundled Plugins
+===============
+
+EEGPrep exposes metadata for bundled in-repo plugin ports. External EEGLAB
+plugin install/update/remove workflows are intentionally outside the public API
+for now.
+
+.. autosummary::
+   :toctree: generated/
+
+   eegprep.bundled_plugins
+   eegprep.plugin_status
+   eegprep.plugin_menu
+   eegprep.format_plugin_menu
+   eegprep.pop_clean_rawdata
+   eegprep.pop_iclabel
+   eegprep.pop_icflag
+   eegprep.pop_viewprops
+   eegprep.pop_eegfiltnew
+   eegprep.pop_firws
+   eegprep.pop_firpm
+   eegprep.pop_firma
+   eegprep.firws
+   eegprep.firwsord
+   eegprep.pop_dipfit_settings
+   eegprep.pop_dipplot
+   eegprep.pop_dipfit_headmodel
+   eegprep.pop_dipfit_gridsearch
+   eegprep.pop_dipfit_nonlinear
+   eegprep.pop_multifit
+   eegprep.pop_leadfield
+   eegprep.pop_dipfit_loreta
+
+STUDY Workflows
+===============
+
+The current STUDY wrappers are exported for parity with EEGLAB menu workflows.
+Phase 5a owns the final STUDY data/session contracts, so avoid treating helper
+objects beyond these wrappers as stable until that phase lands.
+
+.. autosummary::
+   :toctree: generated/
+
+   eegprep.pop_study
+   eegprep.pop_studywizard
+   eegprep.pop_studyerp
+   eegprep.pop_loadstudy
+   eegprep.pop_savestudy
+   eegprep.pop_chanplot
 
 STUDY Workflows
 ===============
