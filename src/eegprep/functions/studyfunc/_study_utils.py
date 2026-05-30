@@ -232,7 +232,9 @@ def trialinfo_from_eeg(eeg: dict[str, Any]) -> list[dict[str, Any]]:
     trials = int(eeg.get("trials", 1) or 1)
     if trials <= 1:
         return []
-    epoch = eeg.get("epoch") or []
+    epoch = eeg.get("epoch")
+    if epoch is None:
+        epoch = []
     if isinstance(epoch, np.ndarray):
         epoch = epoch.tolist()
     if isinstance(epoch, list) and len(epoch) == trials:

@@ -238,9 +238,9 @@ for now.
 STUDY Workflows
 ===============
 
-The current STUDY wrappers are exported for parity with EEGLAB menu workflows.
-Phase 5a owns the final STUDY data/session contracts, so avoid treating helper
-objects beyond these wrappers as stable until that phase lands.
+The STUDY wrappers and helpers below cover the integrated standalone STUDY
+workflow: metadata/design creation, study load/save, measure precompute,
+measure plotting, component preclustering, clustering, and cluster editing.
 
 .. autosummary::
    :toctree: generated/
@@ -252,24 +252,9 @@ objects beyond these wrappers as stable until that phase lands.
    eegprep.pop_savestudy
    eegprep.pop_precomp
    eegprep.pop_chanplot
-   eegprep.std_erpplot
-   eegprep.std_specplot
-   eegprep.std_erspplot
-   eegprep.std_itcplot
-
-STUDY Workflows
-===============
-
-.. autosummary::
-   :toctree: generated/
-
-   eegprep.pop_study
-   eegprep.pop_studywizard
-   eegprep.pop_studyerp
-   eegprep.pop_loadstudy
-   eegprep.pop_savestudy
-   eegprep.pop_precomp
-   eegprep.pop_chanplot
+   eegprep.pop_preclust
+   eegprep.pop_clust
+   eegprep.pop_clustedit
    eegprep.std_erpplot
    eegprep.std_specplot
    eegprep.std_erspplot
