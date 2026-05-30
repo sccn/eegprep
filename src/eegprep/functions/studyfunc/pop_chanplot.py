@@ -353,7 +353,7 @@ def _history_command(*, channels: Any, components: Any, measure: str, mode: str)
     }
     rendered = [python_literal(piece) if piece not in {"STUDY", "ALLEEG"} else piece for piece in pieces]
     rendered.extend(f"{key}={python_literal(value)}" for key, value in kwargs.items() if not _is_empty_arg(value))
-    return f"pop_chanplot({', '.join(rendered)})"
+    return f"STUDY = pop_chanplot({', '.join(rendered)})"
 
 
 def _is_empty_arg(value: Any) -> bool:

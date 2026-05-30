@@ -17,6 +17,7 @@ from ..popfunc.pop_saveset import pop_saveset
 logger = logging.getLogger(__name__)
 PACKAGE_ROOT = Path(__file__).resolve().parents[2]
 REPO_ROOT = PACKAGE_ROOT.parent.parent
+EEGLAB_ROOT_ENV = "EEGPREP_EEGLAB_ROOT"
 
 # can be either 'OCT' (for Oct2Py) or 'MAT' (MATLAB engine)
 default_runtime = 'MAT'
@@ -31,6 +32,25 @@ else:
     temp_dir = str(REPO_ROOT / 'temp')
     if not os.path.exists(temp_dir):
         os.makedirs(temp_dir, exist_ok=True)
+
+
+def _resolve_eeglab_root() -> Path:
+    """Return an external EEGLAB checkout for MATLAB/Octave parity calls."""
+    candidates = []
+    env_root = os.environ.get(EEGLAB_ROOT_ENV)
+    if env_root:
+        candidates.append(Path(env_root).expanduser())
+    candidates.append(REPO_ROOT.parent / 'eeglab')
+
+    for candidate in candidates:
+        if (candidate / 'eeglab.m').is_file():
+            return candidate
+
+    raise ImportError(
+        "EEGLAB reference checkout not found. Set EEGPREP_EEGLAB_ROOT to an "
+        "EEGLAB checkout, or place one alongside the repository, when running "
+        "MATLAB/Octave parity helpers."
+    )
 
 
 class MatlabWrapper:
@@ -225,7 +245,7 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
     except KeyError:
         print(f"Loading {runtime} runtime...", end='', flush=True)
         # On the command line, type "octave-8.4.0" OCTAVE_EXECUTABLE or OCTAVE var
-        path2eeglab = str(PACKAGE_ROOT / 'eeglab')
+        path2eeglab = str(_resolve_eeglab_root())
         matlab_test_dir = REPO_ROOT / 'tests' / 'matlab'
         scripts_dir = str(REPO_ROOT / 'scripts')
         print("This is the path2eeglab: ", path2eeglab)

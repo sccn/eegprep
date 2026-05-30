@@ -252,7 +252,8 @@ def eeg_checkset(EEG, *checks, load_data=True):
                 scaling = np.sqrt(np.mean(EEG['icawinv'] ** 2, axis=0))
 
                 # Store original weights before scaling
-                if 'etc' not in EEG:
+                if not isinstance(EEG.get('etc'), dict):
+                    logger.debug("Replacing non-dict EEG['etc'] during ICA RMS scaling backup")
                     EEG['etc'] = {}
                 EEG['etc']['icaweights_beforerms'] = EEG['icaweights'].copy()
                 EEG['etc']['icasphere_beforerms'] = EEG['icasphere'].copy()

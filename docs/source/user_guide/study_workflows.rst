@@ -4,9 +4,9 @@
 STUDY Workflows
 ===============
 
-EEGPrep includes the first standalone STUDY/session surfaces needed for
-group-level workflows. These surfaces are intentionally small on this branch so
-they can coexist with the Phase 5 STUDY workers.
+EEGPrep includes standalone STUDY/session surfaces for common group-level
+workflows. These APIs mirror EEGLAB's STUDY-facing names while storing cached
+measure data in EEGPrep-owned JSON-safe structures.
 
 Implemented Workflows
 =====================
@@ -57,8 +57,8 @@ Channel measures are stored in ``STUDY.changrp``. Component measures are stored
 on the parent ``STUDY.cluster[0]`` entry so preclustering can read the same
 cached arrays. Cached measure fields follow EEGLAB names such as ``erpdata``,
 ``specdata``, ``erspdata``, and ``itcdata``. The selected ``design`` is recorded
-in each measure group's metadata, but Phase 5b arrays are dataset-level averages
-and are not split into EEGLAB design cells yet.
+in each measure group's metadata. EEGPrep stores dataset-level averages in the
+current standalone cache rather than EEGLAB sidecar measure files.
 
 Precluster and cluster ICA components:
 
@@ -83,13 +83,15 @@ The GUI and ``eegprep-console`` share ``STUDY`` and ``CURRENTSTUDY`` through
 ``CURRENTSTUDY`` to ``1``. Retrieving a dataset from the Datasets menu returns
 ``CURRENTSTUDY`` to ``0`` and records that transition in history.
 
-Phase 5 Coordination
-====================
+Integration Notes
+=================
 
-Phase 5b precomputes component ERP, spectrum, ERSP, and ITC arrays on the
-parent ``STUDY.cluster[0]`` entry. Phase 5c preclustering reads those cached
-component arrays and can also build scalp-map features directly from loaded ICA
-maps.
+Component ERP, spectrum, ERSP, and ITC arrays are cached on the parent
+``STUDY.cluster[0]`` entry. Preclustering reads those cached component arrays
+and can also build scalp-map features directly from loaded ICA maps. MATLAB
+parity checks focus on deterministic metadata and cluster structure; exact
+numeric clustering labels can differ because EEGPrep uses deterministic
+scikit-learn k-means rather than MATLAB's implementation.
 
 See the :ref:`interactive_console` guide for mixed GUI plus console usage and
 the :ref:`gui_help_menus` guide for menu inventory behavior.

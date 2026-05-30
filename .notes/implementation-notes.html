@@ -2,10 +2,120 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Phase 5c STUDY clustering implementation notes</title>
+  <title>Phase 6c STUDY standalone integration notes</title>
 </head>
 <body>
-  <h1>Phase 5c STUDY clustering implementation notes</h1>
+  <h1>Phase 6c STUDY standalone integration notes</h1>
+
+  <h2>Phase 6c integration scope</h2>
+  <ul>
+    <li>Folded the still-open Phase 5d issue scope into Phase 6c so the final
+      epic integration PR covers the representative end-to-end STUDY workflow
+      requested by issues #80 and #82.</li>
+    <li>Added <code>tests/test_study_end_to_end.py</code> to exercise a
+      multi-dataset STUDY path from saved ICA datasets through
+      <code>pop_study</code>, design editing, channel/component
+      precompute, channel plotting, preclustering, clustering, cluster
+      plotting, study save/load with datasets, and console inspection.</li>
+    <li>Kept the change set scoped to integration bugs, command-history
+      replayability, release docs, runtime dependency audit behavior, and
+      evidence capture. No new feature family was added.</li>
+  </ul>
+
+  <h2>Phase 6c fixes</h2>
+  <ul>
+    <li><code>eeg_checkset</code> now normalizes non-dict
+      <code>EEG["etc"]</code> values before storing ICA RMS-scaling backup
+      fields. The end-to-end load path found this when <code>pop_loadstudy</code>
+      reloaded ICA <code>.set</code> files whose empty MATLAB
+      <code>etc</code> field became an empty NumPy array.</li>
+    <li><code>trialinfo_from_eeg</code> now handles NumPy
+      <code>epoch</code> arrays without using ambiguous array truthiness. This
+      preserves STUDY metadata refresh after loading epoched datasets from disk.</li>
+    <li><code>pop_chanplot</code> history commands now assign back to
+      <code>STUDY</code>. The console integration flow found that the previous
+      bare <code>pop_chanplot(...)</code> command recorded
+      <code>last_chanplot</code> but was not replayable as a STUDY update.</li>
+    <li><code>eeglabcompat.get_eeglab</code> now resolves EEGLAB from
+      <code>EEGPREP_EEGLAB_ROOT</code> or a sibling checkout and fails clearly
+      when neither exists. Runtime compatibility helpers no longer assume a
+      vendored <code>src/eegprep/eeglab</code> checkout exists in an installed
+      package.</li>
+    <li>Updated STUDY docs to remove stale Phase 5 wording, remove a duplicate
+      API section, and include clustering/preclustering wrappers in the public
+      STUDY API summary.</li>
+    <li>Post-PR review follow-up tightened the loaded ICA assertion in the
+      end-to-end test, marked the intentionally unused save result, expanded
+      the external EEGLAB checkout error message, and logged the
+      non-dict <code>EEG["etc"]</code> replacement path at debug level.</li>
+  </ul>
+
+  <h2>Phase 6c audit evidence</h2>
+  <ul>
+    <li>Runtime dependency audit: <code>rg</code> over package runtime paths
+      found no STUDY runtime reads/imports from <code>src/eegprep/eeglab</code>.
+      <code>eeglabcompat</code> now requires an external checkout via
+      <code>EEGPREP_EEGLAB_ROOT</code> or a sibling development checkout for
+      MATLAB/Octave parity helpers.</li>
+    <li>Placeholder/menu audit: <code>tests/test_menu_placeholder_inventory.py</code>
+      passes with only the explicit EEGBrowser/eegplot exclusion remaining.
+      The Phase 6c end-to-end test also asserts all STUDY-owned menu actions
+      are implemented.</li>
+    <li>Menu inventory audit: EEGLAB export succeeded for startup,
+      continuous, epoched, and multiple states. The exporter does not support a
+      <code>study</code> state and failed with
+      <code>Unknown menu inventory state: study</code>. EEGPrep's
+      <code>study</code> inventory was exported separately and shows all Study
+      menu entries enabled in the study state.</li>
+    <li>Inventory differences in supported EEGLAB states are expected
+      EEGPrep-owned labels for plugin/help/update/license/report-issue entries,
+      plus startup ICLabel viewprops enablement. No STUDY-owned missing menu
+      action was found.</li>
+    <li>Visual parity captures: <code>main_window_study</code>,
+      <code>study_menu</code>, <code>pop_study_dialog</code>, and
+      <code>pop_studydesign_dialog</code> captured both EEGLAB and EEGPrep.
+      <code>pop_precomp_dialog</code> EEGLAB capture timed out after 180s;
+      EEGPrep capture succeeded. EEGPrep-only captures succeeded for
+      <code>pop_chanplot_dialog</code>, <code>pop_preclust_dialog</code>,
+      <code>pop_clust_dialog</code>, and
+      <code>pop_clustedit_dialog</code>.</li>
+    <li>GUI Agent QA: Computer Use opened the Qt
+      <code>pop_precomp</code> dialog, verified accessible controls for target
+      mode, measure checkboxes, parameter fields, Help, Cancel, and OK, opened
+      the packaged Help dialog, closed it, edited the spectrum parameter field,
+      enabled ERSPs, pressed OK, and verified the returned dialog result.</li>
+    <li>Console QA: the new end-to-end test initializes
+      <code>EEGPrepConsoleWorkspace</code> with a loaded STUDY, calls
+      <code>pop_chanplot</code> and <code>pop_clustedit</code> through console
+      wrappers, and asserts <code>STUDY</code>,
+      <code>CURRENTSTUDY</code>, <code>LASTCOM</code>, and
+      <code>ALLCOM</code> stay synchronized.</li>
+  </ul>
+
+  <h2>Phase 6c verification</h2>
+  <ul>
+    <li><code>uv run --no-sync ruff check .</code>: passed.</li>
+    <li><code>uv run --no-sync ruff format --check .</code>: passed.</li>
+    <li><code>uv run --no-sync ty check</code>: passed after syncing the
+      optional <code>gui</code> and <code>torch</code> extras.</li>
+    <li><code>uv run --no-sync pytest tests/test_study_end_to_end.py tests/test_study_metadata.py tests/test_study_measures.py tests/test_study_clustering.py tests/test_console_workspace.py tests/test_menu_placeholder_inventory.py -q</code>:
+      119 passed, 1 skipped. The skipped test is the MATLAB-engine STUDY
+      metadata parity check.</li>
+    <li><code>uv run --no-sync pytest tests/test_study_end_to_end.py -m matlab -q</code>:
+      1 skipped, 3 deselected. Exact blocker:
+      <code>matlab.engine</code> is not installed in the uv environment.</li>
+    <li><code>EEGPREP_SKIP_MATLAB=1 uv run --no-sync pytest -m "not slow"</code>:
+      1618 passed, 229 skipped, 11 deselected, 163 warnings.</li>
+    <li><code>uv run --no-sync pytest tests/test_visual_parity.py -q</code>:
+      24 passed, 30 subtests passed.</li>
+    <li><code>uv run --no-sync python tools/visual_parity/capture.py --case main_window_study --target both --timeout 180</code>:
+      both EEGLAB and EEGPrep captures succeeded; compare
+      <code>mean_abs_delta=0.035897</code> and
+      <code>different_pixel_ratio=0.091817</code>.</li>
+    <li><code>uv run --no-sync python tools/visual_parity/capture.py --case pop_precomp_dialog --target both --timeout 180</code>:
+      EEGLAB capture timed out after 180 seconds; EEGPrep capture succeeded.
+      Remaining STUDY dialogs were captured as EEGPrep-only evidence.</li>
+  </ul>
 
   <h2>Parity references inspected</h2>
   <ul>
@@ -104,9 +214,10 @@
     <li>MATLAB parity for exact k-means labels is sensitive to implementation
       differences. Deterministic parity should compare data structures and
       component coverage unless MATLAB and sklearn seeds are explicitly aligned.</li>
-    <li>GUI visual parity captures have been generated and attached to the PR
-      as GitHub user attachments. The local artifacts remain uncommitted under
-      <code>.visual-parity/</code>.</li>
+    <li>GUI visual parity captures have been generated and attached to
+      PR #92 as GitHub user attachments at
+      <code>https://github.com/sccn/eegprep/pull/92#issuecomment-4583627220</code>.
+      The local artifacts remain uncommitted under <code>.visual-parity/</code>.</li>
   </ul>
 
   <h2>Test evidence</h2>
