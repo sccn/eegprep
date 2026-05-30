@@ -16,7 +16,7 @@ from eegprep.functions.studyfunc.std_createclust import std_createclust
 from eegprep.functions.studyfunc.std_mergeclust import std_mergeclust
 from eegprep.functions.studyfunc.std_movecomp import std_movecomp
 from eegprep.functions.studyfunc.std_moveoutlier import std_moveoutlier
-from eegprep.functions.studyfunc.std_preclust import std_preclust
+from eegprep.functions.studyfunc.std_preclust import normalize_preclust_specs, std_preclust
 from eegprep.functions.studyfunc.std_rejectoutliers import std_rejectoutliers
 
 
@@ -140,6 +140,14 @@ def test_pop_clust_rejects_invalid_cluster_counts_and_outlier_thresholds():
         pop_clust(study, alleeg, clus_num=2, outliers=-1)
 
 
+def test_preclust_spec_command_precedence_is_explicit():
+    command_spec = normalize_preclust_specs([{"measure": "erp", "command": "spec"}])[0]
+    measure_spec = normalize_preclust_specs([{"measure": "erp", "command": ""}])[0]
+
+    assert command_spec["measure"] == "spec"
+    assert measure_spec["measure"] == "erp"
+
+
 def test_pop_clust_outlier_threshold_uses_mean_distance_guard():
     study, alleeg = _preclustered_study()
     study["etc"]["preclust"]["preclustdata"] = [[0.0], [0.1], [0.2], [10.0], [10.1], [10.2]]
@@ -184,6 +192,17 @@ def test_cluster_edit_rename_merge_moveoutlier_and_plot():
     plotted, _command, figure = pop_clustedit(renamed, alleeg, action="plot", clusters=[2, 3], return_com=True)
     assert plotted["cluster"][1]["name"].startswith("Alpha")
     assert figure is not None
+    plt.close(figure)
+
+
+def test_cluster_gui_all_selection_expands_to_all_clusters():
+    study, alleeg = _preclustered_study()
+    study = pop_clust(study, alleeg, clus_num=2, random_state=11)
+    renderer = _Renderer({"action": "plot", "clus_list": [1, 3]})
+
+    _plotted, command, figure = pop_clustedit(study, alleeg, gui=True, renderer=renderer, return_com=True)
+
+    assert "clusters=[1, 2, 3]" in command
     plt.close(figure)
 
 

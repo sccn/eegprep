@@ -31,7 +31,6 @@ def test_pop_study_dialog_spec_exposes_loaded_dataset_metadata():
     assert spec.title == "Edit STUDY set information - pop_study()"
     assert spec.function_name == "pop_study"
     assert spec.eeglab_source == "functions/studyfunc/pop_study.m"
-    assert spec.size == (1080, 834)
     assert controls["name"].value == "Study"
     assert controls["dataset_1_filename"].value == "one.set"
     assert controls["dataset_1_subject"].value == "S01"

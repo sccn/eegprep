@@ -62,8 +62,6 @@ GUI and Session Entry Points
 .. autosummary::
    :toctree: generated/
 
-   eegprep.gui
-   eegprep.eeglab
    eegprep.select_multiple_datasets
 
 Data Loading and Saving

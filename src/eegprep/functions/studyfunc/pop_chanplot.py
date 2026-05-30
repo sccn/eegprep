@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 from typing import Any
 
 import matplotlib.pyplot as plt
@@ -57,8 +58,9 @@ def pop_chanplot(
     else:
         fig, selected = _plot_component_measure(STUDY, components, measure)
         last_selection = {"measure": measure, "mode": mode, "components": selected}
-    study = dict(STUDY)
-    study["etc"] = {**(STUDY.get("etc") or {}), "last_chanplot": last_selection}
+    study = deepcopy(STUDY)
+    etc = study.get("etc") if isinstance(study.get("etc"), dict) else {}
+    study["etc"] = {**etc, "last_chanplot": last_selection}
     command = _history_command(channels=channels, components=components, measure=measure, mode=mode)
     return (study, command, fig) if return_com else study
 
@@ -168,9 +170,15 @@ def _run_gui(STUDY: dict[str, Any], ALLEEG: Any, *, renderer: Any | None = None)
         return None
     if "measure" not in result:
         action = str(result.get("measure_action") or "erp")
+        measure = _measure_name(action)
         selected = numeric_vector(result.get("chan_list", []), dtype=int).tolist()
         channels = [] if not selected or 1 in selected else [index - 1 for index in selected if index > 1]
-        return {"channels": channels, "components": [], "measure": _measure_name(action), "mode": "channels"}
+        mode = (
+            "components"
+            if not _has_cached_channels(STUDY, measure) and _has_cached_components(STUDY, measure)
+            else "channels"
+        )
+        return {"channels": channels, "components": [], "measure": measure, "mode": mode}
     measure_index = _popup_index(result.get("measure"), 1)
     mode_index = _popup_index(result.get("mode"), 1, maximum=2)
     return {
@@ -311,6 +319,12 @@ def _plot_image(image: np.ndarray, x_axis: np.ndarray, y_axis: np.ndarray, title
 
 def _has_cached_channels(study: dict[str, Any], measure: str) -> bool:
     return any(isinstance(group, dict) and _field(measure) in group for group in study.get("changrp") or [])
+
+
+def _has_cached_components(study: dict[str, Any], measure: str) -> bool:
+    clusters = study.get("cluster") or []
+    parent = clusters[0] if clusters and isinstance(clusters[0], dict) else {}
+    return _field(measure) in parent
 
 
 def _cached_channel_groups(study: dict[str, Any], channels: Any) -> list[dict[str, Any]]:

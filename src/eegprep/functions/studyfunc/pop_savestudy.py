@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
@@ -39,7 +40,7 @@ def pop_savestudy(
     if resavedatasets not in {"on", "off"}:
         raise ValueError("resavedatasets must be 'on' or 'off'")
 
-    datasets = as_alleeg_list(EEG) if EEG is not None else []
+    datasets = [deepcopy(eeg) for eeg in as_alleeg_list(EEG)] if EEG is not None else []
     study, _datasets = std_checkset(ensure_study(STUDY), datasets)
     path = _save_path(study, filename, filepath, savemode=savemode)
     path.parent.mkdir(parents=True, exist_ok=True)

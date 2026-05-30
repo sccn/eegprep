@@ -68,6 +68,12 @@ def _fake_pop_savestudy(STUDY, EEG=None, *, return_com=False):
     return (study, command) if return_com else study
 
 
+def _fake_pop_fresh_study(*, return_com=False):
+    study = {"name": "fresh study", "design": []}
+    command = "STUDY = pop_freshstudy()"
+    return (study, command) if return_com else study
+
+
 def test_workspace_starts_with_eeglab_style_names():
     session = EEGPrepSession()
     workspace = EEGPrepConsoleWorkspace(session, exports={})
@@ -137,6 +143,17 @@ def test_console_pop_savestudy_result_updates_study_without_replacing_alleeg():
     assert session.ALLEEG[0]["setname"] == "demo"
     assert len(result) == 2
     assert session.ALLCOM[-1].startswith("STUDY = pop_savestudy(")
+
+
+def test_console_pop_result_detects_fresh_study_without_datasetinfo():
+    session = EEGPrepSession()
+    workspace = EEGPrepConsoleWorkspace(session, exports={"pop_freshstudy": _fake_pop_fresh_study})
+
+    result = workspace.namespace["pop_freshstudy"]()
+
+    assert session.CURRENTSTUDY == 1
+    assert session.STUDY["name"] == "fresh study"
+    assert result.command == "STUDY = pop_freshstudy()"
 
 
 def test_console_pop_precomp_result_updates_shared_study_history():

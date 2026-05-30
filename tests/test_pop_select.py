@@ -362,10 +362,9 @@ class TestPopSelectEdgeCases(unittest.TestCase):
         """Test that negative channel indices raise appropriate errors."""
         EEG = copy.deepcopy(self.EEG)
 
-        # This should fail during eeg_decodechan call
-        with self.assertRaises(Exception):  # Could be ValueError or IndexError
+        with self.assertRaisesRegex(ValueError, "Wrong channel range"):
             pop_select(EEG, channel=[-1])
-        with self.assertRaises(Exception):
+        with self.assertRaisesRegex(ValueError, "Wrong channel range"):
             pop_select(EEG, nochannel=[-1])
 
     def test_float_indices_error(self):
@@ -380,9 +379,10 @@ class TestPopSelectEdgeCases(unittest.TestCase):
         """Test out-of-range channel indices."""
         EEG = copy.deepcopy(self.EEG)
 
-        # Channel index beyond available channels
-        with self.assertRaises(Exception):
+        with self.assertRaisesRegex(ValueError, "Wrong channel range"):
             pop_select(EEG, channel=[10])  # Only 4 channels available (0-3)
+        with self.assertRaisesRegex(ValueError, "Wrong channel range"):
+            pop_select(EEG, nochannel=[EEG["nbchan"]])
 
     def test_time_range_selection(self):
         """Test time range selection functionality."""

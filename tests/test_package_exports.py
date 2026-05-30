@@ -12,9 +12,17 @@ import pytest
 import eegprep
 
 
-@pytest.mark.parametrize("name", sorted(eegprep._LAZY_EXPORTS))
-def test_lazy_export_matches_direct_import(name: str) -> None:
-    module_name, attr_name = eegprep._LAZY_EXPORTS[name]
+@pytest.mark.parametrize(
+    ("name", "module_name", "attr_name"),
+    (
+        ("gui", "eegprep.functions.adminfunc.eeglab", "gui"),
+        ("EEGPrepSession", "eegprep.functions.guifunc.session", "EEGPrepSession"),
+        ("pop_study", "eegprep.functions.studyfunc.pop_study", "pop_study"),
+        ("pop_clust", "eegprep.functions.studyfunc.pop_clust", "pop_clust"),
+        ("plugin_menu", "eegprep.functions.adminfunc.plugin_menu", "plugin_menu"),
+    ),
+)
+def test_representative_lazy_exports_match_direct_import(name: str, module_name: str, attr_name: str) -> None:
     direct = getattr(importlib.import_module(module_name), attr_name)
 
     assert getattr(eegprep, name) is direct

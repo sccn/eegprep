@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
@@ -32,7 +33,7 @@ def std_editset(
     **kwargs: Any,
 ) -> Any:
     """Modify STUDY metadata and datasetinfo entries."""
-    datasets = as_alleeg_list(ALLEEG)
+    datasets = [deepcopy(eeg) for eeg in as_alleeg_list(ALLEEG)]
     study = sync_datasetinfo(ensure_study(STUDY), datasets)
     options = parse_key_value_args(args, kwargs, lowercase_kwargs=True)
     name = options.pop("name", name)

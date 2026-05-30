@@ -270,9 +270,11 @@ def _subject_label(datasetinfo: Any, study_set: int) -> str:
 
 def _clusters_from_list_selection(study: dict[str, Any], selection: Any) -> list[int]:
     indices = numeric_vector(selection, dtype=int)
-    if indices.size == 0 or bool((indices == 1).any()):
+    if indices.size == 0:
         return []
     clusters = list(range(1, len(cluster_list(study)) + 1))
+    if bool((indices == 1).any()):
+        return clusters
     return [clusters[index - 2] for index in indices.tolist() if 2 <= index <= len(clusters) + 1]
 
 

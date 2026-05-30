@@ -336,6 +336,20 @@ def test_pop_chanplot_gui_component_mode_uses_cached_measures():
     plt.close(figure)
 
 
+def test_pop_chanplot_gui_routes_measure_buttons_to_component_cache():
+    first = create_test_eeg_with_ica(n_channels=4, n_samples=64, n_trials=3, n_components=2)
+    first.update({"subject": "S01", "condition": "target"})
+    study, alleeg = pop_study(None, [first], name="Component study")
+    study, alleeg = pop_precomp(study, alleeg, "components", erp="on")
+    renderer = _Renderer({"chan_list": [1], "measure_action": "erp"})
+
+    study, command, figure = pop_chanplot(study, alleeg, gui=True, renderer=renderer, return_com=True)
+
+    assert study["etc"]["last_chanplot"] == {"measure": "erp", "mode": "components", "components": [1, 2]}
+    assert "mode='components'" in command
+    plt.close(figure)
+
+
 def test_study_measure_menu_actions_are_implemented():
     assert action_kind("pop_precomp:channels") == "implemented"
     assert action_kind("pop_precomp:components") == "implemented"

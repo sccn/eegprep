@@ -35,7 +35,6 @@ dependencies = [
   "pybids>=0.4",
   "pyedflib>=0.1.42",
   "python-picard>=0.8,<0.9",
-  "scikit-learn>=1.1,<1.8",
   "scipy>=1.7.0",
   "sympy>=1.14.0",
   "threadpoolctl>=3.6.0",
@@ -103,7 +102,6 @@ constraint-dependencies = [
   "numpy<2.3",
   "pandas<2.3.3",
   "pyzmq<27",
-  "scikit-learn<1.8",
   "scipy<1.17",
 ]
 required-environments = [

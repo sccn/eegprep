@@ -6,6 +6,7 @@ from typing import Any
 
 from eegprep.functions.popfunc._pop_utils import parse_key_value_args
 from eegprep.functions.studyfunc._study_utils import (
+    _empty_value,
     as_alleeg_list,
     available_variables,
     build_python_call,
@@ -155,7 +156,7 @@ def _default_specs(study: dict[str, Any], labels: list[str]) -> tuple[tuple[str 
 
 
 def _subject_values(study: dict[str, Any], subjselect: Any) -> list[Any]:
-    if subjselect is None or subjselect == []:
+    if _empty_value(subjselect):
         return list(study.get("subject") or [])
     values = parse_design_values(subjselect)
     unknown = sorted(set(values) - set(study.get("subject") or []))

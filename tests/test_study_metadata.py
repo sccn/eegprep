@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 from eegprep.functions.popfunc.pop_saveset import pop_saveset
@@ -73,6 +74,8 @@ def test_std_editset_updates_datasetinfo_and_loaded_dataset_metadata():
     assert edited["datasetinfo"][0]["session"] == 2
     assert edited_alleeg[0]["subject"] == "S99"
     assert edited_alleeg[0]["condition"] == "rare"
+    assert alleeg[0].get("subject", "") == ""
+    assert alleeg[0].get("condition", "") == ""
     assert "std_editset" in command
 
 
@@ -111,6 +114,22 @@ def test_pop_studydesign_selects_and_updates_design():
     assert study["currentdesign"] == 1
     assert study["design"][0]["variable"][0]["value"] == ["target"]
     assert command.startswith("STUDY = std_makedesign(")
+
+
+def test_std_makedesign_accepts_numpy_subject_selection():
+    study, alleeg = pop_study(
+        None,
+        [
+            _eeg("one", subject="S01", condition="target"),
+            _eeg("two", subject="S02", condition="standard"),
+        ],
+    )
+
+    selected, _command = std_makedesign(study, alleeg, 1, subjselect=np.array(["S01"]), return_com=True)
+    all_subjects, _command = std_makedesign(study, alleeg, 1, subjselect=np.array([]), return_com=True)
+
+    assert selected["design"][0]["cases"]["value"] == ["S01"]
+    assert all_subjects["design"][0]["cases"]["value"] == ["S01", "S02"]
 
 
 def test_pop_savestudy_and_pop_loadstudy_roundtrip_with_dataset_loading(tmp_path):
@@ -160,7 +179,7 @@ def test_pop_savestudy_resavedatasets_writes_loaded_dataset_files(tmp_path):
     reloaded, loaded_alleeg = pop_loadstudy(saved["filename"], filepath=saved["filepath"])
 
     assert (tmp_path / "saved.set").exists()
-    assert alleeg[0]["saved"] == "yes"
+    assert alleeg[0]["saved"] == "no"
     assert loaded_alleeg[0]["setname"] == "saved"
     assert reloaded["name"] == "Dataset resave study"
     assert "resavedatasets='on'" in command

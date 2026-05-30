@@ -112,7 +112,8 @@ def _normalize_one_spec(item: Any) -> dict[str, Any]:
         return {"measure": item.lower(), "npca": 5, "norm": 1, "weight": 1}
     if isinstance(item, dict):
         spec = {str(key).lower(): value for key, value in item.items()}
-        spec["measure"] = str(spec.pop("command", spec.get("measure", ""))).lower()
+        command = spec.pop("command", None)
+        spec["measure"] = str(command or spec.get("measure") or "").lower()
     elif isinstance(item, (list, tuple)) and item:
         spec = {"measure": str(item[0]).lower()}
         if len(item[1:]) % 2:
