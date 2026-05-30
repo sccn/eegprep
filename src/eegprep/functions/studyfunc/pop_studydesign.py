@@ -68,18 +68,29 @@ def pop_studydesign_dialog_spec(STUDY: dict[str, Any], ALLEEG: list[dict[str, An
     variables = design.get("variable") or []
     factors = available_variables(study)
     factor_text = " ".join(factors)
+    design_names = [str(item.get("name") or f"STUDY.design {index}") for index, item in enumerate(designs, start=1)]
+    variable_summary = _variable_summary(variables)
     controls = [
         ControlSpec("text", "Include these subjects (default: all)", font_weight="bold"),
         ControlSpec(
             "edit", tag="subjects", value=" ".join(str(item) for item in design.get("cases", {}).get("value", []))
         ),
+        ControlSpec("pushbutton", "...", tag="select_subjects", enabled=False),
         ControlSpec("text", "Design name", font_weight="bold"),
-        ControlSpec("edit", tag="name", value=str(design.get("name") or f"STUDY.design {current}")),
-        ControlSpec("text", "Current design index"),
-        ControlSpec("edit", tag="designind", value=str(current)),
+        ControlSpec("pushbutton", "New", tag="new_design", enabled=False),
+        ControlSpec("pushbutton", "Rename", tag="rename_design", enabled=False),
+        ControlSpec("pushbutton", "Delete", tag="delete_design", enabled=False),
+        ControlSpec("listbox", "|".join(design_names or [f"STUDY.design {current}"]), tag="designind", value=current),
+        ControlSpec("text", "Edit the independent variables for this design", font_weight="bold"),
+        ControlSpec("pushbutton", "New", tag="new_variable", enabled=False),
+        ControlSpec("pushbutton", "Edit", tag="edit_variable", enabled=False),
+        ControlSpec("pushbutton", "Delete", tag="delete_variable", enabled=False),
+        ControlSpec("pushbutton", "List factors", tag="list_factors", enabled=False),
+        ControlSpec(
+            "listbox", "|".join(variable_summary or ["No independent variables"]), tag="variable_summary", value=1
+        ),
         ControlSpec("text", "Available factors"),
         ControlSpec("edit", tag="available_factors", value=factor_text, enabled=False),
-        ControlSpec("text", "Edit the independent variables for this design", font_weight="bold"),
         ControlSpec("text", "Variable 1"),
         ControlSpec("edit", tag="variable1", value=_variable_label(variables, 0)),
         ControlSpec("text", "Values 1 ([] = all)"),
@@ -88,18 +99,69 @@ def pop_studydesign_dialog_spec(STUDY: dict[str, Any], ALLEEG: list[dict[str, An
         ControlSpec("edit", tag="variable2", value=_variable_label(variables, 1)),
         ControlSpec("text", "Values 2 ([] = all)"),
         ControlSpec("edit", tag="values2", value=_variable_values(variables, 1)),
-        ControlSpec("text", "Study design factors are taken from STUDY.datasetinfo and trialinfo fields."),
+        ControlSpec("checkbox", "Re-save STUDY file (if saved previously)", tag="resave", value=True, enabled=False),
     ]
     return DialogSpec(
         title="Edit STUDY design -- pop_studydesign()",
         controls=tuple(controls),
-        geometry=tuple(1 for _control in controls),
+        geometry=(
+            (2.5, 1.5, 0.45),
+            (2.9, 0.45, 0.55, 0.55),
+            (1,),
+            (1,),
+            (0.45, 0.45, 0.55, 0.8),
+            (1,),
+            (1.2, 2.2),
+            (0.8, 1.05, 0.9, 1.15),
+            (0.8, 1.05, 0.9, 1.15),
+            (1,),
+        ),
         function_name="pop_studydesign",
         eeglab_source="functions/studyfunc/pop_studydesign.m",
         help_text="pop_studydesign",
-        size=(620, 430),
-        content_margins=(34, 18, 34, 14),
-        row_spacing=6,
+        size=(500, 590),
+        content_margins=(24, 22, 24, 14),
+        row_spacing=5,
+        geomvert=(1, 1, 3.1, 0.7, 1, 3.4, 1, 1, 1, 1),
+        button_size=(58, 20),
+        extra_stylesheet="""
+            QDialog#pop_studydesign QLabel,
+            QDialog#pop_studydesign QCheckBox,
+            QDialog#pop_studydesign QPushButton,
+            QDialog#pop_studydesign QLineEdit,
+            QDialog#pop_studydesign QListWidget {
+                font-size: 12px;
+            }
+            QDialog#pop_studydesign QLineEdit,
+            QDialog#pop_studydesign QPushButton {
+                min-height: 20px;
+                max-height: 20px;
+            }
+            QDialog#pop_studydesign QListWidget#designind {
+                min-height: 86px;
+                max-height: 118px;
+            }
+            QDialog#pop_studydesign QListWidget#variable_summary {
+                min-height: 96px;
+                max-height: 132px;
+            }
+            QDialog#pop_studydesign QPushButton#select_subjects,
+            QDialog#pop_studydesign QPushButton#new_design,
+            QDialog#pop_studydesign QPushButton#rename_design,
+            QDialog#pop_studydesign QPushButton#delete_design,
+            QDialog#pop_studydesign QPushButton#new_variable,
+            QDialog#pop_studydesign QPushButton#edit_variable,
+            QDialog#pop_studydesign QPushButton#delete_variable {
+                min-width: 54px;
+                max-width: 54px;
+                padding: 0 3px;
+            }
+            QDialog#pop_studydesign QPushButton#list_factors {
+                min-width: 82px;
+                max-width: 82px;
+                padding: 0 3px;
+            }
+        """,
         known_differences=(
             "EEGPrep Phase 5a edits and selects design metadata; LIMO, precompute, and plotting hooks are later phases.",
         ),
@@ -108,12 +170,13 @@ def pop_studydesign_dialog_spec(STUDY: dict[str, Any], ALLEEG: list[dict[str, An
 
 def _options_from_gui(result: dict[str, Any]) -> dict[str, Any]:
     options: dict[str, Any] = {
-        "name": str(result.get("name") or ""),
         "variable1": str(result.get("variable1") or ""),
         "values1": parse_design_values(result.get("values1")),
         "variable2": str(result.get("variable2") or ""),
         "values2": parse_design_values(result.get("values2")),
     }
+    if "name" in result:
+        options["name"] = str(result.get("name") or "")
     subjects = parse_design_values(result.get("subjects"))
     if subjects:
         options["subjselect"] = subjects
@@ -129,6 +192,18 @@ def _variable_values(variables: list[dict[str, Any]], index: int) -> str:
         return ""
     values = variables[index].get("value") or []
     return " ".join(str(value) for value in values)
+
+
+def _variable_summary(variables: list[dict[str, Any]]) -> list[str]:
+    rows: list[str] = []
+    for variable in variables:
+        label = str(variable.get("label") or "")
+        if not label:
+            continue
+        values = variable.get("value") or []
+        value_text = " - ".join(str(value) for value in values) if values else "all"
+        rows.append(f"Categorical variable: {label} - Values ({value_text})")
+    return rows
 
 
 __all__ = ["pop_studydesign", "pop_studydesign_dialog_spec"]

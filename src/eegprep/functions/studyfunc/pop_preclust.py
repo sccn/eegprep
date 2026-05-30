@@ -182,6 +182,13 @@ def pop_preclust_dialog_spec(STUDY: dict[str, Any]) -> DialogSpec:
         content_margins=(24, 20, 24, 14),
         row_spacing=5,
         geomvert=(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.5),
+        button_size=(58, 20),
+        extra_stylesheet="""
+            QDialog#pop_preclust QPushButton#double_dip_help {
+                min-width: 96px;
+                max-width: 96px;
+            }
+        """,
     )
 
 

@@ -47,47 +47,127 @@ def pop_precomp_dialog_spec(
     study = ensure_study(STUDY)
     mode_value = 2 if isinstance(chanorcomp, str) and chanorcomp.lower() == "components" else 1
     title_name = str(study.get("name") or "")
+    is_components = mode_value == 2
+    extra_measure_controls = (
+        (
+            ControlSpec("checkbox", "", tag="component_rv_on", value=True),
+            ControlSpec(
+                "text",
+                "Compute ERP/spectrum/ERSP only for components selected by RV (set) or for all components (unset)",
+            ),
+        )
+        if is_components
+        else (
+            ControlSpec("checkbox", "", tag="interpolate_on", value=True),
+            ControlSpec(
+                "text",
+                "Spherical interpolation of missing channels (performed after optional ICA removal below)",
+            ),
+            ControlSpec("checkbox", "", tag="rmica1_on", value=False),
+            ControlSpec("text", "Remove ICA artifactual components pre-tagged in each dataset"),
+            ControlSpec("checkbox", "", tag="rmica2_on", value=False),
+            ControlSpec("text", "Remove artifactual ICA cluster or clusters (hold shift key)"),
+            ControlSpec("listbox", "ParentCluster", tag="rmica2_val", value=1),
+        )
+    )
     controls = (
         ControlSpec("text", f"Pre-compute measures for STUDY '{title_name}'", font_weight="bold"),
         ControlSpec("text", "Measure target"),
         ControlSpec("popupmenu", "Channels|Components", tag="mode", value=mode_value),
+        *extra_measure_controls,
         ControlSpec("text", "List of measures to precompute", font_weight="bold"),
         ControlSpec("text", "Measure parameters", font_weight="bold"),
         ControlSpec("checkbox", "", tag="erp_on", value=True),
         ControlSpec("text", "ERPs"),
         ControlSpec("edit", tag="erp_params", value=""),
+        ControlSpec("pushbutton", "...", tag="erp_button", enabled=False),
+        ControlSpec("spacer"),
         ControlSpec("checkbox", "", tag="spectra_on", value=True),
         ControlSpec("text", "Power spectrum"),
-        ControlSpec("edit", tag="spec_params", value="'winsize', 64"),
+        ControlSpec("edit", tag="spec_params", value="'specmode', 'fft', 'logtrials', 'off'"),
+        ControlSpec("pushbutton", "...", tag="spec_button", enabled=False),
+        ControlSpec("pushbutton", "Test", tag="spec_test", enabled=False),
+        ControlSpec("checkbox", "", tag="erpimage_on", value=False, enabled=False),
+        ControlSpec("text", "ERP-image", enabled=False),
+        ControlSpec("edit", tag="erpimage_params", value="'nlines', 10, 'smoothing', 10", enabled=False),
+        ControlSpec("pushbutton", "...", tag="erpimage_button", enabled=False),
+        ControlSpec("spacer"),
         ControlSpec("checkbox", "", tag="ersp_on", value=False),
         ControlSpec("text", "ERSPs"),
-        ControlSpec("edit", tag="ersp_params", value="'cycles', [3, 0.8], 'nfreqs', 40, 'timesout', 80"),
+        ControlSpec("edit", tag="ersp_params", value="'cycles', [3, 0.8], 'nfreqs', 100, 'timesout', 200"),
+        ControlSpec("pushbutton", "...", tag="ersp_button", enabled=False),
+        ControlSpec("pushbutton", "Test", tag="ersp_test", enabled=False),
         ControlSpec("checkbox", "", tag="itc_on", value=False),
         ControlSpec("text", "ITCs"),
-        ControlSpec("checkbox", "Scalp maps (components)", tag="scalp_on", value=False),
+        ControlSpec("spacer"),
+        ControlSpec("spacer"),
+        ControlSpec("spacer"),
+        ControlSpec("checkbox", "", tag="scalp_on", value=False, enabled=is_components),
+        ControlSpec("text", "Scalp maps", enabled=is_components),
         ControlSpec("checkbox", "All components", tag="allcomps_on", value=True),
         ControlSpec("checkbox", "Overwrite cached measures", tag="recomp_on", value=True),
     )
+    intro_geometry = ((0.35, 6),) if is_components else ((0.35, 6), (0.35, 6), (0.35, 4, 2))
+    intro_geomvert = (1,) if is_components else (1, 1, 2)
     return DialogSpec(
         title="Select and compute component measures for later clustering -- pop_precomp()",
         controls=controls,
         geometry=(
             (1,),
             (1, 1),
-            (1,),
-            (1,),
-            (0.35, 1.0, 2.6),
-            (0.35, 1.0, 2.6),
-            (0.35, 1.0, 2.6),
-            (0.35, 1.0, 2.6),
-            (1,),
+            *intro_geometry,
+            (1, 1),
+            (0.35, 1.25, 4.1, 0.42, 0.58),
+            (0.35, 1.25, 4.1, 0.42, 0.58),
+            (0.35, 1.25, 4.1, 0.42, 0.58),
+            (0.35, 1.25, 4.1, 0.42, 0.58),
+            (0.35, 1.25, 4.1, 0.42, 0.58),
+            (0.35, 6),
             (1,),
             (1,),
         ),
         function_name="pop_precomp",
         eeglab_source="functions/studyfunc/pop_precomp.m",
         help_text="pophelp('pop_precomp')",
-        size=(760, 360),
+        size=(780, 520 if is_components else 590),
+        content_margins=(28, 22, 28, 16),
+        row_spacing=5,
+        geomvert=(1, 0.5, *intro_geomvert, 0.5, 1, 1, 1, 1, 1, 1, 1, 1),
+        button_size=(62, 20),
+        extra_stylesheet="""
+            QDialog#pop_precomp QLabel,
+            QDialog#pop_precomp QCheckBox,
+            QDialog#pop_precomp QPushButton,
+            QDialog#pop_precomp QLineEdit,
+            QDialog#pop_precomp QComboBox,
+            QDialog#pop_precomp QListWidget {
+                font-size: 13px;
+            }
+            QDialog#pop_precomp QLineEdit,
+            QDialog#pop_precomp QPushButton,
+            QDialog#pop_precomp QComboBox {
+                min-height: 20px;
+                max-height: 20px;
+            }
+            QDialog#pop_precomp QPushButton#erp_button,
+            QDialog#pop_precomp QPushButton#spec_button,
+            QDialog#pop_precomp QPushButton#erpimage_button,
+            QDialog#pop_precomp QPushButton#ersp_button {
+                min-width: 36px;
+                max-width: 36px;
+                padding: 0;
+            }
+            QDialog#pop_precomp QPushButton#spec_test,
+            QDialog#pop_precomp QPushButton#ersp_test {
+                min-width: 52px;
+                max-width: 52px;
+                padding: 0 3px;
+            }
+            QDialog#pop_precomp QListWidget#rmica2_val {
+                min-height: 42px;
+                max-height: 58px;
+            }
+        """,
         known_differences=(
             "EEGPrep stores STUDY measures in the STUDY dictionary instead of EEGLAB .dat/.ica sidecar files.",
             "The selected design is recorded in measure metadata; Phase 5b cached arrays are dataset-level averages and "

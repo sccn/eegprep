@@ -31,7 +31,7 @@ def test_pop_study_dialog_spec_exposes_loaded_dataset_metadata():
     assert spec.title == "Edit STUDY set information - pop_study()"
     assert spec.function_name == "pop_study"
     assert spec.eeglab_source == "functions/studyfunc/pop_study.m"
-    assert spec.size == (850, 560)
+    assert spec.size == (1080, 834)
     assert controls["name"].value == "Study"
     assert controls["dataset_1_filename"].value == "one.set"
     assert controls["dataset_1_subject"].value == "S01"
@@ -97,7 +97,7 @@ def test_pop_studydesign_dialog_spec_lists_factors_and_current_design():
     assert spec.title == "Edit STUDY design -- pop_studydesign()"
     assert spec.function_name == "pop_studydesign"
     assert spec.eeglab_source == "functions/studyfunc/pop_studydesign.m"
-    assert controls["designind"].value == "1"
+    assert controls["designind"].value == 1
     assert "condition" in controls["available_factors"].value
     assert controls["variable1"].value == "condition"
     assert controls["available_factors"].enabled is False

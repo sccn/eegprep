@@ -162,6 +162,7 @@ def pop_clustedit_dialog_spec(STUDY: dict[str, Any]) -> DialogSpec:
         content_margins=(48, 24, 48, 14),
         row_spacing=6,
         geomvert=(1, 0.5, 1, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+        button_size=(58, 20),
         extra_stylesheet="""
             QDialog#pop_clustedit QListWidget {
                 min-height: 126px;

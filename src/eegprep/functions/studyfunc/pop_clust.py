@@ -107,7 +107,26 @@ def pop_clust_dialog_spec(STUDY: dict[str, Any]) -> DialogSpec:
         function_name="pop_clust",
         eeglab_source="functions/studyfunc/pop_clust.m",
         help_text="pop_clust",
-        size=(500, 240),
+        size=(578, 282),
+        content_margins=(38, 36, 38, 16),
+        row_spacing=5,
+        geomvert=(1, 0.5, 1, 1, 1),
+        button_size=(58, 20),
+        extra_stylesheet="""
+            QDialog#pop_clust QLabel,
+            QDialog#pop_clust QCheckBox,
+            QDialog#pop_clust QPushButton,
+            QDialog#pop_clust QLineEdit,
+            QDialog#pop_clust QComboBox {
+                font-size: 13px;
+            }
+            QDialog#pop_clust QLineEdit,
+            QDialog#pop_clust QComboBox,
+            QDialog#pop_clust QPushButton {
+                min-height: 20px;
+                max-height: 20px;
+            }
+        """,
     )
 
 

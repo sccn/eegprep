@@ -67,41 +67,97 @@ def pop_chanplot_dialog_spec(STUDY: dict[str, Any], ALLEEG: Any) -> DialogSpec:
     """Return the STUDY measure plotting dialog spec."""
     datasets = as_eeg_list(ALLEEG)
     labels = channel_labels(datasets[0]) if datasets else []
+    design_names = _design_names(STUDY)
+    channel_options = ["All channels", *labels] if labels else ["All channels"]
+    subject_options = _subject_options(STUDY)
     return DialogSpec(
-        title="Plot channel measures - pop_chanplot()",
+        title="View and edit current channels -- pop_chanplot()",
         controls=(
-            ControlSpec("text", "Measure target"),
-            ControlSpec("popupmenu", "Channels|Components", tag="mode", value=1),
-            ControlSpec("text", "Channels ([] = all)"),
-            ControlSpec("edit", tag="channels", value=""),
+            ControlSpec("text", "Select design:", font_weight="bold"),
+            ControlSpec("popupmenu", "|".join(design_names), tag="design", value=int(STUDY.get("currentdesign") or 1)),
+            ControlSpec("spacer"),
+            ControlSpec("text", "Select channel to plot", font_weight="bold"),
+            ControlSpec("pushbutton", "Sel. all", tag="select_all_channels", enabled=False),
+            ControlSpec("spacer"),
+            ControlSpec("spacer"),
+            ControlSpec("text", "Select subject(s) to plot", font_weight="bold"),
+            ControlSpec("listbox", "|".join(channel_options), tag="chan_list", value=[1]),
             ControlSpec(
                 "pushbutton",
-                "...",
-                tag="channels_button",
-                callback=CallbackSpec(
-                    "select_channels",
-                    params={
-                        "button": "channels_button",
-                        "target": "channels",
-                        "channels": labels,
-                        "return_indices": True,
-                    },
-                    matlab_callback="pop_chansel({tmpchanlocs.labels}, 'withindex', 'on')",
-                ),
+                "STATS\nparams",
+                tag="stats",
+                callback=CallbackSpec("set_value", {"source": "stats", "target": "measure_action", "value": "erp"}),
             ),
-            ControlSpec("text", "Components ([] = all)"),
-            ControlSpec("edit", tag="components", value=""),
-            ControlSpec("text", "Measure"),
-            ControlSpec("popupmenu", "ERP|Spectrum|ERSP|ITC", tag="measure", value=1),
-            ControlSpec("text", f"STUDY: {STUDY.get('name') or ''}"),
+            ControlSpec("listbox", "|".join(subject_options), tag="chan_onechan", value=[1]),
+            _plot_button("Plot ERPs", "erp", "plot_chan_erp"),
+            _params_button("erp_params"),
+            _plot_button("Plot ERP(s)", "erp", "plot_onechan_erp"),
+            _plot_button("Plot spectra", "spec", "plot_chan_spectra"),
+            _params_button("spec_params"),
+            _plot_button("Plot spectra", "spec", "plot_onechan_spectra"),
+            _plot_button("Plot ERPimage", "erpimage", "plot_chan_erpimage", enabled=False),
+            _params_button("erpimage_params", enabled=False),
+            _plot_button("Plot ERPimage(s)", "erpimage", "plot_onechan_erpimage", enabled=False),
+            _plot_button("Plot ERSPs", "ersp", "plot_chan_ersp"),
+            _params_button("ersp_params"),
+            _plot_button("Plot ERSP(s)", "ersp", "plot_onechan_ersp"),
+            _plot_button("Plot ITCs", "itc", "plot_chan_itc"),
+            ControlSpec("spacer", tag="measure_action"),
+            _plot_button("Plot ITC(s)", "itc", "plot_onechan_itc"),
         ),
-        geometry=((1, 1), (1, 1, 0.22), (1, 1), (1, 1), (1,)),
+        geometry=(
+            (0.8, 3),
+            (1,),
+            (0.6, 0.35, 0.1, 0.1, 0.9),
+            (0.9, 0.35, 0.9),
+            (0.9, 0.35, 0.9),
+            (0.9, 0.35, 0.9),
+            (0.9, 0.35, 0.9),
+            (0.9, 0.35, 0.9),
+            (0.9, 0.35, 0.9),
+        ),
         function_name="pop_chanplot",
         eeglab_source="functions/studyfunc/pop_chanplot.m",
         help_text="pophelp('pop_chanplot')",
-        size=(580, 265),
+        size=(770, 500),
+        content_margins=(48, 24, 48, 14),
+        row_spacing=6,
+        geomvert=(1, 0.5, 1, 5, 1, 1, 1, 1, 1),
+        button_size=(58, 20),
+        extra_stylesheet="""
+            QDialog#pop_chanplot QLabel,
+            QDialog#pop_chanplot QPushButton,
+            QDialog#pop_chanplot QComboBox,
+            QDialog#pop_chanplot QListWidget {
+                font-size: 12px;
+            }
+            QDialog#pop_chanplot QListWidget {
+                min-height: 126px;
+                max-height: 168px;
+            }
+            QDialog#pop_chanplot QPushButton {
+                min-width: 170px;
+                max-width: 360px;
+                min-height: 20px;
+                max-height: 20px;
+                padding: 0 8px;
+            }
+            QDialog#pop_chanplot QPushButton#stats {
+                min-width: 82px;
+                max-width: 82px;
+                min-height: 94px;
+                max-height: 126px;
+            }
+            QDialog#pop_chanplot QPushButton#erp_params,
+            QDialog#pop_chanplot QPushButton#spec_params,
+            QDialog#pop_chanplot QPushButton#erpimage_params,
+            QDialog#pop_chanplot QPushButton#ersp_params {
+                min-width: 82px;
+                max-width: 82px;
+            }
+        """,
         known_differences=(
-            "EEGPrep uses one dialog to plot cached channel measures and parent-cluster component measures.",
+            "EEGPrep keeps the EEGLAB channel-measure action layout and routes OK to the selected/default measure.",
         ),
     )
 
@@ -110,6 +166,11 @@ def _run_gui(STUDY: dict[str, Any], ALLEEG: Any, *, renderer: Any | None = None)
     result = inputgui(pop_chanplot_dialog_spec(STUDY, ALLEEG), renderer=renderer)
     if result is None:
         return None
+    if "measure" not in result:
+        action = str(result.get("measure_action") or "erp")
+        selected = numeric_vector(result.get("chan_list", []), dtype=int).tolist()
+        channels = [] if not selected or 1 in selected else [index - 1 for index in selected if index > 1]
+        return {"channels": channels, "components": [], "measure": _measure_name(action), "mode": "channels"}
     measure_index = _popup_index(result.get("measure"), 1)
     mode_index = _popup_index(result.get("mode"), 1, maximum=2)
     return {
@@ -156,6 +217,34 @@ def _plot_component_measure(study: dict[str, Any], components: Any, measure: str
         return fig, selected
     image = np.nanmean(values, axis=(0, 1))
     return _plot_image(image, x_axis, y_axis, str(study.get("name") or f"STUDY component {measure.upper()}")), selected
+
+
+def _plot_button(label: str, measure: str, tag: str, *, enabled: bool = True) -> ControlSpec:
+    return ControlSpec(
+        "pushbutton",
+        label,
+        tag=tag,
+        enabled=enabled,
+        callback=CallbackSpec("set_value", {"source": tag, "target": "measure_action", "value": measure}),
+    )
+
+
+def _params_button(tag: str, *, enabled: bool = True) -> ControlSpec:
+    return ControlSpec("pushbutton", "Params", tag=tag, enabled=enabled)
+
+
+def _design_names(study: dict[str, Any]) -> list[str]:
+    designs = study.get("design") or []
+    if isinstance(designs, dict):
+        designs = [designs]
+    return [str(design.get("name") or f"STUDY.design {index}") for index, design in enumerate(designs, start=1)] or [
+        "STUDY.design 1"
+    ]
+
+
+def _subject_options(study: dict[str, Any]) -> list[str]:
+    subjects = [str(value) for value in study.get("subject", []) if str(value)]
+    return ["All subjects", *subjects] if subjects else ["All subjects"]
 
 
 def _plot_loaded_erp(study: dict[str, Any], datasets: list[dict[str, Any]], channels: Any) -> tuple[Any, list[int]]:

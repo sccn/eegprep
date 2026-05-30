@@ -95,47 +95,102 @@ def pop_study_dialog_spec(STUDY: dict[str, Any] | None, ALLEEG: list[dict[str, A
         if not STUDY or not STUDY.get("datasetinfo")
         else "Edit STUDY set information - pop_study()"
     )
+    datasetinfo = checked.get("datasetinfo") or []
+    visible_rows = max(10, len(datasetinfo))
     controls: list[ControlSpec] = [
         ControlSpec("text", "Create a new STUDY set", font_weight="bold"),
+        ControlSpec("spacer"),
         ControlSpec("text", "STUDY set name:"),
         ControlSpec("edit", tag="name", value=str(checked.get("name") or "")),
+        ControlSpec("spacer"),
         ControlSpec("text", "STUDY set task name:"),
         ControlSpec("edit", tag="task", value=str(checked.get("task") or "")),
+        ControlSpec("spacer"),
         ControlSpec("text", "STUDY set notes:"),
         ControlSpec("edit", tag="notes", value=str(checked.get("notes") or "")),
         ControlSpec("spacer"),
+        ControlSpec("spacer"),
         ControlSpec("text", "dataset filename", font_weight="bold"),
+        ControlSpec("text", "browse", font_weight="bold"),
         ControlSpec("text", "subject", font_weight="bold"),
         ControlSpec("text", "session", font_weight="bold"),
         ControlSpec("text", "run", font_weight="bold"),
         ControlSpec("text", "condition", font_weight="bold"),
         ControlSpec("text", "group", font_weight="bold"),
+        ControlSpec("pushbutton", "Select by r.v.", tag="select_by_rv", enabled=False),
+        ControlSpec("spacer"),
     ]
-    datasetinfo = checked.get("datasetinfo") or []
-    for index, info in enumerate(datasetinfo, start=1):
+    for index in range(1, visible_rows + 1):
+        info = datasetinfo[index - 1] if index <= len(datasetinfo) else {}
+        has_dataset = bool(info)
         controls.extend(
             (
                 ControlSpec("text", str(index)),
-                ControlSpec("edit", tag=f"dataset_{index}_filename", value=_display_path(info), enabled=False),
-                ControlSpec("edit", tag=f"dataset_{index}_subject", value=str(info.get("subject") or "")),
                 ControlSpec(
-                    "edit", tag=f"dataset_{index}_session", value=_display_optional_number(info.get("session"))
+                    "edit",
+                    tag=f"dataset_{index}_filename",
+                    value=_display_path(info),
+                    enabled=False,
                 ),
-                ControlSpec("edit", tag=f"dataset_{index}_run", value=_display_optional_number(info.get("run"))),
-                ControlSpec("edit", tag=f"dataset_{index}_condition", value=str(info.get("condition") or "")),
-                ControlSpec("edit", tag=f"dataset_{index}_group", value=str(info.get("group") or "")),
+                ControlSpec("pushbutton", "...", tag=f"dataset_{index}_browse", enabled=False),
+                ControlSpec(
+                    "edit",
+                    tag=f"dataset_{index}_subject",
+                    value=str(info.get("subject") or ""),
+                    enabled=has_dataset,
+                ),
+                ControlSpec(
+                    "edit",
+                    tag=f"dataset_{index}_session",
+                    value=_display_optional_number(info.get("session")),
+                    enabled=has_dataset,
+                ),
+                ControlSpec(
+                    "edit",
+                    tag=f"dataset_{index}_run",
+                    value=_display_optional_number(info.get("run")),
+                    enabled=has_dataset,
+                ),
+                ControlSpec(
+                    "edit",
+                    tag=f"dataset_{index}_condition",
+                    value=str(info.get("condition") or ""),
+                    enabled=has_dataset,
+                ),
+                ControlSpec(
+                    "edit",
+                    tag=f"dataset_{index}_group",
+                    value=str(info.get("group") or ""),
+                    enabled=has_dataset,
+                ),
+                ControlSpec("pushbutton", "All comp.", tag=f"dataset_{index}_components", enabled=False),
+                ControlSpec("pushbutton", "Clear", tag=f"dataset_{index}_clear", enabled=False),
             )
         )
-    controls.append(
-        ControlSpec(
-            "text",
-            "Important note: Removed datasets will not be saved before being deleted from EEGPrep memory",
+    controls.extend(
+        (
+            ControlSpec(
+                "text",
+                "Important note: Removed datasets will not be saved before being deleted from EEGPrep memory",
+            ),
+            ControlSpec("spacer"),
+            ControlSpec("pushbutton", "<", tag="previous_page", enabled=False),
+            ControlSpec("text", "Page 1"),
+            ControlSpec("pushbutton", ">", tag="next_page", enabled=False),
+            ControlSpec("spacer"),
+            ControlSpec("spacer"),
+            ControlSpec("checkbox", "", tag="delete_cluster_info", value=False, enabled=False),
+            ControlSpec(
+                "text",
+                "Delete cluster information (to allow loading new datasets, set new components for clustering, etc.)",
+                enabled=False,
+            ),
         )
     )
-    dataset_row_geometry = (0.22, 2.6, 0.9, 0.7, 0.55, 1.3, 0.9)
-    geometry = [(1,), (1.2, 5), (1.2, 5), (1.2, 5), dataset_row_geometry]
-    geometry.extend(dataset_row_geometry for _info in datasetinfo)
-    geometry.append((1,))
+    header_geometry = (0.2, 1.05, 0.35, 0.4, 0.35, 0.25, 0.6, 0.4, 0.6, 0.3)
+    geometry = [(1,), (0.2, 1, 3.5), (0.2, 1, 3.5), (0.2, 1, 3.5), (1,), header_geometry]
+    geometry.extend(header_geometry for _index in range(visible_rows))
+    geometry.extend(((1,), (1, 0.2, 0.3, 0.2, 1), (1,), (0.14, 3)))
     return DialogSpec(
         title=title,
         controls=tuple(controls),
@@ -143,10 +198,38 @@ def pop_study_dialog_spec(STUDY: dict[str, Any] | None, ALLEEG: list[dict[str, A
         function_name="pop_study",
         eeglab_source="functions/studyfunc/pop_study.m",
         help_text="pop_study",
-        size=(850, 560),
-        scrollable=len(datasetinfo) > 10,
-        content_margins=(34, 18, 34, 14),
-        row_spacing=4,
+        size=(1080, 834),
+        scrollable=visible_rows > 10,
+        content_margins=(26, 20, 26, 16),
+        row_spacing=8,
+        button_size=(54, 20),
+        extra_stylesheet="""
+            QDialog#pop_study QLabel,
+            QDialog#pop_study QCheckBox,
+            QDialog#pop_study QPushButton,
+            QDialog#pop_study QLineEdit {
+                font-size: 15px;
+            }
+            QDialog#pop_study QLineEdit {
+                min-height: 28px;
+                max-height: 28px;
+                padding: 0 2px;
+            }
+            QDialog#pop_study QPushButton {
+                min-height: 27px;
+                max-height: 27px;
+                padding: 0 4px;
+            }
+            QDialog#pop_study QPushButton#select_by_rv {
+                min-width: 76px;
+                max-width: 76px;
+            }
+            QDialog#pop_study QPushButton#previous_page,
+            QDialog#pop_study QPushButton#next_page {
+                min-width: 46px;
+                max-width: 46px;
+            }
+        """,
         known_differences=(
             "EEGPrep Phase 5a edits loaded dataset metadata; dataset browsing is provided by pop_studywizard.",
         ),
