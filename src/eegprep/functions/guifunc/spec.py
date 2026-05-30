@@ -54,6 +54,7 @@ class DialogSpec:
     content_margins: tuple[int, int, int, int] = (42, 17, 42, 13)
     row_spacing: int = 4
     geomvert: tuple[float, ...] | None = None
+    scrollable: bool = False
 
 
 def controls_by_tag(spec: DialogSpec) -> dict[str, ControlSpec]:

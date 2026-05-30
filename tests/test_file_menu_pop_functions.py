@@ -213,13 +213,13 @@ def test_pop_runscript_rejects_matlab_and_text_scripts(tmp_path):
 
 
 def test_study_save_load_and_bids_metadata(tmp_path):
-    study, alleeg, command = pop_study(None, [_eeg()], name="demo study")
+    study, alleeg, command = pop_study(None, [_eeg()], name="demo study", return_com=True)
     study, task_command = pop_taskinfo(study, TaskName="odd'ball")
     study, participant_command = pop_participantinfo(study, participant_id="sub-01")
     study, event_command = pop_eventinfo(study, trial_type="stimulus")
     study_file = tmp_path / "demo's.study"
-    saved, save_command = pop_savestudy(study, filename=study_file)
-    loaded, loaded_alleeg, load_command = pop_loadstudy(study_file)
+    saved, save_command = pop_savestudy(study, filename=study_file, return_com=True)
+    loaded, loaded_alleeg, load_command = pop_loadstudy(study_file, load_datasets=False, return_com=True)
 
     assert alleeg[0]["setname"] == "demo"
     assert saved["filename"] == "demo's.study"

@@ -18,7 +18,7 @@ class _Renderer:
 def _study_inputs():
     eeg = create_test_eeg(n_channels=2, n_samples=10)
     eeg.update({"setname": "one", "subject": "S01", "condition": "target", "filename": "one.set"})
-    study, alleeg, _command = pop_study(None, [eeg], name="Study")
+    study, alleeg = pop_study(None, [eeg], name="Study")
     return study, alleeg
 
 
@@ -39,6 +39,21 @@ def test_pop_study_dialog_spec_exposes_loaded_dataset_metadata():
     assert controls["dataset_1_filename"].enabled is False
 
 
+def test_pop_study_dialog_spec_exposes_all_dataset_rows():
+    datasets = []
+    for index in range(12):
+        eeg = create_test_eeg(n_channels=2, n_samples=10)
+        eeg.update({"setname": f"set{index + 1}", "subject": f"S{index + 1:02d}", "filename": f"set{index + 1}.set"})
+        datasets.append(eeg)
+    study, alleeg = pop_study(None, datasets, name="Study")
+
+    spec = pop_study_dialog_spec(study, alleeg)
+    controls = controls_by_tag(spec)
+
+    assert controls["dataset_12_subject"].value == "S12"
+    assert spec.scrollable is True
+
+
 def test_pop_study_gui_updates_metadata_and_returns_python_history():
     study, alleeg = _study_inputs()
     renderer = _Renderer(
@@ -54,7 +69,7 @@ def test_pop_study_gui_updates_metadata_and_returns_python_history():
         }
     )
 
-    edited, edited_alleeg, command = pop_study(study, alleeg, gui=True, renderer=renderer)
+    edited, edited_alleeg, command = pop_study(study, alleeg, gui=True, renderer=renderer, return_com=True)
 
     assert edited["name"] == "Edited"
     assert edited["datasetinfo"][0]["subject"] == "S02"
@@ -66,7 +81,7 @@ def test_pop_study_gui_updates_metadata_and_returns_python_history():
 def test_pop_study_gui_cancel_is_noop():
     study, alleeg = _study_inputs()
 
-    edited, edited_alleeg, command = pop_study(study, alleeg, gui=True, renderer=_Renderer(None))
+    edited, edited_alleeg, command = pop_study(study, alleeg, gui=True, renderer=_Renderer(None), return_com=True)
 
     assert edited == study
     assert edited_alleeg == alleeg
@@ -102,8 +117,17 @@ def test_pop_studydesign_gui_updates_design_values():
         }
     )
 
-    edited, _alleeg, command = pop_studydesign(study, alleeg, gui=True, renderer=renderer)
+    edited, _alleeg, command = pop_studydesign(study, alleeg, gui=True, renderer=renderer, return_com=True)
 
     assert edited["design"][0]["name"] == "Targets"
     assert edited["design"][0]["variable"][0]["value"] == ["target"]
     ast.parse(command)
+
+
+def test_pop_studydesign_default_is_noninteractive_select():
+    study, alleeg = _study_inputs()
+
+    edited, edited_alleeg = pop_studydesign(study, alleeg, 1)
+
+    assert edited["currentdesign"] == 1
+    assert edited_alleeg == alleeg

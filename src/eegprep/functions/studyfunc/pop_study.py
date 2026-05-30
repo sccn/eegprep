@@ -30,7 +30,7 @@ def pop_study(
     renderer: Any | None = None,
     return_com: bool = False,
     **kwargs: Any,
-) -> tuple[dict[str, Any], list[dict[str, Any]], str]:
+) -> Any:
     """Create or edit a STUDY structure from loaded EEG datasets."""
     datasets = as_alleeg_list(ALLEEG)
     options = parse_key_value_args(args, kwargs, lowercase_kwargs=True)
@@ -47,7 +47,7 @@ def pop_study(
     if use_gui:
         result = inputgui(pop_study_dialog_spec(study, datasets), renderer=renderer)
         if result is None:
-            return study, datasets, ""
+            return (study, datasets, "") if return_com else (study, datasets)
         name = result.get("name", study.get("name", ""))
         task = result.get("task", study.get("task", ""))
         notes = result.get("notes", study.get("notes", ""))
@@ -73,7 +73,7 @@ def pop_study(
     else:
         study, datasets = std_checkset(study, datasets)
     command = build_python_call(
-        ("STUDY", "ALLEEG", "LASTCOM"),
+        ("STUDY", "ALLEEG"),
         "pop_study",
         "STUDY",
         "ALLEEG",
@@ -81,7 +81,7 @@ def pop_study(
         task=study.get("task", ""),
         notes=study.get("notes", ""),
     )
-    return study, datasets, command
+    return (study, datasets, command) if return_com else (study, datasets)
 
 
 def pop_study_dialog_spec(STUDY: dict[str, Any] | None, ALLEEG: list[dict[str, Any]] | None) -> DialogSpec:
@@ -110,7 +110,8 @@ def pop_study_dialog_spec(STUDY: dict[str, Any] | None, ALLEEG: list[dict[str, A
         ControlSpec("text", "condition", font_weight="bold"),
         ControlSpec("text", "group", font_weight="bold"),
     ]
-    for index, info in enumerate((checked.get("datasetinfo") or [])[:10], start=1):
+    datasetinfo = checked.get("datasetinfo") or []
+    for index, info in enumerate(datasetinfo, start=1):
         controls.extend(
             (
                 ControlSpec("text", str(index)),
@@ -132,7 +133,7 @@ def pop_study_dialog_spec(STUDY: dict[str, Any] | None, ALLEEG: list[dict[str, A
     )
     dataset_row_geometry = (0.22, 2.6, 0.9, 0.7, 0.55, 1.3, 0.9)
     geometry = [(1,), (1.2, 5), (1.2, 5), (1.2, 5), dataset_row_geometry]
-    geometry.extend(dataset_row_geometry for _info in (checked.get("datasetinfo") or [])[:10])
+    geometry.extend(dataset_row_geometry for _info in datasetinfo)
     geometry.append((1,))
     return DialogSpec(
         title=title,
@@ -142,6 +143,7 @@ def pop_study_dialog_spec(STUDY: dict[str, Any] | None, ALLEEG: list[dict[str, A
         eeglab_source="functions/studyfunc/pop_study.m",
         help_text="pop_study",
         size=(850, 560),
+        scrollable=len(datasetinfo) > 10,
         content_margins=(34, 18, 34, 14),
         row_spacing=4,
         known_differences=(

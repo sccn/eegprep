@@ -72,6 +72,14 @@ class QtDialogRenderer:
         layout = qt_widgets.QVBoxLayout(dialog)
         layout.setContentsMargins(*spec.content_margins)
         layout.setSpacing(spec.row_spacing)
+        content_layout = layout
+        if spec.scrollable:
+            content_widget = qt_widgets.QWidget()
+            content_layout = qt_widgets.QVBoxLayout(content_widget)
+            content_layout.setContentsMargins(0, 0, 0, 0)
+            content_layout.setSpacing(spec.row_spacing)
+        else:
+            content_widget = dialog
 
         initial_values = initial_values or {}
         widgets: dict[str, Any] = {}
@@ -103,9 +111,17 @@ class QtDialogRenderer:
                     added_visible_widget = True
                 index += 1
             if added_visible_widget:
-                layout.addWidget(row_container, self._row_stretch(spec, row_index))
+                content_layout.addWidget(row_container, self._row_stretch(spec, row_index))
             else:
-                layout.addSpacing(self._spacer_row_height(spec, row_index))
+                content_layout.addSpacing(self._spacer_row_height(spec, row_index))
+
+        if spec.scrollable:
+            scroll_area = qt_widgets.QScrollArea()
+            scroll_area.setObjectName("content_scroll")
+            scroll_area.setWidgetResizable(True)
+            scroll_area.setFrameShape(qt_widgets.QFrame.NoFrame)
+            scroll_area.setWidget(content_widget)
+            layout.addWidget(scroll_area, 1)
 
         for control in spec.controls:
             self._connect_callback(control.callback, widgets)

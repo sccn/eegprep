@@ -914,9 +914,14 @@ class MenuActionDispatcherTests(unittest.TestCase):
         session.store_current(_demo_eeg(), new=True)
         dispatcher = MenuActionDispatcher(session)
         qt_widgets = _fake_qt_widgets(save_file="/tmp/history.m")
+        study = {"name": "study", "datasetinfo": [{"index": 1, "setname": "demo"}], "design": []}
 
         with (
             mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets),
+            mock.patch(
+                "eegprep.functions.studyfunc.pop_study.pop_study",
+                return_value=(study, session.ALLEEG, "STUDY, ALLEEG = pop_study(STUDY, ALLEEG);"),
+            ) as pop_study,
             mock.patch(
                 "eegprep.functions.popfunc.pop_saveh.pop_saveh",
                 return_value="pop_saveh(ALLCOM, 'history.m', '/tmp');",
@@ -925,10 +930,40 @@ class MenuActionDispatcherTests(unittest.TestCase):
             dispatcher.dispatch("pop_study")
             dispatcher.dispatch("pop_saveh:session")
 
+        pop_study.assert_called_once_with(None, mock.ANY, gui=True, return_com=True)
         saveh.assert_called_once()
         self.assertEqual(session.CURRENTSTUDY, 1)
         self.assertEqual(session.STUDY["datasetinfo"][0]["setname"], "demo")
         self.assertEqual(session.ALLCOM[-1], "pop_saveh(ALLCOM, 'history.m', '/tmp');")
+
+    def test_file_menu_savestudy_uses_all_loaded_datasets(self):
+        session = EEGPrepSession()
+        session.store_current(_demo_eeg(), new=True)
+        session.store_current(dict(_demo_eeg(), setname="second"), new=True)
+        session.retrieve(1)
+        session.STUDY = {
+            "name": "study",
+            "datasetinfo": [{"index": 1, "setname": "demo"}, {"index": 2, "setname": "second"}],
+            "design": [],
+        }
+        dispatcher = MenuActionDispatcher(session)
+        qt_widgets = _fake_qt_widgets(save_file="/tmp/study.study")
+        saved = dict(session.STUDY, saved="yes")
+
+        with (
+            mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets),
+            mock.patch(
+                "eegprep.functions.studyfunc.pop_savestudy.pop_savestudy",
+                return_value=(saved, "STUDY = pop_savestudy(STUDY, ALLEEG, filename='study.study');"),
+            ) as pop_savestudy,
+        ):
+            dispatcher.dispatch("pop_savestudy")
+
+        pop_savestudy.assert_called_once_with(
+            mock.ANY, session.ALLEEG, "/tmp/study.study", savemode=None, return_com=True
+        )
+        self.assertEqual(session.STUDY["saved"], "yes")
+        self.assertEqual(session.ALLCOM[-1], "STUDY = pop_savestudy(STUDY, ALLEEG, filename='study.study');")
 
     def test_file_menu_runscript_updates_currentset_from_namespace(self):
         session = EEGPrepSession()

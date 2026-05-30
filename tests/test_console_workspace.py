@@ -58,13 +58,13 @@ def _fake_pop_copyset(ALLEEG, set_in, set_out=None, *, return_com=False):
 
 def _fake_pop_study(STUDY, ALLEEG, *, return_com=False):
     study = {"name": "console study", "datasetinfo": [{"index": 1, "subject": "S01"}], "design": []}
-    command = "STUDY, ALLEEG, LASTCOM = pop_study(STUDY, ALLEEG, name='console study')"
+    command = "STUDY, ALLEEG = pop_study(STUDY, ALLEEG, name='console study')"
     return (study, ALLEEG, command) if return_com else (study, ALLEEG)
 
 
 def _fake_pop_savestudy(STUDY, EEG=None, *, return_com=False):
     study = dict(STUDY, filename="console.study", filepath="/tmp", saved="yes")
-    command = "STUDY, LASTCOM = pop_savestudy(STUDY, EEG, filename='console.study', filepath='/tmp')"
+    command = "STUDY = pop_savestudy(STUDY, ALLEEG, filename='console.study', filepath='/tmp')"
     return (study, command) if return_com else study
 
 
@@ -101,7 +101,7 @@ def test_console_pop_study_result_updates_shared_study_workspace():
     assert session.CURRENTSTUDY == 1
     assert session.STUDY["name"] == "console study"
     assert workspace.namespace["STUDY"] is session.STUDY
-    assert session.ALLCOM[-1].startswith("STUDY, ALLEEG, LASTCOM = pop_study(")
+    assert session.ALLCOM[-1].startswith("STUDY, ALLEEG = pop_study(")
     assert tuple(result)[0] is session.STUDY
     assert tuple(result)[1] is session.ALLEEG
 
@@ -118,7 +118,7 @@ def test_console_pop_savestudy_result_updates_study_without_replacing_alleeg():
     assert session.STUDY["filename"] == "console.study"
     assert session.ALLEEG[0]["setname"] == "demo"
     assert len(result) == 2
-    assert session.ALLCOM[-1].startswith("STUDY, LASTCOM = pop_savestudy(")
+    assert session.ALLCOM[-1].startswith("STUDY = pop_savestudy(")
 
 
 def test_session_history_commands_do_not_echo_to_console():
@@ -971,7 +971,7 @@ def test_console_python_command_converts_common_eeglab_history_syntax():
         "EEG = pop_editset(EEG, 'setname', 'edited', 'subject', 'S01');",
         "EEG = pop_reref( EEG, [1], 'exclude', [4]);",
         "EEG = pop_reref( EEG, [], 'huber', 25);",
-        "STUDY, ALLEEG, LASTCOM = pop_study(STUDY, ALLEEG, name='demo');",
+        "STUDY, ALLEEG = pop_study(STUDY, ALLEEG, name='demo');",
         "(ALLEEG, EEG, CURRENTSET) = pop_newset(ALLEEG, EEG, CURRENTSET, retrieve=3)",
     ]
 
@@ -988,7 +988,7 @@ def test_console_python_command_converts_common_eeglab_history_syntax():
         "EEG = pop_editset(EEG, setname='edited', subject='S01')",
         "EEG = pop_reref(EEG, ref=[0], exclude=[3])",
         "EEG = pop_reref(EEG, ref=[], huber=25)",
-        "STUDY, ALLEEG, LASTCOM = pop_study(STUDY, ALLEEG, name='demo')",
+        "STUDY, ALLEEG = pop_study(STUDY, ALLEEG, name='demo')",
         "ALLEEG, EEG, CURRENTSET = pop_newset(ALLEEG, EEG, CURRENTSET, retrieve=3)",
     ]
     for command in converted:

@@ -5,27 +5,24 @@ from __future__ import annotations
 from typing import Any
 
 from eegprep.functions.studyfunc._study_utils import as_alleeg_list, ensure_study, store_consistency, sync_datasetinfo
+from eegprep.functions.studyfunc.std_makedesign import std_makedesign
 
 
 def std_checkset(
     STUDY: dict[str, Any] | None,
     ALLEEG: list[dict[str, Any]] | None,
-    options: str | None = None,
     *,
     return_com: bool = False,
 ) -> Any:
     """Normalize a STUDY dict and refresh dataset/design consistency metadata."""
-    _ = options
     datasets = as_alleeg_list(ALLEEG)
     study = sync_datasetinfo(ensure_study(STUDY), datasets)
     if not study.get("design") and study.get("datasetinfo"):
-        from eegprep.functions.studyfunc.std_makedesign import std_makedesign
-
         study, _command = std_makedesign(study, datasets, 1, return_com=True)
     elif study.get("design") and not study.get("currentdesign"):
         study["currentdesign"] = 1
     study = store_consistency(study, datasets)
-    command = "STUDY, ALLEEG, LASTCOM = std_checkset(STUDY, ALLEEG)" if return_com else ""
+    command = "STUDY, ALLEEG = std_checkset(STUDY, ALLEEG)" if return_com else ""
     return (study, datasets, command) if return_com else (study, datasets)
 
 

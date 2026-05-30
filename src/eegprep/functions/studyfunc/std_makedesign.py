@@ -194,7 +194,7 @@ def _history_command(
         kwargs["filepath"] = filepath
     if datselect:
         kwargs["datselect"] = datselect
-    return build_python_call(("STUDY", "LASTCOM"), "std_makedesign", "STUDY", "ALLEEG", str(design_index), **kwargs)
+    return build_python_call(("STUDY",), "std_makedesign", "STUDY", "ALLEEG", str(design_index), **kwargs)
 
 
 def _empty_label(value: Any) -> bool:

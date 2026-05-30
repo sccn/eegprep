@@ -35,7 +35,7 @@ def test_pop_study_builds_full_metadata_and_default_design():
     first = _eeg("one", subject="S01", condition="target", group="control", session=1, run=1)
     second = _eeg("two", condition="standard")
 
-    study, alleeg, command = pop_study(None, [first, second], name="Oddball", task="button press")
+    study, alleeg, command = pop_study(None, [first, second], name="Oddball", task="button press", return_com=True)
 
     assert study["name"] == "Oddball"
     assert study["task"] == "button press"
@@ -47,11 +47,11 @@ def test_pop_study_builds_full_metadata_and_default_design():
     assert study["currentdesign"] == 1
     assert study["design"][0]["variable"][0]["label"] == "condition"
     assert alleeg[1]["setname"] == "two"
-    assert command.startswith("STUDY, ALLEEG, LASTCOM = pop_study(")
+    assert command.startswith("STUDY, ALLEEG = pop_study(")
 
 
 def test_std_editset_updates_datasetinfo_and_loaded_dataset_metadata():
-    study, alleeg, _command = pop_study(None, [_eeg("one")], name="Initial")
+    study, alleeg = pop_study(None, [_eeg("one")], name="Initial")
 
     edited, edited_alleeg, command = std_editset(
         study,
@@ -70,7 +70,7 @@ def test_std_editset_updates_datasetinfo_and_loaded_dataset_metadata():
 
 
 def test_std_makedesign_selects_1_based_design_and_validates_variables():
-    study, alleeg, _command = pop_study(
+    study, alleeg = pop_study(
         None,
         [
             _eeg("one", subject="S01", condition="target", group="control"),
@@ -92,16 +92,18 @@ def test_std_makedesign_selects_1_based_design_and_validates_variables():
 
 
 def test_pop_studydesign_selects_and_updates_design():
-    study, alleeg, _command = pop_study(
+    study, alleeg = pop_study(
         None,
         [_eeg("one", subject="S01", condition="target"), _eeg("two", subject="S02", condition="standard")],
     )
 
-    study, alleeg, command = pop_studydesign(study, alleeg, 1, variable1="condition", values1=["target"])
+    study, alleeg, command = pop_studydesign(
+        study, alleeg, 1, variable1="condition", values1=["target"], return_com=True
+    )
 
     assert study["currentdesign"] == 1
     assert study["design"][0]["variable"][0]["value"] == ["target"]
-    assert command.startswith("STUDY, LASTCOM = std_makedesign(")
+    assert command.startswith("STUDY = std_makedesign(")
 
 
 def test_pop_savestudy_and_pop_loadstudy_roundtrip_with_dataset_loading(tmp_path):
@@ -111,10 +113,10 @@ def test_pop_savestudy_and_pop_loadstudy_roundtrip_with_dataset_loading(tmp_path
     loaded = _eeg("saved", subject="S01", condition="target")
     loaded["filename"] = set_file.name
     loaded["filepath"] = str(tmp_path)
-    study, alleeg, _command = pop_study(None, [loaded], name="Saved study")
+    study, alleeg = pop_study(None, [loaded], name="Saved study")
 
-    saved, save_command = pop_savestudy(study, alleeg, filename="saved.study", filepath=tmp_path)
-    reloaded, loaded_alleeg, load_command = pop_loadstudy("saved.study", filepath=tmp_path)
+    saved, save_command = pop_savestudy(study, alleeg, filename="saved.study", filepath=tmp_path, return_com=True)
+    reloaded, loaded_alleeg, load_command = pop_loadstudy("saved.study", filepath=tmp_path, return_com=True)
 
     assert saved["saved"] == "yes"
     assert reloaded["name"] == "Saved study"
@@ -124,8 +126,31 @@ def test_pop_savestudy_and_pop_loadstudy_roundtrip_with_dataset_loading(tmp_path
     assert "pop_loadstudy" in load_command
 
 
+def test_pop_loadstudy_missing_dataset_fails_without_realigning_metadata(tmp_path):
+    first = _eeg("first", subject="S01", condition="target", session=1, run=1)
+    second = _eeg("second", subject="S02", condition="standard", session=2, run=2)
+    first_file = tmp_path / "first.set"
+    second_file = tmp_path / "second.set"
+    pop_saveset(first, str(first_file))
+    pop_saveset(second, str(second_file))
+    for eeg, path in ((first, first_file), (second, second_file)):
+        eeg["filename"] = path.name
+        eeg["filepath"] = str(tmp_path)
+    study, alleeg = pop_study(None, [first, second], name="Saved study")
+    pop_savestudy(study, alleeg, filename="saved.study", filepath=tmp_path)
+    second_file.unlink()
+
+    with pytest.raises(FileNotFoundError, match="second.set"):
+        pop_loadstudy("saved.study", filepath=tmp_path)
+
+    unloaded_study, unloaded_alleeg = pop_loadstudy("saved.study", filepath=tmp_path, load_datasets=False)
+    assert unloaded_alleeg == []
+    assert unloaded_study["datasetinfo"][1]["subject"] == "S02"
+    assert unloaded_study["datasetinfo"][1]["session"] == 2
+
+
 def test_dataset_consistency_reports_mismatch_without_mutating_files():
-    study, alleeg, _command = pop_study(
+    study, alleeg = pop_study(
         None,
         [_eeg("one", subject="S01", srate=250.0), _eeg("two", subject="S02", srate=128.0)],
     )

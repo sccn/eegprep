@@ -676,7 +676,7 @@ class MenuActionDispatcher:
                 return
             from eegprep.functions.studyfunc.pop_loadstudy import pop_loadstudy
 
-            study, alleeg, command = pop_loadstudy(filename)
+            study, alleeg, command = pop_loadstudy(filename, return_com=True)
             self.session.echo_command(command)
             self.session.set_study(study, alleeg, command=command)
             self._refresh()
@@ -698,7 +698,9 @@ class MenuActionDispatcher:
                 return
             from eegprep.functions.studyfunc.pop_savestudy import pop_savestudy
 
-            study, command = pop_savestudy(self.session.STUDY, self.session.EEG, filename, savemode=variant or None)
+            study, command = pop_savestudy(
+                self.session.STUDY, self.session.ALLEEG, filename, savemode=variant or None, return_com=True
+            )
             self.session.echo_command(command)
             self.session.set_study(study, command=command)
             self._refresh()
@@ -709,7 +711,7 @@ class MenuActionDispatcher:
                 return
             from eegprep.functions.studyfunc.pop_studydesign import pop_studydesign
 
-            study, alleeg, command = pop_studydesign(self.session.STUDY, self.session.ALLEEG, gui=True)
+            study, alleeg, command = pop_studydesign(self.session.STUDY, self.session.ALLEEG, gui=True, return_com=True)
             if not command:
                 return
             self.session.echo_command(command)
@@ -728,18 +730,18 @@ class MenuActionDispatcher:
                 return
             from eegprep.functions.studyfunc.pop_studywizard import pop_studywizard
 
-            study, alleeg, command = pop_studywizard(filenames)
+            study, alleeg, command = pop_studywizard(filenames, return_com=True)
         elif action == "pop_studyerp":
             from eegprep.functions.studyfunc.pop_studyerp import pop_studyerp
 
-            study, alleeg, command = pop_studyerp(self.session.ALLEEG)
+            study, alleeg, command = pop_studyerp(self.session.ALLEEG, return_com=True)
         elif action == "pop_study" and variant == "edit":
             if not self.session.STUDY:
                 self._warn(parent, "Create or load a STUDY before editing study info")
                 return
             from eegprep.functions.studyfunc.pop_study import pop_study
 
-            study, alleeg, command = pop_study(self.session.STUDY, self.session.ALLEEG, gui=True)
+            study, alleeg, command = pop_study(self.session.STUDY, self.session.ALLEEG, gui=True, return_com=True)
             if not command:
                 return
         else:
@@ -748,7 +750,9 @@ class MenuActionDispatcher:
                 return
             from eegprep.functions.studyfunc.pop_study import pop_study
 
-            study, alleeg, command = pop_study(None, self.session.ALLEEG)
+            study, alleeg, command = pop_study(None, self.session.ALLEEG, gui=True, return_com=True)
+            if not command:
+                return
         self.session.echo_command(command)
         self.session.set_study(study, alleeg, command=command)
         self._refresh()

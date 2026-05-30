@@ -28,7 +28,7 @@ def pop_studydesign(
     renderer: Any | None = None,
     return_com: bool = False,
     **kwargs: Any,
-) -> tuple[dict[str, Any], list[dict[str, Any]], str]:
+) -> Any:
     """Edit STUDY designs and select the current design."""
     datasets = as_alleeg_list(ALLEEG)
     study, datasets = std_checkset(ensure_study(STUDY), datasets)
@@ -36,11 +36,11 @@ def pop_studydesign(
     gui = options.pop("gui", gui)
     if designind is None:
         designind = int(options.pop("designind", study.get("currentdesign") or 1))
-    use_gui = is_on(gui) if gui is not None else not bool(options)
+    use_gui = is_on(gui) if gui is not None else False
     if use_gui:
         result = inputgui(pop_studydesign_dialog_spec(study, datasets), renderer=renderer)
         if result is None:
-            return study, datasets, ""
+            return (study, datasets, "") if return_com else (study, datasets)
         options.update(_options_from_gui(result))
         designind = int(result.get("designind") or designind or 1)
 
@@ -49,13 +49,13 @@ def pop_studydesign(
     else:
         study = std_selectdesign(study, datasets, int(designind))
         command = build_python_call(
-            ("STUDY", "LASTCOM"),
+            ("STUDY",),
             "std_selectdesign",
             "STUDY",
             "ALLEEG",
             str(int(designind)),
         )
-    return study, datasets, command
+    return (study, datasets, command) if return_com else (study, datasets)
 
 
 def pop_studydesign_dialog_spec(STUDY: dict[str, Any], ALLEEG: list[dict[str, Any]] | None) -> DialogSpec:

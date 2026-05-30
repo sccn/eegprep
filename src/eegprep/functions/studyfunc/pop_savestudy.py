@@ -21,7 +21,7 @@ def pop_savestudy(
     resavedatasets: str = "off",
     return_com: bool = False,
     **kwargs: Any,
-) -> tuple[dict[str, Any], str]:
+) -> Any:
     """Save a STUDY structure as an EEGPrep JSON ``.study`` file."""
     if not STUDY:
         raise ValueError("pop_savestudy cannot save an empty STUDY")
@@ -47,15 +47,15 @@ def pop_savestudy(
     study["saved"] = "yes"
     write_json(path, study)
     command = build_python_call(
-        ("STUDY", "LASTCOM"),
+        ("STUDY",),
         "pop_savestudy",
         "STUDY",
-        "EEG",
+        "ALLEEG",
         filename=path.name,
         filepath=str(path.parent),
         savemode=savemode if savemode else None,
     )
-    return study, command
+    return (study, command) if return_com else study
 
 
 def _split_filename_arg(args: tuple[Any, ...]) -> tuple[Any, tuple[Any, ...]]:

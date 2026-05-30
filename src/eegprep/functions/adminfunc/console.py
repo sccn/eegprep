@@ -1200,11 +1200,7 @@ def _is_eeg_selection(value: Any) -> bool:
 
 
 def _is_study_selection(value: Any) -> bool:
-    return (
-        isinstance(value, dict)
-        and not _is_eeg_selection(value)
-        and any(key in value for key in ("datasetinfo", "design", "currentdesign"))
-    )
+    return isinstance(value, dict) and not _is_eeg_selection(value) and "datasetinfo" in value
 
 
 def _normalize_currentset(value: Any) -> list[int]:

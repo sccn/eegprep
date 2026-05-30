@@ -9,7 +9,7 @@ the STUDY are 1-based to match EEGLAB.
 Example:
 
 ```python
-STUDY, ALLEEG, LASTCOM = pop_study(STUDY, ALLEEG, name="Oddball")
+STUDY, ALLEEG = pop_study(STUDY, ALLEEG, name="Oddball")
 ```
 
 Use `pop_studywizard` to browse for dataset files before creating a STUDY.

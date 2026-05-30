@@ -161,7 +161,7 @@ def _history_command(study: dict[str, Any], *, commands: Any) -> str:
     }
     if commands:
         kwargs["commands"] = commands
-    return build_python_call(("STUDY", "ALLEEG", "LASTCOM"), "std_editset", "STUDY", "ALLEEG", **kwargs)
+    return build_python_call(("STUDY", "ALLEEG"), "std_editset", "STUDY", "ALLEEG", **kwargs)
 
 
 __all__ = ["std_editset"]

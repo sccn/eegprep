@@ -19,7 +19,7 @@ def pop_loadstudy(
     load_datasets: bool = True,
     return_com: bool = False,
     **kwargs: Any,
-) -> tuple[dict[str, Any], list[dict[str, Any]], str]:
+) -> Any:
     """Load a STUDY JSON file saved by ``pop_savestudy``."""
     options = parse_key_value_args(args, kwargs, lowercase_kwargs=True)
     filename = options.pop("filename", filename)
@@ -44,12 +44,12 @@ def pop_loadstudy(
     study, alleeg = std_checkset(study, alleeg)
     study["saved"] = "yes"
     command = build_python_call(
-        ("STUDY", "ALLEEG", "LASTCOM"),
+        ("STUDY", "ALLEEG"),
         "pop_loadstudy",
         filename=path.name,
         filepath=str(path.parent),
     )
-    return study, alleeg, command
+    return (study, alleeg, command) if return_com else (study, alleeg)
 
 
 def _study_path(filename: str | Path, filepath: str | Path | None) -> Path:
@@ -61,15 +61,33 @@ def _study_path(filename: str | Path, filepath: str | Path | None) -> Path:
 
 def _load_datasets(study: dict[str, Any]) -> list[dict[str, Any]]:
     datasets = []
-    for info in study.get("datasetinfo") or []:
-        path = dataset_path(info)
+    missing = []
+    for index, info in enumerate(study.get("datasetinfo") or [], start=1):
+        path = _resolved_dataset_path(study, info)
         if path is None:
+            missing.append(f"#{index}: no dataset filename")
             continue
-        if not path.is_absolute() and not path.exists():
-            path = Path(study.get("filepath") or "") / path
-        if path.exists():
-            datasets.append(pop_loadset(str(path)))
+        if not path.exists():
+            missing.append(f"#{index}: {path}")
+            continue
+        datasets.append(pop_loadset(str(path)))
+    if missing:
+        raise FileNotFoundError(
+            "pop_loadstudy could not load all STUDY datasets; missing "
+            + ", ".join(missing)
+            + ". Move the dataset files back, or call pop_loadstudy(..., load_datasets=False)."
+        )
     return datasets
+
+
+def _resolved_dataset_path(study: dict[str, Any], info: dict[str, Any]) -> Path | None:
+    path = dataset_path(info)
+    if path is None:
+        return None
+    if path.is_absolute() or path.exists():
+        return path
+    study_path = Path(study.get("filepath") or "")
+    return study_path / path
 
 
 __all__ = ["pop_loadstudy"]

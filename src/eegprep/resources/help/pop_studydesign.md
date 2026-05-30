@@ -9,7 +9,7 @@ Design variables are read from `STUDY.datasetinfo` and from per-trial
 Example:
 
 ```python
-STUDY, ALLEEG, LASTCOM = pop_studydesign(
+STUDY, ALLEEG = pop_studydesign(
     STUDY,
     ALLEEG,
     1,
