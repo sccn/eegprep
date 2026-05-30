@@ -197,7 +197,15 @@ def _plot_image(data: list[np.ndarray], datatype: str, x_axis: np.ndarray, y_axi
 
 
 def _history_command(datatype: str, **kwargs: Any) -> str:
-    return build_python_call(("STUDY",), f"std_{datatype}plot", "STUDY", "ALLEEG", **kwargs)
+    if datatype in LINE_MEASURES:
+        targets = ("STUDY", f"{datatype.upper()}DATA", _line_axis_name(datatype), "FIGURE")
+    else:
+        targets = ("STUDY", f"{datatype.upper()}DATA", f"{datatype.upper()}TIMES", f"{datatype.upper()}FREQS", "FIGURE")
+    return build_python_call(targets, f"std_{datatype}plot", "STUDY", "ALLEEG", **kwargs)
+
+
+def _line_axis_name(datatype: str) -> str:
+    return "ERPTIMES" if datatype == "erp" else "SPECFREQS"
 
 
 def _result(

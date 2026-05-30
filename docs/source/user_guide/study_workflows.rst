@@ -17,7 +17,7 @@ Create a STUDY from loaded datasets:
 
    from eegprep import pop_study
 
-   STUDY, ALLEEG, com = pop_study(None, ALLEEG, name="My study")
+   STUDY, ALLEEG, com = pop_study(None, ALLEEG, name="My study", return_com=True)
 
 Create a simple ERP STUDY:
 
@@ -25,7 +25,7 @@ Create a simple ERP STUDY:
 
    from eegprep import pop_studyerp
 
-   STUDY, ALLEEG, com = pop_studyerp(ALLEEG)
+   STUDY, ALLEEG, com = pop_studyerp(ALLEEG, return_com=True)
 
 Load and save EEGPrep ``.study`` files:
 
@@ -33,8 +33,8 @@ Load and save EEGPrep ``.study`` files:
 
    from eegprep import pop_loadstudy, pop_savestudy
 
-   STUDY, com = pop_savestudy(STUDY, EEG, "analysis.study")
-   STUDY, ALLEEG, com = pop_loadstudy("analysis.study")
+   STUDY, com = pop_savestudy(STUDY, EEG, "analysis.study", return_com=True)
+   STUDY, ALLEEG, com = pop_loadstudy("analysis.study", return_com=True)
 
 Precompute and plot STUDY measures:
 

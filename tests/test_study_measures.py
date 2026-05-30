@@ -138,7 +138,7 @@ def test_study_measure_roundtrip_and_std_plot_helpers(tmp_path):
         study, alleeg, channels=["Ch1"], timerange=[0, 250], return_com=True
     )
     study, specdata, specfreqs, specfig = std_specplot(study, alleeg, channels=[1])
-    study, erspdata, ersptimes, erspfreqs, erspfig = std_erspplot(study, alleeg, channels=[1])
+    study, erspdata, ersptimes, erspfreqs, erspfig, erspcom = std_erspplot(study, alleeg, channels=[1], return_com=True)
     study, itcdata, itctimes, itcfreqs, itcfig = std_itcplot(study, alleeg, channels=[1])
     plotted, plot_command, plotfig = pop_chanplot(study, alleeg, channels=["Ch1"], measure="erp", return_com=True)
 
@@ -149,7 +149,16 @@ def test_study_measure_roundtrip_and_std_plot_helpers(tmp_path):
     assert erspdata[0].shape == itcdata[0].shape
     assert ersptimes.size == itctimes.size
     assert erspfreqs.size == itcfreqs.size
-    assert erpcom.startswith("STUDY = std_erpplot(")
+    assert erpcom.startswith("STUDY, ERPDATA, ERPTIMES, FIGURE = std_erpplot(")
+    namespace = {"STUDY": study, "ALLEEG": alleeg, "std_erpplot": std_erpplot}
+    exec(erpcom, namespace)
+    assert isinstance(namespace["STUDY"], dict)
+    assert namespace["ERPDATA"][0].shape == erpdata[0].shape
+    assert erspcom.startswith("STUDY, ERSPDATA, ERSPTIMES, ERSPFREQS, FIGURE = std_erspplot(")
+    namespace = {"STUDY": study, "ALLEEG": alleeg, "std_erspplot": std_erspplot}
+    exec(erspcom, namespace)
+    assert isinstance(namespace["STUDY"], dict)
+    assert namespace["ERSPDATA"][0].shape == erspdata[0].shape
     assert plotted["etc"]["last_chanplot"]["channels"] == [1]
     assert "channels=['Ch1']" in plot_command
 
