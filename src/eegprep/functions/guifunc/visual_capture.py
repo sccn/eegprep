@@ -59,6 +59,9 @@ from eegprep.functions.popfunc.pop_spectopo import pop_spectopo_dialog_spec
 from eegprep.functions.popfunc.pop_subcomp import pop_subcomp_dialog_spec
 from eegprep.functions.popfunc.pop_timtopo import pop_timtopo_dialog_spec
 from eegprep.functions.popfunc.pop_topoplot import pop_topoplot_dialog_spec
+from eegprep.functions.studyfunc.pop_study import pop_study_dialog_spec
+from eegprep.functions.studyfunc.pop_studydesign import pop_studydesign_dialog_spec
+from eegprep.functions.studyfunc.std_checkset import std_checkset
 from eegprep.plugins.ICLabel.pop_icflag import pop_icflag_dialog_spec
 from eegprep.plugins.ICLabel.pop_iclabel import pop_iclabel_dialog_spec
 from eegprep.plugins.ICLabel.pop_viewprops import pop_viewprops_dialog_spec
@@ -433,6 +436,33 @@ def capture_pop_mergeset_dialog(output: pathlib.Path) -> None:
     eeg = _demo_main_eeg(setname="merge one")
     second = _demo_main_eeg(setname="merge two")
     spec = pop_mergeset_dialog_spec([eeg, second], default_indices=[1])
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def _demo_study() -> tuple[dict, list[dict]]:
+    first = _demo_main_eeg(setname="study targets")
+    first.update({"subject": "S01", "condition": "target", "group": "control", "session": 1, "run": 1})
+    second = _demo_main_eeg(setname="study standards")
+    second.update({"subject": "S02", "condition": "standard", "group": "control", "session": 1, "run": 1})
+    study, alleeg = std_checkset({"name": "menu study", "task": "demo task"}, [first, second])
+    return study, alleeg
+
+
+def capture_pop_study_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_study dialog."""
+    _study, alleeg = _demo_study()
+    spec = pop_study_dialog_spec({}, alleeg)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_studydesign_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_studydesign dialog."""
+    study, alleeg = _demo_study()
+    spec = pop_studydesign_dialog_spec(study, alleeg)
     renderer = QtDialogRenderer()
     app, dialog, _widgets = renderer.build_dialog(spec)
     _grab_dialog(dialog, output, app)
@@ -990,6 +1020,10 @@ def main(argv: list[str] | None = None) -> int:
         capture_pop_copyset_dialog(args.output)
     elif args.case == "pop_mergeset_dialog":
         capture_pop_mergeset_dialog(args.output)
+    elif args.case == "pop_study_dialog":
+        capture_pop_study_dialog(args.output)
+    elif args.case == "pop_studydesign_dialog":
+        capture_pop_studydesign_dialog(args.output)
     elif args.case == "reref_dialog":
         capture_reref_dialog(args.output)
     elif args.case == "reref_dialog_channel_ref":

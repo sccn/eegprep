@@ -506,34 +506,34 @@ def test_pop_saveset_roundtrips_sample_dataset(tmp_path, sample_eeg):
 
 
 def test_pop_study_records_sample_dataset_info(sample_eeg):
-    study, alleeg, command = pop_study(None, [sample_eeg], name="Sample study")
+    study, alleeg, command = pop_study(None, [sample_eeg], name="Sample study", return_com=True)
 
     assert study["name"] == "Sample study"
     assert study["datasetinfo"][0]["index"] == 1
     assert study["datasetinfo"][0]["setname"] == sample_eeg["setname"]
     assert alleeg[0]["data"].shape == sample_eeg["data"].shape
-    assert command == "STUDY = pop_study([], ALLEEG, 'gui', 'on');"
+    assert command.startswith("STUDY, ALLEEG = pop_study(")
 
 
 def test_pop_studyerp_marks_sample_study_as_erp(sample_eeg):
-    study, alleeg, command = pop_studyerp([sample_eeg])
+    study, alleeg, command = pop_studyerp([sample_eeg], return_com=True)
 
     assert study["name"] == "Simple ERP STUDY"
     assert study["design"][0]["name"] == "ERP"
     assert alleeg[0]["data"].shape == sample_eeg["data"].shape
-    assert command == "STUDY = pop_studyerp();"
+    assert command == "STUDY, ALLEEG = pop_studyerp(ALLEEG)"
 
 
 def test_pop_savestudy_and_pop_loadstudy_roundtrip_sample_study(tmp_path, sample_eeg):
-    study, _alleeg, _command = pop_study(None, [sample_eeg], name="Sample study")
+    study, _alleeg = pop_study(None, [sample_eeg], name="Sample study")
 
-    saved, save_command = pop_savestudy(study, sample_eeg, tmp_path / "sample.study")
-    loaded, loaded_alleeg, load_command = pop_loadstudy(tmp_path / "sample.study")
+    saved, save_command = pop_savestudy(study, sample_eeg, tmp_path / "sample.study", return_com=True)
+    loaded, loaded_alleeg, load_command = pop_loadstudy(tmp_path / "sample.study", return_com=True)
 
     assert saved["filename"] == "sample.study"
     assert loaded["name"] == "Sample study"
     assert loaded["datasetinfo"][0]["setname"] == sample_eeg["setname"]
-    assert loaded_alleeg == []
+    assert loaded_alleeg[0]["data"].shape == sample_eeg["data"].shape
     assert "pop_savestudy" in save_command
     assert "pop_loadstudy" in load_command
 
@@ -542,12 +542,12 @@ def test_pop_studywizard_builds_study_from_saved_sample_set(tmp_path, sample_eeg
     set_file = tmp_path / "sample.set"
     pop_saveset(sample_eeg, str(set_file))
 
-    study, alleeg, command = pop_studywizard([str(set_file)])
+    study, alleeg, command = pop_studywizard([str(set_file)], return_com=True)
 
     assert study["datasetinfo"][0]["index"] == 1
     assert study["datasetinfo"][0]["setname"] == sample_eeg["setname"]
     assert alleeg[0]["data"].shape == sample_eeg["data"].shape
-    assert command == "STUDY = pop_studywizard();"
+    assert command.startswith("STUDY, ALLEEG = pop_studywizard(")
 
 
 def test_pop_saveh_writes_sample_history_commands(tmp_path):

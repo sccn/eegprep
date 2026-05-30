@@ -31,8 +31,6 @@ PLACEHOLDER_ACTION_METADATA: Mapping[str, PlaceholderMetadata] = {
             "pop_clustedit",
             "pop_preclust",
             "pop_precomp",
-            "pop_studydesign",
-            "select_study_set",
         ),
     ),
     "pop_eegplot": PlaceholderMetadata(excluded_reason="eegbrowser"),
