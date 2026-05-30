@@ -233,6 +233,8 @@ def test_study_save_load_and_bids_metadata(tmp_path):
     assert "demo's.study" in save_command
     ast.parse(save_command)
     assert study_file.name in load_command
+    assert "load_datasets=False" in load_command
+    ast.parse(load_command)
     assert str(study_file.parent) in load_command
     ast.parse(load_command)
 

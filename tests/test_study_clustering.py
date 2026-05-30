@@ -409,3 +409,19 @@ def test_clustedit_gui_empty_threshold_falls_back_for_non_reject_actions():
     assert "action='plot'" in command
     assert figure is not None
     plt.close(figure)
+
+
+def test_clustedit_gui_maps_component_list_rows_to_cluster_local_positions():
+    study, alleeg = _preclustered_study()
+    study = pop_clust(study, alleeg, clus_num=2, random_state=11)
+    source_cluster = 3
+    global_component_row = len(study["cluster"][1]["comps"]) + 1
+    source_before = list(study["cluster"][source_cluster - 1]["comps"])
+    renderer = _Renderer({"action": "moveoutlier", "clus_list": 1, "clust_comp": [global_component_row]})
+
+    moved, command, _figure = pop_clustedit(study, alleeg, gui=True, renderer=renderer, return_com=True)
+
+    assert "action='moveoutlier'" in command
+    assert f"cluster={source_cluster}" in command
+    assert moved["cluster"][source_cluster - 1]["comps"] == source_before[1:]
+    assert moved["cluster"][-1]["comps"] == [source_before[0]]

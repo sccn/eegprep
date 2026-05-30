@@ -43,12 +43,10 @@ def pop_loadstudy(
     alleeg = _load_datasets(study) if load_datasets else []
     study, alleeg = std_checkset(study, alleeg)
     study["saved"] = "yes"
-    command = build_python_call(
-        ("STUDY", "ALLEEG"),
-        "pop_loadstudy",
-        filename=path.name,
-        filepath=str(path.parent),
-    )
+    command_kwargs: dict[str, Any] = {"filename": path.name, "filepath": str(path.parent)}
+    if not load_datasets:
+        command_kwargs["load_datasets"] = False
+    command = build_python_call(("STUDY", "ALLEEG"), "pop_loadstudy", **command_kwargs)
     return (study, alleeg, command) if return_com else (study, alleeg)
 
 

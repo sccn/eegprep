@@ -46,11 +46,16 @@ def pop_clustedit(
         if result is None:
             return (study, "", None) if return_com else study
         action = _action_from_gui(result.get("action"))
-        cluster = _optional_int(result.get("cluster")) or _cluster_from_list_selection(study, result.get("clus_list"))
+        explicit_cluster = _optional_int(result.get("cluster"))
+        list_cluster = _cluster_from_list_selection(study, result.get("clus_list"))
+        component_cluster, component_positions = _components_from_list_selection(study, result.get("clust_comp"))
+        cluster = explicit_cluster
+        if cluster is None and action in {"moveoutlier", "movecomp"}:
+            cluster = component_cluster
+        if cluster is None:
+            cluster = list_cluster
         to_cluster = _optional_int(result.get("to_cluster"))
-        comps = numeric_vector(result.get("comps", []), dtype=int).tolist() or _components_from_list_selection(
-            result.get("clust_comp")
-        )
+        comps = numeric_vector(result.get("comps", []), dtype=int).tolist() or component_positions
         clusters = numeric_vector(result.get("clusters", []), dtype=int).tolist() or _clusters_from_list_selection(
             study, result.get("clus_list")
         )
@@ -276,8 +281,37 @@ def _cluster_from_list_selection(study: dict[str, Any], selection: Any) -> int |
     return clusters[0] if clusters else None
 
 
-def _components_from_list_selection(selection: Any) -> list[int]:
-    return numeric_vector(selection, dtype=int).tolist()
+def _components_from_list_selection(study: dict[str, Any], selection: Any) -> tuple[int | None, list[int]]:
+    rows = numeric_vector(selection, dtype=int)
+    if rows.size == 0:
+        return None, []
+    row_map = _component_row_map(study)
+    selected_clusters = []
+    positions = []
+    for row in rows.tolist():
+        if 1 <= int(row) <= len(row_map):
+            cluster_index, component_position = row_map[int(row) - 1]
+            if cluster_index not in selected_clusters:
+                selected_clusters.append(cluster_index)
+            positions.append(component_position)
+    if not positions:
+        return None, []
+    if len(selected_clusters) > 1:
+        raise ValueError("Selected components must belong to one source cluster")
+    return selected_clusters[0], positions
+
+
+def _component_row_map(study: dict[str, Any]) -> list[tuple[int, int]]:
+    clusters = cluster_list(study)
+    if not clusters:
+        return []
+    source = clusters[1:] or clusters
+    start_index = 2 if clusters[1:] else 1
+    rows: list[tuple[int, int]] = []
+    for cluster_index, cluster in enumerate(source, start=start_index):
+        for component_position, _component in enumerate(cluster.get("comps") or [], start=1):
+            rows.append((cluster_index, component_position))
+    return rows
 
 
 __all__ = ["pop_clustedit", "pop_clustedit_dialog_spec"]
