@@ -640,7 +640,7 @@ def test_phase4_dialog_specs_match_eeglab_selector_layouts(sample_eeg, ica_epoch
     chanplot_controls = controls_by_tag(pop_chanplot_dialog_spec({"name": "demo study"}, [sample_eeg]))
     assert chanplot_controls["channels_button"].callback is not None
     assert chanplot_controls["channels_button"].callback.params["return_indices"] is True
-    assert chanplot_controls["measure"].string == "ERP"
+    assert chanplot_controls["measure"].string == "ERP|Spectrum|ERSP|ITC"
 
     headplot_controls = controls_by_tag(pop_headplot_dialog_spec(sample_eeg, typeplot=1))
     headplot_spec = pop_headplot_dialog_spec(sample_eeg, typeplot=1)

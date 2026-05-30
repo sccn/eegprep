@@ -10,6 +10,7 @@ from eegprep.functions.guifunc.spec import controls_by_tag
 from eegprep.functions.studyfunc.pop_clust import pop_clust, pop_clust_dialog_spec
 from eegprep.functions.studyfunc.pop_clustedit import pop_clustedit, pop_clustedit_dialog_spec
 from eegprep.functions.studyfunc.pop_preclust import pop_preclust, pop_preclust_dialog_spec
+from eegprep.functions.studyfunc.pop_precomp import pop_precomp
 from eegprep.functions.studyfunc.pop_study import pop_study
 from eegprep.functions.studyfunc.std_createclust import std_createclust
 from eegprep.functions.studyfunc.std_mergeclust import std_mergeclust
@@ -89,26 +90,20 @@ def test_std_preclust_builds_parent_component_matrix_from_scalp_maps():
     assert command.startswith("STUDY, ALLEEG = std_preclust(")
 
 
-def test_std_preclust_reads_phase_5b_component_measure_contract():
+def test_std_preclust_reads_phase_5b_component_measure_cache():
     study, alleeg = _study_with_ica()
-    study.setdefault("etc", {}).setdefault("eegprep", {})["component_measures"] = {
-        "erp": {
-            "times": [-100.0, 0.0, 100.0, 200.0],
-            "data": {
-                "1": np.arange(12, dtype=float).reshape(3, 4),
-                "2": np.arange(12, 24, dtype=float).reshape(3, 4),
-            },
-        }
-    }
+    study, alleeg = pop_precomp(study, alleeg, "components", erp="on")
 
     study, _alleeg = std_preclust(
         study,
         alleeg,
         1,
-        [{"measure": "erp", "npca": 2, "timewindow": [0, 200]}],
+        [{"measure": "erp", "npca": 2, "timewindow": [0, 90]}],
     )
 
     assert np.asarray(study["etc"]["preclust"]["preclustdata"]).shape == (6, 2)
+    assert study["etc"]["eegprep"]["preclust_contract"]["component_measure_root"] == "STUDY.cluster[0]"
+    assert study["cluster"][0]["sets"] == [[1, 1, 1, 2, 2, 2]]
 
 
 def test_preclust_missing_component_measure_and_missing_ica_errors():

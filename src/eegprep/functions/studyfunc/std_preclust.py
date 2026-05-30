@@ -18,6 +18,12 @@ from eegprep.functions.studyfunc._cluster_utils import (
 
 
 DEFAULT_PRECLUST = ({"measure": "scalp", "npca": 3, "norm": 1, "weight": 1, "abso": 1},)
+COMPONENT_MEASURE_FIELDS = {
+    "erp": ("erpdata", "erptimes", None),
+    "spec": ("specdata", None, "specfreqs"),
+    "ersp": ("erspdata", "ersptimes", "erspfreqs"),
+    "itc": ("itcdata", "itctimes", "itcfreqs"),
+}
 
 
 def std_preclust(
@@ -29,10 +35,9 @@ def std_preclust(
 ) -> Any:
     """Build the PCA-reduced matrix used by ``pop_clust``.
 
-    Component ERP, spectrum, ERSP, and ITC inputs are read from the explicit
-    Phase 5b coordination contract under
-    ``STUDY["etc"]["eegprep"]["component_measures"]``. Scalp maps and dipoles
-    can be read directly from loaded ICA and DIPFIT fields.
+    Component ERP, spectrum, ERSP, and ITC inputs are read from the Phase 5b
+    cached component measure fields on ``STUDY.cluster[0]``. Scalp maps and
+    dipoles can be read directly from loaded ICA and DIPFIT fields.
     """
     study, datasets = checked_study_and_datasets(STUDY, ALLEEG)
     cluster_index = int(cluster_ind or 1)
@@ -72,7 +77,8 @@ def std_preclust(
     }
     study["etc"]["preclust"] = preclust
     study["etc"]["eegprep"]["preclust_contract"] = {
-        "component_measure_root": "STUDY.etc.eegprep.component_measures",
+        "component_measure_root": "STUDY.cluster[0]",
+        "component_measure_fields": {measure: fields[0] for measure, fields in COMPONENT_MEASURE_FIELDS.items()},
         "rows": "STUDY.etc.preclust.preclustcomps",
     }
     study["cluster"][cluster_index - 1]["preclust"] = {
@@ -152,7 +158,7 @@ def _measure_matrix(
         elif measure == "moments":
             values = _dipole_moment(eeg, int(comp), study_set)
         else:
-            values = _contract_measure_values(study, study_set, int(comp), measure, spec)
+            values = _component_measure_values(study, study_set, int(comp), measure, spec)
         rows.append(np.asarray(values, dtype=float).ravel())
     width = {row.size for row in rows}
     if len(width) != 1:
@@ -160,30 +166,71 @@ def _measure_matrix(
     return np.vstack(rows)
 
 
-def _contract_measure_values(
+def _component_measure_values(
     study: dict[str, Any], study_set: int, component: int, measure: str, spec: dict[str, Any]
 ) -> np.ndarray:
-    source = study.get("etc", {}).get("eegprep", {}).get("component_measures", {}).get(measure)
-    if source is None:
+    fields = COMPONENT_MEASURE_FIELDS.get(measure)
+    if fields is None:
+        raise ValueError(f"Unsupported preclustering measure '{measure}'")
+    parent = (study.get("cluster") or [{}])[0]
+    data_field, time_field, freq_field = fields
+    if data_field not in parent:
         raise ValueError(
             f"Precomputed component measure '{measure}' is missing; "
-            "run Phase 5b component precompute or provide STUDY.etc.eegprep.component_measures"
+            f"run pop_precomp(STUDY, ALLEEG, 'components', {measure}='on') before std_preclust"
         )
-    data = source.get("data") if isinstance(source, dict) else source
-    if isinstance(data, dict):
-        values = data.get(study_set, data.get(str(study_set)))
-        if values is None:
-            raise ValueError(f"Component measure '{measure}' is missing dataset {study_set}")
-        array = np.asarray(values, dtype=float)
+    data = np.asarray(parent[data_field], dtype=float)
+    if data.ndim < 3:
+        raise ValueError(f"Component measure '{measure}' requires dataset x component data")
+    dataset_axis = _measure_axis(parent, "datasets", data.shape[0], fallback_start=1)
+    component_axis = _measure_axis(parent, "components", data.shape[1], fallback_start=1)
+    dataset_index = _axis_position(dataset_axis, study_set, f"dataset {study_set}", measure)
+    component_index = _axis_position(component_axis, component, f"component {component}", measure)
+    values = np.asarray(data[dataset_index, component_index], dtype=float)
+    source = {"times": parent.get(time_field, []) if time_field is not None else []}
+    if freq_field is not None:
+        source["freqs"] = parent.get(freq_field, [])
+    return _slice_measure_axes(values, source, measure, spec)
+
+
+def _measure_axis(parent: dict[str, Any], key: str, count: int, *, fallback_start: int) -> np.ndarray:
+    raw_measureinfo = parent.get("measureinfo")
+    measureinfo: dict[str, Any] = raw_measureinfo if isinstance(raw_measureinfo, dict) else {}
+    values = _as_int_vector(measureinfo.get(key))
+    if values.size == count:
+        return values
+    if key == "datasets":
+        values = _as_int_vector(parent.get("sets"))
     else:
-        array = np.asarray(data, dtype=float)
-        if array.ndim < 3:
-            raise ValueError(f"Component measure '{measure}' requires dataset x component data")
-        array = array[study_set - 1]
-    if component < 1 or component > array.shape[0]:
-        raise ValueError(f"Component measure '{measure}' is missing component {component} in dataset {study_set}")
-    values = np.asarray(array[component - 1], dtype=float)
-    return _slice_measure_axes(values, source if isinstance(source, dict) else {}, measure, spec)
+        values = _as_int_vector(parent.get("comps"))
+    unique_values = np.asarray(_unique_preserving_order(values.tolist()), dtype=int)
+    if unique_values.size == count:
+        return unique_values
+    return np.arange(fallback_start, fallback_start + count, dtype=int)
+
+
+def _as_int_vector(value: Any) -> np.ndarray:
+    if value is None:
+        return np.asarray([], dtype=int)
+    array = np.asarray(value, dtype=int)
+    if array.size == 0:
+        return np.asarray([], dtype=int)
+    return array.ravel()
+
+
+def _axis_position(axis: np.ndarray, value: int, label: str, measure: str) -> int:
+    matches = np.where(axis == value)[0]
+    if matches.size == 0:
+        raise ValueError(f"Component measure '{measure}' is missing {label}")
+    return int(matches[0])
+
+
+def _unique_preserving_order(values: list[int]) -> list[int]:
+    output = []
+    for value in values:
+        if value not in output:
+            output.append(value)
+    return output
 
 
 def _slice_measure_axes(values: np.ndarray, source: dict[str, Any], measure: str, spec: dict[str, Any]) -> np.ndarray:

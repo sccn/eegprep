@@ -19,15 +19,7 @@ class PlaceholderMetadata:
     excluded_reason: str | None = None
 
 
-def _phase_entries(phase: str, actions: tuple[str, ...]) -> dict[str, PlaceholderMetadata]:
-    return {action: PlaceholderMetadata(phase=phase) for action in actions}
-
-
 PLACEHOLDER_ACTION_METADATA: Mapping[str, PlaceholderMetadata] = {
-    **_phase_entries(
-        "5",
-        ("pop_precomp",),
-    ),
     "pop_eegplot": PlaceholderMetadata(excluded_reason="eegbrowser"),
 }
 PLACEHOLDER_ACTIONS = frozenset(PLACEHOLDER_ACTION_METADATA)

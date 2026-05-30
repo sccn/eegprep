@@ -62,7 +62,9 @@ from eegprep.functions.popfunc.pop_timtopo import pop_timtopo_dialog_spec
 from eegprep.functions.popfunc.pop_topoplot import pop_topoplot_dialog_spec
 from eegprep.functions.studyfunc.pop_clust import pop_clust_dialog_spec
 from eegprep.functions.studyfunc.pop_clustedit import pop_clustedit_dialog_spec
+from eegprep.functions.studyfunc.pop_chanplot import pop_chanplot_dialog_spec
 from eegprep.functions.studyfunc.pop_preclust import pop_preclust_dialog_spec
+from eegprep.functions.studyfunc.pop_precomp import pop_precomp_dialog_spec
 from eegprep.functions.studyfunc.pop_study import pop_study_dialog_spec
 from eegprep.functions.studyfunc.pop_studydesign import pop_studydesign_dialog_spec
 from eegprep.functions.studyfunc.std_checkset import std_checkset
@@ -508,6 +510,15 @@ def _demo_cluster_study() -> tuple[dict[str, Any], list[dict[str, Any]]]:
     return study, alleeg
 
 
+def capture_pop_precomp_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_precomp dialog."""
+    study, alleeg = _demo_study()
+    spec = pop_precomp_dialog_spec(study, alleeg, "channels")
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
 def capture_pop_preclust_dialog(output: pathlib.Path) -> None:
     """Render and capture the pop_preclust dialog."""
     study, _alleeg = _demo_cluster_study()
@@ -521,6 +532,15 @@ def capture_pop_clust_dialog(output: pathlib.Path) -> None:
     """Render and capture the pop_clust dialog."""
     study, _alleeg = _demo_cluster_study()
     spec = pop_clust_dialog_spec(study)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_chanplot_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_chanplot dialog."""
+    study, alleeg = _demo_study()
+    spec = pop_chanplot_dialog_spec(study, alleeg)
     renderer = QtDialogRenderer()
     app, dialog, _widgets = renderer.build_dialog(spec)
     _grab_dialog(dialog, output, app)
@@ -1091,10 +1111,14 @@ def main(argv: list[str] | None = None) -> int:
         capture_pop_study_dialog(args.output)
     elif args.case == "pop_studydesign_dialog":
         capture_pop_studydesign_dialog(args.output)
+    elif args.case == "pop_precomp_dialog":
+        capture_pop_precomp_dialog(args.output)
     elif args.case == "pop_preclust_dialog":
         capture_pop_preclust_dialog(args.output)
     elif args.case == "pop_clust_dialog":
         capture_pop_clust_dialog(args.output)
+    elif args.case == "pop_chanplot_dialog":
+        capture_pop_chanplot_dialog(args.output)
     elif args.case == "pop_clustedit_dialog":
         capture_pop_clustedit_dialog(args.output)
     elif args.case == "reref_dialog":

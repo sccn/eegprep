@@ -29,7 +29,7 @@ def ensure_parent_cluster(study: dict[str, Any], datasets: list[dict[str, Any]])
     clusters = cluster_list(study)
     parent = clusters[0] if clusters else {}
     if parent.get("comps") and parent.get("sets"):
-        clusters[0] = normalize_cluster(parent)
+        clusters[0] = _normalize_parent_cluster(parent)
         study["cluster"] = clusters
         return study
 
@@ -60,6 +60,45 @@ def ensure_parent_cluster(study: dict[str, Any], datasets: list[dict[str, Any]])
     ] + [normalize_cluster(cluster) for cluster in clusters[1:]]
     study["cluster"] = clusters
     return study
+
+
+def _normalize_parent_cluster(parent: dict[str, Any]) -> dict[str, Any]:
+    cluster = normalize_cluster(parent)
+    raw_measureinfo = cluster.get("measureinfo")
+    measureinfo: dict[str, Any] = raw_measureinfo if isinstance(raw_measureinfo, dict) else {}
+    if measureinfo.get("kind") != "components":
+        return cluster
+    datasets = _axis_values(measureinfo.get("datasets"), cluster.get("sets"))
+    components = _axis_values(measureinfo.get("components"), cluster.get("comps"))
+    if not datasets or not components:
+        return cluster
+    cluster["sets"] = [[study_set for study_set in datasets for _component in components]]
+    cluster["comps"] = [component for _study_set in datasets for component in components]
+    return cluster
+
+
+def _axis_values(primary: Any, fallback: Any) -> list[int]:
+    values = _numeric_values(primary)
+    if values:
+        return values
+    return _unique_preserving_order(_numeric_values(fallback))
+
+
+def _numeric_values(value: Any) -> list[int]:
+    if value is None:
+        return []
+    array = np.asarray(value, dtype=float)
+    if array.size == 0:
+        return []
+    return [int(item) for item in array.ravel().tolist()]
+
+
+def _unique_preserving_order(values: list[int]) -> list[int]:
+    output = []
+    for value in values:
+        if value not in output:
+            output.append(value)
+    return output
 
 
 def cluster_list(study: dict[str, Any]) -> list[dict[str, Any]]:

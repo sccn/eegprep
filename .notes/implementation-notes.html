@@ -22,39 +22,38 @@
   <h2>Phase 5b component-measure contract</h2>
   <p>
     Phase 5c does not precompute ERP, spectrum, ERSP, or ITC component measures.
-    It expects Phase 5b or tests to provide component measures at
-    <code>STUDY["etc"]["eegprep"]["component_measures"]</code>.
+    After merging Phase 5b, it reads the cached component measures that
+    <code>pop_precomp(..., "components")</code> stores on the parent
+    <code>STUDY["cluster"][0]</code> entry.
   </p>
   <pre><code>{
-  "erp": {
-    "times": [-100.0, 0.0, 100.0],
-    "data": {
-      "1": [[...], [...]],  // components x times for STUDY dataset 1
-      "2": [[...], [...]]
-    }
+  "name": "ParentCluster",
+  "sets": [1, 2],
+  "comps": [1, 2, 3],
+  "measureinfo": {
+    "kind": "components",
+    "datasets": [1, 2],
+    "components": [1, 2, 3],
+    "computed": ["erp", "spec"]
   },
-  "spec": {
-    "freqs": [3.0, 4.0, 5.0],
-    "data": {"1": [[...]], "2": [[...]]}
-  },
-  "ersp": {
-    "freqs": [...],
-    "times": [...],
-    "data": {"1": [[[...]]]}  // components x freqs x times
-  },
-  "itc": { "...": "same shape as ersp" }
+  "erpdata": [[[...]]],   // datasets x components x times
+  "erptimes": [...],
+  "specdata": [[[...]]],  // datasets x components x freqs
+  "specfreqs": [...]
 }</code></pre>
   <p>
-    Keys may be strings or integers. Dataset keys are 1-based STUDY datasetinfo
-    indices, not zero-based Python indices. Component rows are 1-based in
-    public inputs and zero-based only inside NumPy indexing.
+    Dataset and component identifiers in <code>measureinfo</code>,
+    <code>sets</code>, and <code>comps</code> are 1-based STUDY-facing values.
+    Phase 5c expands the Phase 5b parent-cluster dataset/component axes into
+    EEGLAB-style row-aligned <code>sets</code>/<code>comps</code> before storing
+    <code>STUDY["etc"]["preclust"]["preclustcomps"]</code>.
   </p>
 
   <h2>Design decisions</h2>
   <ul>
-    <li>Scalp-map preclustering is available without Phase 5b by reading
-      <code>EEG.icawinv</code>. This gives a usable deterministic clustering
-      path before measure precompute lands.</li>
+    <li>Scalp-map preclustering remains available without cached measures by
+      reading <code>EEG.icawinv</code>. ERP, spectrum, ERSP, and ITC
+      preclustering now reads the landed Phase 5b parent-cluster cache.</li>
     <li>K-means uses scikit-learn with an explicit <code>random_state</code>.
       EEGLAB defaults to MATLAB kmeans with replicates; deterministic seeding is
       required for reviewable Python tests.</li>
@@ -92,9 +91,10 @@
 
   <h2>Open risks</h2>
   <ul>
-    <li>Phase 5b may choose a different storage location for component measure
-      arrays. If so, add a tiny adapter rather than changing clustering tests to
-      hide the mismatch.</li>
+    <li>The Phase 5b parent cluster stores datasets and components as separate
+      axes for cached measures, while EEGLAB clustering stores row-aligned
+      <code>sets</code>/<code>comps</code>. Phase 5c expands the parent cluster
+      at preclustering time; integration tests cover this path.</li>
     <li>MATLAB parity for exact k-means labels is sensitive to implementation
       differences. Deterministic parity should compare data structures and
       component coverage unless MATLAB and sklearn seeds are explicitly aligned.</li>
@@ -107,14 +107,20 @@
   <ul>
     <li><code>uv run --no-sync pytest tests/test_study_clustering.py</code>:
       16 passed after the Phase completion audit follow-up.</li>
+    <li><code>uv run --no-sync pytest tests/test_study_clustering.py tests/test_study_measures.py</code>:
+      28 passed after merging Phase 5b and switching preclustering measure
+      reads to the parent-cluster cache.</li>
     <li><code>uv run --no-sync pytest tests/test_plugin_menu.py tests/test_menu_placeholder_inventory.py tests/test_console_workspace.py tests/test_gui_pop_study.py tests/test_study_metadata.py tests/test_study_clustering.py</code>:
       116 passed after the Phase completion audit follow-up.</li>
+    <li><code>uv run --no-sync pytest tests/test_plugin_menu.py tests/test_menu_placeholder_inventory.py tests/test_console_workspace.py tests/test_gui_pop_study.py tests/test_study_metadata.py tests/test_study_clustering.py tests/test_study_measures.py</code>:
+      129 passed after merging Phase 5b.</li>
     <li><code>uv run --no-sync ruff check .</code>: passed.</li>
     <li><code>uv run --no-sync ruff format --check .</code>: passed.</li>
     <li><code>uv run --no-sync ty check</code>: passed after syncing
       <code>gui</code> and <code>torch</code> extras for optional imports.</li>
     <li><code>EEGPREP_SKIP_MATLAB=1 uv run --no-sync pytest -m "not slow"</code>:
-      1591 passed, 228 skipped, 11 deselected, 163 warnings.</li>
+      1615 passed, 228 skipped, 11 deselected, 163 warnings after merging
+      Phase 5b.</li>
     <li>Visual parity captures generated for <code>pop_preclust_dialog</code>,
       <code>pop_clust_dialog</code>, and <code>pop_clustedit_dialog</code>
       using <code>EEGPREP_EEGLAB_ROOT=/Users/suraj/Desktop/eeglab</code>.

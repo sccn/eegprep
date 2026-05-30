@@ -86,6 +86,7 @@ IMPLEMENTED_ACTIONS = {
     "pop_plotdata",
     "pop_plottopo",
     "pop_preclust",
+    "pop_precomp",
     "pop_prop",
     "pop_runscript",
     "pop_saveh",
@@ -296,6 +297,7 @@ class MenuActionDispatcher:
             "pop_preclust",
             "pop_clust",
             "pop_clustedit",
+            "pop_precomp",
         }:
             self._study_action(base, variant, parent)
             return
@@ -643,8 +645,8 @@ class MenuActionDispatcher:
         self._refresh()
 
     def _study_action(self, action: str, variant: str, parent: Any | None) -> None:
-        qt_widgets = _require_qt_widgets()
         if action == "pop_loadstudy":
+            qt_widgets = _require_qt_widgets()
             filename, _filter = qt_widgets.QFileDialog.getOpenFileName(
                 parent,
                 "Load existing study",
@@ -662,6 +664,7 @@ class MenuActionDispatcher:
             self._refresh()
             return
         if action == "pop_savestudy":
+            qt_widgets = _require_qt_widgets()
             if not self.session.STUDY:
                 self._warn(parent, "No current study")
                 return
@@ -711,6 +714,22 @@ class MenuActionDispatcher:
             self.session.set_study(study, alleeg, command=command)
             self._refresh()
             return
+        if action == "pop_precomp":
+            if not self.session.STUDY:
+                self._warn(parent, "Create or load a STUDY before precomputing measures")
+                return
+            from eegprep.functions.studyfunc.pop_precomp import pop_precomp
+
+            target = "components" if variant == "components" else "channels"
+            study, alleeg, command = pop_precomp(
+                self.session.STUDY, self.session.ALLEEG, target, gui=True, return_com=True
+            )
+            if not command:
+                return
+            self.session.echo_command(command)
+            self.session.set_study(study, alleeg, command=command)
+            self._refresh()
+            return
         if action == "pop_clust":
             if not self.session.STUDY:
                 self._warn(parent, "Create or load a STUDY before clustering components")
@@ -738,6 +757,7 @@ class MenuActionDispatcher:
             self._refresh()
             return
         if action == "pop_studywizard":
+            qt_widgets = _require_qt_widgets()
             filenames, _filter = qt_widgets.QFileDialog.getOpenFileNames(
                 parent,
                 "Browse for datasets",
@@ -1267,6 +1287,8 @@ class MenuActionDispatcher:
         from eegprep.functions.studyfunc.pop_chanplot import pop_chanplot
 
         study, command, _figure = pop_chanplot(self.session.STUDY, self.session.ALLEEG, gui=True, return_com=True)
+        if not command:
+            return
         self.session.STUDY = study
         self._add_history_from_gui(command)
         self._refresh()

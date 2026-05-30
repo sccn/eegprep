@@ -36,13 +36,29 @@ Load and save EEGPrep ``.study`` files:
    STUDY, com = pop_savestudy(STUDY, EEG, "analysis.study")
    STUDY, ALLEEG, com = pop_loadstudy("analysis.study")
 
-Plot currently supported STUDY channel measures:
+Precompute and plot STUDY measures:
 
 .. code-block:: python
 
-   from eegprep import pop_chanplot
+   from eegprep import pop_chanplot, pop_precomp, std_erpplot
 
+   STUDY, ALLEEG, com = pop_precomp(
+       STUDY,
+       ALLEEG,
+       "channels",
+       erp="on",
+       spec="on",
+       return_com=True,
+   )
    STUDY, com, fig = pop_chanplot(STUDY, ALLEEG, measure="erp", return_com=True)
+   STUDY, erpdata, erptimes, fig = std_erpplot(STUDY, ALLEEG, channels=[1])
+
+Channel measures are stored in ``STUDY.changrp``. Component measures are stored
+on the parent ``STUDY.cluster[0]`` entry so preclustering can read the same
+cached arrays. Cached measure fields follow EEGLAB names such as ``erpdata``,
+``specdata``, ``erspdata``, and ``itcdata``. The selected ``design`` is recorded
+in each measure group's metadata, but Phase 5b arrays are dataset-level averages
+and are not split into EEGLAB design cells yet.
 
 Precluster and cluster ICA components:
 
@@ -70,10 +86,10 @@ The GUI and ``eegprep-console`` share ``STUDY`` and ``CURRENTSTUDY`` through
 Phase 5 Coordination
 ====================
 
-STUDY precompute and full measure plotting remain coordinated with Phase 5b.
-Phase 5c reads component ERP, spectrum, ERSP, and ITC clustering inputs from
-``STUDY["etc"]["eegprep"]["component_measures"]`` and can build scalp-map
-features directly from loaded ICA maps.
+Phase 5b precomputes component ERP, spectrum, ERSP, and ITC arrays on the
+parent ``STUDY.cluster[0]`` entry. Phase 5c preclustering reads those cached
+component arrays and can also build scalp-map features directly from loaded ICA
+maps.
 
 See the :ref:`interactive_console` guide for mixed GUI plus console usage and
 the :ref:`gui_help_menus` guide for menu inventory behavior.
