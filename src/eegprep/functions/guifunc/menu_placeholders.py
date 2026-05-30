@@ -33,7 +33,6 @@ PLACEHOLDER_ACTION_METADATA: Mapping[str, PlaceholderMetadata] = {
             "pop_precomp",
         ),
     ),
-    **_phase_entries("6", ("eeglab_update",)),
     "pop_eegplot": PlaceholderMetadata(excluded_reason="eegbrowser"),
 }
 PLACEHOLDER_ACTIONS = frozenset(PLACEHOLDER_ACTION_METADATA)

@@ -1,13 +1,24 @@
-# pop_savestudy
+# POP_SAVESTUDY - Save an EEGPrep STUDY
 
-Save the current STUDY as an EEGPrep-owned `.study` JSON file.
+`pop_savestudy` saves the current STUDY dictionary as an EEGPrep-owned
+`.study` JSON file.
 
-Example:
+Usage:
 
 ```python
-STUDY = pop_savestudy(STUDY, ALLEEG, filename="demo.study", filepath="/data")
+STUDY, com = pop_savestudy(
+    STUDY,
+    ALLEEG,
+    filename="demo.study",
+    filepath="/data",
+    return_com=True,
+)
+STUDY, com = pop_savestudy(STUDY, ALLEEG, savemode="resave", return_com=True)
 ```
 
 The saved file contains STUDY metadata, dataset membership, designs, and
-consistency diagnostics. It does not save measure precompute arrays or cluster
+consistency diagnostics. The saved STUDY receives `filename`, `filepath`, and
+`saved="yes"` fields. It does not save measure precompute arrays or cluster
 measure data in Phase 5a.
+
+See also: POP_LOADSTUDY, POP_STUDY

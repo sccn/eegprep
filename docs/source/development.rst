@@ -179,6 +179,12 @@ EEGBrowser/eegplot-style scrolling workflows. Runtime package code must not
 read, import, or shell out to ``src/eegprep/eeglab``; that tree is only a
 development parity reference.
 
+GUI Help buttons and Help-menu topics must resolve to packaged Markdown files
+under ``src/eegprep/resources/help``. Do not fall back to the vendored EEGLAB
+tree or Python docstrings at runtime. When adding a new implemented
+GUI-reachable ``pop_*``/``eeg_*`` action, add its help resource and extend the
+menu/help resource inventory tests.
+
 Building Documentation
 ======================
 

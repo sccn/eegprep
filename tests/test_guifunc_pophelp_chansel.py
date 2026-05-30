@@ -1,8 +1,10 @@
 import unittest
-import importlib
+from importlib import resources
 from pathlib import Path
-from unittest.mock import patch
+import tomllib
 
+from eegprep.functions.guifunc.eeglab_menu import eeglab_menus, menu_actions
+from eegprep.functions.guifunc.menu_actions import action_kind
 from eegprep.functions.guifunc.pophelp import pophelp_text
 from eegprep.functions.popfunc.pop_interp import pop_interp_dialog_spec
 from eegprep.functions.popfunc.pop_chansel import (
@@ -10,8 +12,6 @@ from eegprep.functions.popfunc.pop_chansel import (
     pop_chansel_selected_string,
 )
 from eegprep.functions.popfunc.pop_reref import pop_reref_dialog_spec
-
-pophelp_module = importlib.import_module("eegprep.functions.guifunc.pophelp")
 
 
 class PopHelpAndChanSelTests(unittest.TestCase):
@@ -55,10 +55,42 @@ class PopHelpAndChanSelTests(unittest.TestCase):
                 self.assertIn(spec.function_name.upper(), text)
                 self.assertIn("resources/help", Path(source_path).as_posix())
 
+    def test_help_resources_are_packaged_importlib_resources(self):
+        help_files = resources.files("eegprep.resources.help")
+
+        self.assertTrue(help_files.joinpath("eegprep.md").is_file())
+        self.assertTrue(help_files.joinpath("eeg_helpadmin.md").is_file())
+        self.assertIn("EEGPrep", help_files.joinpath("eegprep.md").read_text(encoding="utf-8"))
+
+    def test_help_resources_are_declared_as_package_data(self):
+        pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+        package_data = pyproject["tool"]["setuptools"]["package-data"]["eegprep"]
+
+        self.assertIn("resources/help/*.md", package_data)
+
+    def test_implemented_menu_help_actions_have_packaged_resources(self):
+        full_menu_actions = menu_actions(eeglab_menus(all_menus=True, include_plugins=True))
+
+        help_targets = set()
+        for action in full_menu_actions:
+            base = action.partition(":")[0]
+            if action.startswith("help:"):
+                help_targets.add(action.partition(":")[2])
+            elif base.startswith(("pop_", "eeg_")) and action_kind(action) == "implemented":
+                help_targets.add(base)
+
+        self.assertIn("eeg_helpstudy", help_targets)
+        self.assertIn("pop_study", help_targets)
+        self.assertIn("pop_adjustevents", help_targets)
+        for target in sorted(help_targets):
+            with self.subTest(target=target):
+                text, source_path = pophelp_text(target)
+                self.assertIn(target.upper(), text.upper())
+                self.assertTrue(source_path.endswith(f"{target}.md"))
+
     def test_pophelp_requires_packaged_resource(self):
-        with patch.object(pophelp_module, "HELP_ROOT", Path("/missing")):
-            with self.assertRaisesRegex(FileNotFoundError, "Missing packaged EEGPrep help resource"):
-                pophelp_text("pop_reref")
+        with self.assertRaisesRegex(FileNotFoundError, "Missing packaged EEGPrep help resource"):
+            pophelp_text("missing_resource")
 
     def test_pop_chansel_display_values_match_withindex_format(self):
         values = pop_chansel_display_values(["Fp1", "Cz", "Pz"], withindex="on")

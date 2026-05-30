@@ -24,6 +24,16 @@ Core Classes
 
    eegprep.EEGobj
 
+GUI and Session Entry Points
+============================
+
+.. autosummary::
+   :toctree: generated/
+
+   eegprep.gui
+   eegprep.eeglab
+   eegprep.select_multiple_datasets
+
 Data Loading and Saving
 ========================
 
@@ -157,6 +167,19 @@ BIDS Pipeline
    eegprep.bids_preproc
    eegprep.bids_list_eeg_files
    eegprep.pop_load_frombids
+
+STUDY Workflows
+===============
+
+.. autosummary::
+   :toctree: generated/
+
+   eegprep.pop_study
+   eegprep.pop_studywizard
+   eegprep.pop_studyerp
+   eegprep.pop_loadstudy
+   eegprep.pop_savestudy
+   eegprep.pop_chanplot
 
 Configuration
 ==============

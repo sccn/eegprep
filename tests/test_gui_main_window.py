@@ -9,11 +9,8 @@ import pytest
 
 from eegprep.functions.guifunc.eeglab_menu import eeglab_menus, menu_actions
 from eegprep.functions.guifunc.menu_actions import (
-    HELP_DOC_PATHS,
-    HELP_UNAVAILABLE_TOPICS,
     MenuActionDispatcher,
     action_kind,
-    unavailable_help_message,
 )
 from eegprep.functions.guifunc.menu_placeholders import is_placeholder_action, placeholder_message
 from eegprep.functions.guifunc.menu_spec import menu_enabled
@@ -224,7 +221,7 @@ class MainMenuSpecTests(unittest.TestCase):
             },
         )
 
-    def test_help_menu_pophelp_actions_have_eegprep_docs_or_unavailable_popups(self):
+    def test_help_menu_pophelp_actions_have_packaged_topics(self):
         help_menu = _child(eeglab_menus(all_menus=False), "Help")
         help_actions = [action for action in menu_actions((help_menu,)) if action.startswith("help:")]
         help_topics = {action.split(":", 1)[1] for action in help_actions}
@@ -245,9 +242,6 @@ class MainMenuSpecTests(unittest.TestCase):
                 "eeg_helpmisc",
             },
         )
-        self.assertTrue(help_topics.issubset(set(HELP_DOC_PATHS) | set(HELP_UNAVAILABLE_TOPICS)))
-        self.assertIn("troubleshooting_data_formats", HELP_DOC_PATHS)
-        self.assertTrue(all("eeglab" not in path.lower() for path in HELP_DOC_PATHS.values()))
 
     def test_viewprops_plugin_items_match_plot_menu_locations(self):
         plot_menu = _child(eeglab_menus(all_menus=False), "Plot")
@@ -464,53 +458,47 @@ class MenuActionDispatcherTests(unittest.TestCase):
 
         coming_soon.assert_not_called()
 
-    def test_show_help_uses_eegprep_docs_for_available_help_topics(self):
+    def test_show_help_uses_packaged_pophelp_for_help_topics(self):
         dispatcher = MenuActionDispatcher(EEGPrepSession())
 
-        with (
-            mock.patch(
-                "eegprep.functions.guifunc.menu_actions.pophelp",
-                side_effect=FileNotFoundError("missing packaged help"),
-            ),
-            mock.patch("eegprep.functions.guifunc.menu_actions.webbrowser.open") as open_url,
-        ):
+        with mock.patch("eegprep.functions.guifunc.menu_actions.pophelp") as help_dialog:
             dispatcher.dispatch("help:eeg_helpadmin")
 
-        open_url.assert_called_once_with("https://sccn.github.io/eegprep/api/core.html")
+        help_dialog.assert_called_once_with("eeg_helpadmin", parent=None)
 
-    def test_show_help_uses_unavailable_popup_for_missing_eegprep_help_topics(self):
+    def test_bare_help_action_defaults_to_eegprep_topic(self):
         dispatcher = MenuActionDispatcher(EEGPrepSession())
 
-        with (
-            mock.patch(
-                "eegprep.functions.guifunc.menu_actions.pophelp",
-                side_effect=FileNotFoundError("missing packaged help"),
-            ),
-            mock.patch.object(dispatcher, "_show_unavailable_help") as unavailable,
-        ):
-            dispatcher.dispatch("help:eeg_helpstudy", parent="window")
+        with mock.patch("eegprep.functions.guifunc.menu_actions.pophelp") as help_dialog:
+            dispatcher.dispatch("help")
 
-        unavailable.assert_called_once_with("eeg_helpstudy", "window")
+        help_dialog.assert_called_once_with("eegprep", parent=None)
 
-    def test_unavailable_help_without_gui_parent_raises_clear_message(self):
-        dispatcher = MenuActionDispatcher(EEGPrepSession())
+    def test_help_and_admin_link_actions_do_not_mutate_session_history(self):
+        session = EEGPrepSession()
+        session.store_current(_demo_eeg(), new=True)
+        original_currentset = list(session.CURRENTSET)
+        original_history = list(session.ALLCOM)
+        dispatcher = MenuActionDispatcher(session)
 
         with (
-            mock.patch(
-                "eegprep.functions.guifunc.menu_actions.pophelp",
-                side_effect=FileNotFoundError("missing packaged help"),
-            ),
-            self.assertRaisesRegex(FileNotFoundError, "Group data .* not available yet"),
+            mock.patch("eegprep.functions.guifunc.menu_actions.pophelp"),
+            mock.patch("eegprep.functions.guifunc.menu_actions.webbrowser.open"),
         ):
-            dispatcher.dispatch("help:eeg_helpstudy")
+            for action in (
+                "help:eeg_helpadmin",
+                "help:eeg_helpmenu",
+                "tutorial",
+                "mailto:eeglab@sccn.ucsd.edu",
+                "updates",
+                "issues",
+                "license",
+            ):
+                dispatcher.dispatch(action)
 
-    def test_unavailable_help_message_is_user_facing(self):
-        message = unavailable_help_message("eeg_helpmenu")
-
-        self.assertIn("EEGPrep help for EEGPrep menus is not available yet", message)
-        self.assertIn("https://github.com/sccn/eegprep/issues", message)
-        self.assertNotIn("TODO", message)
-        self.assertNotIn("eeglab", message.lower())
+        self.assertEqual(session.CURRENTSET, original_currentset)
+        self.assertEqual(session.ALLCOM, original_history)
+        self.assertEqual(session.EEG["setname"], "demo")
 
     def test_tutorial_mailto_updates_and_issue_actions_open_expected_targets(self):
         dispatcher = MenuActionDispatcher(EEGPrepSession())
