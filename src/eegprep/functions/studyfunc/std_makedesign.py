@@ -125,7 +125,7 @@ def _design_variables(
 ) -> list[dict[str, Any]]:
     labels = available_variables(study)
     if all(_empty_label(label) for label, _values, _vartype in specs) and defaultdesign != "forceoff":
-        specs = _default_specs(labels)
+        specs = _default_specs(study, labels)
     variables = []
     for label, values, vartype in specs:
         if _empty_label(label):
@@ -147,9 +147,10 @@ def _design_variables(
     return variables
 
 
-def _default_specs(labels: list[str]) -> tuple[tuple[str | None, Any, str], ...]:
-    first = "condition" if "condition" in labels else (labels[0] if labels else None)
-    second = "group" if "group" in labels and first != "group" else None
+def _default_specs(study: dict[str, Any], labels: list[str]) -> tuple[tuple[str | None, Any, str], ...]:
+    varying_labels = [label for label in labels if len(variable_values(study, label)) > 1]
+    first = "condition" if "condition" in varying_labels else (varying_labels[0] if varying_labels else None)
+    second = "group" if "group" in varying_labels and first != "group" else None
     return ((first, None, "categorical"), (second, None, "categorical"), (None, None, ""), (None, None, ""))
 
 

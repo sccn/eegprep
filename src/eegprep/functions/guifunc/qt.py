@@ -288,7 +288,7 @@ class QtDialogRenderer:
         button_layout.setContentsMargins(0, 18, 0, 0)
         button_layout.setSpacing(16)
         if spec.help_text and spec.show_help_button:
-            help_button = QtWidgets.QPushButton("Help")
+            help_button = QtWidgets.QPushButton(spec.help_label)
             help_button.setObjectName("help")
             help_button.setFixedWidth(spec.button_size[0] if spec.button_size is not None else 80)
             help_button.clicked.connect(lambda: QtDialogRenderer._show_help(QtWidgets, dialog, spec))

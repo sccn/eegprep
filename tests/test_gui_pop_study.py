@@ -36,7 +36,9 @@ def test_pop_study_dialog_spec_exposes_loaded_dataset_metadata():
     assert controls["dataset_1_filename"].value == "one.set"
     assert controls["dataset_1_subject"].value == "S01"
     assert controls["dataset_1_condition"].value == "target"
-    assert controls["dataset_1_filename"].enabled is False
+    assert controls["dataset_1_filename"].enabled is True
+    assert controls["dataset_1_browse"].enabled is True
+    assert controls["dataset_10_clear"].enabled is True
 
 
 def test_pop_study_dialog_spec_exposes_all_dataset_rows():
@@ -94,7 +96,11 @@ def test_pop_study_gui_cancel_is_noop():
 
 
 def test_pop_studydesign_dialog_spec_lists_factors_and_current_design():
-    study, alleeg = _study_inputs()
+    first = create_test_eeg(n_channels=2, n_samples=10)
+    first.update({"setname": "one", "subject": "S01", "condition": "target", "filename": "one.set"})
+    second = create_test_eeg(n_channels=2, n_samples=10)
+    second.update({"setname": "two", "subject": "S02", "condition": "standard", "filename": "two.set"})
+    study, alleeg = pop_study(None, [first, second], name="Study")
 
     spec = pop_studydesign_dialog_spec(study, alleeg)
     controls = controls_by_tag(spec)
@@ -102,30 +108,26 @@ def test_pop_studydesign_dialog_spec_lists_factors_and_current_design():
     assert spec.title == "Edit STUDY design -- pop_studydesign()"
     assert spec.function_name == "pop_studydesign"
     assert spec.eeglab_source == "functions/studyfunc/pop_studydesign.m"
+    assert spec.help_label == "Web help"
     assert controls["designind"].value == 1
-    assert "condition" in controls["available_factors"].value
-    assert controls["variable1"].value == "condition"
-    assert controls["available_factors"].enabled is False
+    assert controls["subjects"].value == ""
+    assert "Categorical variable: condition" in controls["variable_summary"].string
+    assert controls["new_design"].enabled is True
+    assert controls["edit_variable"].enabled is True
 
 
-def test_pop_studydesign_gui_updates_design_values():
+def test_pop_studydesign_gui_updates_subject_selection():
     study, alleeg = _study_inputs()
     renderer = _Renderer(
         {
             "subjects": "S01",
-            "name": "Targets",
             "designind": "1",
-            "variable1": "condition",
-            "values1": "target",
-            "variable2": "",
-            "values2": "",
         }
     )
 
     edited, _alleeg, command = pop_studydesign(study, alleeg, gui=True, renderer=renderer, return_com=True)
 
-    assert edited["design"][0]["name"] == "Targets"
-    assert edited["design"][0]["variable"][0]["value"] == ["target"]
+    assert edited["design"][0]["cases"]["value"] == ["S01"]
     ast.parse(command)
 
 

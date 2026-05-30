@@ -44,6 +44,7 @@ class DialogSpec:
     eeglab_source: str
     size: tuple[int, int] | None = None
     help_text: str | None = None
+    help_label: str = "Help"
     show_help_button: bool = True
     ok_label: str = "Ok"
     cancel_label: str = "Cancel"

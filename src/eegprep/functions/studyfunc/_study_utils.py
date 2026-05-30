@@ -279,7 +279,7 @@ def variable_values(study: dict[str, Any], label: str) -> list[Any]:
         for row in info.get("trialinfo") or []:
             if isinstance(row, dict) and label in row and not _empty_value(row.get(label)):
                 values.append(row[label])
-    return _unique_values(values)
+    return _unique_eeglab_values(values)
 
 
 def parse_design_values(value: Any) -> list[Any]:

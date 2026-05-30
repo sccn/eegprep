@@ -5,11 +5,10 @@ from __future__ import annotations
 from typing import Any
 
 from eegprep.functions.guifunc.inputgui import inputgui
-from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
+from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.popfunc._pop_utils import is_on, parse_key_value_args
 from eegprep.functions.studyfunc._study_utils import (
     as_alleeg_list,
-    available_variables,
     build_python_call,
     ensure_study,
     parse_design_values,
@@ -66,64 +65,79 @@ def pop_studydesign_dialog_spec(STUDY: dict[str, Any], ALLEEG: list[dict[str, An
     current = int(study.get("currentdesign") or 1)
     design = designs[current - 1] if 0 < current <= len(designs) else {}
     variables = design.get("variable") or []
-    factors = available_variables(study)
-    factor_text = " ".join(factors)
     design_names = [str(item.get("name") or f"STUDY.design {index}") for index, item in enumerate(designs, start=1)]
     variable_summary = _variable_summary(variables)
+    coming_soon = CallbackSpec(
+        "show_message",
+        {
+            "title": "STUDY design editor",
+            "message": (
+                "This EEGLAB subdialog is not available yet in EEGPrep. "
+                "Use pop_studydesign(..., variable1=..., values1=...) from the console for now."
+            ),
+        },
+    )
     controls = [
         ControlSpec("text", "Include these subjects (default: all)", font_weight="bold"),
+        ControlSpec("edit", tag="subjects", value=""),
         ControlSpec(
-            "edit", tag="subjects", value=" ".join(str(item) for item in design.get("cases", {}).get("value", []))
+            "pushbutton",
+            "...",
+            tag="select_subjects",
+            callback=_button_callback(coming_soon, "select_subjects"),
         ),
-        ControlSpec("pushbutton", "...", tag="select_subjects", enabled=False),
         ControlSpec("text", "Design name", font_weight="bold"),
-        ControlSpec("pushbutton", "New", tag="new_design", enabled=False),
-        ControlSpec("pushbutton", "Rename", tag="rename_design", enabled=False),
-        ControlSpec("pushbutton", "Delete", tag="delete_design", enabled=False),
+        ControlSpec("spacer"),
+        ControlSpec("pushbutton", "New", tag="new_design", callback=_button_callback(coming_soon, "new_design")),
+        ControlSpec(
+            "pushbutton", "Rename", tag="rename_design", callback=_button_callback(coming_soon, "rename_design")
+        ),
+        ControlSpec(
+            "pushbutton", "Delete", tag="delete_design", callback=_button_callback(coming_soon, "delete_design")
+        ),
         ControlSpec("listbox", "|".join(design_names or [f"STUDY.design {current}"]), tag="designind", value=current),
-        ControlSpec("text", "Edit the independent variables for this design", font_weight="bold"),
-        ControlSpec("pushbutton", "New", tag="new_variable", enabled=False),
-        ControlSpec("pushbutton", "Edit", tag="edit_variable", enabled=False),
-        ControlSpec("pushbutton", "Delete", tag="delete_variable", enabled=False),
-        ControlSpec("pushbutton", "List factors", tag="list_factors", enabled=False),
+        ControlSpec(
+            "text",
+            "Edit the independent variables for this design",
+            tag="independent_header",
+            font_weight="bold",
+        ),
+        ControlSpec("spacer"),
+        ControlSpec("pushbutton", "New", tag="new_variable", callback=_button_callback(coming_soon, "new_variable")),
+        ControlSpec("pushbutton", "Edit", tag="edit_variable", callback=_button_callback(coming_soon, "edit_variable")),
+        ControlSpec(
+            "pushbutton", "Delete", tag="delete_variable", callback=_button_callback(coming_soon, "delete_variable")
+        ),
+        ControlSpec(
+            "pushbutton", "List factors", tag="list_factors", callback=_button_callback(coming_soon, "list_factors")
+        ),
         ControlSpec(
             "listbox", "|".join(variable_summary or ["No independent variables"]), tag="variable_summary", value=1
         ),
-        ControlSpec("text", "Available factors"),
-        ControlSpec("edit", tag="available_factors", value=factor_text, enabled=False),
-        ControlSpec("text", "Variable 1"),
-        ControlSpec("edit", tag="variable1", value=_variable_label(variables, 0)),
-        ControlSpec("text", "Values 1 ([] = all)"),
-        ControlSpec("edit", tag="values1", value=_variable_values(variables, 0)),
-        ControlSpec("text", "Variable 2"),
-        ControlSpec("edit", tag="variable2", value=_variable_label(variables, 1)),
-        ControlSpec("text", "Values 2 ([] = all)"),
-        ControlSpec("edit", tag="values2", value=_variable_values(variables, 1)),
-        ControlSpec("checkbox", "Re-save STUDY file (if saved previously)", tag="resave", value=True, enabled=False),
+        ControlSpec("checkbox", " Re-save STUDY file (if saved previously)", tag="resave", value=True),
     ]
     return DialogSpec(
         title="Edit STUDY design -- pop_studydesign()",
         controls=tuple(controls),
         geometry=(
             (2.5, 1.5, 0.45),
-            (2.9, 0.45, 0.55, 0.55),
+            (1,),
+            (2.8, 0.45, 0.6, 0.6),
             (1,),
             (1,),
-            (0.45, 0.45, 0.55, 0.8),
+            (1.6, 0.45, 0.45, 0.55, 0.8),
             (1,),
-            (1.2, 2.2),
-            (0.8, 1.05, 0.9, 1.15),
-            (0.8, 1.05, 0.9, 1.15),
             (1,),
         ),
         function_name="pop_studydesign",
         eeglab_source="functions/studyfunc/pop_studydesign.m",
         help_text="pop_studydesign",
-        size=(500, 590),
+        help_label="Web help",
+        size=(484, 568),
         content_margins=(24, 22, 24, 14),
         row_spacing=5,
-        geomvert=(1, 1, 3.1, 0.7, 1, 3.4, 1, 1, 1, 1),
-        button_size=(58, 20),
+        geomvert=(1, 0.65, 0.01, 3.1, 0.65, 0.01, 3.4, 1),
+        button_size=(86, 22),
         extra_stylesheet="""
             QDialog#pop_studydesign QLabel,
             QDialog#pop_studydesign QCheckBox,
@@ -138,12 +152,17 @@ def pop_studydesign_dialog_spec(STUDY: dict[str, Any], ALLEEG: list[dict[str, An
                 max-height: 20px;
             }
             QDialog#pop_studydesign QListWidget#designind {
-                min-height: 86px;
-                max-height: 118px;
+                min-height: 90px;
+                max-height: 90px;
+            }
+            QDialog#pop_studydesign QLabel#independent_header {
+                border: 1px solid #7f7f7f;
+                border-bottom: 0;
+                padding-left: 4px;
             }
             QDialog#pop_studydesign QListWidget#variable_summary {
-                min-height: 96px;
-                max-height: 132px;
+                min-height: 105px;
+                max-height: 105px;
             }
             QDialog#pop_studydesign QPushButton#select_subjects,
             QDialog#pop_studydesign QPushButton#new_design,
@@ -169,29 +188,20 @@ def pop_studydesign_dialog_spec(STUDY: dict[str, Any], ALLEEG: list[dict[str, An
 
 
 def _options_from_gui(result: dict[str, Any]) -> dict[str, Any]:
-    options: dict[str, Any] = {
-        "variable1": str(result.get("variable1") or ""),
-        "values1": parse_design_values(result.get("values1")),
-        "variable2": str(result.get("variable2") or ""),
-        "values2": parse_design_values(result.get("values2")),
-    }
+    options: dict[str, Any] = {}
     if "name" in result:
         options["name"] = str(result.get("name") or "")
+    for index in range(1, 5):
+        variable_key = f"variable{index}"
+        values_key = f"values{index}"
+        if variable_key in result:
+            options[variable_key] = str(result.get(variable_key) or "")
+        if values_key in result:
+            options[values_key] = parse_design_values(result.get(values_key))
     subjects = parse_design_values(result.get("subjects"))
     if subjects:
         options["subjselect"] = subjects
     return options
-
-
-def _variable_label(variables: list[dict[str, Any]], index: int) -> str:
-    return str(variables[index].get("label") or "") if index < len(variables) else ""
-
-
-def _variable_values(variables: list[dict[str, Any]], index: int) -> str:
-    if index >= len(variables):
-        return ""
-    values = variables[index].get("value") or []
-    return " ".join(str(value) for value in values)
 
 
 def _variable_summary(variables: list[dict[str, Any]]) -> list[str]:
@@ -204,6 +214,12 @@ def _variable_summary(variables: list[dict[str, Any]]) -> list[str]:
         value_text = " - ".join(str(value) for value in values) if values else "all"
         rows.append(f"Categorical variable: {label} - Values ({value_text})")
     return rows
+
+
+def _button_callback(template: CallbackSpec, button: str) -> CallbackSpec:
+    params = dict(template.params)
+    params["button"] = button
+    return CallbackSpec(template.name, params, template.matlab_callback)
 
 
 __all__ = ["pop_studydesign", "pop_studydesign_dialog_spec"]
