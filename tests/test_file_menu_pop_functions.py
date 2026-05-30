@@ -235,7 +235,7 @@ def test_study_save_load_and_bids_metadata(tmp_path):
     assert study_file.name in load_command
     assert "load_datasets=False" in load_command
     ast.parse(load_command)
-    assert str(study_file.parent) in load_command
+    assert f"filepath={str(study_file.parent)!r}" in load_command
     ast.parse(load_command)
 
 
