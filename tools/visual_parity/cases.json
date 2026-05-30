@@ -230,6 +230,56 @@
       }
     },
     {
+      "id": "pop_study_dialog",
+      "description": "STUDY metadata dialog opened from pop_study.",
+      "window_size": [900, 620],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_study"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_study_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_studydesign_dialog",
+      "description": "STUDY design editor opened from pop_studydesign.",
+      "window_size": [680, 500],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_studydesign"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_studydesign_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
       "id": "pop_editeventfield_dialog",
       "description": "Event field editor dialog opened from pop_editeventfield.",
       "window_size": [900, 360],

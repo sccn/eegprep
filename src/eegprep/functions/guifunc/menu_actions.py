@@ -106,6 +106,7 @@ IMPLEMENTED_ACTIONS = {
     "pop_selectcomps",
     "pop_spectopo",
     "pop_study",
+    "pop_studydesign",
     "pop_studyerp",
     "pop_studywizard",
     "pop_subcomp",
@@ -125,6 +126,7 @@ IMPLEMENTED_ACTIONS = {
     "quit",
     "retrieve_dataset",
     "select_multiple_datasets",
+    "select_study_set",
     "topoplot",
     "tutorial",
     "updates",
@@ -298,13 +300,23 @@ class MenuActionDispatcher:
         if base == "select_multiple_datasets":
             self._select_multiple_datasets(parent)
             return
+        if base == "select_study_set":
+            self._select_study_set(parent)
+            return
         if base == "pop_copyset":
             self._copy_current_dataset(parent)
             return
         if base == "pop_mergeset":
             self._merge_datasets(parent)
             return
-        if base in {"pop_study", "pop_studywizard", "pop_studyerp", "pop_loadstudy", "pop_savestudy"}:
+        if base in {
+            "pop_study",
+            "pop_studydesign",
+            "pop_studywizard",
+            "pop_studyerp",
+            "pop_loadstudy",
+            "pop_savestudy",
+        }:
             self._study_action(base, variant, parent)
             return
         if base == "pop_editoptions":
@@ -664,12 +676,9 @@ class MenuActionDispatcher:
                 return
             from eegprep.functions.studyfunc.pop_loadstudy import pop_loadstudy
 
-            study, alleeg, command = pop_loadstudy(filename)
-            self.session.STUDY = study
-            if alleeg:
-                self.session.ALLEEG = alleeg
-            self.session.CURRENTSTUDY = 1
-            self._add_history_from_gui(command)
+            study, alleeg, command = pop_loadstudy(filename, return_com=True)
+            self.session.echo_command(command)
+            self.session.set_study(study, alleeg, command=command)
             self._refresh()
             return
         if action == "pop_savestudy":
@@ -689,9 +698,24 @@ class MenuActionDispatcher:
                 return
             from eegprep.functions.studyfunc.pop_savestudy import pop_savestudy
 
-            study, command = pop_savestudy(self.session.STUDY, self.session.EEG, filename, savemode=variant or None)
-            self.session.STUDY = study
-            self._add_history_from_gui(command)
+            study, command = pop_savestudy(
+                self.session.STUDY, self.session.ALLEEG, filename, savemode=variant or None, return_com=True
+            )
+            self.session.echo_command(command)
+            self.session.set_study(study, command=command)
+            self._refresh()
+            return
+        if action == "pop_studydesign":
+            if not self.session.STUDY:
+                self._warn(parent, "Create or load a STUDY before editing designs")
+                return
+            from eegprep.functions.studyfunc.pop_studydesign import pop_studydesign
+
+            study, alleeg, command = pop_studydesign(self.session.STUDY, self.session.ALLEEG, gui=True, return_com=True)
+            if not command:
+                return
+            self.session.echo_command(command)
+            self.session.set_study(study, alleeg, command=command)
             self._refresh()
             return
         if action == "pop_studywizard":
@@ -706,22 +730,31 @@ class MenuActionDispatcher:
                 return
             from eegprep.functions.studyfunc.pop_studywizard import pop_studywizard
 
-            study, alleeg, command = pop_studywizard(filenames)
+            study, alleeg, command = pop_studywizard(filenames, return_com=True)
         elif action == "pop_studyerp":
             from eegprep.functions.studyfunc.pop_studyerp import pop_studyerp
 
-            study, alleeg, command = pop_studyerp(self.session.ALLEEG)
+            study, alleeg, command = pop_studyerp(self.session.ALLEEG, return_com=True)
+        elif action == "pop_study" and variant == "edit":
+            if not self.session.STUDY:
+                self._warn(parent, "Create or load a STUDY before editing study info")
+                return
+            from eegprep.functions.studyfunc.pop_study import pop_study
+
+            study, alleeg, command = pop_study(self.session.STUDY, self.session.ALLEEG, gui=True, return_com=True)
+            if not command:
+                return
         else:
             if not self.session.ALLEEG:
                 self._warn(parent, "Load at least one dataset before creating a study")
                 return
             from eegprep.functions.studyfunc.pop_study import pop_study
 
-            study, alleeg, command = pop_study(None, self.session.ALLEEG)
-        self.session.STUDY = study
-        self.session.ALLEEG = alleeg
-        self.session.CURRENTSTUDY = 1
-        self._add_history_from_gui(command)
+            study, alleeg, command = pop_study(None, self.session.ALLEEG, gui=True, return_com=True)
+            if not command:
+                return
+        self.session.echo_command(command)
+        self.session.set_study(study, alleeg, command=command)
         self._refresh()
 
     def _edit_options(self, parent: Any | None) -> None:
@@ -1015,6 +1048,15 @@ class MenuActionDispatcher:
             self.session.add_history(command, notify=False)
             self.session.notify_changed()
             self._refresh()
+
+    def _select_study_set(self, parent: Any | None) -> None:
+        if not self.session.STUDY:
+            self._warn(parent, "No current STUDY")
+            return
+        command = "CURRENTSTUDY = 1"
+        self.session.echo_command(command)
+        self.session.select_study(command=command)
+        self._refresh()
 
     def _copy_current_dataset(self, parent: Any | None) -> None:
         if not self.session.CURRENTSET:
