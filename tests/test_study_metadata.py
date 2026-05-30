@@ -126,6 +126,21 @@ def test_pop_savestudy_and_pop_loadstudy_roundtrip_with_dataset_loading(tmp_path
     assert "pop_loadstudy" in load_command
 
 
+def test_pop_savestudy_resave_uses_existing_study_path(tmp_path):
+    eeg = _eeg("saved", subject="S01", condition="target")
+    study, alleeg = pop_study(None, [eeg], name="Initial study")
+    saved, _save_command = pop_savestudy(study, alleeg, filename="saved.study", filepath=tmp_path, return_com=True)
+
+    saved["name"] = "Resaved study"
+    resaved, command = pop_savestudy(saved, alleeg, savemode="resave", return_com=True)
+    reloaded, _loaded_alleeg = pop_loadstudy("saved.study", filepath=tmp_path, load_datasets="off")
+
+    assert resaved["filename"] == "saved.study"
+    assert Path(resaved["filepath"]) == tmp_path
+    assert reloaded["name"] == "Resaved study"
+    assert "savemode='resave'" in command
+
+
 def test_pop_loadstudy_missing_dataset_fails_without_realigning_metadata(tmp_path):
     first = _eeg("first", subject="S01", condition="target", session=1, run=1)
     second = _eeg("second", subject="S02", condition="standard", session=2, run=2)
@@ -143,7 +158,7 @@ def test_pop_loadstudy_missing_dataset_fails_without_realigning_metadata(tmp_pat
     with pytest.raises(FileNotFoundError, match="second.set"):
         pop_loadstudy("saved.study", filepath=tmp_path)
 
-    unloaded_study, unloaded_alleeg = pop_loadstudy("saved.study", filepath=tmp_path, load_datasets=False)
+    unloaded_study, unloaded_alleeg = pop_loadstudy("saved.study", filepath=tmp_path, load_datasets="off")
     assert unloaded_alleeg == []
     assert unloaded_study["datasetinfo"][1]["subject"] == "S02"
     assert unloaded_study["datasetinfo"][1]["session"] == 2

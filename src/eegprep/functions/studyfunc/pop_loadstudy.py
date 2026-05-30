@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from eegprep.functions.popfunc._pop_utils import parse_key_value_args
+from eegprep.functions.popfunc._pop_utils import is_on, parse_key_value_args
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.studyfunc._study_utils import build_python_call, dataset_path, ensure_study
 from eegprep.functions.studyfunc.std_checkset import std_checkset
@@ -24,7 +24,7 @@ def pop_loadstudy(
     options = parse_key_value_args(args, kwargs, lowercase_kwargs=True)
     filename = options.pop("filename", filename)
     filepath = options.pop("filepath", filepath)
-    load_datasets = bool(options.pop("load_datasets", load_datasets))
+    load_datasets = is_on(options.pop("load_datasets", load_datasets))
     if options:
         raise ValueError(f"Unknown pop_loadstudy option(s): {', '.join(sorted(options))}")
     if filename is None:
