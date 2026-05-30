@@ -80,6 +80,7 @@ def pop_study(
         name=study.get("name", ""),
         task=study.get("task", ""),
         notes=study.get("notes", ""),
+        design=design,
     )
     return (study, datasets, command) if return_com else (study, datasets)
 

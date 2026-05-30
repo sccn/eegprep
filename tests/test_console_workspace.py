@@ -97,13 +97,31 @@ def test_console_pop_study_result_updates_shared_study_workspace():
     workspace = EEGPrepConsoleWorkspace(session, exports={"pop_study": _fake_pop_study})
 
     result = workspace.namespace["pop_study"](workspace.namespace["STUDY"], workspace.namespace["ALLEEG"])
+    assigned_study, assigned_alleeg = result
 
     assert session.CURRENTSTUDY == 1
     assert session.STUDY["name"] == "console study"
     assert workspace.namespace["STUDY"] is session.STUDY
     assert session.ALLCOM[-1].startswith("STUDY, ALLEEG = pop_study(")
-    assert tuple(result)[0] is session.STUDY
-    assert tuple(result)[1] is session.ALLEEG
+    assert assigned_study is session.STUDY
+    assert assigned_alleeg is session.ALLEEG
+    assert result.command == session.LASTCOM
+    assert len(result) == 2
+
+
+def test_console_pop_study_history_assignment_replays_as_written():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(), new=True)
+    workspace = EEGPrepConsoleWorkspace(session, exports={"pop_study": _fake_pop_study})
+    source = "STUDY, ALLEEG = pop_study(STUDY, ALLEEG)"
+
+    exec(source, workspace.namespace)
+    workspace.after_execute(source)
+
+    assert workspace.namespace["STUDY"] is session.STUDY
+    assert workspace.namespace["ALLEEG"] is session.ALLEEG
+    assert session.STUDY["name"] == "console study"
+    assert session.ALLCOM[-1].startswith("STUDY, ALLEEG = pop_study(")
 
 
 def test_console_pop_savestudy_result_updates_study_without_replacing_alleeg():

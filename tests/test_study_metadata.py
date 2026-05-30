@@ -50,6 +50,13 @@ def test_pop_study_builds_full_metadata_and_default_design():
     assert command.startswith("STUDY, ALLEEG = pop_study(")
 
 
+def test_pop_study_history_preserves_requested_design_name():
+    study, _alleeg, command = pop_study(None, [_eeg("one", condition="target")], design="ERP", return_com=True)
+
+    assert study["design"][0]["name"] == "ERP"
+    assert "design='ERP'" in command
+
+
 def test_std_editset_updates_datasetinfo_and_loaded_dataset_metadata():
     study, alleeg = pop_study(None, [_eeg("one")], name="Initial")
 

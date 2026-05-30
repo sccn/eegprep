@@ -107,13 +107,14 @@ class ConsoleStudyResult:
         yield self.study
         if self.includes_alleeg:
             yield self.alleeg
-        yield self.command
+        else:
+            yield self.command
 
     def __getitem__(self, index: int) -> Any:
         return tuple(self)[index]
 
     def __len__(self) -> int:
-        return 3 if self.includes_alleeg else 2
+        return 2
 
     def __repr__(self) -> str:
         command = self.command or "(no history command)"
