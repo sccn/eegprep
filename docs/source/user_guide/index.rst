@@ -36,6 +36,7 @@ Getting Started
 
    installation
    quickstart
+   gui_help_menus
    interactive_console
 
 Core Concepts
@@ -54,6 +55,7 @@ Data Workflows
    :maxdepth: 2
 
    bids_workflow
+   study_workflows
    visual_parity
 
 Advanced Topics
@@ -71,9 +73,11 @@ Quick Reference
 
 - :ref:`installation` - Install eegprep
 - :ref:`quickstart` - Load, preprocess, and save EEG data
+- :ref:`gui_help_menus` - Use GUI menus, packaged help, and menu inventory checks
 - :ref:`interactive_console` - Use the GUI and Python console together
 - :ref:`preprocessing_pipeline` - Understand preprocessing steps
 - :ref:`bids_workflow` - Process BIDS datasets
+- :ref:`study_workflows` - Use current STUDY creation, save/load, and plotting surfaces
 - :ref:`visual_parity` - Compare future EEGPREP UI states against EEGLAB
 - :ref:`configuration` - Configure preprocessing parameters
 - :ref:`advanced_topics` - Create custom pipelines

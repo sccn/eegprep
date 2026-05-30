@@ -62,3 +62,10 @@ Assignment-style calls also work:
 
 This console behavior is specific to ``eegprep-console``. Normal Python imports
 keep standard Python semantics, where returned values must be assigned manually.
+
+Help and admin menu actions use the same shared session. For example, loading
+or creating a STUDY from the GUI updates ``STUDY`` and ``CURRENTSTUDY`` in the
+console, while retrieving a dataset from the Datasets menu returns
+``CURRENTSTUDY`` to ``0``. Dialog Help buttons and Help-menu topics open
+packaged EEGPrep Markdown resources; missing help is treated as a packaging
+error rather than falling back to the vendored EEGLAB reference tree.
