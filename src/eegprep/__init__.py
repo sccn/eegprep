@@ -197,6 +197,9 @@ _LAZY_EXPORTS = {
     "std_checkdatasetinfo": ("eegprep.functions.studyfunc.std_checkset", "std_checkdatasetinfo"),
     "std_checkset": ("eegprep.functions.studyfunc.std_checkset", "std_checkset"),
     "std_editset": ("eegprep.functions.studyfunc.std_editset", "std_editset"),
+    "std_erpplot": ("eegprep.functions.studyfunc.std_erpplot", "std_erpplot"),
+    "std_erspplot": ("eegprep.functions.studyfunc.std_erspplot", "std_erspplot"),
+    "std_itcplot": ("eegprep.functions.studyfunc.std_itcplot", "std_itcplot"),
     "std_makedesign": ("eegprep.functions.studyfunc.std_makedesign", "std_makedesign"),
     "std_precomp": ("eegprep.functions.studyfunc.std_precomp", "std_precomp"),
     "std_readdata": ("eegprep.functions.studyfunc.std_readdata", "std_readdata"),
@@ -204,6 +207,7 @@ _LAZY_EXPORTS = {
     "std_readersp": ("eegprep.functions.studyfunc.std_readdata", "std_readersp"),
     "std_readspec": ("eegprep.functions.studyfunc.std_readdata", "std_readspec"),
     "std_selectdesign": ("eegprep.functions.studyfunc.std_selectdesign", "std_selectdesign"),
+    "std_specplot": ("eegprep.functions.studyfunc.std_specplot", "std_specplot"),
     "topoplot": ("eegprep.functions.sigprocfunc.topoplot", "topoplot"),
 }
 

@@ -70,7 +70,7 @@ def _channel_groups(study: dict[str, Any], channels: Any) -> list[dict[str, Any]
     groups = [group for group in study.get("changrp") or [] if isinstance(group, dict)]
     if not groups:
         raise ValueError("No channel measures are stored in STUDY.changrp")
-    if channels in (None, "", "channels"):
+    if _all_channels_requested(channels):
         return groups
     if isinstance(channels, str):
         requested = [channels]
@@ -92,7 +92,7 @@ def _component_cluster(study: dict[str, Any], clusters: Any) -> dict[str, Any]:
     cluster_list = [group for group in study.get("cluster") or [] if isinstance(group, dict)]
     if not cluster_list:
         raise ValueError("No component measures are stored in STUDY.cluster")
-    if clusters in (None, "", "components"):
+    if _parent_cluster_requested(clusters):
         return cluster_list[0]
     indices = numeric_vector(clusters, dtype=int)
     if indices.size != 1:
@@ -104,12 +104,22 @@ def _component_cluster(study: dict[str, Any], clusters: Any) -> dict[str, Any]:
 
 
 def _selected_components(components: Any, count: int) -> np.ndarray:
+    if isinstance(components, str) and components.lower() == "all":
+        return np.arange(count, dtype=int)
     indices = numeric_vector(components, dtype=int)
     if indices.size == 0:
         return np.arange(count, dtype=int)
     if np.any(indices < 1) or np.any(indices > count):
         raise ValueError(f"components must be 1-based and within 1..{count}")
     return indices - 1
+
+
+def _all_channels_requested(channels: Any) -> bool:
+    return channels is None or (isinstance(channels, str) and channels in {"", "channels"})
+
+
+def _parent_cluster_requested(clusters: Any) -> bool:
+    return clusters is None or (isinstance(clusters, str) and clusters in {"", "components"})
 
 
 def _data_array(group: dict[str, Any], measure: str) -> np.ndarray:

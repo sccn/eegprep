@@ -59,6 +59,7 @@ from eegprep.functions.popfunc.pop_spectopo import pop_spectopo_dialog_spec
 from eegprep.functions.popfunc.pop_subcomp import pop_subcomp_dialog_spec
 from eegprep.functions.popfunc.pop_timtopo import pop_timtopo_dialog_spec
 from eegprep.functions.popfunc.pop_topoplot import pop_topoplot_dialog_spec
+from eegprep.functions.studyfunc.pop_chanplot import pop_chanplot_dialog_spec
 from eegprep.functions.studyfunc.pop_precomp import pop_precomp_dialog_spec
 from eegprep.functions.studyfunc.pop_study import pop_study_dialog_spec
 from eegprep.functions.studyfunc.pop_studydesign import pop_studydesign_dialog_spec
@@ -473,6 +474,15 @@ def capture_pop_precomp_dialog(output: pathlib.Path) -> None:
     """Render and capture the pop_precomp dialog."""
     study, alleeg = _demo_study()
     spec = pop_precomp_dialog_spec(study, alleeg, "channels")
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_chanplot_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_chanplot dialog."""
+    study, alleeg = _demo_study()
+    spec = pop_chanplot_dialog_spec(study, alleeg)
     renderer = QtDialogRenderer()
     app, dialog, _widgets = renderer.build_dialog(spec)
     _grab_dialog(dialog, output, app)
@@ -1036,6 +1046,8 @@ def main(argv: list[str] | None = None) -> int:
         capture_pop_studydesign_dialog(args.output)
     elif args.case == "pop_precomp_dialog":
         capture_pop_precomp_dialog(args.output)
+    elif args.case == "pop_chanplot_dialog":
+        capture_pop_chanplot_dialog(args.output)
     elif args.case == "reref_dialog":
         capture_reref_dialog(args.output)
     elif args.case == "reref_dialog_channel_ref":

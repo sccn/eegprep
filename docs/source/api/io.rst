@@ -95,6 +95,14 @@ History And STUDY Files
 
 .. autofunction:: eegprep.std_readersp
 
+.. autofunction:: eegprep.std_erpplot
+
+.. autofunction:: eegprep.std_specplot
+
+.. autofunction:: eegprep.std_erspplot
+
+.. autofunction:: eegprep.std_itcplot
+
 .. autofunction:: eegprep.std_selectdesign
 
 Format Conversion

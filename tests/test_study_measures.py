@@ -16,10 +16,16 @@ from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher, action_
 from eegprep.functions.guifunc.spec import controls_by_tag
 from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.functions.studyfunc.pop_chanplot import pop_chanplot
+from eegprep.functions.studyfunc.pop_loadstudy import pop_loadstudy
 from eegprep.functions.studyfunc.pop_precomp import pop_precomp, pop_precomp_dialog_spec
+from eegprep.functions.studyfunc.pop_savestudy import pop_savestudy
 from eegprep.functions.studyfunc.pop_study import pop_study
+from eegprep.functions.studyfunc.std_erpplot import std_erpplot
+from eegprep.functions.studyfunc.std_erspplot import std_erspplot
+from eegprep.functions.studyfunc.std_itcplot import std_itcplot
 from eegprep.functions.studyfunc.std_precomp import std_precomp
 from eegprep.functions.studyfunc.std_readdata import std_readdata, std_readerp, std_readspec
+from eegprep.functions.studyfunc.std_specplot import std_specplot
 from tests.fixtures import create_test_eeg, create_test_eeg_with_ica
 
 
@@ -111,6 +117,51 @@ def test_pop_precomp_channel_measures_and_cached_plot_are_replayable():
     ast.parse(command)
     ast.parse(plot_command)
     plt.close(figure)
+
+
+def test_study_measure_roundtrip_and_std_plot_helpers(tmp_path):
+    study, alleeg = _study_pair()
+    study, alleeg = pop_precomp(
+        study,
+        alleeg,
+        "channels",
+        erp="on",
+        spec="on",
+        ersp="on",
+        itc="on",
+        erspparams={"cycles": 0, "nfreqs": 5, "timesout": 5},
+    )
+
+    study, erpdata, erptimes, erpfig, erpcom = std_erpplot(
+        study, alleeg, channels=["Ch1"], timerange=[0, 250], return_com=True
+    )
+    study, specdata, specfreqs, specfig = std_specplot(study, alleeg, channels=[1])
+    study, erspdata, ersptimes, erspfreqs, erspfig = std_erspplot(study, alleeg, channels=[1])
+    study, itcdata, itctimes, itcfreqs, itcfig = std_itcplot(study, alleeg, channels=[1])
+    plotted, plot_command, plotfig = pop_chanplot(study, alleeg, channels=["Ch1"], measure="erp", return_com=True)
+
+    assert erpdata[0].shape[0] == 2
+    assert erptimes[0] >= 0
+    assert specdata[0].shape[0] == 2
+    assert specfreqs.size == specdata[0].shape[1]
+    assert erspdata[0].shape == itcdata[0].shape
+    assert ersptimes.size == itctimes.size
+    assert erspfreqs.size == itcfreqs.size
+    assert erpcom.startswith("STUDY = std_erpplot(")
+    assert plotted["etc"]["last_chanplot"]["channels"] == [1]
+    assert "channels=['Ch1']" in plot_command
+
+    saved, _command = pop_savestudy(study, alleeg, filename="measures.study", filepath=tmp_path, return_com=True)
+    loaded, loaded_alleeg, _load_command = pop_loadstudy(
+        "measures.study", filepath=tmp_path, load_datasets=False, return_com=True
+    )
+
+    assert saved["saved"] == "yes"
+    assert loaded_alleeg == []
+    np.testing.assert_allclose(loaded["changrp"][0]["erpdata"], study["changrp"][0]["erpdata"])
+    np.testing.assert_allclose(loaded["changrp"][0]["specdata"], study["changrp"][0]["specdata"])
+    for figure in (erpfig, specfig, erspfig, itcfig, plotfig):
+        plt.close(figure)
 
 
 def test_std_precomp_ersp_and_itc_store_frequency_time_axes():

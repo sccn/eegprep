@@ -226,12 +226,34 @@ def _cached_channel_groups(study: dict[str, Any], channels: Any) -> list[dict[st
     groups = [group for group in study.get("changrp") or [] if isinstance(group, dict)]
     if not groups:
         raise ValueError("No channel measures are stored in STUDY.changrp")
-    vector = numeric_vector(channels, dtype=int)
+    if _all_cached_channels_requested(channels):
+        return groups
+    if isinstance(channels, str):
+        try:
+            vector = numeric_vector(channels, dtype=int)
+        except ValueError:
+            return _cached_channel_groups_by_name(groups, [channels])
+    elif isinstance(channels, (list, tuple)) and all(isinstance(item, str) for item in channels):
+        return _cached_channel_groups_by_name(groups, channels)
+    else:
+        vector = numeric_vector(channels, dtype=int)
     if vector.size == 0:
         return groups
     if np.any(vector < 1) or np.any(vector > len(groups)):
         raise ValueError(f"channels must be 1-based and within 1..{len(groups)}")
     return [groups[int(index) - 1] for index in vector]
+
+
+def _cached_channel_groups_by_name(groups: list[dict[str, Any]], channels: list[str]) -> list[dict[str, Any]]:
+    lookup = {str(group.get("name") or "").lower(): group for group in groups}
+    missing = [label for label in channels if label.lower() not in lookup]
+    if missing:
+        raise ValueError(f"Unknown precomputed channel group(s): {', '.join(missing)}")
+    return [lookup[label.lower()] for label in channels]
+
+
+def _all_cached_channels_requested(channels: Any) -> bool:
+    return channels is None or (isinstance(channels, str) and channels in {"", "channels"})
 
 
 def _data(group: dict[str, Any], measure: str) -> np.ndarray:
@@ -269,6 +291,8 @@ def _selected_channels(values: Any, count: int) -> np.ndarray:
 
 
 def _component_selection(values: Any, count: int) -> list[int]:
+    if isinstance(values, str) and values.lower() == "all":
+        return list(range(1, count + 1))
     vector = numeric_vector(values, dtype=int)
     if vector.size == 0:
         return list(range(1, count + 1))

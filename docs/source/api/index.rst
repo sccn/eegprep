@@ -252,6 +252,10 @@ objects beyond these wrappers as stable until that phase lands.
    eegprep.pop_savestudy
    eegprep.pop_precomp
    eegprep.pop_chanplot
+   eegprep.std_erpplot
+   eegprep.std_specplot
+   eegprep.std_erspplot
+   eegprep.std_itcplot
 
 STUDY Workflows
 ===============
@@ -266,6 +270,10 @@ STUDY Workflows
    eegprep.pop_savestudy
    eegprep.pop_precomp
    eegprep.pop_chanplot
+   eegprep.std_erpplot
+   eegprep.std_specplot
+   eegprep.std_erspplot
+   eegprep.std_itcplot
 
 Configuration
 ==============

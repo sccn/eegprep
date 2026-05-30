@@ -40,7 +40,7 @@ Precompute and plot STUDY measures:
 
 .. code-block:: python
 
-   from eegprep import pop_chanplot, pop_precomp
+   from eegprep import pop_chanplot, pop_precomp, std_erpplot
 
    STUDY, ALLEEG, com = pop_precomp(
        STUDY,
@@ -51,6 +51,7 @@ Precompute and plot STUDY measures:
        return_com=True,
    )
    STUDY, com, fig = pop_chanplot(STUDY, ALLEEG, measure="erp", return_com=True)
+   STUDY, erpdata, erptimes, fig = std_erpplot(STUDY, ALLEEG, channels=[1])
 
 Channel measures are stored in ``STUDY.changrp``. Component measures are stored
 on ``STUDY.cluster[0]`` until preclustering and cluster editing land in the next

@@ -22,3 +22,6 @@ back to loaded epoched `ALLEEG` datasets when no cache is present.
 Supported measures are ERP, spectrum, ERSP, and ITC. Component plotting is
 parent-cluster based until Phase 5c adds preclustering, clustering, and cluster
 editing.
+
+Use `std_erpplot`, `std_specplot`, `std_erspplot`, and `std_itcplot` for direct
+script-level access to the same cached measure plotting helpers.

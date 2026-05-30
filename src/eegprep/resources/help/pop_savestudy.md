@@ -18,7 +18,8 @@ STUDY, com = pop_savestudy(STUDY, ALLEEG, savemode="resave", return_com=True)
 
 The saved file contains STUDY metadata, dataset membership, designs, and
 consistency diagnostics. The saved STUDY receives `filename`, `filepath`, and
-`saved="yes"` fields. It does not save measure precompute arrays or cluster
-measure data in Phase 5a.
+`saved="yes"` fields. Phase 5b cached measure arrays in `STUDY.changrp` and
+`STUDY.cluster` are saved in the `.study` JSON file using EEGPrep-owned
+structured data, not EEGLAB sidecar files.
 
 See also: POP_LOADSTUDY, POP_STUDY
