@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 def test_public_api_and_plugins_example_runs() -> None:
-    example = Path("docs/source/examples/plot_public_api_and_plugins.py")
+    example = Path(__file__).resolve().parents[1] / "docs/source/examples/plot_public_api_and_plugins.py"
 
     runpy.run_path(str(example), run_name="__main__")
 
