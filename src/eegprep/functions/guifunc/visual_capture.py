@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import math
+import os
 import pathlib
 import sys
 from typing import Any
@@ -60,6 +61,7 @@ from eegprep.functions.popfunc.pop_spectopo import pop_spectopo_dialog_spec
 from eegprep.functions.popfunc.pop_subcomp import pop_subcomp_dialog_spec
 from eegprep.functions.popfunc.pop_timtopo import pop_timtopo_dialog_spec
 from eegprep.functions.popfunc.pop_topoplot import pop_topoplot_dialog_spec
+from eegprep.functions.sigprocfunc.eegplot import build_eegplot_model
 from eegprep.functions.studyfunc.pop_clust import pop_clust_dialog_spec
 from eegprep.functions.studyfunc.pop_clustedit import pop_clustedit_dialog_spec
 from eegprep.functions.studyfunc.pop_chanplot import pop_chanplot_dialog_spec
@@ -235,6 +237,39 @@ def _demo_main_eeg(*, epoched: bool = False, setname: str = "menu demo") -> dict
     return eeg
 
 
+def _demo_eegbrowser_eeg(*, epoched: bool = False, events: bool = True) -> dict:
+    channel_count = 8
+    points = 250 if epoched else 1000
+    trials = 3 if epoched else 1
+    times = np.arange(points, dtype=float) / 250.0
+    data = np.empty((channel_count, points, trials), dtype=np.float32)
+    for channel in range(channel_count):
+        for trial in range(trials):
+            trial_component = 0.2 * np.cos(2 * np.pi * (trial + 1) * times) if epoched else 0.0
+            data[channel, :, trial] = np.sin(2 * np.pi * (channel + 1) * times) + trial_component + (channel + 1) * 0.05
+    if not epoched:
+        data = data[:, :, 0]
+    eeg_events = []
+    if events:
+        eeg_events = [
+            {"type": "stim", "latency": 80.0, "duration": 0.0},
+            {"type": "resp", "latency": 350.0, "duration": 0.0},
+            {"type": "boundary", "latency": 610.0, "duration": 25.0},
+        ]
+    return {
+        "data": data,
+        "nbchan": channel_count,
+        "pnts": points,
+        "trials": trials,
+        "srate": 250.0,
+        "xmin": -0.2 if epoched else 0.0,
+        "xmax": 0.796 if epoched else 3.996,
+        "chanlocs": [{"labels": label} for label in ("Fp1", "Fp2", "Cz", "Pz", "O1", "O2", "T7", "T8")],
+        "event": eeg_events,
+        "setname": "eegbrowser demo",
+    }
+
+
 def _configure_main_window_session(session: EEGPrepSession, state: str) -> None:
     if state == "startup":
         return
@@ -310,6 +345,40 @@ def capture_main_window(output: pathlib.Path, *, state: str = "startup", menu_la
         raise RuntimeError(f"failed to save screenshot: {output}")
     window.window.close()
     window.app.processEvents()
+
+
+def capture_eegbrowser(output: pathlib.Path, *, variant: str = "continuous") -> None:
+    """Render and capture the EEGBrowser shell."""
+    from PySide6 import QtWidgets
+    from eegprep.functions.guifunc.eegbrowser import EEGBrowserWindow
+
+    app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    epoched = variant == "epoched"
+    has_events = variant in {"events", "labels"}
+    model = build_eegplot_model(
+        _demo_eegbrowser_eeg(epoched=epoched, events=has_events),
+        winlength=1.0 if epoched else 2.0,
+        dispchans=6,
+        spacing=1.2,
+        xgrid="on" if variant != "grid_off" else "off",
+        ygrid="on" if variant != "grid_off" else "off",
+    )
+    if variant != "labels":
+        model.state.channel_label_mode = "numbers"
+    window = EEGBrowserWindow(model)
+    width = int(os.environ.get("EEGPREP_VISUAL_WINDOW_WIDTH", "960"))
+    height = int(os.environ.get("EEGPREP_VISUAL_WINDOW_HEIGHT", "560"))
+    window.resize(width, height)
+    window.show()
+    window.raise_()
+    window.activateWindow()
+    app.processEvents()
+    pixmap = _matlab_scaled_pixmap(window.grab(), app)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    if not pixmap.save(str(output), "PNG"):
+        raise RuntimeError(f"failed to save screenshot: {output}")
+    window.close()
+    app.processEvents()
 
 
 def _grab_main_window_with_menu(window, menu_label: str, menu):
@@ -1073,6 +1142,16 @@ def main(argv: list[str] | None = None) -> int:
         capture_main_window(args.output, state="multiple")
     elif args.case == "main_window_study":
         capture_main_window(args.output, state="study")
+    elif args.case == "eegbrowser_continuous":
+        capture_eegbrowser(args.output, variant="continuous")
+    elif args.case == "eegbrowser_epoched":
+        capture_eegbrowser(args.output, variant="epoched")
+    elif args.case == "eegbrowser_events":
+        capture_eegbrowser(args.output, variant="events")
+    elif args.case == "eegbrowser_grid_off":
+        capture_eegbrowser(args.output, variant="grid_off")
+    elif args.case == "eegbrowser_labels":
+        capture_eegbrowser(args.output, variant="labels")
     elif args.case == "file_menu":
         capture_main_window(args.output, menu_label="File")
     elif args.case == "edit_menu":

@@ -31,8 +31,12 @@ _OPTION_NAMES = {
     "xgrid",
     "ygrid",
     "data2",
+    "command",
+    "butlabel",
     "winrej",
+    "wincolor",
     "events",
+    "ploteventdur",
     "submean",
     "eloc_file",
     "scale",
@@ -114,6 +118,16 @@ class BrowserState:
     events: list[BrowserEvent]
     channel_offset: int = 0
     show_events: bool = True
+    show_event_durations: bool = False
+    show_marks: bool = True
+    channel_label_mode: str = "labels"
+    zoom_enabled: bool = False
+    stacked: bool = False
+    normalized: bool = False
+    accept_label: str | None = None
+    mark_color: tuple[float, float, float] = DEFAULT_WINREJ_COLOR
+    accepted: bool = False
+    cancelled: bool = False
 
     def clamp_to_data(self, browser_data: BrowserData) -> None:
         """Clamp visible time and channel offsets to the available data."""
@@ -208,6 +222,9 @@ def build_eegplot_model(data: Any, **kwargs: Any) -> BrowserModel:
         colors=normalize_trace_colors(options["color"]),
         winrej=normalize_winrej(options["winrej"], browser_data.n_channels, browser_data.total_samples),
         events=normalize_events(options["events"]),
+        show_event_durations=bool(options["ploteventdur"]),
+        accept_label=str(options["butlabel"]) if not _is_empty(options["command"]) else None,
+        mark_color=_normalize_rgb(options["wincolor"], "wincolor"),
     )
     state.clamp_to_data(browser_data)
     return BrowserModel(browser_data, state)
@@ -358,24 +375,25 @@ def normalize_events(events: Any) -> list[BrowserEvent]:
     if events is None or _is_empty(events):
         return []
     event_items = _event_items(events)
-    labels: list[str] = []
-    normalized = []
+    event_rows: list[tuple[str, float, float | None]] = []
     for event in event_items:
         if "latency" not in event:
             continue
         label = str(_scalar(event.get("type", "")))
-        if label not in labels:
-            labels.append(label)
         duration = event.get("duration")
-        normalized.append(
-            BrowserEvent(
-                type=label,
-                latency=float(_scalar(event["latency"])),
-                duration=None if duration is None or _is_empty(duration) else float(_scalar(duration)),
-                color_index=labels.index(label),
+        event_rows.append(
+            (
+                label,
+                float(_scalar(event["latency"])),
+                None if duration is None or _is_empty(duration) else float(_scalar(duration)),
             )
         )
-    return normalized
+    labels = sorted({label for label, _latency, _duration in event_rows})
+    label_indices = {label: index for index, label in enumerate(labels)}
+    return [
+        BrowserEvent(type=label, latency=latency, duration=duration, color_index=label_indices[label])
+        for label, latency, duration in event_rows
+    ]
 
 
 def normalize_trace_colors(value: Any) -> tuple[Any, ...]:
@@ -414,8 +432,12 @@ def _model_options(source_eeg: dict[str, Any] | None, kwargs: dict[str, Any]) ->
     options.setdefault("xgrid", "off")
     options.setdefault("ygrid", "off")
     options.setdefault("data2", None)
+    options.setdefault("command", None)
+    options.setdefault("butlabel", "REJECT")
     options.setdefault("winrej", None)
+    options.setdefault("wincolor", DEFAULT_WINREJ_COLOR)
     options.setdefault("events", source_eeg.get("event", []) if source_eeg is not None else [])
+    options.setdefault("ploteventdur", False)
     options.setdefault("submean", "off")
     options.setdefault("eloc_file", source_eeg.get("chanlocs", None) if source_eeg is not None else None)
     options.setdefault("scale", "on")
@@ -565,6 +587,17 @@ def _on_off(value: Any, name: str) -> bool:
             return False
         raise ValueError(f"{name} must be either 'on' or 'off'")
     return bool(value)
+
+
+def _normalize_rgb(value: Any, name: str) -> tuple[float, float, float]:
+    if value is None or _is_empty(value):
+        return DEFAULT_WINREJ_COLOR
+    values = tuple(float(item) for item in value)
+    if len(values) != 3:
+        raise ValueError(f"{name} must contain three RGB values")
+    if any(item < 0.0 or item > 1.0 for item in values):
+        raise ValueError(f"{name} RGB values must be between 0 and 1")
+    return values
 
 
 def _event_items(events: Any) -> list[dict[str, Any]]:

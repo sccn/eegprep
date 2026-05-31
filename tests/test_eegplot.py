@@ -105,6 +105,14 @@ def test_event_latency_conversion_uses_eeglab_one_based_samples() -> None:
     assert event_latency_to_sample(10, model.data) == 9
     assert events[0].type == "stim"
     assert events[1].duration == 2
+    color_events = normalize_events(
+        [
+            {"type": "stim", "latency": 1},
+            {"type": "resp", "latency": 2},
+            {"type": "boundary", "latency": 3},
+        ]
+    )
+    assert [event.color_index for event in color_events] == [2, 1, 0]
 
 
 def test_winrej_state_preserves_color_and_channel_mask() -> None:
@@ -119,6 +127,17 @@ def test_winrej_state_preserves_color_and_channel_mask() -> None:
     assert len(model.state.winrej) == 1
     assert model.state.winrej[0].color == (0.1, 0.2, 0.3)
     assert model.state.winrej[0].channel_mask == (True, False, True)
+
+
+def test_wincolor_sets_normalized_marking_color() -> None:
+    model = build_eegplot_model(np.zeros((2, 10)), spacing=1, wincolor=(0.5, 0.2, 0.1), show=False)
+
+    assert model.state.mark_color == (0.5, 0.2, 0.1)
+
+
+def test_wincolor_rejects_out_of_range_rgb_values() -> None:
+    with pytest.raises(ValueError, match="between 0 and 1"):
+        build_eegplot_model(np.zeros((2, 10)), spacing=1, wincolor=(255, 255, 255), show=False)
 
 
 def test_winrej_rejects_out_of_range_rows() -> None:
