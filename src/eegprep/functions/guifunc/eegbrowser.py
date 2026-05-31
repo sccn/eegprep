@@ -36,6 +36,7 @@ _EVENT_COLORS = (
     (40, 80, 210),
 )
 _SCALE_STEP = 0.1
+_MIN_SPACING = 0.001
 _BUTTON_STYLE = """
 QWidget { background: #eaf2ff; color: #000000; }
 QPushButton {
@@ -196,13 +197,11 @@ class EEGBrowserWindow(_QMainWindow):
         self._refresh_menu_labels()
 
     def _build_shortcuts(self) -> None:
-        if QtGui is None or QtCore is None:
-            return
         shortcuts = {
-            QtCore.Qt.Key.Key_Left: lambda: self.scroll_time(-0.2),
-            QtCore.Qt.Key.Key_Right: lambda: self.scroll_time(0.2),
-            QtCore.Qt.Key.Key_PageUp: lambda: self.scroll_time(-0.9),
-            QtCore.Qt.Key.Key_PageDown: lambda: self.scroll_time(0.9),
+            QtCore.Qt.Key.Key_Left: lambda: self.scroll_time(-1.0),
+            QtCore.Qt.Key.Key_Right: lambda: self.scroll_time(1.0),
+            QtCore.Qt.Key.Key_PageUp: lambda: self.scroll_time(-5.0),
+            QtCore.Qt.Key.Key_PageDown: lambda: self.scroll_time(5.0),
             QtCore.Qt.Key.Key_Home: self.scroll_to_start,
             QtCore.Qt.Key.Key_End: self.scroll_to_end,
             QtCore.Qt.Key.Key_Up: lambda: self.scroll_channels(-1),
@@ -273,7 +272,7 @@ class EEGBrowserWindow(_QMainWindow):
         self._redraw()
 
     def set_spacing(self, value: float) -> None:
-        self.model.state.spacing = max(float(value), np.finfo(float).eps)
+        self.model.state.spacing = max(float(value), _MIN_SPACING)
         self._redraw()
 
     def adjust_spacing(self, direction: int) -> None:
@@ -281,7 +280,7 @@ class EEGBrowserWindow(_QMainWindow):
             self.model.state.spacing += self.model.state.spacing * _SCALE_STEP
         else:
             self.model.state.spacing = max(
-                np.finfo(float).eps,
+                _MIN_SPACING,
                 self.model.state.spacing - self.model.state.spacing * _SCALE_STEP,
             )
         self._redraw()
@@ -416,6 +415,8 @@ class EEGBrowserWindow(_QMainWindow):
 
     def _show_status_message(self, text: str) -> None:
         qt_widgets, _pg = _require_gui()
+        if self._message_window is not None:
+            self._message_window.close()
         message = qt_widgets.QMessageBox(self)
         message.setObjectName("eegbrowser_message")
         message.setWindowTitle("EEGPrep")
@@ -678,10 +679,10 @@ class _BrowserControls(_QWidget):
         self.event_button.setMinimumWidth(90)
         self.event_button.clicked.connect(browser.show_event_legend)
         layout.addWidget(self.event_button)
-        self.back_page_button = self._button("<<", lambda: browser.scroll_time(-0.9))
-        self.back_step_button = self._button("<", lambda: browser.scroll_time(-0.2))
-        self.forward_step_button = self._button(">", lambda: browser.scroll_time(0.2))
-        self.forward_page_button = self._button(">>", lambda: browser.scroll_time(0.9))
+        self.back_page_button = self._button("<<", lambda: browser.scroll_time(-5.0))
+        self.back_step_button = self._button("<", lambda: browser.scroll_time(-1.0))
+        self.forward_step_button = self._button(">", lambda: browser.scroll_time(1.0))
+        self.forward_page_button = self._button(">>", lambda: browser.scroll_time(5.0))
         for button in (
             self.back_page_button,
             self.back_step_button,
@@ -717,7 +718,7 @@ class _BrowserControls(_QWidget):
         self.spacing = qt_widgets.QDoubleSpinBox()
         self.spacing.setObjectName("eegbrowser_spacing")
         self.spacing.setDecimals(3)
-        self.spacing.setRange(0.001, 1_000_000.0)
+        self.spacing.setRange(_MIN_SPACING, 1_000_000.0)
         self.spacing.valueChanged.connect(browser.set_spacing)
         layout.addWidget(self.spacing)
         self.plus_button = self._button("+", lambda: browser.adjust_spacing(1))

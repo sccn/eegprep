@@ -590,6 +590,8 @@ def _normalize_rgb(value: Any, name: str) -> tuple[float, float, float]:
     values = tuple(float(item) for item in value)
     if len(values) != 3:
         raise ValueError(f"{name} must contain three RGB values")
+    if any(item < 0.0 or item > 1.0 for item in values):
+        raise ValueError(f"{name} RGB values must be between 0 and 1")
     return values
 
 

@@ -365,8 +365,8 @@ def capture_eegbrowser(output: pathlib.Path, *, variant: str = "continuous") -> 
         xgrid="on" if variant != "grid_off" else "off",
         ygrid="on" if variant != "grid_off" else "off",
     )
-    if variant == "labels":
-        model.state.channel_label_mode = "labels"
+    if variant != "labels":
+        model.state.channel_label_mode = "numbers"
     window = EEGBrowserWindow(model)
     window.show()
     window.raise_()

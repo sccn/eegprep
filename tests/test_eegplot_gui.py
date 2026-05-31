@@ -70,8 +70,8 @@ def test_gui_navigation_buttons_and_position_field_update_visible_window(qapp) -
     window.controls.forward_step_button.click()
     qapp.processEvents()
 
-    assert model.state.time == pytest.approx(0.4)
-    assert window.controls.position.value() == pytest.approx(0.4)
+    assert model.state.time == pytest.approx(2.0)
+    assert window.controls.position.value() == pytest.approx(2.0)
 
     window.controls.position.setValue(3.0)
     qapp.processEvents()
@@ -116,6 +116,20 @@ def test_gui_scale_buttons_stack_and_norm_controls_update_state(qapp) -> None:
 
     assert model.state.normalized is False
     assert model.state.spacing == pytest.approx(9.9)
+    window.close()
+
+
+def test_gui_spacing_floor_matches_spinbox_floor(qapp) -> None:
+    from eegprep.functions.guifunc.eegbrowser import EEGBrowserWindow
+
+    model = build_eegplot_model(np.zeros((1, 20)), srate=10, spacing=1)
+    window = EEGBrowserWindow(model)
+
+    window.set_spacing(0)
+    qapp.processEvents()
+
+    assert model.state.spacing == pytest.approx(0.001)
+    assert window.controls.spacing.value() == pytest.approx(0.001)
     window.close()
 
 
@@ -215,7 +229,7 @@ def test_gui_keyboard_shortcuts_match_navigation_and_scale(qapp) -> None:
     qt_test.QTest.keyClick(window, qt_core.Qt.Key.Key_Minus)
     qapp.processEvents()
 
-    assert model.state.time == pytest.approx(0.4)
+    assert model.state.time == pytest.approx(2.0)
     assert model.state.channel_offset == 1
     assert model.state.spacing == pytest.approx(9.0)
     window.close()

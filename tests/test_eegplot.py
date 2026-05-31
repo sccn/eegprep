@@ -121,6 +121,17 @@ def test_winrej_state_preserves_color_and_channel_mask() -> None:
     assert model.state.winrej[0].channel_mask == (True, False, True)
 
 
+def test_wincolor_sets_normalized_marking_color() -> None:
+    model = build_eegplot_model(np.zeros((2, 10)), spacing=1, wincolor=(0.5, 0.2, 0.1), show=False)
+
+    assert model.state.mark_color == (0.5, 0.2, 0.1)
+
+
+def test_wincolor_rejects_out_of_range_rgb_values() -> None:
+    with pytest.raises(ValueError, match="between 0 and 1"):
+        build_eegplot_model(np.zeros((2, 10)), spacing=1, wincolor=(255, 255, 255), show=False)
+
+
 def test_winrej_rejects_out_of_range_rows() -> None:
     with pytest.raises(ValueError, match="sample range"):
         build_eegplot_model(np.zeros((2, 10)), spacing=1, winrej=[[0, 11]], show=False)
