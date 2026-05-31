@@ -20,6 +20,15 @@ from eegprep.functions.sigprocfunc.eegplot import (
 
 
 MANUAL_REJECTION_COLOR = (1.0, 0.9, 0.9)
+DEFAULT_REJECTION_COLORS = {
+    "manual": (1.0000, 1.0000, 0.7830),
+    "thresh": (0.8487, 1.0000, 0.5008),
+    "const": (0.6940, 1.0000, 0.7008),
+    "jp": (1.0000, 0.6991, 0.7537),
+    "kurt": (0.6880, 0.7042, 1.0000),
+    "freq": (0.9596, 0.7193, 1.0000),
+}
+REJECTION_FAMILIES = ("manual", "thresh", "const", "jp", "kurt", "freq")
 
 
 def pop_eegplot(
@@ -125,16 +134,41 @@ def _initial_epoch_winrej(EEG: dict[str, Any], icacomp: int, superpose: int) -> 
     manual, manual_e = _reject_arrays(reject, "rejmanual", trials, row_count, icacomp=icacomp)
     if int(superpose) == 0:
         return trial2eegplot(manual, manual_e, pnts, _manual_color(EEG))
+    if int(superpose) == 2:
+        return _superposed_epoch_winrej(EEG, reject, icacomp, trials, row_count, pnts, manual, manual_e)
     rows = []
     old_color = tuple(min(component + 0.15, 1.0) for component in _manual_color(EEG))
     old, old_e = _reject_arrays(reject, "rejglobal", trials, row_count, icacomp=1)
     old_rows = trial2eegplot(old, old_e, pnts, old_color)
     if old_rows.size:
         rows.append(old_rows)
-    # TODO: Overlay EEGLAB's method-specific families (rejthresh, rejconst,
-    # rejjp, rejkurt, rejfreq) once Phase 2/visual parity work owns the full
-    # rejection-color legend surface.
     manual_rows = trial2eegplot(manual, manual_e, pnts, _manual_color(EEG))
+    if manual_rows.size:
+        rows.append(manual_rows)
+    return np.vstack(rows) if rows else np.zeros((0, 5 + row_count), dtype=float)
+
+
+def _superposed_epoch_winrej(
+    EEG: dict[str, Any],
+    reject: dict[str, Any],
+    icacomp: int,
+    trials: int,
+    row_count: int,
+    pnts: int,
+    manual: np.ndarray,
+    manual_e: np.ndarray,
+) -> np.ndarray:
+    rows = []
+    manual_color = _manual_color(EEG)
+    for family in _displayed_rejection_families(reject):
+        color = _reject_color(reject, family, DEFAULT_REJECTION_COLORS.get(family, manual_color))
+        if tuple(color) == tuple(manual_color):
+            continue
+        marks, marks_e = _reject_arrays(reject, f"rej{family}", trials, row_count, icacomp=icacomp)
+        family_rows = trial2eegplot(marks, marks_e, pnts, color)
+        if family_rows.size:
+            rows.append(family_rows)
+    manual_rows = trial2eegplot(manual, manual_e, pnts, manual_color)
     if manual_rows.size:
         rows.append(manual_rows)
     return np.vstack(rows) if rows else np.zeros((0, 5 + row_count), dtype=float)
@@ -197,12 +231,34 @@ def _row_count(EEG: dict[str, Any], icacomp: int) -> int:
     return int(weights.shape[0]) if weights.ndim == 2 else 0
 
 
+def _displayed_rejection_families(reject: dict[str, Any]) -> tuple[str, ...]:
+    disprej = reject.get("disprej")
+    if disprej is None or np.asarray(disprej, dtype=object).size == 0:
+        return tuple(family for family in REJECTION_FAMILIES if _has_rejection_family(reject, family))
+    values = np.asarray(disprej, dtype=object).ravel().tolist()
+    return tuple(str(value) for value in values if str(value) in REJECTION_FAMILIES)
+
+
+def _has_rejection_family(reject: dict[str, Any], family: str) -> bool:
+    data_marks = reject.get(f"rej{family}")
+    component_marks = reject.get(f"icarej{family}")
+    return (data_marks is not None and np.asarray(data_marks).size > 0) or (
+        component_marks is not None and np.asarray(component_marks).size > 0
+    )
+
+
 def _manual_color(EEG: dict[str, Any]) -> tuple[float, float, float]:
     reject = EEG.get("reject") or {}
-    color = reject.get("rejmanualcol", MANUAL_REJECTION_COLOR)
+    return _reject_color(reject, "manual", MANUAL_REJECTION_COLOR)
+
+
+def _reject_color(
+    reject: dict[str, Any], family: str, default: tuple[float, float, float]
+) -> tuple[float, float, float]:
+    color = reject.get(f"rej{family}col", default)
     values = np.asarray(color if color is not None else DEFAULT_WINREJ_COLOR, dtype=float).ravel()
     if values.size < 3:
-        return MANUAL_REJECTION_COLOR
+        return default
     return tuple(float(item) for item in values[:3])
 
 

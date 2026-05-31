@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 
 import eegprep.functions.sigprocfunc.eegplot as eegplot_module
+import eegprep.functions.popfunc.pop_eegplot as pop_eegplot_module
 from eegprep.functions.popfunc.pop_eegplot import pop_eegplot
 from eegprep.functions.popfunc.pop_eegplot import apply_eegplot_rejections
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
@@ -112,6 +113,14 @@ def test_event_latency_conversion_uses_eeglab_one_based_samples() -> None:
     assert event_latency_to_sample(10, model.data) == 9
     assert events[0].type == "stim"
     assert events[1].duration == 2
+    color_events = normalize_events(
+        [
+            {"type": "stim", "latency": 1},
+            {"type": "resp", "latency": 2},
+            {"type": "boundary", "latency": 3},
+        ]
+    )
+    assert [event.color_index for event in color_events] == [2, 1, 0]
 
 
 def test_winrej_state_preserves_color_and_channel_mask() -> None:
@@ -126,6 +135,17 @@ def test_winrej_state_preserves_color_and_channel_mask() -> None:
     assert len(model.state.winrej) == 1
     assert model.state.winrej[0].color == (0.1, 0.2, 0.3)
     assert model.state.winrej[0].channel_mask == (True, False, True)
+
+
+def test_wincolor_sets_normalized_marking_color() -> None:
+    model = build_eegplot_model(np.zeros((2, 10)), spacing=1, wincolor=(0.5, 0.2, 0.1), show=False)
+
+    assert model.state.mark_color == (0.5, 0.2, 0.1)
+
+
+def test_wincolor_rejects_out_of_range_rgb_values() -> None:
+    with pytest.raises(ValueError, match="between 0 and 1"):
+        build_eegplot_model(np.zeros((2, 10)), spacing=1, wincolor=(255, 255, 255), show=False)
 
 
 def test_trial2eegplot_converts_epoch_and_channel_marks() -> None:
@@ -189,10 +209,12 @@ def test_single_click_unmarks_or_toggles_channel_specific_marks() -> None:
     assert regions == []
 
 
-def test_epoched_drag_marks_whole_epochs() -> None:
+def test_epoched_drag_marks_whole_epochs_and_merges_channel_masks() -> None:
     regions = add_winrej_region([], 15, 3, n_channels=2, total_samples=30, pnts=10)
+    regions = add_winrej_region(regions, 12, 18, n_channels=2, total_samples=30, pnts=10, channel_index=1)
 
     np.testing.assert_array_equal(winrej_to_array(regions, 2)[:, :2], [[0, 9], [10, 19]])
+    np.testing.assert_array_equal(winrej_to_array(regions, 2)[:, 5:], [[1, 1], [1, 1]])
 
 
 def test_conversion_helpers_handle_empty_inputs() -> None:
@@ -311,6 +333,30 @@ def test_apply_eegplot_rejections_empty_winrej_clears_epoch_marks() -> None:
 
     np.testing.assert_array_equal(out["reject"]["rejmanual"], [False, False, False])
     np.testing.assert_array_equal(out["reject"]["rejmanualE"], np.zeros((2, 3), dtype=bool))
+
+
+def test_pop_eegplot_superpose_two_passes_method_specific_color_rows(monkeypatch: pytest.MonkeyPatch) -> None:
+    eeg = create_test_eeg(n_channels=2, n_samples=4, n_trials=3, srate=10)
+    eeg["reject"]["rejmanual"] = np.array([True, False, False])
+    eeg["reject"]["rejmanualE"] = np.array([[True, False, False], [False, False, False]])
+    eeg["reject"]["rejthresh"] = np.array([False, True, False])
+    eeg["reject"]["rejthreshE"] = np.array([[False, False, False], [False, True, False]])
+    eeg["reject"]["rejthreshcol"] = np.array([0.2, 0.8, 0.4])
+    eeg["reject"]["disprej"] = ["thresh"]
+    captured = {}
+
+    def fake_eegplot(_eeg, *args, **kwargs):
+        del args
+        captured["winrej"] = kwargs["winrej"]
+        return "window"
+
+    monkeypatch.setattr(pop_eegplot_module, "eegplot", fake_eegplot)
+
+    pop_eegplot(eeg, superpose=2)
+
+    rows = captured["winrej"]
+    np.testing.assert_array_equal(rows[:, :5], [[4, 7, 0.2, 0.8, 0.4], [0, 3, 1.0, 0.9, 0.9]])
+    np.testing.assert_array_equal(rows[:, 5:], [[0, 1], [1, 0]])
 
 
 def test_pop_eegplot_component_mode_computes_activations_once(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -31,9 +31,13 @@ _OPTION_NAMES = {
     "xgrid",
     "ygrid",
     "data2",
+    "command",
+    "command_callback",
+    "butlabel",
     "winrej",
     "wincolor",
     "events",
+    "ploteventdur",
     "submean",
     "eloc_file",
     "scale",
@@ -41,11 +45,8 @@ _OPTION_NAMES = {
     "freqs",
     "freqlimits",
     "component",
-    "show",
-    "command",
-    "command_callback",
-    "butlabel",
     "setelectrode",
+    "show",
 }
 
 
@@ -117,11 +118,19 @@ class BrowserState:
     colors: tuple[Any, ...]
     winrej: list[WinRejRegion]
     events: list[BrowserEvent]
-    wincolor: tuple[float, float, float] = DEFAULT_WINREJ_COLOR
-    butlabel: str = "Reject"
-    setelectrode: bool = False
     channel_offset: int = 0
     show_events: bool = True
+    show_event_durations: bool = False
+    show_marks: bool = True
+    channel_label_mode: str = "labels"
+    zoom_enabled: bool = False
+    stacked: bool = False
+    normalized: bool = False
+    accept_label: str | None = None
+    mark_color: tuple[float, float, float] = DEFAULT_WINREJ_COLOR
+    setelectrode: bool = False
+    accepted: bool = False
+    cancelled: bool = False
 
     def clamp_to_data(self, browser_data: BrowserData) -> None:
         """Clamp visible time and channel offsets to the available data."""
@@ -219,8 +228,13 @@ def build_eegplot_model(data: Any, **kwargs: Any) -> BrowserModel:
         colors=normalize_trace_colors(options["color"]),
         winrej=normalize_winrej(options["winrej"], browser_data.n_channels, browser_data.total_samples),
         events=normalize_events(options["events"]),
-        wincolor=_normalize_color(options["wincolor"]),
-        butlabel=str(options["butlabel"]),
+        show_event_durations=bool(options["ploteventdur"]),
+        accept_label=(
+            str(options["butlabel"])
+            if not _is_empty(options["command"]) or options.get("command_callback") is not None
+            else None
+        ),
+        mark_color=_normalize_rgb(options["wincolor"], "wincolor"),
         setelectrode=bool(options["setelectrode"]),
     )
     state.clamp_to_data(browser_data)
@@ -405,7 +419,7 @@ def trial2eegplot(rej: Any, rejE: Any, pnts: int, color: Any = DEFAULT_WINREJ_CO
         return rows
     rows[:, 0] = marked * int(pnts)
     rows[:, 1] = (marked + 1) * int(pnts) - 1
-    rows[:, 2:5] = np.tile(np.asarray(_normalize_color(color), dtype=float), (marked.size, 1))
+    rows[:, 2:5] = np.tile(np.asarray(_normalize_rgb(color, "color"), dtype=float), (marked.size, 1))
     rows[:, 5:] = row_marks[:, marked].T
     return rows
 
@@ -506,11 +520,20 @@ def add_winrej_region(
     if start_value == end_value:
         return toggle_winrej_at_sample(regions, start_value, n_channels=n_channels, channel_index=channel_index)
     if pnts is not None:
-        return _add_epoched_winrej(regions, start_value, end_value, n_channels, int(total_samples), int(pnts), color)
+        return _add_epoched_winrej(
+            regions,
+            start_value,
+            end_value,
+            n_channels,
+            int(total_samples),
+            int(pnts),
+            color,
+            channel_index,
+        )
     start_value = max(1, min(start_value, int(total_samples)))
     end_value = max(1, min(end_value, int(total_samples)))
     mask = _new_mask(n_channels, channel_index)
-    new_region = WinRejRegion(float(start_value), float(end_value), _normalize_color(color), tuple(mask))
+    new_region = WinRejRegion(float(start_value), float(end_value), _normalize_rgb(color, "color"), tuple(mask))
     return _merge_continuous_regions([*regions, new_region], n_channels)
 
 
@@ -519,24 +542,25 @@ def normalize_events(events: Any) -> list[BrowserEvent]:
     if events is None or _is_empty(events):
         return []
     event_items = _event_items(events)
-    labels: list[str] = []
-    normalized = []
+    event_rows: list[tuple[str, float, float | None]] = []
     for event in event_items:
         if "latency" not in event:
             continue
         label = str(_scalar(event.get("type", "")))
-        if label not in labels:
-            labels.append(label)
         duration = event.get("duration")
-        normalized.append(
-            BrowserEvent(
-                type=label,
-                latency=float(_scalar(event["latency"])),
-                duration=None if duration is None or _is_empty(duration) else float(_scalar(duration)),
-                color_index=labels.index(label),
+        event_rows.append(
+            (
+                label,
+                float(_scalar(event["latency"])),
+                None if duration is None or _is_empty(duration) else float(_scalar(duration)),
             )
         )
-    return normalized
+    labels = sorted({label for label, _latency, _duration in event_rows})
+    label_indices = {label: index for index, label in enumerate(labels)}
+    return [
+        BrowserEvent(type=label, latency=latency, duration=duration, color_index=label_indices[label])
+        for label, latency, duration in event_rows
+    ]
 
 
 def normalize_trace_colors(value: Any) -> tuple[Any, ...]:
@@ -575,9 +599,13 @@ def _model_options(source_eeg: dict[str, Any] | None, kwargs: dict[str, Any]) ->
     options.setdefault("xgrid", "off")
     options.setdefault("ygrid", "off")
     options.setdefault("data2", None)
+    options.setdefault("command", None)
+    options.setdefault("command_callback", None)
+    options.setdefault("butlabel", "REJECT")
     options.setdefault("winrej", None)
     options.setdefault("wincolor", DEFAULT_WINREJ_COLOR)
     options.setdefault("events", source_eeg.get("event", []) if source_eeg is not None else [])
+    options.setdefault("ploteventdur", False)
     options.setdefault("submean", "off")
     options.setdefault("eloc_file", source_eeg.get("chanlocs", None) if source_eeg is not None else None)
     options.setdefault("scale", "on")
@@ -585,9 +613,6 @@ def _model_options(source_eeg: dict[str, Any] | None, kwargs: dict[str, Any]) ->
     options.setdefault("freqs", None)
     options.setdefault("freqlimits", None)
     options.setdefault("component", False)
-    options.setdefault("command", "")
-    options.setdefault("command_callback", None)
-    options.setdefault("butlabel", "Reject")
     options.setdefault("setelectrode", False)
     if options["spacing"] is None or float(options["spacing"]) == 0:
         options["spacing"] = _default_spacing(source_eeg, options)
@@ -733,10 +758,14 @@ def _on_off(value: Any, name: str) -> bool:
     return bool(value)
 
 
-def _normalize_color(value: Any) -> tuple[float, float, float]:
-    values = tuple(float(item) for item in np.asarray(value, dtype=float).ravel()[:3])
+def _normalize_rgb(value: Any, name: str) -> tuple[float, float, float]:
+    if value is None or _is_empty(value):
+        return DEFAULT_WINREJ_COLOR
+    values = tuple(float(item) for item in value)
     if len(values) != 3:
-        raise ValueError("color must contain three RGB values")
+        raise ValueError(f"{name} must contain three RGB values")
+    if any(item < 0.0 or item > 1.0 for item in values):
+        raise ValueError(f"{name} RGB values must be between 0 and 1")
     return values
 
 
@@ -808,21 +837,35 @@ def _add_epoched_winrej(
     total_samples: int,
     pnts: int,
     color: Any,
+    channel_index: int | None,
 ) -> list[WinRejRegion]:
     first_epoch = max(0, min(start, total_samples - 1)) // pnts
     last_epoch = max(0, min(end, total_samples - 1)) // pnts
     out = list(regions)
-    existing = {(int(region.start) // pnts) for region in out if int(region.start) % pnts == 0}
+    new_mask = tuple(_new_mask(n_channels, channel_index))
+    color_value = _normalize_rgb(color, "color")
     for epoch in range(int(first_epoch), int(last_epoch) + 1):
-        if epoch in existing:
+        epoch_start = float(epoch * pnts)
+        epoch_end = float((epoch + 1) * pnts - 1)
+        match_index = next(
+            (
+                index
+                for index, region in enumerate(out)
+                if int(region.start) // pnts == epoch and int(region.start) % pnts == 0
+            ),
+            None,
+        )
+        if match_index is None:
+            out.append(WinRejRegion(epoch_start, epoch_end, color_value, new_mask))
             continue
-        out.append(
-            WinRejRegion(
-                start=float(epoch * pnts),
-                end=float((epoch + 1) * pnts - 1),
-                color=_normalize_color(color),
-                channel_mask=tuple([True] * n_channels),
-            )
+        existing = out[match_index]
+        existing_mask = tuple(_expanded_mask(existing.channel_mask, n_channels))
+        out[match_index] = replace(
+            existing,
+            start=min(existing.start, epoch_start),
+            end=max(existing.end, epoch_end),
+            color=color_value,
+            channel_mask=tuple(old or new for old, new in zip(existing_mask, new_mask)),
         )
     return sorted(out, key=lambda region: (region.start, region.end))
 
@@ -896,6 +939,7 @@ __all__ = [
     "BrowserModel",
     "BrowserState",
     "WinRejRegion",
+    "add_winrej_region",
     "build_eegplot_model",
     "browser_window_duration",
     "copy_model_with_state",
@@ -905,7 +949,6 @@ __all__ = [
     "eegplot2trial",
     "event_latency_to_sample",
     "flatten_browser_data",
-    "add_winrej_region",
     "normalize_browser_data",
     "normalize_events",
     "normalize_trace_colors",
