@@ -201,6 +201,33 @@ def test_gui_menus_toggle_events_marks_scale_and_channel_labels(qapp) -> None:
     window.close()
 
 
+def test_gui_event_lines_stay_visible_and_labels_sit_above_plot_box(qapp) -> None:
+    from eegprep.functions.guifunc.eegbrowser import EEGBrowserWindow
+
+    model = build_eegplot_model(
+        np.zeros((2, 100)),
+        srate=10,
+        spacing=1,
+        winlength=5,
+        dispchans=2,
+        events=[{"type": "stim", "latency": 10}, {"type": "resp", "latency": 30}],
+    )
+    window = EEGBrowserWindow(model)
+    window.resize(960, 560)
+    window.show()
+    qapp.processEvents()
+
+    view_rect = window.canvas.plot.getPlotItem().vb.sceneBoundingRect()
+    assert [label.text() for label in window.canvas._scene_items] == ["stim", "resp"]
+    assert all(label.sceneBoundingRect().bottom() <= view_rect.top() for label in window.canvas._scene_items)
+
+    event_lines = [
+        item for item in window.canvas._items if item.__class__.__name__ == "InfiniteLine" and item.zValue() == 25
+    ]
+    assert len(event_lines) == 2
+    window.close()
+
+
 def test_gui_displayed_channels_and_vertical_slider_update_visible_state(qapp) -> None:
     from eegprep.functions.guifunc.eegbrowser import EEGBrowserWindow
 

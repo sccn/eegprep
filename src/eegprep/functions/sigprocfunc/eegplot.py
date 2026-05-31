@@ -375,24 +375,25 @@ def normalize_events(events: Any) -> list[BrowserEvent]:
     if events is None or _is_empty(events):
         return []
     event_items = _event_items(events)
-    labels: list[str] = []
-    normalized = []
+    event_rows: list[tuple[str, float, float | None]] = []
     for event in event_items:
         if "latency" not in event:
             continue
         label = str(_scalar(event.get("type", "")))
-        if label not in labels:
-            labels.append(label)
         duration = event.get("duration")
-        normalized.append(
-            BrowserEvent(
-                type=label,
-                latency=float(_scalar(event["latency"])),
-                duration=None if duration is None or _is_empty(duration) else float(_scalar(duration)),
-                color_index=labels.index(label),
+        event_rows.append(
+            (
+                label,
+                float(_scalar(event["latency"])),
+                None if duration is None or _is_empty(duration) else float(_scalar(duration)),
             )
         )
-    return normalized
+    labels = sorted({label for label, _latency, _duration in event_rows})
+    label_indices = {label: index for index, label in enumerate(labels)}
+    return [
+        BrowserEvent(type=label, latency=latency, duration=duration, color_index=label_indices[label])
+        for label, latency, duration in event_rows
+    ]
 
 
 def normalize_trace_colors(value: Any) -> tuple[Any, ...]:

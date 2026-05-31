@@ -28,12 +28,13 @@ _QWidget: Any = QtWidgets.QWidget if QtWidgets is not None else object
 
 
 _EVENT_COLORS = (
-    (220, 40, 40),
-    (0, 150, 60),
-    (190, 0, 190),
-    (0, 160, 170),
-    (40, 40, 40),
-    (40, 80, 210),
+    (255, 0, 0),
+    (0, 204, 0),
+    (255, 0, 255),
+    (0, 255, 255),
+    (0, 0, 0),
+    (0, 0, 255),
+    (0, 204, 0),
 )
 _SCALE_STEP = 0.1
 _MIN_SPACING = 0.001
@@ -500,6 +501,7 @@ class EEGBrowserCanvas(_QWidget):
         self.model = model
         self.setObjectName("eegbrowser_canvas")
         self._items: list[Any] = []
+        self._scene_items: list[Any] = []
         layout = qt_widgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         self.plot = plot_graphics.PlotWidget(background=None)
@@ -516,17 +518,34 @@ class EEGBrowserCanvas(_QWidget):
         layout.addWidget(self.plot)
         self.redraw()
 
+    def resizeEvent(self, event: Any) -> None:  # noqa: N802 - Qt API name
+        super().resizeEvent(event)
+        self.redraw()
+        QtCore.QTimer.singleShot(0, self.redraw)
+
+    def showEvent(self, event: Any) -> None:  # noqa: N802 - Qt API name
+        super().showEvent(event)
+        QtCore.QTimer.singleShot(0, self.redraw)
+
     def redraw(self) -> None:
         """Redraw all browser layers for the current state."""
         self.model.state.clamp_to_data(self.model.data)
+        self._clear_scene_items()
         self.plot.clear()
         self._items.clear()
         self.plot.showGrid(x=False, y=False)
         self._configure_axes()
         self._draw_grid()
         self._draw_winrej()
-        self._draw_events()
+        self._draw_event_durations()
         self._draw_traces()
+        self._draw_event_lines_and_labels()
+
+    def _clear_scene_items(self) -> None:
+        scene = self.plot.scene()
+        for item in self._scene_items:
+            scene.removeItem(item)
+        self._scene_items.clear()
 
     def _configure_axes(self) -> None:
         start, stop = visible_sample_bounds(self.model.data, self.model.state)
@@ -570,7 +589,36 @@ class EEGBrowserCanvas(_QWidget):
             self.plot.addItem(item)
             self._items.append(item)
 
-    def _draw_events(self) -> None:
+    def _draw_event_durations(self) -> None:
+        _qt_widgets, plot_graphics = _require_gui()
+        if not self.model.state.show_events or not self.model.state.show_event_durations:
+            return
+        start, stop = visible_sample_bounds(self.model.data, self.model.state)
+        for event in self.model.state.events:
+            sample = event_latency_to_sample(event.latency, self.model.data)
+            if sample < start or sample > stop:
+                continue
+            color = _EVENT_COLORS[event.color_index % len(_EVENT_COLORS)]
+            x_value = self._sample_to_x_value(sample)
+            duration = _event_duration_samples(event)
+            if duration is None:
+                continue
+            duration_stop = min(self.model.data.total_samples - 1, sample + duration)
+            region = plot_graphics.LinearRegionItem(
+                values=(x_value, self._sample_to_x_value(duration_stop)),
+                orientation=plot_graphics.LinearRegionItem.Vertical,
+                brush=(*color, 45),
+                movable=False,
+            )
+            region.setZValue(-5)
+            region.lines[0].setPen(plot_graphics.mkPen((*color, 90), width=1))
+            region.lines[1].setPen(plot_graphics.mkPen((*color, 90), width=1))
+            self.plot.addItem(region)
+            self._items.append(region)
+
+    def _draw_event_lines_and_labels(self) -> None:
+        if QtGui is None:
+            return
         _qt_widgets, plot_graphics = _require_gui()
         if not self.model.state.show_events:
             return
@@ -581,30 +629,33 @@ class EEGBrowserCanvas(_QWidget):
                 continue
             color = _EVENT_COLORS[event.color_index % len(_EVENT_COLORS)]
             x_value = self._sample_to_x_value(sample)
-            duration = _event_duration_samples(event)
-            if self.model.state.show_event_durations and duration is not None:
-                duration_stop = min(self.model.data.total_samples - 1, sample + duration)
-                region = plot_graphics.LinearRegionItem(
-                    values=(x_value, self._sample_to_x_value(duration_stop)),
-                    orientation=plot_graphics.LinearRegionItem.Vertical,
-                    brush=(*color, 45),
-                    movable=False,
-                )
-                region.lines[0].setPen(plot_graphics.mkPen((*color, 90), width=1))
-                region.lines[1].setPen(plot_graphics.mkPen((*color, 90), width=1))
-                self.plot.addItem(region)
-                self._items.append(region)
             line = plot_graphics.InfiniteLine(
                 pos=x_value,
                 angle=90,
-                pen=plot_graphics.mkPen(color, width=2 if event.type.lower() == "boundary" else 1),
+                pen=plot_graphics.mkPen(color, width=2.5 if event.type.lower() == "boundary" else 1),
                 movable=False,
             )
+            line.setZValue(25)
             self.plot.addItem(line)
-            label = plot_graphics.TextItem(event.type[:20], color=color, anchor=(0, 1), angle=90)
-            label.setPos(x_value, 0.0)
-            self.plot.addItem(label)
-            self._items.extend([line, label])
+            self._items.append(line)
+            self._add_event_label(event.type[:20], color, x_value)
+
+    def _add_event_label(self, text: str, color: tuple[int, int, int], x_value: float) -> None:
+        if QtGui is None or QtWidgets is None:
+            return
+        label = QtWidgets.QGraphicsSimpleTextItem(text.replace("_", "-"))
+        font = label.font()
+        font.setPointSize(10)
+        label.setFont(font)
+        label.setBrush(QtGui.QBrush(QtGui.QColor(*color)))
+        label.setRotation(90)
+        label.setZValue(40)
+        view_box = self.plot.getPlotItem().vb
+        scene_pos = view_box.mapViewToScene(QtCore.QPointF(x_value, 0.0))
+        view_rect = view_box.sceneBoundingRect()
+        label.setPos(scene_pos.x(), max(0.0, view_rect.top() - label.boundingRect().width() - 2.0))
+        self.plot.scene().addItem(label)
+        self._scene_items.append(label)
 
     def _draw_traces(self) -> None:
         _qt_widgets, plot_graphics = _require_gui()

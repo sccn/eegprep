@@ -105,6 +105,14 @@ def test_event_latency_conversion_uses_eeglab_one_based_samples() -> None:
     assert event_latency_to_sample(10, model.data) == 9
     assert events[0].type == "stim"
     assert events[1].duration == 2
+    color_events = normalize_events(
+        [
+            {"type": "stim", "latency": 1},
+            {"type": "resp", "latency": 2},
+            {"type": "boundary", "latency": 3},
+        ]
+    )
+    assert [event.color_index for event in color_events] == [2, 1, 0]
 
 
 def test_winrej_state_preserves_color_and_channel_mask() -> None:
