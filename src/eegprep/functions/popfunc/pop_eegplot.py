@@ -69,7 +69,7 @@ def pop_eegplot(
     if trials > 1:
         options.setdefault("winrej", _initial_epoch_winrej(EEG, icacomp, superpose))
     else:
-        options.setdefault("winrej", _initial_continuous_winrej(EEG, icacomp, superpose, reject))
+        options.setdefault("winrej", _initial_continuous_winrej(EEG, icacomp))
 
     def _accept(winrej: np.ndarray) -> None:
         eeg_out, accept_command = apply_eegplot_rejections(
@@ -157,10 +157,8 @@ def _initial_epoch_winrej(EEG: dict[str, Any], icacomp: int, superpose: int) -> 
     return np.vstack(rows) if rows else np.zeros((0, 5 + row_count), dtype=float)
 
 
-def _initial_continuous_winrej(EEG: dict[str, Any], icacomp: int, superpose: int, reject: int) -> np.ndarray:
+def _initial_continuous_winrej(EEG: dict[str, Any], icacomp: int) -> np.ndarray:
     row_count = _row_count(EEG, icacomp)
-    if int(bool(reject)) and not int(bool(superpose)):
-        return np.zeros((0, 5 + row_count), dtype=float)
     rows = _as_winrej_rows((EEG.get("reject") or {}).get(_continuous_mark_field(icacomp), []))
     if rows.size == 0:
         return np.zeros((0, 5 + row_count), dtype=float)

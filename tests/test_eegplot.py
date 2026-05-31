@@ -401,10 +401,12 @@ def test_pop_eegplot_loads_continuous_mark_only_rows_when_updating_or_superposin
     pop_eegplot(eeg, reject=0)
     pop_eegplot(eeg, reject=1, superpose=1)
     pop_eegplot(eeg, reject=1, superpose=0)
+    pop_eegplot(eeg, reject=1, winrej=[])
 
     np.testing.assert_array_equal(captured[0], stored)
     np.testing.assert_array_equal(captured[1], stored)
-    assert captured[2].shape == (0, 7)
+    np.testing.assert_array_equal(captured[2], stored)
+    assert np.asarray(captured[3]).shape == (0,)
 
 
 def test_pop_eegplot_component_mode_computes_activations_once(monkeypatch: pytest.MonkeyPatch) -> None:
