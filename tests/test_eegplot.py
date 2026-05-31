@@ -302,6 +302,17 @@ def test_apply_eegplot_rejections_updates_or_rejects_epochs() -> None:
     assert rejected["trials"] == 2
 
 
+def test_apply_eegplot_rejections_empty_winrej_clears_epoch_marks() -> None:
+    eeg = create_test_eeg(n_channels=2, n_samples=4, n_trials=3, srate=10)
+    eeg["reject"]["rejmanual"] = np.array([False, True, False])
+    eeg["reject"]["rejmanualE"] = np.array([[False, True, False], [False, False, False]])
+
+    out = apply_eegplot_rejections(eeg, np.zeros((0, 7)), reject=0)
+
+    np.testing.assert_array_equal(out["reject"]["rejmanual"], [False, False, False])
+    np.testing.assert_array_equal(out["reject"]["rejmanualE"], np.zeros((2, 3), dtype=bool))
+
+
 def test_pop_eegplot_component_mode_computes_activations_once(monkeypatch: pytest.MonkeyPatch) -> None:
     eeg = create_test_eeg(n_channels=2, n_samples=10, n_trials=1, srate=10)
     calls = 0

@@ -94,20 +94,24 @@ def apply_eegplot_rejections(
     out = copy_eeg(EEG)
     command = history_command("pop_eegplot", icacomp, superpose, reject)
     rows = np.asarray(winrej if winrej is not None else [], dtype=float)
-    if rows.size == 0:
-        return (out, command) if return_com else out
     if rows.ndim == 1:
         rows = rows.reshape(1, -1)
 
     trials = int(out.get("trials", 1) or 1)
     if trials <= 1:
-        if int(bool(reject)):
+        if rows.size and int(bool(reject)):
             out = eeg_eegrej(out, eegplot2event(rows, -1))
         return (out, command) if return_com else out
 
     pnts = int(out.get("pnts", np.asarray(out.get("data")).shape[1]))
-    trial_marks, row_marks = eegplot2trial(rows, pnts, trials, _manual_color(out), None)
-    _store_epoch_marks(out, trial_marks, row_marks, icacomp=icacomp, superpose=superpose)
+    if rows.size:
+        trial_marks, row_marks = eegplot2trial(rows, pnts, trials, _manual_color(out), None)
+        store_superpose = superpose
+    else:
+        trial_marks = np.zeros(trials, dtype=bool)
+        row_marks = np.zeros((_row_count(out, icacomp), trials), dtype=bool)
+        store_superpose = 0
+    _store_epoch_marks(out, trial_marks, row_marks, icacomp=icacomp, superpose=store_superpose)
     if int(bool(reject)) and trial_marks.any():
         out, _reject_command = pop_rejepoch(out, trial_marks, 1, return_com=True)
     return (out, command) if return_com else out
@@ -127,6 +131,9 @@ def _initial_epoch_winrej(EEG: dict[str, Any], icacomp: int, superpose: int) -> 
     old_rows = trial2eegplot(old, old_e, pnts, old_color)
     if old_rows.size:
         rows.append(old_rows)
+    # TODO: Overlay EEGLAB's method-specific families (rejthresh, rejconst,
+    # rejjp, rejkurt, rejfreq) once Phase 2/visual parity work owns the full
+    # rejection-color legend surface.
     manual_rows = trial2eegplot(manual, manual_e, pnts, _manual_color(EEG))
     if manual_rows.size:
         rows.append(manual_rows)

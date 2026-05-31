@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 import numpy as np
@@ -38,7 +39,7 @@ _EVENT_COLORS = (
 )
 
 
-def open_eegbrowser(model: BrowserModel, accept_callback: Any = None) -> Any:
+def open_eegbrowser(model: BrowserModel, accept_callback: Callable[[np.ndarray], None] | None = None) -> Any:
     """Create, show, and return an EEG browser window."""
     qt_widgets, _pg = _require_gui()
     app = qt_widgets.QApplication.instance() or qt_widgets.QApplication([])
@@ -51,7 +52,7 @@ def open_eegbrowser(model: BrowserModel, accept_callback: Any = None) -> Any:
 class EEGBrowserWindow(_QMainWindow):
     """Basic EEGLAB-like scrolling browser window."""
 
-    def __init__(self, model: BrowserModel, accept_callback: Any = None):
+    def __init__(self, model: BrowserModel, accept_callback: Callable[[np.ndarray], None] | None = None):
         super().__init__()
         qt_widgets, _pg = _require_gui()
         self.model = model
@@ -129,32 +130,34 @@ class EEGBrowserCanvas(_QWidget):
 
     def eventFilter(self, watched: Any, event: Any) -> bool:  # noqa: N802
         """Handle EEGLAB-style mark/unmark mouse gestures on the plot viewport."""
-        qt_widgets, _pg = _require_gui()
         qt_core = QtCore
         if qt_core is None or watched is not self.plot.viewport():
             return super().eventFilter(watched, event)
-        if event.type() == qt_core.QEvent.MouseButtonPress and event.button() == qt_core.Qt.LeftButton:
-            sample = self._event_sample(event)
-            if sample is None:
-                return False
+        event_type = event.type()
+        if event_type in {qt_core.QEvent.MouseButtonPress, qt_core.QEvent.MouseButtonRelease}:
+            if event.button() != qt_core.Qt.LeftButton:
+                self._clear_drag()
+                return super().eventFilter(watched, event)
+        if event_type == qt_core.QEvent.MouseButtonPress:
+            scene_point = self._event_scene_point(event)
+            if not self.plot.getPlotItem().vb.sceneBoundingRect().contains(scene_point):
+                return super().eventFilter(watched, event)
+            sample = self._event_sample(scene_point)
             self._drag_start_sample = sample
             self._drag_start_pos = event.position() if hasattr(event, "position") else event.pos()
-            self._drag_channel_index = self._event_channel(event) if self.model.state.setelectrode else None
+            self._drag_channel_index = self._event_channel(scene_point) if self.model.state.setelectrode else None
             return True
-        if event.type() == qt_core.QEvent.MouseButtonRelease and event.button() == qt_core.Qt.LeftButton:
+        if event_type == qt_core.QEvent.MouseButtonRelease:
             if self._drag_start_sample is None:
-                return False
-            sample = self._event_sample(event)
-            if sample is None:
-                sample = self._drag_start_sample
+                return super().eventFilter(watched, event)
+            scene_point = self._event_scene_point(event)
+            sample = self._event_sample(scene_point)
             moved = self._mouse_moved(event)
             if moved:
                 self.mark_samples(self._drag_start_sample, sample, channel_index=self._drag_channel_index)
             else:
                 self.toggle_sample(sample, channel_index=self._drag_channel_index)
-            self._drag_start_sample = None
-            self._drag_start_pos = None
-            self._drag_channel_index = None
+            self._clear_drag()
             return True
         return super().eventFilter(watched, event)
 
@@ -381,9 +384,11 @@ class EEGBrowserCanvas(_QWidget):
             current += step
         return ticks
 
-    def _event_sample(self, event: Any) -> int | None:
+    def _event_scene_point(self, event: Any) -> Any:
         point = event.position() if hasattr(event, "position") else event.pos()
-        scene_point = self.plot.viewport().mapToScene(point.toPoint() if hasattr(point, "toPoint") else point)
+        return self.plot.viewport().mapToScene(point.toPoint() if hasattr(point, "toPoint") else point)
+
+    def _event_sample(self, scene_point: Any) -> int:
         view_point = self.plot.getPlotItem().vb.mapSceneToView(scene_point)
         x_value = float(view_point.x())
         if self.model.data.epoched or self.model.data.x_values is not None:
@@ -397,9 +402,7 @@ class EEGBrowserCanvas(_QWidget):
             ),
         )
 
-    def _event_channel(self, event: Any) -> int | None:
-        point = event.position() if hasattr(event, "position") else event.pos()
-        scene_point = self.plot.viewport().mapToScene(point.toPoint() if hasattr(point, "toPoint") else point)
+    def _event_channel(self, scene_point: Any) -> int | None:
         view_point = self.plot.getPlotItem().vb.mapSceneToView(scene_point)
         screen_index = int(round(float(view_point.y())))
         channel_index = self.model.state.channel_offset + screen_index
@@ -415,9 +418,19 @@ class EEGBrowserCanvas(_QWidget):
         dy = float(point.y() - self._drag_start_pos.y())
         return dx * dx + dy * dy > 9.0
 
+    def _clear_drag(self) -> None:
+        self._drag_start_sample = None
+        self._drag_start_pos = None
+        self._drag_channel_index = None
+
 
 class _BrowserControls(_QWidget):
-    def __init__(self, model: BrowserModel, canvas: EEGBrowserCanvas, accept_callback: Any = None):
+    def __init__(
+        self,
+        model: BrowserModel,
+        canvas: EEGBrowserCanvas,
+        accept_callback: Callable[[np.ndarray], None] | None = None,
+    ):
         super().__init__()
         qt_widgets, _pg = _require_gui()
         self.model = model

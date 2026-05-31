@@ -382,7 +382,11 @@ def winrej_to_array(regions: list[WinRejRegion], n_channels: int | None = None) 
 
 
 def trial2eegplot(rej: Any, rejE: Any, pnts: int, color: Any = DEFAULT_WINREJ_COLOR) -> np.ndarray:
-    """Convert EEGLAB trial/electrode marks to ``eegplot`` ``winrej`` rows."""
+    """Convert EEGLAB trial/electrode marks to ``eegplot`` ``winrej`` rows.
+
+    EEGLAB's ``trial2eegplot.m`` stores epoch windows as 0-based browser
+    offsets: ``[(trial - 1) * pnts, trial * pnts - 1]``.
+    """
     trial_marks = np.asarray(rej if rej is not None else [], dtype=bool).ravel()
     row_marks = np.asarray(rejE if rejE is not None else [], dtype=bool)
     if trial_marks.size == 0:
@@ -489,7 +493,12 @@ def add_winrej_region(
     channel_index: int | None = None,
     pnts: int | None = None,
 ) -> list[WinRejRegion]:
-    """Add a continuous or epoched ``winrej`` mark with EEGLAB-style merging."""
+    """Add a continuous or epoched ``winrej`` mark with EEGLAB-style merging.
+
+    Continuous browser marks use 1-based sample latencies because accepted
+    regions flow to ``eeg_eegrej``. Epoched marks use EEGLAB's 0-based
+    ``trial2eegplot`` browser offsets.
+    """
     start_value = int(round(float(start)))
     end_value = int(round(float(end)))
     if end_value < start_value:
