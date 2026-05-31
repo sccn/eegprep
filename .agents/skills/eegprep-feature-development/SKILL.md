@@ -29,16 +29,19 @@ Use this workflow when building a new EEGPrep feature.
 5. Execute the plan and write code. Do not take shortcuts. Maintain current coding conventions and
    follow `AGENTS.md`. Write tests as described there. Aim for more than 90%
    coverage for the changed feature code, and ensure the tests pass.
+   Remember, while we are doing a porting project, EEGPrep must work well standalone and must be a delight to use for EEG Researchers.
    For user-facing `pop_*` or menu actions, preserve the `eegprep-console`
    workspace contract: return `(EEG, com)` with `return_com=True`, update
    GUI state through `EEGPrepSession`, and keep `EEG`/`ALLEEG`/history visible
-   from both the GUI and the console.
+   from both the GUI and the console. Make the GUI-plus-console workflow feel
+   seamless for EEGLAB users who switch between menus/dialogs, command history,
+   and workspace inspection.
 
 6. For features that involve a GUI component, use the
    [`eeglab-gui-visual-parity`](../eeglab-gui-visual-parity/SKILL.md) skill to
    iteratively develop the GUI so the UI/UX is familiar to EEGLAB users. Follow
    EEGPrep's current GUI conventions, keep performance and user experience high,
-   and do not take shortcuts. You must ensure that there is visual parity with EEGLAB for GUI based features, what text is bolded, arrangement and alignment are important.
+   and do not take shortcuts. You must ensure that there is visual parity with EEGLAB for GUI based features; alignment, arrangement, button placement, labels, text fields, default values, enabled states, and control flow are important.
 
 7. Simulate how users would exercise each feature with the
    [`gui-agent-flow-qa`](../gui-agent-flow-qa/SKILL.md) skill and Codex's GUI

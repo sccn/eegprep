@@ -8,6 +8,9 @@ description: Build, port, or iterate on EEGPrep GUI features so they visually an
 Use this skill to implement an EEGPrep GUI component with an EEGLAB reference
 screenshot in the loop. The goal is not pixel perfection; it is end-user parity:
 same controls, labels, order, enabled state, layout, and obvious hierarchy.
+EEGLAB users must feel at home while using EEGPrep, so compare alignment,
+arrangement, button placement, text fields, labels, defaults, enabled states,
+and workflow before accepting a GUI as complete. Remember, while we are doing a porting project, EEGPrep must work well standalone and must be a delight to use for EEG Researchers.
 
 ## Work From The Repo Root
 

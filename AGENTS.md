@@ -1,6 +1,6 @@
 # Agent Guidelines for EEGPREP
 
-EEGPREP is a Python port of core EEGLAB preprocessing concepts, workflows, file names, data structures, GUI patterns, and user experience. Build features so EEGLAB users can predict where code lives and how APIs behave, while still using simple idiomatic Python when MATLAB style would make the code worse.
+EEGPREP is a Python port of core EEGLAB preprocessing concepts, workflows, file names, data structures, GUI patterns, and user experience. Build features so EEGLAB users can predict where code lives and how APIs behave, while still using simple idiomatic Python when MATLAB style would make the code worse. Remember, while we are doing a porting project, EEGPrep must work well standalone and must be a delight to use for EEG Researchers.
 
 Primary references:
 - EEGLAB source: https://github.com/sccn/eeglab
@@ -46,6 +46,7 @@ Primary references:
 ## EEGLAB Parity
 
 - Use EEGLAB as a development and parity oracle, not as an EEGPrep runtime dependency. During development, compare against EEGLAB so EEGPrep features look, feel, and behave like EEGLAB for EEGLAB users; at runtime, EEGPrep must work standalone without an EEGLAB checkout.
+- EEGLAB users must feel at home while using EEGPrep. For GUI-based features, match EEGLAB's alignment, arrangement, labels, buttons, text fields, control order, default values, enabled/disabled states, and workflow before introducing Python-only improvements.
 - Keep naming and directory structure as close to EEGLAB as practical. Put `pop_*` wrappers in `functions/popfunc`, GUI helpers in `functions/guifunc`, administrative functions in `functions/adminfunc`, signal-processing functions in `functions/sigprocfunc`, clean_rawdata ports in `plugins/clean_rawdata`, and ICLabel ports in `plugins/ICLabel`.
 - Before porting or changing behavior, inspect the matching MATLAB file under `src/eegprep/eeglab/functions/` or `src/eegprep/eeglab/plugins/`.
 - Runtime code in the installed `eegprep` package must work without `src/eegprep/eeglab/` present. Do not read from, import from, shell out to, or otherwise depend on the EEGLAB checkout in package runtime paths.
@@ -59,6 +60,7 @@ Primary references:
 ## GUI And Console Workspace
 
 - EEGPrep's primary interactive workflow is mixed GUI plus `eegprep-console`. Both share one `EEGPrepSession`; `EEG`, `ALLEEG`, `CURRENTSET`, `LASTCOM`, `ALLCOM`, `STUDY`, and `CURRENTSTUDY` must stay synchronized.
+- Treat GUI plus console flow as one user experience, not two separate clients. EEGLAB users commonly switch between menus/dialogs and command history/workspace inspection, so GUI actions, console commands, dataset selection, history, and visible state must stay seamless in both directions.
 - `EEGPrepSession.CURRENTSET` is a list of EEGLAB-facing 1-based dataset indices; expose it as `0`, scalar `n`, or list `[n, ...]` in the console. Use `selected_dataset_indices()` for read-only multi-dataset state.
 - GUI/menu actions must update datasets and history through `EEGPrepSession` helpers such as `store_current`, `add_history`, and `notify_changed`; do not mutate GUI-only state that the console cannot see.
 - User-facing `pop_*` functions should support `return_com=True` and return EEGLAB-style history commands. The console wrappers rely on `(EEG, com)` results to auto-store bare calls like `pop_reref(EEG, [])`.
