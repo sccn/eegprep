@@ -67,23 +67,32 @@ class EEGBrowserWindow(_QMainWindow):
 
     def _build_menus(self) -> None:
         menu = self.menuBar().addMenu("Display")
-        xgrid_action = menu.addAction("X grid off" if self.model.state.xgrid else "X grid on")
-        xgrid_action.triggered.connect(self._toggle_xgrid)
-        ygrid_action = menu.addAction("Y grid off" if self.model.state.ygrid else "Y grid on")
-        ygrid_action.triggered.connect(self._toggle_ygrid)
-        scale_action = menu.addAction("Hide scale" if self.model.state.scale else "Show scale")
-        scale_action.triggered.connect(self._toggle_scale)
+        self.xgrid_action = menu.addAction("")
+        self.xgrid_action.triggered.connect(self._toggle_xgrid)
+        self.ygrid_action = menu.addAction("")
+        self.ygrid_action.triggered.connect(self._toggle_ygrid)
+        self.scale_action = menu.addAction("")
+        self.scale_action.triggered.connect(self._toggle_scale)
+        self._refresh_display_menu_labels()
+
+    def _refresh_display_menu_labels(self) -> None:
+        self.xgrid_action.setText("X grid off" if self.model.state.xgrid else "X grid on")
+        self.ygrid_action.setText("Y grid off" if self.model.state.ygrid else "Y grid on")
+        self.scale_action.setText("Hide scale" if self.model.state.scale else "Show scale")
 
     def _toggle_xgrid(self) -> None:
         self.model.state.xgrid = not self.model.state.xgrid
+        self._refresh_display_menu_labels()
         self.canvas.redraw()
 
     def _toggle_ygrid(self) -> None:
         self.model.state.ygrid = not self.model.state.ygrid
+        self._refresh_display_menu_labels()
         self.canvas.redraw()
 
     def _toggle_scale(self) -> None:
         self.model.state.scale = not self.model.state.scale
+        self._refresh_display_menu_labels()
         self.canvas.redraw()
 
 
@@ -124,15 +133,14 @@ class EEGBrowserCanvas(_QWidget):
 
     def _configure_axes(self) -> None:
         start, stop = visible_sample_bounds(self.model.data, self.model.state)
-        self.plot.setXRange(float(start), float(stop), padding=0)
+        self.plot.setXRange(self._sample_edge_to_x_value(start), self._sample_edge_to_x_value(stop), padding=0)
         self.plot.setYRange(-0.5, float(self.model.state.dispchans) - 0.5, padding=0.04)
         labels = []
         for screen_index, channel_index in enumerate(self._visible_channels()):
             labels.append((float(screen_index), self.model.data.channel_labels[channel_index]))
         self.plot.getAxis("left").setTicks([labels])
-        self.plot.getAxis("bottom").setLabel(
-            "Epoch" if self.model.data.epoched else "Time", units="" if self.model.data.epoched else "s"
-        )
+        axis_label, axis_units = self._bottom_axis_label()
+        self.plot.getAxis("bottom").setLabel(axis_label, units=axis_units)
         self.plot.getAxis("bottom").setTicks([self._x_ticks(start, stop)])
         if self.model.state.plottitle:
             self.plot.setTitle(self.model.state.plottitle)
@@ -147,7 +155,10 @@ class EEGBrowserCanvas(_QWidget):
                 continue
             color = tuple(int(np.clip(component, 0, 1) * 255) for component in region.color)
             item = plot_graphics.LinearRegionItem(
-                values=(max(region_start, start), min(region_stop, stop)),
+                values=(
+                    self._sample_edge_to_x_value(max(region_start, start)),
+                    self._sample_edge_to_x_value(min(region_stop, stop)),
+                ),
                 orientation=plot_graphics.LinearRegionItem.Vertical,
                 brush=(*color, 70),
                 movable=False,
@@ -167,15 +178,16 @@ class EEGBrowserCanvas(_QWidget):
             if sample < start or sample > stop:
                 continue
             color = _EVENT_COLORS[event.color_index % len(_EVENT_COLORS)]
+            x_value = self._sample_to_x_value(sample)
             line = plot_graphics.InfiniteLine(
-                pos=float(sample),
+                pos=x_value,
                 angle=90,
                 pen=plot_graphics.mkPen(color, width=2 if event.type.lower() == "boundary" else 1),
                 movable=False,
             )
             self.plot.addItem(line)
             label = plot_graphics.TextItem(event.type[:20], color=color, anchor=(0, 1), angle=90)
-            label.setPos(float(sample), float(self.model.state.dispchans) - 0.2)
+            label.setPos(x_value, float(self.model.state.dispchans) - 0.2)
             self.plot.addItem(label)
             self._items.extend([line, label])
 
@@ -184,7 +196,7 @@ class EEGBrowserCanvas(_QWidget):
         data = self.model.data
         state = self.model.state
         start, stop = visible_sample_bounds(data, state)
-        x_values = np.arange(start, stop, dtype=float)
+        x_values = self._sample_range_to_x_values(start, stop)
         for screen_index, channel_index in enumerate(self._visible_channels()):
             y_values = np.asarray(data.flat_data[channel_index, start:stop], dtype=float)
             if state.submean and y_values.size:
@@ -207,7 +219,7 @@ class EEGBrowserCanvas(_QWidget):
         overlay = self.model.data.flat_data2
         if overlay is None:
             return
-        x_values = np.arange(start, stop, dtype=float)
+        x_values = self._sample_range_to_x_values(start, stop)
         y_values = np.asarray(overlay[channel_index, start:stop], dtype=float)
         if self.model.state.submean and y_values.size:
             y_values = y_values - np.nanmean(y_values)
@@ -226,14 +238,17 @@ class EEGBrowserCanvas(_QWidget):
         if not self.model.state.scale:
             return
         start, stop = visible_sample_bounds(self.model.data, self.model.state)
-        x = float(stop - max(1, (stop - start) // 20))
+        x_start = self._sample_edge_to_x_value(start)
+        x_stop = self._sample_edge_to_x_value(stop)
+        x_span = max(abs(x_stop - x_start), np.finfo(float).eps)
+        x = x_stop - x_span / 20.0
         y0 = -0.25
         y1 = y0 + 0.42
         pen = plot_graphics.mkPen((0, 0, 0), width=1)
         for xs, ys in (
             ([x, x], [y0, y1]),
-            ([x - 0.01 * (stop - start), x + 0.01 * (stop - start)], [y0, y0]),
-            ([x - 0.01 * (stop - start), x + 0.01 * (stop - start)], [y1, y1]),
+            ([x - 0.01 * x_span, x + 0.01 * x_span], [y0, y0]),
+            ([x - 0.01 * x_span, x + 0.01 * x_span], [y1, y1]),
         ):
             self._items.append(self.plot.plot(xs, ys, pen=pen))
         label = plot_graphics.TextItem(f"{self.model.state.spacing:g}", color=(0, 0, 0), anchor=(0, 0.5))
@@ -249,6 +264,39 @@ class EEGBrowserCanvas(_QWidget):
         state = self.model.state
         return range(state.channel_offset, state.channel_offset + state.dispchans)
 
+    def _bottom_axis_label(self) -> tuple[str, str]:
+        if self.model.data.mode == "spectral":
+            return "Frequency", "Hz"
+        if self.model.data.epoched:
+            return "Epoch", ""
+        return "Time", "s"
+
+    def _sample_range_to_x_values(self, start: int, stop: int) -> np.ndarray:
+        if self.model.data.x_values is not None:
+            return self.model.data.x_values[start:stop]
+        if self.model.data.epoched:
+            return np.arange(start, stop, dtype=float)
+        return np.arange(start, stop, dtype=float) / float(self.model.state.srate)
+
+    def _sample_to_x_value(self, sample: int) -> float:
+        if self.model.data.x_values is not None:
+            index = max(0, min(int(sample), self.model.data.total_samples - 1))
+            return float(self.model.data.x_values[index])
+        if self.model.data.epoched:
+            return float(sample)
+        return float(sample) / float(self.model.state.srate)
+
+    def _sample_edge_to_x_value(self, sample: int) -> float:
+        if self.model.data.x_values is None:
+            return self._sample_to_x_value(sample)
+        index = int(sample)
+        values = self.model.data.x_values
+        if index <= 0:
+            return float(values[0])
+        if index >= values.size:
+            return float(values[-1])
+        return float(values[index])
+
     def _x_ticks(self, start: int, stop: int) -> list[tuple[float, str]]:
         if self.model.data.epoched:
             first_epoch = int(start // max(1, self.model.data.pnts)) + 1
@@ -258,13 +306,15 @@ class EEGBrowserCanvas(_QWidget):
                 for epoch in range(first_epoch, last_epoch + 1)
                 if start <= (epoch - 1) * self.model.data.pnts <= stop
             ]
-        duration = max(1.0, (stop - start) / self.model.state.srate)
+        start_x = self._sample_edge_to_x_value(start)
+        stop_x = self._sample_edge_to_x_value(stop)
+        duration = max(1.0, abs(stop_x - start_x))
         step = _nice_time_step(duration)
-        first = np.ceil((start / self.model.state.srate) / step) * step
+        first = np.ceil(start_x / step) * step
         ticks = []
         current = first
-        while current <= stop / self.model.state.srate:
-            ticks.append((float(current * self.model.state.srate), f"{current:g}"))
+        while current <= stop_x:
+            ticks.append((float(current), f"{current:g}"))
             current += step
         return ticks
 

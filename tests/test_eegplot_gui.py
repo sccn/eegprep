@@ -39,3 +39,37 @@ def test_gui_eegbrowser_renders_nonblank_sample_data(qapp) -> None:
     assert np.unique(pixels[..., :3].reshape(-1, 3), axis=0).shape[0] > 10
     np.testing.assert_array_equal(eeg["data"], data_before)
     window.close()
+
+
+def test_gui_display_menu_labels_refresh_after_toggle(qapp) -> None:
+    from eegprep.functions.guifunc.eegbrowser import EEGBrowserWindow
+
+    model = build_eegplot_model(np.zeros((1, 20)), srate=10, spacing=1, xgrid="off", ygrid="on", scale="on")
+    window = EEGBrowserWindow(model)
+
+    assert window.xgrid_action.text() == "X grid on"
+    assert window.ygrid_action.text() == "Y grid off"
+    assert window.scale_action.text() == "Hide scale"
+
+    window.xgrid_action.trigger()
+    window.ygrid_action.trigger()
+    window.scale_action.trigger()
+
+    assert window.xgrid_action.text() == "X grid off"
+    assert window.ygrid_action.text() == "Y grid on"
+    assert window.scale_action.text() == "Show scale"
+    window.close()
+
+
+def test_gui_continuous_trace_axis_uses_seconds(qapp) -> None:
+    from eegprep.functions.guifunc.eegbrowser import EEGBrowserWindow
+
+    model = build_eegplot_model(np.arange(10, dtype=float).reshape(1, 10), srate=10, winlength=0.5, spacing=1)
+    window = EEGBrowserWindow(model)
+    qapp.processEvents()
+
+    curve = next(item for item in window.canvas._items if hasattr(item, "getData"))
+    x_values, _y_values = curve.getData()
+
+    np.testing.assert_allclose(x_values, [0.0, 0.1, 0.2, 0.3, 0.4])
+    window.close()

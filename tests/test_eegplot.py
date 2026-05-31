@@ -5,6 +5,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+import eegprep.functions.sigprocfunc.eegplot as eegplot_module
 from eegprep.functions.popfunc.pop_eegplot import pop_eegplot
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.sigprocfunc.eegplot import (
@@ -88,6 +89,8 @@ def test_spectral_and_overlay_inputs_are_normalized_together() -> None:
 
     assert model.data.mode == "spectral"
     assert model.data.data.shape == (2, 5, 1)
+    assert model.state.limits == (3.0, 7.0)
+    np.testing.assert_array_equal(model.data.x_values, freqs[2:7])
     np.testing.assert_array_equal(model.data.flat_data2, overlay[:, 2:7])
 
 
@@ -135,6 +138,17 @@ def test_decimation_preserves_endpoints_and_limits_point_count() -> None:
     assert dec_y.size == dec_x.size
 
 
+def test_decimation_handles_all_nan_segments() -> None:
+    x = np.arange(1000, dtype=float)
+    y = np.full(1000, np.nan)
+
+    dec_x, dec_y = decimate_minmax(x, y, pixel_width=20)
+
+    assert dec_x[0] == 0
+    assert dec_x[-1] == 999
+    assert np.isnan(dec_y).all()
+
+
 def test_eegplot_show_false_returns_model_and_does_not_import_qt() -> None:
     model = eegplot(np.zeros((2, 20)), "srate", 20, spacing=1, show=False)
 
@@ -151,6 +165,25 @@ def test_pop_eegplot_returns_unchanged_eeg_and_history_command() -> None:
     assert out is eeg
     np.testing.assert_array_equal(eeg["data"], data_before)
     assert command == "pop_eegplot(EEG, 1, 0, 1)"
+
+
+def test_pop_eegplot_component_mode_computes_activations_once(monkeypatch: pytest.MonkeyPatch) -> None:
+    eeg = create_test_eeg(n_channels=2, n_samples=10, n_trials=1, srate=10)
+    calls = 0
+
+    def fake_component_activations(dataset: dict) -> np.ndarray:
+        nonlocal calls
+        calls += 1
+        assert dataset is eeg
+        return np.ones((2, 10, 1), dtype=float)
+
+    monkeypatch.setattr(eegplot_module, "component_activations", fake_component_activations)
+
+    out, command = pop_eegplot(eeg, icacomp=0, return_com=True, show=False)
+
+    assert out is eeg
+    assert calls == 1
+    assert command == "pop_eegplot(EEG, 0, 0, 1)"
 
 
 def test_sample_data_eeglab_set_builds_non_mutating_model() -> None:

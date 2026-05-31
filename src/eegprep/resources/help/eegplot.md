@@ -14,7 +14,7 @@ Core options:
   robust standard-deviation estimate from the first 1000 displayed samples.
 - `limits`: epoch time limits in milliseconds, used for labels.
 - `winlength`: visible duration in seconds for continuous data, or epochs for
-  epoched data.
+  epoched data. For spectral data, this is a visible frequency span in Hz.
 - `time`: visible-window start time. Epoched inputs use EEGLAB-style one-based
   epoch display while the internal model stores zero-based epoch offsets.
 - `dispchans`: number of visible channels.
@@ -27,6 +27,9 @@ Core options:
   as one-based sample latencies.
 - `eloc_file`: channel-location structures or channel numbers for labels.
 - `color`: `"off"`, `"on"`, or a sequence of Qt-compatible colors.
+- `freqs` and `freqlimits`: frequency-bin values and `[min max]` selection
+  bounds for spectral browser input. EEGPrep keeps the selected frequency axis
+  in Hz for display; internally, `time` is an offset within that selected range.
 
 Phase 1 provides the browser model and non-mutating PySide6/pyqtgraph
 rendering foundation. Interactive rejection updates are reserved for later

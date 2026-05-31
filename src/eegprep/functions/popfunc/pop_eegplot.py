@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from eegprep.functions.popfunc._plot_utils import component_activations, history_command
+from eegprep.functions.popfunc._plot_utils import history_command
 from eegprep.functions.sigprocfunc.eegplot import eegplot
 
 
@@ -42,7 +42,6 @@ def pop_eegplot(
         options.setdefault("title", f"Scroll channel activities -- eegplot() -- {EEG.get('setname', '')}".rstrip())
         window = eegplot(EEG, *args, show=show, **options)
     else:
-        component_activations(EEG)
         options.setdefault("component", True)
         options.setdefault("title", f"Scroll component activities -- eegplot() -- {EEG.get('setname', '')}".rstrip())
         window = eegplot(EEG, *args, show=show, **options)

@@ -76,6 +76,9 @@ class BrowserData:
     mode: str
     data2: np.ndarray | None = None
     flat_data2: np.ndarray | None = None
+    axis_srate: float | None = None
+    axis_limits: tuple[float, float] | None = None
+    x_values: np.ndarray | None = None
 
     @property
     def n_channels(self) -> int:
@@ -128,14 +131,24 @@ class BrowserModel:
     state: BrowserState
 
 
+@dataclass(frozen=True)
+class _FrequencySelection:
+    data: np.ndarray
+    sample_slice: slice
+    axis_srate: float | None
+    axis_limits: tuple[float, float] | None
+    freq_values: np.ndarray | None
+
+
 def eegplot(data: Any, *args: Any, **kwargs: Any) -> Any:
     """Open an EEGLAB-style scrolling browser for channel-major EEG data.
 
     Parameters use EEGLAB names where practical. ``data`` may be a NumPy-like
     array shaped ``channels x samples`` or ``channels x samples x trials``, or
     an EEG dictionary containing ``data``, ``srate``, ``chanlocs``, and
-    ``event`` fields. The input is copied into the browser model and is not
-    mutated by the viewer.
+    ``event`` fields. Spectral inputs use ``freqs`` with ``freqlimits``; in
+    that mode ``winlength`` is interpreted as a frequency span in Hz. The input
+    is copied into the browser model and is not mutated by the viewer.
     """
     options = parse_eegplot_options(args, kwargs)
     model = build_eegplot_model(data, **options)
@@ -168,6 +181,9 @@ def build_eegplot_model(data: Any, **kwargs: Any) -> BrowserModel:
     """Build a browser model without opening a Qt window."""
     source_eeg = data if isinstance(data, dict) else None
     time_supplied = "time" in kwargs and kwargs["time"] is not None
+    if source_eeg is not None and bool(kwargs.get("component", False)):
+        kwargs = dict(kwargs)
+        kwargs["_component_data"] = component_activations(source_eeg)
     options = _model_options(source_eeg, kwargs)
     browser_data = normalize_browser_data(data, options)
     if options["dispchans"] is None:
@@ -177,9 +193,9 @@ def build_eegplot_model(data: Any, **kwargs: Any) -> BrowserModel:
     elif options["time"] is None:
         options["time"] = 0.0
     state = BrowserState(
-        srate=float(options["srate"]),
+        srate=float(browser_data.axis_srate if browser_data.axis_srate is not None else options["srate"]),
         spacing=float(options["spacing"]),
-        limits=tuple(float(value) for value in options["limits"]),
+        limits=tuple(float(value) for value in (browser_data.axis_limits or options["limits"])),
         winlength=float(options["winlength"]),
         time=float(options["time"]),
         dispchans=int(options["dispchans"]),
@@ -202,20 +218,30 @@ def normalize_browser_data(data: Any, options: dict[str, Any]) -> BrowserData:
     source_eeg = data if isinstance(data, dict) else None
     component = bool(options.get("component", False))
     if source_eeg is not None:
-        raw_data = component_activations(source_eeg) if component else source_eeg.get("data")
+        raw_data = (
+            options["_component_data"]
+            if component and "_component_data" in options
+            else component_activations(source_eeg)
+            if component
+            else source_eeg.get("data")
+        )
     else:
         raw_data = data
     array = _as_channel_data(raw_data)
-    array = _apply_frequency_limits(array, options)
+    frequency_selection = _select_frequency_range(array, options)
+    array = frequency_selection.data
     flat = flatten_browser_data(array)
     labels = _channel_labels(source_eeg, array.shape[0], options["eloc_file"], component=component)
     mode = _browser_mode(array, component=component, freqs=options.get("freqs"))
+    x_values = None
+    if frequency_selection.freq_values is not None:
+        x_values = np.tile(frequency_selection.freq_values, int(array.shape[2]))
     data2 = options.get("data2")
     flat_data2 = None
     data2_array = None
     if data2 is not None and not _is_empty(data2):
         data2_array = _as_channel_data(data2)
-        data2_array = _apply_frequency_limits(data2_array, options)
+        data2_array = data2_array[:, frequency_selection.sample_slice, :]
         if data2_array.shape != array.shape:
             raise ValueError("data2 must have the same normalized shape as data")
         data2_array = np.array(data2_array, dtype=float, copy=True)
@@ -229,6 +255,9 @@ def normalize_browser_data(data: Any, options: dict[str, Any]) -> BrowserData:
         mode=mode,
         data2=data2_array,
         flat_data2=flat_data2,
+        axis_srate=frequency_selection.axis_srate,
+        axis_limits=frequency_selection.axis_limits,
+        x_values=x_values,
     )
 
 
@@ -284,8 +313,14 @@ def decimate_minmax(x_values: np.ndarray, y_values: np.ndarray, pixel_width: int
         if stop <= start:
             continue
         segment = y[start:stop]
-        keep.add(start + int(np.nanargmin(segment)))
-        keep.add(start + int(np.nanargmax(segment)))
+        finite_indices = np.flatnonzero(np.isfinite(segment))
+        if finite_indices.size == 0:
+            keep.add(start)
+            keep.add(stop - 1)
+            continue
+        finite_values = segment[finite_indices]
+        keep.add(start + int(finite_indices[int(np.argmin(finite_values))]))
+        keep.add(start + int(finite_indices[int(np.argmax(finite_values))]))
     indices = np.fromiter(sorted(keep), dtype=int)
     return x[indices], y[indices]
 
@@ -416,11 +451,11 @@ def _as_channel_data(value: Any) -> np.ndarray:
     return array
 
 
-def _apply_frequency_limits(array: np.ndarray, options: dict[str, Any]) -> np.ndarray:
+def _select_frequency_range(array: np.ndarray, options: dict[str, Any]) -> _FrequencySelection:
     freqs = options.get("freqs")
     freqlimits = options.get("freqlimits")
     if freqs is None and freqlimits is None:
-        return array
+        return _FrequencySelection(array, slice(None), None, None, None)
     if freqs is None or freqlimits is None:
         raise ValueError("freqs and freqlimits must be supplied together")
     freq_values = np.asarray(freqs, dtype=float).ravel()
@@ -431,17 +466,24 @@ def _apply_frequency_limits(array: np.ndarray, options: dict[str, Any]) -> np.nd
     end = int(np.argmin(np.abs(freq_values - bounds[1])))
     if end < start:
         start, end = end, start
-    options["srate"] = float((end - start + 1) / max(freq_values[end] - freq_values[start], 1.0))
-    options["limits"] = (float(freq_values[start]), float(freq_values[end]))
-    return array[:, start : end + 1, :]
+    selected_freqs = np.array(freq_values[start : end + 1], dtype=float, copy=True)
+    axis_span = abs(float(selected_freqs[-1] - selected_freqs[0])) if selected_freqs.size > 1 else 1.0
+    axis_srate = float(selected_freqs.size / max(axis_span, np.finfo(float).eps))
+    return _FrequencySelection(
+        data=array[:, start : end + 1, :],
+        sample_slice=slice(start, end + 1),
+        axis_srate=axis_srate,
+        axis_limits=(float(selected_freqs[0]), float(selected_freqs[-1])),
+        freq_values=selected_freqs,
+    )
 
 
 def _default_spacing(source_eeg: dict[str, Any] | None, options: dict[str, Any]) -> float:
-    raw = (
-        component_activations(source_eeg)
-        if source_eeg is not None and bool(options.get("component", False))
-        else (source_eeg.get("data") if source_eeg is not None else None)
-    )
+    raw = None
+    if source_eeg is not None and bool(options.get("component", False)):
+        raw = options["_component_data"] if "_component_data" in options else component_activations(source_eeg)
+    elif source_eeg is not None:
+        raw = source_eeg.get("data")
     if raw is None:
         return 1.0
     array = _as_channel_data(raw)
