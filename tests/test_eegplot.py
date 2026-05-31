@@ -7,17 +7,24 @@ import pytest
 
 import eegprep.functions.sigprocfunc.eegplot as eegplot_module
 from eegprep.functions.popfunc.pop_eegplot import pop_eegplot
+from eegprep.functions.popfunc.pop_eegplot import apply_eegplot_rejections
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.sigprocfunc.eegplot import (
+    add_winrej_region,
     build_eegplot_model,
     decimate_minmax,
     eegplot,
+    eegplot2event,
+    eegplot2trial,
     event_latency_to_sample,
     normalize_events,
     parse_eegplot_options,
+    toggle_winrej_at_sample,
+    trial2eegplot,
     visible_sample_bounds,
+    winrej_to_array,
 )
-from tests.fixtures import create_test_eeg
+from tests.fixtures import create_test_eeg, matlab_engine_available
 
 
 SAMPLE_DATASET = Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data.set"
@@ -121,6 +128,103 @@ def test_winrej_state_preserves_color_and_channel_mask() -> None:
     assert model.state.winrej[0].channel_mask == (True, False, True)
 
 
+def test_trial2eegplot_converts_epoch_and_channel_marks() -> None:
+    rows = trial2eegplot(
+        [True, False, True],
+        np.array([[True, False, False], [False, False, True]]),
+        4,
+        [0.1, 0.2, 0.3],
+    )
+
+    np.testing.assert_array_equal(rows[:, :5], [[0, 3, 0.1, 0.2, 0.3], [8, 11, 0.1, 0.2, 0.3]])
+    np.testing.assert_array_equal(rows[:, 5:], [[1, 0], [0, 1]])
+
+
+def test_eegplot2trial_filters_colors_and_handles_first_epoch_boundary() -> None:
+    rows = np.array(
+        [
+            [1, 9, 1.0, 0.9, 0.9, 1, 0],
+            [10, 19, 0.3, 0.4, 0.5, 0, 1],
+            [15, 17, 1.0, 0.9, 0.9, 1, 1],
+        ]
+    )
+
+    trial_marks, row_marks = eegplot2trial(rows, 10, 3, color=[[1.0, 0.9, 0.9]])
+    excluded_marks, excluded_rows = eegplot2trial(rows, 10, 3, colorout=[[1.0, 0.9, 0.9]])
+
+    np.testing.assert_array_equal(trial_marks, [True, False, False])
+    np.testing.assert_array_equal(row_marks, [[True, False, False], [False, False, False]])
+    np.testing.assert_array_equal(excluded_marks, [False, True, False])
+    np.testing.assert_array_equal(excluded_rows, [[False, False, False], [False, True, False]])
+
+
+def test_eegplot2event_converts_continuous_marks_for_eeg_eegrej() -> None:
+    rows = np.array([[2.2, 5.8, 0.7, 1.0, 0.9, 1], [8, 9, 0.1, 0.2, 0.3, 1]])
+
+    events = eegplot2event(rows, -1, colorout=[[0.1, 0.2, 0.3]])
+
+    np.testing.assert_array_equal(events, [[-1, 1, 2, 6, 0.7, 1.0, 0.9]])
+
+
+def test_winrej_add_merge_reversed_duplicate_and_boundary_regions() -> None:
+    regions = add_winrej_region([], 8, 3, n_channels=2, total_samples=10, color=[0.2, 0.3, 0.4])
+    regions = add_winrej_region(regions, 7, 20, n_channels=2, total_samples=10, color=[0.2, 0.3, 0.4])
+    regions = add_winrej_region(regions, 3, 10, n_channels=2, total_samples=10, color=[0.2, 0.3, 0.4])
+
+    assert len(regions) == 1
+    assert (regions[0].start, regions[0].end) == (3, 10)
+    assert regions[0].channel_mask == (True, True)
+
+
+def test_single_click_unmarks_or_toggles_channel_specific_marks() -> None:
+    regions = add_winrej_region([], 2, 6, n_channels=3, total_samples=10, channel_index=1)
+    regions = toggle_winrej_at_sample(regions, 4, n_channels=3, channel_index=1)
+
+    assert regions == []
+
+    regions = add_winrej_region([], 2, 6, n_channels=3, total_samples=10)
+    regions = toggle_winrej_at_sample(regions, 4, n_channels=3, channel_index=0)
+    regions = toggle_winrej_at_sample(regions, 4, n_channels=3)
+
+    assert regions == []
+
+
+def test_epoched_drag_marks_whole_epochs() -> None:
+    regions = add_winrej_region([], 15, 3, n_channels=2, total_samples=30, pnts=10)
+
+    np.testing.assert_array_equal(winrej_to_array(regions, 2)[:, :2], [[0, 9], [10, 19]])
+
+
+def test_conversion_helpers_handle_empty_inputs() -> None:
+    assert trial2eegplot([], np.zeros((2, 0)), 10).shape == (0, 7)
+    assert eegplot2event([]).shape == (0, 7)
+    trial_marks, row_marks = eegplot2trial([], 10, 3)
+    np.testing.assert_array_equal(trial_marks, [False, False, False])
+    assert row_marks.shape == (0, 3)
+
+
+@pytest.mark.matlab
+@pytest.mark.skipif(not matlab_engine_available(), reason="MATLAB engine not available or skipped")
+def test_eegplot_conversion_helpers_match_matlab() -> None:
+    from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
+
+    eeglab = get_eeglab("MAT")
+    rej = np.array([1, 0, 1], dtype=float)
+    rej_e = np.array([[1, 0, 0], [0, 0, 1]], dtype=float)
+    color = np.array([0.1, 0.2, 0.3], dtype=float)
+    rows = trial2eegplot(rej, rej_e, 4, color)
+
+    matlab_rows = np.asarray(eeglab.trial2eegplot(rej, rej_e, 4, color), dtype=float)
+    matlab_events = np.asarray(eeglab.eegplot2event(rows, -1), dtype=float)
+    matlab_trial, matlab_elec = eeglab.eegplot2trial(rows, 4, 3, color, [], nargout=2)
+
+    np.testing.assert_allclose(rows, matlab_rows)
+    np.testing.assert_allclose(eegplot2event(rows, -1), matlab_events)
+    py_trial, py_elec = eegplot2trial(rows, 4, 3, color, None)
+    np.testing.assert_array_equal(py_trial, np.asarray(matlab_trial, dtype=bool).ravel())
+    np.testing.assert_array_equal(py_elec, np.asarray(matlab_elec, dtype=bool))
+
+
 def test_winrej_rejects_out_of_range_rows() -> None:
     with pytest.raises(ValueError, match="sample range"):
         build_eegplot_model(np.zeros((2, 10)), spacing=1, winrej=[[0, 11]], show=False)
@@ -165,6 +269,37 @@ def test_pop_eegplot_returns_unchanged_eeg_and_history_command() -> None:
     assert out is eeg
     np.testing.assert_array_equal(eeg["data"], data_before)
     assert command == "pop_eegplot(EEG, 1, 0, 1)"
+
+
+def test_apply_eegplot_rejections_removes_continuous_regions_and_inserts_boundary() -> None:
+    eeg = create_test_eeg(n_channels=1, n_samples=10, n_trials=1, srate=10)
+    eeg["data"] = np.arange(10, dtype=float).reshape(1, 10)
+    eeg["xmax"] = 0.9
+    eeg["event"] = [{"type": "stim", "latency": 8.0, "urevent": 1}]
+    eeg["urevent"] = [{"type": "stim", "latency": 8.0}]
+    rows = np.array([[3, 5, 0.7, 1.0, 0.9, 1]])
+
+    out, command = apply_eegplot_rejections(eeg, rows, return_com=True)
+
+    np.testing.assert_array_equal(out["data"], [[0, 1, 5, 6, 7, 8, 9]])
+    assert out["event"][0]["type"] == "boundary"
+    assert out["event"][0]["latency"] == 2.5
+    assert out["event"][0]["duration"] == 3.0
+    assert out["event"][1]["latency"] == 5.0
+    assert command == "pop_eegplot(EEG, 1, 0, 1)"
+
+
+def test_apply_eegplot_rejections_updates_or_rejects_epochs() -> None:
+    eeg = create_test_eeg(n_channels=2, n_samples=4, n_trials=3, srate=10)
+    eeg["data"] = np.arange(24, dtype=float).reshape(2, 4, 3)
+    rows = trial2eegplot([False, True, False], [[False, True, False], [False, False, False]], 4, [1.0, 0.9, 0.9])
+
+    marked, _command = apply_eegplot_rejections(eeg, rows, reject=0, return_com=True)
+    rejected = apply_eegplot_rejections(eeg, rows, reject=1)
+
+    np.testing.assert_array_equal(marked["reject"]["rejmanual"], [False, True, False])
+    np.testing.assert_array_equal(marked["reject"]["rejmanualE"], [[False, True, False], [False, False, False]])
+    assert rejected["trials"] == 2
 
 
 def test_pop_eegplot_component_mode_computes_activations_once(monkeypatch: pytest.MonkeyPatch) -> None:

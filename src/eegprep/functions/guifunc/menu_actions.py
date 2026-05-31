@@ -1017,7 +1017,18 @@ class MenuActionDispatcher:
         elif name == "pop_eegplot":
             from eegprep.functions.popfunc.pop_eegplot import pop_eegplot
 
-            out = pop_eegplot(selection, icacomp=0 if variant in {"components", "reject_ica"} else 1, return_com=True)
+            def accept_eegplot(eeg_out: Any, command: str) -> None:
+                with self.session.gui_action("pop_eegplot"):
+                    if command:
+                        self._store_current_from_gui(eeg_out, command=command)
+                        self._refresh()
+
+            pop_eegplot(
+                selection,
+                icacomp=0 if variant in {"components", "reject_ica"} else 1,
+                command_callback=accept_eegplot,
+            )
+            return
         elif name == "pop_autorej":
             from eegprep.functions.popfunc.pop_autorej import pop_autorej
 

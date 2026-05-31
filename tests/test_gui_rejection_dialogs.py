@@ -207,6 +207,29 @@ class RejectionDialogTests(unittest.TestCase):
         rejepoch.assert_called_once()
         np.testing.assert_array_equal(rejepoch.call_args.args[1], np.array([False, True, False]))
 
+    def test_eegplot_browser_accept_callback_is_session_safe(self):
+        session = EEGPrepSession()
+        eeg = create_test_eeg(n_channels=1, n_samples=10, n_trials=1, srate=10)
+        session.store_current(eeg, new=True)
+        dispatcher = MenuActionDispatcher(session)
+        captured = {}
+
+        def fake_pop_eegplot(selection, **kwargs):
+            captured["selection"] = selection
+            captured["callback"] = kwargs["command_callback"]
+            return "window"
+
+        with mock.patch("eegprep.functions.popfunc.pop_eegplot.pop_eegplot", side_effect=fake_pop_eegplot):
+            dispatcher.dispatch("pop_eegplot:reject_data")
+
+        self.assertEqual(session.ALLCOM, [])
+        self.assertIs(captured["selection"], session.EEG)
+        updated = dict(eeg, setname="accepted")
+        captured["callback"](updated, "pop_eegplot(EEG, 1, 0, 1)")
+
+        self.assertEqual(session.EEG["setname"], "accepted")
+        self.assertEqual(session.ALLCOM[-1], "pop_eegplot(EEG, 1, 0, 1)")
+
 
 if __name__ == "__main__":
     unittest.main()

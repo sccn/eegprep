@@ -8,9 +8,12 @@ import numpy as np
 
 from eegprep.functions.sigprocfunc.eegplot import (
     BrowserModel,
+    add_winrej_region,
     decimate_minmax,
     event_latency_to_sample,
+    toggle_winrej_at_sample,
     visible_sample_bounds,
+    winrej_to_array,
 )
 
 try:  # pragma: no cover - depends on optional GUI dependency
@@ -35,11 +38,11 @@ _EVENT_COLORS = (
 )
 
 
-def open_eegbrowser(model: BrowserModel) -> Any:
+def open_eegbrowser(model: BrowserModel, accept_callback: Any = None) -> Any:
     """Create, show, and return an EEG browser window."""
     qt_widgets, _pg = _require_gui()
     app = qt_widgets.QApplication.instance() or qt_widgets.QApplication([])
-    window = EEGBrowserWindow(model)
+    window = EEGBrowserWindow(model, accept_callback=accept_callback)
     window.show()
     app.processEvents()
     return window
@@ -48,10 +51,11 @@ def open_eegbrowser(model: BrowserModel) -> Any:
 class EEGBrowserWindow(_QMainWindow):
     """Basic EEGLAB-like scrolling browser window."""
 
-    def __init__(self, model: BrowserModel):
+    def __init__(self, model: BrowserModel, accept_callback: Any = None):
         super().__init__()
         qt_widgets, _pg = _require_gui()
         self.model = model
+        self.accept_callback = accept_callback
         self.setObjectName("eegbrowser")
         self.setWindowTitle(model.state.title)
         self.resize(960, 560)
@@ -61,7 +65,7 @@ class EEGBrowserWindow(_QMainWindow):
         layout.setSpacing(4)
         self.canvas = EEGBrowserCanvas(model)
         layout.addWidget(self.canvas, 1)
-        layout.addWidget(_BrowserControls(model, self.canvas), 0)
+        layout.addWidget(_BrowserControls(model, self.canvas, accept_callback), 0)
         self.setCentralWidget(central)
         self._build_menus()
 
@@ -106,6 +110,9 @@ class EEGBrowserCanvas(_QWidget):
         self.setObjectName("eegbrowser_canvas")
         self.setMinimumSize(680, 380)
         self._items: list[Any] = []
+        self._drag_start_sample: int | None = None
+        self._drag_start_pos: Any = None
+        self._drag_channel_index: int | None = None
         layout = qt_widgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         self.plot = plot_graphics.PlotWidget(background="w")
@@ -117,6 +124,62 @@ class EEGBrowserCanvas(_QWidget):
         self.plot.getPlotItem().setClipToView(True)
         self.plot.getPlotItem().setDownsampling(auto=True, mode="peak")
         layout.addWidget(self.plot)
+        self.plot.viewport().installEventFilter(self)
+        self.redraw()
+
+    def eventFilter(self, watched: Any, event: Any) -> bool:  # noqa: N802
+        """Handle EEGLAB-style mark/unmark mouse gestures on the plot viewport."""
+        qt_widgets, _pg = _require_gui()
+        qt_core = QtCore
+        if qt_core is None or watched is not self.plot.viewport():
+            return super().eventFilter(watched, event)
+        if event.type() == qt_core.QEvent.MouseButtonPress and event.button() == qt_core.Qt.LeftButton:
+            sample = self._event_sample(event)
+            if sample is None:
+                return False
+            self._drag_start_sample = sample
+            self._drag_start_pos = event.position() if hasattr(event, "position") else event.pos()
+            self._drag_channel_index = self._event_channel(event) if self.model.state.setelectrode else None
+            return True
+        if event.type() == qt_core.QEvent.MouseButtonRelease and event.button() == qt_core.Qt.LeftButton:
+            if self._drag_start_sample is None:
+                return False
+            sample = self._event_sample(event)
+            if sample is None:
+                sample = self._drag_start_sample
+            moved = self._mouse_moved(event)
+            if moved:
+                self.mark_samples(self._drag_start_sample, sample, channel_index=self._drag_channel_index)
+            else:
+                self.toggle_sample(sample, channel_index=self._drag_channel_index)
+            self._drag_start_sample = None
+            self._drag_start_pos = None
+            self._drag_channel_index = None
+            return True
+        return super().eventFilter(watched, event)
+
+    def mark_samples(self, start: int, end: int, *, channel_index: int | None = None) -> None:
+        """Add a mark from browser sample coordinates and redraw."""
+        self.model.state.winrej = add_winrej_region(
+            self.model.state.winrej,
+            start,
+            end,
+            n_channels=self.model.data.n_channels,
+            total_samples=self.model.data.total_samples,
+            color=self.model.state.wincolor,
+            channel_index=channel_index,
+            pnts=self.model.data.pnts if self.model.data.epoched else None,
+        )
+        self.redraw()
+
+    def toggle_sample(self, sample: int, *, channel_index: int | None = None) -> None:
+        """Remove a mark at a sample or toggle a marked channel."""
+        self.model.state.winrej = toggle_winrej_at_sample(
+            self.model.state.winrej,
+            sample,
+            n_channels=self.model.data.n_channels,
+            channel_index=channel_index,
+        )
         self.redraw()
 
     def redraw(self) -> None:
@@ -318,13 +381,48 @@ class EEGBrowserCanvas(_QWidget):
             current += step
         return ticks
 
+    def _event_sample(self, event: Any) -> int | None:
+        point = event.position() if hasattr(event, "position") else event.pos()
+        scene_point = self.plot.viewport().mapToScene(point.toPoint() if hasattr(point, "toPoint") else point)
+        view_point = self.plot.getPlotItem().vb.mapSceneToView(scene_point)
+        x_value = float(view_point.x())
+        if self.model.data.epoched or self.model.data.x_values is not None:
+            sample = int(round(x_value))
+        else:
+            sample = int(round(x_value * float(self.model.state.srate))) + 1
+        return max(
+            0,
+            min(
+                sample, self.model.data.total_samples - 1 if self.model.data.epoched else self.model.data.total_samples
+            ),
+        )
+
+    def _event_channel(self, event: Any) -> int | None:
+        point = event.position() if hasattr(event, "position") else event.pos()
+        scene_point = self.plot.viewport().mapToScene(point.toPoint() if hasattr(point, "toPoint") else point)
+        view_point = self.plot.getPlotItem().vb.mapSceneToView(scene_point)
+        screen_index = int(round(float(view_point.y())))
+        channel_index = self.model.state.channel_offset + screen_index
+        if 0 <= channel_index < self.model.data.n_channels:
+            return channel_index
+        return None
+
+    def _mouse_moved(self, event: Any) -> bool:
+        if self._drag_start_pos is None:
+            return False
+        point = event.position() if hasattr(event, "position") else event.pos()
+        dx = float(point.x() - self._drag_start_pos.x())
+        dy = float(point.y() - self._drag_start_pos.y())
+        return dx * dx + dy * dy > 9.0
+
 
 class _BrowserControls(_QWidget):
-    def __init__(self, model: BrowserModel, canvas: EEGBrowserCanvas):
+    def __init__(self, model: BrowserModel, canvas: EEGBrowserCanvas, accept_callback: Any = None):
         super().__init__()
         qt_widgets, _pg = _require_gui()
         self.model = model
         self.canvas = canvas
+        self.accept_callback = accept_callback
         layout = qt_widgets.QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(4)
@@ -348,7 +446,11 @@ class _BrowserControls(_QWidget):
         self.spacing.valueChanged.connect(self._set_spacing)
         layout.addWidget(self.spacing)
         layout.addStretch(1)
-        close = qt_widgets.QPushButton("Close")
+        if accept_callback is not None:
+            accept = qt_widgets.QPushButton(model.state.butlabel)
+            accept.clicked.connect(self._accept_window)
+            layout.addWidget(accept)
+        close = qt_widgets.QPushButton("Cancel" if accept_callback is not None else "Close")
         close.clicked.connect(self._close_window)
         layout.addWidget(close)
 
@@ -373,6 +475,12 @@ class _BrowserControls(_QWidget):
         window = self.window()
         if window is not None:
             window.close()
+
+    def _accept_window(self) -> None:
+        if self.accept_callback is not None:
+            winrej = winrej_to_array(self.model.state.winrej, self.model.data.n_channels)
+            self.accept_callback(winrej)
+        self._close_window()
 
 
 def _trace_color(colors: tuple[Any, ...], index: int) -> Any:
