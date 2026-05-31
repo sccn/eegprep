@@ -49,7 +49,8 @@ def test_gui_display_menu_labels_refresh_after_toggle(qapp) -> None:
 
     assert window.xgrid_action.text() == "X grid on"
     assert window.ygrid_action.text() == "Y grid off"
-    assert window.scale_action.text() == "Hide scale"
+    assert window.scale_action.text() == "Show scale"
+    assert window.scale_action.isChecked() is True
 
     window.xgrid_action.trigger()
     window.ygrid_action.trigger()
@@ -58,6 +59,7 @@ def test_gui_display_menu_labels_refresh_after_toggle(qapp) -> None:
     assert window.xgrid_action.text() == "X grid off"
     assert window.ygrid_action.text() == "Y grid on"
     assert window.scale_action.text() == "Show scale"
+    assert window.scale_action.isChecked() is False
     window.close()
 
 
@@ -80,6 +82,26 @@ def test_gui_navigation_buttons_and_position_field_update_visible_window(qapp) -
     curve = next(item for item in window.canvas._items if hasattr(item, "getData"))
     x_values, _y_values = curve.getData()
     assert x_values[0] == pytest.approx(3.0)
+    window.close()
+
+
+def test_gui_shell_controls_use_eeglab_browser_geometry(qapp) -> None:
+    from eegprep.functions.guifunc.eegbrowser import EEGBrowserWindow
+
+    model = build_eegplot_model(np.zeros((8, 100)), srate=10, winlength=2, dispchans=6, spacing=1)
+    window = EEGBrowserWindow(model)
+    window.resize(960, 560)
+    window.show()
+    qapp.processEvents()
+
+    assert window.channel_slider.geometry().x() < window.canvas.geometry().x()
+    assert window.scale_indicator.geometry().x() >= window.canvas.geometry().right() - 2
+    assert window.controls.stack_button.geometry().y() < window.canvas.geometry().y()
+    assert window.controls.norm_button.geometry().y() > window.controls.stack_button.geometry().y()
+    assert window.controls.cancel_button.geometry().x() < window.controls.back_page_button.geometry().x()
+    assert window.controls.back_step_button.geometry().right() <= window.controls.position.geometry().x()
+    assert window.controls.position.geometry().right() <= window.controls.forward_step_button.geometry().x()
+    assert window.controls.plus_button.geometry().y() < window.controls.minus_button.geometry().y()
     window.close()
 
 
@@ -140,7 +162,7 @@ def test_gui_menus_toggle_events_marks_scale_and_channel_labels(qapp) -> None:
         np.zeros((2, 30)),
         srate=10,
         spacing=1,
-        events=[{"type": "stim", "latency": 5}],
+        events=[{"type": "stim", "latency": 5, "duration": 4}],
         winrej=[[1, 10, 0.7, 1.0, 0.9, 1, 1]],
     )
     window = EEGBrowserWindow(model)
@@ -161,12 +183,21 @@ def test_gui_menus_toggle_events_marks_scale_and_channel_labels(qapp) -> None:
     assert model.state.scale is False
     assert window.scale_action.text() == "Show scale"
 
+    assert window.event_duration_action.isEnabled() is True
+    assert model.state.show_event_durations is False
+    window.event_duration_action.trigger()
+    assert model.state.show_event_durations is True
+    assert window.event_duration_action.text() == "Hide event duration"
+
     window.show_numbers_action.trigger()
     assert model.state.channel_label_mode == "numbers"
-    window.hide_labels_action.trigger()
-    assert model.state.channel_label_mode == "none"
     window.show_labels_action.trigger()
     assert model.state.channel_label_mode == "labels"
+    assert [action.text() for action in window.show_labels_action.parent().actions()] == [
+        "Show number",
+        "Show label",
+        "Load .loc(s) file",
+    ]
     window.close()
 
 

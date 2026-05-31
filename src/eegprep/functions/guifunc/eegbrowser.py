@@ -37,6 +37,30 @@ _EVENT_COLORS = (
 )
 _SCALE_STEP = 0.1
 _MIN_SPACING = 0.001
+_TRACE_SCALE = 0.72
+_AXES_POSITION = (0.0964286, 0.15, 0.842, 0.75)
+_CONTROL_POSITIONS = {
+    "back_page": (0.2464, 0.0254, 0.0385, 0.0339),
+    "back_step": (0.2924, 0.0254, 0.0288, 0.0339),
+    "position": (0.3287, 0.0203, 0.0561, 0.0390),
+    "forward_step": (0.3924, 0.0254, 0.0299, 0.0339),
+    "forward_page": (0.4297, 0.0254, 0.0385, 0.0339),
+    "spacing": (0.6744, 0.0236, 0.0582, 0.0390),
+    "channel_value": (0.4762, 0.0100, 0.0582, 0.0390),
+    "time_value": (0.5256, 0.0100, 0.0707, 0.0390),
+    "data_value": (0.6006, 0.0100, 0.0582, 0.0390),
+    "channel_label": (0.4762, 0.0500, 0.0582, 0.0390),
+    "time_label": (0.5256, 0.0500, 0.0707, 0.0390),
+    "data_label": (0.6006, 0.0500, 0.0582, 0.0390),
+    "plus": (0.7437, 0.0458, 0.0275, 0.0270),
+    "minus": (0.7437, 0.0134, 0.0275, 0.0270),
+    "accept": (0.8000, 0.0200, 0.1400, 0.0500),
+    "cancel": (0.0500, 0.0200, 0.0700, 0.0500),
+    "events": (0.1400, 0.0200, 0.0900, 0.0500),
+    "channel_slider": (0.0300, 0.1500, 0.0150, 0.8000),
+    "norm": (0.9380, 0.8700, 0.0600, 0.0480),
+    "stack": (0.9380, 0.9300, 0.0600, 0.0480),
+}
 _BUTTON_STYLE = """
 QWidget { background: #eaf2ff; color: #000000; }
 QPushButton {
@@ -44,23 +68,37 @@ QPushButton {
     border: 1px solid #7f8fa6;
     border-radius: 3px;
     color: #000000;
-    min-width: 34px;
-    padding: 2px 6px;
+    min-width: 0px;
+    padding: 1px 2px;
 }
 QPushButton:disabled { color: #777777; background: #d8d8d8; }
 QPushButton#eegbrowser_event_types { min-width: 86px; }
 QPushButton#eegbrowser_cancel { min-width: 56px; }
-QDoubleSpinBox, QSpinBox {
+QLineEdit {
     background: #ffffff;
     border: 1px solid #7f8fa6;
     color: #000000;
-    min-width: 74px;
+    padding: 1px 3px;
 }
 QLabel#eegbrowser_status_value {
     background: transparent;
     color: #000000;
-    min-width: 48px;
     padding: 1px 3px;
+}
+QLabel#eegbrowser_status_label {
+    background: transparent;
+    color: #000000;
+    font-weight: 600;
+}
+QScrollBar:vertical {
+    background: #d7e8ff;
+    border: 1px solid #7f8fa6;
+    width: 16px;
+}
+QScrollBar::handle:vertical {
+    background: #bfbfbf;
+    border: 1px solid #7f8fa6;
+    min-height: 24px;
 }
 """
 
@@ -89,27 +127,45 @@ class EEGBrowserWindow(_QMainWindow):
         self.setWindowTitle(model.state.title)
         self.setStyleSheet(_BUTTON_STYLE)
         self.resize(960, 560)
+        self.setMinimumSize(720, 420)
         central = qt_widgets.QWidget()
-        layout = qt_widgets.QVBoxLayout(central)
-        layout.setContentsMargins(6, 6, 6, 6)
-        layout.setSpacing(4)
-        plot_layout = qt_widgets.QHBoxLayout()
-        plot_layout.setContentsMargins(0, 0, 0, 0)
-        plot_layout.setSpacing(4)
-        self.channel_slider = qt_widgets.QSlider(QtCore.Qt.Orientation.Vertical)
+        central.setObjectName("eegbrowser_content")
+        self._content = central
+        self.channel_slider = qt_widgets.QScrollBar(QtCore.Qt.Orientation.Vertical, central)
         self.channel_slider.setObjectName("eegbrowser_channel_slider")
-        self.channel_slider.setInvertedAppearance(True)
         self.channel_slider.valueChanged.connect(self._set_channel_offset)
-        self.canvas = EEGBrowserCanvas(model)
-        plot_layout.addWidget(self.channel_slider, 0)
-        plot_layout.addWidget(self.canvas, 1)
-        layout.addLayout(plot_layout, 1)
+        self.canvas = EEGBrowserCanvas(model, parent=central)
+        self.scale_indicator = _ScaleIndicator(model, parent=central)
         self.controls = _BrowserControls(self)
-        layout.addWidget(self.controls, 0)
         self.setCentralWidget(central)
         self._build_menus()
         self._build_shortcuts()
+        self._layout_children()
         self._sync_controls()
+
+    def resizeEvent(self, event: Any) -> None:  # noqa: N802 - Qt API name
+        super().resizeEvent(event)
+        self._layout_children()
+
+    def _layout_children(self) -> None:
+        width = max(1, self._content.width())
+        height = max(1, self._content.height())
+        axes_geometry = _rect_from_normalized(_AXES_POSITION, width, height)
+        self.canvas.setGeometry(
+            axes_geometry.adjusted(
+                -42,
+                -5,
+                1,
+                28,
+            )
+        )
+        self.channel_slider.setGeometry(_rect_from_normalized(_CONTROL_POSITIONS["channel_slider"], width, height))
+        scale_x = _AXES_POSITION[0] + _AXES_POSITION[2]
+        scale_width = max(0.001, 1.0 - scale_x)
+        self.scale_indicator.setGeometry(
+            _rect_from_normalized((scale_x, _AXES_POSITION[1], scale_width, _AXES_POSITION[3]), width, height)
+        )
+        self.controls.set_geometry(width, height)
 
     def _build_menus(self) -> None:
         figure_menu = self.menuBar().addMenu("Figure")
@@ -138,7 +194,7 @@ class EEGBrowserWindow(_QMainWindow):
         self.mark_color_action = mark_menu.addAction("Choose color")
         self.mark_color_action.triggered.connect(self._choose_mark_color)
         self.event_duration_action = display_menu.addAction("Plot event duration")
-        self.event_duration_action.setEnabled(False)
+        self.event_duration_action.triggered.connect(self._toggle_event_durations)
         grid_menu = display_menu.addMenu("Grid")
         self.xgrid_action = grid_menu.addAction("")
         self.xgrid_action.triggered.connect(self._toggle_xgrid)
@@ -151,6 +207,7 @@ class EEGBrowserWindow(_QMainWindow):
         self.submean_action = display_menu.addAction("")
         self.submean_action.triggered.connect(self._toggle_submean)
         self.scale_action = display_menu.addAction("")
+        self.scale_action.setCheckable(True)
         self.scale_action.triggered.connect(self._toggle_scale)
         self.title_action = display_menu.addAction("Title")
         self.title_action.triggered.connect(self._prompt_title)
@@ -171,9 +228,6 @@ class EEGBrowserWindow(_QMainWindow):
         self.show_labels_action = channel_label_menu.addAction("Show label")
         self.show_labels_action.setCheckable(True)
         self.show_labels_action.triggered.connect(lambda: self.set_channel_label_mode("labels"))
-        self.hide_labels_action = channel_label_menu.addAction("Hide labels")
-        self.hide_labels_action.setCheckable(True)
-        self.hide_labels_action.triggered.connect(lambda: self.set_channel_label_mode("none"))
         self.load_locs_action = channel_label_menu.addAction("Load .loc(s) file")
         self.load_locs_action.setEnabled(False)
         zoom_menu = settings_menu.addMenu("Zoom off/on")
@@ -191,8 +245,7 @@ class EEGBrowserWindow(_QMainWindow):
         self.event_legend_action = events_menu.addAction("Events' legend")
         self.event_legend_action.triggered.connect(self.show_event_legend)
 
-        help_menu = self.menuBar().addMenu("Help")
-        self.help_action = help_menu.addAction("eegplot help")
+        self.help_action = self.menuBar().addAction("Help")
         self.help_action.triggered.connect(lambda: self._show_status_message("EEGPrep eegplot browser"))
         self._refresh_menu_labels()
 
@@ -219,17 +272,22 @@ class EEGBrowserWindow(_QMainWindow):
         self.marks_action.setText("Hide marks" if self.model.state.show_marks else "Show marks")
         self.xgrid_action.setText("X grid off" if self.model.state.xgrid else "X grid on")
         self.ygrid_action.setText("Y grid off" if self.model.state.ygrid else "Y grid on")
-        self.submean_action.setText("Remove DC offset off" if self.model.state.submean else "Remove DC offset on")
-        self.scale_action.setText("Hide scale" if self.model.state.scale else "Show scale")
+        self.submean_action.setText("Do not remove DC offset" if self.model.state.submean else "Remove DC offset")
+        self.scale_action.setText("Show scale")
+        self.scale_action.setChecked(self.model.state.scale)
         self.stack_action.setText("Spread channels" if self.model.state.stacked else "Stack channels")
         self.norm_action.setText("Denormalize channels" if self.model.state.normalized else "Normalize channels")
         has_events = bool(self.model.state.events)
+        has_event_durations = any(_event_duration_samples(event) is not None for event in self.model.state.events)
+        self.event_duration_action.setEnabled(has_event_durations)
+        self.event_duration_action.setText(
+            "Hide event duration" if self.model.state.show_event_durations else "Plot event duration"
+        )
         self.events_on_action.setEnabled(has_events)
         self.events_off_action.setEnabled(has_events)
         self.event_legend_action.setEnabled(has_events)
         self.show_numbers_action.setChecked(self.model.state.channel_label_mode == "numbers")
         self.show_labels_action.setChecked(self.model.state.channel_label_mode == "labels")
-        self.hide_labels_action.setChecked(self.model.state.channel_label_mode == "none")
 
     def _toggle_xgrid(self) -> None:
         self.model.state.xgrid = not self.model.state.xgrid
@@ -245,6 +303,10 @@ class EEGBrowserWindow(_QMainWindow):
 
     def _toggle_marks(self) -> None:
         self.model.state.show_marks = not self.model.state.show_marks
+        self._redraw()
+
+    def _toggle_event_durations(self) -> None:
+        self.model.state.show_event_durations = not self.model.state.show_event_durations
         self._redraw()
 
     def _toggle_submean(self) -> None:
@@ -353,6 +415,7 @@ class EEGBrowserWindow(_QMainWindow):
     def _redraw(self) -> None:
         self.model.state.clamp_to_data(self.model.data)
         self.canvas.redraw()
+        self.scale_indicator.update()
         self._sync_controls()
         self._refresh_menu_labels()
 
@@ -361,9 +424,12 @@ class EEGBrowserWindow(_QMainWindow):
         maximum_offset = max(0, self.model.data.n_channels - self.model.state.dispchans)
         self.channel_slider.blockSignals(True)
         self.channel_slider.setRange(0, maximum_offset)
+        self.channel_slider.setPageStep(max(1, self.model.state.dispchans))
+        self.channel_slider.setSingleStep(1)
         self.channel_slider.setValue(self.model.state.channel_offset)
         self.channel_slider.setVisible(maximum_offset > 0)
         self.channel_slider.blockSignals(False)
+        self.scale_indicator.setVisible(self.model.state.scale)
         self.controls.sync_from_state()
 
     def _prompt_title(self) -> None:
@@ -428,23 +494,25 @@ class EEGBrowserWindow(_QMainWindow):
 class EEGBrowserCanvas(_QWidget):
     """pyqtgraph canvas for traces, events, and marked windows."""
 
-    def __init__(self, model: BrowserModel):
-        super().__init__()
+    def __init__(self, model: BrowserModel, parent: Any | None = None):
+        super().__init__(parent)
         qt_widgets, plot_graphics = _require_gui()
         self.model = model
         self.setObjectName("eegbrowser_canvas")
-        self.setMinimumSize(680, 380)
         self._items: list[Any] = []
         layout = qt_widgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        self.plot = plot_graphics.PlotWidget(background="w")
+        self.plot = plot_graphics.PlotWidget(background=None)
         self.plot.setObjectName("eegbrowser_plot")
-        self.plot.showGrid(x=model.state.xgrid, y=model.state.ygrid, alpha=0.25)
+        self.plot.getViewBox().setBackgroundColor("w")
+        self.plot.showGrid(x=False, y=False)
         self.plot.setMenuEnabled(False)
         self.plot.setMouseEnabled(x=model.state.zoom_enabled, y=model.state.zoom_enabled)
         self.plot.hideButtons()
         self.plot.getPlotItem().setClipToView(True)
         self.plot.getPlotItem().setDownsampling(auto=True, mode="peak")
+        self.plot.getViewBox().invertY(True)
+        self._style_axes()
         layout.addWidget(self.plot)
         self.redraw()
 
@@ -453,17 +521,17 @@ class EEGBrowserCanvas(_QWidget):
         self.model.state.clamp_to_data(self.model.data)
         self.plot.clear()
         self._items.clear()
-        self.plot.showGrid(x=self.model.state.xgrid, y=self.model.state.ygrid, alpha=0.25)
+        self.plot.showGrid(x=False, y=False)
         self._configure_axes()
+        self._draw_grid()
         self._draw_winrej()
         self._draw_events()
         self._draw_traces()
-        self._draw_scale()
 
     def _configure_axes(self) -> None:
         start, stop = visible_sample_bounds(self.model.data, self.model.state)
         self.plot.setXRange(self._sample_edge_to_x_value(start), self._sample_edge_to_x_value(stop), padding=0)
-        self.plot.setYRange(-0.5, float(self.model.state.dispchans) - 0.5, padding=0.04)
+        self.plot.setYRange(-0.5, float(self._plot_channel_count()) - 0.5, padding=0)
         labels = []
         if self.model.state.channel_label_mode != "none":
             for screen_index, channel_index in enumerate(self._visible_channels()):
@@ -473,8 +541,7 @@ class EEGBrowserCanvas(_QWidget):
                     label = self.model.data.channel_labels[channel_index]
                 labels.append((float(screen_index), label))
         self.plot.getAxis("left").setTicks([labels])
-        axis_label, axis_units = self._bottom_axis_label()
-        self.plot.getAxis("bottom").setLabel(axis_label, units=axis_units)
+        self.plot.getAxis("bottom").setLabel("")
         self.plot.getAxis("bottom").setTicks([self._x_ticks(start, stop)])
         self.plot.setTitle(self.model.state.plottitle)
 
@@ -514,6 +581,19 @@ class EEGBrowserCanvas(_QWidget):
                 continue
             color = _EVENT_COLORS[event.color_index % len(_EVENT_COLORS)]
             x_value = self._sample_to_x_value(sample)
+            duration = _event_duration_samples(event)
+            if self.model.state.show_event_durations and duration is not None:
+                duration_stop = min(self.model.data.total_samples - 1, sample + duration)
+                region = plot_graphics.LinearRegionItem(
+                    values=(x_value, self._sample_to_x_value(duration_stop)),
+                    orientation=plot_graphics.LinearRegionItem.Vertical,
+                    brush=(*color, 45),
+                    movable=False,
+                )
+                region.lines[0].setPen(plot_graphics.mkPen((*color, 90), width=1))
+                region.lines[1].setPen(plot_graphics.mkPen((*color, 90), width=1))
+                self.plot.addItem(region)
+                self._items.append(region)
             line = plot_graphics.InfiniteLine(
                 pos=x_value,
                 angle=90,
@@ -522,7 +602,7 @@ class EEGBrowserCanvas(_QWidget):
             )
             self.plot.addItem(line)
             label = plot_graphics.TextItem(event.type[:20], color=color, anchor=(0, 1), angle=90)
-            label.setPos(x_value, float(self.model.state.dispchans) - 0.6)
+            label.setPos(x_value, 0.0)
             self.plot.addItem(label)
             self._items.extend([line, label])
 
@@ -572,44 +652,19 @@ class EEGBrowserCanvas(_QWidget):
         curve.setClipToView(True)
         self._items.append(curve)
 
-    def _draw_scale(self) -> None:
-        _qt_widgets, plot_graphics = _require_gui()
-        if not self.model.state.scale:
-            return
-        start, stop = visible_sample_bounds(self.model.data, self.model.state)
-        x_start = self._sample_edge_to_x_value(start)
-        x_stop = self._sample_edge_to_x_value(stop)
-        x_span = max(abs(x_stop - x_start), np.finfo(float).eps)
-        x = x_stop - x_span / 20.0
-        y0 = -0.25
-        y1 = y0 + 0.42
-        pen = plot_graphics.mkPen((0, 0, 0), width=1)
-        for xs, ys in (
-            ([x, x], [y0, y1]),
-            ([x - 0.01 * x_span, x + 0.01 * x_span], [y0, y0]),
-            ([x - 0.01 * x_span, x + 0.01 * x_span], [y1, y1]),
-        ):
-            self._items.append(self.plot.plot(xs, ys, pen=pen))
-        label = plot_graphics.TextItem(f"{self.model.state.spacing:g}", color=(0, 0, 0), anchor=(0, 0.5))
-        label.setPos(x, (y0 + y1) / 2.0)
-        self.plot.addItem(label)
-        self._items.append(label)
-
     def _trace_to_axis_y(self, values: np.ndarray, screen_index: int) -> np.ndarray:
         spacing = max(float(self.model.state.spacing), np.finfo(float).eps)
-        baseline = (float(self.model.state.dispchans) - 1.0) / 2.0 if self.model.state.stacked else float(screen_index)
-        return baseline + np.asarray(values, dtype=float) / spacing * 0.42
+        baseline = (float(self._plot_channel_count()) - 1.0) / 2.0 if self.model.state.stacked else float(screen_index)
+        return baseline - np.asarray(values, dtype=float) / spacing * _TRACE_SCALE
 
     def _visible_channels(self) -> range:
         state = self.model.state
-        return range(state.channel_offset, state.channel_offset + state.dispchans)
+        return range(state.channel_offset, state.channel_offset + self._plot_channel_count())
 
-    def _bottom_axis_label(self) -> tuple[str, str]:
-        if self.model.data.mode == "spectral":
-            return "Frequency", "Hz"
-        if self.model.data.epoched:
-            return "Epoch", ""
-        return "Time", "s"
+    def _plot_channel_count(self) -> int:
+        state = self.model.state
+        remaining = self.model.data.n_channels - state.channel_offset
+        return max(1, min(remaining, state.dispchans + 2))
 
     def _sample_range_to_x_values(self, start: int, stop: int) -> np.ndarray:
         if self.model.data.x_values is not None:
@@ -648,8 +703,7 @@ class EEGBrowserCanvas(_QWidget):
             ]
         start_x = self._sample_edge_to_x_value(start)
         stop_x = self._sample_edge_to_x_value(stop)
-        duration = max(1.0, abs(stop_x - start_x))
-        step = _nice_time_step(duration)
+        step = 1.0
         first = np.ceil(start_x / step) * step
         ticks = []
         current = first
@@ -658,39 +712,136 @@ class EEGBrowserCanvas(_QWidget):
             current += step
         return ticks
 
+    def _style_axes(self) -> None:
+        _qt_widgets, plot_graphics = _require_gui()
+        plot_item = self.plot.getPlotItem()
+        plot_item.showAxis("top", True)
+        plot_item.showAxis("right", True)
+        plot_item.getAxis("top").setStyle(showValues=False)
+        plot_item.getAxis("right").setStyle(showValues=False)
+        axis_pen = plot_graphics.mkPen((0, 0, 0), width=1)
+        for name in ("left", "bottom", "top", "right"):
+            axis = plot_item.getAxis(name)
+            axis.setPen(axis_pen)
+            axis.setTextPen(axis_pen)
+            axis.setTickPen(axis_pen)
+        plot_item.getAxis("left").setWidth(42)
+        plot_item.getAxis("bottom").setHeight(28)
+        plot_item.getAxis("top").setHeight(1)
+        plot_item.getAxis("right").setWidth(1)
+        plot_item.getAxis("bottom").setGrid(False)
+        plot_item.getAxis("left").setGrid(False)
 
-class _BrowserControls(_QWidget):
-    def __init__(self, browser: EEGBrowserWindow):
+    def _draw_grid(self) -> None:
+        _qt_widgets, plot_graphics = _require_gui()
+        start, stop = visible_sample_bounds(self.model.data, self.model.state)
+        pen = plot_graphics.mkPen((225, 225, 225), width=1)
+        if self.model.state.xgrid:
+            for x_value, _label in self._x_ticks(start, stop):
+                line = plot_graphics.InfiniteLine(pos=x_value, angle=90, pen=pen, movable=False)
+                self.plot.addItem(line)
+                self._items.append(line)
+        if self.model.state.ygrid:
+            for y_value in range(self._plot_channel_count()):
+                line = plot_graphics.InfiniteLine(pos=float(y_value), angle=0, pen=pen, movable=False)
+                self.plot.addItem(line)
+                self._items.append(line)
+
+
+class _ScaleIndicator(_QWidget):
+    def __init__(self, model: BrowserModel, parent: Any | None = None):
+        super().__init__(parent)
+        self.model = model
+        self.setObjectName("eegbrowser_scale_indicator")
+
+    def paintEvent(self, event: Any) -> None:  # noqa: N802 - Qt API name
+        super().paintEvent(event)
+        if not self.model.state.scale or QtGui is None or QtCore is None:
+            return
+        painter = QtGui.QPainter(self)
+        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, False)
+        painter.setPen(QtGui.QPen(QtGui.QColor("#000000"), 1))
+        font = painter.font()
+        font.setPointSize(10)
+        painter.setFont(font)
+        width = self.width()
+        height = self.height()
+        x = max(10, width // 2)
+        top = int(height * 0.82)
+        bottom = int(height * 0.98)
+        cap = max(7, int(width * 0.22))
+        painter.drawText(QtCore.QRect(0, max(0, top - 70), width, 24), QtCore.Qt.AlignmentFlag.AlignCenter, "Scale")
+        painter.drawText(
+            QtCore.QRect(0, max(0, top - 42), width, 24),
+            QtCore.Qt.AlignmentFlag.AlignCenter,
+            _format_control_number(self.model.state.spacing),
+        )
+        painter.drawLine(x - cap, top, x + cap, top)
+        painter.drawLine(x, top, x, bottom)
+        painter.drawLine(x - cap, bottom, x + cap, bottom)
+        painter.end()
+
+
+_NumericLineEditBase = QtWidgets.QLineEdit if QtWidgets is not None else object
+
+
+class _NumericLineEdit(_NumericLineEditBase):
+    if QtCore is not None:  # pragma: no branch - class definition guard
+        valueChanged = QtCore.Signal(float)
+
+    def __init__(self, value: float = 0.0, *, minimum: float = 0.0, maximum: float = 1_000_000.0):
         super().__init__()
+        self._minimum = float(minimum)
+        self._maximum = float(maximum)
+        self.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        self.editingFinished.connect(self._emit_value)
+        self.setValue(value)
+
+    def setRange(self, minimum: float, maximum: float) -> None:  # noqa: N802 - Qt-style compatibility
+        self._minimum = float(minimum)
+        self._maximum = float(maximum)
+        if not self.signalsBlocked():
+            self.setValue(self.value())
+
+    def setValue(self, value: float) -> None:  # noqa: N802 - Qt-style compatibility
+        clamped = min(max(float(value), self._minimum), self._maximum)
+        self.setText(_format_control_number(clamped))
+        if not self.signalsBlocked():
+            self.valueChanged.emit(clamped)
+
+    def value(self) -> float:
+        try:
+            value = float(self.text())
+        except ValueError:
+            value = self._minimum
+        return min(max(value, self._minimum), self._maximum)
+
+    def _emit_value(self) -> None:
+        self.setValue(self.value())
+
+
+class _BrowserControls:
+    def __init__(self, browser: EEGBrowserWindow):
         qt_widgets, _pg = _require_gui()
         self.browser = browser
         self.model = browser.model
-        self.setStyleSheet(_BUTTON_STYLE)
-        layout = qt_widgets.QHBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(4)
+        parent = browser._content
+        self._widgets: list[Any] = []
 
-        self.cancel_button = qt_widgets.QPushButton("Cancel" if self.model.state.accept_label is not None else "Close")
+        self.cancel_button = qt_widgets.QPushButton(
+            "CANCEL" if self.model.state.accept_label is not None else "CLOSE", parent
+        )
         self.cancel_button.setObjectName("eegbrowser_cancel")
         self.cancel_button.clicked.connect(browser.cancel_and_close)
-        layout.addWidget(self.cancel_button)
-        self.event_button = qt_widgets.QPushButton("Event types")
+        self._widgets.append(self.cancel_button)
+        self.event_button = qt_widgets.QPushButton("Event types", parent)
         self.event_button.setObjectName("eegbrowser_event_types")
-        self.event_button.setMinimumWidth(90)
         self.event_button.clicked.connect(browser.show_event_legend)
-        layout.addWidget(self.event_button)
+        self._widgets.append(self.event_button)
         self.back_page_button = self._button("<<", lambda: browser.scroll_time(-5.0))
         self.back_step_button = self._button("<", lambda: browser.scroll_time(-1.0))
         self.forward_step_button = self._button(">", lambda: browser.scroll_time(1.0))
         self.forward_page_button = self._button(">>", lambda: browser.scroll_time(5.0))
-        for button in (
-            self.back_page_button,
-            self.back_step_button,
-            self.forward_step_button,
-            self.forward_page_button,
-        ):
-            layout.addWidget(button)
-        layout.addSpacing(12)
 
         self.channel_label = self._status_label("Chan.")
         self.channel_value = self._status_value("")
@@ -698,52 +849,66 @@ class _BrowserControls(_QWidget):
         self.time_value = self._status_value("0.00")
         self.value_label = self._status_label("Value")
         self.value_value = self._status_value("0.00")
-        for widget in (
-            self.channel_label,
-            self.channel_value,
-            self.time_label,
-            self.time_value,
-            self.value_label,
-            self.value_value,
-        ):
-            layout.addWidget(widget)
 
-        self.position = qt_widgets.QDoubleSpinBox()
+        self.position = _NumericLineEdit()
         self.position.setObjectName("eegbrowser_position")
-        self.position.setDecimals(3)
-        self.position.setSingleStep(0.1)
         self.position.valueChanged.connect(browser.set_position)
-        layout.addWidget(self.position)
+        self.position.setParent(parent)
+        self._widgets.append(self.position)
 
-        self.spacing = qt_widgets.QDoubleSpinBox()
+        self.spacing = _NumericLineEdit(minimum=_MIN_SPACING)
         self.spacing.setObjectName("eegbrowser_spacing")
-        self.spacing.setDecimals(3)
         self.spacing.setRange(_MIN_SPACING, 1_000_000.0)
         self.spacing.valueChanged.connect(browser.set_spacing)
-        layout.addWidget(self.spacing)
+        self.spacing.setParent(parent)
+        self._widgets.append(self.spacing)
         self.plus_button = self._button("+", lambda: browser.adjust_spacing(1))
         self.minus_button = self._button("-", lambda: browser.adjust_spacing(-1))
-        layout.addWidget(self.plus_button)
-        layout.addWidget(self.minus_button)
         self.norm_button = self._button("Norm", browser.toggle_normalize)
         self.stack_button = self._button("Stack", browser.toggle_stack)
-        layout.addWidget(self.norm_button)
-        layout.addWidget(self.stack_button)
-        layout.addStretch(1)
-        self.accept_button = qt_widgets.QPushButton(self.model.state.accept_label or "REJECT")
+        self.accept_button = qt_widgets.QPushButton(self.model.state.accept_label or "REJECT", parent)
         self.accept_button.setObjectName("eegbrowser_accept")
         self.accept_button.clicked.connect(browser.accept_and_close)
-        layout.addWidget(self.accept_button)
+        self._widgets.append(self.accept_button)
+
+    def set_geometry(self, width: int, height: int) -> None:
+        for name, widget in (
+            ("cancel", self.cancel_button),
+            ("events", self.event_button),
+            ("back_page", self.back_page_button),
+            ("back_step", self.back_step_button),
+            ("position", self.position),
+            ("forward_step", self.forward_step_button),
+            ("forward_page", self.forward_page_button),
+            ("channel_label", self.channel_label),
+            ("channel_value", self.channel_value),
+            ("time_label", self.time_label),
+            ("time_value", self.time_value),
+            ("data_label", self.value_label),
+            ("data_value", self.value_value),
+            ("spacing", self.spacing),
+            ("plus", self.plus_button),
+            ("minus", self.minus_button),
+            ("norm", self.norm_button),
+            ("stack", self.stack_button),
+            ("accept", self.accept_button),
+        ):
+            widget.setGeometry(_rect_from_normalized(_CONTROL_POSITIONS[name], width, height))
+
+    def hide(self) -> None:
+        for widget in self._widgets:
+            widget.hide()
+
+    def show(self) -> None:
+        for widget in self._widgets:
+            widget.show()
 
     def sync_from_state(self) -> None:
         state = self.model.state
-        max_time = browser_window_duration(self.model.data, state) - state.winlength
-        state_at_start = state.time <= 0
-        state_at_end = state.time >= max(0.0, max_time)
-        self.back_page_button.setEnabled(not state_at_start)
-        self.back_step_button.setEnabled(not state_at_start)
-        self.forward_step_button.setEnabled(not state_at_end)
-        self.forward_page_button.setEnabled(not state_at_end)
+        self.back_page_button.setEnabled(True)
+        self.back_step_button.setEnabled(True)
+        self.forward_step_button.setEnabled(True)
+        self.forward_page_button.setEnabled(True)
         self.position.blockSignals(True)
         self.position.setRange(
             1.0 if self.model.data.epoched else 0.0, max(0.0, browser_window_duration(self.model.data, state))
@@ -757,7 +922,7 @@ class _BrowserControls(_QWidget):
         self.accept_button.setVisible(state.accept_label is not None)
         if state.accept_label is not None:
             self.accept_button.setText(state.accept_label)
-        self.cancel_button.setText("Cancel" if state.accept_label is not None else "Close")
+        self.cancel_button.setText("CANCEL" if state.accept_label is not None else "CLOSE")
         self.stack_button.setText("Spread" if state.stacked else "Stack")
         self.norm_button.setText("Denorm" if state.normalized else "Norm")
         self.time_label.setText("Freq" if self.model.data.mode == "spectral" else "Time")
@@ -765,20 +930,48 @@ class _BrowserControls(_QWidget):
 
     def _button(self, label: str, callback: Any) -> Any:
         qt_widgets, _pg = _require_gui()
-        button = qt_widgets.QPushButton(label)
+        button = qt_widgets.QPushButton(label, self.browser._content)
         button.clicked.connect(callback)
+        self._widgets.append(button)
         return button
 
     def _status_label(self, text: str) -> Any:
         qt_widgets, _pg = _require_gui()
-        label = qt_widgets.QLabel(text)
+        label = qt_widgets.QLabel(text, self.browser._content)
+        label.setObjectName("eegbrowser_status_label")
         label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        self._widgets.append(label)
         return label
 
     def _status_value(self, text: str) -> Any:
         label = self._status_label(text)
         label.setObjectName("eegbrowser_status_value")
         return label
+
+
+def _rect_from_normalized(rect: tuple[float, float, float, float], width: int, height: int) -> Any:
+    if QtCore is None:
+        raise RuntimeError("QtCore is required for EEG browser layout")
+    x, y, rect_width, rect_height = rect
+    return QtCore.QRect(
+        int(round(x * width)),
+        int(round(height - (y + rect_height) * height)),
+        max(1, int(round(rect_width * width))),
+        max(1, int(round(rect_height * height))),
+    )
+
+
+def _format_control_number(value: float) -> str:
+    return f"{float(value):.4g}"
+
+
+def _event_duration_samples(event: Any) -> int | None:
+    if event.duration is None:
+        return None
+    duration = float(event.duration)
+    if not np.isfinite(duration) or duration <= 0:
+        return None
+    return int(round(duration))
 
 
 def _trace_color(colors: tuple[Any, ...], index: int) -> Any:
@@ -804,16 +997,6 @@ def _winrej_frame_to_index(value: float) -> int:
     if frame <= 0:
         return 0
     return frame - 1
-
-
-def _nice_time_step(duration: float) -> float:
-    target = max(duration / 6.0, 1e-6)
-    magnitude = 10 ** np.floor(np.log10(target))
-    for multiplier in (1.0, 2.0, 5.0, 10.0):
-        step = float(multiplier * magnitude)
-        if step >= target:
-            return step
-    return float(10.0 * magnitude)
 
 
 def _require_gui() -> tuple[Any, Any]:

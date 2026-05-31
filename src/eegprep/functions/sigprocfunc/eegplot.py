@@ -36,6 +36,7 @@ _OPTION_NAMES = {
     "winrej",
     "wincolor",
     "events",
+    "ploteventdur",
     "submean",
     "eloc_file",
     "scale",
@@ -117,6 +118,7 @@ class BrowserState:
     events: list[BrowserEvent]
     channel_offset: int = 0
     show_events: bool = True
+    show_event_durations: bool = False
     show_marks: bool = True
     channel_label_mode: str = "labels"
     zoom_enabled: bool = False
@@ -220,6 +222,7 @@ def build_eegplot_model(data: Any, **kwargs: Any) -> BrowserModel:
         colors=normalize_trace_colors(options["color"]),
         winrej=normalize_winrej(options["winrej"], browser_data.n_channels, browser_data.total_samples),
         events=normalize_events(options["events"]),
+        show_event_durations=bool(options["ploteventdur"]),
         accept_label=str(options["butlabel"]) if not _is_empty(options["command"]) else None,
         mark_color=_normalize_rgb(options["wincolor"], "wincolor"),
     )
@@ -433,6 +436,7 @@ def _model_options(source_eeg: dict[str, Any] | None, kwargs: dict[str, Any]) ->
     options.setdefault("winrej", None)
     options.setdefault("wincolor", DEFAULT_WINREJ_COLOR)
     options.setdefault("events", source_eeg.get("event", []) if source_eeg is not None else [])
+    options.setdefault("ploteventdur", False)
     options.setdefault("submean", "off")
     options.setdefault("eloc_file", source_eeg.get("chanlocs", None) if source_eeg is not None else None)
     options.setdefault("scale", "on")

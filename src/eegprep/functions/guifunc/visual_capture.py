@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import math
+import os
 import pathlib
 import sys
 from typing import Any
@@ -244,11 +245,8 @@ def _demo_eegbrowser_eeg(*, epoched: bool = False, events: bool = True) -> dict:
     data = np.empty((channel_count, points, trials), dtype=np.float32)
     for channel in range(channel_count):
         for trial in range(trials):
-            data[channel, :, trial] = (
-                np.sin(2 * np.pi * (channel + 1) * times)
-                + 0.2 * np.cos(2 * np.pi * (trial + 1) * times)
-                + channel * 0.05
-            )
+            trial_component = 0.2 * np.cos(2 * np.pi * (trial + 1) * times) if epoched else 0.0
+            data[channel, :, trial] = np.sin(2 * np.pi * (channel + 1) * times) + trial_component + (channel + 1) * 0.05
     if not epoched:
         data = data[:, :, 0]
     eeg_events = []
@@ -368,6 +366,9 @@ def capture_eegbrowser(output: pathlib.Path, *, variant: str = "continuous") -> 
     if variant != "labels":
         model.state.channel_label_mode = "numbers"
     window = EEGBrowserWindow(model)
+    width = int(os.environ.get("EEGPREP_VISUAL_WINDOW_WIDTH", "960"))
+    height = int(os.environ.get("EEGPREP_VISUAL_WINDOW_HEIGHT", "560"))
+    window.resize(width, height)
     window.show()
     window.raise_()
     window.activateWindow()
