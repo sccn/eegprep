@@ -1,0 +1,4 @@
+interface:
+  display_name: "OC Autoreview Adapted"
+  short_description: "EEGPrep-focused autoreview workflow"
+  default_prompt: "Use $oc-autoreview-adapted to review the current EEGPrep changes before closeout."
