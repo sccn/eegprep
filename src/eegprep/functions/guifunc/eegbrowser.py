@@ -502,6 +502,7 @@ class EEGBrowserCanvas(_QWidget):
         self.setObjectName("eegbrowser_canvas")
         self._items: list[Any] = []
         self._scene_items: list[Any] = []
+        self._event_line_items: list[Any] = []
         self._event_label_items: list[Any] = []
         layout = qt_widgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -548,6 +549,7 @@ class EEGBrowserCanvas(_QWidget):
         for item in self._scene_items:
             scene.removeItem(item)
         self._scene_items.clear()
+        self._event_line_items.clear()
         self._event_label_items.clear()
 
     def _configure_axes(self) -> None:
@@ -620,9 +622,8 @@ class EEGBrowserCanvas(_QWidget):
             self._items.append(region)
 
     def _draw_event_lines_and_labels(self) -> None:
-        if QtGui is None:
+        if QtGui is None or QtWidgets is None:
             return
-        _qt_widgets, plot_graphics = _require_gui()
         if not self.model.state.show_events:
             return
         start, stop = visible_sample_bounds(self.model.data, self.model.state)
@@ -632,16 +633,23 @@ class EEGBrowserCanvas(_QWidget):
                 continue
             color = _EVENT_COLORS[event.color_index % len(_EVENT_COLORS)]
             x_value = self._sample_to_x_value(sample)
-            line = plot_graphics.InfiniteLine(
-                pos=x_value,
-                angle=90,
-                pen=plot_graphics.mkPen(color, width=2.5 if event.type.lower() == "boundary" else 1),
-                movable=False,
-            )
-            line.setZValue(25)
-            self.plot.addItem(line)
-            self._items.append(line)
+            self._add_event_line(event.type, color, x_value)
             self._add_event_label(event.type[:20], color, x_value)
+
+    def _add_event_line(self, event_type: str, color: tuple[int, int, int], x_value: float) -> None:
+        if QtGui is None or QtWidgets is None:
+            return
+        view_box = self.plot.getPlotItem().vb
+        view_rect = view_box.sceneBoundingRect()
+        scene_pos = view_box.mapViewToScene(QtCore.QPointF(x_value, 0.0))
+        line = QtWidgets.QGraphicsLineItem(scene_pos.x(), view_rect.top(), scene_pos.x(), view_rect.bottom())
+        pen = QtGui.QPen(QtGui.QColor(*color))
+        pen.setWidthF(2.5 if event_type.lower() == "boundary" else 1.5)
+        line.setPen(pen)
+        line.setZValue(34)
+        self.plot.scene().addItem(line)
+        self._scene_items.append(line)
+        self._event_line_items.append(line)
 
     def _add_event_label(self, text: str, color: tuple[int, int, int], x_value: float) -> None:
         if QtGui is None or QtWidgets is None:
