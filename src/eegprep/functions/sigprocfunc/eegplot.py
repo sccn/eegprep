@@ -32,6 +32,7 @@ _OPTION_NAMES = {
     "ygrid",
     "data2",
     "command",
+    "command_callback",
     "butlabel",
     "winrej",
     "wincolor",
@@ -44,6 +45,7 @@ _OPTION_NAMES = {
     "freqs",
     "freqlimits",
     "component",
+    "setelectrode",
     "show",
 }
 
@@ -126,6 +128,7 @@ class BrowserState:
     normalized: bool = False
     accept_label: str | None = None
     mark_color: tuple[float, float, float] = DEFAULT_WINREJ_COLOR
+    setelectrode: bool = False
     accepted: bool = False
     cancelled: bool = False
 
@@ -170,7 +173,10 @@ def eegplot(data: Any, *args: Any, **kwargs: Any) -> Any:
         return model
     from eegprep.functions.guifunc.eegbrowser import open_eegbrowser
 
-    return open_eegbrowser(model)
+    command_callback = options.get("command_callback")
+    if command_callback is None and callable(options.get("command")):
+        command_callback = options.get("command")
+    return open_eegbrowser(model, accept_callback=command_callback)
 
 
 def parse_eegplot_options(args: tuple[Any, ...], kwargs: dict[str, Any]) -> dict[str, Any]:
@@ -223,8 +229,13 @@ def build_eegplot_model(data: Any, **kwargs: Any) -> BrowserModel:
         winrej=normalize_winrej(options["winrej"], browser_data.n_channels, browser_data.total_samples),
         events=normalize_events(options["events"]),
         show_event_durations=bool(options["ploteventdur"]),
-        accept_label=str(options["butlabel"]) if not _is_empty(options["command"]) else None,
+        accept_label=(
+            str(options["butlabel"])
+            if not _is_empty(options["command"]) or options.get("command_callback") is not None
+            else None
+        ),
         mark_color=_normalize_rgb(options["wincolor"], "wincolor"),
+        setelectrode=bool(options["setelectrode"]),
     )
     state.clamp_to_data(browser_data)
     return BrowserModel(browser_data, state)
@@ -370,6 +381,162 @@ def normalize_winrej(value: Any, n_channels: int, total_samples: int) -> list[Wi
     return regions
 
 
+def winrej_to_array(regions: list[WinRejRegion], n_channels: int | None = None) -> np.ndarray:
+    """Convert normalized ``winrej`` regions back to EEGLAB row format."""
+    if n_channels is None:
+        n_channels = max((len(region.channel_mask) for region in regions), default=0)
+    rows = np.zeros((len(regions), 5 + int(n_channels)), dtype=float)
+    for index, region in enumerate(regions):
+        rows[index, 0] = float(region.start)
+        rows[index, 1] = float(region.end)
+        rows[index, 2:5] = np.asarray(region.color, dtype=float)
+        mask = np.asarray(region.channel_mask, dtype=bool)
+        rows[index, 5 : 5 + min(mask.size, int(n_channels))] = mask[: int(n_channels)]
+    return rows
+
+
+def trial2eegplot(rej: Any, rejE: Any, pnts: int, color: Any = DEFAULT_WINREJ_COLOR) -> np.ndarray:
+    """Convert EEGLAB trial/electrode marks to ``eegplot`` ``winrej`` rows.
+
+    EEGLAB's ``trial2eegplot.m`` stores epoch windows as 0-based browser
+    offsets: ``[(trial - 1) * pnts, trial * pnts - 1]``.
+    """
+    trial_marks = np.asarray(rej if rej is not None else [], dtype=bool).ravel()
+    row_marks = np.asarray(rejE if rejE is not None else [], dtype=bool)
+    if trial_marks.size == 0:
+        return np.zeros((0, 5 + (0 if row_marks.ndim == 0 else row_marks.shape[0])), dtype=float)
+    if row_marks.size == 0:
+        row_marks = np.ones((0, trial_marks.size), dtype=bool)
+    if row_marks.ndim == 1:
+        row_marks = row_marks.reshape(1, -1)
+    if row_marks.shape[1] < trial_marks.size:
+        padded = np.zeros((row_marks.shape[0], trial_marks.size), dtype=bool)
+        padded[:, : row_marks.shape[1]] = row_marks
+        row_marks = padded
+    marked = np.flatnonzero(trial_marks)
+    rows = np.zeros((marked.size, 5 + row_marks.shape[0]), dtype=float)
+    if marked.size == 0:
+        return rows
+    rows[:, 0] = marked * int(pnts)
+    rows[:, 1] = (marked + 1) * int(pnts) - 1
+    rows[:, 2:5] = np.tile(np.asarray(_normalize_rgb(color, "color"), dtype=float), (marked.size, 1))
+    rows[:, 5:] = row_marks[:, marked].T
+    return rows
+
+
+def eegplot2event(
+    eegplotrej: Any,
+    event_type: float = -1,
+    color: Any = None,
+    colorout: Any = None,
+) -> np.ndarray:
+    """Convert continuous ``eegplot`` marks to EEGLAB ``eeg_eegrej`` rows."""
+    rows = _filtered_winrej_rows(eegplotrej, color=color, colorout=colorout, round_colors=False)
+    if rows.size == 0:
+        return np.zeros((0, 7), dtype=float)
+    events = np.zeros((rows.shape[0], 7), dtype=float)
+    events[:, 0] = float(event_type)
+    events[:, 1] = 1.0
+    events[:, 2:4] = np.rint(rows[:, 0:2])
+    events[:, 4:7] = rows[:, 2:5]
+    return events
+
+
+def eegplot2trial(
+    eegplotrej: Any,
+    pnts: int,
+    sweeps: int,
+    color: Any = None,
+    colorout: Any = None,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Convert ``eegplot`` marks to EEGLAB trial and electrode rejection arrays."""
+    rows = _filtered_winrej_rows(eegplotrej, color=color, colorout=colorout, round_colors=True)
+    trialrej = np.zeros(int(sweeps), dtype=bool)
+    nbchan = max(0, rows.shape[1] - 5) if rows.ndim == 2 else 0
+    elecrej = np.zeros((nbchan, int(sweeps)), dtype=bool)
+    if rows.size == 0:
+        return trialrej, elecrej
+    rows = rows[np.argsort(rows[:, 0])]
+    rows[rows[:, 0] == 1, 0] = 0
+    starts = rows[:, 0] / float(pnts) + 1.0
+    aligned = np.isclose(starts, np.rint(starts))
+    for row, trial_value in zip(rows[aligned], starts[aligned]):
+        trial_index = int(round(float(trial_value))) - 1
+        if 0 <= trial_index < int(sweeps):
+            trialrej[trial_index] = True
+            if nbchan:
+                elecrej[:, trial_index] |= np.asarray(row[5 : 5 + nbchan], dtype=bool)
+    return trialrej, elecrej
+
+
+def toggle_winrej_at_sample(
+    regions: list[WinRejRegion],
+    sample: int | float,
+    *,
+    n_channels: int,
+    channel_index: int | None = None,
+) -> list[WinRejRegion]:
+    """Remove a mark at ``sample`` or toggle one channel in that mark."""
+    sample_value = float(sample)
+    out = list(regions)
+    for index, region in enumerate(out):
+        if not (float(region.start) < sample_value < float(region.end)):
+            continue
+        if channel_index is None:
+            del out[index]
+            return out
+        mask = _expanded_mask(region.channel_mask, n_channels)
+        if 0 <= int(channel_index) < n_channels:
+            mask[int(channel_index)] = not mask[int(channel_index)]
+        if any(mask):
+            out[index] = replace(region, channel_mask=tuple(mask))
+        else:
+            del out[index]
+        return out
+    return out
+
+
+def add_winrej_region(
+    regions: list[WinRejRegion],
+    start: int | float,
+    end: int | float,
+    *,
+    n_channels: int,
+    total_samples: int,
+    color: Any = DEFAULT_WINREJ_COLOR,
+    channel_index: int | None = None,
+    pnts: int | None = None,
+) -> list[WinRejRegion]:
+    """Add a continuous or epoched ``winrej`` mark with EEGLAB-style merging.
+
+    Continuous browser marks use 1-based sample latencies because accepted
+    regions flow to ``eeg_eegrej``. Epoched marks use EEGLAB's 0-based
+    ``trial2eegplot`` browser offsets.
+    """
+    start_value = int(round(float(start)))
+    end_value = int(round(float(end)))
+    if end_value < start_value:
+        start_value, end_value = end_value, start_value
+    if start_value == end_value:
+        return toggle_winrej_at_sample(regions, start_value, n_channels=n_channels, channel_index=channel_index)
+    if pnts is not None:
+        return _add_epoched_winrej(
+            regions,
+            start_value,
+            end_value,
+            n_channels,
+            int(total_samples),
+            int(pnts),
+            color,
+            channel_index,
+        )
+    start_value = max(1, min(start_value, int(total_samples)))
+    end_value = max(1, min(end_value, int(total_samples)))
+    mask = _new_mask(n_channels, channel_index)
+    new_region = WinRejRegion(float(start_value), float(end_value), _normalize_rgb(color, "color"), tuple(mask))
+    return _merge_continuous_regions([*regions, new_region], n_channels)
+
+
 def normalize_events(events: Any) -> list[BrowserEvent]:
     """Normalize EEGLAB event structures for rendering."""
     if events is None or _is_empty(events):
@@ -433,6 +600,7 @@ def _model_options(source_eeg: dict[str, Any] | None, kwargs: dict[str, Any]) ->
     options.setdefault("ygrid", "off")
     options.setdefault("data2", None)
     options.setdefault("command", None)
+    options.setdefault("command_callback", None)
     options.setdefault("butlabel", "REJECT")
     options.setdefault("winrej", None)
     options.setdefault("wincolor", DEFAULT_WINREJ_COLOR)
@@ -445,6 +613,7 @@ def _model_options(source_eeg: dict[str, Any] | None, kwargs: dict[str, Any]) ->
     options.setdefault("freqs", None)
     options.setdefault("freqlimits", None)
     options.setdefault("component", False)
+    options.setdefault("setelectrode", False)
     if options["spacing"] is None or float(options["spacing"]) == 0:
         options["spacing"] = _default_spacing(source_eeg, options)
     if options["time"] is None:
@@ -600,6 +769,126 @@ def _normalize_rgb(value: Any, name: str) -> tuple[float, float, float]:
     return values
 
 
+def _filtered_winrej_rows(eegplotrej: Any, *, color: Any, colorout: Any, round_colors: bool) -> np.ndarray:
+    if eegplotrej is None or _is_empty(eegplotrej):
+        return np.zeros((0, 5), dtype=float)
+    rows = np.asarray(eegplotrej, dtype=float)
+    if rows.ndim == 1:
+        rows = rows.reshape(1, -1)
+    if rows.ndim != 2 or rows.shape[1] < 5:
+        raise ValueError("eegplot rejection rows must contain start, end, and RGB columns")
+    rows = np.array(rows, dtype=float, copy=True)
+    if round_colors:
+        rows[:, 2:5] = np.round(rows[:, 2:5] * 100.0) / 100.0
+    if color is not None and not _is_empty(color):
+        colors = np.asarray(color, dtype=float)
+        if colors.ndim == 1:
+            colors = colors.reshape(1, -1)
+        if round_colors:
+            colors = np.round(colors * 100.0) / 100.0
+        selected = []
+        keys = _color_keys(rows[:, 2:5])
+        for row_color in colors[:, :3]:
+            selected.extend(np.flatnonzero(keys == _color_key(row_color)).tolist())
+        return rows[selected, :] if selected else rows[:0, :]
+    if colorout is not None and not _is_empty(colorout):
+        colors = np.asarray(colorout, dtype=float)
+        if colors.ndim == 1:
+            colors = colors.reshape(1, -1)
+        if round_colors:
+            colors = np.round(colors * 100.0) / 100.0
+        keep = np.ones(rows.shape[0], dtype=bool)
+        keys = _color_keys(rows[:, 2:5])
+        for row_color in colors[:, :3]:
+            keep &= keys != _color_key(row_color)
+        rows = rows[keep, :]
+    return rows
+
+
+def _color_keys(colors: np.ndarray) -> np.ndarray:
+    return colors[:, 0] + 255.0 * colors[:, 1] + 255.0 * 255.0 * colors[:, 2]
+
+
+def _color_key(color: np.ndarray) -> float:
+    values = np.asarray(color, dtype=float).ravel()
+    return float(values[0] + 255.0 * values[1] + 255.0 * 255.0 * values[2])
+
+
+def _new_mask(n_channels: int, channel_index: int | None) -> list[bool]:
+    if channel_index is None:
+        return [True] * int(n_channels)
+    mask = [False] * int(n_channels)
+    if 0 <= int(channel_index) < int(n_channels):
+        mask[int(channel_index)] = True
+    return mask
+
+
+def _expanded_mask(mask: tuple[bool, ...], n_channels: int) -> list[bool]:
+    out = list(mask[: int(n_channels)])
+    out.extend([False] * (int(n_channels) - len(out)))
+    return out
+
+
+def _add_epoched_winrej(
+    regions: list[WinRejRegion],
+    start: int,
+    end: int,
+    n_channels: int,
+    total_samples: int,
+    pnts: int,
+    color: Any,
+    channel_index: int | None,
+) -> list[WinRejRegion]:
+    first_epoch = max(0, min(start, total_samples - 1)) // pnts
+    last_epoch = max(0, min(end, total_samples - 1)) // pnts
+    out = list(regions)
+    new_mask = tuple(_new_mask(n_channels, channel_index))
+    color_value = _normalize_rgb(color, "color")
+    for epoch in range(int(first_epoch), int(last_epoch) + 1):
+        epoch_start = float(epoch * pnts)
+        epoch_end = float((epoch + 1) * pnts - 1)
+        match_index = next(
+            (
+                index
+                for index, region in enumerate(out)
+                if int(region.start) // pnts == epoch and int(region.start) % pnts == 0
+            ),
+            None,
+        )
+        if match_index is None:
+            out.append(WinRejRegion(epoch_start, epoch_end, color_value, new_mask))
+            continue
+        existing = out[match_index]
+        existing_mask = tuple(_expanded_mask(existing.channel_mask, n_channels))
+        out[match_index] = replace(
+            existing,
+            start=min(existing.start, epoch_start),
+            end=max(existing.end, epoch_end),
+            color=color_value,
+            channel_mask=tuple(old or new for old, new in zip(existing_mask, new_mask)),
+        )
+    return sorted(out, key=lambda region: (region.start, region.end))
+
+
+def _merge_continuous_regions(regions: list[WinRejRegion], n_channels: int) -> list[WinRejRegion]:
+    sorted_regions = sorted(regions, key=lambda region: (region.start, region.end))
+    merged: list[WinRejRegion] = []
+    for region in sorted_regions:
+        mask = tuple(_expanded_mask(region.channel_mask, n_channels))
+        region = replace(region, channel_mask=mask)
+        if not merged or region.start > merged[-1].end:
+            merged.append(region)
+            continue
+        previous = merged[-1]
+        merged[-1] = WinRejRegion(
+            start=previous.start,
+            end=max(previous.end, region.end),
+            color=region.color,
+            channel_mask=tuple(a or b for a, b in zip(previous.channel_mask, region.channel_mask)),
+        )
+    return merged
+
+
 def _event_items(events: Any) -> list[dict[str, Any]]:
     if isinstance(events, dict):
         if "latency" in events:
@@ -650,11 +939,14 @@ __all__ = [
     "BrowserModel",
     "BrowserState",
     "WinRejRegion",
+    "add_winrej_region",
     "build_eegplot_model",
     "browser_window_duration",
     "copy_model_with_state",
     "decimate_minmax",
     "eegplot",
+    "eegplot2event",
+    "eegplot2trial",
     "event_latency_to_sample",
     "flatten_browser_data",
     "normalize_browser_data",
@@ -663,5 +955,8 @@ __all__ = [
     "normalize_winrej",
     "parse_eegplot_options",
     "time_to_sample",
+    "toggle_winrej_at_sample",
+    "trial2eegplot",
     "visible_sample_bounds",
+    "winrej_to_array",
 ]

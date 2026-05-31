@@ -270,6 +270,26 @@ def _demo_eegbrowser_eeg(*, epoched: bool = False, events: bool = True) -> dict:
     }
 
 
+def _demo_eegbrowser_winrej(variant: str) -> np.ndarray | None:
+    if variant == "continuous_marked":
+        return np.array(
+            [
+                [125, 260, 0.7, 1.0, 0.9, 1, 1, 1, 1, 1, 1, 1, 1],
+                [340, 460, 1.0, 0.9, 0.9, 0, 1, 0, 0, 0, 0, 0, 0],
+            ],
+            dtype=float,
+        )
+    if variant == "epoched_marked":
+        return np.array(
+            [
+                [250, 499, 0.7, 1.0, 0.9, 1, 1, 1, 1, 1, 1, 1, 1],
+                [500, 749, 1.0, 0.9, 0.9, 0, 0, 1, 0, 0, 0, 0, 0],
+            ],
+            dtype=float,
+        )
+    return None
+
+
 def _configure_main_window_session(session: EEGPrepSession, state: str) -> None:
     if state == "startup":
         return
@@ -353,15 +373,19 @@ def capture_eegbrowser(output: pathlib.Path, *, variant: str = "continuous") -> 
     from eegprep.functions.guifunc.eegbrowser import EEGBrowserWindow
 
     app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
-    epoched = variant == "epoched"
+    epoched = variant in {"epoched", "epoched_marked"}
     has_events = variant in {"events", "labels"}
+    winrej = _demo_eegbrowser_winrej(variant)
     model = build_eegplot_model(
         _demo_eegbrowser_eeg(epoched=epoched, events=has_events),
-        winlength=1.0 if epoched else 2.0,
+        winlength=3.0 if variant == "epoched_marked" else 1.0 if epoched else 2.0,
         dispchans=6,
         spacing=1.2,
         xgrid="on" if variant != "grid_off" else "off",
         ygrid="on" if variant != "grid_off" else "off",
+        winrej=winrej,
+        command="TMPREJ=[];" if winrej is not None else None,
+        butlabel="Reject",
     )
     if variant != "labels":
         model.state.channel_label_mode = "numbers"
@@ -1144,8 +1168,12 @@ def main(argv: list[str] | None = None) -> int:
         capture_main_window(args.output, state="study")
     elif args.case == "eegbrowser_continuous":
         capture_eegbrowser(args.output, variant="continuous")
+    elif args.case == "eegbrowser_continuous_marked":
+        capture_eegbrowser(args.output, variant="continuous_marked")
     elif args.case == "eegbrowser_epoched":
         capture_eegbrowser(args.output, variant="epoched")
+    elif args.case == "eegbrowser_epoched_marked":
+        capture_eegbrowser(args.output, variant="epoched_marked")
     elif args.case == "eegbrowser_events":
         capture_eegbrowser(args.output, variant="events")
     elif args.case == "eegbrowser_grid_off":

@@ -22,7 +22,9 @@ Core options:
 - `xgrid`, `ygrid`, `submean`, and `scale`: `"on"` or `"off"` toggles.
 - `data2`: overlay data with the same normalized shape as the primary data.
 - `winrej`: rejection-mark rows `[start end R G B channel_mask...]` in
-  EEGLAB eegplot frame coordinates.
+  EEGLAB eegplot frame coordinates. Continuous rows use one-based sample
+  latencies for rejection through `eeg_eegrej`; epoched rows use EEGLAB's
+  zero-based epoch-window offsets.
 - `events`: EEGLAB event dictionaries. Event `latency` values are interpreted
   as one-based sample latencies.
 - `eloc_file`: channel-location structures or channel numbers for labels.
@@ -31,6 +33,6 @@ Core options:
   bounds for spectral browser input. EEGPrep keeps the selected frequency axis
   in Hz for display; internally, `time` is an offset within that selected range.
 
-Phase 1 provides the browser model and non-mutating PySide6/pyqtgraph
-rendering foundation. Interactive rejection updates are reserved for later
-EEGBrowser phases.
+When a command callback is supplied, the browser passes the accepted `winrej`
+rows only from the Accept/Reject action. Closing or cancelling the window leaves
+the caller's EEG/session state unchanged.

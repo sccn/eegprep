@@ -156,6 +156,32 @@
       }
     },
     {
+      "id": "eegbrowser_continuous_marked",
+      "description": "EEGLAB/EEGPrep eegplot browser with continuous marked regions and channel masks.",
+      "window_size": [960, 560],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_figure",
+          "action": "eegbrowser",
+          "matlab_command": "eeglab; close(findobj('tag','EEGLAB')); t = 0:999; data = zeros(8,1000); for c = 1:8, data(c,:) = sin(2*pi*c*t/250)+0.05*c; end; winrej = [125 260 0.7 1.0 0.9 1 1 1 1 1 1 1 1; 340 460 1.0 0.9 0.9 0 1 0 0 0 0 0 0]; eegplot(data, 'srate', 250, 'winlength', 2, 'dispchans', 6, 'spacing', 1.2, 'xgrid', 'on', 'ygrid', 'on', 'winrej', winrej, 'command', 'TMPREJ=[];', 'butlabel', 'Reject', 'title', 'Scroll channel activities -- eegplot() -- eegbrowser demo');"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "eegbrowser_continuous_marked",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
       "id": "eegbrowser_epoched",
       "description": "EEGLAB/EEGPrep eegplot browser with epoched channel data.",
       "window_size": [960, 560],
@@ -169,6 +195,32 @@
         "eegprep": {
           "type": "command",
           "action": "eegbrowser_epoched",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "eegbrowser_epoched_marked",
+      "description": "EEGLAB/EEGPrep eegplot browser with epoched marked trials and channel masks.",
+      "window_size": [960, 560],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_figure",
+          "action": "eegbrowser",
+          "matlab_command": "eeglab; close(findobj('tag','EEGLAB')); t = 0:249; data = zeros(8,250,3); for c = 1:8, for e = 1:3, data(c,:,e) = sin(2*pi*c*t/250)+0.2*cos(2*pi*e*t/250)+0.05*c; end; end; winrej = [250 499 0.7 1.0 0.9 1 1 1 1 1 1 1 1; 500 749 1.0 0.9 0.9 0 0 1 0 0 0 0 0]; eegplot(data, 'srate', 250, 'winlength', 3, 'dispchans', 6, 'spacing', 1.2, 'xgrid', 'on', 'ygrid', 'on', 'winrej', winrej, 'command', 'TMPREJ=[];', 'butlabel', 'Reject', 'title', 'Scroll channel activities -- eegplot() -- eegbrowser demo');"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "eegbrowser_epoched_marked",
           "command": [
             "{python}",
             "-m",

@@ -8,6 +8,9 @@ description: Build, port, or iterate on EEGPrep GUI features so they visually an
 Use this skill to implement an EEGPrep GUI component with an EEGLAB reference
 screenshot in the loop. The goal is not pixel perfection; it is end-user parity:
 same controls, labels, order, enabled state, layout, and obvious hierarchy.
+EEGLAB users must feel at home while using EEGPrep, so compare alignment,
+arrangement, button placement, text fields, labels, defaults, enabled states,
+and workflow before accepting a GUI as complete. Remember, while we are doing a porting project, EEGPrep must work well standalone and must be a delight to use for EEG Researchers.
 
 ## Work From The Repo Root
 
@@ -552,21 +555,21 @@ theme. Prioritize user-visible structure.
 
 Do not commit generated `.visual-parity/` screenshots unless explicitly asked
 for a durable reference. For PRs involving GUI work, attach side-by-side images
-as GitHub user attachments in a PR comment instead of committing them.
+as GitHub user attachments using `gh attach --comment` instead of committing
+them.
 
 Actionable PR attachment workflow:
 
 - Keep comparison artifacts local, usually under
   `.visual-parity/<case>/side_by_side.png` or `/tmp`.
-- If `gh image` is unavailable, install it once with
-  `gh extension install drogers0/gh-image`.
-- Upload images with `gh image --repo sccn/eegprep <path-to-png> ...`; use the
-  returned `https://github.com/user-attachments/assets/...` Markdown in the PR
+- Upload images with `gh attach --comment <pr-number> <path-to-png> ...`; it
+  stores the files as GitHub user attachments and posts or refreshes the PR
   comment.
 - Put all GUI cases in one concise PR comment, starting with `🤖`, and wrap the
   image list in `<details>` when there are many screenshots.
-- Post or refresh the comment with `gh pr comment <pr-number> --body-file
-  /tmp/gui-parity-comment.md`.
+- If you need a custom comment body, run `gh attach <pr-number> <path-to-png>
+  ...` without `--comment`, then include the returned Markdown in a PR comment
+  that starts with `🤖`.
 - Label each image with the feature/state it covers. If an image is UX-only
   evidence rather than strict EEGLAB parity, say that explicitly.
 
