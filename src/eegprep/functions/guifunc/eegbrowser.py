@@ -612,6 +612,7 @@ class EEGBrowserCanvas(_QWidget):
         self._draw_winrej()
         self._draw_event_durations()
         self._draw_traces()
+        self._draw_marked_channel_segments()
         self._draw_event_lines_and_labels()
         self._draw_plot_box()
 
@@ -662,6 +663,7 @@ class EEGBrowserCanvas(_QWidget):
             )
             item.lines[0].setPen(plot_graphics.mkPen((*color, 120), width=1))
             item.lines[1].setPen(plot_graphics.mkPen((*color, 120), width=1))
+            item.setZValue(-20)
             self.plot.addItem(item)
             self._items.append(item)
 
@@ -758,11 +760,7 @@ class EEGBrowserCanvas(_QWidget):
         start, stop = visible_sample_bounds(data, state)
         x_values = self._sample_range_to_x_values(start, stop)
         for screen_index, channel_index in enumerate(self._visible_channels()):
-            y_values = np.asarray(data.flat_data[channel_index, start:stop], dtype=float)
-            if state.submean and y_values.size:
-                y_values = y_values - np.nanmean(y_values)
-            if state.normalized and y_values.size:
-                y_values = y_values / _channel_std(data.flat_data[channel_index])
+            y_values = self._trace_values(channel_index, start, stop)
             x_dec, y_dec = decimate_minmax(x_values, y_values, max(1, self.width()))
             shifted = self._trace_to_axis_y(y_dec, screen_index)
             curve = self.plot.plot(
@@ -775,6 +773,37 @@ class EEGBrowserCanvas(_QWidget):
             self._items.append(curve)
             if data.flat_data2 is not None:
                 self._draw_overlay_trace(channel_index, screen_index, start, stop)
+
+    def _draw_marked_channel_segments(self) -> None:
+        _qt_widgets, plot_graphics = _require_gui()
+        start, stop = visible_sample_bounds(self.model.data, self.model.state)
+        visible_channels = tuple(self._visible_channels())
+        visible_x = self._sample_range_to_x_values(start, stop)
+        for region in self.model.state.winrej:
+            mask = np.asarray(region.channel_mask, dtype=bool)
+            if mask.size == 0 or mask.all():
+                continue
+            segment_start = max(_winrej_frame_to_index(region.start), start)
+            segment_stop = min(_winrej_frame_to_index(region.end) + 1, stop)
+            if segment_stop <= segment_start:
+                continue
+            rel_start = segment_start - start
+            rel_stop = segment_stop - start
+            for screen_index, channel_index in enumerate(visible_channels):
+                if channel_index >= mask.size or not bool(mask[channel_index]):
+                    continue
+                y_values = self._trace_values(channel_index, start, stop)[rel_start:rel_stop]
+                x_values = visible_x[rel_start:rel_stop]
+                x_dec, y_dec = decimate_minmax(x_values, y_values, max(1, self.width()))
+                curve = self.plot.plot(
+                    x_dec,
+                    self._trace_to_axis_y(y_dec, screen_index),
+                    pen=plot_graphics.mkPen((200, 0, 0), width=1.4),
+                    skipFiniteCheck=True,
+                )
+                curve.setClipToView(True)
+                curve.setZValue(20)
+                self._items.append(curve)
 
     def _draw_overlay_trace(self, channel_index: int, screen_index: int, start: int, stop: int) -> None:
         _qt_widgets, plot_graphics = _require_gui()
@@ -796,6 +825,16 @@ class EEGBrowserCanvas(_QWidget):
         )
         curve.setClipToView(True)
         self._items.append(curve)
+
+    def _trace_values(self, channel_index: int, start: int, stop: int) -> np.ndarray:
+        data = self.model.data
+        state = self.model.state
+        y_values = np.asarray(data.flat_data[channel_index, start:stop], dtype=float)
+        if state.submean and y_values.size:
+            y_values = y_values - np.nanmean(y_values)
+        if state.normalized and y_values.size:
+            y_values = y_values / _channel_std(data.flat_data[channel_index])
+        return y_values
 
     def _trace_to_axis_y(self, values: np.ndarray, screen_index: int) -> np.ndarray:
         spacing = max(float(self.model.state.spacing), np.finfo(float).eps)

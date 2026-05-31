@@ -216,7 +216,7 @@
         "eeglab": {
           "type": "matlab_figure",
           "action": "eegbrowser",
-          "matlab_command": "eeglab; close(findobj('tag','EEGLAB')); t = 0:249; data = zeros(8,250,3); for c = 1:8, for e = 1:3, data(c,:,e) = sin(2*pi*c*t/250)+0.2*cos(2*pi*e*t/250)+0.05*c; end; end; winrej = [0 249 0.7 1.0 0.9 1 1 1 1 1 1 1 1; 250 499 1.0 0.9 0.9 0 0 1 0 0 0 0 0]; eegplot(data, 'srate', 250, 'winlength', 2, 'dispchans', 6, 'spacing', 1.2, 'xgrid', 'on', 'ygrid', 'on', 'winrej', winrej, 'command', 'TMPREJ=[];', 'butlabel', 'Reject', 'title', 'Scroll channel activities -- eegplot() -- eegbrowser demo');"
+          "matlab_command": "eeglab; close(findobj('tag','EEGLAB')); t = 0:249; data = zeros(8,250,3); for c = 1:8, for e = 1:3, data(c,:,e) = sin(2*pi*c*t/250)+0.2*cos(2*pi*e*t/250)+0.05*c; end; end; winrej = [250 499 0.7 1.0 0.9 1 1 1 1 1 1 1 1; 500 749 1.0 0.9 0.9 0 0 1 0 0 0 0 0]; eegplot(data, 'srate', 250, 'winlength', 3, 'dispchans', 6, 'spacing', 1.2, 'xgrid', 'on', 'ygrid', 'on', 'winrej', winrej, 'command', 'TMPREJ=[];', 'butlabel', 'Reject', 'title', 'Scroll channel activities -- eegplot() -- eegbrowser demo');"
         },
         "eegprep": {
           "type": "command",

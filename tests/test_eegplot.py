@@ -311,6 +311,30 @@ def test_apply_eegplot_rejections_removes_continuous_regions_and_inserts_boundar
     assert command == "pop_eegplot(EEG, 1, 0, 1)"
 
 
+def test_apply_eegplot_rejections_updates_continuous_mark_only_rows() -> None:
+    eeg = create_test_eeg(n_channels=2, n_samples=10, n_trials=1, srate=10)
+    rows = np.array([[2, 5, 0.7, 1.0, 0.9, 1, 0]])
+
+    out, command = apply_eegplot_rejections(eeg, rows, reject=0, return_com=True)
+
+    assert command == "pop_eegplot(EEG, 1, 0, 0)"
+    np.testing.assert_array_equal(out["data"], eeg["data"])
+    np.testing.assert_array_equal(out["reject"]["rejmanualwinrej"], rows)
+    np.testing.assert_array_equal(out["reject"]["rejmanualcol"], [1.0, 0.9, 0.9])
+
+
+def test_apply_eegplot_rejections_clears_continuous_mark_only_rows_after_rejecting() -> None:
+    eeg = create_test_eeg(n_channels=1, n_samples=10, n_trials=1, srate=10)
+    eeg["data"] = np.arange(10, dtype=float).reshape(1, 10)
+    eeg["reject"]["rejmanualwinrej"] = np.array([[3, 5, 0.7, 1.0, 0.9, 1]])
+    rows = np.array([[3, 5, 0.7, 1.0, 0.9, 1]])
+
+    out = apply_eegplot_rejections(eeg, rows, reject=1)
+
+    np.testing.assert_array_equal(out["data"], [[0, 1, 5, 6, 7, 8, 9]])
+    assert out["reject"]["rejmanualwinrej"].shape == (0, 6)
+
+
 def test_apply_eegplot_rejections_updates_or_rejects_epochs() -> None:
     eeg = create_test_eeg(n_channels=2, n_samples=4, n_trials=3, srate=10)
     eeg["data"] = np.arange(24, dtype=float).reshape(2, 4, 3)
@@ -357,6 +381,30 @@ def test_pop_eegplot_superpose_two_passes_method_specific_color_rows(monkeypatch
     rows = captured["winrej"]
     np.testing.assert_array_equal(rows[:, :5], [[4, 7, 0.2, 0.8, 0.4], [0, 3, 1.0, 0.9, 0.9]])
     np.testing.assert_array_equal(rows[:, 5:], [[0, 1], [1, 0]])
+
+
+def test_pop_eegplot_loads_continuous_mark_only_rows_when_updating_or_superposing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    eeg = create_test_eeg(n_channels=2, n_samples=10, n_trials=1, srate=10)
+    stored = np.array([[2, 5, 0.7, 1.0, 0.9, 1, 0]])
+    eeg["reject"]["rejmanualwinrej"] = stored
+    captured = []
+
+    def fake_eegplot(_eeg, *args, **kwargs):
+        del args
+        captured.append(kwargs["winrej"])
+        return "window"
+
+    monkeypatch.setattr(pop_eegplot_module, "eegplot", fake_eegplot)
+
+    pop_eegplot(eeg, reject=0)
+    pop_eegplot(eeg, reject=1, superpose=1)
+    pop_eegplot(eeg, reject=1, superpose=0)
+
+    np.testing.assert_array_equal(captured[0], stored)
+    np.testing.assert_array_equal(captured[1], stored)
+    assert captured[2].shape == (0, 7)
 
 
 def test_pop_eegplot_component_mode_computes_activations_once(monkeypatch: pytest.MonkeyPatch) -> None:

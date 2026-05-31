@@ -15,7 +15,9 @@ from eegprep.functions.sigprocfunc.eegplot import (
     eegplot,
     eegplot2event,
     eegplot2trial,
+    normalize_winrej,
     trial2eegplot,
+    winrej_to_array,
 )
 
 
@@ -29,6 +31,8 @@ DEFAULT_REJECTION_COLORS = {
     "freq": (0.9596, 0.7193, 1.0000),
 }
 REJECTION_FAMILIES = ("manual", "thresh", "const", "jp", "kurt", "freq")
+CONTINUOUS_MANUAL_WINREJ = "rejmanualwinrej"
+CONTINUOUS_ICA_MANUAL_WINREJ = "icarejmanualwinrej"
 
 
 def pop_eegplot(
@@ -61,8 +65,11 @@ def pop_eegplot(
     accept_callback = options.pop("command_callback", None)
     options.setdefault("wincolor", _manual_color(EEG))
     options.setdefault("butlabel", "Reject" if int(bool(reject)) else "Update Marks")
-    if int(EEG.get("trials", 1) or 1) > 1:
+    trials = int(EEG.get("trials", 1) or 1)
+    if trials > 1:
         options.setdefault("winrej", _initial_epoch_winrej(EEG, icacomp, superpose))
+    else:
+        options.setdefault("winrej", _initial_continuous_winrej(EEG, icacomp, superpose, reject))
 
     def _accept(winrej: np.ndarray) -> None:
         eeg_out, accept_command = apply_eegplot_rejections(
@@ -102,14 +109,16 @@ def apply_eegplot_rejections(
     """Apply accepted EEGBrowser marks to an EEG dataset."""
     out = copy_eeg(EEG)
     command = history_command("pop_eegplot", icacomp, superpose, reject)
-    rows = np.asarray(winrej if winrej is not None else [], dtype=float)
-    if rows.ndim == 1:
-        rows = rows.reshape(1, -1)
+    rows = _as_winrej_rows(winrej)
 
     trials = int(out.get("trials", 1) or 1)
     if trials <= 1:
-        if rows.size and int(bool(reject)):
-            out = eeg_eegrej(out, eegplot2event(rows, -1))
+        if int(bool(reject)):
+            if rows.size:
+                out = eeg_eegrej(out, eegplot2event(rows, -1))
+                _clear_continuous_marks(out, icacomp=icacomp)
+        else:
+            _store_continuous_marks(out, rows, icacomp=icacomp)
         return (out, command) if return_com else out
 
     pnts = int(out.get("pnts", np.asarray(out.get("data")).shape[1]))
@@ -146,6 +155,21 @@ def _initial_epoch_winrej(EEG: dict[str, Any], icacomp: int, superpose: int) -> 
     if manual_rows.size:
         rows.append(manual_rows)
     return np.vstack(rows) if rows else np.zeros((0, 5 + row_count), dtype=float)
+
+
+def _initial_continuous_winrej(EEG: dict[str, Any], icacomp: int, superpose: int, reject: int) -> np.ndarray:
+    row_count = _row_count(EEG, icacomp)
+    if int(bool(reject)) and not int(bool(superpose)):
+        return np.zeros((0, 5 + row_count), dtype=float)
+    rows = _as_winrej_rows((EEG.get("reject") or {}).get(_continuous_mark_field(icacomp), []))
+    if rows.size == 0:
+        return np.zeros((0, 5 + row_count), dtype=float)
+    total_samples = _continuous_total_samples(EEG)
+    try:
+        return winrej_to_array(normalize_winrej(rows, row_count, total_samples), row_count)
+    except ValueError as exc:
+        field = _continuous_mark_field(icacomp)
+        raise ValueError(f"EEG.reject.{field} contains invalid eegplot winrej rows") from exc
 
 
 def _superposed_epoch_winrej(
@@ -194,6 +218,42 @@ def _store_epoch_marks(
     reject[field] = np.asarray(trial_marks, dtype=bool)
     reject[field_e] = _pad_rows(row_marks, row_count, trials)
     reject.setdefault("rejmanualcol", np.asarray(MANUAL_REJECTION_COLOR, dtype=float))
+
+
+def _store_continuous_marks(EEG: dict[str, Any], rows: np.ndarray, *, icacomp: int) -> None:
+    reject = EEG.setdefault("reject", {})
+    row_count = _row_count(EEG, icacomp)
+    if rows.size == 0:
+        reject[_continuous_mark_field(icacomp)] = np.zeros((0, 5 + row_count), dtype=float)
+    else:
+        total_samples = _continuous_total_samples(EEG)
+        reject[_continuous_mark_field(icacomp)] = winrej_to_array(
+            normalize_winrej(rows, row_count, total_samples), row_count
+        )
+    reject.setdefault("rejmanualcol", np.asarray(MANUAL_REJECTION_COLOR, dtype=float))
+
+
+def _clear_continuous_marks(EEG: dict[str, Any], *, icacomp: int) -> None:
+    reject = EEG.setdefault("reject", {})
+    reject[_continuous_mark_field(icacomp)] = np.zeros((0, 5 + _row_count(EEG, icacomp)), dtype=float)
+
+
+def _continuous_mark_field(icacomp: int) -> str:
+    return CONTINUOUS_MANUAL_WINREJ if int(bool(icacomp)) else CONTINUOUS_ICA_MANUAL_WINREJ
+
+
+def _continuous_total_samples(EEG: dict[str, Any]) -> int:
+    data = np.asarray(EEG.get("data"))
+    if data.ndim >= 2:
+        return int(data.shape[1])
+    return int(EEG.get("pnts", 0) or 0)
+
+
+def _as_winrej_rows(winrej: Any) -> np.ndarray:
+    rows = np.asarray(winrej if winrej is not None else [], dtype=float)
+    if rows.ndim == 1:
+        rows = rows.reshape(1, -1)
+    return rows
 
 
 def _reject_arrays(

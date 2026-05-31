@@ -282,8 +282,8 @@ def _demo_eegbrowser_winrej(variant: str) -> np.ndarray | None:
     if variant == "epoched_marked":
         return np.array(
             [
-                [0, 249, 0.7, 1.0, 0.9, 1, 1, 1, 1, 1, 1, 1, 1],
-                [250, 499, 1.0, 0.9, 0.9, 0, 0, 1, 0, 0, 0, 0, 0],
+                [250, 499, 0.7, 1.0, 0.9, 1, 1, 1, 1, 1, 1, 1, 1],
+                [500, 749, 1.0, 0.9, 0.9, 0, 0, 1, 0, 0, 0, 0, 0],
             ],
             dtype=float,
         )
@@ -378,7 +378,7 @@ def capture_eegbrowser(output: pathlib.Path, *, variant: str = "continuous") -> 
     winrej = _demo_eegbrowser_winrej(variant)
     model = build_eegplot_model(
         _demo_eegbrowser_eeg(epoched=epoched, events=has_events),
-        winlength=2.0 if variant == "epoched_marked" else 1.0 if epoched else 2.0,
+        winlength=3.0 if variant == "epoched_marked" else 1.0 if epoched else 2.0,
         dispchans=6,
         spacing=1.2,
         xgrid="on" if variant != "grid_off" else "off",

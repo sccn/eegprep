@@ -339,6 +339,27 @@ def test_gui_canvas_channel_specific_toggle(qapp) -> None:
     window.close()
 
 
+def test_gui_channel_specific_marks_draw_red_trace_overlay(qapp) -> None:
+    from eegprep.functions.guifunc.eegbrowser import EEGBrowserWindow
+
+    data = np.vstack([np.arange(20, dtype=float), np.arange(20, dtype=float), np.arange(20, dtype=float)])
+    model = build_eegplot_model(
+        data,
+        srate=10,
+        spacing=10,
+        winrej=[[3, 8, 0.7, 1.0, 0.9, 0, 1, 0]],
+        show=False,
+    )
+    window = EEGBrowserWindow(model)
+
+    curves = [item for item in window.canvas._items if hasattr(item, "getData")]
+
+    assert len(curves) == 4
+    x_values, _y_values = curves[-1].getData()
+    np.testing.assert_allclose(x_values, np.arange(2, 8) / 10)
+    window.close()
+
+
 def test_gui_accept_callback_receives_winrej_and_cancel_does_not(qapp) -> None:
     qt_widgets = pytest.importorskip("PySide6.QtWidgets")
     from eegprep.functions.guifunc.eegbrowser import EEGBrowserWindow
