@@ -502,6 +502,7 @@ class EEGBrowserCanvas(_QWidget):
         self.setObjectName("eegbrowser_canvas")
         self._items: list[Any] = []
         self._scene_items: list[Any] = []
+        self._event_label_items: list[Any] = []
         layout = qt_widgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         self.plot = plot_graphics.PlotWidget(background=None)
@@ -540,12 +541,14 @@ class EEGBrowserCanvas(_QWidget):
         self._draw_event_durations()
         self._draw_traces()
         self._draw_event_lines_and_labels()
+        self._draw_plot_box()
 
     def _clear_scene_items(self) -> None:
         scene = self.plot.scene()
         for item in self._scene_items:
             scene.removeItem(item)
         self._scene_items.clear()
+        self._event_label_items.clear()
 
     def _configure_axes(self) -> None:
         start, stop = visible_sample_bounds(self.model.data, self.model.state)
@@ -656,6 +659,18 @@ class EEGBrowserCanvas(_QWidget):
         label.setPos(scene_pos.x(), max(0.0, view_rect.top() - label.boundingRect().width() - 2.0))
         self.plot.scene().addItem(label)
         self._scene_items.append(label)
+        self._event_label_items.append(label)
+
+    def _draw_plot_box(self) -> None:
+        if QtGui is None or QtWidgets is None:
+            return
+        view_rect = self.plot.getPlotItem().vb.sceneBoundingRect()
+        frame = QtWidgets.QGraphicsRectItem(view_rect)
+        frame.setBrush(QtGui.QBrush(QtCore.Qt.BrushStyle.NoBrush))
+        frame.setPen(QtGui.QPen(QtGui.QColor("#000000"), 1))
+        frame.setZValue(35)
+        self.plot.scene().addItem(frame)
+        self._scene_items.append(frame)
 
     def _draw_traces(self) -> None:
         _qt_widgets, plot_graphics = _require_gui()
@@ -768,8 +783,8 @@ class EEGBrowserCanvas(_QWidget):
         plot_item = self.plot.getPlotItem()
         plot_item.showAxis("top", True)
         plot_item.showAxis("right", True)
-        plot_item.getAxis("top").setStyle(showValues=False)
-        plot_item.getAxis("right").setStyle(showValues=False)
+        plot_item.getAxis("top").setStyle(showValues=False, tickLength=0)
+        plot_item.getAxis("right").setStyle(showValues=False, tickLength=0)
         axis_pen = plot_graphics.mkPen((0, 0, 0), width=1)
         for name in ("left", "bottom", "top", "right"):
             axis = plot_item.getAxis(name)

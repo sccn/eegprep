@@ -218,13 +218,16 @@ def test_gui_event_lines_stay_visible_and_labels_sit_above_plot_box(qapp) -> Non
     qapp.processEvents()
 
     view_rect = window.canvas.plot.getPlotItem().vb.sceneBoundingRect()
-    assert [label.text() for label in window.canvas._scene_items] == ["stim", "resp"]
-    assert all(label.sceneBoundingRect().bottom() <= view_rect.top() for label in window.canvas._scene_items)
+    assert [label.text() for label in window.canvas._event_label_items] == ["stim", "resp"]
+    assert all(label.sceneBoundingRect().bottom() <= view_rect.top() for label in window.canvas._event_label_items)
 
     event_lines = [
         item for item in window.canvas._items if item.__class__.__name__ == "InfiniteLine" and item.zValue() == 25
     ]
     assert len(event_lines) == 2
+    plot_boxes = [item for item in window.canvas._scene_items if item.__class__.__name__ == "QGraphicsRectItem"]
+    assert len(plot_boxes) == 1
+    assert plot_boxes[0].rect() == view_rect
     window.close()
 
 
