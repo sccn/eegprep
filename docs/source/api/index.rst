@@ -161,6 +161,7 @@ Visualization
    :toctree: generated/
 
    eegprep.cart2topo
+   eegprep.eegplot
    eegprep.pop_topoplot
    eegprep.topoplot
 

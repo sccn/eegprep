@@ -100,7 +100,7 @@ class RejectionDialogTests(unittest.TestCase):
         ]
         for action in implemented:
             self.assertEqual(action_kind(action), "implemented")
-        self.assertEqual(action_kind("pop_eegplot:reject_data"), "placeholder")
+        self.assertEqual(action_kind("pop_eegplot:reject_data"), "implemented")
 
     def test_gui_command_is_valid_python_with_keywords(self):
         class Renderer:

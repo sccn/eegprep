@@ -1158,10 +1158,10 @@ class QtMainWindowTests(unittest.TestCase):
         self.assertTrue(dataset_actions["Dataset 2:second"].isChecked())
         window.window.close()
 
-    def test_gui_main_window_marks_unimplemented_actions_distinctly(self):
+    def test_gui_main_window_marks_browser_actions_implemented(self):
         pytest.importorskip("PySide6")
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-        from eegprep.functions.guifunc.main_window import COMING_SOON_SUFFIX, build_main_window
+        from eegprep.functions.guifunc.main_window import build_main_window
 
         session = EEGPrepSession()
         session.store_current(_demo_eeg(), new=True)
@@ -1169,20 +1169,16 @@ class QtMainWindowTests(unittest.TestCase):
         actions_by_data = {
             action.data(): action for action in _qt_actions(window.window.menuBar().actions()) if action.data()
         }
-        placeholder = actions_by_data["pop_eegplot:data"]
-        implemented = actions_by_data["pop_resample"]
+        browser = actions_by_data["pop_eegplot:data"]
 
-        self.assertEqual(placeholder.property("eegprep_label"), "Inspect/reject data by eye")
-        self.assertEqual(placeholder.property("eegprep_implementation_state"), "coming_soon")
-        self.assertTrue(placeholder.text().endswith(COMING_SOON_SUFFIX))
-        self.assertFalse(placeholder.isEnabled())
-        self.assertTrue(placeholder.font().italic())
-        self.assertEqual(implemented.text(), "Change sampling rate")
-        self.assertNotEqual(implemented.property("eegprep_implementation_state"), "coming_soon")
-        self.assertTrue(implemented.isEnabled())
+        self.assertEqual(browser.property("eegprep_label"), "Inspect/reject data by eye")
+        self.assertNotEqual(browser.property("eegprep_implementation_state"), "coming_soon")
+        self.assertEqual(browser.text(), "Inspect/reject data by eye")
+        self.assertTrue(browser.isEnabled())
+        self.assertFalse(browser.font().italic())
         window.window.close()
 
-    def test_gui_main_window_inventory_reports_coming_soon_source_label(self):
+    def test_gui_main_window_inventory_reports_browser_source_label(self):
         pytest.importorskip("PySide6")
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
         from eegprep.functions.guifunc.main_window import build_main_window
@@ -1193,10 +1189,10 @@ class QtMainWindowTests(unittest.TestCase):
         tools = next(item for item in window.menu_inventory() if item["label"] == "Tools")
         by_source_label = {item["source_label"]: item for item in tools["children"]}
 
-        coming_soon = by_source_label["Inspect/reject data by eye"]
-        self.assertEqual(coming_soon["implementation_state"], "coming_soon")
-        self.assertFalse(coming_soon["enabled"])
-        self.assertIn("coming soon", coming_soon["label"])
+        browser = by_source_label["Inspect/reject data by eye"]
+        self.assertEqual(browser["implementation_state"], "implemented")
+        self.assertTrue(browser["enabled"])
+        self.assertEqual(browser["label"], "Inspect/reject data by eye")
         self.assertEqual(by_source_label["Change sampling rate"]["implementation_state"], "implemented")
         self.assertTrue(by_source_label["Change sampling rate"]["enabled"])
         window.window.close()
