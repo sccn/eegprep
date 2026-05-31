@@ -32,6 +32,11 @@ Time-Frequency And Statistics
 
 .. autofunction:: eegprep.pop_eventstat
 
+Browser
+========
+
+.. autofunction:: eegprep.eegplot
+
 Resampling
 ==========
 

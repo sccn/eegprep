@@ -19,9 +19,7 @@ class PlaceholderMetadata:
     excluded_reason: str | None = None
 
 
-PLACEHOLDER_ACTION_METADATA: Mapping[str, PlaceholderMetadata] = {
-    "pop_eegplot": PlaceholderMetadata(excluded_reason="eegbrowser"),
-}
+PLACEHOLDER_ACTION_METADATA: Mapping[str, PlaceholderMetadata] = {}
 PLACEHOLDER_ACTIONS = frozenset(PLACEHOLDER_ACTION_METADATA)
 
 

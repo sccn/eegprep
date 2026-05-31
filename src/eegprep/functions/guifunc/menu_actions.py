@@ -49,6 +49,7 @@ IMPLEMENTED_ACTIONS = {
     "pop_editeventfield",
     "pop_editeventvals",
     "pop_editoptions",
+    "pop_eegplot",
     "pop_eegfilt",
     "pop_eegfiltnew",
     "pop_envtopo",
@@ -384,6 +385,9 @@ class MenuActionDispatcher:
             return
         if base == "pop_subcomp":
             self._run_pop_function("pop_subcomp", parent)
+            return
+        if base == "pop_eegplot":
+            self._run_pop_function("pop_eegplot", parent, variant=variant)
             return
         if base in {
             "pop_autorej",
@@ -1010,6 +1014,10 @@ class MenuActionDispatcher:
             from eegprep.functions.popfunc.pop_subcomp import pop_subcomp
 
             out = pop_subcomp(selection, return_com=True)
+        elif name == "pop_eegplot":
+            from eegprep.functions.popfunc.pop_eegplot import pop_eegplot
+
+            out = pop_eegplot(selection, icacomp=0 if variant in {"components", "reject_ica"} else 1, return_com=True)
         elif name == "pop_autorej":
             from eegprep.functions.popfunc.pop_autorej import pop_autorej
 
