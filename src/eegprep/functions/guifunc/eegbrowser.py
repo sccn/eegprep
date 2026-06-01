@@ -43,6 +43,8 @@ _EVENT_COLORS = (
 _SCALE_STEP = 0.1
 _MIN_SPACING = 0.001
 _TRACE_SCALE = 0.72
+_WINREJ_BRUSH_ALPHA = 210
+_WINREJ_EDGE_ALPHA = 230
 _AXES_POSITION = (0.0964286, 0.15, 0.842, 0.75)
 _NOUI_AXES_POSITION = (0.055, 0.075, 0.90, 0.87)
 _CONTROL_POSITIONS = {
@@ -206,6 +208,7 @@ class EEGBrowserWindow(_QMainWindow):
             _rect_from_normalized((scale_x, _AXES_POSITION[1], scale_width, _AXES_POSITION[3]), width, height)
         )
         self.controls.set_geometry(width, height)
+        self.controls.sync_from_state()
 
     def _build_menus(self) -> None:
         figure_menu = self.menuBar().addMenu("Figure")
@@ -754,11 +757,11 @@ class EEGBrowserCanvas(_QWidget):
                     self._sample_edge_to_x_value(min(region_stop, stop)),
                 ),
                 orientation=plot_graphics.LinearRegionItem.Vertical,
-                brush=(*color, 70),
+                brush=(*color, _WINREJ_BRUSH_ALPHA),
                 movable=False,
             )
-            item.lines[0].setPen(plot_graphics.mkPen((*color, 120), width=1))
-            item.lines[1].setPen(plot_graphics.mkPen((*color, 120), width=1))
+            item.lines[0].setPen(plot_graphics.mkPen((*color, _WINREJ_EDGE_ALPHA), width=1))
+            item.lines[1].setPen(plot_graphics.mkPen((*color, _WINREJ_EDGE_ALPHA), width=1))
             item.setZValue(-20)
             self.plot.addItem(item)
             self._items.append(item)

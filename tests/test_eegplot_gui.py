@@ -46,11 +46,14 @@ def test_gui_display_menu_labels_refresh_after_toggle(qapp) -> None:
 
     model = build_eegplot_model(np.zeros((1, 20)), srate=10, spacing=1, xgrid="off", ygrid="on", scale="on")
     window = EEGBrowserWindow(model)
+    window.show()
+    qapp.processEvents()
 
     assert window.xgrid_action.text() == "X grid on"
     assert window.ygrid_action.text() == "Y grid off"
     assert window.scale_action.text() == "Show scale"
     assert window.scale_action.isChecked() is True
+    assert window.controls.event_button.isHidden() is True
 
     window.xgrid_action.trigger()
     window.ygrid_action.trigger()
@@ -198,6 +201,24 @@ def test_gui_menus_toggle_events_marks_scale_and_channel_labels(qapp) -> None:
         "Show label",
         "Load .loc(s) file",
     ]
+    window.close()
+
+
+def test_gui_winrej_regions_are_visibly_saturated(qapp) -> None:
+    from eegprep.functions.guifunc.eegbrowser import EEGBrowserWindow
+
+    model = build_eegplot_model(
+        np.zeros((2, 30)),
+        srate=10,
+        spacing=1,
+        winrej=[[1, 10, 0.7, 1.0, 0.9, 1, 1]],
+    )
+    window = EEGBrowserWindow(model)
+
+    regions = [item for item in window.canvas._items if item.__class__.__name__ == "LinearRegionItem"]
+
+    assert len(regions) == 1
+    assert regions[0].brush.color().alpha() >= 200
     window.close()
 
 
@@ -371,6 +392,36 @@ def test_gui_data2_overlay_draws_second_trace_per_channel(qapp) -> None:
 
     assert len(curves) == 4
     np.testing.assert_allclose(curves[0].getData()[0], curves[1].getData()[0])
+    window.close()
+
+
+def test_gui_large_continuous_data_decimates_visible_traces(qapp) -> None:
+    from eegprep.functions.guifunc.eegbrowser import EEGBrowserWindow
+
+    samples = 120_000
+    srate = 512
+    times = np.arange(samples, dtype=np.float32) / float(srate)
+    data = np.vstack([np.sin(2 * np.pi * (channel + 1) * times) + channel * 0.01 for channel in range(16)]).astype(
+        np.float32
+    )
+    model = build_eegplot_model(data, srate=srate, winlength=30, dispchans=12, spacing=1, show=False)
+    window = EEGBrowserWindow(model)
+    window.resize(960, 560)
+    window.show()
+    qapp.processEvents()
+    window.canvas.redraw()
+
+    curves = [item for item in window.canvas._items if hasattr(item, "getData")]
+    max_points = max(len(curve.getData()[0]) for curve in curves)
+
+    assert model.data.total_samples == samples
+    assert len(curves) >= 12
+    assert max_points <= window.canvas.width() * 2 + 2
+
+    window.scroll_time(1.5)
+    qapp.processEvents()
+
+    assert model.state.time == pytest.approx(45.0)
     window.close()
 
 

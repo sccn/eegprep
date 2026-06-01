@@ -26,6 +26,7 @@ def test_placeholder_inventory_has_phase_or_exclusion_metadata():
 
     assert set(inventory) == PLACEHOLDER_ACTIONS
     assert not any(metadata.phase == "2" for metadata in inventory.values())
+    assert not any(metadata.excluded_reason == "eegbrowser" for metadata in inventory.values())
     for action, metadata in inventory.items():
         assert bool(metadata.phase) ^ bool(metadata.excluded_reason), action
 

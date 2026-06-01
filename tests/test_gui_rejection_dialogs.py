@@ -257,6 +257,7 @@ class RejectionDialogTests(unittest.TestCase):
 
         self.assertEqual(session.EEG["setname"], "accepted")
         self.assertEqual(session.ALLCOM[-1], "pop_eegplot(EEG, 1, 0, 1)")
+        self.assertEqual(session.LASTCOM, "pop_eegplot(EEG, 1, 0, 1)")
 
     def test_rejcont_dispatch_defers_history_until_browser_accept(self):
         session = EEGPrepSession()

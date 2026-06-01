@@ -308,8 +308,24 @@ def _demo_eegbrowser_eeg(*, epoched: bool = False, events: bool = True) -> dict:
     }
 
 
+def _demo_eegbrowser_ica_eeg() -> dict:
+    eeg = _demo_eegbrowser_eeg(events=False)
+    channel_count = int(eeg["nbchan"])
+    times = np.arange(int(eeg["pnts"]), dtype=float) / float(eeg["srate"])
+    eeg["icaweights"] = np.eye(channel_count)
+    eeg["icasphere"] = np.eye(channel_count)
+    eeg["icawinv"] = np.eye(channel_count)
+    eeg["icachansind"] = np.arange(channel_count)
+    icaact = np.vstack(
+        [np.cos(2 * np.pi * (component + 1) * times) + 0.08 * component for component in range(channel_count)]
+    )
+    eeg["data"] = icaact.copy()
+    eeg["icaact"] = icaact
+    return eeg
+
+
 def _demo_eegbrowser_winrej(variant: str) -> np.ndarray | None:
-    if variant == "continuous_marked":
+    if variant in {"continuous_marked", "pop_eegplot_reject_data"}:
         return np.array(
             [
                 [125, 260, 0.7, 1.0, 0.9, 1, 1, 1, 1, 1, 1, 1, 1],
@@ -317,11 +333,27 @@ def _demo_eegbrowser_winrej(variant: str) -> np.ndarray | None:
             ],
             dtype=float,
         )
-    if variant == "epoched_marked":
+    if variant in {"epoched_marked", "rejection_epochs"}:
         return np.array(
             [
                 [250, 499, 0.7, 1.0, 0.9, 1, 1, 1, 1, 1, 1, 1, 1],
                 [500, 749, 1.0, 0.9, 0.9, 0, 0, 1, 0, 0, 0, 0, 0],
+            ],
+            dtype=float,
+        )
+    if variant == "component_activity":
+        return np.array(
+            [
+                [180, 310, 1.0, 0.9, 0.9, 1, 0, 0, 0, 0, 0, 0, 0],
+                [520, 640, 0.7, 1.0, 0.9, 0, 1, 1, 0, 0, 0, 0, 0],
+            ],
+            dtype=float,
+        )
+    if variant == "rejcont_continuous":
+        return np.array(
+            [
+                [160, 260, 0.0, 0.9, 0.0, 1, 1, 1, 1],
+                [620, 760, 0.0, 0.9, 0.0, 1, 0, 1, 0],
             ],
             dtype=float,
         )
@@ -411,20 +443,82 @@ def capture_eegbrowser(output: pathlib.Path, *, variant: str = "continuous") -> 
     from eegprep.functions.guifunc.eegbrowser import EEGBrowserWindow
 
     app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
-    epoched = variant in {"epoched", "epoched_marked"}
-    has_events = variant in {"events", "labels"}
-    winrej = _demo_eegbrowser_winrej(variant)
-    model = build_eegplot_model(
-        _demo_eegbrowser_eeg(epoched=epoched, events=has_events),
-        winlength=3.0 if variant == "epoched_marked" else 1.0 if epoched else 2.0,
-        dispchans=6,
-        spacing=1.2,
-        xgrid="on" if variant != "grid_off" else "off",
-        ygrid="on" if variant != "grid_off" else "off",
-        winrej=winrej,
-        command="TMPREJ=[];" if winrej is not None else None,
-        butlabel="Reject",
-    )
+    if variant == "component_activity":
+        model = build_eegplot_model(
+            _demo_eegbrowser_ica_eeg(),
+            component=True,
+            winlength=2.0,
+            dispchans=6,
+            spacing=1.2,
+            xgrid="on",
+            ygrid="on",
+            winrej=_demo_eegbrowser_winrej(variant),
+            command="TMPREJ=[];",
+            butlabel="Update Marks",
+            title="Scroll component activities -- eegplot() -- eegbrowser demo",
+        )
+    elif variant == "data2_overlay":
+        eeg = _demo_eegbrowser_eeg(events=True)
+        data = np.asarray(eeg["data"], dtype=float)
+        overlay = data + 0.35 * np.cos(np.arange(data.shape[1], dtype=float)[None, :] / 12.0)
+        model = build_eegplot_model(
+            eeg,
+            data2=overlay,
+            winlength=2.0,
+            dispchans=6,
+            spacing=1.2,
+            xgrid="on",
+            ygrid="on",
+            title="Scroll channel activities -- eegplot() -- data2 overlay demo",
+        )
+    elif variant == "spectral_overlay":
+        freqs = np.linspace(1.0, 45.0, 90)
+        data = np.vstack([np.log1p(freqs) + 0.12 * channel + np.sin(freqs / (channel + 2)) for channel in range(6)])
+        overlay = data + 0.25 * np.cos(freqs / 4.0)
+        model = build_eegplot_model(
+            data,
+            data2=overlay,
+            freqs=freqs,
+            freqlimits=[4, 32],
+            winlength=12.0,
+            dispchans=6,
+            spacing=1.0,
+            xgrid="on",
+            ygrid="on",
+            title="Scroll spectral activities -- eegplot() -- overlay demo",
+        )
+    else:
+        epoched = variant in {"epoched", "epoched_marked", "rejection_epochs"}
+        has_events = variant in {"events", "labels", "pop_eegplot_reject_data", "rejection_epochs"}
+        winrej = _demo_eegbrowser_winrej(variant)
+        eeg = _demo_eegbrowser_eeg(epoched=epoched, events=has_events)
+        data = eeg
+        if variant == "rejcont_continuous":
+            selected_rows = [0, 1, 2, 3]
+            data = np.asarray(eeg["data"], dtype=float)[selected_rows, :]
+            eeg["chanlocs"] = [eeg["chanlocs"][index] for index in selected_rows]
+        title = "Scroll channel activities -- eegplot() -- eegbrowser demo"
+        if variant == "pop_eegplot_reject_data":
+            title = "Scroll channel activities -- eegplot() -- pop_eegplot reject demo"
+        elif variant == "rejection_epochs":
+            title = "Trial rejection using data activity -- pop_eegthresh()"
+        elif variant == "rejcont_continuous":
+            title = "Scroll channel activities -- eegplot() -- pop_rejcont demo"
+        model = build_eegplot_model(
+            data,
+            srate=float(eeg["srate"]),
+            winlength=3.0 if variant in {"epoched_marked", "rejection_epochs"} else 1.0 if epoched else 2.0,
+            dispchans=4 if variant == "rejcont_continuous" else 6,
+            spacing=1.2,
+            xgrid="off" if variant == "grid_off" or variant == "rejcont_continuous" else "on",
+            ygrid="off" if variant == "grid_off" else "on",
+            winrej=winrej,
+            wincolor=(0.0, 0.9, 0.0) if variant == "rejcont_continuous" else None,
+            command="TMPREJ=[];" if winrej is not None else None,
+            butlabel="Reject",
+            eloc_file=eeg.get("chanlocs", []) if variant == "rejcont_continuous" else None,
+            title=title,
+        )
     if variant != "labels":
         model.state.channel_label_mode = "numbers"
     window = EEGBrowserWindow(model)
@@ -1231,6 +1325,18 @@ def main(argv: list[str] | None = None) -> int:
         capture_eegbrowser(args.output, variant="grid_off")
     elif args.case == "eegbrowser_labels":
         capture_eegbrowser(args.output, variant="labels")
+    elif args.case == "eegbrowser_component_activity":
+        capture_eegbrowser(args.output, variant="component_activity")
+    elif args.case == "eegbrowser_data2_overlay":
+        capture_eegbrowser(args.output, variant="data2_overlay")
+    elif args.case == "eegbrowser_spectral_overlay":
+        capture_eegbrowser(args.output, variant="spectral_overlay")
+    elif args.case == "eegbrowser_pop_eegplot_reject_data":
+        capture_eegbrowser(args.output, variant="pop_eegplot_reject_data")
+    elif args.case == "eegbrowser_rejcont_continuous":
+        capture_eegbrowser(args.output, variant="rejcont_continuous")
+    elif args.case == "eegbrowser_rejection_epochs":
+        capture_eegbrowser(args.output, variant="rejection_epochs")
     elif args.case == "file_menu":
         capture_main_window(args.output, menu_label="File")
     elif args.case == "edit_menu":

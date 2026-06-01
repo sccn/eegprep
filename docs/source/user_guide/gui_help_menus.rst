@@ -28,8 +28,9 @@ can select one or more loaded datasets.
 
 Actions that are not implemented yet are marked as coming soon and are backed
 by machine-readable placeholder metadata. EEGBrowser/eegplot-style scrolling
-workflows are explicitly excluded from the current parity scope rather than
-being treated as ordinary pending work.
+workflows are implemented as packaged EEGPrep runtime code and are covered by
+the same menu inventory, help-resource, and visual parity checks as other GUI
+actions.
 
 Help Resources
 ==============
