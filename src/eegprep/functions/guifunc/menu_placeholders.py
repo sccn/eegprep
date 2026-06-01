@@ -2,7 +2,8 @@
 
 Each placeholder carries either an implementation phase or an exclusion reason
 so later phase agents can distinguish planned work from intentionally excluded
-external-plugin workflows.
+external-plugin workflows. The inventory can be empty after a phase completes;
+keep these helpers as stable hooks for menu checks and future phases.
 """
 
 from __future__ import annotations

@@ -497,7 +497,6 @@ def capture_eegbrowser(output: pathlib.Path, *, variant: str = "continuous") -> 
             selected_rows = [0, 1, 2, 3]
             data = np.asarray(eeg["data"], dtype=float)[selected_rows, :]
             eeg["chanlocs"] = [eeg["chanlocs"][index] for index in selected_rows]
-            winrej = _demo_eegbrowser_winrej(variant)
         title = "Scroll channel activities -- eegplot() -- eegbrowser demo"
         if variant == "pop_eegplot_reject_data":
             title = "Scroll channel activities -- eegplot() -- pop_eegplot reject demo"
