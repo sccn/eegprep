@@ -9,6 +9,7 @@ import pathlib
 import sys
 from typing import Any
 
+import matplotlib.pyplot as plt
 import numpy as np
 
 from eegprep.functions.guifunc.coregister import prepare_coregister_display
@@ -72,6 +73,7 @@ from eegprep.functions.studyfunc.pop_studydesign import pop_studydesign_dialog_s
 from eegprep.functions.studyfunc.std_checkset import std_checkset
 from eegprep.plugins.ICLabel.pop_icflag import pop_icflag_dialog_spec
 from eegprep.plugins.ICLabel.pop_iclabel import pop_iclabel_dialog_spec
+from eegprep.plugins.ICLabel.pop_prop_extended import pop_prop_extended
 from eegprep.plugins.ICLabel.pop_viewprops import pop_viewprops_dialog_spec
 from eegprep.plugins.clean_rawdata.pop_clean_rawdata import pop_clean_rawdata_dialog_spec
 from eegprep.plugins.dipfit.pop_dipfit_gridsearch import pop_dipfit_gridsearch_dialog_spec
@@ -234,6 +236,42 @@ def _demo_main_eeg(*, epoched: bool = False, setname: str = "menu demo") -> dict
             "icaact": np.zeros((4, 250, 2), dtype=np.float32) if epoched else np.zeros((4, 1000), dtype=np.float32),
         }
     )
+    return eeg
+
+
+def _demo_iclabel_dashboard_eeg() -> dict:
+    eeg = _demo_main_eeg(setname="viewprops demo")
+    samples = np.linspace(0.0, 1.0, int(eeg["pnts"]), dtype=float)
+    eeg["data"] = np.vstack([np.sin(2.0 * np.pi * (index + 1) * samples) for index in range(4)]).astype(np.float32)
+    eeg["icaact"] = np.vstack([np.cos(2.0 * np.pi * (index + 1) * samples) for index in range(4)]).astype(np.float32)
+    eeg["times"] = np.linspace(0.0, float(eeg["xmax"]) * 1000.0, int(eeg["pnts"]))
+    eeg["xmin"] = 0.0
+    eeg["reject"] = {"gcompreject": np.zeros(4, dtype=int)}
+    eeg["etc"] = {
+        "ic_classification": {
+            "ICLabel": {
+                "classifications": np.array(
+                    [
+                        [0.70, 0.10, 0.10, 0.03, 0.02, 0.03, 0.02],
+                        [0.02, 0.94, 0.02, 0.01, 0.00, 0.00, 0.01],
+                        [0.05, 0.02, 0.91, 0.01, 0.00, 0.00, 0.01],
+                        [0.80, 0.05, 0.05, 0.02, 0.02, 0.03, 0.03],
+                    ],
+                    dtype=float,
+                ),
+                "classes": ["Brain", "Muscle", "Eye", "Heart", "Line Noise", "Channel Noise", "Other"],
+            }
+        }
+    }
+    eeg["dipfit"] = {
+        "coordformat": "MNI",
+        "model": [
+            {"posxyz": [0, -20, 40], "momxyz": [1, 0, 0], "rv": 0.12, "component": 1},
+            {"posxyz": [25, 10, 35], "momxyz": [0, 1, 0], "rv": 0.2, "component": 2},
+            {"posxyz": [], "momxyz": [], "rv": 1.0, "component": 3},
+            {"posxyz": [], "momxyz": [], "rv": 1.0, "component": 4},
+        ],
+    }
     return eeg
 
 
@@ -940,6 +978,19 @@ def capture_pop_icflag_dialog(output: pathlib.Path) -> None:
     _grab_dialog(dialog, output, app)
 
 
+def capture_pop_prop_extended_dashboard(output: pathlib.Path) -> None:
+    """Render and capture the ICLabel extended property dashboard."""
+    figure = pop_prop_extended(
+        _demo_iclabel_dashboard_eeg(),
+        0,
+        [1, 2],
+        spec_opt="'freqrange', [2 40]",
+        scroll_event=1,
+    )
+    figure.savefig(output, dpi=200)
+    plt.close(figure)
+
+
 def capture_pop_subcomp_dialog(output: pathlib.Path) -> None:
     """Render and capture the pop_subcomp dialog."""
     eeg = _demo_main_eeg()
@@ -1314,6 +1365,8 @@ def main(argv: list[str] | None = None) -> int:
         capture_pop_iclabel_dialog(args.output)
     elif args.case == "pop_icflag_dialog":
         capture_pop_icflag_dialog(args.output)
+    elif args.case == "iclabel_pop_prop_extended_dashboard":
+        capture_pop_prop_extended_dashboard(args.output)
     elif args.case == "pop_subcomp_dialog":
         capture_pop_subcomp_dialog(args.output)
     elif args.case in {

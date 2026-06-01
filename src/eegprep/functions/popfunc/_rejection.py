@@ -28,6 +28,51 @@ def one_based_indices(value: Any, *, limit: int, default_all: bool = False) -> l
     return values
 
 
+def component_rejection_flags(
+    EEG: dict[str, Any],
+    component_total: int,
+    *,
+    create: bool = False,
+) -> np.ndarray:
+    """Return ``EEG.reject.gcompreject`` as a component-length boolean vector."""
+    count = int(component_total)
+    if count < 0:
+        raise ValueError("component_total must be non-negative")
+    reject = EEG.get("reject")
+    raw = [] if not isinstance(reject, dict) else reject.get("gcompreject", [])
+    flags = np.asarray(raw, dtype=bool).ravel()
+    if flags.size != count:
+        flags = np.zeros(count, dtype=bool)
+    else:
+        flags = np.array(flags, dtype=bool, copy=True)
+    if create:
+        stored_reject = reject if isinstance(reject, dict) else {}
+        stored_reject["gcompreject"] = flags.astype(int)
+        EEG["reject"] = stored_reject
+    return flags
+
+
+def set_component_rejection_flag(
+    EEG: dict[str, Any],
+    component_index: int,
+    rejected: bool,
+    component_total: int,
+) -> np.ndarray:
+    """Set one EEGLAB-facing component rejection flag and return all flags."""
+    index = int(component_index)
+    count = int(component_total)
+    if index < 1 or index > count:
+        raise ValueError("component index is outside available ICA components")
+    flags = component_rejection_flags(EEG, count, create=False).astype(int)
+    flags[index - 1] = int(bool(rejected))
+    reject = EEG.get("reject")
+    if not isinstance(reject, dict):
+        reject = {}
+    reject["gcompreject"] = flags
+    EEG["reject"] = reject
+    return flags
+
+
 def expand_values(values: Any, count: int, default: float = 0.0) -> np.ndarray:
     """Expand scalar/short EEGLAB threshold vectors to ``count`` entries."""
     parsed = parse_numeric_sequence(values, dtype=float)

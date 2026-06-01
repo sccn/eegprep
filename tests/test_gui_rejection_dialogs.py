@@ -191,8 +191,32 @@ class RejectionDialogTests(unittest.TestCase):
 
         viewprops.assert_called_once()
         self.assertIs(viewprops.call_args.args[0], session.EEG)
-        self.assertEqual(viewprops.call_args.kwargs, {"typecomp": 0, "return_com": True})
+        self.assertEqual(viewprops.call_args.kwargs["typecomp"], 0)
+        self.assertTrue(callable(viewprops.call_args.kwargs["reject_callback"]))
+        self.assertTrue(viewprops.call_args.kwargs["return_com"])
         self.assertEqual(session.ALLCOM[-1], "pop_viewprops(EEG, 0, [1], [], [], 1, '')")
+
+    def test_viewprops_reject_callback_stores_dashboard_component_marks(self):
+        session = EEGPrepSession()
+        eeg = _epoched_ica_eeg()
+        eeg["reject"]["gcompreject"] = np.zeros(3, dtype=int)
+        session.store_current(eeg, new=True)
+        dispatcher = MenuActionDispatcher(session)
+        captured = {}
+
+        def fake_viewprops(selection, **kwargs):
+            captured["selection"] = selection
+            captured["reject_callback"] = kwargs["reject_callback"]
+            return ["figure"], "pop_viewprops(EEG, 0, [1], [], [], 1, '')"
+
+        with mock.patch("eegprep.plugins.ICLabel.pop_viewprops.pop_viewprops", side_effect=fake_viewprops):
+            dispatcher.dispatch("pop_viewprops:components")
+
+        captured["selection"]["reject"]["gcompreject"][1] = 1
+        captured["reject_callback"](captured["selection"], {2: True})
+
+        np.testing.assert_array_equal(session.EEG["reject"]["gcompreject"], [0, 1, 0])
+        np.testing.assert_array_equal(session.ALLEEG[0]["reject"]["gcompreject"], [0, 1, 0])
 
     def test_reject_marked_epochs_uses_rejglobal_for_ica_menu(self):
         session = EEGPrepSession()

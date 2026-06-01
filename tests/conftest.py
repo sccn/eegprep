@@ -45,6 +45,7 @@ GUI_FILE_SUFFIXES = (
     "tests/test_gui_pop_editset.py",
     "tests/test_gui_pop_firfilt.py",
     "tests/test_gui_pop_iclabel.py",
+    "tests/test_gui_pop_prop_extended.py",
     "tests/test_gui_pop_resample.py",
     "tests/test_gui_pop_runica.py",
     "tests/test_gui_pop_select.py",

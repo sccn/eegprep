@@ -1122,7 +1122,19 @@ class MenuActionDispatcher:
         elif name == "pop_viewprops":
             from eegprep.plugins.ICLabel.pop_viewprops import pop_viewprops
 
-            out = pop_viewprops(selection, typecomp=0 if variant == "components" else 1, return_com=True)
+            target_index = list(self.session.CURRENTSET)
+
+            def commit_component_rejection(eeg_out: Any, _states: dict[int, bool]) -> None:
+                with self.session.gui_action("pop_viewprops"):
+                    self._store_current_from_gui(eeg_out, command="", index=target_index)
+                    self._refresh()
+
+            out = pop_viewprops(
+                selection,
+                typecomp=0 if variant == "components" else 1,
+                reject_callback=commit_component_rejection,
+                return_com=True,
+            )
         else:
             self.show_coming_soon(name, parent)
             return

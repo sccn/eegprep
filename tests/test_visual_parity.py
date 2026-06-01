@@ -83,6 +83,10 @@ class VisualParityConfigTests(unittest.TestCase):
         self.assertEqual(cases["pop_rejtrend_dialog"].targets["eeglab"].action, "pop_rejtrend")
         self.assertEqual(cases["pop_selectcomps_dialog"].targets["eeglab"].action, "pop_selectcomps")
         self.assertEqual(cases["pop_viewprops_dialog"].targets["eeglab"].action, "pop_viewprops")
+        self.assertEqual(
+            cases["iclabel_pop_prop_extended_dashboard"].targets["eeglab"].action,
+            "iclabel_pop_prop_extended",
+        )
         self.assertEqual(cases["pop_dipfit_settings_dialog"].targets["eeglab"].action, "pop_dipfit_settings")
         self.assertEqual(cases["pop_dipfit_gridsearch_dialog"].targets["eeglab"].action, "pop_dipfit_gridsearch")
         self.assertEqual(cases["pop_dipfit_nonlinear_dialog"].targets["eeglab"].action, "pop_dipfit_nonlinear")
