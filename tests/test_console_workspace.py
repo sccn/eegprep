@@ -715,6 +715,32 @@ def test_console_pop_eegplot_accept_callback_refreshes_session_after_browser_acc
     assert refresh.call_count >= 2
 
 
+def test_console_pop_eegplot_positional_reject_argument_controls_accept_storage():
+    session = EEGPrepSession()
+    eeg = _demo_eeg()
+    eeg["data"] = np.arange(8, dtype=float).reshape(2, 4)
+    eeg["pnts"] = 4
+    eeg["xmax"] = 0.03
+    session.store_current(eeg, new=True)
+    workspace = EEGPrepConsoleWorkspace(session, exports={"pop_eegplot": _fake_pop_eegplot})
+
+    result = workspace.namespace["pop_eegplot"](workspace.namespace["EEG"], 1, 0, 0)
+    workspace.after_execute("pop_eegplot(EEG, 1, 0, 0)")
+
+    _eeg_out, command = result
+    assert command == "pop_eegplot(EEG, 1, 0, 0)"
+    out = dict(session.EEG)
+    out["data"] = np.asarray(out["data"])[:, :2]
+    out["pnts"] = 2
+    out["xmax"] = 0.01
+    _fake_pop_eegplot.command_callback(out, command)
+
+    assert session.CURRENTSET == [1]
+    assert session.EEG["pnts"] == 2
+    assert len(session.ALLEEG) == 1
+    assert session.ALLCOM == [command]
+
+
 def test_bare_dataset_pop_call_updates_alleeg_eeg_currentset_and_history():
     session = EEGPrepSession()
     session.store_current(_demo_eeg(), new=True)

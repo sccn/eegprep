@@ -156,16 +156,20 @@ class ConsolePopFunction(LazyWorkspaceExport):
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         function = self.resolve()
         call_kwargs = dict(kwargs)
+        recorded_commands: set[str] = set()
         if self.name == "pop_eegplot" and "command_callback" not in call_kwargs:
             source_eeg = _first_call_eeg_argument(args, call_kwargs)
-            reject = _pop_eegplot_reject_argument(args, call_kwargs)
+            reject = _pop_eegplot_reject_argument(function, args, call_kwargs)
+            target_index = list(self.bridge.session.CURRENTSET)
 
             def accept_eegplot(eeg_out: Any, command: str) -> None:
                 if not isinstance(source_eeg, dict) or not isinstance(eeg_out, dict):
                     return
                 store_new = eegplot_accept_creates_dataset(source_eeg, eeg_out, reject)
-                store_command = "" if command == self.bridge.session.LASTCOM else command
-                self.bridge._store_eeg(eeg_out, store_command, new=store_new)
+                store_command = "" if command in recorded_commands else command
+                recorded_commands.add(command)
+                store_index = None if store_new else target_index
+                self.bridge._store_eeg(eeg_out, store_command, new=store_new, index=store_index)
                 self.bridge.pull_from_session()
                 self.bridge._refresh()
 
@@ -173,6 +177,10 @@ class ConsolePopFunction(LazyWorkspaceExport):
         if _accepts_return_com(function) and "return_com" not in call_kwargs:
             call_kwargs["return_com"] = True
         result = function(*args, **call_kwargs)
+        if self.name == "pop_eegplot":
+            _eeg, command = _extract_pop_eeg_and_command(result)
+            if command:
+                recorded_commands.add(command)
         return self.bridge.accept_pop_result(result, args, kwargs)
 
     def __repr__(self) -> str:
@@ -403,10 +411,10 @@ class EEGPrepConsoleWorkspace:
             elif export_name.startswith("pop_"):
                 self.namespace[local_name] = self.pop_wrapper(export_name)
 
-    def _store_eeg(self, eeg: Any, command: str, *, new: bool = False) -> None:
+    def _store_eeg(self, eeg: Any, command: str, *, new: bool = False, index: int | list[int] | None = None) -> None:
         self._syncing = True
         try:
-            self.session.store_current(eeg, new=new, command=command)
+            self.session.store_current(eeg, new=new, command=command, index=index)
         finally:
             self._syncing = False
 
@@ -1209,12 +1217,9 @@ def _first_call_eeg_argument(args: tuple[Any, ...], kwargs: Mapping[str, Any]) -
     return kwargs.get("EEG")
 
 
-def _pop_eegplot_reject_argument(args: tuple[Any, ...], kwargs: Mapping[str, Any]) -> int:
-    if "reject" in kwargs:
-        return int(kwargs["reject"])
-    if len(args) >= 4:
-        return int(args[3])
-    return 1
+def _pop_eegplot_reject_argument(function: Callable[..., Any], args: tuple[Any, ...], kwargs: Mapping[str, Any]) -> int:
+    bound = inspect.signature(function).bind_partial(*args, **kwargs)
+    return int(bound.arguments.get("reject", 1))
 
 
 def _is_eeg_selection(value: Any) -> bool:

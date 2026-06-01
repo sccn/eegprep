@@ -632,6 +632,7 @@ class MenuActionDispatcherTests(unittest.TestCase):
             dispatcher.dispatch("pop_eegplot:data")
 
         self.assertEqual(session.ALLCOM, [command])
+        session.add_history("EEG = pop_reref(EEG);")
         out = dict(session.EEG)
         out["data"] = np.asarray(out["data"])[:, :20]
         out["pnts"] = 20
@@ -641,8 +642,39 @@ class MenuActionDispatcherTests(unittest.TestCase):
         self.assertEqual(len(session.ALLEEG), 2)
         self.assertEqual(session.CURRENTSET, [2])
         self.assertEqual(session.EEG["pnts"], 20)
-        self.assertEqual(session.ALLCOM, [command])
+        self.assertEqual(session.ALLCOM, [command, "EEG = pop_reref(EEG);"])
         self.assertGreaterEqual(refresh.call_count, 2)
+
+    def test_pop_eegplot_accept_updates_original_dataset_after_selection_changes(self):
+        session = EEGPrepSession()
+        first = _demo_eeg()
+        second = _demo_eeg()
+        second["setname"] = "second"
+        session.store_current(first, new=True)
+        session.store_current(second, new=True)
+        session.retrieve(1)
+        dispatcher = MenuActionDispatcher(session)
+        captured = {}
+        command = "pop_eegplot(EEG, 1, 0, 1)"
+
+        def fake_pop_eegplot(eeg, *, command_callback=None, return_com=False, **_kwargs):
+            captured["callback"] = command_callback
+            self.assertEqual(eeg["setname"], "demo")
+            self.assertTrue(return_com)
+            return eeg, command
+
+        with mock.patch("eegprep.functions.popfunc.pop_eegplot.pop_eegplot", side_effect=fake_pop_eegplot):
+            dispatcher.dispatch("pop_eegplot:data")
+
+        session.retrieve(2)
+        out = dict(first, setname="accepted first")
+        captured["callback"](out, command)
+
+        self.assertEqual(session.CURRENTSET, [1])
+        self.assertEqual(session.EEG["setname"], "accepted first")
+        self.assertEqual(session.ALLEEG[0]["setname"], "accepted first")
+        self.assertEqual(session.ALLEEG[1]["setname"], "second")
+        self.assertEqual(session.ALLCOM, [command])
 
     def test_pop_eegplot_component_menu_error_does_not_mutate_session_when_ica_missing(self):
         session = EEGPrepSession()

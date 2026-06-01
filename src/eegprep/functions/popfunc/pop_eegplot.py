@@ -100,7 +100,13 @@ def pop_eegplot(
 
 
 def eegplot_accept_creates_dataset(input_eeg: dict[str, Any], output_eeg: dict[str, Any], reject: int = 1) -> bool:
-    """Return whether an accepted ``pop_eegplot`` result should be stored as a new dataset."""
+    """Return whether accepted ``pop_eegplot`` output should be a new dataset.
+
+    Rejection accepts that remove continuous samples or epochs create a new
+    EEGLAB-style dataset. Mark-only updates and no-op rejects update in place.
+    For example, ``(pnts=100, pnts=80, reject=1)`` returns true, while
+    ``(pnts=100, pnts=100, reject=1)`` and any ``reject=0`` call return false.
+    """
     if not int(bool(reject)):
         return False
     input_trials = int(input_eeg.get("trials", 1) or 1)

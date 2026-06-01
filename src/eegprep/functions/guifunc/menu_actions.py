@@ -1018,13 +1018,22 @@ class MenuActionDispatcher:
             from eegprep.functions.popfunc.pop_eegplot import eegplot_accept_creates_dataset, pop_eegplot
 
             icacomp, superpose, reject = _pop_eegplot_variant_options(variant)
+            target_index = list(self.session.CURRENTSET)
+            recorded_commands: set[str] = set()
 
             def accept_eegplot(eeg_out: Any, command: str) -> None:
                 with self.session.gui_action("pop_eegplot"):
                     if command:
                         store_new = eegplot_accept_creates_dataset(selection, eeg_out, reject)
-                        store_command = "" if command == self.session.LASTCOM else command
-                        self._store_current_from_gui(eeg_out, new=store_new, command=store_command)
+                        store_command = "" if command in recorded_commands else command
+                        recorded_commands.add(command)
+                        store_index = None if store_new else target_index
+                        self._store_current_from_gui(
+                            eeg_out,
+                            new=store_new,
+                            command=store_command,
+                            index=store_index,
+                        )
                         self._refresh()
 
             out = pop_eegplot(
@@ -1038,6 +1047,7 @@ class MenuActionDispatcher:
             command = out[1] if isinstance(out, tuple) and len(out) > 1 else ""
             if command:
                 self._add_history_from_gui(command)
+                recorded_commands.add(command)
                 self._refresh()
             return
         elif name == "pop_autorej":
@@ -1478,6 +1488,8 @@ def _currentset_list(value: Any) -> list[int]:
 
 
 def _pop_eegplot_variant_options(variant: str) -> tuple[int, int, int]:
+    # Mirrors eeglab.m callbacks: cb_eegplot/cb_eegplotrej* omit optional args,
+    # while Plot scroll actions explicitly call pop_eegplot(EEG, icacomp, 1, 1).
     if variant == "components":
         return 0, 1, 1
     if variant == "reject_ica":
