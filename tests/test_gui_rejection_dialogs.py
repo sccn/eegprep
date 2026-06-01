@@ -264,6 +264,37 @@ class RejectionDialogTests(unittest.TestCase):
         self.assertEqual(len(session.ALLEEG), 2)
         self.assertEqual(session.ALLCOM, [command])
 
+    def test_rejection_dispatch_stores_multi_dataset_results_without_browser_callback(self):
+        session = EEGPrepSession()
+        first = _epoched_ica_eeg()
+        first["setname"] = "first"
+        second = _epoched_ica_eeg()
+        second["setname"] = "second"
+        session.store_current(first, new=True)
+        session.store_current(second, new=True)
+        session.retrieve([1, 2])
+        dispatcher = MenuActionDispatcher(session)
+        captured = {}
+        command = "EEG = pop_jointprob(EEG, 1, [1], 4, 4, 0, 1, 1);"
+
+        def fake_pop_jointprob(selection, icacomp, **kwargs):
+            captured["selection"] = selection
+            captured["icacomp"] = icacomp
+            captured["kwargs"] = kwargs
+            output = [dict(item, setname=f"{item['setname']}-marked") for item in selection]
+            return output, command
+
+        with mock.patch("eegprep.functions.popfunc.pop_jointprob.pop_jointprob", side_effect=fake_pop_jointprob):
+            dispatcher.dispatch("pop_jointprob:data")
+
+        self.assertEqual([item["setname"] for item in captured["selection"]], ["first", "second"])
+        self.assertEqual(captured["icacomp"], 1)
+        self.assertTrue(captured["kwargs"]["return_com"])
+        self.assertNotIn("command_callback", captured["kwargs"])
+        self.assertEqual(session.CURRENTSET, [1, 2])
+        self.assertEqual([item["setname"] for item in session.ALLEEG], ["first-marked", "second-marked"])
+        self.assertEqual(session.ALLCOM, [command])
+
     def test_rejection_browser_accept_callback_creates_dataset_without_duplicate_history(self):
         session = EEGPrepSession()
         eeg = _epoched_ica_eeg()

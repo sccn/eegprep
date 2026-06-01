@@ -354,7 +354,7 @@ def test_pop_rejcont_display_defers_history_command_until_browser_accept(monkeyp
 
     monkeypatch.setattr(pop_rejcont_module, "eegplot", fake_eegplot)
 
-    _out, command = pop_rejcont(
+    out, command = pop_rejcont(
         eeg,
         "elecrange",
         [1],
@@ -372,6 +372,7 @@ def test_pop_rejcont_display_defers_history_command_until_browser_accept(monkeyp
         return_com=True,
     )
 
+    assert out is eeg
     assert command == ""
     assert accepted[0][1].startswith("EEG = pop_rejcont(EEG, ")
 

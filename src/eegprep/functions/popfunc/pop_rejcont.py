@@ -15,6 +15,7 @@ from eegprep.functions.sigprocfunc.eegplot import eegplot
 
 
 _REJCONT_WINREJ_COLOR = (0.0, 0.9, 0.0)
+_REJCONT_TAPER = "hamming"
 
 
 def pop_rejcont(
@@ -70,6 +71,7 @@ def pop_rejcont_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("edit", tag="contiguous", value="4"),
             ControlSpec("text", "Add trails before and after regions (s)"),
             ControlSpec("edit", tag="addlength", value="0.25"),
+            # EEGLAB labels this "hanning" but maps the checked option to a Hamming taper.
             ControlSpec("text", "Use hanning window before computing FFT"),
             ControlSpec("checkbox", tag="taper", value=True),
         ),
@@ -87,7 +89,7 @@ def _run_gui(EEG: dict[str, Any], renderer: Any | None) -> dict[str, Any] | None
         "epochlength": result.get("epochlength", "0.5"),
         "contiguous": result.get("contiguous", "4"),
         "addlength": result.get("addlength", "0.25"),
-        "taper": "hamming" if result.get("taper", False) else "none",
+        "taper": _REJCONT_TAPER if result.get("taper", False) else "none",
         "eegplot": "on",
     }
 
@@ -150,7 +152,7 @@ def _apply_one(
             out["data"] = data
         else:
             out = pop_select(out, "nopoint", selected.tolist(), gui=False)
-    return out, selected, "" if browser_display else command
+    return (EEG if browser_display else out), selected, "" if browser_display else command
 
 
 def _open_rejcont_browser(
@@ -265,7 +267,7 @@ def _selected_regions(
         return np.empty((0, 2), dtype=int)
     starts = list(range(0, data.shape[1] - window + 1, step))
     flagged = np.zeros(len(starts), dtype=bool)
-    taper = np.hamming(window) if str(options.get("taper", "none")).lower() == "hamming" else np.ones(window)
+    taper = np.hamming(window) if str(options.get("taper", "none")).lower() == _REJCONT_TAPER else np.ones(window)
     freqs = np.fft.rfftfreq(window, d=1 / srate)
     if len(freqlimit) < 2:
         freqlimit = [35, min(128, srate / 2)]

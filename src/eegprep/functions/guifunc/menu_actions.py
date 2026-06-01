@@ -1065,6 +1065,14 @@ class MenuActionDispatcher:
 
             target_index = list(self.session.CURRENTSET)
             recorded_commands: set[str] = set()
+            if isinstance(selection, list):
+                out = self._run_browser_accept_pop_action(name, selection, variant, command_callback=None)
+                command = out[1] if isinstance(out, tuple) and len(out) > 1 else ""
+                eeg_out = out[0] if isinstance(out, tuple) and out else out
+                if command:
+                    self._store_current_from_gui(eeg_out, command=command, index=target_index)
+                    self._refresh()
+                return
 
             def accept_browser_result(eeg_out: Any, command: str) -> None:
                 with self.session.gui_action(name):
@@ -1081,59 +1089,7 @@ class MenuActionDispatcher:
                         )
                         self._refresh()
 
-            if name == "pop_autorej":
-                from eegprep.functions.popfunc.pop_autorej import pop_autorej
-
-                out = pop_autorej(selection, command_callback=accept_browser_result, return_com=True)
-            elif name == "pop_eegthresh":
-                from eegprep.functions.popfunc.pop_eegthresh import pop_eegthresh
-
-                out = pop_eegthresh(
-                    selection,
-                    _icacomp_from_variant(variant),
-                    command_callback=accept_browser_result,
-                    return_com=True,
-                )
-            elif name == "pop_jointprob":
-                from eegprep.functions.popfunc.pop_jointprob import pop_jointprob
-
-                out = pop_jointprob(
-                    selection,
-                    _icacomp_from_variant(variant),
-                    command_callback=accept_browser_result,
-                    return_com=True,
-                )
-            elif name == "pop_rejcont":
-                from eegprep.functions.popfunc.pop_rejcont import pop_rejcont
-
-                out = pop_rejcont(selection, command_callback=accept_browser_result, return_com=True)
-            elif name == "pop_rejkurt":
-                from eegprep.functions.popfunc.pop_rejkurt import pop_rejkurt
-
-                out = pop_rejkurt(
-                    selection,
-                    _icacomp_from_variant(variant),
-                    command_callback=accept_browser_result,
-                    return_com=True,
-                )
-            elif name == "pop_rejspec":
-                from eegprep.functions.popfunc.pop_rejspec import pop_rejspec
-
-                out = pop_rejspec(
-                    selection,
-                    _icacomp_from_variant(variant),
-                    command_callback=accept_browser_result,
-                    return_com=True,
-                )
-            else:
-                from eegprep.functions.popfunc.pop_rejtrend import pop_rejtrend
-
-                out = pop_rejtrend(
-                    selection,
-                    _icacomp_from_variant(variant),
-                    command_callback=accept_browser_result,
-                    return_com=True,
-                )
+            out = self._run_browser_accept_pop_action(name, selection, variant, command_callback=accept_browser_result)
             command = out[1] if isinstance(out, tuple) and len(out) > 1 else ""
             eeg_out = out[0] if isinstance(out, tuple) and out else out
             if name == "pop_rejcont":
@@ -1181,6 +1137,43 @@ class MenuActionDispatcher:
         if command:
             self._store_current_from_gui(eeg_out, command=command)
             self._refresh()
+
+    def _run_browser_accept_pop_action(
+        self,
+        name: str,
+        selection: Any,
+        variant: str,
+        *,
+        command_callback: Any | None,
+    ) -> Any:
+        callback_kwargs = {"command_callback": command_callback} if command_callback is not None else {}
+        if name == "pop_autorej":
+            from eegprep.functions.popfunc.pop_autorej import pop_autorej
+
+            return pop_autorej(selection, **callback_kwargs, return_com=True)
+        if name == "pop_eegthresh":
+            from eegprep.functions.popfunc.pop_eegthresh import pop_eegthresh
+
+            return pop_eegthresh(selection, _icacomp_from_variant(variant), **callback_kwargs, return_com=True)
+        if name == "pop_jointprob":
+            from eegprep.functions.popfunc.pop_jointprob import pop_jointprob
+
+            return pop_jointprob(selection, _icacomp_from_variant(variant), **callback_kwargs, return_com=True)
+        if name == "pop_rejcont":
+            from eegprep.functions.popfunc.pop_rejcont import pop_rejcont
+
+            return pop_rejcont(selection, **callback_kwargs, return_com=True)
+        if name == "pop_rejkurt":
+            from eegprep.functions.popfunc.pop_rejkurt import pop_rejkurt
+
+            return pop_rejkurt(selection, _icacomp_from_variant(variant), **callback_kwargs, return_com=True)
+        if name == "pop_rejspec":
+            from eegprep.functions.popfunc.pop_rejspec import pop_rejspec
+
+            return pop_rejspec(selection, _icacomp_from_variant(variant), **callback_kwargs, return_com=True)
+        from eegprep.functions.popfunc.pop_rejtrend import pop_rejtrend
+
+        return pop_rejtrend(selection, _icacomp_from_variant(variant), **callback_kwargs, return_com=True)
 
     def _select_multiple_datasets(self, parent: Any | None) -> None:
         if not self.session.ALLEEG:
