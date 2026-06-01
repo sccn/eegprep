@@ -108,12 +108,12 @@ def _continuous_winrej(
     newcolor: tuple[float, float, float],
 ) -> np.ndarray:
     rows = []
-    new_rows = _continuous_rows(rej, n_channels, newcolor)
-    if new_rows.size:
-        rows.append(new_rows)
     old_rows = _continuous_rows(oldrej, n_channels, oldcolor)
     if old_rows.size:
         rows.append(old_rows)
+    new_rows = _continuous_rows(rej, n_channels, newcolor)
+    if new_rows.size:
+        rows.append(new_rows)
     return np.vstack(rows) if rows else np.zeros((0, 5 + n_channels), dtype=float)
 
 

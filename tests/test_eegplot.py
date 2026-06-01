@@ -44,6 +44,11 @@ def test_parse_eegplot_options_rejects_unknown_options() -> None:
         parse_eegplot_options((), {"bogus": 1})
 
 
+def test_eegplot_rejects_internal_plotdata2_option() -> None:
+    with pytest.raises(ValueError, match="plotdata2"):
+        eegplot(np.zeros((1, 10)), plotdata2="on", show=False)
+
+
 def test_continuous_data_normalization_defaults_and_bounds() -> None:
     data = np.arange(20, dtype=float).reshape(2, 10)
     model = build_eegplot_model(data, srate=10, winlength=0.4, spacing=2, show=False)
@@ -469,8 +474,17 @@ def test_eeg_multieegplot_continuous_uses_old_and_new_colors() -> None:
     )
     rows = winrej_to_array(model.state.winrej, 2)
 
-    np.testing.assert_array_equal(rows[:, :2], [[3, 5], [8, 10]])
-    np.testing.assert_allclose(rows[:, 2:5], [[0.8, 0.8, 1.0], [0.8, 1.0, 0.8]])
+    np.testing.assert_array_equal(rows[:, :2], [[8, 10], [3, 5]])
+    np.testing.assert_allclose(rows[:, 2:5], [[0.8, 1.0, 0.8], [0.8, 0.8, 1.0]])
+
+
+def test_eeg_multieegplot_epoched_accepts_one_based_trial_indices() -> None:
+    model = eeg_multieegplot(np.zeros((1, 4, 4), dtype=float), rej=[2, 4], rejE=np.ones((1, 4)), show=False)
+    rows = winrej_to_array(model.state.winrej, 1)
+
+    np.testing.assert_array_equal(rows[:, :2], [[4, 7], [12, 15]])
+    np.testing.assert_allclose(rows[:, 2:5], [[0.8, 0.8, 1.0], [0.8, 0.8, 1.0]])
+    np.testing.assert_array_equal(rows[:, 5:], [[1], [1]])
 
 
 def test_eegplot_accept_creates_dataset_only_when_reject_removes_data() -> None:

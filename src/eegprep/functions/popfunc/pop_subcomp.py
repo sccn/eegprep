@@ -139,17 +139,26 @@ def _remove_components(EEG: dict, components: Any, keepcomp: int | bool) -> tupl
 
 def _plot_subcomp_confirmation(input_eeg: dict, output_eeg: dict) -> None:
     icachansind = _icachansind(input_eeg)
-    preview = copy.deepcopy(input_eeg)
     input_data = np.asarray(input_eeg["data"])
     output_data = np.asarray(output_eeg["data"])
-    preview["data"] = np.array(input_data[icachansind], dtype=float, copy=True)
-    preview["nbchan"] = int(icachansind.size)
-    preview["chanlocs"] = _selected_chanlocs(input_eeg, icachansind)
+    preview_data = np.array(input_data[icachansind], dtype=float, copy=True)
+    preview = {
+        "data": preview_data,
+        "nbchan": int(icachansind.size),
+        "pnts": int(input_eeg.get("pnts", preview_data.shape[1]) or preview_data.shape[1]),
+        "trials": int(input_eeg.get("trials", preview_data.shape[2] if preview_data.ndim == 3 else 1) or 1),
+        "srate": float(input_eeg.get("srate", 256) or 256),
+        "xmin": float(input_eeg.get("xmin", 0.0) or 0.0),
+        "xmax": float(input_eeg.get("xmax", 0.0) or 0.0),
+        "chanlocs": _selected_chanlocs(input_eeg, icachansind),
+        "event": input_eeg.get("event", []),
+        "setname": input_eeg.get("setname", ""),
+    }
     eegplot(
         preview,
-        srate=float(input_eeg.get("srate", 256) or 256),
+        srate=preview["srate"],
         title="Black = channel before rejection; red = after rejection -- eegplot()",
-        limits=[float(input_eeg.get("xmin", 0.0) or 0.0) * 1000.0, float(input_eeg.get("xmax", 0.0) or 0.0) * 1000.0],
+        limits=[preview["xmin"] * 1000.0, preview["xmax"] * 1000.0],
         data2=np.array(output_data[icachansind], dtype=float, copy=True),
     )
 

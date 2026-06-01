@@ -186,6 +186,10 @@ class EEGBrowserWindow(_QMainWindow):
             self.controls.hide()
             self.menuBar().hide()
             return
+        self.channel_slider.show()
+        self.scale_indicator.show()
+        self.controls.show()
+        self.menuBar().show()
         axes_geometry = _rect_from_normalized(_AXES_POSITION, width, height)
         self.canvas.setGeometry(
             axes_geometry.adjusted(
@@ -477,6 +481,8 @@ class EEGBrowserWindow(_QMainWindow):
             self.controls.hide()
             self.menuBar().hide()
             return
+        self.controls.show()
+        self.menuBar().show()
         maximum_offset = max(0, self.model.data.n_channels - self.model.state.dispchans)
         self.channel_slider.blockSignals(True)
         self.channel_slider.setRange(0, maximum_offset)

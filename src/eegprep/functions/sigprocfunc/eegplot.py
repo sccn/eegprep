@@ -31,7 +31,6 @@ _OPTION_NAMES = {
     "xgrid",
     "ygrid",
     "data2",
-    "plotdata2",
     "command",
     "command_callback",
     "butlabel",
@@ -610,7 +609,6 @@ def _model_options(source_eeg: dict[str, Any] | None, kwargs: dict[str, Any]) ->
     options.setdefault("xgrid", "off")
     options.setdefault("ygrid", "off")
     options.setdefault("data2", None)
-    options.setdefault("plotdata2", "off")
     options.setdefault("command", None)
     options.setdefault("command_callback", None)
     options.setdefault("butlabel", "REJECT")

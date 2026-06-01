@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
-from eegprep.functions.sigprocfunc.eegplot import build_eegplot_model
+from eegprep.functions.sigprocfunc.eegplot import build_eegplot_model, eegplot
 
 
 SAMPLE_DATASET = Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data.set"
@@ -400,10 +400,23 @@ def test_gui_linked_child_windows_synchronize_time_and_channels(qapp) -> None:
     parent.close()
 
 
-def test_gui_noui_publication_view_hides_browser_controls(qapp) -> None:
+def test_gui_eegplot_children_option_links_opened_browser(qapp) -> None:
     from eegprep.functions.guifunc.eegbrowser import EEGBrowserWindow
 
-    model = build_eegplot_model(np.zeros((3, 100)), srate=10, winlength=2, spacing=1, noui="on")
+    child_model = build_eegplot_model(np.zeros((4, 100)), srate=10, winlength=2, dispchans=2, spacing=1)
+    child = EEGBrowserWindow(child_model)
+
+    parent = eegplot(np.zeros((4, 100)), srate=10, winlength=2, dispchans=2, spacing=1, children=child)
+
+    assert child in parent._linked_windows
+    assert parent in child._linked_windows
+    parent.close()
+
+
+def test_gui_noui_publication_view_hides_and_restores_browser_controls(qapp) -> None:
+    from eegprep.functions.guifunc.eegbrowser import EEGBrowserWindow
+
+    model = build_eegplot_model(np.zeros((3, 100)), srate=10, winlength=2, dispchans=2, spacing=1, noui="on")
     window = EEGBrowserWindow(model)
     window.show()
     qapp.processEvents()
@@ -413,6 +426,14 @@ def test_gui_noui_publication_view_hides_browser_controls(qapp) -> None:
     assert window.controls.cancel_button.isHidden() is True
     assert window.scale_indicator.isHidden() is True
     assert window.canvas.isVisible() is True
+
+    window.set_publication_view(False)
+    qapp.processEvents()
+
+    assert window.menuBar().isHidden() is False
+    assert window.channel_slider.isHidden() is False
+    assert window.controls.cancel_button.isHidden() is False
+    assert window.scale_indicator.isHidden() is False
     window.close()
 
 
