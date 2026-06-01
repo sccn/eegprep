@@ -23,7 +23,7 @@ class DipfitMriVolume:
     @property
     def inverse_transform(self) -> np.ndarray:
         """Return the MNI-to-voxel homogeneous transform."""
-        return np.linalg.pinv(self.transform)
+        return np.linalg.inv(self.transform)
 
     @property
     def axis_coordinates(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
