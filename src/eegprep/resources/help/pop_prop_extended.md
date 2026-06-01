@@ -13,9 +13,11 @@ summary, power spectrum, percent variance accounted for, and ICLabel-style
 classification probabilities when classifier data are available in
 `EEG.etc.ic_classification`.
 
-`scroll_event=1` includes events in the attached browser-backed activity view.
-`scroll_event=0` hides events in that browser view. Multiple selected
-components are shown in one navigable dashboard.
+`scroll_event=1` includes events in the attached browser-backed activity view
+and in the inline activity trace. `scroll_event=0` hides events in both places.
+For epoched data, the inline trace marks events for the displayed epoch trace;
+use the attached activity browser to review events across all epochs. Multiple
+selected components are shown in one navigable dashboard.
 
 Notes:
 

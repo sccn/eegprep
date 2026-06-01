@@ -9,6 +9,7 @@ import pytest
 from eegprep.plugins.ICLabel.pop_prop_extended import (
     DEFAULT_ICLABEL_CLASSES,
     build_extended_property_data,
+    classifier_name_from_gui,
     classifier_names,
     resolve_classifier_data,
     selected_property_indices,
@@ -65,6 +66,13 @@ def test_classifier_data_parsing_defaults_to_iclabel_and_standard_classes() -> N
     assert classifier.classes == DEFAULT_ICLABEL_CLASSES
     np.testing.assert_allclose(classifier.probabilities[1], [0.02, 0.94, 0.02, 0.01, 0.0, 0.0, 0.01])
     assert classifier_names(eeg) == ["Other", "ICLabel"]
+
+
+def test_classifier_name_from_gui_matches_string_values_case_insensitively() -> None:
+    eeg = _iclabel_eeg()
+
+    assert classifier_name_from_gui(eeg, "iclabel") == "ICLabel"
+    assert classifier_name_from_gui(eeg, "OTHER") == "Other"
 
 
 def test_classifier_data_rejects_component_count_mismatch() -> None:

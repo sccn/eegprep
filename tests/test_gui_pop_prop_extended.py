@@ -43,6 +43,15 @@ def _dashboard_eeg() -> dict:
     return eeg
 
 
+def _axis_by_title(figure, title: str):
+    return next(axis for axis in figure.axes if axis.get_title() == title)
+
+
+def _event_marker_labels(figure, title: str) -> list[str]:
+    axis = _axis_by_title(figure, title)
+    return [text.get_text() for text in axis.texts]
+
+
 def test_gui_dashboard_creation_has_eeglab_labels_titles_and_activity_browser() -> None:
     eeg = _dashboard_eeg()
 
@@ -58,6 +67,7 @@ def test_gui_dashboard_creation_has_eeglab_labels_titles_and_activity_browser() 
     assert "IC1 Activity Power Spectrum" in titles
     assert figure.eegprep_activity_view.state.title == "Scrolling IC1 Activity -- eegplot()"
     assert len(figure.eegprep_activity_view.state.events) == 1
+    assert _event_marker_labels(figure, "Scrolling IC1 Activity") == ["stim"]
     assert set(figure.eegprep_dashboard_navigation) == {"previous", "next"}
     plt.close(figure)
 
@@ -82,8 +92,31 @@ def test_gui_dashboard_activity_browser_honors_event_display_option() -> None:
 
     assert len(with_events.eegprep_activity_view.state.events) == 1
     assert without_events.eegprep_activity_view.state.events == []
+    assert _event_marker_labels(with_events, "Scrolling IC1 Activity") == ["stim"]
+    assert _event_marker_labels(without_events, "Scrolling IC1 Activity") == []
     plt.close(with_events)
     plt.close(without_events)
+
+
+def test_gui_dashboard_epoched_static_events_only_mark_displayed_trace() -> None:
+    eeg = _dashboard_eeg()
+    eeg["data"] = np.repeat(eeg["data"][:, :, np.newaxis], 2, axis=2)
+    eeg["icaact"] = np.repeat(eeg["icaact"][:, :, np.newaxis], 2, axis=2)
+    eeg["trials"] = 2
+    eeg["event"] = [
+        {"type": "first", "latency": 25.0, "duration": 0.0, "epoch": 1},
+        {"type": "second", "latency": 125.0, "duration": 0.0, "epoch": 2},
+    ]
+    eeg["epoch"] = [
+        {"event": [0], "eventtype": ["first"], "eventlatency": [0.0], "eventduration": [0.0]},
+        {"event": [1], "eventtype": ["second"], "eventlatency": [0.0], "eventduration": [0.0]},
+    ]
+
+    figure = pop_prop_extended(eeg, 0, 1, scroll_event=1)
+
+    assert _event_marker_labels(figure, "Scrolling IC1 Activity") == ["first"]
+    assert [event.type for event in figure.eegprep_activity_view.state.events] == ["first", "second"]
+    plt.close(figure)
 
 
 def test_pop_viewprops_component_mode_opens_extended_dashboard_when_classifier_is_available() -> None:

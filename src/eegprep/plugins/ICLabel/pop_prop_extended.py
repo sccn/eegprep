@@ -383,7 +383,8 @@ def _render_dashboard(figure: Any) -> None:
     _plot_topography(topo_ax, dashboard)
     if class_ax is not None:
         _plot_classifier(class_ax, dashboard)
-    _plot_activity(activity_ax, dashboard, bool(state["scroll_event"]))
+    events = state["EEG"].get("event", []) if bool(state["scroll_event"]) else []
+    _plot_activity(activity_ax, dashboard, events)
     _plot_activity_image(image_ax, dashboard)
     _plot_spectrum(spectrum_ax, dashboard)
     figure.suptitle(dashboard.figure_title, fontsize=14, fontweight="bold")
@@ -450,11 +451,11 @@ def _plot_classifier(axis: Any, dashboard: ExtendedPropertyData) -> None:
         axis.text(0.5, y_value, f"{probability * 100:.1f}%", ha="center", va="center", fontsize=8)
 
 
-def _plot_activity(axis: Any, dashboard: ExtendedPropertyData, scroll_event: bool) -> None:
+def _plot_activity(axis: Any, dashboard: ExtendedPropertyData, events: Any) -> None:
     x_values, y_values = _activity_trace(dashboard)
     axis.plot(x_values, y_values, color="black", linewidth=0.85)
     axis.axhline(0.0, color="0.75", linewidth=0.6)
-    _plot_event_markers(axis, x_values, dashboard, scroll_event)
+    _plot_event_markers(axis, x_values, dashboard, events)
     axis.set_title(dashboard.activity_title, fontsize=12, fontweight="normal")
     axis.set_xlabel("Time (ms)")
     axis.set_ylabel("uV")
@@ -484,9 +485,14 @@ def _plot_spectrum(axis: Any, dashboard: ExtendedPropertyData) -> None:
     axis.grid(True, alpha=0.25)
     finite = np.isfinite(dashboard.spectrum_power)
     if np.any(finite):
-        axis.set_ylim(
-            float(np.nanmin(dashboard.spectrum_power[finite])), float(np.nanmax(dashboard.spectrum_power[finite]))
-        )
+        finite_values = dashboard.spectrum_power[finite]
+        low = float(np.min(finite_values))
+        high = float(np.max(finite_values))
+        if high == low:
+            padding = 1.0 if low == 0.0 else abs(low) * 0.05
+            low -= padding
+            high += padding
+        axis.set_ylim(low, high)
 
 
 def _add_navigation_controls(figure: Any) -> None:
@@ -651,32 +657,89 @@ def _plot_event_markers(
     axis: Any,
     x_values: np.ndarray,
     dashboard: ExtendedPropertyData,
-    scroll_event: bool,
+    events: Any,
 ) -> None:
-    if not scroll_event:
-        return
-    events = (
-        (axis.figure.eegprep_dashboard_state["EEG"].get("event") or [])
-        if hasattr(axis.figure, "eegprep_dashboard_state")
-        else []
-    )
-    if not events:
+    event_items = _event_items(events)
+    if not event_items:
         return
     first = float(np.nanmin(x_values))
     last = float(np.nanmax(x_values))
-    for event in events:
-        if not isinstance(event, dict):
+    trace = np.asarray(dashboard.activity[0], dtype=float)
+    if trace.ndim == 1:
+        trace = trace[:, np.newaxis]
+    pnts = int(dashboard.times_ms.size)
+    displayed_epoch = 0
+    for event in event_items:
+        if "latency" not in event:
             continue
         try:
-            sample = int(round(float(event.get("latency", 1)))) - 1
+            sample = int(round(float(_event_scalar(event["latency"])))) - 1
         except (TypeError, ValueError):
             continue
-        if sample < 0 or sample >= dashboard.times_ms.size:
+        if sample < 0:
+            continue
+        if trace.shape[1] > 1:
+            event_epoch = _event_epoch(event)
+            if event_epoch is not None and event_epoch != displayed_epoch + 1:
+                continue
+            epoch_index = sample // pnts
+            if epoch_index != displayed_epoch:
+                continue
+            sample %= pnts
+        if sample >= pnts:
             continue
         x_value = float(dashboard.times_ms[sample])
         if first <= x_value <= last:
             axis.axvline(x_value, color="red", linestyle="--", linewidth=0.75)
             axis.text(x_value, 0.98, str(event.get("type", "")), transform=axis.get_xaxis_transform(), rotation=45)
+
+
+def _event_items(events: Any) -> list[dict[str, Any]]:
+    if events is None:
+        return []
+    if isinstance(events, dict):
+        if "latency" not in events:
+            return [events]
+        latencies = np.asarray(events["latency"], dtype=object).ravel()
+        types = np.asarray(events.get("type", [""] * latencies.size), dtype=object).ravel()
+        epochs = np.asarray(events.get("epoch", [None] * latencies.size), dtype=object).ravel()
+        event_items = []
+        for index, latency in enumerate(latencies):
+            event = {
+                "type": _event_scalar(types[min(index, types.size - 1)]),
+                "latency": _event_scalar(latency),
+            }
+            epoch = _event_scalar(epochs[min(index, epochs.size - 1)])
+            if epoch is not None:
+                event["epoch"] = epoch
+            event_items.append(event)
+        return event_items
+    if isinstance(events, np.ndarray):
+        events = events.tolist()
+    try:
+        event_values = list(events)
+    except TypeError:
+        return []
+    return [event for event in event_values if isinstance(event, dict)]
+
+
+def _event_epoch(event: dict[str, Any]) -> int | None:
+    if "epoch" not in event:
+        return None
+    try:
+        return int(round(float(_event_scalar(event["epoch"]))))
+    except (TypeError, ValueError):
+        return None
+
+
+def _event_scalar(value: Any) -> Any:
+    array = np.asarray(value)
+    if array.shape == ():
+        return array.item()
+    if array.size == 1:
+        item = array.ravel()[0]
+        return item.item() if hasattr(item, "item") else item
+    return value
 
 
 def _component_pvaf(
