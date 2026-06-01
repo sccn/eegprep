@@ -174,10 +174,9 @@ and console code should append each successful command once through
 ``EEGPrepSession.add_history`` or storage helpers.
 
 Menu placeholders are machine-readable. Each placeholder action has either a
-target epic phase or an explicit exclusion reason such as ``eegbrowser`` for
-EEGBrowser/eegplot-style scrolling workflows. Runtime package code must not
-read, import, or shell out to ``src/eegprep/eeglab``; that tree is only a
-development parity reference.
+target epic phase or an explicit exclusion reason for workflows that cannot be
+packaged in EEGPrep. Runtime package code must not read, import, or shell out
+to ``src/eegprep/eeglab``; that tree is only a development parity reference.
 
 GUI Help buttons and Help-menu topics must resolve to packaged Markdown files
 under ``src/eegprep/resources/help``. Do not fall back to the vendored EEGLAB

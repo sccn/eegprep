@@ -13,15 +13,13 @@ Top-level menus:
   component removal, epoching, and baseline removal workflows.
 - Plot: channel, component, ERP, spectra, time-frequency, statistics, DIPFIT,
   ICLabel, and viewprops plotting surfaces implemented in this repository.
-- Study: Phase 5 STUDY/group-level workflows. Implemented actions are enabled;
-  pending design, precompute, and clustering actions remain explicit
-  placeholders until their phase lands.
+- Study: STUDY/group-level workflows for design, measure precompute, plotting,
+  clustering, and study metadata.
 - Datasets: current dataset retrieval and multi-dataset selection.
 - Help: packaged EEGPrep help resources, docs links, update links, issue
   reporting, and contact actions.
 
 Menu placeholders are machine-readable and carry a target phase or an explicit
-exclusion reason. EEGBrowser/eegplot-style scrolling workflows are excluded
-from the current parity scope.
+exclusion reason for workflows that cannot be packaged in EEGPrep.
 
 See also: EEGPREP, EEG_HELPHELP

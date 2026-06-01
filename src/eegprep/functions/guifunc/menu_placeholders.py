@@ -2,7 +2,7 @@
 
 Each placeholder carries either an implementation phase or an exclusion reason
 so later phase agents can distinguish planned work from intentionally excluded
-browser/external-plugin workflows.
+external-plugin workflows.
 """
 
 from __future__ import annotations
@@ -40,12 +40,6 @@ def is_placeholder_action(action: str) -> bool:
 
 def placeholder_message(action: str) -> str:
     """Build the shared EEGLAB-style placeholder message for ``action``."""
-    metadata = placeholder_metadata(action)
-    if metadata is not None and metadata.excluded_reason == "eegbrowser":
-        return (
-            f"{action} depends on EEGBrowser/eegplot-style scrolling browser workflows, "
-            "which are outside the current EEGPrep parity scope."
-        )
     return (
         f"{action} is not yet available in EEGPrep.\n\n"
         "Track progress or request this workflow at https://github.com/sccn/eegprep/issues."

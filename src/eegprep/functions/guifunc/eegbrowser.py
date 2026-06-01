@@ -206,6 +206,7 @@ class EEGBrowserWindow(_QMainWindow):
             _rect_from_normalized((scale_x, _AXES_POSITION[1], scale_width, _AXES_POSITION[3]), width, height)
         )
         self.controls.set_geometry(width, height)
+        self.controls.sync_from_state()
 
     def _build_menus(self) -> None:
         figure_menu = self.menuBar().addMenu("Figure")

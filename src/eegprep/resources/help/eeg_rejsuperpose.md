@@ -8,5 +8,6 @@ Usage:
 combines ICA-component rejection fields. The combined result is written to
 `EEG.reject.rejglobal` and `EEG.reject.rejglobalE`.
 
-EEGPrep uses this helper from the non-browser rejection menus. EEGBrowser
-scrolling inspection remains outside the current scope.
+EEGPrep uses this helper from rejection menus and browser-backed review flows
+to keep data-channel and ICA-component rejection marks synchronized with
+EEGLAB-compatible fields.
