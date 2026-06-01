@@ -659,11 +659,25 @@ def pop_select_dialog_spec(EEG) -> DialogSpec:
             ),
             ControlSpec("spacer"),
             ControlSpec("spacer"),
-            # TODO: re-enable when an EEGPrep equivalent of EEGLAB's eegplot scrolling viewer is available.
-            ControlSpec("pushbutton", "Scroll dataset", tag="scroll", enabled=False),
+            ControlSpec(
+                "pushbutton",
+                "Scroll dataset",
+                tag="scroll",
+                enabled=_scroll_dataset_enabled(EEG),
+                callback=CallbackSpec(
+                    "open_eegplot",
+                    params={"button": "scroll", "eeg": EEG},
+                    matlab_callback="eegplot(EEG.data,'srate',EEG.srate,'winlength',5)",
+                ),
+            ),
             ControlSpec("spacer"),
         ),
     )
+
+
+def _scroll_dataset_enabled(EEG) -> bool:
+    data = EEG.get("data") if isinstance(EEG, dict) else None
+    return data is not None and np.asarray(data).size > 0
 
 
 def _run_gui(EEG, renderer=None):

@@ -66,6 +66,16 @@ def _fake_pop_eegplot(
 _fake_pop_eegplot.command_callback = None
 
 
+def _fake_pop_jointprob_browser(eeg, *args, command_callback=None, return_com=False, **kwargs):
+    del args, kwargs
+    _fake_pop_jointprob_browser.command_callback = command_callback
+    command = "EEG = pop_jointprob(EEG, 1, [1], 4, 4, 0, 1, 1);"
+    return (eeg, command) if return_com else eeg
+
+
+_fake_pop_jointprob_browser.command_callback = None
+
+
 def _fake_pop_copyset(ALLEEG, set_in, set_out=None, *, return_com=False):
     copied = dict(ALLEEG[int(set_in) - 1], setname="copied")
     output = list(ALLEEG)
@@ -738,6 +748,41 @@ def test_console_pop_eegplot_positional_reject_argument_controls_accept_storage(
     assert session.CURRENTSET == [1]
     assert session.EEG["pnts"] == 2
     assert len(session.ALLEEG) == 1
+
+
+def test_console_rejection_browser_accept_callback_refreshes_session_after_accept():
+    session = EEGPrepSession()
+    eeg = _demo_eeg()
+    eeg["data"] = np.arange(24, dtype=float).reshape(2, 4, 3)
+    eeg["pnts"] = 4
+    eeg["trials"] = 3
+    eeg["xmax"] = 0.03
+    session.store_current(eeg, new=True)
+    refresh = mock.Mock()
+    workspace = EEGPrepConsoleWorkspace(
+        session,
+        refresh=refresh,
+        exports={"pop_jointprob": _fake_pop_jointprob_browser},
+    )
+
+    result = workspace.namespace["pop_jointprob"](workspace.namespace["EEG"])
+    workspace.after_execute("pop_jointprob(EEG)")
+
+    _eeg_out, command = result
+    assert command == "EEG = pop_jointprob(EEG, 1, [1], 4, 4, 0, 1, 1);"
+    assert session.ALLCOM == [command]
+    assert callable(_fake_pop_jointprob_browser.command_callback)
+
+    accepted = dict(session.EEG)
+    accepted["data"] = np.asarray(session.EEG["data"])[:, :, :2]
+    accepted["trials"] = 2
+    _fake_pop_jointprob_browser.command_callback(accepted, command)
+
+    assert session.CURRENTSET == [2]
+    assert session.EEG["trials"] == 2
+    assert len(session.ALLEEG) == 2
+    assert session.ALLCOM == [command]
+    assert refresh.call_count >= 2
     assert session.ALLCOM == [command]
 
 

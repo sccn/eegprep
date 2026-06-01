@@ -7,7 +7,8 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
-from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
+from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
+from eegprep.functions.popfunc._rejection import copy_eeg
 from eegprep.functions.popfunc.eeg_rejsuperpose import eeg_rejsuperpose
 from eegprep.functions.popfunc.pop_rejepoch import pop_rejepoch
 
@@ -25,8 +26,10 @@ def pop_rejmenu(
         return (None, "") if return_com else None
     if gui is None:
         gui = True
+    source = EEG
     if gui:
-        result = inputgui(pop_rejmenu_dialog_spec(EEG, icacomp), renderer=renderer)
+        source = copy_eeg(EEG)
+        result = inputgui(pop_rejmenu_dialog_spec(source, icacomp), renderer=renderer)
         if result is None:
             return (EEG, "") if return_com else EEG
         flags = [
@@ -36,7 +39,7 @@ def pop_rejmenu(
     else:
         flags = [1, 1, 1, 1, 1, 1, 1]
         reject = 0
-    out, command = eeg_rejsuperpose(EEG, icacomp, *flags, return_com=True)
+    out, command = eeg_rejsuperpose(source, icacomp, *flags, return_com=True)
     if reject and np.asarray((out.get("reject") or {}).get("rejglobal", [])).any():
         out, reject_command = pop_rejepoch(out, out["reject"]["rejglobal"], 0, return_com=True)
         command = f"{command} {reject_command}"
@@ -73,6 +76,19 @@ def pop_rejmenu_dialog_spec(EEG: dict[str, Any], icacomp: int | bool = 1) -> Dia
             ControlSpec("text", title_text, font_weight="bold"),
             ControlSpec("pushbutton", tag=swatch_tag, enabled=False),
             ControlSpec("spacer"),
+        )
+
+    def scroll_callback(button: str) -> CallbackSpec:
+        return CallbackSpec(
+            "open_rejection_browser",
+            params={
+                "button": button,
+                "eeg": EEG,
+                "icacomp": 1 if is_data else 0,
+                "count_tags": ("mantrial",),
+                "count_fields": {"mantrial": prefix + "rejmanual"},
+            },
+            matlab_callback="pop_eegplot(EEG, icacomp, rejstatus, 0)",
         )
 
     def threshold_rows(
@@ -128,7 +144,7 @@ def pop_rejmenu_dialog_spec(EEG: dict[str, Any], icacomp: int | bool = 1) -> Dia
         ControlSpec("text", "Mark trials by appearance", font_weight="bold"),
         ControlSpec("pushbutton", tag="butmanual", enabled=False),
         ControlSpec("spacer"),
-        ControlSpec("pushbutton", activity, enabled=False),
+        ControlSpec("pushbutton", activity, tag="scrollmanual", enabled=True, callback=scroll_callback("scrollmanual")),
         ControlSpec("text", "Marked trials"),
         ControlSpec("text", str(_count(reject.get(prefix + "rejmanual"))), tag="mantrial"),
     )
@@ -190,7 +206,13 @@ def pop_rejmenu_dialog_spec(EEG: dict[str, Any], icacomp: int | bool = 1) -> Dia
         add_row(
             (0.8, 0.8, 0.8, 0.8),
             ControlSpec("pushbutton", "Calculate", enabled=False),
-            ControlSpec("pushbutton", activity, enabled=False),
+            ControlSpec(
+                "pushbutton",
+                activity,
+                tag=f"scroll{edit_prefix}",
+                enabled=True,
+                callback=scroll_callback(f"scroll{edit_prefix}"),
+            ),
             ControlSpec("pushbutton", "PLOT", enabled=False),
             ControlSpec("pushbutton", "HELP", enabled=False),
         )
@@ -260,9 +282,6 @@ def pop_rejmenu_dialog_spec(EEG: dict[str, Any], icacomp: int | bool = 1) -> Dia
                 color: #777777;
             }
         """,
-        known_differences=(
-            "EEGPrep disables EEGBrowser/eegplot scrolling buttons; use the individual rejection dialogs to compute marks.",
-        ),
     )
 
 

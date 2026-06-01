@@ -32,6 +32,15 @@ _TUPLE_ASSIGNMENT_TARGET_PATTERN = re.compile(
 _POP_INTERP_CHANNELS_PATTERN = re.compile(r"(pop_interp\s*\(\s*EEG\s*,\s*)\[([0-9,\s]+)\]")
 _PYTHON_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _CONSOLE_COMMAND_EXPORTS = {"pop_newset": pop_newset}
+_BROWSER_ACCEPT_POP_FUNCTIONS = {
+    "pop_autorej",
+    "pop_eegthresh",
+    "pop_jointprob",
+    "pop_rejcont",
+    "pop_rejkurt",
+    "pop_rejspec",
+    "pop_rejtrend",
+}
 
 
 class ConsolePopResult:
@@ -174,10 +183,26 @@ class ConsolePopFunction(LazyWorkspaceExport):
                 self.bridge._refresh()
 
             call_kwargs["command_callback"] = accept_eegplot
+        elif self.name in _BROWSER_ACCEPT_POP_FUNCTIONS and "command_callback" not in call_kwargs:
+            source_eeg = _first_call_eeg_argument(args, call_kwargs)
+            target_index = list(self.bridge.session.CURRENTSET)
+
+            def accept_browser_result(eeg_out: Any, command: str) -> None:
+                if not isinstance(source_eeg, dict) or not isinstance(eeg_out, dict):
+                    return
+                store_new = eegplot_accept_creates_dataset(source_eeg, eeg_out, reject=1)
+                store_command = "" if command in recorded_commands else command
+                recorded_commands.add(command)
+                store_index = None if store_new else target_index
+                self.bridge._store_eeg(eeg_out, store_command, new=store_new, index=store_index)
+                self.bridge.pull_from_session()
+                self.bridge._refresh()
+
+            call_kwargs["command_callback"] = accept_browser_result
         if _accepts_return_com(function) and "return_com" not in call_kwargs:
             call_kwargs["return_com"] = True
         result = function(*args, **call_kwargs)
-        if self.name == "pop_eegplot":
+        if self.name == "pop_eegplot" or self.name in _BROWSER_ACCEPT_POP_FUNCTIONS:
             _eeg, command = _extract_pop_eeg_and_command(result)
             if command:
                 recorded_commands.add(command)

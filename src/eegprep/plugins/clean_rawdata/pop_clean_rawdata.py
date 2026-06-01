@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import logging
 import re
 from typing import Any
@@ -15,11 +16,14 @@ from eegprep.functions.popfunc._pop_utils import (
     parse_key_value_args,
     parse_text_tokens,
 )
+from eegprep.functions.sigprocfunc.eegplot import eegplot
 from eegprep.plugins.clean_rawdata.clean_artifacts import clean_artifacts
+from eegprep.plugins.clean_rawdata.private.masks import mask_to_intervals
 
 
 logger = logging.getLogger(__name__)
 _SHOW_VIS_ARTIFACTS_KEY = "_show_vis_artifacts"
+_CLEAN_RAWDATA_REJECT_COLOR = (1.0, 0.95, 0.25)
 
 _OPTION_ALIASES = {
     "channelcriterion": "ChannelCriterion",
@@ -60,14 +64,15 @@ def pop_clean_rawdata(
         output = [pop_clean_rawdata(item, gui=False, **options) for item in EEG]
         command = _history_command(options)
         if show_vis_artifacts:
-            _notify_vis_artifacts_unavailable()
+            logger.warning("clean_rawdata visual rejected-data browser is disabled for multiple datasets.")
         return (output, command) if return_com else output
     if int(EEG.get("trials", 1) or 1) > 1 or np.asarray(EEG.get("data")).ndim == 3:
         raise ValueError("Input data must be continuous. This data seems epoched.")
+    original_eeg = copy.deepcopy(EEG) if show_vis_artifacts else None
     clean_eeg, _hp, _bur, _removed_channels = clean_artifacts(EEG, **options)
     command = _history_command(options)
-    if show_vis_artifacts:
-        _notify_vis_artifacts_unavailable()
+    if show_vis_artifacts and original_eeg is not None:
+        _show_vis_artifacts(original_eeg, clean_eeg)
     return (clean_eeg, command) if return_com else clean_eeg
 
 
@@ -175,7 +180,7 @@ def pop_clean_rawdata_dialog_spec(EEG) -> DialogSpec:
             ControlSpec("edit", tag="rejwinval2", value="25"),
             ControlSpec("spacer"),
             ControlSpec(
-                "checkbox", "Pop up scrolling data window with rejected data highlighted", tag="vis", value=False
+                "checkbox", "Pop up scrolling data window with rejected data highlighted", tag="vis", value=True
             ),
         ),
     )
@@ -274,18 +279,33 @@ def _clean_rawdata_history_value(value):
     return format_history_value(value, bool_style="onoff", empty_sequence="{}")
 
 
-def _notify_vis_artifacts_unavailable():
-    message = (
-        "The clean_rawdata rejected-data scrolling viewer is not yet available in EEGPrep. "
-        "The dataset was still cleaned."
-    )
+def _show_vis_artifacts(original_eeg: dict[str, Any], clean_eeg: dict[str, Any]) -> Any:
+    mask = np.asarray((clean_eeg.get("etc") or {}).get("clean_sample_mask", []), dtype=bool).ravel()
+    pnts = int(original_eeg.get("pnts", np.asarray(original_eeg.get("data")).shape[1]) or 0)
+    nbchan = int(original_eeg.get("nbchan", np.asarray(original_eeg.get("data")).shape[0]) or 0)
+    winrej = np.zeros((0, 5 + nbchan), dtype=float)
+    if mask.size == pnts:
+        rejected = mask_to_intervals(mask, value=False)
+        winrej = _clean_rawdata_winrej(rejected, nbchan)
     try:
-        from PySide6 import QtWidgets
-    except ImportError:
-        logger.warning(message)
-        return
-    app = QtWidgets.QApplication.instance()
-    if app is None:
-        logger.warning(message)
-        return
-    QtWidgets.QMessageBox.information(QtWidgets.QApplication.activeWindow(), "EEGPrep", message)
+        return eegplot(
+            original_eeg,
+            winrej=winrej,
+            wincolor=_CLEAN_RAWDATA_REJECT_COLOR,
+            events=original_eeg.get("event", []),
+            xgrid="off",
+            title=f"Rejected data highlighted -- eegplot() -- {original_eeg.get('setname', '')}".rstrip(),
+        )
+    except RuntimeError as exc:
+        logger.warning("Could not open clean_rawdata rejected-data browser: %s", exc)
+        return None
+
+
+def _clean_rawdata_winrej(rejected: np.ndarray, nbchan: int) -> np.ndarray:
+    if rejected.size == 0:
+        return np.zeros((0, 5 + nbchan), dtype=float)
+    rows = np.zeros((rejected.shape[0], 5 + nbchan), dtype=float)
+    rows[:, 0:2] = rejected[:, 0:2]
+    rows[:, 2:5] = np.asarray(_CLEAN_RAWDATA_REJECT_COLOR, dtype=float)
+    rows[:, 5:] = 1
+    return rows

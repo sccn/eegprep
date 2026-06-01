@@ -8,6 +8,7 @@ import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
+from eegprep.functions.popfunc._eegplot_rejection import open_epoched_rejection_browser
 from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args
 from eegprep.functions.popfunc._rejection import (
     copy_eeg,
@@ -27,6 +28,8 @@ def pop_rejspec(
     gui: bool | None = None,
     renderer: Any | None = None,
     return_com: bool = False,
+    command_callback: Any | None = None,
+    show: bool = True,
     **kwargs: Any,
 ):
     """Mark or reject epochs by spectral power thresholds."""
@@ -41,7 +44,7 @@ def pop_rejspec(
             if gui_options is None:
                 return (EEG, "") if return_com else (EEG, [])
             options.update(gui_options)
-        outputs = [_apply_one(dataset, icacomp, options)[0] for dataset in EEG]
+        outputs = [_apply_one(dataset, icacomp, options, display=False)[0] for dataset in EEG]
         command = _history_command(icacomp, options)
         return (outputs, command) if return_com else (outputs, [])
     if gui:
@@ -49,7 +52,14 @@ def pop_rejspec(
         if gui_options is None:
             return (EEG, "") if return_com else (EEG, [])
         options.update(gui_options)
-    out, rejected, command = _apply_one(EEG, icacomp, options)
+    out, rejected, command = _apply_one(
+        EEG,
+        icacomp,
+        options,
+        display=bool(gui or _int_option(options.get("eegplotplotallrej", 0)) == 2),
+        command_callback=command_callback,
+        show=show,
+    )
     return (out, command) if return_com else (out, rejected)
 
 
@@ -151,7 +161,13 @@ def _run_gui(EEG: dict[str, Any], icacomp: int, renderer: Any | None) -> dict[st
 
 
 def _apply_one(
-    EEG: dict[str, Any], icacomp: int | bool, options: dict[str, Any]
+    EEG: dict[str, Any],
+    icacomp: int | bool,
+    options: dict[str, Any],
+    *,
+    display: bool = False,
+    command_callback: Any | None = None,
+    show: bool = True,
 ) -> tuple[dict[str, Any], list[int], str]:
     out = copy_eeg(EEG)
     data, row_count = rejection_data(out, icacomp)
@@ -170,8 +186,6 @@ def _apply_one(
         out["specicaact"] = spectra
     update_reject_fields(out, icacomp=icacomp, kind="rejfreq", reject=marks, reject_e=marks_e)
     rejected = (np.flatnonzero(marks) + 1).tolist()
-    if int(bool(options.get("eegplotreject", 0))) and rejected:
-        out = pop_rejepoch(out, rejected, 0)
     normalized_options = dict(options)
     normalized_options["elecrange"] = elecrange
     normalized_options["method"] = method
@@ -179,7 +193,23 @@ def _apply_one(
     normalized_options.setdefault("freqlimits", freqlimits)
     normalized_options.setdefault("eegplotplotallrej", 0)
     normalized_options.setdefault("eegplotreject", 0)
-    return out, rejected, _history_command(icacomp, normalized_options)
+    command = _history_command(icacomp, normalized_options)
+    if display:
+        open_epoched_rejection_browser(
+            out,
+            data=data,
+            icacomp=icacomp,
+            elecrange=elecrange,
+            kind="rejfreq",
+            superpose=_int_option(normalized_options.get("eegplotplotallrej", 0)),
+            reject=int(bool(_int_option(normalized_options.get("eegplotreject", 0)))),
+            command=command,
+            command_callback=command_callback,
+            show=show,
+        )
+    elif int(bool(options.get("eegplotreject", 0))) and rejected:
+        out = pop_rejepoch(out, rejected, 0)
+    return out, rejected, command
 
 
 def _history_command(icacomp: int | bool, options: dict[str, Any]) -> str:
@@ -194,12 +224,24 @@ def _history_command(icacomp: int | bool, options: dict[str, Any]) -> str:
         "freqlimits",
         options.get("freqlimits", [15, 30]),
         "eegplotplotallrej",
-        int(bool(options.get("eegplotplotallrej", 0))),
+        _int_option(options.get("eegplotplotallrej", 0)),
         "eegplotreject",
-        int(bool(options.get("eegplotreject", 0))),
+        int(bool(_int_option(options.get("eegplotreject", 0)))),
     ]
     return (
         "EEG = pop_rejspec(EEG, "
         + ", ".join(format_history_value(item, cell_for_sequence=None) for item in values)
         + ");"
     )
+
+
+def _int_option(value: Any, default: int = 0) -> int:
+    if value is None:
+        return default
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in {"on", "yes", "true"}:
+            return 1
+        if lowered in {"off", "no", "false", ""}:
+            return 0
+    return int(value)
