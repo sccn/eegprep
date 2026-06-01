@@ -204,6 +204,24 @@ def test_gui_menus_toggle_events_marks_scale_and_channel_labels(qapp) -> None:
     window.close()
 
 
+def test_gui_winrej_regions_are_visibly_saturated(qapp) -> None:
+    from eegprep.functions.guifunc.eegbrowser import EEGBrowserWindow
+
+    model = build_eegplot_model(
+        np.zeros((2, 30)),
+        srate=10,
+        spacing=1,
+        winrej=[[1, 10, 0.7, 1.0, 0.9, 1, 1]],
+    )
+    window = EEGBrowserWindow(model)
+
+    regions = [item for item in window.canvas._items if item.__class__.__name__ == "LinearRegionItem"]
+
+    assert len(regions) == 1
+    assert regions[0].brush.color().alpha() >= 200
+    window.close()
+
+
 def test_gui_event_lines_stay_visible_and_labels_sit_above_plot_box(qapp) -> None:
     from eegprep.functions.guifunc.eegbrowser import EEGBrowserWindow
 
