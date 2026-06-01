@@ -13,6 +13,7 @@ from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.miscfunc.misc import finite_matmul, finite_pinv
 from eegprep.functions.popfunc._pop_utils import format_history_value, is_on as _is_on
+from eegprep.functions.sigprocfunc.eegplot import eegplot
 
 logger = logging.getLogger(__name__)
 
@@ -36,11 +37,6 @@ def pop_subcomp(
     """
     if EEG is None:
         return (None, "") if return_com else None
-    if _is_on(plotag):
-        raise NotImplementedError(
-            "pop_subcomp plot confirmation depends on EEGBrowser/component plotting workflows "
-            "that are not part of this Phase 3 PR."
-        )
     if gui is None:
         gui = components is None
     if gui:
@@ -57,6 +53,8 @@ def pop_subcomp(
         return (outputs, command) if return_com else outputs
 
     output, removed = _remove_components(EEG, components, keepcomp)
+    if removed and _is_on(plotag):
+        _plot_subcomp_confirmation(EEG, output)
     command = _history_command(components if components is not None else [], plotag, keepcomp) if removed else ""
     return (output, command) if return_com else output
 
@@ -137,6 +135,43 @@ def _remove_components(EEG: dict, components: Any, keepcomp: int | bool) -> tupl
     _trim_iclabel_classifications(output, keep_mask)
     _trim_dipfit_model(output, keep_mask)
     return output, True
+
+
+def _plot_subcomp_confirmation(input_eeg: dict, output_eeg: dict) -> None:
+    icachansind = _icachansind(input_eeg)
+    input_data = np.asarray(input_eeg["data"])
+    output_data = np.asarray(output_eeg["data"])
+    preview_data = np.array(input_data[icachansind], dtype=float, copy=True)
+    preview = {
+        "data": preview_data,
+        "nbchan": int(icachansind.size),
+        "pnts": int(input_eeg.get("pnts", preview_data.shape[1]) or preview_data.shape[1]),
+        "trials": int(input_eeg.get("trials", preview_data.shape[2] if preview_data.ndim == 3 else 1) or 1),
+        "srate": float(input_eeg.get("srate", 256) or 256),
+        "xmin": float(input_eeg.get("xmin", 0.0) or 0.0),
+        "xmax": float(input_eeg.get("xmax", 0.0) or 0.0),
+        "chanlocs": _selected_chanlocs(input_eeg, icachansind),
+        "event": input_eeg.get("event", []),
+        "setname": input_eeg.get("setname", ""),
+    }
+    eegplot(
+        preview,
+        srate=preview["srate"],
+        title="Black = channel before rejection; red = after rejection -- eegplot()",
+        limits=[preview["xmin"] * 1000.0, preview["xmax"] * 1000.0],
+        data2=np.array(output_data[icachansind], dtype=float, copy=True),
+    )
+
+
+def _selected_chanlocs(EEG: dict, indices: np.ndarray) -> list[Any]:
+    chanlocs = EEG.get("chanlocs", [])
+    if chanlocs is None:
+        chanlocs = []
+    if isinstance(chanlocs, np.ndarray):
+        chanlocs = chanlocs.tolist()
+    if not isinstance(chanlocs, (list, tuple)):
+        return []
+    return [copy.deepcopy(chanlocs[int(index)]) for index in indices if 0 <= int(index) < len(chanlocs)]
 
 
 def _components_to_remove(EEG: dict, components: Any, keepcomp: int | bool, n_comps: int) -> list[int]:

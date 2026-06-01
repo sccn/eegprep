@@ -46,6 +46,8 @@ _OPTION_NAMES = {
     "freqlimits",
     "component",
     "setelectrode",
+    "children",
+    "noui",
     "show",
 }
 
@@ -129,6 +131,7 @@ class BrowserState:
     accept_label: str | None = None
     mark_color: tuple[float, float, float] = DEFAULT_WINREJ_COLOR
     setelectrode: bool = False
+    noui: bool = False
     accepted: bool = False
     cancelled: bool = False
 
@@ -176,7 +179,13 @@ def eegplot(data: Any, *args: Any, **kwargs: Any) -> Any:
     command_callback = options.get("command_callback")
     if command_callback is None and callable(options.get("command")):
         command_callback = options.get("command")
-    return open_eegbrowser(model, accept_callback=command_callback)
+    window = open_eegbrowser(model, accept_callback=command_callback)
+    children = options.get("children")
+    if children:
+        from eegprep.functions.guifunc.eegbrowser import link_eegbrowser_windows
+
+        link_eegbrowser_windows(window, children)
+    return window
 
 
 def parse_eegplot_options(args: tuple[Any, ...], kwargs: dict[str, Any]) -> dict[str, Any]:
@@ -236,6 +245,7 @@ def build_eegplot_model(data: Any, **kwargs: Any) -> BrowserModel:
         ),
         mark_color=_normalize_rgb(options["wincolor"], "wincolor"),
         setelectrode=bool(options["setelectrode"]),
+        noui=_on_off(options["noui"], "noui"),
     )
     state.clamp_to_data(browser_data)
     return BrowserModel(browser_data, state)
@@ -614,6 +624,8 @@ def _model_options(source_eeg: dict[str, Any] | None, kwargs: dict[str, Any]) ->
     options.setdefault("freqlimits", None)
     options.setdefault("component", False)
     options.setdefault("setelectrode", False)
+    options.setdefault("children", ())
+    options.setdefault("noui", "off")
     if options["spacing"] is None or float(options["spacing"]) == 0:
         options["spacing"] = _default_spacing(source_eeg, options)
     if options["time"] is None:
@@ -715,7 +727,7 @@ def _channel_labels(
     component: bool,
 ) -> tuple[str, ...]:
     if component:
-        return tuple(f"Comp {index}" for index in range(1, n_channels + 1))
+        return tuple(str(index) for index in range(1, n_channels + 1))
     if isinstance(eloc_file, np.ndarray):
         eloc_file = eloc_file.tolist()
     if eloc_file is None or eloc_file == 0:

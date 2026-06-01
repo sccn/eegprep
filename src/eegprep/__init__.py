@@ -50,6 +50,7 @@ _LAZY_EXPORTS = {
     "eeg_eeg2mne": ("eegprep.functions.miscfunc.eeg_eeg2mne", "eeg_eeg2mne"),
     "eeg_eegrej": ("eegprep.functions.popfunc.eeg_eegrej", "eeg_eegrej"),
     "eeg_emptyset": ("eegprep.functions.popfunc.eeg_emptyset", "eeg_emptyset"),
+    "eeg_multieegplot": ("eegprep.functions.popfunc.eeg_multieegplot", "eeg_multieegplot"),
     "eegplot": ("eegprep.functions.sigprocfunc.eegplot", "eegplot"),
     "eeg_findboundaries": ("eegprep.functions.popfunc.eeg_findboundaries", "eeg_findboundaries"),
     "eeg_interp": ("eegprep.functions.popfunc.eeg_interp", "eeg_interp"),

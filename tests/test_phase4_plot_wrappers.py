@@ -43,6 +43,7 @@ from eegprep.functions.sigprocfunc.coregister import (
     read_electrode_file,
     traditional_transform_matrix,
 )
+from eegprep.plugins.ICLabel.pop_viewprops import pop_viewprops
 from eegprep.functions.sigprocfunc.headplot import (
     MAPLIMIT_PADDING,
     default_headplot_mesh_transform,
@@ -595,6 +596,32 @@ def test_component_plot_wrappers_work_when_ica_fields_exist(ica_epoch):
     plt.close(plotdata_fig)
     plt.close(envtopo_fig)
     plt.close(erpimage_result["figure"])
+
+
+def test_pop_prop_attaches_component_activity_browser_model(ica_epoch):
+    figure, command = pop_prop(ica_epoch, typecomp=0, chanorcomp=1, return_com=True)
+
+    activity = figure.eegprep_activity_view
+
+    assert activity.data.mode == "epoched"
+    assert activity.data.n_channels == 1
+    assert activity.state.title == "Scrolling IC1 Activity -- eegplot()"
+    assert "pop_prop(EEG" in command
+    plt.close(figure)
+
+
+def test_pop_viewprops_attaches_channel_activity_browser_models(ica_epoch):
+    eeg = deepcopy(ica_epoch)
+    eeg["event"] = [{"type": "stim", "latency": 2}]
+
+    figures, command = pop_viewprops(eeg, typecomp=1, chanorcomp=[1], scroll_event=0, return_com=True)
+    activity = figures[0].eegprep_activity_views[0]
+
+    assert activity.data.mode == "epoched"
+    assert activity.data.channel_labels == ("Ch1",)
+    assert activity.state.events == []
+    assert "pop_viewprops(EEG" in command
+    plt.close(figures[0])
 
 
 def test_pop_erpimage_projects_components_to_selected_channel(ica_epoch):

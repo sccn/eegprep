@@ -9,6 +9,7 @@ import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
+from eegprep.functions.popfunc._property_browser import property_activity_browser
 from eegprep.functions.popfunc._pop_utils import format_history_value
 from eegprep.functions.popfunc._rejection import one_based_indices
 from eegprep.functions.popfunc.pop_topoplot import pop_topoplot
@@ -30,9 +31,10 @@ def pop_viewprops(
     gui: bool | None = None,
     renderer: Any | None = None,
     plot: bool = True,
+    show_activity: bool = False,
     return_com: bool = False,
 ):
-    """Render a non-scrolling channel/component property overview."""
+    """Render channel/component property overview figures and activity views."""
     if EEG is None:
         return ([], "") if return_com else []
     if gui is None:
@@ -51,7 +53,7 @@ def pop_viewprops(
     indices = one_based_indices(chanorcomp, limit=limit, default_all=True)
     figures = []
     if plot:
-        figures = _plot_props(EEG, int(bool(typecomp)), indices, classifier_name)
+        figures = _plot_props(EEG, int(bool(typecomp)), indices, classifier_name, scroll_event, show_activity)
     command = _history_command(typecomp, indices, spec_opt, erp_opt, scroll_event, classifier_name)
     return (figures, command) if return_com else figures
 
@@ -95,30 +97,46 @@ def pop_viewprops_dialog_spec(EEG: dict[str, Any], typecomp: int | bool = 1) -> 
         size=(600, 318 if classifiers else 288),
         geometry=tuple(geometry),
         controls=tuple(controls),
-        known_differences=(
-            "EEGPrep omits EEGBrowser/eegplot scrolling activity from the property overview.",
-            "Channel mode renders a non-scrolling overview so the GUI and console remain usable without EEGBrowser.",
-        ),
     )
 
 
-def _plot_props(EEG: dict[str, Any], typecomp: int, indices: list[int], classifier_name: str) -> list[Any]:
+def _plot_props(
+    EEG: dict[str, Any],
+    typecomp: int,
+    indices: list[int],
+    classifier_name: str,
+    scroll_event: int | bool,
+    show_activity: bool,
+) -> list[Any]:
     if not indices:
         return []
+    visible_indices = indices[:PLOTS_PER_FIGURE]
+    activity_views = [
+        property_activity_browser(EEG, typecomp, index, scroll_event=scroll_event, show=show_activity)
+        for index in visible_indices
+    ]
     if not typecomp:
-        return pop_topoplot(
-            EEG, 0, indices[:PLOTS_PER_FIGURE], "View components properties - pop_viewprops()", [], 0, gui=False
+        figures = pop_topoplot(
+            EEG, 0, visible_indices, "View components properties - pop_viewprops()", [], 0, gui=False
         )
+        _attach_activity_views(figures, activity_views)
+        return figures
     fig_obj, axes = plt.subplots(1, min(len(indices), PLOTS_PER_FIGURE), squeeze=False)
     labels = _channel_labels(EEG)
-    for axis, index in zip(axes.ravel(), indices[:PLOTS_PER_FIGURE]):
+    for axis, index in zip(axes.ravel(), visible_indices):
         axis.axis("off")
         label = labels[index - 1] if index - 1 < len(labels) else str(index)
         axis.text(0.5, 0.5, label, ha="center", va="center", fontsize=10)
         axis.set_title(str(index))
     fig_obj.suptitle("View channels properties - pop_viewprops()")
     fig_obj.tight_layout()
+    _attach_activity_views([fig_obj], activity_views)
     return [fig_obj]
+
+
+def _attach_activity_views(figures: list[Any], activity_views: list[Any]) -> None:
+    for figure in figures:
+        figure.eegprep_activity_views = activity_views
 
 
 def _history_command(
@@ -184,6 +202,11 @@ def _classifier_name_from_gui(EEG: dict[str, Any], value: Any) -> str:
 
 def _channel_labels(EEG: dict[str, Any]) -> list[str]:
     labels = []
-    for index, chanloc in enumerate(EEG.get("chanlocs", []) or []):
+    chanlocs = EEG.get("chanlocs", [])
+    if chanlocs is None:
+        chanlocs = []
+    if isinstance(chanlocs, np.ndarray):
+        chanlocs = chanlocs.tolist()
+    for index, chanloc in enumerate(chanlocs):
         labels.append(str(chanloc.get("labels", index + 1)) if isinstance(chanloc, dict) else str(index + 1))
     return labels or [str(index + 1) for index in range(int(EEG.get("nbchan", 0) or 0))]

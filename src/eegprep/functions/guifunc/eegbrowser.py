@@ -44,6 +44,7 @@ _SCALE_STEP = 0.1
 _MIN_SPACING = 0.001
 _TRACE_SCALE = 0.72
 _AXES_POSITION = (0.0964286, 0.15, 0.842, 0.75)
+_NOUI_AXES_POSITION = (0.055, 0.075, 0.90, 0.87)
 _CONTROL_POSITIONS = {
     "back_page": (0.2464, 0.0254, 0.0385, 0.0339),
     "back_step": (0.2924, 0.0254, 0.0288, 0.0339),
@@ -118,6 +119,14 @@ def open_eegbrowser(model: BrowserModel, accept_callback: Callable[[np.ndarray],
     return window
 
 
+def link_eegbrowser_windows(parent: Any, children: Any) -> tuple[Any, ...]:
+    """Link child browser windows so scrolling changes stay synchronized."""
+    child_windows = _normalize_child_windows(children)
+    for child in child_windows:
+        parent.link_child(child)
+    return child_windows
+
+
 class EEGBrowserWindow(_QMainWindow):
     """Basic EEGLAB-like scrolling browser window."""
 
@@ -129,6 +138,9 @@ class EEGBrowserWindow(_QMainWindow):
         self._pre_normalize_spacing: float | None = None
         self._legend_window: Any = None
         self._message_window: Any = None
+        self._linked_windows: list[Any] = []
+        self._child_windows: list[Any] = []
+        self._syncing_link = False
         self.setObjectName("eegbrowser")
         self.setWindowTitle(model.state.title)
         self.setStyleSheet(_BUTTON_STYLE)
@@ -148,14 +160,36 @@ class EEGBrowserWindow(_QMainWindow):
         self._build_shortcuts()
         self._layout_children()
         self._sync_controls()
+        if model.state.noui:
+            self.set_publication_view(True)
 
     def resizeEvent(self, event: Any) -> None:  # noqa: N802 - Qt API name
         super().resizeEvent(event)
         self._layout_children()
 
+    def closeEvent(self, event: Any) -> None:  # noqa: N802 - Qt API name
+        for child in list(self._child_windows):
+            child.close()
+        for linked in list(self._linked_windows):
+            linked._unlink_window(self)
+        self._linked_windows.clear()
+        self._child_windows.clear()
+        super().closeEvent(event)
+
     def _layout_children(self) -> None:
         width = max(1, self._content.width())
         height = max(1, self._content.height())
+        if self.model.state.noui:
+            self.canvas.setGeometry(_rect_from_normalized(_NOUI_AXES_POSITION, width, height))
+            self.channel_slider.hide()
+            self.scale_indicator.hide()
+            self.controls.hide()
+            self.menuBar().hide()
+            return
+        self.channel_slider.show()
+        self.scale_indicator.show()
+        self.controls.show()
+        self.menuBar().show()
         axes_geometry = _rect_from_normalized(_AXES_POSITION, width, height)
         self.canvas.setGeometry(
             axes_geometry.adjusted(
@@ -371,6 +405,12 @@ class EEGBrowserWindow(_QMainWindow):
         self.model.state.zoom_enabled = bool(enabled)
         self.canvas.plot.setMouseEnabled(x=enabled, y=enabled)
 
+    def set_publication_view(self, enabled: bool = True) -> None:
+        """Toggle EEGLAB ``noui``-style publication display."""
+        self.model.state.noui = bool(enabled)
+        self._layout_children()
+        self._sync_controls()
+
     def toggle_stack(self) -> None:
         self.model.state.stacked = not self.model.state.stacked
         self._redraw()
@@ -422,6 +462,11 @@ class EEGBrowserWindow(_QMainWindow):
         self._redraw()
 
     def _redraw(self) -> None:
+        self._redraw_local()
+        if not self._syncing_link:
+            self._sync_linked_windows({id(self)})
+
+    def _redraw_local(self) -> None:
         self.model.state.clamp_to_data(self.model.data)
         self.canvas.redraw()
         self.scale_indicator.update()
@@ -430,6 +475,14 @@ class EEGBrowserWindow(_QMainWindow):
 
     def _sync_controls(self) -> None:
         self.model.state.clamp_to_data(self.model.data)
+        if self.model.state.noui:
+            self.channel_slider.setVisible(False)
+            self.scale_indicator.setVisible(False)
+            self.controls.hide()
+            self.menuBar().hide()
+            return
+        self.controls.show()
+        self.menuBar().show()
         maximum_offset = max(0, self.model.data.n_channels - self.model.state.dispchans)
         self.channel_slider.blockSignals(True)
         self.channel_slider.setRange(0, maximum_offset)
@@ -485,8 +538,51 @@ class EEGBrowserWindow(_QMainWindow):
             self.model.state.mark_color = (color.redF(), color.greenF(), color.blueF())
 
     def _edit_figure(self) -> None:
-        self.controls.hide()
-        self.menuBar().hide()
+        self.set_publication_view(True)
+
+    def link_window(self, other: Any) -> None:
+        """Link this browser with another browser for synchronized scrolling."""
+        if other is self:
+            return
+        self._add_linked_window(other)
+        other._add_linked_window(self)
+        other._apply_linked_scroll(self)
+
+    def link_child(self, child: Any) -> None:
+        """Link and register a child browser window."""
+        self.link_window(child)
+        if child not in self._child_windows:
+            self._child_windows.append(child)
+
+    def _add_linked_window(self, other: Any) -> None:
+        if other not in self._linked_windows:
+            self._linked_windows.append(other)
+
+    def _unlink_window(self, other: Any) -> None:
+        if other in self._linked_windows:
+            self._linked_windows.remove(other)
+        if other in self._child_windows:
+            self._child_windows.remove(other)
+
+    def _sync_linked_windows(self, visited: set[int]) -> None:
+        for linked in list(self._linked_windows):
+            if id(linked) in visited:
+                continue
+            linked._apply_linked_scroll(self, visited)
+
+    def _apply_linked_scroll(self, source: Any, visited: set[int] | None = None) -> None:
+        if visited is None:
+            visited = {id(source)}
+        visited.add(id(self))
+        self._syncing_link = True
+        try:
+            self.model.state.time = source.model.state.time
+            self.model.state.winlength = source.model.state.winlength
+            self.model.state.channel_offset = source.model.state.channel_offset
+            self._redraw_local()
+        finally:
+            self._syncing_link = False
+        self._sync_linked_windows(visited)
 
     def _show_status_message(self, text: str) -> None:
         qt_widgets, _pg = _require_gui()
@@ -903,7 +999,10 @@ class EEGBrowserCanvas(_QWidget):
     def _event_sample(self, scene_point: Any) -> int:
         view_point = self.plot.getPlotItem().vb.mapSceneToView(scene_point)
         x_value = float(view_point.x())
-        if self.model.data.epoched or self.model.data.x_values is not None:
+        if self.model.data.x_values is not None:
+            sample = int(np.argmin(np.abs(self.model.data.x_values - x_value)))
+            max_sample = self.model.data.total_samples - 1
+        elif self.model.data.epoched:
             sample = int(round(x_value))
             max_sample = self.model.data.total_samples - 1
         else:
@@ -1216,6 +1315,16 @@ def _winrej_frame_to_index(value: float) -> int:
     return frame - 1
 
 
+def _normalize_child_windows(children: Any) -> tuple[Any, ...]:
+    if isinstance(children, EEGBrowserWindow):
+        return (children,)
+    if isinstance(children, (list, tuple, set)):
+        out = tuple(children)
+        if all(isinstance(item, EEGBrowserWindow) for item in out):
+            return out
+    raise TypeError("children must be an EEGBrowserWindow or a sequence of EEGBrowserWindow objects")
+
+
 def _require_gui() -> tuple[Any, Any]:
     if QtWidgets is None or QtCore is None or QtGui is None or pg is None:
         raise RuntimeError(
@@ -1225,4 +1334,4 @@ def _require_gui() -> tuple[Any, Any]:
     return QtWidgets, pg
 
 
-__all__ = ["EEGBrowserCanvas", "EEGBrowserWindow", "open_eegbrowser"]
+__all__ = ["EEGBrowserCanvas", "EEGBrowserWindow", "link_eegbrowser_windows", "open_eegbrowser"]
