@@ -40,6 +40,7 @@ def pop_viewprops(
     renderer: Any | None = None,
     plot: bool = True,
     show_activity: bool = False,
+    reject_callback: Any | None = None,
     return_com: bool = False,
 ):
     """Render channel/component property overview figures and activity views."""
@@ -70,6 +71,7 @@ def pop_viewprops(
             classifier_name,
             scroll_event,
             show_activity,
+            reject_callback,
         )
     command = _history_command(typecomp, indices, spec_opt, erp_opt, scroll_event, classifier_name)
     return (figures, command) if return_com else figures
@@ -126,6 +128,7 @@ def _plot_props(
     classifier_name: str,
     scroll_event: int | bool,
     show_activity: bool,
+    reject_callback: Any | None,
 ) -> list[Any]:
     if not indices:
         return []
@@ -142,6 +145,7 @@ def _plot_props(
             classifier_name,
             gui=False,
             show_activity=show_activity,
+            reject_callback=reject_callback,
         )
         return [figure] if figure is not None else []
     activity_views = [

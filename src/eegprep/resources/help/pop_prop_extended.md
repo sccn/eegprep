@@ -21,6 +21,12 @@ coordinates, so event latencies and epoch boundaries remain aligned across
 visible epochs. Multiple selected components are shown in one navigable
 dashboard.
 
+Component dashboards include EEGLAB-style `ACCEPT`/`REJECT` state controls.
+Toggle the current component, use `Previous`/`Next` to review other selected
+components, and press `OK` to write the pending marks to
+`EEG.reject.gcompreject`. `Cancel` closes the dashboard without committing
+pending changes. The marked components can then be removed with `pop_subcomp`.
+
 Notes:
 
 - EEGPrep consumes existing classifier results and does not run ICLabel from

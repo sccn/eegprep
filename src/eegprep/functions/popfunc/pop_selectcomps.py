@@ -9,7 +9,7 @@ import numpy as np
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.popfunc._pop_utils import format_history_value
-from eegprep.functions.popfunc._rejection import copy_eeg, one_based_indices
+from eegprep.functions.popfunc._rejection import component_rejection_flags, copy_eeg, one_based_indices
 from eegprep.functions.popfunc.pop_topoplot import pop_topoplot
 
 
@@ -50,10 +50,10 @@ def pop_selectcomps(
     compnum = one_based_indices(compnum, limit=n_components, default_all=True)
     reject_values = one_based_indices(reject, limit=n_components, default_all=False)
     if reject_values:
-        flags = np.asarray((out.setdefault("reject", {}).get("gcompreject", np.zeros(n_components))), dtype=int).ravel()
-        if flags.size != n_components:
-            flags = np.zeros(n_components, dtype=int)
+        flags = component_rejection_flags(out, n_components, create=False).astype(int)
         flags[np.asarray(reject_values, dtype=int) - 1] = 1
+        if not isinstance(out.get("reject"), dict):
+            out["reject"] = {}
         out["reject"]["gcompreject"] = flags
     if plot and compnum:
         pop_topoplot(

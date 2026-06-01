@@ -12,9 +12,11 @@ from eegprep.plugins.ICLabel.pop_prop_extended import (
     classifier_name_from_gui,
     classifier_names,
     resolve_classifier_data,
+    component_rejection_status,
     resolve_dipfit_data,
     selected_property_indices,
 )
+from eegprep.functions.popfunc._rejection import component_rejection_flags, set_component_rejection_flag
 from eegprep.plugins.ICLabel.pop_viewprops import pop_viewprops
 from tests.fixtures import create_test_eeg_with_ica
 
@@ -92,6 +94,28 @@ def test_selected_component_indices_are_eeglab_facing_one_based() -> None:
         selected_property_indices(eeg, 0, [0])
 
 
+def test_component_rejection_flags_use_one_based_component_indices() -> None:
+    eeg = _iclabel_eeg()
+    eeg["reject"]["gcompreject"] = np.array([0, 1, 0, 0])
+
+    assert component_rejection_status(eeg, 2) is True
+    assert component_rejection_status(eeg, 1) is False
+    updated = set_component_rejection_flag(eeg, 3, True, 4)
+
+    np.testing.assert_array_equal(updated, [0, 1, 1, 0])
+    np.testing.assert_array_equal(eeg["reject"]["gcompreject"], [0, 1, 1, 0])
+
+
+def test_component_rejection_flags_initialize_missing_or_stale_vectors() -> None:
+    eeg = _iclabel_eeg()
+    eeg["reject"]["gcompreject"] = np.array([1, 1])
+
+    flags = component_rejection_flags(eeg, 4, create=True)
+
+    np.testing.assert_array_equal(flags, [False, False, False, False])
+    np.testing.assert_array_equal(eeg["reject"]["gcompreject"], [0, 0, 0, 0])
+
+
 def test_dashboard_data_assembly_includes_classification_surfaces() -> None:
     eeg = _iclabel_eeg()
 
@@ -108,6 +132,7 @@ def test_dashboard_data_assembly_includes_classification_surfaces() -> None:
     assert dashboard.image_data.size > 0
     assert dashboard.pvaf is None or np.isfinite(dashboard.pvaf)
     assert dashboard.dipfit is None
+    assert dashboard.rejected is False
 
 
 def test_dashboard_data_assembly_includes_localized_dipfit_model() -> None:

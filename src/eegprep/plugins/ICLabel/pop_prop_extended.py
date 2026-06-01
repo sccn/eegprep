@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
@@ -10,6 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
+from eegprep.functions.guifunc.pophelp import pophelp
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.popfunc._plot_utils import (
     channel_labels,
@@ -23,7 +25,11 @@ from eegprep.functions.popfunc._plot_utils import (
     parse_plot_options_text,
 )
 from eegprep.functions.popfunc._property_browser import property_activity_browser
-from eegprep.functions.popfunc._rejection import one_based_indices
+from eegprep.functions.popfunc._rejection import (
+    component_rejection_flags,
+    one_based_indices,
+    set_component_rejection_flag,
+)
 from eegprep.functions.sigprocfunc.spectopo import compute_spectra
 from eegprep.functions.sigprocfunc.topoplot import topoplot
 from eegprep.plugins.dipfit._mri import dipfit_mri_slices, load_standard_mri_volume
@@ -44,6 +50,10 @@ _EVENT_COLORS = (
     "#7f7f7f",
 )
 _DIPFIT_COLORS = ("#00cc00", "#d336d3", "#e0c21a")
+_REJECT_COLOR = "#ff9999"
+_ACCEPT_COLOR = "#bfffbf"
+_CONTROL_COLOR = "#e6e6e6"
+_DISABLED_CONTROL_COLOR = "#d0d0d0"
 
 
 @dataclass(frozen=True)
@@ -90,6 +100,7 @@ class ExtendedPropertyData:
     class_probabilities: np.ndarray | None
     pvaf: float | None
     dipfit: DipfitData | None
+    rejected: bool | None
 
 
 @dataclass(frozen=True)
@@ -118,6 +129,7 @@ def pop_prop_extended(
     renderer: Any | None = None,
     plot: bool = True,
     show_activity: bool = False,
+    reject_callback: Any | None = None,
     return_com: bool = False,
 ):
     """Render the EEGLAB viewprops-style extended property dashboard.
@@ -138,6 +150,9 @@ def pop_prop_extended(
         plot: Build the Matplotlib dashboard when true.
         show_activity: Open the browser-backed activity window in addition to
             attaching its model/window to the dashboard figure.
+        reject_callback: Optional callable invoked after OK commits component
+            rejection states. It receives ``(EEG, states)`` where ``states`` maps
+            EEGLAB-facing component indices to booleans.
         return_com: Return ``(figure, command)`` when true.
     """
     if EEG is None:
@@ -172,6 +187,7 @@ def pop_prop_extended(
             classifier_name,
             fig=fig,
             show_activity=show_activity,
+            reject_callback=reject_callback,
         )
     return (figure, command) if return_com else figure
 
@@ -357,6 +373,20 @@ def has_component_classifier(EEG: dict[str, Any], classifier_name: str = "") -> 
         raise
 
 
+def component_rejection_status(
+    EEG: dict[str, Any],
+    component_index: int,
+    *,
+    component_total: int | None = None,
+) -> bool:
+    """Return the current ``EEG.reject.gcompreject`` status for one component."""
+    total = component_count(EEG) if component_total is None else int(component_total)
+    index = int(component_index)
+    if index < 1 or index > total:
+        raise ValueError("component index is outside available ICA components")
+    return bool(component_rejection_flags(EEG, total, create=False)[index - 1])
+
+
 def build_extended_property_data(
     EEG: dict[str, Any],
     typecomp: int | bool,
@@ -388,8 +418,8 @@ def _build_navigable_dashboard(
     *,
     fig: Any,
     show_activity: bool,
+    reject_callback: Any | None,
 ) -> Any:
-    del winhandle
     figure = fig if fig is not None else plt.figure(figsize=_DASHBOARD_SIZE)
     state = {
         "EEG": EEG,
@@ -401,6 +431,9 @@ def _build_navigable_dashboard(
         "scroll_event": int(bool(scroll_event)),
         "classifier_name": classifier_name,
         "show_activity": bool(show_activity),
+        "winhandle": winhandle,
+        "reject_callback": reject_callback,
+        "rejection_pending": _initial_rejection_state(EEG, int(typecomp), indices),
     }
     figure.eegprep_dashboard_state = state
     _render_dashboard(figure)
@@ -424,6 +457,16 @@ def _render_dashboard(figure: Any) -> None:
     figure.set_size_inches(*_DASHBOARD_SIZE, forward=True)
     figure.patch.set_facecolor((0.93, 0.96, 1.0))
     _set_window_title(figure, dashboard.figure_title)
+    has_rejection_controls = _has_rejection_controls(state)
+    bottom = (
+        0.17
+        if has_rejection_controls and len(indices) > 1
+        else 0.125
+        if has_rejection_controls
+        else 0.12
+        if len(indices) > 1
+        else 0.075
+    )
     if dashboard.dipfit is None:
         grid = figure.add_gridspec(
             2,
@@ -431,7 +474,7 @@ def _render_dashboard(figure: Any) -> None:
             left=0.055,
             right=0.97,
             top=0.88,
-            bottom=0.12 if len(indices) > 1 else 0.075,
+            bottom=bottom,
             wspace=0.65,
             hspace=0.55,
             width_ratios=(1.2, 0.95, 1.25, 1.25),
@@ -454,7 +497,7 @@ def _render_dashboard(figure: Any) -> None:
             left=0.055,
             right=0.97,
             top=0.88,
-            bottom=0.12 if len(indices) > 1 else 0.075,
+            bottom=bottom,
             wspace=0.58,
             hspace=0.55,
             width_ratios=(1.15, 0.9, 0.85, 1.25, 1.25),
@@ -491,10 +534,24 @@ def _render_dashboard(figure: Any) -> None:
         show=state["show_activity"],
     )
     if len(indices) > 1:
-        _add_navigation_controls(figure)
+        _add_navigation_controls(
+            figure,
+            bottom=0.075 if has_rejection_controls else 0.025,
+            count_y=0.1 if has_rejection_controls else 0.092,
+        )
     else:
-        figure.eegprep_dashboard_buttons = ()
         figure.eegprep_dashboard_navigation = {}
+        figure.eegprep_dashboard_navigation_buttons = ()
+    if has_rejection_controls:
+        _add_rejection_controls(figure, dashboard)
+    else:
+        figure.eegprep_dashboard_rejection = {}
+        figure.eegprep_dashboard_rejection_buttons = {}
+        figure.eegprep_dashboard_rejection_button_list = ()
+    buttons = []
+    buttons.extend(getattr(figure, "eegprep_dashboard_navigation_buttons", ()))
+    buttons.extend(getattr(figure, "eegprep_dashboard_rejection_button_list", ()))
+    figure.eegprep_dashboard_buttons = tuple(buttons)
     figure.canvas.draw_idle()
 
 
@@ -671,9 +728,9 @@ def _plot_dipfit_values(axis: Any, dipfit: DipfitData) -> None:
         )
 
 
-def _add_navigation_controls(figure: Any) -> None:
-    previous_axis = figure.add_axes((0.37, 0.025, 0.105, 0.05))
-    next_axis = figure.add_axes((0.525, 0.025, 0.105, 0.05))
+def _add_navigation_controls(figure: Any, *, bottom: float, count_y: float) -> None:
+    previous_axis = figure.add_axes((0.37, bottom, 0.105, 0.05))
+    next_axis = figure.add_axes((0.525, bottom, 0.105, 0.05))
     previous_button = Button(previous_axis, "Previous")
     next_button = Button(next_axis, "Next")
 
@@ -685,12 +742,12 @@ def _add_navigation_controls(figure: Any) -> None:
 
     previous_button.on_clicked(previous)
     next_button.on_clicked(next_)
-    figure.eegprep_dashboard_buttons = (previous_button, next_button)
+    figure.eegprep_dashboard_navigation_buttons = (previous_button, next_button)
     figure.eegprep_dashboard_navigation = {"previous": previous, "next": next_}
     state = figure.eegprep_dashboard_state
     figure.text(
         0.5,
-        0.092,
+        count_y,
         f"{int(state['position']) + 1} / {len(state['indices'])}",
         ha="center",
         va="center",
@@ -698,10 +755,213 @@ def _add_navigation_controls(figure: Any) -> None:
     )
 
 
+def _add_rejection_controls(figure: Any, dashboard: ExtendedPropertyData) -> None:
+    state = figure.eegprep_dashboard_state
+    index = int(dashboard.index)
+    rejected = _pending_rejection_status(state, index)
+    cancel_button = Button(figure.add_axes((0.2, 0.015, 0.1, 0.045)), "Cancel", color=_CONTROL_COLOR)
+    values_button = Button(figure.add_axes((0.325, 0.015, 0.1, 0.045)), "Values", color=_CONTROL_COLOR)
+    status_button = Button(
+        figure.add_axes((0.45, 0.015, 0.1, 0.045)),
+        _rejection_label(rejected),
+        color=_rejection_color(rejected),
+        hovercolor=_rejection_color(rejected),
+    )
+    help_button = Button(figure.add_axes((0.575, 0.015, 0.1, 0.045)), "HELP", color=_CONTROL_COLOR)
+    ok_button = Button(figure.add_axes((0.7, 0.015, 0.1, 0.045)), "OK", color=_CONTROL_COLOR)
+
+    if not _component_values_available(state["EEG"]):
+        values_button.set_active(False)
+        values_button.ax.set_facecolor(_DISABLED_CONTROL_COLOR)
+
+    def cancel(_event: Any = None) -> None:
+        plt.close(figure)
+
+    def values(_event: Any = None) -> None:
+        if _component_values_available(state["EEG"]):
+            _show_component_values(state["EEG"], index, _pending_rejection_status(state, index))
+
+    def toggle(_event: Any = None) -> None:
+        state["rejection_pending"][index] = not _pending_rejection_status(state, index)
+        _style_rejection_status_button(status_button, state["rejection_pending"][index])
+        figure.canvas.draw_idle()
+
+    def help_(_event: Any = None) -> None:
+        pophelp("pop_prop_extended")
+
+    def ok(_event: Any = None) -> None:
+        _commit_rejection_state(figure)
+        plt.close(figure)
+
+    cancel_button.on_clicked(cancel)
+    values_button.on_clicked(values)
+    status_button.on_clicked(toggle)
+    help_button.on_clicked(help_)
+    ok_button.on_clicked(ok)
+    figure.eegprep_dashboard_rejection_button_list = (
+        cancel_button,
+        values_button,
+        status_button,
+        help_button,
+        ok_button,
+    )
+    figure.eegprep_dashboard_rejection_buttons = {
+        "cancel": cancel_button,
+        "values": values_button,
+        "status": status_button,
+        "help": help_button,
+        "ok": ok_button,
+    }
+    figure.eegprep_dashboard_rejection = {
+        "cancel": cancel,
+        "values": values,
+        "toggle": toggle,
+        "help": help_,
+        "ok": ok,
+        "pending": state["rejection_pending"],
+    }
+
+
 def _navigate_dashboard(figure: Any, step: int) -> None:
     state = figure.eegprep_dashboard_state
     state["position"] = (int(state["position"]) + int(step)) % len(state["indices"])
     _render_dashboard(figure)
+
+
+def _initial_rejection_state(EEG: dict[str, Any], typecomp: int, indices: list[int]) -> dict[int, bool]:
+    if int(typecomp):
+        return {}
+    total = component_count(EEG)
+    flags = component_rejection_flags(EEG, total, create=False)
+    return {int(index): bool(flags[int(index) - 1]) for index in indices}
+
+
+def _has_rejection_controls(state: dict[str, Any]) -> bool:
+    return int(state["typecomp"]) == 0 and bool(state["indices"])
+
+
+def _pending_rejection_status(state: dict[str, Any], component_index: int) -> bool:
+    pending = state["rejection_pending"]
+    index = int(component_index)
+    if index not in pending:
+        pending[index] = component_rejection_status(state["EEG"], index)
+    return bool(pending[index])
+
+
+def _rejection_label(rejected: bool) -> str:
+    return "REJECT" if rejected else "ACCEPT"
+
+
+def _rejection_color(rejected: bool) -> str:
+    return _REJECT_COLOR if rejected else _ACCEPT_COLOR
+
+
+def _style_rejection_status_button(button: Button, rejected: bool) -> None:
+    button.label.set_text(_rejection_label(rejected))
+    button.ax.set_facecolor(_rejection_color(rejected))
+    button.color = _rejection_color(rejected)
+    button.hovercolor = _rejection_color(rejected)
+
+
+def _commit_rejection_state(figure: Any) -> None:
+    state = figure.eegprep_dashboard_state
+    if not _has_rejection_controls(state):
+        return
+    EEG = state["EEG"]
+    total = component_count(EEG)
+    committed: dict[int, bool] = {}
+    for index in sorted(state["rejection_pending"]):
+        rejected = bool(state["rejection_pending"][index])
+        set_component_rejection_flag(EEG, index, rejected, total)
+        _style_rejection_winhandle(state["winhandle"], index, rejected)
+        committed[int(index)] = rejected
+    callback = state.get("reject_callback")
+    if callback is not None:
+        callback(EEG, dict(committed))
+
+
+def _style_rejection_winhandle(winhandle: Any, component_index: int, rejected: bool) -> None:
+    if _is_empty_winhandle(winhandle):
+        return
+    handle = winhandle
+    if isinstance(winhandle, Mapping):
+        handle = winhandle.get(int(component_index))
+    if isinstance(handle, Button):
+        handle.ax.set_facecolor(_rejection_color(rejected))
+
+
+def _is_empty_winhandle(winhandle: Any) -> bool:
+    if winhandle is None:
+        return True
+    if isinstance(winhandle, (int, float, np.integer, np.floating)):
+        return bool(winhandle == 0) or bool(np.isnan(float(winhandle)))
+    return False
+
+
+def _component_values_available(EEG: dict[str, Any]) -> bool:
+    stats = EEG.get("stats")
+    if not isinstance(stats, dict):
+        return False
+    return np.asarray(stats.get("compenta", [])).size > 0
+
+
+def _show_component_values(EEG: dict[str, Any], component_index: int, rejected: bool) -> None:
+    values = _component_value_lines(EEG, component_index, rejected)
+    figure = plt.figure(figsize=(3.4, 3.4))
+    manager = getattr(figure.canvas, "manager", None)
+    if manager is not None:
+        manager.set_window_title("Statistics of the component")
+    axis = figure.add_subplot(1, 1, 1)
+    axis.axis("off")
+    axis.text(0.04, 0.96, "\n".join(values), va="top", ha="left", fontsize=9, family="monospace")
+    close_button = Button(figure.add_axes((0.375, 0.03, 0.25, 0.08)), "Close", color=_CONTROL_COLOR)
+    close_button.on_clicked(lambda _event=None: plt.close(figure))
+    setattr(figure, "eegprep_component_values_button", close_button)
+    figure.tight_layout(rect=(0, 0.12, 1, 1))
+    figure.canvas.draw_idle()
+
+
+def _component_value_lines(EEG: dict[str, Any], component_index: int, rejected: bool) -> list[str]:
+    raw_stats = EEG.get("stats")
+    stats = raw_stats if isinstance(raw_stats, dict) else {}
+    raw_reject = EEG.get("reject")
+    reject = raw_reject if isinstance(raw_reject, dict) else {}
+    index = int(component_index)
+    return [
+        "(",
+        f"Entropy of component activity       {_indexed_stat(stats.get('compenta'), index):>8}",
+        f"> Rejection threshold                {_scalar_stat(reject.get('threshentropy')):>8}",
+        "",
+        " AND                                ----",
+        "",
+        f"Kurtosis of component activity      {_indexed_stat(stats.get('compkurta'), index):>8}",
+        f"> Rejection threshold                {_scalar_stat(reject.get('threshkurtact')):>8}",
+        "",
+        ") OR                               ----",
+        "",
+        f"Kurtosis distribution                {_indexed_stat(stats.get('compkurtdist'), index):>8}",
+        f"> Rejection threshold                {_scalar_stat(reject.get('threshkurtdist')):>8}",
+        "",
+        f"Current thresholds suggest to {_rejection_label(rejected)} the component",
+        "",
+        "After manually accepting/rejecting the component, recalibrate",
+        "thresholds before applying automatic rejection to other datasets.",
+    ]
+
+
+def _indexed_stat(values: Any, component_index: int) -> str:
+    vector = np.asarray(values, dtype=float).ravel()
+    index = int(component_index) - 1
+    if index < 0 or index >= vector.size or not np.isfinite(vector[index]):
+        return "----"
+    return f"{float(vector[index]):2.2f}"
+
+
+def _scalar_stat(value: Any) -> str:
+    vector = np.asarray(value, dtype=float).ravel()
+    if vector.size == 0 or not np.isfinite(vector[0]):
+        return "----"
+    return f"{float(vector[0]):2.2f}"
 
 
 def _channel_dashboard_data(
@@ -739,6 +999,7 @@ def _channel_dashboard_data(
         class_probabilities=None,
         pvaf=None,
         dipfit=None,
+        rejected=None,
     )
 
 
@@ -782,6 +1043,7 @@ def _component_dashboard_data(
         class_probabilities=probabilities,
         pvaf=_component_pvaf(EEG, data, maps, activity, index),
         dipfit=resolve_dipfit_data(EEG, index),
+        rejected=component_rejection_status(EEG, index, component_total=activity_all.shape[0]),
     )
 
 
@@ -1104,6 +1366,7 @@ __all__ = [
     "classifier_name_from_gui",
     "classifier_names",
     "component_count",
+    "component_rejection_status",
     "has_component_classifier",
     "pop_prop_extended",
     "pop_prop_extended_dialog_spec",

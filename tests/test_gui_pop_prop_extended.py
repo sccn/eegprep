@@ -2,8 +2,10 @@ import matplotlib
 
 matplotlib.use("Agg")
 
+from matplotlib.widgets import Button
 import matplotlib.pyplot as plt
 import numpy as np
+import pytest
 
 from eegprep.functions.guifunc.pophelp import pophelp_text
 from eegprep.plugins.ICLabel.pop_prop_extended import pop_prop_extended, pop_prop_extended_dialog_spec
@@ -72,6 +74,10 @@ def _dashed_marker_x_positions(figure, title: str) -> list[float]:
     return [float(line.get_xdata()[0]) for line in axis.lines if line.get_linestyle() == "--"]
 
 
+def _reject_button_label(figure) -> str:
+    return figure.eegprep_dashboard_rejection_buttons["status"].label.get_text()
+
+
 def test_gui_dashboard_creation_has_eeglab_labels_titles_and_activity_browser() -> None:
     eeg = _dashboard_eeg()
 
@@ -103,6 +109,65 @@ def test_gui_dashboard_navigation_updates_visible_component() -> None:
     assert figure._suptitle.get_text() == "IC2 - pop_prop_extended()"
     assert any(axis.get_title() == "Scrolling IC2 Activity" for axis in figure.axes)
     plt.close(figure)
+
+
+def test_gui_dashboard_rejection_controls_commit_selected_component_flags() -> None:
+    eeg = _dashboard_eeg()
+    figure = pop_prop_extended(eeg, 0, [1, 2], scroll_event=1)
+
+    assert _reject_button_label(figure) == "ACCEPT"
+    figure.eegprep_dashboard_rejection["toggle"]()
+    assert _reject_button_label(figure) == "REJECT"
+    np.testing.assert_array_equal(eeg["reject"]["gcompreject"], [0, 0, 0, 0])
+
+    figure.eegprep_dashboard_navigation["next"]()
+    assert figure.eegprep_dashboard_data.index == 2
+    assert _reject_button_label(figure) == "ACCEPT"
+    figure.eegprep_dashboard_rejection["toggle"]()
+    figure.eegprep_dashboard_navigation["previous"]()
+    assert _reject_button_label(figure) == "REJECT"
+
+    figure.eegprep_dashboard_rejection["ok"]()
+
+    np.testing.assert_array_equal(eeg["reject"]["gcompreject"], [1, 1, 0, 0])
+    plt.close(figure)
+
+
+def test_gui_dashboard_rejection_cancel_discards_pending_flags() -> None:
+    eeg = _dashboard_eeg()
+    figure = pop_prop_extended(eeg, 0, 1, scroll_event=1)
+
+    figure.eegprep_dashboard_rejection["toggle"]()
+    figure.eegprep_dashboard_rejection["cancel"]()
+
+    np.testing.assert_array_equal(eeg["reject"]["gcompreject"], [0, 0, 0, 0])
+    plt.close(figure)
+
+
+def test_gui_dashboard_rejection_commit_updates_callback_and_origin_button() -> None:
+    eeg = _dashboard_eeg()
+    origin_figure = plt.figure()
+    origin_button = Button(origin_figure.add_axes((0.1, 0.1, 0.2, 0.2)), "1")
+    calls = []
+    figure = pop_prop_extended(
+        eeg,
+        0,
+        1,
+        winhandle=origin_button,
+        scroll_event=1,
+        reject_callback=lambda updated, states: calls.append((updated, states)),
+    )
+
+    figure.eegprep_dashboard_rejection["toggle"]()
+    figure.eegprep_dashboard_rejection["ok"]()
+
+    assert len(calls) == 1
+    assert calls[0][0] is eeg
+    assert calls[0][1] == {1: True}
+    np.testing.assert_array_equal(eeg["reject"]["gcompreject"], [1, 0, 0, 0])
+    assert origin_button.ax.get_facecolor() == pytest.approx((1.0, 0.6, 0.6, 1.0))
+    plt.close(figure)
+    plt.close(origin_figure)
 
 
 def test_gui_dashboard_activity_browser_honors_event_display_option() -> None:
