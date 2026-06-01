@@ -947,7 +947,7 @@ class EEGBrowserCanvas(_QWidget):
     def _plot_channel_count(self) -> int:
         state = self.model.state
         remaining = self.model.data.n_channels - state.channel_offset
-        return max(1, min(remaining, state.dispchans + 2))
+        return max(1, min(remaining, state.dispchans))
 
     def _sample_range_to_x_values(self, start: int, stop: int) -> np.ndarray:
         if self.model.data.x_values is not None:

@@ -260,15 +260,18 @@ def test_gui_displayed_channels_and_vertical_slider_update_visible_state(qapp) -
     window = EEGBrowserWindow(model)
 
     assert window.channel_slider.isHidden() is False
+    assert tuple(window.canvas._visible_channels()) == (0, 1)
     window.channel_slider.setValue(2)
     qapp.processEvents()
 
     assert model.state.channel_offset == 2
+    assert tuple(window.canvas._visible_channels()) == (2, 3)
 
     window.set_displayed_channels(5)
     qapp.processEvents()
 
     assert model.state.dispchans == 5
+    assert tuple(window.canvas._visible_channels()) == (0, 1, 2, 3, 4)
     assert window.channel_slider.isVisible() is False
     window.close()
 
