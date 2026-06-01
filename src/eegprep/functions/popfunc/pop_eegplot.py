@@ -56,6 +56,8 @@ def pop_eegplot(
         return (None, "") if return_com else None
     if icacomp not in {0, 1}:
         raise ValueError("icacomp must be 1 for data channels or 0 for components")
+    if int(bool(icacomp)) == 0:
+        _require_ica(EEG)
     options = dict(kwargs)
     options.setdefault("srate", EEG.get("srate", 256))
     options.setdefault(
@@ -95,6 +97,23 @@ def pop_eegplot(
         window = eegplot(EEG, *args, show=show, **options)
     command = history_command("pop_eegplot", icacomp, superpose, reject)
     return (EEG, command) if return_com else window
+
+
+def eegplot_accept_creates_dataset(input_eeg: dict[str, Any], output_eeg: dict[str, Any], reject: int = 1) -> bool:
+    """Return whether accepted ``pop_eegplot`` output should be a new dataset.
+
+    Rejection accepts that remove continuous samples or epochs create a new
+    EEGLAB-style dataset. Mark-only updates and no-op rejects update in place.
+    For example, ``(pnts=100, pnts=80, reject=1)`` returns true, while
+    ``(pnts=100, pnts=100, reject=1)`` and any ``reject=0`` call return false.
+    """
+    if not int(bool(reject)):
+        return False
+    input_trials = int(input_eeg.get("trials", 1) or 1)
+    output_trials = int(output_eeg.get("trials", 1) or 1)
+    if input_trials > 1:
+        return output_trials < input_trials
+    return _dataset_pnts(output_eeg) < _dataset_pnts(input_eeg)
 
 
 def apply_eegplot_rejections(
@@ -289,6 +308,27 @@ def _row_count(EEG: dict[str, Any], icacomp: int) -> int:
     return int(weights.shape[0]) if weights.ndim == 2 else 0
 
 
+def _require_ica(EEG: dict[str, Any]) -> None:
+    if _nonempty_array(EEG.get("icaact")):
+        return
+    if _nonempty_array(EEG.get("icaweights")) and _nonempty_array(EEG.get("icasphere")):
+        return
+    raise ValueError("You must run ICA before browsing component activations with pop_eegplot.")
+
+
+def _nonempty_array(value: Any) -> bool:
+    return value is not None and np.asarray(value).size > 0
+
+
+def _dataset_pnts(EEG: dict[str, Any]) -> int:
+    if "pnts" in EEG:
+        return int(EEG.get("pnts", 0) or 0)
+    data = np.asarray(EEG.get("data"))
+    if data.ndim >= 2:
+        return int(data.shape[1])
+    return 0
+
+
 def _displayed_rejection_families(reject: dict[str, Any]) -> tuple[str, ...]:
     disprej = reject.get("disprej")
     if disprej is None or np.asarray(disprej, dtype=object).size == 0:
@@ -320,4 +360,4 @@ def _reject_color(
     return tuple(float(item) for item in values[:3])
 
 
-__all__ = ["apply_eegplot_rejections", "pop_eegplot"]
+__all__ = ["apply_eegplot_rejections", "eegplot_accept_creates_dataset", "pop_eegplot"]

@@ -71,3 +71,5 @@ def test_eegbrowser_scrolling_actions_are_implemented():
     assert action_kind("pop_eegplot:data") == "implemented"
     assert action_kind("pop_eegplot:channels") == "implemented"
     assert action_kind("pop_eegplot:components") == "implemented"
+    assert action_kind("pop_eegplot:reject_data") == "implemented"
+    assert action_kind("pop_eegplot:reject_ica") == "implemented"

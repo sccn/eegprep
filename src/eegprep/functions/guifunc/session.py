@@ -178,18 +178,31 @@ class EEGPrepSession:
         new: bool = False,
         command: str = "",
         mark_saved: bool = False,
+        index: int | list[int] | None = None,
     ) -> int | list[int]:
         """Store ``eeg`` in ALLEEG and select it."""
-        if isinstance(eeg, list):
+        if index is not None:
             if new:
-                index: int | list[int] | None = [0] * len(eeg)
-            elif len(self.CURRENTSET) == len(eeg):
-                index = list(self.CURRENTSET)
+                raise ValueError("new and index cannot both be set")
+            normalized_index = normalize_dataset_indices(index, allow_empty=False)
+            if isinstance(eeg, list):
+                if len(normalized_index) != len(eeg):
+                    raise ValueError("Length of EEG list must equal length of index")
+                store_index: int | list[int] = normalized_index
             else:
-                index = None
+                if len(normalized_index) != 1:
+                    raise ValueError("A single EEG dataset must be stored to one index")
+                store_index = normalized_index[0]
+        elif isinstance(eeg, list):
+            if new:
+                store_index = [0] * len(eeg)
+            elif len(self.CURRENTSET) == len(eeg):
+                store_index = list(self.CURRENTSET)
+            else:
+                store_index = None
         else:
-            index = 0 if new or not self.CURRENTSET else self.CURRENTSET[0]
-        self.ALLEEG, checked, stored_index = eeg_store(self.ALLEEG, eeg, index)
+            store_index = 0 if new or not self.CURRENTSET else self.CURRENTSET[0]
+        self.ALLEEG, checked, stored_index = eeg_store(self.ALLEEG, eeg, store_index)
         self.EEG = checked
         self.CURRENTSET = normalize_dataset_indices(stored_index, allow_empty=False)
         if mark_saved:

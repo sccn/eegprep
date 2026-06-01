@@ -16,8 +16,10 @@ from eegprep.plugins.firfilt.menu import firfilt_filter_items
 ON = "study:on"
 ON_NO_STUDY = ""
 ON_DATA = "startup:off"
+ON_DATA_ICA = "startup:off;ica:on"
 ON_DATA_NO_ROI = "startup:off;roi:off"
 ON_EPOCH = "startup:off;continuous:off"
+ON_EPOCH_ICA = "startup:off;continuous:off;ica:on"
 ON_EPOCH_NO_ROI = "startup:off;continuous:off;roi:off"
 ON_DATA_STUDY = "startup:off;study:on"
 ON_DATA_STUDY_NO_ROI = "startup:off;study:on;roi:off"
@@ -194,7 +196,7 @@ def eeglab_core_menus() -> tuple[MenuItemSpec, ...]:
                 children=[
                     menu_item("Reject components by map", action="pop_selectcomps", userdata=ON_DATA),
                     menu_item("Reject data (all methods)", action="pop_rejmenu:ica", userdata=ON_EPOCH, separator=True),
-                    menu_item("Reject by inspection", action="pop_eegplot:reject_ica", userdata=ON_EPOCH),
+                    menu_item("Reject by inspection", action="pop_eegplot:reject_ica", userdata=ON_EPOCH_ICA),
                     menu_item("Reject extreme values", action="pop_eegthresh:ica", userdata=ON_EPOCH),
                     menu_item("Reject by linear trend/variance", action="pop_rejtrend:ica", userdata=ON_EPOCH),
                     menu_item("Reject by probability", action="pop_jointprob:ica", userdata=ON_EPOCH),
@@ -251,7 +253,10 @@ def eeglab_core_menus() -> tuple[MenuItemSpec, ...]:
             menu_item("Sum/Compare ERPs", action="pop_comperp:channels", userdata=ON_EPOCH, visibility="allmenus"),
             menu_item("Channel time-frequency", action="pop_newtimef:channels", visibility="default"),
             menu_item(
-                "Component activations (scroll)", action="pop_eegplot:components", userdata=ON_DATA, separator=True
+                "Component activations (scroll)",
+                action="pop_eegplot:components",
+                userdata=ON_DATA_ICA,
+                separator=True,
             ),
             menu_item("Component spectra and maps", action="pop_spectopo:components", userdata=ON_DATA_NO_ROI),
             menu_item(
