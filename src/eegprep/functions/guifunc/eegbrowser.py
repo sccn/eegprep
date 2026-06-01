@@ -836,7 +836,7 @@ class EEGBrowserCanvas(_QWidget):
         view_box = self.plot.getPlotItem().vb
         scene_pos = view_box.mapViewToScene(QtCore.QPointF(x_value, 0.0))
         view_rect = view_box.sceneBoundingRect()
-        label.setPos(scene_pos.x(), max(0.0, view_rect.top() - label.boundingRect().width() - 2.0))
+        label.setPos(scene_pos.x(), view_rect.top() - label.boundingRect().width() - 2.0)
         self.plot.scene().addItem(label)
         self._scene_items.append(label)
         self._event_label_items.append(label)

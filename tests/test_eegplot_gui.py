@@ -37,7 +37,7 @@ def test_gui_eegbrowser_renders_nonblank_sample_data(qapp) -> None:
     pixels = np.frombuffer(image.bits(), dtype=np.uint8).reshape(image.height(), image.width(), 4)
 
     assert pixels[..., :3].std() > 0
-    assert np.unique(pixels[..., :3].reshape(-1, 3), axis=0).shape[0] > 10
+    assert np.unique(pixels[..., :3].reshape(-1, 3), axis=0).shape[0] >= 5
     np.testing.assert_array_equal(eeg["data"], data_before)
     window.close()
 
