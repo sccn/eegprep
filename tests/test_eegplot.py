@@ -10,6 +10,7 @@ import eegprep.functions.popfunc.pop_eegplot as pop_eegplot_module
 from eegprep.functions.popfunc.pop_eegplot import pop_eegplot
 from eegprep.functions.popfunc.pop_eegplot import apply_eegplot_rejections
 from eegprep.functions.popfunc.pop_eegplot import eegplot_accept_creates_dataset
+from eegprep.functions.popfunc.eeg_multieegplot import eeg_multieegplot
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.sigprocfunc.eegplot import (
     add_winrej_region,
@@ -75,7 +76,7 @@ def test_component_mode_uses_ica_activation_labels_without_mutating_eeg() -> Non
     model = build_eegplot_model(eeg, component=True, spacing=1, show=False)
 
     assert model.data.mode == "component"
-    assert model.data.channel_labels == ("Comp 1", "Comp 2")
+    assert model.data.channel_labels == ("1", "2")
     np.testing.assert_array_equal(model.data.flat_data, eeg["icaact"])
     np.testing.assert_array_equal(eeg["data"], data_before)
     np.testing.assert_array_equal(eeg["icaact"], ica_before)
@@ -101,6 +102,12 @@ def test_spectral_and_overlay_inputs_are_normalized_together() -> None:
     assert model.state.limits == (3.0, 7.0)
     np.testing.assert_array_equal(model.data.x_values, freqs[2:7])
     np.testing.assert_array_equal(model.data.flat_data2, overlay[:, 2:7])
+
+
+def test_noui_option_sets_publication_state_without_showing_qt() -> None:
+    model = build_eegplot_model(np.zeros((2, 10)), spacing=1, noui="on", show=False)
+
+    assert model.state.noui is True
 
 
 def test_event_latency_conversion_uses_eeglab_one_based_samples() -> None:
@@ -438,6 +445,34 @@ def test_pop_eegplot_component_mode_requires_ica() -> None:
         pop_eegplot(eeg, icacomp=0, show=False)
 
 
+def test_eeg_multieegplot_epoched_combines_old_and_new_rejection_colors() -> None:
+    data = np.zeros((2, 4, 3), dtype=float)
+    rej = np.array([False, True, False])
+    rej_e = np.array([[False, True, False], [False, False, False]])
+    oldrej = np.array([True, False, False])
+    oldrej_e = np.array([[True, False, False], [False, False, False]])
+
+    model = eeg_multieegplot(data, rej, rej_e, oldrej, oldrej_e, show=False)
+    rows = winrej_to_array(model.state.winrej, 2)
+
+    np.testing.assert_array_equal(rows[:, :2], [[0, 3], [4, 7]])
+    np.testing.assert_allclose(rows[:, 2:5], [[0.8, 1.0, 0.8], [0.8, 0.8, 1.0]])
+    np.testing.assert_array_equal(rows[:, 5:], [[1, 0], [1, 0]])
+
+
+def test_eeg_multieegplot_continuous_uses_old_and_new_colors() -> None:
+    model = eeg_multieegplot(
+        np.zeros((2, 20), dtype=float),
+        [[3, 5]],
+        oldrej=[[1, 2, 8, 10]],
+        show=False,
+    )
+    rows = winrej_to_array(model.state.winrej, 2)
+
+    np.testing.assert_array_equal(rows[:, :2], [[3, 5], [8, 10]])
+    np.testing.assert_allclose(rows[:, 2:5], [[0.8, 0.8, 1.0], [0.8, 1.0, 0.8]])
+
+
 def test_eegplot_accept_creates_dataset_only_when_reject_removes_data() -> None:
     continuous = create_test_eeg(n_channels=1, n_samples=10, n_trials=1, srate=10)
     continuous_out = dict(continuous, pnts=7, data=np.zeros((1, 7)))
@@ -470,4 +505,22 @@ def test_sample_data_pop_eegplot_channel_api_flow_returns_browser_model() -> Non
     assert model.data.mode == "continuous"
     assert model.data.n_channels == int(eeg["nbchan"])
     assert model.state.title.startswith("Scroll channel activities -- eegplot()")
+    np.testing.assert_array_equal(eeg["data"], data_before)
+
+
+def test_sample_data_pop_eegplot_component_api_flow_with_ica_fields() -> None:
+    eeg = pop_loadset(str(SAMPLE_DATASET))
+    n_channels = int(eeg["nbchan"])
+    eeg["icaweights"] = np.eye(n_channels)
+    eeg["icasphere"] = np.eye(n_channels)
+    eeg["icawinv"] = np.eye(n_channels)
+    eeg["icachansind"] = np.arange(n_channels)
+    eeg["icaact"] = np.array(eeg["data"], dtype=float, copy=True)
+    data_before = np.array(eeg["data"], copy=True)
+
+    model = pop_eegplot(eeg, icacomp=0, show=False, winlength=1)
+
+    assert model.data.mode == "component"
+    assert model.data.n_channels == n_channels
+    assert model.state.title.startswith("Scroll component activities -- eegplot()")
     np.testing.assert_array_equal(eeg["data"], data_before)

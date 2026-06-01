@@ -21,6 +21,10 @@ Core options:
 - `title` and `plottitle`: window and plot titles.
 - `xgrid`, `ygrid`, `submean`, and `scale`: `"on"` or `"off"` toggles.
 - `data2`: overlay data with the same normalized shape as the primary data.
+- `children`: one browser window or a sequence of browser windows to link for
+  synchronized scrolling.
+- `noui`: `"on"` hides menus and controls for a cleaner publication-style
+  browser view.
 - `winrej`: rejection-mark rows `[start end R G B channel_mask...]` in
   EEGLAB eegplot frame coordinates. Continuous rows use one-based sample
   latencies for rejection through `eeg_eegrej`; epoched rows use EEGLAB's

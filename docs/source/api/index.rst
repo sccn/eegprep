@@ -162,6 +162,7 @@ Visualization
 
    eegprep.cart2topo
    eegprep.eegplot
+   eegprep.eeg_multieegplot
    eegprep.pop_topoplot
    eegprep.topoplot
 

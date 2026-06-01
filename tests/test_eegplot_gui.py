@@ -360,6 +360,85 @@ def test_gui_channel_specific_marks_draw_red_trace_overlay(qapp) -> None:
     window.close()
 
 
+def test_gui_data2_overlay_draws_second_trace_per_channel(qapp) -> None:
+    from eegprep.functions.guifunc.eegbrowser import EEGBrowserWindow
+
+    data = np.vstack([np.arange(20, dtype=float), np.arange(20, dtype=float)])
+    model = build_eegplot_model(data, data2=data + 10.0, srate=10, spacing=10, dispchans=2, show=False)
+    window = EEGBrowserWindow(model)
+
+    curves = [item for item in window.canvas._items if hasattr(item, "getData")]
+
+    assert len(curves) == 4
+    np.testing.assert_allclose(curves[0].getData()[0], curves[1].getData()[0])
+    window.close()
+
+
+def test_gui_linked_child_windows_synchronize_time_and_channels(qapp) -> None:
+    from eegprep.functions.guifunc.eegbrowser import EEGBrowserWindow
+
+    parent_model = build_eegplot_model(np.zeros((4, 100)), srate=10, winlength=2, dispchans=2, spacing=1)
+    child_model = build_eegplot_model(np.zeros((4, 100)), srate=10, winlength=2, dispchans=2, spacing=1)
+    sibling_model = build_eegplot_model(np.zeros((4, 100)), srate=10, winlength=2, dispchans=2, spacing=1)
+    parent = EEGBrowserWindow(parent_model)
+    child = EEGBrowserWindow(child_model)
+    sibling = EEGBrowserWindow(sibling_model)
+    parent.link_child(child)
+    parent.link_child(sibling)
+
+    parent.scroll_time(1.0)
+    qapp.processEvents()
+
+    assert child_model.state.time == pytest.approx(parent_model.state.time)
+    assert sibling_model.state.time == pytest.approx(parent_model.state.time)
+
+    child.scroll_channels(1)
+    qapp.processEvents()
+
+    assert parent_model.state.channel_offset == child_model.state.channel_offset
+    assert sibling_model.state.channel_offset == child_model.state.channel_offset
+    parent.close()
+
+
+def test_gui_noui_publication_view_hides_browser_controls(qapp) -> None:
+    from eegprep.functions.guifunc.eegbrowser import EEGBrowserWindow
+
+    model = build_eegplot_model(np.zeros((3, 100)), srate=10, winlength=2, spacing=1, noui="on")
+    window = EEGBrowserWindow(model)
+    window.show()
+    qapp.processEvents()
+
+    assert window.menuBar().isHidden() is True
+    assert window.channel_slider.isHidden() is True
+    assert window.controls.cancel_button.isHidden() is True
+    assert window.scale_indicator.isHidden() is True
+    assert window.canvas.isVisible() is True
+    window.close()
+
+
+def test_gui_spectral_mode_uses_frequency_axis_and_labels(qapp) -> None:
+    from eegprep.functions.guifunc.eegbrowser import EEGBrowserWindow
+
+    freqs = np.arange(1, 11, dtype=float)
+    model = build_eegplot_model(
+        np.arange(10, dtype=float).reshape(1, 10),
+        freqs=freqs,
+        freqlimits=[4, 6],
+        spacing=1,
+        winlength=2,
+        show=False,
+    )
+    window = EEGBrowserWindow(model)
+
+    curve = next(item for item in window.canvas._items if hasattr(item, "getData"))
+    x_values, _y_values = curve.getData()
+
+    np.testing.assert_allclose(x_values, [4.0, 5.0, 6.0])
+    assert window.controls.time_label.text() == "Freq"
+    assert window.controls.value_label.text() == "Power"
+    window.close()
+
+
 def test_gui_accept_callback_receives_winrej_and_cancel_does_not(qapp) -> None:
     qt_widgets = pytest.importorskip("PySide6.QtWidgets")
     from eegprep.functions.guifunc.eegbrowser import EEGBrowserWindow

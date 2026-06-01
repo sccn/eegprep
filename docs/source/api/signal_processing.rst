@@ -37,6 +37,8 @@ Browser
 
 .. autofunction:: eegprep.eegplot
 
+.. autofunction:: eegprep.eeg_multieegplot
+
 Resampling
 ==========
 

@@ -1,7 +1,9 @@
 import unittest
+from unittest import mock
 
 import numpy as np
 
+import eegprep.functions.popfunc.pop_subcomp as pop_subcomp_module
 from eegprep.functions.adminfunc.console import _console_python_command
 from eegprep.functions.guifunc.spec import controls_by_tag
 from eegprep.functions.popfunc.pop_subcomp import pop_subcomp, pop_subcomp_dialog_spec
@@ -117,6 +119,25 @@ class PopSubcompGuiTests(unittest.TestCase):
 
         self.assertEqual(out["icaweights"].shape, (2, 3))
         self.assertEqual(_console_python_command(com), "EEG = pop_subcomp(EEG, components=[], plotag=0)")
+
+    def test_plot_confirmation_opens_before_after_data2_browser(self):
+        captured = {}
+
+        def fake_eegplot(preview, **kwargs):
+            captured["preview"] = preview
+            captured["kwargs"] = kwargs
+            return "window"
+
+        with mock.patch.object(pop_subcomp_module, "eegplot", side_effect=fake_eegplot):
+            out, com = pop_subcomp(_eeg(), [2], plotag=True, return_com=True)
+
+        self.assertEqual(out["icaweights"].shape, (2, 3))
+        self.assertEqual(captured["preview"]["data"].shape, (3, 8))
+        self.assertEqual(
+            captured["kwargs"]["title"], "Black = channel before rejection; red = after rejection -- eegplot()"
+        )
+        np.testing.assert_array_equal(captured["kwargs"]["data2"][1], np.zeros(8))
+        self.assertEqual(_console_python_command(com), "EEG = pop_subcomp(EEG, components=[2], plotag=1)")
 
     def test_multiple_datasets_with_no_flags_can_enter_components_in_gui(self):
         eegs = [_eeg(), _eeg()]

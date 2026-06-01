@@ -35,11 +35,13 @@ def test_all_lists_public_exports_once() -> None:
 
 def test_eegrej_export_matches_eeglab_low_level_function() -> None:
     from eegprep.functions.popfunc.eeg_eegrej import eeg_eegrej
+    from eegprep.functions.popfunc.eeg_multieegplot import eeg_multieegplot
     from eegprep.functions.sigprocfunc.eegplot import eegplot as sigproc_eegplot
     from eegprep.functions.sigprocfunc.eegrej import eegrej as sigproc_eegrej
     from eegprep.functions.sigprocfunc.rmbase import rmbase as sigproc_rmbase
 
     assert eegprep.eegplot is sigproc_eegplot
+    assert eegprep.eeg_multieegplot is eeg_multieegplot
     assert eegprep.eegrej is sigproc_eegrej
     assert eegprep.eeg_eegrej is eeg_eegrej
     assert eegprep.eegrej is not eegprep.eeg_eegrej

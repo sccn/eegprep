@@ -8,5 +8,6 @@ Usage:
 Set `typecomp=1` for channels and `typecomp=0` for ICA components. Indices are
 EEGLAB-facing 1-based values.
 
-EEGPrep provides non-scrolling property overview figures. EEGBrowser/eegplot
-activity scrolling is intentionally excluded.
+Property overview figures include browser-backed activity views for each
+visible channel or component. The dialog's event checkbox controls whether
+events are included in those scrolling activity views.
