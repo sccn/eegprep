@@ -13,6 +13,14 @@ from eegprep.functions.popfunc._property_browser import property_activity_browse
 from eegprep.functions.popfunc._pop_utils import format_history_value
 from eegprep.functions.popfunc._rejection import one_based_indices
 from eegprep.functions.popfunc.pop_topoplot import pop_topoplot
+from eegprep.plugins.ICLabel.pop_prop_extended import (
+    classifier_default_index,
+    classifier_name_from_gui,
+    classifier_names,
+    component_count,
+    has_component_classifier,
+    pop_prop_extended,
+)
 
 
 PLOTS_PER_FIGURE = 35
@@ -48,12 +56,21 @@ def pop_viewprops(
         erp_opt = result.get("erp_opt", "")
         scroll_event = int(bool(result.get("scroll_event", True)))
         if not int(bool(typecomp)):
-            classifier_name = _classifier_name_from_gui(EEG, result.get("classifier_name", classifier_name))
-    limit = int(EEG.get("nbchan", 0) or 0) if int(bool(typecomp)) else _component_count(EEG)
+            classifier_name = classifier_name_from_gui(EEG, result.get("classifier_name", classifier_name))
+    limit = int(EEG.get("nbchan", 0) or 0) if int(bool(typecomp)) else component_count(EEG)
     indices = one_based_indices(chanorcomp, limit=limit, default_all=True)
     figures = []
     if plot:
-        figures = _plot_props(EEG, int(bool(typecomp)), indices, classifier_name, scroll_event, show_activity)
+        figures = _plot_props(
+            EEG,
+            int(bool(typecomp)),
+            indices,
+            spec_opt,
+            erp_opt,
+            classifier_name,
+            scroll_event,
+            show_activity,
+        )
     command = _history_command(typecomp, indices, spec_opt, erp_opt, scroll_event, classifier_name)
     return (figures, command) if return_com else figures
 
@@ -61,7 +78,7 @@ def pop_viewprops(
 def pop_viewprops_dialog_spec(EEG: dict[str, Any], typecomp: int | bool = 1) -> DialogSpec:
     """Return the EEGLAB-like ``pop_viewprops`` prompt."""
     is_channel = int(bool(typecomp))
-    limit = int(EEG.get("nbchan", 0) or 0) if is_channel else _component_count(EEG)
+    limit = int(EEG.get("nbchan", 0) or 0) if is_channel else component_count(EEG)
     label = "Channel indices to plot:" if is_channel else "Component indices to plot:"
     title = "View many chan or comp. properties -- pop_viewprops"
     geometry = [(1.3, 1), (1.3, 1), (1.3, 1), (1,)]
@@ -79,7 +96,7 @@ def pop_viewprops_dialog_spec(EEG: dict[str, Any], typecomp: int | bool = 1) -> 
             value=True,
         ),
     ]
-    classifiers = _classifier_names(EEG) if not is_channel else []
+    classifiers = classifier_names(EEG) if not is_channel else []
     if classifiers:
         geometry.append((1,))
         controls.append(
@@ -87,7 +104,7 @@ def pop_viewprops_dialog_spec(EEG: dict[str, Any], typecomp: int | bool = 1) -> 
                 "popupmenu",
                 "|".join(classifiers),
                 tag="classifier_name",
-                value=_classifier_default_index(classifiers),
+                value=classifier_default_index(classifiers),
             )
         )
     return DialogSpec(
@@ -104,6 +121,8 @@ def _plot_props(
     EEG: dict[str, Any],
     typecomp: int,
     indices: list[int],
+    spec_opt: Any,
+    erp_opt: Any,
     classifier_name: str,
     scroll_event: int | bool,
     show_activity: bool,
@@ -111,6 +130,20 @@ def _plot_props(
     if not indices:
         return []
     visible_indices = indices[:PLOTS_PER_FIGURE]
+    if not typecomp and has_component_classifier(EEG, classifier_name):
+        figure = pop_prop_extended(
+            EEG,
+            0,
+            visible_indices,
+            None,
+            spec_opt,
+            erp_opt,
+            scroll_event,
+            classifier_name,
+            gui=False,
+            show_activity=show_activity,
+        )
+        return [figure] if figure is not None else []
     activity_views = [
         property_activity_browser(EEG, typecomp, index, scroll_event=scroll_event, show=show_activity)
         for index in visible_indices
@@ -156,48 +189,6 @@ def _history_command(
         classifier_name,
     ]
     return "pop_viewprops(EEG, " + ", ".join(format_history_value(arg, cell_for_sequence=None) for arg in args) + ");"
-
-
-def _component_count(EEG: dict[str, Any]) -> int:
-    weights = np.asarray(EEG.get("icaweights", []))
-    if weights.ndim == 2 and weights.size:
-        return int(weights.shape[0])
-    winv = np.asarray(EEG.get("icawinv", []))
-    if winv.ndim == 2 and winv.size:
-        return int(winv.shape[1])
-    return 0
-
-
-def _classifier_names(EEG: dict[str, Any]) -> list[str]:
-    etc = EEG.get("etc") or {}
-    if not isinstance(etc, dict):
-        return []
-    classifications = etc.get("ic_classification") or {}
-    if isinstance(classifications, dict):
-        return [str(name) for name in classifications if str(name)]
-    return []
-
-
-def _classifier_default_index(classifiers: list[str]) -> int:
-    for index, name in enumerate(classifiers, start=1):
-        if name.lower() == "iclabel":
-            return index
-    return 1
-
-
-def _classifier_name_from_gui(EEG: dict[str, Any], value: Any) -> str:
-    classifiers = _classifier_names(EEG)
-    if not classifiers:
-        return ""
-    if isinstance(value, str):
-        return value if value in classifiers else classifiers[_classifier_default_index(classifiers) - 1]
-    try:
-        index = int(value) - 1
-    except (TypeError, ValueError):
-        index = _classifier_default_index(classifiers) - 1
-    if 0 <= index < len(classifiers):
-        return classifiers[index]
-    return classifiers[_classifier_default_index(classifiers) - 1]
 
 
 def _channel_labels(EEG: dict[str, Any]) -> list[str]:

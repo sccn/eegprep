@@ -2016,6 +2016,25 @@
       }
     },
     {
+      "id": "iclabel_pop_prop_extended_dashboard",
+      "description": "ICLabel extended component-property dashboard opened from viewprops.",
+      "window_size": [1200, 700],
+      "timeout_seconds": 180,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_figure",
+          "action": "iclabel_pop_prop_extended",
+          "matlab_command": "addpath(genpath(eeglab_root)); addpath(fullfile(eeglab_root, 'plugins', 'ICLabel', 'viewprops')); EEG = eeg_emptyset; EEG.setname = 'viewprops demo'; EEG.nbchan = 4; EEG.pnts = 1000; EEG.trials = 1; EEG.srate = 250; EEG.xmin = 0; EEG.xmax = 3.996; EEG.times = linspace(0, 3996, EEG.pnts); t = linspace(0, 1, EEG.pnts); EEG.data = [sin(2*pi*t); sin(4*pi*t); sin(6*pi*t); sin(8*pi*t)]; EEG.chanlocs = struct('labels', {'Fp1', 'Fp2', 'Cz', 'Oz'}, 'theta', {-18, 18, 0, 180}, 'radius', {0.42, 0.42, 0, 0.42}, 'X', {-0.25, 0.25, 0, 0}, 'Y', {0.75, 0.75, 0, -0.8}, 'Z', {0.55, 0.55, 1, 0.55}); EEG.chaninfo = struct(); EEG.event = struct('type', {'stim'}, 'latency', {25}, 'duration', {0}); EEG.urevent = EEG.event; EEG.icaweights = eye(4); EEG.icasphere = eye(4); EEG.icawinv = eye(4); EEG.icachansind = 1:4; EEG.icaact = [cos(2*pi*t); cos(4*pi*t); cos(6*pi*t); cos(8*pi*t)]; EEG.reject.gcompreject = zeros(1, 4); EEG.etc.ic_classification.ICLabel.classifications = [0.70 0.10 0.10 0.03 0.02 0.03 0.02; 0.02 0.94 0.02 0.01 0.00 0.00 0.01; 0.05 0.02 0.91 0.01 0.00 0.00 0.01; 0.80 0.05 0.05 0.02 0.02 0.03 0.03]; EEG.etc.ic_classification.ICLabel.classes = {'Brain', 'Muscle', 'Eye', 'Heart', 'Line Noise', 'Channel Noise', 'Other'}; pop_prop_extended(EEG, 0, 1, nan, {'freqrange', [2 40]}, {}, 1, 'ICLabel');"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "iclabel_pop_prop_extended_dashboard",
+          "env": {"MPLBACKEND": "Agg"},
+          "command": ["{python}", "-m", "eegprep.functions.guifunc.visual_capture", "--case", "{case_id}", "--output", "{output}"]
+        }
+      }
+    },
+    {
       "id": "pop_dipfit_settings_dialog",
       "description": "DIPFIT settings dialog opened from pop_dipfit_settings.",
       "window_size": [690, 360],

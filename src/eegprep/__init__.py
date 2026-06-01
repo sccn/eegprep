@@ -159,6 +159,7 @@ _LAZY_EXPORTS = {
     "pop_preclust": ("eegprep.functions.studyfunc.pop_preclust", "pop_preclust"),
     "pop_precomp": ("eegprep.functions.studyfunc.pop_precomp", "pop_precomp"),
     "pop_prop": ("eegprep.functions.popfunc.pop_prop", "pop_prop"),
+    "pop_prop_extended": ("eegprep.plugins.ICLabel.pop_prop_extended", "pop_prop_extended"),
     "pop_rejchan": ("eegprep.functions.popfunc.pop_rejchan", "pop_rejchan"),
     "pop_rejcont": ("eegprep.functions.popfunc.pop_rejcont", "pop_rejcont"),
     "pop_rejepoch": ("eegprep.functions.popfunc.pop_rejepoch", "pop_rejepoch"),
