@@ -17,6 +17,7 @@ from typing import Any
 import eegprep
 from eegprep.functions.adminfunc.eeglab import gui
 from eegprep.functions.guifunc.session import EEGPrepSession, normalize_dataset_indices
+from eegprep.functions.popfunc.pop_eegplot import eegplot_accept_creates_dataset
 from eegprep.functions.popfunc.pop_newset import pop_newset
 
 
@@ -155,6 +156,20 @@ class ConsolePopFunction(LazyWorkspaceExport):
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         function = self.resolve()
         call_kwargs = dict(kwargs)
+        if self.name == "pop_eegplot" and "command_callback" not in call_kwargs:
+            source_eeg = _first_call_eeg_argument(args, call_kwargs)
+            reject = _pop_eegplot_reject_argument(args, call_kwargs)
+
+            def accept_eegplot(eeg_out: Any, command: str) -> None:
+                if not isinstance(source_eeg, dict) or not isinstance(eeg_out, dict):
+                    return
+                store_new = eegplot_accept_creates_dataset(source_eeg, eeg_out, reject)
+                store_command = "" if command == self.bridge.session.LASTCOM else command
+                self.bridge._store_eeg(eeg_out, store_command, new=store_new)
+                self.bridge.pull_from_session()
+                self.bridge._refresh()
+
+            call_kwargs["command_callback"] = accept_eegplot
         if _accepts_return_com(function) and "return_com" not in call_kwargs:
             call_kwargs["return_com"] = True
         result = function(*args, **call_kwargs)
@@ -1192,6 +1207,14 @@ def _first_call_eeg_argument(args: tuple[Any, ...], kwargs: Mapping[str, Any]) -
     if args:
         return args[0]
     return kwargs.get("EEG")
+
+
+def _pop_eegplot_reject_argument(args: tuple[Any, ...], kwargs: Mapping[str, Any]) -> int:
+    if "reject" in kwargs:
+        return int(kwargs["reject"])
+    if len(args) >= 4:
+        return int(args[3])
+    return 1
 
 
 def _is_eeg_selection(value: Any) -> bool:

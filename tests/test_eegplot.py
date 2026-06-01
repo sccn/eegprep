@@ -9,6 +9,7 @@ import eegprep.functions.sigprocfunc.eegplot as eegplot_module
 import eegprep.functions.popfunc.pop_eegplot as pop_eegplot_module
 from eegprep.functions.popfunc.pop_eegplot import pop_eegplot
 from eegprep.functions.popfunc.pop_eegplot import apply_eegplot_rejections
+from eegprep.functions.popfunc.pop_eegplot import eegplot_accept_creates_dataset
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.sigprocfunc.eegplot import (
     add_winrej_region,
@@ -411,6 +412,8 @@ def test_pop_eegplot_loads_continuous_mark_only_rows_when_updating_or_superposin
 
 def test_pop_eegplot_component_mode_computes_activations_once(monkeypatch: pytest.MonkeyPatch) -> None:
     eeg = create_test_eeg(n_channels=2, n_samples=10, n_trials=1, srate=10)
+    eeg["icaweights"] = np.eye(2)
+    eeg["icasphere"] = np.eye(2)
     calls = 0
 
     def fake_component_activations(dataset: dict) -> np.ndarray:
@@ -428,6 +431,25 @@ def test_pop_eegplot_component_mode_computes_activations_once(monkeypatch: pytes
     assert command == "pop_eegplot(EEG, 0, 0, 1)"
 
 
+def test_pop_eegplot_component_mode_requires_ica() -> None:
+    eeg = create_test_eeg(n_channels=2, n_samples=10, n_trials=1, srate=10)
+
+    with pytest.raises(ValueError, match="run ICA"):
+        pop_eegplot(eeg, icacomp=0, show=False)
+
+
+def test_eegplot_accept_creates_dataset_only_when_reject_removes_data() -> None:
+    continuous = create_test_eeg(n_channels=1, n_samples=10, n_trials=1, srate=10)
+    continuous_out = dict(continuous, pnts=7, data=np.zeros((1, 7)))
+    epoched = create_test_eeg(n_channels=1, n_samples=4, n_trials=3, srate=10)
+    epoched_out = dict(epoched, trials=2, data=np.zeros((1, 4, 2)))
+
+    assert eegplot_accept_creates_dataset(continuous, continuous_out, reject=1) is True
+    assert eegplot_accept_creates_dataset(epoched, epoched_out, reject=1) is True
+    assert eegplot_accept_creates_dataset(continuous, continuous_out, reject=0) is False
+    assert eegplot_accept_creates_dataset(continuous, continuous, reject=1) is False
+
+
 def test_sample_data_eeglab_set_builds_non_mutating_model() -> None:
     eeg = pop_loadset(str(SAMPLE_DATASET))
     data_before = np.array(eeg["data"], copy=True)
@@ -436,4 +458,16 @@ def test_sample_data_eeglab_set_builds_non_mutating_model() -> None:
 
     assert model.data.n_channels == int(eeg["nbchan"])
     assert model.state.srate == float(eeg["srate"])
+    np.testing.assert_array_equal(eeg["data"], data_before)
+
+
+def test_sample_data_pop_eegplot_channel_api_flow_returns_browser_model() -> None:
+    eeg = pop_loadset(str(SAMPLE_DATASET))
+    data_before = np.array(eeg["data"], copy=True)
+
+    model = pop_eegplot(eeg, superpose=1, show=False, winlength=1)
+
+    assert model.data.mode == "continuous"
+    assert model.data.n_channels == int(eeg["nbchan"])
+    assert model.state.title.startswith("Scroll channel activities -- eegplot()")
     np.testing.assert_array_equal(eeg["data"], data_before)

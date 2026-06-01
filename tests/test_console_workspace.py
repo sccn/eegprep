@@ -12,6 +12,7 @@ import pytest
 
 from eegprep.functions.adminfunc import console as console_module
 from eegprep.functions.adminfunc.console import EEGPrepConsoleWorkspace
+from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher
 from eegprep.functions.guifunc.session import EEGPrepSession
 
 
@@ -46,6 +47,23 @@ def _fake_pop_without_command(eeg, *, return_com=False):
 def _fake_pop_topoplot(eeg, *, return_com=False):
     command = "pop_topoplot(EEG, typeplot=1, items=[0])"
     return (["figure"], command) if return_com else ["figure"]
+
+
+def _fake_pop_eegplot(
+    eeg,
+    icacomp=1,
+    superpose=0,
+    reject=1,
+    *,
+    command_callback=None,
+    return_com=False,
+):
+    _fake_pop_eegplot.command_callback = command_callback
+    command = f"pop_eegplot(EEG, {icacomp}, {superpose}, {reject})"
+    return (eeg, command) if return_com else "window"
+
+
+_fake_pop_eegplot.command_callback = None
 
 
 def _fake_pop_copyset(ALLEEG, set_in, set_out=None, *, return_com=False):
@@ -625,6 +643,76 @@ def test_non_mutating_pop_plot_call_records_history_without_storing_dataset():
     assert result == (["figure"], "pop_topoplot(EEG, typeplot=1, items=[0])")
     assert session.EEG is original_eeg
     assert session.ALLCOM == ["pop_topoplot(EEG, typeplot=1, items=[0])"]
+
+
+def test_gui_pop_eegplot_accept_updates_console_namespace_without_duplicate_history():
+    session = EEGPrepSession()
+    eeg = _demo_eeg()
+    eeg["data"] = np.arange(8, dtype=float).reshape(2, 4)
+    eeg["pnts"] = 4
+    eeg["xmax"] = 0.03
+    session.store_current(eeg, new=True)
+    refresh = mock.Mock()
+    workspace = EEGPrepConsoleWorkspace(session, refresh=refresh, exports={})
+    dispatcher = MenuActionDispatcher(session)
+    captured = {}
+    command = "pop_eegplot(EEG, 1, 0, 1)"
+
+    def fake_pop_eegplot(eeg_in, *, command_callback=None, return_com=False, **_kwargs):
+        captured["callback"] = command_callback
+        assert eeg_in is session.EEG
+        assert return_com is True
+        return eeg_in, command
+
+    with mock.patch("eegprep.functions.popfunc.pop_eegplot.pop_eegplot", side_effect=fake_pop_eegplot):
+        dispatcher.dispatch("pop_eegplot:data")
+
+    assert workspace.namespace["LASTCOM"] == command
+    assert workspace.namespace["CURRENTSET"] == 1
+    assert session.ALLCOM == [command]
+
+    out = dict(session.EEG)
+    out["data"] = np.asarray(out["data"])[:, :2]
+    out["pnts"] = 2
+    out["xmax"] = 0.01
+    captured["callback"](out, command)
+
+    assert workspace.namespace["CURRENTSET"] == 2
+    assert workspace.namespace["EEG"]["pnts"] == 2
+    assert len(workspace.namespace["ALLEEG"]) == 2
+    assert session.ALLCOM == [command]
+
+
+def test_console_pop_eegplot_accept_callback_refreshes_session_after_browser_accept():
+    session = EEGPrepSession()
+    eeg = _demo_eeg()
+    eeg["data"] = np.arange(8, dtype=float).reshape(2, 4)
+    eeg["pnts"] = 4
+    eeg["xmax"] = 0.03
+    session.store_current(eeg, new=True)
+    refresh = mock.Mock()
+    workspace = EEGPrepConsoleWorkspace(session, refresh=refresh, exports={"pop_eegplot": _fake_pop_eegplot})
+
+    result = workspace.namespace["pop_eegplot"](workspace.namespace["EEG"])
+    workspace.after_execute("pop_eegplot(EEG)")
+
+    eeg_out, command = result
+    assert eeg_out is session.EEG
+    assert command == "pop_eegplot(EEG, 1, 0, 1)"
+    assert session.ALLCOM == [command]
+    assert callable(_fake_pop_eegplot.command_callback)
+
+    out = dict(session.EEG)
+    out["data"] = np.asarray(out["data"])[:, :2]
+    out["pnts"] = 2
+    out["xmax"] = 0.01
+    _fake_pop_eegplot.command_callback(out, command)
+
+    assert session.CURRENTSET == [2]
+    assert session.EEG["pnts"] == 2
+    assert len(session.ALLEEG) == 2
+    assert session.ALLCOM == [command]
+    assert refresh.call_count >= 2
 
 
 def test_bare_dataset_pop_call_updates_alleeg_eeg_currentset_and_history():

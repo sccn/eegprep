@@ -1015,19 +1015,30 @@ class MenuActionDispatcher:
 
             out = pop_subcomp(selection, return_com=True)
         elif name == "pop_eegplot":
-            from eegprep.functions.popfunc.pop_eegplot import pop_eegplot
+            from eegprep.functions.popfunc.pop_eegplot import eegplot_accept_creates_dataset, pop_eegplot
+
+            icacomp, superpose, reject = _pop_eegplot_variant_options(variant)
 
             def accept_eegplot(eeg_out: Any, command: str) -> None:
                 with self.session.gui_action("pop_eegplot"):
                     if command:
-                        self._store_current_from_gui(eeg_out, command=command)
+                        store_new = eegplot_accept_creates_dataset(selection, eeg_out, reject)
+                        store_command = "" if command == self.session.LASTCOM else command
+                        self._store_current_from_gui(eeg_out, new=store_new, command=store_command)
                         self._refresh()
 
-            pop_eegplot(
+            out = pop_eegplot(
                 selection,
-                icacomp=0 if variant in {"components", "reject_ica"} else 1,
+                icacomp=icacomp,
+                superpose=superpose,
+                reject=reject,
                 command_callback=accept_eegplot,
+                return_com=True,
             )
+            command = out[1] if isinstance(out, tuple) and len(out) > 1 else ""
+            if command:
+                self._add_history_from_gui(command)
+                self._refresh()
             return
         elif name == "pop_autorej":
             from eegprep.functions.popfunc.pop_autorej import pop_autorej
@@ -1464,6 +1475,16 @@ def _currentset_list(value: Any) -> list[int]:
         return [int(item) for item in value if int(item) > 0]
     current = int(value)
     return [current] if current > 0 else []
+
+
+def _pop_eegplot_variant_options(variant: str) -> tuple[int, int, int]:
+    if variant == "components":
+        return 0, 1, 1
+    if variant == "reject_ica":
+        return 0, 0, 1
+    if variant == "channels":
+        return 1, 1, 1
+    return 1, 0, 1
 
 
 def _apply_save_metadata(eeg: dict[str, Any], filename: str) -> None:
