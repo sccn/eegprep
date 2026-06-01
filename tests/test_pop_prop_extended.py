@@ -12,6 +12,7 @@ from eegprep.plugins.ICLabel.pop_prop_extended import (
     classifier_name_from_gui,
     classifier_names,
     resolve_classifier_data,
+    resolve_dipfit_data,
     selected_property_indices,
 )
 from eegprep.plugins.ICLabel.pop_viewprops import pop_viewprops
@@ -106,6 +107,42 @@ def test_dashboard_data_assembly_includes_classification_surfaces() -> None:
     assert dashboard.spectrum_freqs.size == dashboard.spectrum_power.size
     assert dashboard.image_data.size > 0
     assert dashboard.pvaf is None or np.isfinite(dashboard.pvaf)
+    assert dashboard.dipfit is None
+
+
+def test_dashboard_data_assembly_includes_localized_dipfit_model() -> None:
+    eeg = _iclabel_eeg()
+    eeg["dipfit"] = {
+        "coordformat": "MNI",
+        "model": [
+            {"posxyz": [0, -20, 40], "momxyz": [1, 0, 0], "rv": 0.12, "component": 1},
+            {
+                "posxyz": [[25, 10, 35], [-25, 10, 35]],
+                "momxyz": [[0, 1, 0], [0, 2, 0]],
+                "rv": 0.2,
+                "component": 2,
+            },
+        ],
+    }
+
+    dashboard = build_extended_property_data(eeg, 0, 2)
+
+    assert dashboard.dipfit is not None
+    assert dashboard.dipfit.coordformat == "MNI"
+    assert dashboard.dipfit.rv_percent == pytest.approx(20.0)
+    assert dashboard.dipfit.dmr == pytest.approx(2.0)
+    first_dipfit = resolve_dipfit_data(eeg, 1)
+    assert first_dipfit is not None
+    np.testing.assert_allclose(dashboard.dipfit.positions, [[25, 10, 35], [-25, 10, 35]])
+    np.testing.assert_allclose(first_dipfit.positions, [[0, -20, 40]])
+
+
+def test_dipfit_data_rejects_malformed_localized_model() -> None:
+    eeg = _iclabel_eeg()
+    eeg["dipfit"] = {"model": [{"posxyz": [1, 2], "momxyz": [1, 0, 0], "rv": 0.1}]}
+
+    with pytest.raises(ValueError, match="posxyz rows with 3 coordinates"):
+        resolve_dipfit_data(eeg, 1)
 
 
 def test_missing_classifier_falls_back_to_lightweight_viewprops_display() -> None:

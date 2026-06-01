@@ -9,15 +9,17 @@ Set `typecomp=1` for channels and `typecomp=0` for ICA components. Indices are
 EEGLAB-facing 1-based values.
 
 For ICA components, the dashboard shows the component map, activity, ERP/image
-summary, power spectrum, percent variance accounted for, and ICLabel-style
+summary, power spectrum, percent variance accounted for, ICLabel-style
 classification probabilities when classifier data are available in
-`EEG.etc.ic_classification`.
+`EEG.etc.ic_classification`, and DIPFIT three-view head-surface dipole
+projections when localized component models are present in `EEG.dipfit.model`.
 
 `scroll_event=1` includes events in the attached browser-backed activity view
 and in the inline activity trace. `scroll_event=0` hides events in both places.
-For epoched data, the inline trace marks events for the displayed epoch trace;
-use the attached activity browser to review events across all epochs. Multiple
-selected components are shown in one navigable dashboard.
+For epoched data, the inline trace uses EEGLAB-style flattened sample
+coordinates, so event latencies and epoch boundaries remain aligned across
+visible epochs. Multiple selected components are shown in one navigable
+dashboard.
 
 Notes:
 
@@ -25,5 +27,8 @@ Notes:
   this viewer.
 - If classifier data are absent, component property plotting falls back to the
   non-classifier property display used by `pop_viewprops`.
+- DIPFIT projection panels consume existing localized dipole positions and
+  moments and draw them over EEGPrep's packaged head surface. They do not run
+  DIPFIT fitting or require FieldTrip at display time.
 - This implementation is EEGPrep-owned and does not require an EEGLAB checkout
   at runtime.

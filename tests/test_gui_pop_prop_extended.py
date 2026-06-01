@@ -11,7 +11,7 @@ from eegprep.plugins.ICLabel.pop_viewprops import pop_viewprops
 from tests.fixtures import create_test_eeg_with_ica
 
 
-def _dashboard_eeg() -> dict:
+def _dashboard_eeg(*, include_dipfit: bool = False) -> dict:
     eeg = create_test_eeg_with_ica(n_channels=4, n_samples=100, srate=100.0, n_components=4, n_trials=1)
     samples = np.linspace(0.0, 1.0, 100)
     eeg["data"] = np.vstack([np.sin(2 * np.pi * (index + 1) * samples) for index in range(4)])
@@ -40,6 +40,21 @@ def _dashboard_eeg() -> dict:
             }
         }
     }
+    if include_dipfit:
+        eeg["dipfit"] = {
+            "coordformat": "MNI",
+            "model": [
+                {"posxyz": [0, -20, 40], "momxyz": [1, 0, 0], "rv": 0.12, "component": 1},
+                {
+                    "posxyz": [[25, 10, 35], [-25, 10, 35]],
+                    "momxyz": [[0, 1, 0], [0, 2, 0]],
+                    "rv": 0.2,
+                    "component": 2,
+                },
+                {"posxyz": [], "momxyz": [], "rv": 1.0, "component": 3},
+                {"posxyz": [], "momxyz": [], "rv": 1.0, "component": 4},
+            ],
+        }
     return eeg
 
 
@@ -50,6 +65,11 @@ def _axis_by_title(figure, title: str):
 def _event_marker_labels(figure, title: str) -> list[str]:
     axis = _axis_by_title(figure, title)
     return [text.get_text() for text in axis.texts]
+
+
+def _dashed_marker_x_positions(figure, title: str) -> list[float]:
+    axis = _axis_by_title(figure, title)
+    return [float(line.get_xdata()[0]) for line in axis.lines if line.get_linestyle() == "--"]
 
 
 def test_gui_dashboard_creation_has_eeglab_labels_titles_and_activity_browser() -> None:
@@ -68,6 +88,7 @@ def test_gui_dashboard_creation_has_eeglab_labels_titles_and_activity_browser() 
     assert figure.eegprep_activity_view.state.title == "Scrolling IC1 Activity -- eegplot()"
     assert len(figure.eegprep_activity_view.state.events) == 1
     assert _event_marker_labels(figure, "Scrolling IC1 Activity") == ["stim"]
+    assert _dashed_marker_x_positions(figure, "Scrolling IC1 Activity") == [25.0]
     assert set(figure.eegprep_dashboard_navigation) == {"previous", "next"}
     plt.close(figure)
 
@@ -98,7 +119,7 @@ def test_gui_dashboard_activity_browser_honors_event_display_option() -> None:
     plt.close(without_events)
 
 
-def test_gui_dashboard_epoched_static_events_only_mark_displayed_trace() -> None:
+def test_gui_dashboard_epoched_static_events_use_flattened_event_latencies() -> None:
     eeg = _dashboard_eeg()
     eeg["data"] = np.repeat(eeg["data"][:, :, np.newaxis], 2, axis=2)
     eeg["icaact"] = np.repeat(eeg["icaact"][:, :, np.newaxis], 2, axis=2)
@@ -114,8 +135,45 @@ def test_gui_dashboard_epoched_static_events_only_mark_displayed_trace() -> None
 
     figure = pop_prop_extended(eeg, 0, 1, scroll_event=1)
 
-    assert _event_marker_labels(figure, "Scrolling IC1 Activity") == ["first"]
+    marker_labels = _event_marker_labels(figure, "Scrolling IC1 Activity")
+    assert "first" in marker_labels
+    assert "second" in marker_labels
+    assert "epoch 1" in marker_labels
+    assert "epoch 2" in marker_labels
+    assert sorted(round(position) for position in _dashed_marker_x_positions(figure, "Scrolling IC1 Activity")) == [
+        25,
+        125,
+    ]
     assert [event.type for event in figure.eegprep_activity_view.state.events] == ["first", "second"]
+    plt.close(figure)
+
+
+def test_gui_dashboard_renders_dipfit_three_view_surface() -> None:
+    eeg = _dashboard_eeg(include_dipfit=True)
+
+    figure = pop_prop_extended(eeg, 0, 1, scroll_event=1)
+
+    titles = [axis.get_title() for axis in figure.axes]
+    all_text = [text.get_text() for axis in figure.axes for text in axis.texts]
+    dipfit_axis = _axis_by_title(figure, "Dipole Position")
+    assert figure.eegprep_dashboard_data.dipfit is not None
+    assert "Dipole Position" in titles
+    assert {"Axial", "Coronal", "Sagittal"}.issubset(set(all_text))
+    assert any("RV: 12.0%" in text for text in all_text)
+    assert dipfit_axis.collections
+    plt.close(figure)
+
+
+def test_gui_dashboard_navigation_updates_dipfit_surface() -> None:
+    eeg = _dashboard_eeg(include_dipfit=True)
+    figure = pop_prop_extended(eeg, 0, [1, 2], scroll_event=1)
+
+    figure.eegprep_dashboard_navigation["next"]()
+
+    assert figure.eegprep_dashboard_data.index == 2
+    assert figure.eegprep_dashboard_data.dipfit is not None
+    assert figure.eegprep_dashboard_data.dipfit.dmr == 2.0
+    assert any("RV: 20.0%" in text.get_text() for axis in figure.axes for text in axis.texts)
     plt.close(figure)
 
 

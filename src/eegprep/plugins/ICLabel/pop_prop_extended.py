@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Any
 
+from matplotlib.collections import PolyCollection
 from matplotlib.widgets import Button
 import matplotlib.pyplot as plt
 import numpy as np
@@ -24,13 +26,31 @@ from eegprep.functions.popfunc._plot_utils import (
 )
 from eegprep.functions.popfunc._property_browser import property_activity_browser
 from eegprep.functions.popfunc._rejection import one_based_indices
+from eegprep.functions.sigprocfunc.headplot import load_headplot_mesh
 from eegprep.functions.sigprocfunc.spectopo import compute_spectra
 from eegprep.functions.sigprocfunc.topoplot import topoplot
+from eegprep.plugins.dipfit._utils import normalize_model_list
 
 
 DEFAULT_ICLABEL_CLASSES = ("Brain", "Muscle", "Eye", "Heart", "Line Noise", "Channel Noise", "Other")
 _DASHBOARD_SIZE = (12.0, 7.0)
 _SCROLL_SECONDS = 5.0
+_EVENT_COLORS = (
+    "#1f77b4",
+    "#2ca02c",
+    "#9467bd",
+    "#17becf",
+    "#ff7f0e",
+    "#8c564b",
+    "#e377c2",
+    "#7f7f7f",
+)
+_DIPFIT_COLORS = ("#00cc00", "#d336d3", "#e0c21a")
+_DIPFIT_VIEWS = (
+    ("Axial", 0, 1, (-90.0, 90.0), (-115.0, 95.0)),
+    ("Coronal", 0, 2, (-90.0, 90.0), (-70.0, 110.0)),
+    ("Sagittal", 1, 2, (-115.0, 95.0), (-70.0, 110.0)),
+)
 
 
 @dataclass(frozen=True)
@@ -40,6 +60,17 @@ class ClassifierData:
     name: str
     classes: tuple[str, ...]
     probabilities: np.ndarray
+
+
+@dataclass(frozen=True)
+class DipfitData:
+    """Normalized localized DIPFIT model for one ICA component."""
+
+    positions: np.ndarray
+    moments: np.ndarray | None
+    rv_percent: float | None
+    dmr: float | None
+    coordformat: str
 
 
 @dataclass(frozen=True)
@@ -65,6 +96,18 @@ class ExtendedPropertyData:
     classifier: ClassifierData | None
     class_probabilities: np.ndarray | None
     pvaf: float | None
+    dipfit: DipfitData | None
+
+
+@dataclass(frozen=True)
+class ActivityTraceData:
+    """Inline scroll-plot trace using EEGLAB-compatible event coordinates."""
+
+    x_values: np.ndarray
+    y_values: np.ndarray
+    times_ms: np.ndarray
+    pnts: int
+    epoched: bool
 
 
 def pop_prop_extended(
@@ -250,6 +293,36 @@ def resolve_classifier_data(
     return ClassifierData(resolved_name, classes, probabilities)
 
 
+def resolve_dipfit_data(EEG: dict[str, Any], component_index: int) -> DipfitData | None:
+    """Return normalized DIPFIT model data for a 1-based component index."""
+    models = normalize_model_list(EEG)
+    index = int(component_index)
+    if index < 1:
+        raise ValueError("component index must be 1-based")
+    if index > len(models):
+        return None
+    model = models[index - 1]
+    raw_positions = np.asarray(model.get("posxyz", []), dtype=float)
+    if raw_positions.size == 0:
+        return None
+    positions = _dipfit_matrix(raw_positions, "posxyz", index)
+    if not np.all(np.isfinite(positions)):
+        raise ValueError(f"DIPFIT model for component {index} contains non-finite posxyz values")
+    moments = _dipfit_moments(model.get("momxyz", []), positions.shape[0], index)
+    rv = _finite_float(model.get("rv"))
+    coordformat = ""
+    dipfit = EEG.get("dipfit")
+    if isinstance(dipfit, dict):
+        coordformat = str(dipfit.get("coordformat") or "")
+    return DipfitData(
+        positions=positions,
+        moments=moments,
+        rv_percent=None if rv is None else rv * 100.0,
+        dmr=_dipole_moment_ratio(moments),
+        coordformat=coordformat,
+    )
+
+
 def selected_property_indices(
     EEG: dict[str, Any],
     typecomp: int | bool,
@@ -358,27 +431,53 @@ def _render_dashboard(figure: Any) -> None:
     figure.set_size_inches(*_DASHBOARD_SIZE, forward=True)
     figure.patch.set_facecolor((0.93, 0.96, 1.0))
     _set_window_title(figure, dashboard.figure_title)
-    grid = figure.add_gridspec(
-        2,
-        4,
-        left=0.055,
-        right=0.97,
-        top=0.88,
-        bottom=0.12 if len(indices) > 1 else 0.075,
-        wspace=0.65,
-        hspace=0.55,
-        width_ratios=(1.2, 0.95, 1.25, 1.25),
-        height_ratios=(0.9, 1.2),
-    )
-    topo_ax = figure.add_subplot(grid[0, 0])
-    if dashboard.classifier is None:
-        class_ax = None
-        activity_ax = figure.add_subplot(grid[0, 1:])
+    if dashboard.dipfit is None:
+        grid = figure.add_gridspec(
+            2,
+            4,
+            left=0.055,
+            right=0.97,
+            top=0.88,
+            bottom=0.12 if len(indices) > 1 else 0.075,
+            wspace=0.65,
+            hspace=0.55,
+            width_ratios=(1.2, 0.95, 1.25, 1.25),
+            height_ratios=(0.9, 1.2),
+        )
+        topo_ax = figure.add_subplot(grid[0, 0])
+        if dashboard.classifier is None:
+            class_ax = None
+            activity_ax = figure.add_subplot(grid[0, 1:])
+        else:
+            class_ax = figure.add_subplot(grid[0, 1])
+            activity_ax = figure.add_subplot(grid[0, 2:])
+        image_ax = figure.add_subplot(grid[1, :2])
+        dipfit_axes = []
+        spectrum_ax = figure.add_subplot(grid[1, 2:])
     else:
-        class_ax = figure.add_subplot(grid[0, 1])
-        activity_ax = figure.add_subplot(grid[0, 2:])
-    image_ax = figure.add_subplot(grid[1, :2])
-    spectrum_ax = figure.add_subplot(grid[1, 2:])
+        grid = figure.add_gridspec(
+            2,
+            5,
+            left=0.055,
+            right=0.97,
+            top=0.88,
+            bottom=0.12 if len(indices) > 1 else 0.075,
+            wspace=0.58,
+            hspace=0.55,
+            width_ratios=(1.15, 0.9, 0.85, 1.25, 1.25),
+            height_ratios=(0.9, 1.2),
+        )
+        topo_ax = figure.add_subplot(grid[0, 0])
+        if dashboard.classifier is None:
+            class_ax = None
+            activity_ax = figure.add_subplot(grid[0, 1:])
+        else:
+            class_ax = figure.add_subplot(grid[0, 1])
+            activity_ax = figure.add_subplot(grid[0, 2:])
+        image_ax = figure.add_subplot(grid[1, :2])
+        dipfit_grid = grid[1, 2].subgridspec(3, 1, hspace=0.04)
+        dipfit_axes = [figure.add_subplot(dipfit_grid[row, 0]) for row in range(3)]
+        spectrum_ax = figure.add_subplot(grid[1, 3:])
 
     _plot_topography(topo_ax, dashboard)
     if class_ax is not None:
@@ -386,6 +485,8 @@ def _render_dashboard(figure: Any) -> None:
     events = state["EEG"].get("event", []) if bool(state["scroll_event"]) else []
     _plot_activity(activity_ax, dashboard, events)
     _plot_activity_image(image_ax, dashboard)
+    if dipfit_axes:
+        _plot_dipfit(dipfit_axes, dashboard.dipfit)
     _plot_spectrum(spectrum_ax, dashboard)
     figure.suptitle(dashboard.figure_title, fontsize=14, fontweight="bold")
     figure.eegprep_dashboard_data = dashboard
@@ -452,14 +553,16 @@ def _plot_classifier(axis: Any, dashboard: ExtendedPropertyData) -> None:
 
 
 def _plot_activity(axis: Any, dashboard: ExtendedPropertyData, events: Any) -> None:
-    x_values, y_values = _activity_trace(dashboard)
-    axis.plot(x_values, y_values, color="black", linewidth=0.85)
+    trace = _activity_trace(dashboard)
+    axis.plot(trace.x_values, trace.y_values, color="black", linewidth=0.85)
     axis.axhline(0.0, color="0.75", linewidth=0.6)
-    _plot_event_markers(axis, x_values, dashboard, events)
+    _plot_epoch_markers(axis, trace)
+    _plot_event_markers(axis, trace, events)
     axis.set_title(dashboard.activity_title, fontsize=12, fontweight="normal")
     axis.set_xlabel("Time (ms)")
     axis.set_ylabel("uV")
     axis.grid(True, alpha=0.2)
+    _format_scrollplot_axis(axis, trace)
 
 
 def _plot_activity_image(axis: Any, dashboard: ExtendedPropertyData) -> None:
@@ -493,6 +596,103 @@ def _plot_spectrum(axis: Any, dashboard: ExtendedPropertyData) -> None:
             low -= padding
             high += padding
         axis.set_ylim(low, high)
+
+
+def _plot_dipfit(axes: list[Any], dipfit: DipfitData | None) -> None:
+    assert dipfit is not None
+    for axis, (label, x_index, y_index, x_limits, y_limits) in zip(axes, _DIPFIT_VIEWS):
+        axis.set_facecolor("black")
+        axis.set_aspect("equal", adjustable="box")
+        axis.set_xlim(*x_limits)
+        axis.set_ylim(*y_limits)
+        axis.set_xticks([])
+        axis.set_yticks([])
+        for spine in axis.spines.values():
+            spine.set_visible(False)
+        _plot_dipfit_surface(axis, x_index, y_index)
+        axis.axhline(0.0, color="0.32", linewidth=0.45)
+        axis.axvline(0.0, color="0.32", linewidth=0.45)
+        axis.text(0.03, 0.86, label, transform=axis.transAxes, color="white", fontsize=7, va="top")
+        _plot_dipfit_points(axis, dipfit, x_index, y_index)
+    axes[0].set_title("Dipole Position", fontsize=12, fontweight="normal", pad=7)
+    _plot_dipfit_values(axes[0], dipfit)
+
+
+def _plot_dipfit_surface(axis: Any, x_index: int, y_index: int) -> None:
+    vertices, faces = _dipfit_head_surface()
+    projected_faces = vertices[:, (x_index, y_index)][faces]
+    surface = PolyCollection(
+        projected_faces,
+        facecolors=(0.08, 0.08, 0.08, 0.92),
+        edgecolors=(0.38, 0.38, 0.38, 0.55),
+        linewidths=0.12,
+        zorder=0,
+    )
+    axis.add_collection(surface)
+
+
+@lru_cache(maxsize=1)
+def _dipfit_head_surface() -> tuple[np.ndarray, np.ndarray]:
+    mesh = load_headplot_mesh("colin27headmesh.mat")
+    return np.asarray(mesh.vertices, dtype=float), np.asarray(mesh.faces, dtype=int)
+
+
+def _plot_dipfit_points(axis: Any, dipfit: DipfitData, x_index: int, y_index: int) -> None:
+    for row, position in enumerate(dipfit.positions):
+        color = _DIPFIT_COLORS[row % len(_DIPFIT_COLORS)]
+        x_value = float(position[x_index])
+        y_value = float(position[y_index])
+        axis.plot(
+            x_value,
+            y_value,
+            marker="o",
+            markersize=5.5,
+            color=color,
+            markeredgecolor="white",
+            markeredgewidth=0.45,
+        )
+        axis.text(x_value + 3.0, y_value + 3.0, str(row + 1), color=color, fontsize=7, va="bottom")
+        if dipfit.moments is not None and row < dipfit.moments.shape[0]:
+            _plot_dipfit_moment(axis, x_value, y_value, dipfit.moments[row], x_index, y_index, color)
+
+
+def _plot_dipfit_moment(
+    axis: Any,
+    x_value: float,
+    y_value: float,
+    moment: np.ndarray,
+    x_index: int,
+    y_index: int,
+    color: str,
+) -> None:
+    dx = float(moment[x_index])
+    dy = float(moment[y_index])
+    norm = float(np.hypot(dx, dy))
+    if not np.isfinite(norm) or norm <= 0.0:
+        return
+    axis.arrow(
+        x_value,
+        y_value,
+        dx / norm * 18.0,
+        dy / norm * 18.0,
+        color=color,
+        width=0.8,
+        head_width=5.0,
+        length_includes_head=True,
+        alpha=0.9,
+    )
+
+
+def _plot_dipfit_values(axis: Any, dipfit: DipfitData) -> None:
+    lines = []
+    if dipfit.rv_percent is not None:
+        lines.append(f"RV: {dipfit.rv_percent:.1f}%")
+    if dipfit.dmr is not None:
+        lines.append(f"DMR: {dipfit.dmr:.1f}")
+    if dipfit.coordformat:
+        lines.append(dipfit.coordformat)
+    if lines:
+        axis.text(0.03, 0.05, "\n".join(lines), transform=axis.transAxes, color="white", fontsize=7, va="bottom")
 
 
 def _add_navigation_controls(figure: Any) -> None:
@@ -562,6 +762,7 @@ def _channel_dashboard_data(
         classifier=None,
         class_probabilities=None,
         pvaf=None,
+        dipfit=None,
     )
 
 
@@ -604,6 +805,7 @@ def _component_dashboard_data(
         classifier=classifier,
         class_probabilities=probabilities,
         pvaf=_component_pvaf(EEG, data, maps, activity, index),
+        dipfit=resolve_dipfit_data(EEG, index),
     )
 
 
@@ -642,56 +844,99 @@ def _activity_image(
     return image, extent, "Continuous Data"
 
 
-def _activity_trace(dashboard: ExtendedPropertyData) -> tuple[np.ndarray, np.ndarray]:
+def _activity_trace(dashboard: ExtendedPropertyData) -> ActivityTraceData:
     trace = np.asarray(dashboard.activity[0], dtype=float)
     if trace.ndim == 1:
         trace = trace[:, np.newaxis]
-    sample_count = trace.shape[0]
+    pnts = int(dashboard.times_ms.size)
     srate = _srate_from_times(dashboard.times_ms)
+    window_samples = max(1, int(round(_SCROLL_SECONDS * srate)))
     if trace.shape[1] == 1:
-        sample_count = min(sample_count, max(1, int(round(_SCROLL_SECONDS * srate))))
-    return dashboard.times_ms[:sample_count], trace[:sample_count, 0]
+        sample_count = min(pnts, window_samples)
+        return ActivityTraceData(
+            x_values=np.arange(1, sample_count + 1, dtype=float),
+            y_values=trace[:sample_count, 0],
+            times_ms=dashboard.times_ms,
+            pnts=pnts,
+            epoched=False,
+        )
+    flat = trace.T.reshape(-1)
+    sample_count = min(flat.size, window_samples)
+    return ActivityTraceData(
+        x_values=np.arange(1, sample_count + 1, dtype=float),
+        y_values=flat[:sample_count],
+        times_ms=dashboard.times_ms,
+        pnts=pnts,
+        epoched=True,
+    )
 
 
 def _plot_event_markers(
     axis: Any,
-    x_values: np.ndarray,
-    dashboard: ExtendedPropertyData,
+    trace: ActivityTraceData,
     events: Any,
 ) -> None:
     event_items = _event_items(events)
     if not event_items:
         return
-    first = float(np.nanmin(x_values))
-    last = float(np.nanmax(x_values))
-    trace = np.asarray(dashboard.activity[0], dtype=float)
-    if trace.ndim == 1:
-        trace = trace[:, np.newaxis]
-    pnts = int(dashboard.times_ms.size)
-    displayed_epoch = 0
+    first = float(np.nanmin(trace.x_values))
+    last = float(np.nanmax(trace.x_values))
+    colors = _event_color_map(event_items)
     for event in event_items:
         if "latency" not in event:
             continue
         try:
-            sample = int(round(float(_event_scalar(event["latency"])))) - 1
+            latency = float(_event_scalar(event["latency"]))
         except (TypeError, ValueError):
             continue
-        if sample < 0:
-            continue
-        if trace.shape[1] > 1:
-            event_epoch = _event_epoch(event)
-            if event_epoch is not None and event_epoch != displayed_epoch + 1:
-                continue
-            epoch_index = sample // pnts
-            if epoch_index != displayed_epoch:
-                continue
-            sample %= pnts
-        if sample >= pnts:
-            continue
-        x_value = float(dashboard.times_ms[sample])
+        x_value = latency
         if first <= x_value <= last:
-            axis.axvline(x_value, color="red", linestyle="--", linewidth=0.75)
-            axis.text(x_value, 0.98, str(event.get("type", "")), transform=axis.get_xaxis_transform(), rotation=45)
+            label = str(_event_scalar(event.get("type", "")))
+            axis.axvline(x_value, color=colors[label], linestyle="--", linewidth=0.75)
+            axis.text(
+                x_value,
+                0.98,
+                label,
+                color=colors[label],
+                transform=axis.get_xaxis_transform(),
+                rotation=45,
+                fontsize=8,
+            )
+
+
+def _plot_epoch_markers(axis: Any, trace: ActivityTraceData) -> None:
+    if not trace.epoched:
+        return
+    first = float(np.nanmin(trace.x_values))
+    last = float(np.nanmax(trace.x_values))
+    start = int(np.ceil(first / trace.pnts) * trace.pnts)
+    for boundary in range(start, int(np.floor(last / trace.pnts) * trace.pnts) + 1, trace.pnts):
+        if boundary < first or boundary > last:
+            continue
+        axis.axvline(float(boundary), color="red", linestyle="-", linewidth=0.75)
+        axis.text(
+            float(boundary),
+            0.98,
+            f"epoch {boundary // trace.pnts}",
+            color="red",
+            transform=axis.get_xaxis_transform(),
+            rotation=45,
+            fontsize=8,
+        )
+
+
+def _format_scrollplot_axis(axis: Any, trace: ActivityTraceData) -> None:
+    first = float(trace.x_values[0])
+    last = float(trace.x_values[-1])
+    axis.set_xlim(first, last)
+    tick_count = min(6, trace.x_values.size)
+    ticks = np.unique(np.linspace(first, last, tick_count).round().astype(int))
+    labels = []
+    for tick in ticks:
+        sample = (int(tick) - 1) % trace.pnts if trace.epoched else min(max(int(tick) - 1, 0), trace.pnts - 1)
+        labels.append(f"{trace.times_ms[sample]:g}")
+    axis.set_xticks(ticks)
+    axis.set_xticklabels(labels)
 
 
 def _event_items(events: Any) -> list[dict[str, Any]]:
@@ -723,15 +968,6 @@ def _event_items(events: Any) -> list[dict[str, Any]]:
     return [event for event in event_values if isinstance(event, dict)]
 
 
-def _event_epoch(event: dict[str, Any]) -> int | None:
-    if "epoch" not in event:
-        return None
-    try:
-        return int(round(float(_event_scalar(event["epoch"]))))
-    except (TypeError, ValueError):
-        return None
-
-
 def _event_scalar(value: Any) -> Any:
     array = np.asarray(value)
     if array.shape == ():
@@ -740,6 +976,56 @@ def _event_scalar(value: Any) -> Any:
         item = array.ravel()[0]
         return item.item() if hasattr(item, "item") else item
     return value
+
+
+def _event_color_map(event_items: list[dict[str, Any]]) -> dict[str, str]:
+    labels: list[str] = []
+    for event in event_items:
+        label = str(_event_scalar(event.get("type", "")))
+        if label not in labels:
+            labels.append(label)
+    return {label: _EVENT_COLORS[index % len(_EVENT_COLORS)] for index, label in enumerate(labels)}
+
+
+def _dipfit_matrix(values: np.ndarray, field_name: str, component_index: int) -> np.ndarray:
+    matrix = values
+    if matrix.ndim == 1:
+        matrix = matrix.reshape(1, -1)
+    if matrix.ndim != 2 or matrix.shape[1] < 3:
+        raise ValueError(
+            f"DIPFIT model for component {component_index} must contain {field_name} rows with 3 coordinates"
+        )
+    return np.array(matrix[:, :3], dtype=float, copy=True)
+
+
+def _dipfit_moments(values: Any, position_count: int, component_index: int) -> np.ndarray | None:
+    raw_moments = np.asarray(values, dtype=float)
+    if raw_moments.size == 0:
+        return None
+    moments = _dipfit_matrix(raw_moments, "momxyz", component_index)
+    if moments.shape[0] != position_count:
+        raise ValueError(f"DIPFIT model for component {component_index} must have matching posxyz and momxyz rows")
+    if not np.all(np.isfinite(moments)):
+        raise ValueError(f"DIPFIT model for component {component_index} contains non-finite momxyz values")
+    return moments
+
+
+def _dipole_moment_ratio(moments: np.ndarray | None) -> float | None:
+    if moments is None or moments.shape[0] != 2:
+        return None
+    norms = np.linalg.norm(moments, axis=1)
+    if not np.all(np.isfinite(norms)) or np.any(norms <= 0.0):
+        return None
+    ratio = float(norms[0] / norms[1])
+    return ratio if ratio >= 1.0 else 1.0 / ratio
+
+
+def _finite_float(value: Any) -> float | None:
+    try:
+        numeric = float(np.asarray(value).reshape(()))
+    except (TypeError, ValueError):
+        return None
+    return numeric if np.isfinite(numeric) else None
 
 
 def _component_pvaf(
@@ -835,6 +1121,7 @@ def _history_command(
 
 __all__ = [
     "ClassifierData",
+    "DipfitData",
     "ExtendedPropertyData",
     "build_extended_property_data",
     "classifier_default_index",
@@ -845,5 +1132,6 @@ __all__ = [
     "pop_prop_extended",
     "pop_prop_extended_dialog_spec",
     "resolve_classifier_data",
+    "resolve_dipfit_data",
     "selected_property_indices",
 ]

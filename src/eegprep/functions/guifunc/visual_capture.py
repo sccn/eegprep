@@ -263,6 +263,15 @@ def _demo_iclabel_dashboard_eeg() -> dict:
             }
         }
     }
+    eeg["dipfit"] = {
+        "coordformat": "MNI",
+        "model": [
+            {"posxyz": [0, -20, 40], "momxyz": [1, 0, 0], "rv": 0.12, "component": 1},
+            {"posxyz": [25, 10, 35], "momxyz": [0, 1, 0], "rv": 0.2, "component": 2},
+            {"posxyz": [], "momxyz": [], "rv": 1.0, "component": 3},
+            {"posxyz": [], "momxyz": [], "rv": 1.0, "component": 4},
+        ],
+    }
     return eeg
 
 
