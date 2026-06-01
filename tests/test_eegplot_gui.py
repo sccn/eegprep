@@ -17,6 +17,7 @@ SAMPLE_DATASET = Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_d
 def qapp():
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
     qt_widgets = pytest.importorskip("PySide6.QtWidgets")
+    pytest.importorskip("pyqtgraph")
     app = qt_widgets.QApplication.instance() or qt_widgets.QApplication([])
     yield app
 

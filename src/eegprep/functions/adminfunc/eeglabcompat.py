@@ -102,6 +102,7 @@ class MatlabWrapper:
         """
 
         def wrapper(*args, **kwargs):
+            nargout = kwargs.pop("nargout", None)
             # arg list
             new_args = list(args)
             kwargs_list = []
@@ -110,11 +111,14 @@ class MatlabWrapper:
                 kwargs_list.append(value)
             new_args.extend(kwargs_list)
 
-            # issue error if kwargs are passed unless it is "nargout"
             needs_roundtrip = False
 
             # Special case for functions that return multiple outputs
-            if name == 'epoch':
+            if nargout is not None and int(nargout) > 1:
+                output_names = ",".join(f"OUT{i}" for i in range(1, int(nargout) + 1))
+                output_cell = ",".join(f"OUT{i}" for i in range(1, int(nargout) + 1))
+                eval_str = f"if iscell(args.args), [{output_names}] = {name}(args.args{{:}}); else, [{output_names}] = {name}(args.args); end; OUT = {{{output_cell}}};"
+            elif name == 'epoch':
                 eval_str = f"if iscell(args.args), [OUT1,OUT2,OUT3,OUT4,OUT5,OUT6] = {name}(args.args{{:}}); else, [OUT1,OUT2,OUT3,OUT4,OUT5,OUT6] = {name}(args.args); end; OUT = {{OUT1,OUT2,OUT3,OUT4,OUT5,OUT6}};"
             elif name == 'spheric_spline':
                 eval_str = f"if iscell(args.args), [OUT1,OUT2,OUT3,OUT4] = {name}(args.args{{:}}); else, [OUT1,OUT2,OUT3,OUT4] = {name}(args.args); end; OUT = {{OUT1,OUT2,OUT3,OUT4}};"
@@ -125,7 +129,11 @@ class MatlabWrapper:
                 if isinstance(args[0], dict) and args[0].get('trials') is not None:
                     needs_roundtrip = True
                     new_args = new_args[1:]
-                    if name == 'epoch':
+                    if nargout is not None and int(nargout) > 1:
+                        output_names = ",".join(f"OUT{i}" for i in range(1, int(nargout) + 1))
+                        output_cell = ",".join(f"OUT{i}" for i in range(1, int(nargout) + 1))
+                        eval_str = f"if iscell(args.args), [{output_names}] = {name}(EEG,args.args{{:}}); else, [{output_names}] = {name}(EEG,args.args); end; OUT = {{{output_cell}}};"
+                    elif name == 'epoch':
                         eval_str = f"if iscell(args.args), [OUT1,OUT2,OUT3,OUT4,OUT5,OUT6] = {name}(EEG,args.args{{:}}); else, [OUT1,OUT2,OUT3,OUT4,OUT5,OUT6] = {name}(EEG,args.args); end; OUT = {{OUT1,OUT2,OUT3,OUT4,OUT5,OUT6}};"
                     elif name == 'spheric_spline':
                         eval_str = f"if iscell(args.args), [OUT1,OUT2,OUT3,OUT4] = {name}(EEG,args.args{{:}}); else, [OUT1,OUT2,OUT3,OUT4] = {name}(EEG,args.args); end; OUT = {{OUT1,OUT2,OUT3,OUT4}};"
@@ -194,7 +202,14 @@ class MatlabWrapper:
                     OUT = scipy.io.loadmat(result_filename)['OUT']
 
                     # Special handling for functions that return multiple outputs
-                    if name == 'epoch' and isinstance(OUT, np.ndarray) and OUT.dtype == 'object':
+                    if (
+                        nargout is not None
+                        and int(nargout) > 1
+                        and isinstance(OUT, np.ndarray)
+                        and OUT.dtype == 'object'
+                    ):
+                        return tuple(OUT.flatten())
+                    elif name == 'epoch' and isinstance(OUT, np.ndarray) and OUT.dtype == 'object':
                         # Convert MATLAB cell array to Python tuple
                         return tuple(OUT.flatten())
                     elif name == 'spheric_spline' and isinstance(OUT, np.ndarray) and OUT.dtype == 'object':
