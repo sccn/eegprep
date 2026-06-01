@@ -63,6 +63,10 @@ class RejectionDialogTests(unittest.TestCase):
         self.assertTrue(controls_by_tag(specs[1])["superpose"].value)
         self.assertEqual(controls_by_tag(specs[2])["vistype"].value, 2)
         self.assertTrue(controls_by_tag(specs[2])["superpose"].value)
+        self.assertTrue(controls_by_tag(specs[7])["eegplot"].enabled)
+        self.assertTrue(controls_by_tag(specs[7])["eegplot"].value)
+        self.assertTrue(controls_by_tag(specs[8])["scrollmanual"].enabled)
+        self.assertEqual(controls_by_tag(specs[8])["scrollmanual"].callback.name, "open_rejection_browser")
         self.assertTrue(controls_by_tag(specs[10])["scroll_event"].enabled)
 
     def test_viewprops_component_dialog_includes_classifier_dropdown(self):
@@ -117,7 +121,7 @@ class RejectionDialogTests(unittest.TestCase):
 
         eeg = _epoched_ica_eeg()
         eeg["data"][0, 2, 1] = 10
-        _out, com = pop_eegthresh(eeg, gui=True, renderer=Renderer(), return_com=True)
+        _out, com = pop_eegthresh(eeg, gui=True, renderer=Renderer(), return_com=True, show=False)
 
         self.assertEqual(
             _console_python_command(com),
@@ -138,8 +142,8 @@ class RejectionDialogTests(unittest.TestCase):
                 }
 
         eeg = _epoched_ica_eeg()
-        _joint_out, joint_com = pop_jointprob(eeg, gui=True, renderer=Renderer(), return_com=True)
-        _kurt_out, kurt_com = pop_rejkurt(eeg, gui=True, renderer=Renderer(), return_com=True)
+        _joint_out, joint_com = pop_jointprob(eeg, gui=True, renderer=Renderer(), return_com=True, show=False)
+        _kurt_out, kurt_com = pop_rejkurt(eeg, gui=True, renderer=Renderer(), return_com=True, show=False)
 
         self.assertEqual(
             _console_python_command(joint_com),
@@ -223,12 +227,104 @@ class RejectionDialogTests(unittest.TestCase):
             dispatcher.dispatch("pop_eegplot:reject_data")
 
         self.assertEqual(session.ALLCOM, [])
-        self.assertIs(captured["selection"], session.EEG)
+        self.assertEqual(captured["selection"]["setname"], "test_dataset")
         updated = dict(eeg, setname="accepted")
         captured["callback"](updated, "pop_eegplot(EEG, 1, 0, 1)")
 
         self.assertEqual(session.EEG["setname"], "accepted")
         self.assertEqual(session.ALLCOM[-1], "pop_eegplot(EEG, 1, 0, 1)")
+
+    def test_rejcont_dispatch_defers_history_until_browser_accept(self):
+        session = EEGPrepSession()
+        eeg = create_test_eeg(n_channels=1, n_samples=10, n_trials=1, srate=10)
+        session.store_current(eeg, new=True)
+        dispatcher = MenuActionDispatcher(session)
+        captured = {}
+        command = "EEG = pop_rejcont(EEG, 'eegplot', 'on');"
+
+        def fake_pop_rejcont(selection, **kwargs):
+            captured["selection"] = selection
+            captured["callback"] = kwargs["command_callback"]
+            return selection, command
+
+        with mock.patch("eegprep.functions.popfunc.pop_rejcont.pop_rejcont", side_effect=fake_pop_rejcont):
+            dispatcher.dispatch("pop_rejcont")
+
+        self.assertEqual(session.ALLCOM, [])
+        self.assertEqual(len(session.ALLEEG), 1)
+        self.assertEqual(captured["selection"]["setname"], "test_dataset")
+
+        accepted = dict(eeg)
+        accepted["data"] = np.asarray(eeg["data"])[:, :5]
+        accepted["pnts"] = 5
+        captured["callback"](accepted, command)
+
+        self.assertEqual(session.CURRENTSET, [2])
+        self.assertEqual(session.EEG["pnts"], 5)
+        self.assertEqual(len(session.ALLEEG), 2)
+        self.assertEqual(session.ALLCOM, [command])
+
+    def test_rejection_dispatch_stores_multi_dataset_results_without_browser_callback(self):
+        session = EEGPrepSession()
+        first = _epoched_ica_eeg()
+        first["setname"] = "first"
+        second = _epoched_ica_eeg()
+        second["setname"] = "second"
+        session.store_current(first, new=True)
+        session.store_current(second, new=True)
+        session.retrieve([1, 2])
+        dispatcher = MenuActionDispatcher(session)
+        captured = {}
+        command = "EEG = pop_jointprob(EEG, 1, [1], 4, 4, 0, 1, 1);"
+
+        def fake_pop_jointprob(selection, icacomp, **kwargs):
+            captured["selection"] = selection
+            captured["icacomp"] = icacomp
+            captured["kwargs"] = kwargs
+            output = [dict(item, setname=f"{item['setname']}-marked") for item in selection]
+            return output, command
+
+        with mock.patch("eegprep.functions.popfunc.pop_jointprob.pop_jointprob", side_effect=fake_pop_jointprob):
+            dispatcher.dispatch("pop_jointprob:data")
+
+        self.assertEqual([item["setname"] for item in captured["selection"]], ["first", "second"])
+        self.assertEqual(captured["icacomp"], 1)
+        self.assertTrue(captured["kwargs"]["return_com"])
+        self.assertNotIn("command_callback", captured["kwargs"])
+        self.assertEqual(session.CURRENTSET, [1, 2])
+        self.assertEqual([item["setname"] for item in session.ALLEEG], ["first-marked", "second-marked"])
+        self.assertEqual(session.ALLCOM, [command])
+
+    def test_rejection_browser_accept_callback_creates_dataset_without_duplicate_history(self):
+        session = EEGPrepSession()
+        eeg = _epoched_ica_eeg()
+        session.store_current(eeg, new=True)
+        dispatcher = MenuActionDispatcher(session)
+        captured = {}
+        command = "EEG = pop_jointprob(EEG, 1, [1], 4, 4, 0, 1, 1);"
+
+        def fake_pop_jointprob(selection, icacomp, **kwargs):
+            captured["selection"] = selection
+            captured["icacomp"] = icacomp
+            captured["callback"] = kwargs["command_callback"]
+            return selection, command
+
+        with mock.patch("eegprep.functions.popfunc.pop_jointprob.pop_jointprob", side_effect=fake_pop_jointprob):
+            dispatcher.dispatch("pop_jointprob:data")
+
+        self.assertEqual(session.ALLCOM, [command])
+        self.assertEqual(captured["selection"]["setname"], "test_dataset")
+        self.assertEqual(captured["icacomp"], 1)
+
+        accepted = dict(eeg)
+        accepted["data"] = np.asarray(eeg["data"])[:, :, :2]
+        accepted["trials"] = 2
+        captured["callback"](accepted, command)
+
+        self.assertEqual(session.CURRENTSET, [2])
+        self.assertEqual(session.EEG["trials"], 2)
+        self.assertEqual(len(session.ALLEEG), 2)
+        self.assertEqual(session.ALLCOM, [command])
 
 
 if __name__ == "__main__":

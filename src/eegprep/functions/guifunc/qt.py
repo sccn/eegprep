@@ -7,8 +7,12 @@ import math
 import re
 from typing import Any
 
+import numpy as np
+
 from eegprep.functions.guifunc.pophelp import pophelp
 from eegprep.functions.popfunc.pop_chansel import pop_chansel
+from eegprep.functions.popfunc.pop_eegplot import pop_eegplot
+from eegprep.functions.sigprocfunc.eegplot import eegplot
 
 from .spec import CallbackSpec, ControlSpec, DialogSpec
 
@@ -451,6 +455,14 @@ class QtDialogRenderer:
             source = widgets.get(params["button"])
             if source is not None:
                 source.clicked.connect(lambda: self._show_callback_message(source, params))
+        elif callback.name == "open_eegplot":
+            source = widgets.get(params["button"])
+            if source is not None:
+                source.clicked.connect(lambda: self._open_eegplot(source, params))
+        elif callback.name == "open_rejection_browser":
+            source = widgets.get(params["button"])
+            if source is not None:
+                source.clicked.connect(lambda: self._open_rejection_browser(source, widgets, params))
         elif callback.name == "set_value":
             source = widgets.get(params["source"])
             target = widgets.get(params["target"])
@@ -716,6 +728,59 @@ class QtDialogRenderer:
         transform_target = widgets.get(params.get("transform_target", ""))
         if transform_target is not None and params.get("custom_transform") is not None:
             transform_target.setText(str(params["custom_transform"]))
+
+    @staticmethod
+    def _open_eegplot(parent: Any, params: Mapping[str, Any]) -> None:
+        eeg = params.get("eeg")
+        if not isinstance(eeg, dict):
+            return
+        try:
+            eegplot(
+                eeg,
+                srate=eeg.get("srate", 256),
+                limits=[
+                    float(eeg.get("xmin", 0.0) or 0.0) * 1000.0,
+                    float(eeg.get("xmax", 0.0) or 0.0) * 1000.0,
+                ],
+                events=eeg.get("event", []),
+                winlength=5,
+                xgrid="off",
+                eloc_file=eeg.get("chanlocs", []),
+                title=f"Scroll channel activities -- eegplot() -- {eeg.get('setname', '')}".rstrip(),
+            )
+        except (RuntimeError, ValueError) as exc:
+            _qt_core, qt_widgets = _require_qt()
+            qt_widgets.QMessageBox.warning(parent, "Warning", str(exc))
+
+    @staticmethod
+    def _open_rejection_browser(parent: Any, widgets: Mapping[str, Any], params: Mapping[str, Any]) -> None:
+        eeg = params.get("eeg")
+        if not isinstance(eeg, dict):
+            return
+        try:
+            status_widget = widgets.get("rejstatus")
+            status = int(QtDialogRenderer._read_widget(status_widget) if status_widget is not None else 1)
+            superpose = max(0, min(status - 1, 2))
+
+            def accept(eeg_out: dict[str, Any], _command: str) -> None:
+                eeg.clear()
+                eeg.update(eeg_out)
+                for tag in params.get("count_tags", ()):
+                    widget = widgets.get(tag)
+                    field = params.get("count_fields", {}).get(tag)
+                    if widget is not None and field is not None and hasattr(widget, "setText"):
+                        widget.setText(str(int(np.asarray((eeg.get("reject") or {}).get(field, []), dtype=bool).sum())))
+
+            pop_eegplot(
+                eeg,
+                icacomp=int(params.get("icacomp", 1)),
+                superpose=superpose,
+                reject=0,
+                command_callback=accept,
+            )
+        except (RuntimeError, ValueError) as exc:
+            _qt_core, qt_widgets = _require_qt()
+            qt_widgets.QMessageBox.warning(parent, "Warning", str(exc))
 
     @staticmethod
     def _set_headplot_setup_mode(widgets: Mapping[str, Any], params: Mapping[str, Any], checked: bool) -> None:

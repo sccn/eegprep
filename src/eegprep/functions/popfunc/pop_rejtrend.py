@@ -8,6 +8,7 @@ import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
+from eegprep.functions.popfunc._eegplot_rejection import open_epoched_rejection_browser
 from eegprep.functions.popfunc._pop_utils import format_history_value
 from eegprep.functions.popfunc._rejection import (
     copy_eeg,
@@ -34,6 +35,8 @@ def pop_rejtrend(
     gui: bool | None = None,
     renderer: Any | None = None,
     return_com: bool = False,
+    command_callback: Any | None = None,
+    show: bool = True,
 ):
     """Mark or reject epochs containing line-like trends."""
     if EEG is None:
@@ -47,7 +50,18 @@ def pop_rejtrend(
                 return (EEG, "") if return_com else EEG
             elecrange, winsize, minslope, minstd, superpose, reject = result
         outputs = [
-            _apply_one(dataset, icacomp, elecrange, winsize, minslope, minstd, superpose, reject)[0] for dataset in EEG
+            _apply_one(
+                dataset,
+                icacomp,
+                elecrange,
+                winsize,
+                minslope,
+                minstd,
+                superpose,
+                reject,
+                display=False,
+            )[0]
+            for dataset in EEG
         ]
         command = _history_command(icacomp, elecrange, winsize, minslope, minstd, superpose, reject)
         return (outputs, command) if return_com else outputs
@@ -56,7 +70,19 @@ def pop_rejtrend(
         if result is None:
             return (EEG, "") if return_com else EEG
         elecrange, winsize, minslope, minstd, superpose, reject = result
-    out, command = _apply_one(EEG, icacomp, elecrange, winsize, minslope, minstd, superpose, reject)
+    out, command = _apply_one(
+        EEG,
+        icacomp,
+        elecrange,
+        winsize,
+        minslope,
+        minstd,
+        superpose,
+        reject,
+        display=bool(gui or calldisp),
+        command_callback=command_callback,
+        show=show,
+    )
     return (out, command) if return_com else out
 
 
@@ -120,6 +146,10 @@ def _apply_one(
     minstd: Any,
     superpose: int | bool,
     reject: int | bool,
+    *,
+    display: bool = False,
+    command_callback: Any | None = None,
+    show: bool = True,
 ) -> tuple[dict[str, Any], str]:
     out = copy_eeg(EEG)
     data, row_count = rejection_data(out, icacomp)
@@ -132,9 +162,23 @@ def _apply_one(
     marks, marks_e = trend_marks(data, elecrange, winsize, minslope, minstd)
     update_reject_fields(out, icacomp=icacomp, kind="rejconst", reject=marks, reject_e=marks_e)
     rejected = (np.flatnonzero(marks) + 1).tolist()
-    if int(bool(reject)) and rejected:
+    command = _history_command(icacomp, elecrange, winsize, minslope, minstd, superpose, reject)
+    if display:
+        open_epoched_rejection_browser(
+            out,
+            data=data,
+            icacomp=icacomp,
+            elecrange=elecrange,
+            kind="rejconst",
+            superpose=superpose,
+            reject=reject,
+            command=command,
+            command_callback=command_callback,
+            show=show,
+        )
+    elif int(bool(reject)) and rejected:
         out = pop_rejepoch(out, rejected, 0)
-    return out, _history_command(icacomp, elecrange, winsize, minslope, minstd, superpose, reject)
+    return out, command
 
 
 def _history_command(
@@ -152,7 +196,7 @@ def _history_command(
         int(parse_numeric_sequence(winsize, dtype=float)[0]),
         float(parse_numeric_sequence(minslope, dtype=float)[0]),
         float(parse_numeric_sequence(minstd, dtype=float)[0]),
-        int(bool(superpose)),
+        int(superpose),
         int(bool(reject)),
     ]
     return (
