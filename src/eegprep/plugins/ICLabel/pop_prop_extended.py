@@ -1182,7 +1182,7 @@ def _event_items(events: Any) -> list[dict[str, Any]]:
         return []
     if isinstance(events, dict):
         if "latency" not in events:
-            return [events]
+            return []
         latencies = np.asarray(events["latency"], dtype=object).ravel()
         types = np.asarray(events.get("type", [""] * latencies.size), dtype=object).ravel()
         epochs = np.asarray(events.get("epoch", [None] * latencies.size), dtype=object).ravel()

@@ -184,6 +184,16 @@ def test_gui_dashboard_activity_browser_honors_event_display_option() -> None:
     plt.close(without_events)
 
 
+def test_gui_dashboard_ignores_event_dict_without_latency() -> None:
+    eeg = _dashboard_eeg()
+    eeg["event"] = {"type": ["stim"]}
+
+    figure = pop_prop_extended(eeg, 0, 1, scroll_event=1)
+
+    assert _event_marker_labels(figure, "Scrolling IC1 Activity") == []
+    plt.close(figure)
+
+
 def test_gui_dashboard_epoched_static_events_use_flattened_event_latencies() -> None:
     eeg = _dashboard_eeg()
     eeg["data"] = np.repeat(eeg["data"][:, :, np.newaxis], 2, axis=2)
