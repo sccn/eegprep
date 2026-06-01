@@ -195,6 +195,7 @@ exclude = ["eegprep.eeglab*"]
   "resources/**/*.m",
   "resources/**/*.mat",
   "resources/**/*.md",
+  "resources/**/*.npz",
   "resources/**/*.sfp",
   "resources/**/*.transform",
   "resources/**/*.txt",

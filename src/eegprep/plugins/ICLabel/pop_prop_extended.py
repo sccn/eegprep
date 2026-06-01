@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from functools import lru_cache
 from typing import Any
 
-from matplotlib.collections import PolyCollection
 from matplotlib.widgets import Button
 import matplotlib.pyplot as plt
 import numpy as np
@@ -26,9 +24,9 @@ from eegprep.functions.popfunc._plot_utils import (
 )
 from eegprep.functions.popfunc._property_browser import property_activity_browser
 from eegprep.functions.popfunc._rejection import one_based_indices
-from eegprep.functions.sigprocfunc.headplot import load_headplot_mesh
 from eegprep.functions.sigprocfunc.spectopo import compute_spectra
 from eegprep.functions.sigprocfunc.topoplot import topoplot
+from eegprep.plugins.dipfit._mri import dipfit_mri_slices, load_standard_mri_volume
 from eegprep.plugins.dipfit._utils import normalize_model_list
 
 
@@ -46,11 +44,6 @@ _EVENT_COLORS = (
     "#7f7f7f",
 )
 _DIPFIT_COLORS = ("#00cc00", "#d336d3", "#e0c21a")
-_DIPFIT_VIEWS = (
-    ("Axial", 0, 1, (-90.0, 90.0), (-115.0, 95.0)),
-    ("Coronal", 0, 2, (-90.0, 90.0), (-70.0, 110.0)),
-    ("Sagittal", 1, 2, (-115.0, 95.0), (-70.0, 110.0)),
-)
 
 
 @dataclass(frozen=True)
@@ -600,41 +593,18 @@ def _plot_spectrum(axis: Any, dashboard: ExtendedPropertyData) -> None:
 
 def _plot_dipfit(axes: list[Any], dipfit: DipfitData | None) -> None:
     assert dipfit is not None
-    for axis, (label, x_index, y_index, x_limits, y_limits) in zip(axes, _DIPFIT_VIEWS):
+    volume = load_standard_mri_volume()
+    for axis, mri_slice in zip(axes, dipfit_mri_slices(volume, dipfit.positions)):
         axis.set_facecolor("black")
+        axis.imshow(mri_slice.image, cmap="gray", origin="lower", extent=mri_slice.extent, interpolation="nearest")
         axis.set_aspect("equal", adjustable="box")
-        axis.set_xlim(*x_limits)
-        axis.set_ylim(*y_limits)
         axis.set_xticks([])
         axis.set_yticks([])
         for spine in axis.spines.values():
             spine.set_visible(False)
-        _plot_dipfit_surface(axis, x_index, y_index)
-        axis.axhline(0.0, color="0.32", linewidth=0.45)
-        axis.axvline(0.0, color="0.32", linewidth=0.45)
-        axis.text(0.03, 0.86, label, transform=axis.transAxes, color="white", fontsize=7, va="top")
-        _plot_dipfit_points(axis, dipfit, x_index, y_index)
+        _plot_dipfit_points(axis, dipfit, mri_slice.x_axis, mri_slice.y_axis)
     axes[0].set_title("Dipole Position", fontsize=12, fontweight="normal", pad=7)
-    _plot_dipfit_values(axes[0], dipfit)
-
-
-def _plot_dipfit_surface(axis: Any, x_index: int, y_index: int) -> None:
-    vertices, faces = _dipfit_head_surface()
-    projected_faces = vertices[:, (x_index, y_index)][faces]
-    surface = PolyCollection(
-        projected_faces,
-        facecolors=(0.08, 0.08, 0.08, 0.92),
-        edgecolors=(0.38, 0.38, 0.38, 0.55),
-        linewidths=0.12,
-        zorder=0,
-    )
-    axis.add_collection(surface)
-
-
-@lru_cache(maxsize=1)
-def _dipfit_head_surface() -> tuple[np.ndarray, np.ndarray]:
-    mesh = load_headplot_mesh("colin27headmesh.mat")
-    return np.asarray(mesh.vertices, dtype=float), np.asarray(mesh.faces, dtype=int)
+    _plot_dipfit_values(axes[-1], dipfit)
 
 
 def _plot_dipfit_points(axis: Any, dipfit: DipfitData, x_index: int, y_index: int) -> None:
@@ -651,7 +621,6 @@ def _plot_dipfit_points(axis: Any, dipfit: DipfitData, x_index: int, y_index: in
             markeredgecolor="white",
             markeredgewidth=0.45,
         )
-        axis.text(x_value + 3.0, y_value + 3.0, str(row + 1), color=color, fontsize=7, va="bottom")
         if dipfit.moments is not None and row < dipfit.moments.shape[0]:
             _plot_dipfit_moment(axis, x_value, y_value, dipfit.moments[row], x_index, y_index, color)
 
@@ -689,10 +658,17 @@ def _plot_dipfit_values(axis: Any, dipfit: DipfitData) -> None:
         lines.append(f"RV: {dipfit.rv_percent:.1f}%")
     if dipfit.dmr is not None:
         lines.append(f"DMR: {dipfit.dmr:.1f}")
-    if dipfit.coordformat:
-        lines.append(dipfit.coordformat)
     if lines:
-        axis.text(0.03, 0.05, "\n".join(lines), transform=axis.transAxes, color="white", fontsize=7, va="bottom")
+        axis.text(
+            0.5,
+            -0.02,
+            "\n".join(lines),
+            transform=axis.transAxes,
+            color="black",
+            fontsize=8,
+            ha="center",
+            va="top",
+        )
 
 
 def _add_navigation_controls(figure: Any) -> None:

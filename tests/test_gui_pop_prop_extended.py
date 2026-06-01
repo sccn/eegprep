@@ -158,9 +158,8 @@ def test_gui_dashboard_renders_dipfit_three_view_surface() -> None:
     dipfit_axis = _axis_by_title(figure, "Dipole Position")
     assert figure.eegprep_dashboard_data.dipfit is not None
     assert "Dipole Position" in titles
-    assert {"Axial", "Coronal", "Sagittal"}.issubset(set(all_text))
     assert any("RV: 12.0%" in text for text in all_text)
-    assert dipfit_axis.collections
+    assert dipfit_axis.images
     plt.close(figure)
 
 

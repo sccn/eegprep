@@ -11,7 +11,7 @@ EEGLAB-facing 1-based values.
 For ICA components, the dashboard shows the component map, activity, ERP/image
 summary, power spectrum, percent variance accounted for, ICLabel-style
 classification probabilities when classifier data are available in
-`EEG.etc.ic_classification`, and DIPFIT three-view head-surface dipole
+`EEG.etc.ic_classification`, and DIPFIT three-view MRI dipole
 projections when localized component models are present in `EEG.dipfit.model`.
 
 `scroll_event=1` includes events in the attached browser-backed activity view
@@ -28,7 +28,7 @@ Notes:
 - If classifier data are absent, component property plotting falls back to the
   non-classifier property display used by `pop_viewprops`.
 - DIPFIT projection panels consume existing localized dipole positions and
-  moments and draw them over EEGPrep's packaged head surface. They do not run
-  DIPFIT fitting or require FieldTrip at display time.
+  moments and draw them over EEGPrep's packaged standard MNI MRI volume. They
+  do not run DIPFIT fitting or require FieldTrip at display time.
 - This implementation is EEGPrep-owned and does not require an EEGLAB checkout
   at runtime.
