@@ -14,6 +14,7 @@ from eegprep.functions.sigprocfunc.eegplot import eegplot, eegplot2trial, trial2
 
 
 DISPLAY_REJECTION_FAMILIES = ("manual", "thresh", "const", "jp", "kurt", "freq")
+# Autorej shares manual-color browser marks and is not superposed as a separate EEGLAB family.
 _AUTO_REJECTION_COLOR = MANUAL_REJECTION_COLOR
 
 

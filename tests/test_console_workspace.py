@@ -783,7 +783,6 @@ def test_console_rejection_browser_accept_callback_refreshes_session_after_accep
     assert len(session.ALLEEG) == 2
     assert session.ALLCOM == [command]
     assert refresh.call_count >= 2
-    assert session.ALLCOM == [command]
 
 
 def test_bare_dataset_pop_call_updates_alleeg_eeg_currentset_and_history():

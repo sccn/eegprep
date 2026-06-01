@@ -341,6 +341,41 @@ def test_pop_rejcont_display_accept_removes_continuous_regions(monkeypatch):
     assert accepted[0][0]["pnts"] < eeg["pnts"]
 
 
+def test_pop_rejcont_display_defers_history_command_until_browser_accept(monkeypatch):
+    accepted = []
+    eeg = create_test_eeg(n_channels=2, n_samples=120, n_trials=1, srate=100)
+    time = np.arange(120) / 100
+    eeg["data"][0] = 100 * np.sin(2 * np.pi * 30 * time)
+
+    def fake_eegplot(_data, *args, **kwargs):
+        del args
+        kwargs["command_callback"](kwargs["winrej"])
+        return "window"
+
+    monkeypatch.setattr(pop_rejcont_module, "eegplot", fake_eegplot)
+
+    _out, command = pop_rejcont(
+        eeg,
+        "elecrange",
+        [1],
+        "freqlimit",
+        [20, 40],
+        "threshold",
+        0,
+        "epochlength",
+        0.2,
+        "contiguous",
+        1,
+        "eegplot",
+        "on",
+        command_callback=lambda eeg_out, accept_command: accepted.append((eeg_out, accept_command)),
+        return_com=True,
+    )
+
+    assert command == ""
+    assert accepted[0][1].startswith("EEG = pop_rejcont(EEG, ")
+
+
 def test_pop_autorej_display_marks_original_epochs_before_browser_accept(monkeypatch):
     calls = []
     accepted = []

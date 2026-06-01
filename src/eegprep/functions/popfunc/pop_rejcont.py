@@ -131,7 +131,8 @@ def _apply_one(
         options,
     )
     command = _history_command(options)
-    if display and str(options.get("onlyreturnselection", "off")).lower() != "on":
+    browser_display = display and str(options.get("onlyreturnselection", "off")).lower() != "on"
+    if browser_display:
         _open_rejcont_browser(
             out,
             data,
@@ -149,7 +150,7 @@ def _apply_one(
             out["data"] = data
         else:
             out = pop_select(out, "nopoint", selected.tolist(), gui=False)
-    return out, selected, command
+    return out, selected, "" if browser_display else command
 
 
 def _open_rejcont_browser(

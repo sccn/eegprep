@@ -234,6 +234,36 @@ class RejectionDialogTests(unittest.TestCase):
         self.assertEqual(session.EEG["setname"], "accepted")
         self.assertEqual(session.ALLCOM[-1], "pop_eegplot(EEG, 1, 0, 1)")
 
+    def test_rejcont_dispatch_defers_history_until_browser_accept(self):
+        session = EEGPrepSession()
+        eeg = create_test_eeg(n_channels=1, n_samples=10, n_trials=1, srate=10)
+        session.store_current(eeg, new=True)
+        dispatcher = MenuActionDispatcher(session)
+        captured = {}
+        command = "EEG = pop_rejcont(EEG, 'eegplot', 'on');"
+
+        def fake_pop_rejcont(selection, **kwargs):
+            captured["selection"] = selection
+            captured["callback"] = kwargs["command_callback"]
+            return selection, command
+
+        with mock.patch("eegprep.functions.popfunc.pop_rejcont.pop_rejcont", side_effect=fake_pop_rejcont):
+            dispatcher.dispatch("pop_rejcont")
+
+        self.assertEqual(session.ALLCOM, [])
+        self.assertEqual(len(session.ALLEEG), 1)
+        self.assertEqual(captured["selection"]["setname"], "test_dataset")
+
+        accepted = dict(eeg)
+        accepted["data"] = np.asarray(eeg["data"])[:, :5]
+        accepted["pnts"] = 5
+        captured["callback"](accepted, command)
+
+        self.assertEqual(session.CURRENTSET, [2])
+        self.assertEqual(session.EEG["pnts"], 5)
+        self.assertEqual(len(session.ALLEEG), 2)
+        self.assertEqual(session.ALLCOM, [command])
+
     def test_rejection_browser_accept_callback_creates_dataset_without_duplicate_history(self):
         session = EEGPrepSession()
         eeg = _epoched_ica_eeg()
