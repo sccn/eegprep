@@ -52,20 +52,12 @@ class LazyImport:
     module: str
     attr: str
 
-    @classmethod
-    def from_string(cls, value: str) -> "LazyImport":
-        """Build a lazy reference from ``"module:attribute"`` text."""
-        module, separator, attr = value.partition(":")
-        if not separator or not module or not attr:
-            raise ValueError("Lazy imports must use 'module:attribute' syntax")
-        return cls(module=module, attr=attr)
-
     def load(self) -> Any:
         """Import and return the referenced object."""
         try:
             module = importlib.import_module(self.module)
             return getattr(module, self.attr)
-        except Exception as exc:  # pragma: no cover - exact import failures vary by platform
+        except Exception as exc:
             raise ExtensionLoadError(f"Could not load extension target {self.module}:{self.attr}") from exc
 
 
@@ -87,14 +79,14 @@ class ExtensionResource:
         """Read this resource as text."""
         try:
             return resources.files(self.package).joinpath(self.path).read_text(encoding=encoding)
-        except Exception as exc:  # pragma: no cover - exact resource failures vary by loader
+        except Exception as exc:
             raise FileNotFoundError(f"Extension resource {self.package}:{self.path} is not available") from exc
 
     def read_bytes(self) -> bytes:
         """Read this resource as bytes."""
         try:
             return resources.files(self.package).joinpath(self.path).read_bytes()
-        except Exception as exc:  # pragma: no cover - exact resource failures vary by loader
+        except Exception as exc:
             raise FileNotFoundError(f"Extension resource {self.package}:{self.path} is not available") from exc
 
 
@@ -338,9 +330,21 @@ class ExtensionRegistry:
         package_name = _entry_point_package_name(entry_point)
         try:
             loaded = entry_point.load()
-            candidate = loaded() if callable(loaded) and not isinstance(loaded, ExtensionSpec) else loaded
         except Exception as exc:
             message = f"Entry point {entry_point_name!r} failed to import: {exc}"
+            return ExtensionRecord(
+                name=entry_point_name,
+                status=ExtensionStatus.FAILED_IMPORT,
+                source_type=ExtensionSourceType.UNKNOWN,
+                package_name=package_name,
+                entry_point_name=entry_point_name,
+                enabled=True,
+                errors=(message,),
+            )
+        try:
+            candidate = loaded() if callable(loaded) and not isinstance(loaded, ExtensionSpec) else loaded
+        except Exception as exc:
+            message = f"Entry point {entry_point_name!r} failed during registration: {exc}"
             return ExtensionRecord(
                 name=entry_point_name,
                 status=ExtensionStatus.FAILED_IMPORT,
@@ -615,10 +619,10 @@ def _status_for_spec(
     enabled: bool,
     validation: ExtensionValidationResult,
 ) -> ExtensionStatus:
-    if validation.invalid_spec:
-        return ExtensionStatus.INVALID_SPEC
     if not enabled:
         return ExtensionStatus.DISABLED
+    if validation.invalid_spec:
+        return ExtensionStatus.INVALID_SPEC
     if validation.incompatible:
         return ExtensionStatus.INCOMPATIBLE
     if validation.missing_dependency:
@@ -732,8 +736,11 @@ def _version_satisfies(version: str, specifier: str) -> bool:
             return False
         if operator == "<" and comparison >= 0:
             return False
-        if operator == "~=" and comparison < 0:
-            return False
+        if operator == "~=":
+            if comparison < 0:
+                return False
+            if _compare_version_parts(version, _compatible_upper_bound(expected)) >= 0:
+                return False
     return True
 
 
@@ -747,14 +754,26 @@ def _split_version_condition(condition: str) -> tuple[str, str]:
 
 
 def _compare_versions(left: str, right: str) -> int:
+    return _compare_version_parts(left, _version_parts(right))
+
+
+def _compare_version_parts(left: str, right_parts: tuple[int, ...]) -> int:
     left_parts = _version_parts(left)
-    right_parts = _version_parts(right)
     for left_part, right_part in zip_longest(left_parts, right_parts, fillvalue=0):
         if left_part < right_part:
             return -1
         if left_part > right_part:
             return 1
     return 0
+
+
+def _compatible_upper_bound(version: str) -> tuple[int, ...]:
+    parts = list(_version_parts(version))
+    if len(parts) == 1:
+        return (parts[0] + 1,)
+    upper = parts[:-1]
+    upper[-1] += 1
+    return tuple(upper)
 
 
 def _version_parts(version: str) -> tuple[int, ...]:
@@ -774,7 +793,7 @@ def _as_tuple(value: Any) -> tuple[Any, ...]:
     if isinstance(value, list):
         return tuple(value)
     if isinstance(value, set):
-        return tuple(value)
+        return tuple(sorted(value, key=repr))
     return (value,)
 
 

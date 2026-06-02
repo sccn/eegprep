@@ -14,8 +14,14 @@ import pytest
 
 from eegprep.extensions import (
     EXTENSION_ENTRY_POINT_GROUP,
+    ExtensionAction,
+    ExtensionDependency,
     ExtensionRegistry,
+    ExtensionResource,
+    ExtensionSpec,
     ExtensionStatus,
+    LazyImport,
+    validate_extension_spec,
 )
 
 
@@ -108,6 +114,28 @@ def test_entry_point_discovery_keeps_action_targets_lazy(tmp_path: Path, monkeyp
     assert f"{package}.heavy" in sys.modules
 
 
+def test_entry_point_provider_without_group_keyword_uses_select_fallback(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_basic_extension(tmp_path, monkeypatch, "selectable_pkg", "selectable_extension", action="selectable_action")
+
+    class SelectableEntryPoints:
+        def select(self, *, group: str) -> tuple[FakeEntryPoint, ...]:
+            return tuple(entry_point for entry_point in entry_points if entry_point.group == group)
+
+    entry_points = (FakeEntryPoint("selectable", "selectable_pkg.register:register"),)
+
+    def provider() -> SelectableEntryPoints:
+        return SelectableEntryPoints()
+
+    registry = ExtensionRegistry(include_bundled=False, entry_points_provider=provider)
+
+    records = registry.discover()
+
+    assert [record.name for record in records] == ["selectable_extension"]
+
+
 def test_registry_records_are_deterministic(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _write_basic_extension(tmp_path, monkeypatch, "beta_pkg", "beta_extension", action="beta_action")
     _write_basic_extension(tmp_path, monkeypatch, "alpha_pkg", "alpha_extension", action="alpha_action")
@@ -175,6 +203,34 @@ def test_entry_point_import_failure_is_isolated_and_logged(
     assert records[0].status == ExtensionStatus.FAILED_IMPORT
     assert "boom" in records[0].errors[0]
     assert "failed_import" in caplog.text
+
+
+def test_entry_point_registration_failure_has_accurate_message(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    package = "broken_registration_extension_pkg"
+    _write_package(
+        tmp_path,
+        package,
+        {
+            "register.py": """
+                def register():
+                    raise RuntimeError("bad config")
+            """,
+        },
+        monkeypatch,
+    )
+    registry = ExtensionRegistry(
+        include_bundled=False,
+        entry_points_provider=_provider(FakeEntryPoint("broken-registration", f"{package}.register:register")),
+    )
+
+    records = registry.discover()
+
+    assert records[0].status == ExtensionStatus.FAILED_IMPORT
+    assert "failed during registration" in records[0].errors[0]
+    assert "bad config" in records[0].errors[0]
 
 
 @pytest.mark.parametrize(
@@ -256,6 +312,24 @@ def test_missing_dependency_is_reported_without_crashing(tmp_path: Path, monkeyp
     assert "not installed" in records[0].errors[0]
 
 
+def test_compatible_release_dependency_spec_enforces_upper_bound() -> None:
+    spec = ExtensionSpec(
+        name="compatible_dependency_extension",
+        version="1.0",
+        dependencies=(ExtensionDependency("example-dependency", "~=1.4"),),
+    )
+    patch_spec = ExtensionSpec(
+        name="compatible_patch_dependency_extension",
+        version="1.0",
+        dependencies=(ExtensionDependency("example-dependency", "~=1.4.5"),),
+    )
+
+    assert validate_extension_spec(spec, version_provider=lambda name: "1.9").ok
+    assert validate_extension_spec(patch_spec, version_provider=lambda name: "1.4.6").ok
+    assert validate_extension_spec(spec, version_provider=lambda name: "2.0").missing_dependency
+    assert validate_extension_spec(patch_spec, version_provider=lambda name: "1.5").missing_dependency
+
+
 def test_disabled_extension_stays_visible_without_dependency_checks(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -295,6 +369,58 @@ def test_disabled_extension_stays_visible_without_dependency_checks(
 
     assert records[0].status == ExtensionStatus.DISABLED
     assert records[0].enabled is False
+
+
+def test_disabled_extension_status_wins_over_structural_errors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    package = "disabled_invalid_extension_pkg"
+    _write_package(
+        tmp_path,
+        package,
+        {
+            "register.py": """
+                from eegprep.extensions import ExtensionAction, ExtensionSpec
+
+                def register():
+                    return ExtensionSpec(
+                        name="disabled_invalid_extension",
+                        display_name="Disabled invalid extension",
+                        version="1.0",
+                        actions=(
+                            ExtensionAction(name="bad_action", target="not-a-lazy-import"),
+                        ),
+                    )
+            """,
+        },
+        monkeypatch,
+    )
+    registry = ExtensionRegistry(
+        disabled_extensions={"disabled_invalid_extension"},
+        include_bundled=False,
+        entry_points_provider=_provider(FakeEntryPoint("disabled-invalid", f"{package}.register:register")),
+    )
+
+    records = registry.discover()
+
+    assert records[0].status == ExtensionStatus.DISABLED
+    assert "target must be a LazyImport" in records[0].errors[0]
+
+
+def test_unordered_sets_are_normalized_deterministically() -> None:
+    action_a = ExtensionAction(name="action_a", target=LazyImport("pkg.actions", "a"))
+    action_b = ExtensionAction(name="action_b", target=LazyImport("pkg.actions", "b"))
+
+    spec = ExtensionSpec(
+        name="set_order_extension",
+        version="1.0",
+        capabilities={"beta", "alpha"},
+        actions={action_b, action_a},
+    )
+
+    assert spec.capabilities == ("alpha", "beta")
+    assert [action.name for action in spec.actions] == ["action_a", "action_b"]
 
 
 def test_duplicate_extension_names_mark_later_record_invalid(
@@ -438,6 +564,30 @@ def test_missing_help_or_package_data_resource_invalidates_spec(
     assert records[0].status == ExtensionStatus.INVALID_SPEC
     assert any("help/missing.md" in error for error in records[0].errors)
     assert any("data/missing.dat" in error for error in records[0].errors)
+
+
+def test_extension_resource_readers_raise_for_missing_resources(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    package = "resource_reader_extension_pkg"
+    _write_package(
+        tmp_path,
+        package,
+        {
+            "data/message.txt": "hello resource",
+        },
+        monkeypatch,
+    )
+    resource = ExtensionResource(package, "data/message.txt")
+    missing = ExtensionResource(package, "data/missing.txt")
+
+    assert resource.read_text() == "hello resource\n"
+    assert resource.read_bytes() == b"hello resource\n"
+    with pytest.raises(FileNotFoundError, match="data/missing.txt"):
+        missing.read_text()
+    with pytest.raises(FileNotFoundError, match="data/missing.txt"):
+        missing.read_bytes()
 
 
 def _provider(*entry_points: FakeEntryPoint) -> Any:

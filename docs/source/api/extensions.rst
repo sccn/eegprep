@@ -1,8 +1,8 @@
 .. _api_extensions:
 
-=========================
+==========================
 Extension SDK and Registry
-=========================
+==========================
 
 EEGPrep discovers external Python extensions through the
 ``eegprep.extensions`` entry-point group. An entry point should load a lightweight
@@ -76,6 +76,8 @@ API Reference
    eegprep.ExtensionMenu
    eegprep.ExtensionDependency
    eegprep.ExtensionResource
+   eegprep.ExtensionLoadError
+   eegprep.ExtensionValidationResult
    eegprep.LazyImport
    eegprep.discover_extensions
    eegprep.validate_extension_spec

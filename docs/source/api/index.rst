@@ -255,6 +255,8 @@ them.
    eegprep.ExtensionAction
    eegprep.ExtensionPopFunction
    eegprep.ExtensionResource
+   eegprep.ExtensionLoadError
+   eegprep.ExtensionValidationResult
    eegprep.LazyImport
    eegprep.discover_extensions
    eegprep.validate_extension_spec
