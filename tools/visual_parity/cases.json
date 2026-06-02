@@ -230,6 +230,181 @@
       }
     },
     {
+      "id": "pop_study_dialog",
+      "description": "STUDY metadata dialog opened from pop_study.",
+      "window_size": [900, 620],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_study"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_study_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_studydesign_dialog",
+      "description": "STUDY design editor opened from pop_studydesign.",
+      "window_size": [680, 500],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_studydesign"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_studydesign_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_precomp_dialog",
+      "description": "STUDY measure precompute dialog opened from pop_precomp.",
+      "window_size": [780, 430],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_precomp"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_precomp_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_chanplot_dialog",
+      "description": "STUDY channel/component measure plotting dialog opened from pop_chanplot.",
+      "window_size": [620, 330],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_chanplot"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_chanplot_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_preclust_dialog",
+      "description": "STUDY component preclustering dialog opened from pop_preclust.",
+      "window_size": [880, 565],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_preclust"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_preclust_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_clust_dialog",
+      "description": "STUDY component clustering dialog opened from pop_clust.",
+      "window_size": [540, 280],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_clust"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_clust_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_clustedit_dialog",
+      "description": "STUDY component cluster edit and plot dialog opened from pop_clustedit.",
+      "window_size": [770, 672],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_clustedit"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_clustedit_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
       "id": "pop_editeventfield_dialog",
       "description": "Event field editor dialog opened from pop_editeventfield.",
       "window_size": [900, 360],

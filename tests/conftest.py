@@ -48,6 +48,7 @@ GUI_FILE_SUFFIXES = (
     "tests/test_gui_pop_resample.py",
     "tests/test_gui_pop_runica.py",
     "tests/test_gui_pop_select.py",
+    "tests/test_gui_pop_study.py",
     "tests/test_gui_main_window.py",
 )
 GUI_NODEID_PARTS = ("::test_gui_",)

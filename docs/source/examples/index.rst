@@ -34,6 +34,9 @@ The examples below demonstrate key eegprep functionality:
 5. **Channel Interpolation** - Identifying bad channels and performing interpolation
    with quality assessment and visualization.
 
+6. **Public API, Plugins, and Console Session** - Inspect bundled plugin metadata
+   and use the shared GUI/console session from normal Python code.
+
 Example Categories
 ===================
 
@@ -66,6 +69,15 @@ These examples focus on specific preprocessing tasks:
 
 - **plot_channel_interpolation.py** - Identify bad channels using statistical criteria,
   perform interpolation, and assess interpolation quality.
+
+Public API Examples
+-------------------
+
+These examples show package-level imports and interactive-session patterns:
+
+- **plot_public_api_and_plugins.py** - Use ``EEGPrepSession``,
+  ``EEGPrepConsoleWorkspace``, ``pop_newset``, and the bundled plugin inventory
+  without opening a GUI.
 
 Running the Examples
 ====================
@@ -109,6 +121,8 @@ We recommend exploring the examples in this order:
 3. Explore **plot_channel_interpolation.py** for channel quality assessment
 4. Study **plot_ica_and_iclabel.py** for advanced component analysis
 5. Finally, check **plot_bids_pipeline.py** for working with real datasets
+6. Review **plot_public_api_and_plugins.py** before mixing GUI, console, and
+   normal Python workflows
 
 Tips for Using Examples
 =======================

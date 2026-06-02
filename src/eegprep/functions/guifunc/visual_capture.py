@@ -6,6 +6,7 @@ import argparse
 import math
 import pathlib
 import sys
+from typing import Any
 
 import numpy as np
 
@@ -59,6 +60,14 @@ from eegprep.functions.popfunc.pop_spectopo import pop_spectopo_dialog_spec
 from eegprep.functions.popfunc.pop_subcomp import pop_subcomp_dialog_spec
 from eegprep.functions.popfunc.pop_timtopo import pop_timtopo_dialog_spec
 from eegprep.functions.popfunc.pop_topoplot import pop_topoplot_dialog_spec
+from eegprep.functions.studyfunc.pop_clust import pop_clust_dialog_spec
+from eegprep.functions.studyfunc.pop_clustedit import pop_clustedit_dialog_spec
+from eegprep.functions.studyfunc.pop_chanplot import pop_chanplot_dialog_spec
+from eegprep.functions.studyfunc.pop_preclust import pop_preclust_dialog_spec
+from eegprep.functions.studyfunc.pop_precomp import pop_precomp_dialog_spec
+from eegprep.functions.studyfunc.pop_study import pop_study_dialog_spec
+from eegprep.functions.studyfunc.pop_studydesign import pop_studydesign_dialog_spec
+from eegprep.functions.studyfunc.std_checkset import std_checkset
 from eegprep.plugins.ICLabel.pop_icflag import pop_icflag_dialog_spec
 from eegprep.plugins.ICLabel.pop_iclabel import pop_iclabel_dialog_spec
 from eegprep.plugins.ICLabel.pop_viewprops import pop_viewprops_dialog_spec
@@ -433,6 +442,112 @@ def capture_pop_mergeset_dialog(output: pathlib.Path) -> None:
     eeg = _demo_main_eeg(setname="merge one")
     second = _demo_main_eeg(setname="merge two")
     spec = pop_mergeset_dialog_spec([eeg, second], default_indices=[1])
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def _demo_study() -> tuple[dict, list[dict]]:
+    first = _demo_main_eeg(setname="study targets")
+    first.update({"subject": "S01", "condition": "target", "group": "control", "session": 1, "run": 1})
+    second = _demo_main_eeg(setname="study standards")
+    second.update({"subject": "S02", "condition": "standard", "group": "control", "session": 1, "run": 1})
+    study, alleeg = std_checkset({"name": "menu study", "task": "demo task"}, [first, second])
+    return study, alleeg
+
+
+def capture_pop_study_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_study dialog."""
+    _study, alleeg = _demo_study()
+    spec = pop_study_dialog_spec({}, alleeg)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_studydesign_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_studydesign dialog."""
+    study, alleeg = _demo_study()
+    spec = pop_studydesign_dialog_spec(study, alleeg)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def _demo_cluster_study() -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    first = _demo_study()[1][0]
+    first = dict(first)
+    first["icaweights"] = np.eye(4)
+    first["icasphere"] = np.eye(4)
+    first["icawinv"] = np.eye(4)
+    study, alleeg = std_checkset({"name": "menu study", "task": "demo task"}, [first])
+    study["cluster"] = [
+        {"name": "ParentCluster", "sets": [[1, 1, 1, 1]], "comps": [1, 2, 3, 4], "child": ["Cls 1", "Cls 2"]},
+        {
+            "name": "Cls 1",
+            "sets": [[1, 1]],
+            "comps": [1, 2],
+            "parent": ["ParentCluster"],
+            "child": [],
+            "preclust": {"preclustdata": [[0.0], [0.1]], "preclustparams": []},
+        },
+        {
+            "name": "Cls 2",
+            "sets": [[1, 1]],
+            "comps": [3, 4],
+            "parent": ["ParentCluster"],
+            "child": [],
+            "preclust": {"preclustdata": [[1.0], [1.1]], "preclustparams": []},
+        },
+    ]
+    study.setdefault("etc", {})["preclust"] = {
+        "preclustdata": [[0.0, 0.1], [0.1, 0.1], [1.0, 1.1], [1.1, 1.0]],
+        "preclustparams": [{"measure": "scalp", "npca": 2}],
+        "clustlevel": 1,
+    }
+    return study, alleeg
+
+
+def capture_pop_precomp_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_precomp dialog."""
+    study, alleeg = _demo_study()
+    spec = pop_precomp_dialog_spec(study, alleeg, "channels")
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_preclust_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_preclust dialog."""
+    study, _alleeg = _demo_cluster_study()
+    spec = pop_preclust_dialog_spec(study)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_clust_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_clust dialog."""
+    study, _alleeg = _demo_cluster_study()
+    spec = pop_clust_dialog_spec(study)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_chanplot_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_chanplot dialog."""
+    study, alleeg = _demo_study()
+    spec = pop_chanplot_dialog_spec(study, alleeg)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_clustedit_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_clustedit dialog."""
+    study, _alleeg = _demo_cluster_study()
+    spec = pop_clustedit_dialog_spec(study)
     renderer = QtDialogRenderer()
     app, dialog, _widgets = renderer.build_dialog(spec)
     _grab_dialog(dialog, output, app)
@@ -990,6 +1105,20 @@ def main(argv: list[str] | None = None) -> int:
         capture_pop_copyset_dialog(args.output)
     elif args.case == "pop_mergeset_dialog":
         capture_pop_mergeset_dialog(args.output)
+    elif args.case == "pop_study_dialog":
+        capture_pop_study_dialog(args.output)
+    elif args.case == "pop_studydesign_dialog":
+        capture_pop_studydesign_dialog(args.output)
+    elif args.case == "pop_precomp_dialog":
+        capture_pop_precomp_dialog(args.output)
+    elif args.case == "pop_preclust_dialog":
+        capture_pop_preclust_dialog(args.output)
+    elif args.case == "pop_clust_dialog":
+        capture_pop_clust_dialog(args.output)
+    elif args.case == "pop_chanplot_dialog":
+        capture_pop_chanplot_dialog(args.output)
+    elif args.case == "pop_clustedit_dialog":
+        capture_pop_clustedit_dialog(args.output)
     elif args.case == "reref_dialog":
         capture_reref_dialog(args.output)
     elif args.case == "reref_dialog_channel_ref":

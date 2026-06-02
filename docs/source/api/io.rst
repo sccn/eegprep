@@ -67,9 +67,43 @@ History And STUDY Files
 
 .. autofunction:: eegprep.pop_studyerp
 
+.. autofunction:: eegprep.pop_studydesign
+
 .. autofunction:: eegprep.pop_loadstudy
 
 .. autofunction:: eegprep.pop_savestudy
+
+.. autofunction:: eegprep.pop_precomp
+
+.. autofunction:: eegprep.pop_chanplot
+
+.. autofunction:: eegprep.std_editset
+
+.. autofunction:: eegprep.std_checkset
+
+.. autofunction:: eegprep.std_checkdatasetinfo
+
+.. autofunction:: eegprep.std_makedesign
+
+.. autofunction:: eegprep.std_precomp
+
+.. autofunction:: eegprep.std_readdata
+
+.. autofunction:: eegprep.std_readerp
+
+.. autofunction:: eegprep.std_readspec
+
+.. autofunction:: eegprep.std_readersp
+
+.. autofunction:: eegprep.std_erpplot
+
+.. autofunction:: eegprep.std_specplot
+
+.. autofunction:: eegprep.std_erspplot
+
+.. autofunction:: eegprep.std_itcplot
+
+.. autofunction:: eegprep.std_selectdesign
 
 Format Conversion
 =================

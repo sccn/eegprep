@@ -102,7 +102,6 @@ constraint-dependencies = [
   "numpy<2.3",
   "pandas<2.3.3",
   "pyzmq<27",
-  "scikit-learn<1.8",
   "scipy<1.17",
 ]
 required-environments = [
@@ -190,12 +189,22 @@ exclude = ["eegprep.eeglab*"]
 
 [tool.setuptools.package-data]
 "eegprep" = [
-  "resources/help/*.md",
-  "resources/headplot/*",
-  "resources/montages/*.locs",
-  "resources/montages/README.md",
-  "resources/*.m",
-  "plugins/ICLabel/netICL.mat"
+  "resources/**/*.json",
+  "resources/**/*.locs",
+  "resources/**/*.m",
+  "resources/**/*.mat",
+  "resources/**/*.md",
+  "resources/**/*.sfp",
+  "resources/**/*.transform",
+  "resources/**/*.txt",
+  "resources/**/*.xyz",
+  "plugins/**/*.json",
+  "plugins/**/*.locs",
+  "plugins/**/*.mat",
+  "plugins/**/*.md",
+  "plugins/**/*.sfp",
+  "plugins/**/*.tsv",
+  "plugins/**/*.txt",
 ]
 
 [tool.setuptools.exclude-package-data]

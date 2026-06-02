@@ -72,6 +72,14 @@ class QtDialogRenderer:
         layout = qt_widgets.QVBoxLayout(dialog)
         layout.setContentsMargins(*spec.content_margins)
         layout.setSpacing(spec.row_spacing)
+        content_layout = layout
+        if spec.scrollable:
+            content_widget = qt_widgets.QWidget()
+            content_layout = qt_widgets.QVBoxLayout(content_widget)
+            content_layout.setContentsMargins(0, 0, 0, 0)
+            content_layout.setSpacing(spec.row_spacing)
+        else:
+            content_widget = dialog
 
         initial_values = initial_values or {}
         widgets: dict[str, Any] = {}
@@ -103,9 +111,17 @@ class QtDialogRenderer:
                     added_visible_widget = True
                 index += 1
             if added_visible_widget:
-                layout.addWidget(row_container, self._row_stretch(spec, row_index))
+                content_layout.addWidget(row_container, self._row_stretch(spec, row_index))
             else:
-                layout.addSpacing(self._spacer_row_height(spec, row_index))
+                content_layout.addSpacing(self._spacer_row_height(spec, row_index))
+
+        if spec.scrollable:
+            scroll_area = qt_widgets.QScrollArea()
+            scroll_area.setObjectName("content_scroll")
+            scroll_area.setWidgetResizable(True)
+            scroll_area.setFrameShape(qt_widgets.QFrame.NoFrame)
+            scroll_area.setWidget(content_widget)
+            layout.addWidget(scroll_area, 1)
 
         for control in spec.controls:
             self._connect_callback(control.callback, widgets)
@@ -129,6 +145,9 @@ class QtDialogRenderer:
             QLabel, QCheckBox {
                 color: #000066;
                 background: transparent;
+            }
+            QLabel:disabled, QCheckBox:disabled {
+                color: #7c86a8;
             }
             QLineEdit {
                 background: white;
@@ -155,6 +174,10 @@ class QtDialogRenderer:
                 max-height: 20px;
                 color: #000066;
             }
+            QComboBox:disabled {
+                background: #dce6ff;
+                color: #7c86a8;
+            }
             QListWidget {
                 background: white;
                 border: 1px solid #7f7f7f;
@@ -172,6 +195,10 @@ class QtDialogRenderer:
             }
             QPushButton:disabled {
                 color: #b0b0b0;
+            }
+            QPushButton#double_dip_help {
+                min-width: 150px;
+                max-width: 150px;
             }
             QPushButton#events_button {
                 min-width: 130px;
@@ -261,9 +288,9 @@ class QtDialogRenderer:
         button_layout.setContentsMargins(0, 18, 0, 0)
         button_layout.setSpacing(16)
         if spec.help_text and spec.show_help_button:
-            help_button = QtWidgets.QPushButton("Help")
+            help_button = QtWidgets.QPushButton(spec.help_label)
             help_button.setObjectName("help")
-            help_button.setFixedWidth(80)
+            help_button.setFixedWidth(spec.button_size[0] if spec.button_size is not None else 80)
             help_button.clicked.connect(lambda: QtDialogRenderer._show_help(QtWidgets, dialog, spec))
             button_layout.addWidget(help_button)
         button_layout.addStretch(1)
@@ -318,7 +345,7 @@ class QtDialogRenderer:
                 widget.setCurrentIndex(index)
         elif style == "listbox":
             widget = QtWidgets.QListWidget()
-            widget.addItems([item.strip() for item in control.string.split("|")])
+            widget.addItems(list(control.string.split("|")))
             if _is_sequence_value(value):
                 widget.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
                 widget.setProperty(_MULTI_SELECT_PROPERTY, True)
@@ -424,6 +451,11 @@ class QtDialogRenderer:
             source = widgets.get(params["button"])
             if source is not None:
                 source.clicked.connect(lambda: self._show_callback_message(source, params))
+        elif callback.name == "set_value":
+            source = widgets.get(params["source"])
+            target = widgets.get(params["target"])
+            if source is not None and target is not None:
+                source.clicked.connect(lambda: target.setProperty(_VALUE_PROPERTY, params["value"]))
         elif callback.name == "headplot_manual_coreg":
             source = widgets.get(params["button"])
             if source is not None:

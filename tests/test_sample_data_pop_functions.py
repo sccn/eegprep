@@ -6,6 +6,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+import matplotlib.pyplot as plt
 
 from eegprep.functions.adminfunc.eegh import eegh
 from eegprep.functions.adminfunc.eeg_retrieve import eeg_retrieve
@@ -43,6 +44,8 @@ from eegprep.functions.popfunc.pop_select import pop_select
 from eegprep.functions.popfunc.pop_subcomp import pop_subcomp
 from eegprep.functions.popfunc.pop_writeeeg import pop_writeeeg
 from eegprep.functions.studyfunc.pop_loadstudy import pop_loadstudy
+from eegprep.functions.studyfunc.pop_chanplot import pop_chanplot
+from eegprep.functions.studyfunc.pop_precomp import pop_precomp
 from eegprep.functions.studyfunc.pop_savestudy import pop_savestudy
 from eegprep.functions.studyfunc.pop_study import pop_study
 from eegprep.functions.studyfunc.pop_studyerp import pop_studyerp
@@ -506,48 +509,60 @@ def test_pop_saveset_roundtrips_sample_dataset(tmp_path, sample_eeg):
 
 
 def test_pop_study_records_sample_dataset_info(sample_eeg):
-    study, alleeg, command = pop_study(None, [sample_eeg], name="Sample study")
+    study, alleeg, command = pop_study(None, [sample_eeg], name="Sample study", return_com=True)
 
     assert study["name"] == "Sample study"
     assert study["datasetinfo"][0]["index"] == 1
     assert study["datasetinfo"][0]["setname"] == sample_eeg["setname"]
     assert alleeg[0]["data"].shape == sample_eeg["data"].shape
-    assert command == "STUDY = pop_study([], ALLEEG, 'gui', 'on');"
+    assert command.startswith("STUDY, ALLEEG = pop_study(")
 
 
 def test_pop_studyerp_marks_sample_study_as_erp(sample_eeg):
-    study, alleeg, command = pop_studyerp([sample_eeg])
+    study, alleeg, command = pop_studyerp([sample_eeg], return_com=True)
 
     assert study["name"] == "Simple ERP STUDY"
     assert study["design"][0]["name"] == "ERP"
     assert alleeg[0]["data"].shape == sample_eeg["data"].shape
-    assert command == "STUDY = pop_studyerp();"
+    assert command == "STUDY, ALLEEG = pop_studyerp(ALLEEG)"
 
 
 def test_pop_savestudy_and_pop_loadstudy_roundtrip_sample_study(tmp_path, sample_eeg):
-    study, _alleeg, _command = pop_study(None, [sample_eeg], name="Sample study")
+    study, _alleeg = pop_study(None, [sample_eeg], name="Sample study")
 
-    saved, save_command = pop_savestudy(study, sample_eeg, tmp_path / "sample.study")
-    loaded, loaded_alleeg, load_command = pop_loadstudy(tmp_path / "sample.study")
+    saved, save_command = pop_savestudy(study, sample_eeg, tmp_path / "sample.study", return_com=True)
+    loaded, loaded_alleeg, load_command = pop_loadstudy(tmp_path / "sample.study", return_com=True)
 
     assert saved["filename"] == "sample.study"
     assert loaded["name"] == "Sample study"
     assert loaded["datasetinfo"][0]["setname"] == sample_eeg["setname"]
-    assert loaded_alleeg == []
+    assert loaded_alleeg[0]["data"].shape == sample_eeg["data"].shape
     assert "pop_savestudy" in save_command
     assert "pop_loadstudy" in load_command
+
+
+def test_pop_precomp_and_chanplot_work_on_sample_study(sample_eeg):
+    study, alleeg = pop_study(None, [sample_eeg], name="Sample study")
+
+    study, alleeg, precomp_command = pop_precomp(study, alleeg, "channels", spec="on", return_com=True)
+    study, plot_command, figure = pop_chanplot(study, alleeg, channels=[1], measure="spec", return_com=True)
+
+    assert study["changrp"][0]["specdata"]
+    assert precomp_command.startswith("STUDY, ALLEEG = pop_precomp(")
+    assert "measure='spec'" in plot_command
+    plt.close(figure)
 
 
 def test_pop_studywizard_builds_study_from_saved_sample_set(tmp_path, sample_eeg):
     set_file = tmp_path / "sample.set"
     pop_saveset(sample_eeg, str(set_file))
 
-    study, alleeg, command = pop_studywizard([str(set_file)])
+    study, alleeg, command = pop_studywizard([str(set_file)], return_com=True)
 
     assert study["datasetinfo"][0]["index"] == 1
     assert study["datasetinfo"][0]["setname"] == sample_eeg["setname"]
     assert alleeg[0]["data"].shape == sample_eeg["data"].shape
-    assert command == "STUDY = pop_studywizard();"
+    assert command.startswith("STUDY, ALLEEG = pop_studywizard(")
 
 
 def test_pop_saveh_writes_sample_history_commands(tmp_path):

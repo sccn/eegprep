@@ -231,6 +231,37 @@ class EEGPrepSession:
         self.CURRENTSTUDY = 0
         self.add_history("STUDY = []; CURRENTSTUDY = 0; ALLEEG = []; EEG=[]; CURRENTSET=[];")
 
+    def set_study(
+        self,
+        study: dict[str, Any] | None,
+        alleeg: list[dict[str, Any]] | None = None,
+        *,
+        command: str = "",
+    ) -> None:
+        """Set STUDY/CURRENTSTUDY and optionally replace loaded datasets."""
+        self.STUDY = study
+        self.CURRENTSTUDY = 1 if study else 0
+        if alleeg is not None:
+            self.ALLEEG = alleeg
+            if self.ALLEEG and (not self.CURRENTSET or max(self.CURRENTSET) > len(self.ALLEEG)):
+                self.CURRENTSET = [1]
+                self.EEG = self.ALLEEG[0]
+            elif self.ALLEEG and self.CURRENTSET:
+                selected = [self.ALLEEG[index - 1] for index in self.CURRENTSET]
+                self.EEG = selected if len(selected) > 1 else selected[0]
+            elif not self.ALLEEG:
+                self.CURRENTSET = []
+                self.EEG = eeg_emptyset()
+        self.add_history(command, notify=False)
+        self.notify_changed()
+
+    def select_study(self, *, command: str = "CURRENTSTUDY = 1") -> None:
+        """Select the current STUDY set in the shared workspace."""
+        if not self.STUDY:
+            raise ValueError("No current STUDY")
+        self.CURRENTSTUDY = 1
+        self.add_history(command)
+
     def add_history(self, command: str | None, *, notify: bool = True) -> None:
         """Append an EEGLAB-style command to session history."""
         self.LASTCOM = eegh(command, self.ALLCOM)

@@ -163,6 +163,12 @@ def _pop_select_apply(EEG, **kwargs):
             return list(x)
         return [x]
 
+    def _numeric_channel_indices(values):
+        inds = [int(value) for value in values]
+        if any(index < 0 or index >= nbchan for index in inds):
+            raise ValueError("Wrong channel range")
+        return inds
+
     chan_selected_flag = np.ones(nbchan, dtype=bool)  # default keep all
 
     # names win over types if provided
@@ -173,7 +179,7 @@ def _pop_select_apply(EEG, **kwargs):
         if _decode_list(g['channel']):
             ch_list = _decode_list(g['channel'])
             if all(isinstance(c, (int, np.integer)) for c in ch_list):
-                inds = [int(c) for c in ch_list]
+                inds = _numeric_channel_indices(ch_list)
             else:
                 inds, _ = eeg_decodechan(EEG, g['channel'], 'labels', True)
             # show warning if not all channels are found and error if no channels are found
@@ -187,7 +193,7 @@ def _pop_select_apply(EEG, **kwargs):
         if _decode_list(g['nochannel']):
             nc_list = _decode_list(g['nochannel'])
             if all(isinstance(c, (int, np.integer)) for c in nc_list):
-                inds = [int(c) for c in nc_list]
+                inds = _numeric_channel_indices(nc_list)
             else:
                 inds, _ = eeg_decodechan(EEG, g['nochannel'], 'labels', True)
             chan_selected_flag[np.array(inds, dtype=int)] = False

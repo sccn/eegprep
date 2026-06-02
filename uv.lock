@@ -28,7 +28,6 @@ constraints = [
     { name = "numpy", specifier = "<2.3" },
     { name = "pandas", specifier = "<2.3.3" },
     { name = "pyzmq", specifier = "<27" },
-    { name = "scikit-learn", specifier = "<1.8" },
     { name = "scipy", specifier = "<1.17" },
 ]
 

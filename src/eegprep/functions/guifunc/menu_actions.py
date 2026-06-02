@@ -31,6 +31,8 @@ IMPLEMENTED_ACTIONS = {
     "pop_biosig",
     "pop_chanevent",
     "pop_chanplot",
+    "pop_clust",
+    "pop_clustedit",
     "pop_clean_rawdata",
     "pop_chanedit",
     "pop_comperp",
@@ -83,6 +85,8 @@ IMPLEMENTED_ACTIONS = {
     "pop_loadset",
     "pop_plotdata",
     "pop_plottopo",
+    "pop_preclust",
+    "pop_precomp",
     "pop_prop",
     "pop_runscript",
     "pop_saveh",
@@ -106,6 +110,7 @@ IMPLEMENTED_ACTIONS = {
     "pop_selectcomps",
     "pop_spectopo",
     "pop_study",
+    "pop_studydesign",
     "pop_studyerp",
     "pop_studywizard",
     "pop_subcomp",
@@ -125,6 +130,7 @@ IMPLEMENTED_ACTIONS = {
     "quit",
     "retrieve_dataset",
     "select_multiple_datasets",
+    "select_study_set",
     "topoplot",
     "tutorial",
     "updates",
@@ -134,32 +140,6 @@ IMPLEMENTED_ACTIONS = {
 EEGPREP_REPO_URL = "https://github.com/sccn/eegprep"
 EEGPREP_DOCS_URL = "https://sccn.github.io/eegprep/"
 EEGPREP_SOURCE_URL = f"{EEGPREP_REPO_URL}/blob/develop"
-
-HELP_TOPIC_LABELS = {
-    "eegprep": "About EEGPrep",
-    "eeg_helphelp": "About EEGPrep help",
-    "eeg_helpmenu": "EEGPrep menus",
-    "eeg_helpadmin": "Admin. functions",
-    "eeg_helppop": "Interactive pop_ functions",
-    "eeg_helpsigproc": "Signal processing functions",
-    "eeg_helpstudy": "Group data (STUDY) functions",
-    "eeg_helptimefreq": "Time-frequency functions",
-    "eeg_helpstatistics": "Statistical functions",
-    "eeg_helpgui": "Graphic interface builder functions",
-    "eeg_helpmisc": "Misc. command line functions",
-    "troubleshooting_data_formats": "Troubleshooting data formats",
-}
-HELP_DOC_PATHS = {
-    "eegprep": "",
-    "eeg_helphelp": "user_guide/index.html#getting-help",
-    "eeg_helpadmin": "api/core.html",
-    "eeg_helppop": "api/index.html",
-    "eeg_helpsigproc": "api/signal_processing.html",
-    "eeg_helpstatistics": "api/utils.html#statistical-utilities",
-    "eeg_helpmisc": "api/utils.html",
-    "troubleshooting_data_formats": "faq.html#what-data-formats-are-supported",
-}
-HELP_UNAVAILABLE_TOPICS = frozenset(set(HELP_TOPIC_LABELS) - set(HELP_DOC_PATHS))
 
 _MULTIPLE_DATASET_ACTIONS = {
     "pop_clean_rawdata",
@@ -243,7 +223,7 @@ class MenuActionDispatcher:
             self._show_extension_manager(parent)
             return
         if base == "help":
-            self._show_help(variant or "eeglab", parent)
+            self._show_help(variant or "eegprep", parent)
             return
         if base == "docs":
             webbrowser.open(_docs_url(variant))
@@ -298,13 +278,27 @@ class MenuActionDispatcher:
         if base == "select_multiple_datasets":
             self._select_multiple_datasets(parent)
             return
+        if base == "select_study_set":
+            self._select_study_set(parent)
+            return
         if base == "pop_copyset":
             self._copy_current_dataset(parent)
             return
         if base == "pop_mergeset":
             self._merge_datasets(parent)
             return
-        if base in {"pop_study", "pop_studywizard", "pop_studyerp", "pop_loadstudy", "pop_savestudy"}:
+        if base in {
+            "pop_study",
+            "pop_studydesign",
+            "pop_studywizard",
+            "pop_studyerp",
+            "pop_loadstudy",
+            "pop_savestudy",
+            "pop_preclust",
+            "pop_clust",
+            "pop_clustedit",
+            "pop_precomp",
+        }:
             self._study_action(base, variant, parent)
             return
         if base == "pop_editoptions":
@@ -651,8 +645,8 @@ class MenuActionDispatcher:
         self._refresh()
 
     def _study_action(self, action: str, variant: str, parent: Any | None) -> None:
-        qt_widgets = _require_qt_widgets()
         if action == "pop_loadstudy":
+            qt_widgets = _require_qt_widgets()
             filename, _filter = qt_widgets.QFileDialog.getOpenFileName(
                 parent,
                 "Load existing study",
@@ -664,15 +658,13 @@ class MenuActionDispatcher:
                 return
             from eegprep.functions.studyfunc.pop_loadstudy import pop_loadstudy
 
-            study, alleeg, command = pop_loadstudy(filename)
-            self.session.STUDY = study
-            if alleeg:
-                self.session.ALLEEG = alleeg
-            self.session.CURRENTSTUDY = 1
-            self._add_history_from_gui(command)
+            study, alleeg, command = pop_loadstudy(filename, return_com=True)
+            self.session.echo_command(command)
+            self.session.set_study(study, alleeg, command=command)
             self._refresh()
             return
         if action == "pop_savestudy":
+            qt_widgets = _require_qt_widgets()
             if not self.session.STUDY:
                 self._warn(parent, "No current study")
                 return
@@ -689,12 +681,83 @@ class MenuActionDispatcher:
                 return
             from eegprep.functions.studyfunc.pop_savestudy import pop_savestudy
 
-            study, command = pop_savestudy(self.session.STUDY, self.session.EEG, filename, savemode=variant or None)
-            self.session.STUDY = study
-            self._add_history_from_gui(command)
+            study, command = pop_savestudy(
+                self.session.STUDY, self.session.ALLEEG, filename, savemode=variant or None, return_com=True
+            )
+            self.session.echo_command(command)
+            self.session.set_study(study, command=command)
+            self._refresh()
+            return
+        if action == "pop_studydesign":
+            if not self.session.STUDY:
+                self._warn(parent, "Create or load a STUDY before editing designs")
+                return
+            from eegprep.functions.studyfunc.pop_studydesign import pop_studydesign
+
+            study, alleeg, command = pop_studydesign(self.session.STUDY, self.session.ALLEEG, gui=True, return_com=True)
+            if not command:
+                return
+            self.session.echo_command(command)
+            self.session.set_study(study, alleeg, command=command)
+            self._refresh()
+            return
+        if action == "pop_preclust":
+            if not self.session.STUDY:
+                self._warn(parent, "Create or load a STUDY before preclustering components")
+                return
+            from eegprep.functions.studyfunc.pop_preclust import pop_preclust
+
+            study, alleeg, command = pop_preclust(self.session.STUDY, self.session.ALLEEG, gui=True, return_com=True)
+            if not command:
+                return
+            self.session.echo_command(command)
+            self.session.set_study(study, alleeg, command=command)
+            self._refresh()
+            return
+        if action == "pop_precomp":
+            if not self.session.STUDY:
+                self._warn(parent, "Create or load a STUDY before precomputing measures")
+                return
+            from eegprep.functions.studyfunc.pop_precomp import pop_precomp
+
+            target = "components" if variant == "components" else "channels"
+            study, alleeg, command = pop_precomp(
+                self.session.STUDY, self.session.ALLEEG, target, gui=True, return_com=True
+            )
+            if not command:
+                return
+            self.session.echo_command(command)
+            self.session.set_study(study, alleeg, command=command)
+            self._refresh()
+            return
+        if action == "pop_clust":
+            if not self.session.STUDY:
+                self._warn(parent, "Create or load a STUDY before clustering components")
+                return
+            from eegprep.functions.studyfunc.pop_clust import pop_clust
+
+            study, command = pop_clust(self.session.STUDY, self.session.ALLEEG, gui=True, return_com=True)
+            if not command:
+                return
+            self.session.echo_command(command)
+            self.session.set_study(study, command=command)
+            self._refresh()
+            return
+        if action == "pop_clustedit":
+            if not self.session.STUDY:
+                self._warn(parent, "Create or load a STUDY before editing clusters")
+                return
+            from eegprep.functions.studyfunc.pop_clustedit import pop_clustedit
+
+            study, command, _figure = pop_clustedit(self.session.STUDY, self.session.ALLEEG, gui=True, return_com=True)
+            if not command:
+                return
+            self.session.echo_command(command)
+            self.session.set_study(study, command=command)
             self._refresh()
             return
         if action == "pop_studywizard":
+            qt_widgets = _require_qt_widgets()
             filenames, _filter = qt_widgets.QFileDialog.getOpenFileNames(
                 parent,
                 "Browse for datasets",
@@ -706,22 +769,31 @@ class MenuActionDispatcher:
                 return
             from eegprep.functions.studyfunc.pop_studywizard import pop_studywizard
 
-            study, alleeg, command = pop_studywizard(filenames)
+            study, alleeg, command = pop_studywizard(filenames, return_com=True)
         elif action == "pop_studyerp":
             from eegprep.functions.studyfunc.pop_studyerp import pop_studyerp
 
-            study, alleeg, command = pop_studyerp(self.session.ALLEEG)
+            study, alleeg, command = pop_studyerp(self.session.ALLEEG, return_com=True)
+        elif action == "pop_study" and variant == "edit":
+            if not self.session.STUDY:
+                self._warn(parent, "Create or load a STUDY before editing study info")
+                return
+            from eegprep.functions.studyfunc.pop_study import pop_study
+
+            study, alleeg, command = pop_study(self.session.STUDY, self.session.ALLEEG, gui=True, return_com=True)
+            if not command:
+                return
         else:
             if not self.session.ALLEEG:
                 self._warn(parent, "Load at least one dataset before creating a study")
                 return
             from eegprep.functions.studyfunc.pop_study import pop_study
 
-            study, alleeg, command = pop_study(None, self.session.ALLEEG)
-        self.session.STUDY = study
-        self.session.ALLEEG = alleeg
-        self.session.CURRENTSTUDY = 1
-        self._add_history_from_gui(command)
+            study, alleeg, command = pop_study(None, self.session.ALLEEG, gui=True, return_com=True)
+            if not command:
+                return
+        self.session.echo_command(command)
+        self.session.set_study(study, alleeg, command=command)
         self._refresh()
 
     def _edit_options(self, parent: Any | None) -> None:
@@ -832,8 +904,10 @@ class MenuActionDispatcher:
         self._refresh()
 
     def _show_extension_manager(self, parent: Any | None) -> None:
-        plugins = ["clean_rawdata", "ICLabel/viewprops", "firfilt", "DIPFIT", "EEG-BIDS/File-IO"]
-        self._info(parent, "Available EEGPrep extensions:\n" + "\n".join(f"- {plugin}" for plugin in plugins))
+        from eegprep.functions.adminfunc.plugin_menu import plugin_menu
+
+        show_dialog = parent is not None and _qt_widgets() is not None
+        plugin_menu(parent=parent if show_dialog else None, session=self.session, show=show_dialog)
 
     def _run_pop_function(self, name: str, parent: Any | None, *, variant: str = "") -> None:
         selection = self._current_selection_or_warn(parent, allow_multiple=name in _MULTIPLE_DATASET_ACTIONS)
@@ -1015,6 +1089,15 @@ class MenuActionDispatcher:
             self.session.add_history(command, notify=False)
             self.session.notify_changed()
             self._refresh()
+
+    def _select_study_set(self, parent: Any | None) -> None:
+        if not self.session.STUDY:
+            self._warn(parent, "No current STUDY")
+            return
+        command = "CURRENTSTUDY = 1"
+        self.session.echo_command(command)
+        self.session.select_study(command=command)
+        self._refresh()
 
     def _copy_current_dataset(self, parent: Any | None) -> None:
         if not self.session.CURRENTSET:
@@ -1204,6 +1287,8 @@ class MenuActionDispatcher:
         from eegprep.functions.studyfunc.pop_chanplot import pop_chanplot
 
         study, command, _figure = pop_chanplot(self.session.STUDY, self.session.ALLEEG, gui=True, return_com=True)
+        if not command:
+            return
         self.session.STUDY = study
         self._add_history_from_gui(command)
         self._refresh()
@@ -1228,23 +1313,7 @@ class MenuActionDispatcher:
         self._refresh()
 
     def _show_help(self, function_name: str, parent: Any | None) -> None:
-        try:
-            pophelp(function_name, parent=parent)
-        except FileNotFoundError as exc:
-            if function_name in HELP_DOC_PATHS:
-                webbrowser.open(_docs_url(HELP_DOC_PATHS[function_name]))
-                return
-            if function_name in HELP_UNAVAILABLE_TOPICS:
-                self._show_unavailable_help(function_name, parent)
-                return
-            raise exc
-
-    def _show_unavailable_help(self, function_name: str, parent: Any | None) -> None:
-        message = unavailable_help_message(function_name)
-        qt_widgets = _qt_widgets()
-        if qt_widgets is None or parent is None:
-            raise FileNotFoundError(message)
-        qt_widgets.QMessageBox.information(parent, "EEGPrep", message)
+        pophelp(function_name, parent=parent)
 
     def _current_selection_or_warn(
         self,
@@ -1392,15 +1461,6 @@ def _docs_url(path: str = "") -> str:
 
 def _tutorial_url() -> str:
     return _docs_url("user_guide/quickstart.html")
-
-
-def unavailable_help_message(function_name: str) -> str:
-    """Return user-facing copy for help topics not yet documented in EEGPrep."""
-    label = HELP_TOPIC_LABELS.get(function_name, function_name)
-    return (
-        f"EEGPrep help for {label} is not available yet.\n\n"
-        "Track progress or request this documentation at https://github.com/sccn/eegprep/issues."
-    )
 
 
 def action_kind(action: str) -> str:

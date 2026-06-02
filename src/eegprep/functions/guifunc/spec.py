@@ -44,6 +44,7 @@ class DialogSpec:
     eeglab_source: str
     size: tuple[int, int] | None = None
     help_text: str | None = None
+    help_label: str = "Help"
     show_help_button: bool = True
     ok_label: str = "Ok"
     cancel_label: str = "Cancel"
@@ -54,6 +55,7 @@ class DialogSpec:
     content_margins: tuple[int, int, int, int] = (42, 17, 42, 13)
     row_spacing: int = 4
     geomvert: tuple[float, ...] | None = None
+    scrollable: bool = False
 
 
 def controls_by_tag(spec: DialogSpec) -> dict[str, ControlSpec]:

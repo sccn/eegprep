@@ -56,6 +56,24 @@ def _fake_pop_copyset(ALLEEG, set_in, set_out=None, *, return_com=False):
     return (output, copied, 2, command) if return_com else (output, copied, 2)
 
 
+def _fake_pop_study(STUDY, ALLEEG, *, return_com=False):
+    study = {"name": "console study", "datasetinfo": [{"index": 1, "subject": "S01"}], "design": []}
+    command = "STUDY, ALLEEG = pop_study(STUDY, ALLEEG, name='console study')"
+    return (study, ALLEEG, command) if return_com else (study, ALLEEG)
+
+
+def _fake_pop_savestudy(STUDY, EEG=None, *, return_com=False):
+    study = dict(STUDY, filename="console.study", filepath="/tmp", saved="yes")
+    command = "STUDY = pop_savestudy(STUDY, ALLEEG, filename='console.study', filepath='/tmp')"
+    return (study, command) if return_com else study
+
+
+def _fake_pop_fresh_study(*, return_com=False):
+    study = {"name": "fresh study", "design": []}
+    command = "STUDY = pop_freshstudy()"
+    return (study, command) if return_com else study
+
+
 def test_workspace_starts_with_eeglab_style_names():
     session = EEGPrepSession()
     workspace = EEGPrepConsoleWorkspace(session, exports={})
@@ -77,6 +95,89 @@ def test_session_changes_update_console_namespace():
     assert workspace.namespace["ALLEEG"] is session.ALLEEG
     assert workspace.namespace["CURRENTSET"] == 1
     assert workspace.namespace["LASTCOM"] == "EEG = demo;"
+
+
+def test_console_pop_study_result_updates_shared_study_workspace():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(), new=True)
+    workspace = EEGPrepConsoleWorkspace(session, exports={"pop_study": _fake_pop_study})
+
+    result = workspace.namespace["pop_study"](workspace.namespace["STUDY"], workspace.namespace["ALLEEG"])
+    assigned_study, assigned_alleeg = result
+
+    assert session.CURRENTSTUDY == 1
+    assert session.STUDY["name"] == "console study"
+    assert workspace.namespace["STUDY"] is session.STUDY
+    assert session.ALLCOM[-1].startswith("STUDY, ALLEEG = pop_study(")
+    assert assigned_study is session.STUDY
+    assert assigned_alleeg is session.ALLEEG
+    assert result.command == session.LASTCOM
+    assert len(result) == 2
+
+
+def test_console_pop_study_history_assignment_replays_as_written():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(), new=True)
+    workspace = EEGPrepConsoleWorkspace(session, exports={"pop_study": _fake_pop_study})
+    source = "STUDY, ALLEEG = pop_study(STUDY, ALLEEG)"
+
+    exec(source, workspace.namespace)
+    workspace.after_execute(source)
+
+    assert workspace.namespace["STUDY"] is session.STUDY
+    assert workspace.namespace["ALLEEG"] is session.ALLEEG
+    assert session.STUDY["name"] == "console study"
+    assert session.ALLCOM[-1].startswith("STUDY, ALLEEG = pop_study(")
+
+
+def test_console_pop_savestudy_result_updates_study_without_replacing_alleeg():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(), new=True)
+    session.STUDY = {"name": "console study", "datasetinfo": [], "design": []}
+    session.CURRENTSTUDY = 1
+    workspace = EEGPrepConsoleWorkspace(session, exports={"pop_savestudy": _fake_pop_savestudy})
+
+    result = workspace.namespace["pop_savestudy"](workspace.namespace["STUDY"], workspace.namespace["EEG"])
+
+    assert session.STUDY["filename"] == "console.study"
+    assert session.ALLEEG[0]["setname"] == "demo"
+    assert len(result) == 2
+    assert session.ALLCOM[-1].startswith("STUDY = pop_savestudy(")
+
+
+def test_console_pop_result_detects_fresh_study_without_datasetinfo():
+    session = EEGPrepSession()
+    workspace = EEGPrepConsoleWorkspace(session, exports={"pop_freshstudy": _fake_pop_fresh_study})
+
+    result = workspace.namespace["pop_freshstudy"]()
+
+    assert session.CURRENTSTUDY == 1
+    assert session.STUDY["name"] == "fresh study"
+    assert result.command == "STUDY = pop_freshstudy()"
+
+
+def test_console_pop_precomp_result_updates_shared_study_history():
+    from eegprep.functions.studyfunc.pop_precomp import pop_precomp
+    from eegprep.functions.studyfunc.pop_study import pop_study
+
+    session = EEGPrepSession()
+    eeg = _demo_eeg()
+    eeg["data"] = np.dstack([eeg["data"], eeg["data"] + 1.0])
+    eeg["trials"] = 2
+    session.store_current(eeg, new=True)
+    session.STUDY, session.ALLEEG = pop_study(None, session.ALLEEG, name="console measures")
+    session.CURRENTSTUDY = 1
+    workspace = EEGPrepConsoleWorkspace(session, exports={"pop_precomp": pop_precomp})
+
+    result = workspace.namespace["pop_precomp"](
+        workspace.namespace["STUDY"], workspace.namespace["ALLEEG"], "channels", erp="on"
+    )
+    assigned_study, assigned_alleeg = result
+
+    assert assigned_study is session.STUDY
+    assert assigned_alleeg is session.ALLEEG
+    assert session.STUDY["changrp"][0]["erpdata"]
+    assert session.ALLCOM[-1].startswith("STUDY, ALLEEG = pop_precomp(")
 
 
 def test_session_history_commands_do_not_echo_to_console():
@@ -929,6 +1030,7 @@ def test_console_python_command_converts_common_eeglab_history_syntax():
         "EEG = pop_editset(EEG, 'setname', 'edited', 'subject', 'S01');",
         "EEG = pop_reref( EEG, [1], 'exclude', [4]);",
         "EEG = pop_reref( EEG, [], 'huber', 25);",
+        "STUDY, ALLEEG = pop_study(STUDY, ALLEEG, name='demo');",
         "(ALLEEG, EEG, CURRENTSET) = pop_newset(ALLEEG, EEG, CURRENTSET, retrieve=3)",
     ]
 
@@ -945,6 +1047,7 @@ def test_console_python_command_converts_common_eeglab_history_syntax():
         "EEG = pop_editset(EEG, setname='edited', subject='S01')",
         "EEG = pop_reref(EEG, ref=[0], exclude=[3])",
         "EEG = pop_reref(EEG, ref=[], huber=25)",
+        "STUDY, ALLEEG = pop_study(STUDY, ALLEEG, name='demo')",
         "ALLEEG, EEG, CURRENTSET = pop_newset(ALLEEG, EEG, CURRENTSET, retrieve=3)",
     ]
     for command in converted:
