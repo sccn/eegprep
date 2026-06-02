@@ -57,7 +57,20 @@ def test_phase_6b_public_exports_are_intentional() -> None:
         "DialogSpec",
         "EEGPrepConsoleWorkspace",
         "EEGPrepSession",
+        "ExtensionAction",
+        "ExtensionDependency",
+        "ExtensionLoadError",
+        "ExtensionMenu",
+        "ExtensionPopFunction",
+        "ExtensionRecord",
+        "ExtensionRegistry",
+        "ExtensionResource",
+        "ExtensionSourceType",
+        "ExtensionSpec",
+        "ExtensionStatus",
+        "ExtensionValidationResult",
         "bundled_plugins",
+        "discover_extensions",
         "eeg_emptyset",
         "eeg_retrieve",
         "eeg_store",
@@ -73,6 +86,7 @@ def test_phase_6b_public_exports_are_intentional() -> None:
         "pop_editoptions",
         "pop_newset",
         "pophelp",
+        "validate_extension_spec",
     }
 
     assert expected <= set(eegprep.__all__)

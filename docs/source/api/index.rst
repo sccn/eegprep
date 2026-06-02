@@ -14,6 +14,7 @@ This section contains the complete API documentation for eegprep. The API is org
    ica
    signal_processing
    io
+   extensions
    utils
 
 Core Classes
@@ -235,6 +236,28 @@ for now.
    eegprep.pop_multifit
    eegprep.pop_leadfield
    eegprep.pop_dipfit_loreta
+
+Extension SDK
+=============
+
+EEGPrep external extensions are Python packages discovered through the
+``eegprep.extensions`` entry-point group. The registry validates declarative
+specs and keeps extension callables lazy until a later runtime surface uses
+them.
+
+.. autosummary::
+   :toctree: generated/
+
+   eegprep.ExtensionSpec
+   eegprep.ExtensionRegistry
+   eegprep.ExtensionRecord
+   eegprep.ExtensionStatus
+   eegprep.ExtensionAction
+   eegprep.ExtensionPopFunction
+   eegprep.ExtensionResource
+   eegprep.LazyImport
+   eegprep.discover_extensions
+   eegprep.validate_extension_spec
 
 STUDY Workflows
 ===============
