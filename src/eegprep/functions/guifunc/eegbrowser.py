@@ -1006,9 +1006,11 @@ class EEGBrowserCanvas(_QWidget):
             sample = int(np.argmin(np.abs(self.model.data.x_values - x_value)))
             max_sample = self.model.data.total_samples - 1
         elif self.model.data.epoched:
+            # 0-based: epoched winrej rows follow trial2eegplot sample offsets.
             sample = int(round(x_value))
             max_sample = self.model.data.total_samples - 1
         else:
+            # 1-based: continuous winrej rows feed eeg_eegrej latency ranges.
             sample = int(round(x_value * float(self.model.state.srate))) + 1
             max_sample = self.model.data.total_samples
         return max(0, min(sample, max_sample))

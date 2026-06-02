@@ -626,7 +626,7 @@ def _model_options(source_eeg: dict[str, Any] | None, kwargs: dict[str, Any]) ->
     options.setdefault("setelectrode", False)
     options.setdefault("children", ())
     options.setdefault("noui", "off")
-    if options["spacing"] is None or float(options["spacing"]) == 0:
+    if options["spacing"] is None or _is_empty(options["spacing"]) or float(options["spacing"]) == 0:
         options["spacing"] = _default_spacing(source_eeg, options)
     if options["time"] is None:
         trials = int(source_eeg.get("trials", 1) or 1) if source_eeg is not None else 1

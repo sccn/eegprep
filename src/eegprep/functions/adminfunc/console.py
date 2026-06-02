@@ -206,6 +206,11 @@ class ConsolePopFunction(LazyWorkspaceExport):
             _eeg, command = _extract_pop_eeg_and_command(result)
             if command:
                 recorded_commands.add(command)
+            if self.name == "pop_eegplot" and _eeg is None and command:
+                self.bridge.session.add_history(command)
+                self.bridge._pop_updated_session = True
+                self.bridge.pull_from_session()
+                return ConsolePopResult(self.bridge.session.EEG, command, updated=False)
         return self.bridge.accept_pop_result(result, args, kwargs)
 
     def __repr__(self) -> str:

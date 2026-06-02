@@ -60,7 +60,7 @@ def _fake_pop_eegplot(
 ):
     _fake_pop_eegplot.command_callback = command_callback
     command = f"pop_eegplot(EEG, {icacomp}, {superpose}, {reject})"
-    return (eeg, command) if return_com else "window"
+    return (None, command) if return_com else "window"
 
 
 _fake_pop_eegplot.command_callback = None
@@ -718,6 +718,7 @@ def test_console_pop_eegplot_accept_callback_refreshes_session_after_browser_acc
     eeg_out, command = result
     assert eeg_out is session.EEG
     assert command == "pop_eegplot(EEG, 1, 0, 1)"
+    assert "no EEG change" in repr(result)
     assert session.ALLCOM == [command]
     assert callable(_fake_pop_eegplot.command_callback)
 
@@ -731,7 +732,7 @@ def test_console_pop_eegplot_accept_callback_refreshes_session_after_browser_acc
     assert session.EEG["pnts"] == 2
     assert len(session.ALLEEG) == 2
     assert session.ALLCOM == [command]
-    assert refresh.call_count >= 2
+    refresh.assert_called_once()
 
 
 def test_console_pop_eegplot_positional_reject_argument_controls_accept_storage():

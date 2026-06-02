@@ -85,6 +85,11 @@ def pop_eegplot(
         if accept_callback is not None:
             accept_callback(eeg_out, accept_command)
 
+    if return_com and show and accept_callback is None:
+        raise ValueError(
+            "pop_eegplot(return_com=True) opens a non-blocking browser; pass command_callback to receive "
+            "accepted browser results, or use apply_eegplot_rejections for programmatic rejection."
+        )
     if show:
         options["command_callback"] = _accept
     if icacomp == 1:
@@ -96,6 +101,8 @@ def pop_eegplot(
         options.setdefault("title", f"Scroll component activities -- eegplot() -- {EEG.get('setname', '')}".rstrip())
         window = eegplot(EEG, *args, show=show, **options)
     command = history_command("pop_eegplot", icacomp, superpose, reject)
+    if return_com and show:
+        return (None, command)
     return (EEG, command) if return_com else window
 
 

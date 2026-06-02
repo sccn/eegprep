@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pytest
@@ -58,6 +59,12 @@ def test_continuous_data_normalization_defaults_and_bounds() -> None:
     assert model.data.mode == "continuous"
     assert model.state.dispchans == 2
     assert visible_sample_bounds(model.data, model.state) == (0, 4)
+
+
+def test_empty_spacing_uses_eeglab_default_spacing() -> None:
+    model = build_eegplot_model(np.zeros((2, 10)), srate=10, winlength=0.4, spacing=[], show=False)
+
+    assert model.state.spacing == pytest.approx(1.0)
 
 
 def test_epoched_data_flattens_in_eeglab_trial_order_and_clamps_window() -> None:
@@ -304,6 +311,31 @@ def test_pop_eegplot_returns_unchanged_eeg_and_history_command() -> None:
     assert out is eeg
     np.testing.assert_array_equal(eeg["data"], data_before)
     assert command == "pop_eegplot(EEG, 1, 0, 1)"
+
+
+def test_pop_eegplot_return_com_requires_callback_for_nonblocking_browser() -> None:
+    eeg = create_test_eeg(n_channels=2, n_samples=10, n_trials=1, srate=10)
+
+    with pytest.raises(ValueError, match="command_callback"):
+        pop_eegplot(eeg, return_com=True)
+
+
+def test_pop_eegplot_return_com_with_callback_does_not_return_stale_eeg(monkeypatch: pytest.MonkeyPatch) -> None:
+    eeg = create_test_eeg(n_channels=2, n_samples=10, n_trials=1, srate=10)
+    captured: dict[str, Any] = {}
+
+    def fake_eegplot(_eeg, *args, **kwargs):
+        del args
+        captured["command_callback"] = kwargs["command_callback"]
+        return "window"
+
+    monkeypatch.setattr(pop_eegplot_module, "eegplot", fake_eegplot)
+
+    out, command = pop_eegplot(eeg, return_com=True, command_callback=lambda _eeg, _command: None)
+
+    assert out is None
+    assert command == "pop_eegplot(EEG, 1, 0, 1)"
+    assert callable(captured["command_callback"])
 
 
 def test_apply_eegplot_rejections_removes_continuous_regions_and_inserts_boundary() -> None:
