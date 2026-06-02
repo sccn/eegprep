@@ -440,7 +440,11 @@ def eegplot2event(
     color: Any = None,
     colorout: Any = None,
 ) -> np.ndarray:
-    """Convert continuous ``eegplot`` marks to EEGLAB ``eeg_eegrej`` rows."""
+    """Convert continuous ``eegplot`` marks to EEGPrep ``eeg_eegrej`` rows.
+
+    EEGPrep stores start/end latencies in columns 2:4 for direct consumption by
+    its ``eeg_eegrej`` port. EEGLAB's MATLAB helper uses latency/duration there.
+    """
     rows = _filtered_winrej_rows(eegplotrej, color=color, colorout=colorout, round_colors=False)
     if rows.size == 0:
         return np.zeros((0, 7), dtype=float)
