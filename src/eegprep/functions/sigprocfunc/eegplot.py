@@ -494,7 +494,7 @@ def toggle_winrej_at_sample(
     sample_value = float(sample)
     out = list(regions)
     for index, region in enumerate(out):
-        if not (float(region.start) < sample_value < float(region.end)):
+        if not (float(region.start) <= sample_value <= float(region.end)):
             continue
         if channel_index is None:
             del out[index]

@@ -229,6 +229,14 @@ def test_single_click_unmarks_or_toggles_channel_specific_marks() -> None:
     assert regions == []
 
 
+def test_single_click_toggles_marks_at_region_boundaries() -> None:
+    start_region = add_winrej_region([], 2, 6, n_channels=2, total_samples=10)
+    end_region = add_winrej_region([], 2, 6, n_channels=2, total_samples=10)
+
+    assert toggle_winrej_at_sample(start_region, 2, n_channels=2) == []
+    assert toggle_winrej_at_sample(end_region, 6, n_channels=2) == []
+
+
 def test_epoched_drag_marks_whole_epochs_and_merges_channel_masks() -> None:
     regions = add_winrej_region([], 15, 3, n_channels=2, total_samples=30, pnts=10)
     regions = add_winrej_region(regions, 12, 18, n_channels=2, total_samples=30, pnts=10, channel_index=1)
@@ -311,6 +319,11 @@ def test_pop_eegplot_returns_unchanged_eeg_and_history_command() -> None:
     assert out is eeg
     np.testing.assert_array_equal(eeg["data"], data_before)
     assert command == "pop_eegplot(EEG, 1, 0, 1)"
+
+
+def test_pop_eegplot_rejects_empty_dataset() -> None:
+    with pytest.raises(ValueError, match="non-empty EEG dataset"):
+        pop_eegplot(None)
 
 
 def test_pop_eegplot_return_com_requires_callback_for_nonblocking_browser() -> None:

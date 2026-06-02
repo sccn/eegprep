@@ -53,7 +53,7 @@ def pop_eegplot(
     """
     del topcommand
     if EEG is None:
-        return (None, "") if return_com else None
+        raise ValueError("pop_eegplot requires a non-empty EEG dataset")
     if icacomp not in {0, 1}:
         raise ValueError("icacomp must be 1 for data channels or 0 for components")
     if int(bool(icacomp)) == 0:
