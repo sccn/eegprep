@@ -25,6 +25,7 @@ from eegprep.functions.popfunc.pop_newset import pop_newset
 WORKSPACE_NAMES = ("EEG", "ALLEEG", "CURRENTSET", "ALLCOM", "LASTCOM", "STUDY", "CURRENTSTUDY")
 POP_RESULT_PREVIEW_LIMIT = 96
 ANSI_CLEAR_LINE = "\r\x1b[2K"
+_EEG_CORE_FIELDS = ("nbchan", "srate", "pnts", "trials")
 _ACTIVE_TERMINAL_BUFFER = contextvars.ContextVar("_ACTIVE_TERMINAL_BUFFER", default=None)
 _MATLAB_MULTI_ASSIGN_PATTERN = re.compile(r"^\s*\[([A-Za-z_][A-Za-z0-9_]*(?:\s+[A-Za-z_][A-Za-z0-9_]*)+)\]\s*=")
 _TUPLE_ASSIGNMENT_TARGET_PATTERN = re.compile(
@@ -1236,6 +1237,8 @@ def _accepts_return_com(function: Callable[..., Any]) -> bool:
 def _extract_pop_eeg_and_command(result: Any) -> tuple[Any | None, str]:
     if isinstance(result, tuple):
         command = str(result[1]).strip() if len(result) > 1 and isinstance(result[1], str) else ""
+        if _history_only_command(command):
+            return None, command
         if result and _is_eeg_selection(result[0]):
             return result[0], command
         return None, command
@@ -1283,8 +1286,12 @@ def _pop_eegplot_reject_argument(function: Callable[..., Any], args: tuple[Any, 
 
 def _is_eeg_selection(value: Any) -> bool:
     if isinstance(value, dict):
-        return any(key in value for key in ("data", "nbchan", "setname"))
-    return isinstance(value, list) and all(isinstance(item, dict) for item in value)
+        return "data" in value and any(key in value for key in _EEG_CORE_FIELDS)
+    return isinstance(value, list) and bool(value) and all(_is_eeg_selection(item) for item in value)
+
+
+def _history_only_command(command: str) -> bool:
+    return command.lstrip().startswith("LASTCOM")
 
 
 def _is_study_selection(value: Any) -> bool:

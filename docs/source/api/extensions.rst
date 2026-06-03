@@ -95,6 +95,10 @@ metadata: package names, repository/documentation links, maintainers,
 capabilities, and safe install-command strings. They never contain code zips,
 and EEGPrep never executes install or update commands.
 
+Extension Manager catalogs use ``catalog_kind: "extension_manager"``. The
+curation submission validator uses ``catalog_kind: "extension_curation"`` so
+local manager catalogs and catalog-repository submissions cannot be confused.
+
 Use ``load_extension_catalog()`` to inspect a local catalog before passing it to
 ``plugin_menu``:
 

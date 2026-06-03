@@ -10,6 +10,7 @@ import sys
 import textwrap
 from pathlib import Path
 from typing import Any
+from unittest import mock
 
 import numpy as np
 import pytest
@@ -24,6 +25,8 @@ from eegprep.functions.guifunc.eeglab_menu import eeglab_menus
 from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher
 from eegprep.functions.guifunc.pophelp import pophelp_text
 from eegprep.functions.guifunc.session import EEGPrepSession
+
+EXAMPLES_ROOT = Path(__file__).resolve().parents[1] / "examples" / "extensions"
 
 
 class _FakeDistribution:
@@ -129,6 +132,7 @@ def test_installed_extension_works_across_registry_manager_gui_help_and_console(
     catalog_path.write_text(
         """
         {
+          "catalog_kind": "extension_manager",
           "schema_version": 1,
           "extensions": [
             {
@@ -209,6 +213,33 @@ def test_installed_extension_works_across_registry_manager_gui_help_and_console(
         "EEG = pop_lab_gain(EEG, gain=2.0);",
         "EEG = pop_lab_gain(EEG, gain=3.0);",
     ]
+
+
+def test_example_file_import_extension_dispatches_without_loaded_dataset(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.syspath_prepend(str(EXAMPLES_ROOT / "eegprep_ext_file_io" / "src"))
+    importlib.invalidate_caches()
+    csv_path = tmp_path / "example.csv"
+    np.savetxt(csv_path, np.array([[1.0, 2.0], [3.0, 4.0]]), delimiter=",")
+    entry_point = _FakeEntryPoint(
+        "file_io",
+        "eegprep_ext_file_io.registration:register",
+        package_name="eegprep-ext-file-io",
+    )
+    registry = ExtensionRegistry(include_bundled=False, entry_points_provider=_provider(entry_point))
+    runtime = ExtensionRuntime.from_records(registry.discover())
+    session = EEGPrepSession()
+    dispatcher = MenuActionDispatcher(session, extension_runtime=runtime)
+
+    with mock.patch.object(dispatcher, "_ask_extension_filename", return_value=str(csv_path)):
+        dispatcher.dispatch("pop_demo_import_csv")
+
+    assert session.CURRENTSET == [1]
+    assert session.EEG["setname"] == "example"
+    np.testing.assert_allclose(session.EEG["data"], np.array([[1.0, 2.0], [3.0, 4.0]]))
+    assert session.ALLCOM == [f"EEG = pop_demo_import_csv({str(csv_path)!r}, srate=1);"]
 
 
 def test_real_installed_entry_points_are_lazy_resource_safe_and_deterministic(

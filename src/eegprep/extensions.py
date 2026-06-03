@@ -9,8 +9,20 @@ import re
 from dataclasses import dataclass, field, replace
 from enum import Enum
 from importlib import metadata
-from itertools import zip_longest
 from typing import Any, Callable
+
+from packaging.specifiers import InvalidSpecifier, SpecifierSet
+from packaging.version import InvalidVersion, Version
+
+from eegprep.plugins.EEG_BIDS.menu import (
+    eeg_bids_export_items,
+    eeg_bids_import_items,
+    eeg_bids_tools_menu,
+)
+from eegprep.plugins.ICLabel.menu import iclabel_menu, viewprops_plot_menus
+from eegprep.plugins.clean_rawdata.menu import clean_rawdata_menu
+from eegprep.plugins.dipfit.menu import dipfit_menu
+from eegprep.plugins.firfilt.menu import firfilt_filter_items
 
 EXTENSION_API_VERSION = "1"
 EXTENSION_ENTRY_POINT_GROUP = "eegprep.extensions"
@@ -301,16 +313,6 @@ class ExtensionRegistry:
         return None
 
     def _bundled_records(self) -> list[ExtensionRecord]:
-        from eegprep.plugins.EEG_BIDS.menu import (
-            eeg_bids_export_items,
-            eeg_bids_import_items,
-            eeg_bids_tools_menu,
-        )
-        from eegprep.plugins.ICLabel.menu import iclabel_menu, viewprops_plot_menus
-        from eegprep.plugins.clean_rawdata.menu import clean_rawdata_menu
-        from eegprep.plugins.dipfit.menu import dipfit_menu
-        from eegprep.plugins.firfilt.menu import firfilt_filter_items
-
         specs = (
             ExtensionSpec(
                 name="clean_rawdata",
@@ -692,8 +694,13 @@ def validate_extension_spec(
     _validate_pop_functions(spec.pop_functions, invalid)
     _validate_menus(spec.menus, invalid)
 
-    if check_compatibility and spec.eegprep_requires and not _version_satisfies(current_version, spec.eegprep_requires):
-        incompatible.append(f"Extension requires EEGPrep {spec.eegprep_requires}; current version is {current_version}")
+    if check_compatibility and spec.eegprep_requires:
+        if not extension_version_spec_is_valid(spec.eegprep_requires):
+            invalid.append(f"Extension EEGPrep requirement {spec.eegprep_requires!r} is not a valid version specifier")
+        elif not _version_satisfies(current_version, spec.eegprep_requires):
+            incompatible.append(
+                f"Extension requires EEGPrep {spec.eegprep_requires}; current version is {current_version}"
+            )
 
     if check_dependencies:
         dependency_invalid, dependency_missing = _dependency_errors(spec.dependencies, version_provider)
@@ -757,6 +764,29 @@ def check_extension_compatibility(
 def extension_version_satisfies(version: str, specifier: str) -> bool:
     """Return whether ``version`` satisfies a simple PEP 440-style specifier."""
     return _version_satisfies(version, specifier)
+
+
+def extension_version_spec_is_valid(specifier: str) -> bool:
+    """Return whether ``specifier`` is a valid EEGPrep extension version spec."""
+    try:
+        _normalized_version_specifier(specifier)
+    except InvalidSpecifier:
+        return False
+    return True
+
+
+def compare_extension_versions(left: str, right: str) -> int:
+    """Compare two PEP 440 versions, returning ``-1``, ``0``, or ``1``."""
+    try:
+        left_version = Version(str(left))
+        right_version = Version(str(right))
+    except InvalidVersion:
+        return 0
+    if left_version < right_version:
+        return -1
+    if left_version > right_version:
+        return 1
+    return 0
 
 
 def _validate_actions(actions: tuple[Any, ...], invalid: list[str]) -> None:
@@ -965,69 +995,32 @@ def _major_version(version: str) -> int:
 
 
 def _version_satisfies(version: str, specifier: str) -> bool:
-    for raw_condition in specifier.split(","):
+    try:
+        normalized = _normalized_version_specifier(specifier)
+        parsed_version = Version(str(version))
+    except (InvalidSpecifier, InvalidVersion):
+        return False
+    return parsed_version in SpecifierSet(normalized)
+
+
+def _normalized_version_specifier(specifier: str) -> str:
+    conditions: list[str] = []
+    for raw_condition in str(specifier).split(","):
         condition = raw_condition.strip()
         if not condition:
             continue
         if condition.lower().startswith("eegprep"):
             condition = condition[len("eegprep") :].strip()
-        operator, expected = _split_version_condition(condition)
-        comparison = _compare_versions(version, expected)
-        if operator == "==" and comparison != 0:
-            return False
-        if operator == "!=" and comparison == 0:
-            return False
-        if operator == ">=" and comparison < 0:
-            return False
-        if operator == ">" and comparison <= 0:
-            return False
-        if operator == "<=" and comparison > 0:
-            return False
-        if operator == "<" and comparison >= 0:
-            return False
-        if operator == "~=":
-            if comparison < 0:
-                return False
-            if _compare_version_parts(version, _compatible_upper_bound(expected)) >= 0:
-                return False
-    return True
-
-
-def _split_version_condition(condition: str) -> tuple[str, str]:
-    for operator in (">=", "<=", "==", "!=", "~=", ">", "<"):
-        if condition.startswith(operator):
-            return operator, condition[len(operator) :].strip()
-    if condition.startswith("="):
-        return "==", condition[1:].strip()
-    return "==", condition
-
-
-def _compare_versions(left: str, right: str) -> int:
-    return _compare_version_parts(left, _version_parts(right))
-
-
-def _compare_version_parts(left: str, right_parts: tuple[int, ...]) -> int:
-    left_parts = _version_parts(left)
-    for left_part, right_part in zip_longest(left_parts, right_parts, fillvalue=0):
-        if left_part < right_part:
-            return -1
-        if left_part > right_part:
-            return 1
-    return 0
-
-
-def _compatible_upper_bound(version: str) -> tuple[int, ...]:
-    parts = list(_version_parts(version))
-    if len(parts) == 1:
-        return (parts[0] + 1,)
-    upper = parts[:-1]
-    upper[-1] += 1
-    return tuple(upper)
-
-
-def _version_parts(version: str) -> tuple[int, ...]:
-    parts = tuple(int(part) for part in re.findall(r"\d+", str(version)))
-    return parts or (0,)
+        if condition.startswith("=") and not condition.startswith("=="):
+            condition = f"=={condition[1:].strip()}"
+        elif not condition.startswith(("~=", "==", "!=", "<=", ">=", "<", ">")):
+            condition = f"=={condition}"
+        conditions.append(condition)
+    normalized = ",".join(conditions)
+    if not normalized:
+        raise InvalidSpecifier("empty version specifier")
+    SpecifierSet(normalized)
+    return normalized
 
 
 def _normalize_name(name: str) -> str:
@@ -1103,7 +1096,9 @@ __all__ = [
     "ExtensionValidationResult",
     "LazyImport",
     "check_extension_compatibility",
+    "compare_extension_versions",
     "discover_extensions",
     "extension_version_satisfies",
+    "extension_version_spec_is_valid",
     "validate_extension_spec",
 ]

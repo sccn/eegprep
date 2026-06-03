@@ -6,10 +6,15 @@ from collections.abc import Sequence
 from copy import deepcopy
 import html
 import importlib
-import re
 from typing import Any
 
-from eegprep.extensions import ExtensionRecord, ExtensionRegistry, ExtensionSourceType, ExtensionStatus
+from eegprep.extensions import (
+    ExtensionRecord,
+    ExtensionRegistry,
+    ExtensionSourceType,
+    ExtensionStatus,
+    compare_extension_versions,
+)
 from eegprep.extension_catalog import (
     INSTALL_TRUST_WARNING,
     ExtensionCatalog,
@@ -927,28 +932,7 @@ def _is_active(plugin: dict[str, Any]) -> bool:
 
 
 def _catalog_version_is_newer(installed_version: str, catalog_version: str) -> bool:
-    installed_parts = _version_parts(installed_version)
-    catalog_parts = _version_parts(catalog_version)
-    if not installed_parts or not catalog_parts:
-        return False
-    return _compare_version_parts(catalog_parts, installed_parts) > 0
-
-
-def _compare_version_parts(left: tuple[int, ...], right: tuple[int, ...]) -> int:
-    max_length = max(len(left), len(right))
-    padded_left = left + (0,) * (max_length - len(left))
-    padded_right = right + (0,) * (max_length - len(right))
-    if padded_left > padded_right:
-        return 1
-    if padded_left < padded_right:
-        return -1
-    return 0
-
-
-def _version_parts(version: str) -> tuple[int, ...]:
-    if not version or not re.search(r"\d", str(version)):
-        return ()
-    return tuple(int(part) for part in re.findall(r"\d+", str(version)))
+    return compare_extension_versions(catalog_version, installed_version) > 0
 
 
 def _plugin_sort_key(plugin: dict[str, Any]) -> tuple[int, int, str]:

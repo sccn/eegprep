@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import ast
 import io
+import importlib
 import logging
+import sys
+import textwrap
 import warnings
 from types import SimpleNamespace
 from unittest import mock
@@ -10,6 +13,15 @@ from unittest import mock
 import numpy as np
 import pytest
 
+from eegprep.extension_runtime import ExtensionRuntime
+from eegprep.extensions import (
+    ExtensionPopFunction,
+    ExtensionRecord,
+    ExtensionSourceType,
+    ExtensionSpec,
+    ExtensionStatus,
+    LazyImport,
+)
 from eegprep.functions.adminfunc import console as console_module
 from eegprep.functions.adminfunc.console import EEGPrepConsoleWorkspace
 from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher
@@ -31,6 +43,34 @@ def _demo_eeg(setname: str = "demo"):
         "urevent": [],
         "epoch": [],
     }
+
+
+def _extension_runtime(spec: ExtensionSpec) -> ExtensionRuntime:
+    return ExtensionRuntime.from_records(
+        (
+            ExtensionRecord(
+                name=spec.name,
+                status=ExtensionStatus.INSTALLED,
+                spec=spec,
+                source_type=ExtensionSourceType.INSTALLED,
+            ),
+        )
+    )
+
+
+def _write_extension_package(tmp_path, package: str, files: dict[str, str], monkeypatch) -> None:
+    monkeypatch.syspath_prepend(str(tmp_path))
+    for module_name in list(sys.modules):
+        if module_name == package or module_name.startswith(f"{package}."):
+            del sys.modules[module_name]
+    package_dir = tmp_path / package
+    package_dir.mkdir(exist_ok=True)
+    (package_dir / "__init__.py").write_text("", encoding="utf-8")
+    for relative_path, content in files.items():
+        path = package_dir / relative_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(textwrap.dedent(content).strip() + "\n", encoding="utf-8")
+    importlib.invalidate_caches()
 
 
 def _fake_pop_reref(EEG, ref, *, return_com=False):
@@ -967,6 +1007,57 @@ def test_console_restores_aliased_eegprep_import_proxy():
     workspace.after_execute("import eegprep as ep")
 
     assert isinstance(workspace.namespace["ep"], console_module.ConsoleEEGPrepModule)
+
+
+def test_extension_pop_namespace_updates_session_and_remains_console_local(
+    tmp_path,
+    monkeypatch,
+):
+    package = "console_extension_namespace"
+    _write_extension_package(
+        tmp_path,
+        package,
+        {
+            "pop_functions.py": """
+                import numpy as np
+
+                def pop_console_ext(EEG, gain=2.0, *, return_com=False):
+                    output = dict(EEG)
+                    output["data"] = np.asarray(EEG["data"], dtype=float) * float(gain)
+                    output["setname"] = "extension-console"
+                    command = f"EEG = pop_console_ext(EEG, gain={float(gain)!r});"
+                    return (output, command) if return_com else output
+            """,
+        },
+        monkeypatch,
+    )
+    runtime = _extension_runtime(
+        ExtensionSpec(
+            name="console_extension",
+            pop_functions=(
+                ExtensionPopFunction("pop_console_ext", LazyImport(f"{package}.pop_functions", "pop_console_ext")),
+            ),
+        )
+    )
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(), new=True)
+    workspace = EEGPrepConsoleWorkspace(session, exports={}, extension_runtime=runtime)
+
+    result = workspace.namespace["pop_console_ext"](workspace.namespace["EEG"], gain=3.0)
+    workspace.after_execute("pop_console_ext(EEG, gain=3.0)")
+
+    assert result.command == "EEG = pop_console_ext(EEG, gain=3.0);"
+    assert workspace.namespace["EEG"] is session.EEG
+    assert workspace.namespace["eegprep"].pop_console_ext is workspace.namespace["pop_console_ext"]
+    np.testing.assert_allclose(session.EEG["data"], np.array([[3.0, 6.0], [9.0, 12.0]]))
+    assert session.ALLCOM == ["EEG = pop_console_ext(EEG, gain=3.0);"]
+
+    with pytest.raises(ImportError):
+        exec("from eegprep import pop_console_ext", workspace.namespace)
+    workspace.after_execute("from eegprep import pop_console_ext", success=False)
+
+    assert workspace.namespace["pop_console_ext"].name == "pop_console_ext"
+    assert session.ALLCOM == ["EEG = pop_console_ext(EEG, gain=3.0);"]
 
 
 def test_assignment_style_pop_call_does_not_duplicate_history():

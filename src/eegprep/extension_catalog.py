@@ -26,9 +26,12 @@ from eegprep.extensions import (
     ExtensionStatus,
     check_extension_compatibility,
     extension_version_satisfies,
+    extension_version_spec_is_valid,
 )
 
 CATALOG_SCHEMA_VERSION = 1
+CATALOG_KIND_MANAGER = "extension_manager"
+CATALOG_KIND_CURATION = "extension_curation"
 CATALOG_ENV_VAR = "EEGPREP_EXTENSION_CATALOG"
 CATALOG_RESOURCE = "extension_catalog.json"
 INSTALL_TRUST_WARNING = (
@@ -135,6 +138,12 @@ def parse_extension_catalog(data: Any, *, source: str = "inline") -> ExtensionCa
         return ExtensionCatalog(source=source, errors=(f"{source}: catalog root must be a JSON object",))
 
     errors: list[str] = []
+    catalog_kind = _text(data.get("catalog_kind") or CATALOG_KIND_MANAGER)
+    if catalog_kind != CATALOG_KIND_MANAGER:
+        errors.append(
+            f"{source}: catalog_kind must be {CATALOG_KIND_MANAGER!r} for Extension Manager catalogs; "
+            f"got {catalog_kind!r}"
+        )
     schema_version = data.get("schema_version")
     if schema_version != CATALOG_SCHEMA_VERSION:
         errors.append(f"{source}: schema_version must be {CATALOG_SCHEMA_VERSION}; got {schema_version!r}")
@@ -232,6 +241,12 @@ def _parse_catalog_entry(raw_entry: Any, *, source: str) -> tuple[ExtensionCatal
     name = _text(raw_entry.get("name"))
     if not name:
         errors.append(f"{source}: name is required")
+        if any(field in raw_entry for field in ("id", "entry_point", "extension_name")):
+            errors.append(
+                f"{source}: this looks like {CATALOG_KIND_CURATION!r} metadata; "
+                "load Extension Manager catalogs with name/package_name/source fields, "
+                "and validate curation metadata with eegprep-validate-extension-catalog"
+            )
 
     source_data = raw_entry.get("source", {})
     if not isinstance(source_data, dict):
@@ -257,6 +272,10 @@ def _parse_catalog_entry(raw_entry: Any, *, source: str) -> tuple[ExtensionCatal
     for field_name, url in (("source.url", source_url), ("repository_url", repository_url), ("docs_url", docs_url)):
         if _looks_like_archive(url):
             errors.append(f"{source}: {field_name} must point to metadata, docs, or a repository, not an archive")
+        if field_name == "source.url" and source_type == CatalogSourceType.LOCAL:
+            continue
+        if url and not _is_web_url(url):
+            errors.append(f"{source}: {field_name} must be an https:// or http:// URL")
 
     if errors:
         return None, tuple(errors)
@@ -331,9 +350,6 @@ CATALOG_REQUIRED_FIELDS = (
 
 _NAME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_.-]*$")
 _PACKAGE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
-_VERSION_SPEC_RE = re.compile(
-    r"^\s*(?:[A-Za-z_][A-Za-z0-9_.-]*\s*)?(?:~=|==|!=|<=|>=|<|>|=)?\s*[0-9][A-Za-z0-9.*+!_-]*(?:\s*,\s*(?:~=|==|!=|<=|>=|<|>|=)?\s*[0-9][A-Za-z0-9.*+!_-]*)*\s*$"
-)
 
 
 @dataclass(frozen=True)
@@ -476,6 +492,9 @@ def _entries_from_payload(payload: Any, path: Path) -> tuple[dict[str, Any], ...
 
 
 def _validate_schema_version(payload: Mapping[str, Any], path: Path) -> None:
+    catalog_kind = payload.get("catalog_kind", CATALOG_KIND_CURATION)
+    if catalog_kind != CATALOG_KIND_CURATION:
+        raise ValueError(f"{path} catalog_kind must be {CATALOG_KIND_CURATION!r}; got {catalog_kind!r}")
     schema_version = payload.get("schema_version", CATALOG_SCHEMA_VERSION)
     if schema_version != CATALOG_SCHEMA_VERSION:
         raise ValueError(f"{path} schema_version must be {CATALOG_SCHEMA_VERSION}; got {schema_version!r}")
@@ -646,7 +665,7 @@ def _validate_version_policy(
     eegprep_requires_valid = True
     for field_name in ("eegprep_requires", "python_requires"):
         value = entry.get(field_name)
-        if not isinstance(value, str) or not _VERSION_SPEC_RE.match(value):
+        if not isinstance(value, str) or not extension_version_spec_is_valid(value):
             errors.append(CatalogValidationIssue("Must be a simple version specifier", entry_id, field_name))
             if field_name == "eegprep_requires":
                 eegprep_requires_valid = False
@@ -671,7 +690,7 @@ def _validate_version_policy(
 
     python_requires = str(entry.get("python_requires") or "")
     python_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
-    if python_requires and _VERSION_SPEC_RE.match(python_requires):
+    if python_requires and extension_version_spec_is_valid(python_requires):
         if not extension_version_satisfies(python_version, python_requires):
             errors.append(
                 CatalogValidationIssue(
@@ -705,7 +724,7 @@ def _validate_dependency_metadata(
         if not isinstance(package, str) or not _PACKAGE_RE.match(package):
             errors.append(CatalogValidationIssue("Dependency package name is invalid", entry_id, f"{field}.package"))
         version_spec = dependency.get("version_spec", "")
-        if version_spec and (not isinstance(version_spec, str) or not _VERSION_SPEC_RE.match(version_spec)):
+        if version_spec and (not isinstance(version_spec, str) or not extension_version_spec_is_valid(version_spec)):
             errors.append(CatalogValidationIssue("Dependency version specifier is invalid", entry_id, field))
         if not options.check_installed:
             continue
@@ -992,6 +1011,8 @@ def main(argv: list[str] | None = None) -> int:
 
 __all__ = [
     "CATALOG_CURATION_STATUSES",
+    "CATALOG_KIND_CURATION",
+    "CATALOG_KIND_MANAGER",
     "CATALOG_REQUIRED_FIELDS",
     "CATALOG_ENV_VAR",
     "CATALOG_RESOURCE",

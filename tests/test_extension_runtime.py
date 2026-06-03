@@ -260,6 +260,11 @@ def test_extension_action_result_shapes_update_session_history_and_refresh(
                 def pop_eeg_command(EEG, *, return_com=False):
                     return dict(EEG, setname="eeg-command"), "EEG = pop_eeg_command(EEG);"
 
+                def dataset_state(EEG, *, return_com=False):
+                    updated = dict(EEG, setname="state-extension")
+                    command = "[ALLEEG EEG CURRENTSET LASTCOM] = pop_dataset_state(ALLEEG, EEG, CURRENTSET);"
+                    return ([updated], updated, 1, command)
+
                 def command_only(*, session=None, return_com=False):
                     return "LASTCOM = extension_command();"
 
@@ -275,6 +280,7 @@ def test_extension_action_result_shapes_update_session_history_and_refresh(
             actions=(
                 ExtensionAction("pop_eeg_only", LazyImport(f"{package}.actions", "pop_eeg_only")),
                 ExtensionAction("pop_eeg_command", LazyImport(f"{package}.actions", "pop_eeg_command")),
+                ExtensionAction("pop_dataset_state", LazyImport(f"{package}.actions", "dataset_state")),
                 ExtensionAction("command_only", LazyImport(f"{package}.actions", "command_only")),
                 ExtensionAction("no_mutation", LazyImport(f"{package}.actions", "no_mutation")),
             ),
@@ -287,17 +293,117 @@ def test_extension_action_result_shapes_update_session_history_and_refresh(
 
     dispatcher.dispatch("pop_eeg_only")
     dispatcher.dispatch("pop_eeg_command")
+    dispatcher.dispatch("pop_dataset_state")
     dispatcher.dispatch("command_only")
     history_after_command = list(session.ALLCOM)
     dispatcher.dispatch("no_mutation")
 
-    assert session.EEG["setname"] == "eeg-command"
+    assert session.EEG["setname"] == "state-extension"
+    assert session.CURRENTSET == [1]
     assert session.ALLCOM == [
         "EEG = pop_eeg_command(EEG);",
+        "[ALLEEG EEG CURRENTSET LASTCOM] = pop_dataset_state(ALLEEG, EEG, CURRENTSET);",
         "LASTCOM = extension_command();",
     ]
     assert session.ALLCOM == history_after_command
-    assert refresh.call_count == 3
+    assert refresh.call_count == 4
+
+
+def test_importer_extension_action_prompts_for_filename_without_current_dataset(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    package = "extension_importer"
+    csv_path = tmp_path / "demo.csv"
+    np.savetxt(csv_path, np.array([[1.0, 2.0], [3.0, 4.0]]), delimiter=",")
+    _write_package(
+        tmp_path,
+        package,
+        {
+            "actions.py": """
+                from pathlib import Path
+                import numpy as np
+
+                def pop_import_csv(filename, *, return_com=False):
+                    path = Path(filename)
+                    data = np.loadtxt(path, delimiter=",")
+                    eeg = {
+                        "setname": path.stem,
+                        "data": data,
+                        "nbchan": int(data.shape[0]),
+                        "pnts": int(data.shape[1]),
+                        "trials": 1,
+                        "srate": 1.0,
+                    }
+                    command = f"EEG = pop_import_csv({str(path)!r});"
+                    return (eeg, command) if return_com else eeg
+            """,
+        },
+        monkeypatch,
+    )
+    runtime = _runtime(
+        ExtensionSpec(
+            name="importer_extension",
+            actions=(
+                ExtensionAction(
+                    "pop_import_csv",
+                    LazyImport(f"{package}.actions", "pop_import_csv"),
+                    capabilities=("file-import", "history"),
+                ),
+            ),
+        )
+    )
+    session = EEGPrepSession()
+    dispatcher = MenuActionDispatcher(session, extension_runtime=runtime)
+
+    with mock.patch.object(dispatcher, "_ask_extension_filename", return_value=str(csv_path)):
+        dispatcher.dispatch("pop_import_csv")
+
+    assert session.CURRENTSET == [1]
+    assert session.EEG["setname"] == "demo"
+    np.testing.assert_allclose(session.EEG["data"], np.array([[1.0, 2.0], [3.0, 4.0]]))
+    assert session.ALLCOM == [f"EEG = pop_import_csv({str(csv_path)!r});"]
+
+
+def test_browser_extension_lastcom_result_does_not_replace_current_dataset(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    package = "extension_browser"
+    _write_package(
+        tmp_path,
+        package,
+        {
+            "actions.py": """
+                def pop_browser(EEG, *, return_com=False):
+                    model = {
+                        "kind": "browser-model",
+                        "setname": EEG.get("setname", ""),
+                        "nbchan": EEG.get("nbchan", 0),
+                        "pnts": EEG.get("pnts", 0),
+                    }
+                    command = "LASTCOM = pop_browser(EEG);"
+                    return (model, command) if return_com else model
+            """,
+        },
+        monkeypatch,
+    )
+    runtime = _runtime(
+        ExtensionSpec(
+            name="browser_extension",
+            actions=(ExtensionAction("pop_browser", LazyImport(f"{package}.actions", "pop_browser")),),
+        )
+    )
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(), new=True)
+    original = session.EEG
+    dispatcher = MenuActionDispatcher(session, extension_runtime=runtime)
+
+    dispatcher.dispatch("pop_browser")
+
+    assert session.EEG is original
+    assert session.CURRENTSET == [1]
+    assert session.ALLCOM == ["LASTCOM = pop_browser(EEG);"]
 
 
 def test_registered_extension_pop_function_dispatches_as_gui_action(

@@ -5,7 +5,7 @@ from __future__ import annotations
 import inspect
 import logging
 import webbrowser
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -20,6 +20,9 @@ logger = logging.getLogger(__name__)
 
 # Action handlers import user-facing pop/plugin modules lazily so launching the
 # main GUI does not eagerly load heavier signal-processing and optional stacks.
+_EXTENSION_FILE_PARAMETERS = ("filename", "filepath", "path")
+_EEG_CORE_FIELDS = ("nbchan", "srate", "pnts", "trials")
+
 IMPLEMENTED_ACTIONS = {
     "clear_study",
     "docs",
@@ -931,60 +934,92 @@ class MenuActionDispatcher:
         show_dialog = parent is not None and _qt_widgets() is not None
         plugin_menu(parent=parent if show_dialog else None, session=self.session, show=show_dialog)
 
-    def _run_extension_action(self, action: Any, name: str, variant: str, parent: Any | None) -> None:
+    def _run_extension_action(self, action: Any, name: str, _variant: str, parent: Any | None) -> None:
         target = action.load()
-        result = self._call_extension_target(target, name, variant, parent)
+        capabilities = tuple(getattr(action, "capabilities", ()) or ())
+        result = self._call_extension_target(target, name, parent, capabilities=capabilities)
         self._apply_extension_result(result)
 
-    def _call_extension_target(self, target: Callable[..., Any], name: str, variant: str, parent: Any | None) -> Any:
+    def _call_extension_target(
+        self,
+        target: Callable[..., Any],
+        name: str,
+        parent: Any | None,
+        *,
+        capabilities: tuple[str, ...] = (),
+    ) -> Any:
         try:
             parameters = inspect.signature(target).parameters
         except (TypeError, ValueError):
             parameters = {}
         allow_multiple = name in _MULTIPLE_DATASET_ACTIONS
+        provided: dict[str, Any] = {}
         kwargs: dict[str, Any] = {}
         if "return_com" in parameters:
-            kwargs["return_com"] = True
-        if "variant" in parameters:
-            kwargs["variant"] = variant
+            provided["return_com"] = True
         if "session" in parameters:
-            kwargs["session"] = self.session
+            provided["session"] = self.session
         if "parent" in parameters:
-            kwargs["parent"] = parent
+            provided["parent"] = parent
         for eeg_name in ("EEG", "eeg"):
             if eeg_name in parameters:
                 selection = self._current_selection_or_warn(parent, allow_multiple=allow_multiple)
                 if selection is None:
                     return None
-                kwargs[eeg_name] = selection
-                return target(**kwargs)
-        if name.startswith("pop_"):
+                provided[eeg_name] = selection
+                break
+        file_name = _extension_file_parameter(parameters)
+        if file_name is not None and file_name not in provided:
+            filename = self._ask_extension_filename(parent, capabilities=capabilities)
+            if not filename:
+                return None
+            provided[file_name] = filename
+        required = _required_extension_parameters(parameters, provided)
+        if required and name.startswith("pop_"):
+            raise ValueError(f"Extension action {name!r} requires unsupported argument {required[0].name!r}")
+        if required:
             selection = self._current_selection_or_warn(parent, allow_multiple=allow_multiple)
             if selection is None:
                 return None
-            return target(selection, **kwargs)
-        required = [
-            parameter
-            for parameter in parameters.values()
-            if parameter.default is inspect.Signature.empty
-            and parameter.kind
-            in {
-                inspect.Parameter.POSITIONAL_ONLY,
+            provided[required[0].name] = selection
+        args = []
+        for parameter in parameters.values():
+            if parameter.name not in provided:
+                continue
+            value = provided[parameter.name]
+            if parameter.kind == inspect.Parameter.POSITIONAL_ONLY:
+                args.append(value)
+            elif parameter.kind in {
                 inspect.Parameter.POSITIONAL_OR_KEYWORD,
-            }
-            and parameter.name not in kwargs
-        ]
-        if not required:
-            return target(**kwargs)
-        first = required[0]
-        if first.name == "session":
-            return target(self.session, **kwargs)
-        if first.name == "parent":
-            return target(parent, **kwargs)
-        selection = self._current_selection_or_warn(parent, allow_multiple=allow_multiple)
-        if selection is None:
-            return None
-        return target(selection, **kwargs)
+                inspect.Parameter.KEYWORD_ONLY,
+            }:
+                kwargs[parameter.name] = value
+        return target(*args, **kwargs)
+
+    def _ask_extension_filename(
+        self,
+        parent: Any | None,
+        *,
+        capabilities: tuple[str, ...] = (),
+    ) -> str:
+        qt_widgets = _require_qt_widgets()
+        if any(capability in capabilities for capability in ("file-export", "exports-eeg")):
+            filename, _filter = qt_widgets.QFileDialog.getSaveFileName(
+                parent,
+                "Export data",
+                "",
+                "All files (*)",
+                **self._file_dialog_kwargs(qt_widgets),
+            )
+        else:
+            filename, _filter = qt_widgets.QFileDialog.getOpenFileName(
+                parent,
+                "Import data",
+                "",
+                "All files (*)",
+                **self._file_dialog_kwargs(qt_widgets),
+            )
+        return filename
 
     def _apply_extension_result(self, result: Any) -> None:
         dataset_state = _extension_dataset_state(result)
@@ -1652,6 +1687,8 @@ def _extension_dataset_state(result: Any) -> tuple[list[dict[str, Any]], Any, An
 def _extension_eeg_and_command(result: Any) -> tuple[Any | None, str]:
     if isinstance(result, tuple):
         command = str(result[1]).strip() if len(result) > 1 and isinstance(result[1], str) else ""
+        if _history_only_command(command):
+            return None, command
         if result and _is_eeg_selection(result[0]):
             return result[0], command
         return None, command
@@ -1664,8 +1701,47 @@ def _extension_eeg_and_command(result: Any) -> tuple[Any | None, str]:
 
 def _is_eeg_selection(value: Any) -> bool:
     if isinstance(value, dict):
-        return any(key in value for key in ("data", "nbchan", "setname"))
-    return isinstance(value, list) and all(isinstance(item, dict) for item in value)
+        return "data" in value and any(key in value for key in _EEG_CORE_FIELDS)
+    return isinstance(value, list) and bool(value) and all(_is_eeg_selection(item) for item in value)
+
+
+def _history_only_command(command: str) -> bool:
+    return command.lstrip().startswith("LASTCOM")
+
+
+def _extension_file_parameter(parameters: Mapping[str, inspect.Parameter]) -> str | None:
+    for name in _EXTENSION_FILE_PARAMETERS:
+        parameter = parameters.get(name)
+        if parameter is None:
+            continue
+        if (
+            parameter.kind
+            in {
+                inspect.Parameter.POSITIONAL_ONLY,
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                inspect.Parameter.KEYWORD_ONLY,
+            }
+            and parameter.default is inspect.Signature.empty
+        ):
+            return name
+    return None
+
+
+def _required_extension_parameters(
+    parameters: Mapping[str, inspect.Parameter],
+    provided: Mapping[str, Any],
+) -> list[inspect.Parameter]:
+    return [
+        parameter
+        for parameter in parameters.values()
+        if parameter.default is inspect.Signature.empty
+        and parameter.kind
+        in {
+            inspect.Parameter.POSITIONAL_ONLY,
+            inspect.Parameter.POSITIONAL_OR_KEYWORD,
+        }
+        and parameter.name not in provided
+    ]
 
 
 def _pop_eegplot_variant_options(variant: str) -> tuple[int, int, int]:

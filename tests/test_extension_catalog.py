@@ -13,6 +13,8 @@ from typing import Any
 import pytest
 
 from eegprep.extension_catalog import (
+    CATALOG_KIND_CURATION,
+    CATALOG_KIND_MANAGER,
     CATALOG_SCHEMA_VERSION,
     CatalogValidationOptions,
     load_catalog_entries,
@@ -104,7 +106,7 @@ def test_catalog_cli_emits_json_report(tmp_path: Path, capsys: pytest.CaptureFix
 def test_schema_version_mismatch_is_reported(tmp_path: Path) -> None:
     catalog = tmp_path / "catalog.json"
     catalog.write_text(
-        '{"schema_version": 999, "extensions": []}',
+        '{"catalog_kind": "extension_curation", "schema_version": 999, "extensions": []}',
         encoding="utf-8",
     )
 
@@ -112,6 +114,19 @@ def test_schema_version_mismatch_is_reported(tmp_path: Path) -> None:
 
     assert not report.ok
     assert f"schema_version must be {CATALOG_SCHEMA_VERSION}" in report.errors[0].message
+
+
+def test_curation_validator_rejects_extension_manager_catalog_kind(tmp_path: Path) -> None:
+    catalog = tmp_path / "catalog.json"
+    catalog.write_text(
+        json.dumps({"catalog_kind": CATALOG_KIND_MANAGER, "schema_version": CATALOG_SCHEMA_VERSION, "extensions": []}),
+        encoding="utf-8",
+    )
+
+    report = validate_catalog_file(catalog)
+
+    assert not report.ok
+    assert f"catalog_kind must be {CATALOG_KIND_CURATION!r}" in report.errors[0].message
 
 
 def test_invalid_metadata_rejects_malicious_looking_fields() -> None:
@@ -406,7 +421,13 @@ def _messages(report: Any) -> str:
 
 def _write_catalog(path: Path, *entries: dict[str, Any]) -> None:
     path.write_text(
-        json.dumps({"schema_version": CATALOG_SCHEMA_VERSION, "extensions": list(entries)}),
+        json.dumps(
+            {
+                "catalog_kind": CATALOG_KIND_CURATION,
+                "schema_version": CATALOG_SCHEMA_VERSION,
+                "extensions": list(entries),
+            }
+        ),
         encoding="utf-8",
     )
 

@@ -11,6 +11,7 @@ import pytest
 from eegprep.extensions import ExtensionRecord, ExtensionSourceType, ExtensionSpec, ExtensionStatus
 from eegprep.extension_catalog import (
     INSTALL_TRUST_WARNING,
+    CATALOG_KIND_MANAGER,
     ExtensionCatalog,
     ExtensionCatalogEntry,
     load_extension_catalog,
@@ -384,6 +385,7 @@ def test_local_catalog_json_supports_git_and_rejects_archives(tmp_path: Path) ->
     catalog_path.write_text(
         """
         {
+          "catalog_kind": "extension_manager",
           "schema_version": 1,
           "extensions": [
             {
@@ -423,6 +425,7 @@ def test_catalog_rejects_local_archive_paths(tmp_path: Path) -> None:
     catalog_path.write_text(
         """
         {
+          "catalog_kind": "extension_manager",
           "schema_version": 1,
           "extensions": [
             {
@@ -444,7 +447,10 @@ def test_catalog_rejects_local_archive_paths(tmp_path: Path) -> None:
 def test_environment_catalog_path_is_used(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     catalog_path = tmp_path / "catalog.json"
     catalog_path.write_text(
-        '{"schema_version": 1, "extensions": [{"name": "env_extension", "package_name": "eegprep-ext-env"}]}',
+        (
+            '{"catalog_kind": "extension_manager", "schema_version": 1, '
+            '"extensions": [{"name": "env_extension", "package_name": "eegprep-ext-env"}]}'
+        ),
         encoding="utf-8",
     )
     monkeypatch.setenv("EEGPREP_EXTENSION_CATALOG", str(catalog_path))
@@ -453,6 +459,36 @@ def test_environment_catalog_path_is_used(tmp_path: Path, monkeypatch: pytest.Mo
 
     assert [plugin["plugin"] for plugin in plugins] == ["env_extension"]
     assert plugins[0]["install_commands"]["uv"] == "uv add eegprep-ext-env"
+
+
+def test_extension_manager_catalog_rejects_curation_schema_and_unsafe_urls(tmp_path: Path) -> None:
+    curation_path = tmp_path / "curation.json"
+    curation_path.write_text(
+        (
+            '{"catalog_kind": "extension_curation", "schema_version": 1, '
+            '"extensions": [{"id": "curated_ext", "extension_name": "curated_ext", '
+            '"entry_point": "curated", "package_name": "eegprep-ext-curated"}]}'
+        ),
+        encoding="utf-8",
+    )
+    unsafe_path = tmp_path / "unsafe.json"
+    unsafe_path.write_text(
+        (
+            '{"catalog_kind": "extension_manager", "schema_version": 1, '
+            '"extensions": [{"name": "unsafe_extension", "package_name": "eegprep-ext-unsafe", '
+            '"docs_url": "javascript:alert(1)", '
+            '"source": {"type": "pypi", "url": "https://pypi.org/project/eegprep-ext-unsafe/"}}]}'
+        ),
+        encoding="utf-8",
+    )
+
+    curation_catalog = load_extension_catalog(curation_path)
+    unsafe_catalog = load_extension_catalog(unsafe_path)
+
+    assert curation_catalog.entries == ()
+    assert f"catalog_kind must be {CATALOG_KIND_MANAGER!r}" in curation_catalog.errors[0]
+    assert unsafe_catalog.entries == ()
+    assert "docs_url must be an https:// or http:// URL" in unsafe_catalog.errors[0]
 
 
 def test_gui_extension_manager_dialog_renders_details_and_commands() -> None:

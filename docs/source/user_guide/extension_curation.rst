@@ -64,12 +64,14 @@ Catalog submission format
 =========================
 
 The future ``eegprep-extension-index`` repository should use JSON metadata with
-schema version 1. A catalog file may contain a top-level ``extensions`` list, or
-each extension can live in its own JSON file in a directory.
+catalog kind ``extension_curation`` and schema version 1. A catalog file may
+contain a top-level ``extensions`` list, or each extension can live in its own
+JSON file in a directory.
 
 .. code-block:: json
 
    {
+     "catalog_kind": "extension_curation",
      "schema_version": 1,
      "extensions": [
        {
@@ -152,6 +154,11 @@ Public packages should prefer names like ``eegprep-ext-clean-example``. The
 validator warns when a package does not use the ``eegprep-ext-`` prefix, but it
 does not reject the package. Discovery uses the ``eegprep.extensions`` entry
 point, not package names.
+
+Extension ``pop_*`` names should also be unique. If an extension declares a
+``pop_*`` name that already exists in core EEGPrep, the core command remains the
+console/default target; choose a lab- or method-specific name such as
+``pop_labname_clean`` to avoid surprising users.
 
 Author test harness
 ===================

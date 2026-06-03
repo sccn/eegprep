@@ -328,13 +328,16 @@ Catalog Schema
 EEGPrep ships a packaged ``resources/extension_catalog.json`` file and can load
 a local JSON catalog for tests or future download integration. Set
 ``EEGPREP_EXTENSION_CATALOG`` or pass ``catalog_path=`` to ``plugin_menu``.
-Catalog loading is local-file-only; it does not fetch URLs.
+Catalog loading is local-file-only; it does not fetch URLs. This Extension
+Manager catalog uses ``catalog_kind: "extension_manager"``; public curation
+submissions use the separate ``extension_curation`` format described below.
 
 Minimal catalog:
 
 .. code-block:: json
 
    {
+     "catalog_kind": "extension_manager",
      "schema_version": 1,
      "extensions": [
        {

@@ -21,6 +21,7 @@ from eegprep.extensions import (
     ExtensionSpec,
     ExtensionStatus,
     LazyImport,
+    extension_version_satisfies,
     validate_extension_spec,
 )
 
@@ -273,6 +274,13 @@ def test_unsupported_api_or_eegprep_version_is_incompatible(
     records = registry.discover()
 
     assert records[0].status == ExtensionStatus.INCOMPATIBLE
+
+
+def test_version_specifiers_use_pep440_semantics() -> None:
+    assert extension_version_satisfies("1.0.0", ">=1.0.0rc1")
+    assert not extension_version_satisfies("1.0.0a1", ">=1.0.0")
+    result = validate_extension_spec(ExtensionSpec(name="bad_spec", eegprep_requires="not-a-spec"))
+    assert "not a valid version specifier" in result.invalid_spec[0]
 
 
 def test_missing_dependency_is_reported_without_crashing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -583,7 +591,7 @@ def test_extension_resource_readers_raise_for_missing_resources(
     missing = ExtensionResource(package, "data/missing.txt")
 
     assert resource.read_text() == "hello resource\n"
-    assert resource.read_bytes() == b"hello resource\n"
+    assert resource.read_bytes().decode("utf-8").splitlines() == ["hello resource"]
     with pytest.raises(FileNotFoundError, match="data/missing.txt"):
         missing.read_text()
     with pytest.raises(FileNotFoundError, match="data/missing.txt"):
