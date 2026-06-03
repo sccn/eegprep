@@ -95,6 +95,7 @@ _LAZY_EXPORTS = {
     "eeg_rpsd": ("eegprep.plugins.ICLabel.eeg_rpsd", "eeg_rpsd"),
     "eeg_runica": ("eegprep.functions.popfunc.eeg_runica", "eeg_runica"),
     "eeg_store": ("eegprep.functions.adminfunc.eeg_store", "eeg_store"),
+    "eegh": ("eegprep.functions.adminfunc.eegh", "eegh"),
     "eeglab": ("eegprep.functions.adminfunc.eeglab", "eeglab"),
     "eeglab_clean_artifacts": ("eegprep.functions.adminfunc.eeglabcompat", "clean_artifacts"),
     "eegrej": ("eegprep.functions.sigprocfunc.eegrej", "eegrej"),
