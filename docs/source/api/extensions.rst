@@ -1,6 +1,5 @@
 .. _api_extensions:
 
-==========================
 Extension SDK and Registry
 ==========================
 
@@ -85,6 +84,30 @@ functions, help resources exist, lazy targets load, and callable actions or
 ``pop_*`` functions return EEGLAB-style ``(EEG, com)`` results when tested by
 the author.
 
+Extension Manager and catalog
+=============================
+
+``plugin_menu(show=False)`` returns the Extension Manager inventory for scripts
+and ``eegprep-console``. The inventory is built from registry records plus a
+metadata-only curated catalog loaded from packaged resources, a local
+``catalog_path=``, or ``EEGPREP_EXTENSION_CATALOG``. Catalog entries are advisory
+metadata: package names, repository/documentation links, maintainers,
+capabilities, and safe install-command strings. They never contain code zips,
+and EEGPrep never executes install or update commands.
+
+Use ``load_extension_catalog()`` to inspect a local catalog before passing it to
+``plugin_menu``:
+
+.. code-block:: python
+
+   catalog = eegprep.load_extension_catalog("lab-extension-catalog.json")
+   plugins = eegprep.plugin_menu(catalog=catalog, show=False)
+
+``build_safe_install_commands()`` and ``build_safe_update_commands()`` return
+copyable strings such as ``uv add eegprep-ext-foo`` or
+``pip install git+https://github.com/example/eegprep-ext-foo.git``. They do not
+run subprocesses.
+
 API Reference
 =============
 
@@ -104,6 +127,9 @@ API Reference
    eegprep.ExtensionRecord
    eegprep.ExtensionStatus
    eegprep.ExtensionSourceType
+   eegprep.ExtensionCatalog
+   eegprep.ExtensionCatalogEntry
+   eegprep.CatalogSourceType
    eegprep.ExtensionAction
    eegprep.ExtensionPopFunction
    eegprep.ExtensionMenu
@@ -121,6 +147,9 @@ API Reference
    eegprep.validate_catalog_entries
    eegprep.validate_catalog_file
    eegprep.validate_extension_spec
+   eegprep.load_extension_catalog
+   eegprep.build_safe_install_commands
+   eegprep.build_safe_update_commands
 
 .. automodule:: eegprep.extensions
    :members:
