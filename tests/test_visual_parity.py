@@ -415,6 +415,8 @@ class VisualParityCaptureTests(unittest.TestCase):
             self.assertTrue(results[0].ok)
             script_text = next((tmp_path / "pop_newset_dialog").glob("*.m")).read_text()
             self.assertIn("action = 'pop_newset';", script_text)
+            self.assertIn("ALLEEG = EEG;", script_text)
+            self.assertIn("CURRENTSET = 1;", script_text)
             self.assertIn("[ALLEEG, EEG, CURRENTSET, com] = pop_newset(ALLEEG, EEG, CURRENTSET);", script_text)
             self.assertIn("capture_simple_pop_dialog", script_text)
 
