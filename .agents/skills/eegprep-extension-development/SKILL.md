@@ -20,9 +20,9 @@ packages and feel natural to EEGLAB users inside EEGPrep.
 3. If porting an EEGLAB plugin or workflow, inspect the matching EEGLAB MATLAB
    source during development. Do not make runtime extension code depend on a
    local EEGLAB checkout.
-4. Check whether Phase 4 templates, scaffolding, or examples exist in the
-   current branch. Reference or use them where available; do not duplicate their
-   full implementation inside custom extension code.
+4. Check `examples/extensions/` for templates, scaffolding, and focused example
+   packages. Reference or use them where available; do not duplicate their full
+   implementation inside custom extension code.
 
 ## Plan the Extension
 
@@ -164,4 +164,5 @@ Before proposing curation, verify:
 - Menus, help, package data, `pop_*` history, and console behavior are covered.
 - Optional dependencies and large files are documented and do not block startup.
 - Experimental status is explicit in docs and metadata.
-- Governance/catalog checks from Phase 5, if present in the branch, pass.
+- Governance/catalog checks pass when the extension is intended for catalog
+  submission.

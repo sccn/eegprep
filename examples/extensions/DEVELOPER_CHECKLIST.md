@@ -7,8 +7,7 @@ Use this checklist before sharing an extension with another EEG researcher.
 - Match EEGLAB label text, control order, defaults, enabled states, and button behavior for ported dialogs.
 - Put renderer-independent dialog specs in code and test them with a fake renderer.
 - Return the original EEG and an empty command when the user cancels a dialog.
-- Keep Help buttons disabled until your extension runtime can route them to packaged Markdown resources.
-- When Help routing is available, point Help buttons at packaged Markdown resources, not MATLAB files or Python docstrings.
+- Route Help buttons to packaged Markdown resources, not MATLAB files or Python docstrings.
 
 ## Console And History
 
@@ -16,7 +15,7 @@ Use this checklist before sharing an extension with another EEG researcher.
 - Mutating `pop_*` functions return `(EEG, com)` where `com` is an EEGLAB-style command string.
 - Console wrappers can replay the command after MATLAB-to-Python conversion.
 - GUI actions that mutate EEG update `LASTCOM` and `ALLCOM` through `EEGPrepSession`.
-- Treat `ExtensionMenu` entries as declarative metadata unless your target EEGPrep runtime has installed-extension menu insertion enabled.
+- Treat `ExtensionMenu` entries as declarative metadata; EEGPrep's installed extension runtime handles menu insertion.
 
 ## EEG Data Semantics
 

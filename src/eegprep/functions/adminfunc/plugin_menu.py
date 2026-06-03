@@ -221,7 +221,7 @@ def plugin_menu(
 
     Args:
         pluginlist: Optional extension inventory to display. Defaults to the
-            Phase 1 extension registry merged with the curated metadata catalog.
+            extension registry merged with the curated metadata catalog.
         parent: Optional Qt parent widget for the dialog.
         session: Optional :class:`EEGPrepSession`; its ``PLUGINLIST`` mirror is
             updated with the displayed inventory.

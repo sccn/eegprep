@@ -30,4 +30,4 @@ The package contributes `pop_template_gain`, a single `pop_*` function that
 scales EEG data, records an EEGLAB-style history command, declares Tools menu
 metadata for the extension runtime, and exposes packaged help plus sample data
 resources. Current EEGPrep SDK tests can validate the menu metadata; actual GUI
-insertion depends on the Phase 2 runtime integration.
+insertion is handled by the installed extension runtime.
