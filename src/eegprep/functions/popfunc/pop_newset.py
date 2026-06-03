@@ -56,11 +56,15 @@ def pop_newset(
     eeg_to_store = _apply_dataset_metadata(EEG, options)
     if _should_save(options.get("saveold", False)) and CURRENTSET:
         _save_existing_datasets(alleeg, CURRENTSET)
-    if _should_save(options.get("savenew", False)):
+    saved_new = _should_save(options.get("savenew", False))
+    if saved_new:
         _save_new_dataset(eeg_to_store, options.get("savenew"))
 
     store_index = _store_index(CURRENTSET, eeg_to_store, options)
     alleeg, current, current_set = eeg_store(alleeg, eeg_to_store, store_index)
+    if saved_new and isinstance(current, dict) and isinstance(current_set, int):
+        current["saved"] = "yes"
+        alleeg[current_set - 1]["saved"] = "yes"
     command = _history_command(_command_options(options, store_index))
     return alleeg, current, current_set, command
 
@@ -208,6 +212,7 @@ def _save_new_dataset(EEG: dict[str, Any] | list[dict[str, Any]], target: Any) -
     if filename is None:
         raise ValueError("savenew requires a filename or dataset filename/filepath metadata")
     pop_saveset(EEG, filename)
+    EEG["saved"] = "yes"
 
 
 def _dataset_filename(EEG: dict[str, Any]) -> str | None:

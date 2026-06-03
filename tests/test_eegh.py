@@ -39,3 +39,12 @@ def test_eegh_command_appends_to_eeg_history():
         "EEG = pop_loadset('sample.set');",
         "EEG = pop_resample(EEG, 64);",
     ]
+
+
+def test_eegh_eeg_history_dedup_compares_last_line_exactly():
+    eeg = {"history": "AEEG = pop_reref(EEG);"}
+
+    eegh("EEG = pop_reref(EEG);", eeg)
+    eegh("EEG = pop_reref(EEG);", eeg)
+
+    assert eeg["history"].splitlines() == ["AEEG = pop_reref(EEG);", "EEG = pop_reref(EEG);"]

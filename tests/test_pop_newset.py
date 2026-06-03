@@ -1,6 +1,8 @@
+from pathlib import Path
+from unittest import mock
+
 import numpy as np
 import pytest
-from unittest import mock
 
 from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
 from eegprep.functions.popfunc.pop_newset import pop_newset
@@ -135,6 +137,18 @@ def test_pop_newset_saveold_and_savenew_call_pop_saveset():
     alleeg, current, current_set, _command = pop_newset([], original, 0)
 
     with mock.patch("eegprep.functions.popfunc.pop_newset.pop_saveset") as saveset:
-        pop_newset(alleeg, processed, current_set, "overwrite", "on", "saveold", "on", "savenew", "/tmp/new.set")
+        alleeg, current, current_set, _command = pop_newset(
+            alleeg,
+            processed,
+            current_set,
+            "overwrite",
+            "on",
+            "saveold",
+            "on",
+            "savenew",
+            "/tmp/new.set",
+        )
 
-    assert [call.args[1] for call in saveset.call_args_list] == ["/tmp/original.set", "/tmp/new.set"]
+    assert [call.args[1] for call in saveset.call_args_list] == [str(Path("/tmp") / "original.set"), "/tmp/new.set"]
+    assert current["saved"] == "yes"
+    assert alleeg[current_set - 1]["saved"] == "yes"

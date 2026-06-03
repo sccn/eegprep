@@ -907,6 +907,44 @@ class MenuActionDispatcherTests(unittest.TestCase):
         self.assertEqual(session.EEG["setname"], "demo")
         self.assertEqual(session.ALLCOM, [])
 
+    def test_gui_transform_action_overwrites_multiple_selected_datasets(self):
+        session = EEGPrepSession()
+        first = _demo_eeg()
+        second = _demo_eeg()
+        second["setname"] = "second"
+        session.store_current(first, new=True)
+        session.store_current(second, new=True)
+        session.retrieve([1, 2])
+        dispatcher = MenuActionDispatcher(session)
+        original_alleeg = list(session.ALLEEG)
+        processed = [
+            dict(original_alleeg[0], setname="first resampled"),
+            dict(original_alleeg[1], setname="second resampled"),
+        ]
+        newset_command = "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, 'overwrite', 'on');"
+
+        with (
+            mock.patch(
+                "eegprep.functions.popfunc.pop_resample.pop_resample",
+                return_value=(processed, "ALLEEG = pop_resample(ALLEEG, 64);"),
+            ),
+            mock.patch(
+                "eegprep.functions.guifunc.menu_actions.pop_newset",
+                return_value=(processed, processed, [1, 2], newset_command),
+            ) as newset,
+        ):
+            dispatcher.dispatch("pop_resample", parent=object())
+
+        newset.assert_called_once()
+        self.assertEqual(newset.call_args.args[:3], (original_alleeg, processed, [1, 2]))
+        self.assertEqual(newset.call_args.args[3:], ("gui", "off", "overwrite", "on"))
+        self.assertEqual(session.CURRENTSET, [1, 2])
+        self.assertEqual(session.ALLEEG[0]["setname"], "first resampled")
+        self.assertEqual(session.ALLEEG[1]["setname"], "second resampled")
+        self.assertEqual(session.ALLCOM[-2:], ["ALLEEG = pop_resample(ALLEEG, 64);", newset_command])
+        self.assertIn("ALLEEG = pop_resample(ALLEEG, 64);", session.ALLEEG[0]["history"])
+        self.assertIn("ALLEEG = pop_resample(ALLEEG, 64);", session.ALLEEG[1]["history"])
+
     def test_topoplot_menu_actions_record_history_without_replacing_dataset(self):
         session = EEGPrepSession()
         session.store_current(_demo_eeg(), new=True)

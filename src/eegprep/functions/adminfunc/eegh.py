@@ -47,7 +47,7 @@ def _append_history(history: list[str], command: str) -> None:
 def _append_eeg_history(eeg: dict[str, Any], command: str) -> None:
     existing = str(eeg.get("history") or "")
     line = command.rstrip(";") + ";"
-    if existing.rstrip().endswith(line):
+    if existing.rstrip().splitlines()[-1:] == [line]:
         return
     eeg["history"] = (existing.rstrip() + "\n" + line).lstrip()
 
