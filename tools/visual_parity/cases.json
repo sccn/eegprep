@@ -1094,7 +1094,7 @@
     {
       "id": "pop_newset_dialog",
       "description": "Dataset commit dialog opened from pop_newset.",
-      "window_size": [460, 210],
+      "window_size": [638, 332],
       "timeout_seconds": 120,
       "targets": {
         "eeglab": {

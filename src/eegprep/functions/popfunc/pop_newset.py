@@ -9,7 +9,7 @@ from typing import Any
 from eegprep.functions.adminfunc.eeg_retrieve import eeg_retrieve
 from eegprep.functions.adminfunc.eeg_store import eeg_store
 from eegprep.functions.guifunc.inputgui import inputgui
-from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
+from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args
 from eegprep.functions.popfunc.pop_saveset import pop_saveset
 
@@ -70,26 +70,59 @@ def pop_newset_dialog_spec(EEG: dict[str, Any], CURRENTSET: Any = None, *, guist
     dataset_name = str(EEG.get("setname") or "")
     prompt = guistring or "What do you want to do with the new dataset?"
     current = _currentset_label(CURRENTSET)
+    old_prompt = f"What do you want to do with the old dataset {current} (not modified since last saved)?"
     return DialogSpec(
         title="Dataset info -- pop_newset()",
         function_name="pop_newset",
         eeglab_source="functions/popfunc/pop_newset.m",
-        geometry=(1, (0.55, 1.0), (0.55, 1.0), (0.55, 1.0)),
-        size=(460, 210),
+        geometry=((1,), (0.55, 2.8, 1.3), (0.32, 1.25, 2.8, 1.3), (1,), (1,), (0.32, 4.0)),
+        size=(638, 332),
         help_text="pophelp('pop_newset')",
+        button_size=(86, 31),
+        content_margins=(32, 24, 32, 18),
+        row_spacing=8,
         controls=(
             ControlSpec("text", prompt, font_weight="bold"),
             ControlSpec("text", "Name it:", enabled=True),
             ControlSpec("edit", tag="setname", value=dataset_name),
-            ControlSpec("text", "Store dataset:", enabled=True),
             ControlSpec(
-                "popupmenu",
-                "Create a new dataset|Overwrite current dataset " + current,
-                tag="overwrite",
-                value=1,
+                "pushbutton",
+                "Edit description",
+                tag="editdescription",
+                callback=CallbackSpec(
+                    "show_message",
+                    params={
+                        "button": "editdescription",
+                        "title": "Edit description",
+                        "message": "Dataset description editing is available from the command line using the comments option.",
+                    },
+                ),
             ),
-            ControlSpec("text", "Comments:", enabled=True),
-            ControlSpec("edit", tag="comments", value=str(EEG.get("comments") or "")),
+            ControlSpec(
+                "checkbox",
+                "",
+                tag="savenew",
+                value=False,
+                callback=CallbackSpec(
+                    "toggle_enabled", params={"source": "savenew", "targets": ("savefile", "savebrowse")}
+                ),
+            ),
+            ControlSpec("text", "Save it as file:", enabled=True),
+            ControlSpec("edit", tag="savefile", value="", enabled=False),
+            ControlSpec(
+                "pushbutton",
+                "Browse",
+                tag="savebrowse",
+                enabled=False,
+                callback=CallbackSpec(
+                    "select_file", params={"button": "savebrowse", "target": "savefile", "mode": "save"}
+                ),
+            ),
+            ControlSpec("spacer"),
+            ControlSpec("text", old_prompt, font_weight="bold"),
+            ControlSpec(
+                "checkbox", "Overwrite it in memory (set=yes; unset=create a new dataset)", tag="overwrite", value=False
+            ),
         ),
     )
 
@@ -107,14 +140,17 @@ def _run_gui(
     )
     if result is None:
         return None
-    overwrite_choice = result.get("overwrite")
-    overwrite = _popup_choice_is_overwrite(overwrite_choice)
-    return {
+    overwrite = _gui_choice_is_overwrite(result.get("overwrite"))
+    gui_options = {
         "setname": str(result.get("setname") or "").strip(),
-        "comments": str(result.get("comments") or ""),
         "overwrite": "on" if overwrite else "off",
         "gui": "off",
     }
+    if "comments" in result:
+        gui_options["comments"] = str(result.get("comments") or "")
+    if _is_on(result.get("savenew")):
+        gui_options["savenew"] = str(result.get("savefile") or "on").strip() or "on"
+    return gui_options
 
 
 def _apply_dataset_metadata(
@@ -217,7 +253,9 @@ def _has_value(value: Any) -> bool:
     return value is not None and value != ""
 
 
-def _popup_choice_is_overwrite(value: Any) -> bool:
+def _gui_choice_is_overwrite(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
     if isinstance(value, str):
         return "overwrite" in value.lower()
     try:
