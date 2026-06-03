@@ -60,6 +60,17 @@ inventory purposes. Their existing menus and direct public APIs are still
 provided by the current bundled plugin modules; external menu/action/console
 wiring belongs to later extension-ecosystem phases.
 
+Authoring examples
+==================
+
+Checked-in authoring packages live under
+`examples/extensions <https://github.com/sccn/eegprep/tree/develop/examples/extensions>`__.
+Start with the template package there, then compare the focused variants for
+signal transforms, file import/export, GUI dialogs, plot/browser callbacks, and
+optional dependencies. The same directory includes a developer checklist for
+GUI parity, console/history behavior, EEG data semantics, package data,
+dependencies, tests, and version compatibility.
+
 API Reference
 =============
 
