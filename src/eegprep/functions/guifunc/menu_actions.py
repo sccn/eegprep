@@ -223,7 +223,7 @@ class MenuActionDispatcher:
     def dispatch(self, action: str, parent: Any | None = None) -> None:
         """Run a menu action."""
         base, _sep, variant = action.partition(":")
-        if action_kind(action) == "placeholder":
+        if action_kind(action, extension_runtime=self.extension_runtime) == "placeholder":
             self.show_coming_soon(action, parent)
             return
         if base == "quit":
@@ -941,6 +941,7 @@ class MenuActionDispatcher:
             parameters = inspect.signature(target).parameters
         except (TypeError, ValueError):
             parameters = {}
+        allow_multiple = name in _MULTIPLE_DATASET_ACTIONS
         kwargs: dict[str, Any] = {}
         if "return_com" in parameters:
             kwargs["return_com"] = True
@@ -952,13 +953,13 @@ class MenuActionDispatcher:
             kwargs["parent"] = parent
         for eeg_name in ("EEG", "eeg"):
             if eeg_name in parameters:
-                selection = self._current_selection_or_warn(parent, allow_multiple=True)
+                selection = self._current_selection_or_warn(parent, allow_multiple=allow_multiple)
                 if selection is None:
                     return None
                 kwargs[eeg_name] = selection
                 return target(**kwargs)
         if name.startswith("pop_"):
-            selection = self._current_selection_or_warn(parent, allow_multiple=True)
+            selection = self._current_selection_or_warn(parent, allow_multiple=allow_multiple)
             if selection is None:
                 return None
             return target(selection, **kwargs)
@@ -980,7 +981,7 @@ class MenuActionDispatcher:
             return target(self.session, **kwargs)
         if first.name == "parent":
             return target(parent, **kwargs)
-        selection = self._current_selection_or_warn(parent, allow_multiple=True)
+        selection = self._current_selection_or_warn(parent, allow_multiple=allow_multiple)
         if selection is None:
             return None
         return target(selection, **kwargs)

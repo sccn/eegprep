@@ -11,6 +11,7 @@ from eegprep.functions.adminfunc.plugin_menu import (
 )
 from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher
 from eegprep.functions.guifunc.session import EEGPrepSession
+from eegprep.extensions import ExtensionRegistry
 
 
 def test_bundled_plugins_describe_in_repo_extensions() -> None:
@@ -22,6 +23,16 @@ def test_bundled_plugins_describe_in_repo_extensions() -> None:
     assert all(plugin["status"] == "ok" for plugin in plugins)
     assert all(plugin["source"] == "bundled" for plugin in plugins)
     assert all(plugin["menu"] for plugin in plugins)
+
+
+def test_bundled_plugins_match_extension_registry_records() -> None:
+    plugins = bundled_plugins()
+    records = ExtensionRegistry(include_entry_points=False).discover()
+
+    assert [plugin["plugin"] for plugin in plugins] == [record.name for record in records]
+    assert [plugin["funcname"] for plugin in plugins] == [
+        record.spec.pop_functions[0].name for record in records if record.spec is not None
+    ]
 
 
 def test_bundled_plugins_returns_copies() -> None:

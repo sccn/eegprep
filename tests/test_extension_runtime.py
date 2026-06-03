@@ -123,6 +123,44 @@ def test_include_plugins_false_hides_bundled_plugins_without_hiding_core_menus()
     assert "From BIDS folder structure" not in [item.label for item in import_functions.children]
 
 
+def test_bundled_plugin_menus_land_at_expected_anchors() -> None:
+    menus = eeglab_menus(all_menus=True)
+    default_menus = eeglab_menus(all_menus=False)
+    tools = _child(menus, "Tools")
+    default_tools = _child(default_menus, "Tools")
+    file_menu = _child(menus, "File")
+    plot_menu = _child(menus, "Plot")
+
+    tools_labels = [item.label for item in tools.children]
+    default_tools_labels = [item.label for item in default_tools.children]
+    filter_labels = [item.label for item in _child(tools.children, "Filter the data").children]
+    import_menu = _child(file_menu.children, "Import data")
+    import_functions = _child(import_menu.children, "Using EEGPrep functions and plugins")
+    export_menu = _child(file_menu.children, "Export")
+    file_labels = [item.label for item in file_menu.children]
+    plot_labels = [item.label for item in plot_menu.children]
+
+    assert (
+        tools_labels[tools_labels.index("Inspect/reject data by eye") + 1] == "Reject data using Clean Rawdata and ASR"
+    )
+    assert (
+        default_tools_labels[default_tools_labels.index("Inspect/label components by map") + 1]
+        == "Classify components using ICLabel"
+    )
+    assert tools_labels[tools_labels.index("Remove epoch baseline") + 1] == "Source localization using DIPFIT"
+    assert filter_labels == [
+        "Basic FIR filter (new, default)",
+        "Windowed sinc FIR filter",
+        "Parks-McClellan (equiripple) FIR filter",
+        "Moving average FIR filter",
+        "Basic FIR filter (legacy)",
+    ]
+    assert "From BIDS folder structure" in [item.label for item in import_functions.children]
+    assert "To BIDS folder structure" in [item.label for item in export_menu.children]
+    assert file_labels[file_labels.index("Export") + 1] == "BIDS tools"
+    assert plot_labels[-2:] == ["View extended channel properties", "View extended component properties"]
+
+
 def test_missing_extension_menu_path_is_logged_and_skipped(caplog: pytest.LogCaptureFixture) -> None:
     runtime = _runtime(
         ExtensionSpec(
@@ -304,6 +342,54 @@ def test_registered_extension_pop_function_dispatches_as_gui_action(
     assert echoed == ["EEG = pop_gui_ext(EEG);"]
 
 
+def test_extension_pop_function_uses_single_dataset_selection_rule(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    package = "extension_single_selection"
+    _write_package(
+        tmp_path,
+        package,
+        {
+            "pop_functions.py": """
+                calls = []
+
+                def pop_single_ext(EEG, *, return_com=False):
+                    calls.append(EEG)
+                    output = dict(EEG, setname="single-extension")
+                    command = "EEG = pop_single_ext(EEG);"
+                    return (output, command) if return_com else output
+            """,
+        },
+        monkeypatch,
+    )
+    runtime = _runtime(
+        ExtensionSpec(
+            name="single_selection_extension",
+            pop_functions=(
+                ExtensionPopFunction(
+                    "pop_single_ext",
+                    LazyImport(f"{package}.pop_functions", "pop_single_ext"),
+                ),
+            ),
+        )
+    )
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg("one"), new=True)
+    session.store_current(_demo_eeg("two"), new=True)
+    session.retrieve([1, 2])
+    dispatcher = MenuActionDispatcher(session, extension_runtime=runtime)
+    module = importlib.import_module(f"{package}.pop_functions")
+
+    with mock.patch.object(dispatcher, "_warn") as warn:
+        dispatcher.dispatch("pop_single_ext", parent="window")
+
+    warn.assert_called_once_with("window", "This action is not available for multiple selected datasets")
+    assert module.calls == []
+    assert session.CURRENTSET == [1, 2]
+    assert session.ALLCOM == []
+
+
 def test_extension_action_error_after_menu_click_is_reported_without_mutation(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -463,9 +549,9 @@ def _child(items, label):
     raise AssertionError(f"missing menu item {label!r}")
 
 
-def _demo_eeg():
+def _demo_eeg(setname: str = "demo"):
     return {
-        "setname": "demo",
+        "setname": setname,
         "data": np.array([[1.0, 2.0], [3.0, 4.0]]),
         "nbchan": 2,
         "pnts": 2,
