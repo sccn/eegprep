@@ -14,6 +14,18 @@ from typing import Any, Callable
 
 EXTENSION_API_VERSION = "1"
 EXTENSION_ENTRY_POINT_GROUP = "eegprep.extensions"
+EXTENSION_NAMING_PREFIX = "eegprep-ext-"
+EXTENSION_CURATION_POLICY_URL = "user_guide/extension_curation.html"
+EXTENSION_TRUST_MESSAGE = (
+    "EEGPrep extensions are Python packages. Installing a package can run package build hooks, "
+    "and importing or activating an extension executes third-party Python code."
+)
+EXTENSION_COMPATIBILITY_POLICY = (
+    "Extension API versions are major-version compatible. EEGPrep supports extensions whose "
+    "api_version has the same major version as EXTENSION_API_VERSION. Extensions should declare "
+    "eegprep_requires and required Python dependencies; unsupported EEGPrep versions or missing "
+    "required dependencies mark the extension incompatible or missing_dependency before activation."
+)
 
 logger = logging.getLogger(__name__)
 
@@ -718,6 +730,35 @@ def validate_extension_spec(
     )
 
 
+def check_extension_compatibility(
+    spec: ExtensionSpec,
+    *,
+    current_version: str | None = None,
+    version_provider: VersionProvider = metadata.version,
+    check_dependencies: bool = True,
+) -> ExtensionValidationResult:
+    """Check extension API, EEGPrep version, and dependency compatibility.
+
+    This is the compatibility-policy entry point for catalog validation,
+    author tests, and manager status messaging. It does not verify packaged
+    resources, so callers can run it before installing optional help or data
+    files into a test fixture.
+    """
+    return validate_extension_spec(
+        spec,
+        current_version=current_version,
+        version_provider=version_provider,
+        check_compatibility=True,
+        check_dependencies=check_dependencies,
+        check_resources=False,
+    )
+
+
+def extension_version_satisfies(version: str, specifier: str) -> bool:
+    """Return whether ``version`` satisfies a simple PEP 440-style specifier."""
+    return _version_satisfies(version, specifier)
+
+
 def _validate_actions(actions: tuple[Any, ...], invalid: list[str]) -> None:
     names: set[str] = set()
     for action in actions:
@@ -1043,7 +1084,11 @@ def _as_tuple(value: Any) -> tuple[Any, ...]:
 
 __all__ = [
     "EXTENSION_API_VERSION",
+    "EXTENSION_COMPATIBILITY_POLICY",
+    "EXTENSION_CURATION_POLICY_URL",
     "EXTENSION_ENTRY_POINT_GROUP",
+    "EXTENSION_NAMING_PREFIX",
+    "EXTENSION_TRUST_MESSAGE",
     "ExtensionAction",
     "ExtensionDependency",
     "ExtensionLoadError",
@@ -1057,6 +1102,8 @@ __all__ = [
     "ExtensionStatus",
     "ExtensionValidationResult",
     "LazyImport",
+    "check_extension_compatibility",
     "discover_extensions",
+    "extension_version_satisfies",
     "validate_extension_spec",
 ]
