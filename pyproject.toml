@@ -78,6 +78,7 @@ all = [
 [project.scripts]
 eegprep-gui = "eegprep.functions.adminfunc.eeglab:main"
 eegprep-console = "eegprep.functions.adminfunc.console:main"
+eegprep-validate-extension-catalog = "eegprep.extension_catalog:main"
 
 [dependency-groups]
 dev = [

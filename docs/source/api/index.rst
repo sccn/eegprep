@@ -248,6 +248,14 @@ them.
 .. autosummary::
    :toctree: generated/
 
+   eegprep.CATALOG_SCHEMA_VERSION
+   eegprep.CatalogValidationIssue
+   eegprep.CatalogValidationOptions
+   eegprep.CatalogValidationReport
+   eegprep.EXTENSION_COMPATIBILITY_POLICY
+   eegprep.EXTENSION_CURATION_POLICY_URL
+   eegprep.EXTENSION_NAMING_PREFIX
+   eegprep.EXTENSION_TRUST_MESSAGE
    eegprep.ExtensionSpec
    eegprep.ExtensionRegistry
    eegprep.ExtensionRecord
@@ -257,8 +265,15 @@ them.
    eegprep.ExtensionResource
    eegprep.ExtensionLoadError
    eegprep.ExtensionValidationResult
+   eegprep.ExtensionTestHarness
    eegprep.LazyImport
+   eegprep.assert_extension_entry_point_loads
+   eegprep.check_extension_compatibility
    eegprep.discover_extensions
+   eegprep.extension_version_satisfies
+   eegprep.load_catalog_entries
+   eegprep.validate_catalog_entries
+   eegprep.validate_catalog_file
    eegprep.validate_extension_spec
 
 STUDY Workflows

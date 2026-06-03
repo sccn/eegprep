@@ -60,12 +60,45 @@ inventory purposes. Their existing menus and direct public APIs are still
 provided by the current bundled plugin modules; external menu/action/console
 wiring belongs to later extension-ecosystem phases.
 
+Catalog and Governance
+======================
+
+Catalog metadata validation lives in ``eegprep.extension_catalog`` and is also
+available as the ``eegprep-validate-extension-catalog`` console script. Static
+validation checks JSON schema version, required metadata, naming, URLs, license,
+maintainer contact, docs, conflicts, curation status, and compatibility fields
+without requiring the extension package to be installed.
+
+Stricter validation can also check installed package versions, required
+dependencies, the ``eegprep.extensions`` entry point, import failures, and
+whether the imported ``ExtensionSpec`` matches the catalog metadata.
+
+See :ref:`extension_curation` for the official curation policy, trust message,
+compatibility rules, catalog submission format, and naming recommendations.
+
+Author Test Harness
+===================
+
+``ExtensionTestHarness`` provides reusable assertions for extension authors. It
+checks that a spec validates, menus reference declared actions or ``pop_*``
+functions, help resources exist, lazy targets load, and callable actions or
+``pop_*`` functions return EEGLAB-style ``(EEG, com)`` results when tested by
+the author.
+
 API Reference
 =============
 
 .. autosummary::
    :toctree: generated/
 
+   eegprep.CATALOG_SCHEMA_VERSION
+   eegprep.CatalogValidationIssue
+   eegprep.CatalogValidationOptions
+   eegprep.CatalogValidationReport
+   eegprep.EXTENSION_COMPATIBILITY_POLICY
+   eegprep.EXTENSION_CURATION_POLICY_URL
+   eegprep.EXTENSION_NAMING_PREFIX
+   eegprep.EXTENSION_TRUST_MESSAGE
    eegprep.ExtensionSpec
    eegprep.ExtensionRegistry
    eegprep.ExtensionRecord
@@ -78,10 +111,25 @@ API Reference
    eegprep.ExtensionResource
    eegprep.ExtensionLoadError
    eegprep.ExtensionValidationResult
+   eegprep.ExtensionTestHarness
    eegprep.LazyImport
+   eegprep.assert_extension_entry_point_loads
+   eegprep.check_extension_compatibility
    eegprep.discover_extensions
+   eegprep.extension_version_satisfies
+   eegprep.load_catalog_entries
+   eegprep.validate_catalog_entries
+   eegprep.validate_catalog_file
    eegprep.validate_extension_spec
 
 .. automodule:: eegprep.extensions
+   :members:
+   :undoc-members:
+
+.. automodule:: eegprep.extension_catalog
+   :members:
+   :undoc-members:
+
+.. automodule:: eegprep.extension_testing
    :members:
    :undoc-members:
