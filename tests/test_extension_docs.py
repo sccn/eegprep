@@ -68,4 +68,8 @@ def test_extension_docs_cover_registry_status_language() -> None:
 
 
 def _extension_text() -> str:
-    return "\n".join(path.read_text(encoding="utf-8") for path in DOC_PATHS)
+    text_parts = []
+    for path in DOC_PATHS:
+        assert path.is_file(), f"Expected extension documentation path to exist: {path}"
+        text_parts.append(path.read_text(encoding="utf-8"))
+    return "\n".join(text_parts)
