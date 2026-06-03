@@ -15,6 +15,7 @@ from collections.abc import Callable, Iterator, Mapping
 from typing import Any
 
 import eegprep
+from eegprep.extension_runtime import ExtensionRuntime
 from eegprep.functions.adminfunc.eeglab import gui
 from eegprep.functions.guifunc.session import EEGPrepSession, normalize_dataset_indices
 from eegprep.functions.popfunc.pop_eegplot import eegplot_accept_creates_dataset
@@ -136,13 +137,19 @@ class ConsoleStudyResult:
 class LazyWorkspaceExport:
     """Lazy proxy for public EEGPrep exports in the console namespace."""
 
-    def __init__(self, name: str, value: Any | None = None) -> None:
+    def __init__(
+        self,
+        name: str,
+        value: Any | None = None,
+        resolver: Callable[[], Any] | None = None,
+    ) -> None:
         self.name = name
         self._value = value
+        self._resolver = resolver
 
     def resolve(self) -> Any:
         if self._value is None:
-            self._value = getattr(eegprep, self.name)
+            self._value = self._resolver() if self._resolver is not None else getattr(eegprep, self.name)
         return self._value
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
@@ -158,8 +165,14 @@ class LazyWorkspaceExport:
 class ConsolePopFunction(LazyWorkspaceExport):
     """Console wrapper that stores ``pop_*`` EEG outputs back into the session."""
 
-    def __init__(self, name: str, bridge: EEGPrepConsoleWorkspace, value: Any | None = None) -> None:
-        super().__init__(name, value=value)
+    def __init__(
+        self,
+        name: str,
+        bridge: EEGPrepConsoleWorkspace,
+        value: Any | None = None,
+        resolver: Callable[[], Any] | None = None,
+    ) -> None:
+        super().__init__(name, value=value, resolver=resolver)
         self.bridge = bridge
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
@@ -246,11 +259,13 @@ class EEGPrepConsoleWorkspace:
         refresh: Callable[[], None] | None = None,
         command_echo: Callable[[str], Any] | None = None,
         exports: Mapping[str, Any] | None = None,
+        extension_runtime: ExtensionRuntime | None = None,
     ) -> None:
         self.session = session
         self.window = window
         self.refresh = refresh or getattr(window, "refresh", None)
         self.command_echo = command_echo
+        self.extension_runtime = extension_runtime or ExtensionRuntime.empty()
         self.namespace: dict[str, Any] = {}
         self._eegprep_proxy = ConsoleEEGPrepModule(self)
         self._wrapped_pop_exports: dict[str, ConsolePopFunction] = {}
@@ -262,6 +277,7 @@ class EEGPrepConsoleWorkspace:
         self._terminal_buffer_token: contextvars.Token | None = None
         self._bind_base_namespace()
         self._bind_exports(exports)
+        self._bind_extension_exports()
         self.pull_from_session()
         self.session.add_change_listener(self._session_changed)
         self.session.add_command_echo_listener(self._echo_session_command)
@@ -411,11 +427,21 @@ class EEGPrepConsoleWorkspace:
             else:
                 self.namespace[name] = LazyWorkspaceExport(name, None if exports is None else exports[name])
 
+    def _bind_extension_exports(self) -> None:
+        for name, resolver in self.extension_runtime.pop_function_resolvers().items():
+            if name in self._wrapped_pop_exports:
+                continue
+            wrapped = ConsolePopFunction(name, self, resolver=resolver)
+            self._wrapped_pop_exports[name] = wrapped
+            self.namespace[name] = wrapped
+
     def pop_wrapper(self, name: str) -> ConsolePopFunction:
         """Return the console-aware wrapper for a public ``pop_*`` function."""
         wrapped = self._wrapped_pop_exports.get(name)
         if wrapped is None:
-            wrapped = ConsolePopFunction(name, self)
+            pop_function = self.extension_runtime.pop_function(name)
+            resolver = pop_function.load if pop_function is not None else None
+            wrapped = ConsolePopFunction(name, self, resolver=resolver)
             self._wrapped_pop_exports[name] = wrapped
         return wrapped
 
@@ -526,7 +552,10 @@ def run_console(
             ) from exc
         raise
 
-    workspace = EEGPrepConsoleWorkspace(session, window=window)
+    extension_runtime = getattr(window, "extension_runtime", None)
+    if extension_runtime is None:
+        extension_runtime = ExtensionRuntime.discover(include_plugins=not args.no_plugins)
+    workspace = EEGPrepConsoleWorkspace(session, window=window, extension_runtime=extension_runtime)
     banner = _console_banner()
     shell = (
         _IPythonShellAdapter(shell_factory(workspace.namespace, banner), workspace)

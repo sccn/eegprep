@@ -6,83 +6,58 @@ import importlib
 from copy import deepcopy
 from typing import Any
 
+from eegprep.extensions import ExtensionRecord, ExtensionRegistry, ExtensionStatus
+
 EXTERNAL_PLUGIN_NOTICE = (
     "EEGPrep currently manages only extensions bundled inside this Python package. "
     "External EEGLAB plugin repositories are not installed, updated, or removed from this dialog."
 )
 
-_BUNDLED_PLUGINS: tuple[dict[str, Any], ...] = (
-    {
-        "plugin": "clean_rawdata",
-        "name": "clean_rawdata",
-        "version": "bundled",
-        "foldername": "clean_rawdata",
-        "funcname": "pop_clean_rawdata",
-        "status": "ok",
-        "installed": True,
-        "source": "bundled",
-        "menu": "Tools > Reject data using Clean Rawdata and ASR",
-        "description": "Artifact Subspace Reconstruction and related channel/window cleaning workflows.",
-        "tags": ("artifact", "preprocessing"),
-    },
-    {
-        "plugin": "ICLabel",
-        "name": "ICLabel",
-        "version": "bundled",
-        "foldername": "ICLabel",
-        "funcname": "pop_iclabel",
-        "status": "ok",
-        "installed": True,
-        "source": "bundled",
-        "menu": "Tools > Classify components using ICLabel",
-        "description": "Independent-component classification, flagging, and extended component properties.",
-        "tags": ("ica", "classification"),
-    },
-    {
-        "plugin": "firfilt",
-        "name": "firfilt",
-        "version": "bundled",
-        "foldername": "firfilt",
-        "funcname": "pop_eegfiltnew",
-        "status": "ok",
-        "installed": True,
-        "source": "bundled",
-        "menu": "Tools > Filter the data",
-        "description": "Windowed-sinc, Parks-McClellan, moving-average, and new default FIR filtering.",
-        "tags": ("filter", "preprocessing"),
-    },
-    {
-        "plugin": "dipfit",
-        "name": "DIPFIT",
-        "version": "bundled",
-        "foldername": "dipfit",
-        "funcname": "pop_dipfit_settings",
-        "status": "ok",
-        "installed": True,
-        "source": "bundled",
-        "menu": "Tools > Source localization using DIPFIT",
-        "description": "Source-localization menu surfaces and FieldTrip-backed DIPFIT workflows.",
-        "tags": ("source", "localization"),
-    },
-    {
-        "plugin": "EEG_BIDS",
-        "name": "EEG-BIDS",
-        "version": "bundled",
-        "foldername": "EEG_BIDS",
-        "funcname": "pop_importbids",
-        "status": "ok",
-        "installed": True,
-        "source": "bundled",
-        "menu": "File > Import data / Export / BIDS tools",
-        "description": "BIDS import, export, validation, and metadata helpers for EEG datasets.",
-        "tags": ("import", "export", "bids", "study"),
-    },
-)
+_MENU_SUMMARIES = {
+    "clean_rawdata": "Tools > Reject data using Clean Rawdata and ASR",
+    "ICLabel": "Tools > Classify components using ICLabel",
+    "firfilt": "Tools > Filter the data",
+    "dipfit": "Tools > Source localization using DIPFIT",
+    "EEG_BIDS": "File > Import data / Export / BIDS tools",
+}
 
 
 def bundled_plugins() -> tuple[dict[str, Any], ...]:
     """Return metadata for EEGPrep extensions bundled in the installed package."""
-    return tuple(deepcopy(plugin) for plugin in _BUNDLED_PLUGINS)
+    records = ExtensionRegistry(include_entry_points=False).discover()
+    return tuple(_plugin_from_record(record) for record in records)
+
+
+def _plugin_from_record(record: ExtensionRecord) -> dict[str, Any]:
+    spec = record.spec
+    name = record.name if spec is None else spec.name
+    display_name = name if spec is None else spec.display_name or spec.name
+    package_name = "" if spec is None else spec.package_name
+    foldername = package_name.rsplit(".", 1)[-1] if package_name else name
+    funcname = "" if spec is None or not spec.pop_functions else spec.pop_functions[0].name
+    source_type = record.source_type.value if hasattr(record.source_type, "value") else str(record.source_type)
+    return {
+        "plugin": name,
+        "name": display_name,
+        "version": "bundled" if spec is None else spec.version or "bundled",
+        "foldername": foldername,
+        "funcname": funcname,
+        "status": "ok" if record.status == ExtensionStatus.BUNDLED else record.status.value,
+        "installed": record.is_active,
+        "source": source_type,
+        "menu": _MENU_SUMMARIES.get(name, _menu_summary(record)),
+        "description": "" if spec is None else spec.description,
+        "tags": () if spec is None else tuple(spec.capabilities),
+    }
+
+
+def _menu_summary(record: ExtensionRecord) -> str:
+    spec = record.spec
+    if spec is None or not spec.menus:
+        return ""
+    menu = spec.menus[0]
+    label = menu.label or menu.action
+    return " > ".join((*menu.path, label))
 
 
 def plugin_status(

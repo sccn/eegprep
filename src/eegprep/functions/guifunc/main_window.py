@@ -9,6 +9,7 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.extension_runtime import ExtensionRuntime
 from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
 from eegprep.functions.guifunc.eeglab_menu import eeglab_menus
 from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher
@@ -51,6 +52,7 @@ class EEGPrepMainWindow:
         *,
         all_menus: bool | None = None,
         include_plugins: bool = True,
+        extension_runtime: ExtensionRuntime | None = None,
         native_menu_bar: bool | None = None,
         native_file_dialogs: bool = True,
     ) -> None:
@@ -65,6 +67,11 @@ class EEGPrepMainWindow:
         self.session = session or EEGPrepSession()
         self.all_menus = bool(EEG_OPTIONS.get("option_allmenus", 0)) if all_menus is None else bool(all_menus)
         self.include_plugins = include_plugins
+        self.extension_runtime = (
+            extension_runtime
+            if include_plugins and extension_runtime is not None
+            else ExtensionRuntime.discover(include_plugins=include_plugins)
+        )
         self.window = qt_widgets.QMainWindow()
         self.window.setObjectName(APP_NAME)
         self.window.setWindowTitle(APP_NAME)
@@ -77,6 +84,7 @@ class EEGPrepMainWindow:
             self.session,
             refresh=self.refresh,
             native_file_dialogs=native_file_dialogs,
+            extension_runtime=self.extension_runtime,
         )
         self._build_central_widget()
         self.refresh()
@@ -218,7 +226,11 @@ class EEGPrepMainWindow:
 
     def _current_menu_specs(self) -> tuple[MenuItemSpec, ...]:
         specs = []
-        for spec in eeglab_menus(all_menus=self.all_menus, include_plugins=self.include_plugins):
+        for spec in eeglab_menus(
+            all_menus=self.all_menus,
+            include_plugins=self.include_plugins,
+            extension_runtime=self.extension_runtime,
+        ):
             if spec.label == "Datasets":
                 spec = spec.with_children(self._dataset_menu_items())
             specs.append(spec)
@@ -322,6 +334,7 @@ def build_main_window(
     *,
     all_menus: bool | None = None,
     include_plugins: bool = True,
+    extension_runtime: ExtensionRuntime | None = None,
     native_menu_bar: bool | None = None,
     native_file_dialogs: bool = True,
 ) -> EEGPrepMainWindow:
@@ -330,6 +343,7 @@ def build_main_window(
         session=session,
         all_menus=all_menus,
         include_plugins=include_plugins,
+        extension_runtime=extension_runtime,
         native_menu_bar=native_menu_bar,
         native_file_dialogs=native_file_dialogs,
     )
