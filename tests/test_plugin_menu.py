@@ -18,6 +18,7 @@ from eegprep.functions.adminfunc.extension_catalog import (
 from eegprep.functions.adminfunc.plugin_menu import (
     EXTERNAL_PLUGIN_NOTICE,
     _build_plugin_dialog,
+    _command_text,
     bundled_plugins,
     format_plugin_menu,
     plugin_menu,
@@ -197,6 +198,82 @@ def test_installed_plus_catalog_entry_merges_metadata_and_update_guidance() -> N
     assert plugin["update_commands"]["pip"] == "pip install --upgrade eegprep-ext-erp-reports"
 
 
+def test_update_available_uses_version_order_not_raw_difference() -> None:
+    older_catalog = _catalog(
+        ExtensionCatalogEntry(
+            name="versioned_extension",
+            version="1.9.0",
+            package_name="eegprep-ext-versioned",
+        )
+    )
+    newer_catalog = _catalog(
+        ExtensionCatalogEntry(
+            name="versioned_extension",
+            version="1.10.0",
+            package_name="eegprep-ext-versioned",
+        )
+    )
+    equal_catalog = _catalog(
+        ExtensionCatalogEntry(
+            name="versioned_extension",
+            version="1.10.0",
+            package_name="eegprep-ext-versioned",
+        )
+    )
+
+    installed_newer = _record(
+        "versioned_extension",
+        package_name="eegprep-ext-versioned",
+        spec_kwargs={"version": "1.10.0"},
+    )
+    installed_older = _record(
+        "versioned_extension",
+        package_name="eegprep-ext-versioned",
+        spec_kwargs={"version": "1.9.0"},
+    )
+
+    downgrade_plugin = plugin_menu(
+        registry=_registry(installed_newer), catalog=older_catalog, include_bundled=False, show=False
+    )[0]
+    update_plugin = plugin_menu(
+        registry=_registry(installed_older), catalog=newer_catalog, include_bundled=False, show=False
+    )[0]
+    equal_plugin = plugin_menu(
+        registry=_registry(installed_newer), catalog=equal_catalog, include_bundled=False, show=False
+    )[0]
+
+    assert downgrade_plugin["update_available"] is False
+    assert "Update" not in _command_text(downgrade_plugin)
+    assert update_plugin["update_available"] is True
+    assert "Update" in _command_text(update_plugin)
+    assert equal_plugin["update_available"] is False
+
+
+def test_problem_states_do_not_show_update_commands_before_errors_are_resolved() -> None:
+    record = _record(
+        "incompatible_extension",
+        status=ExtensionStatus.INCOMPATIBLE,
+        package_name="eegprep-ext-incompatible",
+        errors=("Extension requires EEGPrep >=999.0; current version is 0.2.23",),
+        spec_kwargs={"version": "1.0.0"},
+    )
+    catalog = _catalog(
+        ExtensionCatalogEntry(
+            name="incompatible_extension",
+            version="2.0.0",
+            package_name="eegprep-ext-incompatible",
+        )
+    )
+
+    plugin = plugin_menu(registry=_registry(record), catalog=catalog, include_bundled=False, show=False)[0]
+    text = format_plugin_menu(registry=_registry(record), catalog=catalog, include_bundled=False)
+
+    assert plugin["update_available"] is True
+    assert plugin["active"] is False
+    assert "Update" not in _command_text(plugin)
+    assert "  Update:" not in text
+
+
 def test_problem_registry_states_are_reported_headlessly() -> None:
     records = (
         _record("disabled_extension", status=ExtensionStatus.DISABLED, enabled=False),
@@ -328,6 +405,29 @@ def test_local_catalog_json_supports_git_and_rejects_archives(tmp_path: Path) ->
         "uv": "uv add git+https://github.com/sccn/eegprep-ext-git.git",
         "pip": "pip install git+https://github.com/sccn/eegprep-ext-git.git",
     }
+
+
+def test_catalog_rejects_local_archive_paths(tmp_path: Path) -> None:
+    catalog_path = tmp_path / "catalog.json"
+    catalog_path.write_text(
+        """
+        {
+          "schema_version": 1,
+          "extensions": [
+            {
+              "name": "local_wheel_extension",
+              "source": {"type": "local", "url": "/tmp/eegprep_ext_local-1.0.0-py3-none-any.whl"}
+            }
+          ]
+        }
+        """,
+        encoding="utf-8",
+    )
+
+    catalog = load_extension_catalog(catalog_path)
+
+    assert catalog.entries == ()
+    assert "source.url must point to metadata, docs, or a repository, not an archive" in catalog.errors[0]
 
 
 def test_environment_catalog_path_is_used(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

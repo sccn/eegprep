@@ -6,6 +6,7 @@ from collections.abc import Sequence
 from copy import deepcopy
 import html
 import importlib
+import re
 from typing import Any
 
 from eegprep.extensions import ExtensionRecord, ExtensionRegistry, ExtensionSourceType, ExtensionStatus
@@ -306,7 +307,7 @@ def format_plugin_menu(
         if install_commands and not plugin.get("installed"):
             lines.append(f"  Install: {install_commands.get('uv') or next(iter(install_commands.values()))}")
         update_commands = plugin.get("update_commands") or {}
-        if update_commands and plugin.get("update_available"):
+        if update_commands and _can_show_update_commands(plugin):
             lines.append(f"  Update: {update_commands.get('uv') or next(iter(update_commands.values()))}")
     lines.extend(["", EXTERNAL_PLUGIN_NOTICE, INSTALL_TRUST_WARNING])
     return "\n".join(lines)
@@ -406,7 +407,7 @@ def _plugin_from_record(
     conflicts = _catalog_conflicts(record, catalog_entry)
     status = record.status.value
     installed = status in _INSTALLED_STATUSES
-    active = record.is_active
+    active = installed and status in _ACTIVE_STATUSES
     menu = _menu_text(record)
     plugin = {
         "plugin": record.name,
@@ -419,7 +420,6 @@ def _plugin_from_record(
         "status": status,
         "state_label": _STATUS_LABELS.get(status, status.replace("_", " ").title()),
         "installed": installed,
-        "active": active,
         "enabled": record.enabled,
         "curated": catalog_entry is not None,
         "source": record.source_type.value,
@@ -439,9 +439,7 @@ def _plugin_from_record(
         "catalog_conflicts": conflicts,
         "install_commands": install_commands,
         "update_commands": update_commands,
-        "update_available": bool(
-            catalog_entry and version and catalog_entry.version and version != catalog_entry.version
-        ),
+        "update_available": _catalog_version_is_newer(version, catalog_entry.version if catalog_entry else ""),
         "install_guidance": _install_guidance(status, installed, active, catalog_entry, conflicts),
         "trust_warning": INSTALL_TRUST_WARNING,
         **catalog_info,
@@ -507,8 +505,8 @@ def _normalize_plugin(plugin: dict[str, Any], *, catalog_info: dict[str, Any] | 
     normalized.setdefault("status", "ok" if normalized.get("installed", True) else "unavailable")
     normalized.setdefault("state_label", _STATUS_LABELS.get(str(normalized["status"]), str(normalized["status"])))
     normalized.setdefault("installed", str(normalized.get("status")) in _INSTALLED_STATUSES)
-    normalized.setdefault("active", _is_active(normalized))
-    normalized.setdefault("enabled", normalized.get("active", False))
+    normalized["active"] = _is_active(normalized)
+    normalized.setdefault("enabled", normalized["active"])
     normalized.setdefault("curated", False)
     normalized.setdefault("source", "bundled")
     normalized.setdefault("source_detail", normalized["source"])
@@ -538,7 +536,6 @@ def _normalize_plugin(plugin: dict[str, Any], *, catalog_info: dict[str, Any] | 
     normalized["catalog_conflicts"] = tuple(normalized.get("catalog_conflicts") or ())
     normalized["install_commands"] = dict(normalized.get("install_commands") or {})
     normalized["update_commands"] = dict(normalized.get("update_commands") or {})
-    normalized["active"] = _is_active(normalized)
     return normalized
 
 
@@ -600,8 +597,7 @@ def _show_plugin_dialog(plugins: list[dict[str, Any]], parent: Any | None, catal
             "Call plugin_menu(show=False) to inspect extensions without a GUI."
         ) from exc
 
-    app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
-    del app
+    _app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
     dialog = _build_plugin_dialog(plugins, parent=parent, catalog_info=catalog_info)
     dialog.exec()
 
@@ -843,12 +839,16 @@ def _command_text(plugin: dict[str, Any]) -> str:
     if install_commands and not plugin.get("installed"):
         lines.append("Install")
         lines.extend(f"{name}: {command}" for name, command in install_commands.items())
-    if update_commands and plugin.get("installed"):
+    if update_commands and _can_show_update_commands(plugin):
         if lines:
             lines.append("")
         lines.append("Update")
         lines.extend(f"{name}: {command}" for name, command in update_commands.items())
     return "\n".join(lines)
+
+
+def _can_show_update_commands(plugin: dict[str, Any]) -> bool:
+    return bool(plugin.get("update_available") and plugin.get("active"))
 
 
 def _catalog_notice(catalog_info: dict[str, Any]) -> str:
@@ -924,6 +924,31 @@ def _source_detail(record: ExtensionRecord, catalog_entry: ExtensionCatalogEntry
 def _is_active(plugin: dict[str, Any]) -> bool:
     status = str(plugin.get("status", ""))
     return bool(plugin.get("installed", status in _INSTALLED_STATUSES)) and status in _ACTIVE_STATUSES
+
+
+def _catalog_version_is_newer(installed_version: str, catalog_version: str) -> bool:
+    installed_parts = _version_parts(installed_version)
+    catalog_parts = _version_parts(catalog_version)
+    if not installed_parts or not catalog_parts:
+        return False
+    return _compare_version_parts(catalog_parts, installed_parts) > 0
+
+
+def _compare_version_parts(left: tuple[int, ...], right: tuple[int, ...]) -> int:
+    max_length = max(len(left), len(right))
+    padded_left = left + (0,) * (max_length - len(left))
+    padded_right = right + (0,) * (max_length - len(right))
+    if padded_left > padded_right:
+        return 1
+    if padded_left < padded_right:
+        return -1
+    return 0
+
+
+def _version_parts(version: str) -> tuple[int, ...]:
+    if not version or not re.search(r"\d", str(version)):
+        return ()
+    return tuple(int(part) for part in re.findall(r"\d+", str(version)))
 
 
 def _plugin_sort_key(plugin: dict[str, Any]) -> tuple[int, int, str]:
