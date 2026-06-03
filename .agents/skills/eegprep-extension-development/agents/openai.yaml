@@ -1,0 +1,4 @@
+interface:
+  display_name: "EEGPrep Extension Development"
+  short_description: "Build EEGPrep extension packages"
+  default_prompt: "Use $eegprep-extension-development to plan, implement, test, and package an EEGPrep extension."

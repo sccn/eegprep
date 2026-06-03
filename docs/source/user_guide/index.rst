@@ -77,7 +77,7 @@ Quick Reference
 - :ref:`installation` - Install eegprep
 - :ref:`quickstart` - Load, preprocess, and save EEG data
 - :ref:`gui_help_menus` - Use GUI menus, packaged help, and menu inventory checks
-- :ref:`extensions` - Inspect installed extensions, curated metadata, and safe install commands
+- :ref:`extensions` - Install, trust, inspect, and use external EEGPrep extensions
 - :ref:`interactive_console` - Use the GUI and Python console together
 - :ref:`extension_curation` - Review extension trust, curation, catalog, and compatibility policy
 - :ref:`preprocessing_pipeline` - Understand preprocessing steps
