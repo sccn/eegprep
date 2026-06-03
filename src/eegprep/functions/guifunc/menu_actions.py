@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import inspect
 import logging
 import webbrowser
 from collections.abc import Callable, Iterable
 from pathlib import Path
 from typing import Any
 
+from eegprep.extension_runtime import ExtensionRuntime
 from eegprep.functions.guifunc.menu_placeholders import PLACEHOLDER_ACTIONS, is_placeholder_action, placeholder_message
 from eegprep.functions.guifunc.pophelp import pophelp
 from eegprep.functions.guifunc.session import EEGPrepSession, has_eeg_data
@@ -200,10 +202,12 @@ class MenuActionDispatcher:
         refresh: Callable[[], None] | None = None,
         *,
         native_file_dialogs: bool = True,
+        extension_runtime: ExtensionRuntime | None = None,
     ):
         self.session = session
         self.refresh = refresh
         self.native_file_dialogs = native_file_dialogs
+        self.extension_runtime = extension_runtime or ExtensionRuntime.empty()
 
     def dispatch_gui(self, action: str, parent: Any | None = None) -> None:
         """Run a menu action from Qt and show user-facing errors."""
@@ -446,6 +450,10 @@ class MenuActionDispatcher:
             return
         if base == "pop_chanplot":
             self._run_chanplot(parent)
+            return
+        extension_action = self.extension_runtime.action(base)
+        if extension_action is not None:
+            self._run_extension_action(extension_action, base, variant, parent)
             return
         self.show_coming_soon(action, parent)
 
@@ -922,6 +930,80 @@ class MenuActionDispatcher:
 
         show_dialog = parent is not None and _qt_widgets() is not None
         plugin_menu(parent=parent if show_dialog else None, session=self.session, show=show_dialog)
+
+    def _run_extension_action(self, action: Any, name: str, variant: str, parent: Any | None) -> None:
+        target = action.load()
+        result = self._call_extension_target(target, name, variant, parent)
+        self._apply_extension_result(result)
+
+    def _call_extension_target(self, target: Callable[..., Any], name: str, variant: str, parent: Any | None) -> Any:
+        try:
+            parameters = inspect.signature(target).parameters
+        except (TypeError, ValueError):
+            parameters = {}
+        kwargs: dict[str, Any] = {}
+        if "return_com" in parameters:
+            kwargs["return_com"] = True
+        if "variant" in parameters:
+            kwargs["variant"] = variant
+        if "session" in parameters:
+            kwargs["session"] = self.session
+        if "parent" in parameters:
+            kwargs["parent"] = parent
+        for eeg_name in ("EEG", "eeg"):
+            if eeg_name in parameters:
+                selection = self._current_selection_or_warn(parent, allow_multiple=True)
+                if selection is None:
+                    return None
+                kwargs[eeg_name] = selection
+                return target(**kwargs)
+        if name.startswith("pop_"):
+            selection = self._current_selection_or_warn(parent, allow_multiple=True)
+            if selection is None:
+                return None
+            return target(selection, **kwargs)
+        required = [
+            parameter
+            for parameter in parameters.values()
+            if parameter.default is inspect.Signature.empty
+            and parameter.kind
+            in {
+                inspect.Parameter.POSITIONAL_ONLY,
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            }
+            and parameter.name not in kwargs
+        ]
+        if not required:
+            return target(**kwargs)
+        first = required[0]
+        if first.name == "session":
+            return target(self.session, **kwargs)
+        if first.name == "parent":
+            return target(parent, **kwargs)
+        selection = self._current_selection_or_warn(parent, allow_multiple=True)
+        if selection is None:
+            return None
+        return target(selection, **kwargs)
+
+    def _apply_extension_result(self, result: Any) -> None:
+        dataset_state = _extension_dataset_state(result)
+        if dataset_state is not None:
+            alleeg, eeg_out, currentset, command = dataset_state
+            self.session.ALLEEG = alleeg
+            self.session.EEG = eeg_out
+            self.session.CURRENTSET = _currentset_list(currentset)
+            self._add_history_from_gui(command)
+            self.session.notify_changed()
+            self._refresh()
+            return
+        eeg_out, command = _extension_eeg_and_command(result)
+        if eeg_out is not None:
+            self._store_current_from_gui(eeg_out, command=command)
+            self._refresh()
+            return
+        if command:
+            self._add_history_from_gui(command)
+            self._refresh()
 
     def _run_pop_function(self, name: str, parent: Any | None, *, variant: str = "") -> None:
         selection = self._current_selection_or_warn(parent, allow_multiple=name in _MULTIPLE_DATASET_ACTIONS)
@@ -1423,7 +1505,7 @@ class MenuActionDispatcher:
         self._refresh()
 
     def _show_help(self, function_name: str, parent: Any | None) -> None:
-        pophelp(function_name, parent=parent)
+        pophelp(function_name, parent=parent, extension_runtime=self.extension_runtime)
 
     def _current_selection_or_warn(
         self,
@@ -1557,6 +1639,34 @@ def _currentset_list(value: Any) -> list[int]:
     return [current] if current > 0 else []
 
 
+def _extension_dataset_state(result: Any) -> tuple[list[dict[str, Any]], Any, Any, str] | None:
+    if not isinstance(result, tuple) or len(result) < 4:
+        return None
+    alleeg, eeg, currentset, command = result[0], result[1], result[2], result[3]
+    if not isinstance(alleeg, list) or not _is_eeg_selection(eeg) or not isinstance(command, str):
+        return None
+    return alleeg, eeg, currentset, command.strip()
+
+
+def _extension_eeg_and_command(result: Any) -> tuple[Any | None, str]:
+    if isinstance(result, tuple):
+        command = str(result[1]).strip() if len(result) > 1 and isinstance(result[1], str) else ""
+        if result and _is_eeg_selection(result[0]):
+            return result[0], command
+        return None, command
+    if _is_eeg_selection(result):
+        return result, ""
+    if isinstance(result, str):
+        return None, result.strip()
+    return None, ""
+
+
+def _is_eeg_selection(value: Any) -> bool:
+    if isinstance(value, dict):
+        return any(key in value for key in ("data", "nbchan", "setname"))
+    return isinstance(value, list) and all(isinstance(item, dict) for item in value)
+
+
 def _pop_eegplot_variant_options(variant: str) -> tuple[int, int, int]:
     # Mirrors eeglab.m callbacks: cb_eegplot/cb_eegplotrej* omit optional args,
     # while Plot scroll actions explicitly call pop_eegplot(EEG, icacomp, 1, 1).
@@ -1585,12 +1695,14 @@ def _tutorial_url() -> str:
     return _docs_url("user_guide/quickstart.html")
 
 
-def action_kind(action: str) -> str:
+def action_kind(action: str, extension_runtime: ExtensionRuntime | None = None) -> str:
     """Return ``implemented``, ``placeholder``, or ``unknown`` for an action id."""
     base = action.partition(":")[0]
     if action in PLACEHOLDER_ACTIONS:
         return "placeholder"
     if base in IMPLEMENTED_ACTIONS:
+        return "implemented"
+    if extension_runtime is not None and extension_runtime.has_action(base):
         return "implemented"
     if is_placeholder_action(action):
         return "placeholder"

@@ -132,14 +132,24 @@ class ExtensionPopFunction:
 
 @dataclass(frozen=True)
 class ExtensionMenu:
-    """Future menu placement for an extension action."""
+    """Declarative menu contribution for an extension action."""
 
-    path: tuple[str, ...]
-    action: str
+    path: tuple[str, ...] = field(default_factory=tuple)
+    action: str = ""
     label: str = ""
+    tag: str = ""
+    userdata: str = ""
+    separator: bool = False
+    enabled: bool = True
+    checked: bool = False
+    visibility: str = "always"
+    insert_after: str = ""
+    insert_before: str = ""
+    children: tuple["ExtensionMenu", ...] = field(default_factory=tuple)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "path", _as_tuple(self.path))
+        object.__setattr__(self, "children", _as_tuple(self.children))
 
 
 @dataclass(frozen=True)
@@ -279,45 +289,203 @@ class ExtensionRegistry:
         return None
 
     def _bundled_records(self) -> list[ExtensionRecord]:
-        from eegprep.functions.adminfunc.plugin_menu import bundled_plugins
+        from eegprep.plugins.EEG_BIDS.menu import (
+            eeg_bids_export_items,
+            eeg_bids_import_items,
+            eeg_bids_tools_menu,
+        )
+        from eegprep.plugins.ICLabel.menu import iclabel_menu, viewprops_plot_menus
+        from eegprep.plugins.clean_rawdata.menu import clean_rawdata_menu
+        from eegprep.plugins.dipfit.menu import dipfit_menu
+        from eegprep.plugins.firfilt.menu import firfilt_filter_items
 
-        records = []
-        for plugin in bundled_plugins():
-            plugin_name = str(plugin["plugin"])
-            folder_name = str(plugin.get("foldername") or plugin_name)
-            funcname = str(plugin.get("funcname") or "")
-            pop_functions = ()
-            if funcname:
-                pop_functions = (
-                    ExtensionPopFunction(
-                        name=funcname,
-                        target=LazyImport(f"eegprep.plugins.{folder_name}.{funcname}", funcname),
-                        description=str(plugin.get("description") or ""),
-                    ),
-                )
-            menus = ()
-            if plugin.get("menu") and funcname:
-                menus = (
-                    ExtensionMenu(
-                        path=tuple(part.strip() for part in str(plugin["menu"]).split(">")),
-                        action=funcname,
-                        label=str(plugin.get("name") or plugin_name),
-                    ),
-                )
-            spec = ExtensionSpec(
-                name=plugin_name,
-                display_name=str(plugin.get("name") or plugin_name),
-                version=str(plugin.get("version") or "bundled"),
-                api_version=EXTENSION_API_VERSION,
-                package_name=f"eegprep.plugins.{folder_name}",
+        specs = (
+            ExtensionSpec(
+                name="clean_rawdata",
+                display_name="clean_rawdata",
+                version="bundled",
+                package_name="eegprep.plugins.clean_rawdata",
                 source_type=ExtensionSourceType.BUNDLED,
-                description=str(plugin.get("description") or ""),
-                capabilities=tuple(str(tag) for tag in plugin.get("tags", ())),
-                menus=menus,
-                pop_functions=pop_functions,
-            )
-            records.append(self._record_from_spec(spec))
-        return records
+                description="Artifact Subspace Reconstruction and related channel/window cleaning workflows.",
+                capabilities=("artifact", "preprocessing"),
+                menus=(
+                    _extension_menu_from_spec(
+                        clean_rawdata_menu(),
+                        path=("tools",),
+                        insert_after="pop_eegplot:data",
+                    ),
+                ),
+                pop_functions=(
+                    ExtensionPopFunction(
+                        name="pop_clean_rawdata",
+                        target=LazyImport(
+                            "eegprep.plugins.clean_rawdata.pop_clean_rawdata",
+                            "pop_clean_rawdata",
+                        ),
+                    ),
+                ),
+            ),
+            ExtensionSpec(
+                name="ICLabel",
+                display_name="ICLabel",
+                version="bundled",
+                package_name="eegprep.plugins.ICLabel",
+                source_type=ExtensionSourceType.BUNDLED,
+                description="Independent-component classification, flagging, and extended component properties.",
+                capabilities=("ica", "classification"),
+                menus=(
+                    _extension_menu_from_spec(
+                        iclabel_menu(),
+                        path=("tools",),
+                        insert_after="pop_selectcomps",
+                    ),
+                    *(_extension_menu_from_spec(item, path=("plot",)) for item in viewprops_plot_menus()),
+                ),
+                pop_functions=(
+                    ExtensionPopFunction(
+                        name="pop_iclabel",
+                        target=LazyImport("eegprep.plugins.ICLabel.pop_iclabel", "pop_iclabel"),
+                    ),
+                    ExtensionPopFunction(
+                        name="pop_icflag",
+                        target=LazyImport("eegprep.plugins.ICLabel.pop_icflag", "pop_icflag"),
+                    ),
+                    ExtensionPopFunction(
+                        name="pop_viewprops",
+                        target=LazyImport("eegprep.plugins.ICLabel.pop_viewprops", "pop_viewprops"),
+                    ),
+                ),
+            ),
+            ExtensionSpec(
+                name="firfilt",
+                display_name="firfilt",
+                version="bundled",
+                package_name="eegprep.plugins.firfilt",
+                source_type=ExtensionSourceType.BUNDLED,
+                description="Windowed-sinc, Parks-McClellan, moving-average, and new default FIR filtering.",
+                capabilities=("filter", "preprocessing"),
+                menus=tuple(
+                    _extension_menu_from_spec(
+                        item,
+                        path=("tools", "filter"),
+                        insert_before="pop_eegfilt",
+                    )
+                    for item in firfilt_filter_items()
+                ),
+                pop_functions=(
+                    ExtensionPopFunction(
+                        name="pop_eegfiltnew",
+                        target=LazyImport("eegprep.plugins.firfilt.pop_eegfiltnew", "pop_eegfiltnew"),
+                    ),
+                    ExtensionPopFunction(
+                        name="pop_firws",
+                        target=LazyImport("eegprep.plugins.firfilt.pop_firws", "pop_firws"),
+                    ),
+                    ExtensionPopFunction(
+                        name="pop_firpm",
+                        target=LazyImport("eegprep.plugins.firfilt.pop_firpm", "pop_firpm"),
+                    ),
+                    ExtensionPopFunction(
+                        name="pop_firma",
+                        target=LazyImport("eegprep.plugins.firfilt.pop_firma", "pop_firma"),
+                    ),
+                ),
+            ),
+            ExtensionSpec(
+                name="dipfit",
+                display_name="DIPFIT",
+                version="bundled",
+                package_name="eegprep.plugins.dipfit",
+                source_type=ExtensionSourceType.BUNDLED,
+                description="Source-localization menu surfaces and FieldTrip-backed DIPFIT workflows.",
+                capabilities=("source", "localization"),
+                menus=(
+                    _extension_menu_from_spec(
+                        dipfit_menu(),
+                        path=("tools",),
+                        insert_after="pop_rmbase",
+                    ),
+                ),
+                pop_functions=(
+                    ExtensionPopFunction(
+                        name="pop_dipfit_settings",
+                        target=LazyImport("eegprep.plugins.dipfit.pop_dipfit_settings", "pop_dipfit_settings"),
+                    ),
+                    ExtensionPopFunction(
+                        name="pop_dipfit_headmodel",
+                        target=LazyImport("eegprep.plugins.dipfit.pop_dipfit_headmodel", "pop_dipfit_headmodel"),
+                    ),
+                    ExtensionPopFunction(
+                        name="pop_dipfit_gridsearch",
+                        target=LazyImport(
+                            "eegprep.plugins.dipfit.pop_dipfit_gridsearch",
+                            "pop_dipfit_gridsearch",
+                        ),
+                    ),
+                    ExtensionPopFunction(
+                        name="pop_dipfit_nonlinear",
+                        target=LazyImport("eegprep.plugins.dipfit.pop_dipfit_nonlinear", "pop_dipfit_nonlinear"),
+                    ),
+                    ExtensionPopFunction(
+                        name="pop_dipplot",
+                        target=LazyImport("eegprep.plugins.dipfit.pop_dipplot", "pop_dipplot"),
+                    ),
+                    ExtensionPopFunction(
+                        name="pop_multifit",
+                        target=LazyImport("eegprep.plugins.dipfit.pop_multifit", "pop_multifit"),
+                    ),
+                    ExtensionPopFunction(
+                        name="pop_leadfield",
+                        target=LazyImport("eegprep.plugins.dipfit.pop_leadfield", "pop_leadfield"),
+                    ),
+                    ExtensionPopFunction(
+                        name="pop_dipfit_loreta",
+                        target=LazyImport("eegprep.plugins.dipfit.pop_dipfit_loreta", "pop_dipfit_loreta"),
+                    ),
+                ),
+            ),
+            ExtensionSpec(
+                name="EEG_BIDS",
+                display_name="EEG-BIDS",
+                version="bundled",
+                package_name="eegprep.plugins.EEG_BIDS",
+                source_type=ExtensionSourceType.BUNDLED,
+                description="BIDS import, export, validation, and metadata helpers for EEG datasets.",
+                capabilities=("import", "export", "bids", "study"),
+                menus=(
+                    *(
+                        _extension_menu_from_spec(
+                            item,
+                            path=("File", "Import data", "import data"),
+                        )
+                        for item in eeg_bids_import_items()
+                    ),
+                    *(
+                        _extension_menu_from_spec(
+                            item,
+                            path=("File", "export"),
+                        )
+                        for item in eeg_bids_export_items()
+                    ),
+                    _extension_menu_from_spec(
+                        eeg_bids_tools_menu(),
+                        path=("File",),
+                        insert_after="export",
+                    ),
+                ),
+                pop_functions=(
+                    ExtensionPopFunction(
+                        name="pop_importbids",
+                        target=LazyImport("eegprep.plugins.EEG_BIDS.pop_importbids", "pop_importbids"),
+                    ),
+                    ExtensionPopFunction(
+                        name="pop_exportbids",
+                        target=LazyImport("eegprep.plugins.EEG_BIDS.pop_exportbids", "pop_exportbids"),
+                    ),
+                ),
+            ),
+        )
+        return [self._record_from_spec(spec) for spec in specs]
 
     def _entry_point_records(self) -> list[ExtensionRecord]:
         records = []
@@ -400,6 +568,7 @@ class ExtensionRegistry:
         extension_names: set[str] = set()
         action_names: dict[str, str] = {}
         pop_names: dict[str, str] = {}
+        menu_names: dict[tuple[tuple[str, ...], str], str] = {}
         final_records: list[ExtensionRecord] = []
 
         for record in records:
@@ -424,6 +593,10 @@ class ExtensionRegistry:
                     owner = pop_names.get(pop_name)
                     if owner is not None:
                         errors.append(f"Duplicate pop function {pop_function.name!r} already provided by {owner!r}")
+                for menu_key, menu_label in _extension_menu_keys(spec.menus):
+                    owner = menu_names.get(menu_key)
+                    if owner is not None:
+                        errors.append(f"Duplicate menu {menu_label!r} already provided by {owner!r}")
 
             if errors:
                 final_records.append(_invalid_record(record, tuple(errors)))
@@ -435,6 +608,8 @@ class ExtensionRegistry:
                     action_names[_normalize_name(action.name)] = record.name
                 for pop_function in spec.pop_functions:
                     pop_names[_normalize_name(pop_function.name)] = record.name
+                for menu_key, _menu_label in _extension_menu_keys(spec.menus):
+                    menu_names[menu_key] = record.name
             final_records.append(record)
         return final_records
 
@@ -514,7 +689,19 @@ def validate_extension_spec(
         missing_dependency.extend(dependency_missing)
 
     if check_resources:
-        for resource in (*spec.help_resources, *spec.package_data_resources):
+        for resource in spec.help_resources:
+            if not isinstance(resource, ExtensionResource):
+                invalid.append(f"Extension resource {resource!r} is not an ExtensionResource")
+                continue
+            if not resource.package or not resource.path:
+                invalid.append("Extension resources must include package and path")
+                continue
+            if not resource.path.endswith(".md"):
+                invalid.append(f"Extension help resource {resource.package}:{resource.path} must be a Markdown file")
+                continue
+            if not resource.exists():
+                invalid.append(f"Extension resource {resource.package}:{resource.path} is missing")
+        for resource in spec.package_data_resources:
             if not isinstance(resource, ExtensionResource):
                 invalid.append(f"Extension resource {resource!r} is not an ExtensionResource")
                 continue
@@ -568,14 +755,35 @@ def _validate_pop_functions(pop_functions: tuple[Any, ...], invalid: list[str]) 
 
 
 def _validate_menus(menus: tuple[Any, ...], invalid: list[str]) -> None:
+    names: set[tuple[tuple[str, ...], str]] = set()
     for menu in menus:
-        if not isinstance(menu, ExtensionMenu):
-            invalid.append(f"Extension menu {menu!r} is not an ExtensionMenu")
-            continue
-        if not menu.path:
-            invalid.append("Extension menus must include a path")
-        if not menu.action:
-            invalid.append("Extension menus must reference an action")
+        _validate_menu(menu, invalid, names, root=True)
+
+
+def _validate_menu(
+    menu: Any,
+    invalid: list[str],
+    names: set[tuple[tuple[str, ...], str]],
+    *,
+    root: bool,
+) -> None:
+    if not isinstance(menu, ExtensionMenu):
+        invalid.append(f"Extension menu {menu!r} is not an ExtensionMenu")
+        return
+    if root and not menu.path:
+        invalid.append("Extension menus must include a path")
+    if menu.insert_before and menu.insert_after:
+        invalid.append("Extension menus cannot set both insert_before and insert_after")
+    if not menu.action and not menu.children:
+        invalid.append("Extension menus must reference an action or include children")
+    label = menu.label or menu.action
+    if label:
+        key = (_normalize_menu_path(menu.path), _normalize_name(label))
+        if root and key in names:
+            invalid.append(f"Duplicate menu {label!r} within extension")
+        names.add(key)
+    for child in menu.children:
+        _validate_menu(child, invalid, names, root=False)
 
 
 def _dependency_errors(dependencies: tuple[Any, ...], version_provider: VersionProvider) -> tuple[list[str], list[str]]:
@@ -783,6 +991,42 @@ def _version_parts(version: str) -> tuple[int, ...]:
 
 def _normalize_name(name: str) -> str:
     return str(name).strip().lower()
+
+
+def _normalize_menu_path(path: tuple[Any, ...]) -> tuple[str, ...]:
+    return tuple(_normalize_name(str(part)) for part in path)
+
+
+def _extension_menu_from_spec(
+    spec: Any,
+    *,
+    path: tuple[str, ...] = (),
+    insert_after: str = "",
+    insert_before: str = "",
+) -> ExtensionMenu:
+    return ExtensionMenu(
+        path=path,
+        action=spec.action or "",
+        label=spec.label,
+        tag=spec.tag or "",
+        userdata=spec.userdata,
+        separator=spec.separator,
+        enabled=spec.enabled,
+        checked=spec.checked,
+        visibility=spec.visibility,
+        insert_after=insert_after,
+        insert_before=insert_before,
+        children=tuple(_extension_menu_from_spec(child) for child in spec.children),
+    )
+
+
+def _extension_menu_keys(menus: tuple[ExtensionMenu, ...]) -> tuple[tuple[tuple[tuple[str, ...], str], str], ...]:
+    keys = []
+    for menu in menus:
+        label = menu.label or menu.action
+        if label:
+            keys.append(((_normalize_menu_path(menu.path), _normalize_name(label)), label))
+    return tuple(keys)
 
 
 def _as_tuple(value: Any) -> tuple[Any, ...]:

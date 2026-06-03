@@ -2,16 +2,8 @@
 
 from __future__ import annotations
 
+from eegprep.extension_runtime import ExtensionRuntime, apply_extension_menus
 from eegprep.functions.guifunc.menu_spec import MenuItemSpec, menu_item, visible_menu_items
-from eegprep.plugins.EEG_BIDS.menu import (
-    eeg_bids_export_items,
-    eeg_bids_import_items,
-    eeg_bids_tools_menu,
-)
-from eegprep.plugins.ICLabel.menu import iclabel_menu, viewprops_plot_menus
-from eegprep.plugins.clean_rawdata.menu import clean_rawdata_menu
-from eegprep.plugins.dipfit.menu import dipfit_menu
-from eegprep.plugins.firfilt.menu import firfilt_filter_items
 
 ON = "study:on"
 ON_NO_STUDY = ""
@@ -373,23 +365,17 @@ def eeglab_core_menus() -> tuple[MenuItemSpec, ...]:
     return (file_menu, edit_menu, tools_menu, plot_menu, study_menu, datasets_menu, help_menu)
 
 
-def eeglab_plugin_menus() -> tuple[MenuItemSpec, ...]:
-    """Return plugin menu additions represented in the sibling EEGLAB checkout."""
-    return (
-        clean_rawdata_menu(),
-        iclabel_menu(),
-        dipfit_menu(),
-    )
-
-
-def eeglab_menus(*, all_menus: bool = False, include_plugins: bool = True) -> tuple[MenuItemSpec, ...]:
+def eeglab_menus(
+    *,
+    all_menus: bool = False,
+    include_plugins: bool = True,
+    extension_runtime: ExtensionRuntime | None = None,
+) -> tuple[MenuItemSpec, ...]:
     """Return the complete visible menu tree for the configured menu mode."""
-    menus = list(eeglab_core_menus())
+    menus = eeglab_core_menus()
     if include_plugins:
-        menus[0] = _insert_file_plugins(menus[0])
-        menus[2] = _insert_tools_plugins(menus[2])
-        menus[2] = _insert_firfilt(menus[2])
-        menus[3] = _insert_plot_plugins(menus[3])
+        runtime = extension_runtime or ExtensionRuntime.discover(include_plugins=True)
+        menus = apply_extension_menus(menus, runtime)
     return visible_menu_items(tuple(menus), all_menus=all_menus)
 
 
@@ -401,59 +387,3 @@ def menu_actions(items: tuple[MenuItemSpec, ...]) -> set[str]:
             actions.add(item.action)
         actions.update(menu_actions(item.children))
     return actions
-
-
-def _insert_tools_plugins(tools_menu: MenuItemSpec) -> MenuItemSpec:
-    children = []
-    clean_rawdata, iclabel, dipfit = eeglab_plugin_menus()
-    for item in tools_menu.children:
-        children.append(item)
-        if item.action == "pop_eegplot:data":
-            children.append(clean_rawdata)
-        if item.action == "pop_selectcomps":
-            children.append(iclabel)
-        if item.action == "pop_rmbase":
-            children.append(dipfit)
-    return tools_menu.with_children(tuple(children))
-
-
-def _insert_firfilt(tools_menu: MenuItemSpec) -> MenuItemSpec:
-    children = []
-    for item in tools_menu.children:
-        if item.tag != "filter":
-            children.append(item)
-            continue
-        filter_children = (
-            *firfilt_filter_items(),
-            *item.children,
-        )
-        children.append(item.with_children(filter_children))
-    return tools_menu.with_children(tuple(children))
-
-
-def _insert_plot_plugins(plot_menu: MenuItemSpec) -> MenuItemSpec:
-    return plot_menu.with_children((*plot_menu.children, *viewprops_plot_menus()))
-
-
-def _insert_file_plugins(file_menu: MenuItemSpec) -> MenuItemSpec:
-    children: list[MenuItemSpec] = []
-    for item in file_menu.children:
-        if item.label == "Import data":
-            children.append(_insert_import_plugins(item))
-            continue
-        if item.tag == "export":
-            children.append(item.with_children((*item.children, *eeg_bids_export_items())))
-            children.append(eeg_bids_tools_menu())
-            continue
-        children.append(item)
-    return file_menu.with_children(tuple(children))
-
-
-def _insert_import_plugins(import_menu: MenuItemSpec) -> MenuItemSpec:
-    children: list[MenuItemSpec] = []
-    for item in import_menu.children:
-        if item.tag == "import data":
-            children.append(item.with_children((*item.children, *eeg_bids_import_items())))
-            continue
-        children.append(item)
-    return import_menu.with_children(tuple(children))
