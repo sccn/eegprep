@@ -55,9 +55,9 @@ does not crash EEGPrep startup. Status values are ``bundled``, ``installed``,
 ``invalid_spec``, ``missing_dependency``, and ``unknown``.
 
 Bundled EEGPrep plugin ports are exposed as bundled extension records for
-inventory purposes. Their existing menus and direct public APIs are still
-provided by the current bundled plugin modules; external menu/action/console
-wiring belongs to later extension-ecosystem phases.
+inventory purposes. The GUI menu builder, Extension Manager, help lookup, and
+``eegprep-console`` all consume the shared runtime registry so bundled and
+external extension contributions follow one status and lazy-loading model.
 
 Catalog and Governance
 ======================
