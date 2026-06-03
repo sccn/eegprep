@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+import json
 import sys
 import textwrap
 from importlib import metadata
@@ -15,6 +16,7 @@ from eegprep.extension_catalog import (
     CATALOG_SCHEMA_VERSION,
     CatalogValidationOptions,
     load_catalog_entries,
+    main,
     validate_catalog_entries,
     validate_catalog_file,
 )
@@ -60,41 +62,43 @@ def test_static_catalog_entry_is_valid_without_installed_package() -> None:
 
 def test_load_catalog_entries_accepts_future_index_payload(tmp_path: Path) -> None:
     catalog = tmp_path / "catalog.json"
-    catalog.write_text(
-        textwrap.dedent(
-            """
-            {
-              "schema_version": 1,
-              "extensions": [
-                {
-                  "id": "sample_extension",
-                  "package_name": "eegprep-ext-sample",
-                  "entry_point": "sample",
-                  "extension_name": "sample_extension",
-                  "display_name": "Sample Extension",
-                  "version": "1.0.0",
-                  "api_version": "1",
-                  "eegprep_requires": ">=0.2",
-                  "python_requires": ">=3.10",
-                  "license": "BSD-3-Clause",
-                  "maintainer": {"name": "SCCN", "email": "maintainers@example.org"},
-                  "docs_url": "https://example.org/docs",
-                  "source_url": "https://example.org/source",
-                  "description": "Sample extension catalog metadata.",
-                  "curation": {"status": "submitted"}
-                }
-              ]
-            }
-            """
-        ).strip(),
-        encoding="utf-8",
-    )
+    _write_catalog(catalog, _catalog_entry(id="sample_extension", extension_name="sample_extension"))
 
     entries = load_catalog_entries(catalog)
 
     assert len(entries) == 1
     assert entries[0]["id"] == "sample_extension"
     assert validate_catalog_file(catalog).ok
+
+
+def test_load_catalog_entries_accepts_catalog_directories(tmp_path: Path) -> None:
+    catalog_dir = tmp_path / "catalog-index"
+    catalog_dir.mkdir()
+    _write_catalog(catalog_dir / "catalog.json", _catalog_entry(id="canonical", extension_name="canonical_extension"))
+    nested_dir = catalog_dir / "nested"
+    nested_dir.mkdir()
+    _write_entry(nested_dir / "ignored.json", _catalog_entry(id="ignored", extension_name="ignored_extension"))
+
+    split_dir = tmp_path / "split-index"
+    split_dir.mkdir()
+    _write_entry(split_dir / "alpha.json", _catalog_entry(id="alpha", extension_name="alpha_extension"))
+    split_nested_dir = split_dir / "nested"
+    split_nested_dir.mkdir()
+    _write_entry(split_nested_dir / "beta.json", _catalog_entry(id="beta", extension_name="beta_extension"))
+
+    assert [entry["id"] for entry in load_catalog_entries(catalog_dir)] == ["canonical"]
+    assert [entry["id"] for entry in load_catalog_entries(split_dir)] == ["alpha", "beta"]
+
+
+def test_catalog_cli_emits_json_report(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    catalog = tmp_path / "catalog.json"
+    _write_catalog(catalog, _catalog_entry())
+
+    exit_code = main([str(catalog), "--json"])
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert json.loads(captured.out) == {"ok": True, "errors": [], "warnings": []}
 
 
 def test_schema_version_mismatch_is_reported(tmp_path: Path) -> None:
@@ -276,6 +280,42 @@ def test_imported_spec_mismatch_is_reported(tmp_path: Path, monkeypatch: pytest.
     assert "version: Catalog value '1.0.0' does not match imported spec value '2.0.0'" in messages
 
 
+def test_imported_spec_matching_catalog_is_valid(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    package = "catalog_matching_extension_pkg"
+    _write_package(
+        tmp_path,
+        package,
+        {
+            "register.py": """
+                from eegprep.extensions import ExtensionSpec
+
+                def register():
+                    return ExtensionSpec(
+                        name="example_extension",
+                        version="1.0.0",
+                        api_version="1",
+                        package_name="eegprep-ext-example",
+                    )
+            """,
+        },
+        monkeypatch,
+    )
+
+    report = validate_catalog_entries(
+        [_catalog_entry()],
+        options=CatalogValidationOptions(
+            check_import=True,
+            version_provider=lambda name: "1.0.0",
+            entry_points_provider=_provider(
+                FakeEntryPoint("example", f"{package}.register:register", package_name="eegprep-ext-example")
+            ),
+        ),
+    )
+
+    assert report.ok
+    assert report.warnings == ()
+
+
 def test_catalog_version_mismatch_with_installed_package_is_reported() -> None:
     report = validate_catalog_entries(
         [_catalog_entry()],
@@ -297,6 +337,15 @@ def test_unsupported_eegprep_version_is_reported() -> None:
 
     assert not report.ok
     assert "requires EEGPrep >=999.0" in _messages(report)
+
+
+def test_malformed_eegprep_requires_reports_single_field_error() -> None:
+    report = validate_catalog_entries([_catalog_entry(eegprep_requires="not-a-spec")])
+
+    assert not report.ok
+    assert [issue.field for issue in report.errors] == ["eegprep_requires"]
+    assert report.errors[0].message == "Must be a simple version specifier"
+    assert "requires EEGPrep not-a-spec" not in _messages(report)
 
 
 def test_private_internal_extension_is_not_publicly_curated_by_default() -> None:
@@ -353,6 +402,17 @@ def _provider(*entry_points: FakeEntryPoint) -> Any:
 
 def _messages(report: Any) -> str:
     return "\n".join(issue.format() for issue in (*report.errors, *report.warnings))
+
+
+def _write_catalog(path: Path, *entries: dict[str, Any]) -> None:
+    path.write_text(
+        json.dumps({"schema_version": CATALOG_SCHEMA_VERSION, "extensions": list(entries)}),
+        encoding="utf-8",
+    )
+
+
+def _write_entry(path: Path, entry: dict[str, Any]) -> None:
+    path.write_text(json.dumps(entry), encoding="utf-8")
 
 
 def _write_package(

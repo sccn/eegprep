@@ -263,7 +263,7 @@ def _validate_names(
 def _validate_urls(entry: Mapping[str, Any], entry_id: str, errors: list[CatalogValidationIssue]) -> None:
     for field_name in ("docs_url", "source_url"):
         value = entry.get(field_name)
-        if isinstance(value, str) and _is_https_url(value):
+        if isinstance(value, str) and _is_web_url(value):
             continue
         errors.append(CatalogValidationIssue("Must be an https:// or http:// URL", entry_id, field_name))
 
@@ -357,30 +357,32 @@ def _validate_version_policy(
             )
         )
 
+    eegprep_requires = str(entry.get("eegprep_requires") or "")
+    eegprep_requires_valid = True
     for field_name in ("eegprep_requires", "python_requires"):
         value = entry.get(field_name)
         if not isinstance(value, str) or not _VERSION_SPEC_RE.match(value):
             errors.append(CatalogValidationIssue("Must be a simple version specifier", entry_id, field_name))
+            if field_name == "eegprep_requires":
+                eegprep_requires_valid = False
 
-    current_version = options.current_eegprep_version
-    spec = ExtensionSpec(
-        name=str(entry.get("extension_name") or entry.get("id") or "catalog_entry"),
-        version=str(entry.get("version") or ""),
-        api_version=api_version or EXTENSION_API_VERSION,
-        package_name=str(entry.get("package_name") or ""),
-        eegprep_requires=str(entry.get("eegprep_requires") or ""),
-        dependencies=tuple(_catalog_dependencies(entry)),
-    )
-    compatibility = check_extension_compatibility(
-        spec,
-        current_version=current_version,
-        version_provider=options.version_provider,
-        check_dependencies=False,
-    )
-    for message in compatibility.incompatible:
-        errors.append(CatalogValidationIssue(message, entry_id, "eegprep_requires"))
-    for message in compatibility.missing_dependency:
-        errors.append(CatalogValidationIssue(message, entry_id, "dependencies"))
+    if eegprep_requires and eegprep_requires_valid:
+        spec = ExtensionSpec(
+            name=str(entry.get("extension_name") or entry.get("id") or "catalog_entry"),
+            version=str(entry.get("version") or ""),
+            api_version=EXTENSION_API_VERSION,
+            package_name=str(entry.get("package_name") or ""),
+            eegprep_requires=eegprep_requires,
+            dependencies=tuple(_catalog_dependencies(entry)),
+        )
+        compatibility = check_extension_compatibility(
+            spec,
+            current_version=options.current_eegprep_version,
+            version_provider=options.version_provider,
+            check_dependencies=False,
+        )
+        for message in compatibility.incompatible:
+            errors.append(CatalogValidationIssue(message, entry_id, "eegprep_requires"))
 
     python_requires = str(entry.get("python_requires") or "")
     python_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
@@ -640,7 +642,7 @@ def _entry_point_package_name(entry_point: Any) -> str:
         return ""
 
 
-def _is_https_url(value: str) -> bool:
+def _is_web_url(value: str) -> bool:
     parsed = urlparse(value)
     return parsed.scheme in {"https", "http"} and bool(parsed.netloc)
 
