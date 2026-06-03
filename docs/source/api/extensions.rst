@@ -29,7 +29,7 @@ Minimal extension entry point
            display_name="My Extension",
            version="1.0.0",
            api_version="1",
-           package_name="my_extension",
+           package_name="eegprep-ext-my-extension",
            actions=(
                ExtensionAction(
                    name="my_extension.run",

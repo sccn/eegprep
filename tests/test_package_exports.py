@@ -57,6 +57,7 @@ def test_phase_6b_public_exports_are_intentional() -> None:
         "DialogSpec",
         "EEGPrepConsoleWorkspace",
         "EEGPrepSession",
+        "EXTENSION_API_VERSION",
         "EXTENSION_COMPATIBILITY_POLICY",
         "EXTENSION_CURATION_POLICY_URL",
         "EXTENSION_NAMING_PREFIX",

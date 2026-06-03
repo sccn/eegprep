@@ -27,6 +27,7 @@ _LAZY_EXPORTS = {
     "CatalogValidationOptions": ("eegprep.extension_catalog", "CatalogValidationOptions"),
     "CatalogValidationReport": ("eegprep.extension_catalog", "CatalogValidationReport"),
     "EXTENSION_COMPATIBILITY_POLICY": ("eegprep.extensions", "EXTENSION_COMPATIBILITY_POLICY"),
+    "EXTENSION_API_VERSION": ("eegprep.extensions", "EXTENSION_API_VERSION"),
     "EXTENSION_CURATION_POLICY_URL": ("eegprep.extensions", "EXTENSION_CURATION_POLICY_URL"),
     "EXTENSION_NAMING_PREFIX": ("eegprep.extensions", "EXTENSION_NAMING_PREFIX"),
     "EXTENSION_TRUST_MESSAGE": ("eegprep.extensions", "EXTENSION_TRUST_MESSAGE"),

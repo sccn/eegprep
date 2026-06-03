@@ -38,9 +38,9 @@ The smaller packages show focused variants:
 Private extensions do not need catalog submission. Keep the package in a private repository or
 install it from a local path, and use the same entry-point registration contract.
 
-The Phase 1 SDK validates menu metadata; installed-extension GUI insertion is owned by the Phase 2
-runtime integration. Until that runtime hook is present, treat `ExtensionMenu` entries as declarative
-metadata that tests can validate but the core GUI may not display.
+Installed-extension GUI insertion is active through the extension runtime. Use
+`ExtensionMenu` entries for declarative placement under existing EEGPrep
+top-level menus, and keep behavior in lazy action or `pop_*` targets.
 
 `eegprep --no-plugins` and `eegprep-console --no-plugins` should not load extension entry points.
 Use that mode when debugging core EEGPrep behavior without external contributions.

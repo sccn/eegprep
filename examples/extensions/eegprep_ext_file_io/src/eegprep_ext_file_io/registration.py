@@ -21,7 +21,7 @@ def register() -> ExtensionSpec:
         display_name="File I/O Example",
         version="0.1.0",
         api_version=EXTENSION_API_VERSION,
-        package_name="eegprep_ext_file_io",
+        package_name="eegprep-ext-file-io",
         source_type=ExtensionSourceType.INSTALLED,
         capabilities=("file-import", "file-export"),
         dependencies=(ExtensionDependency("numpy", ">=1.23"),),

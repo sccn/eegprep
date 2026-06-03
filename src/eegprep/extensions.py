@@ -548,7 +548,7 @@ class ExtensionRegistry:
 
         spec = replace(
             candidate,
-            package_name=candidate.package_name or package_name,
+            package_name=package_name or candidate.package_name,
             entry_point_name=candidate.entry_point_name or entry_point_name,
         )
         return self._record_from_spec(spec)

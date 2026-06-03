@@ -21,7 +21,7 @@ def register() -> ExtensionSpec:
         display_name="GUI Dialog Example",
         version="0.1.0",
         api_version=EXTENSION_API_VERSION,
-        package_name="eegprep_ext_gui_dialog",
+        package_name="eegprep-ext-gui-dialog",
         source_type=ExtensionSourceType.INSTALLED,
         capabilities=("gui-dialog", "history"),
         dependencies=(ExtensionDependency("numpy", ">=1.23"),),

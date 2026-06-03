@@ -22,7 +22,7 @@ def register() -> ExtensionSpec:
         display_name="Optional Dependency Example",
         version="0.1.0",
         api_version=EXTENSION_API_VERSION,
-        package_name="eegprep_ext_optional_dependency",
+        package_name="eegprep-ext-optional-dependency",
         source_type=ExtensionSourceType.INSTALLED,
         capabilities=("optional-dependency", "packaged-model"),
         dependencies=(ExtensionDependency("eegprep-template-optional-model", ">=1.0", optional=True),),

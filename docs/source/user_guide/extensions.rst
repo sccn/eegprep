@@ -175,7 +175,7 @@ Minimal registration:
            name="foo",
            display_name="Foo",
            version="0.1.0",
-           package_name="eegprep_ext_foo",
+           package_name="eegprep-ext-foo",
            eegprep_requires=">=0.2",
            actions=(
                ExtensionAction(

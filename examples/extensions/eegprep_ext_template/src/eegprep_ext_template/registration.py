@@ -24,7 +24,7 @@ def register() -> ExtensionSpec:
         display_name="EEGPrep Template Extension",
         version=__version__,
         api_version=EXTENSION_API_VERSION,
-        package_name="eegprep_ext_template",
+        package_name="eegprep-ext-template",
         source_type=ExtensionSourceType.INSTALLED,
         description="Minimal extension showing pop function, menu, help, tests, and sample data.",
         maintainer="Your lab",

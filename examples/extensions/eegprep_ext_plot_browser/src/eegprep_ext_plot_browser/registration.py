@@ -20,7 +20,7 @@ def register() -> ExtensionSpec:
         display_name="Plot Browser Example",
         version="0.1.0",
         api_version=EXTENSION_API_VERSION,
-        package_name="eegprep_ext_plot_browser",
+        package_name="eegprep-ext-plot-browser",
         source_type=ExtensionSourceType.INSTALLED,
         capabilities=("plot", "browser", "history"),
         menus=(ExtensionMenu(path=("Plot", "Example browser"), action="pop_demo_browser", label="Browser demo"),),

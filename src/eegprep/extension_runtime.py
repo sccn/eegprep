@@ -174,6 +174,8 @@ def _insert_at_path(
     items: tuple[MenuItemSpec, ...],
     path: tuple[str, ...],
     contribution: ExtensionMenuContribution,
+    *,
+    create_missing: bool = False,
 ) -> tuple[tuple[MenuItemSpec, ...], bool]:
     if not path:
         return _insert_child(items, contribution), True
@@ -186,11 +188,23 @@ def _insert_at_path(
                 updated.append(item.with_children(children))
                 inserted = True
                 continue
-            children, inserted = _insert_at_path(item.children, path[1:], contribution)
+            children, inserted = _insert_at_path(item.children, path[1:], contribution, create_missing=True)
             updated.append(item.with_children(children) if inserted else item)
             continue
         updated.append(item)
+    if not inserted and create_missing:
+        updated.append(_missing_path_menu(path, contribution))
+        inserted = True
     return tuple(updated), inserted
+
+
+def _missing_path_menu(path: tuple[str, ...], contribution: ExtensionMenuContribution) -> MenuItemSpec:
+    label = str(path[0]).strip()
+    if len(path) == 1:
+        children = _insert_child((), contribution)
+    else:
+        children = (_missing_path_menu(path[1:], contribution),)
+    return menu_item(label, origin=contribution.item.origin, children=children)
 
 
 def _insert_child(
