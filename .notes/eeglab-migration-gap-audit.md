@@ -1,7 +1,7 @@
 # EEGPrep Remaining EEGLAB Migration Gap Audit
 
-Audit date: 2026-06-03  
-Branch audited: `fix/eeglab-session-history-progress` / PR #128  
+Audit date: 2026-06-03
+Branch audited: `fix/eeglab-session-history-progress` / PR #128
 Reference: vendored EEGLAB source under `src/eegprep/eeglab/`
 
 ## Scope
