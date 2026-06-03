@@ -109,6 +109,14 @@ After installation, launch EEGPrep from the same environment:
    uv run eegprep-gui --full
    uv run eegprep-console --full
 
+Use ``--no-plugins`` when troubleshooting startup or when you need a session
+with only core EEGPrep menus and console exports:
+
+.. code-block:: bash
+
+   uv run eegprep-gui --no-plugins
+   uv run eegprep-console --no-plugins
+
 Extension menus and actions appear automatically when the extension record is
 active. In ``eegprep-console``, extension ``pop_*`` functions should behave like
 EEGPrep ``pop_*`` functions: GUI actions and console calls share one
@@ -125,6 +133,22 @@ For example, a user-facing extension function should support:
 Normal Python imports still use standard Python semantics. The automatic
 session storage behavior is specific to ``eegprep-console`` and registered GUI
 actions.
+
+Startup and Extension Loading
+=============================
+
+EEGPrep registry discovery imports only the lightweight entry-point target that
+returns ``ExtensionSpec``. Processing functions, Qt dialogs, optional machine
+learning stacks, and large model loaders should stay behind ``LazyImport`` so
+``import eegprep``, ``eegprep-gui``, ``eegprep-console``, Extension Manager
+inspection, and menu construction do not import them until the user invokes the
+extension action or ``pop_*`` function.
+
+Disabled extensions remain visible in the Extension Manager for inspection, but
+they do not contribute menus, actions, help resources, or console ``pop_*``
+wrappers after registry rediscovery. Failed, incompatible, invalid, and
+missing-dependency extensions are also listed without becoming active, so one
+broken package should not prevent GUI or console startup.
 
 Required Package Format
 =======================
@@ -229,6 +253,11 @@ Use package resources for help text, small calibration files, montages, and
 other data that must ship with the extension. Declare required runtime files
 with ``ExtensionResource`` so ``validate_extension_spec`` can catch missing
 resources before users click the action.
+
+Resolve files with package-relative resource paths, not absolute paths into a
+source checkout. ``ExtensionResource`` uses Python package resources, which keeps
+extension data portable across editable installs, wheels, Windows paths with
+spaces, macOS/Linux virtual environments, and private package indexes.
 
 For optional dependencies, declare ``ExtensionDependency(..., optional=True)``
 when the dependency unlocks optional behavior. Declare required dependencies

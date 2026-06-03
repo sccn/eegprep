@@ -67,6 +67,16 @@ def test_extension_docs_cover_registry_status_language() -> None:
     assert "does not host arbitrary extension zip files" in text
 
 
+def test_extension_docs_cover_phase6_startup_and_disable_guidance() -> None:
+    text = _extension_text()
+
+    assert "uv run eegprep-gui --no-plugins" in text
+    assert "uv run eegprep-console --no-plugins" in text
+    assert "do not contribute menus, actions, help resources, or console" in text
+    assert "portable across editable installs" in text
+    assert "import eegprep" in text
+
+
 def _extension_text() -> str:
     text_parts = []
     for path in DOC_PATHS:

@@ -403,6 +403,12 @@ def test_extension_action_error_after_menu_click_is_reported_without_mutation(
                 def pop_raises(EEG, *, return_com=False):
                     raise RuntimeError("extension boom")
             """,
+            "pop_functions.py": """
+                def pop_after_gui_failure(EEG, *, return_com=False):
+                    output = dict(EEG, setname="console-still-usable")
+                    command = "EEG = pop_after_gui_failure(EEG);"
+                    return (output, command) if return_com else output
+            """,
         },
         monkeypatch,
     )
@@ -410,6 +416,12 @@ def test_extension_action_error_after_menu_click_is_reported_without_mutation(
         ExtensionSpec(
             name="raising_extension",
             actions=(ExtensionAction("pop_raises", LazyImport(f"{package}.actions", "pop_raises")),),
+            pop_functions=(
+                ExtensionPopFunction(
+                    "pop_after_gui_failure",
+                    LazyImport(f"{package}.pop_functions", "pop_after_gui_failure"),
+                ),
+            ),
         )
     )
     session = EEGPrepSession()
@@ -422,6 +434,14 @@ def test_extension_action_error_after_menu_click_is_reported_without_mutation(
     warn.assert_called_once_with("window", "extension boom")
     assert session.ALLCOM == []
     assert session.EEG["setname"] == "demo"
+
+    workspace = EEGPrepConsoleWorkspace(session, exports={}, extension_runtime=runtime)
+    result = workspace.namespace["pop_after_gui_failure"](workspace.namespace["EEG"])
+    workspace.after_execute("pop_after_gui_failure(EEG)")
+
+    assert result.command == "EEG = pop_after_gui_failure(EEG);"
+    assert session.EEG["setname"] == "console-still-usable"
+    assert session.ALLCOM == ["EEG = pop_after_gui_failure(EEG);"]
 
 
 def test_extension_pop_function_console_bare_and_assigned_calls_store_history_once(
@@ -474,6 +494,47 @@ def test_extension_pop_function_console_bare_and_assigned_calls_store_history_on
     assert assigned_workspace.namespace["com"] == "EEG = pop_console_ext(EEG);"
     assert assigned_session.EEG["setname"] == "console-extension"
     assert assigned_session.ALLCOM == ["EEG = pop_console_ext(EEG);"]
+
+
+def test_extension_pop_function_console_failure_does_not_mutate_session_or_history(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    package = "extension_console_failure"
+    _write_package(
+        tmp_path,
+        package,
+        {
+            "pop_functions.py": """
+                def pop_console_raises(EEG, *, return_com=False):
+                    raise RuntimeError("console extension boom")
+            """,
+        },
+        monkeypatch,
+    )
+    runtime = _runtime(
+        ExtensionSpec(
+            name="console_failure_extension",
+            pop_functions=(
+                ExtensionPopFunction(
+                    "pop_console_raises",
+                    LazyImport(f"{package}.pop_functions", "pop_console_raises"),
+                ),
+            ),
+        )
+    )
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(), new=True)
+    workspace = EEGPrepConsoleWorkspace(session, exports={}, extension_runtime=runtime)
+
+    with pytest.raises(RuntimeError, match="console extension boom"):
+        workspace.namespace["pop_console_raises"](workspace.namespace["EEG"])
+    workspace.after_execute("pop_console_raises(EEG)", success=False)
+
+    assert session.EEG["setname"] == "demo"
+    assert session.ALLCOM == []
+    assert session.LASTCOM == ""
+    assert workspace.namespace["EEG"] is session.EEG
 
 
 def test_extension_help_resource_lookup_uses_packaged_markdown(

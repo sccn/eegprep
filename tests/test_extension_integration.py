@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 import importlib
+from importlib import metadata
+import os
+import subprocess
 import sys
 import textwrap
 from pathlib import Path
 from typing import Any
 
 import numpy as np
+import pytest
 
 from eegprep.extension_catalog import load_extension_catalog
 from eegprep.extension_runtime import ExtensionRuntime
@@ -207,11 +211,265 @@ def test_installed_extension_works_across_registry_manager_gui_help_and_console(
     ]
 
 
+def test_real_installed_entry_points_are_lazy_resource_safe_and_deterministic(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_root = tmp_path / "Windows style lab path with spaces"
+    alpha_package = "phase6_alpha_extension"
+    beta_package = "phase6_beta_extension"
+    _write_installed_extension(
+        install_root,
+        alpha_package,
+        distribution_name="eegprep-ext-phase6-alpha",
+        entry_point_name="phase6_alpha",
+        files={
+            "registration.py": """
+                from eegprep import ExtensionAction, ExtensionMenu, ExtensionResource, ExtensionSpec, LazyImport
+
+                def register():
+                    return ExtensionSpec(
+                        name="phase6_alpha_extension",
+                        display_name="Phase 6 Alpha",
+                        version="0.1.0",
+                        package_name="wrong-local-name",
+                        actions=(
+                            ExtensionAction("phase6.alpha", LazyImport("phase6_alpha_extension.heavy_action", "run")),
+                        ),
+                        menus=(
+                            ExtensionMenu(path=("Tools", "Phase 6"), action="phase6.alpha", label="Alpha action"),
+                        ),
+                        package_data_resources=(
+                            ExtensionResource("phase6_alpha_extension", "resources/data/config value.json"),
+                        ),
+                    )
+            """,
+            "heavy_action.py": """
+                def run():
+                    return "alpha"
+            """,
+            "resources/data/config value.json": '{"scale": 2}',
+        },
+        monkeypatch=monkeypatch,
+    )
+    _write_installed_extension(
+        install_root,
+        beta_package,
+        distribution_name="eegprep-ext-phase6-beta",
+        entry_point_name="phase6_beta",
+        files={
+            "registration.py": """
+                from eegprep import ExtensionAction, ExtensionMenu, ExtensionSpec, LazyImport
+
+                def register():
+                    return ExtensionSpec(
+                        name="phase6_beta_extension",
+                        display_name="Phase 6 Beta",
+                        version="0.1.0",
+                        actions=(
+                            ExtensionAction("phase6.beta", LazyImport("phase6_beta_extension.heavy_action", "run")),
+                        ),
+                        menus=(
+                            ExtensionMenu(path=("Tools", "Phase 6"), action="phase6.beta", label="Beta action"),
+                        ),
+                    )
+            """,
+            "heavy_action.py": """
+                def run():
+                    return "beta"
+            """,
+        },
+        monkeypatch=monkeypatch,
+    )
+    registry = ExtensionRegistry(
+        include_bundled=False,
+        entry_points_provider=_installed_entry_points("phase6_beta", "phase6_alpha"),
+    )
+
+    records = registry.discover()
+    runtime = ExtensionRuntime.from_records(records)
+    menus = eeglab_menus(all_menus=True, extension_runtime=runtime)
+
+    assert [record.name for record in records] == ["phase6_alpha_extension", "phase6_beta_extension"]
+    assert [record.entry_point_name for record in records] == ["phase6_alpha", "phase6_beta"]
+    assert [record.package_name for record in records] == [
+        "eegprep-ext-phase6-alpha",
+        "eegprep-ext-phase6-beta",
+    ]
+    assert all(record.status == ExtensionStatus.INSTALLED for record in records)
+    assert f"{alpha_package}.heavy_action" not in sys.modules
+    assert f"{beta_package}.heavy_action" not in sys.modules
+    assert records[0].spec is not None
+    assert records[0].spec.package_data_resources[0].read_text() == '{"scale": 2}\n'
+    assert _child(_child(menus, "Tools").children, "Phase 6").children[0].action == "phase6.alpha"
+    assert f"{alpha_package}.heavy_action" not in sys.modules
+
+    assert runtime.action("phase6.alpha").load()() == "alpha"
+    assert f"{alpha_package}.heavy_action" in sys.modules
+
+
+def test_disabled_installed_extension_removes_previous_menu_contribution(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_root = tmp_path / "disabled extension path"
+    _write_installed_extension(
+        install_root,
+        "phase6_disabled_extension",
+        distribution_name="eegprep-ext-phase6-disabled",
+        entry_point_name="phase6_disabled",
+        files={
+            "registration.py": """
+                from eegprep import ExtensionAction, ExtensionMenu, ExtensionSpec, LazyImport
+
+                def register():
+                    return ExtensionSpec(
+                        name="phase6_disabled_extension",
+                        display_name="Phase 6 Disabled",
+                        version="0.1.0",
+                        actions=(
+                            ExtensionAction(
+                                "phase6.disabled",
+                                LazyImport("phase6_disabled_extension.actions", "run"),
+                            ),
+                        ),
+                        menus=(
+                            ExtensionMenu(path=("Tools",), action="phase6.disabled", label="Disabled action"),
+                        ),
+                    )
+            """,
+            "actions.py": """
+                def run():
+                    return None
+            """,
+        },
+        monkeypatch=monkeypatch,
+    )
+    provider = _installed_entry_points("phase6_disabled")
+    enabled_records = ExtensionRegistry(include_bundled=False, entry_points_provider=provider).discover()
+    enabled_runtime = ExtensionRuntime.from_records(enabled_records)
+    disabled_registry = ExtensionRegistry(
+        disabled_extensions={"phase6_disabled_extension"},
+        include_bundled=False,
+        entry_points_provider=provider,
+    )
+
+    disabled_records = disabled_registry.discover()
+    disabled_runtime = ExtensionRuntime.from_records(disabled_records)
+
+    assert "phase6.disabled" in _menu_actions(eeglab_menus(all_menus=True, extension_runtime=enabled_runtime))
+    assert disabled_records[0].status == ExtensionStatus.DISABLED
+    assert disabled_records[0].enabled is False
+    assert "phase6.disabled" not in _menu_actions(eeglab_menus(all_menus=True, extension_runtime=disabled_runtime))
+
+
+def test_no_plugins_mode_skips_installed_entry_point_imports(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_root = tmp_path / "no plugins path"
+    _write_installed_extension(
+        install_root,
+        "phase6_skip_extension",
+        distribution_name="eegprep-ext-phase6-skip",
+        entry_point_name="phase6_skip",
+        files={
+            "registration.py": """
+                raise RuntimeError("entry point should not import in no-plugins mode")
+            """,
+        },
+        monkeypatch=monkeypatch,
+    )
+    registry = ExtensionRegistry(
+        include_bundled=False,
+        entry_points_provider=_installed_entry_points("phase6_skip"),
+    )
+
+    assert registry.discover(include_plugins=False) == ()
+    assert ExtensionRuntime.discover(include_plugins=False).menu_contributions == ()
+    assert "phase6_skip_extension.registration" not in sys.modules
+
+
+def test_startup_imports_do_not_load_installed_extension_entry_points(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_root = tmp_path / "startup path with spaces"
+    _write_installed_extension(
+        install_root,
+        "phase6_startup_extension",
+        distribution_name="eegprep-ext-phase6-startup",
+        entry_point_name="phase6_startup",
+        files={
+            "registration.py": """
+                raise RuntimeError("startup imports must not load extension entry points")
+            """,
+        },
+        monkeypatch=monkeypatch,
+    )
+    env = os.environ.copy()
+    env["PYTHONPATH"] = os.pathsep.join((str(install_root), env.get("PYTHONPATH", "")))
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import sys; "
+                "import eegprep; "
+                "from eegprep.functions.adminfunc.eeglab import main as gui_main; "
+                "from eegprep.functions.adminfunc.console import main as console_main; "
+                "assert gui_main and console_main; "
+                "assert 'phase6_startup_extension.registration' not in sys.modules"
+            ),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+        cwd=Path(__file__).resolve().parents[1],
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
 def _provider(*entry_points: _FakeEntryPoint):
     def select(*, group: str) -> tuple[_FakeEntryPoint, ...]:
         return tuple(entry_point for entry_point in entry_points if entry_point.group == group)
 
     return select
+
+
+def _installed_entry_points(*names: str):
+    expected = set(names)
+
+    def select(*, group: str):
+        return tuple(entry_point for entry_point in metadata.entry_points(group=group) if entry_point.name in expected)
+
+    return select
+
+
+def _write_installed_extension(
+    install_root: Path,
+    package: str,
+    *,
+    distribution_name: str,
+    entry_point_name: str,
+    files: dict[str, str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_root.mkdir(parents=True, exist_ok=True)
+    _write_package(install_root, package, files, monkeypatch)
+    dist_info = install_root / f"{distribution_name.replace('-', '_')}-0.1.0.dist-info"
+    dist_info.mkdir(exist_ok=True)
+    (dist_info / "METADATA").write_text(
+        f"Metadata-Version: 2.1\nName: {distribution_name}\nVersion: 0.1.0\n",
+        encoding="utf-8",
+    )
+    (dist_info / "entry_points.txt").write_text(
+        f"[{EXTENSION_ENTRY_POINT_GROUP}]\n{entry_point_name} = {package}.registration:register\n",
+        encoding="utf-8",
+    )
 
 
 def _write_package(
@@ -239,6 +497,15 @@ def _child(items, label: str):
         if item.label == label:
             return item
     raise AssertionError(f"missing menu item {label!r}")
+
+
+def _menu_actions(items) -> set[str]:
+    actions: set[str] = set()
+    for item in items:
+        if item.action:
+            actions.add(item.action)
+        actions.update(_menu_actions(item.children))
+    return actions
 
 
 def _demo_eeg() -> dict[str, Any]:
