@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
-from eegprep.functions.popfunc.pop_newset import pop_newset
+from eegprep.functions.popfunc.pop_newset import pop_newset, pop_newset_dialog_spec
 
 
 def _eeg(*, name: str = "demo") -> dict:
@@ -90,6 +90,14 @@ def test_pop_newset_gui_choice_can_create_new_dataset():
         "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, "
         "'setname', 'processed', 'comments', 'new notes', 'overwrite', 'off');"
     )
+
+
+def test_pop_newset_dialog_old_dataset_prompt_hides_currentset_index():
+    spec = pop_newset_dialog_spec(_eeg(name="processed"), 1)
+
+    labels = [control.string for control in spec.controls]
+    assert "What do you want to do with the old dataset (not modified since last saved)?" in labels
+    assert "What do you want to do with the old dataset 1 (not modified since last saved)?" not in labels
 
 
 def test_pop_newset_gui_choice_can_overwrite_current_dataset():

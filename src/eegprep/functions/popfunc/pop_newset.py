@@ -73,8 +73,7 @@ def pop_newset_dialog_spec(EEG: dict[str, Any], CURRENTSET: Any = None, *, guist
     """Return the EEGLAB-like dialog spec for ``pop_newset``."""
     dataset_name = str(EEG.get("setname") or "")
     prompt = guistring or "What do you want to do with the new dataset?"
-    current = _currentset_label(CURRENTSET)
-    old_prompt = f"What do you want to do with the old dataset {current} (not modified since last saved)?"
+    old_prompt = "What do you want to do with the old dataset (not modified since last saved)?"
     return DialogSpec(
         title="Dataset info -- pop_newset()",
         function_name="pop_newset",
