@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "eegprep-ext-template"
+version = "0.1.0"
+description = "Minimal EEGPrep extension template package"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "eegprep>=0.2.23",
+  "numpy>=1.23",
+]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[project.entry-points."eegprep.extensions"]
+template = "eegprep_ext_template.registration:register"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"eegprep_ext_template" = [
+  "resources/**/*.json",
+  "resources/**/*.md",
+]

@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "eegprep-ext-gui-dialog"
+version = "0.1.0"
+description = "EEGPrep extension example for a GUI dialog"
+requires-python = ">=3.10"
+dependencies = ["eegprep>=0.2.23", "numpy>=1.23"]
+
+[project.entry-points."eegprep.extensions"]
+gui_dialog = "eegprep_ext_gui_dialog.registration:register"
+
+[tool.setuptools.packages.find]
+where = ["src"]
