@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "eegprep-ext-optional-dependency"
+version = "0.1.0"
+description = "EEGPrep extension example for optional dependencies and packaged model data"
+requires-python = ">=3.10"
+dependencies = ["eegprep>=0.2.23"]
+
+[project.optional-dependencies]
+model = ["eegprep-template-optional-model>=1.0"]
+
+[project.entry-points."eegprep.extensions"]
+optional_dependency = "eegprep_ext_optional_dependency.registration:register"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"eegprep_ext_optional_dependency" = ["resources/**/*.json"]

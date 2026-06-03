@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "eegprep-ext-plot-browser"
+version = "0.1.0"
+description = "EEGPrep extension example for plot/browser-style actions"
+requires-python = ">=3.10"
+dependencies = ["eegprep>=0.2.23"]
+
+[project.entry-points."eegprep.extensions"]
+plot_browser = "eegprep_ext_plot_browser.registration:register"
+
+[tool.setuptools.packages.find]
+where = ["src"]
