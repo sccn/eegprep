@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "eegprep-ext-signal-transform"
+version = "0.1.0"
+description = "EEGPrep extension example for a pure signal transform"
+requires-python = ">=3.10"
+dependencies = ["eegprep>=0.2.23", "numpy>=1.23"]
+
+[project.entry-points."eegprep.extensions"]
+signal_transform = "eegprep_ext_signal_transform.registration:register"
+
+[tool.setuptools.packages.find]
+where = ["src"]

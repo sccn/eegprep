@@ -464,7 +464,11 @@ class MenuActionDispatcherTests(unittest.TestCase):
         with mock.patch("eegprep.functions.guifunc.menu_actions.pophelp") as help_dialog:
             dispatcher.dispatch("help:eeg_helpadmin")
 
-        help_dialog.assert_called_once_with("eeg_helpadmin", parent=None)
+        help_dialog.assert_called_once_with(
+            "eeg_helpadmin",
+            parent=None,
+            extension_runtime=dispatcher.extension_runtime,
+        )
 
     def test_bare_help_action_defaults_to_eegprep_topic(self):
         dispatcher = MenuActionDispatcher(EEGPrepSession())
@@ -472,7 +476,11 @@ class MenuActionDispatcherTests(unittest.TestCase):
         with mock.patch("eegprep.functions.guifunc.menu_actions.pophelp") as help_dialog:
             dispatcher.dispatch("help")
 
-        help_dialog.assert_called_once_with("eegprep", parent=None)
+        help_dialog.assert_called_once_with(
+            "eegprep",
+            parent=None,
+            extension_runtime=dispatcher.extension_runtime,
+        )
 
     def test_help_and_admin_link_actions_do_not_mutate_session_history(self):
         session = EEGPrepSession()

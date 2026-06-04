@@ -1,0 +1,27 @@
+{
+  "setname": "template_sample",
+  "data": [
+    [1.0, 2.0, 3.0, 4.0],
+    [0.5, 0.0, -0.5, -1.0]
+  ],
+  "nbchan": 2,
+  "pnts": 4,
+  "trials": 1,
+  "srate": 128.0,
+  "xmin": 0.0,
+  "xmax": 0.0234375,
+  "times": [0.0, 0.0078125, 0.015625, 0.0234375],
+  "chanlocs": [
+    {"labels": "Cz", "type": "EEG"},
+    {"labels": "Pz", "type": "EEG"}
+  ],
+  "event": [
+    {"type": "stim", "latency": 1, "duration": 0}
+  ],
+  "urevent": [
+    {"type": "stim", "latency": 1, "duration": 0}
+  ],
+  "epoch": [],
+  "history": "",
+  "etc": {}
+}

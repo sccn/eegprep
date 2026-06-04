@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "eegprep-ext-file-io"
+version = "0.1.0"
+description = "EEGPrep extension example for file importer and exporter actions"
+requires-python = ">=3.10"
+dependencies = ["eegprep>=0.2.23", "numpy>=1.23"]
+
+[project.entry-points."eegprep.extensions"]
+file_io = "eegprep_ext_file_io.registration:register"
+
+[tool.setuptools.packages.find]
+where = ["src"]

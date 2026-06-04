@@ -70,7 +70,7 @@ console, while retrieving a dataset from the Datasets menu returns
 packaged EEGPrep Markdown resources; missing help is treated as a packaging
 error rather than falling back to the vendored EEGLAB reference tree.
 
-The same session also tracks bundled plugin metadata. Choose
+The same session also tracks Extension Manager metadata. Choose
 ``File > Manage EEGPrep extensions`` in the GUI, then inspect the mirrored
 inventory from the console:
 
@@ -89,6 +89,7 @@ Headless scripts can use the same public API without opening Qt:
    plugins = eegprep.plugin_menu(session=session, show=False)
    eegprep.plugin_status("ICLabel", exactmatch=True)
 
-External EEGLAB plugin installation, updates, and removal are not managed by
-EEGPrep. The plugin inventory describes the in-repo extensions bundled with the
-installed Python package.
+The inventory combines installed registry records with curated catalog metadata
+when available. Install and update guidance is displayed as copyable package
+manager commands; EEGPrep does not execute those commands or manage extension
+package installation for you.

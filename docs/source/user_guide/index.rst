@@ -37,8 +37,10 @@ Getting Started
    installation
    quickstart
    gui_help_menus
+   extensions
    eegbrowser
    interactive_console
+   extension_curation
 
 Core Concepts
 =============
@@ -75,7 +77,9 @@ Quick Reference
 - :ref:`installation` - Install eegprep
 - :ref:`quickstart` - Load, preprocess, and save EEG data
 - :ref:`gui_help_menus` - Use GUI menus, packaged help, and menu inventory checks
+- :ref:`extensions` - Install, trust, inspect, and use external EEGPrep extensions
 - :ref:`interactive_console` - Use the GUI and Python console together
+- :ref:`extension_curation` - Review extension trust, curation, catalog, and compatibility policy
 - :ref:`preprocessing_pipeline` - Understand preprocessing steps
 - :ref:`bids_workflow` - Process BIDS datasets
 - :ref:`study_workflows` - Use current STUDY creation, save/load, and plotting surfaces

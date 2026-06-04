@@ -31,6 +31,7 @@ dependencies = [
   "neo>=0.14.2",
   "numpy>=1.20",
   "oct2py>=5.5.0",
+  "packaging>=23.0",
   "psutil>=7.0.0",
   "pybids>=0.4",
   "pyedflib>=0.1.42",
@@ -78,6 +79,7 @@ all = [
 [project.scripts]
 eegprep-gui = "eegprep.functions.adminfunc.eeglab:main"
 eegprep-console = "eegprep.functions.adminfunc.console:main"
+eegprep-validate-extension-catalog = "eegprep.extension_catalog:main"
 
 [dependency-groups]
 dev = [
