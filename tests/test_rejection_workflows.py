@@ -9,7 +9,10 @@ import numpy as np
 import pytest
 import scipy.io
 
+import eegprep.functions.popfunc._eegplot_rejection as eegplot_rejection_module
+import eegprep.functions.popfunc.pop_rejcont as pop_rejcont_module
 from eegprep.functions.adminfunc.console import _console_python_command
+from eegprep.functions.popfunc.pop_eegplot import DEFAULT_REJECTION_COLORS
 from eegprep.functions.popfunc.eeg_rejsuperpose import eeg_rejsuperpose
 from eegprep.functions.popfunc._rejection import (
     jointprob,
@@ -132,6 +135,282 @@ def test_rejection_statistics_store_data_and_component_marks():
     assert not np.allclose(fft_spec_out["specdata"], spec_out["specdata"])
     assert comp_count >= 1
     assert "icarejjp" in comp_out["reject"]
+
+
+@pytest.mark.parametrize(
+    ("runner", "field"),
+    [
+        (
+            lambda eeg, callback: pop_eegthresh(
+                eeg,
+                1,
+                [1],
+                -10,
+                10,
+                0,
+                0.79,
+                0,
+                0,
+                topcommand="update",
+                command_callback=callback,
+                return_com=True,
+            ),
+            "rejthresh",
+        ),
+        (
+            lambda eeg, callback: pop_jointprob(
+                eeg, 1, [1, 2, 3, 4], 1.2, 1.2, 0, 0, 1, command_callback=callback, return_com=True
+            ),
+            "rejjp",
+        ),
+        (
+            lambda eeg, callback: pop_rejkurt(
+                eeg, 1, [1, 2, 3, 4], 1.2, 1.2, 0, 0, 1, command_callback=callback, return_com=True
+            ),
+            "rejkurt",
+        ),
+        (
+            lambda eeg, callback: pop_rejtrend(
+                eeg, 1, [2], 80, 0.2, 0.3, 0, 0, 1, command_callback=callback, return_com=True
+            ),
+            "rejconst",
+        ),
+        (
+            lambda eeg, callback: pop_rejspec(
+                eeg,
+                1,
+                "method",
+                "fft",
+                "elecrange",
+                [3],
+                "threshold",
+                [-10, 10],
+                "freqlimits",
+                [20, 30],
+                "eegplotplotallrej",
+                2,
+                "eegplotreject",
+                0,
+                command_callback=callback,
+                return_com=True,
+            ),
+            "rejfreq",
+        ),
+    ],
+)
+def test_epoched_rejection_display_paths_open_browser_and_accept_marks(monkeypatch, runner, field):
+    calls = []
+    accepted = []
+
+    def fake_eegplot(data, *args, **kwargs):
+        del args
+        calls.append((np.asarray(data), kwargs))
+        kwargs["command_callback"](kwargs["winrej"])
+        return "window"
+
+    monkeypatch.setattr(eegplot_rejection_module, "eegplot", fake_eegplot)
+    eeg = _epoched_eeg()
+
+    out, command = runner(eeg, lambda eeg_out, accept_command: accepted.append((eeg_out, accept_command)))
+
+    assert command
+    assert out["trials"] == eeg["trials"]
+    assert calls
+    assert calls[0][0].ndim == 3
+    assert accepted
+    assert accepted[0][1] == command
+    assert accepted[0][0]["reject"][field].shape == (eeg["trials"],)
+
+
+def test_component_rejection_browser_accept_updates_ica_marks(monkeypatch):
+    calls = []
+    accepted = []
+
+    def fake_eegplot(data, *args, **kwargs):
+        del args
+        calls.append((np.asarray(data), kwargs))
+        kwargs["command_callback"](kwargs["winrej"])
+        return "window"
+
+    monkeypatch.setattr(eegplot_rejection_module, "eegplot", fake_eegplot)
+    eeg = _epoched_eeg()
+
+    out, _command = pop_jointprob(
+        eeg,
+        0,
+        [1],
+        1.2,
+        1.2,
+        0,
+        0,
+        1,
+        command_callback=lambda eeg_out, command: accepted.append((eeg_out, command)),
+        return_com=True,
+    )
+
+    assert calls[0][0].shape[0] == 1
+    assert out["trials"] == eeg["trials"]
+    assert "icarejjp" in accepted[0][0]["reject"]
+    assert accepted[0][0]["reject"]["icarejjpE"].shape == (4, 5)
+
+
+def test_reject_on_browser_accept_removes_epochs_without_immediate_rejection(monkeypatch):
+    accepted = []
+
+    def fake_eegplot(_data, *args, **kwargs):
+        del args
+        kwargs["command_callback"](kwargs["winrej"])
+        return "window"
+
+    monkeypatch.setattr(eegplot_rejection_module, "eegplot", fake_eegplot)
+    eeg = _epoched_eeg()
+
+    out, _command = pop_eegthresh(
+        eeg,
+        1,
+        [1],
+        -10,
+        10,
+        0,
+        0.79,
+        0,
+        1,
+        topcommand="reject",
+        command_callback=lambda eeg_out, command: accepted.append(eeg_out),
+        return_com=True,
+    )
+
+    assert out["trials"] == eeg["trials"]
+    assert accepted[0]["trials"] == eeg["trials"] - 1
+
+
+def test_superposed_browser_winrej_includes_existing_family_marks(monkeypatch):
+    calls = []
+
+    def fake_eegplot(_data, *args, **kwargs):
+        del args
+        calls.append(kwargs)
+        return "window"
+
+    monkeypatch.setattr(eegplot_rejection_module, "eegplot", fake_eegplot)
+    eeg = _epoched_eeg()
+    eeg["reject"]["rejthresh"] = np.array([True, False, False, False, False])
+    eeg["reject"]["rejthreshE"] = np.zeros((4, 5), dtype=bool)
+    eeg["reject"]["rejthreshE"][0, 0] = True
+    eeg["reject"]["disprej"] = ["thresh"]
+
+    pop_jointprob(eeg, 1, [1, 2, 3, 4], 1.2, 1.2, 2, 0, 1)
+
+    rows = calls[0]["winrej"]
+    assert any(np.allclose(row[2:5], DEFAULT_REJECTION_COLORS["thresh"]) for row in rows)
+
+
+def test_pop_rejcont_display_accept_removes_continuous_regions(monkeypatch):
+    accepted = []
+    eeg = create_test_eeg(n_channels=2, n_samples=120, n_trials=1, srate=100)
+    time = np.arange(120) / 100
+    eeg["data"][0] = 100 * np.sin(2 * np.pi * 30 * time)
+
+    def fake_eegplot(data, *args, **kwargs):
+        del args
+        assert np.asarray(data).shape[0] == 1
+        kwargs["command_callback"](kwargs["winrej"])
+        return "window"
+
+    monkeypatch.setattr(pop_rejcont_module, "eegplot", fake_eegplot)
+
+    out, selected = pop_rejcont(
+        eeg,
+        "elecrange",
+        [1],
+        "freqlimit",
+        [20, 40],
+        "threshold",
+        0,
+        "epochlength",
+        0.2,
+        "contiguous",
+        1,
+        "eegplot",
+        "on",
+        command_callback=lambda eeg_out, command: accepted.append((eeg_out, command)),
+    )
+
+    assert selected.size
+    assert out["pnts"] == eeg["pnts"]
+    assert accepted[0][0]["pnts"] < eeg["pnts"]
+
+
+def test_pop_rejcont_display_defers_history_command_until_browser_accept(monkeypatch):
+    accepted = []
+    eeg = create_test_eeg(n_channels=2, n_samples=120, n_trials=1, srate=100)
+    time = np.arange(120) / 100
+    eeg["data"][0] = 100 * np.sin(2 * np.pi * 30 * time)
+
+    def fake_eegplot(_data, *args, **kwargs):
+        del args
+        kwargs["command_callback"](kwargs["winrej"])
+        return "window"
+
+    monkeypatch.setattr(pop_rejcont_module, "eegplot", fake_eegplot)
+
+    out, command = pop_rejcont(
+        eeg,
+        "elecrange",
+        [1],
+        "freqlimit",
+        [20, 40],
+        "threshold",
+        0,
+        "epochlength",
+        0.2,
+        "contiguous",
+        1,
+        "eegplot",
+        "on",
+        command_callback=lambda eeg_out, accept_command: accepted.append((eeg_out, accept_command)),
+        return_com=True,
+    )
+
+    assert out is eeg
+    assert command == ""
+    assert accepted[0][1].startswith("EEG = pop_rejcont(EEG, ")
+
+
+def test_pop_autorej_display_marks_original_epochs_before_browser_accept(monkeypatch):
+    calls = []
+    accepted = []
+
+    def fake_eegplot(_data, *args, **kwargs):
+        del args
+        calls.append(kwargs)
+        kwargs["command_callback"](kwargs["winrej"])
+        return "window"
+
+    monkeypatch.setattr(eegplot_rejection_module, "eegplot", fake_eegplot)
+    eeg = _epoched_eeg()
+
+    out, command = pop_autorej(
+        eeg,
+        "threshold",
+        10,
+        "startprob",
+        20,
+        "maxrej",
+        40,
+        "nogui",
+        "on",
+        "eegplot",
+        "on",
+        command_callback=lambda eeg_out, accept_command: accepted.append((eeg_out, accept_command)),
+        return_com=True,
+    )
+
+    assert command
+    assert calls
+    assert out["trials"] == eeg["trials"]
+    assert out["reject"]["rejauto"].shape == (eeg["trials"],)
+    assert accepted[0][1] == command
 
 
 def test_jointprob_global_marks_match_eeglab_trial_rows_for_duplicate_channels():

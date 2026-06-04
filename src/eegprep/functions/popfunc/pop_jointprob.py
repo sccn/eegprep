@@ -8,6 +8,7 @@ import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
+from eegprep.functions.popfunc._eegplot_rejection import open_epoched_rejection_browser
 from eegprep.functions.popfunc._pop_utils import format_history_value
 from eegprep.functions.popfunc._rejection import (
     copy_eeg,
@@ -35,6 +36,8 @@ def pop_jointprob(
     gui: bool | None = None,
     renderer: Any | None = None,
     return_com: bool = False,
+    command_callback: Any | None = None,
+    show: bool = True,
 ):
     """Mark or reject epochs by local/global joint probability."""
     if EEG is None:
@@ -48,7 +51,17 @@ def pop_jointprob(
                 return (EEG, "") if return_com else (EEG, [], [], 0)
             elecrange, locthresh, globthresh, superpose, reject, vistype = result
         outputs = [
-            _apply_one(dataset, icacomp, elecrange, locthresh, globthresh, superpose, reject, vistype)[0]
+            _apply_one(
+                dataset,
+                icacomp,
+                elecrange,
+                locthresh,
+                globthresh,
+                superpose,
+                reject,
+                vistype,
+                display=False,
+            )[0]
             for dataset in EEG
         ]
         command = _history_command(icacomp, elecrange, locthresh, globthresh, superpose, reject, vistype, plotflag)
@@ -59,7 +72,17 @@ def pop_jointprob(
             return (EEG, "") if return_com else (EEG, [], [], 0)
         elecrange, locthresh, globthresh, superpose, reject, vistype = result
     out, local_threshold, global_threshold, rejected, command = _apply_one(
-        EEG, icacomp, elecrange, locthresh, globthresh, superpose, reject, vistype
+        EEG,
+        icacomp,
+        elecrange,
+        locthresh,
+        globthresh,
+        superpose,
+        reject,
+        vistype,
+        display=bool(int(vistype) == 1 or topcommand is not None),
+        command_callback=command_callback,
+        show=show,
     )
     return (out, command) if return_com else (out, local_threshold, global_threshold, len(rejected))
 
@@ -145,6 +168,10 @@ def _apply_one(
     superpose: int | bool,
     reject: int | bool,
     vistype: int,
+    *,
+    display: bool = False,
+    command_callback: Any | None = None,
+    show: bool = True,
 ) -> tuple[dict[str, Any], list[float], list[float], list[int], str]:
     out = copy_eeg(EEG)
     data, row_count = rejection_data(out, icacomp)
@@ -161,9 +188,22 @@ def _apply_one(
         out["stats"]["icajp"] = global_scores
     update_reject_fields(out, icacomp=icacomp, kind="rejjp", reject=marks, reject_e=marks_e)
     rejected = (np.flatnonzero(marks) + 1).tolist()
-    if int(bool(reject)) and rejected:
-        out = pop_rejepoch(out, rejected, 0)
     command = _history_command(icacomp, elecrange, locthresh, globthresh, superpose, reject, vistype, 0)
+    if display:
+        open_epoched_rejection_browser(
+            out,
+            data=data,
+            icacomp=icacomp,
+            elecrange=elecrange,
+            kind="rejjp",
+            superpose=superpose,
+            reject=reject,
+            command=command,
+            command_callback=command_callback,
+            show=show,
+        )
+    elif int(bool(reject)) and rejected:
+        out = pop_rejepoch(out, rejected, 0)
     return (
         out,
         parse_numeric_sequence(locthresh, dtype=float),
@@ -188,7 +228,7 @@ def _history_command(
         parse_numeric_sequence(elecrange, dtype=int),
         parse_numeric_sequence(locthresh, dtype=float),
         parse_numeric_sequence(globthresh, dtype=float),
-        int(bool(superpose)),
+        int(superpose),
         int(bool(reject)),
         int(vistype),
         [],

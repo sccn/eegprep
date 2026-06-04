@@ -8,6 +8,7 @@ import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
+from eegprep.functions.popfunc._eegplot_rejection import open_epoched_rejection_browser
 from eegprep.functions.popfunc._pop_utils import format_history_value
 from eegprep.functions.popfunc._rejection import (
     copy_eeg,
@@ -35,6 +36,8 @@ def pop_eegthresh(
     gui: bool | None = None,
     renderer: Any | None = None,
     return_com: bool = False,
+    command_callback: Any | None = None,
+    show: bool = True,
 ):
     """Mark or reject epochs using EEGLAB ``pop_eegthresh`` semantics."""
     if EEG is None:
@@ -51,7 +54,16 @@ def pop_eegthresh(
             elecrange, negthresh, posthresh, starttime, endtime, superpose, reject = result
         for dataset in EEG:
             out, inds, _command = _apply_one(
-                dataset, icacomp, elecrange, negthresh, posthresh, starttime, endtime, superpose, reject
+                dataset,
+                icacomp,
+                elecrange,
+                negthresh,
+                posthresh,
+                starttime,
+                endtime,
+                superpose,
+                reject,
+                display=False,
             )
             outputs.append(out)
             rejected.append(inds)
@@ -63,7 +75,18 @@ def pop_eegthresh(
             return (EEG, "") if return_com else (EEG, [])
         elecrange, negthresh, posthresh, starttime, endtime, superpose, reject = result
     out, rejected, command = _apply_one(
-        EEG, icacomp, elecrange, negthresh, posthresh, starttime, endtime, superpose, reject
+        EEG,
+        icacomp,
+        elecrange,
+        negthresh,
+        posthresh,
+        starttime,
+        endtime,
+        superpose,
+        reject,
+        display=bool(gui or topcommand is not None),
+        command_callback=command_callback,
+        show=show,
     )
     return (out, command) if return_com else (out, rejected)
 
@@ -138,6 +161,10 @@ def _apply_one(
     endtime: Any,
     superpose: int | bool,
     reject: int | bool,
+    *,
+    display: bool = False,
+    command_callback: Any | None = None,
+    show: bool = True,
 ) -> tuple[dict[str, Any], list[int], str]:
     out = copy_eeg(EEG)
     data, row_count = rejection_data(out, icacomp)
@@ -160,11 +187,24 @@ def _apply_one(
     )
     update_reject_fields(out, icacomp=icacomp, kind="rejthresh", reject=marks, reject_e=marks_e)
     rejected = (np.flatnonzero(marks) + 1).tolist()
-    if int(bool(reject)) and rejected:
-        out = pop_rejepoch(out, rejected, 0)
     command = _history_command(
         icacomp, elecrange, negthresh, posthresh, starttime, endtime, superpose, int(bool(reject))
     )
+    if display:
+        open_epoched_rejection_browser(
+            out,
+            data=data,
+            icacomp=icacomp,
+            elecrange=elecrange,
+            kind="rejthresh",
+            superpose=superpose,
+            reject=reject,
+            command=command,
+            command_callback=command_callback,
+            show=show,
+        )
+    elif int(bool(reject)) and rejected:
+        out = pop_rejepoch(out, rejected, 0)
     return out, rejected, command
 
 
@@ -185,7 +225,7 @@ def _history_command(
         parse_numeric_sequence(posthresh, dtype=float),
         parse_numeric_sequence(starttime, dtype=float),
         parse_numeric_sequence(endtime, dtype=float),
-        int(bool(superpose)),
+        int(superpose),
         int(bool(reject)),
     ]
     return (

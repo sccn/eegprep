@@ -75,7 +75,9 @@ class PopSelectGuiTests(unittest.TestCase):
             ],
         )
         self.assertEqual([control.font_weight for control in spec.controls[:3]], ["bold", "bold", "bold"])
-        self.assertFalse(controls_by_tag(spec)["scroll"].enabled)
+        scroll = controls_by_tag(spec)["scroll"]
+        self.assertTrue(scroll.enabled)
+        self.assertEqual(scroll.callback.name, "open_eegplot")
 
     def test_gui_channel_picker_exposes_labels_and_types(self):
         controls = controls_by_tag(pop_select_dialog_spec(_eeg()))

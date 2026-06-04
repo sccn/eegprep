@@ -9,6 +9,7 @@ import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
+from eegprep.functions.popfunc._property_browser import property_activity_browser
 from eegprep.functions.popfunc._plot_utils import (
     channel_labels,
     component_activations,
@@ -32,6 +33,8 @@ def pop_prop(
     *,
     gui: bool | None = None,
     renderer: Any | None = None,
+    scroll_event: int | bool = 1,
+    show_activity: bool = False,
     return_com: bool = False,
 ):
     """Plot properties of one channel or independent component."""
@@ -48,6 +51,14 @@ def pop_prop(
         spec_opt = result["spec_opt"]
     indices = numeric_vector(chanorcomp if chanorcomp is not None else 1, dtype=int)
     figures = [_plot_one_property(EEG, typecomp, int(index), spec_opt) for index in indices]
+    for figure, index in zip(figures, indices):
+        figure.eegprep_activity_view = property_activity_browser(
+            EEG,
+            typecomp,
+            int(index),
+            scroll_event=scroll_event,
+            show=show_activity,
+        )
     command = history_command("pop_prop", typecomp, indices.astype(int).tolist(), winhandle, spec_opt)
     return (
         (figures[0] if len(figures) == 1 else figures, command)

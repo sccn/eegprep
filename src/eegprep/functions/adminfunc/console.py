@@ -17,6 +17,7 @@ from typing import Any
 import eegprep
 from eegprep.functions.adminfunc.eeglab import gui
 from eegprep.functions.guifunc.session import EEGPrepSession, normalize_dataset_indices
+from eegprep.functions.popfunc.pop_eegplot import eegplot_accept_creates_dataset
 from eegprep.functions.popfunc.pop_newset import pop_newset
 
 
@@ -31,6 +32,15 @@ _TUPLE_ASSIGNMENT_TARGET_PATTERN = re.compile(
 _POP_INTERP_CHANNELS_PATTERN = re.compile(r"(pop_interp\s*\(\s*EEG\s*,\s*)\[([0-9,\s]+)\]")
 _PYTHON_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _CONSOLE_COMMAND_EXPORTS = {"pop_newset": pop_newset}
+_BROWSER_ACCEPT_POP_FUNCTIONS = {
+    "pop_autorej",
+    "pop_eegthresh",
+    "pop_jointprob",
+    "pop_rejcont",
+    "pop_rejkurt",
+    "pop_rejspec",
+    "pop_rejtrend",
+}
 
 
 class ConsolePopResult:
@@ -155,9 +165,52 @@ class ConsolePopFunction(LazyWorkspaceExport):
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         function = self.resolve()
         call_kwargs = dict(kwargs)
+        recorded_commands: set[str] = set()
+        if self.name == "pop_eegplot" and "command_callback" not in call_kwargs:
+            source_eeg = _first_call_eeg_argument(args, call_kwargs)
+            reject = _pop_eegplot_reject_argument(function, args, call_kwargs)
+            target_index = list(self.bridge.session.CURRENTSET)
+
+            def accept_eegplot(eeg_out: Any, command: str) -> None:
+                if not isinstance(source_eeg, dict) or not isinstance(eeg_out, dict):
+                    return
+                store_new = eegplot_accept_creates_dataset(source_eeg, eeg_out, reject)
+                store_command = "" if command in recorded_commands else command
+                recorded_commands.add(command)
+                store_index = None if store_new else target_index
+                self.bridge._store_eeg(eeg_out, store_command, new=store_new, index=store_index)
+                self.bridge.pull_from_session()
+                self.bridge._refresh()
+
+            call_kwargs["command_callback"] = accept_eegplot
+        elif self.name in _BROWSER_ACCEPT_POP_FUNCTIONS and "command_callback" not in call_kwargs:
+            source_eeg = _first_call_eeg_argument(args, call_kwargs)
+            target_index = list(self.bridge.session.CURRENTSET)
+
+            def accept_browser_result(eeg_out: Any, command: str) -> None:
+                if not isinstance(source_eeg, dict) or not isinstance(eeg_out, dict):
+                    return
+                store_new = eegplot_accept_creates_dataset(source_eeg, eeg_out, reject=1)
+                store_command = "" if command in recorded_commands else command
+                recorded_commands.add(command)
+                store_index = None if store_new else target_index
+                self.bridge._store_eeg(eeg_out, store_command, new=store_new, index=store_index)
+                self.bridge.pull_from_session()
+                self.bridge._refresh()
+
+            call_kwargs["command_callback"] = accept_browser_result
         if _accepts_return_com(function) and "return_com" not in call_kwargs:
             call_kwargs["return_com"] = True
         result = function(*args, **call_kwargs)
+        if self.name == "pop_eegplot" or self.name in _BROWSER_ACCEPT_POP_FUNCTIONS:
+            _eeg, command = _extract_pop_eeg_and_command(result)
+            if command:
+                recorded_commands.add(command)
+            if self.name == "pop_eegplot" and _eeg is None and command:
+                self.bridge.session.add_history(command)
+                self.bridge._pop_updated_session = True
+                self.bridge.pull_from_session()
+                return ConsolePopResult(self.bridge.session.EEG, command, updated=False)
         return self.bridge.accept_pop_result(result, args, kwargs)
 
     def __repr__(self) -> str:
@@ -388,10 +441,10 @@ class EEGPrepConsoleWorkspace:
             elif export_name.startswith("pop_"):
                 self.namespace[local_name] = self.pop_wrapper(export_name)
 
-    def _store_eeg(self, eeg: Any, command: str, *, new: bool = False) -> None:
+    def _store_eeg(self, eeg: Any, command: str, *, new: bool = False, index: int | list[int] | None = None) -> None:
         self._syncing = True
         try:
-            self.session.store_current(eeg, new=new, command=command)
+            self.session.store_current(eeg, new=new, command=command, index=index)
         finally:
             self._syncing = False
 
@@ -1192,6 +1245,11 @@ def _first_call_eeg_argument(args: tuple[Any, ...], kwargs: Mapping[str, Any]) -
     if args:
         return args[0]
     return kwargs.get("EEG")
+
+
+def _pop_eegplot_reject_argument(function: Callable[..., Any], args: tuple[Any, ...], kwargs: Mapping[str, Any]) -> int:
+    bound = inspect.signature(function).bind_partial(*args, **kwargs)
+    return int(bound.arguments.get("reject", 1))
 
 
 def _is_eeg_selection(value: Any) -> bool:

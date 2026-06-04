@@ -48,7 +48,8 @@ eeglabio = [
   "eeglabio>=0.1.2"
 ]
 gui = [
-  "PySide6>=6.6"
+  "pyqtgraph>=0.13.7",
+  "PySide6>=6.6",
 ]
 console = [
   "eegprep[gui]",
@@ -194,6 +195,7 @@ exclude = ["eegprep.eeglab*"]
   "resources/**/*.m",
   "resources/**/*.mat",
   "resources/**/*.md",
+  "resources/**/*.npz",
   "resources/**/*.sfp",
   "resources/**/*.transform",
   "resources/**/*.txt",

@@ -130,6 +130,318 @@
       }
     },
     {
+      "id": "eegbrowser_continuous",
+      "description": "EEGLAB/EEGPrep eegplot browser with continuous channel data.",
+      "window_size": [960, 560],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_figure",
+          "action": "eegbrowser",
+          "matlab_command": "eeglab; close(findobj('tag','EEGLAB')); t = 0:999; data = zeros(8,1000); for c = 1:8, data(c,:) = sin(2*pi*c*t/250)+0.05*c; end; eegplot(data, 'srate', 250, 'winlength', 2, 'dispchans', 6, 'spacing', 1.2, 'xgrid', 'on', 'ygrid', 'on', 'title', 'Scroll channel activities -- eegplot() -- eegbrowser demo');"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "eegbrowser_continuous",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "eegbrowser_continuous_marked",
+      "description": "EEGLAB/EEGPrep eegplot browser with continuous marked regions and channel masks.",
+      "window_size": [960, 560],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_figure",
+          "action": "eegbrowser",
+          "matlab_command": "eeglab; close(findobj('tag','EEGLAB')); t = 0:999; data = zeros(8,1000); for c = 1:8, data(c,:) = sin(2*pi*c*t/250)+0.05*c; end; winrej = [125 260 0.7 1.0 0.9 1 1 1 1 1 1 1 1; 340 460 1.0 0.9 0.9 0 1 0 0 0 0 0 0]; eegplot(data, 'srate', 250, 'winlength', 2, 'dispchans', 6, 'spacing', 1.2, 'xgrid', 'on', 'ygrid', 'on', 'winrej', winrej, 'command', 'TMPREJ=[];', 'butlabel', 'Reject', 'title', 'Scroll channel activities -- eegplot() -- eegbrowser demo');"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "eegbrowser_continuous_marked",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "eegbrowser_epoched",
+      "description": "EEGLAB/EEGPrep eegplot browser with epoched channel data.",
+      "window_size": [960, 560],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_figure",
+          "action": "eegbrowser",
+          "matlab_command": "eeglab; close(findobj('tag','EEGLAB')); t = 0:249; data = zeros(8,250,3); for c = 1:8, for e = 1:3, data(c,:,e) = sin(2*pi*c*t/250)+0.2*cos(2*pi*e*t/250)+0.05*c; end; end; eegplot(data, 'srate', 250, 'winlength', 1, 'dispchans', 6, 'spacing', 1.2, 'xgrid', 'on', 'ygrid', 'on', 'title', 'Scroll channel activities -- eegplot() -- eegbrowser demo');"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "eegbrowser_epoched",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "eegbrowser_epoched_marked",
+      "description": "EEGLAB/EEGPrep eegplot browser with epoched marked trials and channel masks.",
+      "window_size": [960, 560],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_figure",
+          "action": "eegbrowser",
+          "matlab_command": "eeglab; close(findobj('tag','EEGLAB')); t = 0:249; data = zeros(8,250,3); for c = 1:8, for e = 1:3, data(c,:,e) = sin(2*pi*c*t/250)+0.2*cos(2*pi*e*t/250)+0.05*c; end; end; winrej = [250 499 0.7 1.0 0.9 1 1 1 1 1 1 1 1; 500 749 1.0 0.9 0.9 0 0 1 0 0 0 0 0]; eegplot(data, 'srate', 250, 'winlength', 3, 'dispchans', 6, 'spacing', 1.2, 'xgrid', 'on', 'ygrid', 'on', 'winrej', winrej, 'command', 'TMPREJ=[];', 'butlabel', 'Reject', 'title', 'Scroll channel activities -- eegplot() -- eegbrowser demo');"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "eegbrowser_epoched_marked",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "eegbrowser_events",
+      "description": "EEGLAB/EEGPrep eegplot browser with event overlays.",
+      "window_size": [1058, 560],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_figure",
+          "action": "eegbrowser",
+          "matlab_command": "eeglab; close(findobj('tag','EEGLAB')); t = 0:999; data = zeros(8,1000); for c = 1:8, data(c,:) = sin(2*pi*c*t/250)+0.05*c; end; events = struct('type', {'stim','resp','boundary'}, 'latency', {80,350,610}, 'duration', {0,0,25}); eegplot(data, 'srate', 250, 'events', events, 'winlength', 2, 'dispchans', 6, 'spacing', 1.2, 'xgrid', 'on', 'ygrid', 'on', 'title', 'Scroll channel activities -- eegplot() -- eegbrowser demo');"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "eegbrowser_events",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "eegbrowser_grid_off",
+      "description": "EEGLAB/EEGPrep eegplot browser with grid display off.",
+      "window_size": [960, 560],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_figure",
+          "action": "eegbrowser",
+          "matlab_command": "eeglab; close(findobj('tag','EEGLAB')); t = 0:999; data = zeros(8,1000); for c = 1:8, data(c,:) = sin(2*pi*c*t/250)+0.05*c; end; eegplot(data, 'srate', 250, 'winlength', 2, 'dispchans', 6, 'spacing', 1.2, 'xgrid', 'off', 'ygrid', 'off', 'title', 'Scroll channel activities -- eegplot() -- eegbrowser demo');"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "eegbrowser_grid_off",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "eegbrowser_labels",
+      "description": "EEGLAB/EEGPrep eegplot browser with channel labels and event controls.",
+      "window_size": [1058, 560],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_figure",
+          "action": "eegbrowser",
+          "matlab_command": "eeglab; close(findobj('tag','EEGLAB')); t = 0:999; data = zeros(8,1000); for c = 1:8, data(c,:) = sin(2*pi*c*t/250)+0.05*c; end; events = struct('type', {'stim','resp','boundary'}, 'latency', {80,350,610}, 'duration', {0,0,25}); eloc = struct('labels', {'Fp1','Fp2','Cz','Pz','O1','O2','T7','T8'}); eegplot(data, 'srate', 250, 'events', events, 'eloc_file', eloc, 'winlength', 2, 'dispchans', 6, 'spacing', 1.2, 'xgrid', 'on', 'ygrid', 'on', 'title', 'Scroll channel activities -- eegplot() -- eegbrowser demo');"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "eegbrowser_labels",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "eegbrowser_component_activity",
+      "description": "EEGLAB/EEGPrep eegplot browser with component activity scroll and component marks.",
+      "window_size": [960, 560],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_figure",
+          "action": "eegbrowser",
+          "matlab_command": "eeglab; close(findobj('tag','EEGLAB')); t = 0:999; data = zeros(8,1000); for c = 1:8, data(c,:) = cos(2*pi*c*t/250)+0.08*(c-1); end; winrej = [180 310 1.0 0.9 0.9 1 0 0 0 0 0 0 0; 520 640 0.7 1.0 0.9 0 1 1 0 0 0 0 0]; eegplot(data, 'srate', 250, 'winlength', 2, 'dispchans', 6, 'spacing', 1.2, 'xgrid', 'on', 'ygrid', 'on', 'winrej', winrej, 'command', 'TMPREJ=[];', 'butlabel', 'Update Marks', 'title', 'Scroll component activities -- eegplot() -- eegbrowser demo');"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "eegbrowser_component_activity",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "eegbrowser_data2_overlay",
+      "description": "EEGLAB/EEGPrep eegplot browser with data2 overlay traces.",
+      "window_size": [1058, 560],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_figure",
+          "action": "eegbrowser",
+          "matlab_command": "eeglab; close(findobj('tag','EEGLAB')); t = 0:999; data = zeros(8,1000); for c = 1:8, data(c,:) = sin(2*pi*c*t/250)+0.05*c; end; data2 = data + 0.35*cos(t/12); events = struct('type', {'stim','resp','boundary'}, 'latency', {80,350,610}, 'duration', {0,0,25}); eegplot(data, 'srate', 250, 'data2', data2, 'events', events, 'winlength', 2, 'dispchans', 6, 'spacing', 1.2, 'xgrid', 'on', 'ygrid', 'on', 'title', 'Scroll channel activities -- eegplot() -- data2 overlay demo');"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "eegbrowser_data2_overlay",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "eegbrowser_pop_eegplot_reject_data",
+      "description": "EEGLAB/EEGPrep pop_eegplot reject-data browser path with accepted marks.",
+      "window_size": [960, 560],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_figure",
+          "action": "eegbrowser",
+          "matlab_command": "eeglab; close(findobj('tag','EEGLAB')); t = 0:999; data = zeros(8,1000); for c = 1:8, data(c,:) = sin(2*pi*c*t/250)+0.05*c; end; events = struct('type', {'stim','resp','boundary'}, 'latency', {80,350,610}, 'duration', {0,0,25}); winrej = [125 260 0.7 1.0 0.9 1 1 1 1 1 1 1 1; 340 460 1.0 0.9 0.9 0 1 0 0 0 0 0 0]; eegplot(data, 'srate', 250, 'events', events, 'winlength', 2, 'dispchans', 6, 'spacing', 1.2, 'xgrid', 'on', 'ygrid', 'on', 'winrej', winrej, 'command', 'TMPREJ=[];', 'butlabel', 'Reject', 'title', 'Scroll channel activities -- eegplot() -- pop_eegplot reject demo');"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "eegbrowser_pop_eegplot_reject_data",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "eegbrowser_rejcont_continuous",
+      "description": "EEGLAB/EEGPrep browser-backed continuous rejection review path.",
+      "window_size": [960, 560],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_figure",
+          "action": "eegbrowser",
+          "matlab_command": "eeglab; close(findobj('tag','EEGLAB')); t = 0:999; data = zeros(4,1000); for c = 1:4, data(c,:) = sin(2*pi*c*t/250)+0.05*c; end; winrej = [160 260 0.0 0.9 0.0 1 1 1 1; 620 760 0.0 0.9 0.0 1 0 1 0]; eegplot(data, 'srate', 250, 'winlength', 2, 'dispchans', 4, 'spacing', 1.2, 'xgrid', 'off', 'ygrid', 'on', 'winrej', winrej, 'wincolor', [0 0.9 0], 'command', 'TMPREJ=[];', 'butlabel', 'Reject', 'title', 'Scroll channel activities -- eegplot() -- pop_rejcont demo');"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "eegbrowser_rejcont_continuous",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "eegbrowser_rejection_epochs",
+      "description": "EEGLAB/EEGPrep browser-backed epoched rejection review path.",
+      "window_size": [960, 560],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_figure",
+          "action": "eegbrowser",
+          "matlab_command": "eeglab; close(findobj('tag','EEGLAB')); t = 0:249; data = zeros(8,250,3); for c = 1:8, for e = 1:3, data(c,:,e) = sin(2*pi*c*t/250)+0.2*cos(2*pi*e*t/250)+0.05*c; end; end; events = struct('type', {'stim','resp','boundary'}, 'latency', {80,350,610}, 'duration', {0,0,25}); winrej = [250 499 0.7 1.0 0.9 1 1 1 1 1 1 1 1; 500 749 1.0 0.9 0.9 0 0 1 0 0 0 0 0]; eegplot(data, 'srate', 250, 'events', events, 'winlength', 3, 'dispchans', 6, 'spacing', 1.2, 'xgrid', 'on', 'ygrid', 'on', 'winrej', winrej, 'command', 'TMPREJ=[];', 'butlabel', 'Reject', 'title', 'Trial rejection using data activity -- pop_eegthresh()');"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "eegbrowser_rejection_epochs",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
       "id": "adjust_events_dialog",
       "description": "Adjust event latencies dialog opened from pop_adjustevents.",
       "window_size": [858, 169],
@@ -1829,6 +2141,25 @@
         "eegprep": {
           "type": "command",
           "action": "pop_viewprops_dialog",
+          "command": ["{python}", "-m", "eegprep.functions.guifunc.visual_capture", "--case", "{case_id}", "--output", "{output}"]
+        }
+      }
+    },
+    {
+      "id": "iclabel_pop_prop_extended_dashboard",
+      "description": "ICLabel extended component-property dashboard opened from viewprops.",
+      "window_size": [1200, 700],
+      "timeout_seconds": 180,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_figure",
+          "action": "iclabel_pop_prop_extended",
+          "matlab_command": "addpath(genpath(eeglab_root)); addpath(fullfile(eeglab_root, 'plugins', 'ICLabel', 'viewprops')); EEG = eeg_emptyset; EEG.setname = 'viewprops demo'; EEG.nbchan = 4; EEG.pnts = 1000; EEG.trials = 1; EEG.srate = 250; EEG.xmin = 0; EEG.xmax = 3.996; EEG.times = linspace(0, 3996, EEG.pnts); t = linspace(0, 1, EEG.pnts); EEG.data = [sin(2*pi*t); sin(4*pi*t); sin(6*pi*t); sin(8*pi*t)]; EEG.chanlocs = struct('labels', {'Fp1', 'Fp2', 'Cz', 'Oz'}, 'theta', {-18, 18, 0, 180}, 'radius', {0.42, 0.42, 0, 0.42}, 'X', {-0.25, 0.25, 0, 0}, 'Y', {0.75, 0.75, 0, -0.8}, 'Z', {0.55, 0.55, 1, 0.55}); EEG.chaninfo = struct(); EEG.event = struct('type', {'stim'}, 'latency', {25}, 'duration', {0}); EEG.urevent = EEG.event; EEG.icaweights = eye(4); EEG.icasphere = eye(4); EEG.icawinv = eye(4); EEG.icachansind = 1:4; EEG.icaact = [cos(2*pi*t); cos(4*pi*t); cos(6*pi*t); cos(8*pi*t)]; EEG.reject.gcompreject = zeros(1, 4); EEG.etc.ic_classification.ICLabel.classifications = [0.70 0.10 0.10 0.03 0.02 0.03 0.02; 0.02 0.94 0.02 0.01 0.00 0.00 0.01; 0.05 0.02 0.91 0.01 0.00 0.00 0.01; 0.80 0.05 0.05 0.02 0.02 0.03 0.03]; EEG.etc.ic_classification.ICLabel.classes = {'Brain', 'Muscle', 'Eye', 'Heart', 'Line Noise', 'Channel Noise', 'Other'}; EEG.dipfit.coordformat = 'MNI'; EEG.dipfit.model(1).posxyz = [0 -20 40]; EEG.dipfit.model(1).momxyz = [1 0 0]; EEG.dipfit.model(1).rv = 0.12; EEG.dipfit.model(1).component = 1; pop_prop_extended(EEG, 0, 1, nan, {'freqrange', [2 40]}, {}, 1, 'ICLabel');"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "iclabel_pop_prop_extended_dashboard",
+          "env": {"MPLBACKEND": "Agg"},
           "command": ["{python}", "-m", "eegprep.functions.guifunc.visual_capture", "--case", "{case_id}", "--output", "{output}"]
         }
       }

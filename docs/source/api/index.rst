@@ -161,6 +161,8 @@ Visualization
    :toctree: generated/
 
    eegprep.cart2topo
+   eegprep.eegplot
+   eegprep.eeg_multieegplot
    eegprep.pop_topoplot
    eegprep.topoplot
 
@@ -217,6 +219,7 @@ for now.
    eegprep.pop_clean_rawdata
    eegprep.pop_iclabel
    eegprep.pop_icflag
+   eegprep.pop_prop_extended
    eegprep.pop_viewprops
    eegprep.pop_eegfiltnew
    eegprep.pop_firws

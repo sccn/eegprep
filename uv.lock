@@ -698,6 +698,7 @@ all = [
     { name = "myst-parser", version = "5.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "numpydoc" },
     { name = "pydata-sphinx-theme" },
+    { name = "pyqtgraph" },
     { name = "pyside6" },
     { name = "sphinx", version = "8.1.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "sphinx", version = "9.0.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
@@ -716,6 +717,7 @@ all = [
 console = [
     { name = "ipython", version = "8.39.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "ipython", version = "9.13.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "pyqtgraph" },
     { name = "pyside6" },
 ]
 docs = [
@@ -740,6 +742,7 @@ eeglabio = [
     { name = "eeglabio" },
 ]
 gui = [
+    { name = "pyqtgraph" },
     { name = "pyside6" },
 ]
 torch = [
@@ -783,6 +786,7 @@ requires-dist = [
     { name = "pybids", specifier = ">=0.4" },
     { name = "pydata-sphinx-theme", marker = "extra == 'docs'", specifier = ">=0.14.0" },
     { name = "pyedflib", specifier = ">=0.1.42" },
+    { name = "pyqtgraph", marker = "extra == 'gui'", specifier = ">=0.13.7" },
     { name = "pyside6", marker = "extra == 'gui'", specifier = ">=6.6" },
     { name = "python-picard", specifier = ">=0.8,<0.9" },
     { name = "scipy", specifier = ">=1.7.0" },
@@ -2648,6 +2652,18 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/e7/82/28175b2414effca1cdac8dc99f76d660e7a4fb0ceefa4b4ab8f5f6742925/pyproject_hooks-1.2.0.tar.gz", hash = "sha256:1e859bd5c40fae9448642dd871adf459e5e2084186e8d2c2a79a824c970da1f8", size = 19228, upload-time = "2024-09-29T09:24:13.293Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/bd/24/12818598c362d7f300f18e74db45963dbcb85150324092410c8b49405e42/pyproject_hooks-1.2.0-py3-none-any.whl", hash = "sha256:9e5c6bfa8dcc30091c74b0cf803c81fdd29d94f01992a7707bc97babb1141913", size = 10216, upload-time = "2024-09-29T09:24:11.978Z" },
+]
+
+[[package]]
+name = "pyqtgraph"
+version = "0.14.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "colorama" },
+    { name = "numpy" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/32/36/4c242f81fdcbfa4fb62a5645f6af79191f4097a0577bd5460c24f19cc4ef/pyqtgraph-0.14.0-py3-none-any.whl", hash = "sha256:7abb7c3e17362add64f8711b474dffac5e7b0e9245abdf992e9a44119b7aa4f5", size = 1924755, upload-time = "2025-11-16T19:43:22.251Z" },
 ]
 
 [[package]]

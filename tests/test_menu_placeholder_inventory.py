@@ -26,6 +26,7 @@ def test_placeholder_inventory_has_phase_or_exclusion_metadata():
 
     assert set(inventory) == PLACEHOLDER_ACTIONS
     assert not any(metadata.phase == "2" for metadata in inventory.values())
+    assert not any(metadata.excluded_reason == "eegbrowser" for metadata in inventory.values())
     for action, metadata in inventory.items():
         assert bool(metadata.phase) ^ bool(metadata.excluded_reason), action
 
@@ -66,10 +67,10 @@ def test_phase1b_placeholders_are_removed_after_file_edit_completion():
     assert not any(metadata.phase == "1b" for metadata in placeholder_inventory().values())
 
 
-def test_eegbrowser_scrolling_actions_are_explicitly_excluded():
-    metadata = placeholder_metadata("pop_eegplot:data")
-
-    assert metadata is not None
-    assert metadata.phase is None
-    assert metadata.excluded_reason == "eegbrowser"
-    assert action_kind("pop_eegplot:data") == "placeholder"
+def test_eegbrowser_scrolling_actions_are_implemented():
+    assert placeholder_metadata("pop_eegplot:data") is None
+    assert action_kind("pop_eegplot:data") == "implemented"
+    assert action_kind("pop_eegplot:channels") == "implemented"
+    assert action_kind("pop_eegplot:components") == "implemented"
+    assert action_kind("pop_eegplot:reject_data") == "implemented"
+    assert action_kind("pop_eegplot:reject_ica") == "implemented"

@@ -23,4 +23,6 @@ Behavior:
 - ICA weights and sphere matrices must already be present.
 - Data are projected back using the remaining components.
 - ICA activations and rejection flags are cleared after removal, matching EEGLAB's component-removal workflow.
-- Component plotting and scrolling confirmation flows are outside this phase.
+- With `plotag=1`, EEGPrep opens a before/after scrolling browser: black traces
+  show the original channel data and red `data2` traces show the data after
+  removing the selected components.

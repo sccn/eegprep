@@ -49,6 +49,7 @@ IMPLEMENTED_ACTIONS = {
     "pop_editeventfield",
     "pop_editeventvals",
     "pop_editoptions",
+    "pop_eegplot",
     "pop_eegfilt",
     "pop_eegfiltnew",
     "pop_envtopo",
@@ -177,6 +178,16 @@ _DIPFIT_ACTIONS = {
     "pop_dipplot",
     "pop_leadfield",
     "pop_multifit",
+}
+
+_BROWSER_ACCEPT_POP_ACTIONS = {
+    "pop_autorej",
+    "pop_eegthresh",
+    "pop_jointprob",
+    "pop_rejcont",
+    "pop_rejkurt",
+    "pop_rejspec",
+    "pop_rejtrend",
 }
 
 
@@ -384,6 +395,9 @@ class MenuActionDispatcher:
             return
         if base == "pop_subcomp":
             self._run_pop_function("pop_subcomp", parent)
+            return
+        if base == "pop_eegplot":
+            self._run_pop_function("pop_eegplot", parent, variant=variant)
             return
         if base in {
             "pop_autorej",
@@ -1010,26 +1024,85 @@ class MenuActionDispatcher:
             from eegprep.functions.popfunc.pop_subcomp import pop_subcomp
 
             out = pop_subcomp(selection, return_com=True)
-        elif name == "pop_autorej":
-            from eegprep.functions.popfunc.pop_autorej import pop_autorej
+        elif name == "pop_eegplot":
+            from eegprep.functions.popfunc.pop_eegplot import eegplot_accept_creates_dataset, pop_eegplot
 
-            out = pop_autorej(selection, return_com=True)
-        elif name == "pop_eegthresh":
-            from eegprep.functions.popfunc.pop_eegthresh import pop_eegthresh
+            icacomp, superpose, reject = _pop_eegplot_variant_options(variant)
+            target_index = list(self.session.CURRENTSET)
+            recorded_commands: set[str] = set()
 
-            out = pop_eegthresh(selection, _icacomp_from_variant(variant), return_com=True)
-        elif name == "pop_jointprob":
-            from eegprep.functions.popfunc.pop_jointprob import pop_jointprob
+            def accept_eegplot(eeg_out: Any, command: str) -> None:
+                with self.session.gui_action("pop_eegplot"):
+                    if command:
+                        store_new = eegplot_accept_creates_dataset(selection, eeg_out, reject)
+                        store_command = "" if command in recorded_commands else command
+                        recorded_commands.add(command)
+                        store_index = None if store_new else target_index
+                        self._store_current_from_gui(
+                            eeg_out,
+                            new=store_new,
+                            command=store_command,
+                            index=store_index,
+                        )
+                        self._refresh()
 
-            out = pop_jointprob(selection, _icacomp_from_variant(variant), return_com=True)
+            out = pop_eegplot(
+                selection,
+                icacomp=icacomp,
+                superpose=superpose,
+                reject=reject,
+                command_callback=accept_eegplot,
+                return_com=True,
+            )
+            command = out[1] if isinstance(out, tuple) and len(out) > 1 else ""
+            if command:
+                self._add_history_from_gui(command)
+                recorded_commands.add(command)
+                self._refresh()
+            return
+        elif name in _BROWSER_ACCEPT_POP_ACTIONS:
+            from eegprep.functions.popfunc.pop_eegplot import eegplot_accept_creates_dataset
+
+            target_index = list(self.session.CURRENTSET)
+            recorded_commands: set[str] = set()
+            if isinstance(selection, list):
+                out = self._run_browser_accept_pop_action(name, selection, variant, command_callback=None)
+                command = out[1] if isinstance(out, tuple) and len(out) > 1 else ""
+                eeg_out = out[0] if isinstance(out, tuple) and out else out
+                if command:
+                    self._store_current_from_gui(eeg_out, command=command, index=target_index)
+                    self._refresh()
+                return
+
+            def accept_browser_result(eeg_out: Any, command: str) -> None:
+                with self.session.gui_action(name):
+                    if command:
+                        store_new = eegplot_accept_creates_dataset(selection, eeg_out, reject=1)
+                        store_command = "" if command in recorded_commands else command
+                        recorded_commands.add(command)
+                        store_index = None if store_new else target_index
+                        self._store_current_from_gui(
+                            eeg_out,
+                            new=store_new,
+                            command=store_command,
+                            index=store_index,
+                        )
+                        self._refresh()
+
+            out = self._run_browser_accept_pop_action(name, selection, variant, command_callback=accept_browser_result)
+            command = out[1] if isinstance(out, tuple) and len(out) > 1 else ""
+            eeg_out = out[0] if isinstance(out, tuple) and out else out
+            if name == "pop_rejcont":
+                return
+            if command:
+                self._store_current_from_gui(eeg_out, command=command)
+                recorded_commands.add(command)
+                self._refresh()
+            return
         elif name == "pop_rejchan":
             from eegprep.functions.popfunc.pop_rejchan import pop_rejchan
 
             out = pop_rejchan(selection, return_com=True)
-        elif name == "pop_rejcont":
-            from eegprep.functions.popfunc.pop_rejcont import pop_rejcont
-
-            out = pop_rejcont(selection, return_com=True)
         elif name == "pop_rejepoch":
             from eegprep.functions.popfunc.pop_rejepoch import pop_rejepoch
 
@@ -1038,22 +1111,10 @@ class MenuActionDispatcher:
                 return
             marks = (selection.get("reject") or {}).get("rejglobal", [])
             out = pop_rejepoch(selection, marks, return_com=True)
-        elif name == "pop_rejkurt":
-            from eegprep.functions.popfunc.pop_rejkurt import pop_rejkurt
-
-            out = pop_rejkurt(selection, _icacomp_from_variant(variant), return_com=True)
         elif name == "pop_rejmenu":
             from eegprep.functions.popfunc.pop_rejmenu import pop_rejmenu
 
             out = pop_rejmenu(selection, _icacomp_from_variant(variant), return_com=True)
-        elif name == "pop_rejspec":
-            from eegprep.functions.popfunc.pop_rejspec import pop_rejspec
-
-            out = pop_rejspec(selection, _icacomp_from_variant(variant), return_com=True)
-        elif name == "pop_rejtrend":
-            from eegprep.functions.popfunc.pop_rejtrend import pop_rejtrend
-
-            out = pop_rejtrend(selection, _icacomp_from_variant(variant), return_com=True)
         elif name == "pop_selectcomps":
             from eegprep.functions.popfunc.pop_selectcomps import pop_selectcomps
 
@@ -1061,7 +1122,19 @@ class MenuActionDispatcher:
         elif name == "pop_viewprops":
             from eegprep.plugins.ICLabel.pop_viewprops import pop_viewprops
 
-            out = pop_viewprops(selection, typecomp=0 if variant == "components" else 1, return_com=True)
+            target_index = list(self.session.CURRENTSET)
+
+            def commit_component_rejection(eeg_out: Any, _states: dict[int, bool]) -> None:
+                with self.session.gui_action("pop_viewprops"):
+                    self._store_current_from_gui(eeg_out, command="", index=target_index)
+                    self._refresh()
+
+            out = pop_viewprops(
+                selection,
+                typecomp=0 if variant == "components" else 1,
+                reject_callback=commit_component_rejection,
+                return_com=True,
+            )
         else:
             self.show_coming_soon(name, parent)
             return
@@ -1076,6 +1149,43 @@ class MenuActionDispatcher:
         if command:
             self._store_current_from_gui(eeg_out, command=command)
             self._refresh()
+
+    def _run_browser_accept_pop_action(
+        self,
+        name: str,
+        selection: Any,
+        variant: str,
+        *,
+        command_callback: Any | None,
+    ) -> Any:
+        callback_kwargs = {"command_callback": command_callback} if command_callback is not None else {}
+        if name == "pop_autorej":
+            from eegprep.functions.popfunc.pop_autorej import pop_autorej
+
+            return pop_autorej(selection, **callback_kwargs, return_com=True)
+        if name == "pop_eegthresh":
+            from eegprep.functions.popfunc.pop_eegthresh import pop_eegthresh
+
+            return pop_eegthresh(selection, _icacomp_from_variant(variant), **callback_kwargs, return_com=True)
+        if name == "pop_jointprob":
+            from eegprep.functions.popfunc.pop_jointprob import pop_jointprob
+
+            return pop_jointprob(selection, _icacomp_from_variant(variant), **callback_kwargs, return_com=True)
+        if name == "pop_rejcont":
+            from eegprep.functions.popfunc.pop_rejcont import pop_rejcont
+
+            return pop_rejcont(selection, **callback_kwargs, return_com=True)
+        if name == "pop_rejkurt":
+            from eegprep.functions.popfunc.pop_rejkurt import pop_rejkurt
+
+            return pop_rejkurt(selection, _icacomp_from_variant(variant), **callback_kwargs, return_com=True)
+        if name == "pop_rejspec":
+            from eegprep.functions.popfunc.pop_rejspec import pop_rejspec
+
+            return pop_rejspec(selection, _icacomp_from_variant(variant), **callback_kwargs, return_com=True)
+        from eegprep.functions.popfunc.pop_rejtrend import pop_rejtrend
+
+        return pop_rejtrend(selection, _icacomp_from_variant(variant), **callback_kwargs, return_com=True)
 
     def _select_multiple_datasets(self, parent: Any | None) -> None:
         if not self.session.ALLEEG:
@@ -1445,6 +1555,18 @@ def _currentset_list(value: Any) -> list[int]:
         return [int(item) for item in value if int(item) > 0]
     current = int(value)
     return [current] if current > 0 else []
+
+
+def _pop_eegplot_variant_options(variant: str) -> tuple[int, int, int]:
+    # Mirrors eeglab.m callbacks: cb_eegplot/cb_eegplotrej* omit optional args,
+    # while Plot scroll actions explicitly call pop_eegplot(EEG, icacomp, 1, 1).
+    if variant == "components":
+        return 0, 1, 1
+    if variant == "reject_ica":
+        return 0, 0, 1
+    if variant == "channels":
+        return 1, 1, 1
+    return 1, 0, 1
 
 
 def _apply_save_metadata(eeg: dict[str, Any], filename: str) -> None:

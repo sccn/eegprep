@@ -37,6 +37,7 @@ Getting Started
    installation
    quickstart
    gui_help_menus
+   eegbrowser
    interactive_console
 
 Core Concepts

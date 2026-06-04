@@ -9,4 +9,5 @@ The EEGPrep dialog combines non-browser rejection marks into
 `EEG.reject.rejglobal` using `eeg_rejsuperpose`. It can then remove the marked
 epochs with `pop_rejepoch`.
 
-Interactive EEGPlot/EEGBrowser scrolling inspection is intentionally excluded.
+Use the scrolling EEGPlot/EEGBrowser buttons to review data or component marks
+interactively before updating marks or rejecting epochs.

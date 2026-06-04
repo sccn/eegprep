@@ -572,6 +572,150 @@ class MenuActionDispatcherTests(unittest.TestCase):
         self.assertEqual(session.ALLCOM[-1], "CURRENTSTUDY = 1")
         self.assertEqual(session.menu_statuses(), {"study"})
 
+    def test_pop_eegplot_menu_variants_use_eeglab_parity_arguments(self):
+        session = EEGPrepSession()
+        session.store_current(_demo_eeg(epoched=True, ica=True), new=True)
+        dispatcher = MenuActionDispatcher(session)
+        calls = []
+
+        def fake_pop_eegplot(
+            eeg,
+            *,
+            icacomp=1,
+            superpose=0,
+            reject=1,
+            command_callback=None,
+            return_com=False,
+        ):
+            self.assertIs(eeg, session.EEG)
+            self.assertTrue(callable(command_callback))
+            self.assertTrue(return_com)
+            calls.append((icacomp, superpose, reject))
+            return eeg, f"pop_eegplot(EEG, {icacomp}, {superpose}, {reject})"
+
+        with mock.patch("eegprep.functions.popfunc.pop_eegplot.pop_eegplot", side_effect=fake_pop_eegplot):
+            for action in (
+                "pop_eegplot:data",
+                "pop_eegplot:channels",
+                "pop_eegplot:components",
+                "pop_eegplot:reject_data",
+                "pop_eegplot:reject_ica",
+            ):
+                dispatcher.dispatch(action)
+
+        self.assertEqual(calls, [(1, 0, 1), (1, 1, 1), (0, 1, 1), (1, 0, 1), (0, 0, 1)])
+        self.assertEqual(
+            session.ALLCOM,
+            [
+                "pop_eegplot(EEG, 1, 0, 1)",
+                "pop_eegplot(EEG, 1, 1, 1)",
+                "pop_eegplot(EEG, 0, 1, 1)",
+                "pop_eegplot(EEG, 1, 0, 1)",
+                "pop_eegplot(EEG, 0, 0, 1)",
+            ],
+        )
+
+    def test_pop_eegplot_accept_stores_rejected_continuous_data_as_new_dataset_without_duplicate_history(self):
+        session = EEGPrepSession()
+        session.store_current(_demo_eeg(), new=True)
+        refresh = mock.Mock()
+        dispatcher = MenuActionDispatcher(session, refresh=refresh)
+        captured = {}
+        command = "pop_eegplot(EEG, 1, 0, 1)"
+
+        def fake_pop_eegplot(eeg, *, command_callback=None, return_com=False, **_kwargs):
+            captured["callback"] = command_callback
+            self.assertTrue(return_com)
+            return eeg, command
+
+        with mock.patch("eegprep.functions.popfunc.pop_eegplot.pop_eegplot", side_effect=fake_pop_eegplot):
+            dispatcher.dispatch("pop_eegplot:data")
+
+        self.assertEqual(session.ALLCOM, [command])
+        session.add_history("EEG = pop_reref(EEG);")
+        out = dict(session.EEG)
+        out["data"] = np.asarray(out["data"])[:, :20]
+        out["pnts"] = 20
+        out["xmax"] = 0.19
+        captured["callback"](out, command)
+
+        self.assertEqual(len(session.ALLEEG), 2)
+        self.assertEqual(session.CURRENTSET, [2])
+        self.assertEqual(session.EEG["pnts"], 20)
+        self.assertEqual(session.ALLCOM, [command, "EEG = pop_reref(EEG);"])
+        self.assertGreaterEqual(refresh.call_count, 2)
+
+    def test_pop_eegplot_accept_updates_original_dataset_after_selection_changes(self):
+        session = EEGPrepSession()
+        first = _demo_eeg()
+        second = _demo_eeg()
+        second["setname"] = "second"
+        session.store_current(first, new=True)
+        session.store_current(second, new=True)
+        session.retrieve(1)
+        dispatcher = MenuActionDispatcher(session)
+        captured = {}
+        command = "pop_eegplot(EEG, 1, 0, 1)"
+
+        def fake_pop_eegplot(eeg, *, command_callback=None, return_com=False, **_kwargs):
+            captured["callback"] = command_callback
+            self.assertEqual(eeg["setname"], "demo")
+            self.assertTrue(return_com)
+            return eeg, command
+
+        with mock.patch("eegprep.functions.popfunc.pop_eegplot.pop_eegplot", side_effect=fake_pop_eegplot):
+            dispatcher.dispatch("pop_eegplot:data")
+
+        session.retrieve(2)
+        out = dict(first, setname="accepted first")
+        captured["callback"](out, command)
+
+        self.assertEqual(session.CURRENTSET, [1])
+        self.assertEqual(session.EEG["setname"], "accepted first")
+        self.assertEqual(session.ALLEEG[0]["setname"], "accepted first")
+        self.assertEqual(session.ALLEEG[1]["setname"], "second")
+        self.assertEqual(session.ALLCOM, [command])
+
+    def test_pop_eegplot_component_menu_error_does_not_mutate_session_when_ica_missing(self):
+        session = EEGPrepSession()
+        session.store_current(_demo_eeg(ica=False), new=True)
+        original_history = list(session.ALLCOM)
+        original_currentset = list(session.CURRENTSET)
+        dispatcher = MenuActionDispatcher(session)
+
+        with self.assertRaisesRegex(ValueError, "run ICA"):
+            dispatcher.dispatch("pop_eegplot:components")
+
+        self.assertEqual(session.CURRENTSET, original_currentset)
+        self.assertEqual(session.ALLCOM, original_history)
+        self.assertEqual(session.EEG["setname"], "demo")
+
+    def test_pop_eegplot_menu_enabled_states_follow_dataset_and_ica_status(self):
+        pytest.importorskip("PySide6")
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from eegprep.functions.guifunc.main_window import build_main_window
+
+        continuous_no_ica = EEGPrepSession()
+        continuous_no_ica.store_current(_demo_eeg(ica=False), new=True)
+        window = build_main_window(continuous_no_ica, all_menus=True)
+        actions = {action.data(): action for action in _qt_actions(window.window.menuBar().actions()) if action.data()}
+
+        self.assertTrue(actions["pop_eegplot:data"].isEnabled())
+        self.assertTrue(actions["pop_eegplot:channels"].isEnabled())
+        self.assertFalse(actions["pop_eegplot:components"].isEnabled())
+        self.assertFalse(actions["pop_eegplot:reject_data"].isEnabled())
+        self.assertFalse(actions["pop_eegplot:reject_ica"].isEnabled())
+        window.window.close()
+
+        epoched_no_ica = EEGPrepSession()
+        epoched_no_ica.store_current(_demo_eeg(epoched=True, ica=False), new=True)
+        window = build_main_window(epoched_no_ica, all_menus=True)
+        actions = {action.data(): action for action in _qt_actions(window.window.menuBar().actions()) if action.data()}
+
+        self.assertTrue(actions["pop_eegplot:reject_data"].isEnabled())
+        self.assertFalse(actions["pop_eegplot:reject_ica"].isEnabled())
+        window.window.close()
+
     def test_multiple_dataset_reref_preserves_selection(self):
         session = EEGPrepSession()
         first = _demo_eeg()
@@ -1158,10 +1302,10 @@ class QtMainWindowTests(unittest.TestCase):
         self.assertTrue(dataset_actions["Dataset 2:second"].isChecked())
         window.window.close()
 
-    def test_gui_main_window_marks_unimplemented_actions_distinctly(self):
+    def test_gui_main_window_marks_browser_actions_implemented(self):
         pytest.importorskip("PySide6")
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-        from eegprep.functions.guifunc.main_window import COMING_SOON_SUFFIX, build_main_window
+        from eegprep.functions.guifunc.main_window import build_main_window
 
         session = EEGPrepSession()
         session.store_current(_demo_eeg(), new=True)
@@ -1169,20 +1313,16 @@ class QtMainWindowTests(unittest.TestCase):
         actions_by_data = {
             action.data(): action for action in _qt_actions(window.window.menuBar().actions()) if action.data()
         }
-        placeholder = actions_by_data["pop_eegplot:data"]
-        implemented = actions_by_data["pop_resample"]
+        browser = actions_by_data["pop_eegplot:data"]
 
-        self.assertEqual(placeholder.property("eegprep_label"), "Inspect/reject data by eye")
-        self.assertEqual(placeholder.property("eegprep_implementation_state"), "coming_soon")
-        self.assertTrue(placeholder.text().endswith(COMING_SOON_SUFFIX))
-        self.assertFalse(placeholder.isEnabled())
-        self.assertTrue(placeholder.font().italic())
-        self.assertEqual(implemented.text(), "Change sampling rate")
-        self.assertNotEqual(implemented.property("eegprep_implementation_state"), "coming_soon")
-        self.assertTrue(implemented.isEnabled())
+        self.assertEqual(browser.property("eegprep_label"), "Inspect/reject data by eye")
+        self.assertNotEqual(browser.property("eegprep_implementation_state"), "coming_soon")
+        self.assertEqual(browser.text(), "Inspect/reject data by eye")
+        self.assertTrue(browser.isEnabled())
+        self.assertFalse(browser.font().italic())
         window.window.close()
 
-    def test_gui_main_window_inventory_reports_coming_soon_source_label(self):
+    def test_gui_main_window_inventory_reports_browser_source_label(self):
         pytest.importorskip("PySide6")
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
         from eegprep.functions.guifunc.main_window import build_main_window
@@ -1193,10 +1333,10 @@ class QtMainWindowTests(unittest.TestCase):
         tools = next(item for item in window.menu_inventory() if item["label"] == "Tools")
         by_source_label = {item["source_label"]: item for item in tools["children"]}
 
-        coming_soon = by_source_label["Inspect/reject data by eye"]
-        self.assertEqual(coming_soon["implementation_state"], "coming_soon")
-        self.assertFalse(coming_soon["enabled"])
-        self.assertIn("coming soon", coming_soon["label"])
+        browser = by_source_label["Inspect/reject data by eye"]
+        self.assertEqual(browser["implementation_state"], "implemented")
+        self.assertTrue(browser["enabled"])
+        self.assertEqual(browser["label"], "Inspect/reject data by eye")
         self.assertEqual(by_source_label["Change sampling rate"]["implementation_state"], "implemented")
         self.assertTrue(by_source_label["Change sampling rate"]["enabled"])
         window.window.close()

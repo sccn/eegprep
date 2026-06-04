@@ -8,8 +8,15 @@ import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
+from eegprep.functions.popfunc._eegplot_rejection import open_epoched_rejection_browser
 from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args
-from eegprep.functions.popfunc._rejection import one_based_indices, parse_numeric_sequence
+from eegprep.functions.popfunc._rejection import (
+    copy_eeg,
+    one_based_indices,
+    parse_numeric_sequence,
+    rejection_data,
+    update_reject_fields,
+)
 from eegprep.functions.popfunc.pop_eegthresh import pop_eegthresh
 from eegprep.functions.popfunc.pop_jointprob import pop_jointprob
 from eegprep.functions.popfunc.pop_rejepoch import pop_rejepoch
@@ -22,9 +29,11 @@ def pop_autorej(
     gui: bool | None = None,
     renderer: Any | None = None,
     return_com: bool = False,
+    command_callback: Any | None = None,
+    show: bool = True,
     **kwargs: Any,
 ):
-    """Run EEGLAB's automatic epoch rejection protocol without EEGPlot."""
+    """Run EEGLAB's automatic epoch rejection protocol."""
     if EEG is None:
         return (None, "") if return_com else (None, [])
     options = parse_key_value_args(args, kwargs, lowercase_kwargs=True)
@@ -35,8 +44,15 @@ def pop_autorej(
         if gui_options is None:
             return (EEG, "") if return_com else (EEG, [])
         options.update(gui_options)
-    out, rejected = _apply_one(EEG, options)
     command = _history_command(options)
+    out, rejected = _apply_one(
+        EEG,
+        options,
+        display=str(options.get("eegplot", "off")).lower() == "on",
+        command=command,
+        command_callback=command_callback,
+        show=show,
+    )
     return (out, command) if return_com else (out, rejected)
 
 
@@ -65,7 +81,7 @@ def pop_autorej_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("edit", tag="maxrej", value="5"),
             ControlSpec("spacer"),
             ControlSpec("text", "Check box for visual inspection of results"),
-            ControlSpec("checkbox", tag="eegplot", value=False, enabled=False),
+            ControlSpec("checkbox", tag="eegplot", value=True, enabled=True),
         ),
     )
 
@@ -86,10 +102,20 @@ def _run_gui(EEG: dict[str, Any], renderer: Any | None) -> dict[str, Any] | None
         options["startprob"] = result.get("startprob")
     if result.get("maxrej", "5") != "5":
         options["maxrej"] = result.get("maxrej")
+    if result.get("eegplot"):
+        options["eegplot"] = "on"
     return options
 
 
-def _apply_one(EEG: dict[str, Any], options: dict[str, Any]) -> tuple[dict[str, Any], list[int]]:
+def _apply_one(
+    EEG: dict[str, Any],
+    options: dict[str, Any],
+    *,
+    display: bool = False,
+    command: str = "",
+    command_callback: Any | None = None,
+    show: bool = True,
+) -> tuple[dict[str, Any], list[int]]:
     if int(EEG.get("trials", 1) or 1) <= 1:
         raise ValueError("pop_autorej requires epoched data")
     threshold = float(parse_numeric_sequence(options.get("threshold", 1000), dtype=float)[0])
@@ -137,12 +163,52 @@ def _apply_one(EEG: dict[str, Any], options: dict[str, Any]) -> tuple[dict[str, 
         rejected.update(remaining[index - 1] for index in current)
         if current:
             work = pop_rejepoch(work, current, 0)
-    return work, sorted(rejected)
+    rejected_sorted = sorted(rejected)
+    if display:
+        marked = _autorej_marked_dataset(EEG, rejected_sorted, process_data=process_data, rows=rows)
+        browser_data, _row_count = rejection_data(marked, int(process_data))
+        open_epoched_rejection_browser(
+            marked,
+            data=browser_data,
+            icacomp=int(process_data),
+            elecrange=rows,
+            kind="rejauto",
+            superpose=0,
+            reject=1,
+            command=command,
+            command_callback=command_callback,
+            show=show,
+        )
+        return marked, rejected_sorted
+    return work, rejected_sorted
+
+
+def _autorej_marked_dataset(
+    EEG: dict[str, Any],
+    rejected: list[int],
+    *,
+    process_data: bool,
+    rows: list[int],
+) -> dict[str, Any]:
+    out = copy_eeg(EEG)
+    trials = int(out.get("trials", 1) or 1)
+    row_count = int(out.get("nbchan", 0) or 0) if process_data else int(np.asarray(out.get("icaweights", [])).shape[0])
+    marks = np.zeros(trials, dtype=bool)
+    for index in rejected:
+        if 1 <= int(index) <= trials:
+            marks[int(index) - 1] = True
+    row_marks = np.zeros((row_count, trials), dtype=bool)
+    selected = np.asarray(rows, dtype=int) - 1
+    selected = selected[(selected >= 0) & (selected < row_count)]
+    if selected.size:
+        row_marks[np.ix_(selected, np.flatnonzero(marks))] = True
+    update_reject_fields(out, icacomp=int(process_data), kind="rejauto", reject=marks, reject_e=row_marks)
+    return out
 
 
 def _history_command(options: dict[str, Any]) -> str:
     values: list[Any] = []
-    for key in ("startprob", "electrodes", "icacomps", "maxrej", "nogui", "threshold"):
+    for key in ("startprob", "electrodes", "icacomps", "maxrej", "nogui", "threshold", "eegplot"):
         if key in options:
             values.extend([key, options[key]])
     return (

@@ -34,6 +34,23 @@ class VisualParityConfigTests(unittest.TestCase):
         self.assertEqual(cases["reref_dialog"].targets["eeglab"].action, "pop_reref")
         self.assertEqual(cases["reref_dialog_channel_ref"].targets["eeglab"].action, "pop_reref:channels")
         self.assertEqual(cases["reref_dialog_huber_ref"].targets["eeglab"].action, "pop_reref:huber")
+        for case_id in (
+            "eegbrowser_continuous",
+            "eegbrowser_continuous_marked",
+            "eegbrowser_epoched",
+            "eegbrowser_epoched_marked",
+            "eegbrowser_events",
+            "eegbrowser_grid_off",
+            "eegbrowser_labels",
+            "eegbrowser_component_activity",
+            "eegbrowser_data2_overlay",
+            "eegbrowser_pop_eegplot_reject_data",
+            "eegbrowser_rejcont_continuous",
+            "eegbrowser_rejection_epochs",
+        ):
+            with self.subTest(case_id=case_id):
+                self.assertEqual(cases[case_id].targets["eeglab"].type, "matlab_figure")
+                self.assertIn("eegprep.functions.guifunc.visual_capture", cases[case_id].targets["eegprep"].command)
         self.assertIn("pop_interp_dialog", cases)
         self.assertEqual(cases["pop_interp_dialog"].targets["eeglab"].action, "pop_interp:continuous")
         self.assertEqual(cases["pop_interp_epoched_dialog"].targets["eeglab"].action, "pop_interp:epoched")
@@ -83,6 +100,10 @@ class VisualParityConfigTests(unittest.TestCase):
         self.assertEqual(cases["pop_rejtrend_dialog"].targets["eeglab"].action, "pop_rejtrend")
         self.assertEqual(cases["pop_selectcomps_dialog"].targets["eeglab"].action, "pop_selectcomps")
         self.assertEqual(cases["pop_viewprops_dialog"].targets["eeglab"].action, "pop_viewprops")
+        self.assertEqual(
+            cases["iclabel_pop_prop_extended_dashboard"].targets["eeglab"].action,
+            "iclabel_pop_prop_extended",
+        )
         self.assertEqual(cases["pop_dipfit_settings_dialog"].targets["eeglab"].action, "pop_dipfit_settings")
         self.assertEqual(cases["pop_dipfit_gridsearch_dialog"].targets["eeglab"].action, "pop_dipfit_gridsearch")
         self.assertEqual(cases["pop_dipfit_nonlinear_dialog"].targets["eeglab"].action, "pop_dipfit_nonlinear")

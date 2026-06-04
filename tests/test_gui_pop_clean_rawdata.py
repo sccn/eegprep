@@ -44,7 +44,7 @@ class PopCleanRawdataGuiTests(unittest.TestCase):
         self.assertEqual(controls["chanrm"].font_weight, "bold")
         self.assertEqual(controls["asr"].font_weight, "bold")
         self.assertEqual(controls["rejwin"].font_weight, "bold")
-        self.assertFalse(controls["vis"].value)
+        self.assertTrue(controls["vis"].value)
 
     def test_gui_channel_callbacks_expose_labels(self):
         controls = controls_by_tag(pop_clean_rawdata_dialog_spec(_eeg()))
@@ -102,7 +102,7 @@ class PopCleanRawdataGuiTests(unittest.TestCase):
         self.assertIn("'BurstCriterion', 20", com)
         self.assertIn("'BurstRejection', 'on'", com)
 
-    def test_gui_vis_checkbox_notifies_when_checked(self):
+    def test_gui_vis_checkbox_opens_rejected_data_browser_when_checked(self):
         class Renderer:
             def run(self, spec, initial_values=None):
                 return {
@@ -133,14 +133,24 @@ class PopCleanRawdataGuiTests(unittest.TestCase):
         with (
             mock.patch(
                 "eegprep.plugins.clean_rawdata.pop_clean_rawdata.clean_artifacts",
-                return_value=(dict(eeg, setname="cleaned"), eeg, eeg, np.zeros(2, dtype=bool)),
+                return_value=(
+                    dict(
+                        eeg,
+                        setname="cleaned",
+                        etc={"clean_sample_mask": np.r_[np.ones(10, dtype=bool), np.zeros(30, dtype=bool)]},
+                    ),
+                    eeg,
+                    eeg,
+                    np.zeros(2, dtype=bool),
+                ),
             ) as clean,
-            mock.patch("eegprep.plugins.clean_rawdata.pop_clean_rawdata._notify_vis_artifacts_unavailable") as notify,
+            mock.patch("eegprep.plugins.clean_rawdata.pop_clean_rawdata.eegplot") as eegplot,
         ):
             out, com = pop_clean_rawdata(eeg, gui=True, renderer=Renderer(), return_com=True)
 
         clean.assert_called_once()
-        notify.assert_called_once()
+        eegplot.assert_called_once()
+        np.testing.assert_array_equal(eegplot.call_args.kwargs["winrej"][:, :2], [[11, 40]])
         self.assertEqual(out["setname"], "cleaned")
         self.assertNotIn("_show_vis_artifacts", com)
 

@@ -11,6 +11,7 @@ from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher, action_
 from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.functions.guifunc.spec import controls_by_tag
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
+from eegprep.plugins.dipfit._mri import dipfit_mri_slice_indices, dipfit_mri_slices, load_standard_mri_volume
 from eegprep.plugins.dipfit._utils import DIPFITUnavailableError
 from eegprep.plugins.dipfit.pop_dipfit_gridsearch import pop_dipfit_gridsearch, pop_dipfit_gridsearch_dialog_spec
 from eegprep.plugins.dipfit.pop_dipfit_headmodel import pop_dipfit_headmodel, pop_dipfit_headmodel_dialog_spec
@@ -55,6 +56,21 @@ def test_dipfit_submodules_are_not_shadowed_by_package_reexports():
 
     assert module.__name__ == "eegprep.plugins.dipfit.pop_dipfit_settings"
     assert module.pop_dipfit_settings is pop_dipfit_settings
+
+
+def test_packaged_standard_mri_volume_supports_dipfit_viewprops_slices():
+    volume = load_standard_mri_volume()
+
+    assert volume.anatomy.shape == (181, 217, 181)
+    assert volume.anatomy.dtype.name == "uint8"
+    assert volume.transform.shape == (4, 4)
+    assert dipfit_mri_slice_indices(volume, [[0, -20, 40]]) == (87, 108, 109)
+    slices = dipfit_mri_slices(volume, [[0, -20, 40]])
+    assert len(slices) == 3
+    assert slices[0].image.shape == (181, 217)
+    assert slices[1].image.shape == (181, 181)
+    assert slices[2].image.shape == (217, 181)
+    assert slices[0].extent == (-125.0, 91.0, -72.0, 108.0)
 
 
 def test_pop_dipfit_settings_works_on_sample_data():
