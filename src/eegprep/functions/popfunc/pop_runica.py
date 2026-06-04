@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import logging
 import re
 from pathlib import Path
 from typing import Any
@@ -26,6 +27,7 @@ _ALGORITHMS = (
     ("picard", "Infomax picard.m", "'maxiter', 500, 'mode', 'standard'"),
     ("picard", "FastICA picard.m (fastest)", "'maxiter', 500"),
 )
+logger = logging.getLogger(__name__)
 
 
 def pop_runica(
@@ -194,6 +196,7 @@ def _run_gui(EEG, renderer=None, initial_values=None):
 
 
 def _runica_on_dataset(EEG, icatype, options, *, reorder, chanind):
+    logger.info("Attempting to convert data matrix to double precision...")
     prepared = _prepare_ica_dataset(EEG)
     chanind = _resolve_chanind(prepared, chanind)
     if chanind is None:
@@ -219,12 +222,18 @@ def _runica_on_datasets(EEG, *, dataset, icatype, options, reorder, chanind, con
     output = list(EEG)
     indices = _dataset_indices(output, dataset)
     selected = [output[index] for index in indices]
+    logger.info("NOW RUNNING ALL DECOMPOSITIONS")
     if _is_on(concatcond):
+        logger.info("Concatenating datasets by subject and session.")
         updated = _runica_by_subject_session(selected, icatype, options, reorder=reorder, chanind=chanind)
     elif _is_on(concatenate):
+        logger.info("Concatenating datasets...")
         updated = _runica_concatenated(selected, icatype, options, reorder=reorder, chanind=chanind)
     else:
-        updated = [_runica_on_dataset(item, icatype, options, reorder=reorder, chanind=chanind) for item in selected]
+        updated = []
+        for offset, item in enumerate(selected, start=1):
+            logger.info("Processing group dataset %s of %s.", offset, len(selected))
+            updated.append(_runica_on_dataset(item, icatype, options, reorder=reorder, chanind=chanind))
     for index, item in zip(indices, updated):
         output[index] = item
     return output
@@ -252,6 +261,7 @@ def _runica_by_subject_session(datasets, icatype, options, *, reorder, chanind):
         groups.setdefault(_subject_session_key(eeg), []).append(index)
     output = list(datasets)
     for indices in groups.values():
+        logger.info("Found %s dataset(s) for one subject/session group.", len(indices))
         updated = _runica_concatenated(
             [datasets[index] for index in indices], icatype, options, reorder=reorder, chanind=chanind
         )
@@ -347,6 +357,7 @@ def _save_old_ica(EEG):
     sphere = np.asarray(EEG.get("icasphere", []))
     if not weights.size or not sphere.size:
         return
+    logger.info("Saving old ICA decomposition.")
     etc = EEG.setdefault("etc", {})
     if not isinstance(etc, dict):
         return

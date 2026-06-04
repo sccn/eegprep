@@ -13,7 +13,9 @@ from eegprep.extension_runtime import ExtensionRuntime
 from eegprep.functions.guifunc.menu_placeholders import PLACEHOLDER_ACTIONS, is_placeholder_action, placeholder_message
 from eegprep.functions.guifunc.pophelp import pophelp
 from eegprep.functions.guifunc.session import EEGPrepSession, has_eeg_data
+from eegprep.functions.adminfunc.eegh import eegh
 from eegprep.functions.popfunc._coming_soon import coming_soon
+from eegprep.functions.popfunc.pop_newset import pop_newset
 
 
 logger = logging.getLogger(__name__)
@@ -193,6 +195,24 @@ _BROWSER_ACCEPT_POP_ACTIONS = {
     "pop_rejkurt",
     "pop_rejspec",
     "pop_rejtrend",
+}
+
+_NEWSET_COMMIT_ACTIONS = {
+    "pop_clean_rawdata",
+    "pop_eegfilt",
+    "pop_eegfiltnew",
+    "pop_epoch",
+    "pop_firma",
+    "pop_firpm",
+    "pop_firws",
+    "pop_interp",
+    "pop_resample",
+    "pop_reref",
+    "pop_rmbase",
+    "pop_rmdat",
+    "pop_select",
+    "pop_selectevent",
+    "pop_subcomp",
 }
 
 
@@ -1265,7 +1285,10 @@ class MenuActionDispatcher:
             self._refresh()
             return
         if command:
-            self._store_current_from_gui(eeg_out, command=command)
+            if name in _NEWSET_COMMIT_ACTIONS:
+                self._commit_processed_dataset_from_gui(eeg_out, command=command, parent=parent)
+            else:
+                self._store_current_from_gui(eeg_out, command=command)
             self._refresh()
 
     def _run_browser_accept_pop_action(
@@ -1525,6 +1548,40 @@ class MenuActionDispatcher:
         command = kwargs.get("command")
         self.session.echo_command(command)
         return self.session.store_current(eeg, **kwargs)
+
+    def _commit_processed_dataset_from_gui(self, eeg: Any, *, command: str, parent: Any | None) -> None:
+        if not command:
+            return
+        old_currentset = self.session.current_set_value()
+        old_selection = list(self.session.CURRENTSET)
+        gui = parent is not None and not isinstance(eeg, list)
+        if isinstance(eeg, list):
+            for offset, _dataset in enumerate(eeg, start=1):
+                logger.info("Processing group dataset %s of %s.", offset, len(eeg))
+        for dataset in eeg if isinstance(eeg, list) else [eeg]:
+            if isinstance(dataset, dict):
+                eegh(command, dataset)
+        alleeg, current, current_set, newset_command = pop_newset(
+            self.session.ALLEEG,
+            eeg,
+            old_currentset,
+            "gui",
+            "on" if gui else "off",
+            "overwrite",
+            "on" if isinstance(eeg, list) or not gui else "off",
+        )
+        if not newset_command:
+            if old_selection:
+                self.session.retrieve(old_selection if len(old_selection) > 1 else old_selection[0])
+            return
+        self.session.echo_command(command)
+        self.session.add_history(command, notify=False)
+        self.session.echo_command(newset_command)
+        self.session.ALLEEG = alleeg
+        self.session.EEG = current
+        self.session.CURRENTSET = _currentset_list(current_set)
+        self.session.add_history(newset_command, notify=False)
+        self.session.notify_changed()
 
     def _add_history_from_gui(self, command: str | None) -> None:
         self.session.echo_command(command)

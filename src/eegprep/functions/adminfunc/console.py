@@ -15,6 +15,7 @@ from collections.abc import Callable, Iterator, Mapping
 from typing import Any
 
 import eegprep
+from eegprep.functions.adminfunc.eegh import eegh, eegh_find
 from eegprep.extension_runtime import ExtensionRuntime
 from eegprep.functions.adminfunc.eeglab import gui
 from eegprep.functions.guifunc.session import EEGPrepSession, normalize_dataset_indices
@@ -249,6 +250,34 @@ class ConsoleEEGPrepModule:
         return "<EEGPrep console module proxy>"
 
 
+class ConsoleEegh:
+    """Session-bound ``eegh`` command for the EEGPrep console."""
+
+    def __init__(self, bridge: EEGPrepConsoleWorkspace) -> None:
+        self.bridge = bridge
+
+    def __call__(self, command: Any = None, *args: Any) -> str:
+        if command is None:
+            return eegh(None, self.bridge.session.ALLCOM)
+        if isinstance(command, str) and command.strip().lower() == "find":
+            text = "" if not args else str(args[0])
+            return eegh_find(self.bridge.session.ALLCOM, text)
+        if isinstance(command, (int, float)) and not isinstance(command, bool):
+            history_command = eegh(command, self.bridge.session.ALLCOM)
+            if history_command and int(command) > 0:
+                self.bridge.execute_history_command(history_command)
+            return history_command
+        normalized = eegh(command, self.bridge.session.ALLCOM)
+        if args and isinstance(args[0], dict):
+            eegh(normalized, args[0])
+        self.bridge.session.LASTCOM = normalized
+        self.bridge.pull_from_session()
+        return normalized
+
+    def __repr__(self) -> str:
+        return "<EEGPrep console eegh>"
+
+
 class EEGPrepConsoleWorkspace:
     """Synchronize an IPython namespace with an :class:`EEGPrepSession`."""
 
@@ -415,6 +444,7 @@ class EEGPrepConsoleWorkspace:
     def _bind_base_namespace(self) -> None:
         self.namespace.update({"eegprep": self._eegprep_proxy, "session": self.session, "window": self.window})
         self.namespace.update(_CONSOLE_COMMAND_EXPORTS)
+        self.namespace["eegh"] = ConsoleEegh(self)
 
     def _bind_exports(self, exports: Mapping[str, Any] | None) -> None:
         export_names = exports.keys() if exports is not None else eegprep.__all__
@@ -474,6 +504,12 @@ class EEGPrepConsoleWorkspace:
             self.session.store_current(eeg, new=new, command=command, index=index)
         finally:
             self._syncing = False
+
+    def execute_history_command(self, command: str) -> None:
+        """Execute an EEGLAB history command through the console namespace."""
+        source = _console_python_command(command)
+        exec(source, self.namespace)
+        self.after_execute(source)
 
     def _refresh(self) -> None:
         if self.refresh is not None:
@@ -595,6 +631,7 @@ class _IPythonShellAdapter:
     def __call__(self) -> None:
         _make_shell_prompt_dynamic(self.shell)
         restore_logging = _install_prompt_safe_logging()
+        restore_progress_logging = _install_console_progress_logging()
         self.shell.enable_gui("qt")
 
         def post_run_cell(result: Any) -> None:
@@ -606,6 +643,7 @@ class _IPythonShellAdapter:
         try:
             self.shell()
         finally:
+            restore_progress_logging()
             restore_logging()
 
     def echo_gui_command(self, command: str) -> None:
@@ -1145,6 +1183,24 @@ def _install_prompt_safe_logging() -> Callable[[], None]:
         for handler, original_stream in patched:
             handler.setStream(original_stream)
         warnings.showwarning = original_showwarning
+
+    return restore
+
+
+def _install_console_progress_logging() -> Callable[[], None]:
+    eegprep_logger = logging.getLogger("eegprep")
+    original_level = eegprep_logger.level
+    handler_levels = [(handler, handler.level) for handler in logging.getLogger().handlers]
+    if original_level == logging.NOTSET or original_level > logging.INFO:
+        eegprep_logger.setLevel(logging.INFO)
+    for handler, _level in handler_levels:
+        if handler.level > logging.INFO:
+            handler.setLevel(logging.INFO)
+
+    def restore() -> None:
+        eegprep_logger.setLevel(original_level)
+        for handler, level in handler_levels:
+            handler.setLevel(level)
 
     return restore
 

@@ -793,6 +793,20 @@ class MenuActionDispatcherTests(unittest.TestCase):
         self.assertEqual([item["saved"] for item in session.ALLEEG], ["yes", "yes"])
 
     def test_new_main_window_pop_actions_dispatch_to_real_wrappers(self):
+        newset_actions = {
+            "pop_clean_rawdata",
+            "pop_eegfilt",
+            "pop_eegfiltnew",
+            "pop_epoch",
+            "pop_firma",
+            "pop_firpm",
+            "pop_firws",
+            "pop_resample",
+            "pop_rmbase",
+            "pop_rmdat",
+            "pop_select",
+            "pop_selectevent",
+        }
         action_specs = [
             ("pop_comments", "eegprep.functions.popfunc.pop_comments.pop_comments", "commented"),
             ("pop_chanedit", "eegprep.functions.popfunc.pop_chanedit.pop_chanedit", "chanedited"),
@@ -831,7 +845,105 @@ class MenuActionDispatcherTests(unittest.TestCase):
                     pop_func.assert_called_once_with(mock.ANY, return_com=True)
                 self.assertEqual(session.EEG["setname"], setname)
                 self.assertEqual(session.ALLEEG[0]["setname"], setname)
-                self.assertEqual(session.ALLCOM[-1], f"EEG = {action}(EEG);")
+                if action in newset_actions:
+                    self.assertEqual(session.ALLCOM[-2], f"EEG = {action}(EEG);")
+                    self.assertEqual(
+                        session.ALLCOM[-1],
+                        "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, 'overwrite', 'on');",
+                    )
+                    self.assertIn(f"EEG = {action}(EEG);", session.EEG["history"])
+                else:
+                    self.assertEqual(session.ALLCOM[-1], f"EEG = {action}(EEG);")
+
+    def test_gui_transform_action_can_commit_processed_dataset_as_new_set(self):
+        session = EEGPrepSession()
+        session.store_current(_demo_eeg(), new=True)
+        dispatcher = MenuActionDispatcher(session)
+        processed = dict(session.EEG, setname="resampled")
+        newset_command = (
+            "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, 'setname', 'resampled', 'overwrite', 'off');"
+        )
+
+        with (
+            mock.patch(
+                "eegprep.functions.popfunc.pop_resample.pop_resample",
+                return_value=(processed, "EEG = pop_resample( EEG, 64);"),
+            ),
+            mock.patch(
+                "eegprep.functions.guifunc.menu_actions.pop_newset",
+                return_value=([session.ALLEEG[0], processed], processed, 2, newset_command),
+            ) as newset,
+        ):
+            dispatcher.dispatch("pop_resample", parent=object())
+
+        newset.assert_called_once()
+        self.assertEqual(newset.call_args.args[:3], ([session.ALLEEG[0]], processed, 1))
+        self.assertEqual(newset.call_args.args[3:], ("gui", "on", "overwrite", "off"))
+        self.assertEqual(len(session.ALLEEG), 2)
+        self.assertEqual(session.CURRENTSET, [2])
+        self.assertEqual(session.EEG["setname"], "resampled")
+        self.assertEqual(session.ALLCOM[-2:], ["EEG = pop_resample( EEG, 64);", newset_command])
+
+    def test_gui_transform_action_cancel_keeps_original_dataset_and_history(self):
+        session = EEGPrepSession()
+        session.store_current(_demo_eeg(), new=True)
+        dispatcher = MenuActionDispatcher(session)
+        processed = dict(session.EEG, setname="resampled")
+
+        with (
+            mock.patch(
+                "eegprep.functions.popfunc.pop_resample.pop_resample",
+                return_value=(processed, "EEG = pop_resample( EEG, 64);"),
+            ),
+            mock.patch(
+                "eegprep.functions.guifunc.menu_actions.pop_newset",
+                return_value=([session.ALLEEG[0]], session.ALLEEG[0], 1, ""),
+            ),
+        ):
+            dispatcher.dispatch("pop_resample", parent=object())
+
+        self.assertEqual(len(session.ALLEEG), 1)
+        self.assertEqual(session.CURRENTSET, [1])
+        self.assertEqual(session.EEG["setname"], "demo")
+        self.assertEqual(session.ALLCOM, [])
+
+    def test_gui_transform_action_overwrites_multiple_selected_datasets(self):
+        session = EEGPrepSession()
+        first = _demo_eeg()
+        second = _demo_eeg()
+        second["setname"] = "second"
+        session.store_current(first, new=True)
+        session.store_current(second, new=True)
+        session.retrieve([1, 2])
+        dispatcher = MenuActionDispatcher(session)
+        original_alleeg = list(session.ALLEEG)
+        processed = [
+            dict(original_alleeg[0], setname="first resampled"),
+            dict(original_alleeg[1], setname="second resampled"),
+        ]
+        newset_command = "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, 'overwrite', 'on');"
+
+        with (
+            mock.patch(
+                "eegprep.functions.popfunc.pop_resample.pop_resample",
+                return_value=(processed, "ALLEEG = pop_resample(ALLEEG, 64);"),
+            ),
+            mock.patch(
+                "eegprep.functions.guifunc.menu_actions.pop_newset",
+                return_value=(processed, processed, [1, 2], newset_command),
+            ) as newset,
+        ):
+            dispatcher.dispatch("pop_resample", parent=object())
+
+        newset.assert_called_once()
+        self.assertEqual(newset.call_args.args[:3], (original_alleeg, processed, [1, 2]))
+        self.assertEqual(newset.call_args.args[3:], ("gui", "off", "overwrite", "on"))
+        self.assertEqual(session.CURRENTSET, [1, 2])
+        self.assertEqual(session.ALLEEG[0]["setname"], "first resampled")
+        self.assertEqual(session.ALLEEG[1]["setname"], "second resampled")
+        self.assertEqual(session.ALLCOM[-2:], ["ALLEEG = pop_resample(ALLEEG, 64);", newset_command])
+        self.assertIn("ALLEEG = pop_resample(ALLEEG, 64);", session.ALLEEG[0]["history"])
+        self.assertIn("ALLEEG = pop_resample(ALLEEG, 64);", session.ALLEEG[1]["history"])
 
     def test_topoplot_menu_actions_record_history_without_replacing_dataset(self):
         session = EEGPrepSession()
@@ -959,9 +1071,19 @@ class MenuActionDispatcherTests(unittest.TestCase):
         with mock.patch("eegprep.functions.popfunc.pop_interp.pop_interp", side_effect=fake_pop_interp):
             dispatcher.dispatch("pop_interp")
 
-        self.assertEqual(echoed, [command])
+        self.assertEqual(
+            echoed,
+            [
+                command,
+                "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, 'overwrite', 'on');",
+            ],
+        )
         self.assertEqual(session.EEG["setname"], "interpolated")
-        self.assertEqual(session.ALLCOM[-1], command)
+        self.assertEqual(session.ALLCOM[-2], command)
+        self.assertEqual(
+            session.ALLCOM[-1],
+            "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, 'overwrite', 'on');",
+        )
 
     def test_file_menu_importdata_dispatch_stores_new_dataset(self):
         session = EEGPrepSession()

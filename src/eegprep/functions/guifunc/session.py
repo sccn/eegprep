@@ -205,6 +205,7 @@ class EEGPrepSession:
         self.ALLEEG, checked, stored_index = eeg_store(self.ALLEEG, eeg, store_index)
         self.EEG = checked
         self.CURRENTSET = normalize_dataset_indices(stored_index, allow_empty=False)
+        self._append_current_dataset_history(command)
         if mark_saved:
             self.mark_current_saved()
         self.add_history(command, notify=False)
@@ -284,6 +285,14 @@ class EEGPrepSession:
         self.LASTCOM = eegh(command, self.ALLCOM)
         if notify:
             self.notify_changed()
+
+    def _append_current_dataset_history(self, command: str | None) -> None:
+        if not command:
+            return
+        current = self.EEG if isinstance(self.EEG, list) else [self.EEG]
+        for eeg in current:
+            if isinstance(eeg, dict):
+                eegh(command, eeg)
 
     def mark_current_saved(self) -> None:
         """Mark the current dataset selection as saved in EEG and ALLEEG."""

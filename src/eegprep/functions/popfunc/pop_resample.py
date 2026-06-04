@@ -1,6 +1,7 @@
 """EEGLAB-style EEG resampling pop function."""
 
 from copy import deepcopy
+import logging
 import math
 from math import ceil, floor, gcd
 
@@ -17,6 +18,9 @@ from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.popfunc._file_io import events_to_records
 from eegprep.plugins.firfilt.firws import firws
 from eegprep.plugins.firfilt.firwsord import firwsord
+
+
+logger = logging.getLogger(__name__)
 
 
 def pop_resample(
@@ -68,7 +72,10 @@ def pop_resample(
     df = 0.2 if df is None else df
 
     if isinstance(EEG, list):
-        output = [pop_resample(item, freq, engine=engine, gui=False, fc=fc, df=df) for item in EEG]
+        output = []
+        for index, item in enumerate(EEG, start=1):
+            logger.info("Processing group dataset %s of %s.", index, len(EEG))
+            output.append(pop_resample(item, freq, engine=engine, gui=False, fc=fc, df=df))
         command = _history_command(freq)
         return (output, command) if return_com else output
 
@@ -157,6 +164,7 @@ def resample_eeg(EEG, freq, method='poly', fc=0.9, df=0.2):
     if method not in {"poly", "scipy", "octave"}:
         raise ValueError(f"Unsupported method: {method}. Should be 'poly', 'scipy', or 'octave'")
 
+    logger.info("resampling data %g Hz", float(freq))
     p, q = _resample_ratio(freq, EEG["srate"])
     ratio = p / q
     data = np.asarray(EEG["data"])
@@ -165,10 +173,13 @@ def resample_eeg(EEG, freq, method='poly', fc=0.9, df=0.2):
     old_pnts = int(EEG.get("pnts", data.shape[1]))
     data_3d = data[:, :, np.newaxis] if data.ndim == 2 else data
     bounds = _segment_bounds(EEG, old_pnts) if data_3d.shape[2] == 1 else np.asarray([1, old_pnts + 1], dtype=int)
+    if len(bounds) > 2:
+        logger.info("Data break detected; resampling continuous segments separately.")
     segments = []
     indices = [1]
     for start, stop in zip(bounds[:-1], bounds[1:]):
         segment = data_3d[:, start - 1 : stop - 1, :]
+        logger.info("resampling channel data segment %s of %s", len(segments) + 1, len(bounds) - 1)
         resampled = _resample_segment(segment, p, q, method=method, fc=fc, df=df)
         segments.append(resampled)
         indices.append(indices[-1] + resampled.shape[1])
@@ -184,11 +195,13 @@ def resample_eeg(EEG, freq, method='poly', fc=0.9, df=0.2):
     output["times"] = (
         np.linspace(output["xmin"] * 1000, output["xmax"] * 1000, output["pnts"]) if output["pnts"] else np.array([])
     )
+    logger.info("resampling event latencies...")
     _resample_event_latencies(output, old_pnts, ratio, np.asarray(bounds), indices, EEG)
     output["icaact"] = np.array([])
     if output.get("setname"):
         output["setname"] = f"{output['setname']} resampled"
     output["saved"] = "no"
+    logger.info("resampling finished")
     return output
 
 

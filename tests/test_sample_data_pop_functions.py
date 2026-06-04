@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import logging
 import warnings
 from pathlib import Path
 
@@ -137,6 +138,16 @@ def test_pop_resample_halves_sample_rate_and_event_latencies(sample_eeg):
     assert resampled["event"][0]["latency"] == pytest.approx((sample_eeg["event"][0]["latency"] - 1) * 0.5 + 1)
     assert resampled["icaact"].size == 0
     assert command == "EEG = pop_resample( EEG, 64);"
+
+
+def test_pop_resample_logs_eeglab_style_progress(sample_eeg, caplog):
+    with caplog.at_level(logging.INFO, logger="eegprep.functions.popfunc.pop_resample"):
+        pop_resample(sample_eeg, 64, return_com=True)
+
+    messages = [record.getMessage() for record in caplog.records]
+    assert any("resampling data 64 Hz" in message for message in messages)
+    assert any("resampling event latencies" in message for message in messages)
+    assert any("resampling finished" in message for message in messages)
 
 
 def test_pop_reref_average_references_sample_data_without_nonfinite_values(sample_eeg):
@@ -656,7 +667,7 @@ def test_eeg_store_retrieve_newset_and_delset_use_sample_dataset_indices(sample_
     alleeg, current, current_set = eeg_store(None, sample_eeg, 0)
     retrieved, alleeg, retrieved_set = eeg_retrieve(alleeg, 1)
     alleeg, current, current_set, newset_command = pop_newset(
-        alleeg, retrieved, current_set, "setname", "Stored sample"
+        alleeg, retrieved, current_set, "setname", "Stored sample", "overwrite", "on"
     )
     alleeg, del_command = pop_delset(alleeg, 1)
 
@@ -664,7 +675,9 @@ def test_eeg_store_retrieve_newset_and_delset_use_sample_dataset_indices(sample_
     assert current_set == 1
     assert retrieved["data"].shape == sample_eeg["data"].shape
     assert retrieved_set == 1
-    assert newset_command == "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET);"
+    assert newset_command == (
+        "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, 'setname', 'Stored sample', 'overwrite', 'on');"
+    )
     assert alleeg == []
     assert del_command == "ALLEEG = pop_delset( ALLEEG, [1] );"
 

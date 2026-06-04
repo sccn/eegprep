@@ -37,6 +37,7 @@ from eegprep.functions.popfunc.pop_headplot import pop_headplot_dialog_spec
 from eegprep.functions.popfunc.pop_interp import pop_interp_dialog_spec
 from eegprep.functions.popfunc.pop_jointprob import pop_jointprob_dialog_spec
 from eegprep.functions.popfunc.pop_mergeset import pop_mergeset_dialog_spec
+from eegprep.functions.popfunc.pop_newset import pop_newset_dialog_spec
 from eegprep.functions.popfunc.pop_eventstat import pop_eventstat_dialog_spec
 from eegprep.functions.popfunc.pop_plotdata import pop_plotdata_dialog_spec
 from eegprep.functions.popfunc.pop_plottopo import pop_plottopo_dialog_spec
@@ -829,6 +830,15 @@ def capture_pop_resample_dialog(output: pathlib.Path) -> None:
     _grab_dialog(dialog, output, app)
 
 
+def capture_pop_newset_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_newset dialog."""
+    eeg = _demo_main_eeg(setname="processed demo")
+    spec = pop_newset_dialog_spec(eeg, 1)
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
 def capture_pop_rmbase_dialog(output: pathlib.Path) -> None:
     """Render and capture the pop_rmbase dialog."""
     eeg = _demo_main_eeg(epoched=True, setname="baseline demo")
@@ -1401,6 +1411,8 @@ def main(argv: list[str] | None = None) -> int:
         capture_pop_select_dialog(args.output)
     elif args.case == "pop_resample_dialog":
         capture_pop_resample_dialog(args.output)
+    elif args.case == "pop_newset_dialog":
+        capture_pop_newset_dialog(args.output)
     elif args.case == "pop_rmbase_dialog":
         capture_pop_rmbase_dialog(args.output)
     elif args.case == "pop_eegfilt_dialog":

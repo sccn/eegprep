@@ -173,6 +173,23 @@ history command that can be converted to valid ``eegprep-console`` input. GUI
 and console code should append each successful command once through
 ``EEGPrepSession.add_history`` or storage helpers.
 
+GUI data-changing actions that produce a new EEG dataset, such as resampling,
+filtering, cleaning, epoching, selecting data, rereferencing, interpolation,
+or component removal, should commit through ``pop_newset`` so the user can
+choose whether to overwrite the current dataset or keep the result as a new
+dataset. Actions that only update metadata, marks, history, ICA fields, or
+STUDY state may store directly when that matches EEGLAB's callback behavior.
+
+``eegprep-console`` and the GUI share one session. GUI command echoes should
+show replayable Python input before progress messages or warnings from the same
+action. ``eegh`` presents history newest-first like EEGLAB while
+``EEGPrepSession.ALLCOM`` remains chronological internally.
+
+Do not fake EEGLAB's one-dataset-in-memory ``option_storedisk`` behavior. If a
+feature cannot truly save/retrieve data from disk in that mode, keep the
+in-memory dataset contract explicit and fail clearly for unsupported storedisk
+paths.
+
 Menu placeholders are machine-readable. Each placeholder action has either a
 target epic phase or an explicit exclusion reason for workflows that cannot be
 packaged in EEGPrep. Runtime package code must not read, import, or shell out

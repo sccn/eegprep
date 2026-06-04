@@ -61,7 +61,10 @@ def pop_clean_rawdata(
         show_vis_artifacts = bool(gui_options.pop(_SHOW_VIS_ARTIFACTS_KEY, False))
         options.update(gui_options)
     if isinstance(EEG, list):
-        output = [pop_clean_rawdata(item, gui=False, **options) for item in EEG]
+        output = []
+        for index, item in enumerate(EEG, start=1):
+            logger.info("Processing group dataset %s of %s.", index, len(EEG))
+            output.append(pop_clean_rawdata(item, gui=False, **options))
         command = _history_command(options)
         if show_vis_artifacts:
             logger.warning("clean_rawdata visual rejected-data browser is disabled for multiple datasets.")
@@ -73,6 +76,7 @@ def pop_clean_rawdata(
     command = _history_command(options)
     if show_vis_artifacts and original_eeg is not None:
         _show_vis_artifacts(original_eeg, clean_eeg)
+    logger.info("Done.")
     return (clean_eeg, command) if return_com else clean_eeg
 
 

@@ -1092,6 +1092,31 @@
       }
     },
     {
+      "id": "pop_newset_dialog",
+      "description": "Dataset commit dialog opened from pop_newset.",
+      "window_size": [638, 332],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_newset"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_newset_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
       "id": "pop_epoch_dialog",
       "description": "Epoch-extraction dialog opened from pop_epoch.",
       "window_size": [665, 264],

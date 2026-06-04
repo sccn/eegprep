@@ -56,6 +56,7 @@ class VisualParityConfigTests(unittest.TestCase):
         self.assertEqual(cases["pop_interp_epoched_dialog"].targets["eeglab"].action, "pop_interp:epoched")
         self.assertEqual(cases["pop_select_dialog"].targets["eeglab"].action, "pop_select")
         self.assertEqual(cases["pop_resample_dialog"].targets["eeglab"].action, "pop_resample")
+        self.assertEqual(cases["pop_newset_dialog"].targets["eeglab"].action, "pop_newset")
         self.assertEqual(cases["pop_epoch_dialog"].targets["eeglab"].action, "pop_epoch")
         self.assertEqual(cases["pop_rmbase_dialog"].targets["eeglab"].action, "pop_rmbase")
         self.assertEqual(cases["pop_eegfilt_dialog"].targets["eeglab"].action, "pop_eegfilt")
@@ -395,6 +396,29 @@ class VisualParityCaptureTests(unittest.TestCase):
                 override_text = next((tmp_path / case_id / "inputgui_plot_override").glob("inputgui.m")).read_text()
                 self.assertIn("args{6} = 'plot';", override_text)
                 self.assertIn("args = [args {'mode' 'plot'}];", override_text)
+
+    def test_matlab_dialog_capture_generates_pop_newset_script(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = pathlib.Path(tmpdir)
+            case = load_manifest()["pop_newset_dialog"]
+
+            def fake_run_subprocess(target_name, output_path, command, env, timeout_seconds):
+                output_path.write_bytes(base64.b64decode(ONE_PIXEL_PNG))
+                return CaptureResult(target_name, output_path, command, 0)
+
+            with (
+                mock.patch("tools.visual_parity.capture.shutil.which", return_value="/usr/common/bin/matlab"),
+                mock.patch("tools.visual_parity.capture._run_subprocess", side_effect=fake_run_subprocess),
+            ):
+                results = capture_case(case, "eeglab", output_dir=tmp_path)
+
+            self.assertTrue(results[0].ok)
+            script_text = next((tmp_path / "pop_newset_dialog").glob("*.m")).read_text()
+            self.assertIn("action = 'pop_newset';", script_text)
+            self.assertIn("ALLEEG = EEG;", script_text)
+            self.assertIn("CURRENTSET = 1;", script_text)
+            self.assertIn("[ALLEEG, EEG, CURRENTSET, com] = pop_newset(ALLEEG, EEG, CURRENTSET);", script_text)
+            self.assertIn("capture_simple_pop_dialog", script_text)
 
     def test_matlab_dialog_capture_generates_pop_editeventvals_script(self):
         with tempfile.TemporaryDirectory() as tmpdir:

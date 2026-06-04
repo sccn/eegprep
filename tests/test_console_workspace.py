@@ -283,6 +283,34 @@ def test_command_echo_is_separate_from_session_history():
     workspace.close()
 
 
+def test_console_eegh_displays_and_finds_session_history():
+    session = EEGPrepSession()
+    workspace = EEGPrepConsoleWorkspace(session, exports={})
+    session.add_history("EEG = pop_loadset('sample.set');")
+    session.add_history("EEG = pop_resample(EEG, 64);")
+
+    assert workspace.namespace["eegh"]().splitlines() == [
+        "1. EEG = pop_resample(EEG, 64);",
+        "2. EEG = pop_loadset('sample.set');",
+    ]
+    assert workspace.namespace["eegh"]("find", "loadset") == "EEG = pop_loadset('sample.set');"
+    workspace.close()
+
+
+def test_console_eegh_positive_index_replays_command_through_workspace():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(), new=True)
+    workspace = EEGPrepConsoleWorkspace(session, exports={"pop_reref": _fake_pop_reref})
+    session.add_history("EEG = pop_reref(EEG, []);")
+
+    replayed = workspace.namespace["eegh"](1)
+
+    assert replayed == "EEG = pop_reref(EEG, []);"
+    assert session.EEG["setname"] == "reref"
+    assert session.LASTCOM == "EEG = pop_reref(EEG, []);"
+    workspace.close()
+
+
 def test_gui_action_buffers_output_until_command_echo():
     session = EEGPrepSession()
     stream = io.StringIO()
@@ -567,6 +595,17 @@ def test_gui_action_without_command_releases_output_through_terminal_redraw():
 def test_gui_pop_action_warning_output_follows_echoed_command(action, patch_target):
     from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher
 
+    newset_actions = {
+        "pop_clean_rawdata",
+        "pop_epoch",
+        "pop_interp",
+        "pop_reref",
+        "pop_resample",
+        "pop_rmdat",
+        "pop_select",
+        "pop_selectevent",
+        "pop_subcomp",
+    }
     session = EEGPrepSession()
     session.store_current(_demo_eeg(), new=True)
     stream = io.StringIO()
@@ -599,7 +638,13 @@ def test_gui_pop_action_warning_output_follows_echoed_command(action, patch_targ
 
     output = stream.getvalue()
     assert output.index(f"In [1]: {command}") < output.index("RuntimeWarning: warning before command")
-    assert session.ALLCOM == [command]
+    if action in newset_actions:
+        assert session.ALLCOM == [
+            command,
+            "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, 'overwrite', 'on');",
+        ]
+    else:
+        assert session.ALLCOM == [command]
 
 
 def test_console_history_edits_do_not_echo_as_gui_commands():

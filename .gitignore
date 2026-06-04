@@ -3,6 +3,7 @@
 .coveragerc
 .notes/*
 !.notes/.gitkeep
+!.notes/eeglab-migration-gap-audit.md
 
 # Python
 # Byte-compiled / optimized / DLL files
