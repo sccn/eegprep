@@ -170,14 +170,18 @@ def test_console_pop_chancenter_updates_session_history_and_current_dataset() ->
 def test_pop_chancoresp_autoselects_all_channels_and_fiducials() -> None:
     left = [{"labels": "Nz"}, {"labels": "Cz"}, {"labels": "LPA"}, {"labels": "RPA"}]
     right = [{"labels": "cz"}, {"labels": "rpa"}, {"labels": "lpa"}, {"labels": "nasion"}]
+    template = [{"labels": "FidT10"}, {"labels": "FidT9"}, {"labels": "FidNz"}]
 
     all_left, all_right, command = pop_chancoresp(left, right, "autoselect", "all", return_com=True)
     fid_left, fid_right = pop_chancoresp(left, right, "autoselect", "fiducials")
+    template_left, template_right = pop_chancoresp(left, template, "autoselect", "fiducials")
 
     assert all_left == [2, 3, 4]
     assert all_right == [1, 3, 2]
     assert fid_left == [1, 3, 4]
     assert fid_right == [4, 3, 2]
+    assert template_left == [1, 3, 4]
+    assert template_right == [3, 2, 1]
     _assert_parseable(command)
 
 

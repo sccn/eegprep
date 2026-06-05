@@ -4,6 +4,7 @@
 .notes/*
 !.notes/.gitkeep
 !.notes/eeglab-migration-gap-audit.md
+!.notes/implementation-notes.html
 
 # Python
 # Byte-compiled / optimized / DLL files

@@ -8,7 +8,7 @@ from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args, parse_numeric_sequence
 
 
-FIDUCIAL_ALIASES = (("nz", "nasion", "fidnz"), ("lpa", "left", "fidt10"), ("rpa", "right", "fidt9"))
+FIDUCIAL_ALIASES = (("nz", "nasion", "fidnz"), ("lpa", "left", "fidt9"), ("rpa", "right", "fidt10"))
 
 
 def pop_chancoresp(chans1: Any, chans2: Any, *args: Any, return_com: bool = False, **kwargs: Any) -> Any:
