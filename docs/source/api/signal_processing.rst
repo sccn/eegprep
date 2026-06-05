@@ -28,6 +28,12 @@ Time-Frequency And Statistics
 
 .. autofunction:: eegprep.crossf
 
+.. autofunction:: eegprep.dftfilt
+
+.. autofunction:: eegprep.dftfilt2
+
+.. autofunction:: eegprep.dftfilt3
+
 .. autofunction:: eegprep.newtimefbaseln
 
 .. autofunction:: eegprep.newtimeftrialbaseln

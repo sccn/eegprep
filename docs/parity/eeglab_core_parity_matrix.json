@@ -8039,7 +8039,7 @@
         "helper",
         "time_frequency"
       ],
-      "test_notes": "Covered by seeded newtimef/newcrossf bootstrap tests; MATLAB RNG bit-parity is intentionally not required."
+      "test_notes": "Covered by direct bootstat/bootstrap_threshold tests and seeded newtimef/newcrossf bootstrap tests; MATLAB RNG bit-parity is intentionally not required."
     },
     {
       "eeglab_path": "functions/timefreqfunc/correct_mc.m",
@@ -8053,7 +8053,7 @@
         "helper",
         "time_frequency"
       ],
-      "test_notes": "Add rsfit-backed parity if the random-symbol distribution helpers are later ported."
+      "test_notes": "Covered by direct shape tests for the standalone estimator; add rsfit-backed parity if the random-symbol distribution helpers are later ported."
     },
     {
       "eeglab_path": "functions/timefreqfunc/correctfit.m",
@@ -8095,7 +8095,7 @@
         "helper",
         "time_frequency"
       ],
-      "test_notes": "Covered by import/API coverage; dftfilt3 carries deterministic MATLAB wavelet parity for active paths."
+      "test_notes": "Covered by direct legacy dftfilt shape/dtype tests; dftfilt3 carries deterministic MATLAB wavelet parity for active paths."
     },
     {
       "eeglab_path": "functions/timefreqfunc/dftfilt2.m",
@@ -8109,7 +8109,7 @@
         "helper",
         "time_frequency"
       ],
-      "test_notes": "Covered by timefreq wavelet-path tests; add direct dftfilt2 parity if future changes alter this helper."
+      "test_notes": "Covered by direct dftfilt2 shape tests and deterministic MATLAB dftfilt2 parity tests."
     },
     {
       "eeglab_path": "functions/timefreqfunc/dftfilt3.m",
