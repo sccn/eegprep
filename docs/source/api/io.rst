@@ -34,6 +34,44 @@ Generic Import
 
 .. autofunction:: eegprep.pop_importerplab
 
+Channel Locations
+=================
+
+.. autofunction:: eegprep.pop_readlocs
+
+.. autofunction:: eegprep.pop_writelocs
+
+.. autofunction:: eegprep.readlocs
+
+.. autofunction:: eegprep.writelocs
+
+.. autofunction:: eegprep.convertlocs
+
+.. autofunction:: eegprep.chancenter
+
+.. autofunction:: eegprep.pop_chancenter
+
+.. autofunction:: eegprep.pop_chancoresp
+
+.. autofunction:: eegprep.readegilocs
+
+.. autofunction:: eegprep.readelp
+
+.. autofunction:: eegprep.readeetraklocs
+
+Long-Tail Import Helpers
+========================
+
+.. autofunction:: eegprep.pop_loadbci
+
+.. autofunction:: eegprep.pop_snapread
+
+.. autofunction:: eegprep.snapread
+
+.. autofunction:: eegprep.floatread
+
+.. autofunction:: eegprep.floatwrite
+
 EEGLAB Format
 =============
 

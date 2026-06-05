@@ -1837,14 +1837,19 @@
       "eeglab_name": "loadelec",
       "eegprep_equivalent": null,
       "gap_category": "7_file_format_channel_location",
-      "status": "port",
-      "rationale": "Audit identifies this file-format or channel-location workflow as a useful long-tail candidate for Phase 2 triage and porting.",
-      "responsible_phase": "phase_2",
-      "user_facing_surface": [
-        "helper",
-        "file_channel"
-      ],
-      "test_notes": "Use real or synthetic file/channel-location fixtures plus MATLAB parity where deterministic; cover malformed inputs and history for pop_* wrappers."
+      "status": "stale_skip",
+      "rationale": "Old EEGPLOT electrode-name helper superseded by eegplot channel labels and readlocs/pop_chanedit channel-location workflows.",
+      "responsible_phase": "none",
+      "user_facing_surface": [],
+      "test_notes": "No runtime parity test required for stale helper classification; matrix validator enforces stale policy fields.",
+      "stale_policy": {
+        "menu_reachable": false,
+        "documented_user_api": false,
+        "called_by_in_scope_workflow": false,
+        "required_by_parity_tests": false,
+        "needed_as_phase_helper": false,
+        "likely_user_alias": false
+      }
     },
     {
       "eeglab_path": "functions/miscfunc/loc_subsets.m",
@@ -1916,14 +1921,19 @@
       "eeglab_name": "makeelec",
       "eegprep_equivalent": null,
       "gap_category": "7_file_format_channel_location",
-      "status": "port",
-      "rationale": "Audit identifies this file-format or channel-location workflow as a useful long-tail candidate for Phase 2 triage and porting.",
-      "responsible_phase": "phase_2",
-      "user_facing_surface": [
-        "helper",
-        "file_channel"
-      ],
-      "test_notes": "Use real or synthetic file/channel-location fixtures plus MATLAB parity where deterministic; cover malformed inputs and history for pop_* wrappers."
+      "status": "stale_skip",
+      "rationale": "Old EEGPLOT electrode-file GUI helper is not needed by current EEGPrep eegplot or channel-location workflows.",
+      "responsible_phase": "none",
+      "user_facing_surface": [],
+      "test_notes": "No runtime parity test required for stale helper classification; matrix validator enforces stale policy fields.",
+      "stale_policy": {
+        "menu_reachable": false,
+        "documented_user_api": false,
+        "called_by_in_scope_workflow": false,
+        "required_by_parity_tests": false,
+        "needed_as_phase_helper": false,
+        "likely_user_alias": false
+      }
     },
     {
       "eeglab_path": "functions/miscfunc/makehelpfiles.m",
@@ -2108,14 +2118,13 @@
       "eeglab_name": "read_rdf",
       "eegprep_equivalent": null,
       "gap_category": "7_file_format_channel_location",
-      "status": "port",
-      "rationale": "Audit identifies this file-format or channel-location workflow as a useful long-tail candidate for Phase 2 triage and porting.",
-      "responsible_phase": "phase_2",
+      "status": "external_dependency_skip",
+      "rationale": "RDF is a historical external binary format with no packaged fixture, no EEGPrep menu route, and no current documented standalone workflow to justify a new parser.",
+      "responsible_phase": "none",
       "user_facing_surface": [
-        "helper",
         "file_channel"
       ],
-      "test_notes": "Use real or synthetic file/channel-location fixtures plus MATLAB parity where deterministic; cover malformed inputs and history for pop_* wrappers."
+      "test_notes": "No runtime parity test added; retain matrix classification until a documented user workflow and deterministic fixture justify a standalone parser."
     },
     {
       "eeglab_path": "functions/miscfunc/readlocsold.m",
@@ -2288,14 +2297,19 @@
       "eeglab_name": "shortread",
       "eegprep_equivalent": null,
       "gap_category": "7_file_format_channel_location",
-      "status": "port",
-      "rationale": "Audit identifies this file-format or channel-location workflow as a useful long-tail candidate for Phase 2 triage and porting.",
-      "responsible_phase": "phase_2",
-      "user_facing_surface": [
-        "helper",
-        "file_channel"
-      ],
-      "test_notes": "Use real or synthetic file/channel-location fixtures plus MATLAB parity where deterministic; cover malformed inputs and history for pop_* wrappers."
+      "status": "stale_skip",
+      "rationale": "Old short-integer binary matrix helper has no in-scope caller or user workflow; useful binary helper coverage is provided by floatread/floatwrite.",
+      "responsible_phase": "none",
+      "user_facing_surface": [],
+      "test_notes": "No runtime parity test required for stale helper classification; matrix validator enforces stale policy fields.",
+      "stale_policy": {
+        "menu_reachable": false,
+        "documented_user_api": false,
+        "called_by_in_scope_workflow": false,
+        "required_by_parity_tests": false,
+        "needed_as_phase_helper": false,
+        "likely_user_alias": false
+      }
     },
     {
       "eeglab_path": "functions/miscfunc/show_events.m",
@@ -3217,34 +3231,34 @@
     {
       "eeglab_path": "functions/popfunc/pop_chancenter.m",
       "eeglab_name": "pop_chancenter",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/popfunc/pop_chancenter.py",
       "gap_category": "7_file_format_channel_location",
-      "status": "port",
-      "rationale": "Audit identifies this file-format or channel-location workflow as a useful long-tail candidate for Phase 2 triage and porting.",
-      "responsible_phase": "phase_2",
+      "status": "implemented",
+      "rationale": "Phase 2 implemented this EEGLAB file/channel-location workflow as standalone EEGPrep runtime code, with EEGLAB-style public naming where applicable and no runtime dependency on the vendored EEGLAB tree.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "api",
         "console",
         "gui",
         "file_channel"
       ],
-      "test_notes": "Use real or synthetic file/channel-location fixtures plus MATLAB parity where deterministic; cover malformed inputs and history for pop_* wrappers."
+      "test_notes": "Covered by tests/test_phase2_file_channel_location.py with synthetic files, malformed rows, packaged montages, 1-based channel indices, console history, and cancel/error paths; adjacent pop_chanedit coverage remains in tests/test_phase1b_file_edit_pop_functions.py."
     },
     {
       "eeglab_path": "functions/popfunc/pop_chancoresp.m",
       "eeglab_name": "pop_chancoresp",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/popfunc/pop_chancoresp.py",
       "gap_category": "7_file_format_channel_location",
-      "status": "port",
-      "rationale": "Audit identifies this file-format or channel-location workflow as a useful long-tail candidate for Phase 2 triage and porting.",
-      "responsible_phase": "phase_2",
+      "status": "implemented",
+      "rationale": "Phase 2 implemented this EEGLAB file/channel-location workflow as standalone EEGPrep runtime code, with EEGLAB-style public naming where applicable and no runtime dependency on the vendored EEGLAB tree.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "api",
         "console",
         "gui",
         "file_channel"
       ],
-      "test_notes": "Use real or synthetic file/channel-location fixtures plus MATLAB parity where deterministic; cover malformed inputs and history for pop_* wrappers."
+      "test_notes": "Covered by tests/test_phase2_file_channel_location.py with synthetic files, malformed rows, packaged montages, 1-based channel indices, console history, and cancel/error paths; adjacent pop_chanedit coverage remains in tests/test_phase1b_file_edit_pop_functions.py."
     },
     {
       "eeglab_path": "functions/popfunc/pop_chanedit.m",
@@ -3583,16 +3597,13 @@
       "eeglab_name": "pop_fileiodir",
       "eegprep_equivalent": null,
       "gap_category": "7_file_format_channel_location",
-      "status": "port",
-      "rationale": "Audit identifies this file-format or channel-location workflow as a useful long-tail candidate for Phase 2 triage and porting.",
-      "responsible_phase": "phase_2",
+      "status": "external_dependency_skip",
+      "rationale": "EEGLAB pop_fileiodir depends on FieldTrip/FileIO directory readers; EEGPrep keeps file-level imports in pop_fileio and does not add a directory-import wrapper without a fixture-backed workflow.",
+      "responsible_phase": "none",
       "user_facing_surface": [
-        "api",
-        "console",
-        "gui",
         "file_channel"
       ],
-      "test_notes": "Use real or synthetic file/channel-location fixtures plus MATLAB parity where deterministic; cover malformed inputs and history for pop_* wrappers."
+      "test_notes": "No runtime parity test added; retain matrix classification until a documented user workflow and deterministic fixture justify a standalone parser."
     },
     {
       "eeglab_path": "functions/popfunc/pop_findmatchingcomps.m",
@@ -3674,16 +3685,13 @@
       "eeglab_name": "pop_importegimat",
       "eegprep_equivalent": null,
       "gap_category": "7_file_format_channel_location",
-      "status": "port",
-      "rationale": "Audit identifies this file-format or channel-location workflow as a useful long-tail candidate for Phase 2 triage and porting.",
-      "responsible_phase": "phase_2",
+      "status": "external_dependency_skip",
+      "rationale": "NetStation EGI MATLAB segmented-file import is a legacy vendor workflow without packaged fixtures; generic MATLAB array import remains available through pop_importdata.",
+      "responsible_phase": "none",
       "user_facing_surface": [
-        "api",
-        "console",
-        "gui",
         "file_channel"
       ],
-      "test_notes": "Use real or synthetic file/channel-location fixtures plus MATLAB parity where deterministic; cover malformed inputs and history for pop_* wrappers."
+      "test_notes": "No runtime parity test added; retain matrix classification until a documented user workflow and deterministic fixture justify a standalone parser."
     },
     {
       "eeglab_path": "functions/popfunc/pop_importepoch.m",
@@ -3778,18 +3786,18 @@
     {
       "eeglab_path": "functions/popfunc/pop_loadbci.m",
       "eeglab_name": "pop_loadbci",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/popfunc/pop_loadbci.py",
       "gap_category": "7_file_format_channel_location",
-      "status": "port",
-      "rationale": "Audit identifies this file-format or channel-location workflow as a useful long-tail candidate for Phase 2 triage and porting.",
-      "responsible_phase": "phase_2",
+      "status": "implemented",
+      "rationale": "Phase 2 implemented this EEGLAB file/channel-location workflow as standalone EEGPrep runtime code, with EEGLAB-style public naming where applicable and no runtime dependency on the vendored EEGLAB tree.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "api",
         "console",
         "gui",
         "file_channel"
       ],
-      "test_notes": "Use real or synthetic file/channel-location fixtures plus MATLAB parity where deterministic; cover malformed inputs and history for pop_* wrappers."
+      "test_notes": "Covered by tests/test_phase2_file_channel_location.py with synthetic files, malformed rows, packaged montages, 1-based channel indices, console history, and cancel/error paths; adjacent pop_chanedit coverage remains in tests/test_phase1b_file_edit_pop_functions.py."
     },
     {
       "eeglab_path": "functions/popfunc/pop_loadset.m",
@@ -3916,48 +3924,42 @@
       "eeglab_name": "pop_readegi",
       "eegprep_equivalent": null,
       "gap_category": "7_file_format_channel_location",
-      "status": "port",
-      "rationale": "Audit identifies this file-format or channel-location workflow as a useful long-tail candidate for Phase 2 triage and porting.",
-      "responsible_phase": "phase_2",
+      "status": "external_dependency_skip",
+      "rationale": "Old EGI Simple Binary RAW import is not ported without deterministic fixtures; modern EGI MFF workflows are handled through pop_fileio/MNE and locations through readegilocs.",
+      "responsible_phase": "none",
       "user_facing_surface": [
-        "api",
-        "console",
-        "gui",
         "file_channel"
       ],
-      "test_notes": "Use real or synthetic file/channel-location fixtures plus MATLAB parity where deterministic; cover malformed inputs and history for pop_* wrappers."
+      "test_notes": "No runtime parity test added; retain matrix classification until a documented user workflow and deterministic fixture justify a standalone parser."
     },
     {
       "eeglab_path": "functions/popfunc/pop_readlocs.m",
       "eeglab_name": "pop_readlocs",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/popfunc/pop_readlocs.py",
       "gap_category": "7_file_format_channel_location",
-      "status": "port",
-      "rationale": "Audit identifies this file-format or channel-location workflow as a useful long-tail candidate for Phase 2 triage and porting.",
-      "responsible_phase": "phase_2",
+      "status": "implemented",
+      "rationale": "Phase 2 implemented this EEGLAB file/channel-location workflow as standalone EEGPrep runtime code, with EEGLAB-style public naming where applicable and no runtime dependency on the vendored EEGLAB tree.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "api",
         "console",
         "gui",
         "file_channel"
       ],
-      "test_notes": "Use real or synthetic file/channel-location fixtures plus MATLAB parity where deterministic; cover malformed inputs and history for pop_* wrappers."
+      "test_notes": "Covered by tests/test_phase2_file_channel_location.py with synthetic files, malformed rows, packaged montages, 1-based channel indices, console history, and cancel/error paths; adjacent pop_chanedit coverage remains in tests/test_phase1b_file_edit_pop_functions.py."
     },
     {
       "eeglab_path": "functions/popfunc/pop_readsegegi.m",
       "eeglab_name": "pop_readsegegi",
       "eegprep_equivalent": null,
       "gap_category": "7_file_format_channel_location",
-      "status": "port",
-      "rationale": "Audit identifies this file-format or channel-location workflow as a useful long-tail candidate for Phase 2 triage and porting.",
-      "responsible_phase": "phase_2",
+      "status": "external_dependency_skip",
+      "rationale": "Segmented old EGI RAW series import is a legacy vendor workflow without deterministic fixtures; modern EGI MFF import is consolidated in pop_fileio.",
+      "responsible_phase": "none",
       "user_facing_surface": [
-        "api",
-        "console",
-        "gui",
         "file_channel"
       ],
-      "test_notes": "Use real or synthetic file/channel-location fixtures plus MATLAB parity where deterministic; cover malformed inputs and history for pop_* wrappers."
+      "test_notes": "No runtime parity test added; retain matrix classification until a documented user workflow and deterministic fixture justify a standalone parser."
     },
     {
       "eeglab_path": "functions/popfunc/pop_rejchan.m",
@@ -4247,18 +4249,18 @@
     {
       "eeglab_path": "functions/popfunc/pop_snapread.m",
       "eeglab_name": "pop_snapread",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/popfunc/pop_snapread.py",
       "gap_category": "7_file_format_channel_location",
-      "status": "port",
-      "rationale": "Audit identifies this file-format or channel-location workflow as a useful long-tail candidate for Phase 2 triage and porting.",
-      "responsible_phase": "phase_2",
+      "status": "implemented",
+      "rationale": "Phase 2 implemented this EEGLAB file/channel-location workflow as standalone EEGPrep runtime code, with EEGLAB-style public naming where applicable and no runtime dependency on the vendored EEGLAB tree.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "api",
         "console",
         "gui",
         "file_channel"
       ],
-      "test_notes": "Use real or synthetic file/channel-location fixtures plus MATLAB parity where deterministic; cover malformed inputs and history for pop_* wrappers."
+      "test_notes": "Covered by tests/test_phase2_file_channel_location.py with synthetic files, malformed rows, packaged montages, 1-based channel indices, console history, and cancel/error paths; adjacent pop_chanedit coverage remains in tests/test_phase1b_file_edit_pop_functions.py."
     },
     {
       "eeglab_path": "functions/popfunc/pop_spectopo.m",
@@ -4369,18 +4371,18 @@
     {
       "eeglab_path": "functions/popfunc/pop_writelocs.m",
       "eeglab_name": "pop_writelocs",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/popfunc/pop_writelocs.py",
       "gap_category": "7_file_format_channel_location",
-      "status": "port",
-      "rationale": "Audit identifies this file-format or channel-location workflow as a useful long-tail candidate for Phase 2 triage and porting.",
-      "responsible_phase": "phase_2",
+      "status": "implemented",
+      "rationale": "Phase 2 implemented this EEGLAB file/channel-location workflow as standalone EEGPrep runtime code, with EEGLAB-style public naming where applicable and no runtime dependency on the vendored EEGLAB tree.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "api",
         "console",
         "gui",
         "file_channel"
       ],
-      "test_notes": "Use real or synthetic file/channel-location fixtures plus MATLAB parity where deterministic; cover malformed inputs and history for pop_* wrappers."
+      "test_notes": "Covered by tests/test_phase2_file_channel_location.py with synthetic files, malformed rows, packaged montages, 1-based channel indices, console history, and cancel/error paths; adjacent pop_chanedit coverage remains in tests/test_phase1b_file_edit_pop_functions.py."
     },
     {
       "eeglab_path": "functions/sigprocfunc/acsobiro.m",
@@ -4424,30 +4426,30 @@
     {
       "eeglab_path": "functions/sigprocfunc/biosig2eeglab.m",
       "eeglab_name": "biosig2eeglab",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/popfunc/pop_biosig.py",
       "gap_category": "7_file_format_channel_location",
-      "status": "port",
-      "rationale": "Audit identifies this file-format or channel-location workflow as a useful long-tail candidate for Phase 2 triage and porting.",
-      "responsible_phase": "phase_2",
+      "status": "consolidated",
+      "rationale": "BIOSIG HDR-to-EEGLAB conversion is consolidated into pop_biosig/pop_fileio, which imports EDF/BDF/GDF through Python readers and normalizes to EEGPrep EEG dictionaries.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "helper",
         "file_channel"
       ],
-      "test_notes": "Use real or synthetic file/channel-location fixtures plus MATLAB parity where deterministic; cover malformed inputs and history for pop_* wrappers."
+      "test_notes": "Covered by existing pop_biosig/pop_fileio tests and matrix validation; Phase 2 did not add a duplicate BIOSIG shim."
     },
     {
       "eeglab_path": "functions/sigprocfunc/biosig2eeglabevent.m",
       "eeglab_name": "biosig2eeglabevent",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/popfunc/_file_io.py",
       "gap_category": "7_file_format_channel_location",
-      "status": "port",
-      "rationale": "Audit identifies this file-format or channel-location workflow as a useful long-tail candidate for Phase 2 triage and porting.",
-      "responsible_phase": "phase_2",
+      "status": "consolidated",
+      "rationale": "BIOSIG event conversion is consolidated into the MNE-to-EEG conversion path used by pop_biosig and pop_fileio instead of a separate MATLAB HDR shim.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "helper",
         "file_channel"
       ],
-      "test_notes": "Use real or synthetic file/channel-location fixtures plus MATLAB parity where deterministic; cover malformed inputs and history for pop_* wrappers."
+      "test_notes": "Covered by existing File-IO conversion tests; no standalone shim tests are required."
     },
     {
       "eeglab_path": "functions/sigprocfunc/blockave.m",
@@ -4504,16 +4506,16 @@
     {
       "eeglab_path": "functions/sigprocfunc/chancenter.m",
       "eeglab_name": "chancenter",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/sigprocfunc/chancenter.py",
       "gap_category": "7_file_format_channel_location",
-      "status": "port",
-      "rationale": "Audit identifies this file-format or channel-location workflow as a useful long-tail candidate for Phase 2 triage and porting.",
-      "responsible_phase": "phase_2",
+      "status": "implemented",
+      "rationale": "Phase 2 implemented this EEGLAB file/channel-location workflow as standalone EEGPrep runtime code, with EEGLAB-style public naming where applicable and no runtime dependency on the vendored EEGLAB tree.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "helper",
         "file_channel"
       ],
-      "test_notes": "Use real or synthetic file/channel-location fixtures plus MATLAB parity where deterministic; cover malformed inputs and history for pop_* wrappers."
+      "test_notes": "Covered by tests/test_phase2_file_channel_location.py with synthetic files, malformed rows, packaged montages, 1-based channel indices, console history, and cancel/error paths; adjacent pop_chanedit coverage remains in tests/test_phase1b_file_edit_pop_functions.py."
     },
     {
       "eeglab_path": "functions/sigprocfunc/changeunits.m",
@@ -4557,16 +4559,16 @@
     {
       "eeglab_path": "functions/sigprocfunc/convertlocs.m",
       "eeglab_name": "convertlocs",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/sigprocfunc/convertlocs.py",
       "gap_category": "7_file_format_channel_location",
-      "status": "port",
-      "rationale": "Audit identifies this file-format or channel-location workflow as a useful long-tail candidate for Phase 2 triage and porting.",
-      "responsible_phase": "phase_2",
+      "status": "implemented",
+      "rationale": "Phase 2 implemented this EEGLAB file/channel-location workflow as standalone EEGPrep runtime code, with EEGLAB-style public naming where applicable and no runtime dependency on the vendored EEGLAB tree.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "helper",
         "file_channel"
       ],
-      "test_notes": "Use real or synthetic file/channel-location fixtures plus MATLAB parity where deterministic; cover malformed inputs and history for pop_* wrappers."
+      "test_notes": "Covered by tests/test_phase2_file_channel_location.py with synthetic files, malformed rows, packaged montages, 1-based channel indices, console history, and cancel/error paths; adjacent pop_chanedit coverage remains in tests/test_phase1b_file_edit_pop_functions.py."
     },
     {
       "eeglab_path": "functions/sigprocfunc/copyaxis.m",
@@ -4844,44 +4846,49 @@
     {
       "eeglab_path": "functions/sigprocfunc/floatread.m",
       "eeglab_name": "floatread",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/sigprocfunc/floatread.py",
       "gap_category": "7_file_format_channel_location",
-      "status": "port",
-      "rationale": "Audit identifies this file-format or channel-location workflow as a useful long-tail candidate for Phase 2 triage and porting.",
-      "responsible_phase": "phase_2",
+      "status": "implemented",
+      "rationale": "Phase 2 implemented this EEGLAB file/channel-location workflow as standalone EEGPrep runtime code, with EEGLAB-style public naming where applicable and no runtime dependency on the vendored EEGLAB tree.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "helper",
         "file_channel"
       ],
-      "test_notes": "Use real or synthetic file/channel-location fixtures plus MATLAB parity where deterministic; cover malformed inputs and history for pop_* wrappers."
+      "test_notes": "Covered by tests/test_phase2_file_channel_location.py with synthetic files, malformed rows, packaged montages, 1-based channel indices, console history, and cancel/error paths; adjacent pop_chanedit coverage remains in tests/test_phase1b_file_edit_pop_functions.py."
     },
     {
       "eeglab_path": "functions/sigprocfunc/floatwrite.m",
       "eeglab_name": "floatwrite",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/sigprocfunc/floatwrite.py",
       "gap_category": "7_file_format_channel_location",
-      "status": "port",
-      "rationale": "Audit identifies this file-format or channel-location workflow as a useful long-tail candidate for Phase 2 triage and porting.",
-      "responsible_phase": "phase_2",
+      "status": "implemented",
+      "rationale": "Phase 2 implemented this EEGLAB file/channel-location workflow as standalone EEGPrep runtime code, with EEGLAB-style public naming where applicable and no runtime dependency on the vendored EEGLAB tree.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "helper",
         "file_channel"
       ],
-      "test_notes": "Use real or synthetic file/channel-location fixtures plus MATLAB parity where deterministic; cover malformed inputs and history for pop_* wrappers."
+      "test_notes": "Covered by tests/test_phase2_file_channel_location.py with synthetic files, malformed rows, packaged montages, 1-based channel indices, console history, and cancel/error paths; adjacent pop_chanedit coverage remains in tests/test_phase1b_file_edit_pop_functions.py."
     },
     {
       "eeglab_path": "functions/sigprocfunc/forcelocs.m",
       "eeglab_name": "forcelocs",
       "eegprep_equivalent": null,
       "gap_category": "7_file_format_channel_location",
-      "status": "port",
-      "rationale": "Audit identifies this file-format or channel-location workflow as a useful long-tail candidate for Phase 2 triage and porting.",
-      "responsible_phase": "phase_2",
-      "user_facing_surface": [
-        "helper",
-        "file_channel"
-      ],
-      "test_notes": "Use real or synthetic file/channel-location fixtures plus MATLAB parity where deterministic; cover malformed inputs and history for pop_* wrappers."
+      "status": "stale_skip",
+      "rationale": "Manual channel-rotation GUI helper has no in-scope caller or deterministic workflow; Phase 2 covers recentering and coordinate conversion through pop_chancenter/convertlocs.",
+      "responsible_phase": "none",
+      "user_facing_surface": [],
+      "test_notes": "No runtime parity test required for stale helper classification; matrix validator enforces stale policy fields.",
+      "stale_policy": {
+        "menu_reachable": false,
+        "documented_user_api": false,
+        "called_by_in_scope_workflow": false,
+        "required_by_parity_tests": false,
+        "needed_as_phase_helper": false,
+        "likely_user_alias": false
+      }
     },
     {
       "eeglab_path": "functions/sigprocfunc/gettempfolder.m",
@@ -5057,14 +5064,19 @@
       "eeglab_name": "lookupchantemplate",
       "eegprep_equivalent": null,
       "gap_category": "7_file_format_channel_location",
-      "status": "port",
-      "rationale": "Audit identifies this file-format or channel-location workflow as a useful long-tail candidate for Phase 2 triage and porting.",
-      "responsible_phase": "phase_2",
-      "user_facing_surface": [
-        "helper",
-        "file_channel"
-      ],
-      "test_notes": "Use real or synthetic file/channel-location fixtures plus MATLAB parity where deterministic; cover malformed inputs and history for pop_* wrappers."
+      "status": "stale_skip",
+      "rationale": "DIPFIT template-keyword helper has no in-scope Phase 2 caller and is not needed for standalone channel-location file import/export.",
+      "responsible_phase": "none",
+      "user_facing_surface": [],
+      "test_notes": "No runtime parity test required for stale helper classification; matrix validator enforces stale policy fields.",
+      "stale_policy": {
+        "menu_reachable": false,
+        "documented_user_api": false,
+        "called_by_in_scope_workflow": false,
+        "required_by_parity_tests": false,
+        "needed_as_phase_helper": false,
+        "likely_user_alias": false
+      }
     },
     {
       "eeglab_path": "functions/sigprocfunc/matsel.m",
@@ -5160,16 +5172,16 @@
     {
       "eeglab_path": "functions/sigprocfunc/parsetxt.m",
       "eeglab_name": "parsetxt",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/sigprocfunc/readlocs.py",
       "gap_category": "7_file_format_channel_location",
-      "status": "port",
-      "rationale": "Audit identifies this file-format or channel-location workflow as a useful long-tail candidate for Phase 2 triage and porting.",
-      "responsible_phase": "phase_2",
+      "status": "consolidated",
+      "rationale": "The useful text-tokenization behavior for channel-location files is consolidated into readlocs/writelocs parsers using Python text APIs and explicit custom formats.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "helper",
         "file_channel"
       ],
-      "test_notes": "Use real or synthetic file/channel-location fixtures plus MATLAB parity where deterministic; cover malformed inputs and history for pop_* wrappers."
+      "test_notes": "Covered by Phase 2 custom-format and malformed-row readlocs tests."
     },
     {
       "eeglab_path": "functions/sigprocfunc/phasecoher.m",
@@ -5189,14 +5201,19 @@
       "eeglab_name": "plotchans3d",
       "eegprep_equivalent": null,
       "gap_category": "7_file_format_channel_location",
-      "status": "port",
-      "rationale": "Audit identifies this file-format or channel-location workflow as a useful long-tail candidate for Phase 2 triage and porting.",
-      "responsible_phase": "phase_2",
-      "user_facing_surface": [
-        "helper",
-        "file_channel"
-      ],
-      "test_notes": "Use real or synthetic file/channel-location fixtures plus MATLAB parity where deterministic; cover malformed inputs and history for pop_* wrappers."
+      "status": "stale_skip",
+      "rationale": "Standalone MATLAB 3-D plotting helper is outside Phase 2 file/channel-location runtime scope; EEGPrep plotting parity is handled by plotting phases.",
+      "responsible_phase": "none",
+      "user_facing_surface": [],
+      "test_notes": "No runtime parity test required for stale helper classification; matrix validator enforces stale policy fields.",
+      "stale_policy": {
+        "menu_reachable": false,
+        "documented_user_api": false,
+        "called_by_in_scope_workflow": false,
+        "required_by_parity_tests": false,
+        "needed_as_phase_helper": false,
+        "likely_user_alias": false
+      }
     },
     {
       "eeglab_path": "functions/sigprocfunc/plotcurve.m",
@@ -5331,142 +5348,143 @@
     {
       "eeglab_path": "functions/sigprocfunc/readedf.m",
       "eeglab_name": "readedf",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/popfunc/pop_biosig.py",
       "gap_category": "7_file_format_channel_location",
-      "status": "port",
-      "rationale": "Audit identifies this file-format or channel-location workflow as a useful long-tail candidate for Phase 2 triage and porting.",
-      "responsible_phase": "phase_2",
+      "status": "consolidated",
+      "rationale": "Direct EDF reading is consolidated into pop_biosig/pop_fileio, which uses maintained Python/MNE readers instead of the old manual EDF parser.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "helper",
         "file_channel"
       ],
-      "test_notes": "Use real or synthetic file/channel-location fixtures plus MATLAB parity where deterministic; cover malformed inputs and history for pop_* wrappers."
+      "test_notes": "Covered by existing File-IO/BIOSIG tests where fixture formats are available; no duplicate low-level EDF parser is planned."
     },
     {
       "eeglab_path": "functions/sigprocfunc/readeetraklocs.m",
       "eeglab_name": "readeetraklocs",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/sigprocfunc/readlocs.py",
       "gap_category": "7_file_format_channel_location",
-      "status": "port",
-      "rationale": "Audit identifies this file-format or channel-location workflow as a useful long-tail candidate for Phase 2 triage and porting.",
-      "responsible_phase": "phase_2",
+      "status": "implemented",
+      "rationale": "Phase 2 implemented this EEGLAB file/channel-location workflow as standalone EEGPrep runtime code, with EEGLAB-style public naming where applicable and no runtime dependency on the vendored EEGLAB tree.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "helper",
         "file_channel"
       ],
-      "test_notes": "Use real or synthetic file/channel-location fixtures plus MATLAB parity where deterministic; cover malformed inputs and history for pop_* wrappers."
+      "test_notes": "Covered by tests/test_phase2_file_channel_location.py with synthetic files, malformed rows, packaged montages, 1-based channel indices, console history, and cancel/error paths; adjacent pop_chanedit coverage remains in tests/test_phase1b_file_edit_pop_functions.py."
     },
     {
       "eeglab_path": "functions/sigprocfunc/readegi.m",
       "eeglab_name": "readegi",
       "eegprep_equivalent": null,
       "gap_category": "7_file_format_channel_location",
-      "status": "port",
-      "rationale": "Audit identifies this file-format or channel-location workflow as a useful long-tail candidate for Phase 2 triage and porting.",
-      "responsible_phase": "phase_2",
+      "status": "external_dependency_skip",
+      "rationale": "The low-level EGI Simple Binary RAW parser is skipped as a legacy vendor binary reader without fixtures; EEGPrep supports modern EGI MFF through pop_fileio and packaged location lookup through readegilocs.",
+      "responsible_phase": "none",
       "user_facing_surface": [
-        "helper",
         "file_channel"
       ],
-      "test_notes": "Use real or synthetic file/channel-location fixtures plus MATLAB parity where deterministic; cover malformed inputs and history for pop_* wrappers."
+      "test_notes": "No runtime parity test added; retain matrix classification until a documented user workflow and deterministic fixture justify a standalone parser."
     },
     {
       "eeglab_path": "functions/sigprocfunc/readegihdr.m",
       "eeglab_name": "readegihdr",
       "eegprep_equivalent": null,
       "gap_category": "7_file_format_channel_location",
-      "status": "port",
-      "rationale": "Audit identifies this file-format or channel-location workflow as a useful long-tail candidate for Phase 2 triage and porting.",
-      "responsible_phase": "phase_2",
+      "status": "external_dependency_skip",
+      "rationale": "The EGI Simple Binary header parser is only needed by the skipped old RAW parser and is not required for modern MFF import or Phase 2 location workflows.",
+      "responsible_phase": "none",
       "user_facing_surface": [
-        "helper",
         "file_channel"
       ],
-      "test_notes": "Use real or synthetic file/channel-location fixtures plus MATLAB parity where deterministic; cover malformed inputs and history for pop_* wrappers."
+      "test_notes": "No runtime parity test added; retain matrix classification until a documented user workflow and deterministic fixture justify a standalone parser."
     },
     {
       "eeglab_path": "functions/sigprocfunc/readegilocs.m",
       "eeglab_name": "readegilocs",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/sigprocfunc/readegilocs.py",
       "gap_category": "7_file_format_channel_location",
-      "status": "port",
-      "rationale": "Audit identifies this file-format or channel-location workflow as a useful long-tail candidate for Phase 2 triage and porting.",
-      "responsible_phase": "phase_2",
+      "status": "implemented",
+      "rationale": "Phase 2 implemented this EEGLAB file/channel-location workflow as standalone EEGPrep runtime code, with EEGLAB-style public naming where applicable and no runtime dependency on the vendored EEGLAB tree.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "helper",
         "file_channel"
       ],
-      "test_notes": "Use real or synthetic file/channel-location fixtures plus MATLAB parity where deterministic; cover malformed inputs and history for pop_* wrappers."
+      "test_notes": "Covered by tests/test_phase2_file_channel_location.py with synthetic files, malformed rows, packaged montages, 1-based channel indices, console history, and cancel/error paths; adjacent pop_chanedit coverage remains in tests/test_phase1b_file_edit_pop_functions.py."
     },
     {
       "eeglab_path": "functions/sigprocfunc/readelp.m",
       "eeglab_name": "readelp",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/sigprocfunc/readlocs.py",
       "gap_category": "7_file_format_channel_location",
-      "status": "port",
-      "rationale": "Audit identifies this file-format or channel-location workflow as a useful long-tail candidate for Phase 2 triage and porting.",
-      "responsible_phase": "phase_2",
+      "status": "implemented",
+      "rationale": "Phase 2 implemented this EEGLAB file/channel-location workflow as standalone EEGPrep runtime code, with EEGLAB-style public naming where applicable and no runtime dependency on the vendored EEGLAB tree.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "helper",
         "file_channel"
       ],
-      "test_notes": "Use real or synthetic file/channel-location fixtures plus MATLAB parity where deterministic; cover malformed inputs and history for pop_* wrappers."
+      "test_notes": "Covered by tests/test_phase2_file_channel_location.py with synthetic files, malformed rows, packaged montages, 1-based channel indices, console history, and cancel/error paths; adjacent pop_chanedit coverage remains in tests/test_phase1b_file_edit_pop_functions.py."
     },
     {
       "eeglab_path": "functions/sigprocfunc/readlocs.m",
       "eeglab_name": "readlocs",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/sigprocfunc/readlocs.py",
       "gap_category": "7_file_format_channel_location",
-      "status": "port",
-      "rationale": "Audit identifies this file-format or channel-location workflow as a useful long-tail candidate for Phase 2 triage and porting.",
-      "responsible_phase": "phase_2",
+      "status": "implemented",
+      "rationale": "Phase 2 implemented this EEGLAB file/channel-location workflow as standalone EEGPrep runtime code, with EEGLAB-style public naming where applicable and no runtime dependency on the vendored EEGLAB tree.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "helper",
         "file_channel"
       ],
-      "test_notes": "Use real or synthetic file/channel-location fixtures plus MATLAB parity where deterministic; cover malformed inputs and history for pop_* wrappers."
+      "test_notes": "Covered by tests/test_phase2_file_channel_location.py with synthetic files, malformed rows, packaged montages, 1-based channel indices, console history, and cancel/error paths; adjacent pop_chanedit coverage remains in tests/test_phase1b_file_edit_pop_functions.py."
     },
     {
       "eeglab_path": "functions/sigprocfunc/readneurodat.m",
       "eeglab_name": "readneurodat",
       "eegprep_equivalent": null,
       "gap_category": "7_file_format_channel_location",
-      "status": "port",
-      "rationale": "Audit identifies this file-format or channel-location workflow as a useful long-tail candidate for Phase 2 triage and porting.",
-      "responsible_phase": "phase_2",
+      "status": "external_dependency_skip",
+      "rationale": "Legacy Neuroscan DAT location import has no packaged fixture or active EEGPrep workflow; explicit custom text location parsing is available through readlocs.",
+      "responsible_phase": "none",
       "user_facing_surface": [
-        "helper",
         "file_channel"
       ],
-      "test_notes": "Use real or synthetic file/channel-location fixtures plus MATLAB parity where deterministic; cover malformed inputs and history for pop_* wrappers."
+      "test_notes": "No runtime parity test added; retain matrix classification until a documented user workflow and deterministic fixture justify a standalone parser."
     },
     {
       "eeglab_path": "functions/sigprocfunc/readneurolocs.m",
       "eeglab_name": "readneurolocs",
       "eegprep_equivalent": null,
       "gap_category": "7_file_format_channel_location",
-      "status": "port",
-      "rationale": "Audit identifies this file-format or channel-location workflow as a useful long-tail candidate for Phase 2 triage and porting.",
-      "responsible_phase": "phase_2",
+      "status": "external_dependency_skip",
+      "rationale": "Legacy Neuroscan ASC calibration import has no packaged fixture or active EEGPrep workflow; common explicit text location formats are handled by readlocs.",
+      "responsible_phase": "none",
       "user_facing_surface": [
-        "helper",
         "file_channel"
       ],
-      "test_notes": "Use real or synthetic file/channel-location fixtures plus MATLAB parity where deterministic; cover malformed inputs and history for pop_* wrappers."
+      "test_notes": "No runtime parity test added; retain matrix classification until a documented user workflow and deterministic fixture justify a standalone parser."
     },
     {
       "eeglab_path": "functions/sigprocfunc/readtxtfile.m",
       "eeglab_name": "readtxtfile",
       "eegprep_equivalent": null,
       "gap_category": "7_file_format_channel_location",
-      "status": "port",
-      "rationale": "Audit identifies this file-format or channel-location workflow as a useful long-tail candidate for Phase 2 triage and porting.",
-      "responsible_phase": "phase_2",
-      "user_facing_surface": [
-        "helper",
-        "file_channel"
-      ],
-      "test_notes": "Use real or synthetic file/channel-location fixtures plus MATLAB parity where deterministic; cover malformed inputs and history for pop_* wrappers."
+      "status": "stale_skip",
+      "rationale": "Simple MATLAB text-file reader is replaced by direct Python file/resource reads in the few workflows that need packaged text.",
+      "responsible_phase": "none",
+      "user_facing_surface": [],
+      "test_notes": "No runtime parity test required for stale helper classification; matrix validator enforces stale policy fields.",
+      "stale_policy": {
+        "menu_reachable": false,
+        "documented_user_api": false,
+        "called_by_in_scope_workflow": false,
+        "required_by_parity_tests": false,
+        "needed_as_phase_helper": false,
+        "likely_user_alias": false
+      }
     },
     {
       "eeglab_path": "functions/sigprocfunc/realproba.m",
@@ -5653,16 +5671,16 @@
     {
       "eeglab_path": "functions/sigprocfunc/snapread.m",
       "eeglab_name": "snapread",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/sigprocfunc/snapread.py",
       "gap_category": "7_file_format_channel_location",
-      "status": "port",
-      "rationale": "Audit identifies this file-format or channel-location workflow as a useful long-tail candidate for Phase 2 triage and porting.",
-      "responsible_phase": "phase_2",
+      "status": "implemented",
+      "rationale": "Phase 2 implemented this EEGLAB file/channel-location workflow as standalone EEGPrep runtime code, with EEGLAB-style public naming where applicable and no runtime dependency on the vendored EEGLAB tree.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "helper",
         "file_channel"
       ],
-      "test_notes": "Use real or synthetic file/channel-location fixtures plus MATLAB parity where deterministic; cover malformed inputs and history for pop_* wrappers."
+      "test_notes": "Covered by tests/test_phase2_file_channel_location.py with synthetic files, malformed rows, packaged montages, 1-based channel indices, console history, and cancel/error paths; adjacent pop_chanedit coverage remains in tests/test_phase1b_file_edit_pop_functions.py."
     },
     {
       "eeglab_path": "functions/sigprocfunc/sobi.m",
@@ -5823,16 +5841,16 @@
     {
       "eeglab_path": "functions/sigprocfunc/transformcoords.m",
       "eeglab_name": "transformcoords",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/sigprocfunc/coregister.py",
       "gap_category": "7_file_format_channel_location",
-      "status": "port",
-      "rationale": "Audit identifies this file-format or channel-location workflow as a useful long-tail candidate for Phase 2 triage and porting.",
-      "responsible_phase": "phase_2",
+      "status": "consolidated",
+      "rationale": "Coordinate transform needs used by EEGPrep workflows are consolidated into coregister and channel-location conversion helpers rather than a standalone MATLAB-style transformcoords clone.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "helper",
         "file_channel"
       ],
-      "test_notes": "Use real or synthetic file/channel-location fixtures plus MATLAB parity where deterministic; cover malformed inputs and history for pop_* wrappers."
+      "test_notes": "Covered by existing coregister tests; Phase 2 channel-location tests cover coordinate conversion/recentering."
     },
     {
       "eeglab_path": "functions/sigprocfunc/trial2eegplot.m",
@@ -5872,30 +5890,30 @@
     {
       "eeglab_path": "functions/sigprocfunc/writeeeg.m",
       "eeglab_name": "writeeeg",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/popfunc/pop_writeeeg.py",
       "gap_category": "7_file_format_channel_location",
-      "status": "port",
-      "rationale": "Audit identifies this file-format or channel-location workflow as a useful long-tail candidate for Phase 2 triage and porting.",
-      "responsible_phase": "phase_2",
+      "status": "consolidated",
+      "rationale": "EEGLAB writeeeg export is consolidated into pop_writeeeg, which writes EDF/BDF/GDF through maintained Python/MNE export support.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "helper",
         "file_channel"
       ],
-      "test_notes": "Use real or synthetic file/channel-location fixtures plus MATLAB parity where deterministic; cover malformed inputs and history for pop_* wrappers."
+      "test_notes": "Covered by existing pop_writeeeg tests; Phase 2 did not duplicate the BIOSIG writer shim."
     },
     {
       "eeglab_path": "functions/sigprocfunc/writelocs.m",
       "eeglab_name": "writelocs",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/sigprocfunc/writelocs.py",
       "gap_category": "7_file_format_channel_location",
-      "status": "port",
-      "rationale": "Audit identifies this file-format or channel-location workflow as a useful long-tail candidate for Phase 2 triage and porting.",
-      "responsible_phase": "phase_2",
+      "status": "implemented",
+      "rationale": "Phase 2 implemented this EEGLAB file/channel-location workflow as standalone EEGPrep runtime code, with EEGLAB-style public naming where applicable and no runtime dependency on the vendored EEGLAB tree.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "helper",
         "file_channel"
       ],
-      "test_notes": "Use real or synthetic file/channel-location fixtures plus MATLAB parity where deterministic; cover malformed inputs and history for pop_* wrappers."
+      "test_notes": "Covered by tests/test_phase2_file_channel_location.py with synthetic files, malformed rows, packaged montages, 1-based channel indices, console history, and cancel/error paths; adjacent pop_chanedit coverage remains in tests/test_phase1b_file_edit_pop_functions.py."
     },
     {
       "eeglab_path": "functions/statistics/anova1_cell.m",
