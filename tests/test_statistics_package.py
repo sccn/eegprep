@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any
 
@@ -48,10 +49,13 @@ def test_fdr_matches_bh_and_by_thresholds():
 def test_surrogate_pvals_and_ci_use_last_axis():
     distribution = np.array([[1, 2, 3, 4], [4, 5, 6, 7]], dtype=float)
     observed = np.array([3, 5], dtype=float)
+    tied_distribution = np.array([[1, 2, 2, 3]], dtype=float)
+    tied_observed = np.array([2], dtype=float)
 
     npt.assert_allclose(stat_surrogate_pvals(distribution, observed, "right"), [0.5, 0.75])
     npt.assert_allclose(stat_surrogate_pvals(distribution, observed, "left"), [0.75, 0.5])
     npt.assert_allclose(stat_surrogate_pvals(distribution, observed, "both"), [1.0, 1.0])
+    npt.assert_allclose(stat_surrogate_pvals(tied_distribution, tied_observed, "both"), [1.0])
 
     ci = stat_surrogate_ci(np.arange(1, 11, dtype=float), alpha=0.2, tail="both")
     npt.assert_allclose(ci, [2, 9])
@@ -167,6 +171,42 @@ def test_nonparametric_statcond_and_surrogdistrib_are_seeded():
     assert all(sample[0][0].shape == first.shape for sample in surrogates)
 
 
+def test_nonparametric_two_way_statcond_matches_manual_surrogate_assembly():
+    rng = np.random.default_rng(4)
+    grid = (
+        (rng.normal(size=(2, 7)), rng.normal(loc=0.2, size=(2, 7))),
+        (rng.normal(loc=0.4, size=(2, 7)), rng.normal(loc=0.6, size=(2, 7))),
+    )
+
+    result = statcond(grid, paired="on", method="perm", naccu=8, rng=24)
+    assert isinstance(result.stat, TwoWayEffects)
+    assert isinstance(result.surrogate, TwoWayEffects)
+    assert isinstance(result.pvalue, TwoWayEffects)
+
+    manual_rows = []
+    manual_columns = []
+    manual_interactions = []
+    for sample in surrogdistrib(grid, method="perm", pairing="on", naccu=8, rng=24):
+        effects = anova2rm_cell(sample).as_effects()
+        manual_rows.append(effects.rows)
+        manual_columns.append(effects.columns)
+        manual_interactions.append(effects.interaction)
+
+    expected_surrogates = TwoWayEffects(
+        np.stack(manual_rows, axis=-1),
+        np.stack(manual_columns, axis=-1),
+        np.stack(manual_interactions, axis=-1),
+    )
+
+    npt.assert_allclose(result.surrogate.rows, expected_surrogates.rows)
+    npt.assert_allclose(result.surrogate.columns, expected_surrogates.columns)
+    npt.assert_allclose(result.surrogate.interaction, expected_surrogates.interaction)
+    npt.assert_allclose(
+        result.pvalue.interaction,
+        stat_surrogate_pvals(expected_surrogates.interaction, result.stat.interaction, "one"),
+    )
+
+
 def test_invalid_inputs_fail_clearly():
     with pytest.raises(ValueError, match="identical shapes"):
         ttest_cell(np.ones((2, 4)), np.ones((2, 5)))
@@ -174,6 +214,8 @@ def test_invalid_inputs_fail_clearly():
         statcond([np.ones((2, 4)), np.ones((2, 5))], paired="on")
     with pytest.raises(TypeError, match="numeric"):
         fdr(np.array(["bad"], dtype=object), 0.05)
+    with pytest.raises(ValueError, match="fdr_type"):
+        fdr(np.array([0.01, 0.02]), 0.05, fdr_type="unknown")
     with pytest.raises(ValueError, match="observed shape"):
         stat_surrogate_pvals(np.ones((2, 4)), np.ones((3,)), "both")
 
@@ -186,6 +228,9 @@ def test_teststat_smoke_helper_runs_deterministic_checks():
 
 @pytest.fixture(scope="module")
 def matlab_statistics_engine():
+    stats_dir = _eeglab_statistics_reference_dir()
+    if stats_dir is None:
+        pytest.skip("EEGLAB statistics reference checkout not available; set EEGPREP_EEGLAB_ROOT")
     if not matlab_engine_available():
         pytest.skip("MATLAB engine not available or skipped")
     try:
@@ -195,12 +240,28 @@ def matlab_statistics_engine():
     except Exception as exc:  # pragma: no cover - depends on local MATLAB setup
         pytest.skip(f"MATLAB engine not available: {exc}")
 
-    stats_dir = Path(__file__).resolve().parents[1] / "src" / "eegprep" / "eeglab" / "functions" / "statistics"
     engine.addpath(str(stats_dir), nargout=0)
     try:
         yield engine
     finally:
         engine.quit()
+
+
+def _eeglab_statistics_reference_dir() -> Path | None:
+    repo_root = Path(__file__).resolve().parents[1]
+    candidates: list[Path] = []
+    if os.environ.get("EEGPREP_EEGLAB_ROOT"):
+        candidates.append(Path(os.environ["EEGPREP_EEGLAB_ROOT"]).expanduser() / "functions" / "statistics")
+    candidates.extend(
+        [
+            repo_root / "src" / "eegprep" / "eeglab" / "functions" / "statistics",
+            repo_root.parent / "eeglab" / "functions" / "statistics",
+        ]
+    )
+    for candidate in candidates:
+        if (candidate / "fdr.m").is_file() and (candidate / "ttest_cell.m").is_file():
+            return candidate
+    return None
 
 
 def _run_matlab_statistics(

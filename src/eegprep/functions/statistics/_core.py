@@ -133,13 +133,14 @@ def fdr(pvals: Any, q: float | None = None, fdr_type: str = "parametric") -> FDR
     if not 0 <= q_value <= 1:
         raise ValueError("q must be between 0 and 1")
 
+    fdr_type_name = fdr_type.lower()
+    if fdr_type_name not in {"parametric", "nonparametric"}:
+        raise ValueError("fdr_type must be 'parametric' or 'nonparametric'")
+
     flat = np.sort(values.reshape(-1))
     count = flat.size
     indices = np.arange(1, count + 1, dtype=float)
-    correction = 1.0 if fdr_type.lower() == "parametric" else float(np.sum(1.0 / indices))
-    if fdr_type.lower() not in {"parametric", "nonparametric"}:
-        raise ValueError("fdr_type must be 'parametric' or 'nonparametric'")
-
+    correction = 1.0 if fdr_type_name == "parametric" else float(np.sum(1.0 / indices))
     accepted = flat <= indices / count * q_value / correction
     threshold_value = float(flat[np.flatnonzero(accepted).max()]) if np.any(accepted) else 0.0
     return FDRResult(threshold_value, values <= threshold_value)
@@ -174,7 +175,7 @@ def stat_surrogate_pvals(distribution: Any, observed: Any, tail: str = "both") -
     if tail_name in {"left", "lower"}:
         return p_left
     if tail_name == "both":
-        return 2 * np.minimum(p_right, p_left)
+        return np.minimum(2 * np.minimum(p_right, p_left), 1.0)
     raise ValueError("tail must be 'right', 'upper', 'left', 'lower', 'one', or 'both'")
 
 
@@ -565,7 +566,8 @@ def statcond(
         tail: Empirical-tail mode for supplied or computed surrogates.
         axis: Axis in each condition array that stores cases.
         rng: Optional NumPy generator or seed for deterministic resampling.
-        alpha: Optional threshold for confidence intervals and masks.
+        alpha: Optional threshold for confidence intervals and masks; requires
+            a nonparametric method or supplied surrogate statistics.
         surrog: Precomputed surrogate statistic array.
         stats: Observed statistic to pair with ``surrog``.
         return_resampling_array: Return surrogate condition grids instead of
