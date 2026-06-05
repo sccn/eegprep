@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>EEGPrep Phase 4 Time-Frequency Notes</title>
+</head>
+<body>
+  <h1>Phase 4: Time-Frequency Internals And Legacy Entry Points</h1>
+  <h2>Implemented In This Branch</h2>
+  <ul>
+    <li>Added standalone time-frequency helpers: <code>timefreq</code>, <code>dftfilt</code>, <code>dftfilt2</code>, <code>dftfilt3</code>, <code>newtimefitc</code>, <code>newtimefbaseln</code>, <code>newtimeftrialbaseln</code>, <code>newtimefpowerunit</code>, <code>bootstat</code>, and <code>correct_mc</code>.</li>
+    <li>Refactored <code>newtimef</code> onto the compute-only <code>timefreq</code> path and added baseline normalization, trial baseline, supplied bootstrap limits, seeded EEGPrep bootstrap significance outputs, p-value/significance masks, and curve plotting.</li>
+    <li>Expanded <code>newcrossf</code> with <code>phasecoher2</code>, amplitude-correlation mode, <code>subitc</code>, shuffle, supplied <code>rboot</code>, seeded bootstrap thresholds, p-values, significance masks, and curve plotting.</li>
+    <li>Added legacy compatibility entry points <code>timef</code>, <code>crossf</code>, <code>pop_timef</code>, and <code>pop_crossf</code>; the legacy pop wrappers return replayable same-name Python history commands while sharing the newer standalone implementations.</li>
+    <li>Enabled implemented <code>pop_newtimef</code> dialog controls for bootstrap alpha, FDR correction, and curve plotting. The <code>tf cycle calc</code> button remains disabled until that separate GUI workflow is ported.</li>
+    <li>Updated help resources, Sphinx API entries, package exports, and the Phase 1 parity matrix.</li>
+  </ul>
+  <h2>Deviations And Follow-Ups</h2>
+  <ul>
+    <li><code>bootstat</code> accepts Python callables instead of MATLAB formula strings. This avoids runtime string evaluation and is sufficient for EEGPrep's implemented significance paths.</li>
+    <li>Seeded bootstrap behavior is deterministic in EEGPrep, but it is not intended to be bit-identical to MATLAB's random stream. Deterministic MATLAB parity tests cover <code>dftfilt3</code>, FFT <code>timefreq</code>, and <code>newtimefbaseln</code>.</li>
+    <li><code>correct_mc</code> is implemented as a standalone Pearson-neighbor estimator. Exact EEGLAB random-symbol distribution fitting remains a Phase 7 follow-up with <code>rsfit</code>, <code>correctfit</code>, and related helpers.</li>
+    <li><code>timewarp</code> and <code>angtimewarp</code> remain Phase 7 follow-ups. Consequently, <code>pop_newtimef</code> still fails clearly for <code>timewarp</code>, <code>timewarpms</code>, and <code>timewarpidx</code>.</li>
+    <li>PAC helpers (<code>pac</code>, <code>pac_cont</code>) are real analysis functions but are not needed by the current <code>newtimef</code>/<code>newcrossf</code> stack; they remain explicit Phase 7 follow-ups rather than stale skips.</li>
+  </ul>
+</body>
+</html>

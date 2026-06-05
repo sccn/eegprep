@@ -137,9 +137,20 @@ Spectral Analysis
    eegprep.eeg_autocorr_fftw
    eegprep.newtimef
    eegprep.newcrossf
+   eegprep.timefreq
+   eegprep.timef
+   eegprep.crossf
+   eegprep.newtimefbaseln
+   eegprep.newtimeftrialbaseln
+   eegprep.newtimefitc
+   eegprep.newtimefpowerunit
+   eegprep.bootstat
+   eegprep.correct_mc
    eegprep.signalstat
    eegprep.pop_newtimef
    eegprep.pop_newcrossf
+   eegprep.pop_timef
+   eegprep.pop_crossf
    eegprep.pop_signalstat
    eegprep.pop_eventstat
 

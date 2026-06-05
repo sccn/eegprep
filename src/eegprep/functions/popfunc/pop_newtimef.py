@@ -114,8 +114,8 @@ def pop_newtimef_dialog_spec(EEG: dict[str, Any], *, typeproc: int = 1) -> Dialo
         ControlSpec("checkbox", "plot ITC phase (set)", tag="plotphase", value=False),
         ControlSpec("spacer"),
         ControlSpec("text", "Bootstrap significance level (Ex: 0.01 -> 1%)", font_weight="bold"),
-        ControlSpec("edit", tag="alpha", value="", enabled=False, tooltip="Bootstrap masking is not yet available."),
-        ControlSpec("checkbox", "FDR correct (set)", tag="fdr", value=False, enabled=False),
+        ControlSpec("edit", tag="alpha", value=""),
+        ControlSpec("checkbox", "FDR correct (set)", tag="fdr", value=False),
         ControlSpec("spacer"),
         ControlSpec("text", "Optional newtimef() arguments (see Help)", font_weight="bold"),
         ControlSpec("edit", tag="options", value=""),
@@ -127,8 +127,6 @@ def pop_newtimef_dialog_spec(EEG: dict[str, Any], *, typeproc: int = 1) -> Dialo
             "Plot curve at each frequency",
             tag="plotcurve",
             value=False,
-            enabled=False,
-            tooltip="Curve plots are not yet available in EEGPrep.",
         ),
     ]
     return DialogSpec(
@@ -162,6 +160,8 @@ def _run_gui(EEG: dict[str, Any], *, typeproc: int, renderer: Any | None = None)
     alpha = numeric_vector(result.get("alpha", []))
     if alpha.size:
         options["alpha"] = float(alpha[0])
+    if bool(result.get("fdr", False)):
+        options["mcorrect"] = "fdr"
     if bool(result.get("freqscale", False)):
         options["freqscale"] = "log"
     if not bool(result.get("scale", True)):
@@ -225,20 +225,13 @@ def _add_popup_options(options: dict[str, Any], ntimesout: int, nfreqs: int, bas
 
 
 def _reject_unsupported_options(options: dict[str, Any]) -> None:
-    unsupported = {"timewarp", "timewarpms", "timewarpidx", "rboot", "pboot", "erspboot", "itcboot"}
+    unsupported = {"timewarp", "timewarpms", "timewarpidx"}
     present = sorted(key for key in unsupported if key in options)
     if present:
-        raise NotImplementedError(f"pop_newtimef does not yet support: {', '.join(present)}")
-    alpha = options.pop("alpha", None)
-    if alpha is not None and _first_numeric_option(alpha) != 0:
-        raise NotImplementedError("pop_newtimef bootstrap significance is not yet available")
-    basenorm = options.pop("basenorm", "off")
-    trialbase = options.pop("trialbase", "off")
-    if str(basenorm).lower() == "on" or str(trialbase).lower() != "off":
-        raise NotImplementedError("pop_newtimef baseline normalization modes are not yet available")
-    plottype = options.pop("plottype", "image")
-    if str(plottype).lower() != "image":
-        raise NotImplementedError("pop_newtimef curve plots are not yet available")
+        raise NotImplementedError(
+            "pop_newtimef time-warp options are not part of EEGPrep's Phase 4 implementation: "
+            + ", ".join(present)
+        )
 
 
 def _first_index(value: Any) -> int:
@@ -246,11 +239,6 @@ def _first_index(value: Any) -> int:
     if values.size != 1:
         raise ValueError("pop_newtimef requires exactly one channel/component number")
     return int(values[0])
-
-
-def _first_numeric_option(value: Any) -> float:
-    values = numeric_vector(value)
-    return float(values[0]) if values.size else 0.0
 
 
 _NTIMES_CHOICES = (

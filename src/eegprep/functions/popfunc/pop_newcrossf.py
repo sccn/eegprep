@@ -165,13 +165,7 @@ def _selected_signals(
 
 
 def _reject_unsupported_options(options: dict[str, Any]) -> None:
-    unsupported = {"rboot", "boottype", "baseboot", "condboot", "shuffle", "subitc", "amplag"}
-    present = sorted(key for key in unsupported if key in options)
-    if present:
-        raise NotImplementedError(f"pop_newcrossf does not yet support: {', '.join(present)}")
-    alpha = options.pop("alpha", None)
-    if alpha is not None and _first_numeric_option(alpha) != 0:
-        raise NotImplementedError("pop_newcrossf bootstrap significance is not yet available")
+    _ = options
 
 
 def _first_index(value: Any) -> int:
@@ -179,11 +173,6 @@ def _first_index(value: Any) -> int:
     if values.size != 1:
         raise ValueError("pop_newcrossf requires exactly one channel/component number")
     return int(values[0])
-
-
-def _first_numeric_option(value: Any) -> float:
-    values = numeric_vector(value)
-    return float(values[0]) if values.size else 0.0
 
 
 __all__ = ["pop_newcrossf", "pop_newcrossf_dialog_spec"]
