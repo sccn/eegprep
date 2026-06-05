@@ -63,7 +63,9 @@ For EEGPrep parity work, phase agents must:
 
 ## `/goal` Prompt Pattern
 
-Write `/goal` prompts as outcome contracts, not task lists. Include:
+Write `/goal` prompts as outcome contracts, not task lists. The prompt is also
+the goal exit criterion, so make completion verifiable and avoid vague ambition.
+Include:
 
 - target outcome
 - source of truth, such as EEGLAB files or an audit matrix
@@ -72,6 +74,30 @@ Write `/goal` prompts as outcome contracts, not task lists. Include:
   ruff, format, ty, and pre-commit
 - iteration policy: review findings should be fixed unless they are scope creep,
   and unfixed findings must be reported
+
+When writing phase `/goal` prompts, apply this checklist:
+
+- **Verifiable finish line:** state how the agent knows the phase is complete.
+  Prefer measurable criteria such as matrix rows closed, tests added, parity
+  cases passing, or placeholders removed.
+- **Starting guidance:** point to likely files, EEGLAB references, issues,
+  audit rows, and skills so the agent does not wander.
+- **Progress measurement:** name the tools or artifacts that show progress:
+  parity matrix updates, screenshot diffs, MATLAB parity scripts, coverage, or
+  focused test suites.
+- **Realistic environment:** require `sample_data`, GUI plus `eegprep-console`
+  flows, MATLAB parity where available, and actual GUI interaction when the
+  feature is user-facing.
+- **Visual goals:** do not ask for vague pixel perfection alone. Pair screenshots
+  with concrete UI criteria: labels, alignment, spacing, defaults, enabled
+  states, control order, and workflow.
+- **Progress tracking:** for long phases, ask for meaningful commits, pushed
+  draft PRs, issue/PR updates, and `.notes/implementation-notes.html` entries.
+- **Closeout cleanup:** require review, removal of failed experiments or stale
+  code, final tests, and explicit reporting of any accepted non-goals.
+
+Avoid goals that can be "completed" by weakening tests, lowering coverage,
+inlining screenshots, or narrowing scope without recording the tradeoff.
 
 ## GitHub Workflow
 
