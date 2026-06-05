@@ -37,8 +37,13 @@ def dftfilt2(
             t = float(freq) * winval / float(srate)
             p = 2.0 * np.pi
             sigma = float(cycle_count) / 5.0
-            wavelet = np.exp(1j * t * p) / np.sqrt(2.0 * np.pi) * (
-                np.exp(-(t**2) / (2.0 * sigma**2)) - np.sqrt(2.0) * np.exp(-(t**2) / (sigma**2) - p**2 * sigma**2 / 4.0)
+            wavelet = (
+                np.exp(1j * t * p)
+                / np.sqrt(2.0 * np.pi)
+                * (
+                    np.exp(-(t**2) / (2.0 * sigma**2))
+                    - np.sqrt(2.0) * np.exp(-(t**2) / (sigma**2) - p**2 * sigma**2 / 4.0)
+                )
             )
         wavelets.append(wavelet.astype(complex, copy=False))
     return wavelets

@@ -237,6 +237,7 @@ def test_timefreq_statistics_dialog_specs_match_eeglab_control_inventory(sample_
     assert newtimef.title == "Plot channel time frequency -- pop_newtimef()"
     assert controls_by_tag(newtimef)["num_button"].callback.name == "select_channels"
     assert controls_by_tag(newtimef)["baseline"].value == "0"
+    assert controls_by_tag(newtimef)["calcpush"].enabled is True
     assert controls_by_tag(newtimef)["plotcurve"].enabled is True
     assert controls_by_tag(newtimef)["alpha"].enabled is True
     assert controls_by_tag(newcrossf)["coher"].value is False

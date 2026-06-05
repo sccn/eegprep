@@ -113,7 +113,9 @@ def newcrossf(
             plottype=plottype,
             significant=significant,
         )
-    return CrossFrequencyResult(coherence, phase, times, freqs, allcoher, tf_x, tf_y, figure, rboot, pvalues, significant, lagmap)
+    return CrossFrequencyResult(
+        coherence, phase, times, freqs, allcoher, tf_x, tf_y, figure, rboot, pvalues, significant, lagmap
+    )
 
 
 def _compute_time_frequency_options(options: dict[str, Any]) -> dict[str, Any]:

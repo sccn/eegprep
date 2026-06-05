@@ -66,8 +66,10 @@ def dftfilt3(
             else:
                 half_width = int(np.floor(winsize / 2))
             time_values = np.arange(0, half_width * 2 + 1, dtype=float) - half_width
-            wavelet = amplitude * np.exp(-(time_values**2) / (2.0 * sigma_time**2)) * np.exp(
-                2j * np.pi * normalized_freq * time_values
+            wavelet = (
+                amplitude
+                * np.exp(-(time_values**2) / (2.0 * sigma_time**2))
+                * np.exp(2j * np.pi * normalized_freq * time_values)
             )
         if fixed_filters is None:
             filters.append(wavelet.astype(complex, copy=False))

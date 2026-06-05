@@ -104,7 +104,7 @@ def pop_newtimef_dialog_spec(EEG: dict[str, Any], *, typeproc: int = 1) -> Dialo
         ControlSpec("text", "Wavelet cycles [min max/fact] or sequence", font_weight="bold"),
         ControlSpec("edit", tag="cycles", value="3 0.8"),
         ControlSpec("checkbox", "Use FFT", tag="fft", value=False),
-        ControlSpec("pushbutton", "tf cycle calc", tag="calcpush", enabled=False),
+        ControlSpec("pushbutton", "tf cycle calc", tag="calcpush", enabled=True),
         ControlSpec("text", "ERSP color limits [max] (min=-max)", font_weight="bold"),
         ControlSpec("edit", tag="erspmax", value=""),
         ControlSpec("checkbox", "see log power (set)", tag="scale", value=True),
@@ -229,8 +229,7 @@ def _reject_unsupported_options(options: dict[str, Any]) -> None:
     present = sorted(key for key in unsupported if key in options)
     if present:
         raise NotImplementedError(
-            "pop_newtimef time-warp options are not part of EEGPrep's Phase 4 implementation: "
-            + ", ".join(present)
+            "pop_newtimef time-warp options are not part of EEGPrep's Phase 4 implementation: " + ", ".join(present)
         )
 
 

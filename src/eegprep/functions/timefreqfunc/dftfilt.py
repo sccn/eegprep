@@ -14,7 +14,9 @@ def dftfilt(length: int, maxfreq: float, cycle: float, oversmp: float, wavfact: 
         raise ValueError("length must be positive")
     columns = []
     for index in np.arange(1.0, float(maxfreq) * length / float(cycle) + np.finfo(float).eps, 1.0 / float(oversmp)):
-        phase = 1j * index * float(cycle) * np.linspace(-np.pi + 2.0 * np.pi / length, np.pi - 2.0 * np.pi / length, length)
+        phase = (
+            1j * index * float(cycle) * np.linspace(-np.pi + 2.0 * np.pi / length, np.pi - 2.0 * np.pi / length, length)
+        )
         columns.append(np.exp(-phase))
     if not columns:
         return np.empty((length, 0), dtype=complex)
