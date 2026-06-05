@@ -3368,18 +3368,18 @@
     {
       "eeglab_path": "functions/popfunc/pop_crossf.m",
       "eeglab_name": "pop_crossf",
-      "eegprep_equivalent": "src/eegprep/functions/popfunc/pop_newcrossf.py",
+      "eegprep_equivalent": "src/eegprep/functions/popfunc/pop_crossf.py",
       "gap_category": "6_time_frequency_internals",
-      "status": "port",
-      "rationale": "EEGLAB time-frequency helper or legacy entry point needed to close useful time-frequency parity in Phase 4.",
-      "responsible_phase": "phase_4",
+      "status": "implemented",
+      "rationale": "EEGPrep provides a legacy pop_crossf compatibility wrapper backed by the standalone pop_newcrossf implementation.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "api",
         "console",
         "gui",
         "time_frequency"
       ],
-      "test_notes": "Add numerical MATLAB parity tests, bootstrap/baseline edge cases, and headless plotting tests where relevant."
+      "test_notes": "Covered by replayable legacy history tests and the shared pop_newcrossf numerical/headless coverage."
     },
     {
       "eeglab_path": "functions/popfunc/pop_editeventfield.m",
@@ -3834,15 +3834,15 @@
       "eeglab_name": "pop_newcrossf",
       "eegprep_equivalent": "src/eegprep/functions/popfunc/pop_newcrossf.py",
       "gap_category": "3_unsupported_options",
-      "status": "partial",
-      "rationale": "Existing pop_newcrossf covers the primary workflow but still lacks several EEGLAB bootstrap and coherence option paths.",
-      "responsible_phase": "phase_4",
+      "status": "implemented",
+      "rationale": "Phase 4 implemented the previously unsupported bootstrap, supplied rboot, shuffle, subitc, amplitude-correlation, and coherence option paths for the standalone single-dataset pop_newcrossf workflow.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "api",
         "console",
         "gui"
       ],
-      "test_notes": "Add option-focused tests and deterministic MATLAB parity for bootstrap and coherence behavior before marking implemented."
+      "test_notes": "Covered by option-focused pop_newcrossf/newcrossf tests, headless plotting paths, replayable history tests, and deterministic timefreq helper MATLAB parity."
     },
     {
       "eeglab_path": "functions/popfunc/pop_newset.m",
@@ -3865,14 +3865,14 @@
       "eegprep_equivalent": "src/eegprep/functions/popfunc/pop_newtimef.py",
       "gap_category": "3_unsupported_options",
       "status": "partial",
-      "rationale": "Existing pop_newtimef covers the primary workflow but still lacks EEGLAB timewarp/bootstrap/baseline/curve-plot paths.",
-      "responsible_phase": "phase_4",
+      "rationale": "Phase 4 implemented baseline normalization, trial baseline, supplied bootstrap limits, seeded EEGPrep bootstrap significance, and curve plots. EEGLAB time-warp options remain an explicit follow-up because they require the separate timewarp/angtimewarp stack and event-marker workflow.",
+      "responsible_phase": "phase_7",
       "user_facing_surface": [
         "api",
         "console",
         "gui"
       ],
-      "test_notes": "Add option-focused tests and deterministic MATLAB parity for bootstrap, baseline, and timewarp behavior before marking implemented."
+      "test_notes": "Covered by option-focused pop_newtimef tests, deterministic baseline/timefreq MATLAB parity, headless curve plotting, and replayable history. Add timewarp parity before marking fully implemented."
     },
     {
       "eeglab_path": "functions/popfunc/pop_plotdata.m",
@@ -4295,18 +4295,18 @@
     {
       "eeglab_path": "functions/popfunc/pop_timef.m",
       "eeglab_name": "pop_timef",
-      "eegprep_equivalent": "src/eegprep/functions/popfunc/pop_newtimef.py",
+      "eegprep_equivalent": "src/eegprep/functions/popfunc/pop_timef.py",
       "gap_category": "6_time_frequency_internals",
-      "status": "port",
-      "rationale": "EEGLAB time-frequency helper or legacy entry point needed to close useful time-frequency parity in Phase 4.",
-      "responsible_phase": "phase_4",
+      "status": "implemented",
+      "rationale": "EEGPrep provides a legacy pop_timef compatibility wrapper backed by the standalone pop_newtimef implementation.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "api",
         "console",
         "gui",
         "time_frequency"
       ],
-      "test_notes": "Add numerical MATLAB parity tests, bootstrap/baseline edge cases, and headless plotting tests where relevant."
+      "test_notes": "Covered by replayable legacy history tests and the shared pop_newtimef numerical/headless coverage."
     },
     {
       "eeglab_path": "functions/popfunc/pop_timtopo.m",
@@ -8037,41 +8037,41 @@
       "eegprep_equivalent": null,
       "gap_category": "6_time_frequency_internals",
       "status": "port",
-      "rationale": "EEGLAB time-frequency helper or legacy entry point needed to close useful time-frequency parity in Phase 4.",
-      "responsible_phase": "phase_4",
+      "rationale": "Phase 4 did not port time-warped ERSP/ITC marker workflows; angtimewarp remains a real helper for a later timewarp-focused follow-up.",
+      "responsible_phase": "phase_7",
       "user_facing_surface": [
         "helper",
         "time_frequency"
       ],
-      "test_notes": "Add numerical MATLAB parity tests, bootstrap/baseline edge cases, and headless plotting tests where relevant."
+      "test_notes": "Add angle-warping and pop_newtimef timewarp parity tests before marking implemented."
     },
     {
       "eeglab_path": "functions/timefreqfunc/bootstat.m",
       "eeglab_name": "bootstat",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/timefreqfunc/bootstat.py",
       "gap_category": "6_time_frequency_internals",
-      "status": "port",
-      "rationale": "EEGLAB time-frequency helper or legacy entry point needed to close useful time-frequency parity in Phase 4.",
-      "responsible_phase": "phase_4",
+      "status": "implemented",
+      "rationale": "EEGPrep provides a standalone callable-based bootstrap helper for time-frequency significance paths without MATLAB string evaluation.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "helper",
         "time_frequency"
       ],
-      "test_notes": "Add numerical MATLAB parity tests, bootstrap/baseline edge cases, and headless plotting tests where relevant."
+      "test_notes": "Covered by direct bootstat/bootstrap_threshold tests and seeded newtimef/newcrossf bootstrap tests; MATLAB RNG bit-parity is intentionally not required."
     },
     {
       "eeglab_path": "functions/timefreqfunc/correct_mc.m",
       "eeglab_name": "correct_mc",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/timefreqfunc/correct_mc.py",
       "gap_category": "6_time_frequency_internals",
-      "status": "port",
-      "rationale": "EEGLAB time-frequency helper or legacy entry point needed to close useful time-frequency parity in Phase 4.",
-      "responsible_phase": "phase_4",
+      "status": "partial",
+      "rationale": "EEGPrep provides a standalone correct_mc estimator using neighboring-bin correlations and scipy statistics, but does not port EEGLAB's Ramberg-Schmeiser rsfit distribution stack.",
+      "responsible_phase": "phase_7",
       "user_facing_surface": [
         "helper",
         "time_frequency"
       ],
-      "test_notes": "Add numerical MATLAB parity tests, bootstrap/baseline edge cases, and headless plotting tests where relevant."
+      "test_notes": "Covered by direct shape tests for the standalone estimator; add rsfit-backed parity if the random-symbol distribution helpers are later ported."
     },
     {
       "eeglab_path": "functions/timefreqfunc/correctfit.m",
@@ -8079,82 +8079,82 @@
       "eegprep_equivalent": null,
       "gap_category": "6_time_frequency_internals",
       "status": "port",
-      "rationale": "EEGLAB time-frequency helper or legacy entry point needed to close useful time-frequency parity in Phase 4.",
-      "responsible_phase": "phase_4",
+      "rationale": "Random-symbol distribution fitting is not required by the Phase 4 standalone bootstrap paths and remains a follow-up for exact correct_mc parity.",
+      "responsible_phase": "phase_7",
       "user_facing_surface": [
         "helper",
         "time_frequency"
       ],
-      "test_notes": "Add numerical MATLAB parity tests, bootstrap/baseline edge cases, and headless plotting tests where relevant."
+      "test_notes": "Add distribution-fitting parity tests if rsfit/correctfit are ported."
     },
     {
       "eeglab_path": "functions/timefreqfunc/crossf.m",
       "eeglab_name": "crossf",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/timefreqfunc/crossf.py",
       "gap_category": "6_time_frequency_internals",
-      "status": "port",
-      "rationale": "EEGLAB time-frequency helper or legacy entry point needed to close useful time-frequency parity in Phase 4.",
-      "responsible_phase": "phase_4",
+      "status": "implemented",
+      "rationale": "EEGPrep provides a legacy crossf compatibility entry point backed by the standalone newcrossf implementation.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "helper",
         "time_frequency"
       ],
-      "test_notes": "Add numerical MATLAB parity tests, bootstrap/baseline edge cases, and headless plotting tests where relevant."
+      "test_notes": "Covered by newcrossf option/headless tests and legacy pop_crossf history tests."
     },
     {
       "eeglab_path": "functions/timefreqfunc/dftfilt.m",
       "eeglab_name": "dftfilt",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/timefreqfunc/dftfilt.py",
       "gap_category": "6_time_frequency_internals",
-      "status": "port",
-      "rationale": "EEGLAB time-frequency helper or legacy entry point needed to close useful time-frequency parity in Phase 4.",
-      "responsible_phase": "phase_4",
+      "status": "implemented",
+      "rationale": "EEGPrep ports the legacy discrete Fourier filter helper for compatibility, although current timefreq paths use dftfilt2/dftfilt3.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "helper",
         "time_frequency"
       ],
-      "test_notes": "Add numerical MATLAB parity tests, bootstrap/baseline edge cases, and headless plotting tests where relevant."
+      "test_notes": "Covered by direct legacy dftfilt shape/dtype tests; dftfilt3 carries deterministic MATLAB wavelet parity for active paths."
     },
     {
       "eeglab_path": "functions/timefreqfunc/dftfilt2.m",
       "eeglab_name": "dftfilt2",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/timefreqfunc/dftfilt2.py",
       "gap_category": "6_time_frequency_internals",
-      "status": "port",
-      "rationale": "EEGLAB time-frequency helper or legacy entry point needed to close useful time-frequency parity in Phase 4.",
-      "responsible_phase": "phase_4",
+      "status": "implemented",
+      "rationale": "EEGPrep ports dftfilt2 for the non-default EEGLAB wavelet method supported by timefreq.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "helper",
         "time_frequency"
       ],
-      "test_notes": "Add numerical MATLAB parity tests, bootstrap/baseline edge cases, and headless plotting tests where relevant."
+      "test_notes": "Covered by direct dftfilt2 shape tests and deterministic MATLAB dftfilt2 parity tests."
     },
     {
       "eeglab_path": "functions/timefreqfunc/dftfilt3.m",
       "eeglab_name": "dftfilt3",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/timefreqfunc/dftfilt3.py",
       "gap_category": "6_time_frequency_internals",
-      "status": "port",
-      "rationale": "EEGLAB time-frequency helper or legacy entry point needed to close useful time-frequency parity in Phase 4.",
-      "responsible_phase": "phase_4",
+      "status": "implemented",
+      "rationale": "EEGPrep ports the default EEGLAB dftfilt3 Morlet/Hanning wavelet helper used by timefreq.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "helper",
         "time_frequency"
       ],
-      "test_notes": "Add numerical MATLAB parity tests, bootstrap/baseline edge cases, and headless plotting tests where relevant."
+      "test_notes": "Covered by deterministic MATLAB dftfilt3 parity tests."
     },
     {
       "eeglab_path": "functions/timefreqfunc/newcrossf.m",
       "eeglab_name": "newcrossf",
       "eegprep_equivalent": "src/eegprep/functions/timefreqfunc/newcrossf.py",
       "gap_category": "3_unsupported_options",
-      "status": "partial",
-      "rationale": "EEGPrep has a newcrossf implementation, but Phase 4 must close EEGLAB internals needed by unsupported pop_newcrossf options.",
-      "responsible_phase": "phase_4",
+      "status": "implemented",
+      "rationale": "Phase 4 implemented the useful standalone newcrossf option stack, including phasecoher2, amp, subitc, shuffle, supplied rboot, and seeded bootstrap significance.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "helper"
       ],
-      "test_notes": "Use MATLAB parity fixtures for coherence, bootstrap, and baseline outputs before marking implemented."
+      "test_notes": "Covered by newcrossf option tests, headless plotting tests, and deterministic timefreq helper MATLAB parity."
     },
     {
       "eeglab_path": "functions/timefreqfunc/newtimef.m",
@@ -8162,68 +8162,68 @@
       "eegprep_equivalent": "src/eegprep/functions/timefreqfunc/newtimef.py",
       "gap_category": "3_unsupported_options",
       "status": "partial",
-      "rationale": "EEGPrep has a newtimef implementation, but Phase 4 must close EEGLAB internals needed by unsupported pop_newtimef options.",
-      "responsible_phase": "phase_4",
+      "rationale": "Phase 4 implemented deterministic timefreq-backed ERSP/ITC, baseline modes, supplied bootstrap limits, seeded bootstrap significance, and curve plots. Time-warped event marker support remains a follow-up with timewarp/angtimewarp.",
+      "responsible_phase": "phase_7",
       "user_facing_surface": [
         "helper"
       ],
-      "test_notes": "Use MATLAB parity fixtures for ERSP/ITC, bootstrap, baseline, and timewarp outputs before marking implemented."
+      "test_notes": "Covered by deterministic dftfilt3/timefreq/newtimefbaseln MATLAB parity and option-focused newtimef tests. Add timewarp parity before marking fully implemented."
     },
     {
       "eeglab_path": "functions/timefreqfunc/newtimefbaseln.m",
       "eeglab_name": "newtimefbaseln",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/timefreqfunc/newtimefbaseln.py",
       "gap_category": "6_time_frequency_internals",
-      "status": "port",
-      "rationale": "EEGLAB time-frequency helper or legacy entry point needed to close useful time-frequency parity in Phase 4.",
-      "responsible_phase": "phase_4",
+      "status": "implemented",
+      "rationale": "EEGPrep ports average baseline correction for newtimef power arrays, including divisive and basenorm behavior.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "helper",
         "time_frequency"
       ],
-      "test_notes": "Add numerical MATLAB parity tests, bootstrap/baseline edge cases, and headless plotting tests where relevant."
+      "test_notes": "Covered by deterministic MATLAB newtimefbaseln parity and pop_newtimef baseline-mode tests."
     },
     {
       "eeglab_path": "functions/timefreqfunc/newtimefitc.m",
       "eeglab_name": "newtimefitc",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/timefreqfunc/newtimefitc.py",
       "gap_category": "6_time_frequency_internals",
-      "status": "port",
-      "rationale": "EEGLAB time-frequency helper or legacy entry point needed to close useful time-frequency parity in Phase 4.",
-      "responsible_phase": "phase_4",
+      "status": "implemented",
+      "rationale": "EEGPrep ports phasecoher, phasecoher2, and coher ITC calculations for newtimef/newcrossf.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "helper",
         "time_frequency"
       ],
-      "test_notes": "Add numerical MATLAB parity tests, bootstrap/baseline edge cases, and headless plotting tests where relevant."
+      "test_notes": "Covered by newtimef/newcrossf ITC/coherence tests and deterministic timefreq parity."
     },
     {
       "eeglab_path": "functions/timefreqfunc/newtimefpowerunit.m",
       "eeglab_name": "newtimefpowerunit",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/timefreqfunc/newtimefpowerunit.py",
       "gap_category": "6_time_frequency_internals",
-      "status": "port",
-      "rationale": "EEGLAB time-frequency helper or legacy entry point needed to close useful time-frequency parity in Phase 4.",
-      "responsible_phase": "phase_4",
+      "status": "implemented",
+      "rationale": "EEGPrep ports the power-unit label helper used to describe baseline and scale modes.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "helper",
         "time_frequency"
       ],
-      "test_notes": "Add numerical MATLAB parity tests, bootstrap/baseline edge cases, and headless plotting tests where relevant."
+      "test_notes": "Covered by focused newtimefpowerunit label tests."
     },
     {
       "eeglab_path": "functions/timefreqfunc/newtimeftrialbaseln.m",
       "eeglab_name": "newtimeftrialbaseln",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/timefreqfunc/newtimeftrialbaseln.py",
       "gap_category": "6_time_frequency_internals",
-      "status": "port",
-      "rationale": "EEGLAB time-frequency helper or legacy entry point needed to close useful time-frequency parity in Phase 4.",
-      "responsible_phase": "phase_4",
+      "status": "implemented",
+      "rationale": "EEGPrep ports single-trial baseline correction for newtimef trialbase modes.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "helper",
         "time_frequency"
       ],
-      "test_notes": "Add numerical MATLAB parity tests, bootstrap/baseline edge cases, and headless plotting tests where relevant."
+      "test_notes": "Covered by pop_newtimef trialbase tests and baseline helper coverage."
     },
     {
       "eeglab_path": "functions/timefreqfunc/pac.m",
@@ -8231,13 +8231,13 @@
       "eegprep_equivalent": null,
       "gap_category": "6_time_frequency_internals",
       "status": "port",
-      "rationale": "EEGLAB time-frequency helper or legacy entry point needed to close useful time-frequency parity in Phase 4.",
-      "responsible_phase": "phase_4",
+      "rationale": "Phase-amplitude coupling is a real analysis helper but is not required by current newtimef/newcrossf/pop_* time-frequency workflows; leave as an explicit follow-up rather than stale-skip.",
+      "responsible_phase": "phase_7",
       "user_facing_surface": [
         "helper",
         "time_frequency"
       ],
-      "test_notes": "Add numerical MATLAB parity tests, bootstrap/baseline edge cases, and headless plotting tests where relevant."
+      "test_notes": "Add PAC numerical parity tests before porting."
     },
     {
       "eeglab_path": "functions/timefreqfunc/pac_cont.m",
@@ -8245,13 +8245,13 @@
       "eegprep_equivalent": null,
       "gap_category": "6_time_frequency_internals",
       "status": "port",
-      "rationale": "EEGLAB time-frequency helper or legacy entry point needed to close useful time-frequency parity in Phase 4.",
-      "responsible_phase": "phase_4",
+      "rationale": "Continuous phase-amplitude coupling is a real analysis helper but is not required by current newtimef/newcrossf/pop_* time-frequency workflows; leave as an explicit follow-up rather than stale-skip.",
+      "responsible_phase": "phase_7",
       "user_facing_surface": [
         "helper",
         "time_frequency"
       ],
-      "test_notes": "Add numerical MATLAB parity tests, bootstrap/baseline edge cases, and headless plotting tests where relevant."
+      "test_notes": "Add PAC-continuous numerical parity tests before porting."
     },
     {
       "eeglab_path": "functions/timefreqfunc/rsadjust.m",
@@ -8259,13 +8259,13 @@
       "eegprep_equivalent": null,
       "gap_category": "6_time_frequency_internals",
       "status": "port",
-      "rationale": "EEGLAB time-frequency helper or legacy entry point needed to close useful time-frequency parity in Phase 4.",
-      "responsible_phase": "phase_4",
+      "rationale": "Random-symbol distribution fitting is not required by the Phase 4 standalone bootstrap paths and remains a follow-up for exact rsfit/correct_mc parity.",
+      "responsible_phase": "phase_7",
       "user_facing_surface": [
         "helper",
         "time_frequency"
       ],
-      "test_notes": "Add numerical MATLAB parity tests, bootstrap/baseline edge cases, and headless plotting tests where relevant."
+      "test_notes": "Add random-symbol distribution parity tests before porting."
     },
     {
       "eeglab_path": "functions/timefreqfunc/rsfit.m",
@@ -8273,13 +8273,13 @@
       "eegprep_equivalent": null,
       "gap_category": "6_time_frequency_internals",
       "status": "port",
-      "rationale": "EEGLAB time-frequency helper or legacy entry point needed to close useful time-frequency parity in Phase 4.",
-      "responsible_phase": "phase_4",
+      "rationale": "Random-symbol distribution fitting is not required by the Phase 4 standalone bootstrap paths and remains a follow-up for exact correct_mc parity.",
+      "responsible_phase": "phase_7",
       "user_facing_surface": [
         "helper",
         "time_frequency"
       ],
-      "test_notes": "Add numerical MATLAB parity tests, bootstrap/baseline edge cases, and headless plotting tests where relevant."
+      "test_notes": "Add rsfit parity tests before porting."
     },
     {
       "eeglab_path": "functions/timefreqfunc/rsget.m",
@@ -8287,13 +8287,13 @@
       "eegprep_equivalent": null,
       "gap_category": "6_time_frequency_internals",
       "status": "port",
-      "rationale": "EEGLAB time-frequency helper or legacy entry point needed to close useful time-frequency parity in Phase 4.",
-      "responsible_phase": "phase_4",
+      "rationale": "Random-symbol distribution fitting is not required by the Phase 4 standalone bootstrap paths and remains a follow-up for exact rsfit/correct_mc parity.",
+      "responsible_phase": "phase_7",
       "user_facing_surface": [
         "helper",
         "time_frequency"
       ],
-      "test_notes": "Add numerical MATLAB parity tests, bootstrap/baseline edge cases, and headless plotting tests where relevant."
+      "test_notes": "Add random-symbol distribution parity tests before porting."
     },
     {
       "eeglab_path": "functions/timefreqfunc/rspdfsolv.m",
@@ -8301,13 +8301,13 @@
       "eegprep_equivalent": null,
       "gap_category": "6_time_frequency_internals",
       "status": "port",
-      "rationale": "EEGLAB time-frequency helper or legacy entry point needed to close useful time-frequency parity in Phase 4.",
-      "responsible_phase": "phase_4",
+      "rationale": "Random-symbol distribution fitting is not required by the Phase 4 standalone bootstrap paths and remains a follow-up for exact rsfit/correct_mc parity.",
+      "responsible_phase": "phase_7",
       "user_facing_surface": [
         "helper",
         "time_frequency"
       ],
-      "test_notes": "Add numerical MATLAB parity tests, bootstrap/baseline edge cases, and headless plotting tests where relevant."
+      "test_notes": "Add random-symbol distribution parity tests before porting."
     },
     {
       "eeglab_path": "functions/timefreqfunc/rspfunc.m",
@@ -8315,13 +8315,13 @@
       "eegprep_equivalent": null,
       "gap_category": "6_time_frequency_internals",
       "status": "port",
-      "rationale": "EEGLAB time-frequency helper or legacy entry point needed to close useful time-frequency parity in Phase 4.",
-      "responsible_phase": "phase_4",
+      "rationale": "Random-symbol distribution fitting is not required by the Phase 4 standalone bootstrap paths and remains a follow-up for exact rsfit/correct_mc parity.",
+      "responsible_phase": "phase_7",
       "user_facing_surface": [
         "helper",
         "time_frequency"
       ],
-      "test_notes": "Add numerical MATLAB parity tests, bootstrap/baseline edge cases, and headless plotting tests where relevant."
+      "test_notes": "Add random-symbol distribution parity tests before porting."
     },
     {
       "eeglab_path": "functions/timefreqfunc/tf_cycle_calc.m",
@@ -8329,41 +8329,41 @@
       "eegprep_equivalent": null,
       "gap_category": "6_time_frequency_internals",
       "status": "port",
-      "rationale": "EEGLAB time-frequency helper or legacy entry point needed to close useful time-frequency parity in Phase 4.",
-      "responsible_phase": "phase_4",
+      "rationale": "Interactive cycle-calculation GUI support is not required for current newtimef/newcrossf execution; the pop_newtimef button remains disabled until a dedicated GUI parity follow-up ports it.",
+      "responsible_phase": "phase_7",
       "user_facing_surface": [
         "helper",
         "time_frequency"
       ],
-      "test_notes": "Add numerical MATLAB parity tests, bootstrap/baseline edge cases, and headless plotting tests where relevant."
+      "test_notes": "Add GUI visual parity and cycle-calculation tests before enabling the dialog button."
     },
     {
       "eeglab_path": "functions/timefreqfunc/timef.m",
       "eeglab_name": "timef",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/timefreqfunc/timef.py",
       "gap_category": "6_time_frequency_internals",
-      "status": "port",
-      "rationale": "EEGLAB time-frequency helper or legacy entry point needed to close useful time-frequency parity in Phase 4.",
-      "responsible_phase": "phase_4",
+      "status": "implemented",
+      "rationale": "EEGPrep provides a legacy timef compatibility entry point backed by the standalone newtimef implementation.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "helper",
         "time_frequency"
       ],
-      "test_notes": "Add numerical MATLAB parity tests, bootstrap/baseline edge cases, and headless plotting tests where relevant."
+      "test_notes": "Covered by newtimef option/headless tests and legacy pop_timef history tests."
     },
     {
       "eeglab_path": "functions/timefreqfunc/timefreq.m",
       "eeglab_name": "timefreq",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/timefreqfunc/timefreq.py",
       "gap_category": "6_time_frequency_internals",
-      "status": "port",
-      "rationale": "EEGLAB time-frequency helper or legacy entry point needed to close useful time-frequency parity in Phase 4.",
-      "responsible_phase": "phase_4",
+      "status": "implemented",
+      "rationale": "EEGPrep ports the compute-only timefreq decomposition used by newtimef and newcrossf, including FFT and Morlet wavelet paths.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "helper",
         "time_frequency"
       ],
-      "test_notes": "Add numerical MATLAB parity tests, bootstrap/baseline edge cases, and headless plotting tests where relevant."
+      "test_notes": "Covered by deterministic MATLAB FFT timefreq parity and newtimef/newcrossf integration tests."
     },
     {
       "eeglab_path": "functions/timefreqfunc/timewarp.m",
@@ -8371,13 +8371,13 @@
       "eegprep_equivalent": null,
       "gap_category": "6_time_frequency_internals",
       "status": "port",
-      "rationale": "EEGLAB time-frequency helper or legacy entry point needed to close useful time-frequency parity in Phase 4.",
-      "responsible_phase": "phase_4",
+      "rationale": "Phase 4 did not port time-warped ERSP/ITC marker workflows; timewarp remains a real helper for a later timewarp-focused follow-up.",
+      "responsible_phase": "phase_7",
       "user_facing_surface": [
         "helper",
         "time_frequency"
       ],
-      "test_notes": "Add numerical MATLAB parity tests, bootstrap/baseline edge cases, and headless plotting tests where relevant."
+      "test_notes": "Add timewarp matrix and pop_newtimef marker parity tests before marking implemented."
     },
     {
       "eeglab_path": "plugins/clean_rawdata/clean_asr.m",

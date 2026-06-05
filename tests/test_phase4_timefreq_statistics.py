@@ -16,19 +16,30 @@ import numpy as np
 import pytest
 import scipy.io
 
+import eegprep
 from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher, action_kind
 from eegprep.functions.guifunc.spec import controls_by_tag
 from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.functions.popfunc.pop_epoch import pop_epoch
 from eegprep.functions.popfunc.pop_eventstat import event_values, pop_eventstat, pop_eventstat_dialog_spec
+from eegprep.functions.popfunc.pop_crossf import pop_crossf
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_newcrossf import pop_newcrossf, pop_newcrossf_dialog_spec
 from eegprep.functions.popfunc.pop_newtimef import _run_gui as run_newtimef_gui
 from eegprep.functions.popfunc.pop_newtimef import pop_newtimef, pop_newtimef_dialog_spec
+from eegprep.functions.popfunc.pop_timef import pop_timef
 from eegprep.functions.popfunc.pop_signalstat import pop_signalstat, pop_signalstat_dialog_spec
 from eegprep.functions.sigprocfunc.signalstat import signalstat
+from eegprep.functions.timefreqfunc.bootstat import bootstat, bootstrap_threshold
+from eegprep.functions.timefreqfunc.correct_mc import correct_mc
+from eegprep.functions.timefreqfunc.dftfilt import dftfilt
+from eegprep.functions.timefreqfunc.dftfilt2 import dftfilt2
+from eegprep.functions.timefreqfunc.dftfilt3 import dftfilt3
 from eegprep.functions.timefreqfunc.newcrossf import newcrossf
 from eegprep.functions.timefreqfunc.newtimef import newtimef
+from eegprep.functions.timefreqfunc.newtimefbaseln import newtimefbaseln
+from eegprep.functions.timefreqfunc.newtimefpowerunit import newtimefpowerunit
+from eegprep.functions.timefreqfunc.timefreq import timefreq
 from tests.fixtures import SAMPLE_DATASET_PATH, create_test_eeg_with_ica
 
 
@@ -95,8 +106,20 @@ def test_newcrossf_single_trial_switches_to_cross_spectrum():
     second = rng.normal(size=512)
 
     result = newcrossf(first, second, 512, [0, 511], 256, 0, plot="off")
+    multi_trial = newcrossf(
+        np.column_stack([first, rng.normal(size=512)]),
+        np.column_stack([second, rng.normal(size=512)]),
+        512,
+        [0, 511],
+        256,
+        0,
+        plot="off",
+    )
 
-    assert np.nanmean(result.coherence) < 0.5
+    assert result.coherence.shape == result.phase.shape
+    assert result.allcoher.shape[2] == 1
+    assert np.nanmean(result.coherence) > 1.0
+    assert np.nanmax(multi_trial.coherence) <= 1.0 + 1e-12
 
 
 def test_newcrossf_rejects_unknown_options():
@@ -175,9 +198,49 @@ def test_pop_newtimef_gui_defaults_are_replayable_and_honest(sample_eeg):
     assert "plottype" not in result["options"]
 
 
-def test_pop_newtimef_rejects_unimplemented_baseline_modes(sample_epoch):
-    with pytest.raises(NotImplementedError, match="baseline normalization"):
-        pop_newtimef(sample_epoch, 1, 1, [-100, 200], [3, 0.8], basenorm="on", plot="off")
+def test_pop_newtimef_baseline_modes_bootstrap_and_curve_plot(sample_epoch):
+    result, command = pop_newtimef(
+        sample_epoch,
+        1,
+        1,
+        [-100, 200],
+        [3, 0.8],
+        basenorm="on",
+        trialbase="full",
+        alpha=0.1,
+        naccu=12,
+        rng=0,
+        plottype="curve",
+        plot="off",
+        return_com=True,
+    )
+
+    assert result.ersp.shape == result.itc.shape
+    assert result.erspboot.shape == (result.freqs.size, 2)
+    assert result.itcboot.shape == (result.freqs.size,)
+    assert result.ersp_significant.shape == result.ersp.shape
+    assert "basenorm='on'" in command
+    assert "trialbase='full'" in command
+    _assert_python_command(command)
+
+
+def test_pop_newtimef_accepts_supplied_bootstrap_limits(sample_epoch):
+    result = pop_newtimef(
+        sample_epoch,
+        1,
+        1,
+        [-100, 200],
+        [0],
+        alpha=0.05,
+        pboot=np.asarray([[-1, 1], [-1, 1]], dtype=float),
+        rboot=np.asarray([0.5, 0.5], dtype=float),
+        freqs=[8, 12],
+        nfreqs=2,
+        plot="off",
+    )
+
+    np.testing.assert_array_equal(result.erspboot, np.asarray([[-1, 1], [-1, 1]], dtype=float))
+    np.testing.assert_array_equal(result.itcboot, np.asarray([0.5, 0.5], dtype=float))
 
 
 def test_timefreq_statistics_dialog_specs_match_eeglab_control_inventory(sample_eeg):
@@ -189,8 +252,9 @@ def test_timefreq_statistics_dialog_specs_match_eeglab_control_inventory(sample_
     assert newtimef.title == "Plot channel time frequency -- pop_newtimef()"
     assert controls_by_tag(newtimef)["num_button"].callback.name == "select_channels"
     assert controls_by_tag(newtimef)["baseline"].value == "0"
-    assert controls_by_tag(newtimef)["plotcurve"].enabled is False
-    assert controls_by_tag(newtimef)["alpha"].enabled is False
+    assert controls_by_tag(newtimef)["calcpush"].enabled is True
+    assert controls_by_tag(newtimef)["plotcurve"].enabled is True
+    assert controls_by_tag(newtimef)["alpha"].enabled is True
     assert controls_by_tag(newcrossf)["coher"].value is False
     assert signal_spec.title == "Plot signal statistics -- pop_signalstat()"
     assert controls_by_tag(signal_spec)["percent"].value == "5"
@@ -203,6 +267,152 @@ def test_timefreq_statistics_menu_actions_are_implemented():
     assert action_kind("pop_newcrossf:components") == "implemented"
     assert action_kind("pop_signalstat:channels") == "implemented"
     assert action_kind("pop_eventstat") == "implemented"
+
+
+def test_phase4_top_level_exports_resolve_existing_modules():
+    expected = {
+        "bootstat",
+        "correct_mc",
+        "crossf",
+        "dftfilt",
+        "dftfilt2",
+        "dftfilt3",
+        "newtimefbaseln",
+        "newtimefitc",
+        "newtimefpowerunit",
+        "newtimeftrialbaseln",
+        "pop_crossf",
+        "pop_timef",
+        "timef",
+        "timefreq",
+    }
+    removed = {
+        "chancenter",
+        "convertlocs",
+        "floatread",
+        "floatwrite",
+        "pop_chancenter",
+        "pop_chancoresp",
+        "pop_loadbci",
+        "pop_readlocs",
+        "pop_snapread",
+        "pop_writelocs",
+        "readegilocs",
+        "readelp",
+        "readeetraklocs",
+        "readlocs",
+        "snapread",
+        "writelocs",
+    }
+
+    assert expected <= set(eegprep.__all__)
+    assert removed.isdisjoint(eegprep.__all__)
+    for name in expected:
+        assert getattr(eegprep, name) is not None
+
+
+def test_legacy_timef_and_crossf_wrappers_return_replayable_history(sample_epoch):
+    timef_result, timef_command = pop_timef(sample_epoch, 1, 1, [-100, 200], [0], plot="off", return_com=True)
+    crossf_result, crossf_command = pop_crossf(sample_epoch, 1, 1, 2, [-100, 200], [0], plot="off", return_com=True)
+
+    assert timef_result.ersp.ndim == 2
+    assert crossf_result.coherence.ndim == 2
+    assert timef_command.startswith("pop_timef(EEG, 1, 1")
+    assert crossf_command.startswith("pop_crossf(EEG, 1, 1, 2")
+    _assert_python_command(timef_command)
+    _assert_python_command(crossf_command)
+
+
+def test_newcrossf_supported_phase4_options_are_headless():
+    srate = 128
+    times = np.arange(0, 1, 1 / srate)
+    trials = np.stack(
+        [
+            np.sin(2 * np.pi * 12 * times),
+            np.sin(2 * np.pi * 12 * times + 0.3),
+            np.sin(2 * np.pi * 12 * times + 0.7),
+        ],
+        axis=1,
+    )
+
+    result = newcrossf(
+        trials,
+        trials,
+        trials.shape[0],
+        [0, 1000],
+        srate,
+        0,
+        freqs=[8, 16],
+        type="phasecoher2",
+        subitc="on",
+        alpha=0.1,
+        naccu=12,
+        rng=0,
+        plot="off",
+    )
+    amp = newcrossf(trials, trials, trials.shape[0], [0, 1000], srate, 0, freqs=[8, 16], type="amp", plot="off")
+
+    assert result.rboot.shape == (result.freqs.size,)
+    assert result.significant.shape == result.coherence.shape
+    assert np.nanmax(np.abs(result.coherence)) <= 1 + 1e-12
+    assert amp.coherence.shape == amp.phase.shape
+
+
+def test_newtimefpowerunit_matches_eeglab_labels():
+    assert newtimefpowerunit({"scale": "log", "baseline": 0, "basenorm": "off"}) == "dB"
+    assert newtimefpowerunit({"scale": "abs", "baseline": [float("nan")], "basenorm": "off"}) == "uV^{2}/Hz"
+    assert newtimefpowerunit({"scale": "abs", "baseline": 0, "basenorm": "on"}) == "std."
+
+
+def test_bootstat_threshold_sides_and_rand_phase_preserve_magnitude():
+    first = np.arange(24, dtype=float).reshape(2, 3, 4)
+    second = first[:, ::-1, :] / 2.0
+
+    def statistic(left, right):
+        return np.mean(left - right, axis=1)
+
+    upper = bootstat([first, second], statistic=statistic, alpha=0.1, naccu=20, bootside="upper", rng=0)
+    both = bootstat([first, second], statistic=statistic, alpha=0.1, naccu=20, bootside="both", rng=0)
+
+    assert upper.surrogates.shape == (20, 2, 4)
+    assert upper.thresholds.shape == (2, 4)
+    assert both.thresholds.shape == (2, 4, 2)
+    np.testing.assert_allclose(upper.thresholds, bootstrap_threshold(upper.surrogates, alpha=0.1, bootside="upper"))
+
+    complex_values = np.exp(1j * np.arange(6, dtype=float)).reshape(2, 3)
+    randomized = bootstat(complex_values, statistic=np.abs, naccu=5, boottype="rand", rng=0)
+    np.testing.assert_allclose(randomized.surrogates, np.broadcast_to(np.abs(complex_values), (5, 2, 3)))
+
+
+def test_correct_mc_returns_phase4_standalone_shapes():
+    rng = np.random.default_rng(0)
+    eeg = {
+        "data": rng.normal(size=(2, 64, 4)),
+        "pnts": 64,
+        "trials": 4,
+        "srate": 128,
+        "xmin": 0,
+        "xmax": 63 / 128,
+    }
+
+    ncorrect, pvalues = correct_mc(eeg, cycles=0, freqrange=(4, 16), timesout=(4, 6))
+
+    assert isinstance(ncorrect, int)
+    assert pvalues.shape == (int(np.ceil(np.log2(16))), 2)
+
+
+def test_legacy_dft_helpers_cover_public_surface():
+    filters = dftfilt(16, 2, 4, 2, 0.5)
+    empty = dftfilt(8, 0.1, 10, 2, 0.5)
+    wavelets = dftfilt2([8, 16], [3, 5], 128)
+    sinus = dftfilt2([8], 3, 128, kind="sinus")
+
+    assert filters.shape == (16, 14)
+    assert np.iscomplexobj(filters)
+    assert empty.shape == (8, 0)
+    assert [wavelet.size for wavelet in wavelets] == [49, 41]
+    assert sinus[0].shape == (49,)
+    assert np.iscomplexobj(sinus[0])
 
 
 @pytest.mark.parametrize(
@@ -311,6 +521,94 @@ def test_signalstat_statistics_match_eeglab(tmp_path):
     np.testing.assert_allclose(result.trimmed_mean, matlab["tM"], rtol=1e-12, atol=1e-12)
     np.testing.assert_allclose(result.trimmed_std, matlab["tSD"], rtol=1e-12, atol=1e-12)
     np.testing.assert_array_equal(result.trimmed_indices + 1, np.asarray(matlab["tndx"], dtype=int).ravel())
+
+
+@pytest.mark.matlab
+def test_timefreq_helpers_match_eeglab_deterministic_outputs(tmp_path):
+    if os.environ.get("EEGPREP_SKIP_MATLAB") == "1":
+        pytest.skip("MATLAB tests disabled via EEGPREP_SKIP_MATLAB")
+    try:
+        matlab_engine = importlib.import_module("matlab.engine")
+    except ImportError as exc:
+        pytest.skip(f"MATLAB not available: {exc}")
+    eeglab_root = _eeglab_reference_root()
+    if eeglab_root is None:
+        pytest.skip("EEGLAB reference checkout not available")
+
+    srate = 128.0
+    sample_times = np.arange(128) / srate
+    trials = np.stack(
+        [
+            np.sin(2 * np.pi * 10 * sample_times),
+            np.sin(2 * np.pi * 10 * sample_times + 0.2),
+        ],
+        axis=1,
+    )
+    power = np.arange(1, 1 + 3 * 5 * 4, dtype=float).reshape(3, 5, 4) / 10.0
+    time_values = np.asarray([-200, -100, 0, 100, 200], dtype=float)
+    inputs = tmp_path / "timefreq_inputs.mat"
+    output = tmp_path / "timefreq_outputs.mat"
+    scipy.io.savemat(inputs, {"data": trials, "P": power, "time_values": time_values})
+
+    engine = matlab_engine.start_matlab()
+    try:
+        engine.addpath(engine.genpath(str(eeglab_root / "functions")), nargout=0)
+        engine.eval(
+            f"""
+            load('{_matlab_string(inputs)}');
+            wavelet2 = dftfilt2([6 10], [3 5], {srate}, 'linear', 'morlet');
+            dft2wav1 = wavelet2{{1}};
+            dft2wav2 = wavelet2{{2}};
+            [wavelet,cycles,freqresol,timeresol] = dftfilt3([6 10], [3 5], {srate}, 'cycleinc', 'linear');
+            wav1 = wavelet{{1}};
+            wav2 = wavelet{{2}};
+            [tf,freqs,times] = timefreq(data, {srate}, 'cycles', 0, 'tlimits', [0 1000], ...
+                'freqs', [5 20], 'ntimesout', 12, 'padratio', 2, 'verbose', 'off');
+            [PP,baseln,mbase] = newtimefbaseln(P, time_values, 'baseline', [-200 0], ...
+                'basenorm', 'off', 'trialbase', 'off', 'verbose', 'off');
+            save('{_matlab_string(output)}', 'wav1', 'wav2', 'cycles', 'freqresol', 'timeresol', ...
+                'dft2wav1', 'dft2wav2', 'tf', 'freqs', 'times', 'PP', 'baseln', 'mbase');
+            """,
+            nargout=0,
+        )
+    finally:
+        engine.quit()
+
+    matlab = scipy.io.loadmat(output, squeeze_me=True)
+    dft2_wavelets = dftfilt2([6, 10], [3, 5], srate)
+    wavelets, py_cycles, py_freqresol, py_timeresol = dftfilt3([6, 10], [3, 5], srate, cycleinc="linear")
+    decomposition = timefreq(
+        trials,
+        srate,
+        frames=128,
+        cycles=0,
+        tlimits=[0, 1000],
+        freqs=[5, 20],
+        ntimesout=12,
+        padratio=2,
+        verbose="off",
+    )
+    py_power, py_baseln, py_mbase = newtimefbaseln(
+        power,
+        time_values,
+        baseline=[-200, 0],
+        basenorm="off",
+        trialbase="off",
+    )
+
+    np.testing.assert_allclose(dft2_wavelets[0], matlab["dft2wav1"], rtol=1e-12, atol=1e-12)
+    np.testing.assert_allclose(dft2_wavelets[1], matlab["dft2wav2"], rtol=1e-12, atol=1e-12)
+    np.testing.assert_allclose(wavelets[0], matlab["wav1"], rtol=1e-12, atol=1e-12)
+    np.testing.assert_allclose(wavelets[1], matlab["wav2"], rtol=1e-12, atol=1e-12)
+    np.testing.assert_allclose(py_cycles, matlab["cycles"], rtol=1e-12, atol=1e-12)
+    np.testing.assert_allclose(py_freqresol, matlab["freqresol"], rtol=1e-12, atol=1e-12)
+    np.testing.assert_allclose(py_timeresol, matlab["timeresol"], rtol=1e-12, atol=1e-12)
+    np.testing.assert_allclose(decomposition.freqs, np.asarray(matlab["freqs"]).ravel(), rtol=1e-12, atol=1e-12)
+    np.testing.assert_allclose(decomposition.times, np.asarray(matlab["times"]).ravel(), rtol=1e-12, atol=1e-12)
+    np.testing.assert_allclose(decomposition.tfdata, matlab["tf"], rtol=1e-11, atol=1e-11)
+    np.testing.assert_allclose(py_power, matlab["PP"], rtol=1e-12, atol=1e-12)
+    np.testing.assert_array_equal(py_baseln + 1, np.asarray(matlab["baseln"], dtype=int).ravel())
+    np.testing.assert_allclose(py_mbase, matlab["mbase"], rtol=1e-12, atol=1e-12)
 
 
 def _assert_python_command(command: str) -> None:
