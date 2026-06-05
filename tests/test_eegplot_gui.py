@@ -293,7 +293,7 @@ def test_gui_eegbrowser_uses_eeglab_extra_visible_channel_row(qapp) -> None:
 
 
 def test_gui_epoched_browser_uses_eeglab_epoch_and_latency_axes(qapp) -> None:
-    from eegprep.functions.guifunc.eegbrowser import EEGBrowserWindow
+    from eegprep.functions.guifunc.eegbrowser import EEGBrowserWindow, _EPOCHED_XTICK_LABEL_ROTATION
 
     data = np.zeros((8, 250, 3))
     model = build_eegplot_model(
@@ -314,6 +314,9 @@ def test_gui_epoched_browser_uses_eeglab_epoch_and_latency_axes(qapp) -> None:
     assert (50.0, "0") in latency_ticks
     assert (300.0, "0") in latency_ticks
     assert (550.0, "0") in latency_ticks
+    assert len(window.canvas._bottom_tick_label_items) == len(latency_ticks)
+    assert {label.rotation() for label in window.canvas._bottom_tick_label_items} == {_EPOCHED_XTICK_LABEL_ROTATION}
+    assert window.canvas.plot.getAxis("bottom").height() == 44
     assert len(window.canvas._trial_boundary_items) == 3
     assert window.canvas.plot.getAxis("top").height() == 22
     window.close()

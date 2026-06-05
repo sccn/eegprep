@@ -48,6 +48,7 @@ _MIN_SPACING = 0.001
 _TRACE_SCALE = 0.72
 _WINREJ_BRUSH_ALPHA = 210
 _WINREJ_EDGE_ALPHA = 230
+_EPOCHED_XTICK_LABEL_ROTATION = -45.0
 _AXES_POSITION = (0.0964286, 0.15, 0.842, 0.75)
 _NOUI_AXES_POSITION = (0.055, 0.075, 0.90, 0.87)
 _CONTROL_POSITIONS = {
@@ -618,6 +619,7 @@ class EEGBrowserCanvas(_QWidget):
         self._event_line_items: list[Any] = []
         self._event_label_items: list[Any] = []
         self._trial_boundary_items: list[Any] = []
+        self._bottom_tick_label_items: list[Any] = []
         self._drag_start_sample: int | None = None
         self._drag_start_pos: Any = None
         self._drag_channel_index: int | None = None
@@ -710,6 +712,7 @@ class EEGBrowserCanvas(_QWidget):
         self.plot.clear()
         self._items.clear()
         self._trial_boundary_items.clear()
+        self._bottom_tick_label_items.clear()
         self.plot.showGrid(x=False, y=False)
         self._configure_axes()
         self._draw_grid()
@@ -719,6 +722,7 @@ class EEGBrowserCanvas(_QWidget):
         self._draw_marked_channel_segments()
         self._draw_event_lines_and_labels()
         self._draw_plot_box()
+        self._draw_epoched_latency_tick_labels()
 
     def _clear_scene_items(self) -> None:
         scene = self.plot.scene()
@@ -727,6 +731,7 @@ class EEGBrowserCanvas(_QWidget):
         self._scene_items.clear()
         self._event_line_items.clear()
         self._event_label_items.clear()
+        self._bottom_tick_label_items.clear()
 
     def _configure_axes(self) -> None:
         start, stop = visible_sample_bounds(self.model.data, self.model.state)
@@ -741,8 +746,14 @@ class EEGBrowserCanvas(_QWidget):
                     label = self.model.data.channel_labels[channel_index]
                 labels.append((float(screen_index), label))
         self.plot.getAxis("left").setTicks([labels])
-        self.plot.getAxis("bottom").setLabel("")
-        self.plot.getAxis("bottom").setTicks([self._bottom_x_ticks(start, stop)])
+        bottom_axis = self.plot.getAxis("bottom")
+        bottom_axis.setLabel("")
+        if self.model.data.epoched:
+            bottom_axis.setHeight(44)
+            bottom_axis.setTicks([[(x_value, "") for x_value, _label in self._bottom_x_ticks(start, stop)]])
+        else:
+            bottom_axis.setHeight(28)
+            bottom_axis.setTicks([self._bottom_x_ticks(start, stop)])
         top_axis = self.plot.getAxis("top")
         if self.model.data.epoched:
             top_axis.setHeight(22)
@@ -865,6 +876,30 @@ class EEGBrowserCanvas(_QWidget):
         frame.setZValue(35)
         self.plot.scene().addItem(frame)
         self._scene_items.append(frame)
+
+    def _draw_epoched_latency_tick_labels(self) -> None:
+        if QtCore is None or QtGui is None or QtWidgets is None:
+            return
+        if not self.model.data.epoched:
+            return
+        start, stop = visible_sample_bounds(self.model.data, self.model.state)
+        view_box = self.plot.getPlotItem().vb
+        view_rect = view_box.sceneBoundingRect()
+        font = QtGui.QFont()
+        font.setPointSize(9)
+        for x_value, label_text in self._bottom_x_ticks(start, stop):
+            if not label_text:
+                continue
+            scene_pos = view_box.mapViewToScene(QtCore.QPointF(float(x_value), 0.0))
+            label = QtWidgets.QGraphicsSimpleTextItem(label_text)
+            label.setFont(font)
+            label.setBrush(QtGui.QBrush(QtGui.QColor("#000000")))
+            label.setRotation(_EPOCHED_XTICK_LABEL_ROTATION)
+            label.setZValue(45)
+            label.setPos(scene_pos.x() - 2.0, view_rect.bottom() + 18.0)
+            self.plot.scene().addItem(label)
+            self._scene_items.append(label)
+            self._bottom_tick_label_items.append(label)
 
     def _draw_traces(self) -> None:
         _qt_widgets, plot_graphics = _require_gui()
