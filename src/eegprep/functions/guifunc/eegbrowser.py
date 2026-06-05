@@ -7,9 +7,12 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.popfunc.eeg_point2lat import eeg_point2lat
 from eegprep.functions.sigprocfunc.eegplot import (
     BrowserModel,
     add_winrej_region,
+    browser_max_channel_offset,
+    browser_visible_channel_count,
     browser_window_duration,
     decimate_minmax,
     event_latency_to_sample,
@@ -486,10 +489,10 @@ class EEGBrowserWindow(_QMainWindow):
             return
         self.controls.show()
         self.menuBar().show()
-        maximum_offset = max(0, self.model.data.n_channels - self.model.state.dispchans)
+        maximum_offset = browser_max_channel_offset(self.model.data, self.model.state)
         self.channel_slider.blockSignals(True)
         self.channel_slider.setRange(0, maximum_offset)
-        self.channel_slider.setPageStep(max(1, self.model.state.dispchans))
+        self.channel_slider.setPageStep(browser_visible_channel_count(self.model.data, self.model.state))
         self.channel_slider.setSingleStep(1)
         self.channel_slider.setValue(self.model.state.channel_offset)
         self.channel_slider.setVisible(maximum_offset > 0)
@@ -614,6 +617,7 @@ class EEGBrowserCanvas(_QWidget):
         self._scene_items: list[Any] = []
         self._event_line_items: list[Any] = []
         self._event_label_items: list[Any] = []
+        self._trial_boundary_items: list[Any] = []
         self._drag_start_sample: int | None = None
         self._drag_start_pos: Any = None
         self._drag_channel_index: int | None = None
@@ -705,6 +709,7 @@ class EEGBrowserCanvas(_QWidget):
         self._clear_scene_items()
         self.plot.clear()
         self._items.clear()
+        self._trial_boundary_items.clear()
         self.plot.showGrid(x=False, y=False)
         self._configure_axes()
         self._draw_grid()
@@ -737,7 +742,16 @@ class EEGBrowserCanvas(_QWidget):
                 labels.append((float(screen_index), label))
         self.plot.getAxis("left").setTicks([labels])
         self.plot.getAxis("bottom").setLabel("")
-        self.plot.getAxis("bottom").setTicks([self._x_ticks(start, stop)])
+        self.plot.getAxis("bottom").setTicks([self._bottom_x_ticks(start, stop)])
+        top_axis = self.plot.getAxis("top")
+        if self.model.data.epoched:
+            top_axis.setHeight(22)
+            top_axis.setStyle(showValues=True, tickLength=0)
+            top_axis.setTicks([self._epoch_ticks(start, stop)])
+        else:
+            top_axis.setHeight(1)
+            top_axis.setStyle(showValues=False, tickLength=0)
+            top_axis.setTicks([[]])
         self.plot.setTitle(self.model.state.plottitle)
 
     def _draw_winrej(self) -> None:
@@ -945,9 +959,7 @@ class EEGBrowserCanvas(_QWidget):
         return range(state.channel_offset, state.channel_offset + self._plot_channel_count())
 
     def _plot_channel_count(self) -> int:
-        state = self.model.state
-        remaining = self.model.data.n_channels - state.channel_offset
-        return max(1, min(remaining, state.dispchans))
+        return browser_visible_channel_count(self.model.data, self.model.state)
 
     def _sample_range_to_x_values(self, start: int, stop: int) -> np.ndarray:
         if self.model.data.x_values is not None:
@@ -975,15 +987,9 @@ class EEGBrowserCanvas(_QWidget):
             return float(values[-1])
         return float(values[index])
 
-    def _x_ticks(self, start: int, stop: int) -> list[tuple[float, str]]:
+    def _bottom_x_ticks(self, start: int, stop: int) -> list[tuple[float, str]]:
         if self.model.data.epoched:
-            first_epoch = int(start // max(1, self.model.data.pnts)) + 1
-            last_epoch = int(np.ceil(stop / max(1, self.model.data.pnts)))
-            return [
-                (float((epoch - 1) * self.model.data.pnts), str(epoch))
-                for epoch in range(first_epoch, last_epoch + 1)
-                if start <= (epoch - 1) * self.model.data.pnts <= stop
-            ]
+            return self._latency_ticks(start, stop)
         start_x = self._sample_edge_to_x_value(start)
         stop_x = self._sample_edge_to_x_value(stop)
         step = 1.0
@@ -993,6 +999,42 @@ class EEGBrowserCanvas(_QWidget):
         while current <= stop_x:
             ticks.append((float(current), f"{current:g}"))
             current += step
+        return ticks
+
+    def _epoch_ticks(self, start: int, stop: int) -> list[tuple[float, str]]:
+        pnts = max(1, int(self.model.data.pnts))
+        first_epoch = max(0, int(start // pnts))
+        last_epoch = min(int(self.model.data.trials) - 1, int(np.ceil(stop / pnts)) - 1)
+        ticks = []
+        for epoch in range(first_epoch, last_epoch + 1):
+            epoch_start = epoch * pnts
+            epoch_stop = min((epoch + 1) * pnts, self.model.data.total_samples)
+            center = (max(start, epoch_start) + min(stop, epoch_stop)) / 2.0
+            ticks.append((float(center), str(epoch + 1)))
+        return ticks
+
+    def _trial_boundary_ticks(self, start: int, stop: int) -> list[float]:
+        pnts = max(1, int(self.model.data.pnts))
+        first_epoch = max(0, int(start // pnts))
+        last_epoch = min(int(self.model.data.trials) - 1, int(np.ceil(stop / pnts)) - 1)
+        return [float(epoch * pnts) for epoch in range(first_epoch, last_epoch + 1) if start <= epoch * pnts <= stop]
+
+    def _latency_ticks(self, start: int, stop: int) -> list[tuple[float, str]]:
+        pnts = max(1, int(self.model.data.pnts))
+        srate = float(self.model.state.srate)
+        limits = np.asarray(self.model.state.limits, dtype=float)
+        increment = _epoch_latency_increment_ms(float(self.model.state.winlength), float(limits[1] - limits[0]))
+        first_epoch = max(0, int(start // pnts))
+        last_epoch = min(int(self.model.data.trials) - 1, int(np.ceil(stop / pnts)) - 1)
+        ticks: list[tuple[float, str]] = []
+        for epoch in range(first_epoch, last_epoch + 1):
+            first_ms = np.ceil(limits[0] / increment) * increment
+            for latency_ms in np.arange(first_ms, limits[1] + increment * 0.001, increment):
+                point = (latency_ms * 0.001 - limits[0] * 0.001) * srate + 1.0 + epoch * pnts
+                x_value = float(point - 1.0)
+                if start <= x_value <= stop:
+                    label = eeg_point2lat(point, epoch + 1, srate, limits, 1e-3)[0]
+                    ticks.append((x_value, _format_tick_label(float(label))))
         return ticks
 
     def _event_scene_point(self, event: Any) -> Any:
@@ -1061,15 +1103,58 @@ class EEGBrowserCanvas(_QWidget):
         start, stop = visible_sample_bounds(self.model.data, self.model.state)
         pen = plot_graphics.mkPen((225, 225, 225), width=1)
         if self.model.state.xgrid:
-            for x_value, _label in self._x_ticks(start, stop):
+            for x_value, _label in self._bottom_x_ticks(start, stop):
                 line = plot_graphics.InfiniteLine(pos=x_value, angle=90, pen=pen, movable=False)
                 self.plot.addItem(line)
                 self._items.append(line)
+        if self.model.data.epoched:
+            boundary_pen = plot_graphics.mkPen((0, 0, 180), width=1, style=QtCore.Qt.PenStyle.DashLine)
+            for x_value in self._trial_boundary_ticks(start, stop):
+                line = plot_graphics.InfiniteLine(pos=x_value, angle=90, pen=boundary_pen, movable=False)
+                line.setZValue(-1)
+                self.plot.addItem(line)
+                self._items.append(line)
+                self._trial_boundary_items.append(line)
         if self.model.state.ygrid:
             for y_value in range(self._plot_channel_count()):
                 line = plot_graphics.InfiniteLine(pos=float(y_value), angle=0, pen=pen, movable=False)
                 self.plot.addItem(line)
                 self._items.append(line)
+
+
+def _epoch_latency_increment_ms(winlength: float, epoch_width_ms: float) -> float:
+    divisions = 20.0 / max(float(winlength), np.finfo(float).eps)
+    candidates = np.asarray(
+        [
+            100000 / 1,
+            100000 / 2,
+            100000 / 4,
+            100000 / 5,
+            10000 / 1,
+            10000 / 2,
+            10000 / 4,
+            10000 / 5,
+            1000 / 1,
+            1000 / 2,
+            1000 / 4,
+            1000 / 5,
+            100 / 1,
+            100 / 2,
+            100 / 4,
+            100 / 5,
+            100 / 10,
+            100 / 20,
+        ],
+        dtype=float,
+    )
+    index = int(np.argmin(np.abs(divisions * candidates - float(epoch_width_ms))))
+    return float(candidates[index])
+
+
+def _format_tick_label(value: float) -> str:
+    if np.isclose(value, round(value)):
+        return str(int(round(value)))
+    return f"{value:g}"
 
 
 class _ScaleIndicator(_QWidget):

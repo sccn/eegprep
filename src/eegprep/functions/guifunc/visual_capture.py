@@ -493,7 +493,7 @@ def capture_eegbrowser(output: pathlib.Path, *, variant: str = "continuous") -> 
         has_events = variant in {"events", "labels", "pop_eegplot_reject_data", "rejection_epochs"}
         winrej = _demo_eegbrowser_winrej(variant)
         eeg = _demo_eegbrowser_eeg(epoched=epoched, events=has_events)
-        data = eeg
+        data = np.asarray(eeg["data"], dtype=float)
         if variant == "rejcont_continuous":
             selected_rows = [0, 1, 2, 3]
             data = np.asarray(eeg["data"], dtype=float)[selected_rows, :]
@@ -514,6 +514,7 @@ def capture_eegbrowser(output: pathlib.Path, *, variant: str = "continuous") -> 
             xgrid="off" if variant == "grid_off" or variant == "rejcont_continuous" else "on",
             ygrid="off" if variant == "grid_off" else "on",
             winrej=winrej,
+            events=eeg["event"] if has_events else [],
             wincolor=(0.0, 0.9, 0.0) if variant == "rejcont_continuous" else None,
             command="TMPREJ=[];" if winrej is not None else None,
             butlabel="Reject",

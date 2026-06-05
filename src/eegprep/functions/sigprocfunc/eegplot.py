@@ -138,7 +138,7 @@ class BrowserState:
     def clamp_to_data(self, browser_data: BrowserData) -> None:
         """Clamp visible time and channel offsets to the available data."""
         self.dispchans = max(1, min(int(self.dispchans), browser_data.n_channels))
-        self.channel_offset = max(0, min(int(self.channel_offset), browser_data.n_channels - self.dispchans))
+        self.channel_offset = max(0, min(int(self.channel_offset), browser_max_channel_offset(browser_data, self)))
         max_time = max(0.0, browser_window_duration(browser_data, self) - float(self.winlength))
         self.time = max(0.0, min(float(self.time), max_time))
 
@@ -210,11 +210,14 @@ def build_eegplot_model(data: Any, **kwargs: Any) -> BrowserModel:
     """Build a browser model without opening a Qt window."""
     source_eeg = data if isinstance(data, dict) else None
     time_supplied = "time" in kwargs and kwargs["time"] is not None
+    limits_supplied = "limits" in kwargs and kwargs["limits"] is not None
     if source_eeg is not None and bool(kwargs.get("component", False)):
         kwargs = dict(kwargs)
         kwargs["_component_data"] = component_activations(source_eeg)
     options = _model_options(source_eeg, kwargs)
     browser_data = normalize_browser_data(data, options)
+    if not limits_supplied and source_eeg is None and browser_data.axis_limits is None:
+        options["limits"] = _default_limits(None, browser_data.pnts, float(options["srate"]))
     if options["dispchans"] is None:
         options["dispchans"] = browser_data.n_channels
     if browser_data.epoched:
@@ -311,6 +314,20 @@ def browser_window_duration(browser_data: BrowserData, state: BrowserState) -> f
     if browser_data.epoched:
         return float(browser_data.trials)
     return float(browser_data.total_samples) / float(state.srate)
+
+
+def browser_visible_channel_count(browser_data: BrowserData, state: BrowserState) -> int:
+    """Return EEGLAB-style trace rows visible for the current channel window."""
+    displayed = max(1, min(int(state.dispchans), browser_data.n_channels))
+    remaining = max(1, browser_data.n_channels - int(state.channel_offset))
+    if browser_data.n_channels > displayed:
+        return min(remaining, displayed + 2)
+    return displayed
+
+
+def browser_max_channel_offset(browser_data: BrowserData, state: BrowserState) -> int:
+    """Return the largest valid EEGLAB-style channel scroll offset."""
+    return max(0, browser_data.n_channels - max(1, min(int(state.dispchans), browser_data.n_channels)))
 
 
 def visible_sample_bounds(browser_data: BrowserData, state: BrowserState) -> tuple[int, int]:
