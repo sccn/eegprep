@@ -201,6 +201,65 @@ tree or Python docstrings at runtime. When adding a new implemented
 GUI-reachable ``pop_*``/``eeg_*`` action, add its help resource and extend the
 menu/help resource inventory tests.
 
+EEGLAB Core Parity Matrix
+=========================
+
+The Phase 1 core parity epic uses a committed machine-readable matrix at
+``docs/parity/eeglab_core_parity_matrix.json``. The matrix classifies the
+EEGLAB public and semi-public functions in the first seven migration-gap audit
+categories from ``.notes/eeglab-migration-gap-audit.md``. It is a work
+contract for later phase agents, not package runtime data.
+
+Rows use these statuses:
+
+- ``implemented``: EEGPrep already covers the behavior.
+- ``partial``: EEGPrep has an implementation, but important EEGLAB behavior,
+  options, or workflow paths remain.
+- ``port``: the row should be ported or wrapped during the responsible phase.
+- ``consolidated``: EEGPrep covers the behavior through another module or
+  helper, and a duplicate same-name file is not needed.
+- ``stale_skip``: the function is obsolete or stale enough to skip.
+- ``matlab_runtime_skip``: the function is MATLAB-specific runtime, GUI shim,
+  path, deployment, or compatibility behavior that should not exist in
+  standalone EEGPrep package code.
+- ``external_dependency_skip``: the function depends on external MATLAB
+  toolboxes/plugins or web/path integration outside this epic.
+
+Use ``stale_skip`` only when every stale-policy field in the matrix is false:
+the function is not menu-reachable, not a documented user API, not called by an
+in-scope workflow, not required by parity tests, not needed as a helper for the
+remaining phases, and not a likely compatibility alias users type. When in
+doubt, leave the row as ``port`` or ``partial`` and add notes for the
+responsible phase.
+
+When a later phase implements or intentionally skips a row:
+
+1. Update ``status``, ``eegprep_equivalent``, ``rationale``,
+   ``responsible_phase``, ``user_facing_surface``, and ``test_notes`` in the
+   JSON row.
+2. For a new ``stale_skip`` row, include the complete ``stale_policy`` object
+   with all fields set to ``false`` and explain the evidence in ``rationale``.
+3. For ``partial`` rows, keep the row ``partial`` until unsupported behavior is
+   implemented or explicitly reclassified with a defensible limitation.
+4. Run the validator:
+
+   .. code-block:: bash
+
+      uv run --no-sync python -m tools.eeglab_parity_matrix
+
+5. Run the focused matrix tests:
+
+   .. code-block:: bash
+
+      uv run --no-sync pytest tests/test_eeglab_parity_matrix.py
+
+The validator may read ``src/eegprep/eeglab`` because it is development
+tooling. Installed package code under ``src/eegprep`` must not read, import
+from, or shell out to ``src/eegprep/eeglab``. If EEGLAB-like help text,
+examples, options, or resources are needed at runtime, convert them into
+EEGPrep-owned packaged resources instead of reaching into the vendored
+reference tree.
+
 Building Documentation
 ======================
 
