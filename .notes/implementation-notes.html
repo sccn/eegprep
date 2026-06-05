@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>EEGPrep Phase 2 File Format And Channel-Location Notes</title>
+</head>
+<body>
+  <h1>EEGPrep Phase 2 File Format And Channel-Location Notes</h1>
+  <h2>Design Decisions</h2>
+  <ul>
+    <li>Implemented the useful channel-location core as standalone Python modules under <code>src/eegprep/functions/sigprocfunc</code>: <code>readlocs</code>, <code>writelocs</code>, <code>convertlocs</code>, <code>chancenter</code>, <code>floatread</code>, <code>floatwrite</code>, <code>snapread</code>, and EGI location lookup.</li>
+    <li>Added EEGLAB-style public wrappers under <code>src/eegprep/functions/popfunc</code> for <code>pop_readlocs</code>, <code>pop_writelocs</code>, <code>pop_chancenter</code>, <code>pop_chancoresp</code>, <code>pop_loadbci</code>, and <code>pop_snapread</code>.</li>
+    <li>Kept runtime behavior independent of the vendored EEGLAB tree. Packaged montage files are read explicitly through package resources or user-supplied paths.</li>
+    <li>Reused the new channel-location parser/writer inside <code>pop_chanedit</code> so GUI and command workflows share one implementation.</li>
+    <li>Preserved EEGLAB-facing 1-based channel indices in <code>readchans</code>, <code>elecind</code>, <code>omitchans</code>, and channel-correspondence return values.</li>
+  </ul>
+  <h2>Deviations</h2>
+  <ul>
+    <li>No new channel-location GUI dialogs were added in this phase. The command paths are tested and history-capable; GUI visual parity artifacts were therefore not applicable.</li>
+    <li><code>pop_chancoresp</code> implements the workflow-supporting label and fiducial pairing behavior without recreating EEGLAB's full interactive listbox editor.</li>
+    <li>BCI2000 and SnapMaster support is limited to documented, fixture-testable import surfaces. Obsolete or toolbox-dependent readers are classified in the matrix instead of being ported blindly.</li>
+    <li>Coordinate conversion keeps original Cartesian coordinates stable during <code>cart2all</code> and fills derived fields without avoidable spherical round-trip drift.</li>
+  </ul>
+  <h2>Tradeoffs</h2>
+  <ul>
+    <li>Text location parsing accepts common EEGLAB formats and explicit custom column formats, but it rejects malformed rows early instead of silently padding incompatible files.</li>
+    <li>EGI sensor-location lookup maps 128/129 and 256/257-channel workflows to packaged HydroCel montage resources. Legacy binary EGI RAW import remains consolidated under modern file import routes.</li>
+    <li>Low-level <code>floatread</code> and <code>floatwrite</code> are implemented for EEGLAB-style binary helper coverage, while high-level EEG file export remains owned by existing <code>pop_writeeeg</code> paths.</li>
+  </ul>
+  <h2>Open Questions</h2>
+  <ul>
+    <li>Future GUI parity work may add EEGLAB-style modal dialogs for <code>pop_readlocs</code>, <code>pop_writelocs</code>, <code>pop_chancenter</code>, and <code>pop_chancoresp</code>; this phase intentionally shipped API and console behavior first.</li>
+    <li>Rare historical readers such as Neurodata, old EGI segmented RAW, and BIOSIG conversion shims should stay skipped or consolidated until a documented user workflow and deterministic fixture justify them.</li>
+  </ul>
+</body>
+</html>

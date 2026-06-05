@@ -14,6 +14,9 @@ from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args
+from eegprep.functions.sigprocfunc.convertlocs import convertlocs
+from eegprep.functions.sigprocfunc.readlocs import readlocs
+from eegprep.functions.sigprocfunc.writelocs import writelocs
 
 
 _CHANNEL_FIELDS = ("labels", "theta", "radius", "X", "Y", "Z", "sph_theta", "sph_phi", "sph_radius", "type", "ref")
@@ -309,15 +312,7 @@ def _new_channel_args(value: Any) -> tuple[int, dict[str, Any]]:
 
 def _convert_locations(chanlocs: list[dict[str, Any]], value: Any) -> None:
     mode = _convert_mode(value)
-    for chan in chanlocs:
-        if mode in {"cart2all", "cart2topo", "cart2sph"}:
-            _cart_to_all(chan)
-        elif mode in {"sph2all", "sph2topo", "sph2cart"}:
-            _sph_to_all(chan)
-        elif mode in {"topo2all", "topo2sph", "topo2cart"}:
-            _topo_to_all(chan)
-        else:
-            raise ValueError(f"Unsupported channel conversion: {mode}")
+    chanlocs[:] = convertlocs(chanlocs, mode)
 
 
 def _cart_to_all(chan: dict[str, Any]) -> None:
@@ -365,17 +360,7 @@ def _topo_to_all(chan: dict[str, Any]) -> None:
 
 def _read_chanloc_file(value: Any) -> list[dict[str, Any]]:
     path = Path(value[0] if isinstance(value, (list, tuple)) else value)
-    rows = [_split_chanloc_row(line) for line in path.read_text(encoding="utf-8").splitlines()]
-    rows = [row for row in rows if row]
-    if not rows:
-        return []
-    header = [item.lower() for item in rows[0]]
-    has_header = any(item in {"labels", "theta", "radius", "x", "y", "z"} for item in header)
-    fields = [_canonical_channel_field(item) for item in rows.pop(0)] if has_header else ["labels", "theta", "radius"]
-    chanlocs = []
-    for row in rows:
-        chanlocs.append({field: _parse_field_value(item) for field, item in zip(fields, row)})
-    return chanlocs
+    return readlocs(path)
 
 
 def _split_chanloc_row(line: str) -> list[str]:
@@ -392,12 +377,7 @@ def _canonical_channel_field(field: str) -> str:
 
 
 def _write_chanloc_file(value: Any, chanlocs: list[dict[str, Any]]) -> None:
-    path = Path(value)
-    fields = [field for field in _CHANNEL_FIELDS if any(field in chan for chan in chanlocs)]
-    lines = ["\t".join(fields)]
-    for chan in chanlocs:
-        lines.append("\t".join(str(chan.get(field, "")) for field in fields))
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    writelocs(chanlocs, value, "filetype", "chanedit", "header", "on")
 
 
 def _indices(value: Any, length: int) -> list[int]:
