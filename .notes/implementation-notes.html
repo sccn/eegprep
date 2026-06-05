@@ -1,0 +1,40 @@
+<!doctype html>
+<html>
+  <body>
+    <h1>Session History Progress Bugfix Notes</h1>
+    <ul>
+      <li>Branch created from feature/eegprep-extension-completion per user request.</li>
+      <li>Validated GUI pop_resample direct-store overwrite behavior before implementation.</li>
+      <li>EEGLAB callback model: transformed datasets commit through pop_newset; ICA stores directly.</li>
+      <li>EEGPrep keeps ALLCOM chronological internally; eegh renders newest-first for user parity.</li>
+      <li>Storedisk behavior will not be simulated without real disk-backed retrieval support.</li>
+    </ul>
+
+    <h1>Phase 1 Core Parity Matrix Notes</h1>
+    <h2>Design Decisions</h2>
+    <ul>
+      <li>Created the machine-readable matrix at docs/parity/eeglab_core_parity_matrix.json so it is committed documentation/tooling data, not package runtime data.</li>
+      <li>Defined in-scope EEGLAB public/semi-public functions as top-level .m files under functions/adminfunc, guifunc, miscfunc, popfunc, sigprocfunc, statistics, studyfunc, and timefreqfunc.</li>
+      <li>Added one explicit plugin row for plugins/clean_rawdata/clean_asr.m because the audit names its unsupported Riemannian ASR mode.</li>
+      <li>Kept src/eegprep/eeglab reads inside validator/test tooling only; no installed package runtime path depends on the vendored EEGLAB tree.</li>
+      <li>Classified likely user aliases as port even when an existing EEGPrep function can be the implementation delegate.</li>
+    </ul>
+    <h2>Tradeoffs</h2>
+    <ul>
+      <li>The matrix intentionally contains many port rows instead of aggressive stale_skip rows; later phases should reclassify only from concrete workflow evidence.</li>
+      <li>MATLAB path, deployment, help-generation, GUI shim, and compatibility helpers use matlab_runtime_skip rather than being ported into standalone Python runtime code.</li>
+      <li>External LIMO, FieldTrip, Brainstorm, and legacy BIOSIG-specific bridges use external_dependency_skip unless a later phase supplies a real standalone dependency path.</li>
+      <li>Existing STUDY and option-limited functions with visible coming-soon or NotImplemented paths are partial so later phases do not treat them as complete.</li>
+    </ul>
+    <h2>Deviations</h2>
+    <ul>
+      <li>The validator does not scan EEGLAB @class folders, supportfiles, or whole plugin ecosystems because the parent epic and Phase 1 issue scope only the first seven core audit categories.</li>
+      <li>No feature behavior was ported in this phase; this PR only adds the matrix, validation tooling/tests, and documentation contracts.</li>
+    </ul>
+    <h2>Open Questions</h2>
+    <ul>
+      <li>Phase 2 should decide whether legacy BIOSIG wrappers should remain external_dependency_skip or become thin delegates to modern EEGPrep import paths.</li>
+      <li>Phase 5 should decide whether pop_runscript MATLAB/text script rejection is a permanent standalone limitation or needs a compatibility-facing wrapper behavior.</li>
+    </ul>
+  </body>
+</html>
