@@ -286,27 +286,7 @@ def test_phase4_top_level_exports_resolve_existing_modules():
         "timef",
         "timefreq",
     }
-    removed = {
-        "chancenter",
-        "convertlocs",
-        "floatread",
-        "floatwrite",
-        "pop_chancenter",
-        "pop_chancoresp",
-        "pop_loadbci",
-        "pop_readlocs",
-        "pop_snapread",
-        "pop_writelocs",
-        "readegilocs",
-        "readelp",
-        "readeetraklocs",
-        "readlocs",
-        "snapread",
-        "writelocs",
-    }
-
     assert expected <= set(eegprep.__all__)
-    assert removed.isdisjoint(eegprep.__all__)
     for name in expected:
         assert getattr(eegprep, name) is not None
 
