@@ -127,6 +127,16 @@ class VisualParityConfigTests(unittest.TestCase):
         self.assertEqual(cases["pop_interp_dataset_index_dialog"].targets["eeglab"].action, "inputdlg2:dataset_index")
         self.assertEqual(cases["pop_reref_help_dialog"].targets["eeglab"].action, "pophelp:pop_reref")
 
+    def test_eegbrowser_epoched_cases_compare_raw_matrix_captures(self):
+        cases = load_manifest()
+
+        for case_id in ("eegbrowser_epoched", "eegbrowser_epoched_marked", "eegbrowser_rejection_epochs"):
+            with self.subTest(case_id=case_id):
+                matlab_command = cases[case_id].targets["eeglab"].matlab_command
+                self.assertIn("data = zeros(8,250,3)", matlab_command)
+                self.assertIn("eegplot(data,", matlab_command)
+                self.assertNotIn("eegplot(EEG", matlab_command)
+
 
 class VisualParityCaptureTests(unittest.TestCase):
     def test_capture_command_receives_output_environment(self):

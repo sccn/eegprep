@@ -319,6 +319,13 @@ def test_gui_epoched_browser_uses_eeglab_epoch_and_latency_axes(qapp) -> None:
     window.close()
 
 
+def test_gui_epoched_latency_tick_increment_matches_eeglab_visual_divisor(qapp) -> None:
+    from eegprep.functions.guifunc.eegbrowser import _epoch_latency_increment_ms
+
+    assert _epoch_latency_increment_ms(3.0, 996.0) == pytest.approx(100.0)
+    assert _epoch_latency_increment_ms(1.0, 996.0) == pytest.approx(50.0)
+
+
 def test_gui_cancel_and_accept_buttons_set_close_state(qapp) -> None:
     from eegprep.functions.guifunc.eegbrowser import EEGBrowserWindow
 
