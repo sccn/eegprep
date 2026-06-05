@@ -105,11 +105,13 @@ def default_repo_root() -> Path:
 def discover_in_scope_eeglab_paths(repo_root: Path) -> set[str]:
     paths: set[str] = set()
     function_root = repo_root / "src/eegprep/eeglab/functions"
-    for folder in IN_SCOPE_FUNCTION_FOLDERS:
-        for path in sorted((function_root / folder).glob("*.m")):
-            paths.add(f"functions/{folder}/{path.name}")
+    if function_root.is_dir():
+        for folder in IN_SCOPE_FUNCTION_FOLDERS:
+            for path in sorted((function_root / folder).glob("*.m")):
+                paths.add(f"functions/{folder}/{path.name}")
     for path in EXPLICIT_IN_SCOPE_EEGLAB_FILES:
-        paths.add(path)
+        if (repo_root / "src/eegprep/eeglab" / path).is_file():
+            paths.add(path)
     return paths
 
 
@@ -159,10 +161,18 @@ def validate_matrix_payload(payload: dict[str, Any], repo_root: Path) -> MatrixV
         if isinstance(category, str):
             category_counts[category] += 1
 
-    for missing_path in sorted(expected_paths - seen_paths):
-        errors.append(MatrixValidationError("coverage", f"missing classification for {missing_path}"))
-    for extra_path in sorted(seen_paths - expected_paths):
-        errors.append(MatrixValidationError("coverage", f"classifies out-of-scope EEGLAB path {extra_path}"))
+    if not expected_paths:
+        errors.append(
+            MatrixValidationError(
+                "coverage",
+                "EEGLAB reference tree is missing or empty; initialize src/eegprep/eeglab before validating coverage",
+            )
+        )
+    else:
+        for missing_path in sorted(expected_paths - seen_paths):
+            errors.append(MatrixValidationError("coverage", f"missing classification for {missing_path}"))
+        for extra_path in sorted(seen_paths - expected_paths):
+            errors.append(MatrixValidationError("coverage", f"classifies out-of-scope EEGLAB path {extra_path}"))
 
     return MatrixValidationReport(
         errors=tuple(errors),
