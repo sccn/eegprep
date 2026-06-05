@@ -5900,142 +5900,142 @@
     {
       "eeglab_path": "functions/statistics/anova1_cell.m",
       "eeglab_name": "anova1_cell",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/statistics/anova1_cell.py",
       "gap_category": "5_statistics_package",
-      "status": "port",
-      "rationale": "EEGLAB statistics helper with workflow value for time-frequency and STUDY phases; Phase 3 should port an idiomatic NumPy equivalent.",
+      "status": "implemented",
+      "rationale": "Implemented as a standalone NumPy/SciPy one-way ANOVA helper for Phase 3 statistics reuse.",
       "responsible_phase": "phase_3",
       "user_facing_surface": [
         "helper",
         "statistics"
       ],
-      "test_notes": "Add deterministic numerical tests and MATLAB parity fixtures with documented tolerances before marking implemented."
+      "test_notes": "Covered by tests/test_statistics_package.py focused tests and MATLAB Engine parity tests with documented tolerances; MATLAB tests skip when unavailable."
     },
     {
       "eeglab_path": "functions/statistics/anova1rm_cell.m",
       "eeglab_name": "anova1rm_cell",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/statistics/anova1rm_cell.py",
       "gap_category": "5_statistics_package",
-      "status": "port",
-      "rationale": "EEGLAB statistics helper with workflow value for time-frequency and STUDY phases; Phase 3 should port an idiomatic NumPy equivalent.",
+      "status": "implemented",
+      "rationale": "Implemented as a standalone NumPy repeated-measures one-way ANOVA helper for Phase 3 statistics reuse.",
       "responsible_phase": "phase_3",
       "user_facing_surface": [
         "helper",
         "statistics"
       ],
-      "test_notes": "Add deterministic numerical tests and MATLAB parity fixtures with documented tolerances before marking implemented."
+      "test_notes": "Covered by tests/test_statistics_package.py focused tests and MATLAB Engine parity tests with documented tolerances; MATLAB tests skip when unavailable."
     },
     {
       "eeglab_path": "functions/statistics/anova2_cell.m",
       "eeglab_name": "anova2_cell",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/statistics/anova2_cell.py",
       "gap_category": "5_statistics_package",
-      "status": "port",
-      "rationale": "EEGLAB statistics helper with workflow value for time-frequency and STUDY phases; Phase 3 should port an idiomatic NumPy equivalent.",
+      "status": "implemented",
+      "rationale": "Implemented as a standalone NumPy balanced two-way ANOVA helper with named row, column, and interaction effects.",
       "responsible_phase": "phase_3",
       "user_facing_surface": [
         "helper",
         "statistics"
       ],
-      "test_notes": "Add deterministic numerical tests and MATLAB parity fixtures with documented tolerances before marking implemented."
+      "test_notes": "Covered by tests/test_statistics_package.py focused tests and MATLAB Engine parity tests with documented tolerances; MATLAB tests skip when unavailable."
     },
     {
       "eeglab_path": "functions/statistics/anova2rm_cell.m",
       "eeglab_name": "anova2rm_cell",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/statistics/anova2rm_cell.py",
       "gap_category": "5_statistics_package",
-      "status": "port",
-      "rationale": "EEGLAB statistics helper with workflow value for time-frequency and STUDY phases; Phase 3 should port an idiomatic NumPy equivalent.",
+      "status": "implemented",
+      "rationale": "Implemented as a standalone NumPy repeated-measures two-way ANOVA helper with named row, column, and interaction effects.",
       "responsible_phase": "phase_3",
       "user_facing_surface": [
         "helper",
         "statistics"
       ],
-      "test_notes": "Add deterministic numerical tests and MATLAB parity fixtures with documented tolerances before marking implemented."
+      "test_notes": "Covered by tests/test_statistics_package.py focused tests and MATLAB Engine parity tests with documented tolerances; MATLAB tests skip when unavailable."
     },
     {
       "eeglab_path": "functions/statistics/concatdata.m",
       "eeglab_name": "concatdata",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/statistics/concatdata.py",
       "gap_category": "5_statistics_package",
-      "status": "port",
-      "rationale": "EEGLAB statistics helper with workflow value for time-frequency and STUDY phases; Phase 3 should port an idiomatic NumPy equivalent.",
+      "status": "implemented",
+      "rationale": "Implemented as a standalone NumPy case-axis concatenation helper for surrogate/statcond workflows.",
       "responsible_phase": "phase_3",
       "user_facing_surface": [
         "helper",
         "statistics"
       ],
-      "test_notes": "Add deterministic numerical tests and MATLAB parity fixtures with documented tolerances before marking implemented."
+      "test_notes": "Covered by tests/test_statistics_package.py focused shape and length-boundary tests."
     },
     {
       "eeglab_path": "functions/statistics/corrcoef_cell.m",
       "eeglab_name": "corrcoef_cell",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/statistics/corrcoef_cell.py",
       "gap_category": "5_statistics_package",
-      "status": "port",
-      "rationale": "EEGLAB statistics helper with workflow value for time-frequency and STUDY phases; Phase 3 should port an idiomatic NumPy equivalent.",
+      "status": "implemented",
+      "rationale": "Implemented as a standalone NumPy pairwise correlation helper over the condition case axis.",
       "responsible_phase": "phase_3",
       "user_facing_surface": [
         "helper",
         "statistics"
       ],
-      "test_notes": "Add deterministic numerical tests and MATLAB parity fixtures with documented tolerances before marking implemented."
+      "test_notes": "Covered by tests/test_statistics_package.py focused tests and MATLAB Engine parity tests with documented tolerances; MATLAB tests skip when unavailable."
     },
     {
       "eeglab_path": "functions/statistics/fdr.m",
       "eeglab_name": "fdr",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/statistics/fdr.py",
       "gap_category": "5_statistics_package",
-      "status": "port",
-      "rationale": "EEGLAB statistics helper with workflow value for time-frequency and STUDY phases; Phase 3 should port an idiomatic NumPy equivalent.",
+      "status": "implemented",
+      "rationale": "Implemented as a standalone FDR helper covering EEGLAB-style parametric and nonparametric thresholds.",
       "responsible_phase": "phase_3",
       "user_facing_surface": [
         "helper",
         "statistics"
       ],
-      "test_notes": "Add deterministic numerical tests and MATLAB parity fixtures with documented tolerances before marking implemented."
+      "test_notes": "Covered by tests/test_statistics_package.py focused tests and MATLAB Engine parity tests; MATLAB tests skip when unavailable."
     },
     {
       "eeglab_path": "functions/statistics/stat_surrogate_ci.m",
       "eeglab_name": "stat_surrogate_ci",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/statistics/stat_surrogate_ci.py",
       "gap_category": "5_statistics_package",
-      "status": "port",
-      "rationale": "EEGLAB statistics helper with workflow value for time-frequency and STUDY phases; Phase 3 should port an idiomatic NumPy equivalent.",
+      "status": "implemented",
+      "rationale": "Implemented as a standalone surrogate confidence-interval helper over the final replication axis.",
       "responsible_phase": "phase_3",
       "user_facing_surface": [
         "helper",
         "statistics"
       ],
-      "test_notes": "Add deterministic numerical tests and MATLAB parity fixtures with documented tolerances before marking implemented."
+      "test_notes": "Covered by tests/test_statistics_package.py focused tests and MATLAB Engine parity tests; MATLAB tests skip when unavailable."
     },
     {
       "eeglab_path": "functions/statistics/stat_surrogate_pvals.m",
       "eeglab_name": "stat_surrogate_pvals",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/statistics/stat_surrogate_pvals.py",
       "gap_category": "5_statistics_package",
-      "status": "port",
-      "rationale": "EEGLAB statistics helper with workflow value for time-frequency and STUDY phases; Phase 3 should port an idiomatic NumPy equivalent.",
+      "status": "implemented",
+      "rationale": "Implemented as a standalone empirical p-value helper over the final surrogate replication axis.",
       "responsible_phase": "phase_3",
       "user_facing_surface": [
         "helper",
         "statistics"
       ],
-      "test_notes": "Add deterministic numerical tests and MATLAB parity fixtures with documented tolerances before marking implemented."
+      "test_notes": "Covered by tests/test_statistics_package.py focused tests and MATLAB Engine parity tests; MATLAB tests skip when unavailable."
     },
     {
       "eeglab_path": "functions/statistics/statcond.m",
       "eeglab_name": "statcond",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/statistics/statcond.py",
       "gap_category": "5_statistics_package",
-      "status": "port",
-      "rationale": "EEGLAB statistics helper with workflow value for time-frequency and STUDY phases; Phase 3 should port an idiomatic NumPy equivalent.",
+      "status": "implemented",
+      "rationale": "Implemented as a standalone NumPy/SciPy condition comparison helper covering paired/unpaired t-tests, one-way ANOVA, two-way ANOVA, and seeded surrogate methods.",
       "responsible_phase": "phase_3",
       "user_facing_surface": [
         "helper",
         "statistics"
       ],
-      "test_notes": "Add deterministic numerical tests and MATLAB parity fixtures with documented tolerances before marking implemented."
+      "test_notes": "Covered by tests/test_statistics_package.py focused parametric and seeded nonparametric tests; deterministic lower-level helpers have MATLAB Engine parity coverage."
     },
     {
       "eeglab_path": "functions/statistics/statcondfieldtrip.m",
@@ -6054,58 +6054,58 @@
     {
       "eeglab_path": "functions/statistics/surrogdistrib.m",
       "eeglab_name": "surrogdistrib",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/statistics/surrogdistrib.py",
       "gap_category": "5_statistics_package",
-      "status": "port",
-      "rationale": "EEGLAB statistics helper with workflow value for time-frequency and STUDY phases; Phase 3 should port an idiomatic NumPy equivalent.",
+      "status": "implemented",
+      "rationale": "Implemented as a standalone seeded permutation/bootstrap surrogate-grid generator for statcond and future STUDY/time-frequency reuse.",
       "responsible_phase": "phase_3",
       "user_facing_surface": [
         "helper",
         "statistics"
       ],
-      "test_notes": "Add deterministic numerical tests and MATLAB parity fixtures with documented tolerances before marking implemented."
+      "test_notes": "Covered by tests/test_statistics_package.py focused deterministic resampling tests."
     },
     {
       "eeglab_path": "functions/statistics/teststat.m",
       "eeglab_name": "teststat",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/statistics/teststat.py",
       "gap_category": "5_statistics_package",
-      "status": "port",
-      "rationale": "EEGLAB statistics helper with workflow value for time-frequency and STUDY phases; Phase 3 should port an idiomatic NumPy equivalent.",
+      "status": "implemented",
+      "rationale": "Implemented as a deterministic Python smoke-test helper for the EEGPrep statistics package rather than a MATLAB demo script.",
       "responsible_phase": "phase_3",
       "user_facing_surface": [
         "helper",
         "statistics"
       ],
-      "test_notes": "Add deterministic numerical tests and MATLAB parity fixtures with documented tolerances before marking implemented."
+      "test_notes": "Covered by tests/test_statistics_package.py, which verifies the smoke helper runs deterministic package checks."
     },
     {
       "eeglab_path": "functions/statistics/ttest2_cell.m",
       "eeglab_name": "ttest2_cell",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/statistics/ttest2_cell.py",
       "gap_category": "5_statistics_package",
-      "status": "port",
-      "rationale": "EEGLAB statistics helper with workflow value for time-frequency and STUDY phases; Phase 3 should port an idiomatic NumPy equivalent.",
+      "status": "implemented",
+      "rationale": "Implemented as a standalone NumPy unpaired t-test helper with homogenous and inhomogenous variance modes.",
       "responsible_phase": "phase_3",
       "user_facing_surface": [
         "helper",
         "statistics"
       ],
-      "test_notes": "Add deterministic numerical tests and MATLAB parity fixtures with documented tolerances before marking implemented."
+      "test_notes": "Covered by tests/test_statistics_package.py focused tests and MATLAB Engine parity tests with documented tolerances; MATLAB tests skip when unavailable."
     },
     {
       "eeglab_path": "functions/statistics/ttest_cell.m",
       "eeglab_name": "ttest_cell",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/statistics/ttest_cell.py",
       "gap_category": "5_statistics_package",
-      "status": "port",
-      "rationale": "EEGLAB statistics helper with workflow value for time-frequency and STUDY phases; Phase 3 should port an idiomatic NumPy equivalent.",
+      "status": "implemented",
+      "rationale": "Implemented as a standalone NumPy paired t-test helper over the condition case axis.",
       "responsible_phase": "phase_3",
       "user_facing_surface": [
         "helper",
         "statistics"
       ],
-      "test_notes": "Add deterministic numerical tests and MATLAB parity fixtures with documented tolerances before marking implemented."
+      "test_notes": "Covered by tests/test_statistics_package.py focused tests and MATLAB Engine parity tests with documented tolerances; MATLAB tests skip when unavailable."
     },
     {
       "eeglab_path": "functions/studyfunc/compute_ersp_times.m",

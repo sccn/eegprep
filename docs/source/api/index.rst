@@ -13,6 +13,7 @@ This section contains the complete API documentation for eegprep. The API is org
    preprocessing
    ica
    signal_processing
+   statistics
    io
    extensions
    utils
