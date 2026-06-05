@@ -419,6 +419,16 @@ def test_pop_export_writes_sample_data_table(tmp_path, sample_eeg):
     assert "pop_export" in command
 
 
+def test_pop_export_applies_expression_to_sample_data(tmp_path, sample_eeg):
+    output_file = tmp_path / "sample_export_expr.tsv"
+
+    command = pop_export(sample_eeg, output_file, "transpose", "on", "expr", "x = x * 2")
+
+    table = np.loadtxt(output_file, delimiter="\t", skiprows=1)
+    assert table[0, 1] == pytest.approx(float(sample_eeg["data"][0, 0]) * 2)
+    assert "'expr', 'x = x * 2'" in command
+
+
 def test_pop_export_writes_sample_ica_activity_when_icaact_is_missing(sample_eeg_with_ica, tmp_path):
     output_file = tmp_path / "sample_ica.tsv"
     eeg = copy.deepcopy(sample_eeg_with_ica)

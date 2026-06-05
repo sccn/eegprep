@@ -24,8 +24,15 @@ Common fields:
 Notes:
 
 - Changing `EEG.ref` only edits metadata; use `pop_reref` to re-reference data.
-- Channel-location and ICA file-picking workflows are handled by the channel
-  metadata phase. Programmatic direct assignments for `chanlocs`, `icaweights`,
-  `icasphere`, and `icachansind` are supported.
+- `data` may be assigned directly as a Python array or loaded from an existing
+  file path. Use `dataformat` to force the import format, or omit it to infer
+  from the extension.
+- `chanlocs` may be assigned directly as channel-location structures or loaded
+  from an existing channel-location file path supported by `readlocs`.
+- `icaweights`, `icasphere`, and `icachansind` may be assigned directly or
+  loaded from numeric file paths.
+- MATLAB workspace expressions such as `rawdata`, `locs`, or `icaweights`
+  are not evaluated by EEGPrep. Pass Python values directly or provide concrete
+  file paths so the command history is replayable in `eegprep-console`.
 
 See also: POP_COMMENTS, POP_REREF, POP_CHANEDIT

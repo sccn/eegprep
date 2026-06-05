@@ -303,6 +303,10 @@ class PopRunicaGuiTests(unittest.TestCase):
         self.assertEqual(out["icaweights"].shape, (4, 4))
         self.assertEqual(com, "EEG = pop_runica(EEG, 'icatype', 'picard', 'maxiter', 7, 'mode', 'standard');")
 
+    def test_unported_ica_algorithm_fails_clearly(self):
+        with self.assertRaisesRegex(NotImplementedError, "not ported"):
+            pop_runica(_eeg(), icatype="fastica")
+
     def test_key_value_options_override_backend_defaults(self):
         eeg = _eeg()
         updated = dict(eeg, icaweights=np.eye(4), icasphere=np.eye(4), icawinv=np.eye(4), icaact=np.zeros((4, 20, 1)))

@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import ast
 import csv
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import numpy as np
@@ -11,6 +13,17 @@ import numpy as np
 from eegprep.functions.miscfunc.misc import finite_matmul
 from eegprep.functions.popfunc._file_io import channel_labels
 from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args
+
+
+_EXPORT_EXPR_FUNCTIONS = {
+    "abs": np.abs,
+    "clip": np.clip,
+    "exp": np.exp,
+    "log": np.log,
+    "log10": np.log10,
+    "nan_to_num": np.nan_to_num,
+    "sqrt": np.sqrt,
+}
 
 
 def pop_export(EEG: dict[str, Any], filename: str | Path, *args: Any, **kwargs: Any) -> str:
@@ -22,7 +35,9 @@ def pop_export(EEG: dict[str, Any], filename: str | Path, *args: Any, **kwargs: 
     elif data.ndim == 3:
         data = data.reshape((data.shape[0], data.shape[1] * data.shape[2]))
     if options.get("expr"):
-        raise NotImplementedError("pop_export expr is not supported in EEGPrep yet")
+        data = _apply_expression(data, str(options["expr"]))
+        if data.ndim == 3:
+            data = data.reshape((data.shape[0], data.shape[1] * data.shape[2]))
     if _is_on(options.get("time", "on")):
         time = np.tile(
             np.linspace(float(EEG.get("xmin", 0)), float(EEG.get("xmax", 0)), int(EEG["pnts"]))
@@ -72,13 +87,117 @@ def _format_row(row: np.ndarray, precision: int) -> list[str]:
     return [f"{float(value):.{precision}g}" for value in row]
 
 
+def _apply_expression(data: np.ndarray, expression: str) -> np.ndarray:
+    text = expression.strip().rstrip(";")
+    if not text:
+        return data
+    expression_node = _parse_expression(text)
+    _validate_expression(expression_node)
+    functions = SimpleNamespace(**_EXPORT_EXPR_FUNCTIONS)
+    namespace = {"x": data, "np": functions, "numpy": functions, **_EXPORT_EXPR_FUNCTIONS}
+    try:
+        compiled = compile(ast.fix_missing_locations(ast.Expression(expression_node)), "<pop_export expr>", "eval")
+        evaluated = eval(compiled, {"__builtins__": {}}, namespace)
+    except Exception as exc:
+        raise ValueError(f"pop_export expr could not be evaluated: {exc}") from exc
+    output = np.asarray(evaluated)
+    if output.ndim not in {2, 3}:
+        raise ValueError("pop_export expr must leave x as a 2-D or 3-D array")
+    return output
+
+
+def _parse_expression(source: str) -> ast.expr:
+    try:
+        tree = ast.parse(source, mode="exec")
+    except SyntaxError as exc:
+        raise ValueError(f"pop_export expr is not a valid Python expression: {exc.msg}") from exc
+    if len(tree.body) != 1:
+        raise ValueError("pop_export expr must contain one expression or x assignment")
+    statement = tree.body[0]
+    if isinstance(statement, ast.Expr):
+        return statement.value
+    if isinstance(statement, ast.Assign):
+        if len(statement.targets) != 1 or not isinstance(statement.targets[0], ast.Name):
+            raise ValueError("pop_export expr may only assign to x")
+        if statement.targets[0].id != "x":
+            raise ValueError("pop_export expr may only assign to x")
+        return statement.value
+    raise ValueError("pop_export expr must contain one expression or x assignment")
+
+
+def _validate_expression(tree: ast.expr) -> None:
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            _validate_expression_call(node)
+            continue
+        if isinstance(node, ast.Attribute):
+            if _allowed_numpy_attribute(node):
+                continue
+            raise ValueError(f"pop_export expr contains unsupported syntax: {type(node).__name__}")
+        if isinstance(node, ast.Name):
+            if node.id not in {"x", "np", "numpy", *_EXPORT_EXPR_FUNCTIONS}:
+                raise ValueError(f"pop_export expr references unknown name: {node.id}")
+            continue
+        if isinstance(
+            node,
+            (
+                ast.Load,
+                ast.Constant,
+                ast.UnaryOp,
+                ast.BinOp,
+                ast.BoolOp,
+                ast.Compare,
+                ast.IfExp,
+                ast.Subscript,
+                ast.Slice,
+                ast.Tuple,
+                ast.List,
+                ast.Add,
+                ast.Sub,
+                ast.Mult,
+                ast.Div,
+                ast.FloorDiv,
+                ast.Mod,
+                ast.Pow,
+                ast.MatMult,
+                ast.UAdd,
+                ast.USub,
+                ast.Not,
+                ast.And,
+                ast.Or,
+                ast.Eq,
+                ast.NotEq,
+                ast.Lt,
+                ast.LtE,
+                ast.Gt,
+                ast.GtE,
+            ),
+        ):
+            continue
+        raise ValueError(f"pop_export expr contains unsupported syntax: {type(node).__name__}")
+
+
+def _validate_expression_call(node: ast.Call) -> None:
+    if node.keywords:
+        raise ValueError("pop_export expr function calls do not support keyword arguments")
+    if isinstance(node.func, ast.Name) and node.func.id in _EXPORT_EXPR_FUNCTIONS:
+        return
+    if isinstance(node.func, ast.Attribute) and _allowed_numpy_attribute(node.func):
+        return
+    raise ValueError("pop_export expr only supports arithmetic and selected NumPy numeric functions")
+
+
+def _allowed_numpy_attribute(node: ast.Attribute) -> bool:
+    return isinstance(node.value, ast.Name) and node.value.id in {"np", "numpy"} and node.attr in _EXPORT_EXPR_FUNCTIONS
+
+
 def _is_on(value: Any) -> bool:
     return str(value).lower() in {"on", "yes", "true", "1"}
 
 
 def _history_command(filename: str | Path, options: dict[str, Any]) -> str:
     pieces = [format_history_value(str(filename))]
-    for key in ["ica", "time", "timeunit", "elec", "transpose", "erp", "precision", "separator"]:
+    for key in ["ica", "time", "timeunit", "elec", "transpose", "erp", "expr", "precision", "separator"]:
         if key in options:
             pieces.extend([format_history_value(key), format_history_value(options[key])])
     return f"LASTCOM = pop_export(EEG, {', '.join(pieces)});"

@@ -9,6 +9,7 @@ MATLAB EEGLAB's pop_epoch function across all tested scenarios.
 import os
 import numpy as np
 import unittest
+import tempfile
 
 import copy
 import eegprep.functions.popfunc.pop_epoch as pop_epoch_module
@@ -703,17 +704,31 @@ class TestPopEpochEdgeCases(unittest.TestCase):
         # since pop_select would need proper implementation)
         self.assertGreater(len(eeg_out['event']), 3)  # Should have boundary event added
 
-    def test_data_loading_not_implemented(self):
-        """Test that data loading from file raises NotImplementedError"""
-        EEG = {
-            'data': 'filename.dat',  # String instead of array
-            'srate': 100.0,
-            'event': [{'type': 'test', 'latency': 100}],
-            'saved': 'no',
-        }
+    def test_filename_backed_data_is_loaded_for_epoching(self):
+        """Test that pop_epoch loads filename-backed EEG.data arrays."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            data = np.arange(600, dtype=np.float32).reshape(3, 200)
+            data_file = os.path.join(tmpdir, "filename.txt")
+            np.savetxt(data_file, data)
+            EEG = {
+                'data': 'filename.txt',
+                'filepath': tmpdir,
+                'dataformat': 'ascii',
+                'srate': 100.0,
+                'nbchan': 3,
+                'pnts': 200,
+                'trials': 1,
+                'xmin': 0.0,
+                'xmax': 1.99,
+                'event': [{'type': 'test', 'latency': 100}],
+                'saved': 'no',
+            }
 
-        with self.assertRaises(NotImplementedError):
-            pop_epoch(EEG, 'test', [-0.1, 0.1])
+            eeg_out, indices = pop_epoch(EEG, 'test', [-0.1, 0.1])
+
+        self.assertEqual(indices, [0])
+        self.assertEqual(eeg_out['data'].shape, (3, 20))
+        np.testing.assert_allclose(eeg_out['data'][:, 0], data[:, 89])
 
 
 class TestPopEpochGuiAndHistory(unittest.TestCase):

@@ -206,9 +206,9 @@ def test_pop_runscript_rejects_matlab_and_text_scripts(tmp_path):
     matlab_script.write_text("EEG = EEG;\n", encoding="utf-8")
     text_script.write_text("EEG = EEG;\n", encoding="utf-8")
 
-    with pytest.raises(NotImplementedError, match="only run Python"):
+    with pytest.raises(ValueError, match="only run Python"):
         pop_runscript(matlab_script)
-    with pytest.raises(NotImplementedError, match="only run Python"):
+    with pytest.raises(ValueError, match="only run Python"):
         pop_runscript(text_script)
 
 

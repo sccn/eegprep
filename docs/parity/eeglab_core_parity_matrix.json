@@ -3340,15 +3340,15 @@
       "eeglab_name": "pop_comperp",
       "eegprep_equivalent": "src/eegprep/functions/popfunc/pop_comperp.py",
       "gap_category": "3_unsupported_options",
-      "status": "partial",
-      "rationale": "Existing pop_comperp lacks several EEGLAB significance, standard-deviation, and display variants.",
-      "responsible_phase": "phase_5",
+      "status": "implemented",
+      "rationale": "Phase 5 implemented the previously unsupported significance, standard-deviation, all-ERP, average, and difference display option paths for the standalone pop_comperp workflow.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "api",
         "console",
         "gui"
       ],
-      "test_notes": "Add tests for average, difference, significance, and display variants before marking implemented."
+      "test_notes": "Covered by tests/test_phase4_plot_wrappers.py display/significance, RMS, grid-validation, GUI/spec, history, and sample epoched dataset-list tests."
     },
     {
       "eeglab_path": "functions/popfunc/pop_copyset.m",
@@ -3416,30 +3416,30 @@
       "eeglab_name": "pop_editset",
       "eegprep_equivalent": "src/eegprep/functions/popfunc/pop_editset.py",
       "gap_category": "3_unsupported_options",
-      "status": "partial",
-      "rationale": "Existing pop_editset does not fully support EEGLAB file/workspace expressions or all history serialization paths.",
-      "responsible_phase": "phase_5",
+      "status": "implemented",
+      "rationale": "Phase 5 added concrete file-backed data, channel-location, ICA matrix, icachansind, dataformat, and channel-structure history serialization support. MATLAB base-workspace expression evaluation remains an explicit standalone non-goal.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "api",
         "console",
         "gui"
       ],
-      "test_notes": "Add expression, channel-location, mapping, and history-replay tests before marking implemented."
+      "test_notes": "Covered by tests/test_pop_editset.py file-backed assignments, mapping history replay, explicit workspace-expression errors, GUI cancel/no-change paths, sample-data metadata, and MATLAB parity metadata tests when available."
     },
     {
       "eeglab_path": "functions/popfunc/pop_eegfilt.m",
       "eeglab_name": "pop_eegfilt",
       "eegprep_equivalent": "src/eegprep/functions/popfunc/pop_eegfilt.py",
       "gap_category": "3_unsupported_options",
-      "status": "partial",
-      "rationale": "Existing pop_eegfilt intentionally rejects the legacy EEGLAB FFT filtering path pending a scoped decision.",
-      "responsible_phase": "phase_5",
+      "status": "implemented",
+      "rationale": "Phase 5 classified the legacy EEGLAB usefft route as an explicit non-goal for pop_eegfilt because EEGPrep provides the maintained frequency-domain FIR path through pop_eegfiltnew(usefftfilt=True).",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "api",
         "console",
         "gui"
       ],
-      "test_notes": "Phase 5 should either implement a maintainable legacy route or document and preserve the limitation with tests."
+      "test_notes": "Covered by tests/test_pop_firfilt.py legacy FIR behavior, history replay, and the explicit usefft limitation test."
     },
     {
       "eeglab_path": "functions/popfunc/pop_eegplot.m",
@@ -3476,45 +3476,45 @@
       "eeglab_name": "pop_envtopo",
       "eegprep_equivalent": "src/eegprep/functions/popfunc/pop_envtopo.py",
       "gap_category": "3_unsupported_options",
-      "status": "partial",
-      "rationale": "Existing pop_envtopo supports single-dataset ERP envelopes but rejects EEGLAB-style multi-dataset envelopes.",
-      "responsible_phase": "phase_5",
+      "status": "implemented",
+      "rationale": "Phase 5 documented the single-dataset standalone contract and classified EEGLAB-style multi-dataset envelopes as a non-goal for this wrapper rather than silently merging dataset-specific ICA envelopes.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "api",
         "console",
         "gui"
       ],
-      "test_notes": "Add single- and multi-dataset envelope tests, valid history assertions, and visual/headless plot coverage before marking implemented."
+      "test_notes": "Covered by tests/test_phase4_plot_wrappers.py single-dataset envtopo, icachansind subset handling, history syntax, and explicit multi-dataset limitation test."
     },
     {
       "eeglab_path": "functions/popfunc/pop_epoch.m",
       "eeglab_name": "pop_epoch",
       "eegprep_equivalent": "src/eegprep/functions/popfunc/pop_epoch.py",
       "gap_category": "3_unsupported_options",
-      "status": "partial",
-      "rationale": "Existing pop_epoch does not load data from filename-backed EEG['data'] like EEGLAB can.",
-      "responsible_phase": "phase_5",
+      "status": "implemented",
+      "rationale": "Phase 5 added filename-backed EEG.data loading through the standalone import loader, including relative EEG.filepath resolution and dataformat inference.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "api",
         "console",
         "gui"
       ],
-      "test_notes": "Add filename-backed data, boundary, first/last sample, and MATLAB parity tests before marking implemented."
+      "test_notes": "Covered by tests/test_pop_epoch.py filename-backed data loading, invalid options, GUI/history/cancel behavior, first/last sample edge cases, boundary behavior, and MATLAB parity tests when available."
     },
     {
       "eeglab_path": "functions/popfunc/pop_erpimage.m",
       "eeglab_name": "pop_erpimage",
       "eegprep_equivalent": "src/eegprep/functions/popfunc/pop_erpimage.py",
       "gap_category": "3_unsupported_options",
-      "status": "partial",
-      "rationale": "Existing pop_erpimage rejects several EEGLAB sorting, alignment, overlay, inset, and image-mode options.",
-      "responsible_phase": "phase_5",
+      "status": "implemented",
+      "rationale": "Phase 5 added event-field/type/window sorting, nosort/noplot handling, More-options parsing for supported standalone plot controls, and documented phase/coherence/spectrum/amplitude/alignment workflows as explicit non-goals.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "api",
         "console",
         "gui"
       ],
-      "test_notes": "Cover supported and newly implemented sort/alignment/overlay paths with sample-data and MATLAB parity tests."
+      "test_notes": "Covered by tests/test_phase4_plot_wrappers.py sample channel/component ERP images, projected components, time limits, decimation, event sorting, nosort, unsupported alignment, GUI/spec, and history syntax."
     },
     {
       "eeglab_path": "functions/popfunc/pop_eventstat.m",
@@ -3566,15 +3566,15 @@
       "eeglab_name": "pop_export",
       "eegprep_equivalent": "src/eegprep/functions/popfunc/pop_export.py",
       "gap_category": "3_unsupported_options",
-      "status": "partial",
-      "rationale": "Existing pop_export does not implement EEGLAB expr filtering.",
-      "responsible_phase": "phase_5",
+      "status": "implemented",
+      "rationale": "Phase 5 implemented standalone expr transforms for exported arrays using a restricted numeric expression evaluator before time-row insertion.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "api",
         "console",
         "gui"
       ],
-      "test_notes": "Add export filtering tests and history replay tests before marking implemented."
+      "test_notes": "Covered by tests/test_sample_data_pop_functions.py sample-data text export, expr transform export, ICA fallback export, and command-history assertions."
     },
     {
       "eeglab_path": "functions/popfunc/pop_fileio.m",
@@ -4131,30 +4131,30 @@
       "eeglab_name": "pop_runica",
       "eegprep_equivalent": "src/eegprep/functions/popfunc/pop_runica.py",
       "gap_category": "3_unsupported_options",
-      "status": "partial",
-      "rationale": "Existing pop_runica supports runica, Picard, and AMICA-style routes but not all EEGLAB algorithm choices.",
-      "responsible_phase": "phase_5",
+      "status": "implemented",
+      "rationale": "Phase 5 kept runica, Picard, and AMICA as the supported standalone algorithms and documented unported EEGLAB algorithms such as JADER, SOBI, and FastICA as explicit backend non-goals.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "api",
         "console",
         "gui"
       ],
-      "test_notes": "Add algorithm-selection, history, and deterministic parity tests for any newly supported algorithms."
+      "test_notes": "Covered by tests/test_gui_pop_runica.py backend routing, options/history, multi-dataset selection/concatenation, sample-data smoke, and unsupported-algorithm limitation tests."
     },
     {
       "eeglab_path": "functions/popfunc/pop_runscript.m",
       "eeglab_name": "pop_runscript",
       "eegprep_equivalent": "src/eegprep/functions/popfunc/pop_runscript.py",
       "gap_category": "3_unsupported_options",
-      "status": "partial",
-      "rationale": "Existing pop_runscript runs Python history scripts but intentionally rejects MATLAB/text scripts; Phase 5 should document or reclassify the standalone limitation.",
-      "responsible_phase": "phase_5",
+      "status": "implemented",
+      "rationale": "Phase 5 documented Python history scripts as the standalone replay contract and classified MATLAB/text history replay as a runtime non-goal.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "api",
         "console",
         "gui"
       ],
-      "test_notes": "Keep Python script execution tests and add explicit limitation/history tests for unsupported MATLAB/text script inputs."
+      "test_notes": "Covered by tests/test_file_menu_pop_functions.py Python script execution, command history, and explicit MATLAB/text script limitation tests."
     },
     {
       "eeglab_path": "functions/popfunc/pop_saveh.m",
@@ -4588,13 +4588,13 @@
       "eeglab_name": "coregister",
       "eegprep_equivalent": "src/eegprep/functions/sigprocfunc/coregister.py",
       "gap_category": "3_unsupported_options",
-      "status": "partial",
-      "rationale": "Existing coregister supports standalone traditional/globalrescale alignment but not every EEGLAB alignment route.",
-      "responsible_phase": "phase_5",
+      "status": "implemented",
+      "rationale": "Phase 5 preserved standalone traditional/globalrescale fitting and documented FieldTrip/nonlinear/manual MATLAB alignment routes as external-toolbox non-goals.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "helper"
       ],
-      "test_notes": "Add transform parity tests and explicit limitation tests for unsupported external-toolbox alignment routes."
+      "test_notes": "Covered by tests/test_phase4_plot_wrappers.py packaged reference matching, traditional and shared-scale fitting, noninteractive coregister, manual coregistration callback, and unsupported-method limitation tests."
     },
     {
       "eeglab_path": "functions/sigprocfunc/dipoledensity.m",
@@ -4908,13 +4908,13 @@
       "eeglab_name": "headplot",
       "eegprep_equivalent": "src/eegprep/functions/sigprocfunc/headplot.py",
       "gap_category": "3_unsupported_options",
-      "status": "partial",
-      "rationale": "Existing headplot lacks EEGLAB plotmeshonly setup preview and original-location setup behavior.",
-      "responsible_phase": "phase_5",
+      "status": "implemented",
+      "rationale": "Phase 5 implemented plotmeshonly head/sphere preview and orilocs setup behavior for standalone headplot spline setup.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "helper"
       ],
-      "test_notes": "Add headless setup tests and visual parity evidence for any GUI/plot preview paths."
+      "test_notes": "Covered by tests/test_phase4_plot_wrappers.py spline reuse, plotmeshonly preview, orilocs metadata, sample headplot rendering, GUI setup replay, and MATLAB parity tests when available."
     },
     {
       "eeglab_path": "functions/sigprocfunc/icaact.m",
@@ -8384,13 +8384,13 @@
       "eeglab_name": "clean_asr",
       "eegprep_equivalent": "src/eegprep/plugins/clean_rawdata/clean_asr.py",
       "gap_category": "3_unsupported_options",
-      "status": "partial",
-      "rationale": "Existing clean_asr does not implement the EEGLAB clean_rawdata Riemannian ASR mode.",
-      "responsible_phase": "phase_5",
+      "status": "implemented",
+      "rationale": "Phase 5 clarified that EEGPrep supports Riemannian ASR calibration via useriemannian=calib and Distance=Riemannian, while full Riemannian ASR processing remains an explicit non-goal.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "helper"
       ],
-      "test_notes": "Add numerical parity or explicit limitation tests for Riemannian ASR before marking implemented."
+      "test_notes": "Covered by tests/test_clean_asr.py calibration-mode acceptance and full-process limitation tests, tests/test_clean_rawdata.py Riemannian calibration smoke, and sample pop_clean_rawdata Riemannian command coverage."
     }
   ]
 }

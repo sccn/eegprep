@@ -122,6 +122,11 @@ class TestCleanASRParameters(unittest.TestCase):
             except Exception as e:
                 self.skipTest(f"clean_asr parameter test {params} not available: {e}")
 
+    def test_clean_asr_rejects_full_riemannian_processing_request(self):
+        """Test that unsupported full Riemannian ASR processing fails clearly."""
+        with self.assertRaisesRegex(ValueError, "full Riemannian ASR processing is not ported"):
+            clean_asr(self.test_eeg, useriemannian=True)
+
 
 class TestCleanASRCalibrationData(unittest.TestCase):
     """Test clean_asr calibration data selection options."""

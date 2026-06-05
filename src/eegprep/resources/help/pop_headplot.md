@@ -25,6 +25,10 @@ in EEGLAB:
   mesh, and a Talairach transformation matrix.
 - Replaying a history command with `setup={...}` reuses an existing `.spl` file;
   pass `recompute=True` inside `setup` to force regeneration.
+- `headplot_setup(..., plotmeshonly="head")` or `"sphere"` opens a mesh preview
+  figure without writing a spline file.
+- `headplot_setup(..., orilocs="on")` stores the unprojected normalized
+  electrode locations instead of mesh-projected display locations.
 - The GUI exposes the same load-or-recompute workflow used by EEGLAB, including
   Manual coregistration for editing the Talairach transform against the selected
   head mesh and reference electrode file.

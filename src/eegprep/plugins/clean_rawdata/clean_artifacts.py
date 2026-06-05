@@ -107,7 +107,9 @@ def clean_artifacts(
     MaxMem : int
         Maximum memory in MB for ASR processing. Default 64.
     Distance : str
-        Distance metric for ASR processing ('euclidian'). Default 'euclidian'.
+        Distance metric for ASR calibration ('euclidian' or 'riemannian'). The
+        Riemannian path uses EEGPrep's calibration-time estimate; full
+        Riemannian ASR processing is not ported.
     Channels : sequence of str or None
         List of channel labels to include before cleaning (pop_select). Default None.
     Channels_ignore : sequence of str or None
@@ -231,27 +233,17 @@ def clean_artifacts(
         # MATLAB passes structs by value so the caller's EEG retains the
         # original data, but Python dicts are passed by reference.
         original_data = EEG['data'].copy() if BurstRejection else None
-        try:
-            BUR = clean_asr(
-                EEG,
-                cutoff=float(BurstCriterion),
-                ref_maxbadchannels=BurstCriterionRefMaxBadChns,
-                ref_tolerances=BurstCriterionRefTolerances,
-                use_gpu=False,
-                useriemannian=(Distance.lower() != 'euclidian'),
-                maxmem=int(MaxMem),
-            )
-        except NotImplementedError as e:
-            logger.warning(str(e))
-            BUR = clean_asr(
-                EEG,
-                cutoff=float(BurstCriterion),
-                ref_maxbadchannels=BurstCriterionRefMaxBadChns,
-                ref_tolerances=BurstCriterionRefTolerances,
-                use_gpu=False,
-                useriemannian=False,
-                maxmem=int(MaxMem),
-            )
+        distance = str(Distance).strip().lower()
+        useriemannian = 'calib' if distance not in {'euclidian', 'euclidean'} else None
+        BUR = clean_asr(
+            EEG,
+            cutoff=float(BurstCriterion),
+            ref_maxbadchannels=BurstCriterionRefMaxBadChns,
+            ref_tolerances=BurstCriterionRefTolerances,
+            use_gpu=False,
+            useriemannian=useriemannian,
+            maxmem=int(MaxMem),
+        )
 
         if BurstRejection:
             # Determine unchanged samples: compare original (pre-ASR) with repaired.

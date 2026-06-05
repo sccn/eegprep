@@ -19,7 +19,9 @@ def pop_runscript(filename: str | Path, namespace: dict[str, Any] | None = None)
         exec_globals = {} if namespace is None else namespace
         exec(path.read_text(encoding="utf-8"), exec_globals)
     elif path.suffix.lower() in {".m", ".txt"}:
-        raise NotImplementedError("EEGPrep can only run Python history scripts; MATLAB/text scripts are not supported")
+        raise ValueError(
+            "EEGPrep can only run Python history scripts; MATLAB/text history replay is not a standalone runtime feature"
+        )
     else:
         raise ValueError("History scripts must be .py, .m, or .txt files")
     return f"LASTCOM = pop_runscript({format_history_value(path)});"

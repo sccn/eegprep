@@ -16,6 +16,7 @@ from eegprep.functions.popfunc._plot_utils import (
     eeg_times_ms,
     history_command,
     numeric_vector,
+    parse_plot_options_text,
 )
 from eegprep.functions.sigprocfunc.erpimage import erpimage
 
@@ -49,6 +50,19 @@ def pop_erpimage(
     projchan = kwargs.pop("projchan", None)
     values = _erpimage_values(EEG, typeplot, int(index), projchan=projchan)
     times = eeg_times_ms(EEG)
+    sort_values = kwargs.pop("sort_values", None)
+    sorting_field = kwargs.pop("sortingeventfield", kwargs.pop("field", ""))
+    sorting_type = kwargs.pop("sortingtype", kwargs.pop("type", []))
+    sorting_window = kwargs.pop("sortingwin", kwargs.pop("eventrange", []))
+    renorm = kwargs.pop("renorm", "no")
+    if sorting_field:
+        sort_values = _event_sort_values(EEG, sorting_field, sorting_type, sorting_window, renorm)
+    if _is_on(kwargs.pop("nosort", False)):
+        sort_values = None
+    kwargs.pop("noplot", None)
+    align = numeric_vector(kwargs.pop("align", []))
+    if align.size:
+        raise ValueError("pop_erpimage event alignment is not available in EEGPrep's standalone ERP image plot")
     limits = numeric_vector(kwargs.pop("limits", []))
     if limits.size == 2:
         mask = (times >= limits[0]) & (times <= limits[1])
@@ -60,7 +74,7 @@ def pop_erpimage(
         values,
         times=times,
         title=str(kwargs.pop("title", _default_title(typeplot, int(index), projchan=projchan))),
-        sort_values=kwargs.pop("sort_values", None),
+        sort_values=sort_values,
         smooth=kwargs.pop("smooth", None),
         decimate=_first_int(kwargs.pop("decimate", None), default=1),
         caxis=kwargs.pop("caxis", None),
@@ -252,6 +266,7 @@ def _run_gui(EEG: dict[str, Any], *, typeplot: int, renderer: Any | None = None)
     if result is None:
         return None
     _raise_for_unsupported_gui_options(result)
+    other_options = _normalise_other_options(result.get("others", ""))
     values = numeric_vector(result.get("index", 1), dtype=int)
     options = {
         "title": str(result.get("title", "") or ""),
@@ -263,6 +278,23 @@ def _run_gui(EEG: dict[str, Any], *, typeplot: int, renderer: Any | None = None)
         "caxis": numeric_vector(result.get("caxis", [])).tolist(),
         "vert": numeric_vector(result.get("vert", [])).tolist(),
     }
+    field = str(result.get("field", "") or "").strip()
+    if field:
+        options["sortingeventfield"] = field
+        event_type = str(result.get("type", "") or "").strip()
+        if event_type:
+            options["sortingtype"] = _parse_event_type_text(event_type)
+        eventrange = numeric_vector(result.get("eventrange", [])).tolist()
+        if eventrange:
+            options["sortingwin"] = eventrange
+        renorm = str(result.get("renorm", "") or "no").strip()
+        if renorm and renorm.lower() != "no":
+            options["renorm"] = renorm
+    if bool(result.get("nosort", False)):
+        options["nosort"] = True
+    if bool(result.get("noplot", False)):
+        options["noplot"] = True
+    options.update(other_options)
     projchan = numeric_vector(result.get("projchan", []), dtype=int)
     if projchan.size:
         options["projchan"] = projchan.tolist()
@@ -313,9 +345,6 @@ def _first_int(value: Any, *, default: int) -> int:
 
 def _raise_for_unsupported_gui_options(result: dict[str, Any]) -> None:
     unsupported_text_fields = {
-        "field": "event-field sorting",
-        "type": "event-type sorting",
-        "eventrange": "event-window sorting",
         "align": "event alignment",
         "phase": "phase sorting",
         "phase2": "phase sorting",
@@ -326,26 +355,150 @@ def _raise_for_unsupported_gui_options(result: dict[str, Any]) -> None:
         "limcoher": "inter-trial coherence limits",
         "spec": "spectrum inset",
         "limbaseamp": "baseline amplitude limits",
-        "others": "free-form erpimage options",
     }
     for field, label in unsupported_text_fields.items():
         if str(result.get(field, "") or "").strip():
-            raise NotImplementedError(f"pop_erpimage does not yet support {label}")
+            raise ValueError(f"pop_erpimage {label} is not available in EEGPrep's standalone ERP image plot")
     unsupported_checks = {
-        "nosort": "value-sort disabling",
-        "noplot": "value-plot disabling",
         "plotamps": "amplitude image mode",
     }
     for field, label in unsupported_checks.items():
         if bool(result.get(field, False)):
-            raise NotImplementedError(f"pop_erpimage does not yet support {label}")
+            raise ValueError(f"pop_erpimage {label} is not available in EEGPrep's standalone ERP image plot")
 
 
 def _raise_for_unsupported_kwargs(kwargs: dict[str, Any]) -> None:
-    supported = {"title", "sort_values", "smooth", "decimate", "limits", "caxis", "cbar", "erp", "vert", "projchan"}
+    supported = {
+        "title",
+        "sort_values",
+        "smooth",
+        "decimate",
+        "limits",
+        "caxis",
+        "cbar",
+        "erp",
+        "vert",
+        "projchan",
+        "sortingeventfield",
+        "sortingtype",
+        "sortingwin",
+        "field",
+        "type",
+        "eventrange",
+        "renorm",
+        "nosort",
+        "noplot",
+        "align",
+    }
     unsupported = sorted(set(kwargs) - supported)
     if unsupported:
-        raise NotImplementedError(f"pop_erpimage does not yet support option(s): {', '.join(unsupported)}")
+        raise ValueError(
+            "pop_erpimage option(s) are not available in EEGPrep's standalone ERP image plot: " + ", ".join(unsupported)
+        )
+
+
+def _event_sort_values(EEG: dict[str, Any], field: Any, event_types: Any, eventrange: Any, renorm: Any) -> np.ndarray:
+    field_name = str(field).strip()
+    if not field_name:
+        return np.asarray([])
+    if str(renorm).strip().lower() not in {"", "no", "yes"}:
+        raise ValueError("pop_erpimage renorm formulas are not available in EEGPrep; use 'yes' or 'no'")
+    trials = int(EEG.get("trials", 1) or 1)
+    pnts = int(EEG.get("pnts", 0) or 0)
+    srate = float(EEG.get("srate", 1) or 1)
+    xmin = float(EEG.get("xmin", 0) or 0)
+    types = _event_type_set(event_types)
+    window = numeric_vector(eventrange)
+    if window.size not in {0, 2}:
+        raise ValueError("sortingwin/eventrange must contain [start end] in milliseconds")
+    values = np.full(trials, np.nan)
+    for event in _event_records(EEG.get("event")):
+        epoch = _event_epoch(event, pnts)
+        if epoch < 1 or epoch > trials:
+            continue
+        if types and str(event.get("type", "")) not in types:
+            continue
+        latency_ms = _event_latency_ms(event, epoch, pnts, srate, xmin)
+        if window.size == 2 and not (window[0] <= latency_ms <= window[1]):
+            continue
+        if not np.isnan(values[epoch - 1]):
+            continue
+        raw_value = latency_ms if field_name == "latency" else event.get(field_name, np.nan)
+        try:
+            values[epoch - 1] = float(raw_value)
+        except (TypeError, ValueError):
+            values[epoch - 1] = np.nan
+    if np.all(np.isnan(values)):
+        raise ValueError("pop_erpimage event sorting found no matching event values")
+    if str(renorm).strip().lower() == "yes":
+        finite = np.isfinite(values)
+        if np.any(finite):
+            minimum = float(np.nanmin(values))
+            maximum = float(np.nanmax(values))
+            if maximum > minimum:
+                values[finite] = (values[finite] - minimum) / (maximum - minimum)
+    return values
+
+
+def _event_records(events: Any) -> list[dict[str, Any]]:
+    if events is None:
+        return []
+    if isinstance(events, np.ndarray):
+        events = events.tolist()
+    if isinstance(events, dict):
+        return [dict(events)]
+    return [dict(event) for event in events]
+
+
+def _event_epoch(event: dict[str, Any], pnts: int) -> int:
+    if event.get("epoch") not in (None, ""):
+        return int(float(event["epoch"]))
+    if pnts <= 0:
+        return 1
+    return int(np.floor((float(event.get("latency", 1)) - 1) / pnts)) + 1
+
+
+def _event_latency_ms(event: dict[str, Any], epoch: int, pnts: int, srate: float, xmin: float) -> float:
+    latency = float(event.get("latency", 1))
+    sample_in_epoch = latency - (epoch - 1) * pnts
+    return ((sample_in_epoch - 1) / srate + xmin) * 1000.0
+
+
+def _event_type_set(value: Any) -> set[str]:
+    if value is None or (isinstance(value, str) and not value.strip()):
+        return set()
+    if isinstance(value, np.ndarray):
+        value = value.ravel().tolist()
+    if isinstance(value, (list, tuple, set)):
+        return {str(item) for item in value}
+    return {str(value)}
+
+
+def _parse_event_type_text(text: str) -> list[str]:
+    return [token.strip("'\"") for token in text.replace(",", " ").split() if token.strip("'\"")]
+
+
+def _normalise_other_options(text: Any) -> dict[str, Any]:
+    parsed = parse_plot_options_text(text)
+    options: dict[str, Any] = {}
+    aliases = {"avewidth": "smooth", "limit": "limits"}
+    for key, value in parsed.items():
+        normalised = aliases.get(key, key)
+        if normalised in {"erp", "cbar", "nosort", "noplot"}:
+            options[normalised] = _is_on(value)
+        elif normalised in {"title", "smooth", "decimate", "limits", "caxis", "vert"}:
+            options[normalised] = value
+        else:
+            raise ValueError(f"pop_erpimage More options does not support '{key}' in EEGPrep")
+    return options
+
+
+def _is_on(value: Any) -> bool:
+    if isinstance(value, str):
+        return value.strip().lower() in {"on", "yes", "true", "1"}
+    if isinstance(value, np.ndarray):
+        return bool(value.size and np.asarray(value).ravel()[0])
+    return bool(value)
 
 
 __all__ = ["pop_erpimage", "pop_erpimage_dialog_spec"]

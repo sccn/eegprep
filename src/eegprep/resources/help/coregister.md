@@ -15,3 +15,9 @@ The manual editor follows the EEGLAB workflow:
 
 Press `Ok` to return the transform to the calling dialog, or `Cancel` to leave
 the original transform unchanged.
+
+Programmatic `coregister` supports standalone `traditional` and
+`globalrescale` fitting against common electrode labels. FieldTrip nonlinear,
+rigid-body-only, and MATLAB manual-editor routes are not runtime dependencies
+in EEGPrep; requests for unsupported methods fail clearly instead of invoking
+external MATLAB toolboxes.

@@ -47,6 +47,7 @@ def pop_runica(
     parsed = _parse_runica_args(args, kwargs)
     has_programmatic_options = bool(parsed)
     icatype = _normalise_icatype(parsed.pop("icatype", icatype))
+    has_programmatic_options = has_programmatic_options or icatype != "runica"
     options = parsed.pop("options", options)
     reorder = parsed.pop("reorder", reorder)
     chanind = parsed.pop("chanind", chanind)

@@ -49,4 +49,7 @@ Notes:
 
 - Programmatic channel indices follow EEGLAB user-facing convention and are one-based. Internally, EEGPrep stores `icachansind` as zero-based Python indices.
 - AMICA is available only when the AMICA executable can be found through the `amica_binary` argument, `AMICA_BINARY`, a development checkout, or `PATH`.
-- EEGLAB algorithms that do not yet have EEGPrep backends, such as JADER, SOBI, and FastICA, raise a clear `NotImplementedError`.
+- EEGLAB algorithms that do not yet have EEGPrep standalone backends, such as
+  JADER, SOBI, and FastICA, raise a clear `NotImplementedError`. EEGPrep does
+  not shell out to MATLAB toolboxes or silently substitute a different ICA
+  algorithm.

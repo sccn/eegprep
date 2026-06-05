@@ -2,9 +2,31 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>EEGPrep Phase 2 File Format And Channel-Location Notes</title>
+  <title>EEGPrep Phase 5 Unsupported User-Facing Options Notes</title>
 </head>
 <body>
+  <h1>EEGPrep Phase 5 Unsupported User-Facing Options Notes</h1>
+  <p>Phase 5 closes option-level gaps in existing user-facing functions while
+  keeping EEGPrep standalone and explicit about MATLAB-only or toolbox-dependent
+  behavior.</p>
+  <h2>Phase 5 Design Decisions</h2>
+  <ul>
+    <li>Implemented concrete standalone option paths for <code>pop_export</code> expressions, filename-backed <code>pop_epoch</code> data, <code>pop_editset</code> file assignments, <code>pop_comperp</code> display/significance toggles, <code>pop_erpimage</code> event sorting, and <code>headplot_setup</code> preview/original-location options.</li>
+    <li>Kept MATLAB workspace expression evaluation out of runtime code. Users must pass Python values directly or provide concrete file paths so GUI and console history remain replayable.</li>
+    <li>Classified legacy or external-toolbox behavior as explicit non-goals where a standalone path is not maintainable: legacy <code>pop_eegfilt</code> FFT filtering, MATLAB/text <code>pop_runscript</code>, unsupported <code>pop_runica</code> algorithms, FieldTrip-style <code>coregister</code> methods, and full Riemannian ASR processing.</li>
+    <li>Did not change GUI layout or dialog geometry. Existing GUI controls now reach more supported paths, so new visual parity captures were not required for this phase.</li>
+  </ul>
+  <h2>Phase 5 Tradeoffs</h2>
+  <ul>
+    <li><code>pop_export</code> accepts a restricted numeric expression language instead of arbitrary Python evaluation. This covers common scale/log/clip transforms without exposing broad runtime objects through command history.</li>
+    <li><code>clean_artifacts(Distance='Riemannian')</code> uses the supported calibration-time Riemannian ASR estimate. Full Riemannian ASR processing remains unported and raises a clear error when requested directly.</li>
+    <li><code>pop_envtopo</code> remains a one-dataset wrapper because multi-dataset component envelopes need a deliberate group workflow rather than a silent merge of dataset-specific ICA maps.</li>
+  </ul>
+  <h2>Phase 5 Verification Notes</h2>
+  <ul>
+    <li>Focused tests cover sample-data export, filename-backed epoching, editset history replay, invalid option paths, plot option behavior, clean ASR limitations, and legacy non-goals.</li>
+    <li>MATLAB parity tests remain available behind the existing skip behavior. Local MATLAB parity execution exposed unrelated EEGLAB save-wrapper failures, so Python-focused runs use <code>EEGPREP_SKIP_MATLAB=1</code> where needed.</li>
+  </ul>
   <h1>EEGPrep Phase 2 File Format And Channel-Location Notes</h1>
   <h2>Design Decisions</h2>
   <ul>

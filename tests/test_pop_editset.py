@@ -231,25 +231,68 @@ def test_pop_editset_pnts_metadata_keeps_data_dimensions_consistent():
         pop_editset(eeg, "pnts", 7)
 
 
-def test_pop_editset_history_rejects_unserializable_channel_structures():
+def test_pop_editset_history_serializes_channel_structures_for_replay():
     eeg = _eeg()
 
-    out = pop_editset(eeg, "chanlocs", [{"labels": "Fz"}])
+    chanlocs = [{"labels": "Fz"}, {"labels": "Cz"}]
+    out, com = pop_editset(eeg, "chanlocs", chanlocs, return_com=True)
+    namespace = {"EEG": _eeg(), "pop_editset": pop_editset}
 
+    exec(com, namespace)
     assert list(out["chanlocs"])[0]["labels"] == "Fz"
-    with pytest.raises(NotImplementedError, match="channel-location"):
-        pop_editset(eeg, "chanlocs", [{"labels": "Fz"}], return_com=True)
-    with pytest.raises(NotImplementedError, match="channel-location"):
-        pop_editset(eeg, "chanlocs", np.array([{"labels": "Fz"}], dtype=object), return_com=True)
+    assert namespace["EEG"]["chanlocs"][1]["labels"] == "Cz"
+
+    out, com = pop_editset(eeg, "chanlocs", np.array(chanlocs, dtype=object), return_com=True)
+    namespace = {"EEG": _eeg(), "pop_editset": pop_editset}
+    exec(com, namespace)
+    assert list(out["chanlocs"])[0]["labels"] == "Fz"
+    assert namespace["EEG"]["chanlocs"][1]["labels"] == "Cz"
 
 
-def test_pop_editset_rejects_unsupported_file_workspace_expressions():
-    with pytest.raises(NotImplementedError, match="pop_importdata"):
+def test_pop_editset_loads_data_chanlocs_and_ica_from_files(tmp_path):
+    data_file = tmp_path / "raw.txt"
+    locs_file = tmp_path / "locs.sfp"
+    weights_file = tmp_path / "weights.txt"
+    sphere_file = tmp_path / "sphere.txt"
+    index_file = tmp_path / "icachansind.txt"
+    np.savetxt(data_file, np.arange(15, dtype=float).reshape(3, 5))
+    locs_file.write_text("Fz 0 0 1\nCz 0 1 0\nPz 1 0 0\n", encoding="utf-8")
+    np.savetxt(weights_file, np.eye(3))
+    np.savetxt(sphere_file, np.eye(3) * 2)
+    np.savetxt(index_file, [0, 1, 2], fmt="%d")
+
+    out, com = pop_editset(
+        _eeg(),
+        "data",
+        str(data_file),
+        "chanlocs",
+        str(locs_file),
+        "icaweights",
+        str(weights_file),
+        "icasphere",
+        str(sphere_file),
+        "icachansind",
+        str(index_file),
+        "dataformat",
+        "ascii",
+        return_com=True,
+    )
+
+    assert out["data"].shape == (3, 5)
+    assert out["chanlocs"][0]["labels"] == "Fz"
+    np.testing.assert_allclose(out["icaweights"], np.eye(3))
+    np.testing.assert_allclose(out["icasphere"], np.eye(3) * 2)
+    np.testing.assert_array_equal(out["icachansind"], [0, 1, 2])
+    assert "'dataformat', 'ascii'" in com
+
+
+def test_pop_editset_rejects_matlab_workspace_expressions():
+    with pytest.raises(ValueError, match="workspace expressions for data"):
         pop_editset(_eeg(), "data", "raw.mat")
-    with pytest.raises(NotImplementedError, match="pop_chanedit"):
+    with pytest.raises(ValueError, match="workspace expressions for chanlocs"):
         pop_editset(_eeg(), "chanlocs", "locs.elp")
-    with pytest.raises(ValueError, match="dataformat"):
-        pop_editset(_eeg(), "dataformat", "ascii")
+    with pytest.raises(ValueError, match="workspace expressions for icachansind"):
+        pop_editset(_eeg(), "icachansind", "icachansind")
 
 
 def test_pop_editset_accepts_sample_data_metadata_edit():
