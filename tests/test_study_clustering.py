@@ -12,7 +12,12 @@ from eegprep.functions.studyfunc.pop_clustedit import pop_clustedit, pop_clusted
 from eegprep.functions.studyfunc.pop_preclust import pop_preclust, pop_preclust_dialog_spec
 from eegprep.functions.studyfunc.pop_precomp import pop_precomp
 from eegprep.functions.studyfunc.pop_study import pop_study
+from eegprep.functions.studyfunc.optimal_kmeans import optimal_kmeans
+from eegprep.functions.studyfunc.robust_kmeans import robust_kmeans
+from eegprep.functions.studyfunc.std_apcluster import std_apcluster
+from eegprep.functions.studyfunc.std_centroid import std_centroid
 from eegprep.functions.studyfunc.std_createclust import std_createclust
+from eegprep.functions.studyfunc.std_findoutlierclust import std_findoutlierclust
 from eegprep.functions.studyfunc.std_mergeclust import std_mergeclust
 from eegprep.functions.studyfunc.std_movecomp import std_movecomp
 from eegprep.functions.studyfunc.std_moveoutlier import std_moveoutlier
@@ -128,6 +133,37 @@ def test_pop_clust_creates_deterministic_child_clusters():
     assert len(clustered["cluster"]) == 3
     assert sum(len(cluster["comps"]) for cluster in clustered["cluster"][1:]) == 6
     assert clustered["cluster"][0]["child"] == [cluster["name"] for cluster in clustered["cluster"][1:]]
+
+
+def test_deterministic_clustering_helpers_return_stable_shapes():
+    data = np.asarray([[0.0, 0.0], [0.1, 0.0], [5.0, 5.0], [5.1, 5.0], [20.0, 20.0]])
+
+    optimal_labels, optimal_centers, optimal_sumd, optimal_distances = optimal_kmeans(data[:4], [2, 3], random_state=7)
+    robust_labels, robust_centers, robust_sumd, robust_distances, outliers = robust_kmeans(
+        data,
+        2,
+        STD=1.1,
+        MAXiter=3,
+        random_state=7,
+    )
+    ap_labels, ap_centers, ap_sumd = std_apcluster(data[:4], maxits=50, convits=5, dampfact=0.7)
+    centroids = std_centroid(data[:4], optimal_labels)
+    outlier_rows = std_findoutlierclust(data, [1, 1, 1, 1, 1], threshold=1.0)
+
+    assert set(optimal_labels.tolist()) == {1, 2}
+    assert optimal_centers.shape == (2, 2)
+    assert optimal_sumd.shape == (2,)
+    assert optimal_distances.shape == (4, 2)
+    assert robust_labels.shape == (5,)
+    assert robust_centers.shape[1] == 2
+    assert robust_sumd.ndim == 1
+    assert robust_distances.shape[0] == 5
+    assert outliers.size >= 1
+    assert ap_labels.shape == (4,)
+    assert ap_centers.shape[1] == 2
+    assert ap_sumd.ndim == 1
+    assert centroids.shape == (2, 2)
+    assert outlier_rows.tolist() == [5]
 
 
 def test_pop_clust_rejects_invalid_cluster_counts_and_outlier_thresholds():

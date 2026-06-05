@@ -26,8 +26,20 @@ from eegprep.functions.studyfunc.std_erpplot import std_erpplot
 from eegprep.functions.studyfunc.std_erspplot import std_erspplot
 from eegprep.functions.studyfunc.std_itcplot import std_itcplot
 from eegprep.functions.studyfunc.std_precomp import std_precomp
-from eegprep.functions.studyfunc.std_readdata import std_readdata, std_readerp, std_readspec
+from eegprep.functions.studyfunc.std_checkdatasession import std_checkdatasession
+from eegprep.functions.studyfunc.std_checkfiles import std_checkfiles
+from eegprep.functions.studyfunc.std_readdata import (
+    std_readdata,
+    std_readerp,
+    std_readitc,
+    std_readpac,
+    std_readspec,
+    std_readtopo,
+)
+from eegprep.functions.studyfunc.std_savedat import std_savedat
 from eegprep.functions.studyfunc.std_specplot import std_specplot
+from eegprep.functions.studyfunc.std_uniformfiles import std_uniformfiles
+from eegprep.functions.studyfunc.std_uniformsetinds import std_uniformsetinds
 from tests.fixtures import create_test_eeg, create_test_eeg_with_ica
 
 
@@ -199,6 +211,19 @@ def test_std_precomp_ersp_and_itc_store_frequency_time_axes():
     assert times.size == len(group["ersptimes"])
     assert freqs.size == len(group["erspfreqs"])
 
+    _study, itcdata, sliced_times, sliced_freqs = std_readitc(
+        study,
+        alleeg,
+        channels=[1],
+        timerange=[group["itctimes"][0], group["itctimes"][-1]],
+        freqrange=[group["itcfreqs"][0], group["itcfreqs"][-1]],
+        subject="S01",
+    )
+
+    assert itcdata[0].shape[0] == 1
+    assert sliced_times.size == len(group["itctimes"])
+    assert sliced_freqs.size == len(group["itcfreqs"])
+
 
 def test_std_precomp_component_measures_and_parent_cluster_plot():
     first = create_test_eeg_with_ica(n_channels=5, n_samples=72, n_trials=3, n_components=3)
@@ -219,6 +244,12 @@ def test_std_precomp_component_measures_and_parent_cluster_plot():
     assert "components=[1]" in plot_command
     ast.parse(command)
     ast.parse(plot_command)
+
+    _study, topodata, channel_axis = std_readtopo(study, alleeg, clusters=1, components=[1])
+    assert topodata[0].shape == (2, 1, first["nbchan"])
+    assert channel_axis.tolist() == [1, 2, 3, 4, 5]
+    with pytest.raises(NotImplementedError, match="PAC"):
+        std_readpac(study, alleeg, clusters=1)
     plt.close(figure)
 
 
@@ -301,6 +332,28 @@ def test_precomp_missing_ica_and_unknown_channel_paths_fail_clearly():
     no_locs_study, no_locs_alleeg = pop_study(None, [no_locs], name="No locs")
     computed, _alleeg, _command = pop_precomp(no_locs_study, no_locs_alleeg, [1], erp="on", return_com=True)
     assert computed["changrp"][0]["name"] == "1"
+
+
+def test_study_consistency_helpers_and_savedat(tmp_path):
+    study, alleeg = _study_pair()
+    study, alleeg = pop_precomp(study, alleeg, "channels", erp="on")
+    ok, report = std_checkfiles(study, alleeg, return_report=True)
+    session_ok, session_report = std_checkdatasession(study, alleeg, return_report=True)
+    json_path = std_savedat(tmp_path / "erp.json", {"erpdata": study["changrp"][0]["erpdata"]})
+    mat_path = std_savedat(tmp_path / "erp.dat", {"erpdata": study["changrp"][0]["erpdata"]})
+
+    assert ok == 1
+    assert report["measure_cache"]["checked"]
+    assert std_uniformfiles(study, alleeg) == 1
+    assert std_uniformsetinds(study) == 1
+    assert session_ok is True
+    assert session_report["duplicate_subject_sessions"] == []
+    assert json_path.exists()
+    assert mat_path.exists()
+
+    mismatched = deepcopy(alleeg)
+    mismatched[1]["chanlocs"][0]["labels"] = "Mismatch"
+    assert std_uniformfiles(study, mismatched) == 0
 
 
 def test_pop_precomp_gui_cancel_and_dialog_spec():

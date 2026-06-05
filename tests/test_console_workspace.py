@@ -257,6 +257,31 @@ def test_console_pop_precomp_result_updates_shared_study_history():
     assert session.ALLCOM[-1].startswith("STUDY, ALLEEG = pop_precomp(")
 
 
+def test_console_pop_importgroupvar_updates_shared_study_workspace():
+    from eegprep.functions.studyfunc.pop_importgroupvar import pop_importgroupvar
+    from eegprep.functions.studyfunc.pop_study import pop_study
+
+    session = EEGPrepSession()
+    eeg = _demo_eeg()
+    eeg["subject"] = "S01"
+    session.store_current(eeg, new=True)
+    session.STUDY, session.ALLEEG = pop_study(None, session.ALLEEG, name="console group var")
+    session.CURRENTSTUDY = 1
+    workspace = EEGPrepConsoleWorkspace(session, exports={"pop_importgroupvar": pop_importgroupvar})
+
+    result = workspace.namespace["pop_importgroupvar"](
+        workspace.namespace["STUDY"],
+        1,
+        variable="age_group",
+        values={"S01": "young"},
+    )
+
+    assert result.study is session.STUDY
+    assert session.STUDY["datasetinfo"][0]["age_group"] == "young"
+    assert session.CURRENTSTUDY == 1
+    assert session.ALLCOM[-1].startswith("STUDY = pop_importgroupvar(")
+
+
 def test_session_history_commands_do_not_echo_to_console():
     session = EEGPrepSession()
     writes = []
