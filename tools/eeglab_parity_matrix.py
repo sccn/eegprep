@@ -107,13 +107,12 @@ def default_repo_root() -> Path:
 def discover_in_scope_eeglab_paths(repo_root: Path) -> set[str]:
     paths: set[str] = set()
     function_root = repo_root / "src/eegprep/eeglab/functions"
-    if function_root.is_dir():
-        for folder in IN_SCOPE_FUNCTION_FOLDERS:
-            for path in sorted((function_root / folder).glob("*.m")):
-                paths.add(f"functions/{folder}/{path.name}")
-    for path in EXPLICIT_IN_SCOPE_EEGLAB_FILES:
-        if (repo_root / "src/eegprep/eeglab" / path).is_file():
-            paths.add(path)
+    if not function_root.is_dir():
+        return paths
+    for folder in IN_SCOPE_FUNCTION_FOLDERS:
+        for path in sorted((function_root / folder).glob("*.m")):
+            paths.add(f"functions/{folder}/{path.name}")
+    paths.update(EXPLICIT_IN_SCOPE_EEGLAB_FILES)
     return paths
 
 

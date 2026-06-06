@@ -73,6 +73,17 @@ def test_validator_reports_missing_eeglab_reference_tree_clearly(tmp_path: Path)
     assert "classifies out-of-scope EEGLAB path" not in messages
 
 
+def test_explicit_plugin_rows_are_in_scope_when_reference_functions_exist(tmp_path: Path) -> None:
+    function_root = tmp_path / "src/eegprep/eeglab/functions/popfunc"
+    function_root.mkdir(parents=True)
+    (function_root / "pop_dummy.m").write_text("function pop_dummy\nend\n", encoding="utf-8")
+
+    paths = discover_in_scope_eeglab_paths(tmp_path)
+
+    assert "functions/popfunc/pop_dummy.m" in paths
+    assert "plugins/clean_rawdata/clean_asr.m" in paths
+
+
 def test_validator_rejects_incomplete_stale_skip_policy() -> None:
     _require_eeglab_reference()
 
