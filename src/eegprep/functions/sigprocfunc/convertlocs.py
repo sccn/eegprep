@@ -169,28 +169,23 @@ def _topo_to_sph(loc: dict[str, Any]) -> None:
 def _sph_besa_to_sph(loc: dict[str, Any]) -> None:
     if not _has_coordinate(loc, "sph_theta_besa", "sph_phi_besa"):
         return
-    theta_besa = np.radians(float(loc["sph_theta_besa"]))
-    phi_besa = np.radians(float(loc["sph_phi_besa"]))
-    radius = float(loc.get("sph_radius", 1.0) or 1.0)
-    horizontal = radius * np.sin(phi_besa)
-    loc["X"] = float(horizontal * np.sin(theta_besa))
-    loc["Y"] = float(-horizontal * np.cos(theta_besa))
-    loc["Z"] = float(radius * np.cos(phi_besa))
-    _cart_to_sph(loc)
+    theta_besa = float(loc["sph_theta_besa"])
+    phi_besa = float(loc["sph_phi_besa"])
+    angle = 90.0 - phi_besa if theta_besa >= 0 else -90.0 - phi_besa
+    loc["sph_theta"] = _wrap_degrees(-angle)
+    loc["sph_phi"] = 90.0 - abs(theta_besa)
+    loc.setdefault("sph_radius", 1.0)
 
 
 def _sph_to_sph_besa(loc: dict[str, Any]) -> None:
     if not _has_coordinate(loc, "sph_theta", "sph_phi"):
         return
-    tmp = copy.deepcopy(loc)
-    _sph_to_cart(tmp)
-    x = float(tmp.get("X", 0.0))
-    y = float(tmp.get("Y", 0.0))
-    z = float(tmp.get("Z", 0.0))
-    horizontal = float(np.hypot(x, y))
-    sign = -1.0 if y > 0 else 1.0
-    loc["sph_phi_besa"] = float(sign * np.degrees(np.arctan2(horizontal, z)))
-    loc["sph_theta_besa"] = _wrap_degrees(np.degrees(np.arctan2(x, -y)))
+    theta = float(loc["sph_theta"])
+    phi = float(loc["sph_phi"])
+    radius = 0.5 - phi / 180.0
+    angle = -theta
+    loc["sph_theta_besa"] = float(180.0 * radius if angle >= 0 else -180.0 * radius)
+    loc["sph_phi_besa"] = float(90.0 - angle if angle >= 0 else -90.0 - angle)
 
 
 def _has_coordinate(loc: dict[str, Any], *fields: str) -> bool:

@@ -542,7 +542,7 @@ def statcond(
     method: str = "param",
     mode: str | None = None,
     naccu: int = 200,
-    variance: str = "inhomogenous",
+    variance: str = "homogenous",
     forceanova: bool = False,
     tail: str = "both",
     axis: int = -1,

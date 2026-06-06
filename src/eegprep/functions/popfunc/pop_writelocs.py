@@ -13,7 +13,6 @@ def pop_writelocs(
     chans: Any,
     filename: str | Path | None = None,
     *args: Any,
-    return_com: bool = False,
     **kwargs: Any,
 ) -> str:
     """Write channel locations and return a replayable history command."""
@@ -21,7 +20,7 @@ def pop_writelocs(
         return ""
     writelocs(chans, filename, *args, **kwargs)
     command = _history_command(filename, parse_key_value_args(args, kwargs, lowercase_keys=True, lowercase_kwargs=True))
-    return command if return_com else command
+    return command
 
 
 def _history_command(filename: str | Path, options: dict[str, Any]) -> str:

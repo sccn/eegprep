@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import csv
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
@@ -20,7 +19,6 @@ from eegprep.functions.sigprocfunc.writelocs import writelocs
 
 
 _CHANNEL_FIELDS = ("labels", "theta", "radius", "X", "Y", "Z", "sph_theta", "sph_phi", "sph_radius", "type", "ref")
-_CHANNEL_FIELD_ALIASES = {field.lower(): field for field in _CHANNEL_FIELDS}
 
 
 def pop_chanedit(
@@ -334,46 +332,9 @@ def _cart_to_all(chan: dict[str, Any]) -> None:
     )
 
 
-def _sph_to_all(chan: dict[str, Any]) -> None:
-    theta = np.radians(float(chan.get("sph_theta", 0) or 0))
-    phi = np.radians(float(chan.get("sph_phi", 0) or 0))
-    radius = float(chan.get("sph_radius", 1) or 1)
-    chan.update(
-        {
-            "X": radius * np.cos(phi) * np.cos(theta),
-            "Y": radius * np.cos(phi) * np.sin(theta),
-            "Z": radius * np.sin(phi),
-            "theta": _wrap_degrees(-np.degrees(theta)),
-            "radius": 0.5 - np.degrees(phi) / 180.0,
-        }
-    )
-
-
-def _topo_to_all(chan: dict[str, Any]) -> None:
-    sph_theta = _wrap_degrees(-float(chan.get("theta", 0) or 0))
-    sph_phi = (0.5 - float(chan.get("radius", 0.5) or 0.5)) * 180.0
-    chan["sph_theta"] = sph_theta
-    chan["sph_phi"] = sph_phi
-    chan.setdefault("sph_radius", 1.0)
-    _sph_to_all(chan)
-
-
 def _read_chanloc_file(value: Any) -> list[dict[str, Any]]:
     path = Path(value[0] if isinstance(value, (list, tuple)) else value)
     return readlocs(path)
-
-
-def _split_chanloc_row(line: str) -> list[str]:
-    text = line.strip()
-    if not text or text.startswith(("%", "#")):
-        return []
-    if "," in text:
-        return [item.strip() for item in next(csv.reader([text], skipinitialspace=True)) if item.strip()]
-    return text.split()
-
-
-def _canonical_channel_field(field: str) -> str:
-    return _CHANNEL_FIELD_ALIASES.get(str(field).lower(), field)
 
 
 def _write_chanloc_file(value: Any, chanlocs: list[dict[str, Any]]) -> None:

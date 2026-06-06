@@ -15,23 +15,23 @@ def std_uniformsetinds(STUDY: dict[str, Any]) -> int:
     groups = [group for group in study.get("changrp") or [] if isinstance(group, dict)]
     if len(groups) < 2:
         return 1
-    reference = _set_signature(groups[0])
+    reference = _set_array(groups[0])
     for group in groups[1:]:
-        if _set_signature(group) != reference:
+        if not np.array_equal(_set_array(group), reference, equal_nan=True):
             return 0
     return 1
 
 
-def _set_signature(group: dict[str, Any]) -> tuple[int, ...]:
+def _set_array(group: dict[str, Any]) -> np.ndarray:
     values = group.get("sets")
     if values is None:
         values = group.get("setinds")
     if values is None:
-        return ()
+        return np.asarray([], dtype=float)
     array = np.asarray(values, dtype=float)
     if array.size == 0:
-        return ()
-    return tuple(int(item) for item in array.ravel().tolist())
+        return np.asarray([], dtype=float)
+    return array.ravel()
 
 
 __all__ = ["std_uniformsetinds"]

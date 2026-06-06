@@ -146,12 +146,16 @@ def test_pop_topochansel_resolves_indices_and_labels_without_gui():
     chanlocs = [{"labels": "Fz"}, {"labels": "Cz"}, {"labels": "Pz"}]
 
     chanlist, names, name_text = pop_topochansel(chanlocs, "Cz Pz", gui=False)
-    cell_output, command = pop_topochansel(chanlocs, [1, 3], cellstrout="on", gui=False, return_com=True)
+    cell_output, selected_names, selected_text, command = pop_topochansel(
+        chanlocs, [1, 3], cellstrout="on", gui=False, return_com=True
+    )
 
     assert chanlist == [2, 3]
     assert names == ["Cz", "Pz"]
     assert name_text == "Cz Pz"
     assert cell_output == ["Fz", "Pz"]
+    assert selected_names == ["Fz", "Pz"]
+    assert selected_text == "Fz Pz"
     assert command.startswith("pop_topochansel(")
 
 

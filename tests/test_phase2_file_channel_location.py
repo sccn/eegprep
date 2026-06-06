@@ -85,7 +85,7 @@ def test_readlocs_and_writelocs_round_trip_locs_and_ced(tmp_path: Path) -> None:
 
     writelocs(locs, loc_file)
     loaded, read_command = pop_readlocs(loc_file, return_com=True)
-    write_command = pop_writelocs(loaded, ced_file, return_com=True)
+    write_command = pop_writelocs(loaded, ced_file)
     reloaded = readlocs(ced_file)
 
     assert [loc["labels"] for loc in loaded] == ["Fz", "Cz"]
@@ -151,6 +151,23 @@ def test_convertlocs_and_chancenter_match_expected_geometry() -> None:
     assert (x, y, z) == (pytest.approx([1.0]), pytest.approx([0.0]), pytest.approx([0.0]))
     assert center.tolist() == [1.0, 0.0, 0.0]
     assert optimized is False
+
+
+def test_convertlocs_besa_spherical_matches_eeglab_angle_convention() -> None:
+    lateral = convertlocs([{"labels": "Right", "sph_theta": 90.0, "sph_phi": 0.0}], "sph2sphbesa")[0]
+    anterior = convertlocs([{"labels": "Front", "sph_theta": 0.0, "sph_phi": 0.0}], "sph2sphbesa")[0]
+    oblique = convertlocs([{"labels": "Oblique", "sph_theta": -45.0, "sph_phi": 30.0}], "sph2sphbesa")[0]
+
+    assert lateral["sph_theta_besa"] == pytest.approx(-90.0)
+    assert lateral["sph_phi_besa"] == pytest.approx(0.0)
+    assert anterior["sph_theta_besa"] == pytest.approx(90.0)
+    assert anterior["sph_phi_besa"] == pytest.approx(90.0)
+    assert oblique["sph_theta_besa"] == pytest.approx(60.0)
+    assert oblique["sph_phi_besa"] == pytest.approx(45.0)
+
+    round_trip = convertlocs([oblique], "sphbesa2sph")[0]
+    assert round_trip["sph_theta"] == pytest.approx(-45.0)
+    assert round_trip["sph_phi"] == pytest.approx(30.0)
 
 
 def test_pop_chancenter_uses_one_based_omit_indices_and_console_return_shape() -> None:

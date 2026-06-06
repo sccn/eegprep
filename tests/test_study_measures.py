@@ -373,6 +373,14 @@ def test_study_consistency_helpers_and_savedat(tmp_path):
     assert std_uniformfiles(study, mismatched) == 0
 
 
+def test_std_uniformsetinds_treats_nan_as_matching_missing_dataset() -> None:
+    study = {"changrp": [{"sets": [1, np.nan]}, {"sets": [1, np.nan]}]}
+    assert std_uniformsetinds(study) == 1
+
+    study["changrp"][1]["sets"] = [1, 2]
+    assert std_uniformsetinds(study) == 0
+
+
 def test_pop_precomp_gui_cancel_and_dialog_spec():
     study, alleeg = _study_pair()
     spec = pop_precomp_dialog_spec(study, alleeg, "components")

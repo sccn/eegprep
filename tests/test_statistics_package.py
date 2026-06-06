@@ -156,6 +156,20 @@ def test_statcond_selects_tests_and_returns_named_two_way_effects():
     assert two_way.pvalue.interaction.shape == (3,)
 
 
+def test_statcond_unpaired_default_uses_eeglab_homogenous_variance():
+    first = np.array([[1.0, 2.0, 3.0, 4.0], [1.5, 1.7, 2.2, 2.9]])
+    second = np.array([[2.0, 5.0, 8.0, 11.0, 14.0], [1.4, 2.1, 2.4, 4.8, 7.0]])
+
+    result = statcond([first, second], paired="off")
+    pooled_stat, pooled_df = ttest2_cell(first, second, variance="homogenous")
+    welch_stat, welch_df = ttest2_cell(first, second, variance="inhomogenous")
+
+    npt.assert_allclose(result.stat, pooled_stat)
+    assert result.df == pooled_df
+    assert not np.array_equal(result.df, welch_df)
+    assert not np.allclose(pooled_stat, welch_stat)
+
+
 def test_nonparametric_statcond_and_surrogdistrib_are_seeded():
     rng = np.random.default_rng(3)
     first = rng.normal(size=(2, 8))

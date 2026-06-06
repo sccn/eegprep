@@ -35,7 +35,9 @@ def pop_topochansel(
         f"{format_history_value(_channel_labels(chanlocs), cell_for_sequence='all_strings')}, "
         f"{format_history_value(select, cell_for_sequence=None)});"
     )
-    return (first_output, command) if return_com else (first_output, cellchannames, strchannames)
+    if return_com:
+        return first_output, cellchannames, strchannames, command
+    return first_output, cellchannames, strchannames
 
 
 def _channel_labels(chanlocs: Any) -> list[str]:

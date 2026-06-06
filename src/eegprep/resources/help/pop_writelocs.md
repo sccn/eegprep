@@ -12,5 +12,5 @@ Use options such as `filetype`, `format`, `header`, `customheader`, and
 Example:
 
 ```python
-com = pop_writelocs(EEG["chanlocs"], "subject01_locations.ced", return_com=True)
+com = pop_writelocs(EEG["chanlocs"], "subject01_locations.ced")
 ```
