@@ -112,7 +112,7 @@ def pop_editset_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
         title="Edit dataset information - pop_editset()",
         function_name="pop_editset",
         eeglab_source="functions/popfunc/pop_editset.m",
-        size=(688, 389),
+        size=(701, 389),
         geometry=(
             (2, 3.38),
             1,
@@ -128,8 +128,8 @@ def pop_editset_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             (1.4, 0.7, 0.8, 0.5),
             (1.4, 0.7, 0.8, 0.5),
         ),
-        content_margins=(36, 28, 36, 13),
-        row_spacing=7,
+        content_margins=(36, 20, 36, 8),
+        row_spacing=2,
         help_text="pop_editset",
         controls=(
             ControlSpec("text", "Dataset name", font_weight="bold"),
@@ -184,7 +184,12 @@ def pop_editset_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             QDialog#pop_editset QLabel,
             QDialog#pop_editset QLineEdit,
             QDialog#pop_editset QPushButton {
-                font-size: 11px;
+                font-size: 10px;
+            }
+            QDialog#pop_editset QLineEdit,
+            QDialog#pop_editset QPushButton {
+                min-height: 14px;
+                max-height: 14px;
             }
         """,
     )

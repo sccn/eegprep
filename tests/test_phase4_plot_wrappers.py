@@ -670,6 +670,8 @@ def test_phase4_dialog_specs_match_eeglab_selector_layouts(sample_eeg, ica_epoch
     assert prop_controls["chanorcomp_button"].callback.params["return_indices"] is True
 
     erpimage_spec = pop_erpimage_dialog_spec(ica_epoch, typeplot=0)
+    assert erpimage_spec.size == (1113, 831)
+    assert erpimage_spec.row_spacing == 4
     assert erpimage_spec.geometry[0] == (1, 1, 0.1, 0.8, 2.1)
     assert erpimage_spec.geometry[1] == (1, 1, 0.4, 0.5, 2.1)
     assert [control.tag for control in erpimage_spec.controls[:10]] == [
@@ -686,6 +688,7 @@ def test_phase4_dialog_specs_match_eeglab_selector_layouts(sample_eeg, ica_epoch
     ]
 
     comperp_spec = pop_comperp_dialog_spec([sample_eeg], flag=1)
+    assert comperp_spec.row_spacing == 8
     assert [control.string for control in comperp_spec.controls[2:5]] == ["avg.", "std.", "all ERPs"]
     assert comperp_spec.geometry[0] == comperp_spec.geometry[1]
     assert comperp_spec.geometry[-1] == (1.48, 1.03, 1)

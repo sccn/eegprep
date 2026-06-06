@@ -114,7 +114,25 @@ def pop_newcrossf_dialog_spec(EEG: dict[str, Any], *, typeproc: int = 1) -> Dial
         function_name="pop_newcrossf",
         eeglab_source="functions/popfunc/pop_newcrossf.m",
         help_text="pophelp('pop_newcrossf')",
-        size=(809, 430),
+        size=(908, 476),
+        row_spacing=4,
+        extra_stylesheet="""
+            QDialog#pop_newcrossf QLabel,
+            QDialog#pop_newcrossf QCheckBox,
+            QDialog#pop_newcrossf QLineEdit,
+            QDialog#pop_newcrossf QPushButton {
+                font-size: 11px;
+            }
+            QDialog#pop_newcrossf QLineEdit,
+            QDialog#pop_newcrossf QPushButton {
+                min-height: 15px;
+                max-height: 15px;
+            }
+            QDialog#pop_newcrossf QCheckBox::indicator {
+                width: 11px;
+                height: 11px;
+            }
+        """,
     )
 
 

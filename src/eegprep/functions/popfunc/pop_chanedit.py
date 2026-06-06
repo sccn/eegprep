@@ -155,7 +155,7 @@ def pop_chanedit_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
         title="Edit channel info -- pop_chanedit()",
         function_name="pop_chanedit",
         eeglab_source="functions/popfunc/pop_chanedit.m",
-        size=(900, 900),
+        size=(872, 900),
         content_margins=(42, 26, 42, 30),
         row_spacing=5,
         help_text="pophelp('pop_chanedit')",

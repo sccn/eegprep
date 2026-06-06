@@ -142,5 +142,12 @@
     <li>Future GUI parity work may add EEGLAB-style modal dialogs for <code>pop_readlocs</code>, <code>pop_writelocs</code>, <code>pop_chancenter</code>, and <code>pop_chancoresp</code>; this phase intentionally shipped API and console behavior first.</li>
     <li>Rare historical readers such as Neurodata, old EGI segmented RAW, and BIOSIG conversion shims should stay skipped or consolidated until a documented user workflow and deterministic fixture justify them.</li>
   </ul>
+  <h2>Core Parity GUI Layout Pass</h2>
+  <ul>
+    <li>Recaptured changed-dialog visual parity cases for <code>pop_chanedit</code>, <code>pop_comperp</code>, <code>pop_editset</code>, <code>pop_eegfilt</code>, <code>pop_envtopo</code>, <code>pop_epoch</code>, <code>pop_erpimage</code>, <code>pop_newcrossf</code>, <code>pop_newtimef</code>, and <code>pop_runica</code>.</li>
+    <li>Tightened EEGPrep dialog widths, heights, margins, row spacing, and compact widget heights so captured window dimensions now match EEGLAB for every changed case, except <code>pop_editset</code> which is one pixel narrower in the capture.</li>
+    <li>Kept <code>pop_editset</code> disabled channel/ICA file controls visible because they mirror EEGLAB's field inventory and make future parity paths discoverable without pretending those assignments are currently enabled.</li>
+    <li>Visual parity artifacts remain under <code>.visual-parity/</code> for PR attachment/review evidence and are not committed as package files.</li>
+  </ul>
 </body>
 </html>

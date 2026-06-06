@@ -250,6 +250,10 @@ def test_timefreq_statistics_dialog_specs_match_eeglab_control_inventory(sample_
     event_spec = pop_eventstat_dialog_spec(sample_eeg)
 
     assert newtimef.title == "Plot channel time frequency -- pop_newtimef()"
+    assert newtimef.size == (1059, 511)
+    assert newtimef.row_spacing == 4
+    assert newcrossf.size == (908, 476)
+    assert newcrossf.row_spacing == 4
     assert controls_by_tag(newtimef)["num_button"].callback.name == "select_channels"
     assert controls_by_tag(newtimef)["baseline"].value == "0"
     assert controls_by_tag(newtimef)["calcpush"].enabled is True

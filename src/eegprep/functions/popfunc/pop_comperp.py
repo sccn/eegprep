@@ -162,7 +162,7 @@ def pop_comperp_dialog_spec(_datasets: list[dict[str, Any]], *, flag: int = 1) -
         eeglab_source="functions/popfunc/pop_comperp.m",
         help_text="pophelp('pop_comperp')",
         size=(938, 476),
-        row_spacing=14,
+        row_spacing=8,
     )
 
 

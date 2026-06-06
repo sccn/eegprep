@@ -140,7 +140,27 @@ def pop_newtimef_dialog_spec(EEG: dict[str, Any], *, typeproc: int = 1) -> Dialo
         function_name="pop_newtimef",
         eeglab_source="functions/popfunc/pop_newtimef.m",
         help_text="pophelp('pop_newtimef')",
-        size=(930, 531),
+        size=(1059, 511),
+        row_spacing=4,
+        extra_stylesheet="""
+            QDialog#pop_newtimef QLabel,
+            QDialog#pop_newtimef QCheckBox,
+            QDialog#pop_newtimef QLineEdit,
+            QDialog#pop_newtimef QPushButton,
+            QDialog#pop_newtimef QComboBox {
+                font-size: 11px;
+            }
+            QDialog#pop_newtimef QLineEdit,
+            QDialog#pop_newtimef QPushButton,
+            QDialog#pop_newtimef QComboBox {
+                min-height: 15px;
+                max-height: 15px;
+            }
+            QDialog#pop_newtimef QCheckBox::indicator {
+                width: 11px;
+                height: 11px;
+            }
+        """,
     )
 
 

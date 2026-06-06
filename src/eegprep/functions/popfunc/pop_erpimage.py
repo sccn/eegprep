@@ -256,8 +256,25 @@ def pop_erpimage_dialog_spec(EEG: dict[str, Any], *, typeplot: int = 1) -> Dialo
         function_name="pop_erpimage",
         eeglab_source="functions/popfunc/pop_erpimage.m",
         help_text="pophelp('pop_erpimage')",
-        size=(1113, 834 if is_channel else 870),
-        row_spacing=20,
+        size=(1113, 831),
+        row_spacing=4,
+        extra_stylesheet="""
+            QDialog#pop_erpimage QLabel,
+            QDialog#pop_erpimage QCheckBox,
+            QDialog#pop_erpimage QLineEdit,
+            QDialog#pop_erpimage QPushButton {
+                font-size: 11px;
+            }
+            QDialog#pop_erpimage QLineEdit,
+            QDialog#pop_erpimage QPushButton {
+                min-height: 15px;
+                max-height: 15px;
+            }
+            QDialog#pop_erpimage QCheckBox::indicator {
+                width: 11px;
+                height: 11px;
+            }
+        """,
     )
 
 
