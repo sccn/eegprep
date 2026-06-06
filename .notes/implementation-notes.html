@@ -155,5 +155,25 @@
     <li>Added <code>return_com=True</code> history support for <code>pop_addindepvar</code> and <code>pop_listfactors</code> so new public STUDY pop helpers remain usable from the mixed GUI/console workspace.</li>
     <li>Aligned <code>bootstat</code> <code>basevect</code> handling with EEGLAB's 1-based user-facing indices, kept empty MATLAB parity arguments as numeric <code>[]</code>, and accepted NumPy vector selections in channel-location read/write helpers.</li>
   </ul>
+  <h1>Follow-up #146 Time-Warped newtimef And Cycle Calculator Notes</h1>
+  <h2>Design Decisions</h2>
+  <ul>
+    <li>Ported <code>timewarp</code>, <code>angtimewarp</code>, and <code>tf_cycle_calc</code> as standalone Python helpers under <code>functions/timefreqfunc</code>; runtime code does not read from <code>src/eegprep/eeglab</code>.</li>
+    <li><code>newtimef</code> accepts matrix-form <code>timewarp</code> latencies in milliseconds, optional <code>timewarpms</code> reference latencies, and EEGLAB-facing 1-based <code>timewarpidx</code> marker indices.</li>
+    <li>The complex time-frequency decomposition is warped at the same stage as EEGLAB: after single-trial spectral estimates are computed and before ERSP/ITC averaging or baseline statistics.</li>
+    <li>The <code>pop_newtimef</code> GUI keeps EEGLAB's visible control inventory and routes time-warp options through the existing optional arguments field; explicit time-warp controls were not added because EEGLAB does not expose them in this dialog.</li>
+    <li>The <code>tf cycle calc</code> button now opens a nested EEGPrep dialog matching EEGLAB's cycle calculator controls and writes calculated frequency/cycle vectors back to the parent dialog.</li>
+  </ul>
+  <h2>Deviations And Tradeoffs</h2>
+  <ul>
+    <li>Only matrix-form <code>timewarp</code> is supported. EEGLAB's comments mention cell-form historical variants, but current EEGLAB raises for cell-form <code>timewarp</code>, so EEGPrep rejects non-matrix input clearly.</li>
+    <li>The time-warp helper requires unique integer frame markers after adding the synchronized first frame. This avoids undefined interpolation across repeated output positions.</li>
+    <li><code>tf_cycle_calc</code> returns a dataclass with named arrays instead of MATLAB multiple outputs; the cycles and widths table match EEGLAB numerically.</li>
+  </ul>
+  <h2>Verification Notes</h2>
+  <ul>
+    <li>Focused tests cover direct time-warp matrices, angular wrapping, cycle-width conversion, replayable <code>pop_newtimef</code> time-warp history, console history recording, and dialog inventory.</li>
+    <li>MATLAB parity coverage for <code>timewarp</code>, <code>angtimewarp</code>, and <code>tf_cycle_calc</code> is included behind the existing MATLAB skip behavior.</li>
+  </ul>
 </body>
 </html>

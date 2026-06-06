@@ -141,6 +141,9 @@ Spectral Analysis
    eegprep.timefreq
    eegprep.timef
    eegprep.crossf
+   eegprep.timewarp
+   eegprep.angtimewarp
+   eegprep.tf_cycle_calc
    eegprep.newtimefbaseln
    eegprep.newtimeftrialbaseln
    eegprep.newtimefitc

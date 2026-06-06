@@ -53,7 +53,6 @@ def pop_newtimef(
         tlimits = [float(EEG.get("xmin", 0)) * 1000.0, float(EEG.get("xmax", 0)) * 1000.0]
     if cycles is None:
         cycles = [3, 0.8]
-    _reject_unsupported_options(options)
     data, times = _selected_signal(EEG, typeproc, num, tlimits)
     result = newtimef(data, data.shape[0], [times[0], times[-1]], float(EEG.get("srate", 1) or 1), cycles, **options)
     command = history_command("pop_newtimef", typeproc, _first_index(num), tlimits, cycles, **options)
@@ -95,7 +94,7 @@ def pop_newtimef_dialog_spec(EEG: dict[str, Any], *, typeproc: int = 1) -> Dialo
         ControlSpec("spacer"),
         ControlSpec("text", "Frequency limits [min max] (Hz) or sequence", font_weight="bold"),
         ControlSpec("edit", tag="freqs", value=""),
-        ControlSpec("popupmenu", "|".join(_NFREQS_CHOICES), tag="nfreqs", value=2),
+        ControlSpec("popupmenu", "|".join(_NFREQS_CHOICES), tag="nfreqs", value=1),
         ControlSpec("checkbox", "Log spaced", tag="freqscale", value=False),
         ControlSpec("text", "Baseline limits [min max] (msec) (0->pre-stim.)", font_weight="bold"),
         ControlSpec("edit", tag="baseline", value="0"),
@@ -104,7 +103,17 @@ def pop_newtimef_dialog_spec(EEG: dict[str, Any], *, typeproc: int = 1) -> Dialo
         ControlSpec("text", "Wavelet cycles [min max/fact] or sequence", font_weight="bold"),
         ControlSpec("edit", tag="cycles", value="3 0.8"),
         ControlSpec("checkbox", "Use FFT", tag="fft", value=False),
-        ControlSpec("pushbutton", "tf cycle calc", tag="calcpush", enabled=True),
+        ControlSpec(
+            "pushbutton",
+            "tf cycle calc",
+            tag="calcpush",
+            enabled=True,
+            callback=CallbackSpec(
+                "tf_cycle_calc",
+                params={"button": "calcpush", "freqs": "freqs", "cycles": "cycles", "fft": "fft"},
+                matlab_callback="{@comcalc, EEG.srate, EEG.xmin}",
+            ),
+        ),
         ControlSpec("text", "ERSP color limits [max] (min=-max)", font_weight="bold"),
         ControlSpec("edit", tag="erspmax", value=""),
         ControlSpec("checkbox", "see log power (set)", tag="scale", value=True),
@@ -195,7 +204,7 @@ def _run_gui(EEG: dict[str, Any], *, typeproc: int, renderer: Any | None = None)
     _add_popup_options(
         options,
         int(result.get("ntimesout", 4) or 4),
-        int(result.get("nfreqs", 2) or 2),
+        int(result.get("nfreqs", 1) or 1),
         int(result.get("basenorm", 1) or 1),
         freqs,
     )
@@ -242,15 +251,6 @@ def _add_popup_options(options: dict[str, Any], ntimesout: int, nfreqs: int, bas
         options["basenorm"] = "on"
     if basenorm >= 3:
         options["trialbase"] = "full"
-
-
-def _reject_unsupported_options(options: dict[str, Any]) -> None:
-    unsupported = {"timewarp", "timewarpms", "timewarpidx"}
-    present = sorted(key for key in unsupported if key in options)
-    if present:
-        raise NotImplementedError(
-            "pop_newtimef time-warp options are not part of EEGPrep's Phase 4 implementation: " + ", ".join(present)
-        )
 
 
 def _first_index(value: Any) -> int:

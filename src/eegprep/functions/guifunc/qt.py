@@ -10,9 +10,11 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.guifunc.pophelp import pophelp
+from eegprep.functions.guifunc.tf_cycle_calc_dialog import tf_cycle_calc_dialog_spec
 from eegprep.functions.popfunc.pop_chansel import pop_chansel
 from eegprep.functions.popfunc.pop_eegplot import pop_eegplot
 from eegprep.functions.sigprocfunc.eegplot import eegplot
+from eegprep.functions.timefreqfunc.tf_cycle_calc import WIDTH_UNITS, tf_cycle_calc
 
 from .spec import CallbackSpec, ControlSpec, DialogSpec
 
@@ -472,6 +474,14 @@ class QtDialogRenderer:
             source = widgets.get(params["button"])
             if source is not None:
                 source.clicked.connect(lambda: self._run_headplot_manual_coreg(source, widgets, params))
+        elif callback.name == "tf_cycle_calc":
+            source = widgets.get(params["button"])
+            if source is not None:
+                source.clicked.connect(lambda: self._run_tf_cycle_calc(source, widgets, params))
+        elif callback.name == "tf_cycle_calc_plot":
+            source = widgets.get(params.get("button", "plot"))
+            if source is not None:
+                source.clicked.connect(lambda: self._plot_tf_cycle_calc(source, widgets))
 
     @staticmethod
     def _accept_if_valid(dialog: Any, spec: DialogSpec, widgets: dict[str, Any]) -> None:
@@ -647,6 +657,62 @@ class QtDialogRenderer:
         if widget is None or not hasattr(widget, "text"):
             return ""
         return str(widget.text())
+
+    def _run_tf_cycle_calc(self, button: Any, widgets: dict[str, Any], params: Mapping[str, Any]) -> None:
+        _qt_core, qt_widgets = _require_qt()
+        fft_widget = widgets.get(str(params.get("fft", "")))
+        if self._widget_checked(fft_widget):
+            qt_widgets.QMessageBox.warning(
+                button,
+                "Warning",
+                "Use constant wavelet width rather than FFT flag for STFT analysis with TF cycle calc.",
+            )
+            return
+        freqs_widget = widgets.get(str(params.get("freqs", "")))
+        cycles_widget = widgets.get(str(params.get("cycles", "")))
+        if freqs_widget is None or cycles_widget is None:
+            return
+        dialog_result = self.run(tf_cycle_calc_dialog_spec(freqs=self._widget_text(freqs_widget)))
+        if dialog_result is None:
+            return
+        try:
+            unit = WIDTH_UNITS[int(dialog_result.get("widthpop", 1)) - 1]
+            result = tf_cycle_calc(
+                freqs=dialog_result.get("freqedit", ""),
+                width=dialog_result.get("widthedit", ""),
+                width_unit=unit,
+                log_spaced=bool(dialog_result.get("spacingcheck", False)),
+            )
+        except (IndexError, ValueError) as exc:
+            qt_widgets.QMessageBox.warning(button, "Warning", str(exc))
+            return
+        if result.cycles.size > 1 and result.cycles[1] <= 1:
+            qt_widgets.QMessageBox.warning(
+                button,
+                "Warning",
+                "cycles(2) <= 1. This will give incorrect results in pop_newtimef. Use vector of frequencies.",
+            )
+            return
+        freqs_widget.setText(_format_numeric_vector(result.widths_table[:, 0]))
+        cycles_widget.setText(_format_numeric_vector(result.cycles))
+
+    @staticmethod
+    def _plot_tf_cycle_calc(button: Any, widgets: dict[str, Any]) -> None:
+        _qt_core, qt_widgets = _require_qt()
+        width_index = 0
+        width_widget = widgets.get("widthpop")
+        if width_widget is not None and hasattr(width_widget, "currentIndex"):
+            width_index = int(width_widget.currentIndex())
+        try:
+            tf_cycle_calc(
+                freqs=QtDialogRenderer._widget_text(widgets.get("freqedit")),
+                width=QtDialogRenderer._widget_text(widgets.get("widthedit")),
+                width_unit=WIDTH_UNITS[width_index],
+                log_spaced=QtDialogRenderer._widget_checked(widgets.get("spacingcheck")),
+                plot=True,
+            )
+        except (IndexError, ValueError) as exc:
+            qt_widgets.QMessageBox.warning(button, "Warning", str(exc))
 
     @staticmethod
     def _sync_numeric(source: Any, target: Any, multiplier: float) -> None:
@@ -1005,3 +1071,7 @@ class QtDialogRenderer:
 
 def _is_sequence_value(value: Any) -> bool:
     return isinstance(value, (list, tuple, set))
+
+
+def _format_numeric_vector(values: Any) -> str:
+    return " ".join(f"{float(value):g}" for value in np.asarray(values, dtype=float).ravel())

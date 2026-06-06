@@ -34,6 +34,12 @@ Time-Frequency And Statistics
 
 .. autofunction:: eegprep.dftfilt3
 
+.. autofunction:: eegprep.timewarp
+
+.. autofunction:: eegprep.angtimewarp
+
+.. autofunction:: eegprep.tf_cycle_calc
+
 .. autofunction:: eegprep.newtimefbaseln
 
 .. autofunction:: eegprep.newtimeftrialbaseln

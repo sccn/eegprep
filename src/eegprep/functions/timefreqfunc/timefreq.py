@@ -10,7 +10,9 @@ from scipy import signal
 
 from eegprep.functions.timefreqfunc.dftfilt2 import dftfilt2
 from eegprep.functions.timefreqfunc.dftfilt3 import dftfilt3, symmetric_hanning
+from eegprep.functions.timefreqfunc.angtimewarp import angtimewarp
 from eegprep.functions.timefreqfunc.newtimefitc import newtimefitc
+from eegprep.functions.timefreqfunc.timewarp import timewarp
 
 
 @dataclass(frozen=True)
@@ -45,6 +47,7 @@ def timefreq(
     subitc: str = "off",
     timesout: Any = None,
     ntimesout: Any = None,
+    timestretch: Any = None,
     wletmethod: str = "dftfilt3",
     verbose: str = "off",
 ) -> TimeFrequencyDecomposition:
@@ -101,7 +104,11 @@ def timefreq(
             str(causal).lower(),
         )
     output_freqs, tfdata = _select_requested_freqs(all_freqs, tfdata, requested_freqs)
-    times = _output_times(frame_count, limits, srate, window_size, timesout, ntimesout, str(causal).lower())[0]
+    times, output_indices = _output_times(
+        frame_count, limits, srate, window_size, timesout, ntimesout, str(causal).lower()
+    )
+    if timestretch is not None:
+        tfdata = _time_stretch_tfdata(tfdata, output_indices + 1, timestretch)
 
     if tfdata.shape[0] == 1:
         tfdata = tfdata[0]
@@ -374,6 +381,58 @@ def _select_requested_freqs(
     _, unique_positions = np.unique(indices, return_index=True)
     indices = indices[np.sort(unique_positions)]
     return all_freqs[indices], tfdata[:, indices, :, :]
+
+
+def _time_stretch_tfdata(tfdata: np.ndarray, output_frames: np.ndarray, timestretch: Any) -> np.ndarray:
+    marks, refs = _timestretch_inputs(timestretch, tfdata.shape[3])
+    if marks.size == 0:
+        return tfdata
+    if refs.size == 0:
+        refs = np.median(marks, axis=0)
+    refs_pos = _nearest_output_positions(refs, output_frames)
+    refs_pos = np.sort(np.concatenate([refs_pos, np.asarray([1, output_frames.size], dtype=int)]))
+    output = np.array(tfdata, copy=True)
+    for trial_index in range(output.shape[3]):
+        marks_pos = _nearest_output_positions(marks[trial_index], output_frames)
+        marks_pos = np.sort(np.concatenate([marks_pos, np.asarray([1, output_frames.size], dtype=int)]))
+        warp_matrix = timewarp(marks_pos, refs_pos)
+        trial_values = output[:, :, :, trial_index]
+        magnitude = np.abs(trial_values)
+        phase = np.angle(trial_values)
+        flat_magnitude = magnitude.reshape(-1, magnitude.shape[-1])
+        warped_magnitude = (warp_matrix @ flat_magnitude.T).T.reshape(magnitude.shape)
+        flat_phase = phase.reshape(-1, phase.shape[-1])
+        warped_phase = np.empty_like(flat_phase)
+        for row_index, row in enumerate(flat_phase):
+            warped_phase[row_index] = angtimewarp(marks_pos, refs_pos, row)
+        warped_phase = warped_phase.reshape(phase.shape)
+        output[:, :, :, trial_index] = warped_magnitude * np.exp(1j * warped_phase)
+    return output
+
+
+def _timestretch_inputs(timestretch: Any, trial_count: int) -> tuple[np.ndarray, np.ndarray]:
+    if not isinstance(timestretch, (list, tuple)) or len(timestretch) < 1:
+        raise ValueError("timestretch must be a tuple/list containing event marks and optional reference frames")
+    marks = np.asarray(timestretch[0], dtype=float)
+    if marks.size == 0:
+        return np.empty((trial_count, 0), dtype=float), np.asarray([], dtype=float)
+    if marks.ndim == 1:
+        marks = marks.reshape(1, -1)
+    if marks.shape[0] != trial_count:
+        raise ValueError("timestretch event marks must have one row per trial")
+    refs = np.asarray(
+        timestretch[1] if len(timestretch) > 1 and timestretch[1] is not None else [], dtype=float
+    ).ravel()
+    if refs.size and refs.size != marks.shape[1]:
+        raise ValueError("timestretch reference frames must match the number of event columns")
+    return marks, refs
+
+
+def _nearest_output_positions(frame_values: np.ndarray, output_frames: np.ndarray) -> np.ndarray:
+    return np.asarray(
+        [int(np.argmin(np.abs(output_frames - frame))) + 1 for frame in np.asarray(frame_values, dtype=float).ravel()],
+        dtype=int,
+    )
 
 
 def _subtract_itc(tfdata: np.ndarray, itcvals: np.ndarray | None) -> np.ndarray:

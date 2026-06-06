@@ -4408,16 +4408,15 @@
       "eeglab_name": "pop_newtimef",
       "eegprep_equivalent": "src/eegprep/functions/popfunc/pop_newtimef.py",
       "gap_category": "3_unsupported_options",
-      "status": "partial",
-      "rationale": "Phase 7 leaves the time-warped event-marker/cycle-calculation workflow as a concrete follow-up instead of adding an incomplete helper stack.",
-      "responsible_phase": "phase_7",
+      "status": "implemented",
+      "rationale": "EEGPrep supports the standalone pop_newtimef channel/component workflow, replayable Python history, timewarp/timewarpms/timewarpidx optional arguments, and the tf_cycle_calc GUI callback.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "api",
         "console",
         "gui"
       ],
-      "test_notes": "Follow-up issue must add timewarp/marker numerical tests and GUI parity where applicable.",
-      "follow_up_issue": "https://github.com/sccn/eegprep/issues/146"
+      "test_notes": "Covered by pop_newtimef timewarp replay tests, console history coverage, dialog inventory checks, visual parity captures, and deterministic helper parity."
     },
     {
       "eeglab_path": "functions/popfunc/pop_plotdata.m",
@@ -8810,17 +8809,16 @@
     {
       "eeglab_path": "functions/timefreqfunc/angtimewarp.m",
       "eeglab_name": "angtimewarp",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/timefreqfunc/angtimewarp.py",
       "gap_category": "6_time_frequency_internals",
-      "status": "port",
-      "rationale": "Phase 7 leaves the time-warped event-marker/cycle-calculation workflow as a concrete follow-up instead of adding an incomplete helper stack.",
-      "responsible_phase": "phase_7",
+      "status": "implemented",
+      "rationale": "EEGPrep ports angular time-series warping for newtimef/timefreq event-marker alignment without depending on the vendored EEGLAB tree.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "helper",
         "time_frequency"
       ],
-      "test_notes": "Follow-up issue must add timewarp/marker numerical tests and GUI parity where applicable.",
-      "follow_up_issue": "https://github.com/sccn/eegprep/issues/146"
+      "test_notes": "Covered by direct angular interpolation/wrapping tests and deterministic MATLAB parity where MATLAB is available."
     },
     {
       "eeglab_path": "functions/timefreqfunc/bootstat.m",
@@ -8940,14 +8938,13 @@
       "eeglab_name": "newtimef",
       "eegprep_equivalent": "src/eegprep/functions/timefreqfunc/newtimef.py",
       "gap_category": "3_unsupported_options",
-      "status": "partial",
-      "rationale": "Phase 7 leaves the time-warped event-marker/cycle-calculation workflow as a concrete follow-up instead of adding an incomplete helper stack.",
-      "responsible_phase": "phase_7",
+      "status": "implemented",
+      "rationale": "EEGPrep supports the standalone newtimef time-frequency workflow, including time-warped event markers, baseline modes, seeded bootstrap thresholds, plotting, and replayable pop_newtimef callers.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "helper"
       ],
-      "test_notes": "Follow-up issue must add timewarp/marker numerical tests and GUI parity where applicable.",
-      "follow_up_issue": "https://github.com/sccn/eegprep/issues/146"
+      "test_notes": "Covered by synthetic/sample_data newtimef tests, timewarp marker replay coverage, deterministic timefreq helper parity, and supplied bootstrap tests."
     },
     {
       "eeglab_path": "functions/timefreqfunc/newtimefbaseln.m",
@@ -9113,17 +9110,16 @@
     {
       "eeglab_path": "functions/timefreqfunc/tf_cycle_calc.m",
       "eeglab_name": "tf_cycle_calc",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/timefreqfunc/tf_cycle_calc.py",
       "gap_category": "6_time_frequency_internals",
-      "status": "port",
-      "rationale": "Phase 7 leaves the time-warped event-marker/cycle-calculation workflow as a concrete follow-up instead of adding an incomplete helper stack.",
-      "responsible_phase": "phase_7",
+      "status": "implemented",
+      "rationale": "EEGPrep ports the Morlet width-to-cycles helper and wires the pop_newtimef calculator button through a standalone Qt dialog.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "helper",
         "time_frequency"
       ],
-      "test_notes": "Follow-up issue must add timewarp/marker numerical tests and GUI parity where applicable.",
-      "follow_up_issue": "https://github.com/sccn/eegprep/issues/146"
+      "test_notes": "Covered by width-unit conversion tests, deterministic MATLAB parity where available, dialog inventory checks, and pop_newtimef visual parity."
     },
     {
       "eeglab_path": "functions/timefreqfunc/timef.m",
@@ -9156,17 +9152,16 @@
     {
       "eeglab_path": "functions/timefreqfunc/timewarp.m",
       "eeglab_name": "timewarp",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/timefreqfunc/timewarp.py",
       "gap_category": "6_time_frequency_internals",
-      "status": "port",
-      "rationale": "Phase 7 leaves the time-warped event-marker/cycle-calculation workflow as a concrete follow-up instead of adding an incomplete helper stack.",
-      "responsible_phase": "phase_7",
+      "status": "implemented",
+      "rationale": "EEGPrep ports the EEGLAB linear time-warp interpolation matrix used to align event markers in newtimef/timefreq outputs.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "helper",
         "time_frequency"
       ],
-      "test_notes": "Follow-up issue must add timewarp/marker numerical tests and GUI parity where applicable.",
-      "follow_up_issue": "https://github.com/sccn/eegprep/issues/146"
+      "test_notes": "Covered by direct interpolation matrix tests and deterministic MATLAB parity where MATLAB is available."
     },
     {
       "eeglab_path": "plugins/clean_rawdata/clean_asr.m",

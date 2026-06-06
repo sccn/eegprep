@@ -32,6 +32,7 @@ class TimeFrequencyResult:
     itc_pvalues: np.ndarray | None = None
     ersp_significant: np.ndarray | None = None
     itc_significant: np.ndarray | None = None
+    timewarp_markers: np.ndarray | None = None
 
 
 def newtimef(
@@ -76,6 +77,10 @@ def newtimef(
     detrend: str = "off",
     causal: str = "off",
     wletmethod: str = "dftfilt3",
+    timewarp: Any = None,
+    timewarpms: Any = None,
+    timewarpidx: Any = None,
+    vert: Any = None,
     verbose: str = "off",
 ) -> TimeFrequencyResult:
     """Compute an EEGLAB-like ERSP/ITC time-frequency decomposition."""
@@ -90,6 +95,14 @@ def newtimef(
         scale_mode = "abs"
     if scale_mode not in {"log", "abs"}:
         raise ValueError("scale must be 'log' or 'abs'")
+
+    timestretch, timewarp_markers = _timewarp_options(timewarp, timewarpms, timewarpidx, frames, tlimits, srate)
+    vertical_markers = timewarp_markers
+    if vertical_markers is None:
+        vert_values = _numeric_vector(vert)
+        vertical_markers = vert_values if vert_values.size else None
+        if vertical_markers is not None:
+            _validate_vertical_markers(vertical_markers, tlimits)
 
     decomp = _compute_decomposition(
         data,
@@ -108,6 +121,7 @@ def newtimef(
         detrend=detrend,
         causal=causal,
         wletmethod=wletmethod,
+        timestretch=timestretch,
         verbose=verbose,
     )
     tfdata = _normalize_fft_tfdata(decomp.tfdata, decomp.cycles, decomp.winsize)
@@ -190,6 +204,7 @@ def newtimef(
             plottype=str(plottype).lower(),
             ersp_significant=ersp_significant,
             itc_significant=itc_significant,
+            vertical_markers=vertical_markers,
         )
     return TimeFrequencyResult(
         ersp,
@@ -205,6 +220,7 @@ def newtimef(
         itc_pvalues,
         ersp_significant,
         itc_significant,
+        vertical_markers,
     )
 
 
@@ -222,9 +238,12 @@ def compute_time_frequency(
     timesout: Any = None,
     padratio: Any = None,
     overlap: Any = None,
+    timewarp: Any = None,
+    timewarpms: Any = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Return ``(freqs, times_ms, tfdata)`` for one signal."""
     _ = overlap
+    timestretch, _markers = _timewarp_options(timewarp, timewarpms, None, frames, tlimits, srate)
     decomp = _compute_decomposition(
         data,
         frames,
@@ -237,6 +256,7 @@ def compute_time_frequency(
         freqscale=freqscale,
         timesout=timesout,
         padratio=padratio,
+        timestretch=timestretch,
     )
     return decomp.freqs, decomp.times, decomp.tfdata
 
@@ -259,6 +279,7 @@ def _compute_decomposition(
     detrend: str = "off",
     causal: str = "off",
     wletmethod: str = "dftfilt3",
+    timestretch: Any = None,
     verbose: str = "off",
 ):
     explicit_times, ntimesout = _split_timesout(timesout)
@@ -279,9 +300,81 @@ def _compute_decomposition(
         subitc=subitc,
         detrend=detrend,
         causal=causal,
+        timestretch=timestretch,
         wletmethod=wletmethod,
         verbose=verbose,
     )
+
+
+def _timewarp_options(
+    timewarp: Any,
+    timewarpms: Any,
+    timewarpidx: Any,
+    frames: int,
+    tlimits: Any,
+    srate: float,
+) -> tuple[tuple[np.ndarray, np.ndarray] | None, np.ndarray | None]:
+    if _is_empty_value(timewarp):
+        return None, None
+    markers_ms = np.asarray(timewarp, dtype=float)
+    if markers_ms.ndim == 1:
+        markers_ms = markers_ms.reshape(1, -1)
+    if markers_ms.ndim != 2:
+        raise ValueError("timewarp must be a (trials, epoch_events) matrix in milliseconds")
+    if markers_ms.shape[1] == 0:
+        return None, None
+    limits = _tlimits_vector(tlimits)
+    frame_count = int(frames)
+    marker_frames = np.rint((markers_ms - limits[0]) / 1000.0 * float(srate)).astype(int) + 1
+    _validate_timewarp_frames(marker_frames, frame_count, "Time warping events")
+
+    reference_ms = _numeric_vector(timewarpms)
+    reference_frames = np.asarray([], dtype=float)
+    if reference_ms.size:
+        if reference_ms.size != markers_ms.shape[1]:
+            raise ValueError("timewarpms must have one latency per timewarp event column")
+        reference_frames = np.rint((reference_ms - limits[0]) / 1000.0 * float(srate)).astype(int) + 1
+        _validate_timewarp_frames(reference_frames, frame_count, "Time warping reference latencies")
+    reference_for_markers = reference_frames if reference_frames.size else np.median(marker_frames, axis=0)
+    plot_indices = _timewarp_plot_indices(timewarpidx, markers_ms.shape[1])
+    markers = ((reference_for_markers[plot_indices] - 1.0) / float(srate) + limits[0] / 1000.0) * 1000.0
+    _validate_vertical_markers(markers, limits)
+    return (marker_frames.astype(float), reference_frames.astype(float)), markers
+
+
+def _validate_timewarp_frames(values: np.ndarray, frames: int, label: str) -> None:
+    if np.max(values) > frames - 2 or np.min(values) < 3:
+        raise ValueError(f"{label} must be inside the epochs")
+
+
+def _timewarp_plot_indices(timewarpidx: Any, event_count: int) -> np.ndarray:
+    values = _numeric_vector(timewarpidx, dtype=int)
+    if values.size == 0:
+        return np.arange(event_count, dtype=int)
+    if np.any(values < 1) or np.any(values > event_count):
+        raise ValueError(f"timewarpidx values must be 1-based and within 1..{event_count}")
+    return values.astype(int) - 1
+
+
+def _tlimits_vector(tlimits: Any) -> np.ndarray:
+    limits = _numeric_vector(tlimits)
+    if limits.size != 2:
+        raise ValueError("tlimits must contain [min max] in milliseconds")
+    return limits.astype(float)
+
+
+def _validate_vertical_markers(markers: np.ndarray, tlimits: Any) -> None:
+    limits = _tlimits_vector(tlimits)
+    if np.min(markers) < limits[0] or np.max(markers) > limits[1]:
+        raise ValueError("vertical line ('vert') latency outside of epoch boundaries")
+
+
+def _is_empty_value(value: Any) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return not value.strip() or value.strip() in {"[]", "{}"}
+    return np.asarray(value).size == 0
 
 
 def _split_timesout(timesout: Any) -> tuple[Any, Any]:
@@ -473,6 +566,7 @@ def _plot_time_frequency(
     plottype: str,
     ersp_significant: np.ndarray | None,
     itc_significant: np.ndarray | None,
+    vertical_markers: np.ndarray | None,
 ):
     panels = int(plotersp) + int(plotitc)
     if panels == 0:
@@ -490,6 +584,7 @@ def _plot_time_frequency(
             label="ERSP",
             plottype=plottype,
             significant=ersp_significant,
+            vertical_markers=vertical_markers,
         )
         row += 1
     if plotitc:
@@ -505,6 +600,7 @@ def _plot_time_frequency(
             significant=itc_significant,
             vmin=0.0,
             vmax=max(1.0, float(np.nanmax(itc))),
+            vertical_markers=vertical_markers,
         )
     axes[panels - 1, 0].set_xlabel("Time (ms)")
     fig.tight_layout()
@@ -522,6 +618,7 @@ def _plot_panel(
     label: str,
     plottype: str,
     significant: np.ndarray | None,
+    vertical_markers: np.ndarray | None,
     vmin: float | None = None,
     vmax: float | None = None,
 ) -> None:
@@ -549,6 +646,9 @@ def _plot_panel(
         raise ValueError("plottype must be 'image' or 'curve'")
     if title:
         axis.set_title(title)
+    if vertical_markers is not None:
+        for marker in np.asarray(vertical_markers, dtype=float).ravel():
+            axis.axvline(float(marker), color="m", linewidth=1.0)
     axis.set_ylabel("Frequency (Hz)")
 
 
