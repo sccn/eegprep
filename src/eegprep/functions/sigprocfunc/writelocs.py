@@ -8,7 +8,7 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
-from eegprep.functions.popfunc._pop_utils import parse_key_value_args, parse_numeric_sequence
+from eegprep.functions.popfunc._pop_utils import is_empty_value, parse_key_value_args, parse_numeric_sequence
 from eegprep.functions.sigprocfunc.convertlocs import convertlocs
 from eegprep.functions.sigprocfunc.readlocs import CHANNEL_FORMATS
 
@@ -21,7 +21,7 @@ def writelocs(chans: Any, filename: str | Path, *args: Any, **kwargs: Any) -> No
     if str(options.get("unicoord", "on")).lower() == "on":
         locs = convertlocs(locs, "auto")
     elecind = options.get("elecind")
-    if elecind not in (None, "", []):
+    if not is_empty_value(elecind):
         indices = [int(index) - 1 for index in parse_numeric_sequence(elecind, dtype=int)]
         locs = [locs[index] for index in indices]
 

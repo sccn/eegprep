@@ -368,6 +368,21 @@ def test_bootstat_threshold_sides_and_rand_phase_preserve_magnitude():
     np.testing.assert_allclose(randomized.surrogates, np.broadcast_to(np.abs(complex_values), (5, 2, 3)))
 
 
+def test_bootstat_basevect_uses_eeglab_one_based_indices():
+    data = np.arange(12, dtype=float).reshape(2, 3, 2)
+    seen = []
+
+    def statistic(value):
+        seen.append(value.copy())
+        return value[:, 0, :]
+
+    bootstat(data, statistic=statistic, basevect=[1], shuffledim=[2], naccu=1, rng=0)
+
+    np.testing.assert_array_equal(seen[0], data[:, :1, :])
+    with pytest.raises(ValueError, match="1-based"):
+        bootstat(data, statistic=statistic, basevect=[0], naccu=1, rng=0)
+
+
 def test_correct_mc_returns_phase4_standalone_shapes():
     rng = np.random.default_rng(0)
     eeg = {

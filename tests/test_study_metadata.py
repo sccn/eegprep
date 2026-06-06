@@ -252,10 +252,17 @@ def test_design_variable_helpers_build_factors_and_matrices():
     )
     leveled = std_addvarlevel(study)
     factors = pop_listfactors(leveled, constant="off")
+    factors_with_command, list_command = pop_listfactors(leveled, constant="off", return_com=True)
     variable, values, categorical = pop_addindepvar(
         {"factors": ["condition"], "factorvals": [["standard", "target"]], "numerical": [False]},
         var="condition",
         values=["target"],
+    )
+    variable_com, values_com, categorical_com, add_command = pop_addindepvar(
+        {"factors": ["condition"], "factorvals": [["standard", "target"]], "numerical": [False]},
+        var="condition",
+        values=["target"],
+        return_com=True,
     )
     matrix, labels, catflag = std_builddesignmat(
         {
@@ -272,9 +279,20 @@ def test_design_variable_helpers_build_factors_and_matrices():
     assert leveled["design"][0]["variable"][0]["level"] == "one"
     assert leveled["design"][0]["variable"][1]["level"] == "two"
     assert {factor["description"] for factor in factors} >= {"condition - standard", "condition - target"}
+    assert factors_with_command == factors
     assert variable == "condition"
     assert values == ["target"]
     assert categorical == 1
+    assert (variable_com, values_com, categorical_com) == (variable, values, categorical)
+    assert list_command.startswith("factors = pop_listfactors(STUDY")
+    assert add_command.startswith("variable, values, categorical = pop_addindepvar(")
+    exec_namespace = {"STUDY": leveled, "pop_listfactors": pop_listfactors, "pop_addindepvar": pop_addindepvar}
+    exec(list_command, exec_namespace)
+    exec(add_command, exec_namespace)
+    assert exec_namespace["factors"] == factors
+    assert exec_namespace["variable"] == "condition"
+    assert exec_namespace["values"] == ["target"]
+    assert exec_namespace["categorical"] == 1
     display_options = pop_listfactors(leveled, splitreg="on", interaction="on", gui="off")
     assert display_options == pop_listfactors(leveled)
     assert labels == ["condition-target", "condition-standard", "rt", "constant"]

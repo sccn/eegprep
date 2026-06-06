@@ -34,6 +34,23 @@ else:
         os.makedirs(temp_dir, exist_ok=True)
 
 
+def _prepare_matlab_arg(arg: Any) -> Any:
+    """Return one Python value in the shape expected by MATLAB ``savemat``."""
+    if isinstance(arg, (list, tuple)) and len(arg) == 0:
+        return np.array([], dtype=np.float64)
+    if isinstance(arg, (list, tuple)) and all(isinstance(x, str) for x in arg):
+        return np.array(arg, dtype=object).reshape(1, -1)
+    if isinstance(arg, list) and all(isinstance(x, (int, float, np.integer, np.floating)) for x in arg):
+        return np.array(arg, dtype=np.float64)
+    if isinstance(arg, np.ndarray) and all(isinstance(x, (int, float, np.integer, np.floating)) for x in np.ravel(arg)):
+        return np.array(arg, dtype=np.float64)
+    if isinstance(arg, (int, float, np.integer, np.floating)):
+        return np.array(arg, dtype=np.float64)
+    if isinstance(arg, str):
+        return arg
+    return py2mat(arg)
+
+
 def _resolve_eeglab_root() -> Path:
     """Return an external EEGLAB checkout for MATLAB/Octave parity calls."""
     candidates = []
@@ -142,20 +159,7 @@ class MatlabWrapper:
 
             # convert numerical list arguments to numpy arrays
             for i, arg in enumerate(new_args):
-                if isinstance(arg, (list, tuple)) and all(isinstance(x, str) for x in arg):
-                    new_args[i] = np.array(arg, dtype=object).reshape(1, -1)
-                elif isinstance(arg, list) and all(isinstance(x, (int, float, np.integer, np.floating)) for x in arg):
-                    new_args[i] = np.array(arg, dtype=np.float64)
-                elif isinstance(arg, np.ndarray) and all(
-                    isinstance(x, (int, float, np.integer, np.floating)) for x in np.ravel(arg)
-                ):
-                    new_args[i] = np.array(arg, dtype=np.float64)
-                elif isinstance(arg, (int, float, np.integer, np.floating)):
-                    new_args[i] = np.array(arg, dtype=np.float64)
-                elif isinstance(arg, str):
-                    new_args[i] = arg
-                else:
-                    new_args[i] = py2mat(arg)  # it is unclear if the flatten function of pop_saveset is better here
+                new_args[i] = _prepare_matlab_arg(arg)
 
             try:
                 # temporary files

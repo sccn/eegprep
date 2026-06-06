@@ -5,12 +5,15 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any
 
+from eegprep.functions.popfunc._plot_utils import python_literal
 from eegprep.functions.popfunc._pop_utils import is_on, parse_key_value_args
-from eegprep.functions.studyfunc._study_utils import ensure_study
+from eegprep.functions.studyfunc._study_utils import build_python_call, ensure_study
 from eegprep.functions.studyfunc.std_addvarlevel import std_addvarlevel
 
 
-def pop_listfactors(des: dict[str, Any], *args: Any, **kwargs: Any) -> list[dict[str, Any]]:
+def pop_listfactors(
+    des: dict[str, Any], *args: Any, return_com: bool = False, **kwargs: Any
+) -> list[dict[str, Any]] | tuple[list[dict[str, Any]], str]:
     """Return factor descriptors for one STUDY or design structure."""
     options = parse_key_value_args(args, kwargs, lowercase_kwargs=True)
     gui = options.pop("gui", "off")
@@ -51,7 +54,15 @@ def pop_listfactors(des: dict[str, Any], *args: Any, **kwargs: Any) -> list[dict
                 "level": "two",
             }
         )
-    return _deduplicate(factors)
+    output = _deduplicate(factors)
+    if return_com:
+        return output, _history_command(des, level=level, vartype=vartype, constant=constant)
+    return output
+
+
+def _history_command(des: dict[str, Any], **kwargs: Any) -> str:
+    source = "STUDY" if "design" in des else python_literal(des)
+    return build_python_call(("factors",), "pop_listfactors", source, **kwargs)
 
 
 def _designs(des: dict[str, Any]) -> list[dict[str, Any]]:

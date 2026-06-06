@@ -10,6 +10,7 @@ import pytest
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.functions.popfunc.pop_editset import pop_editset
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
+from eegprep.functions.sigprocfunc.floatwrite import floatwrite
 from tests.fixtures import SAMPLE_DATASET_PATH
 
 
@@ -284,6 +285,18 @@ def test_pop_editset_loads_data_chanlocs_and_ica_from_files(tmp_path):
     np.testing.assert_allclose(out["icasphere"], np.eye(3) * 2)
     np.testing.assert_array_equal(out["icachansind"], [0, 1, 2])
     assert "'dataformat', 'ascii'" in com
+
+
+def test_pop_editset_loads_fdt_data_in_eeglab_column_order(tmp_path):
+    data = np.arange(10, dtype=np.float32).reshape(2, 5)
+    data_file = tmp_path / "raw.fdt"
+    floatwrite(data, data_file, "ieee-le")
+
+    out = pop_editset(_eeg(), "data", data_file, "dataformat", "float32le")
+
+    np.testing.assert_array_equal(out["data"], data)
+    assert out["nbchan"] == 2
+    assert out["pnts"] == 5
 
 
 def test_pop_editset_rejects_matlab_workspace_expressions():

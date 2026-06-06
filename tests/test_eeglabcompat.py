@@ -9,8 +9,11 @@ import os
 import unittest
 from copy import deepcopy
 
+import numpy as np
+
 from eegprep.functions.adminfunc.eeglabcompat import (
     MatlabWrapper,
+    _prepare_matlab_arg,
     get_eeglab,
     clean_drifts,
     pop_eegfiltnew,
@@ -76,6 +79,18 @@ class TestMatlabWrapper(DebuggableTestCase):
         # Test that getting an attribute returns a callable
         func = wrapper.some_function
         self.assertTrue(callable(func))
+
+    def test_prepare_matlab_arg_keeps_empty_lists_numeric(self):
+        """Empty Python lists should marshal as EEGLAB [] rather than {}."""
+        empty = _prepare_matlab_arg([])
+        strings = _prepare_matlab_arg(["square", "rt"])
+        numbers = _prepare_matlab_arg([1, 2])
+
+        self.assertEqual(empty.shape, (0,))
+        self.assertEqual(empty.dtype, np.dtype("float64"))
+        self.assertEqual(strings.shape, (1, 2))
+        self.assertEqual(strings.dtype, np.dtype("O"))
+        np.testing.assert_array_equal(numbers, np.asarray([1.0, 2.0]))
 
 
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")

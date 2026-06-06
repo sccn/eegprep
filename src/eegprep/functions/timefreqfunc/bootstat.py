@@ -89,9 +89,9 @@ def _select_basevect(array: np.ndarray, basevect: Any) -> np.ndarray:
     indices = np.asarray([] if basevect is None else basevect, dtype=int).ravel()
     if indices.size == 0:
         return array
-    if np.any(indices < 0):
-        raise ValueError("basevect indices must be zero-based and non-negative")
-    return np.take(array, indices, axis=1)
+    if np.any(indices < 1):
+        raise ValueError("basevect indices must be 1-based positive sample indices")
+    return np.take(array, indices - 1, axis=1)
 
 
 def _shuffle_dims(shuffledim: Any, ndim: int, *, boottype: str) -> list[int]:

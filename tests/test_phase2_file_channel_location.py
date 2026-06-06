@@ -109,9 +109,29 @@ def test_readlocs_custom_format_reorders_and_applies_one_based_readchans(tmp_pat
         "readchans",
         [2],
     )
+    selected_array = readlocs(
+        loc_file,
+        "filetype",
+        "custom",
+        "format",
+        ["channum", "labels", "X", "Y", "Z"],
+        "readchans",
+        np.asarray([2]),
+    )
 
     assert [loc["labels"] for loc in locs] == ["Fp1", "Fp2", "Cz"]
     assert [loc["labels"] for loc in selected] == ["Fp2"]
+    assert [loc["labels"] for loc in selected_array] == ["Fp2"]
+
+
+def test_writelocs_accepts_numpy_elecind_selection(tmp_path: Path) -> None:
+    loc_file = tmp_path / "selected.locs"
+    locs = [{"labels": "Fz", "theta": 0.0, "radius": 0.5}, {"labels": "Cz", "theta": 0.0, "radius": 0.0}]
+
+    writelocs(locs, loc_file, "elecind", np.asarray([2]))
+    loaded = readlocs(loc_file)
+
+    assert [loc["labels"] for loc in loaded] == ["Cz"]
 
 
 def test_readlocs_rejects_malformed_non_chanedit_rows(tmp_path: Path) -> None:
@@ -144,6 +164,7 @@ def test_pop_chancenter_uses_one_based_omit_indices_and_console_return_shape() -
     _assert_parseable(command)
 
 
+@pytest.mark.gui
 def test_pop_chancenter_gui_cancel_path_returns_original_without_history() -> None:
     eeg = _eeg()
 

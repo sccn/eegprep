@@ -4,7 +4,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from eegprep.functions.studyfunc._study_utils import ensure_study, parse_design_values, variable_values
+from eegprep.functions.popfunc._plot_utils import python_literal
+from eegprep.functions.studyfunc._study_utils import (
+    build_python_call,
+    ensure_study,
+    parse_design_values,
+    variable_values,
+)
 
 
 def pop_addindepvar(
@@ -14,7 +20,8 @@ def pop_addindepvar(
     values: Any = None,
     *,
     vartype: str | None = None,
-) -> tuple[str, list[Any], int]:
+    return_com: bool = False,
+) -> Any:
     """Return ``(variable, values, categorical_flag)`` for STUDY designs.
 
     EEGPrep implements the workflow-supporting non-GUI behavior of EEGLAB's
@@ -36,14 +43,21 @@ def pop_addindepvar(
     if selected_vartype not in {"categorical", "continuous"}:
         raise ValueError("vartype must be 'categorical' or 'continuous'")
     if selected_vartype == "continuous":
-        return label, [], 0
+        command = _history_command(varlist, var=var, values=values, vartype=vartype)
+        return (label, [], 0, command) if return_com else (label, [], 0)
     selected_values = parse_design_values(values)
     if not selected_values:
         selected_values = list(factor_values[index])
     missing = [value for value in selected_values if value not in factor_values[index]]
     if missing:
         raise ValueError(f"Unknown value(s) for STUDY variable {label}: {missing}")
-    return label, selected_values, 1
+    command = _history_command(varlist, var=var, values=values, vartype=vartype)
+    return (label, selected_values, 1, command) if return_com else (label, selected_values, 1)
+
+
+def _history_command(varlist: dict[str, Any] | list[str], **kwargs: Any) -> str:
+    source = "STUDY" if isinstance(varlist, dict) and "datasetinfo" in varlist else python_literal(varlist)
+    return build_python_call(("variable", "values", "categorical"), "pop_addindepvar", source, **kwargs)
 
 
 def _factor_lists(varlist: dict[str, Any] | list[str]) -> tuple[list[str], list[list[Any]], list[bool]]:

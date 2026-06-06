@@ -149,5 +149,11 @@
     <li>Kept <code>pop_editset</code> disabled channel/ICA file controls visible because they mirror EEGLAB's field inventory and make future parity paths discoverable without pretending those assignments are currently enabled.</li>
     <li>Visual parity artifacts remain under <code>.visual-parity/</code> for PR attachment/review evidence and are not committed as package files.</li>
   </ul>
+  <h2>Final Review Fixes</h2>
+  <ul>
+    <li>Fixed shared float32 file loading to preserve EEGLAB <code>.fdt</code> column-major channel/time ordering for filename-backed <code>pop_epoch</code> and <code>pop_editset</code> workflows.</li>
+    <li>Added <code>return_com=True</code> history support for <code>pop_addindepvar</code> and <code>pop_listfactors</code> so new public STUDY pop helpers remain usable from the mixed GUI/console workspace.</li>
+    <li>Aligned <code>bootstat</code> <code>basevect</code> handling with EEGLAB's 1-based user-facing indices, kept empty MATLAB parity arguments as numeric <code>[]</code>, and accepted NumPy vector selections in channel-location read/write helpers.</li>
+  </ul>
 </body>
 </html>

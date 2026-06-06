@@ -8,9 +8,10 @@ from typing import Any
 
 import numpy as np
 import scipy.io
+from scipy.io.matlab import mat_struct
 
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
-from eegprep.functions.popfunc._pop_utils import parse_key_value_args, parse_numeric_sequence
+from eegprep.functions.popfunc._pop_utils import is_empty_value, parse_key_value_args, parse_numeric_sequence
 from eegprep.functions.sigprocfunc.convertlocs import convertlocs
 
 
@@ -181,7 +182,7 @@ def _read_locs(source: Any, options: dict[str, Any]) -> list[dict[str, Any]]:
         locs = _read_text_locations(path, filetype, options)
 
     readchans = options.get("readchans", options.get("elecind"))
-    if readchans not in (None, "", []):
+    if not is_empty_value(readchans):
         indices = [int(index) - 1 for index in parse_numeric_sequence(readchans, dtype=int)]
         locs = [locs[index] for index in indices]
     return locs
@@ -276,7 +277,7 @@ def _mat_chanlocs_to_dicts(value: Any) -> list[dict[str, Any]]:
     values = np.asarray(value, dtype=object).reshape(-1)
     locs = []
     for item in values:
-        if hasattr(item, "_fieldnames"):
+        if isinstance(item, mat_struct):
             locs.append({field: _mat_value(getattr(item, field)) for field in item._fieldnames})
         elif isinstance(item, dict):
             locs.append({str(key): _mat_value(val) for key, val in item.items()})
