@@ -241,6 +241,9 @@ When a later phase implements or intentionally skips a row:
    with all fields set to ``false`` and explain the evidence in ``rationale``.
 3. For ``partial`` rows, keep the row ``partial`` until unsupported behavior is
    implemented or explicitly reclassified with a defensible limitation.
+   Any row left as ``port`` or ``partial`` after a phase closes must cite a
+   concrete follow-up issue in ``follow_up_issue`` or, when needed for prose
+   context, in ``rationale`` or ``test_notes``.
 4. Run the validator:
 
    .. code-block:: bash

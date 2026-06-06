@@ -275,6 +275,8 @@ def test_design_variable_helpers_build_factors_and_matrices():
     assert variable == "condition"
     assert values == ["target"]
     assert categorical == 1
+    display_options = pop_listfactors(leveled, splitreg="on", interaction="on", gui="off")
+    assert display_options == pop_listfactors(leveled)
     assert labels == ["condition-target", "condition-standard", "rt", "constant"]
     np.testing.assert_allclose(matrix[:, -2:], [[300.0, 1.0], [400.0, 1.0]])
     np.testing.assert_array_equal(catflag, np.asarray([True, True, False, False]))

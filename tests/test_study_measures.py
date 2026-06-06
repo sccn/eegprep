@@ -85,6 +85,11 @@ def test_std_precomp_channel_measures_store_eeglab_named_fields():
     assert specdata[0].shape[0] == 2
     assert freqs.size == specdata[0].shape[1]
 
+    collapsed = deepcopy(study)
+    collapsed["changrp"][0]["erpdata"] = np.asarray(collapsed["changrp"][0]["erpdata"])[0]
+    with pytest.raises(ValueError, match="dataset-axis"):
+        std_readerp(collapsed, alleeg, channels=[1], subject="S01")
+
 
 def test_std_precomp_baseline_and_design_contract(caplog):
     study, alleeg = _study_pair()
@@ -248,6 +253,16 @@ def test_std_precomp_component_measures_and_parent_cluster_plot():
     _study, topodata, channel_axis = std_readtopo(study, alleeg, clusters=1, components=[1])
     assert topodata[0].shape == (2, 1, first["nbchan"])
     assert channel_axis.tolist() == [1, 2, 3, 4, 5]
+    cluster["pacdata"] = np.ones((2, 3, 4))
+    cluster["pactimes"] = [0.0, 10.0, 20.0, 30.0]
+    cluster["pacfreqs"] = [4.0, 8.0, 12.0]
+    _study, pacdata, pactimes, pacfreqs = std_readpac(study, alleeg, clusters=1)
+    assert pacdata[0].shape == (2, 3, 4)
+    assert pactimes.tolist() == [0.0, 10.0, 20.0, 30.0]
+    assert pacfreqs.tolist() == [4.0, 8.0, 12.0]
+    with pytest.raises(ValueError, match="component selection"):
+        std_readpac(study, alleeg, clusters=1, components=[1])
+    del cluster["pacdata"]
     with pytest.raises(NotImplementedError, match="PAC"):
         std_readpac(study, alleeg, clusters=1)
     plt.close(figure)
@@ -317,6 +332,8 @@ def test_child_cluster_measure_reads_slice_parent_component_cache():
 
     assert erpdata[0].shape == (len(child["comps"]), first["pnts"])
     assert figure is None
+    with pytest.raises(ValueError, match="subject filter requires"):
+        std_readerp(study, alleeg, clusters=[2], subject="S01")
 
 
 def test_precomp_missing_ica_and_unknown_channel_paths_fail_clearly():
