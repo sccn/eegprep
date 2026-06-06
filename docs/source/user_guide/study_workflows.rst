@@ -87,6 +87,26 @@ shapes before saving or plotting group-level results. ``std_savedat`` writes
 explicit EEGPrep-owned JSON or MATLAB-compatible measure sidecars when a
 workflow needs a durable array file outside the ``.study`` JSON.
 
+Select datasets or trials from STUDY metadata:
+
+.. code-block:: python
+
+   from eegprep import std_getindvar, std_maketrialinfo, std_selectdataset
+
+   STUDY, trialinfo = std_maketrialinfo(STUDY, ALLEEG)
+   factors, factor_values, subjects, paired = std_getindvar(STUDY)
+   dataset_indices, trial_indices = std_selectdataset(
+       STUDY,
+       ALLEEG,
+       "condition",
+       ["target"],
+   )
+
+These helpers return EEGLAB-facing 1-based dataset and trial indices. Use
+``std_substudy`` or ``std_rmdat`` when a workflow needs to remove datasets;
+EEGPrep remaps STUDY references and invalidates cached measure arrays after
+membership changes.
+
 Precluster and cluster ICA components:
 
 .. code-block:: python

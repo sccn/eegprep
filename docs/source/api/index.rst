@@ -313,8 +313,21 @@ measure plotting, component preclustering, clustering, and cluster editing.
    eegprep.pop_clustedit
    eegprep.std_addvarlevel
    eegprep.std_builddesignmat
+   eegprep.std_checkconsist
+   eegprep.std_checkdesign
+   eegprep.std_combtrialinfo
+   eegprep.std_findsameica
+   eegprep.std_getindvar
+   eegprep.std_gettrialsind
+   eegprep.std_indvarmatch
+   eegprep.std_maketrialinfo
+   eegprep.std_rmdat
+   eegprep.std_rmalldatafields
    eegprep.std_rebuilddesign
    eegprep.std_saveindvar
+   eegprep.std_selectdataset
+   eegprep.std_selsubject
+   eegprep.std_substudy
    eegprep.std_readdata
    eegprep.std_readerp
    eegprep.std_readspec

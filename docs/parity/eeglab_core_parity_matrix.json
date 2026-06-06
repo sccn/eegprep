@@ -6833,16 +6833,16 @@
     {
       "eeglab_path": "functions/studyfunc/compute_ersp_times.m",
       "eeglab_name": "compute_ersp_times",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_precomp.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "consolidated",
+      "rationale": "EEGPrep computes supported ERSP/ITC time/frequency axes through std_precomp/newtimef and stores them in STUDY caches.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "helper",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "Covered by tests/test_study_measures.py ERSP/ITC precompute axis coverage.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -6850,14 +6850,14 @@
       "eeglab_name": "eeglabciplot",
       "eegprep_equivalent": null,
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "matlab_runtime_skip",
+      "rationale": "MATLAB confidence-interval plotting shim for legacy STUDY figures; EEGPrep plotting uses Matplotlib-native measure plotting instead.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "helper",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "No runtime port; covered by parity matrix validation and absence from EEGPrep STUDY menu/API workflows.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -6865,14 +6865,14 @@
       "eeglab_name": "gethashcode",
       "eegprep_equivalent": null,
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "matlab_runtime_skip",
+      "rationale": "MATLAB/Java hash helper for legacy cache filenames; EEGPrep cache metadata does not require a runtime MATLAB hash clone.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "helper",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "No runtime port; covered by parity matrix validation and absence from EEGPrep STUDY menu/API workflows.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -6880,14 +6880,14 @@
       "eeglab_name": "neural_net",
       "eegprep_equivalent": null,
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "external_dependency_skip",
+      "rationale": "Depends on MATLAB neural-network tooling and is outside EEGPrep standalone dependencies.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "helper",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "No standalone parity test required unless a later phase supplies the external dependency and reclassifies this row.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -6973,8 +6973,8 @@
       "eeglab_name": "pop_dipparams",
       "eegprep_equivalent": null,
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "external_dependency_skip",
+      "rationale": "DIPFIT/dipole parameter dialog depends on external dipole-model workflows not implemented in EEGPrep core.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
@@ -6982,7 +6982,7 @@
         "gui",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "No standalone parity test required unless a later phase supplies the external dependency and reclassifies this row.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -6990,8 +6990,8 @@
       "eeglab_name": "pop_erpimparams",
       "eegprep_equivalent": null,
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "matlab_runtime_skip",
+      "rationale": "ERP-image parameter GUI is tied to MATLAB ERP-image viewer internals that are not part of the current standalone EEGPrep workflow.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
@@ -6999,16 +6999,16 @@
         "gui",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "No runtime port; covered by parity matrix validation and absence from EEGPrep STUDY menu/API workflows.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
       "eeglab_path": "functions/studyfunc/pop_erpparams.m",
       "eeglab_name": "pop_erpparams",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_precomp.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "consolidated",
+      "rationale": "EEGPrep accepts ERP precompute parameters directly through std_precomp/pop_precomp; the MATLAB dialog-only wrapper is not a separate runtime surface.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
@@ -7016,16 +7016,16 @@
         "gui",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "Covered by tests/test_study_measures.py STUDY ERP precompute coverage.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
       "eeglab_path": "functions/studyfunc/pop_erspparams.m",
       "eeglab_name": "pop_erspparams",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_precomp.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "consolidated",
+      "rationale": "EEGPrep accepts ERSP/ITC precompute parameters directly through std_precomp/pop_precomp; the MATLAB dialog-only wrapper is not a separate runtime surface.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
@@ -7033,7 +7033,7 @@
         "gui",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "Covered by tests/test_study_measures.py STUDY ERSP/ITC precompute coverage.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -7163,10 +7163,10 @@
     {
       "eeglab_path": "functions/studyfunc/pop_specparams.m",
       "eeglab_name": "pop_specparams",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_precomp.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "consolidated",
+      "rationale": "EEGPrep accepts spectrum precompute parameters directly through std_precomp/pop_precomp; the MATLAB dialog-only wrapper is not a separate runtime surface.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
@@ -7174,7 +7174,7 @@
         "gui",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "Covered by tests/test_study_measures.py STUDY spectrum precompute coverage.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -7182,8 +7182,8 @@
       "eeglab_name": "pop_statparams",
       "eegprep_equivalent": null,
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "external_dependency_skip",
+      "rationale": "STUDY statistics dialog is coupled to LIMO/FieldTrip-style stats options outside EEGPrep core.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
@@ -7191,7 +7191,7 @@
         "gui",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "No standalone parity test required unless a later phase supplies the external dependency and reclassifies this row.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -7317,16 +7317,16 @@
     {
       "eeglab_path": "functions/studyfunc/std_cell2setcomps.m",
       "eeglab_name": "std_cell2setcomps",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/_cluster_utils.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "consolidated",
+      "rationale": "EEGPrep normalizes cluster set/component membership through shared cluster utilities and std_findsameica instead of a standalone MATLAB cell converter.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "Covered by tests/test_study_clustering.py and tests/test_study_long_tail_helpers.py.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -7334,14 +7334,14 @@
       "eeglab_name": "std_cell2table",
       "eegprep_equivalent": null,
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "matlab_runtime_skip",
+      "rationale": "MATLAB table conversion helper for command-window reporting; EEGPrep exposes native dictionaries/lists and DataFrame-ready structures instead.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "No runtime port; covered by parity matrix validation and absence from EEGPrep STUDY menu/API workflows.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -7361,61 +7361,61 @@
     {
       "eeglab_path": "functions/studyfunc/std_changroup.m",
       "eeglab_name": "std_changroup",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_precomp.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "consolidated",
+      "rationale": "EEGPrep creates and updates STUDY channel groups as part of channel precompute rather than exposing a separate changroup mutator.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "Covered by tests/test_study_measures.py channel precompute cache assertions.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
       "eeglab_path": "functions/studyfunc/std_chaninds.m",
       "eeglab_name": "std_chaninds",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_readdata.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "consolidated",
+      "rationale": "EEGPrep resolves channel-name and channel-index lookups inside std_readdata and plotting readers where the lookup is needed.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "Covered by tests/test_study_measures.py and tests/test_study_end_to_end.py channel read coverage.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
       "eeglab_path": "functions/studyfunc/std_chantopo.m",
       "eeglab_name": "std_chantopo",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/popfunc/pop_topoplot.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "consolidated",
+      "rationale": "Channel topography display is covered by the existing EEGPrep topoplot/pop_topoplot surface rather than a separate STUDY GUI helper.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "Covered by topoplot/pop_topoplot tests outside the STUDY long-tail scope.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
       "eeglab_path": "functions/studyfunc/std_checkconsist.m",
       "eeglab_name": "std_checkconsist",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_checkconsist.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "implemented",
+      "rationale": "Standalone EEGPrep now checks whether condition/group/session values are uniformly represented across STUDY subjects.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "Covered by tests/test_study_long_tail_helpers.py with multi-dataset STUDY metadata, trialinfo, subject filtering, ICA grouping, dataset removal, and cache-clearing assertions.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -7435,16 +7435,16 @@
     {
       "eeglab_path": "functions/studyfunc/std_checkdesign.m",
       "eeglab_name": "std_checkdesign",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_checkdesign.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "implemented",
+      "rationale": "Standalone EEGPrep now exposes the deterministic STUDY design compatibility check without MATLAB warning dialogs.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "Covered by tests/test_study_long_tail_helpers.py with multi-dataset STUDY metadata, trialinfo, subject filtering, ICA grouping, dataset removal, and cache-clearing assertions.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -7480,29 +7480,29 @@
       "eeglab_name": "std_clustmaxelec",
       "eegprep_equivalent": null,
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "matlab_runtime_skip",
+      "rationale": "Command-window cluster electrode reporting helper with no standalone EEGPrep workflow surface after clustering caches are normalized.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "No runtime port; covered by parity matrix validation and absence from EEGPrep STUDY menu/API workflows.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
       "eeglab_path": "functions/studyfunc/std_combtrialinfo.m",
       "eeglab_name": "std_combtrialinfo",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_combtrialinfo.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "implemented",
+      "rationale": "Standalone EEGPrep now combines dataset-level metadata with per-trial rows for selected subjects or dataset indices.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "Covered by tests/test_study_long_tail_helpers.py with multi-dataset STUDY metadata, trialinfo, subject filtering, ICA grouping, dataset removal, and cache-clearing assertions.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -7510,14 +7510,14 @@
       "eeglab_name": "std_comppol",
       "eegprep_equivalent": null,
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "matlab_runtime_skip",
+      "rationale": "Component-polarity cluster-plot internal folded into EEGPrep cluster plotting/cache reads where needed.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "No runtime port; covered by parity matrix validation and absence from EEGPrep STUDY menu/API workflows.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -7539,14 +7539,14 @@
       "eeglab_name": "std_custom",
       "eegprep_equivalent": null,
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "matlab_runtime_skip",
+      "rationale": "Arbitrary MATLAB function-handle measure execution is not portable standalone behavior and is not copied into EEGPrep runtime.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "No runtime port; covered by parity matrix validation and absence from EEGPrep STUDY menu/API workflows.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -7554,14 +7554,14 @@
       "eeglab_name": "std_detachplots",
       "eegprep_equivalent": null,
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "matlab_runtime_skip",
+      "rationale": "MATLAB figure detaching helper has no equivalent in EEGPrep Matplotlib/Qt plotting workflows.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "No runtime port; covered by parity matrix validation and absence from EEGPrep STUDY menu/API workflows.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -7569,14 +7569,14 @@
       "eeglab_name": "std_dipoleclusters",
       "eegprep_equivalent": null,
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "external_dependency_skip",
+      "rationale": "Dipole clustering depends on DIPFIT/dipole model outputs outside EEGPrep core.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "No standalone parity test required unless a later phase supplies the external dependency and reclassifies this row.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -7584,14 +7584,14 @@
       "eeglab_name": "std_dipplot",
       "eegprep_equivalent": null,
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "external_dependency_skip",
+      "rationale": "Dipole plotting depends on DIPFIT/dipole model outputs outside EEGPrep core.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "No standalone parity test required unless a later phase supplies the external dependency and reclassifies this row.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -7611,16 +7611,16 @@
     {
       "eeglab_path": "functions/studyfunc/std_erp.m",
       "eeglab_name": "std_erp",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_precomp.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "consolidated",
+      "rationale": "ERP measure computation is implemented through the standalone STUDY precompute pipeline.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "Covered by tests/test_study_measures.py ERP precompute coverage.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -7628,14 +7628,14 @@
       "eeglab_name": "std_erpimage",
       "eegprep_equivalent": null,
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "matlab_runtime_skip",
+      "rationale": "ERP-image sidecar computation is a MATLAB viewer workflow outside current EEGPrep STUDY plotting/precompute support.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "No runtime port; covered by parity matrix validation and absence from EEGPrep STUDY menu/API workflows.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -7643,14 +7643,14 @@
       "eeglab_name": "std_erpimageplot",
       "eegprep_equivalent": null,
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "matlab_runtime_skip",
+      "rationale": "ERP-image plotting is a MATLAB viewer workflow outside current EEGPrep STUDY plotting support.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "No runtime port; covered by parity matrix validation and absence from EEGPrep STUDY menu/API workflows.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -7670,16 +7670,16 @@
     {
       "eeglab_path": "functions/studyfunc/std_ersp.m",
       "eeglab_name": "std_ersp",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_precomp.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "consolidated",
+      "rationale": "ERSP/ITC measure computation is implemented through the standalone STUDY precompute pipeline using public time-frequency APIs.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "Covered by tests/test_study_measures.py ERSP/ITC precompute coverage.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -7701,44 +7701,44 @@
       "eeglab_name": "std_figtitle",
       "eegprep_equivalent": null,
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "matlab_runtime_skip",
+      "rationale": "MATLAB figure title utility is not a standalone EEGPrep API; plotting helpers set native titles directly.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "No runtime port; covered by parity matrix validation and absence from EEGPrep STUDY menu/API workflows.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
       "eeglab_path": "functions/studyfunc/std_filecheck.m",
       "eeglab_name": "std_filecheck",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_checkfiles.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "consolidated",
+      "rationale": "STUDY cache/file validation is exposed through std_checkfiles rather than MATLAB sidecar-file repair helpers.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "Covered by tests/test_study_metadata.py file consistency coverage.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
       "eeglab_path": "functions/studyfunc/std_fileinfo.m",
       "eeglab_name": "std_fileinfo",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_checkfiles.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "consolidated",
+      "rationale": "STUDY cache/file metadata validation is exposed through std_checkfiles rather than a separate MATLAB sidecar-file info helper.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "Covered by tests/test_study_metadata.py file consistency coverage.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -7772,76 +7772,76 @@
     {
       "eeglab_path": "functions/studyfunc/std_findsameica.m",
       "eeglab_name": "std_findsameica",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_findsameica.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "implemented",
+      "rationale": "Standalone EEGPrep now groups loaded datasets by near-identical ICA weights*sphere matrices while keeping subject boundaries.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "Covered by tests/test_study_long_tail_helpers.py with multi-dataset STUDY metadata, trialinfo, subject filtering, ICA grouping, dataset removal, and cache-clearing assertions.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
       "eeglab_path": "functions/studyfunc/std_getdataset.m",
       "eeglab_name": "std_getdataset",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_selectdataset.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "consolidated",
+      "rationale": "Useful standalone dataset/trial selection behavior is exposed through std_selectdataset; EEGLAB-specific eeg_getdatact reconstruction is not copied without an EEGPrep workflow need.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "Covered by tests/test_study_long_tail_helpers.py selection coverage.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
       "eeglab_path": "functions/studyfunc/std_getindvar.m",
       "eeglab_name": "std_getindvar",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_getindvar.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "implemented",
+      "rationale": "Standalone EEGPrep now lists dataset and trial independent variables, their values, subject groupings, and pairing flags from STUDY.datasetinfo.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "Covered by tests/test_study_long_tail_helpers.py with multi-dataset STUDY metadata, trialinfo, subject filtering, ICA grouping, dataset removal, and cache-clearing assertions.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
       "eeglab_path": "functions/studyfunc/std_gettrialsind.m",
       "eeglab_name": "std_gettrialsind",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_gettrialsind.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "implemented",
+      "rationale": "Standalone EEGPrep now returns 1-based trial indices and optional continuous values from loaded trialinfo rows.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "Covered by tests/test_study_long_tail_helpers.py with multi-dataset STUDY metadata, trialinfo, subject filtering, ICA grouping, dataset removal, and cache-clearing assertions.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
       "eeglab_path": "functions/studyfunc/std_indvarmatch.m",
       "eeglab_name": "std_indvarmatch",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_indvarmatch.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "implemented",
+      "rationale": "Standalone EEGPrep now matches EEGLAB-style string, numeric, vector, and list-valued independent-variable values with 1-based indices.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "Covered by tests/test_study_long_tail_helpers.py with multi-dataset STUDY metadata, trialinfo, subject filtering, ICA grouping, dataset removal, and cache-clearing assertions.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -7849,14 +7849,14 @@
       "eeglab_name": "std_interp",
       "eegprep_equivalent": null,
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "external_dependency_skip",
+      "rationale": "STUDY interpolation behavior depends on FieldTrip-style neighbour/interpolation machinery outside EEGPrep core.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "No standalone parity test required unless a later phase supplies the external dependency and reclassifies this row.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -7932,16 +7932,16 @@
     {
       "eeglab_path": "functions/studyfunc/std_lm_getvars.m",
       "eeglab_name": "std_lm_getvars",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_getindvar.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "consolidated",
+      "rationale": "The independent-variable discovery needed by EEGPrep is covered by std_getindvar without LIMO model side effects.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "Covered by tests/test_study_long_tail_helpers.py independent-variable coverage.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -7949,29 +7949,29 @@
       "eeglab_name": "std_lm_seteegfields",
       "eegprep_equivalent": null,
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "external_dependency_skip",
+      "rationale": "LIMO model field materialization depends on external LIMO semantics outside EEGPrep core.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "No standalone parity test required unless a later phase supplies the external dependency and reclassifies this row.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
       "eeglab_path": "functions/studyfunc/std_loadalleeg.m",
       "eeglab_name": "std_loadalleeg",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/pop_loadstudy.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "consolidated",
+      "rationale": "Loading all datasets for a STUDY is handled by pop_loadstudy in the standalone workflow.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "Covered by tests/test_study_metadata.py load/save coverage.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -7991,16 +7991,16 @@
     {
       "eeglab_path": "functions/studyfunc/std_maketrialinfo.m",
       "eeglab_name": "std_maketrialinfo",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_maketrialinfo.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "implemented",
+      "rationale": "Standalone EEGPrep now populates STUDY.datasetinfo trialinfo from loaded EEG epoch/event dictionaries.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "Covered by tests/test_study_long_tail_helpers.py with multi-dataset STUDY metadata, trialinfo, subject filtering, ICA grouping, dataset removal, and cache-clearing assertions.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -8020,16 +8020,16 @@
     {
       "eeglab_path": "functions/studyfunc/std_mergeruns.m",
       "eeglab_name": "std_mergeruns",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_checkdatasession.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "consolidated",
+      "rationale": "EEGPrep validates and selects run/session metadata rather than silently merging dataset runs as a STUDY long-tail side effect.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "Covered by tests/test_study_metadata.py session consistency coverage.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -8065,14 +8065,14 @@
       "eeglab_name": "std_movie",
       "eegprep_equivalent": null,
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "matlab_runtime_skip",
+      "rationale": "MATLAB movie generation from STUDY figures is not part of EEGPrep standalone workflows.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "No runtime port; covered by parity matrix validation and absence from EEGPrep STUDY menu/API workflows.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -8108,61 +8108,61 @@
     {
       "eeglab_path": "functions/studyfunc/std_plot.m",
       "eeglab_name": "std_plot",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/_std_measureplot.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "consolidated",
+      "rationale": "Supported STUDY ERP/spectrum/ERSP plotting is consolidated in the EEGPrep measure plotting adapter.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "Covered by tests/test_study_measures.py and tests/test_study_end_to_end.py plotting coverage.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
       "eeglab_path": "functions/studyfunc/std_plotcurve.m",
       "eeglab_name": "std_plotcurve",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/_std_measureplot.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "consolidated",
+      "rationale": "Supported STUDY curve plotting is consolidated in the EEGPrep measure plotting adapter.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "Covered by tests/test_study_measures.py plotting coverage.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
       "eeglab_path": "functions/studyfunc/std_plotdmat.m",
       "eeglab_name": "std_plotdmat",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_builddesignmat.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "consolidated",
+      "rationale": "Design matrix construction and inspection are exposed through std_builddesignmat instead of a MATLAB plotting-only helper.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "Covered by tests/test_study_metadata.py design matrix coverage.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
       "eeglab_path": "functions/studyfunc/std_plottf.m",
       "eeglab_name": "std_plottf",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/_std_measureplot.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "consolidated",
+      "rationale": "Supported STUDY time-frequency plotting is consolidated in the EEGPrep measure plotting adapter.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "Covered by tests/test_study_measures.py time-frequency plotting coverage.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -8198,14 +8198,14 @@
       "eeglab_name": "std_precomp_worker",
       "eegprep_equivalent": null,
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "external_dependency_skip",
+      "rationale": "EEGLAB cluster/EC2/MATLAB worker sidecar execution is not a standalone EEGPrep runtime dependency.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "No standalone parity test required unless a later phase supplies the external dependency and reclassifies this row.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -8213,14 +8213,14 @@
       "eeglab_name": "std_prepare_neighbors",
       "eegprep_equivalent": null,
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "external_dependency_skip",
+      "rationale": "Neighbour preparation depends on FieldTrip-style layouts outside EEGPrep core.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "No standalone parity test required unless a later phase supplies the external dependency and reclassifies this row.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -8228,29 +8228,29 @@
       "eeglab_name": "std_propplot",
       "eegprep_equivalent": null,
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "matlab_runtime_skip",
+      "rationale": "MATLAB proportion-plot figure helper is not required by the supported STUDY plotting surfaces.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "No runtime port; covered by parity matrix validation and absence from EEGPrep STUDY menu/API workflows.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
       "eeglab_path": "functions/studyfunc/std_pvaf.m",
       "eeglab_name": "std_pvaf",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/popfunc/eeg_pvaf.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "consolidated",
+      "rationale": "ICA PVAF math is consolidated in eeg_pvaf; EEGPrep has no separate STUDY cluster-averaging wrapper without a user workflow need.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "Covered by existing eeg_pvaf tests; no separate STUDY wrapper is required for issue #149.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -8258,14 +8258,14 @@
       "eeglab_name": "std_readcustom",
       "eegprep_equivalent": null,
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "matlab_runtime_skip",
+      "rationale": "Reading arbitrary MATLAB custom-measure sidecars would require MATLAB callback semantics that EEGPrep intentionally does not fake.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "No runtime port; covered by parity matrix validation and absence from EEGPrep STUDY menu/API workflows.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -8287,14 +8287,14 @@
       "eeglab_name": "std_readeegfield",
       "eegprep_equivalent": null,
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "matlab_runtime_skip",
+      "rationale": "Dynamic EEG field sidecar reader is a MATLAB cache convention outside EEGPrep standalone STUDY cache design.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "No runtime port; covered by parity matrix validation and absence from EEGPrep STUDY menu/API workflows.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -8316,14 +8316,14 @@
       "eeglab_name": "std_readerpimage",
       "eegprep_equivalent": null,
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "matlab_runtime_skip",
+      "rationale": "ERP-image sidecar reads belong to the MATLAB ERP-image viewer workflow and are not a standalone EEGPrep cache surface.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "No runtime port; covered by parity matrix validation and absence from EEGPrep STUDY menu/API workflows.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -8343,16 +8343,16 @@
     {
       "eeglab_path": "functions/studyfunc/std_readfile.m",
       "eeglab_name": "std_readfile",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_readdata.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "consolidated",
+      "rationale": "Supported STUDY measure cache reads are centralized in std_readdata instead of the MATLAB sidecar-file reader split.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "Covered by tests/test_study_measures.py and tests/test_study_end_to_end.py readback coverage.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -8415,16 +8415,16 @@
     {
       "eeglab_path": "functions/studyfunc/std_readspecgram.m",
       "eeglab_name": "std_readspecgram",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_readdata.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "consolidated",
+      "rationale": "Supported spectrogram/time-frequency cache reads are handled by the general STUDY data reader path.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "Covered by tests/test_study_measures.py readback coverage.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -8444,16 +8444,16 @@
     {
       "eeglab_path": "functions/studyfunc/std_readtopoclust.m",
       "eeglab_name": "std_readtopoclust",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_readdata.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "consolidated",
+      "rationale": "Cluster topography cache reads are consolidated with the general STUDY data reader path.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "Covered by tests/test_study_measures.py and tests/test_study_clustering.py.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -8503,59 +8503,59 @@
       "eeglab_name": "std_renamestudyfiles",
       "eegprep_equivalent": null,
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "matlab_runtime_skip",
+      "rationale": "Legacy EEGLAB sidecar-file rename migration is MATLAB filesystem maintenance, not an EEGPrep runtime workflow.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "No runtime port; covered by parity matrix validation and absence from EEGPrep STUDY menu/API workflows.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
       "eeglab_path": "functions/studyfunc/std_reset.m",
       "eeglab_name": "std_reset",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_rmalldatafields.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "consolidated",
+      "rationale": "Resetting stale STUDY cached measures is covered by explicit cache-field removal and invalidation helpers.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "Covered by tests/test_study_long_tail_helpers.py cache-clearing assertions.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
       "eeglab_path": "functions/studyfunc/std_rmalldatafields.m",
       "eeglab_name": "std_rmalldatafields",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_rmalldatafields.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "implemented",
+      "rationale": "Standalone EEGPrep now removes cached STUDY measure/data fields from channel groups, clusters, or both.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "Covered by tests/test_study_long_tail_helpers.py with multi-dataset STUDY metadata, trialinfo, subject filtering, ICA grouping, dataset removal, and cache-clearing assertions.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
       "eeglab_path": "functions/studyfunc/std_rmdat.m",
       "eeglab_name": "std_rmdat",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_rmdat.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "implemented",
+      "rationale": "Standalone EEGPrep now removes datasets by shape, metadata, subject, and event-count filters while remapping STUDY membership.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "Covered by tests/test_study_long_tail_helpers.py with multi-dataset STUDY metadata, trialinfo, subject filtering, ICA grouping, dataset removal, and cache-clearing assertions.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -8591,29 +8591,29 @@
       "eeglab_name": "std_selcomp",
       "eegprep_equivalent": null,
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "matlab_runtime_skip",
+      "rationale": "Component-selection plotting cell internals are folded into EEGPrep cached reads and cluster/plot helpers where user-facing.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "No runtime port; covered by parity matrix validation and absence from EEGPrep STUDY menu/API workflows.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
       "eeglab_path": "functions/studyfunc/std_selectdataset.m",
       "eeglab_name": "std_selectdataset",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_selectdataset.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "implemented",
+      "rationale": "Standalone EEGPrep now selects datasets and per-dataset trial indices from datasetinfo or trialinfo independent variables.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "Covered by tests/test_study_long_tail_helpers.py with multi-dataset STUDY metadata, trialinfo, subject filtering, ICA grouping, dataset removal, and cache-clearing assertions.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -8633,61 +8633,61 @@
     {
       "eeglab_path": "functions/studyfunc/std_selsubject.m",
       "eeglab_name": "std_selsubject",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_selsubject.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "implemented",
+      "rationale": "Standalone EEGPrep now filters cached measure arrays to one requested subject using EEGLAB-facing set indices.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "Covered by tests/test_study_long_tail_helpers.py with multi-dataset STUDY metadata, trialinfo, subject filtering, ICA grouping, dataset removal, and cache-clearing assertions.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
       "eeglab_path": "functions/studyfunc/std_serialize.m",
       "eeglab_name": "std_serialize",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/pop_savestudy.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "consolidated",
+      "rationale": "STUDY serialization is handled by pop_savestudy and EEGPrep JSON/MAT-compatible metadata conversion.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "Covered by tests/test_study_metadata.py save/load coverage.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
       "eeglab_path": "functions/studyfunc/std_spec.m",
       "eeglab_name": "std_spec",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_precomp.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "consolidated",
+      "rationale": "Spectrum measure computation is implemented through the standalone STUDY precompute pipeline.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "Covered by tests/test_study_measures.py spectrum precompute coverage.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
       "eeglab_path": "functions/studyfunc/std_specgram.m",
       "eeglab_name": "std_specgram",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_precomp.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "consolidated",
+      "rationale": "Spectrogram-style STUDY cache behavior is consolidated with spectrum/time-frequency precompute support instead of a separate MATLAB sidecar function.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "Covered by tests/test_study_measures.py STUDY measure cache coverage.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -8707,61 +8707,61 @@
     {
       "eeglab_path": "functions/studyfunc/std_stat.m",
       "eeglab_name": "std_stat",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/statistics",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "consolidated",
+      "rationale": "Standalone statistical primitives live in EEGPrep statistics helpers; LIMO/FieldTrip-specific STUDY statistics stay external.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "Covered by statistics helper tests and STUDY measure tests that use deterministic arrays.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
       "eeglab_path": "functions/studyfunc/std_substudy.m",
       "eeglab_name": "std_substudy",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_substudy.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "implemented",
+      "rationale": "Standalone EEGPrep now builds STUDY subsets by dataset, subject, condition, or group and invalidates stale measure caches.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "Covered by tests/test_study_long_tail_helpers.py with multi-dataset STUDY metadata, trialinfo, subject filtering, ICA grouping, dataset removal, and cache-clearing assertions.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
       "eeglab_path": "functions/studyfunc/std_topo.m",
       "eeglab_name": "std_topo",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_precomp.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "consolidated",
+      "rationale": "Topography cache behavior is produced through STUDY precompute and read/plot surfaces instead of a separate MATLAB helper.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "Covered by tests/test_study_measures.py topography/cache coverage.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
       "eeglab_path": "functions/studyfunc/std_topoplot.m",
       "eeglab_name": "std_topoplot",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/pop_clustedit.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "consolidated",
+      "rationale": "STUDY topoplot behavior used by clustering is consolidated in the cluster edit/plot workflow.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "Covered by tests/test_study_clustering.py cluster/topography workflow coverage.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -8797,14 +8797,14 @@
       "eeglab_name": "toporeplot",
       "eegprep_equivalent": null,
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "Remaining STUDY plotting, precompute, selection, or MATLAB GUI depth is deferred to a concrete follow-up after Phase 6 implemented the core standalone STUDY workflows.",
+      "status": "matlab_runtime_skip",
+      "rationale": "MATLAB topoplot figure-refresh helper is unnecessary with EEGPrep native plotting refresh behavior.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "helper",
         "study"
       ],
-      "test_notes": "Follow-up issue must either implement with multi-dataset tests or classify with row-level rationale.",
+      "test_notes": "No runtime port; covered by parity matrix validation and absence from EEGPrep STUDY menu/API workflows.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
