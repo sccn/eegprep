@@ -2,9 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>EEGPrep Phase 5 Unsupported User-Facing Options Notes</title>
+  <title>EEGPrep Core Parity Implementation Notes</title>
 </head>
 <body>
+  <h1>EEGPrep Core Parity Implementation Notes</h1>
   <h1>EEGPrep Phase 5 Unsupported User-Facing Options Notes</h1>
   <p>Phase 5 closes option-level gaps in existing user-facing functions while
   keeping EEGPrep standalone and explicit about MATLAB-only or toolbox-dependent
@@ -27,6 +28,35 @@
   <ul>
     <li>Focused tests cover sample-data export, filename-backed epoching, editset history replay, invalid option paths, plot option behavior, clean ASR limitations, and legacy non-goals.</li>
     <li>MATLAB parity tests remain available behind the existing skip behavior. Local MATLAB parity execution exposed unrelated EEGLAB save-wrapper failures, so Python-focused runs use <code>EEGPREP_SKIP_MATLAB=1</code> where needed.</li>
+  </ul>
+  <h1>EEGPrep Phase 6 STUDY And Group-Level Notes</h1>
+  <p>Phase 6 deepens standalone STUDY workflows without adding runtime dependencies
+  on the vendored EEGLAB tree or pretending external LIMO behavior is available.</p>
+  <h2>Phase 6 Design Decisions</h2>
+  <ul>
+    <li>Added EEGLAB-named STUDY design helpers for factor listing, imported group variables, design matrix construction, design rebuilds, independent-variable snapshots, and one/two-level variable metadata.</li>
+    <li>Kept existing STUDY GUI dialogs unchanged. The new work is backend/API and console-visible, so GUI visual parity artifacts and GUI Agent QA were not applicable for this branch.</li>
+    <li>Extended cached measure readers for ERP, spectrum, ERSP, ITC, topographies, and PAC cache detection. PAC reads only succeed when an EEGPrep-owned <code>pacdata</code> cache exists.</li>
+    <li>Added deterministic clustering helpers that run in package: robust k-means, silhouette-based k selection, affinity-propagation-style exemplar clustering, centroid calculation, and outlier detection.</li>
+    <li>Added standalone consistency helpers for dataset/session checks, uniform channel distribution checks, and cached measure-shape reports.</li>
+    <li>Implemented LIMO entry points as explicit <code>NotImplementedError</code> limitations because EEGPrep does not ship an external LIMO toolbox equivalent.</li>
+  </ul>
+  <h2>Phase 6 Deviations</h2>
+  <ul>
+    <li>EEGLAB sidecar file semantics are represented through EEGPrep-owned JSON/MAT sidecar writing and in-memory <code>STUDY</code> caches. Runtime code does not read from EEGLAB's reference checkout.</li>
+    <li><code>std_addvarlevel</code> stores EEGLAB-like <code>level</code> values of <code>one</code> or <code>two</code>; the previous numeric level list is preserved as <code>levelindex</code> for deterministic downstream use.</li>
+    <li><code>std_apcluster</code> is a deterministic standalone affinity-propagation implementation for EEGPrep workflows, not a dependency on EEGLAB's MATLAB <code>apcluster</code> helper.</li>
+  </ul>
+  <h2>Phase 6 Tradeoffs</h2>
+  <ul>
+    <li>Subject filtering is applied only when the leading cache axis is the loaded dataset axis. Child-cluster component rows are not silently treated as subjects.</li>
+    <li>The LIMO surface is exported so users receive clear limitations from familiar names, but the parity matrix keeps those rows classified as external dependency limitations rather than implemented analysis behavior.</li>
+    <li>GUI dialogs were not broadened in this phase to avoid conflicting with the parallel Phase 5 user-facing option work.</li>
+  </ul>
+  <h2>Phase 6 Open Questions</h2>
+  <ul>
+    <li>A future phase can add native PAC precompute once there is a tested EEGPrep PAC implementation to populate <code>pacdata</code>.</li>
+    <li>If standalone LIMO-equivalent modeling becomes a product goal, it should be scoped as a separate statistics feature rather than hidden inside these limitation functions.</li>
   </ul>
   <h2>EEGPrep Phase 2 File Format And Channel-Location Notes</h2>
   <h3>Design Decisions</h3>

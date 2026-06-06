@@ -16,8 +16,16 @@ Implemented STUDY actions:
 - `pop_preclust`: build ICA component preclustering arrays.
 - `pop_clust`: cluster preclustered ICA components.
 - `pop_clustedit`: edit clusters and plot cluster summaries.
+- `pop_importgroupvar`, `pop_listfactors`, and `std_builddesignmat`: manage
+  STUDY design variables and deterministic design matrices.
+- `std_checkfiles`, `std_checkdatasession`, `std_uniformfiles`, and
+  `std_uniformsetinds`: audit loaded dataset and cached measure consistency.
 
 Component ERP, spectrum, ERSP, and ITC clustering inputs are cached on the
 parent `STUDY.cluster[0]` entry by `pop_precomp`.
 
-See also: POP_STUDY, POP_PRECOMP, POP_CHANPLOT, POP_LOADSTUDY, POP_SAVESTUDY, POP_PRECLUST, POP_CLUST, POP_CLUSTEDIT
+LIMO is not silently emulated. `pop_limo`, `pop_limoresults`, `std_limo*`, and
+`std_readfilelimo` report that standalone EEGPrep does not run EEGLAB's
+external LIMO toolbox workflow.
+
+See also: POP_STUDY, POP_PRECOMP, POP_CHANPLOT, POP_LOADSTUDY, POP_SAVESTUDY, POP_PRECLUST, POP_CLUST, POP_CLUSTEDIT, POP_LIMO

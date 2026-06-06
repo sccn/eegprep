@@ -6184,24 +6184,24 @@
     {
       "eeglab_path": "functions/studyfunc/optimal_kmeans.m",
       "eeglab_name": "optimal_kmeans",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/optimal_kmeans.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "EEGLAB STUDY/group-level helper needed for Phase 6 triage, parity, or explicit standalone limitation handling.",
+      "status": "implemented",
+      "rationale": "Standalone EEGPrep selects deterministic k-means counts with silhouette scoring; no MATLAB Statistics Toolbox dependency.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "helper",
         "study"
       ],
-      "test_notes": "Use multi-dataset fixtures, STUDY/ALLEEG synchronization checks, and deterministic MATLAB parity where feasible."
+      "test_notes": "Covered by deterministic clustering helper tests."
     },
     {
       "eeglab_path": "functions/studyfunc/pop_addindepvar.m",
       "eeglab_name": "pop_addindepvar",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/pop_addindepvar.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "EEGLAB STUDY/group-level helper needed for Phase 6 triage, parity, or explicit standalone limitation handling.",
+      "status": "implemented",
+      "rationale": "Programmatic EEGPrep helper selects STUDY independent variables and categorical/continuous values without MATLAB GUI callbacks.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
@@ -6209,7 +6209,7 @@
         "gui",
         "study"
       ],
-      "test_notes": "Use multi-dataset fixtures, STUDY/ALLEEG synchronization checks, and deterministic MATLAB parity where feasible."
+      "test_notes": "Covered by multi-dataset design helper tests in tests/test_study_metadata.py."
     },
     {
       "eeglab_path": "functions/studyfunc/pop_chanplot.m",
@@ -6326,10 +6326,10 @@
     {
       "eeglab_path": "functions/studyfunc/pop_importgroupvar.m",
       "eeglab_name": "pop_importgroupvar",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/pop_importgroupvar.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "EEGLAB STUDY/group-level helper needed for Phase 6 triage, parity, or explicit standalone limitation handling.",
+      "status": "implemented",
+      "rationale": "Standalone EEGPrep imports one subject-level variable into STUDY.datasetinfo and updates design metadata.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
@@ -6337,47 +6337,43 @@
         "gui",
         "study"
       ],
-      "test_notes": "Use multi-dataset fixtures, STUDY/ALLEEG synchronization checks, and deterministic MATLAB parity where feasible."
+      "test_notes": "Covered by group-variable import and console sync tests."
     },
     {
       "eeglab_path": "functions/studyfunc/pop_limo.m",
       "eeglab_name": "pop_limo",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/pop_limo.py",
       "gap_category": "4_study_group_depth",
       "status": "external_dependency_skip",
-      "rationale": "Depends on an external MATLAB toolbox, plugin, or web/path integration outside this core parity epic.",
-      "responsible_phase": "none",
+      "rationale": "Standalone EEGPrep exports this familiar LIMO name only to raise a clear external-toolbox limitation; no LIMO behavior is faked.",
+      "responsible_phase": "phase_6",
       "user_facing_surface": [
-        "api",
-        "console",
-        "gui",
-        "study"
+        "python_api",
+        "help"
       ],
-      "test_notes": "No standalone parity test required unless a later phase supplies a real Python dependency and reclassifies the row."
+      "test_notes": "Covered by explicit NotImplementedError tests and help documentation."
     },
     {
       "eeglab_path": "functions/studyfunc/pop_limoresults.m",
       "eeglab_name": "pop_limoresults",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/pop_limoresults.py",
       "gap_category": "4_study_group_depth",
       "status": "external_dependency_skip",
-      "rationale": "Depends on an external MATLAB toolbox, plugin, or web/path integration outside this core parity epic.",
-      "responsible_phase": "none",
+      "rationale": "Standalone EEGPrep exports this familiar LIMO name only to raise a clear external-toolbox limitation; no LIMO behavior is faked.",
+      "responsible_phase": "phase_6",
       "user_facing_surface": [
-        "api",
-        "console",
-        "gui",
-        "study"
+        "python_api",
+        "help"
       ],
-      "test_notes": "No standalone parity test required unless a later phase supplies a real Python dependency and reclassifies the row."
+      "test_notes": "Covered by explicit NotImplementedError tests and help documentation."
     },
     {
       "eeglab_path": "functions/studyfunc/pop_listfactors.m",
       "eeglab_name": "pop_listfactors",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/pop_listfactors.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "EEGLAB STUDY/group-level helper needed for Phase 6 triage, parity, or explicit standalone limitation handling.",
+      "status": "implemented",
+      "rationale": "Standalone EEGPrep lists one/two-level STUDY design factors for API workflows; GUI display remains intentionally unsupported.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
@@ -6385,7 +6381,7 @@
         "gui",
         "study"
       ],
-      "test_notes": "Use multi-dataset fixtures, STUDY/ALLEEG synchronization checks, and deterministic MATLAB parity where feasible."
+      "test_notes": "Covered by design factor tests in tests/test_study_metadata.py."
     },
     {
       "eeglab_path": "functions/studyfunc/pop_loadstudy.m",
@@ -6550,58 +6546,58 @@
     {
       "eeglab_path": "functions/studyfunc/robust_kmeans.m",
       "eeglab_name": "robust_kmeans",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/robust_kmeans.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "EEGLAB STUDY/group-level helper needed for Phase 6 triage, parity, or explicit standalone limitation handling.",
+      "status": "implemented",
+      "rationale": "Standalone EEGPrep implements deterministic robust k-means with outlier marking.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "helper",
         "study"
       ],
-      "test_notes": "Use multi-dataset fixtures, STUDY/ALLEEG synchronization checks, and deterministic MATLAB parity where feasible."
+      "test_notes": "Covered by deterministic clustering helper tests."
     },
     {
       "eeglab_path": "functions/studyfunc/std_addvarlevel.m",
       "eeglab_name": "std_addvarlevel",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_addvarlevel.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "EEGLAB STUDY/group-level helper needed for Phase 6 triage, parity, or explicit standalone limitation handling.",
+      "status": "implemented",
+      "rationale": "Standalone EEGPrep assigns EEGLAB-like one/two design variable levels and preserves numeric level indices separately.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Use multi-dataset fixtures, STUDY/ALLEEG synchronization checks, and deterministic MATLAB parity where feasible."
+      "test_notes": "Covered by design metadata tests including repeated-subject first-level detection."
     },
     {
       "eeglab_path": "functions/studyfunc/std_apcluster.m",
       "eeglab_name": "std_apcluster",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_apcluster.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "EEGLAB STUDY/group-level helper needed for Phase 6 triage, parity, or explicit standalone limitation handling.",
+      "status": "implemented",
+      "rationale": "Standalone EEGPrep implements deterministic affinity-propagation-style exemplar clustering without MATLAB apcluster.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Use multi-dataset fixtures, STUDY/ALLEEG synchronization checks, and deterministic MATLAB parity where feasible."
+      "test_notes": "Covered by deterministic clustering helper tests."
     },
     {
       "eeglab_path": "functions/studyfunc/std_builddesignmat.m",
       "eeglab_name": "std_builddesignmat",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_builddesignmat.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "EEGLAB STUDY/group-level helper needed for Phase 6 triage, parity, or explicit standalone limitation handling.",
+      "status": "implemented",
+      "rationale": "Standalone EEGPrep builds deterministic design matrices with categorical expansion and constant columns.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Use multi-dataset fixtures, STUDY/ALLEEG synchronization checks, and deterministic MATLAB parity where feasible."
+      "test_notes": "Covered by design matrix tests with categorical and continuous variables."
     },
     {
       "eeglab_path": "functions/studyfunc/std_cell2setcomps.m",
@@ -6634,16 +6630,16 @@
     {
       "eeglab_path": "functions/studyfunc/std_centroid.m",
       "eeglab_name": "std_centroid",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_centroid.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "EEGLAB STUDY/group-level helper needed for Phase 6 triage, parity, or explicit standalone limitation handling.",
+      "status": "implemented",
+      "rationale": "Standalone EEGPrep computes centroids for STUDY feature matrices and cluster labels.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Use multi-dataset fixtures, STUDY/ALLEEG synchronization checks, and deterministic MATLAB parity where feasible."
+      "test_notes": "Covered by deterministic clustering helper tests."
     },
     {
       "eeglab_path": "functions/studyfunc/std_changroup.m",
@@ -6704,16 +6700,16 @@
     {
       "eeglab_path": "functions/studyfunc/std_checkdatasession.m",
       "eeglab_name": "std_checkdatasession",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_checkdatasession.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "EEGLAB STUDY/group-level helper needed for Phase 6 triage, parity, or explicit standalone limitation handling.",
+      "status": "implemented",
+      "rationale": "Standalone EEGPrep reports dataset/session/run/condition consistency for STUDY workflows.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Use multi-dataset fixtures, STUDY/ALLEEG synchronization checks, and deterministic MATLAB parity where feasible."
+      "test_notes": "Covered by STUDY consistency helper tests."
     },
     {
       "eeglab_path": "functions/studyfunc/std_checkdesign.m",
@@ -6732,16 +6728,16 @@
     {
       "eeglab_path": "functions/studyfunc/std_checkfiles.m",
       "eeglab_name": "std_checkfiles",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_checkfiles.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "EEGLAB STUDY/group-level helper needed for Phase 6 triage, parity, or explicit standalone limitation handling.",
+      "status": "implemented",
+      "rationale": "Standalone EEGPrep checks loaded dataset/file consistency and cached STUDY measure shapes instead of EEGLAB sidecar files.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Use multi-dataset fixtures, STUDY/ALLEEG synchronization checks, and deterministic MATLAB parity where feasible."
+      "test_notes": "Covered by STUDY consistency helper tests."
     },
     {
       "eeglab_path": "functions/studyfunc/std_checkset.m",
@@ -7012,30 +7008,30 @@
     {
       "eeglab_path": "functions/studyfunc/std_findgroupvars.m",
       "eeglab_name": "std_findgroupvars",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_findgroupvars.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "EEGLAB STUDY/group-level helper needed for Phase 6 triage, parity, or explicit standalone limitation handling.",
+      "status": "implemented",
+      "rationale": "Standalone EEGPrep lists usable dataset-level group variables from STUDY.datasetinfo.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Use multi-dataset fixtures, STUDY/ALLEEG synchronization checks, and deterministic MATLAB parity where feasible."
+      "test_notes": "Covered by imported-group-variable tests."
     },
     {
       "eeglab_path": "functions/studyfunc/std_findoutlierclust.m",
       "eeglab_name": "std_findoutlierclust",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_findoutlierclust.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "EEGLAB STUDY/group-level helper needed for Phase 6 triage, parity, or explicit standalone limitation handling.",
+      "status": "implemented",
+      "rationale": "Standalone EEGPrep finds 1-based outlier rows from cluster feature matrices.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Use multi-dataset fixtures, STUDY/ALLEEG synchronization checks, and deterministic MATLAB parity where feasible."
+      "test_notes": "Covered by deterministic clustering helper tests."
     },
     {
       "eeglab_path": "functions/studyfunc/std_findsameica.m",
@@ -7138,30 +7134,30 @@
     {
       "eeglab_path": "functions/studyfunc/std_limo.m",
       "eeglab_name": "std_limo",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_limo.py",
       "gap_category": "4_study_group_depth",
       "status": "external_dependency_skip",
-      "rationale": "Depends on an external MATLAB toolbox, plugin, or web/path integration outside this core parity epic.",
-      "responsible_phase": "none",
+      "rationale": "Standalone EEGPrep exports this familiar LIMO name only to raise a clear external-toolbox limitation; no LIMO behavior is faked.",
+      "responsible_phase": "phase_6",
       "user_facing_surface": [
-        "api",
-        "study"
+        "python_api",
+        "help"
       ],
-      "test_notes": "No standalone parity test required unless a later phase supplies a real Python dependency and reclassifies the row."
+      "test_notes": "Covered by explicit NotImplementedError tests and help documentation."
     },
     {
       "eeglab_path": "functions/studyfunc/std_limodesign.m",
       "eeglab_name": "std_limodesign",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_limodesign.py",
       "gap_category": "4_study_group_depth",
       "status": "external_dependency_skip",
-      "rationale": "Depends on an external MATLAB toolbox, plugin, or web/path integration outside this core parity epic.",
-      "responsible_phase": "none",
+      "rationale": "Standalone EEGPrep exports this familiar LIMO name only to raise a clear external-toolbox limitation; no LIMO behavior is faked.",
+      "responsible_phase": "phase_6",
       "user_facing_surface": [
-        "api",
-        "study"
+        "python_api",
+        "help"
       ],
-      "test_notes": "No standalone parity test required unless a later phase supplies a real Python dependency and reclassifies the row."
+      "test_notes": "Covered by explicit NotImplementedError tests and help documentation."
     },
     {
       "eeglab_path": "functions/studyfunc/std_limoerase.m",
@@ -7180,16 +7176,16 @@
     {
       "eeglab_path": "functions/studyfunc/std_limoresults.m",
       "eeglab_name": "std_limoresults",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_limoresults.py",
       "gap_category": "4_study_group_depth",
       "status": "external_dependency_skip",
-      "rationale": "Depends on an external MATLAB toolbox, plugin, or web/path integration outside this core parity epic.",
-      "responsible_phase": "none",
+      "rationale": "Standalone EEGPrep exports this familiar LIMO name only to raise a clear external-toolbox limitation; no LIMO behavior is faked.",
+      "responsible_phase": "phase_6",
       "user_facing_surface": [
-        "api",
-        "study"
+        "python_api",
+        "help"
       ],
-      "test_notes": "No standalone parity test required unless a later phase supplies a real Python dependency and reclassifies the row."
+      "test_notes": "Covered by explicit NotImplementedError tests and help documentation."
     },
     {
       "eeglab_path": "functions/studyfunc/std_lm_getvars.m",
@@ -7546,14 +7542,14 @@
       "eeglab_name": "std_readerp",
       "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_readdata.py",
       "gap_category": "4_study_group_depth",
-      "status": "partial",
-      "rationale": "std_readerp exists as a consolidated function inside std_readdata.py, but Phase 6 must confirm full EEGLAB reader semantics.",
+      "status": "implemented",
+      "rationale": "std_readerp is implemented through the consolidated std_readdata cache reader with range and subject filtering.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Add STUDY measure fixture tests and deterministic MATLAB parity for ERP reader behavior before marking implemented."
+      "test_notes": "Covered by STUDY measure reader and plotting tests."
     },
     {
       "eeglab_path": "functions/studyfunc/std_readerpimage.m",
@@ -7574,14 +7570,14 @@
       "eeglab_name": "std_readersp",
       "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_readdata.py",
       "gap_category": "4_study_group_depth",
-      "status": "partial",
-      "rationale": "std_readersp exists as a consolidated function inside std_readdata.py, but Phase 6 must confirm full EEGLAB ERSP reader semantics.",
+      "status": "implemented",
+      "rationale": "std_readersp is implemented through the consolidated std_readdata ERSP cache reader.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Add STUDY measure fixture tests and deterministic MATLAB parity for ERSP reader behavior before marking implemented."
+      "test_notes": "Covered by STUDY ERSP/ITC measure tests."
     },
     {
       "eeglab_path": "functions/studyfunc/std_readfile.m",
@@ -7600,58 +7596,58 @@
     {
       "eeglab_path": "functions/studyfunc/std_readfilelimo.m",
       "eeglab_name": "std_readfilelimo",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_readfilelimo.py",
       "gap_category": "4_study_group_depth",
       "status": "external_dependency_skip",
-      "rationale": "Depends on an external MATLAB toolbox, plugin, or web/path integration outside this core parity epic.",
-      "responsible_phase": "none",
+      "rationale": "Standalone EEGPrep exports this familiar LIMO name only to raise a clear external-toolbox limitation; no LIMO behavior is faked.",
+      "responsible_phase": "phase_6",
       "user_facing_surface": [
-        "api",
-        "study"
+        "python_api",
+        "help"
       ],
-      "test_notes": "No standalone parity test required unless a later phase supplies a real Python dependency and reclassifies the row."
+      "test_notes": "Covered by explicit NotImplementedError tests and help documentation."
     },
     {
       "eeglab_path": "functions/studyfunc/std_readitc.m",
       "eeglab_name": "std_readitc",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_readdata.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "EEGLAB STUDY/group-level helper needed for Phase 6 triage, parity, or explicit standalone limitation handling.",
+      "status": "implemented",
+      "rationale": "std_readitc is implemented as a typed wrapper over EEGPrep cached STUDY ITC measure reads.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Use multi-dataset fixtures, STUDY/ALLEEG synchronization checks, and deterministic MATLAB parity where feasible."
+      "test_notes": "Covered by ITC read tests with subject and range filters."
     },
     {
       "eeglab_path": "functions/studyfunc/std_readpac.m",
       "eeglab_name": "std_readpac",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_readdata.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "EEGLAB STUDY/group-level helper needed for Phase 6 triage, parity, or explicit standalone limitation handling.",
+      "status": "partial",
+      "rationale": "EEGPrep reads PAC only when an explicit EEGPrep-owned pacdata cache exists; external PAC/LIMO files are not emulated.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Use multi-dataset fixtures, STUDY/ALLEEG synchronization checks, and deterministic MATLAB parity where feasible."
+      "test_notes": "Covered by explicit PAC limitation test; native PAC precompute remains a follow-up."
     },
     {
       "eeglab_path": "functions/studyfunc/std_readspec.m",
       "eeglab_name": "std_readspec",
       "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_readdata.py",
       "gap_category": "4_study_group_depth",
-      "status": "partial",
-      "rationale": "std_readspec exists as a consolidated function inside std_readdata.py, but Phase 6 must confirm full EEGLAB spectrum reader semantics.",
+      "status": "implemented",
+      "rationale": "std_readspec is implemented through the consolidated std_readdata spectrum cache reader.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Add STUDY measure fixture tests and deterministic MATLAB parity for spectrum reader behavior before marking implemented."
+      "test_notes": "Covered by STUDY spectrum measure tests."
     },
     {
       "eeglab_path": "functions/studyfunc/std_readspecgram.m",
@@ -7670,16 +7666,16 @@
     {
       "eeglab_path": "functions/studyfunc/std_readtopo.m",
       "eeglab_name": "std_readtopo",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_readdata.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "EEGLAB STUDY/group-level helper needed for Phase 6 triage, parity, or explicit standalone limitation handling.",
+      "status": "implemented",
+      "rationale": "Standalone EEGPrep reads component scalp topographies from pop_precomp scalp caches.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Use multi-dataset fixtures, STUDY/ALLEEG synchronization checks, and deterministic MATLAB parity where feasible."
+      "test_notes": "Covered by component topography read tests."
     },
     {
       "eeglab_path": "functions/studyfunc/std_readtopoclust.m",
@@ -7698,16 +7694,16 @@
     {
       "eeglab_path": "functions/studyfunc/std_rebuilddesign.m",
       "eeglab_name": "std_rebuilddesign",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_rebuilddesign.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "EEGLAB STUDY/group-level helper needed for Phase 6 triage, parity, or explicit standalone limitation handling.",
+      "status": "implemented",
+      "rationale": "Standalone EEGPrep refreshes STUDY design values from current dataset metadata.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Use multi-dataset fixtures, STUDY/ALLEEG synchronization checks, and deterministic MATLAB parity where feasible."
+      "test_notes": "Covered by rebuild tests after datasetinfo changes."
     },
     {
       "eeglab_path": "functions/studyfunc/std_rejectoutliers.m",
@@ -7796,30 +7792,30 @@
     {
       "eeglab_path": "functions/studyfunc/std_savedat.m",
       "eeglab_name": "std_savedat",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_savedat.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "EEGLAB STUDY/group-level helper needed for Phase 6 triage, parity, or explicit standalone limitation handling.",
+      "status": "implemented",
+      "rationale": "Standalone EEGPrep writes explicit JSON or MATLAB-compatible MAT measure sidecars.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Use multi-dataset fixtures, STUDY/ALLEEG synchronization checks, and deterministic MATLAB parity where feasible."
+      "test_notes": "Covered by std_savedat JSON/MAT file tests."
     },
     {
       "eeglab_path": "functions/studyfunc/std_saveindvar.m",
       "eeglab_name": "std_saveindvar",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_saveindvar.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "EEGLAB STUDY/group-level helper needed for Phase 6 triage, parity, or explicit standalone limitation handling.",
+      "status": "implemented",
+      "rationale": "Standalone EEGPrep persists independent-variable descriptors under STUDY.etc.eegprep.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Use multi-dataset fixtures, STUDY/ALLEEG synchronization checks, and deterministic MATLAB parity where feasible."
+      "test_notes": "Covered by independent-variable save tests."
     },
     {
       "eeglab_path": "functions/studyfunc/std_selcomp.m",
@@ -7992,30 +7988,30 @@
     {
       "eeglab_path": "functions/studyfunc/std_uniformfiles.m",
       "eeglab_name": "std_uniformfiles",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_uniformfiles.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "EEGLAB STUDY/group-level helper needed for Phase 6 triage, parity, or explicit standalone limitation handling.",
+      "status": "implemented",
+      "rationale": "Standalone EEGPrep checks uniform loaded channel labels and missing dataset files.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Use multi-dataset fixtures, STUDY/ALLEEG synchronization checks, and deterministic MATLAB parity where feasible."
+      "test_notes": "Covered by uniform channel mismatch tests."
     },
     {
       "eeglab_path": "functions/studyfunc/std_uniformsetinds.m",
       "eeglab_name": "std_uniformsetinds",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_uniformsetinds.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "EEGLAB STUDY/group-level helper needed for Phase 6 triage, parity, or explicit standalone limitation handling.",
+      "status": "implemented",
+      "rationale": "Standalone EEGPrep checks uniform STUDY.changrp dataset index signatures.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Use multi-dataset fixtures, STUDY/ALLEEG synchronization checks, and deterministic MATLAB parity where feasible."
+      "test_notes": "Covered by STUDY consistency helper tests."
     },
     {
       "eeglab_path": "functions/studyfunc/toporeplot.m",

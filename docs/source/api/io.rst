@@ -130,6 +130,20 @@ History And STUDY Files
 
 .. autofunction:: eegprep.std_makedesign
 
+.. autofunction:: eegprep.std_addvarlevel
+
+.. autofunction:: eegprep.std_builddesignmat
+
+.. autofunction:: eegprep.std_rebuilddesign
+
+.. autofunction:: eegprep.std_saveindvar
+
+.. autofunction:: eegprep.pop_addindepvar
+
+.. autofunction:: eegprep.pop_importgroupvar
+
+.. autofunction:: eegprep.pop_listfactors
+
 .. autofunction:: eegprep.std_precomp
 
 .. autofunction:: eegprep.std_readdata
@@ -140,6 +154,22 @@ History And STUDY Files
 
 .. autofunction:: eegprep.std_readersp
 
+.. autofunction:: eegprep.std_readitc
+
+.. autofunction:: eegprep.std_readtopo
+
+.. autofunction:: eegprep.std_readpac
+
+.. autofunction:: eegprep.std_savedat
+
+.. autofunction:: eegprep.std_checkfiles
+
+.. autofunction:: eegprep.std_checkdatasession
+
+.. autofunction:: eegprep.std_uniformfiles
+
+.. autofunction:: eegprep.std_uniformsetinds
+
 .. autofunction:: eegprep.std_erpplot
 
 .. autofunction:: eegprep.std_specplot
@@ -147,6 +177,20 @@ History And STUDY Files
 .. autofunction:: eegprep.std_erspplot
 
 .. autofunction:: eegprep.std_itcplot
+
+.. autofunction:: eegprep.optimal_kmeans
+
+.. autofunction:: eegprep.robust_kmeans
+
+.. autofunction:: eegprep.std_apcluster
+
+.. autofunction:: eegprep.std_centroid
+
+.. autofunction:: eegprep.std_findoutlierclust
+
+.. autofunction:: eegprep.pop_limo
+
+.. autofunction:: eegprep.pop_limoresults
 
 .. autofunction:: eegprep.std_selectdesign
 

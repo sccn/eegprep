@@ -303,15 +303,38 @@ measure plotting, component preclustering, clustering, and cluster editing.
    eegprep.pop_studyerp
    eegprep.pop_loadstudy
    eegprep.pop_savestudy
+   eegprep.pop_addindepvar
+   eegprep.pop_importgroupvar
+   eegprep.pop_listfactors
    eegprep.pop_precomp
    eegprep.pop_chanplot
    eegprep.pop_preclust
    eegprep.pop_clust
    eegprep.pop_clustedit
+   eegprep.std_addvarlevel
+   eegprep.std_builddesignmat
+   eegprep.std_rebuilddesign
+   eegprep.std_saveindvar
+   eegprep.std_readdata
+   eegprep.std_readerp
+   eegprep.std_readspec
+   eegprep.std_readersp
+   eegprep.std_readitc
+   eegprep.std_readtopo
+   eegprep.std_readpac
+   eegprep.std_checkfiles
+   eegprep.std_checkdatasession
+   eegprep.std_uniformfiles
+   eegprep.std_uniformsetinds
    eegprep.std_erpplot
    eegprep.std_specplot
    eegprep.std_erspplot
    eegprep.std_itcplot
+   eegprep.optimal_kmeans
+   eegprep.robust_kmeans
+   eegprep.std_apcluster
+   eegprep.std_centroid
+   eegprep.std_findoutlierclust
 
 Configuration
 ==============

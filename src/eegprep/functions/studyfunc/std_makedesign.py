@@ -16,6 +16,7 @@ from eegprep.functions.studyfunc._study_utils import (
     sync_datasetinfo,
     variable_values,
 )
+from eegprep.functions.studyfunc.std_addvarlevel import std_addvarlevel
 from eegprep.functions.studyfunc.std_selectdesign import std_selectdesign
 
 
@@ -103,6 +104,7 @@ def std_makedesign(
         designs.append(_empty_design(len(designs) + 1))
     designs[design_index - 1] = design
     study["design"] = designs
+    study = std_addvarlevel(study, design_index)
     study = std_selectdesign(study, datasets, design_index)
     study["cache"] = []
     study["saved"] = "no"
@@ -142,7 +144,7 @@ def _design_variables(
             "value": parsed_values,
             "vartype": _vartype(vartype),
             "pairing": "off" if label == "group" else "on",
-            "level": list(range(1, len(parsed_values) + 1)),
+            "levelindex": list(range(1, len(parsed_values) + 1)),
         }
         variables.append(variable)
     return variables

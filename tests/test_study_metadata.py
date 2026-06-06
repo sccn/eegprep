@@ -8,9 +8,17 @@ from eegprep.functions.studyfunc.pop_loadstudy import pop_loadstudy
 from eegprep.functions.studyfunc.pop_savestudy import pop_savestudy
 from eegprep.functions.studyfunc.pop_study import pop_study
 from eegprep.functions.studyfunc.pop_studydesign import pop_studydesign
+from eegprep.functions.studyfunc.pop_addindepvar import pop_addindepvar
+from eegprep.functions.studyfunc.pop_importgroupvar import pop_importgroupvar
+from eegprep.functions.studyfunc.pop_listfactors import pop_listfactors
+from eegprep.functions.studyfunc.std_addvarlevel import std_addvarlevel
+from eegprep.functions.studyfunc.std_builddesignmat import std_builddesignmat
 from eegprep.functions.studyfunc.std_checkset import std_checkdatasetinfo, std_checkset
 from eegprep.functions.studyfunc.std_editset import std_editset
+from eegprep.functions.studyfunc.std_findgroupvars import std_findgroupvars
 from eegprep.functions.studyfunc.std_makedesign import std_makedesign
+from eegprep.functions.studyfunc.std_rebuilddesign import std_rebuilddesign
+from eegprep.functions.studyfunc.std_saveindvar import std_saveindvar
 from eegprep.functions.studyfunc.std_selectdesign import std_selectdesign
 from tests.fixtures import create_test_eeg
 
@@ -94,6 +102,8 @@ def test_std_makedesign_selects_1_based_design_and_validates_variables():
     assert study["design"][1]["variable"][0]["label"] == "group"
     assert study["design"][1]["variable"][0]["value"] == ["control"]
     assert study["design"][1]["variable"][0]["pairing"] == "off"
+    assert study["design"][1]["variable"][0]["level"] == "two"
+    assert study["design"][1]["variable"][0]["levelindex"] == [1]
     assert "std_makedesign" in command
     with pytest.raises(ValueError, match="Unknown STUDY design variable"):
         std_makedesign(study, alleeg, 1, variable1="missing")
@@ -220,3 +230,82 @@ def test_dataset_consistency_reports_mismatch_without_mutating_files():
     assert consistency["same_srate"] is False
     assert "datasets do not share one sampling rate" in consistency["problems"]
     assert checked["etc"]["eegprep"]["dataset_consistency"]["same_srate"] is False
+
+
+def test_design_variable_helpers_build_factors_and_matrices():
+    study, alleeg = pop_study(
+        None,
+        [
+            _eeg("s01_target", subject="S01", condition="target", group="control"),
+            _eeg("s01_standard", subject="S01", condition="standard", group="control"),
+            _eeg("s02_target", subject="S02", condition="target", group="patient"),
+        ],
+    )
+
+    study, command = std_makedesign(
+        study,
+        alleeg,
+        1,
+        variable1="condition",
+        variable2="group",
+        return_com=True,
+    )
+    leveled = std_addvarlevel(study)
+    factors = pop_listfactors(leveled, constant="off")
+    variable, values, categorical = pop_addindepvar(
+        {"factors": ["condition"], "factorvals": [["standard", "target"]], "numerical": [False]},
+        var="condition",
+        values=["target"],
+    )
+    matrix, labels, catflag = std_builddesignmat(
+        {
+            "variable": [
+                {"label": "condition", "value": ["target", "standard"], "vartype": "categorical"},
+                {"label": "rt", "value": [], "vartype": "continuous"},
+            ]
+        },
+        [{"condition": "target", "rt": 300.0}, {"condition": "standard", "rt": 400.0}],
+        expanding=True,
+    )
+
+    assert "std_makedesign" in command
+    assert leveled["design"][0]["variable"][0]["level"] == "one"
+    assert leveled["design"][0]["variable"][1]["level"] == "two"
+    assert {factor["description"] for factor in factors} >= {"condition - standard", "condition - target"}
+    assert variable == "condition"
+    assert values == ["target"]
+    assert categorical == 1
+    assert labels == ["condition-target", "condition-standard", "rt", "constant"]
+    np.testing.assert_allclose(matrix[:, -2:], [[300.0, 1.0], [400.0, 1.0]])
+    np.testing.assert_array_equal(catflag, np.asarray([True, True, False, False]))
+
+
+def test_import_save_and_rebuild_independent_variables():
+    study, alleeg = pop_study(
+        None,
+        [
+            _eeg("s01", subject="S01", condition="target", group="control"),
+            _eeg("s02", subject="S02", condition="standard", group="patient"),
+        ],
+    )
+
+    imported, import_command = pop_importgroupvar(
+        study,
+        1,
+        variable="age_group",
+        values={"S01": "young", "S02": "older"},
+        return_com=True,
+    )
+    saved, save_command = std_saveindvar(imported, return_com=True)
+    imported["datasetinfo"][1]["condition"] = "oddball"
+    rebuilt, rebuild_command = std_rebuilddesign(imported, alleeg, return_com=True)
+
+    assert imported["datasetinfo"][0]["age_group"] == "young"
+    assert imported["design"][0]["variable"][-1]["label"] == "age_group"
+    assert imported["design"][0]["variable"][-1]["level"] == "two"
+    assert "pop_importgroupvar" in import_command
+    assert saved["etc"]["eegprep"]["independent_variables"]
+    assert "std_saveindvar" in save_command
+    assert "oddball" in rebuilt["design"][0]["variable"][0]["value"]
+    assert "std_rebuilddesign" in rebuild_command
+    assert std_findgroupvars(imported) == ["condition", "group", "age_group"]
