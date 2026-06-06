@@ -401,6 +401,8 @@ def _continuous_to_epoched(data: np.ndarray, pnts: int, trials: int) -> np.ndarr
 
 
 def _adjust_event_latencies_for_xmin_change(output: dict[str, Any], old_xmin: float, old_srate: float) -> None:
+    if int(output.get("trials", 1) or 1) <= 1:
+        return
     new_xmin = float(output.get("xmin", old_xmin) or 0.0)
     delta_samples = (new_xmin - old_xmin) * old_srate
     if not delta_samples:
