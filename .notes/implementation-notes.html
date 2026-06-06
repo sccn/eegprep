@@ -6,6 +6,26 @@
 </head>
 <body>
   <h1>EEGPrep Core Parity Implementation Notes</h1>
+  <h1>EEGPrep Phase 8 Epic Closeout Notes</h1>
+  <p>Phase 8 reviews the integrated Phases 1-7 surface for closeout evidence
+  rather than adding another feature area. The branch remains scoped to matrix,
+  docs/help, QA evidence, and concrete integration defects.</p>
+  <h2>Phase 8 Closeout Findings</h2>
+  <ul>
+    <li>The committed parity matrix already classified every in-scope EEGLAB file once the EEGLAB reference submodule was initialized, but remaining <code>port</code> and <code>partial</code> rows only named generic follow-up work in <code>test_notes</code>. The closeout now requires actionable rows to cite a concrete issue, and rows point to <a href="https://github.com/sccn/eegprep/issues/146">#146</a>, <a href="https://github.com/sccn/eegprep/issues/147">#147</a>, <a href="https://github.com/sccn/eegprep/issues/148">#148</a>, or <a href="https://github.com/sccn/eegprep/issues/149">#149</a>.</li>
+    <li>Help Markdown coverage was complete for new Phase 2/4/5/7 <code>pop_*</code> wrappers, but Phase 6's public STUDY helpers <code>pop_addindepvar</code> and <code>pop_listfactors</code> were missing packaged help resources. Phase 8 adds those help topics and a focused packaged-help regression check.</li>
+    <li>The docs already explain supported long-tail imports, statistics, time-frequency helpers, STUDY workflows, and legacy wrapper surfaces through the API and user-guide pages added by earlier phases.</li>
+    <li>No Phase 8 runtime GUI implementation was added. Earlier phase notes show GUI changes were limited to existing dialog behavior or non-GUI API/console surfaces, so no new Phase 8 visual parity attachment is required.</li>
+  </ul>
+  <h2>Phase 8 Tradeoffs</h2>
+  <ul>
+    <li>Remaining <code>port</code>/<code>partial</code> rows were not force-ported during closeout. They represent follow-up issues whose own scopes require parity-first design, fixtures, or GUI evidence. Closing Phase 8 by naming those issues is safer than adding incomplete analysis math or one-for-one MATLAB GUI internals.</li>
+    <li>The parity matrix validator remains a development tool that may read the EEGLAB submodule. Runtime code under <code>src/eegprep</code> continues to avoid importing from, reading from, or shelling out to <code>src/eegprep/eeglab</code>.</li>
+  </ul>
+  <h2>Phase 8 Verification Notes</h2>
+  <ul>
+    <li>Final verification commands will be recorded in the Phase 8 PR body after the required matrix, lint, type, test, pre-commit, GUI/console, and review checks run.</li>
+  </ul>
   <h1>EEGPrep Phase 7 Long-Tail Core Helpers Notes</h1>
   <p>Phase 7 closes the remaining audit-approved helper and wrapper gaps that
   were still actionable after Phases 2-6, while classifying obsolete or
