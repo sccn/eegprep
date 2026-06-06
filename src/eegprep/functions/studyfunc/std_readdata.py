@@ -143,6 +143,7 @@ def std_readpac(
             "STUDY PAC reading requires EEGPrep-owned pacdata caches; external LIMO/PAC toolbox output is not "
             "silently emulated"
         )
+    # PAC caches selected together share the first group's axes; shape checks below catch incompatible groups.
     first = groups[0]
     times = np.asarray(first.get("pactimes", []), dtype=float)
     freqs = np.asarray(first.get("pacfreqs", []), dtype=float)
