@@ -46,6 +46,18 @@ Time-Frequency And Statistics
 
 .. autofunction:: eegprep.correct_mc
 
+.. autofunction:: eegprep.correctfit
+
+.. autofunction:: eegprep.rsadjust
+
+.. autofunction:: eegprep.rsfit
+
+.. autofunction:: eegprep.rsget
+
+.. autofunction:: eegprep.rspdfsolv
+
+.. autofunction:: eegprep.rspfunc
+
 .. autofunction:: eegprep.signalstat
 
 .. autofunction:: eegprep.pop_newtimef

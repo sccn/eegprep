@@ -8841,30 +8841,28 @@
       "eeglab_name": "correct_mc",
       "eegprep_equivalent": "src/eegprep/functions/timefreqfunc/correct_mc.py",
       "gap_category": "6_time_frequency_internals",
-      "status": "partial",
-      "rationale": "EEGPrep has a standalone correct_mc estimator; exact EEGLAB random-symbol/Ramberg-Schmeiser fitting is deferred to the linked follow-up for a parity-first implementation decision.",
-      "responsible_phase": "phase_7",
+      "status": "implemented",
+      "rationale": "EEGPrep keeps the standalone correct_mc workflow but now uses the EEGLAB Ramberg-Schmeiser rsfit p-value path for neighboring-bin correlations without any runtime dependency on the vendored EEGLAB checkout.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "helper",
         "time_frequency"
       ],
-      "test_notes": "Follow-up issue must add deterministic distribution-fitting parity tests before porting.",
-      "follow_up_issue": "https://github.com/sccn/eegprep/issues/147"
+      "test_notes": "Covered by focused correct_mc delegation/shape tests plus direct Ramberg-Schmeiser helper tests and skip-aware MATLAB parity coverage."
     },
     {
       "eeglab_path": "functions/timefreqfunc/correctfit.m",
       "eeglab_name": "correctfit",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/timefreqfunc/correctfit.py",
       "gap_category": "6_time_frequency_internals",
-      "status": "port",
-      "rationale": "EEGPrep has a standalone correct_mc estimator; exact EEGLAB random-symbol/Ramberg-Schmeiser fitting is deferred to the linked follow-up for a parity-first implementation decision.",
-      "responsible_phase": "phase_7",
+      "status": "implemented",
+      "rationale": "EEGPrep ports the gamma p-value correction helper as a standalone numerical utility for the Ramberg-Schmeiser/distfit stack, while bootstat distfit API expansion remains outside issue #147.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "helper",
         "time_frequency"
       ],
-      "test_notes": "Follow-up issue must add deterministic distribution-fitting parity tests before porting.",
-      "follow_up_issue": "https://github.com/sccn/eegprep/issues/147"
+      "test_notes": "Covered by deterministic gamma-parameter correction tests."
     },
     {
       "eeglab_path": "functions/timefreqfunc/crossf.m",
@@ -9038,77 +9036,72 @@
     {
       "eeglab_path": "functions/timefreqfunc/rsadjust.m",
       "eeglab_name": "rsadjust",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/timefreqfunc/rsadjust.py",
       "gap_category": "6_time_frequency_internals",
-      "status": "port",
-      "rationale": "EEGPrep has a standalone correct_mc estimator; exact EEGLAB random-symbol/Ramberg-Schmeiser fitting is deferred to the linked follow-up for a parity-first implementation decision.",
-      "responsible_phase": "phase_7",
+      "status": "implemented",
+      "rationale": "EEGPrep ports the EEGLAB Ramberg-Schmeiser lambda adjustment formula as a standalone helper used by rsfit.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "helper",
         "time_frequency"
       ],
-      "test_notes": "Follow-up issue must add deterministic distribution-fitting parity tests before porting.",
-      "follow_up_issue": "https://github.com/sccn/eegprep/issues/147"
+      "test_notes": "Covered by analytic helper tests and skip-aware MATLAB parity coverage."
     },
     {
       "eeglab_path": "functions/timefreqfunc/rsfit.m",
       "eeglab_name": "rsfit",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/timefreqfunc/rsfit.py",
       "gap_category": "6_time_frequency_internals",
-      "status": "port",
-      "rationale": "EEGPrep has a standalone correct_mc estimator; exact EEGLAB random-symbol/Ramberg-Schmeiser fitting is deferred to the linked follow-up for a parity-first implementation decision.",
-      "responsible_phase": "phase_7",
+      "status": "implemented",
+      "rationale": "EEGPrep ports the EEGLAB Ramberg-Schmeiser distribution fit used by correct_mc and exposes it as a standalone numerical helper.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "helper",
         "time_frequency"
       ],
-      "test_notes": "Follow-up issue must add deterministic distribution-fitting parity tests before porting.",
-      "follow_up_issue": "https://github.com/sccn/eegprep/issues/147"
+      "test_notes": "Covered by analytic helper tests, correct_mc integration coverage, and skip-aware MATLAB parity coverage."
     },
     {
       "eeglab_path": "functions/timefreqfunc/rsget.m",
       "eeglab_name": "rsget",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/timefreqfunc/rsget.py",
       "gap_category": "6_time_frequency_internals",
-      "status": "port",
-      "rationale": "EEGPrep has a standalone correct_mc estimator; exact EEGLAB random-symbol/Ramberg-Schmeiser fitting is deferred to the linked follow-up for a parity-first implementation decision.",
-      "responsible_phase": "phase_7",
+      "status": "implemented",
+      "rationale": "EEGPrep ports the EEGLAB Ramberg-Schmeiser cumulative probability lookup used by rsfit.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "helper",
         "time_frequency"
       ],
-      "test_notes": "Follow-up issue must add deterministic distribution-fitting parity tests before porting.",
-      "follow_up_issue": "https://github.com/sccn/eegprep/issues/147"
+      "test_notes": "Covered by analytic helper tests and skip-aware MATLAB parity coverage."
     },
     {
       "eeglab_path": "functions/timefreqfunc/rspdfsolv.m",
       "eeglab_name": "rspdfsolv",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/timefreqfunc/rspdfsolv.py",
       "gap_category": "6_time_frequency_internals",
-      "status": "port",
-      "rationale": "EEGPrep has a standalone correct_mc estimator; exact EEGLAB random-symbol/Ramberg-Schmeiser fitting is deferred to the linked follow-up for a parity-first implementation decision.",
-      "responsible_phase": "phase_7",
+      "status": "implemented",
+      "rationale": "EEGPrep ports the EEGLAB Ramberg-Schmeiser moment residual used by rsfit optimization.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "helper",
         "time_frequency"
       ],
-      "test_notes": "Follow-up issue must add deterministic distribution-fitting parity tests before porting.",
-      "follow_up_issue": "https://github.com/sccn/eegprep/issues/147"
+      "test_notes": "Covered by analytic helper tests and skip-aware MATLAB parity coverage."
     },
     {
       "eeglab_path": "functions/timefreqfunc/rspfunc.m",
       "eeglab_name": "rspfunc",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/timefreqfunc/rspfunc.py",
       "gap_category": "6_time_frequency_internals",
-      "status": "port",
-      "rationale": "EEGPrep has a standalone correct_mc estimator; exact EEGLAB random-symbol/Ramberg-Schmeiser fitting is deferred to the linked follow-up for a parity-first implementation decision.",
-      "responsible_phase": "phase_7",
+      "status": "implemented",
+      "rationale": "EEGPrep ports the EEGLAB Ramberg-Schmeiser quantile residual used by rsget.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "helper",
         "time_frequency"
       ],
-      "test_notes": "Follow-up issue must add deterministic distribution-fitting parity tests before porting.",
-      "follow_up_issue": "https://github.com/sccn/eegprep/issues/147"
+      "test_notes": "Covered by analytic helper tests and skip-aware MATLAB parity coverage."
     },
     {
       "eeglab_path": "functions/timefreqfunc/tf_cycle_calc.m",

@@ -6,6 +6,49 @@
 </head>
 <body>
   <h1>EEGPrep Core Parity Implementation Notes</h1>
+  <h1>Issue #147 Correct MC Random-Symbol Fitting Notes</h1>
+  <p>Issue #147 implements the Ramberg-Schmeiser/random-symbol fitting stack
+  needed by <code>correct_mc</code> while keeping EEGPrep runtime code independent
+  of the vendored EEGLAB checkout.</p>
+  <h2>Issue #147 Design Decisions</h2>
+  <ul>
+    <li>Ported <code>rsfit</code>, <code>rsadjust</code>, <code>rsget</code>,
+    <code>rspdfsolv</code>, and <code>rspfunc</code> as standalone numerical
+    helpers under <code>functions/timefreqfunc</code>, matching the EEGLAB
+    Ramberg-Schmeiser moment and quantile formulas with SciPy optimization and
+    beta/gamma functions already available in the project.</li>
+    <li>Updated <code>correct_mc</code> so neighboring-bin channel correlations
+    are tested with <code>rsfit(correlations, 0)</code>, which is the EEGLAB
+    decision path for the returned p-value array and <code>ncorrect</code>
+    threshold.</li>
+    <li>Ported <code>correctfit</code> as a standalone gamma-parameter correction
+    helper because it belongs to the same EEGLAB distribution-fit stack, but did
+    not add a new <code>bootstat(distfit='on')</code> API in this issue.</li>
+  </ul>
+  <h2>Issue #147 Tradeoffs</h2>
+  <ul>
+    <li>The prior standalone <code>correct_mc</code> input handling, output shape,
+    and time-frequency workflow remain intact; only the temporary t-test
+    p-value estimator was replaced with the EEGLAB RS fit.</li>
+    <li>Degenerate correlation distributions produce <code>NaN</code> p-values
+    inside <code>correct_mc</code> instead of crashing the whole helper, matching
+    the existing EEGPrep behavior for non-estimable cells while the public
+    <code>rsfit</code> helper still fails clearly on invalid distributions.</li>
+    <li><code>bootstat</code> remains EEGPrep's callable bootstrap helper. Its
+    broader EEGLAB <code>distfit</code>/<code>vals</code>/<code>correctp</code>
+    behavior changes the bootstrap API surface and is intentionally left out of
+    this <code>correct_mc</code>-scoped follow-up.</li>
+  </ul>
+  <h2>Issue #147 Verification Notes</h2>
+  <ul>
+    <li>Focused Python tests cover analytic RS helper cases, gamma-parameter
+    <code>correctfit</code> behavior, and <code>correct_mc</code> delegation to
+    <code>rsfit</code>.</li>
+    <li>A skip-aware MATLAB parity test compares deterministic
+    <code>rsfit</code>, <code>rsadjust</code>, <code>rsget</code>,
+    <code>rspdfsolv</code>, and <code>rspfunc</code> outputs when MATLAB Engine
+    and the EEGLAB reference checkout are available.</li>
+  </ul>
   <h1>EEGPrep Phase 8 Epic Closeout Notes</h1>
   <p>Phase 8 reviews the integrated Phases 1-7 surface for closeout evidence
   rather than adding another feature area. The branch remains scoped to matrix,
