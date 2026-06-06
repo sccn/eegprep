@@ -84,8 +84,7 @@ def _distance_matrix(data: np.ndarray, metric: str) -> np.ndarray:
 def _assign_exemplars(similarity: np.ndarray, exemplars: list[int]) -> np.ndarray:
     selected = similarity[:, exemplars]
     raw = np.argmax(selected, axis=1)
-    remap = {position: index + 1 for index, position in enumerate(range(len(exemplars)))}
-    return np.asarray([remap[int(item)] for item in raw], dtype=int)
+    return raw.astype(int) + 1
 
 
 def _sum_distances(data: np.ndarray, labels: np.ndarray, centers: np.ndarray) -> np.ndarray:

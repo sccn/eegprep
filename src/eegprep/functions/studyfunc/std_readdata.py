@@ -50,6 +50,8 @@ def std_readdata(
         cluster = clusters_list[cluster_index - 1]
         source = clusters_list[0] if cluster_index > 1 else cluster
         data = _data_array(source, measure)
+        if cluster_index > 1 and _subject_values(subject):
+            raise ValueError("subject filter requires a parent component cache with a dataset axis")
         if cluster_index > 1:
             data = _cluster_component_data(source, cluster, data, components)
         elif components is not None:
@@ -121,7 +123,9 @@ def std_readpac(
     **_kwargs: Any,
 ) -> tuple[dict[str, Any], list[np.ndarray], np.ndarray, np.ndarray]:
     """Read cached STUDY PAC data when a standalone cache is present."""
-    _ = ALLEEG, components
+    _ = ALLEEG
+    if components is not None:
+        raise ValueError("std_readpac does not yet support component selection for PAC caches")
     study = ensure_study(STUDY)
     if channels is not None:
         groups = _channel_groups(study, channels)
@@ -336,7 +340,7 @@ def _subject_filter(data: np.ndarray, study: dict[str, Any], subject: Any) -> np
         return data
     datasetinfo = study.get("datasetinfo") or []
     if data.ndim == 0 or data.shape[0] != len(datasetinfo):
-        return data
+        raise ValueError("subject filter requires a dataset-axis cache")
     keep = [index for index, info in enumerate(datasetinfo) if str(info.get("subject") or "") in subjects]
     if not keep:
         raise ValueError("subject filter did not match any STUDY datasets")

@@ -62,8 +62,6 @@ def _factor_lists(varlist: dict[str, Any] | list[str]) -> tuple[list[str], list[
     factors = []
     values = []
     numerical = []
-    for label in study.get("subject", []):
-        _ = label
     for label in _study_factor_names(study):
         factor_values = variable_values(study, label)
         factors.append(label)
