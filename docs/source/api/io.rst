@@ -89,6 +89,9 @@ Text And External Export
 ``pop_export`` supports EEGLAB-style text export options including ICA export,
 time/electrode rows, transpose, ERP averaging, precision, separator, and a
 standalone numeric ``expr`` transform applied to the exported array ``x``.
+Most expression function calls are positional; ``clip`` and ``nan_to_num`` also
+accept documented safe numeric keywords. Power operators require small constant
+exponents.
 
 .. autofunction:: eegprep.pop_expica
 

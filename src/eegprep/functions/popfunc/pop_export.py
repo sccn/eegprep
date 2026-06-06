@@ -24,6 +24,11 @@ _EXPORT_EXPR_FUNCTIONS = {
     "nan_to_num": np.nan_to_num,
     "sqrt": np.sqrt,
 }
+_EXPORT_EXPR_KEYWORDS = {
+    "clip": {"a_min", "a_max", "max", "min"},
+    "nan_to_num": {"nan", "neginf", "posinf"},
+}
+_MAX_POWER_EXPONENT = 12
 
 
 def pop_export(EEG: dict[str, Any], filename: str | Path, *args: Any, **kwargs: Any) -> str:
@@ -130,6 +135,9 @@ def _validate_expression(tree: ast.expr) -> None:
         if isinstance(node, ast.Call):
             _validate_expression_call(node)
             continue
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Pow):
+            _validate_power_exponent(node.right)
+            continue
         if isinstance(node, ast.Attribute):
             if _allowed_numpy_attribute(node):
                 continue
@@ -152,6 +160,7 @@ def _validate_expression(tree: ast.expr) -> None:
                 ast.Slice,
                 ast.Tuple,
                 ast.List,
+                ast.keyword,
                 ast.Add,
                 ast.Sub,
                 ast.Mult,
@@ -178,13 +187,53 @@ def _validate_expression(tree: ast.expr) -> None:
 
 
 def _validate_expression_call(node: ast.Call) -> None:
-    if node.keywords:
-        raise ValueError("pop_export expr function calls do not support keyword arguments")
-    if isinstance(node.func, ast.Name) and node.func.id in _EXPORT_EXPR_FUNCTIONS:
-        return
-    if isinstance(node.func, ast.Attribute) and _allowed_numpy_attribute(node.func):
+    name = _expression_call_name(node.func)
+    if name in _EXPORT_EXPR_FUNCTIONS:
+        _validate_expression_keywords(name, node.keywords)
         return
     raise ValueError("pop_export expr only supports arithmetic and selected NumPy numeric functions")
+
+
+def _expression_call_name(node: ast.expr) -> str | None:
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute) and _allowed_numpy_attribute(node):
+        return node.attr
+    return None
+
+
+def _validate_expression_keywords(function_name: str, keywords: list[ast.keyword]) -> None:
+    allowed = _EXPORT_EXPR_KEYWORDS.get(function_name, set())
+    for keyword in keywords:
+        if keyword.arg is None:
+            raise ValueError("pop_export expr does not support ** keyword expansion")
+        if keyword.arg not in allowed:
+            allowed_text = ", ".join(sorted(allowed)) or "none"
+            raise ValueError(
+                f"pop_export expr does not support keyword argument {keyword.arg!r} "
+                f"for {function_name}; allowed keywords: {allowed_text}"
+            )
+
+
+def _validate_power_exponent(node: ast.expr) -> None:
+    exponent = _literal_number(node)
+    if exponent is None:
+        raise ValueError("pop_export expr power exponents must be numeric constants")
+    if abs(exponent) > _MAX_POWER_EXPONENT:
+        raise ValueError(
+            f"pop_export expr power exponents must be between -{_MAX_POWER_EXPONENT} and {_MAX_POWER_EXPONENT}"
+        )
+
+
+def _literal_number(node: ast.expr) -> float | None:
+    if isinstance(node, ast.Constant) and isinstance(node.value, int | float):
+        return float(node.value)
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.UAdd, ast.USub)):
+        value = _literal_number(node.operand)
+        if value is None:
+            return None
+        return value if isinstance(node.op, ast.UAdd) else -value
+    return None
 
 
 def _allowed_numpy_attribute(node: ast.Attribute) -> bool:

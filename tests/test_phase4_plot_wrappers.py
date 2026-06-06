@@ -1062,6 +1062,26 @@ def test_pop_comperp_supports_display_options_and_significance(sample_epoch):
         pop_comperp(datasets, flag=1, datadd=[1, 2], unsupported="on")
 
 
+def test_pop_comperp_significance_shading_marks_known_effect(sample_epoch):
+    datasets = []
+    for amplitude in (1.0, 1.1, 0.9):
+        dataset = deepcopy(sample_epoch)
+        dataset["data"] = np.zeros_like(np.asarray(dataset["data"], dtype=float)) + amplitude
+        datasets.append(dataset)
+    for _index in range(3):
+        dataset = deepcopy(sample_epoch)
+        dataset["data"] = np.zeros_like(np.asarray(dataset["data"], dtype=float))
+        datasets.append(dataset)
+
+    result = pop_comperp(datasets, flag=1, datadd=[1, 2, 3], datsub=[4, 5, 6], chans=[1, 2], alpha=0.01)
+
+    significant_patches = [
+        patch for patch in result["figure"].axes[0].patches if patch.get_alpha() == pytest.approx(0.18)
+    ]
+    assert significant_patches
+    plt.close(result["figure"])
+
+
 def test_pop_chanplot_validates_time_grid(sample_epoch):
     second = deepcopy(sample_epoch)
     second["xmax"] = float(second["xmax"]) + 0.1

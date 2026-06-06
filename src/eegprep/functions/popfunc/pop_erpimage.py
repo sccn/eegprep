@@ -412,13 +412,14 @@ def _event_sort_values(EEG: dict[str, Any], field: Any, event_types: Any, eventr
     if window.size not in {0, 2}:
         raise ValueError("sortingwin/eventrange must contain [start end] in milliseconds")
     values = np.full(trials, np.nan)
+    needs_latency = window.size == 2 or field_name == "latency"
     for event in _event_records(EEG.get("event")):
         epoch = _event_epoch(event, pnts)
         if epoch < 1 or epoch > trials:
             continue
         if types and str(event.get("type", "")) not in types:
             continue
-        latency_ms = _event_latency_ms(event, epoch, pnts, srate, xmin)
+        latency_ms = _event_latency_ms(event, epoch, pnts, srate, xmin) if needs_latency else np.nan
         if window.size == 2 and not (window[0] <= latency_ms <= window[1]):
             continue
         if not np.isnan(values[epoch - 1]):

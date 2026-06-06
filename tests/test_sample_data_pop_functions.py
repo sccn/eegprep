@@ -334,6 +334,21 @@ def test_pop_clean_rawdata_riemannian_asr_runs_on_sample_data_without_warning_no
     assert not [record for record in caplog.records if record.levelname in {"WARNING", "ERROR"}]
 
 
+def test_pop_clean_rawdata_rejects_unknown_distance_before_asr(sample_eeg):
+    with pytest.raises(ValueError, match="Distance"):
+        pop_clean_rawdata(
+            sample_eeg,
+            Distance="euclidiann",
+            BurstCriterion=20,
+            BurstRejection="off",
+            WindowCriterion="off",
+            Highpass="off",
+            ChannelCriterion="off",
+            LineNoiseCriterion="off",
+            FlatlineCriterion="off",
+        )
+
+
 def test_pop_rmbase_zeroes_selected_sample_baseline_channels(sample_eeg):
     baseline = pop_rmbase(sample_eeg, pointrange=range(1, 21), chanlist=[1, 2])
 
@@ -422,11 +437,20 @@ def test_pop_export_writes_sample_data_table(tmp_path, sample_eeg):
 def test_pop_export_applies_expression_to_sample_data(tmp_path, sample_eeg):
     output_file = tmp_path / "sample_export_expr.tsv"
 
-    command = pop_export(sample_eeg, output_file, "transpose", "on", "expr", "x = x * 2")
+    command = pop_export(
+        sample_eeg, output_file, "transpose", "on", "expr", "x = np.clip(x * 2, a_min=-100, a_max=100)"
+    )
 
     table = np.loadtxt(output_file, delimiter="\t", skiprows=1)
-    assert table[0, 1] == pytest.approx(float(sample_eeg["data"][0, 0]) * 2)
-    assert "'expr', 'x = x * 2'" in command
+    assert table[0, 1] == pytest.approx(float(np.clip(sample_eeg["data"][0, 0] * 2, -100, 100)))
+    assert "'expr', 'x = np.clip(x * 2, a_min=-100, a_max=100)'" in command
+
+
+def test_pop_export_rejects_unsafe_expression_calls(tmp_path, sample_eeg):
+    with pytest.raises(ValueError, match="keyword argument"):
+        pop_export(sample_eeg, tmp_path / "keyword.tsv", "expr", "np.clip(x, a_min=0, a_max=1, out=x)")
+    with pytest.raises(ValueError, match="power exponents"):
+        pop_export(sample_eeg, tmp_path / "power.tsv", "expr", "x ** 999")
 
 
 def test_pop_export_writes_sample_ica_activity_when_icaact_is_missing(sample_eeg_with_ica, tmp_path):

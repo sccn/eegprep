@@ -30,7 +30,12 @@ Notes:
 - `chanlocs` may be assigned directly as channel-location structures or loaded
   from an existing channel-location file path supported by `readlocs`.
 - `icaweights`, `icasphere`, and `icachansind` may be assigned directly or
-  loaded from numeric file paths.
+  loaded from numeric file paths. The `dataformat` option also applies to these
+  numeric ICA file imports, which is useful when a file extension would
+  otherwise infer the wrong format.
+- Missing values that look like file paths raise a file-not-found error. Plain
+  names such as `rawdata` or `icaweights` are treated as unsupported MATLAB
+  workspace expressions.
 - MATLAB workspace expressions such as `rawdata`, `locs`, or `icaweights`
   are not evaluated by EEGPrep. Pass Python values directly or provide concrete
   file paths so the command history is replayable in `eegprep-console`.

@@ -245,6 +245,7 @@ def _plot_comperp(
 ):
     fig, ax = plt.subplots(figsize=(8, 4.5))
     plot_times, mask = _plot_time_mask(times, options.get("tlim"))
+    mode = str(options.get("mode") or "ave").lower()
     if _is_on(options.get("addall")):
         _plot_all(ax, add_stack, plot_times, mask, color="0.45", label_prefix="add")
     if _is_on(options.get("suball")) and sub_stack is not None:
@@ -258,11 +259,11 @@ def _plot_comperp(
     if erpsub is not None and _is_on(options.get("diffavg")):
         ax.plot(plot_times, np.nanmean(erpsub, axis=0)[mask], color="black", label="difference")
     if _is_on(options.get("addstd")):
-        _plot_std(ax, add_stack, plot_times, mask, color="blue", label="add std")
+        _plot_std(ax, add_stack, plot_times, mask, color="blue", label="add std", mode=mode)
     if _is_on(options.get("substd")) and sub_stack is not None:
-        _plot_std(ax, sub_stack, plot_times, mask, color="red", label="sub std")
+        _plot_std(ax, sub_stack, plot_times, mask, color="red", label="sub std", mode=mode)
     if _is_on(options.get("diffstd")) and diff_stack is not None:
-        _plot_std(ax, diff_stack, plot_times, mask, color="black", label="diff std")
+        _plot_std(ax, diff_stack, plot_times, mask, color="black", label="diff std", mode=mode)
     alpha = options.get("alpha")
     if pvalues is not None and alpha is not None:
         _shade_significance(ax, times, mask, pvalues, float(alpha))
@@ -318,10 +319,11 @@ def _is_default_off(value: Any) -> bool:
     if value is None:
         return True
     if isinstance(value, str):
-        return value.lower() == "off" or value == ""
+        return value.strip().lower() in {"", "off", "no", "false", "0"}
     if isinstance(value, (list, tuple, np.ndarray)):
-        return len(np.asarray(value).ravel()) == 0
-    return value is False
+        array = np.asarray(value).ravel()
+        return len(array) == 0 or (len(array) == 1 and not bool(array[0]))
+    return not bool(value)
 
 
 def _normalise_options(options: dict[str, Any], *, has_sub: bool) -> dict[str, Any]:
@@ -398,7 +400,7 @@ def _optional_alpha(value: Any) -> float | None:
 
 
 def _onoff_option(value: Any, default: bool) -> str:
-    if value is None or _is_default_off(value) and default is False:
+    if value is None or (_is_default_off(value) and default is False):
         return "on" if default else "off"
     return "on" if _is_on(value) else "off"
 
@@ -441,10 +443,12 @@ def _plot_all(
         ax.plot(times, np.nanmean(erp, axis=0)[mask], color=color, linewidth=0.8, alpha=0.65, label=label)
 
 
-def _plot_std(ax: Any, stack: np.ndarray, times: np.ndarray, mask: np.ndarray, *, color: str, label: str) -> None:
-    row_means = np.nanmean(stack, axis=1)
-    center = np.nanmean(row_means, axis=0)
-    spread = np.nanstd(row_means, axis=0, ddof=1 if stack.shape[0] > 1 else 0)
+def _plot_std(
+    ax: Any, stack: np.ndarray, times: np.ndarray, mask: np.ndarray, *, color: str, label: str, mode: str
+) -> None:
+    center = np.nanmean(_collapse_erps(stack, mode), axis=0)
+    channel_spread = np.nanstd(stack, axis=0, ddof=1 if stack.shape[0] > 1 else 0)
+    spread = np.nanmean(channel_spread, axis=0)
     ax.plot(times, (center + spread)[mask], color=color, linestyle=":", linewidth=1.0, label=label)
     ax.plot(times, (center - spread)[mask], color=color, linestyle=":", linewidth=1.0)
 

@@ -252,9 +252,9 @@ def test_pop_editset_history_serializes_channel_structures_for_replay():
 def test_pop_editset_loads_data_chanlocs_and_ica_from_files(tmp_path):
     data_file = tmp_path / "raw.txt"
     locs_file = tmp_path / "locs.sfp"
-    weights_file = tmp_path / "weights.txt"
-    sphere_file = tmp_path / "sphere.txt"
-    index_file = tmp_path / "icachansind.txt"
+    weights_file = tmp_path / "weights.fdt"
+    sphere_file = tmp_path / "sphere.fdt"
+    index_file = tmp_path / "icachansind.fdt"
     np.savetxt(data_file, np.arange(15, dtype=float).reshape(3, 5))
     locs_file.write_text("Fz 0 0 1\nCz 0 1 0\nPz 1 0 0\n", encoding="utf-8")
     np.savetxt(weights_file, np.eye(3))
@@ -264,15 +264,15 @@ def test_pop_editset_loads_data_chanlocs_and_ica_from_files(tmp_path):
     out, com = pop_editset(
         _eeg(),
         "data",
-        str(data_file),
+        data_file,
         "chanlocs",
-        str(locs_file),
+        locs_file,
         "icaweights",
-        str(weights_file),
+        weights_file,
         "icasphere",
-        str(sphere_file),
+        sphere_file,
         "icachansind",
-        str(index_file),
+        index_file,
         "dataformat",
         "ascii",
         return_com=True,
@@ -287,10 +287,18 @@ def test_pop_editset_loads_data_chanlocs_and_ica_from_files(tmp_path):
 
 
 def test_pop_editset_rejects_matlab_workspace_expressions():
-    with pytest.raises(ValueError, match="workspace expressions for data"):
+    with pytest.raises(FileNotFoundError, match="data file not found"):
         pop_editset(_eeg(), "data", "raw.mat")
-    with pytest.raises(ValueError, match="workspace expressions for chanlocs"):
+    with pytest.raises(FileNotFoundError, match="channel-location file not found"):
         pop_editset(_eeg(), "chanlocs", "locs.elp")
+    with pytest.raises(FileNotFoundError, match="icaweights file not found"):
+        pop_editset(_eeg(), "icaweights", "weights.txt")
+    with pytest.raises(FileNotFoundError, match="icachansind file not found"):
+        pop_editset(_eeg(), "icachansind", "icachansind.txt")
+    with pytest.raises(ValueError, match="workspace expressions for data"):
+        pop_editset(_eeg(), "data", "rawdata")
+    with pytest.raises(ValueError, match="workspace expressions for chanlocs"):
+        pop_editset(_eeg(), "chanlocs", "locs")
     with pytest.raises(ValueError, match="workspace expressions for icachansind"):
         pop_editset(_eeg(), "icachansind", "icachansind")
 

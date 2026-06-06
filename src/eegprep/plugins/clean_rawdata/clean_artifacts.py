@@ -18,6 +18,11 @@ from ...functions.popfunc.eeg_eegrej import eeg_eegrej
 
 
 logger = logging.getLogger(__name__)
+_DISTANCE_MODES = {
+    'euclidian': None,
+    'euclidean': None,
+    'riemannian': 'calib',
+}
 
 # -----------------------------------------------------------------------------
 #                               Public API
@@ -137,6 +142,10 @@ def clean_artifacts(
     if Channels is not None and Channels_ignore is not None and len(Channels) and len(Channels_ignore):
         raise ValueError('"Channels" and "Channels_ignore" are mutually exclusive – supply at most one.')
 
+    distance = str(Distance).strip().lower()
+    if distance not in _DISTANCE_MODES:
+        raise ValueError("Distance must be 'euclidian', 'euclidean', or 'riemannian'")
+
     # Ensure some obligatory fields exist in the structure (MATLAB code assumes)
     if 'etc' not in EEG:
         EEG['etc'] = {}
@@ -233,8 +242,7 @@ def clean_artifacts(
         # MATLAB passes structs by value so the caller's EEG retains the
         # original data, but Python dicts are passed by reference.
         original_data = EEG['data'].copy() if BurstRejection else None
-        distance = str(Distance).strip().lower()
-        useriemannian = 'calib' if distance not in {'euclidian', 'euclidean'} else None
+        useriemannian = _DISTANCE_MODES[distance]
         BUR = clean_asr(
             EEG,
             cutoff=float(BurstCriterion),

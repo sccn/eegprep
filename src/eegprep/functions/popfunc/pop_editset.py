@@ -28,6 +28,20 @@ _TEXT_FIELDS = ("setname", "subject", "condition", "group", "comments")
 _NUMERIC_FIELDS = ("srate", "pnts", "xmin", "nbchan")
 _OPTIONAL_NUMERIC_FIELDS = ("run", "session")
 _DIRECT_ASSIGNMENT_FIELDS = ("chanlocs", "icaweights", "icasphere", "icachansind", "data")
+_PATH_EXTENSIONS = {
+    ".asc",
+    ".bdf",
+    ".csv",
+    ".dat",
+    ".elp",
+    ".fdt",
+    ".mat",
+    ".npy",
+    ".npz",
+    ".sfp",
+    ".tsv",
+    ".txt",
+}
 _SUPPORTED_FIELDS = {
     "ref",
     "dataformat",
@@ -226,15 +240,21 @@ def _assign_option(output: dict[str, Any], key: str, value: Any, *, dataformat: 
         _assign_chanlocs(output, value)
         return
     if key in {"icaweights", "icasphere"}:
-        _assign_ica_matrix(output, key, value)
+        _assign_ica_matrix(output, key, value, dataformat=dataformat)
         return
     if key == "icachansind":
-        if isinstance(value, str) and value.strip() != "[]" and not _is_existing_path(value):
+        if isinstance(value, (str, Path)) and str(value).strip() != "[]":
+            path = _existing_path(value)
+            if path is not None:
+                output[key] = _as_int_array(_load_array_path(path, dataformat=dataformat))
+                return
+            if _looks_like_path(value):
+                raise FileNotFoundError(f"pop_editset icachansind file not found: {value}")
             raise ValueError(
                 "pop_editset cannot evaluate MATLAB workspace expressions for icachansind; "
                 "pass Python indices directly or provide a numeric file path."
             )
-        output[key] = _as_int_array(_load_array_path(value) if _is_existing_path(value) else value)
+        output[key] = _as_int_array(value)
         return
     if key == "data":
         _assign_data(output, value, dataformat=dataformat)
@@ -244,12 +264,14 @@ def _assign_chanlocs(output: dict[str, Any], value: Any) -> None:
     if _is_empty_value(value):
         output["chanlocs"] = []
         return
-    if isinstance(value, str):
-        if value.strip() == "[]":
+    if isinstance(value, (str, Path)):
+        if str(value).strip() == "[]":
             output["chanlocs"] = []
             return
         path = _existing_path(value)
         if path is None:
+            if _looks_like_path(value):
+                raise FileNotFoundError(f"pop_editset channel-location file not found: {value}")
             raise ValueError(
                 "pop_editset cannot evaluate MATLAB workspace expressions for chanlocs; "
                 "pass channel-location structures directly or provide a file path."
@@ -267,20 +289,22 @@ def _assign_chanlocs(output: dict[str, Any], value: Any) -> None:
     output["chanlocs"] = copy.deepcopy(value)
 
 
-def _assign_ica_matrix(output: dict[str, Any], key: str, value: Any) -> None:
+def _assign_ica_matrix(output: dict[str, Any], key: str, value: Any, *, dataformat: str = "auto") -> None:
     if _is_empty_value(value):
         output[key] = np.array([])
-    elif isinstance(value, str):
-        if value.strip() == "[]":
+    elif isinstance(value, (str, Path)):
+        if str(value).strip() == "[]":
             output[key] = np.array([])
         else:
             path = _existing_path(value)
             if path is None:
+                if _looks_like_path(value):
+                    raise FileNotFoundError(f"pop_editset {key} file not found: {value}")
                 raise ValueError(
                     f"pop_editset cannot evaluate MATLAB workspace expressions for {key}; "
                     "pass a Python array directly or provide a matrix file path."
                 )
-            output[key] = _load_matrix_file(path, output)
+            output[key] = _load_matrix_file(path, output, dataformat=dataformat)
     else:
         output[key] = np.asarray(value)
     output["icawinv"] = np.array([])
@@ -294,9 +318,11 @@ def _assign_ica_matrix(output: dict[str, Any], key: str, value: Any) -> None:
 
 
 def _assign_data(output: dict[str, Any], value: Any, *, dataformat: str = "auto") -> None:
-    if isinstance(value, str):
+    if isinstance(value, (str, Path)):
         path = _existing_path(value)
         if path is None:
+            if _looks_like_path(value):
+                raise FileNotFoundError(f"pop_editset data file not found: {value}")
             raise ValueError(
                 "pop_editset cannot evaluate MATLAB workspace expressions for data; "
                 "pass a Python array directly or provide a data file path."
@@ -456,20 +482,24 @@ def _existing_path(value: Any) -> Path | None:
     return path if path.exists() else None
 
 
-def _is_existing_path(value: Any) -> bool:
-    return _existing_path(value) is not None
+def _looks_like_path(value: Any) -> bool:
+    if isinstance(value, Path):
+        return True
+    if not isinstance(value, str):
+        return False
+    text = str(value).strip()
+    if not text or text == "[]":
+        return False
+    return any(separator in text for separator in ("/", "\\")) or Path(text).suffix.lower() in _PATH_EXTENSIONS
 
 
-def _load_array_path(value: Any) -> np.ndarray:
-    path = _existing_path(value)
-    if path is None:
-        raise ValueError(f"pop_editset file not found: {value}")
-    return load_data_array(path, dataformat=infer_dataformat(path)).ravel()
+def _load_array_path(path: Path, *, dataformat: str = "auto") -> np.ndarray:
+    return load_data_array(path, dataformat=_resolved_dataformat(path, dataformat)).ravel()
 
 
-def _load_matrix_file(path: Path, output: dict[str, Any]) -> np.ndarray:
+def _load_matrix_file(path: Path, output: dict[str, Any], *, dataformat: str = "auto") -> np.ndarray:
     nbchan = int(output.get("nbchan", 0) or 0) or None
-    matrix = np.asarray(load_data_array(path, dataformat=infer_dataformat(path), nbchan=nbchan))
+    matrix = np.asarray(load_data_array(path, dataformat=_resolved_dataformat(path, dataformat), nbchan=nbchan))
     if matrix.ndim == 1:
         nbcol = int(np.asarray(output.get("icachansind", [])).size or output.get("nbchan", 0) or 0)
         if nbcol <= 0 or matrix.size % nbcol:
@@ -478,6 +508,10 @@ def _load_matrix_file(path: Path, output: dict[str, Any]) -> np.ndarray:
     if matrix.ndim != 2:
         raise ValueError("ICA matrix files must contain a 2-D array")
     return matrix
+
+
+def _resolved_dataformat(path: Path, dataformat: str) -> str:
+    return infer_dataformat(path, None if dataformat == "auto" else dataformat)
 
 
 def _parse_required_number(value: Any, key: str) -> float | int:

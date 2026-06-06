@@ -30,7 +30,9 @@ dialog and command-line calls update the shared GUI workspace history.
 If `EEG.data` is a filename string, EEGPrep loads the file at epoch time using
 `EEG.filepath` for relative paths and `EEG.dataformat` when supplied. ASCII,
 MATLAB `.mat`, NumPy, and EEGLAB `.fdt` float32 files use the same standalone
-loader as `pop_importdata`; no EEGLAB checkout is required at runtime.
+loader as `pop_importdata`; no EEGLAB checkout is required at runtime. When a
+2-D file has shape `(nbchan, pnts * trials)`, EEGPrep interprets it as
+channel-major data with trials flattened in EEGLAB `.fdt` order.
 
 EEGPrep keeps returned `indices` 0-based for Python callers. The command
 history string remains EEGLAB-style so it is readable from the GUI history and

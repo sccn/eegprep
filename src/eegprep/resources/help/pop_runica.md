@@ -32,6 +32,10 @@ Calling `pop_runica(EEG)` opens an EEGLAB-style dialog with:
 
 Behavior:
 
+- Supplying a non-default `icatype` programmatically, for example
+  `pop_runica(EEG, icatype='picard')`, runs the selected backend directly
+  instead of opening the GUI. Unsupported standalone backends therefore fail
+  clearly from the command path instead of opening a dialog first.
 - Existing ICA decompositions are saved in `EEG.etc.oldicaweights`,
   `EEG.etc.oldicasphere`, and `EEG.etc.oldicachansind` before being replaced.
 - Existing ICLabel classifications are removed when ICA is recomputed because they no longer describe the active components.
