@@ -17,9 +17,9 @@ def kurt(data: Any) -> np.ndarray:
     if values.shape[0] == 1:
         values = values.T
     centered = values - np.mean(values, axis=0, keepdims=True)
-    std = np.std(values, axis=0, ddof=1 if values.shape[0] > 1 else 0)
-    std[std == 0] = np.inf
-    return np.sum(centered**4, axis=0) / (std**4) / values.shape[0] - 3.0
+    m2 = np.mean(centered**2, axis=0)
+    m2[m2 == 0] = np.inf
+    return np.mean(centered**4, axis=0) / m2**2 - 3.0
 
 
 __all__ = ["kurt"]

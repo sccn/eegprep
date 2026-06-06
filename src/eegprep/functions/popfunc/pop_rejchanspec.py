@@ -18,7 +18,12 @@ def pop_rejchanspec(
     return_com: bool = False,
     **kwargs: Any,
 ):
-    """Reject bad channels from spectral outliers."""
+    """Reject bad channels from spectral outliers.
+
+    When precomputed spectra are not supplied, EEGPrep uses a raw FFT
+    periodogram. This keeps the wrapper standalone, but absolute dB thresholds
+    do not exactly match EEGLAB's ``spectopo``/Welch scaling.
+    """
     if EEG is None:
         return (None, "") if return_com else (None, [], [], [])
     options = _normalise_options(parse_key_value_args(args, kwargs, lowercase_kwargs=True), EEG)

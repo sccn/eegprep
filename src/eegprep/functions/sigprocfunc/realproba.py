@@ -12,7 +12,7 @@ def realproba(data: Any, bins: int | None = None) -> tuple[np.ndarray, np.ndarra
     values = np.asarray(data, dtype=float)
     flat = values.ravel()
     if bins is None:
-        bins = max(1, round(flat.size / 5))
+        bins = 1000
     if flat.size == 0:
         return np.asarray(values, dtype=float), np.asarray([], dtype=float)
     if int(bins) <= 0:

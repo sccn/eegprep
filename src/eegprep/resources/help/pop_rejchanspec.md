@@ -11,3 +11,7 @@ Useful options:
 - `absthresh`: absolute lower/upper spectrum thresholds.
 - `averef`: `"on"` to average-reference before measuring spectra.
 - `indexonly`: `"on"` to return rejected indices without removing channels.
+
+When `specdata` and `specfreqs` are not supplied, EEGPrep estimates spectra
+with a raw FFT periodogram. Relative `stdthresh` rejection is useful for parity
+workflows, but absolute dB thresholds are not exact `spectopo`/Welch parity.

@@ -12,6 +12,7 @@ from eegprep.functions.popfunc.pop_rejchanspec import pop_rejchanspec
 from eegprep.functions.popfunc.pop_topochansel import pop_topochansel
 from eegprep.functions.sigprocfunc.eegthresh import eegthresh
 from eegprep.functions.sigprocfunc.ica_helpers import compvar, eeg_getica, eeg_pvaf, icaact, icaproj, icavar
+from eegprep.functions.sigprocfunc.kurt import kurt
 from eegprep.functions.sigprocfunc.realproba import realproba
 from eegprep.functions.sigprocfunc.rejtrend import rejtrend
 
@@ -89,6 +90,19 @@ def test_pop_fusechanrej_keeps_common_channels_within_subject_session():
     assert [eeg["data"].shape[0] for eeg in out] == [2, 2]
 
 
+def test_pop_fusechanrej_matches_common_channels_case_insensitively():
+    first = _eeg(np.arange(8, dtype=float).reshape(2, 4))
+    second = _eeg(np.arange(8, 16, dtype=float).reshape(2, 4))
+    first["subject"] = second["subject"] = "S01"
+    first["session"] = second["session"] = 1
+    first["chanlocs"] = [{"labels": "Fz"}, {"labels": "Cz"}]
+    second["chanlocs"] = [{"labels": "fz"}, {"labels": "cz"}]
+
+    out = pop_fusechanrej([first, second])
+
+    assert [[chan["labels"] for chan in eeg["chanlocs"]] for eeg in out] == [["Fz", "Cz"], ["fz", "cz"]]
+
+
 def test_pop_icathresh_sets_component_rejection_flags():
     eeg = _eeg(np.zeros((3, 10)))
     eeg["stats"] = {
@@ -157,6 +171,43 @@ def test_ica_helpers_match_simple_projection_identities():
     assert total_pvaf == 100.0
     np.testing.assert_allclose(channel_pvaf, [100.0, 100.0])
     assert variances.shape == (2,)
+
+
+def test_eeg_pvaf_maps_full_channel_selection_to_icachansind_subset():
+    data = np.array(
+        [
+            [1.0, 2.0, 3.0, 4.0],
+            [100.0, 200.0, 300.0, 400.0],
+            [2.0, 4.0, 6.0, 8.0],
+        ]
+    )
+    eeg = _eeg(data)
+    eeg["icachansind"] = np.array([0, 2])
+    eeg["icaweights"] = np.eye(2)
+    eeg["icasphere"] = np.eye(2)
+    eeg["icawinv"] = np.eye(2)
+
+    total_pvaf, channel_pvaf, variances = eeg_pvaf(eeg, [2], chans=[3])
+
+    assert total_pvaf == 100.0
+    np.testing.assert_allclose(channel_pvaf, [100.0])
+    np.testing.assert_allclose(variances, [np.var(data[2])])
+
+
+def test_kurt_uses_eeglab_population_moment_formula():
+    values = np.array([[0.0, 1.0], [2.0, 3.0], [4.0, 5.0]])
+    centered = values - values.mean(axis=0, keepdims=True)
+    expected = np.mean(centered**4, axis=0) / np.mean(centered**2, axis=0) ** 2 - 3.0
+
+    np.testing.assert_allclose(kurt(values), expected)
+    np.testing.assert_allclose(expected, [-1.5, -1.5])
+
+
+def test_realproba_default_bin_count_matches_eeglab():
+    probabilities, distribution = realproba(np.array([0.0, 1.0]))
+
+    np.testing.assert_allclose(probabilities, [0.5, 0.5])
+    assert distribution.shape == (1000,)
 
 
 def test_rejection_helper_compatibility_outputs_are_eeglab_facing():

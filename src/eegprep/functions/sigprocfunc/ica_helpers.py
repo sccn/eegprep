@@ -164,7 +164,7 @@ def _eeg_pv_common(
     fraction: float,
 ) -> tuple[np.ndarray | float, np.ndarray, np.ndarray]:
     raw_data = data_3d(EEG)
-    data = raw_data.reshape(int(EEG.get("nbchan", 0) or raw_data.shape[0]), -1, order="F")
+    full_data = raw_data.reshape(int(EEG.get("nbchan", 0) or raw_data.shape[0]), -1, order="F")
     acts = eeg_getica(EEG)
     acts_2d = acts.reshape(acts.shape[0], -1, order="F")
     winv = np.asarray(EEG.get("icawinv", []), dtype=float)
@@ -172,7 +172,11 @@ def _eeg_pv_common(
         weights = np.asarray(EEG.get("icaweights", []), dtype=float)
         sphere = np.asarray(EEG.get("icasphere", []), dtype=float)
         winv = np.linalg.pinv(finite_matmul(weights, sphere))
-    selected_chans = _selected_channels(data.shape[0], chans=chans, omitchans=omitchans)
+    ica_chans = _ica_channel_indices(EEG, full_data.shape[0])
+    data = full_data[ica_chans, :]
+    if winv.shape[0] != ica_chans.size:
+        raise ValueError("EEG.icawinv rows must match EEG.icachansind")
+    selected_chans = _selected_ica_channels(ica_chans, full_data.shape[0], chans=chans, omitchans=omitchans)
     sample_count = int(round(float(fraction) * data.shape[1]))
     if sample_count < 1:
         raise ValueError("fraction of data specified too small")
@@ -270,11 +274,35 @@ def _optional_component_indices(values: Any | None, limit: int) -> np.ndarray:
     return _one_based_indices(values, limit, "component") - 1
 
 
-def _selected_channels(count: int, *, chans: Any | None, omitchans: Any | None) -> np.ndarray:
+def _ica_channel_indices(EEG: dict[str, Any], channel_count: int) -> np.ndarray:
+    values = np.asarray(EEG.get("icachansind", []), dtype=int).ravel()
+    if values.size == 0:
+        return np.arange(channel_count, dtype=int)
+    if np.any(values < 0) or np.any(values >= channel_count):
+        raise ValueError(f"icachansind values must be within 0..{channel_count - 1}")
+    if np.unique(values).size != values.size:
+        raise ValueError("icachansind values must be unique")
+    return values
+
+
+def _selected_ica_channels(
+    ica_chans: np.ndarray,
+    channel_count: int,
+    *,
+    chans: Any | None,
+    omitchans: Any | None,
+) -> np.ndarray:
     if chans is not None and np.asarray(chans).size:
-        return _one_based_indices(chans, count, "channel") - 1
-    selected = np.arange(count, dtype=int)
+        requested = _one_based_indices(chans, channel_count, "channel") - 1
+        positions = {int(channel): position for position, channel in enumerate(ica_chans.tolist())}
+        missing = [index + 1 for index in requested if int(index) not in positions]
+        if missing:
+            raise ValueError("Selected channels must be present in EEG.icachansind")
+        return np.asarray([positions[int(index)] for index in requested], dtype=int)
+    selected = np.arange(ica_chans.size, dtype=int)
     if omitchans is None or np.asarray(omitchans).size == 0:
         return selected
-    omitted = set((_one_based_indices(omitchans, count, "channel") - 1).tolist())
-    return np.asarray([index for index in selected if index not in omitted], dtype=int)
+    omitted = set((_one_based_indices(omitchans, channel_count, "channel") - 1).tolist())
+    return np.asarray(
+        [position for position, channel in enumerate(ica_chans.tolist()) if channel not in omitted], dtype=int
+    )
