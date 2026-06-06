@@ -95,11 +95,27 @@ def test_validator_requires_concrete_follow_up_issue_for_actionable_rows() -> No
     actionable_row = next(row for row in changed["rows"] if row["status"] in {"port", "partial"})
     actionable_row["rationale"] = "Deferred to a follow-up after the integrated closeout review."
     actionable_row["test_notes"] = "Follow-up issue must add parity tests before marking implemented."
+    actionable_row["follow_up_issue"] = ""
 
     report = validate_matrix_payload(changed, REPO_ROOT)
 
     assert not report.ok
     assert "must cite a concrete follow-up issue" in _messages(report)
+
+
+def test_validator_accepts_structured_follow_up_issue_for_actionable_rows() -> None:
+    _require_eeglab_reference()
+
+    payload = load_matrix(MATRIX_PATH)
+    changed = copy.deepcopy(payload)
+    actionable_row = next(row for row in changed["rows"] if row["status"] in {"port", "partial"})
+    actionable_row["rationale"] = "Deferred to a follow-up after the integrated closeout review."
+    actionable_row["test_notes"] = "Follow-up issue must add parity tests before marking implemented."
+    actionable_row["follow_up_issue"] = "https://github.com/sccn/eegprep/issues/146"
+
+    report = validate_matrix_payload(changed, REPO_ROOT)
+
+    assert report.ok, [error.as_text() for error in report.errors]
 
 
 def test_cli_json_report_is_machine_readable(capsys) -> None:

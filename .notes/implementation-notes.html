@@ -31,6 +31,7 @@
     <li>Focused regression coverage passed for parity-matrix validation, packaged help, STUDY metadata, STUDY measures, and STUDY clustering behavior. A sample-data console smoke verified shared <code>EEGPrepSession</code> state across load, bare <code>pop_select</code>, and bare <code>pop_reref</code> calls.</li>
     <li>MATLAB-marked parity tests were attempted locally. MATLAB CLI exists, but the Python MATLAB engine is unavailable and the marker run stalled after clean_rawdata failures, so the closeout preserves existing skip behavior through the non-slow lane.</li>
     <li>The OC autoreview helper initially flagged <code>pop_listfactors</code> display-only options as a non-GUI EEGLAB compatibility regression. Phase 8 fixed that by accepting <code>splitreg</code>, <code>contrast</code>, and <code>interaction</code> as non-GUI no-ops, then reran autoreview clean against <code>origin/feature/eeglab-core-parity-completion</code>.</li>
+    <li>Post-PR Claude review comments were addressed by accepting structured <code>follow_up_issue</code> URLs as canonical matrix follow-up evidence and by adding direct channel-cache coverage for the hardened subject-filter error.</li>
   </ul>
   <h1>EEGPrep Phase 7 Long-Tail Core Helpers Notes</h1>
   <p>Phase 7 closes the remaining audit-approved helper and wrapper gaps that

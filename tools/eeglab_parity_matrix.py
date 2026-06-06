@@ -46,7 +46,7 @@ VALID_STATUSES = (
 VALID_PHASES = ("none", "phase_1", "phase_2", "phase_3", "phase_4", "phase_5", "phase_6", "phase_7")
 ACTIONABLE_STATUSES = {"partial", "port"}
 EQUIVALENT_REQUIRED_STATUSES = {"implemented", "partial", "consolidated"}
-FOLLOW_UP_ISSUE_RE = re.compile(r"#[1-9][0-9]*")
+FOLLOW_UP_ISSUE_RE = re.compile(r"(?:#[1-9][0-9]*|/issues/[1-9][0-9]*)")
 REQUIRED_ROW_FIELDS = (
     "eeglab_path",
     "eeglab_name",
@@ -239,13 +239,12 @@ def _validate_row(row: dict[str, Any], location: str, errors: list[MatrixValidat
         errors.append(MatrixValidationError(f"{location}.responsible_phase", "must be a valid phase id"))
     if status in ACTIONABLE_STATUSES and phase == "none":
         errors.append(MatrixValidationError(f"{location}.responsible_phase", f"is required for status {status!r}"))
-    if status in ACTIONABLE_STATUSES and not FOLLOW_UP_ISSUE_RE.search(
-        f"{row.get('rationale') or ''} {row.get('test_notes') or ''}"
-    ):
+    follow_up_text = " ".join(str(row.get(field) or "") for field in ("rationale", "test_notes", "follow_up_issue"))
+    if status in ACTIONABLE_STATUSES and not FOLLOW_UP_ISSUE_RE.search(follow_up_text):
         errors.append(
             MatrixValidationError(
                 location,
-                f"status {status!r} must cite a concrete follow-up issue in rationale or test_notes",
+                f"status {status!r} must cite a concrete follow-up issue in rationale, test_notes, or follow_up_issue",
             )
         )
 
