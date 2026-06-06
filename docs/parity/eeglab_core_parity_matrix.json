@@ -8078,32 +8078,30 @@
     {
       "eeglab_path": "functions/studyfunc/std_pac.m",
       "eeglab_name": "std_pac",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_pac.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "PAC is a real analysis surface but is not required by current EEGPrep time-frequency/STUDY workflows; it is tracked as an explicit follow-up instead of a stale skip.",
+      "status": "external_dependency_skip",
+      "rationale": "Standalone EEGPrep exports this familiar STUDY PAC name only to raise a clear limitation; EEGLAB std_pac depends on unported PAC analysis math and .icapac/.datpac sidecar cache semantics that are not faked in core.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
-        "api",
+        "python_api",
         "study"
       ],
-      "test_notes": "Follow-up issue must add PAC numerical/cache tests before marking implemented.",
-      "follow_up_issue": "https://github.com/sccn/eegprep/issues/148"
+      "test_notes": "Covered by explicit NotImplementedError tests and STUDY PAC cache-reader tests."
     },
     {
       "eeglab_path": "functions/studyfunc/std_pacplot.m",
       "eeglab_name": "std_pacplot",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_pacplot.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "PAC is a real analysis surface but is not required by current EEGPrep time-frequency/STUDY workflows; it is tracked as an explicit follow-up instead of a stale skip.",
+      "status": "external_dependency_skip",
+      "rationale": "Standalone EEGPrep exports this familiar STUDY PAC plotting name only to raise a clear limitation; plotting requires a tested EEGPrep-owned PAC cache backend rather than silently treating ERSP/ITC data as PAC.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
-        "api",
+        "python_api",
         "study"
       ],
-      "test_notes": "Follow-up issue must add PAC numerical/cache tests before marking implemented.",
-      "follow_up_issue": "https://github.com/sccn/eegprep/issues/148"
+      "test_notes": "Covered by explicit NotImplementedError tests and STUDY PAC cache-reader tests."
     },
     {
       "eeglab_path": "functions/studyfunc/std_plot.m",
@@ -8388,15 +8386,14 @@
       "eeglab_name": "std_readpac",
       "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_readdata.py",
       "gap_category": "4_study_group_depth",
-      "status": "port",
-      "rationale": "PAC is a real analysis surface but is not required by current EEGPrep time-frequency/STUDY workflows; it is tracked as an explicit follow-up instead of a stale skip.",
+      "status": "implemented",
+      "rationale": "EEGPrep implements deterministic reads for explicit EEGPrep-owned PAC caches stored as pacdata/pactimes/pacfreqs on STUDY channel or cluster groups; EEGLAB .icapac/.datpac sidecar imports remain outside standalone core.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "Follow-up issue must add PAC numerical/cache tests before marking implemented.",
-      "follow_up_issue": "https://github.com/sccn/eegprep/issues/148"
+      "test_notes": "Covered by STUDY PAC cache read, range slicing, missing-cache, malformed-cache, and unsupported-option tests."
     },
     {
       "eeglab_path": "functions/studyfunc/std_readspec.m",
@@ -9008,32 +9005,30 @@
     {
       "eeglab_path": "functions/timefreqfunc/pac.m",
       "eeglab_name": "pac",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/timefreqfunc/pac.py",
       "gap_category": "6_time_frequency_internals",
-      "status": "port",
-      "rationale": "PAC is a real analysis surface but is not required by current EEGPrep time-frequency/STUDY workflows; it is tracked as an explicit follow-up instead of a stale skip.",
+      "status": "external_dependency_skip",
+      "rationale": "Standalone EEGPrep exports this familiar PAC helper only to raise a clear limitation; no tested EEGPrep-owned PAC backend is shipped, and unvalidated phase-amplitude coupling math is not added for same-name coverage.",
       "responsible_phase": "phase_7",
       "user_facing_surface": [
-        "helper",
+        "python_api",
         "time_frequency"
       ],
-      "test_notes": "Follow-up issue must add PAC numerical/cache tests before marking implemented.",
-      "follow_up_issue": "https://github.com/sccn/eegprep/issues/148"
+      "test_notes": "Covered by explicit NotImplementedError tests on sample_data signals."
     },
     {
       "eeglab_path": "functions/timefreqfunc/pac_cont.m",
       "eeglab_name": "pac_cont",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/timefreqfunc/pac_cont.py",
       "gap_category": "6_time_frequency_internals",
-      "status": "port",
-      "rationale": "PAC is a real analysis surface but is not required by current EEGPrep time-frequency/STUDY workflows; it is tracked as an explicit follow-up instead of a stale skip.",
+      "status": "external_dependency_skip",
+      "rationale": "Standalone EEGPrep exports this familiar continuous PAC helper only to raise a clear limitation; filtering, surrogate statistics, and plotting need a tested EEGPrep-owned PAC backend before being exposed as analysis behavior.",
       "responsible_phase": "phase_7",
       "user_facing_surface": [
-        "helper",
+        "python_api",
         "time_frequency"
       ],
-      "test_notes": "Follow-up issue must add PAC numerical/cache tests before marking implemented.",
-      "follow_up_issue": "https://github.com/sccn/eegprep/issues/148"
+      "test_notes": "Covered by explicit NotImplementedError tests on sample_data signals."
     },
     {
       "eeglab_path": "functions/timefreqfunc/rsadjust.m",

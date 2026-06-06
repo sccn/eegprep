@@ -12,6 +12,8 @@ from eegprep.functions.timefreqfunc.newtimefbaseln import newtimefbaseln
 from eegprep.functions.timefreqfunc.newtimefitc import newtimefitc
 from eegprep.functions.timefreqfunc.newtimefpowerunit import newtimefpowerunit
 from eegprep.functions.timefreqfunc.newtimeftrialbaseln import newtimeftrialbaseln
+from eegprep.functions.timefreqfunc.pac import pac
+from eegprep.functions.timefreqfunc.pac_cont import pac_cont
 from eegprep.functions.timefreqfunc.timef import timef
 from eegprep.functions.timefreqfunc.timefreq import TimeFrequencyDecomposition, timefreq
 
@@ -32,6 +34,8 @@ __all__ = [
     "newtimefitc",
     "newtimefpowerunit",
     "newtimeftrialbaseln",
+    "pac",
+    "pac_cont",
     "timef",
     "timefreq",
 ]

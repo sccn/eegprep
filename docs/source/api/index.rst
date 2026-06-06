@@ -141,6 +141,8 @@ Spectral Analysis
    eegprep.timefreq
    eegprep.timef
    eegprep.crossf
+   eegprep.pac
+   eegprep.pac_cont
    eegprep.newtimefbaseln
    eegprep.newtimeftrialbaseln
    eegprep.newtimefitc
@@ -322,6 +324,8 @@ measure plotting, component preclustering, clustering, and cluster editing.
    eegprep.std_readitc
    eegprep.std_readtopo
    eegprep.std_readpac
+   eegprep.std_pac
+   eegprep.std_pacplot
    eegprep.std_checkfiles
    eegprep.std_checkdatasession
    eegprep.std_uniformfiles

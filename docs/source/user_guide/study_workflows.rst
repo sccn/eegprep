@@ -125,9 +125,14 @@ Limitations
 
 EEGPrep does not silently emulate EEGLAB's external LIMO toolbox. The
 ``pop_limo``, ``pop_limoresults``, ``std_limo*``, and ``std_readfilelimo``
-entry points raise clear ``NotImplementedError`` messages. PAC readers only
-return data when an EEGPrep-owned ``pacdata`` cache is present; external PAC or
-LIMO result files are not interpreted as if they were native EEGPrep outputs.
+entry points raise clear ``NotImplementedError`` messages.
+
+Core EEGPrep also does not implement standalone phase-amplitude coupling
+analysis. The ``pac``, ``pac_cont``, ``std_pac``, and ``std_pacplot`` entry
+points raise clear ``NotImplementedError`` messages until there is a tested
+EEGPrep-owned PAC backend. ``std_readpac`` only returns data when an explicit
+EEGPrep-owned ``pacdata`` cache is present; external PAC or LIMO result files
+are not interpreted as if they were native EEGPrep outputs.
 
 See the :ref:`interactive_console` guide for mixed GUI plus console usage and
 the :ref:`gui_help_menus` guide for menu inventory behavior.

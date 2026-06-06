@@ -155,5 +155,13 @@
     <li>Added <code>return_com=True</code> history support for <code>pop_addindepvar</code> and <code>pop_listfactors</code> so new public STUDY pop helpers remain usable from the mixed GUI/console workspace.</li>
     <li>Aligned <code>bootstat</code> <code>basevect</code> handling with EEGLAB's 1-based user-facing indices, kept empty MATLAB parity arguments as numeric <code>[]</code>, and accepted NumPy vector selections in channel-location read/write helpers.</li>
   </ul>
+  <h2>Follow-up #148 PAC Classification</h2>
+  <ul>
+    <li>Upstream EEGLAB <code>pac.m</code>, <code>pac_cont.m</code>, <code>std_pac.m</code>, <code>std_pacplot.m</code>, and <code>std_readpac.m</code> were inspected from <code>sccn/eeglab</code> <code>develop</code> because the local vendored EEGLAB tree in this worktree is empty.</li>
+    <li>Core PAC computation was intentionally not implemented. The EEGLAB helpers combine time-frequency decomposition, PAC-specific method choices, continuous filtering/statistics, plotting, and <code>.icapac</code>/<code>.datpac</code> sidecar cache semantics. Adding same-name analysis math without a tested EEGPrep-owned PAC backend would be misleading.</li>
+    <li><code>pac</code>, <code>pac_cont</code>, <code>std_pac</code>, and <code>std_pacplot</code> are exposed as familiar names that raise a shared <code>NotImplementedError</code> limitation, matching the existing LIMO limitation pattern.</li>
+    <li><code>std_readpac</code> remains a deterministic standalone cache reader for explicit EEGPrep-owned <code>pacdata</code>, <code>pactimes</code>, and <code>pacfreqs</code> fields and now supports time/frequency range slicing and malformed-cache validation.</li>
+    <li>No GUI changed in this follow-up, so GUI visual parity capture and PR image attachments are not applicable.</li>
+  </ul>
 </body>
 </html>
