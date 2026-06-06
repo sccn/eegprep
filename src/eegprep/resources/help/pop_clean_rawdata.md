@@ -19,7 +19,7 @@ Inputs:
 - `WindowCriterionTolerances`: accepted channel RMS range for bad-window detection.
 - `Channels`: optional channel labels or indices to include.
 - `Channels_ignore`: optional channel labels or indices to ignore.
-- `Distance`: `'Euclidian'` or `'Riemannian'`.
+- `Distance`: `'Euclidian'`, `'Euclidean'`, or `'Riemannian'`.
 
 Graphical interface:
 
@@ -32,6 +32,12 @@ Behavior:
 
 - The function calls EEGPrep's `clean_artifacts` backend and returns a cleaned EEG dataset.
 - GUI choices are converted to the same named options used by the command-line API.
+- `Distance='Riemannian'` uses EEGPrep's calibration-time Riemannian ASR
+  estimate (`clean_asr(..., useriemannian='calib')`). Full Riemannian ASR
+  processing is not ported, and direct `clean_asr(useriemannian=True)` requests
+  raise a clear `ValueError`.
+- Other distance names are rejected so misspellings do not silently switch the
+  ASR calibration mode.
 - The "Pop up scrolling data window with rejected data highlighted" option is present for parity, but the viewer is not yet ported. When selected, EEGPrep shows a user-facing notification instead of silently doing nothing.
 
 Example:

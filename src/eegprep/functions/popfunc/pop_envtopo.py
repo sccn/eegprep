@@ -35,8 +35,9 @@ def pop_envtopo(
         return (None, "") if return_com else None
     if isinstance(EEG, list):
         if len(EEG) != 1:
-            raise NotImplementedError(
-                "pop_envtopo currently accepts one dataset; multi-dataset envelopes are Phase 5 work"
+            raise ValueError(
+                "pop_envtopo accepts one dataset in EEGPrep; multi-dataset envelope comparison is not a "
+                "standalone runtime workflow."
             )
         dataset = EEG[0]
     else:

@@ -111,37 +111,39 @@ Known examples:
     `subitc`, `amplag`
   - bootstrap significance is not implemented
 - `pop_erpimage`
-  - event-field sorting, event-type sorting, event-window sorting, event
-    alignment, phase sorting, ITC/coherence overlays, spectrum inset, baseline
-    amplitude limits, amplitude image mode, and free-form ERP-image options are
-    not fully supported
+  - Phase 5 added event-field/type/window sorting and supported More-options
+    parsing for standalone plot controls
+  - event alignment, phase sorting, ITC/coherence overlays, spectrum inset,
+    baseline amplitude limits, and amplitude image mode remain explicit
+    standalone non-goals
 - `pop_comperp`
-  - significance highlighting, standard-deviation displays, all-ERP display
-    variants, and some average/difference display variants are not fully
-    supported
+  - Phase 5 added significance highlighting, standard-deviation displays,
+    all-ERP display variants, and average/difference display toggles
 - `pop_editset`
-  - file/workspace expressions for `data`, ICA matrices, and some channel
-    location paths are not fully supported
-  - history serialization for mapping values and channel-location structures is
-    incomplete
+  - Phase 5 added concrete file paths for `data`, channel locations, ICA
+    matrices, `icachansind`, and mapping/channel-location history replay
+  - MATLAB workspace expression evaluation remains an explicit standalone
+    non-goal
 - `pop_export`
-  - `expr` export filtering is not supported
+  - Phase 5 added restricted standalone numeric `expr` export transforms
 - `pop_epoch`
-  - loading EEG data from a filename in `EEG["data"]` is not implemented
+  - Phase 5 added filename-backed `EEG["data"]` loading through the standalone
+    import loader
 - `pop_eegfilt`
-  - legacy FFT filtering path is not implemented; users are directed to
-    `pop_eegfiltnew`
+  - legacy FFT filtering is an explicit non-goal for the legacy wrapper; users
+    are directed to `pop_eegfiltnew(..., usefftfilt=True)`
 - `pop_runica`
   - supports `runica`, `picard`, and AMICA-style routes; EEGLAB algorithms such
-    as JADER, SOBI, and FastICA are not ported
+    as JADER, SOBI, and FastICA are explicit unported backend non-goals
 - `headplot`
-  - `plotmeshonly` preview and setup with original unprojected locations are not
-    implemented
+  - Phase 5 added `plotmeshonly` preview and setup with original unprojected
+    locations
 - `coregister`
   - only standalone `traditional` and `globalrescale` alignment methods are
-    supported
+    supported; FieldTrip/nonlinear/manual MATLAB routes are explicit non-goals
 - `clean_asr`
-  - Riemannian ASR mode is not implemented
+  - Phase 5 clarified and tested calibration-time Riemannian ASR support;
+    full Riemannian ASR processing remains an explicit non-goal
 
 ### 4. STUDY And Group-Level Depth
 

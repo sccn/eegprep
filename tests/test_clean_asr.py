@@ -9,6 +9,7 @@ import unittest
 import numpy as np
 
 from eegprep.plugins.clean_rawdata.clean_asr import clean_asr
+from eegprep.plugins.clean_rawdata.clean_artifacts import clean_artifacts
 
 
 class TestCleanASRBasic(unittest.TestCase):
@@ -121,6 +122,25 @@ class TestCleanASRParameters(unittest.TestCase):
                 self.assertIn('data', result)
             except Exception as e:
                 self.skipTest(f"clean_asr parameter test {params} not available: {e}")
+
+    def test_clean_asr_rejects_full_riemannian_processing_request(self):
+        """Test that unsupported full Riemannian ASR processing fails clearly."""
+        with self.assertRaisesRegex(ValueError, "full Riemannian ASR processing is not ported"):
+            clean_asr(self.test_eeg, useriemannian=True)
+
+    def test_clean_artifacts_rejects_unknown_distance(self):
+        """Test that clean_artifacts catches Distance typos before ASR dispatch."""
+        with self.assertRaisesRegex(ValueError, "Distance must be"):
+            clean_artifacts(
+                self.test_eeg,
+                ChannelCriterion='off',
+                LineNoiseCriterion='off',
+                BurstCriterion=20,
+                WindowCriterion='off',
+                Highpass='off',
+                FlatlineCriterion='off',
+                Distance='euclidiann',
+            )
 
 
 class TestCleanASRCalibrationData(unittest.TestCase):

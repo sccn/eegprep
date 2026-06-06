@@ -752,9 +752,8 @@ class TestCleanArtifactsParameterValidation(DebuggableTestCase):
         except Exception as e:
             self.skipTest(f"clean_artifacts burst rejection validation not available: {e}")
 
-    def test_clean_artifacts_invalid_distance_metric(self):
-        """Test clean_artifacts with invalid Distance parameter."""
-        # Should accept 'euclidian' and other distance metrics
+    def test_clean_artifacts_documented_distance_metrics_with_asr_disabled(self):
+        """Test clean_artifacts accepts documented Distance spellings when ASR is disabled."""
         try:
             # Valid cases
             clean_artifacts(
@@ -775,10 +774,24 @@ class TestCleanArtifactsParameterValidation(DebuggableTestCase):
                 WindowCriterion='off',
                 Highpass='off',
                 FlatlineCriterion='off',
-                Distance='riemann',
-            )  # Should trigger riemannian mode
+                Distance='riemannian',
+            )
         except Exception as e:
             self.skipTest(f"clean_artifacts distance metric validation not available: {e}")
+
+    def test_clean_artifacts_rejects_unknown_distance_metric(self):
+        """Test clean_artifacts rejects unknown Distance spellings before cleaning."""
+        with self.assertRaisesRegex(ValueError, "Distance must be"):
+            clean_artifacts(
+                self.test_eeg,
+                ChannelCriterion='off',
+                LineNoiseCriterion='off',
+                BurstCriterion='off',
+                WindowCriterion='off',
+                Highpass='off',
+                FlatlineCriterion='off',
+                Distance='riemann',
+            )
 
     def test_clean_artifacts_negative_values(self):
         """Test clean_artifacts with negative parameter values."""

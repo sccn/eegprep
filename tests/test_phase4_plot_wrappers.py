@@ -152,6 +152,33 @@ def test_headplot_setup_file_can_be_reused_for_sample_data(sample_eeg, tmp_path)
     plt.close(figure)
 
 
+def test_headplot_setup_plotmeshonly_and_orilocs_options(sample_eeg, tmp_path):
+    transform = [0, -10, 0, -0.1, 0, -1.6, 1100, 1100, 1100]
+    preview_file = tmp_path / "preview.spl"
+
+    preview = headplot_setup(
+        sample_eeg["chanlocs"],
+        preview_file,
+        chaninfo=sample_eeg["chaninfo"],
+        transform=transform,
+        plotmeshonly="sphere",
+    )
+
+    assert preview.axes[0].name == "3d"
+    assert not preview_file.exists()
+    plt.close(preview)
+
+    created = headplot_setup(
+        sample_eeg["chanlocs"],
+        tmp_path / "orilocs.spl",
+        chaninfo=sample_eeg["chaninfo"],
+        transform=transform,
+        orilocs="on",
+    )
+    spline = load_headplot_spline(created)
+    np.testing.assert_allclose(spline.new_electrodes, np.column_stack([spline.xe, spline.ye, spline.ze]))
+
+
 def test_pop_headplot_setup_reuses_existing_spline_file(sample_eeg, tmp_path):
     eeg = deepcopy(sample_eeg)
     splinefile = tmp_path / "existing.spl"
@@ -241,6 +268,9 @@ def test_coregister_fits_traditional_and_shared_scale_transforms():
     np.testing.assert_allclose(apply_coregistration_transform(source.points, fitted), target.points, atol=1e-6)
     np.testing.assert_allclose(shared[6], shared[7])
     np.testing.assert_allclose(shared[7], shared[8])
+
+    with pytest.raises(ValueError, match="traditional.*globalrescale"):
+        estimate_coregistration_transform(source, target, method="nonlin")
 
 
 def test_coregister_noninteractive_path_returns_transformed_electrodes(sample_eeg):
@@ -931,7 +961,7 @@ def test_pop_envtopo_uses_icachansind_subset_and_rejects_multiple(ica_epoch):
     assert len(figure.axes) >= 2
     _assert_python_command(command)
     plt.close(figure)
-    with pytest.raises(NotImplementedError, match="one dataset"):
+    with pytest.raises(ValueError, match="one dataset"):
         pop_envtopo([ica_epoch, deepcopy(ica_epoch)], components=[1])
 
 
@@ -993,6 +1023,65 @@ def test_pop_comperp_rms_mode_and_grid_validation(sample_epoch):
         pop_comperp([first, second], flag=1, datadd=[1, 2])
 
 
+def test_pop_comperp_supports_display_options_and_significance(sample_epoch):
+    datasets = [deepcopy(sample_epoch) for _ in range(4)]
+    scales = [1.0, 1.12, 0.78, 1.31]
+    for offset, dataset in enumerate(datasets):
+        dataset["data"] = np.asarray(dataset["data"], dtype=float) * scales[offset] + offset * 0.05
+        dataset["setname"] = f"dataset {offset + 1}"
+
+    result, command = pop_comperp(
+        datasets,
+        flag=1,
+        datadd=[3, 4],
+        datsub=[1, 2],
+        chans=[1, 2],
+        alpha=0.05,
+        addstd="on",
+        substd="on",
+        diffstd="on",
+        addall="on",
+        suball="on",
+        diffall="on",
+        tlim=[-50, 100],
+        ylim=[-20, 20],
+        title="Compared ERPs",
+        return_com=True,
+    )
+
+    assert result["erp1"].shape == (2, sample_epoch["pnts"])
+    assert result["erp2"].shape == (2, sample_epoch["pnts"])
+    assert result["erpsub"].shape == (2, sample_epoch["pnts"])
+    assert result["pvalues"].shape == (2, sample_epoch["pnts"])
+    assert np.isfinite(result["pvalues"]).any()
+    assert "addstd='on'" in command
+    _assert_python_command(command)
+    plt.close(result["figure"])
+
+    with pytest.raises(ValueError, match="unsupported option"):
+        pop_comperp(datasets, flag=1, datadd=[1, 2], unsupported="on")
+
+
+def test_pop_comperp_significance_shading_marks_known_effect(sample_epoch):
+    datasets = []
+    for amplitude in (1.0, 1.1, 0.9):
+        dataset = deepcopy(sample_epoch)
+        dataset["data"] = np.zeros_like(np.asarray(dataset["data"], dtype=float)) + amplitude
+        datasets.append(dataset)
+    for _index in range(3):
+        dataset = deepcopy(sample_epoch)
+        dataset["data"] = np.zeros_like(np.asarray(dataset["data"], dtype=float))
+        datasets.append(dataset)
+
+    result = pop_comperp(datasets, flag=1, datadd=[1, 2, 3], datsub=[4, 5, 6], chans=[1, 2], alpha=0.01)
+
+    significant_patches = [
+        patch for patch in result["figure"].axes[0].patches if patch.get_alpha() == pytest.approx(0.18)
+    ]
+    assert significant_patches
+    plt.close(result["figure"])
+
+
 def test_pop_chanplot_validates_time_grid(sample_epoch):
     second = deepcopy(sample_epoch)
     second["xmax"] = float(second["xmax"]) + 0.1
@@ -1019,6 +1108,53 @@ def test_pop_erpimage_applies_time_limits_and_decimation(sample_epoch):
     assert "limits=[-50, 100]" in command
     _assert_python_command(command)
     plt.close(result["figure"])
+
+
+def test_pop_erpimage_sorts_by_epoch_event_field_and_limits(sample_epoch):
+    eeg = deepcopy(sample_epoch)
+    eeg["data"] = np.asarray(
+        [
+            [
+                [1.0, 2.0, 3.0],
+                [1.0, 2.0, 3.0],
+                [1.0, 2.0, 3.0],
+                [1.0, 2.0, 3.0],
+            ]
+        ]
+    )
+    eeg["nbchan"] = 1
+    eeg["pnts"] = 4
+    eeg["trials"] = 3
+    eeg["srate"] = 100.0
+    eeg["xmin"] = 0.0
+    eeg["xmax"] = 0.03
+    eeg["times"] = np.asarray([0.0, 10.0, 20.0, 30.0])
+    eeg["event"] = [
+        {"type": "rt", "latency": 2, "epoch": 1, "rt": 30},
+        {"type": "rt", "latency": 6, "epoch": 2, "rt": 10},
+        {"type": "rt", "latency": 10, "epoch": 3, "rt": 20},
+    ]
+
+    result, command = pop_erpimage(
+        eeg,
+        typeplot=1,
+        index=1,
+        sortingeventfield="rt",
+        sortingtype=["rt"],
+        sortingwin=[0, 20],
+        return_com=True,
+    )
+    unsorted, _command = pop_erpimage(eeg, typeplot=1, index=1, sort_values=[30, 10, 20], nosort=True, return_com=True)
+
+    np.testing.assert_allclose(result["image"][:, 0], [2, 3, 1])
+    np.testing.assert_allclose(unsorted["image"][:, 0], [1, 2, 3])
+    assert "sortingeventfield='rt'" in command
+    _assert_python_command(command)
+    plt.close(result["figure"])
+    plt.close(unsorted["figure"])
+
+    with pytest.raises(ValueError, match="standalone ERP image"):
+        pop_erpimage(eeg, typeplot=1, index=1, align=[0])
 
 
 def test_plot_history_preserves_effective_options(sample_epoch, ica_epoch):

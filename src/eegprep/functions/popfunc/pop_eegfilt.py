@@ -56,8 +56,8 @@ def pop_eegfilt(
     if locutoff == 0 and hicutoff == 0:
         return (EEG, "") if return_com else EEG
     if usefft:
-        raise NotImplementedError(
-            "Legacy pop_eegfilt FFT filtering is not implemented. "
+        raise ValueError(
+            "Legacy pop_eegfilt FFT filtering is not a standalone EEGPrep path. "
             "Use pop_eegfiltnew(..., usefftfilt=True) for frequency-domain FIR filtering."
         )
 

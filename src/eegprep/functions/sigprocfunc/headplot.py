@@ -10,6 +10,7 @@ from typing import Any
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import cm, colors
+from matplotlib.figure import Figure
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from scipy.io import loadmat, savemat
 from scipy.special import eval_legendre
@@ -127,20 +128,14 @@ def headplot_setup(
     comment: str = "",
     orilocs: str = "off",
     plotmeshonly: str = "off",
-) -> Path:
+) -> Path | Figure:
     """Create an EEGLAB-compatible ``.spl`` spline setup file.
 
     The generated file is a MATLAB ``.mat`` file with the conventional
     ``.spl`` extension. It contains the spline matrices and transformed
     electrode positions needed for later :func:`headplot` calls.
     """
-    if str(plotmeshonly).lower() != "off":
-        raise NotImplementedError("headplot plotmeshonly preview is not yet available in EEGPrep")
-    if str(orilocs).lower() != "off":
-        raise NotImplementedError("headplot setup with original unprojected locations is not yet available in EEGPrep")
-
-    output = _normalise_spline_path(splinefile)
-    output.parent.mkdir(parents=True, exist_ok=True)
+    preview_mode = _normalise_plotmeshonly(plotmeshonly)
     locs = chanlocs_as_list(chanlocs)
     if not locs:
         raise ValueError("headplot setup requires channel locations")
@@ -157,10 +152,18 @@ def headplot_setup(
     sphere_vertices = _mesh_unit_sphere(mesh)
     g_matrix = _spherical_spline_matrix(unit_electrodes)
     gx = _spherical_spline_between(sphere_vertices[mesh.scalp_indices], unit_electrodes)
-    new_electrodes = _project_electrodes_to_mesh(
-        unit_electrodes, mesh.vertices[mesh.scalp_indices], sphere_vertices[mesh.scalp_indices]
-    )
+    if _is_on(orilocs):
+        new_electrodes = unit_electrodes
+    else:
+        new_electrodes = _project_electrodes_to_mesh(
+            unit_electrodes, mesh.vertices[mesh.scalp_indices], sphere_vertices[mesh.scalp_indices]
+        )
 
+    if preview_mode is not None:
+        return _plot_mesh_preview(mesh, sphere_vertices, unit_electrodes, new_electrodes, labels, preview_mode)
+
+    output = _normalise_spline_path(splinefile)
+    output.parent.mkdir(parents=True, exist_ok=True)
     savemat(
         output,
         {
@@ -487,6 +490,45 @@ def _project_electrodes_to_mesh(
         delta = np.mean(mesh_vertices[nearest] - sphere_vertices[nearest], axis=0)
         projected.append(electrode + delta * ELECTRODE_DISPLAY_FACTOR)
     return np.asarray(projected, dtype=float)
+
+
+def _normalise_plotmeshonly(value: Any) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip().lower()
+    if text in {"", "0", "off", "false", "no"}:
+        return None
+    if text in {"1", "on", "true", "yes", "head", "mesh"}:
+        return "head"
+    if text == "sphere":
+        return "sphere"
+    raise ValueError("headplot plotmeshonly must be 'off', 'head', or 'sphere'")
+
+
+def _plot_mesh_preview(
+    mesh: HeadplotMesh,
+    sphere_vertices: np.ndarray,
+    unit_electrodes: np.ndarray,
+    new_electrodes: np.ndarray,
+    labels: list[str],
+    mode: str,
+) -> Figure:
+    fig = plt.figure(figsize=(5.6, 5.2))
+    ax = fig.add_subplot(111, projection="3d")
+    vertices = sphere_vertices if mode == "sphere" else mesh.vertices
+    electrodes = unit_electrodes if mode == "sphere" else new_electrodes
+    collection = Poly3DCollection(vertices[mesh.faces], facecolors=HEADPLOT_FACE_COLOR, linewidths=0.15)
+    collection.set_edgecolor("0.45")
+    ax.add_collection3d(collection)
+    ax.scatter(electrodes[:, 0], electrodes[:, 1], electrodes[:, 2], color="black", s=14, depthshade=False)
+    for label, point in zip(labels, electrodes):
+        ax.text(point[0] * 1.04, point[1] * 1.04, point[2] * 1.04, label, fontsize=8)
+    _autoscale_3d(ax, vertices)
+    _set_view(ax, [143, 18])
+    ax.set_axis_off()
+    ax.set_box_aspect((1, 1, 1))
+    fig.tight_layout()
+    return fig
 
 
 def _values_for_spline(values: Any, spline: HeadplotSpline) -> np.ndarray:

@@ -180,7 +180,7 @@ def test_pop_eegfilt_legacy_firtype_changes_filter_coefficients():
 
 
 def test_pop_eegfilt_legacy_usefft_fails_clearly():
-    with pytest.raises(NotImplementedError, match="Legacy pop_eegfilt FFT filtering is not implemented"):
+    with pytest.raises(ValueError, match="Legacy pop_eegfilt FFT filtering is not a standalone EEGPrep path"):
         pop_eegfilt(_continuous_eeg(), 1, 40, 100, 0, 1, 0, "firls", 0)
 
 
