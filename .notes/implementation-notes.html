@@ -6,6 +6,36 @@
 </head>
 <body>
   <h1>EEGPrep Core Parity Implementation Notes</h1>
+  <h1>EEGPrep Phase 7 Long-Tail Core Helpers Notes</h1>
+  <p>Phase 7 closes the remaining audit-approved helper and wrapper gaps that
+  were still actionable after Phases 2-6, while classifying obsolete or
+  toolbox-dependent MATLAB surfaces explicitly in the parity matrix.</p>
+  <h2>Phase 7 Design Decisions</h2>
+  <ul>
+    <li>Added standalone EEGLAB-named ICA projection helpers for component activations, back-projection, component variance, and percent variance accounted for. The implementation reuses EEGPrep's existing finite matrix multiplication and rejection activation helpers instead of adding parallel ICA math.</li>
+    <li>Added rejection/statistical compatibility helpers for probability, entropy, thresholding, kurtosis, joint probability, and trend rejection surfaces needed by current menus, tests, and likely user-typed workflows.</li>
+    <li>Added legacy user-facing wrappers for <code>pop_averef</code>, <code>pop_compareerps</code>, <code>pop_findmatchingcomps</code>, <code>pop_fusechanrej</code>, <code>pop_icathresh</code>, <code>pop_rejchanspec</code>, and <code>pop_topochansel</code>. Each wrapper either delegates to an existing modern EEGPrep path or implements the thin compatibility behavior directly with replayable command history.</li>
+    <li>Added packaged help Markdown for every new user-facing <code>pop_*</code> wrapper. No runtime code reads from the vendored EEGLAB checkout.</li>
+    <li>Updated public exports only for user-facing wrappers and helpers that EEGLAB users are likely to import or type directly.</li>
+  </ul>
+  <h2>Phase 7 Deviations</h2>
+  <ul>
+    <li>MATLAB-only GUI shims, figure utilities, demos, install/deployment helpers, and old command-window support functions remain skipped instead of being recreated as stale runtime code.</li>
+    <li>Legacy external ICA backends such as JADE, SOBI, and binary ICA routes remain external-dependency skips unless a modern EEGPrep backend is deliberately added.</li>
+    <li>No new EEGLAB-style GUI dialogs were added. <code>pop_topochansel</code> reuses the existing EEGPrep channel selector for GUI fallback, so visual parity captures were not applicable.</li>
+  </ul>
+  <h2>Phase 7 Follow-Ups</h2>
+  <ul>
+    <li><a href="https://github.com/sccn/eegprep/issues/146">#146</a> tracks time-warped <code>newtimef</code> marker and cycle GUI workflows.</li>
+    <li><a href="https://github.com/sccn/eegprep/issues/147">#147</a> tracks exact <code>correct_mc</code> random-symbol distribution fitting.</li>
+    <li><a href="https://github.com/sccn/eegprep/issues/148">#148</a> tracks phase-amplitude coupling time-frequency helpers.</li>
+    <li><a href="https://github.com/sccn/eegprep/issues/149">#149</a> tracks remaining STUDY plotting, precompute, and selection long-tail helpers.</li>
+  </ul>
+  <h2>Phase 7 Verification Notes</h2>
+  <ul>
+    <li>Focused tests cover wrapper delegation/history, console auto-store behavior for <code>pop_averef</code>, spectral channel rejection, topographic channel selection, ICA helper math, and rejection helper outputs.</li>
+    <li>The parity matrix now has no <code>port</code> or <code>partial</code> rows without either an implementation/classification or a concrete follow-up issue.</li>
+  </ul>
   <h1>EEGPrep Phase 5 Unsupported User-Facing Options Notes</h1>
   <p>Phase 5 closes option-level gaps in existing user-facing functions while
   keeping EEGPrep standalone and explicit about MATLAB-only or toolbox-dependent
