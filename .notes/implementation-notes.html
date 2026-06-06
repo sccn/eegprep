@@ -15,7 +15,7 @@
     <li>The committed parity matrix already classified every in-scope EEGLAB file once the EEGLAB reference submodule was initialized, but remaining <code>port</code> and <code>partial</code> rows only named generic follow-up work in <code>test_notes</code>. The closeout now requires actionable rows to cite a concrete issue, and rows point to <a href="https://github.com/sccn/eegprep/issues/146">#146</a>, <a href="https://github.com/sccn/eegprep/issues/147">#147</a>, <a href="https://github.com/sccn/eegprep/issues/148">#148</a>, or <a href="https://github.com/sccn/eegprep/issues/149">#149</a>.</li>
     <li>Help Markdown coverage was complete for new Phase 2/4/5/7 <code>pop_*</code> wrappers, but Phase 6's public STUDY helpers <code>pop_addindepvar</code> and <code>pop_listfactors</code> were missing packaged help resources. Phase 8 adds those help topics and a focused packaged-help regression check.</li>
     <li>The docs already explain supported long-tail imports, statistics, time-frequency helpers, STUDY workflows, and legacy wrapper surfaces through the API and user-guide pages added by earlier phases.</li>
-    <li>No Phase 8 runtime GUI implementation was added. Earlier phase notes show GUI changes were limited to existing dialog behavior or non-GUI API/console surfaces, so no new Phase 8 visual parity attachment is required.</li>
+    <li>No Phase 8 runtime GUI implementation was added. The final tree does not commit visual parity artifacts. Phase 4 GUI evidence for <code>pop_newtimef</code> and <code>pop_newcrossf</code> is present in PR review comments rather than committed files; Phase 8 keeps that as evidence documentation because closeout did not change those dialogs.</li>
   </ul>
   <h2>Phase 8 Tradeoffs</h2>
   <ul>
@@ -24,7 +24,13 @@
   </ul>
   <h2>Phase 8 Verification Notes</h2>
   <ul>
-    <li>Final verification commands will be recorded in the Phase 8 PR body after the required matrix, lint, type, test, pre-commit, GUI/console, and review checks run.</li>
+    <li><code>uv run --no-sync python -m tools.eeglab_parity_matrix</code>: parity matrix OK, 608 rows cover 608 in-scope EEGLAB functions.</li>
+    <li><code>uv run --no-sync ruff check .</code>, <code>uv run --no-sync ruff format --check .</code>, and <code>uv run --no-sync ty check</code>: passed after syncing optional GUI/torch extras needed by the type checker.</li>
+    <li><code>EEGPREP_SKIP_MATLAB=1 uv run --no-sync pytest -m "not slow"</code>: passed with 1746 tests passing, 233 skipped, and 11 deselected.</li>
+    <li><code>./pre-commit.py --changed-from origin/feature/eeglab-core-parity-completion</code>: passed for the Phase 8 changed-file set.</li>
+    <li>Focused regression coverage passed for parity-matrix validation, packaged help, STUDY metadata, STUDY measures, and STUDY clustering behavior. A sample-data console smoke verified shared <code>EEGPrepSession</code> state across load, bare <code>pop_select</code>, and bare <code>pop_reref</code> calls.</li>
+    <li>MATLAB-marked parity tests were attempted locally. MATLAB CLI exists, but the Python MATLAB engine is unavailable and the marker run stalled after clean_rawdata failures, so the closeout preserves existing skip behavior through the non-slow lane.</li>
+    <li>The OC autoreview helper initially flagged <code>pop_listfactors</code> display-only options as a non-GUI EEGLAB compatibility regression. Phase 8 fixed that by accepting <code>splitreg</code>, <code>contrast</code>, and <code>interaction</code> as non-GUI no-ops, then reran autoreview clean against <code>origin/feature/eeglab-core-parity-completion</code>.</li>
   </ul>
   <h1>EEGPrep Phase 7 Long-Tail Core Helpers Notes</h1>
   <p>Phase 7 closes the remaining audit-approved helper and wrapper gaps that
