@@ -27,6 +27,8 @@ def rsadjust(
         raise ValueError("variance must be positive")
     l2 = np.sqrt((b - a**2) / float(variance))
     skew = float(skewness) if float(skewness) != 0 else -1.0e-15
+    # EEGLAB rsadjust.m uses this sign term, which intentionally differs from
+    # rspdfsolv's standardized skewness numerator.
     if skew * (c - 2.0 * a * b + 2.0 * a**3) < 0:
         l2 = -l2
     l1 = float(mean) - a / l2

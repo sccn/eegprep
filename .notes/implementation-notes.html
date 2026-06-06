@@ -34,6 +34,10 @@
     inside <code>correct_mc</code> instead of crashing the whole helper, matching
     the existing EEGPrep behavior for non-estimable cells while the public
     <code>rsfit</code> helper still fails clearly on invalid distributions.</li>
+    <li><code>rsadjust</code> preserves EEGLAB's <code>C - 2AB + 2A^3</code>
+    sign convention for <code>lambda2</code>. This differs from the
+    standardized third-moment numerator in <code>rspdfsolv</code>, but changing
+    it would break exact parity with <code>functions/timefreqfunc/rsadjust.m</code>.</li>
     <li><code>bootstat</code> remains EEGPrep's callable bootstrap helper. Its
     broader EEGLAB <code>distfit</code>/<code>vals</code>/<code>correctp</code>
     behavior changes the bootstrap API surface and is intentionally left out of

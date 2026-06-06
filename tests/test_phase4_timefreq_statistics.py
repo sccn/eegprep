@@ -453,6 +453,12 @@ def test_ramberg_schmeiser_helpers_cover_analytic_cases():
     assert rsget(uniform_lambdas, 0.25) == pytest.approx(0.75, abs=1e-8)
     assert rspdfsolv([1.0, 1.0], 0.0, 1.8) == pytest.approx(0.0, abs=1e-12)
     np.testing.assert_allclose(rsadjust(1.0, 1.0, 0.0, 1.0 / 12.0, 0.0), uniform_lambdas)
+    np.testing.assert_allclose(
+        rsadjust(-0.1, 1.45, 0.25, 0.5, 1.0),
+        [-2.1913486194442604, 0.28793423446627836, -0.1, 1.45],
+        rtol=1e-12,
+        atol=1e-12,
+    )
 
     pvalue, cumulants, lambdas, _chi2 = rsfit(np.linspace(-1.0, 1.0, 101), 0.0, return_details=True)
     assert pvalue == pytest.approx(0.5, abs=1e-8)
