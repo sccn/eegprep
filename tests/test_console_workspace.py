@@ -746,6 +746,24 @@ def test_bare_pop_call_updates_session_and_returns_compact_unpackable_result():
     refresh.assert_called_once()
 
 
+def test_bare_legacy_pop_averef_alias_updates_session_history():
+    from eegprep.functions.popfunc.pop_averef import pop_averef
+
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(), new=True)
+    workspace = EEGPrepConsoleWorkspace(session, exports={"pop_averef": pop_averef})
+
+    result = workspace.namespace["pop_averef"](workspace.namespace["EEG"])
+    workspace.after_execute("pop_averef(EEG)")
+
+    eeg, command = result
+    assert eeg is session.EEG
+    assert command == "EEG = pop_averef( EEG, 0);"
+    assert session.ALLCOM == ["EEG = pop_averef( EEG, 0);"]
+    np.testing.assert_allclose(session.EEG["data"].mean(axis=0), np.zeros(2), atol=1e-12)
+    workspace.close()
+
+
 def test_pop_call_without_history_command_records_raw_console_source():
     session = EEGPrepSession()
     session.store_current(_demo_eeg(), new=True)
