@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
+import eegprep
 from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher, action_kind
 from eegprep.functions.guifunc.spec import controls_by_tag
 from eegprep.functions.guifunc.session import EEGPrepSession
@@ -24,10 +25,15 @@ from eegprep.functions.studyfunc.pop_savestudy import pop_savestudy
 from eegprep.functions.studyfunc.pop_study import pop_study
 from eegprep.functions.studyfunc.std_erpplot import std_erpplot
 from eegprep.functions.studyfunc.std_erspplot import std_erspplot
+from eegprep.functions.studyfunc.std_dipoleclusters import std_dipoleclusters
+from eegprep.functions.studyfunc.std_dipplot import std_dipplot
+from eegprep.functions.studyfunc.std_interp import std_interp
 from eegprep.functions.studyfunc.std_itcplot import std_itcplot
+from eegprep.functions.studyfunc.std_limodesign import std_limodesign
 from eegprep.functions.studyfunc.std_precomp import std_precomp
 from eegprep.functions.studyfunc.std_checkdatasession import std_checkdatasession
 from eegprep.functions.studyfunc.std_checkfiles import std_checkfiles
+from eegprep.functions.studyfunc.std_prepare_neighbors import std_prepare_neighbors
 from eegprep.functions.studyfunc.std_readdata import (
     std_readdata,
     std_readerp,
@@ -465,3 +471,78 @@ def test_study_chanplot_gui_dispatch_cancel_leaves_history_empty(monkeypatch):
     assert session.STUDY is study
     assert session.LASTCOM == ""
     assert session.ALLCOM == []
+
+
+def test_std_limodesign_builds_categorical_continuous_and_split_exports(tmp_path):
+    factors = [
+        {"label": "condition", "value": "target", "vartype": "categorical"},
+        {"label": "condition", "value": "standard", "vartype": "categorical"},
+        {"label": "group", "value": "control", "vartype": "categorical"},
+        {"label": "group", "value": "patient", "vartype": "categorical"},
+        {"label": "rt", "vartype": "continuous"},
+    ]
+    trialinfo = [
+        {"condition": "target", "group": "control", "rt": 1.0},
+        {"condition": "standard", "group": "control", "rt": 2.0},
+        {"condition": "target", "group": "patient", "rt": 3.0},
+        {"condition": "standard", "group": "patient", "rt": 4.0},
+    ]
+
+    catmat, contmat, limodesign, command = std_limodesign(
+        factors,
+        trialinfo,
+        interaction="on",
+        splitreg="on",
+        filepath=tmp_path,
+        return_com=True,
+    )
+
+    np.testing.assert_allclose(catmat.ravel(), [1, 3, 2, 4])
+    assert contmat.shape == (4, 4)
+    assert np.count_nonzero(contmat[0]) == 0
+    assert len(limodesign["categorical"][0]) == 4
+    assert len(limodesign["continuous"]) == 4
+    assert (tmp_path / "categorical_variables.txt").is_file()
+    assert (tmp_path / "continuous_variables.txt").is_file()
+    assert command.startswith("catMat, contMat, limodesign = std_limodesign(")
+    ast.parse(command)
+
+
+def test_std_prepare_neighbors_returns_limo_adjacency_and_exports_name():
+    study, alleeg = _study_pair()
+
+    study, neighbors, limostruct, command = std_prepare_neighbors(study, alleeg, force="on", return_com=True)
+
+    adjacency = np.asarray(limostruct["channeighbstructmat"])
+    assert len(neighbors) == alleeg[0]["nbchan"]
+    assert adjacency.shape == (alleeg[0]["nbchan"], alleeg[0]["nbchan"])
+    assert np.array_equal(adjacency, adjacency.T)
+    assert np.all(np.diag(adjacency) == 0)
+    assert study["etc"]["statistics"]["fieldtrip"]["channelneighbor"] == neighbors
+    assert command.startswith("STUDY, neighbors, limostruct = std_prepare_neighbors(")
+    assert eegprep.std_prepare_neighbors is std_prepare_neighbors
+
+
+def test_std_interp_adds_requested_missing_channels_without_dropping_existing():
+    study, alleeg = _study_pair()
+    reduced = deepcopy(alleeg[1])
+    reduced["data"] = reduced["data"][:2]
+    reduced["nbchan"] = 2
+    reduced["chanlocs"] = reduced["chanlocs"][:2]
+    alleeg[1] = reduced
+
+    study, interpolated, command = std_interp(study, alleeg, ["Ch3"], return_com=True)
+
+    assert interpolated[1]["data"].shape[0] == 3
+    assert [loc["labels"] for loc in interpolated[1]["chanlocs"]] == ["Ch1", "Ch2", "Ch3"]
+    assert study["etc"]["eegprep"]["std_interp"]["channels"] == ["Ch3"]
+    assert study["etc"]["eegprep"]["std_interp"]["changed_datasets"] == [2]
+    assert command.startswith("STUDY, ALLEEG = std_interp(")
+    assert eegprep.std_interp is std_interp
+
+
+def test_source_dependent_study_helpers_report_explicit_boundary():
+    with pytest.raises(NotImplementedError, match="FieldTrip/DIPFIT STUDY source workflows"):
+        std_dipplot({}, [])
+    with pytest.raises(NotImplementedError, match="FieldTrip/DIPFIT STUDY source workflows"):
+        std_dipoleclusters({}, [])

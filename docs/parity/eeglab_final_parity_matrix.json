@@ -862,7 +862,8 @@
       ],
       "eegprep_equivalent": [
         "eegprep.functions.studyfunc.pop_limo",
-        "eegprep.functions.studyfunc.std_limo"
+        "eegprep.functions.studyfunc.std_limo",
+        "eegprep.functions.studyfunc.std_limodesign"
       ],
       "status": "optional_dependency",
       "responsible_phase": "phase_4",
@@ -870,21 +871,22 @@
       "optional_dependency": {
         "name": "LIMO-compatible statistics backend",
         "dependency_type": "external statistics workflow",
-        "fallback_behavior": "Keep explicit NotImplementedError limitations until EEGPrep owns or integrates a tested LIMO-compatible backend.",
-        "user_message": "EEGPrep does not silently emulate EEGLAB LIMO result computation or browsing.",
-        "phase_contract": "Phase 4 must decide whether limitation wrappers are sufficient or implement a real tested backend and docs."
+        "fallback_behavior": "Build standalone design matrices with std_limodesign, and keep explicit NotImplementedError limitations for model execution and result browsing until EEGPrep owns or integrates a tested LIMO-compatible backend.",
+        "user_message": "EEGPrep builds LIMO-compatible design matrices but does not silently emulate EEGLAB LIMO model fitting, result computation, or browsing.",
+        "phase_contract": "Phase 4 implements the feasible standalone design layer and documents the external backend boundary for fitting/results."
       },
-      "rationale": "LIMO is a separate MATLAB toolbox-level workflow. EEGPrep can expose familiar names only when behavior is real or clearly unavailable.",
+      "rationale": "LIMO is a separate MATLAB toolbox-level workflow. EEGPrep now owns design-matrix preparation while keeping model fitting and result browsing behind explicit external-backend limitations.",
       "user_facing_surface": [
         "STUDY LIMO menus",
         "pop_limo",
-        "std_limo"
+        "std_limo",
+        "std_limodesign"
       ],
       "docs_targets": [
         "docs/source/user_guide/study_workflows.rst",
         "docs/source/user_guide/installation.rst"
       ],
-      "test_notes": "Phase 4 should keep limitation tests or add backend tests; placeholder LIMO outputs are not acceptable."
+      "test_notes": "Phase 4 tests std_limodesign matrix/export behavior and keeps limitation tests for model/result entry points; placeholder LIMO outputs are not acceptable."
     },
     {
       "row_id": "optional-pac-workflows",
@@ -901,19 +903,13 @@
         "eegprep.functions.timefreqfunc.pac",
         "eegprep.functions.timefreqfunc.pac_cont",
         "eegprep.functions.studyfunc.std_pac",
+        "eegprep.functions.studyfunc.std_pacplot",
         "eegprep.functions.studyfunc.std_readpac"
       ],
-      "status": "optional_dependency",
+      "status": "implemented",
       "responsible_phase": "phase_4",
       "phase_issue": "#161 STUDY statistics, PAC, and LIMO-compatible workflows",
-      "optional_dependency": {
-        "name": "EEGPrep-owned PAC backend",
-        "dependency_type": "scientific analysis backend",
-        "fallback_behavior": "Read only explicit EEGPrep-owned pacdata caches and raise clear limitations for unimplemented PAC computation.",
-        "user_message": "PAC computation is unavailable until EEGPrep ships a tested PAC backend.",
-        "phase_contract": "Phase 4 must implement PAC compute/cache/plot behavior or keep documented limitation functions with tests."
-      },
-      "rationale": "PAC combines time-frequency decomposition, coupling metrics, cache files, and plotting. A same-name stub would mislead users.",
+      "rationale": "PAC now has a tested EEGPrep-owned compute/cache/plot path for practical channel workflows. Unsupported PAC bootstrap and latphase variants raise explicit limitations rather than fake results.",
       "user_facing_surface": [
         "PAC computation",
         "STUDY PAC plotting",
@@ -922,7 +918,7 @@
       "docs_targets": [
         "docs/source/user_guide/study_workflows.rst"
       ],
-      "test_notes": "Phase 4 should test cache semantics and any backend math against deterministic references."
+      "test_notes": "Focused tests cover pac, pac_cont, std_pac cache writing, std_readpac slicing, std_pacplot replayable commands, and unsupported PAC statistics boundaries."
     },
     {
       "row_id": "optional-fieldtrip-study-neighbors",
@@ -934,18 +930,16 @@
         "functions/studyfunc/std_interp.m",
         "functions/studyfunc/std_prepare_neighbors.m"
       ],
-      "eegprep_equivalent": null,
-      "status": "optional_dependency",
+      "eegprep_equivalent": [
+        "eegprep.functions.studyfunc.std_interp",
+        "eegprep.functions.studyfunc.std_prepare_neighbors",
+        "eegprep.functions.studyfunc.std_dipplot",
+        "eegprep.functions.studyfunc.std_dipoleclusters"
+      ],
+      "status": "partial",
       "responsible_phase": "phase_4",
       "phase_issue": "#161 STUDY statistics, PAC, and LIMO-compatible workflows",
-      "optional_dependency": {
-        "name": "FieldTrip-style STUDY neighbor and source workflow backend",
-        "dependency_type": "scientific optional backend",
-        "fallback_behavior": "Use EEGPrep-native interpolation where it exists and raise clear limitations for FieldTrip-specific STUDY/source workflows.",
-        "user_message": "FieldTrip-dependent STUDY source and neighbor workflows require a tested standalone backend before EEGPrep can compute them.",
-        "phase_contract": "Phase 4 must coordinate with Phase 3 for DIPFIT assumptions and document the backend boundary."
-      },
-      "rationale": "These workflows combine STUDY, source localization, and FieldTrip-style neighborhood definitions. They must be real optional integrations or clear limitations.",
+      "rationale": "EEGPrep now owns STUDY channel interpolation and distance-based neighbor/adjacency preparation. STUDY dipole cluster/source plotting remains an explicit DIPFIT/FieldTrip backend boundary coordinated with Phase 3.",
       "user_facing_surface": [
         "STUDY interpolation",
         "STUDY dipole clusters",
@@ -954,7 +948,7 @@
       "docs_targets": [
         "docs/source/user_guide/study_workflows.rst"
       ],
-      "test_notes": "Phase 4 should test user-facing limitation paths and any implemented backend coordination with Phase 3 DIPFIT outputs."
+      "test_notes": "Focused tests cover neighbor adjacency, STUDY interpolation, and explicit source-workflow limitation paths."
     },
     {
       "row_id": "docs-history-console-migration",

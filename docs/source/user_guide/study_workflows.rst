@@ -185,19 +185,40 @@ parity checks focus on deterministic metadata and cluster structure; exact
 numeric clustering labels can differ because EEGPrep uses deterministic
 in-package k-means helpers rather than MATLAB's Statistics Toolbox.
 
+PAC, LIMO Design, And Neighbors
+===============================
+
+EEGPrep includes a standalone PAC backend for practical channel workflows.
+Use ``pac`` for epoched phase-amplitude coupling grids and ``pac_cont`` for
+continuous sliding-window PAC. At the STUDY level, ``std_pac`` computes
+EEGPrep-owned ``pacdata``, ``pactimes``, and ``pacfreqs`` caches on
+``STUDY.changrp``. ``std_readpac`` slices those caches and ``std_pacplot``
+plots their magnitude using the same cache-reading contract as the other
+STUDY measure plots.
+
+The feasible in-package LIMO-compatible layer is design preparation:
+``std_limodesign`` builds categorical and continuous matrices from
+``pop_listfactors`` output and trial metadata, including interaction and split
+regressor descriptions. It can write ``categorical_variables.txt`` and
+``continuous_variables.txt`` for downstream analysis code.
+
+``std_prepare_neighbors`` creates a distance-based FieldTrip-like neighbor
+list and a LIMO-compatible channel adjacency matrix from loaded channel
+locations. ``std_interp`` interpolates requested missing channels across
+STUDY datasets using EEGPrep's existing channel interpolation backend.
+
 Limitations
 ===========
 
-EEGPrep does not silently emulate EEGLAB's external LIMO toolbox. The
-``pop_limo``, ``pop_limoresults``, ``std_limo*``, and ``std_readfilelimo``
-entry points raise clear ``NotImplementedError`` messages.
+EEGPrep does not silently emulate EEGLAB's external LIMO toolbox. ``pop_limo``,
+``pop_limoresults``, ``std_limo``, ``std_limoresults``, and
+``std_readfilelimo`` raise clear ``NotImplementedError`` messages rather than
+creating placeholder LIMO results.
 
-Core EEGPrep also does not implement standalone phase-amplitude coupling
-analysis. The ``pac``, ``pac_cont``, ``std_pac``, and ``std_pacplot`` entry
-points raise clear ``NotImplementedError`` messages until there is a tested
-EEGPrep-owned PAC backend. ``std_readpac`` only returns data when an explicit
-EEGPrep-owned ``pacdata`` cache is present; external PAC or LIMO result files
-are not interpreted as if they were native EEGPrep outputs.
+STUDY-level DIPFIT/FieldTrip source workflows such as ``std_dipplot`` and
+``std_dipoleclusters`` remain explicit source-backend boundaries. Use the
+dedicated EEGPrep DIPFIT helpers for dataset-level source workflows and keep
+STUDY source statistics behind a tested backend contract.
 
 See the :ref:`interactive_console` guide for mixed GUI plus console usage and
 the :ref:`gui_help_menus` guide for menu inventory behavior.

@@ -138,6 +138,8 @@ History And STUDY Files
 
 .. autofunction:: eegprep.std_builddesignmat
 
+.. autofunction:: eegprep.std_limodesign
+
 .. autofunction:: eegprep.std_getindvar
 
 .. autofunction:: eegprep.std_indvarmatch
@@ -179,6 +181,14 @@ History And STUDY Files
 .. autofunction:: eegprep.std_pac
 
 .. autofunction:: eegprep.std_pacplot
+
+.. autofunction:: eegprep.std_prepare_neighbors
+
+.. autofunction:: eegprep.std_interp
+
+.. autofunction:: eegprep.std_dipplot
+
+.. autofunction:: eegprep.std_dipoleclusters
 
 .. autofunction:: eegprep.std_savedat
 
