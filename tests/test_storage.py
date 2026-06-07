@@ -93,6 +93,22 @@ def test_option_savetwofiles_defaults_to_sidecar_storage(tmp_path: Path):
     np.testing.assert_allclose(loaded["data"], data)
 
 
+def test_memmap_resave_to_same_sidecar_preserves_data(tmp_path: Path):
+    data = np.arange(12, dtype=np.float32).reshape((3, 4))
+    set_file = tmp_path / "resave.set"
+    pop_saveset(_eeg(data, name="resave"), set_file, savemode="twofiles")
+    loaded = pop_loadset(set_file, memmap=True)
+
+    loaded["data"][2, 3] = -12.5
+    loaded["data"].flush()
+    pop_saveset(loaded, savemode="resave")
+    reloaded = pop_loadset(set_file)
+
+    expected = data.copy()
+    expected[2, 3] = -12.5
+    np.testing.assert_allclose(reloaded["data"], expected)
+
+
 def test_pop_loadset_missing_sidecar_fails_clearly(tmp_path: Path):
     set_file = tmp_path / "missing.set"
     pop_saveset(_eeg(np.ones((2, 3), dtype=np.float32)), set_file, savemode="twofiles")

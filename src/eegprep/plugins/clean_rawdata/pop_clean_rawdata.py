@@ -301,7 +301,10 @@ def _show_vis_artifacts(original_eeg: dict[str, Any], clean_eeg: dict[str, Any])
             title=f"Rejected data highlighted -- eegplot() -- {original_eeg.get('setname', '')}".rstrip(),
         )
     except RuntimeError as exc:
-        logger.warning("Could not open clean_rawdata rejected-data browser: %s", exc)
+        if "PySide6 and pyqtgraph are required" in str(exc):
+            logger.info("Could not open clean_rawdata rejected-data browser: %s", exc)
+        else:
+            logger.warning("Could not open clean_rawdata rejected-data browser: %s", exc)
         return None
 
 

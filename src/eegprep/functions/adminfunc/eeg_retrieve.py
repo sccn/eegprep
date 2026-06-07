@@ -5,7 +5,7 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any
 
-from eegprep.functions.adminfunc.storage import dataset_with_loaded_data, offload_storedisk_datasets, storedisk_enabled
+from eegprep.functions.adminfunc.storage import dataset_with_loaded_data, offload_storedisk_datasets
 from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
 
 
@@ -17,9 +17,11 @@ def eeg_retrieve(
     alleeg = [] if ALLEEG is None else list(ALLEEG)
     if isinstance(index, (list, tuple)):
         indices = [int(item) for item in index]
-        if storedisk_enabled():
-            offload_storedisk_datasets(alleeg, set())
-        datasets = [deepcopy(_dataset_at(alleeg, item)) for item in indices]
+        datasets = [dataset_with_loaded_data(_dataset_at(alleeg, item)) for item in indices]
+        for item, dataset in zip(indices, datasets):
+            if 1 <= item <= len(alleeg):
+                alleeg[item - 1] = deepcopy(dataset)
+        offload_storedisk_datasets(alleeg, set(indices))
         return datasets, alleeg, indices
     current = int(index)
     dataset = dataset_with_loaded_data(_dataset_at(alleeg, current))

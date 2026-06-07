@@ -211,6 +211,8 @@ def write_fdt(data: Any, filename: str | Path, eeg: dict[str, Any]) -> None:
     path = Path(filename)
     path.parent.mkdir(parents=True, exist_ok=True)
     array = np.asarray(data, dtype=FDT_DTYPE)
+    if _same_backing_file(data, path):
+        array = array.copy()
     shape = eeg_data_shape(eeg)
     if array.shape != shape:
         if array.size != int(np.prod(shape)):
@@ -220,6 +222,25 @@ def write_fdt(data: Any, filename: str | Path, eeg: dict[str, Any]) -> None:
     frames = int(eeg.get("pnts", 0) or 0) * int(eeg.get("trials", 1) or 1)
     matrix = array.reshape((nbchan, frames), order="F")
     np.asfortranarray(matrix).ravel(order="F").tofile(path)
+
+
+def _same_backing_file(data: Any, path: Path) -> bool:
+    """Return whether ``data`` maps the sidecar currently being rewritten."""
+    try:
+        target = path.resolve()
+    except OSError:
+        target = path.absolute()
+    if isinstance(data, MemmapData):
+        try:
+            return data.path.resolve() == target
+        except OSError:
+            return data.path.absolute() == target
+    if isinstance(data, np.memmap) and getattr(data, "filename", None):
+        try:
+            return Path(data.filename).resolve() == target
+        except OSError:
+            return Path(data.filename).absolute() == target
+    return False
 
 
 def read_fdt(filename: str | Path, eeg: dict[str, Any]) -> np.ndarray:

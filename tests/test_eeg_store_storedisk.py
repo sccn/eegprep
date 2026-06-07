@@ -74,6 +74,23 @@ def test_eeg_store_offloads_saved_non_current_and_retrieve_rehydrates(tmp_path: 
     assert isinstance(alleeg[1]["data"], OffloadedData)
 
 
+def test_eeg_retrieve_multi_index_rehydrates_selected_storedisk_datasets(tmp_path: Path):
+    EEG_OPTIONS["option_storedisk"] = 1
+    alleeg, _current, _current_set = eeg_store([], _saved_loaded_eeg(tmp_path, "one"), 0)
+    alleeg, _current, _current_set = eeg_store(alleeg, _saved_loaded_eeg(tmp_path, "two", 10), 0)
+    alleeg, _current, _current_set = eeg_store(alleeg, _saved_loaded_eeg(tmp_path, "three", 20), 0)
+
+    datasets, alleeg, current_set = eeg_retrieve(alleeg, [1, 2])
+
+    assert current_set == [1, 2]
+    assert [dataset["setname"] for dataset in datasets] == ["one", "two"]
+    np.testing.assert_allclose(datasets[0]["data"], _eeg("one")["data"])
+    np.testing.assert_allclose(datasets[1]["data"], _eeg("two", 10)["data"])
+    assert not isinstance(alleeg[0]["data"], OffloadedData)
+    assert not isinstance(alleeg[1]["data"], OffloadedData)
+    assert isinstance(alleeg[2]["data"], OffloadedData)
+
+
 def test_eeg_store_storedisk_refuses_unsaved_resident_dataset():
     EEG_OPTIONS["option_storedisk"] = 1
     alleeg = [_eeg("unsaved")]
