@@ -304,5 +304,24 @@
     <li>Focused tests cover direct time-warp matrices, angular wrapping, cycle-width conversion, replayable <code>pop_newtimef</code> time-warp history, console history recording, and dialog inventory.</li>
     <li>MATLAB parity coverage for <code>timewarp</code>, <code>angtimewarp</code>, and <code>tf_cycle_calc</code> is included behind the existing MATLAB skip behavior.</li>
   </ul>
+  <h1>Phase 3 DIPFIT And Source-Localization Notes</h1>
+  <h2>Design Decisions</h2>
+  <ul>
+    <li>Implemented standalone DIPFIT helper modules for coordinate transforms, electrode realignment, atlas loading, spherical leadfield construction, grid search, nonlinear refinement, residual-variance rejection, and dipole plotting. Runtime code does not read from the vendored EEGLAB tree.</li>
+    <li>Kept the practical source-localization path Python-native and deterministic: component maps are fit against a spherical primary-current forward model, optionally refined with SciPy, and stored back in EEGLAB-style <code>EEG.dipfit.model</code> entries.</li>
+    <li>Preserved familiar entry points for <code>pop_dipfit_gridsearch</code>, <code>pop_dipfit_nonlinear</code>, <code>pop_multifit</code>, <code>pop_dipfit_batch</code>, <code>pop_dipfit_manual</code>, <code>pop_leadfield</code>, <code>dipfit_reject</code>, <code>dipplot</code>/<code>pop_dipplot</code>, <code>headcoordinates</code>, <code>electroderealign</code>, <code>mni2tal</code>, and <code>sph2spm</code>.</li>
+    <li>Added explicit history-command generation for the GUI and console wrappers so mixed GUI plus <code>eegprep-console</code> workflows can replay the new DIPFIT operations.</li>
+  </ul>
+  <h2>Deviations And Tradeoffs</h2>
+  <ul>
+    <li>Native fitting is limited to the audit-approved spherical workflow. MRI segmentation, BEM/FieldTrip source analysis, AFNI atlas masking, and LORETA remain explicit optional-backend limitations instead of returning fake localization outputs.</li>
+    <li><code>load_afni_atlas</code> reads user-supplied AFNI/NIfTI volumes only when <code>nibabel</code> is installed and raises a clear limitation otherwise.</li>
+    <li><code>pop_leadfield</code> supports explicit source-point arrays and simple files with source positions; FieldTrip-style source model files that need external readers remain unsupported.</li>
+  </ul>
+  <h2>Verification Notes</h2>
+  <ul>
+    <li>Focused tests cover known synthetic spherical-source fitting, grid and nonlinear refinement, batch/manual aliases, leadfield creation, residual-variance rejection, coordinate transforms, electrode realignment, plotting options, and remaining explicit limitation paths.</li>
+    <li>The Phase 3 parity matrix rows were reclassified to distinguish implemented standalone behavior from MRI/BEM/LORETA workflows that still require external source-localization backends.</li>
+  </ul>
 </body>
 </html>

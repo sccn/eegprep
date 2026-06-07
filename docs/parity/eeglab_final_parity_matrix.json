@@ -538,10 +538,10 @@
         "eegprep.plugins.dipfit.pop_dipfit_settings",
         "eegprep.plugins.dipfit.menu"
       ],
-      "status": "partial",
+      "status": "implemented",
       "responsible_phase": "phase_3",
       "phase_issue": "#160 DIPFIT and source-localization standalone parity",
-      "rationale": "EEGPrep stores EEGLAB-compatible DIPFIT metadata and menu surfaces, but Phase 3 must finish settings validation, templates, help, and console history parity.",
+      "rationale": "EEGPrep stores EEGLAB-compatible DIPFIT metadata, template choices, channel selections, GUI help, and replayable console history without using the vendored EEGLAB tree at runtime.",
       "user_facing_surface": [
         "Tools > Locate dipoles using DIPFIT > Head model and settings",
         "pop_dipfit_settings"
@@ -550,7 +550,7 @@
         "docs/source/user_guide/study_workflows.rst",
         "docs/source/user_guide/plugins.rst"
       ],
-      "test_notes": "Phase 3 should test settings round trips, command history, and saved dataset compatibility."
+      "test_notes": "Covered by DIPFIT settings tests for standard templates, channel omission, GUI application to multiple datasets, sample-data setup, and replayable command history."
     },
     {
       "row_id": "dipfit-fieldtrip-backed-fitting",
@@ -575,19 +575,16 @@
       "eegprep_equivalent": [
         "eegprep.plugins.dipfit.pop_dipfit_gridsearch",
         "eegprep.plugins.dipfit.pop_dipfit_nonlinear",
-        "eegprep.plugins.dipfit.pop_multifit"
+        "eegprep.plugins.dipfit.pop_multifit",
+        "eegprep.plugins.dipfit.pop_dipfit_batch",
+        "eegprep.plugins.dipfit.pop_dipfit_manual",
+        "eegprep.plugins.dipfit.pop_leadfield",
+        "eegprep.plugins.dipfit.dipfit_reject"
       ],
-      "status": "optional_dependency",
+      "status": "partial",
       "responsible_phase": "phase_3",
       "phase_issue": "#160 DIPFIT and source-localization standalone parity",
-      "optional_dependency": {
-        "name": "FieldTrip-compatible source-localization backend",
-        "dependency_type": "scientific optional backend",
-        "fallback_behavior": "Validate inputs and raise explicit missing-backend limitations unless Phase 3 selects and tests a Python backend.",
-        "user_message": "DIPFIT fitting is not silently emulated in standalone EEGPrep without a tested source-localization backend.",
-        "phase_contract": "Phase 3 must either implement tested standalone fitting or keep limitation wrappers, help resources, and docs that name the missing backend."
-      },
-      "rationale": "EEGLAB delegates this work to FieldTrip/source-localization internals. EEGPrep should not produce fake dipole fits; it needs a real backend decision.",
+      "rationale": "EEGPrep now provides deterministic standalone spherical grid search, nonlinear moment/position refinement, multifit, deprecated batch/manual aliases, RV rejection, and explicit-point spherical leadfield construction. MRI-derived BEM headmodel creation, AFNI atlas leadfield preparation, and LORETA source analysis remain explicit missing-backend limitations rather than fake FieldTrip outputs.",
       "user_facing_surface": [
         "DIPFIT grid search",
         "DIPFIT nonlinear fit",
@@ -598,7 +595,7 @@
         "docs/source/user_guide/study_workflows.rst",
         "docs/source/user_guide/installation.rst"
       ],
-      "test_notes": "Phase 3 must test the selected backend or test the explicit limitation paths and GUI/console history."
+      "test_notes": "Covered by synthetic known-source DIPFIT tests, nonlinear refinement, multifit, batch/manual aliases, explicit-point leadfield generation, RV rejection, and remaining limitation-path tests for MRI headmodel, unsupported source-model files, and LORETA."
     },
     {
       "row_id": "dipfit-plotting",
@@ -613,10 +610,10 @@
       "eegprep_equivalent": [
         "eegprep.plugins.dipfit.pop_dipplot"
       ],
-      "status": "partial",
+      "status": "implemented",
       "responsible_phase": "phase_3",
       "phase_issue": "#160 DIPFIT and source-localization standalone parity",
-      "rationale": "EEGPrep can plot existing dipole positions, but MRI slices, mesh alignment, and full EEGLAB visual parity remain Phase 3 work.",
+      "rationale": "EEGPrep plots existing dipole positions and moments, honors RV filtering and key EEGLAB dipplot options, and uses packaged standard MNI MRI slices for summary/projection views. Custom MRI and FieldTrip mesh rendering remain explicit asset/backend limits.",
       "user_facing_surface": [
         "pop_dipplot",
         "DIPFIT visual diagnostics"
@@ -625,7 +622,7 @@
         "docs/source/user_guide/study_workflows.rst",
         "docs/source/user_guide/visual_parity.rst"
       ],
-      "test_notes": "Phase 3 should add visual evidence for dipole plotting and no-backend behavior."
+      "test_notes": "Covered by dipplot command-history, localized-component selection, missing-model errors, MRI slice helper tests, and visual parity dialog cases."
     },
     {
       "row_id": "dipfit-atlas-coordinates-and-transforms",
@@ -654,13 +651,17 @@
         "plugins/dipfit/sph2spm.m"
       ],
       "eegprep_equivalent": [
-        "eegprep.functions.sigprocfunc.coregister",
-        "eegprep.plugins.dipfit._utils"
+        "eegprep.plugins.dipfit._coordinates",
+        "eegprep.plugins.dipfit.headcoordinates",
+        "eegprep.plugins.dipfit.electroderealign",
+        "eegprep.plugins.dipfit.mni2tal",
+        "eegprep.plugins.dipfit.sph2spm",
+        "eegprep.plugins.dipfit.load_afni_atlas"
       ],
-      "status": "partial",
+      "status": "implemented",
       "responsible_phase": "phase_3",
       "phase_issue": "#160 DIPFIT and source-localization standalone parity",
-      "rationale": "Some transform logic exists in standalone Python helpers, but Phase 3 must finish coordinate-system coverage, atlas limitations, and FieldTrip conversion boundaries.",
+      "rationale": "EEGPrep now has standalone NumPy/SciPy ports for DIPFIT MNI/Talairach and spherical transforms, homogeneous/traditional transforms, warp application/optimization, head-coordinate construction, FieldTrip-to-EEGLAB channel conversion, and fiducial/template electrode realignment. AFNI/NIfTI atlas loading is explicit through nibabel when available and does not pretend to run FieldTrip head-model clipping for unsupported cases.",
       "user_facing_surface": [
         "DIPFIT settings",
         "coregistration",
@@ -670,7 +671,7 @@
         "docs/source/user_guide/study_workflows.rst",
         "docs/source/api/signal_processing.rst"
       ],
-      "test_notes": "Phase 3 should add deterministic transform tests and document coordinate-system assumptions."
+      "test_notes": "Covered by deterministic mni2tal, headcoordinates, traditional transform, warp_apply, electroderealign, and atlas/backend limitation tests."
     },
     {
       "row_id": "eegobj-python-dataset-contract",
