@@ -59,7 +59,7 @@ def _append_dataset_factors(
             for value in values
         ]
         subjects.append(value_subjects)
-        paired.append("on" if _same_subjects(value_subjects) else "off")
+        paired.append("on" if _paired_subject_sets(value_subjects) else "off")
 
 
 def _append_trial_factors(
@@ -83,8 +83,16 @@ def _append_trial_factors(
             continue
         factors.append(label)
         factorvals.append(values)
-        subjects.append([])
-        paired.append("on" if all(isinstance(value, str) for value in values) else "off")
+        value_subjects = [
+            _unique_values(
+                info.get("subject")
+                for info in infos
+                if any(_equal_value(row.get(label), value) for row in _trial_rows(info.get("trialinfo")))
+            )
+            for value in values
+        ]
+        subjects.append(value_subjects)
+        paired.append("on" if _paired_subject_sets(value_subjects) else "off")
 
 
 def _append_design_values(study: dict[str, Any], factors: list[str], factorvals: list[list[Any]]) -> None:
@@ -135,6 +143,10 @@ def _same_subjects(value_subjects: list[list[Any]]) -> bool:
         return True
     first = value_subjects[0]
     return all(subjects == first for subjects in value_subjects)
+
+
+def _paired_subject_sets(value_subjects: list[list[Any]]) -> bool:
+    return bool(value_subjects) and all(value_subjects) and _same_subjects(value_subjects)
 
 
 def _equal_value(left: Any, right: Any) -> bool:

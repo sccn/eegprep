@@ -13,7 +13,11 @@ def std_findsameica(
     ALLEEG: list[dict[str, Any]] | dict[str, Any],
     icathreshold: float = 2e-4,
 ) -> tuple[list[list[int]], list[int]]:
-    """Group 1-based dataset indices with near-identical ICA weights*sphere."""
+    """Group 1-based dataset indices with near-identical ICA weights*sphere.
+
+    EEGPrep keeps cross-subject decompositions in separate groups because
+    subject labels are a STUDY grouping boundary for downstream workflows.
+    """
     datasets = as_alleeg_list(ALLEEG)
     if not datasets:
         return [], []

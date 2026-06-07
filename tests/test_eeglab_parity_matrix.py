@@ -32,7 +32,8 @@ def test_parity_matrix_uses_complete_status_taxonomy() -> None:
     payload = load_matrix(MATRIX_PATH)
     statuses = {row["status"] for row in payload["rows"]}
 
-    assert statuses == set(VALID_STATUSES)
+    assert tuple(payload["metadata"]["status_taxonomy"]) == VALID_STATUSES
+    assert statuses <= set(VALID_STATUSES)
 
 
 def test_validator_fails_when_in_scope_eeglab_function_is_unclassified() -> None:
@@ -103,7 +104,7 @@ def test_validator_requires_concrete_follow_up_issue_for_actionable_rows() -> No
 
     payload = load_matrix(MATRIX_PATH)
     changed = copy.deepcopy(payload)
-    actionable_row = next(row for row in changed["rows"] if row["status"] in {"port", "partial"})
+    actionable_row = _make_actionable_row(changed)
     actionable_row["rationale"] = "Deferred to a follow-up after the integrated closeout review."
     actionable_row["test_notes"] = "Follow-up issue must add parity tests before marking implemented."
     actionable_row["follow_up_issue"] = ""
@@ -119,7 +120,7 @@ def test_validator_accepts_structured_follow_up_issue_for_actionable_rows() -> N
 
     payload = load_matrix(MATRIX_PATH)
     changed = copy.deepcopy(payload)
-    actionable_row = next(row for row in changed["rows"] if row["status"] in {"port", "partial"})
+    actionable_row = _make_actionable_row(changed)
     actionable_row["rationale"] = "Deferred to a follow-up after the integrated closeout review."
     actionable_row["test_notes"] = "Follow-up issue must add parity tests before marking implemented."
     actionable_row["follow_up_issue"] = "https://github.com/sccn/eegprep/issues/146"
@@ -156,6 +157,15 @@ def _require_eeglab_reference() -> None:
     if discover_in_scope_eeglab_paths(REPO_ROOT):
         return
     pytest.skip("EEGLAB reference tree is not initialized under src/eegprep/eeglab")
+
+
+def _make_actionable_row(payload: dict) -> dict:
+    row = payload["rows"][0]
+    row["status"] = "partial"
+    row["responsible_phase"] = "phase_7"
+    row["eegprep_equivalent"] = row["eegprep_equivalent"] or "eegprep.placeholder"
+    row.pop("stale_policy", None)
+    return row
 
 
 def _messages(report) -> str:

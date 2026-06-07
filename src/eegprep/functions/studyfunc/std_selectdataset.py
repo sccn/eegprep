@@ -52,8 +52,8 @@ def std_selectdataset(
         row_indices: list[int] = []
         for value in values:
             row_indices.extend(
-                index
-                for index, row in enumerate(rows, start=1)
+                row_index
+                for row_index, row in enumerate(rows, start=1)
                 if label in row and std_indvarmatch(value, [row.get(label)])
             )
         selected_trials[index] = _unique(row_indices)

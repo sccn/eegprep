@@ -67,6 +67,8 @@ def test_independent_variable_selection_and_trialinfo_queries_are_1_based():
     assert subjects[condition_index] == [["S02"], ["S01", "S03"]]
     assert paired[condition_index] == "off"
     assert factorvals[trial_type_index] == ["rare", "standard"]
+    assert subjects[trial_type_index] == [["S01", "S02", "S03"], ["S01", "S02"]]
+    assert paired[trial_type_index] == "off"
     assert selected_datasets == [1, 3]
     assert direct_datasets == [1, 3]
     assert selected_trials == [[1, 2, 3], [1, 2, 3], [1, 2]]
@@ -100,6 +102,19 @@ def test_indvarmatch_and_gettrialsind_validate_standalone_inputs():
 
     with pytest.raises(ValueError, match="not a MATLAB filename"):
         std_gettrialsind("external_trialinfo.mat", "type", "rare")
+
+
+def test_gettrialsind_empty_string_and_type_mismatch_queries():
+    rows = [{"rt": 320.0, "type": "rare"}, {"rt": "", "type": "standard"}, {"rt": 410.0, "type": "rare"}]
+
+    indices, values = std_gettrialsind(rows, "rt", "", return_values=True)
+
+    assert indices == [1, 3]
+    assert values == [[320.0, 410.0]]
+    with pytest.raises(ValueError, match="expected numerical values"):
+        std_gettrialsind(rows, "rt", "rare")
+    with pytest.raises(ValueError, match="expected string values"):
+        std_gettrialsind(rows, "type", 1)
 
 
 def test_study_design_consistency_and_subject_selection_helpers():

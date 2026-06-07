@@ -107,6 +107,10 @@ These helpers return EEGLAB-facing 1-based dataset and trial indices. Use
 EEGPrep remaps STUDY references and invalidates cached measure arrays after
 membership changes.
 
+``std_findsameica`` groups matching ICA decompositions within each subject.
+This preserves the subject boundary used by STUDY designs instead of merging
+identical test fixtures across subjects.
+
 Precluster and cluster ICA components:
 
 .. code-block:: python

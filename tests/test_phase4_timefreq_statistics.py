@@ -247,6 +247,34 @@ def test_pop_newtimef_timewarp_options_are_replayable(sample_epoch):
     np.testing.assert_allclose(replayed.timewarp_markers, result.timewarp_markers, rtol=1e-12, atol=1e-12)
 
 
+def test_timefreq_timestretch_ignores_duplicate_snaps_on_coarse_grid():
+    srate = 128
+    times = np.arange(128) / srate
+    trials = np.stack(
+        [
+            np.sin(2 * np.pi * 10 * times),
+            np.sin(2 * np.pi * 10 * times + 0.2),
+        ],
+        axis=1,
+    )
+
+    result = timefreq(
+        trials,
+        srate,
+        frames=128,
+        cycles=0,
+        tlimits=[0, 1000],
+        freqs=[5, 20],
+        ntimesout=4,
+        padratio=2,
+        timestretch=(np.asarray([[1, 2], [1, 2]], dtype=float), np.asarray([1, 2], dtype=float)),
+        verbose="off",
+    )
+
+    assert result.tfdata.shape[1] == result.times.size
+    assert np.isfinite(np.abs(result.tfdata)).all()
+
+
 def test_pop_newcrossf_channel_and_component_paths_are_replayable(sample_epoch, ica_epoch):
     result, command = pop_newcrossf(sample_epoch, 1, 1, 2, [-100, 200], [0], plot="off", return_com=True)
     component_result, component_command = pop_newcrossf(
@@ -739,13 +767,17 @@ def test_timefreq_helpers_match_eeglab_deterministic_outputs(tmp_path):
             wav2 = wavelet{{2}};
             [tf,freqs,times] = timefreq(data, {srate}, 'cycles', 0, 'tlimits', [0 1000], ...
                 'freqs', [5 20], 'ntimesout', 12, 'padratio', 2, 'verbose', 'off');
+            [tfstretch,stretchfreqs,stretchtimes] = timefreq(data, {srate}, 'cycles', 0, 'tlimits', [0 1000], ...
+                'freqs', [5 20], 'ntimesout', 12, 'padratio', 2, ...
+                'timestretch', {{[20 80; 24 76], [22; 78]}}, 'verbose', 'off');
             [PP,baseln,mbase] = newtimefbaseln(P, time_values, 'baseline', [-200 0], ...
                 'basenorm', 'off', 'trialbase', 'off', 'verbose', 'off');
             tw = timewarp([1 3 5], [1 2 5]);
             aw = angtimewarp([1 3 5], [1 2 5], [0 pi/2 pi -pi/2 0]);
             [calc_cycles, widths_table] = tf_cycle_calc('freqs', [10 20], 'width', 0.2, 'width_unit', 'fwhm_t');
             save('{_matlab_string(output)}', 'wav1', 'wav2', 'cycles', 'freqresol', 'timeresol', ...
-                'dft2wav1', 'dft2wav2', 'tf', 'freqs', 'times', 'PP', 'baseln', 'mbase', ...
+                'dft2wav1', 'dft2wav2', 'tf', 'freqs', 'times', 'tfstretch', 'stretchfreqs', 'stretchtimes', ...
+                'PP', 'baseln', 'mbase', ...
                 'tw', 'aw', 'calc_cycles', 'widths_table');
             """,
             nargout=0,
@@ -767,6 +799,18 @@ def test_timefreq_helpers_match_eeglab_deterministic_outputs(tmp_path):
         padratio=2,
         verbose="off",
     )
+    stretch_decomposition = timefreq(
+        trials,
+        srate,
+        frames=128,
+        cycles=0,
+        tlimits=[0, 1000],
+        freqs=[5, 20],
+        ntimesout=12,
+        padratio=2,
+        timestretch=(np.asarray([[20, 80], [24, 76]], dtype=float), np.asarray([22, 78], dtype=float)),
+        verbose="off",
+    )
     py_power, py_baseln, py_mbase = newtimefbaseln(
         power,
         time_values,
@@ -785,6 +829,13 @@ def test_timefreq_helpers_match_eeglab_deterministic_outputs(tmp_path):
     np.testing.assert_allclose(decomposition.freqs, np.asarray(matlab["freqs"]).ravel(), rtol=1e-12, atol=1e-12)
     np.testing.assert_allclose(decomposition.times, np.asarray(matlab["times"]).ravel(), rtol=1e-12, atol=1e-12)
     np.testing.assert_allclose(decomposition.tfdata, matlab["tf"], rtol=1e-11, atol=1e-11)
+    np.testing.assert_allclose(
+        stretch_decomposition.freqs, np.asarray(matlab["stretchfreqs"]).ravel(), rtol=1e-12, atol=1e-12
+    )
+    np.testing.assert_allclose(
+        stretch_decomposition.times, np.asarray(matlab["stretchtimes"]).ravel(), rtol=1e-12, atol=1e-12
+    )
+    np.testing.assert_allclose(stretch_decomposition.tfdata, matlab["tfstretch"], rtol=1e-11, atol=1e-11)
     np.testing.assert_allclose(py_power, matlab["PP"], rtol=1e-12, atol=1e-12)
     np.testing.assert_array_equal(py_baseln + 1, np.asarray(matlab["baseln"], dtype=int).ravel())
     np.testing.assert_allclose(py_mbase, matlab["mbase"], rtol=1e-12, atol=1e-12)

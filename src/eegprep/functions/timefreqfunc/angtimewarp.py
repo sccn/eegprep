@@ -53,12 +53,10 @@ def angtimewarp(ev_latency: Any, new_latency: Any, angdata: Any) -> np.ndarray:
     return _wrap_to_pi(warped)
 
 
-def _wrap_to_pi(angles: np.ndarray, center: float = 0.0) -> np.ndarray:
+def _wrap_to_pi(angles: np.ndarray) -> np.ndarray:
     wrapped = np.mod(angles, 2.0 * np.pi)
-    high = wrapped > np.pi - center
+    high = wrapped > np.pi
     wrapped[high] -= 2.0 * np.pi
-    low = wrapped < center - np.pi
-    wrapped[low] += 2.0 * np.pi
     return wrapped
 
 

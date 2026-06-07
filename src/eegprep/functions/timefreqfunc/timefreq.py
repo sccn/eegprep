@@ -389,12 +389,9 @@ def _time_stretch_tfdata(tfdata: np.ndarray, output_frames: np.ndarray, timestre
         return tfdata
     if refs.size == 0:
         refs = np.median(marks, axis=0)
-    refs_pos = _nearest_output_positions(refs, output_frames)
-    refs_pos = np.sort(np.concatenate([refs_pos, np.asarray([1, output_frames.size], dtype=int)]))
     output = np.array(tfdata, copy=True)
     for trial_index in range(output.shape[3]):
-        marks_pos = _nearest_output_positions(marks[trial_index], output_frames)
-        marks_pos = np.sort(np.concatenate([marks_pos, np.asarray([1, output_frames.size], dtype=int)]))
+        marks_pos, refs_pos = _snapped_warp_positions(marks[trial_index], refs, output_frames)
         warp_matrix = timewarp(marks_pos, refs_pos)
         trial_values = output[:, :, :, trial_index]
         magnitude = np.abs(trial_values)
@@ -433,6 +430,33 @@ def _nearest_output_positions(frame_values: np.ndarray, output_frames: np.ndarra
         [int(np.argmin(np.abs(output_frames - frame))) + 1 for frame in np.asarray(frame_values, dtype=float).ravel()],
         dtype=int,
     )
+
+
+def _snapped_warp_positions(
+    source_frames: np.ndarray,
+    target_frames: np.ndarray,
+    output_frames: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    source_positions = _nearest_output_positions(source_frames, output_frames)
+    target_positions = _nearest_output_positions(target_frames, output_frames)
+    frame_count = output_frames.size
+    source_pairs = np.concatenate([np.asarray([1, frame_count], dtype=int), source_positions])
+    target_pairs = np.concatenate([np.asarray([1, frame_count], dtype=int), target_positions])
+    order = np.argsort(source_pairs, kind="stable")
+    source_pairs = source_pairs[order]
+    target_pairs = target_pairs[order]
+    kept_source: list[int] = []
+    kept_target: list[int] = []
+    seen_source: set[int] = set()
+    seen_target: set[int] = set()
+    for source, target in zip(source_pairs.tolist(), target_pairs.tolist()):
+        if source in seen_source or target in seen_target:
+            continue
+        seen_source.add(source)
+        seen_target.add(target)
+        kept_source.append(source)
+        kept_target.append(target)
+    return np.asarray(kept_source, dtype=int), np.asarray(kept_target, dtype=int)
 
 
 def _subtract_itc(tfdata: np.ndarray, itcvals: np.ndarray | None) -> np.ndarray:

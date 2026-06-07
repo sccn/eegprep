@@ -37,7 +37,8 @@ def rsfit(
     sol = _fit_shape_parameters(abs(skewness), kurtosis)
     if np.isclose(sol[0] * sol[1], -1.0):
         raise RuntimeError("Ramberg-Schmeiser fit converged to an invalid sign")
-    l1, l2, l3, l4 = rsadjust(float(sol[0]), float(sol[1]), mean, variance, skewness)
+    adjusted_skewness = 0.0 if np.isclose(skewness, 0.0, atol=1.0e-12) else skewness
+    l1, l2, l3, l4 = rsadjust(float(sol[0]), float(sol[1]), mean, variance, adjusted_skewness)
     lambdas = np.asarray([l1, l2, l3, l4], dtype=float)
     pvalue = rsget(lambdas, float(value))
     if return_details:
