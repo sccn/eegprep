@@ -149,6 +149,12 @@ Spectral Analysis
    eegprep.newtimefpowerunit
    eegprep.bootstat
    eegprep.correct_mc
+   eegprep.correctfit
+   eegprep.rsadjust
+   eegprep.rsfit
+   eegprep.rsget
+   eegprep.rspdfsolv
+   eegprep.rspfunc
    eegprep.signalstat
    eegprep.pop_newtimef
    eegprep.pop_newcrossf

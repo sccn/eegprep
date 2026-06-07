@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 import scipy.io
+from scipy import stats
 
 import eegprep
 from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher, action_kind
@@ -32,6 +33,7 @@ from eegprep.functions.popfunc.pop_signalstat import pop_signalstat, pop_signals
 from eegprep.functions.sigprocfunc.signalstat import signalstat
 from eegprep.functions.timefreqfunc.bootstat import bootstat, bootstrap_threshold
 from eegprep.functions.timefreqfunc.correct_mc import correct_mc
+from eegprep.functions.timefreqfunc.correctfit import correctfit
 from eegprep.functions.timefreqfunc.dftfilt import dftfilt
 from eegprep.functions.timefreqfunc.dftfilt2 import dftfilt2
 from eegprep.functions.timefreqfunc.dftfilt3 import dftfilt3
@@ -39,6 +41,11 @@ from eegprep.functions.timefreqfunc.newcrossf import newcrossf
 from eegprep.functions.timefreqfunc.newtimef import newtimef
 from eegprep.functions.timefreqfunc.newtimefbaseln import newtimefbaseln
 from eegprep.functions.timefreqfunc.newtimefpowerunit import newtimefpowerunit
+from eegprep.functions.timefreqfunc.rsadjust import rsadjust
+from eegprep.functions.timefreqfunc.rsfit import rsfit
+from eegprep.functions.timefreqfunc.rsget import rsget
+from eegprep.functions.timefreqfunc.rspdfsolv import rspdfsolv
+from eegprep.functions.timefreqfunc.rspfunc import rspfunc
 from eegprep.functions.timefreqfunc.timefreq import timefreq
 from tests.fixtures import SAMPLE_DATASET_PATH, create_test_eeg_with_ica
 
@@ -400,6 +407,75 @@ def test_correct_mc_returns_phase4_standalone_shapes():
     assert pvalues.shape == (int(np.ceil(np.log2(16))), 2)
 
 
+def test_correct_mc_uses_rsfit_for_neighbor_correlations():
+    eeg = {
+        "data": np.arange(64, dtype=float).reshape(2, 32),
+        "pnts": 32,
+        "srate": 128,
+        "xmin": 0,
+        "xmax": 31 / 128,
+    }
+
+    class Result:
+        def __init__(self, offset):
+            base = np.asarray(
+                [
+                    [0.0, 1.0, 2.0, 4.0],
+                    [0.0, 1.0, 3.0, 6.0],
+                    [0.0, 2.0, 5.0, 9.0],
+                ],
+                dtype=float,
+            )
+            self.ersp = base + offset
+
+    def fake_newtimef(data, *_args, **_kwargs):
+        return Result(float(data[0]))
+
+    with (
+        mock.patch("eegprep.functions.timefreqfunc.correct_mc.newtimef", side_effect=fake_newtimef),
+        mock.patch("eegprep.functions.timefreqfunc.correct_mc.rsfit", return_value=0.001) as fitted,
+    ):
+        ncorrect, pvalues = correct_mc(eeg, cycles=0, freqrange=(4, 8), timesout=(4,))
+
+    assert ncorrect == 12
+    assert fitted.call_count == 3
+    assert pvalues.shape == (3, 1)
+    for call in fitted.call_args_list:
+        correlations, value = call.args
+        assert value == 0.0
+        assert len(correlations) == 2
+
+
+def test_ramberg_schmeiser_helpers_cover_analytic_cases():
+    uniform_lambdas = np.asarray([0.0, 2.0, 1.0, 1.0])
+
+    assert rspfunc(0.75, uniform_lambdas, 0.25) == pytest.approx(0.0, abs=1e-12)
+    assert rsget(uniform_lambdas, 0.25) == pytest.approx(0.75, abs=1e-8)
+    assert rspdfsolv([1.0, 1.0], 0.0, 1.8) == pytest.approx(0.0, abs=1e-12)
+    np.testing.assert_allclose(rsadjust(1.0, 1.0, 0.0, 1.0 / 12.0, 0.0), uniform_lambdas)
+    np.testing.assert_allclose(
+        rsadjust(-0.1, 1.45, 0.25, 0.5, 1.0),
+        [-2.1913486194442604, 0.28793423446627836, -0.1, 1.45],
+        rtol=1e-12,
+        atol=1e-12,
+    )
+
+    pvalue, cumulants, lambdas, _chi2 = rsfit(np.linspace(-1.0, 1.0, 101), 0.0, return_details=True)
+    assert pvalue == pytest.approx(0.5, abs=1e-8)
+    np.testing.assert_allclose(cumulants[:3], [0.0, 0.34, 0.0], atol=1e-12)
+    np.testing.assert_allclose(lambdas[[0, 2, 3]], [0.0, 1.00098197, 1.00098197], atol=1e-6)
+
+
+def test_correctfit_applies_gamma_parameters_and_zero_mode():
+    corrected, shape, scale, zero_frequency = correctfit(0.01, gamparams=[2.0, 0.5, 0.25])
+
+    expected = 1.0 - stats.gamma.cdf(-np.log10(0.01) + 1.0e-10, 2.0, scale=0.5)
+    assert corrected == pytest.approx(expected)
+    assert (shape, scale, zero_frequency) == pytest.approx((2.0, 0.5, 0.25))
+    assert correctfit(0.0, gamparams=[2.0, 0.5, 0.25])[0] == pytest.approx(0.25)
+    assert correctfit(0.0, gamparams=[2.0, 0.5, 0.25], zeromode="off")[0] == pytest.approx(0.0)
+
+
 def test_legacy_dft_helpers_cover_public_surface():
     filters = dftfilt(16, 2, 4, 2, 0.5)
     empty = dftfilt(8, 0.1, 10, 2, 0.5)
@@ -608,6 +684,52 @@ def test_timefreq_helpers_match_eeglab_deterministic_outputs(tmp_path):
     np.testing.assert_allclose(py_power, matlab["PP"], rtol=1e-12, atol=1e-12)
     np.testing.assert_array_equal(py_baseln + 1, np.asarray(matlab["baseln"], dtype=int).ravel())
     np.testing.assert_allclose(py_mbase, matlab["mbase"], rtol=1e-12, atol=1e-12)
+
+
+@pytest.mark.matlab
+def test_ramberg_schmeiser_helpers_match_eeglab_deterministic_outputs(tmp_path):
+    if os.environ.get("EEGPREP_SKIP_MATLAB") == "1":
+        pytest.skip("MATLAB tests disabled via EEGPREP_SKIP_MATLAB")
+    try:
+        matlab_engine = importlib.import_module("matlab.engine")
+    except ImportError as exc:
+        pytest.skip(f"MATLAB not available: {exc}")
+    eeglab_root = _eeglab_reference_root()
+    if eeglab_root is None:
+        pytest.skip("EEGLAB reference checkout not available")
+
+    values = np.linspace(-1.0, 1.0, 101)
+    output = tmp_path / "rsfit_outputs.mat"
+    engine = matlab_engine.start_matlab()
+    try:
+        engine.addpath(str(eeglab_root / "functions" / "timefreqfunc"), nargout=0)
+        engine.eval(
+            f"""
+            x = [{_matlab_vector(values)}];
+            [pval,c,l] = rsfit(x, 0, 0);
+            solvres = rspdfsolv([1 1], 0, 1.8);
+            [a1,a2,a3,a4] = rsadjust(1, 1, 0, 1/12, 0);
+            getp = rsget([0 2 1 1], 0.25);
+            funcres = rspfunc(0.75, [0 2 1 1], 0.25);
+            save('{_matlab_string(output)}', 'pval', 'c', 'l', 'solvres', 'a1', 'a2', 'a3', 'a4', 'getp', 'funcres');
+            """,
+            nargout=0,
+        )
+    finally:
+        engine.quit()
+
+    matlab = scipy.io.loadmat(output, squeeze_me=True)
+    py_pvalue, py_cumulants, py_lambdas, _chi2 = rsfit(values, 0.0, return_details=True)
+
+    np.testing.assert_allclose(py_pvalue, matlab["pval"], rtol=1e-8, atol=1e-8)
+    np.testing.assert_allclose(py_cumulants, matlab["c"], rtol=1e-10, atol=1e-10)
+    np.testing.assert_allclose(py_lambdas, matlab["l"], rtol=1e-5, atol=1e-5)
+    assert rspdfsolv([1.0, 1.0], 0.0, 1.8) == pytest.approx(float(matlab["solvres"]), abs=1e-12)
+    np.testing.assert_allclose(
+        rsadjust(1.0, 1.0, 0.0, 1.0 / 12.0, 0.0), [matlab["a1"], matlab["a2"], matlab["a3"], matlab["a4"]]
+    )
+    assert rsget([0.0, 2.0, 1.0, 1.0], 0.25) == pytest.approx(float(matlab["getp"]), abs=1e-8)
+    assert rspfunc(0.75, [0.0, 2.0, 1.0, 1.0], 0.25) == pytest.approx(float(matlab["funcres"]), abs=1e-12)
 
 
 def _assert_python_command(command: str) -> None:

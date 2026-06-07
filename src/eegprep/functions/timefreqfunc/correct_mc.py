@@ -5,9 +5,9 @@ from __future__ import annotations
 from typing import Any
 
 import numpy as np
-from scipy import stats
 
 from eegprep.functions.timefreqfunc.newtimef import newtimef
+from eegprep.functions.timefreqfunc.rsfit import rsfit
 
 
 def correct_mc(
@@ -19,8 +19,8 @@ def correct_mc(
     """Estimate an EEGLAB-style multiple-comparison correction count.
 
     EEGLAB fits a Ramberg-Schmeiser distribution to neighboring-bin
-    correlations. EEGPrep uses Pearson p-values for the same neighbor
-    correlations so the helper remains standalone and deterministic.
+    correlations. EEGPrep uses the same standalone fitted p-value path without
+    depending on the vendored EEGLAB checkout at runtime.
     """
     data = np.asarray(EEG.get("data"), dtype=float)
     if data.ndim == 3:
@@ -63,8 +63,11 @@ def correct_mc(
                 if np.isfinite(corr):
                     correlations.append(corr)
             if correlations:
-                _statistic, pvalue = stats.ttest_1samp(correlations, 0.0, nan_policy="omit")
-                pvalues[freq_index, time_index] = pvalue
+                try:
+                    pvalue = rsfit(correlations, 0.0)
+                except (RuntimeError, ValueError, FloatingPointError):
+                    pvalue = np.nan
+                pvalues[freq_index, time_index] = np.nan if pvalue > 0.9999 else pvalue
     threshold = 0.05 / max(1, pvalues.size)
     ncorrect = 0
     for row in pvalues:

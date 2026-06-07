@@ -2,6 +2,7 @@
 
 from eegprep.functions.timefreqfunc.bootstat import BootstrapResult, bootstat
 from eegprep.functions.timefreqfunc.correct_mc import correct_mc
+from eegprep.functions.timefreqfunc.correctfit import correctfit
 from eegprep.functions.timefreqfunc.crossf import crossf
 from eegprep.functions.timefreqfunc.dftfilt import dftfilt
 from eegprep.functions.timefreqfunc.dftfilt2 import dftfilt2
@@ -14,6 +15,11 @@ from eegprep.functions.timefreqfunc.newtimefpowerunit import newtimefpowerunit
 from eegprep.functions.timefreqfunc.newtimeftrialbaseln import newtimeftrialbaseln
 from eegprep.functions.timefreqfunc.pac import pac
 from eegprep.functions.timefreqfunc.pac_cont import pac_cont
+from eegprep.functions.timefreqfunc.rsadjust import rsadjust
+from eegprep.functions.timefreqfunc.rsfit import rsfit
+from eegprep.functions.timefreqfunc.rsget import rsget
+from eegprep.functions.timefreqfunc.rspdfsolv import rspdfsolv
+from eegprep.functions.timefreqfunc.rspfunc import rspfunc
 from eegprep.functions.timefreqfunc.timef import timef
 from eegprep.functions.timefreqfunc.timefreq import TimeFrequencyDecomposition, timefreq
 
@@ -24,6 +30,7 @@ __all__ = [
     "TimeFrequencyResult",
     "bootstat",
     "correct_mc",
+    "correctfit",
     "crossf",
     "dftfilt",
     "dftfilt2",
@@ -36,6 +43,11 @@ __all__ = [
     "newtimeftrialbaseln",
     "pac",
     "pac_cont",
+    "rsadjust",
+    "rsfit",
+    "rsget",
+    "rspdfsolv",
+    "rspfunc",
     "timef",
     "timefreq",
 ]
