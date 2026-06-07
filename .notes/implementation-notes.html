@@ -6,6 +6,38 @@
 </head>
 <body>
   <h1>EEGPrep Core Parity Implementation Notes</h1>
+  <h1>Issue #163 ICLabel/Viewprops Diagnostic Parity Notes</h1>
+  <p>Issue #163 closes the Phase 6 final-epic ICLabel/viewprops rows by adding
+  standalone label statistics, making alternate network support explicit, and
+  documenting the native EEGPrep diagnostic workflow.</p>
+  <h2>Issue #163 Design Decisions</h2>
+  <ul>
+    <li>Implemented <code>eeg_icalabelstat</code> as an EEGPrep-owned public
+    helper that preserves EEGLAB threshold-count console output while returning
+    structured Python statistics for reports and tests.</li>
+    <li>Kept standalone Python ICLabel scoped to the packaged default
+    <code>netICL.mat</code>. EEGLAB <code>lite</code> and <code>beta</code>
+    network artifacts are allowed only through MATLAB/Octave engines that have
+    those ICLabel files, and standalone requests raise a clear
+    <code>NotImplementedError</code>.</li>
+    <li>Classified the current native Qt/matplotlib <code>pop_viewprops</code>
+    and <code>pop_prop_extended</code> surfaces as the maintained standalone
+    parity path instead of porting MATLAB figure helper internals one for one.</li>
+  </ul>
+  <h2>Issue #163 Verification Notes</h2>
+  <ul>
+    <li>Focused tests cover deterministic ICLabel statistics, missing/malformed
+    classifier state, rejected/kept tallies, sample-data ICA with ICLabel state,
+    standalone alternate-network failures, GUI wrapper history, and
+    viewprops/property-dashboard behavior.</li>
+    <li>Docs and help now cover <code>pop_iclabel</code>, <code>pop_icflag</code>,
+    <code>eeg_icalabelstat</code>, <code>pop_viewprops</code>, and
+    <code>pop_prop_extended</code> as one component-review workflow.</li>
+    <li>Computer Use QA exercised the real Qt <code>pop_icflag</code> Cancel
+    path, <code>pop_icflag</code> OK/default-threshold path, and
+    <code>pop_viewprops</code> component dialog OK path; returned commands and
+    rejection vectors matched expectations.</li>
+  </ul>
   <h1>Issue #158 Final Standalone Parity Audit Notes</h1>
   <p>Issue #158 establishes the Phase 1 contract for epic #157. It adds an
   enforceable final-epic matrix for bundled plugin depth, MATLAB object/storage

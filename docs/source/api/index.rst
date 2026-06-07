@@ -252,6 +252,7 @@ for now.
    eegprep.plugin_menu
    eegprep.format_plugin_menu
    eegprep.pop_clean_rawdata
+   eegprep.eeg_icalabelstat
    eegprep.pop_iclabel
    eegprep.pop_icflag
    eegprep.pop_prop_extended

@@ -323,13 +323,19 @@ Automatically classify ICA components using ICLabel:
 
 .. code-block:: python
 
-    from eegprep import iclabel
+    from eegprep import eeg_icalabelstat, pop_iclabel, pop_viewprops
 
-    eeg = iclabel(eeg)
+    eeg = pop_iclabel(eeg, 'default')
 
-    # Access component labels
-    print(eeg.etc.ic_classification.ICLabel.classes)
-    print(eeg.etc.ic_classification.ICLabel.classifications)
+    # Access component labels and probability matrix
+    labels = eeg['etc']['ic_classification']['ICLabel']['classes']
+    probabilities = eeg['etc']['ic_classification']['ICLabel']['classifications']
+    print(labels)
+    print(probabilities)
+
+    # Review threshold-count summaries and diagnostic displays
+    stats = eeg_icalabelstat(eeg, threshold=0.9)
+    figures = pop_viewprops(eeg, typecomp=0, chanorcomp=[1, 2, 3])
 
 **Component types**:
 
@@ -345,15 +351,16 @@ Automatically classify ICA components using ICLabel:
 
 .. code-block:: python
 
-    # Remove muscle and eye components
-    artifact_components = []
-    for i, label in enumerate(eeg.etc.ic_classification.ICLabel.classes):
-        if label in ['Muscle', 'Eye']:
-            artifact_components.append(i)
+    from eegprep import pop_icflag, pop_subcomp
 
-    # Remove components
-    eeg.icaact = None  # Clear cached ICA activity
-    eeg = pop_select(eeg, 'nochannel', artifact_components)
+    # Flag high-confidence muscle and eye components, then remove flagged ICs
+    eeg = pop_icflag(eeg)
+    eeg = pop_subcomp(eeg, [])
+
+Standalone Python EEGPrep ships the default ICLabel network. The EEGLAB
+``lite`` and ``beta`` artifacts are not bundled in the Python package; they are
+explicit MATLAB/Octave passthrough choices when that runtime provides the
+corresponding ICLabel files.
 
 Pipeline Visualization
 ======================

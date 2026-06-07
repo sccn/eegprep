@@ -434,17 +434,19 @@
       ],
       "eegprep_equivalent": [
         "eegprep.plugins.ICLabel.ICL_feature_extractor",
+        "eegprep.plugins.ICLabel.eeg_icalabelstat",
         "eegprep.plugins.ICLabel.iclabel",
         "eegprep.plugins.ICLabel.pop_iclabel",
         "eegprep.plugins.ICLabel.pop_icflag"
       ],
-      "status": "partial",
+      "status": "implemented",
       "responsible_phase": "phase_6",
       "phase_issue": "#163 ICLabel, viewprops, and visual diagnostics completion",
-      "rationale": "The classification pipeline and bundled netICL asset exist, but Phase 6 owns final label-statistics, network/runtime, GUI, and visual diagnostics parity.",
+      "rationale": "EEGPrep has standalone ICLabel feature extraction, default netICL classification, ICLabel flagging, label statistics, menu wiring, and history-capable pop wrappers. The default Python network is packaged; EEGLAB lite/beta artifacts are explicit MATLAB/Octave passthrough choices and raise a clear standalone limitation instead of being silently ignored.",
       "user_facing_surface": [
         "Tools > Classify components using ICLabel",
         "iclabel",
+        "eeg_icalabelstat",
         "pop_iclabel",
         "pop_icflag"
       ],
@@ -452,7 +454,7 @@
         "docs/source/user_guide/ica_rejection.rst",
         "docs/source/api/ica.rst"
       ],
-      "test_notes": "Phase 6 should preserve existing feature parity tests and add diagnostics coverage before marking this implemented."
+      "test_notes": "Covered by ICLabel feature/parity tests, GUI pop wrapper tests, sample-data ICLabel-state statistics tests, and explicit standalone alternate-network limitation tests."
     },
     {
       "row_id": "iclabel-label-statistics",
@@ -461,18 +463,22 @@
       "source_paths": [
         "plugins/ICLabel/eeg_icalabelstat.m"
       ],
-      "eegprep_equivalent": null,
-      "status": "port",
+      "eegprep_equivalent": [
+        "eegprep.plugins.ICLabel.eeg_icalabelstat"
+      ],
+      "status": "implemented",
       "responsible_phase": "phase_6",
       "phase_issue": "#163 ICLabel, viewprops, and visual diagnostics completion",
-      "rationale": "EEGLAB exposes component label statistics that are useful for review, rejection, and reporting; EEGPrep should add a standalone equivalent.",
+      "rationale": "EEGPrep now provides an EEGPrep-owned `eeg_icalabelstat` helper that preserves EEGLAB threshold-count output and returns structured Python statistics for reports, rejection review, and tests.",
       "user_facing_surface": [
+        "eeg_icalabelstat",
         "ICLabel statistics"
       ],
       "docs_targets": [
-        "docs/source/user_guide/ica_rejection.rst"
+        "docs/source/user_guide/ica_rejection.rst",
+        "docs/source/api/ica.rst"
       ],
-      "test_notes": "Phase 6 should test label distributions and edge cases such as missing ICA, missing labels, and multiple datasets."
+      "test_notes": "Covered by deterministic label-distribution tests, missing/malformed ICLabel-state tests, class-specific threshold tests, rejected/kept tally tests, packaged help, and sample-data ICA/ICLabel-state integration coverage."
     },
     {
       "row_id": "iclabel-viewprops-component-browser",
@@ -488,12 +494,13 @@
         "eegprep.plugins.ICLabel.pop_prop_extended",
         "eegprep.plugins.ICLabel.pop_viewprops"
       ],
-      "status": "partial",
+      "status": "implemented",
       "responsible_phase": "phase_6",
       "phase_issue": "#163 ICLabel, viewprops, and visual diagnostics completion",
-      "rationale": "EEGPrep has native component-property surfaces, but Phase 6 must close visual diagnostics parity across scalp maps, spectra, ERP/image panels, ICLabel labels, and DIPFIT overlays.",
+      "rationale": "EEGPrep has native Qt/matplotlib component-property surfaces for viewprops: component and channel overview entry points, browser-backed activity traces, extended component dashboards with scalp maps, spectra, ERP/image summaries, ICLabel probability panels, accept/reject controls, and DIPFIT overlays when localized models are present.",
       "user_facing_surface": [
-        "Plot > Component properties",
+        "Plot > View extended channel properties",
+        "Plot > View extended component properties",
         "pop_viewprops",
         "pop_prop_extended"
       ],
@@ -501,7 +508,7 @@
         "docs/source/user_guide/ica_rejection.rst",
         "docs/source/user_guide/visual_parity.rst"
       ],
-      "test_notes": "Phase 6 should use visual parity capture and mixed GUI/console tests for component browsing workflows."
+      "test_notes": "Covered by pop_viewprops/pop_prop_extended GUI and data-model tests, browser-backed activity tests, rejection dashboard commit/cancel tests, menu/session sync tests, visual parity cases, and sample-data history integration coverage."
     },
     {
       "row_id": "iclabel-matconvnet-activation",
