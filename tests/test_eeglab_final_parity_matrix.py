@@ -35,7 +35,24 @@ def test_final_matrix_uses_complete_status_taxonomy() -> None:
 
     assert tuple(payload["metadata"]["status_taxonomy"]) == VALID_STATUSES
     assert statuses <= set(VALID_STATUSES)
-    assert {"optional_dependency", "docs_gap"} <= statuses
+    assert "optional_dependency" in statuses
+
+
+def test_final_closeout_has_no_unimplemented_or_documentation_gap_rows() -> None:
+    payload = load_matrix(MATRIX_PATH)
+    remaining = [(row["row_id"], row["status"]) for row in payload["rows"] if row["status"] in {"port", "docs_gap"}]
+
+    assert remaining == []
+
+
+def test_final_partial_rows_are_explicit_backend_boundaries() -> None:
+    payload = load_matrix(MATRIX_PATH)
+    partial_rows = [row for row in payload["rows"] if row["status"] == "partial"]
+
+    assert partial_rows
+    for row in partial_rows:
+        explanation = f"{row['rationale']} {row['test_notes']}".lower()
+        assert "limitation" in explanation or "boundary" in explanation
 
 
 def test_final_matrix_discovers_final_epic_paths_without_third_party_bloat() -> None:

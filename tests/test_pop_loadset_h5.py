@@ -50,7 +50,7 @@ class TestPopLoadsetH5(DebuggableTestCase):
             eeg_group.create_dataset('nbchan', data=np.array([[32]]))
             eeg_group.create_dataset('trials', data=np.array([[10]]))
             eeg_group.create_dataset('xmin', data=np.array([[-1.0]]))
-            eeg_group.create_dataset('xmax', data=np.array([[1.0]]))
+            eeg_group.create_dataset('xmax', data=np.array([[0.998]]))
 
             # Create string fields (as byte strings)
             eeg_group.create_dataset('setname', data=np.array([b'test_dataset'], dtype='S'))
@@ -64,7 +64,7 @@ class TestPopLoadsetH5(DebuggableTestCase):
                 # Create sample data (channels x timepoints x trials)
                 data = np.random.randn(32, 1000, 10).astype(np.float32)
                 eeg_group.create_dataset('data', data=data)
-                eeg_group.create_dataset('times', data=np.linspace(-1, 1, 1000))
+                eeg_group.create_dataset('times', data=np.linspace(-1, 0.998, 1000))
                 eeg_group.create_dataset('icaweights', data=np.random.randn(32, 32))
                 eeg_group.create_dataset('icasphere', data=np.eye(32))
                 eeg_group.create_dataset('icawinv', data=np.random.randn(32, 32))
@@ -150,7 +150,7 @@ class TestPopLoadsetH5(DebuggableTestCase):
         self.assertEqual(EEG['nbchan'], 32)
         self.assertEqual(EEG['trials'], 10)
         self.assertEqual(EEG['xmin'], -1.0)
-        self.assertEqual(EEG['xmax'], 1.0)
+        self.assertEqual(EEG['xmax'], 0.998)
 
         # Check string fields
         self.assertEqual(EEG['setname'], 'test_dataset')

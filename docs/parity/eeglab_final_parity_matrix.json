@@ -974,10 +974,10 @@
         "docs/source/user_guide/interactive_console.rst",
         "docs/source/user_guide/eeglab_migration.rst"
       ],
-      "status": "docs_gap",
+      "status": "implemented",
       "responsible_phase": "phase_7",
       "phase_issue": "#164 EEGLAB-style Sphinx documentation and tutorials",
-      "rationale": "EEGLAB users need an explicit guide from MATLAB command history to EEGPrep console history, LASTCOM, ALLCOM, and replayable Python commands.",
+      "rationale": "Phase 7 added the EEGPrep-owned console and migration guides that map EEGLAB command-history habits to eegprep-console, LASTCOM, ALLCOM, GUI session updates, and replayable Python commands.",
       "user_facing_surface": [
         "eegprep-console",
         "history replay"
@@ -986,7 +986,7 @@
         "docs/source/user_guide/interactive_console.rst",
         "docs/source/user_guide/eeglab_migration.rst"
       ],
-      "test_notes": "Phase 7 should add docs build coverage and examples that match actual console behavior."
+      "test_notes": "Covered by the Sphinx docs build, interactive-console examples, GUI/console session docs, and Phase 8 closeout review of shared-session smoke coverage."
     },
     {
       "row_id": "docs-event-processing-tutorials",
@@ -996,11 +996,14 @@
         "tutorial_scripts/event_processing_single_dataset.m",
         "tutorial_scripts/event_processing_study.m"
       ],
-      "eegprep_equivalent": null,
-      "status": "docs_gap",
+      "eegprep_equivalent": [
+        "docs/source/user_guide/concepts.rst",
+        "docs/source/user_guide/eeglab_migration.rst"
+      ],
+      "status": "implemented",
       "responsible_phase": "phase_7",
       "phase_issue": "#164 EEGLAB-style Sphinx documentation and tutorials",
-      "rationale": "Event latency, urevent, epoch, and STUDY event handling need tutorial coverage with explicit MATLAB/Python indexing boundaries.",
+      "rationale": "Phase 7 added concepts and migration coverage for event latency, urevent, epoch, STUDY event handling, and explicit MATLAB-facing versus Python-indexing boundaries.",
       "user_facing_surface": [
         "events",
         "epochs",
@@ -1010,7 +1013,7 @@
         "docs/source/user_guide/concepts.rst",
         "docs/source/user_guide/eeglab_migration.rst"
       ],
-      "test_notes": "Phase 7 should keep examples aligned with tested pop_adjustevents, epoching, and STUDY behavior."
+      "test_notes": "Covered by the Sphinx docs build and by existing pop_adjustevents, epoching, STUDY trialinfo, and migration-guide examples referenced from the manual."
     },
     {
       "row_id": "docs-study-tutorials",
@@ -1025,10 +1028,10 @@
       "eegprep_equivalent": [
         "docs/source/user_guide/study_workflows.rst"
       ],
-      "status": "docs_gap",
+      "status": "implemented",
       "responsible_phase": "phase_7",
       "phase_issue": "#164 EEGLAB-style Sphinx documentation and tutorials",
-      "rationale": "Current STUDY docs describe implemented surfaces, but Phase 7 needs EEGLAB-style task tutorials that include GUI, console, scripting, cache, and limitations.",
+      "rationale": "Phase 7 expanded STUDY documentation into task-oriented GUI, console, scripting, cache, ERP, PAC, clustering, and limitation guidance based on completed Phase 4 behavior.",
       "user_facing_surface": [
         "STUDY",
         "group workflows",
@@ -1037,7 +1040,7 @@
       "docs_targets": [
         "docs/source/user_guide/study_workflows.rst"
       ],
-      "test_notes": "Phase 7 should build examples around completed Phase 4 behavior and avoid documenting intentions as implemented features."
+      "test_notes": "Covered by the Sphinx docs build, STUDY workflow examples, and existing STUDY cache/design/PAC tests that anchor the documented behavior."
     },
     {
       "row_id": "docs-source-reconstruction-tutorials",
@@ -1048,11 +1051,14 @@
         "tutorial_scripts/source_reconstruction_custom_mri.m",
         "tutorial_scripts/source_reconstruction_eeg.mlx"
       ],
-      "eegprep_equivalent": null,
-      "status": "docs_gap",
+      "eegprep_equivalent": [
+        "docs/source/user_guide/study_workflows.rst",
+        "docs/source/user_guide/plugins.rst"
+      ],
+      "status": "implemented",
       "responsible_phase": "phase_7",
       "phase_issue": "#164 EEGLAB-style Sphinx documentation and tutorials",
-      "rationale": "DIPFIT and source reconstruction docs must be written after Phase 3 defines what is implemented, optional, or explicitly unavailable.",
+      "rationale": "Phase 7 documented the implemented dataset-level DIPFIT spherical workflows and the explicit MRI/BEM, AFNI atlas clipping, LORETA, FieldTrip, and STUDY source-statistics backend boundaries defined by Phase 3.",
       "user_facing_surface": [
         "DIPFIT",
         "source reconstruction"
@@ -1061,7 +1067,7 @@
         "docs/source/user_guide/study_workflows.rst",
         "docs/source/user_guide/plugins.rst"
       ],
-      "test_notes": "Phase 7 should describe actual Phase 3 behavior and optional backend setup, with clear limitation callouts."
+      "test_notes": "Covered by the Sphinx docs build, DIPFIT workflow docs, plugins guide, and existing DIPFIT implementation and limitation-path tests."
     },
     {
       "row_id": "docs-time-frequency-and-movie-tutorials",
@@ -1071,11 +1077,14 @@
         "tutorial_scripts/make_eeg_movie.m",
         "tutorial_scripts/time_freq_all_elec.mlx"
       ],
-      "eegprep_equivalent": null,
-      "status": "docs_gap",
+      "eegprep_equivalent": [
+        "docs/source/user_guide/preprocessing_pipeline.rst",
+        "docs/source/user_guide/visual_parity.rst"
+      ],
+      "status": "implemented",
       "responsible_phase": "phase_7",
       "phase_issue": "#164 EEGLAB-style Sphinx documentation and tutorials",
-      "rationale": "Time-frequency docs should reflect completed core parity plus explicit limitations around movie/visual workflows that are not standalone EEGPrep features yet.",
+      "rationale": "Phase 7 documented the supported preprocessing and time-frequency-adjacent workflow surfaces while keeping EEG movie and visual parity capture behavior as explicit tooling or future-work boundaries.",
       "user_facing_surface": [
         "time-frequency analysis",
         "visualization tutorials"
@@ -1084,7 +1093,7 @@
         "docs/source/user_guide/preprocessing_pipeline.rst",
         "docs/source/user_guide/visual_parity.rst"
       ],
-      "test_notes": "Phase 7 should base runnable examples on tested EEGPrep functions and classify non-ported visual workflows clearly."
+      "test_notes": "Covered by the Sphinx docs build, preprocessing tutorial examples, visual parity tooling docs, and existing time-frequency/core parity test coverage."
     },
     {
       "row_id": "docs-bids-face-experiment-tutorial",
@@ -1096,10 +1105,10 @@
       "eegprep_equivalent": [
         "docs/source/user_guide/bids_workflow.rst"
       ],
-      "status": "docs_gap",
+      "status": "implemented",
       "responsible_phase": "phase_7",
       "phase_issue": "#164 EEGLAB-style Sphinx documentation and tutorials",
-      "rationale": "BIDS documentation should include an EEGLAB-style end-to-end tutorial that is accurate to EEGPrep's standalone BIDS import/export and preprocessing behavior.",
+      "rationale": "Phase 7 added a standalone BIDS workflow tutorial covering EEGLAB .set/.fdt export, BIDS file listing, sidecar-aware loading, batch preprocessing, derivative loading, and GUI/console menu flow.",
       "user_facing_surface": [
         "BIDS workflow",
         "batch preprocessing"
@@ -1108,7 +1117,7 @@
         "docs/source/user_guide/bids_workflow.rst",
         "docs/source/examples/index.rst"
       ],
-      "test_notes": "Phase 7 should keep the tutorial runnable against EEGPrep sample or synthetic data and covered by docs build checks."
+      "test_notes": "Covered by the Sphinx docs build, BIDS workflow examples, and existing BIDS import/export/preprocessing tests."
     }
   ]
 }
