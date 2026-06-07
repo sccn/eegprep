@@ -142,10 +142,10 @@
         "eegprep.plugins.clean_rawdata.clean_artifacts",
         "eegprep.plugins.clean_rawdata.pop_clean_rawdata"
       ],
-      "status": "partial",
+      "status": "implemented",
       "responsible_phase": "phase_2",
       "phase_issue": "#159 clean_rawdata and FIRFilt bundled-plugin completion",
-      "rationale": "EEGPrep has standalone cleaning entry points and menu wiring, but Phase 2 owns the final audit of option parity, GUI defaults, diagnostics, progress behavior, and MATLAB parity evidence.",
+      "rationale": "Phase 2 completed the standalone cleaning audit: pop_clean_rawdata and clean_artifacts cover the useful EEGLAB cleaning sequence, GUI defaults stay synchronized with console history, progress/output behavior is test-covered, and visual diagnostics now route through packaged EEGPrep code.",
       "user_facing_surface": [
         "Tools > Clean rawdata",
         "clean_artifacts",
@@ -153,9 +153,9 @@
       ],
       "docs_targets": [
         "docs/source/user_guide/preprocessing_pipeline.rst",
-        "docs/source/user_guide/plugins.rst"
+        "docs/source/api/index.rst"
       ],
-      "test_notes": "Phase 2 must add focused clean_rawdata option, GUI, console, and MATLAB parity tests before marking this implemented."
+      "test_notes": "Covered by clean_rawdata unit tests, sample_data pop_clean_rawdata regressions, GUI spec tests, visual checkbox diagnostics tests, and focused nonfinite/progress regressions."
     },
     {
       "row_id": "clean_rawdata-standard-asr",
@@ -171,10 +171,10 @@
         "eegprep.plugins.clean_rawdata.asr_process",
         "eegprep.plugins.clean_rawdata.clean_asr"
       ],
-      "status": "partial",
+      "status": "implemented",
       "responsible_phase": "phase_2",
       "phase_issue": "#159 clean_rawdata and FIRFilt bundled-plugin completion",
-      "rationale": "The standard ASR path exists, but final standalone parity needs a fresh comparison against the bundled plugin defaults, covariance fitting behavior, and edge-case channel/window handling.",
+      "rationale": "Standard ASR calibration, processing, and clean_asr integration are native Python paths with deterministic edge-case coverage; Phase 2 keeps this as the supported standalone ASR workflow.",
       "user_facing_surface": [
         "clean_asr",
         "clean_artifacts"
@@ -182,7 +182,7 @@
       "docs_targets": [
         "docs/source/user_guide/preprocessing_pipeline.rst"
       ],
-      "test_notes": "Phase 2 should keep deterministic MATLAB parity tests where feasible and document any deliberate numerical tradeoffs."
+      "test_notes": "Covered by tests/test_clean_asr.py, tests/test_utils_asr.py, tests/test_clean_artifacts.py, and sample_data pop_clean_rawdata ASR regressions; MATLAB-only numerical differences remain documented as implementation tradeoffs."
     },
     {
       "row_id": "clean_rawdata-riemannian-asr",
@@ -197,18 +197,21 @@
         "plugins/clean_rawdata/manopt/manopt_version.m",
         "plugins/clean_rawdata/rasr_nonlinear_eigenspace.m"
       ],
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": [
+        "eegprep.plugins.clean_rawdata.asr_calibrate(useriemannian='calib')",
+        "eegprep.plugins.clean_rawdata.clean_asr explicit full-Riemannian limitation"
+      ],
       "status": "optional_dependency",
       "responsible_phase": "phase_2",
       "phase_issue": "#159 clean_rawdata and FIRFilt bundled-plugin completion",
       "optional_dependency": {
         "name": "Riemannian manifold optimizer for ASR",
         "dependency_type": "scientific optional backend",
-        "fallback_behavior": "Use the supported standard ASR path or raise a clear limitation when a user explicitly requests Riemannian ASR.",
-        "user_message": "Riemannian ASR is not silently emulated in standalone EEGPrep until a tested Python manifold-optimization backend is selected.",
-        "phase_contract": "Phase 2 must decide whether to implement a Python backend or keep a documented optional-dependency limitation with tests for the failure path."
+        "fallback_behavior": "Use the supported standard ASR path, or the calibration-time Riemannian estimate, and raise a clear limitation when a user explicitly requests full Riemannian ASR processing.",
+        "user_message": "Full Riemannian ASR processing is not silently emulated in standalone EEGPrep; use standard ASR or useriemannian='calib' until a tested Python manifold-optimization backend is selected.",
+        "phase_contract": "Phase 2 keeps Manopt-backed processing as a documented optional-dependency limitation and covers both the calibration-time path and explicit failure path."
       },
-      "rationale": "EEGLAB bundles Manopt for Riemannian ASR, but EEGPrep should not vendor or read that MATLAB library at runtime. The product decision belongs to the clean_rawdata phase.",
+      "rationale": "EEGLAB bundles Manopt for full Riemannian ASR. EEGPrep deliberately does not vendor or read that MATLAB library at runtime; it supports the useful calibration-time variant and rejects full processing clearly.",
       "user_facing_surface": [
         "clean_asr",
         "clean_artifacts"
@@ -217,7 +220,7 @@
         "docs/source/user_guide/preprocessing_pipeline.rst",
         "docs/source/user_guide/installation.rst"
       ],
-      "test_notes": "Validator requires the optional dependency contract; Phase 2 must test either the chosen backend or the explicit limitation."
+      "test_notes": "Covered by clean_asr and clean_artifacts tests for useriemannian='calib', sample_data Riemannian calibration regressions, and explicit full-Riemannian failure-path tests."
     },
     {
       "row_id": "clean_rawdata-private-numerics",
@@ -239,10 +242,10 @@
         "eegprep.plugins.clean_rawdata.private.sigproc",
         "eegprep.plugins.clean_rawdata.private.sphericalSplineInterpolate"
       ],
-      "status": "partial",
+      "status": "consolidated",
       "responsible_phase": "phase_2",
       "phase_issue": "#159 clean_rawdata and FIRFilt bundled-plugin completion",
-      "rationale": "Most numerical helper responsibilities are consolidated into Python modules, but Phase 2 owns a full helper-by-helper parity audit for the final plugin contract.",
+      "rationale": "Phase 2 keeps clean_rawdata's product-relevant private numerics consolidated into native Python statistics, signal-processing, covariance, and interpolation modules instead of recreating MATLAB private-file boundaries.",
       "user_facing_surface": [
         "clean_artifacts",
         "clean_channels",
@@ -251,7 +254,7 @@
       "docs_targets": [
         "docs/source/api/preprocessing.rst"
       ],
-      "test_notes": "Phase 2 should extend the existing utility tests only where the helper behavior remains product-relevant."
+      "test_notes": "Covered by existing private numerical utility tests, ASR utility tests, clean_channels/clean_windows regressions, and FIR/filter integration tests where the helpers surface through user workflows."
     },
     {
       "row_id": "clean_rawdata-matlab-helper-shims",
@@ -277,7 +280,7 @@
       "docs_targets": [
         "docs/source/development.rst"
       ],
-      "test_notes": "Phase 2 should keep these consolidated unless a concrete clean_rawdata workflow exposes missing behavior."
+      "test_notes": "Phase 2 audit found no user-facing workflow requiring standalone ports; kwargs parsing, chunking, cache-free execution, and native exceptions remain covered through clean_rawdata integration tests."
     },
     {
       "row_id": "clean_rawdata-vis-artifacts",
@@ -286,11 +289,14 @@
       "source_paths": [
         "plugins/clean_rawdata/vis_artifacts.m"
       ],
-      "eegprep_equivalent": null,
-      "status": "port",
+      "eegprep_equivalent": [
+        "eegprep.plugins.clean_rawdata.vis_artifacts",
+        "eegprep.plugins.clean_rawdata.vis_artifacts_diagnostics"
+      ],
+      "status": "implemented",
       "responsible_phase": "phase_2",
       "phase_issue": "#159 clean_rawdata and FIRFilt bundled-plugin completion",
-      "rationale": "Users expect pre/post cleaning diagnostics comparable to EEGLAB's vis_artifacts; this should be a native EEGPrep plotting or GUI surface, not a MATLAB figure port.",
+      "rationale": "EEGPrep now provides native vis_artifacts-style diagnostics and wires pop_clean_rawdata's visual checkbox to the packaged eegplot-backed viewer without a runtime EEGLAB dependency.",
       "user_facing_surface": [
         "clean_artifacts diagnostics"
       ],
@@ -298,7 +304,7 @@
         "docs/source/user_guide/preprocessing_pipeline.rst",
         "docs/source/user_guide/visual_parity.rst"
       ],
-      "test_notes": "Phase 2 should add visual or data-level diagnostics tests and attach GUI evidence when a GUI surface is added."
+      "test_notes": "Covered by diagnostics unit tests and pop_clean_rawdata GUI visual-checkbox tests; PR visual evidence covers the updated dialog path."
     },
     {
       "row_id": "firfilt-current-filter-api",
@@ -315,14 +321,17 @@
         "plugins/firfilt/pop_firws.m"
       ],
       "eegprep_equivalent": [
+        "eegprep.plugins.firfilt.fir_filterdcpadded",
         "eegprep.plugins.firfilt.firws",
         "eegprep.plugins.firfilt.pop_eegfiltnew",
+        "eegprep.plugins.firfilt.pop_firma",
+        "eegprep.plugins.firfilt.pop_firpm",
         "eegprep.plugins.firfilt.pop_firws"
       ],
-      "status": "partial",
+      "status": "implemented",
       "responsible_phase": "phase_2",
       "phase_issue": "#159 clean_rawdata and FIRFilt bundled-plugin completion",
-      "rationale": "Core FIR filtering exists, but Phase 2 owns complete option coverage, boundary semantics, GUI defaults, and report parity.",
+      "rationale": "Phase 2 completed useful FIRFilt current API parity with DC-padded filtering, boundary-aware segmentation, report/progress output, response plotting hooks, and GUI callback metadata.",
       "user_facing_surface": [
         "Tools > Filter the data",
         "pop_eegfiltnew",
@@ -332,7 +341,7 @@
         "docs/source/user_guide/preprocessing_pipeline.rst",
         "docs/source/api/signal_processing.rst"
       ],
-      "test_notes": "Phase 2 should extend FIRFilt parity and GUI tests around transition bandwidth, windows, min-phase behavior, and boundary events."
+      "test_notes": "Covered by tests/test_pop_firfilt.py, tests/test_firfilt_helpers.py, GUI FIRFilt dialog tests, and MATLAB-marked deterministic helper parity where local MATLAB is available."
     },
     {
       "row_id": "firfilt-order-dialogs",
@@ -348,11 +357,20 @@
         "plugins/firfilt/pop_xfirws.m",
         "plugins/firfilt/windows.m"
       ],
-      "eegprep_equivalent": null,
-      "status": "port",
+      "eegprep_equivalent": [
+        "eegprep.plugins.firfilt.invfirwsord",
+        "eegprep.plugins.firfilt.invkaiserbeta",
+        "eegprep.plugins.firfilt.kaiserbeta",
+        "eegprep.plugins.firfilt.pop_firpmord",
+        "eegprep.plugins.firfilt.pop_firwsord",
+        "eegprep.plugins.firfilt.pop_kaiserbeta",
+        "eegprep.plugins.firfilt.pop_xfirws",
+        "eegprep.plugins.firfilt.windows"
+      ],
+      "status": "implemented",
       "responsible_phase": "phase_2",
       "phase_issue": "#159 clean_rawdata and FIRFilt bundled-plugin completion",
-      "rationale": "EEGLAB users rely on these helpers for filter-order planning and dialog workflows; EEGPrep should provide Python equivalents or native GUI controls where the workflow remains useful.",
+      "rationale": "EEGPrep now exposes EEGLAB-named FIRFilt order/window helpers, command-returning pop_* wrappers, Qt dialog specs, live estimate/plot callback metadata, packaged help, and visual parity capture cases.",
       "user_facing_surface": [
         "FIRFilt order dialogs",
         "filter design helpers"
@@ -360,7 +378,7 @@
       "docs_targets": [
         "docs/source/user_guide/preprocessing_pipeline.rst"
       ],
-      "test_notes": "Phase 2 should add deterministic numeric tests for order formulas and GUI tests for any dialog surfaces."
+      "test_notes": "Covered by deterministic kaiser/window/order tests, command history tests, dialog spec tests, and visual parity manifest/script-generation tests."
     },
     {
       "row_id": "firfilt-boundary-reports-plots",
@@ -375,11 +393,18 @@
         "plugins/firfilt/plotfresp.m",
         "plugins/firfilt/private/firgauss.m"
       ],
-      "eegprep_equivalent": null,
-      "status": "port",
+      "eegprep_equivalent": [
+        "eegprep.plugins.firfilt.findboundaries",
+        "eegprep.plugins.firfilt.firfiltreport",
+        "eegprep.plugins.firfilt.firfiltsplit",
+        "eegprep.plugins.firfilt.minphaserceps",
+        "eegprep.plugins.firfilt.plotfresp",
+        "eegprep.plugins.firfilt.firgauss"
+      ],
+      "status": "implemented",
       "responsible_phase": "phase_2",
       "phase_issue": "#159 clean_rawdata and FIRFilt bundled-plugin completion",
-      "rationale": "Boundary-aware filtering, user-readable reports, and frequency-response plots are user-visible FIRFilt behavior that remains to be made explicit in EEGPrep.",
+      "rationale": "Boundary-aware split helpers, user-readable FIRFilt reports, minimum-phase conversion, Gaussian helper behavior, and native Matplotlib frequency-response plots are now explicit EEGPrep plugin surfaces.",
       "user_facing_surface": [
         "filter reports",
         "frequency response plots"
@@ -388,7 +413,7 @@
         "docs/source/user_guide/preprocessing_pipeline.rst",
         "docs/source/user_guide/visual_parity.rst"
       ],
-      "test_notes": "Phase 2 must cover first/last boundary events and plot/report generation without MATLAB figure dependencies."
+      "test_notes": "Covered by first/last boundary tests, firfiltsplit/fir_filterdcpadded regressions, report text tests, and plotfresp smoke tests using the non-interactive Matplotlib backend."
     },
     {
       "row_id": "iclabel-classification-pipeline",

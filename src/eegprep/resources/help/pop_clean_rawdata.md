@@ -38,7 +38,10 @@ Behavior:
   raise a clear `ValueError`.
 - Other distance names are rejected so misspellings do not silently switch the
   ASR calibration mode.
-- The "Pop up scrolling data window with rejected data highlighted" option is present for parity, but the viewer is not yet ported. When selected, EEGPrep shows a user-facing notification instead of silently doing nothing.
+- The "Pop up scrolling data window with rejected data highlighted" option
+  opens EEGPrep's EEG browser with `clean_sample_mask` intervals highlighted.
+  Use `vis_artifacts(clean_eeg, original_eeg, show=False)` for the same
+  diagnostics without opening a GUI.
 
 Example:
 

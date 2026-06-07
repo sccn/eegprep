@@ -88,7 +88,11 @@ from eegprep.plugins.dipfit.pop_multifit import pop_multifit_dialog_spec
 from eegprep.plugins.firfilt.pop_eegfiltnew import pop_eegfiltnew_dialog_spec
 from eegprep.plugins.firfilt.pop_firma import pop_firma_dialog_spec
 from eegprep.plugins.firfilt.pop_firpm import pop_firpm_dialog_spec
+from eegprep.plugins.firfilt.pop_firpmord import pop_firpmord_dialog_spec
 from eegprep.plugins.firfilt.pop_firws import pop_firws_dialog_spec
+from eegprep.plugins.firfilt.pop_firwsord import pop_firwsord_dialog_spec
+from eegprep.plugins.firfilt.pop_kaiserbeta import pop_kaiserbeta_dialog_spec
+from eegprep.plugins.firfilt.pop_xfirws import pop_xfirws_dialog_spec
 
 
 def _demo_eeg() -> dict:
@@ -893,6 +897,38 @@ def capture_pop_firma_dialog(output: pathlib.Path) -> None:
     _grab_dialog(dialog, output, app)
 
 
+def capture_pop_kaiserbeta_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_kaiserbeta dialog."""
+    spec = pop_kaiserbeta_dialog_spec()
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_firwsord_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_firwsord dialog."""
+    spec = pop_firwsord_dialog_spec()
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_firpmord_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_firpmord dialog."""
+    spec = pop_firpmord_dialog_spec()
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
+def capture_pop_xfirws_dialog(output: pathlib.Path) -> None:
+    """Render and capture the pop_xfirws dialog."""
+    spec = pop_xfirws_dialog_spec()
+    renderer = QtDialogRenderer()
+    app, dialog, _widgets = renderer.build_dialog(spec)
+    _grab_dialog(dialog, output, app)
+
+
 def capture_pop_epoch_dialog(output: pathlib.Path) -> None:
     """Render and capture the pop_epoch dialog."""
     eeg = _demo_main_eeg(setname="pop demo")
@@ -1425,6 +1461,14 @@ def main(argv: list[str] | None = None) -> int:
         capture_pop_firpm_dialog(args.output)
     elif args.case == "pop_firma_dialog":
         capture_pop_firma_dialog(args.output)
+    elif args.case == "pop_kaiserbeta_dialog":
+        capture_pop_kaiserbeta_dialog(args.output)
+    elif args.case == "pop_firwsord_dialog":
+        capture_pop_firwsord_dialog(args.output)
+    elif args.case == "pop_firpmord_dialog":
+        capture_pop_firpmord_dialog(args.output)
+    elif args.case == "pop_xfirws_dialog":
+        capture_pop_xfirws_dialog(args.output)
     elif args.case == "pop_epoch_dialog":
         capture_pop_epoch_dialog(args.output)
     elif args.case == "pop_topoplot_erp_dialog":
