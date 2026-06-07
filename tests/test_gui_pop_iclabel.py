@@ -28,6 +28,8 @@ class PopIclabelGuiTests(unittest.TestCase):
         self.assertEqual(spec.title, "ICLabel")
         self.assertEqual(spec.function_name, "pop_iclabel")
         self.assertEqual(spec.eeglab_source, "plugins/ICLabel/pop_iclabel.m")
+        self.assertIsNone(spec.help_text)
+        self.assertFalse(spec.show_help_button)
         self.assertEqual(
             [(control.style, control.string, control.tag) for control in spec.controls],
             [
@@ -39,14 +41,31 @@ class PopIclabelGuiTests(unittest.TestCase):
     def test_gui_result_runs_iclabel_and_returns_history(self):
         class Renderer:
             def run(self, spec, initial_values=None):
-                return {"icversion": 2}
+                return {"icversion": 1}
 
         eeg = _eeg()
-        updated = dict(eeg, etc={"ic_classification": {"ICLabel": {"version": "lite"}}})
+        updated = dict(eeg, etc={"ic_classification": {"ICLabel": {"version": "default"}}})
         with mock.patch("eegprep.plugins.ICLabel.pop_iclabel.iclabel", return_value=updated) as classify:
             out, com = pop_iclabel(eeg, gui=True, renderer=Renderer(), return_com=True)
 
-        classify.assert_called_once_with(eeg, algorithm="lite", engine=None)
+        classify.assert_called_once_with(eeg, algorithm="default", engine=None)
+        self.assertEqual(out["etc"]["ic_classification"]["ICLabel"]["version"], "default")
+        self.assertEqual(com, "EEG = pop_iclabel(EEG, 'default');")
+
+    def test_python_engine_rejects_unbundled_lite_and_beta_networks(self):
+        eeg = _eeg()
+
+        with self.assertRaisesRegex(NotImplementedError, "standalone Python ICLabel only ships the default network"):
+            pop_iclabel(eeg, "lite")
+
+    def test_matlab_engine_can_request_lite_network(self):
+        eeg = _eeg()
+        updated = dict(eeg, etc={"ic_classification": {"ICLabel": {"version": "lite"}}})
+
+        with mock.patch("eegprep.plugins.ICLabel.pop_iclabel.iclabel", return_value=updated) as classify:
+            out, com = pop_iclabel(eeg, "lite", engine="matlab", return_com=True)
+
+        classify.assert_called_once_with(eeg, algorithm="lite", engine="matlab")
         self.assertEqual(out["etc"]["ic_classification"]["ICLabel"]["version"], "lite")
         self.assertEqual(com, "EEG = pop_iclabel(EEG, 'lite');")
 

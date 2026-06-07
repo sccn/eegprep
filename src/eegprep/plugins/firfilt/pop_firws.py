@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
+import numpy as np
+
 from eegprep.functions.guifunc.inputgui import inputgui
-from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
+from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.plugins.firfilt._filtering import FILTER_TYPES, WINDOW_TYPES, apply_fir_filter, design_firws
 from eegprep.plugins.firfilt._pop_common import (
     bool_value,
@@ -16,6 +19,13 @@ from eegprep.plugins.firfilt._pop_common import (
     numeric_or_none,
     vector_or_none,
 )
+from eegprep.plugins.firfilt.firfiltreport import firfiltreport
+from eegprep.plugins.firfilt.invfirwsord import invfirwsord
+from eegprep.plugins.firfilt.invkaiserbeta import invkaiserbeta
+from eegprep.plugins.firfilt.plotfresp import plotfresp
+
+
+logger = logging.getLogger(__name__)
 
 
 def pop_firws(
@@ -46,6 +56,10 @@ def pop_firws(
         key: value for key, value in parsed.items() if key not in {"channels", "chantype", "plotfresp", "usefftfilt"}
     }
     b = design_firws(float(EEG["srate"]), **design_options)
+    direction = "onepass-minphase" if bool_value(parsed.get("minphase")) else "onepass-zerophase"
+    report = _filter_report(parsed, float(EEG["srate"]), direction)
+    for line in report.rstrip().splitlines():
+        logger.info(line)
     output = apply_fir_filter(
         EEG,
         b,
@@ -54,6 +68,8 @@ def pop_firws(
         causal=bool_value(parsed.get("minphase")),
         usefftfilt=bool_value(parsed.get("usefftfilt")),
     )
+    if bool_value(parsed.get("plotfresp")):
+        plotfresp(b, 1, fs=float(EEG["srate"]), dir=direction)
     command = history_command("pop_firws", parsed)
     return (output, command) if return_com else output
 
@@ -89,7 +105,14 @@ def pop_firws_dialog_spec(_EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("spacer"),
             ControlSpec("text", "Window type:"),
             ControlSpec(
-                "popupmenu", "|".join(["Rectangular", "Hann", "Hamming", "Blackman", "Kaiser"]), tag="wtype", value=3
+                "popupmenu",
+                "|".join(["Rectangular", "Hann", "Hamming", "Blackman", "Kaiser"]),
+                tag="wtype",
+                value=3,
+                callback=CallbackSpec(
+                    "toggle_index_enabled",
+                    params={"source": "wtype", "enabled_index": 5, "targets": ("warg", "warg_label", "wargpush")},
+                ),
             ),
             ControlSpec("spacer"),
             ControlSpec("text", "Kaiser window beta:", tag="warg_label", enabled=False),
@@ -99,15 +122,24 @@ def pop_firws_dialog_spec(_EEG: dict[str, Any]) -> DialogSpec:
                 "Estimate",
                 tag="wargpush",
                 enabled=False,
-                tooltip="Kaiser beta estimation is not yet implemented in EEGPrep.",
+                callback=CallbackSpec("fir_kaiser_beta", params={"button": "wargpush", "target": "warg", "dev": "dev"}),
             ),
             ControlSpec("text", "Filter order (mandatory even):"),
             ControlSpec("edit", tag="forder", value=""),
             ControlSpec(
                 "pushbutton",
                 "Estimate",
-                enabled=False,
-                tooltip="Filter-order estimation is not yet implemented in EEGPrep.",
+                tag="forderpush",
+                callback=CallbackSpec(
+                    "firws_order",
+                    params={
+                        "button": "forderpush",
+                        "target": "forder",
+                        "srate_value": float(_EEG.get("srate", 2)),
+                        "wtype": "wtype",
+                        "dev": "dev",
+                    },
+                ),
             ),
             ControlSpec("spacer"),
             ControlSpec(
@@ -126,8 +158,11 @@ def pop_firws_dialog_spec(_EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec(
                 "pushbutton",
                 "Plot filter responses",
-                enabled=False,
-                tooltip="Filter-response plotting from this dialog is not yet implemented in EEGPrep.",
+                tag="plotpush",
+                callback=CallbackSpec(
+                    "fir_response_plot",
+                    params={"button": "plotpush", "design": "firws", "srate_value": float(_EEG.get("srate", 2))},
+                ),
             ),
         ),
     )
@@ -153,6 +188,8 @@ def _run_gui(EEG: dict[str, Any], *, renderer: Any | None = None) -> dict[str, A
     for key in ("minphase", "usefftfilt"):
         if bool_value(result.get(key)):
             options[key] = True
+    if bool_value(result.get("plotfresp")):
+        options["plotfresp"] = True
     return options
 
 
@@ -177,3 +214,31 @@ def _parsed_options(options: dict[str, Any]) -> dict[str, Any]:
         if has_value(options.get(key)):
             parsed[key] = options[key]
     return parsed
+
+
+def _filter_report(parsed: dict[str, Any], srate: float, direction: str) -> str:
+    wtype = parsed["wtype"]
+    dev = invkaiserbeta(parsed["warg"]) if wtype == "kaiser" else None
+    df, dev = invfirwsord(wtype, srate, parsed["forder"], dev)
+    cutoff = vector_or_none(parsed["fcutoff"])
+    if cutoff is None:
+        raise ValueError("Not enough input arguments.")
+    max_df_candidates = [value * 2 for value in cutoff]
+    max_df_candidates.extend((srate / 2 - value) * 2 for value in cutoff)
+    if len(cutoff) > 1:
+        max_df_candidates.extend(np.diff(sorted(cutoff)).tolist())
+    max_df = min(value for value in max_df_candidates if value > 0)
+    report_kwargs = {
+        "func": "pop_firws",
+        "family": f"{wtype}-windowed sinc FIR",
+        "type": parsed["ftype"],
+        "dir": direction,
+        "order": parsed["forder"],
+    }
+    if df <= max_df:
+        report_kwargs.update({"fs": srate, "fc": cutoff, "df": df, "pbdev": dev, "sbatt": dev})
+    else:
+        logger.warning(
+            "Filter order too low. Effective cutoff frequency might deviate from requested cutoff frequency."
+        )
+    return firfiltreport(**report_kwargs)

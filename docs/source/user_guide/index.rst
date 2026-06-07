@@ -50,6 +50,7 @@ Core Concepts
    :maxdepth: 2
 
    preprocessing_pipeline
+   ica_rejection
    configuration
 
 Data Workflows
@@ -82,6 +83,7 @@ Quick Reference
 - :ref:`interactive_console` - Use the GUI and Python console together
 - :ref:`extension_curation` - Review extension trust, curation, catalog, and compatibility policy
 - :ref:`preprocessing_pipeline` - Understand preprocessing steps
+- :ref:`ica_rejection` - Review ICLabel labels, flag components, and inspect diagnostics
 - :ref:`bids_workflow` - Process BIDS datasets
 - :ref:`study_workflows` - Use current STUDY creation, save/load, and plotting surfaces
 - :ref:`visual_parity` - Compare future EEGPREP UI states against EEGLAB

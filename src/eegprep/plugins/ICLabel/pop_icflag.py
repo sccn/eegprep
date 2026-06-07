@@ -10,6 +10,7 @@ import numpy as np
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.popfunc._pop_utils import format_history_value
+from eegprep.plugins.ICLabel.eeg_icalabelstat import eeg_icalabelstat
 from eegprep.plugins.ICLabel.eeg_icflag import eeg_icflag
 
 
@@ -53,6 +54,9 @@ def pop_icflag(
     if gui is None:
         gui = thresholds is None
     if gui:
+        if thresholds is None and not isinstance(EEG, list):
+            _require_iclabel(EEG)
+            eeg_icalabelstat(EEG)
         result = _run_gui(renderer=renderer)
         if result is None:
             return (EEG, "") if return_com else EEG

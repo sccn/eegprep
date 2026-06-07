@@ -1,15 +1,15 @@
-"""Continuous phase-amplitude coupling limitation entry point."""
+"""Continuous EEGLAB-style phase-amplitude coupling."""
 
 from __future__ import annotations
 
 from typing import Any
 
-from eegprep.functions.timefreqfunc._pac_support import raise_pac_not_implemented
+from eegprep.functions.timefreqfunc._pac_support import PacContResult, compute_pac_cont
 
 
-def pac_cont(*_args: Any, **_kwargs: Any) -> None:
-    """Raise a clear limitation for EEGLAB's unported ``pac_cont`` helper."""
-    raise_pac_not_implemented()
+def pac_cont(X: Any, Y: Any, srate: float, **kwargs: Any) -> PacContResult:
+    """Compute sliding-window phase-amplitude coupling from continuous data."""
+    return compute_pac_cont(X, Y, srate, **kwargs)
 
 
-__all__ = ["pac_cont"]
+__all__ = ["PacContResult", "pac_cont"]

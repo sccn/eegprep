@@ -2,4 +2,6 @@
 
 Automatically fit DIPFIT models for multiple ICA components.
 
-EEGLAB combines coarse grid search, nonlinear fitting, residual-variance rejection, and optional dipole plotting. EEGPrep validates ICA and DIPFIT settings and surfaces the same dialog fields, but fitting itself requires the FieldTrip DIPFIT backend and is not silently emulated.
+EEGPrep combines native spherical grid search, nonlinear refinement, residual-variance rejection, optional outside-head removal for spherical coordinates, and optional `pop_dipplot` plotting. The output is stored in `EEG["dipfit"]["model"]` using EEGLAB-compatible fields.
+
+Bilateral fits use the same x-axis symmetry convention for MNI coordinates and y-axis symmetry for spherical coordinates that EEGLAB uses before calling FieldTrip.

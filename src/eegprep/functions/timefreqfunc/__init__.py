@@ -14,8 +14,8 @@ from eegprep.functions.timefreqfunc.newtimefbaseln import newtimefbaseln
 from eegprep.functions.timefreqfunc.newtimefitc import newtimefitc
 from eegprep.functions.timefreqfunc.newtimefpowerunit import newtimefpowerunit
 from eegprep.functions.timefreqfunc.newtimeftrialbaseln import newtimeftrialbaseln
-from eegprep.functions.timefreqfunc.pac import pac
-from eegprep.functions.timefreqfunc.pac_cont import pac_cont
+from eegprep.functions.timefreqfunc.pac import PacResult, pac
+from eegprep.functions.timefreqfunc.pac_cont import PacContResult, pac_cont
 from eegprep.functions.timefreqfunc.rsadjust import rsadjust
 from eegprep.functions.timefreqfunc.rsfit import rsfit
 from eegprep.functions.timefreqfunc.rsget import rsget
@@ -29,6 +29,8 @@ from eegprep.functions.timefreqfunc.timewarp import timewarp
 __all__ = [
     "BootstrapResult",
     "CrossFrequencyResult",
+    "PacContResult",
+    "PacResult",
     "TFCycleCalcResult",
     "TimeFrequencyDecomposition",
     "TimeFrequencyResult",
