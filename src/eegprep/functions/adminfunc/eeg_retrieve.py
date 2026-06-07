@@ -5,6 +5,7 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any
 
+from eegprep.functions.adminfunc.storage import dataset_with_loaded_data, offload_storedisk_datasets, storedisk_enabled
 from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
 
 
@@ -15,10 +16,17 @@ def eeg_retrieve(
     """Return dataset(s) from ``ALLEEG`` using EEGLAB-facing 1-based indices."""
     alleeg = [] if ALLEEG is None else list(ALLEEG)
     if isinstance(index, (list, tuple)):
-        datasets = [deepcopy(_dataset_at(alleeg, int(item))) for item in index]
-        return datasets, alleeg, [int(item) for item in index]
-    dataset = deepcopy(_dataset_at(alleeg, int(index)))
-    return dataset, alleeg, int(index)
+        indices = [int(item) for item in index]
+        if storedisk_enabled():
+            offload_storedisk_datasets(alleeg, set())
+        datasets = [deepcopy(_dataset_at(alleeg, item)) for item in indices]
+        return datasets, alleeg, indices
+    current = int(index)
+    dataset = dataset_with_loaded_data(_dataset_at(alleeg, current))
+    if 1 <= current <= len(alleeg):
+        alleeg[current - 1] = deepcopy(dataset)
+    offload_storedisk_datasets(alleeg, {current})
+    return dataset, alleeg, current
 
 
 def _dataset_at(alleeg: list[dict[str, Any]], index: int) -> dict[str, Any]:

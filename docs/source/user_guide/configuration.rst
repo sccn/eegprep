@@ -109,14 +109,19 @@ Data Handling
 
 .. code-block:: python
 
-    # Memory mode
-    options.memory_mode = 'disk'    # 'memory' or 'disk'
+    from eegprep import EEG_OPTIONS
 
-    # Verbose output
-    options.verbose = True
+    # Keep saved non-current ALLEEG datasets on disk.
+    EEG_OPTIONS["option_storedisk"] = 1
 
-    # Random seed for reproducibility
-    options.random_seed = 42
+    # Save .set headers and .fdt sidecars by default.
+    EEG_OPTIONS["option_savetwofiles"] = 1
+
+    # Memory-map .fdt sidecars on load.
+    EEG_OPTIONS["option_memmapdata"] = 1
+
+See :ref:`large_dataset_storage` for the exact storedisk, sidecar, and
+memory-mapped data semantics.
 
 Creating Custom Preprocessing Chains
 ====================================

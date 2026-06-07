@@ -8,6 +8,10 @@ Usage:
 EEG = pop_loadset("sample.set")
 ```
 
+When `EEG_OPTIONS["option_memmapdata"] = 1`, two-file datasets saved with an
+`.fdt` sidecar load through a NumPy-compatible memory map. Single-file `.set`
+datasets still load into memory.
+
 The main-window "Load existing dataset" action stores the loaded dataset in
 the shared `EEGPrepSession`, updates `EEG`, `ALLEEG`, and `CURRENTSET`, and
 records the load command in history.

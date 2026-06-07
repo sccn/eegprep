@@ -175,6 +175,50 @@ def test_session_changes_update_console_namespace():
     assert workspace.namespace["LASTCOM"] == "EEG = demo;"
 
 
+def test_storedisk_session_retrieve_and_console_pop_call_stay_synchronized(tmp_path):
+    from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
+    from eegprep.functions.adminfunc.storage import OffloadedData
+    from eegprep.functions.popfunc.pop_loadset import pop_loadset
+    from eegprep.functions.popfunc.pop_saveset import pop_saveset
+
+    old_options = dict(EEG_OPTIONS)
+    try:
+        EEG_OPTIONS["option_storedisk"] = 1
+        first = _demo_eeg("first")
+        second = _demo_eeg("second")
+        first["times"] = np.arange(first["pnts"], dtype=float)
+        second["times"] = np.arange(second["pnts"], dtype=float)
+        first_file = tmp_path / "first.set"
+        second_file = tmp_path / "second.set"
+        pop_saveset(first, first_file, savemode="twofiles")
+        pop_saveset(second, second_file, savemode="twofiles")
+
+        session = EEGPrepSession()
+        workspace = EEGPrepConsoleWorkspace(session, exports={"pop_reref": _fake_pop_reref})
+        session.store_current(pop_loadset(first_file), new=True, command="EEG = pop_loadset('first.set');")
+        session.store_current(pop_loadset(second_file), new=True, command="EEG = pop_loadset('second.set');")
+
+        assert isinstance(workspace.namespace["ALLEEG"][0]["data"], OffloadedData)
+
+        session.retrieve(1)
+
+        assert workspace.namespace["EEG"] is session.EEG
+        assert workspace.namespace["EEG"]["setname"] == "first"
+        assert isinstance(workspace.namespace["ALLEEG"][1]["data"], OffloadedData)
+
+        result = workspace.namespace["pop_reref"](workspace.namespace["EEG"], [])
+        workspace.after_execute("pop_reref(EEG, [])")
+
+        assert result[0] is session.EEG
+        assert session.EEG["setname"] == "reref"
+        assert session.CURRENTSET == [1]
+        assert isinstance(session.ALLEEG[1]["data"], OffloadedData)
+        assert session.ALLCOM[-1] == "EEG = pop_reref(EEG, []);"
+    finally:
+        EEG_OPTIONS.clear()
+        EEG_OPTIONS.update(old_options)
+
+
 def test_console_pop_study_result_updates_shared_study_workspace():
     session = EEGPrepSession()
     session.store_current(_demo_eeg(), new=True)
