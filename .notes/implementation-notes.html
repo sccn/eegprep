@@ -279,9 +279,8 @@
   <h2>Follow-up #148 PAC Classification</h2>
   <ul>
     <li>Upstream EEGLAB <code>pac.m</code>, <code>pac_cont.m</code>, <code>std_pac.m</code>, <code>std_pacplot.m</code>, and <code>std_readpac.m</code> were inspected from <code>sccn/eeglab</code> <code>develop</code> because the local vendored EEGLAB tree in this worktree is empty.</li>
-    <li>Core PAC computation was intentionally not implemented. The EEGLAB helpers combine time-frequency decomposition, PAC-specific method choices, continuous filtering/statistics, plotting, and <code>.icapac</code>/<code>.datpac</code> sidecar cache semantics. Adding same-name analysis math without a tested EEGPrep-owned PAC backend would be misleading.</li>
-    <li><code>pac</code>, <code>pac_cont</code>, <code>std_pac</code>, and <code>std_pacplot</code> are exposed as familiar names that raise a shared <code>NotImplementedError</code> limitation, matching the existing LIMO limitation pattern.</li>
-    <li><code>std_readpac</code> remains a deterministic standalone cache reader for explicit EEGPrep-owned <code>pacdata</code>, <code>pactimes</code>, and <code>pacfreqs</code> fields and now supports time/frequency range slicing and malformed-cache validation.</li>
+    <li>This follow-up originally classified PAC as an explicit limitation. Phase 4 #161 supersedes that classification by adding an EEGPrep-owned PAC compute/cache/plot backend while keeping unsupported bootstrap and <code>latphase</code> branches explicit.</li>
+    <li><code>std_readpac</code> remains a deterministic standalone cache reader for explicit EEGPrep-owned <code>pacdata</code>, <code>pactimes</code>, and <code>pacfreqs</code> fields and supports time/frequency range slicing and malformed-cache validation.</li>
     <li>No GUI changed in this follow-up, so GUI visual parity capture and PR image attachments are not applicable.</li>
   </ul>
   <h1>Follow-up #146 Time-Warped newtimef And Cycle Calculator Notes</h1>
@@ -303,6 +302,31 @@
   <ul>
     <li>Focused tests cover direct time-warp matrices, angular wrapping, cycle-width conversion, replayable <code>pop_newtimef</code> time-warp history, console history recording, and dialog inventory.</li>
     <li>MATLAB parity coverage for <code>timewarp</code>, <code>angtimewarp</code>, and <code>tf_cycle_calc</code> is included behind the existing MATLAB skip behavior.</li>
+  </ul>
+  <h1>Phase 4 #161 STUDY PAC, LIMO Design, And Neighbor Notes</h1>
+  <h2>Design Decisions</h2>
+  <ul>
+    <li>Implemented <code>pac</code> with EEGPrep's existing <code>timefreq</code> backend. It returns complex PAC values for epoched data and interpolates amplitude/phase decompositions onto a shared overlapping time grid when their wavelet windows differ.</li>
+    <li>Implemented <code>pac_cont</code> with SciPy bandpass filtering and Hilbert transforms for continuous modulation, PLV, correlation, and linear-regression PAC methods.</li>
+    <li>Implemented <code>std_pac</code> as the STUDY cache writer for channel PAC. STUDY caches store real PAC magnitude under <code>STUDY.changrp[*].pacdata</code> because plotting and <code>std_readpac</code> use real frequency/time arrays, while lower-level <code>pac</code> retains complex values.</li>
+    <li>Implemented <code>std_pacplot</code> through <code>std_readpac</code> so command-line and plotted range filtering share one cache contract.</li>
+    <li>Implemented <code>std_limodesign</code> as the feasible standalone LIMO-compatible layer: categorical matrices, continuous matrices, interactions, split regressors, description output, and optional text exports.</li>
+    <li>Kept <code>pop_limo</code>, <code>std_limo</code>, <code>std_limoresults</code>, <code>pop_limoresults</code>, and <code>std_readfilelimo</code> as explicit external-toolbox limitations. EEGPrep still does not create placeholder LIMO result files.</li>
+    <li>Implemented <code>std_prepare_neighbors</code> with a standalone distance-based channel-neighbor list and LIMO-compatible adjacency matrix. It does not call FieldTrip at runtime.</li>
+    <li>Implemented <code>std_interp</code> for STUDY channel-location unions using the existing EEGPrep channel interpolation backend. It preserves each dataset's existing channels when adding requested missing channels.</li>
+    <li>Added explicit <code>std_dipplot</code> and <code>std_dipoleclusters</code> limitation wrappers for STUDY-level source workflows that need Phase 3 DIPFIT/source contracts.</li>
+  </ul>
+  <h2>Tradeoffs And Boundaries</h2>
+  <ul>
+    <li><code>std_pac</code> STUDY caches require a single <code>freqphase</code> value, matching the practical EEGLAB STUDY PAC cache shape. Use low-level <code>pac</code> directly for full amplitude-by-phase-frequency grids.</li>
+    <li>PAC bootstrap significance and EEGLAB's <code>latphase</code> histogram mode raise explicit <code>NotImplementedError</code> messages until they have a tested standalone backend.</li>
+    <li>Component-cluster PAC is not silently approximated. The cache writer raises until STUDY component/source contracts define how pairs should be matched across subjects and clusters.</li>
+    <li>LIMO model execution and result browsing remain external-only. The implemented design helper is intentionally limited to matrices and metadata that EEGPrep can own and test.</li>
+  </ul>
+  <h2>Verification Notes</h2>
+  <ul>
+    <li>Focused tests cover <code>pac</code>, <code>pac_cont</code>, <code>std_pac</code>, <code>std_readpac</code>, <code>std_pacplot</code>, <code>std_limodesign</code>, <code>std_prepare_neighbors</code>, <code>std_interp</code>, and source/LIMO limitation paths.</li>
+    <li>No new GUI dialog was introduced for Phase 4. Visual parity evidence remains on existing STUDY dialogs and plotting paths; the changed behavior is API/console/cache based.</li>
   </ul>
 </body>
 </html>

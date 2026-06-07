@@ -7,8 +7,8 @@ from typing import Any
 
 LIMO_LIMITATION = (
     "Standalone EEGPrep does not implement EEGLAB's external LIMO toolbox workflow. "
-    "Use EEGPrep statistics helpers for deterministic in-package analyses, or run LIMO in EEGLAB/MATLAB and "
-    "import explicit results through your own analysis code."
+    "Use EEGPrep statistics helpers and std_limodesign for deterministic in-package analyses and "
+    "LIMO-compatible design matrices, or run LIMO in EEGLAB/MATLAB for model fitting and result browsing."
 )
 
 

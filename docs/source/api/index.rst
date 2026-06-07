@@ -324,6 +324,7 @@ measure plotting, component preclustering, clustering, and cluster editing.
    eegprep.pop_clustedit
    eegprep.std_addvarlevel
    eegprep.std_builddesignmat
+   eegprep.std_limodesign
    eegprep.std_checkconsist
    eegprep.std_checkdesign
    eegprep.std_combtrialinfo
@@ -348,6 +349,10 @@ measure plotting, component preclustering, clustering, and cluster editing.
    eegprep.std_readpac
    eegprep.std_pac
    eegprep.std_pacplot
+   eegprep.std_prepare_neighbors
+   eegprep.std_interp
+   eegprep.std_dipplot
+   eegprep.std_dipoleclusters
    eegprep.std_checkfiles
    eegprep.std_checkdatasession
    eegprep.std_uniformfiles
