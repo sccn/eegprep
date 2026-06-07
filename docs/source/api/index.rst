@@ -143,6 +143,9 @@ Spectral Analysis
    eegprep.crossf
    eegprep.pac
    eegprep.pac_cont
+   eegprep.timewarp
+   eegprep.angtimewarp
+   eegprep.tf_cycle_calc
    eegprep.newtimefbaseln
    eegprep.newtimeftrialbaseln
    eegprep.newtimefitc

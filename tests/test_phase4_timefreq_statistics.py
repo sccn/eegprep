@@ -31,6 +31,8 @@ from eegprep.functions.popfunc.pop_newtimef import pop_newtimef, pop_newtimef_di
 from eegprep.functions.popfunc.pop_timef import pop_timef
 from eegprep.functions.popfunc.pop_signalstat import pop_signalstat, pop_signalstat_dialog_spec
 from eegprep.functions.sigprocfunc.signalstat import signalstat
+from eegprep.functions.guifunc.tf_cycle_calc_dialog import tf_cycle_calc_dialog_spec
+from eegprep.functions.timefreqfunc.angtimewarp import angtimewarp
 from eegprep.functions.timefreqfunc.bootstat import bootstat, bootstrap_threshold
 from eegprep.functions.timefreqfunc.correct_mc import correct_mc
 from eegprep.functions.timefreqfunc.correctfit import correctfit
@@ -46,7 +48,9 @@ from eegprep.functions.timefreqfunc.rsfit import rsfit
 from eegprep.functions.timefreqfunc.rsget import rsget
 from eegprep.functions.timefreqfunc.rspdfsolv import rspdfsolv
 from eegprep.functions.timefreqfunc.rspfunc import rspfunc
+from eegprep.functions.timefreqfunc.tf_cycle_calc import tf_cycle_calc
 from eegprep.functions.timefreqfunc.timefreq import timefreq
+from eegprep.functions.timefreqfunc.timewarp import timewarp
 from tests.fixtures import SAMPLE_DATASET_PATH, create_test_eeg_with_ica
 
 
@@ -93,6 +97,65 @@ def test_newtimef_nonzero_cycles_use_wavelet_time_grid(sample_epoch):
     assert result.times.size > 1
     assert result.freqs.size > 0
     assert result.tfdata.shape == (result.freqs.size, result.times.size, sample_epoch["trials"])
+
+
+def test_timewarp_matches_eeglab_linear_interpolation_matrix():
+    matrix = timewarp([1, 3, 5], [1, 2, 5])
+
+    expected = np.asarray(
+        [
+            [1, 0, 0, 0, 0],
+            [0, 0, 1, 0, 0],
+            [0, 0, 1 / 3, 2 / 3, 0],
+            [0, 0, 0, 2 / 3, 1 / 3],
+            [0, 0, 0, 0, 1],
+        ],
+        dtype=float,
+    )
+    np.testing.assert_allclose(matrix, expected, rtol=1e-12, atol=1e-12)
+
+
+def test_timewarp_rejects_unsorted_markers():
+    with pytest.raises(ValueError, match="ascending order"):
+        timewarp([1, 5, 3], [1, 2, 5])
+
+
+def test_angtimewarp_interpolates_and_wraps_like_eeglab():
+    angles = np.asarray([0, np.pi / 2, np.pi, -np.pi / 2, 0], dtype=float)
+
+    warped = angtimewarp([1, 3, 5], [1, 2, 5], angles)
+
+    np.testing.assert_allclose(warped, [0, np.pi, 0, -np.pi / 3, 0], rtol=1e-12, atol=1e-12)
+
+
+def test_tf_cycle_calc_converts_width_units_and_dialog_inventory():
+    result = tf_cycle_calc(freqs=[10, 20], width=0.2, width_unit="fwhm_t")
+    sigma2fwhm = 2 * np.sqrt(2 * np.log(2))
+    expected_cycles = np.asarray([10, 20], dtype=float) * 2 * np.pi * 0.2 / sigma2fwhm
+
+    np.testing.assert_allclose(result.cycles, expected_cycles, rtol=1e-12, atol=1e-12)
+    assert result.widths_table.shape == (2, 8)
+    assert result.columns == (
+        "freq",
+        "cycles",
+        "fwhm_f",
+        "fwhm_t",
+        "2_sigma_f",
+        "2_sigma_t",
+        "sigma_f",
+        "sigma_t",
+    )
+
+    cycle_result = tf_cycle_calc(freqs=[8, 12, 16], width=[3, 6], width_unit="cycles", log_spaced=False)
+    np.testing.assert_allclose(cycle_result.cycles, [3, 4.5, 6], rtol=1e-12, atol=1e-12)
+
+    spec = tf_cycle_calc_dialog_spec(freqs=[8, 16], width=[0.2, 0.3])
+    controls = controls_by_tag(spec)
+    assert spec.title == "Wavelet cycles calculator -- tf_cycle_calc()"
+    assert controls["widthpop"].value == 1
+    assert controls["freqedit"].value == "8 16"
+    assert controls["widthedit"].value == "0.2 0.3"
+    assert controls["plot"].callback.name == "tf_cycle_calc_plot"
 
 
 def test_newcrossf_identical_synthetic_signals_have_unit_phase_coherence():
@@ -149,6 +212,39 @@ def test_pop_newtimef_channel_and_component_paths_are_replayable(sample_epoch, i
     namespace = {"EEG": sample_epoch, "pop_newtimef": pop_newtimef}
     replayed = eval(command, namespace)
     assert replayed.ersp.shape == result.ersp.shape
+
+
+def test_pop_newtimef_timewarp_options_are_replayable(sample_epoch):
+    trial_count = int(sample_epoch["trials"])
+    first_marker = np.linspace(20, 40, trial_count)
+    second_marker = np.linspace(70, 90, trial_count)
+    markers = np.column_stack([first_marker, second_marker])
+
+    result, command = pop_newtimef(
+        sample_epoch,
+        1,
+        1,
+        [-100, 200],
+        [3, 0.8],
+        freqs=[20, 30],
+        nfreqs=2,
+        timesout=10,
+        timewarp=markers,
+        timewarpms=[30, 80],
+        timewarpidx=[1, 2],
+        plot="off",
+        return_com=True,
+    )
+
+    assert result.tfdata.shape == (result.freqs.size, result.times.size, trial_count)
+    np.testing.assert_allclose(result.timewarp_markers, [31.25, 78.125], rtol=1e-12, atol=1e-12)
+    assert "timewarp=" in command
+    assert "timewarpms=[30, 80]" in command
+    assert "timewarpidx=[1, 2]" in command
+    _assert_python_command(command)
+    namespace = {"EEG": sample_epoch, "pop_newtimef": pop_newtimef}
+    replayed = eval(command, namespace)
+    np.testing.assert_allclose(replayed.timewarp_markers, result.timewarp_markers, rtol=1e-12, atol=1e-12)
 
 
 def test_pop_newcrossf_channel_and_component_paths_are_replayable(sample_epoch, ica_epoch):
@@ -264,6 +360,7 @@ def test_timefreq_statistics_dialog_specs_match_eeglab_control_inventory(sample_
     assert controls_by_tag(newtimef)["num_button"].callback.name == "select_channels"
     assert controls_by_tag(newtimef)["baseline"].value == "0"
     assert controls_by_tag(newtimef)["calcpush"].enabled is True
+    assert controls_by_tag(newtimef)["calcpush"].callback.name == "tf_cycle_calc"
     assert controls_by_tag(newtimef)["plotcurve"].enabled is True
     assert controls_by_tag(newtimef)["alpha"].enabled is True
     assert controls_by_tag(newcrossf)["coher"].value is False
@@ -288,14 +385,17 @@ def test_phase4_top_level_exports_resolve_existing_modules():
         "dftfilt",
         "dftfilt2",
         "dftfilt3",
+        "angtimewarp",
         "newtimefbaseln",
         "newtimefitc",
         "newtimefpowerunit",
         "newtimeftrialbaseln",
         "pop_crossf",
         "pop_timef",
+        "tf_cycle_calc",
         "timef",
         "timefreq",
+        "timewarp",
     }
     assert expected <= set(eegprep.__all__)
     for name in expected:
@@ -641,8 +741,12 @@ def test_timefreq_helpers_match_eeglab_deterministic_outputs(tmp_path):
                 'freqs', [5 20], 'ntimesout', 12, 'padratio', 2, 'verbose', 'off');
             [PP,baseln,mbase] = newtimefbaseln(P, time_values, 'baseline', [-200 0], ...
                 'basenorm', 'off', 'trialbase', 'off', 'verbose', 'off');
+            tw = timewarp([1 3 5], [1 2 5]);
+            aw = angtimewarp([1 3 5], [1 2 5], [0 pi/2 pi -pi/2 0]);
+            [calc_cycles, widths_table] = tf_cycle_calc('freqs', [10 20], 'width', 0.2, 'width_unit', 'fwhm_t');
             save('{_matlab_string(output)}', 'wav1', 'wav2', 'cycles', 'freqresol', 'timeresol', ...
-                'dft2wav1', 'dft2wav2', 'tf', 'freqs', 'times', 'PP', 'baseln', 'mbase');
+                'dft2wav1', 'dft2wav2', 'tf', 'freqs', 'times', 'PP', 'baseln', 'mbase', ...
+                'tw', 'aw', 'calc_cycles', 'widths_table');
             """,
             nargout=0,
         )
@@ -684,6 +788,16 @@ def test_timefreq_helpers_match_eeglab_deterministic_outputs(tmp_path):
     np.testing.assert_allclose(py_power, matlab["PP"], rtol=1e-12, atol=1e-12)
     np.testing.assert_array_equal(py_baseln + 1, np.asarray(matlab["baseln"], dtype=int).ravel())
     np.testing.assert_allclose(py_mbase, matlab["mbase"], rtol=1e-12, atol=1e-12)
+    np.testing.assert_allclose(timewarp([1, 3, 5], [1, 2, 5]), matlab["tw"], rtol=1e-12, atol=1e-12)
+    np.testing.assert_allclose(
+        angtimewarp([1, 3, 5], [1, 2, 5], [0, np.pi / 2, np.pi, -np.pi / 2, 0]),
+        np.asarray(matlab["aw"]).ravel(),
+        rtol=1e-12,
+        atol=1e-12,
+    )
+    cycle_result = tf_cycle_calc(freqs=[10, 20], width=0.2, width_unit="fwhm_t")
+    np.testing.assert_allclose(cycle_result.cycles, np.asarray(matlab["calc_cycles"]).ravel(), rtol=1e-12, atol=1e-12)
+    np.testing.assert_allclose(cycle_result.widths_table, matlab["widths_table"], rtol=1e-12, atol=1e-12)
 
 
 @pytest.mark.matlab
