@@ -19,6 +19,7 @@ from eegprep.functions.popfunc._pop_utils import (
     is_empty_value as _is_empty_value,
     parse_key_value_args,
 )
+from eegprep.functions.sigprocfunc.floatread import floatread
 from eegprep.functions.sigprocfunc.readlocs import readlocs
 
 
@@ -505,10 +506,16 @@ def _load_array_path(path: Path, *, dataformat: str = "auto") -> np.ndarray:
 
 
 def _load_matrix_file(path: Path, output: dict[str, Any], *, dataformat: str = "auto") -> np.ndarray:
-    nbchan = int(output.get("nbchan", 0) or 0) or None
-    matrix = np.asarray(load_data_array(path, dataformat=_resolved_dataformat(path, dataformat), nbchan=nbchan))
+    resolved_format = _resolved_dataformat(path, dataformat)
+    nbcol = int(np.asarray(output.get("icachansind", [])).size or output.get("nbchan", 0) or 0)
+    if resolved_format in {"float32le", "float32be"}:
+        values = np.asarray(floatread(path, [1, np.inf], resolved_format), dtype=float).reshape(-1)
+        if nbcol <= 0 or values.size % nbcol:
+            raise ValueError(f"pop_editset cannot infer matrix shape for {path}")
+        matrix = values.reshape(values.size // nbcol, nbcol, order="F")
+    else:
+        matrix = np.asarray(load_data_array(path, dataformat=resolved_format))
     if matrix.ndim == 1:
-        nbcol = int(np.asarray(output.get("icachansind", [])).size or output.get("nbchan", 0) or 0)
         if nbcol <= 0 or matrix.size % nbcol:
             raise ValueError(f"pop_editset cannot infer matrix shape for {path}")
         matrix = matrix.reshape(matrix.size // nbcol, nbcol)

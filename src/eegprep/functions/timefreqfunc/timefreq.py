@@ -129,6 +129,11 @@ def _as_channel_epoch_data(data: Any, *, frames: int | None) -> np.ndarray:
             raise ValueError("1-D data length must be a multiple of frames")
         return values.reshape(-1, frames).T.reshape(1, frames, -1)
     if values.ndim == 2:
+        if frames is not None and 1 in values.shape:
+            frames = int(frames)
+            if frames <= 0 or values.size % frames:
+                raise ValueError("single-channel 2-D data length must be a multiple of frames")
+            return values.reshape(-1).reshape(-1, frames).T.reshape(1, frames, -1)
         if values.shape[0] == 1:
             return values.reshape(1, values.shape[1], 1)
         if frames is not None:

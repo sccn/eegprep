@@ -185,6 +185,17 @@ def test_nonparametric_statcond_and_surrogdistrib_are_seeded():
     assert all(sample[0][0].shape == first.shape for sample in surrogates)
 
 
+def test_statcond_supplied_surrogates_return_alpha_ci_and_mask():
+    surrogate = np.array([[1.0, 2.0, 3.0, 4.0], [4.0, 5.0, 6.0, 7.0]])
+    observed = np.array([3.5, 7.5])
+
+    result = statcond([np.ones((2, 4)), np.ones((2, 4))], surrog=surrogate, stats=observed, alpha=0.25, tail="right")
+
+    npt.assert_allclose(result.pvalue, stat_surrogate_pvals(surrogate, observed, "right"))
+    npt.assert_allclose(result.ci, stat_surrogate_ci(surrogate, alpha=0.25, tail="upper"))
+    npt.assert_array_equal(result.mask, result.pvalue < 0.25)
+
+
 def test_nonparametric_two_way_statcond_matches_manual_surrogate_assembly():
     rng = np.random.default_rng(4)
     grid = (

@@ -13,9 +13,11 @@ def pop_writelocs(
     chans: Any,
     filename: str | Path | None = None,
     *args: Any,
+    return_com: bool = False,
     **kwargs: Any,
 ) -> str:
     """Write channel locations and return a replayable history command."""
+    _ = return_com
     if filename in (None, ""):
         return ""
     writelocs(chans, filename, *args, **kwargs)

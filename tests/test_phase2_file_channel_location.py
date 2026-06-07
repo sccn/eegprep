@@ -85,12 +85,13 @@ def test_readlocs_and_writelocs_round_trip_locs_and_ced(tmp_path: Path) -> None:
 
     writelocs(locs, loc_file)
     loaded, read_command = pop_readlocs(loc_file, return_com=True)
-    write_command = pop_writelocs(loaded, ced_file)
+    write_command = pop_writelocs(loaded, ced_file, return_com=True)
     reloaded = readlocs(ced_file)
 
     assert [loc["labels"] for loc in loaded] == ["Fz", "Cz"]
     assert loaded[0]["X"] == pytest.approx(np.sqrt(0.5))
     assert [loc["labels"] for loc in reloaded] == ["Fz", "Cz"]
+    assert "return_com" not in write_command
     _assert_parseable(read_command)
     _assert_parseable(write_command)
 

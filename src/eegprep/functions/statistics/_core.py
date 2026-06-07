@@ -595,7 +595,14 @@ def statcond(
         observed_df = None
         surrogate_stat = surrog
         pvalue = _surrogate_pvalues(surrogate_stat, observed_stat, tail)
-        return StatcondResult(observed_stat, observed_df, pvalue, surrogate_stat, method_name, paired_flag)
+        ci = None
+        mask = None
+        if alpha is not None:
+            ci = _surrogate_ci(surrogate_stat, alpha, _ci_tail(tail))
+            mask = _effect_map(pvalue, lambda value: value < alpha)
+        return StatcondResult(
+            observed_stat, observed_df, pvalue, surrogate_stat, method_name, paired_flag, ci=ci, mask=mask
+        )
 
     observed_stat, observed_df, statistic_kind = _compute_statistic(
         grid,
@@ -625,7 +632,7 @@ def statcond(
         if surrogate_stat is None:
             raise ValueError("alpha confidence intervals require a nonparametric method or supplied surrogates")
         empirical_tail = "one" if statistic_kind.startswith("f") else tail
-        ci = _surrogate_ci(surrogate_stat, alpha, empirical_tail)
+        ci = _surrogate_ci(surrogate_stat, alpha, _ci_tail(empirical_tail))
         mask = _effect_map(pvalue, lambda value: value < alpha)
 
     return StatcondResult(
@@ -940,6 +947,15 @@ def _surrogate_ci(surrogate: Any, alpha: float, tail: str) -> Any:
             stat_surrogate_ci(surrogate.interaction, alpha, tail),
         )
     return stat_surrogate_ci(surrogate, alpha, tail)
+
+
+def _ci_tail(tail: str) -> str:
+    tail_name = tail.lower()
+    if tail_name == "right":
+        return "upper"
+    if tail_name == "left":
+        return "lower"
+    return tail_name
 
 
 def _effect_map(effect: Any, func: Any) -> Any:

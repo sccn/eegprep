@@ -299,6 +299,23 @@ def test_pop_editset_loads_fdt_data_in_eeglab_column_order(tmp_path):
     assert out["pnts"] == 5
 
 
+def test_pop_editset_loads_non_square_ica_fdt_matrices_without_eeg_data_transpose(tmp_path):
+    eeg = _eeg()
+    eeg["nbchan"] = 4
+    eeg["icachansind"] = np.arange(4)
+    weights = np.arange(12, dtype=np.float32).reshape(3, 4)
+    sphere = np.arange(16, dtype=np.float32).reshape(4, 4) / 10.0
+    weights_file = tmp_path / "weights.fdt"
+    sphere_file = tmp_path / "sphere.fdt"
+    floatwrite(weights, weights_file, "ieee-le")
+    floatwrite(sphere, sphere_file, "ieee-le")
+
+    out = pop_editset(eeg, "icaweights", weights_file, "icasphere", sphere_file, "dataformat", "float32le")
+
+    np.testing.assert_array_equal(out["icaweights"], weights)
+    np.testing.assert_array_equal(out["icasphere"], sphere)
+
+
 def test_pop_editset_rejects_matlab_workspace_expressions():
     with pytest.raises(FileNotFoundError, match="data file not found"):
         pop_editset(_eeg(), "data", "raw.mat")

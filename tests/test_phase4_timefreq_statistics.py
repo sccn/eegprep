@@ -275,6 +275,27 @@ def test_timefreq_timestretch_ignores_duplicate_snaps_on_coarse_grid():
     assert np.isfinite(np.abs(result.tfdata)).all()
 
 
+def test_timefreq_frames_splits_single_channel_matrix_into_trials():
+    srate = 128
+    times = np.arange(128) / srate
+    trials = np.stack(
+        [
+            np.sin(2 * np.pi * 10 * times),
+            np.sin(2 * np.pi * 10 * times + 0.2),
+        ],
+        axis=1,
+    )
+    row_vector = trials.T.reshape(1, -1)
+
+    row_result = timefreq(row_vector, srate, frames=128, cycles=0, freqs=[5, 20], ntimesout=8, verbose="off")
+    column_result = timefreq(row_vector.T, srate, frames=128, cycles=0, freqs=[5, 20], ntimesout=8, verbose="off")
+    matrix_result = timefreq(trials, srate, frames=128, cycles=0, freqs=[5, 20], ntimesout=8, verbose="off")
+
+    assert row_result.tfdata.shape[-1] == column_result.tfdata.shape[-1] == matrix_result.tfdata.shape[-1] == 2
+    np.testing.assert_allclose(row_result.tfdata, matrix_result.tfdata, rtol=1e-12, atol=1e-12)
+    np.testing.assert_allclose(column_result.tfdata, matrix_result.tfdata, rtol=1e-12, atol=1e-12)
+
+
 def test_pop_newcrossf_channel_and_component_paths_are_replayable(sample_epoch, ica_epoch):
     result, command = pop_newcrossf(sample_epoch, 1, 1, 2, [-100, 200], [0], plot="off", return_com=True)
     component_result, component_command = pop_newcrossf(
