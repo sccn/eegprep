@@ -14,6 +14,12 @@ from eegprep.functions.guifunc.tf_cycle_calc_dialog import tf_cycle_calc_dialog_
 from eegprep.functions.popfunc.pop_chansel import pop_chansel
 from eegprep.functions.popfunc.pop_eegplot import pop_eegplot
 from eegprep.functions.sigprocfunc.eegplot import eegplot
+from eegprep.plugins.firfilt._filtering import FILTER_TYPES, WINDOW_TYPES, design_firma, design_firpm, design_firws
+from eegprep.plugins.firfilt._pop_common import numeric_or_none, vector_or_none
+from eegprep.plugins.firfilt.kaiserbeta import kaiserbeta
+from eegprep.plugins.firfilt.plotfresp import plotfresp
+from eegprep.plugins.firfilt.pop_firpmord import pop_firpmord
+from eegprep.plugins.firfilt.firwsord import firwsord
 from eegprep.functions.timefreqfunc.tf_cycle_calc import WIDTH_UNITS, tf_cycle_calc
 
 from .spec import CallbackSpec, ControlSpec, DialogSpec
@@ -436,6 +442,13 @@ class QtDialogRenderer:
             targets = [widgets[tag] for tag in params["targets"] if tag in widgets]
             source.toggled.connect(lambda checked: self._set_enabled(targets, checked))
             self._set_enabled(targets, source.isChecked())
+        elif callback.name == "toggle_index_enabled":
+            source = widgets[params["source"]]
+            targets = [widgets[tag] for tag in params["targets"] if tag in widgets]
+            source.currentIndexChanged.connect(
+                lambda index: self._set_enabled(targets, index + 1 == int(params["enabled_index"]))
+            )
+            self._set_enabled(targets, source.currentIndex() + 1 == int(params["enabled_index"]))
         elif callback.name == "select_interp_channels":
             button = widgets[params["button"]]
             target = widgets[params["target"]]
@@ -482,6 +495,22 @@ class QtDialogRenderer:
             source = widgets.get(params.get("button", "plot"))
             if source is not None:
                 source.clicked.connect(lambda: self._plot_tf_cycle_calc(source, widgets))
+        elif callback.name == "fir_kaiser_beta":
+            source = widgets.get(params.get("button"))
+            if source is not None:
+                source.clicked.connect(lambda: self._estimate_fir_kaiser_beta(source, widgets, params))
+        elif callback.name == "firws_order":
+            source = widgets.get(params.get("button"))
+            if source is not None:
+                source.clicked.connect(lambda: self._estimate_firws_order(source, widgets, params))
+        elif callback.name == "firpm_order":
+            source = widgets.get(params.get("button"))
+            if source is not None:
+                source.clicked.connect(lambda: self._estimate_firpm_order(source, widgets, params))
+        elif callback.name == "fir_response_plot":
+            source = widgets.get(params.get("button"))
+            if source is not None:
+                source.clicked.connect(lambda: self._plot_fir_response(source, widgets, params))
 
     @staticmethod
     def _accept_if_valid(dialog: Any, spec: DialogSpec, widgets: dict[str, Any]) -> None:
@@ -645,6 +674,28 @@ class QtDialogRenderer:
         return [float(value) for value in re.split(r"[\s,]+", cleaned) if value]
 
     @staticmethod
+    def _widget_number(widget: Any) -> float | None:
+        try:
+            return numeric_or_none(QtDialogRenderer._widget_text(widget))
+        except ValueError:
+            return None
+
+    @staticmethod
+    def _widget_vector(widget: Any) -> list[float] | None:
+        try:
+            return vector_or_none(QtDialogRenderer._widget_text(widget))
+        except ValueError:
+            return None
+
+    @staticmethod
+    def _combo_choice(widget: Any, values: tuple[str, ...], default: str) -> str:
+        if widget is not None and hasattr(widget, "currentIndex"):
+            index = int(widget.currentIndex())
+            if 0 <= index < len(values):
+                return values[index]
+        return default
+
+    @staticmethod
     def _is_int_text(value: str) -> bool:
         return bool(re.fullmatch(r"[+-]?\d+", value.strip()))
 
@@ -712,6 +763,130 @@ class QtDialogRenderer:
                 plot=True,
             )
         except (IndexError, ValueError) as exc:
+            qt_widgets.QMessageBox.warning(button, "Warning", str(exc))
+
+    @staticmethod
+    def _estimate_fir_kaiser_beta(button: Any, widgets: dict[str, Any], params: Mapping[str, Any]) -> None:
+        _qt_core, qt_widgets = _require_qt()
+        target = widgets.get(params.get("target", ""))
+        if target is None or not hasattr(target, "setText"):
+            return
+        dev_widget = widgets.get(params.get("dev", ""))
+        dev = QtDialogRenderer._widget_number(dev_widget)
+        if dev is None:
+            dev, accepted = qt_widgets.QInputDialog.getDouble(
+                button,
+                "Estimate Kaiser window beta",
+                "Max passband deviation/ripple:",
+                0.001,
+                1e-12,
+                1.0,
+                6,
+            )
+            if not accepted:
+                return
+        try:
+            beta = kaiserbeta(dev)
+        except ValueError as exc:
+            qt_widgets.QMessageBox.warning(button, "Warning", str(exc))
+            return
+        target.setText(f"{beta:g}")
+        if dev_widget is not None and hasattr(dev_widget, "setText"):
+            dev_widget.setText(f"{dev:g}")
+
+    @staticmethod
+    def _estimate_firws_order(button: Any, widgets: dict[str, Any], params: Mapping[str, Any]) -> None:
+        _qt_core, qt_widgets = _require_qt()
+        target = widgets.get(params.get("target", ""))
+        if target is None or not hasattr(target, "setText"):
+            return
+        srate = QtDialogRenderer._widget_number(widgets.get(params.get("srate", "")))
+        if srate is None:
+            srate = float(params.get("srate_value", 2))
+        wtype = QtDialogRenderer._combo_choice(widgets.get(params.get("wtype", "")), WINDOW_TYPES, "hamming")
+        dev_widget = widgets.get(params.get("dev", ""))
+        dev = QtDialogRenderer._widget_number(dev_widget)
+        df_widget = widgets.get(params.get("df", ""))
+        df = QtDialogRenderer._widget_number(df_widget)
+        if df is None:
+            df, accepted = qt_widgets.QInputDialog.getDouble(
+                button,
+                "Estimate filter order",
+                "Transition bandwidth (Hz):",
+                max(1.0, srate / 100),
+                1e-12,
+                srate / 2,
+                6,
+            )
+            if not accepted:
+                return
+        try:
+            order, out_dev = firwsord(wtype, srate, df, dev)
+        except ValueError as exc:
+            qt_widgets.QMessageBox.warning(button, "Warning", str(exc))
+            return
+        target.setText(str(int(order)))
+        if dev_widget is not None and hasattr(dev_widget, "setText") and out_dev is not None:
+            dev_widget.setText(f"{float(out_dev):g}")
+
+    @staticmethod
+    def _estimate_firpm_order(button: Any, widgets: dict[str, Any], params: Mapping[str, Any]) -> None:
+        _qt_core, qt_widgets = _require_qt()
+        fcutoff = QtDialogRenderer._widget_vector(widgets.get(params.get("fcutoff", "")))
+        ftrans = QtDialogRenderer._widget_number(widgets.get(params.get("ftrans", "")))
+        if not fcutoff or ftrans is None:
+            qt_widgets.QMessageBox.warning(button, "Warning", "Cutoff frequencies and transition width are required")
+            return
+        srate = QtDialogRenderer._widget_number(widgets.get(params.get("srate", "")))
+        if srate is None:
+            srate = float(params.get("srate_value", 2))
+        ftype = QtDialogRenderer._combo_choice(widgets.get(params.get("ftype", "")), FILTER_TYPES, "bandpass")
+        try:
+            edges, amplitudes = _firpm_order_shape(fcutoff, ftrans, ftype)
+            order, wtpass, wtstop = pop_firpmord(edges, amplitudes, _firpm_default_devs(amplitudes), srate)
+        except ValueError as exc:
+            qt_widgets.QMessageBox.warning(button, "Warning", str(exc))
+            return
+        for tag, value in (
+            (params.get("forder"), order),
+            (params.get("wtpass"), wtpass),
+            (params.get("wtstop"), wtstop),
+        ):
+            widget = widgets.get(tag or "")
+            if widget is not None and hasattr(widget, "setText"):
+                widget.setText(f"{float(value):g}")
+
+    @staticmethod
+    def _plot_fir_response(button: Any, widgets: dict[str, Any], params: Mapping[str, Any]) -> None:
+        _qt_core, qt_widgets = _require_qt()
+        design = str(params.get("design", "firws"))
+        srate = QtDialogRenderer._widget_number(widgets.get(params.get("srate", "")))
+        if srate is None:
+            srate = float(params.get("srate_value", 2))
+        try:
+            if design == "firpm":
+                b = design_firpm(
+                    srate,
+                    fcutoff=QtDialogRenderer._widget_vector(widgets.get("fcutoff")),
+                    ftrans=QtDialogRenderer._widget_number(widgets.get("ftrans")),
+                    ftype=QtDialogRenderer._combo_choice(widgets.get("ftype"), FILTER_TYPES, "bandpass"),
+                    forder=int(QtDialogRenderer._widget_number(widgets.get("forder")) or 0),
+                    wtpass=QtDialogRenderer._widget_number(widgets.get("wtpass")),
+                    wtstop=QtDialogRenderer._widget_number(widgets.get("wtstop")),
+                )
+            elif design == "firma":
+                b = design_firma(forder=int(QtDialogRenderer._widget_number(widgets.get("forder")) or 0))
+            else:
+                b = design_firws(
+                    srate,
+                    fcutoff=QtDialogRenderer._widget_vector(widgets.get("fcutoff")),
+                    forder=int(QtDialogRenderer._widget_number(widgets.get("forder")) or 0),
+                    ftype=QtDialogRenderer._combo_choice(widgets.get("ftype"), FILTER_TYPES, "bandpass"),
+                    wtype=QtDialogRenderer._combo_choice(widgets.get("wtype"), WINDOW_TYPES, "hamming"),
+                    warg=QtDialogRenderer._widget_number(widgets.get("warg")),
+                )
+            plotfresp(b, 1, fs=srate, dir="onepass-zerophase")
+        except ValueError as exc:
             qt_widgets.QMessageBox.warning(button, "Warning", str(exc))
 
     @staticmethod
@@ -1075,3 +1250,26 @@ def _is_sequence_value(value: Any) -> bool:
 
 def _format_numeric_vector(values: Any) -> str:
     return " ".join(f"{float(value):g}" for value in np.asarray(values, dtype=float).ravel())
+
+
+def _firpm_order_shape(fcutoff: list[float], ftrans: float, ftype: str) -> tuple[list[float], list[float]]:
+    cutoff = np.asarray(fcutoff, dtype=float).ravel()
+    transition = float(ftrans)
+    if cutoff.size == 0 or transition <= 0:
+        raise ValueError("Cutoff frequencies and transition width are required")
+    edges = np.sort(np.concatenate([cutoff - transition / 2, cutoff + transition / 2]))
+    if np.any(edges < 0):
+        raise ValueError("Cutoff frequencies - transition band width / 2 must not be < DC")
+    desired_by_type = {
+        "bandpass": [0, 1, 0],
+        "bandstop": [1, 0, 1],
+        "highpass": [0, 1],
+        "lowpass": [1, 0],
+    }
+    if ftype not in desired_by_type:
+        raise ValueError("Unknown filter type.")
+    return edges.tolist(), desired_by_type[ftype]
+
+
+def _firpm_default_devs(amplitudes: list[float]) -> list[float]:
+    return [0.01 if value == 1 else 0.001 for value in amplitudes]

@@ -107,6 +107,12 @@ EEGPrep supports the Riemannian ASR calibration variant through
 processing is not ported, so direct full-process requests fail clearly instead
 of silently substituting MATLAB-only behavior.
 
+``vis_artifacts(clean_eeg, original_eeg)`` opens an EEG browser with rejected
+sample intervals highlighted from ``clean_sample_mask``. Use
+``vis_artifacts(clean_eeg, original_eeg, show=False)`` to get rejected
+intervals, rejected fraction, removed channel labels, and the generated
+``winrej`` matrix without opening a GUI.
+
 Comprehensive Artifact Removal
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -180,6 +186,10 @@ Step 5: Filtering
 
 Apply frequency filtering to remove noise outside the frequency band of interest:
 
+EEGPrep includes standalone ports of the bundled FIRFilt plugin. The
+EEGLAB-style wrappers split continuous data at boundary events before
+filtering, clear stale ICA activations, and return replayable history commands.
+
 High-Pass Filtering
 ~~~~~~~~~~~~~~~~~~~
 
@@ -211,6 +221,35 @@ Apply both high-pass and low-pass filters:
 
     # Band-pass filter 1-100 Hz
     eeg = pop_eegfiltnew(eeg, locutoff=1, hicutoff=100)
+
+Windowed-Sinc FIRFilt Helpers
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Use the bundled FIRFilt helpers when you need EEGLAB FIRFilt order estimation,
+window selection, reports, response plots, or xfir export.
+
+.. code-block:: python
+
+    from eegprep import pop_firws, pop_firwsord, pop_kaiserbeta, pop_xfirws
+
+    beta = pop_kaiserbeta(0.001)
+    order = pop_firwsord("kaiser", eeg["srate"], 2, 0.001)
+    eeg = pop_firws(
+        eeg,
+        fcutoff=[1, 40],
+        ftype="bandpass",
+        wtype="kaiser",
+        warg=beta,
+        forder=order,
+    )
+    b, a = pop_xfirws(
+        srate=eeg["srate"],
+        fcutoff=[1, 40],
+        ftype="bandpass",
+        wtype="kaiser",
+        warg=beta,
+        forder=order,
+    )
 
 **Common filter settings**:
 

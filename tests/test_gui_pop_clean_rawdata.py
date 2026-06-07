@@ -8,6 +8,7 @@ from eegprep.plugins.clean_rawdata.pop_clean_rawdata import (
     pop_clean_rawdata,
     pop_clean_rawdata_dialog_spec,
 )
+from eegprep.plugins.clean_rawdata.vis_artifacts import vis_artifacts, vis_artifacts_diagnostics
 
 
 def _eeg(*, epoched=False):
@@ -144,15 +145,52 @@ class PopCleanRawdataGuiTests(unittest.TestCase):
                     np.zeros(2, dtype=bool),
                 ),
             ) as clean,
-            mock.patch("eegprep.plugins.clean_rawdata.pop_clean_rawdata.eegplot") as eegplot,
+            mock.patch("eegprep.plugins.clean_rawdata.pop_clean_rawdata.vis_artifacts") as artifacts,
         ):
             out, com = pop_clean_rawdata(eeg, gui=True, renderer=Renderer(), return_com=True)
 
         clean.assert_called_once()
-        eegplot.assert_called_once()
-        np.testing.assert_array_equal(eegplot.call_args.kwargs["winrej"][:, :2], [[11, 40]])
+        artifacts.assert_called_once()
+        shown, original = artifacts.call_args.args
+        np.testing.assert_array_equal(shown["etc"]["clean_sample_mask"][10:], np.zeros(30, dtype=bool))
+        self.assertEqual(original["pnts"], eeg["pnts"])
+        np.testing.assert_array_equal(original["data"], eeg["data"])
         self.assertEqual(out["setname"], "cleaned")
         self.assertNotIn("_show_vis_artifacts", com)
+
+    def test_vis_artifacts_diagnostics_summarizes_samples_and_channels(self):
+        old = _eeg()
+        new = dict(
+            old,
+            data=old["data"][:, :30],
+            pnts=30,
+            etc={
+                "clean_sample_mask": np.r_[np.ones(10, dtype=bool), np.zeros(5, dtype=bool), np.ones(25, dtype=bool)],
+                "clean_channel_mask": np.asarray([True, False]),
+            },
+        )
+
+        diag = vis_artifacts_diagnostics(new, old)
+
+        self.assertEqual(diag["original_samples"], 40)
+        self.assertEqual(diag["clean_samples"], 30)
+        self.assertEqual(diag["rejected_sample_count"], 5)
+        np.testing.assert_array_equal(diag["rejected_intervals"], [[11, 15]])
+        self.assertEqual(diag["removed_channel_indices"], [2])
+        self.assertEqual(diag["removed_channel_labels"], ["Pz"])
+        self.assertEqual(diag["winrej"].shape, (1, 7))
+
+    def test_vis_artifacts_can_return_diagnostics_without_opening_browser(self):
+        old = _eeg()
+        new = dict(
+            old,
+            etc={"clean_sample_mask": np.r_[np.zeros(3, dtype=bool), np.ones(37, dtype=bool)]},
+        )
+
+        diag = vis_artifacts(new, old, show=False)
+
+        np.testing.assert_array_equal(diag["rejected_intervals"], [[1, 3]])
+        self.assertEqual(diag["rejected_fraction"], 3 / 40)
 
     def test_string_channel_lists_use_matlab_cell_history(self):
         eeg = _eeg()

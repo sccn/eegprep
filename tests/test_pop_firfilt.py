@@ -16,7 +16,11 @@ from eegprep.plugins.firfilt._pop_common import bool_value
 from eegprep.plugins.firfilt.pop_eegfiltnew import pop_eegfiltnew
 from eegprep.plugins.firfilt.pop_firma import pop_firma
 from eegprep.plugins.firfilt.pop_firpm import pop_firpm
+from eegprep.plugins.firfilt.pop_firpmord import pop_firpmord
 from eegprep.plugins.firfilt.pop_firws import pop_firws
+from eegprep.plugins.firfilt.pop_firwsord import pop_firwsord
+from eegprep.plugins.firfilt.pop_kaiserbeta import pop_kaiserbeta
+from eegprep.plugins.firfilt.pop_xfirws import pop_xfirws
 
 try:
     from .fixtures import SAMPLE_DATASET_PATH, create_test_eeg
@@ -194,6 +198,93 @@ def test_bool_value_matches_eeglab_singleton_numeric_flags():
     assert bool_value(np.asarray([0])) is False
     assert bool_value([1]) is True
     assert bool_value("off") is False
+
+
+def test_pop_firws_logs_filter_report_and_can_plot_response(caplog, monkeypatch):
+    calls = []
+
+    def fake_plotfresp(coefficients, *args, **kwargs):
+        calls.append((coefficients, args, kwargs))
+        return object(), [], {}
+
+    monkeypatch.setattr("eegprep.plugins.firfilt.pop_firws.plotfresp", fake_plotfresp)
+    caplog.set_level("INFO", logger="eegprep.plugins.firfilt.pop_firws")
+
+    out, command = pop_firws(
+        _continuous_eeg(), fcutoff=30, forder=100, ftype="lowpass", plotfresp=True, return_com=True
+    )
+
+    assert out["data"].shape == (3, 600)
+    assert "'plotfresp', 1" in command
+    assert calls
+    assert any("pop_firws() - lowpass filtering data" in record.message for record in caplog.records)
+
+
+def test_pop_eegfiltnew_progress_output_mentions_transition_band(caplog):
+    caplog.set_level("INFO", logger="eegprep.plugins.firfilt.pop_eegfiltnew")
+
+    pop_eegfiltnew(_continuous_eeg(), hicutoff=30, filtorder=100, plotfreqz=False)
+
+    messages = "\n".join(record.message for record in caplog.records)
+    assert "pop_eegfiltnew() - performing 101 point lowpass filtering" in messages
+    assert "transition band width" in messages
+
+
+def test_pop_order_helpers_return_values_and_replayable_history():
+    beta, beta_command = pop_kaiserbeta(0.001, return_com=True)
+    order_result, order_command = pop_firwsord("kaiser", 500, 2, 0.001, return_dev=True, return_com=True)
+    pm_result, pm_command = pop_firpmord([0, 40, 48, 125], [1, 0], [0.01, 0.001], 250, return_com=True)
+
+    assert beta == pytest.approx(5.65326, abs=1e-10)
+    assert beta_command == "beta = pop_kaiserbeta(0.001);"
+    assert order_result == (908, pytest.approx(0.001))
+    assert order_command == "m = pop_firwsord('kaiser', 500, 2, 0.001);"
+    order, wtpass, wtstop = pm_result
+    assert order > 0
+    assert wtpass > 0
+    assert wtstop > 0
+    assert pm_command.startswith("[m, wtpass, wtstop] = pop_firpmord(")
+
+
+def test_pop_order_helpers_gui_results():
+    class KaiserRenderer:
+        def run(self, spec, initial_values=None):
+            return {"dev": "0.001"}
+
+    class FirwsRenderer:
+        def run(self, spec, initial_values=None):
+            return {"fs": "500", "wtype": 5, "df": "2", "dev": "0.001"}
+
+    beta = pop_kaiserbeta(gui=True, renderer=KaiserRenderer())
+    order, dev = pop_firwsord(gui=True, renderer=FirwsRenderer(), return_dev=True)
+
+    assert beta == pytest.approx(5.65326, abs=1e-10)
+    assert order == 908
+    assert dev == pytest.approx(0.001)
+
+
+def test_pop_xfirws_designs_and_exports_filter_file(tmp_path):
+    path = tmp_path / "demo.fir"
+
+    (b, a), command = pop_xfirws(
+        srate=250,
+        fcutoff=[1, 40],
+        ftype="bandpass",
+        wtype="hamming",
+        forder=100,
+        filename=path.name,
+        pathname=tmp_path,
+        return_com=True,
+    )
+
+    assert a == 1
+    assert b.shape == (101,)
+    assert path.is_file()
+    text = path.read_text()
+    assert "[fir design]" in text
+    assert "type    bandpass" in text
+    assert "[fir]" in text
+    assert "'filename', 'demo.fir'" in command
 
 
 @unittest.skipIf(os.getenv("EEGPREP_SKIP_MATLAB") == "1", "MATLAB not available")

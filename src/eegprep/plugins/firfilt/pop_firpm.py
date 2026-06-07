@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from eegprep.functions.guifunc.inputgui import inputgui
-from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
+from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.plugins.firfilt._filtering import FILTER_TYPES, apply_fir_filter, design_firpm
 from eegprep.plugins.firfilt._pop_common import (
+    bool_value,
     has_value,
     history_command,
     int_or_none,
@@ -15,6 +17,10 @@ from eegprep.plugins.firfilt._pop_common import (
     numeric_or_none,
     vector_or_none,
 )
+from eegprep.plugins.firfilt.plotfresp import plotfresp
+
+
+logger = logging.getLogger(__name__)
 
 
 def pop_firpm(
@@ -41,9 +47,12 @@ def pop_firpm(
         output = [pop_firpm(item, gui=False, **parsed) for item in EEG]
         command = history_command("pop_firpm", parsed)
         return (output, command) if return_com else output
-    design_options = {key: value for key, value in parsed.items() if key not in {"channels", "chantype"}}
+    design_options = {key: value for key, value in parsed.items() if key not in {"channels", "chantype", "plotfresp"}}
     b = design_firpm(float(EEG["srate"]), **design_options)
+    logger.info("pop_firpm() - filtering the data")
     output = apply_fir_filter(EEG, b, channels=parsed.get("channels"), chantype=parsed.get("chantype"))
+    if bool_value(parsed.get("plotfresp")):
+        plotfresp(b, 1, fs=float(EEG["srate"]), dir="onepass-zerophase")
     command = history_command("pop_firpm", parsed)
     return (output, command) if return_com else output
 
@@ -91,8 +100,19 @@ def pop_firpm_dialog_spec(_EEG: dict[str, Any]) -> DialogSpec:
                 "pushbutton",
                 "Estimate",
                 tag="orderpush",
-                enabled=False,
-                tooltip="Filter-order estimation is not yet implemented in EEGPrep.",
+                callback=CallbackSpec(
+                    "firpm_order",
+                    params={
+                        "button": "orderpush",
+                        "forder": "forder",
+                        "wtpass": "wtpass",
+                        "wtstop": "wtstop",
+                        "fcutoff": "fcutoff",
+                        "ftrans": "ftrans",
+                        "ftype": "ftype",
+                        "srate_value": float(_EEG.get("srate", 2)),
+                    },
+                ),
             ),
             ControlSpec("spacer"),
             ControlSpec("spacer"),
@@ -101,8 +121,10 @@ def pop_firpm_dialog_spec(_EEG: dict[str, Any]) -> DialogSpec:
                 "pushbutton",
                 "Plot filter responses",
                 tag="plotpush",
-                enabled=False,
-                tooltip="Filter-response plotting from this dialog is not yet implemented in EEGPrep.",
+                callback=CallbackSpec(
+                    "fir_response_plot",
+                    params={"button": "plotpush", "design": "firpm", "srate_value": float(_EEG.get("srate", 2))},
+                ),
             ),
         ),
     )
@@ -143,6 +165,8 @@ def _parsed_options(options: dict[str, Any]) -> dict[str, Any]:
         value = numeric_or_none(options.get(key))
         if value is not None:
             parsed[key] = value
+    if bool_value(options.get("plotfresp")):
+        parsed["plotfresp"] = True
     for key in ("channels", "chantype"):
         if has_value(options.get(key)):
             parsed[key] = options[key]

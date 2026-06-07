@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from eegprep.functions.guifunc.inputgui import inputgui
-from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
+from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.plugins.firfilt._filtering import apply_fir_filter, design_firma
-from eegprep.plugins.firfilt._pop_common import history_command, int_or_none, normalize_pop_options
+from eegprep.plugins.firfilt._pop_common import bool_value, history_command, int_or_none, normalize_pop_options
+from eegprep.plugins.firfilt.plotfresp import plotfresp
+
+
+logger = logging.getLogger(__name__)
 
 
 def pop_firma(
@@ -33,11 +38,17 @@ def pop_firma(
     if forder is None:
         raise ValueError("Not enough input arguments")
     parsed = {"forder": forder}
+    if bool_value(options.get("plotfresp")):
+        parsed["plotfresp"] = True
     if isinstance(EEG, list):
         output = [pop_firma(item, gui=False, **parsed) for item in EEG]
         command = history_command("pop_firma", parsed)
         return (output, command) if return_com else output
-    output = apply_fir_filter(EEG, design_firma(forder=forder))
+    b = design_firma(forder=forder)
+    logger.info("pop_firma() - filtering the data")
+    output = apply_fir_filter(EEG, b)
+    if bool_value(parsed.get("plotfresp")):
+        plotfresp(b, 1, fs=float(EEG["srate"]), dir="onepass-zerophase")
     command = history_command("pop_firma", parsed)
     return (output, command) if return_com else output
 
@@ -62,8 +73,11 @@ def pop_firma_dialog_spec(_EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec(
                 "pushbutton",
                 "Plot filter responses",
-                enabled=False,
-                tooltip="Filter-response plotting from this dialog is not yet implemented in EEGPrep.",
+                tag="plotpush",
+                callback=CallbackSpec(
+                    "fir_response_plot",
+                    params={"button": "plotpush", "design": "firma", "srate_value": float(_EEG.get("srate", 2))},
+                ),
             ),
         ),
     )

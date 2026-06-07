@@ -304,5 +304,24 @@
     <li>Focused tests cover direct time-warp matrices, angular wrapping, cycle-width conversion, replayable <code>pop_newtimef</code> time-warp history, console history recording, and dialog inventory.</li>
     <li>MATLAB parity coverage for <code>timewarp</code>, <code>angtimewarp</code>, and <code>tf_cycle_calc</code> is included behind the existing MATLAB skip behavior.</li>
   </ul>
+  <h1>Phase 2 clean_rawdata And FIRFilt Completion Notes</h1>
+  <h2>Design Decisions</h2>
+  <ul>
+    <li>Completed useful FIRFilt parity as native Python plugin surfaces: DC-padded FIR filtering, boundary splitting, report generation, frequency-response plotting, Kaiser/window/order helpers, and EEGLAB-named <code>pop_*</code> helper dialogs.</li>
+    <li>Kept clean_rawdata's supported ASR path standalone. Standard ASR remains the full processing path; <code>useriemannian='calib'</code> keeps the calibration-time Riemannian estimate, while full Manopt-backed processing raises a clear limitation instead of silently emulating MATLAB behavior.</li>
+    <li>Added <code>vis_artifacts</code> and <code>vis_artifacts_diagnostics</code> as EEGPrep-owned diagnostic surfaces and wired the <code>pop_clean_rawdata</code> visual checkbox to those packaged helpers.</li>
+    <li>Added packaged help resources and Sphinx API/user-guide entries for every new user-facing clean_rawdata and FIRFilt surface.</li>
+  </ul>
+  <h2>Deviations And Tradeoffs</h2>
+  <ul>
+    <li>EEGLAB's bundled Manopt library is not vendored into runtime behavior. The final parity matrix keeps full Riemannian ASR as an optional-dependency limitation until a tested Python manifold backend is selected.</li>
+    <li>FIRFilt frequency-response plotting uses Matplotlib and returns figure data in a Pythonic form rather than recreating MATLAB figure handles.</li>
+    <li>The FIRFilt helper dialogs are Qt/InputGUI specs with callback metadata for estimate and plot actions; they preserve EEGLAB-visible controls while sharing EEGPrep's existing dialog renderer.</li>
+  </ul>
+  <h2>Verification Notes</h2>
+  <ul>
+    <li>Focused coverage includes FIRFilt helper numerics, command-history wrappers, GUI dialog specs, pop_clean_rawdata diagnostics, visual parity manifest/script generation, and sample_data ASR regressions.</li>
+    <li>MATLAB-marked deterministic helper parity is included behind the existing MATLAB skip behavior. Runtime code remains independent of <code>src/eegprep/eeglab</code>.</li>
+  </ul>
 </body>
 </html>

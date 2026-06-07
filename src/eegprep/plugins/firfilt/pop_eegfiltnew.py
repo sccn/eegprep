@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from eegprep.functions.guifunc.inputgui import inputgui
@@ -16,6 +17,10 @@ from eegprep.plugins.firfilt._pop_common import (
     numeric_or_none,
     vector_or_none,
 )
+from eegprep.plugins.firfilt.plotfresp import plotfresp
+
+
+logger = logging.getLogger(__name__)
 
 
 def pop_eegfiltnew(
@@ -71,7 +76,7 @@ def pop_eegfiltnew(
         command = history_command("pop_eegfiltnew", command_options)
         return (output, command) if return_com else output
 
-    b, _metadata = design_eegfiltnew(
+    b, metadata = design_eegfiltnew(
         float(EEG["srate"]),
         locutoff=locutoff,
         hicutoff=hicutoff,
@@ -79,7 +84,13 @@ def pop_eegfiltnew(
         revfilt=revfilt,
         minphase=minphase,
     )
+    filter_type = _metadata_filter_type(metadata)
+    logger.info("pop_eegfiltnew() - performing %d point %s filtering.", b.size, filter_type)
+    logger.info("pop_eegfiltnew() - transition band width: %.4g Hz", metadata["df"])
     output = apply_fir_filter(EEG, b, channels=channels, chantype=chantype, causal=minphase, usefftfilt=usefftfilt)
+    if plotfreqz:
+        direction = "onepass-minphase" if minphase else "onepass-zerophase"
+        plotfresp(b, 1, fs=float(EEG["srate"]), dir=direction)
     command = history_command("pop_eegfiltnew", command_options)
     return (output, command) if return_com else output
 
@@ -171,3 +182,10 @@ def _command_options(**values: Any) -> dict[str, Any]:
         if value is not None:
             ordered[key] = value
     return ordered
+
+
+def _metadata_filter_type(metadata: dict[str, Any]) -> str:
+    cutoff = metadata["cutoff"]
+    if len(cutoff) == 1:
+        return "highpass" if metadata["revfilt"] else "lowpass"
+    return "bandstop" if metadata["revfilt"] else "bandpass"
