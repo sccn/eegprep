@@ -11,7 +11,7 @@ from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc._plot_utils import numeric_vector
 from eegprep.functions.popfunc._pop_utils import parse_key_value_args
 from eegprep.functions.popfunc.eeg_interp import eeg_interp
-from eegprep.functions.studyfunc._study_utils import as_alleeg_list, build_python_call, ensure_study
+from eegprep.functions.studyfunc._study_utils import as_alleeg_list, build_python_call, ensure_study, merged_chanlocs
 from eegprep.functions.studyfunc.std_checkset import std_checkset
 
 
@@ -34,8 +34,9 @@ def std_interp(
     study, datasets = std_checkset(ensure_study(STUDY), as_alleeg_list(ALLEEG))
     if not datasets:
         raise ValueError("std_interp requires ALLEEG datasets")
-    all_locs = _merged_chanlocs(datasets)
+    all_locs = merged_chanlocs(datasets)
     requested_locs = _target_locs(all_locs, chans)
+    requested_labels = [str(loc.get("labels") or "") for loc in requested_locs]
     if not requested_locs:
         raise ValueError("std_interp requires channel locations to interpolate")
     updated = []
@@ -53,7 +54,7 @@ def std_interp(
         updated.append(interpolated)
         changed.append(index)
     study.setdefault("etc", {}).setdefault("eegprep", {})["std_interp"] = {
-        "channels": [str(loc.get("labels") or "") for loc in target_locs],
+        "channels": requested_labels,
         "method": method,
         "changed_datasets": changed,
     }
@@ -67,20 +68,6 @@ def std_interp(
         method=method,
     )
     return (study, updated, command) if return_com else (study, updated)
-
-
-def _merged_chanlocs(datasets: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    merged: list[dict[str, Any]] = []
-    seen: set[str] = set()
-    for eeg in datasets:
-        for loc in chanlocs_as_list(eeg.get("chanlocs")):
-            label = str(loc.get("labels") or "")
-            key = label.lower() if label else repr(loc)
-            if key in seen:
-                continue
-            seen.add(key)
-            merged.append(deepcopy(loc))
-    return merged
 
 
 def _target_locs(locs: list[dict[str, Any]], chans: Any) -> list[dict[str, Any]]:

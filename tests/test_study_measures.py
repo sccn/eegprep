@@ -535,6 +535,7 @@ def test_std_interp_adds_requested_missing_channels_without_dropping_existing():
 
     assert interpolated[1]["data"].shape[0] == 3
     assert [loc["labels"] for loc in interpolated[1]["chanlocs"]] == ["Ch1", "Ch2", "Ch3"]
+    assert study["etc"]["eegprep"]["std_interp"]["channels"] == ["Ch3"]
     assert study["etc"]["eegprep"]["std_interp"]["changed_datasets"] == [2]
     assert command.startswith("STUDY, ALLEEG = std_interp(")
     assert eegprep.std_interp is std_interp

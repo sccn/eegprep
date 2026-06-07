@@ -7,10 +7,9 @@ from typing import Any
 
 import numpy as np
 
-from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc._plot_utils import numeric_vector
 from eegprep.functions.popfunc._pop_utils import is_on, parse_key_value_args
-from eegprep.functions.studyfunc._study_utils import as_alleeg_list, build_python_call, ensure_study
+from eegprep.functions.studyfunc._study_utils import as_alleeg_list, build_python_call, ensure_study, merged_chanlocs
 from eegprep.functions.studyfunc.std_checkset import std_checkset
 
 
@@ -40,7 +39,7 @@ def std_prepare_neighbors(
         return _neighbor_result(study, neighbors, limostruct, "", return_com=return_com)
     if method not in {"distance", "triangulation"}:
         raise NotImplementedError("std_prepare_neighbors supports standalone distance-based neighbors")
-    locs = _select_locs(_merged_chanlocs(datasets), channels)
+    locs = _select_locs(merged_chanlocs(datasets), channels)
     if not locs:
         raise ValueError("std_prepare_neighbors requires channel locations")
     coordinates = _coordinates(locs)
@@ -94,20 +93,6 @@ def _study_requests_neighbors(study: dict[str, Any]) -> bool:
         and str(fieldtrip.get("mcorrect", "")).lower() == "cluster"
         and (is_on(statistics.get("groupstats")) or is_on(statistics.get("condstats")))
     )
-
-
-def _merged_chanlocs(datasets: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    merged: list[dict[str, Any]] = []
-    seen: set[str] = set()
-    for eeg in datasets:
-        for loc in chanlocs_as_list(eeg.get("chanlocs")):
-            label = str(loc.get("labels") or "")
-            key = label.lower() if label else repr(loc)
-            if key in seen:
-                continue
-            seen.add(key)
-            merged.append(deepcopy(loc))
-    return merged
 
 
 def _select_locs(locs: list[dict[str, Any]], channels: Any) -> list[dict[str, Any]]:

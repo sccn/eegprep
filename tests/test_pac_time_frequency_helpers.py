@@ -23,18 +23,24 @@ from tests.fixtures import create_test_eeg
 
 
 def test_pac_computes_frequency_pair_grid_for_epoched_data():
-    amp, phase, srate = _coupled_trials()
+    amp, phase, srate = _coupled_trials(n_samples=256)
 
-    result = pac(amp, phase, srate, freqs=[20, 40], freqs2=[4, 8], nfreqs=4, ntimesout=8)
-    corr = pac(amp, phase, srate, freqs=[20, 40], freqs2=[4, 8], nfreqs=4, ntimesout=8, method="corrsin")
+    result = pac(amp, phase, srate, freqs=[20, 40], freqs2=[4, 8], nfreqs=5, ntimesout=8)
+    corr = pac(amp, phase, srate, freqs=[20, 40], freqs2=[4, 8], nfreqs=5, ntimesout=8, method="corrsin")
 
     assert isinstance(result, PacResult)
-    assert result.pac.shape == (4, 2, 8)
+    assert result.pac.shape == (5, 3, 8)
     assert result.times.size == 8
     assert np.iscomplexobj(result.pac)
     assert np.isfinite(np.abs(result.pac)).all()
     assert corr.pac.shape == result.pac.shape
     assert not np.iscomplexobj(corr.pac)
+    amp_index = int(np.argmin(np.abs(result.freqs1 - 30.0)))
+    phase_index = int(np.argmin(np.abs(result.freqs2 - 6.0)))
+    edge_amp_index = int(np.argmin(np.abs(result.freqs1 - 20.0)))
+    coupled = np.abs(result.pac[amp_index, phase_index]).mean()
+    uncoupled_amp = np.abs(result.pac[edge_amp_index, phase_index]).mean()
+    assert coupled > 5 * uncoupled_amp
     assert eegprep.pac is pac
 
 
@@ -166,9 +172,9 @@ def test_std_readpac_rejects_missing_or_malformed_pac_caches():
         std_readpac(study, alleeg, clusters=1, unsupported="on")
 
 
-def _coupled_trials():
+def _coupled_trials(n_samples: int = 128):
     srate = 128
-    times = np.arange(128) / srate
+    times = np.arange(n_samples) / srate
     phase = np.column_stack(
         [
             np.sin(2 * np.pi * 6 * times),
