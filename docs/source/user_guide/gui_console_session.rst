@@ -84,10 +84,10 @@ What Stays Synchronized
    * - ``STUDY`` and ``CURRENTSTUDY``
      - Current group-analysis state.
      - Study menu actions and study ``pop_*`` calls update the shared session.
-   * - ``PLUGINLIST``
+   * - ``session.PLUGINLIST``
      - Bundled and installed extension inventory.
-     - Extension Manager and plugin registry calls read the same runtime
-       registry.
+     - Extension Manager and plugin registry calls store the inventory on the
+       shared session object.
 
 How EEGPrep Implements It
 =========================
@@ -165,4 +165,3 @@ If the GUI and console do not show what you expect, inspect:
 If a menu item is disabled, the current dataset or STUDY probably lacks the
 fields that workflow needs. For example, component-review menus need ICA fields,
 and Study plotting menus need an active ``STUDY`` with precomputed measures.
-

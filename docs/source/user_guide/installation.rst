@@ -298,10 +298,10 @@ Getting Help
 
 If you encounter issues not covered here:
 
-1. Check the `FAQ <faq.rst>`_ section
-2. Review the `Common Issues <common_issues.rst>`_ guide
+1. Check the :doc:`../faq` section
+2. Review the troubleshooting sections in this installation guide and FAQ
 3. Visit the `GitHub Issues <https://github.com/sccn/eegprep/issues>`_ page
-4. Check the `API Documentation <../api/index.rst>`_
+4. Check the :doc:`../api/index`
 
 Next Steps
 ==========
