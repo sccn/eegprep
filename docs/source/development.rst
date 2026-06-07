@@ -308,13 +308,22 @@ Building Documentation
 Build HTML Documentation
 ------------------------
 
-Navigate to the docs directory and build:
+Sync the docs extra, then build with the same command used by the Phase 7
+acceptance criteria:
+
+.. code-block:: bash
+
+    uv sync --group dev --extra docs
+    uv run --no-sync sphinx-build -b html docs/source docs/_build/html
+
+The ``docs/Makefile`` target remains available for local iteration:
 
 .. code-block:: bash
 
     uv run make -C docs html
 
-The built documentation is in ``docs/build/html/``.
+The direct Sphinx command writes to ``docs/_build/html/``. The Makefile target
+writes to ``docs/build/html/``.
 
 View Documentation Locally
 ---------------------------

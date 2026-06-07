@@ -14,8 +14,3 @@
    .. autosummary::
 
       ~EEGobj.__init__
-
-
-
-
-

@@ -40,15 +40,31 @@ The console starts with EEGLAB-style workspace names already defined:
    CURRENTSTUDY
 
 Actions taken in the GUI update these names in the console. Commands run in the
-console update the same GUI session. For example:
+console update the same GUI session.
+
+Sample Data Walkthrough
+=======================
+
+Start the console and load the tutorial dataset from the GUI with
+``File > Load existing dataset``. Select ``sample_data/eeglab_data.set``. Then
+inspect the shared state:
 
 .. code-block:: python
 
-   pop_reref(EEG, [])
+   EEG["setname"]
+   EEG["data"].shape
+   CURRENTSET
+   LASTCOM
 
-updates the current dataset, refreshes the GUI, and appends the returned command
-to ``ALLCOM``. The console-local ``eegprep`` object wraps ``pop_*`` functions
-the same way, so this also updates the shared session:
+Now run a preprocessing step from the console:
+
+.. code-block:: python
+
+   pop_resample(EEG, 64)
+
+The current dataset is stored back into the session, the GUI refreshes, and the
+returned command is appended to ``ALLCOM``. The console-local ``eegprep`` object
+wraps ``pop_*`` functions the same way, so this also updates the shared session:
 
 .. code-block:: python
 
@@ -62,6 +78,27 @@ Assignment-style calls also work:
 
 This console behavior is specific to ``eegprep-console``. Normal Python imports
 keep standard Python semantics, where returned values must be assigned manually.
+
+History Replay
+==============
+
+Use ``LASTCOM`` for the most recent menu or console command and ``ALLCOM`` for
+the ordered session history:
+
+.. code-block:: python
+
+   print(LASTCOM)
+   for command in ALLCOM[-5:]:
+       print(command)
+
+When you move commands into a script, keep the explicit assignment:
+
+.. code-block:: python
+
+   EEG, com = pop_resample(EEG, 64, return_com=True)
+
+GUI Help, STUDY, and Extensions
+===============================
 
 Help and admin menu actions use the same shared session. For example, loading
 or creating a STUDY from the GUI updates ``STUDY`` and ``CURRENTSTUDY`` in the

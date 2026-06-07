@@ -6,6 +6,37 @@
 </head>
 <body>
   <h1>EEGPrep Core Parity Implementation Notes</h1>
+  <h1>Issue #164 EEGLAB-Style Sphinx Documentation Notes</h1>
+  <p>Issue #164 turns the final-epic documentation into a coherent standalone
+  EEGPrep manual modeled after EEGLAB's learning path but written for Python,
+  the Qt GUI, <code>eegprep-console</code>, and EEGPrep-owned packaged
+  resources.</p>
+  <h2>Issue #164 Design Decisions</h2>
+  <ul>
+    <li>Reorganized the docs around user workflows rather than API categories:
+    quickstart, concepts, GUI tutorials, console history, scripting, MNE
+    interoperability, preprocessing, ICLabel review, EEGBrowser, STUDY, bundled
+    plugins, extension authoring, and EEGLAB migration.</li>
+    <li>Kept tutorial examples grounded in checked-in <code>sample_data</code>
+    files where possible, and used explicit <code>return_com=True</code>
+    examples to teach history replay.</li>
+    <li>Added a complete public <code>pop_*</code> API index plus missing
+    packaged help topics for <code>pop_chansel</code>,
+    <code>pop_load_frombids</code>, and <code>pop_loadset_h5</code>.</li>
+    <li>Improved Sphinx presentation through the existing pydata theme and
+    local CSS rather than adding a new docs framework or external runtime
+    dependency.</li>
+  </ul>
+  <h2>Issue #164 Tradeoffs</h2>
+  <ul>
+    <li>Docs describe implemented EEGPrep behavior and explicit backend limits;
+    they do not promise MATLAB-only LIMO, FieldTrip STUDY source statistics,
+    MRI BEM creation, AFNI atlas clipping, or unavailable ICLabel network
+    artifacts as standalone features.</li>
+    <li>Examples avoid executing heavy ICA/source workflows in the docs build,
+    but the manual points to sample-data paths and current public APIs so users
+    can run the workflows interactively.</li>
+  </ul>
   <h1>Issue #163 ICLabel/Viewprops Diagnostic Parity Notes</h1>
   <p>Issue #163 closes the Phase 6 final-epic ICLabel/viewprops rows by adding
   standalone label statistics, making alternate network support explicit, and

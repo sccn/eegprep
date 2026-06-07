@@ -15,6 +15,7 @@ This section contains the complete API documentation for eegprep. The API is org
    signal_processing
    statistics
    io
+   pop_functions
    extensions
    utils
 

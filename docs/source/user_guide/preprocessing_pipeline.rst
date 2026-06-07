@@ -4,609 +4,254 @@
 Preprocessing Pipeline
 ======================
 
-This guide provides a comprehensive overview of the eegprep preprocessing pipeline, including the order of operations, parameter tuning, and quality control.
+This page describes a practical EEGLAB-style preprocessing order in EEGPrep.
+It is not a mandatory recipe for every experiment. Adapt thresholds and review
+steps to your data, task, and lab standards.
 
-Pipeline Overview
+Recommended Order
 =================
 
-The eegprep preprocessing pipeline is designed to systematically clean and prepare raw EEG data for analysis. The pipeline removes artifacts, interpolates bad channels, resamples data, applies filtering, performs ICA decomposition, and classifies independent components.
+.. raw:: html
 
-Key Features:
+   <div class="eegprep-path">
+     <p>Load data and verify channel locations, sampling rate, events, and data
+     shape.</p>
+     <p>Select or remove channels that should not enter EEG cleaning.</p>
+     <p>Filter or clean continuous data before epoching.</p>
+     <p>Resample when lower sampling rate is appropriate for the analysis.</p>
+     <p>Run ICA on cleaned continuous or appropriate epoched data.</p>
+     <p>Classify and inspect components with ICLabel and property dashboards.</p>
+     <p>Epoch, reject, baseline correct, and save reviewed datasets.</p>
+   </div>
 
-- **Automated artifact detection and removal**: Identifies and removes noisy channels and time windows
-- **Flexible component classification**: Uses ICLabel for automatic ICA component classification
-- **Customizable parameters**: Adjust thresholds and methods for your specific needs
-- **Quality control**: Built-in checks and visualizations to assess preprocessing quality
-- **Batch processing**: Process multiple subjects efficiently with :func:`eegprep.bids_preproc`
-
-Pipeline Steps
-==============
-
-The preprocessing pipeline follows these steps in order:
-
-1. Channel Selection
-2. Artifact Removal (ASR and clean_artifacts)
-3. Channel Interpolation
-4. Resampling
-5. Filtering
-6. ICA Decomposition
-7. Component Classification (ICLabel)
-
-Step 1: Channel Selection
--------------------------
-
-Select the channels to include in preprocessing:
+Start From Sample Data
+======================
 
 .. code-block:: python
 
-    from eegprep import pop_select
+   from pathlib import Path
+   from eegprep import pop_loadset
 
-    # Select only EEG channels
-    eeg = pop_select(eeg, 'type', 'EEG')
+   EEG = pop_loadset(Path("sample_data") / "eeglab_data.set")
+   print(EEG["data"].shape, EEG["srate"], len(EEG["event"]))
 
-    # Select specific channels by name
-    eeg = pop_select(eeg, 'channel', ['Cz', 'Pz', 'Oz', 'Fz'])
+Select Data and Channels
+========================
 
-    # Remove specific channels
-    eeg = pop_select(eeg, 'nochannel', ['HEOG', 'VEOG'])
-
-**When to use**: Always perform channel selection first to ensure you're working with the correct data.
-
-Step 2: Artifact Removal
-------------------------
-
-Remove noisy channels and time windows using multiple methods:
-
-Flatline Detection
-~~~~~~~~~~~~~~~~~~
-
-Remove channels with no variation (dead channels):
+Use ``pop_select`` for user-facing channel, point, time, trial, and event
+selection:
 
 .. code-block:: python
 
-    from eegprep import clean_flatlines
+   from eegprep import pop_select
 
-    eeg = clean_flatlines(
-        eeg,
-        flatline_criterion=5  # Flatline duration in seconds
-    )
+   EEG, com = pop_select(EEG, channel=[1, 2, 3, 4, 5], return_com=True)
 
-Noisy Channel Removal
-~~~~~~~~~~~~~~~~~~~~~
+GUI path: ``Edit > Select data``. Channel/component values in GUI dialogs are
+EEGLAB-facing one-based values.
 
-Remove channels with excessive noise:
+Filter
+======
 
-.. code-block:: python
-
-    from eegprep import clean_channels
-
-    eeg = clean_channels(
-        eeg,
-        ransac_criterion=0.8,  # RANSAC correlation threshold
-        max_broken_time=0.5    # Max proportion of broken time
-    )
-
-Artifact Subspace Reconstruction (ASR)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Remove bursts of high-amplitude artifacts:
+The usual FIR filtering entry point is ``pop_eegfiltnew``:
 
 .. code-block:: python
 
-    from eegprep import clean_asr
+   from eegprep import pop_eegfiltnew
 
-    eeg = clean_asr(
-        eeg,
-        asr_criterion=20,      # Standard deviation threshold
-        asr_wlen=0.5           # Window length in seconds
-    )
+   EEG, com = pop_eegfiltnew(
+       EEG,
+       locutoff=1.0,
+       hicutoff=40.0,
+       plotfreqz=False,
+       return_com=True,
+   )
+
+GUI path: ``Tools > Filter the data``. The wrapper uses bundled FIRFilt-style
+Hamming-window defaults, respects continuous-data boundary events, clears stale
+ICA activations, and returns a replayable history command.
+
+Use FIRFilt helpers for custom filter design:
+
+.. code-block:: python
+
+   from eegprep import pop_firws, pop_firwsord, pop_kaiserbeta
+
+   beta = pop_kaiserbeta(0.001)
+   order = pop_firwsord("kaiser", EEG["srate"], 2, 0.001)
+   EEG, com = pop_firws(
+       EEG,
+       fcutoff=[1, 40],
+       ftype="bandpass",
+       wtype="kaiser",
+       warg=beta,
+       forder=order,
+       return_com=True,
+   )
+
+Clean Continuous Data
+=====================
+
+Use ``pop_clean_rawdata`` when you want the EEGLAB-style GUI wrapper and
+history string:
+
+.. code-block:: python
+
+   from eegprep import pop_clean_rawdata
+
+   EEG, com = pop_clean_rawdata(
+       EEG,
+       FlatlineCriterion=5,
+       ChannelCriterion=0.8,
+       LineNoiseCriterion=4,
+       Highpass=(0.25, 0.75),
+       BurstCriterion=20,
+       WindowCriterion=0.25,
+       return_com=True,
+   )
+
+Use ``clean_artifacts`` when you need lower-level state outputs:
+
+.. code-block:: python
+
+   from eegprep import clean_artifacts
+
+   clean_eeg, highpass_state, burst_state, removed_channels = clean_artifacts(
+       EEG,
+       FlatlineCriterion=5,
+       ChannelCriterion=0.8,
+       LineNoiseCriterion=4,
+       Highpass=(0.25, 0.75),
+       BurstCriterion=20,
+       WindowCriterion=0.25,
+   )
+
+``clean_artifacts`` returns four values. Scripts that only need the cleaned EEG
+should use the first value or call ``pop_clean_rawdata``.
+
+Riemannian ASR Notes
+====================
 
 EEGPrep supports the Riemannian ASR calibration variant through
-``clean_asr(eeg, useriemannian="calib")`` and
-``clean_artifacts(eeg, Distance="Riemannian")``. Full Riemannian ASR
+``clean_asr(EEG, useriemannian="calib")`` and
+``clean_artifacts(EEG, Distance="Riemannian")``. Full Riemannian ASR
 processing is not ported, so direct full-process requests fail clearly instead
 of silently substituting MATLAB-only behavior.
 
+Review Rejected Segments
+========================
+
 ``vis_artifacts(clean_eeg, original_eeg)`` opens an EEG browser with rejected
 sample intervals highlighted from ``clean_sample_mask``. Use
-``vis_artifacts(clean_eeg, original_eeg, show=False)`` to get rejected
-intervals, rejected fraction, removed channel labels, and the generated
-``winrej`` matrix without opening a GUI.
-
-Comprehensive Artifact Removal
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Use the all-in-one :func:`eegprep.clean_artifacts` function:
+``show=False`` when scripting diagnostics:
 
 .. code-block:: python
 
-    from eegprep import clean_artifacts
+   from eegprep import vis_artifacts
 
-    eeg = clean_artifacts(
-        eeg,
-        flatline_criterion=5,
-        highpass=1,
-        lowpass=100,
-        asr_criterion=20,
-        asr_wlen=0.5,
-        remove_channels=True,
-        remove_windows=True
-    )
+   diagnostics = vis_artifacts(clean_eeg, EEG, show=False)
+   print(diagnostics["rejected_fraction"])
 
-**Parameters**:
+Resample
+========
 
-- ``flatline_criterion``: Duration (seconds) of flatline to detect (default: 5)
-- ``asr_criterion``: Standard deviation threshold for ASR (default: 20)
-- ``asr_wlen``: Window length for ASR in seconds (default: 0.5)
-- ``highpass``: High-pass filter frequency in Hz (default: 1)
-- ``lowpass``: Low-pass filter frequency in Hz (default: 100)
-
-Step 3: Channel Interpolation
-------------------------------
-
-Interpolate removed channels using spherical spline interpolation:
+Resample after early cleaning/filtering when a lower sampling rate is
+appropriate:
 
 .. code-block:: python
 
-    from eegprep import eeg_interp
+   from eegprep import pop_resample
 
-    # Interpolate removed channels
-    eeg = eeg_interp(eeg)
+   EEG, com = pop_resample(EEG, 64, return_com=True)
 
-    # Interpolate specific channels
-    eeg = eeg_interp(eeg, channels=[1, 5, 10])
+GUI path: ``Tools > Change sampling rate``. Continuous data with boundary
+events is resampled by segment. Event latencies and the time vector are updated.
 
-**When to use**: After removing noisy channels, interpolate them to maintain spatial coverage.
-
-Step 4: Resampling
-------------------
-
-Resample data to a lower sampling rate to reduce file size and computation:
-
-.. code-block:: python
-
-    from eegprep import pop_resample
-
-    # Resample to 250 Hz
-    eeg = pop_resample(eeg, 250)
-
-    # Resample to 500 Hz
-    eeg = pop_resample(eeg, 500)
-
-**Common sampling rates**:
-
-- 250 Hz: Standard for most EEG analysis
-- 500 Hz: Higher resolution for detailed analysis
-- 100 Hz: Lower resolution for quick analysis
-
-**When to use**: Resample early in the pipeline to reduce computation time for subsequent steps.
-
-Step 5: Filtering
------------------
-
-Apply frequency filtering to remove noise outside the frequency band of interest:
-
-EEGPrep includes standalone ports of the bundled FIRFilt plugin. The
-EEGLAB-style wrappers split continuous data at boundary events before
-filtering, clear stale ICA activations, and return replayable history commands.
-
-High-Pass Filtering
-~~~~~~~~~~~~~~~~~~~
-
-Remove slow drifts and DC offset:
-
-.. code-block:: python
-
-    from eegprep import pop_eegfiltnew
-
-    # High-pass filter at 1 Hz
-    eeg = pop_eegfiltnew(eeg, locutoff=1)
-
-Low-Pass Filtering
-~~~~~~~~~~~~~~~~~~
-
-Remove high-frequency noise:
-
-.. code-block:: python
-
-    # Low-pass filter at 100 Hz
-    eeg = pop_eegfiltnew(eeg, hicutoff=100)
-
-Band-Pass Filtering
-~~~~~~~~~~~~~~~~~~~
-
-Apply both high-pass and low-pass filters:
-
-.. code-block:: python
-
-    # Band-pass filter 1-100 Hz
-    eeg = pop_eegfiltnew(eeg, locutoff=1, hicutoff=100)
-
-Windowed-Sinc FIRFilt Helpers
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Use the bundled FIRFilt helpers when you need EEGLAB FIRFilt order estimation,
-window selection, reports, response plots, or xfir export.
-
-.. code-block:: python
-
-    from eegprep import pop_firws, pop_firwsord, pop_kaiserbeta, pop_xfirws
-
-    beta = pop_kaiserbeta(0.001)
-    order = pop_firwsord("kaiser", eeg["srate"], 2, 0.001)
-    eeg = pop_firws(
-        eeg,
-        fcutoff=[1, 40],
-        ftype="bandpass",
-        wtype="kaiser",
-        warg=beta,
-        forder=order,
-    )
-    b, a = pop_xfirws(
-        srate=eeg["srate"],
-        fcutoff=[1, 40],
-        ftype="bandpass",
-        wtype="kaiser",
-        warg=beta,
-        forder=order,
-    )
-
-**Common filter settings**:
-
-- **Resting state**: 1-100 Hz
-- **Event-related potentials (ERP)**: 0.1-30 Hz
-- **Oscillatory analysis**: 1-100 Hz
-- **High-frequency activity**: 1-200 Hz
-
-**When to use**: Apply filtering after resampling but before ICA for best results.
-
-Step 6: ICA Decomposition
--------------------------
-
-Decompose the data into independent components:
-
-Using Picard Algorithm
-~~~~~~~~~~~~~~~~~~~~~~
-
-Fast and reliable ICA decomposition:
-
-.. code-block:: python
-
-    from eegprep import eeg_picard
-
-    eeg = eeg_picard(
-        eeg,
-        ncomps=None,  # Number of components (None = number of channels)
-        max_iter=500  # Maximum iterations
-    )
-
-Using Extended Infomax ICA
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Alternative ICA algorithm:
-
-.. code-block:: python
-
-    from eegprep import eeg_picard
-
-    # Picard is recommended, but you can adjust parameters
-    eeg = eeg_picard(eeg, ncomps=eeg.nbchan)
-
-**Parameters**:
-
-- ``ncomps``: Number of components to extract (default: number of channels)
-- ``max_iter``: Maximum iterations (default: 500)
-
-**When to use**: After filtering, before component classification.
-
-Using AMICA
-~~~~~~~~~~~
-
-AMICA is supported through an external executable. EEGPrep packages do not ship
-AMICA binaries; set ``AMICA_BINARY``, put the executable on ``PATH``, or pass
-``amica_binary`` explicitly.
-
-.. code-block:: python
-
-    from eegprep import eeg_amica
-
-    eeg = eeg_amica(
-        eeg,
-        amica_binary="/path/to/amica15ub",
-        max_iter=500,
-    )
-
-Step 7: Component Classification (ICLabel)
--------------------------------------------
-
-Automatically classify ICA components using ICLabel:
-
-.. code-block:: python
-
-    from eegprep import eeg_icalabelstat, pop_iclabel, pop_viewprops
-
-    eeg = pop_iclabel(eeg, 'default')
-
-    # Access component labels and probability matrix
-    labels = eeg['etc']['ic_classification']['ICLabel']['classes']
-    probabilities = eeg['etc']['ic_classification']['ICLabel']['classifications']
-    print(labels)
-    print(probabilities)
-
-    # Review threshold-count summaries and diagnostic displays
-    stats = eeg_icalabelstat(eeg, threshold=0.9)
-    figures = pop_viewprops(eeg, typecomp=0, chanorcomp=[1, 2, 3])
-
-**Component types**:
-
-- Brain: Neural activity
-- Muscle: Muscle artifacts
-- Eye: Eye movement artifacts
-- Heart: Cardiac artifacts
-- Line Noise: 50/60 Hz noise
-- Channel Noise: Noisy channels
-- Other: Unclassified
-
-**Removing artifact components**:
-
-.. code-block:: python
-
-    from eegprep import pop_icflag, pop_subcomp
-
-    # Flag high-confidence muscle and eye components, then remove flagged ICs
-    eeg = pop_icflag(eeg)
-    eeg = pop_subcomp(eeg, [])
-
-Standalone Python EEGPrep ships the default ICLabel network. The EEGLAB
-``lite`` and ``beta`` artifacts are not bundled in the Python package; they are
-explicit MATLAB/Octave passthrough choices when that runtime provides the
-corresponding ICLabel files.
-
-Pipeline Visualization
-======================
-
-Here's a text-based flowchart of the preprocessing pipeline:
-
-.. code-block:: text
-
-    Raw EEG Data
-         |
-         v
-    Channel Selection
-         |
-         v
-    Flatline Detection
-         |
-         v
-    Noisy Channel Removal
-         |
-         v
-    Channel Interpolation
-         |
-         v
-    Resampling
-         |
-         v
-    High-Pass Filtering
-         |
-         v
-    Low-Pass Filtering
-         |
-         v
-    ICA Decomposition
-         |
-         v
-    Component Classification (ICLabel)
-         |
-         v
-    Artifact Component Removal
-         |
-         v
-    Preprocessed EEG Data
-
-Parameter Tuning
-================
-
-Key Parameters and Their Effects
----------------------------------
-
-**Flatline Criterion**
-
-- **Default**: 5 seconds
-- **Lower values**: More aggressive channel removal
-- **Higher values**: More lenient, may keep noisy channels
-- **Recommendation**: 5 seconds for most applications
-
-**ASR Criterion**
-
-- **Default**: 20 (standard deviations)
-- **Lower values**: More aggressive artifact removal
-- **Higher values**: More lenient, may keep artifacts
-- **Recommendation**: 20 for standard EEG, 15-25 for sensitive applications
-
-**High-Pass Filter**
-
-- **Default**: 1 Hz
-- **Lower values**: Preserve slow oscillations
-- **Higher values**: Remove more low-frequency noise
-- **Recommendation**: 0.5-1 Hz for most applications
-
-**Low-Pass Filter**
-
-- **Default**: 100 Hz
-- **Lower values**: Remove more high-frequency noise
-- **Higher values**: Preserve high-frequency activity
-- **Recommendation**: 100 Hz for standard EEG, 200 Hz for high-frequency analysis
-
-**Resampling Rate**
-
-- **Default**: 250 Hz
-- **Lower values**: Smaller file size, faster processing
-- **Higher values**: Better temporal resolution
-- **Recommendation**: 250 Hz for most applications
-
-Tuning Strategy
----------------
-
-1. **Start with defaults**: Use the default parameters as a baseline
-2. **Visualize results**: Plot the data before and after preprocessing
-3. **Adjust parameters**: Modify parameters based on visual inspection
-4. **Validate**: Check that preprocessing doesn't remove important signals
-5. **Document**: Record the parameters used for reproducibility
-
-Quality Control
-===============
-
-Assessing Preprocessing Quality
---------------------------------
-
-Visual Inspection
-~~~~~~~~~~~~~~~~~
-
-Plot the data before and after preprocessing:
-
-.. code-block:: python
-
-    import matplotlib.pyplot as plt
-
-    # Plot raw data
-    plt.figure(figsize=(12, 6))
-    plt.plot(eeg.data[0, :1000])
-    plt.title('Raw EEG Data')
-    plt.show()
-
-    # Plot preprocessed data
-    plt.figure(figsize=(12, 6))
-    plt.plot(eeg.data[0, :1000])
-    plt.title('Preprocessed EEG Data')
-    plt.show()
-
-Spectral Analysis
-~~~~~~~~~~~~~~~~~
-
-Compare power spectral density before and after preprocessing:
-
-.. code-block:: python
-
-    from eegprep import eeg_rpsd
-    import matplotlib.pyplot as plt
-
-    # Compute power spectral density
-    psd = eeg_rpsd(eeg)
-
-    plt.figure(figsize=(12, 6))
-    plt.semilogy(psd)
-    plt.xlabel('Frequency (Hz)')
-    plt.ylabel('Power (µV²/Hz)')
-    plt.title('Power Spectral Density')
-    plt.show()
-
-Component Inspection
-~~~~~~~~~~~~~~~~~~~~
-
-Visualize ICA components:
-
-.. code-block:: python
-
-    from eegprep import topoplot
-    import matplotlib.pyplot as plt
-
-    # Plot component topographies
-    topoplot(eeg, components=[0, 1, 2, 3])
-    plt.title('ICA Component Topographies')
-    plt.show()
-
-    # Check component classifications
-    if hasattr(eeg, 'etc') and 'ic_classification' in eeg.etc:
-        classifications = eeg.etc.ic_classification.ICLabel.classifications
-        for i, probs in enumerate(classifications):
-            print(f"Component {i}: {probs}")
-
-Data Loss Assessment
-~~~~~~~~~~~~~~~~~~~~
-
-Check how much data was removed:
-
-.. code-block:: python
-
-    # Check removed channels
-    if hasattr(eeg, 'removed_channels'):
-        print(f"Removed channels: {eeg.removed_channels}")
-
-    # Check removed windows
-    if hasattr(eeg, 'removed_windows'):
-        print(f"Removed windows: {eeg.removed_windows}")
-
-    # Calculate percentage of data retained
-    if hasattr(eeg, 'removed_windows'):
-        pct_retained = (1 - len(eeg.removed_windows) / eeg.pnts) * 100
-        print(f"Data retained: {pct_retained:.1f}%")
-
-Quality Metrics
-~~~~~~~~~~~~~~~
-
-Compute quality metrics:
-
-.. code-block:: python
-
-    # Signal-to-noise ratio
-    from eegprep import eeg_rpsd
-
-    psd = eeg_rpsd(eeg)
-    snr = psd[1:50].mean() / psd[50:100].mean()
-    print(f"SNR: {snr:.2f}")
-
-    # Autocorrelation
-    from eegprep import eeg_autocorr
-
-    acf = eeg_autocorr(eeg, maxlag=100)
-    print(f"Autocorrelation: {acf}")
-
-Common Issues and Solutions
+Re-Reference and Interpolate
 ============================
 
-Too Many Channels Removed
---------------------------
+Average reference:
 
-**Problem**: Preprocessing removes too many channels
+.. code-block:: python
 
-**Solutions**:
+   from eegprep import pop_reref
 
-1. Increase flatline criterion
-2. Increase ASR criterion
-3. Check data quality before preprocessing
-4. Verify channel locations are correct
+   EEG, com = pop_reref(EEG, [], return_com=True)
 
-Too Few Artifacts Removed
---------------------------
+Interpolate known bad channels after channel removal or rejection:
 
-**Problem**: Preprocessing doesn't remove enough artifacts
+.. code-block:: python
 
-**Solutions**:
+   from eegprep import pop_interp
 
-1. Decrease ASR criterion
-2. Decrease flatline criterion
-3. Apply additional filtering
-4. Manually inspect and remove bad components
+   EEG, com = pop_interp(EEG, [0, 4, 9], return_com=True)
 
-ICA Fails to Converge
----------------------
+Use ``Tools > Re-reference the data`` and ``Tools > Interpolate electrodes``
+from the GUI.
 
-**Problem**: ICA decomposition doesn't converge
+The programmatic ``bad_elec`` list for ``pop_interp`` uses Python zero-based
+indices when integers are supplied. GUI channel selection remains one-based and
+label-driven.
 
-**Solutions**:
+Run ICA and ICLabel
+===================
 
-1. Increase max_iter parameter
-2. Ensure data is properly filtered
-3. Check for remaining artifacts
-4. Try different ICA algorithm
+Run ICA:
 
-Next Steps
-==========
+.. code-block:: python
 
-Now that you understand the preprocessing pipeline:
+   from eegprep import pop_runica
 
-1. Read the :ref:`configuration` guide for advanced parameter tuning
-2. Explore the :ref:`bids_workflow` for batch processing
-3. Check the :ref:`advanced_topics` for custom pipelines
-4. Review the :ref:`api_reference` for detailed function documentation
+   EEG, com = pop_runica(EEG, icatype="picard", gui=False, return_com=True)
+
+Label and review components:
+
+.. code-block:: python
+
+   from eegprep import eeg_icalabelstat, pop_iclabel, pop_viewprops
+
+   EEG, com = pop_iclabel(EEG, "default", return_com=True)
+   stats = eeg_icalabelstat(EEG, threshold=0.9, verbose=False)
+   figures = pop_viewprops(EEG, typecomp=0, chanorcomp=[1, 2, 3])
+
+See :ref:`ica_rejection` before removing components.
+
+Epoch and Baseline
+==================
+
+Use ``pop_epoch`` and ``pop_rmbase`` for ERP-style workflows:
+
+.. code-block:: python
+
+   from eegprep import pop_epoch, pop_rmbase
+
+   EEG, com_epoch = pop_epoch(EEG, ["square"], [-1, 2], return_com=True)
+   EEG, com_base = pop_rmbase(EEG, [-200, 0], return_com=True)
+
+GUI paths: ``Tools > Extract epochs`` and ``Tools > Remove epoch baseline``.
+
+Save
+====
+
+Save reviewed datasets with ``pop_saveset``:
+
+.. code-block:: python
+
+   from pathlib import Path
+   from eegprep import pop_saveset
+
+   pop_saveset(EEG, Path("sample_data") / "eeglab_data_preprocessed.set")
+
+For large datasets, review :ref:`large_dataset_storage` before deciding whether to keep data
+in memory, memory-map sidecar files, or retrieve offloaded datasets.
+
+Quality Control Checklist
+=========================
+
+* Confirm ``EEG["data"].shape`` after each major transform.
+* Inspect events after filtering/resampling and before epoching.
+* Review rejected channels/windows visually before final removal.
+* Inspect ICLabel probabilities, scalp maps, spectra, and activity before
+  removing components.
+* Keep ``LASTCOM`` and ``ALLCOM`` from GUI/console runs so the workflow can be
+  replayed in scripts.

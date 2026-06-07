@@ -77,6 +77,12 @@ To install eegprep from source for development:
 ``uv sync`` creates the project environment, installs EEGPrep in editable mode,
 and uses ``uv.lock`` for reproducible dependency resolution.
 
+To develop or build documentation from source, include the docs extra:
+
+.. code-block:: bash
+
+    uv sync --group dev --extra docs
+
 Optional Dependencies
 =====================
 
@@ -151,7 +157,14 @@ To build the documentation locally:
 
 .. code-block:: bash
 
-    uv sync --extra docs
+    uv sync --group dev --extra docs
+    uv run --no-sync sphinx-build -b html docs/source docs/_build/html
+
+The ``docs/Makefile`` target is also available:
+
+.. code-block:: bash
+
+    uv run --no-sync make -C docs html
 
 All Optional Dependencies
 --------------------------

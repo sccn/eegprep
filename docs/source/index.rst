@@ -1,75 +1,123 @@
-.. eegprep documentation master file, created by sphinx-quickstart on 2024.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
-========
-eegprep
-========
-
-A comprehensive Python EEG preprocessing pipeline for neuroscience research.
+=======
+EEGPrep
+=======
 
 .. raw:: html
 
-   <div style="text-align: center; margin: 2rem 0;">
-      <p style="font-size: 1.1rem; margin-bottom: 0.5rem;">Get started with:</p>
-      <div style="background-color: #f5f5f5; padding: 1rem; border-radius: 0.5rem; display: inline-block; border-left: 4px solid #0066cc;">
-         <code style="font-size: 1.1rem; color: #0066cc; font-weight: 500;">uv add eegprep</code>
-      </div>
+   <div class="eegprep-hero">
+     <div class="eegprep-kicker">Standalone Python manual for EEGLAB users</div>
+     <p>EEGPrep ports core EEGLAB preprocessing ideas, names, data structures,
+     GUI workflows, command history, and bundled plugin behavior into a Python
+     package that can run without a MATLAB or EEGLAB checkout.</p>
    </div>
+
+Use this manual as a working path, not only as an API index. Start with the
+sample datasets in ``sample_data/``, move between the Qt GUI and
+``eegprep-console``, then reuse the recorded ``pop_*`` commands in scripts.
+
+.. grid:: 1 1 2 2
+   :gutter: 2
+
+   .. grid-item-card:: Start and Load Data
+      :link: user_guide/quickstart
+      :link-type: doc
+
+      Install EEGPrep, launch the GUI/console, load ``eeglab_data.set``, inspect
+      the EEG structure, and save the result.
+
+   .. grid-item-card:: Learn the Data Model
+      :link: user_guide/concepts
+      :link-type: doc
+
+      Understand ``EEG``, ``ALLEEG``, events, epochs, channel locations, ICA
+      fields, STUDY, and history replay.
+
+   .. grid-item-card:: Follow GUI Workflows
+      :link: user_guide/gui_tutorials
+      :link-type: doc
+
+      Run EEGLAB-style menus for filtering, rejection, ICA, ICLabel, EEGBrowser,
+      STUDY, and DIPFIT while tracking console state.
+
+   .. grid-item-card:: Script the Same Steps
+      :link: user_guide/scripting_workflows
+      :link-type: doc
+
+      Convert menu history into reusable Python scripts and batch workflows.
+
+Manual
+======
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: Workflows
 
-   api/index
    user_guide/index
    examples/index
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Reference
+
+   api/index
+   faq
+   glossary
+   references
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Project
+
    contributing
    development
-   faq
-   references
    changelog
-   glossary
 
-Quick Start
-===========
+Five-Minute Script
+==================
 
-See the :ref:`quickstart` guide for a full walk-through of loading, preprocessing, and saving EEG data. A minimal example:
+Load the checked-in EEGLAB tutorial dataset, run two common preprocessing steps,
+and keep the replayable command strings.
 
 .. code-block:: python
 
-   from eegprep import pop_loadset, pop_saveset, clean_artifacts
+   from pathlib import Path
+   from eegprep import pop_eegfiltnew, pop_loadset, pop_resample, pop_saveset
 
-   eeg = pop_loadset('sample_data.set')
-   eeg = clean_artifacts(eeg)
-   pop_saveset(eeg, 'sample_data_preprocessed.set')
+   sample = Path("sample_data") / "eeglab_data.set"
+   EEG = pop_loadset(sample)
 
-Features
-========
+   EEG, filter_com = pop_eegfiltnew(EEG, locutoff=1.0, hicutoff=40.0, return_com=True)
+   EEG, resample_com = pop_resample(EEG, 64, return_com=True)
+   pop_saveset(EEG, Path("sample_data") / "eeglab_data_preprocessed.set")
 
-- **Comprehensive preprocessing**: Artifact removal, channel cleaning, and data quality assessment
-- **ICA-based component classification**: Automatic IC labeling using ICLabel
-- **BIDS compatibility**: Direct support for BIDS-formatted EEG datasets
-- **MNE integration**: Seamless conversion between eegprep and MNE-Python formats
-- **Flexible pipeline**: Mix and match preprocessing steps for your specific needs
-- **Well-documented**: Extensive API documentation and user guides
+   print(filter_com)
+   print(resample_com)
 
-Quick Links
-===========
+Where EEGLAB Users Should Go First
+==================================
 
-- :doc:`API Reference <api/index>` - Complete API documentation
-- :doc:`User Guide <user_guide/index>` - Detailed usage guides and tutorials
-- :doc:`Examples <examples/index>` - Example scripts and notebooks
-- :doc:`Contributing <contributing>` - Contributing guidelines and code of conduct
-- :doc:`Development <development>` - Development setup and debugging
-- :doc:`FAQ <faq>` - Frequently asked questions
-- :doc:`References <references>` - Key publications and related tools
-- :doc:`Changelog <changelog>` - Version history and release notes
-- :doc:`Glossary <glossary>` - EEG and signal processing terminology
-- `GitHub Repository <https://github.com/sccn/eegprep>`_ - Source code and issue tracker
+.. list-table::
+   :header-rows: 1
 
-Indices and tables
-==================
+   * - If you know EEGLAB as...
+     - Start here in EEGPrep
+   * - ``EEG`` / ``ALLEEG`` / ``CURRENTSET``
+     - :doc:`user_guide/concepts`
+   * - GUI menus plus MATLAB command history
+     - :doc:`user_guide/gui_tutorials` and :doc:`user_guide/interactive_console`
+   * - ``pop_*`` scripts
+     - :doc:`user_guide/scripting_workflows` and :doc:`api/pop_functions`
+   * - clean_rawdata, FIRFilt, ICLabel, DIPFIT, EEG-BIDS
+     - :doc:`user_guide/plugins`
+   * - EEGBrowser and visual rejection
+     - :doc:`user_guide/eegbrowser`
+   * - STUDY workflows
+     - :doc:`user_guide/study_workflows`
+   * - MNE-Python interop
+     - :doc:`user_guide/mne_integration`
+
+Indices
+=======
 
 * :ref:`genindex`
 * :ref:`modindex`
