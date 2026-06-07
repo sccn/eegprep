@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import subprocess
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
@@ -12,6 +13,7 @@ from typing import Any
 
 
 MATRIX_RELATIVE_PATH = Path("docs/parity/eeglab_final_parity_matrix.json")
+REFERENCE_PATHS_RELATIVE_PATH = Path("docs/parity/eeglab_final_reference_paths.txt")
 
 PLUGIN_ROOTS = ("clean_rawdata", "firfilt", "ICLabel", "dipfit")
 OBJECT_STORAGE_FOLDERS = ("@eegobj", "@memmapdata", "@mmo")
@@ -135,6 +137,16 @@ def discover_final_eeglab_paths(repo_root: Path) -> set[str]:
     if not eeglab_root.is_dir():
         return set()
 
+    snapshot_paths = _load_reference_path_snapshot(repo_root)
+    live_paths = _discover_live_final_eeglab_paths(eeglab_root)
+    if snapshot_paths and not snapshot_paths <= live_paths:
+        return snapshot_paths
+    return live_paths
+
+
+def _discover_live_final_eeglab_paths(eeglab_root: Path) -> set[str]:
+    """Discover final-epic source paths from an initialized EEGLAB checkout."""
+
     paths: set[str] = set()
     plugin_root = eeglab_root / "plugins"
     for plugin in PLUGIN_ROOTS:
@@ -154,6 +166,17 @@ def discover_final_eeglab_paths(repo_root: Path) -> set[str]:
             paths.add(path.relative_to(eeglab_root).as_posix())
 
     return paths
+
+
+def _load_reference_path_snapshot(repo_root: Path) -> set[str]:
+    path = repo_root / REFERENCE_PATHS_RELATIVE_PATH
+    if not path.exists():
+        return set()
+    return {
+        line.strip()
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.startswith("#")
+    }
 
 
 def load_matrix(path: Path) -> dict[str, Any]:
@@ -403,7 +426,10 @@ def _source_paths(row: dict[str, Any]) -> tuple[str, ...]:
 
 def _source_path_exists(repo_root: Path, source_path: str) -> bool:
     if source_path.startswith(("functions/", "plugins/", "tutorial_scripts/")):
-        return (repo_root / "src/eegprep/eeglab" / source_path).exists()
+        source = repo_root / "src/eegprep/eeglab" / source_path
+        if source.exists():
+            return True
+        return source_path in _load_reference_path_snapshot(repo_root) and _source_root_exists(repo_root, source_path)
     if source_path.startswith("docs/"):
         return (repo_root / source_path).exists()
     return False
@@ -415,6 +441,37 @@ def _has_equivalent(value: Any) -> bool:
     if isinstance(value, list):
         return bool(value) and all(isinstance(item, str) and item for item in value)
     return False
+
+
+def _source_root_exists(repo_root: Path, source_path: str) -> bool:
+    parts = Path(source_path).parts
+    if source_path.startswith("plugins/") and len(parts) >= 2:
+        source_root = f"{parts[0]}/{parts[1]}"
+        return _eeglab_reference_root_exists(repo_root, source_root)
+    if source_path.startswith("tutorial_scripts/"):
+        return _eeglab_reference_root_exists(repo_root, "tutorial_scripts")
+    if source_path.startswith("functions/") and len(parts) >= 2:
+        source_root = f"{parts[0]}/{parts[1]}"
+        return _eeglab_reference_root_exists(repo_root, source_root)
+    return False
+
+
+def _eeglab_reference_root_exists(repo_root: Path, relative_root: str) -> bool:
+    eeglab_root = repo_root / "src/eegprep/eeglab"
+    if (eeglab_root / relative_root).exists():
+        return True
+    if not eeglab_root.is_dir():
+        return False
+    try:
+        subprocess.run(
+            ["git", "-C", str(eeglab_root), "ls-tree", "--exit-code", "HEAD", relative_root],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return False
+    return True
 
 
 def _is_excluded_reference_path(relative_path: str) -> bool:

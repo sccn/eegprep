@@ -68,6 +68,18 @@ class MemmapData:
         """Flush pending writes to the backing file."""
         self._memmap().flush()
 
+    def close(self) -> None:
+        """Flush and release the backing memory map handle."""
+        array = self._array
+        if array is None:
+            return
+        self._array = None
+        array.flush()
+        mmap_handle = getattr(array, "_mmap", None)
+        del array
+        if mmap_handle is not None:
+            mmap_handle.close()
+
     def copy(self, order: str = "C") -> np.ndarray:
         """Return an in-memory copy of the mapped data."""
         return np.array(self._memmap(), copy=True, order=order)
@@ -210,9 +222,11 @@ def write_fdt(data: Any, filename: str | Path, eeg: dict[str, Any]) -> None:
     """Write EEG data using EEGLAB's channel-fast ``.fdt`` float32 layout."""
     path = Path(filename)
     path.parent.mkdir(parents=True, exist_ok=True)
+    same_backing_file = _same_backing_file(data, path)
     array = np.asarray(data, dtype=FDT_DTYPE)
-    if _same_backing_file(data, path):
+    if same_backing_file:
         array = array.copy()
+        _close_backing_memmap(data)
     shape = eeg_data_shape(eeg)
     if array.shape != shape:
         if array.size != int(np.prod(shape)):
@@ -241,6 +255,17 @@ def _same_backing_file(data: Any, path: Path) -> bool:
         except OSError:
             return Path(data.filename).absolute() == target
     return False
+
+
+def _close_backing_memmap(data: Any) -> None:
+    if isinstance(data, MemmapData):
+        data.close()
+        return
+    if isinstance(data, np.memmap):
+        data.flush()
+        mmap_handle = getattr(data, "_mmap", None)
+        if mmap_handle is not None:
+            mmap_handle.close()
 
 
 def read_fdt(filename: str | Path, eeg: dict[str, Any]) -> np.ndarray:

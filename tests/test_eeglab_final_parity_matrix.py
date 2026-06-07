@@ -68,6 +68,23 @@ def test_final_matrix_discovers_final_epic_paths_without_third_party_bloat() -> 
     assert "plugins/clean_rawdata/manopt/examples/nonlinear_eigenspace.m" not in paths
 
 
+def test_final_matrix_uses_snapshot_when_nested_plugin_checkout_is_empty(tmp_path: Path) -> None:
+    eeglab_root = tmp_path / "src/eegprep/eeglab"
+    docs_root = tmp_path / "docs/parity"
+    (eeglab_root / "functions/@eegobj").mkdir(parents=True)
+    (eeglab_root / "plugins/clean_rawdata").mkdir(parents=True)
+    docs_root.mkdir(parents=True)
+    (eeglab_root / "functions/@eegobj/display.m").write_text("% display\n", encoding="utf-8")
+    (docs_root / "eeglab_final_reference_paths.txt").write_text(
+        "functions/@eegobj/display.m\nplugins/clean_rawdata/asr_process_r.m\n",
+        encoding="utf-8",
+    )
+
+    paths = discover_final_eeglab_paths(tmp_path)
+
+    assert paths == {"functions/@eegobj/display.m", "plugins/clean_rawdata/asr_process_r.m"}
+
+
 def test_final_validator_fails_when_expected_path_is_unclassified() -> None:
     _require_eeglab_reference()
 
