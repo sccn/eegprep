@@ -216,6 +216,36 @@ Label and review components:
 
 See :ref:`ica_rejection` before removing components.
 
+Time-Frequency and ERP Images
+=============================
+
+After epoching or component review, use EEGPrep's standalone time-frequency
+wrappers for the common EEGLAB plotting workflows:
+
+.. code-block:: python
+
+   from eegprep import pop_newcrossf, pop_newtimef, pop_spectopo
+
+   ersp, com_timef = pop_newtimef(EEG, typeproc=1, num=1, return_com=True)
+   cross, com_crossf = pop_newcrossf(EEG, typeproc=1, num1=1, num2=2, return_com=True)
+   spectra, com_spectopo = pop_spectopo(EEG, 1, timerange=[], return_com=True)
+
+Legacy ``pop_timef`` and ``pop_crossf`` calls route through the standalone
+``pop_newtimef`` and ``pop_newcrossf`` implementations. ERP-image workflows use
+``pop_erpimage`` for channel or component images:
+
+.. code-block:: python
+
+   from eegprep import pop_erpimage
+
+   image, com = pop_erpimage(EEG, typeplot=1, index=1, return_com=True)
+
+GUI paths live under the ``Plot`` menu when a dataset is loaded. EEGPrep
+returns replayable Python history commands for these wrappers. Some MATLAB-only
+``pop_erpimage`` event-alignment and advanced renormalization options are not
+standalone EEGPrep features; those requests raise explicit errors instead of
+silently substituting a different analysis.
+
 Epoch and Baseline
 ==================
 

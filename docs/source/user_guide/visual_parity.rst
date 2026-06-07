@@ -17,6 +17,18 @@ Headless MATLAB batch sessions can run structural checks, but they cannot
 capture EEGLAB UI controls with ``getframe`` unless figure windows are actually
 displayed.
 
+EEG Movies and Visual Workflow Boundaries
+=========================================
+
+EEGLAB's tutorial movie scripts, such as ``make_eeg_movie.m``, are treated as
+visual workflow references for this epic rather than standalone EEGPrep runtime
+features. EEGPrep owns static plots, ERP images, time-frequency wrappers, GUI
+dialog rendering, and the visual parity capture tooling described here. It does
+not currently ship an EEGLAB-compatible EEG movie generator or a persistent
+movie-authoring UI. Use the plotting wrappers documented in
+:ref:`preprocessing_pipeline` for analysis figures, and use this page's capture
+tools for reviewable GUI evidence.
+
 Install the optional EEGPREP GUI dependencies before capturing Python dialogs:
 
 .. code-block:: bash
