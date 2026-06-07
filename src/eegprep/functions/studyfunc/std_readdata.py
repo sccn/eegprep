@@ -120,10 +120,15 @@ def std_readpac(
     channels: Any = None,
     clusters: Any = None,
     components: Any = None,
-    **_kwargs: Any,
+    timerange: Any = None,
+    freqrange: Any = None,
+    **kwargs: Any,
 ) -> tuple[dict[str, Any], list[np.ndarray], np.ndarray, np.ndarray]:
-    """Read cached STUDY PAC data when a standalone cache is present."""
+    """Read EEGPrep-owned cached STUDY PAC data when present."""
     _ = ALLEEG
+    if kwargs:
+        unsupported = ", ".join(sorted(kwargs))
+        raise ValueError(f"Unknown std_readpac option(s): {unsupported}")
     if components is not None:
         raise ValueError("std_readpac does not yet support component selection for PAC caches")
     study = ensure_study(STUDY)
@@ -138,12 +143,17 @@ def std_readpac(
             "STUDY PAC reading requires EEGPrep-owned pacdata caches; external LIMO/PAC toolbox output is not "
             "silently emulated"
         )
+    # PAC caches selected together share the first group's axes; shape checks below catch incompatible groups.
     first = groups[0]
+    times = np.asarray(first.get("pactimes", []), dtype=float)
+    freqs = np.asarray(first.get("pacfreqs", []), dtype=float)
+    time_mask = _range_mask(times, timerange)
+    freq_mask = _range_mask(freqs, freqrange)
     return (
         study,
-        [np.asarray(group["pacdata"], dtype=float) for group in groups],
-        np.asarray(first.get("pactimes", []), dtype=float),
-        np.asarray(first.get("pacfreqs", []), dtype=float),
+        [_slice_pac_cache(group, freq_mask, time_mask) for group in groups],
+        times[time_mask],
+        freqs[freq_mask],
     )
 
 
@@ -317,6 +327,15 @@ def _slice_measure_data(
     time_mask = _range_mask(x_axis, timerange)
     freq_mask = _range_mask(y_axis, freqrange)
     return values[..., freq_mask, :][..., time_mask], x_axis[time_mask], y_axis[freq_mask]
+
+
+def _slice_pac_cache(group: dict[str, Any], freq_mask: np.ndarray, time_mask: np.ndarray) -> np.ndarray:
+    values = np.asarray(group["pacdata"], dtype=float)
+    if values.ndim < 2:
+        raise ValueError("PAC cache must have frequency and time axes")
+    if values.shape[-2] != freq_mask.size or values.shape[-1] != time_mask.size:
+        raise ValueError("PAC cache shape must end with pacfreqs and pactimes axes")
+    return values[..., freq_mask, :][..., time_mask]
 
 
 def _range_mask(axis: np.ndarray, bounds: Any) -> np.ndarray:

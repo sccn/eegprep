@@ -160,6 +160,10 @@ History And STUDY Files
 
 .. autofunction:: eegprep.std_readpac
 
+.. autofunction:: eegprep.std_pac
+
+.. autofunction:: eegprep.std_pacplot
+
 .. autofunction:: eegprep.std_savedat
 
 .. autofunction:: eegprep.std_checkfiles
