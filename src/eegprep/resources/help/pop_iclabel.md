@@ -4,7 +4,7 @@ Usage:
 
     EEG = pop_iclabel(EEG)
     EEG = pop_iclabel(EEG, 'default')
-    EEG, command = pop_iclabel(EEG, 'lite', return_com=True)
+    EEG, command = pop_iclabel(EEG, 'default', return_com=True)
 
 Inputs:
 
@@ -22,6 +22,10 @@ Behavior:
 - Results are stored in `EEG.etc.ic_classification.ICLabel`.
 - The result includes the ICLabel class names, per-component class probabilities, and the selected version string.
 - Lists of datasets are processed one dataset at a time with the same selected version.
+- Standalone Python EEGPrep ships the default ICLabel network (`netICL.mat`).
+  The EEGLAB `lite` and `beta` network artifacts are explicit MATLAB/Octave
+  passthrough choices and raise a clear limitation when requested with the
+  standalone Python engine.
 
 Example:
 

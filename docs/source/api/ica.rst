@@ -20,6 +20,8 @@ Component Classification
 
 .. autofunction:: eegprep.iclabel
 
+.. autofunction:: eegprep.eeg_icalabelstat
+
 Feature Extraction
 ==================
 

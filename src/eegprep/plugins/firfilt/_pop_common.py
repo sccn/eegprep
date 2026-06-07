@@ -116,6 +116,12 @@ def history_command(function_name: str, options: dict[str, Any]) -> str:
     return f"EEG = {function_name}(EEG, {', '.join(parts)});"
 
 
+def value_history_command(function_name: str, values: list[Any], *, assignment: str) -> str:
+    """Build an EEGLAB-style function call for scalar/helper pop functions."""
+    formatted = ", ".join(format_history_value(value) for value in values)
+    return f"{assignment} = {function_name}({formatted});"
+
+
 def channel_controls(EEG: dict[str, Any]) -> tuple[ControlSpec, ...]:
     """Return the EEGLAB channel type/label selector rows used by pop_eegfiltnew."""
     labels = _channel_field_values(EEG, "labels")

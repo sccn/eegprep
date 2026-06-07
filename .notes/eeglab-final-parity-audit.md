@@ -75,6 +75,21 @@ Skip rows must have `responsible_phase: "none"` and `phase_issue: null`.
   non-slow tests, MATLAB parity where available, visual parity suite, GUI Agent
   mixed-flow QA, and evidence rollup.
 
+## Phase 2 Completion Update
+
+Phase 2 / #159 moved the useful `clean_rawdata` and FIRFilt rows from intent to
+verified standalone behavior. Standard clean_rawdata/ASR remains implemented as
+native Python, `vis_artifacts` diagnostics are packaged and wired through
+`pop_clean_rawdata`, and FIRFilt now exposes EEGLAB-named helper functions,
+order dialogs, boundary-aware filtering helpers, reports, and frequency-response
+plotting without any runtime dependency on the vendored EEGLAB tree.
+
+Full Riemannian ASR processing remains an `optional_dependency` row by design.
+EEGPrep supports the calibration-time Riemannian estimate through
+`useriemannian='calib'`, but it does not vendor Manopt or fake full
+Riemannian processing. Explicit full-processing requests must fail with a clear
+limitation until a tested Python manifold-optimization backend is selected.
+
 ## Optional-Dependency Rules
 
 EEGPrep should prefer standalone Python behavior for core preprocessing, data

@@ -30,8 +30,8 @@ def pop_dipfit_settings(
     """Configure DIPFIT settings without requiring an EEGLAB runtime.
 
     EEGPrep stores the same key DIPFIT fields that EEGLAB records on
-    ``EEG.dipfit``. Loading FieldTrip head-model assets and co-registration are
-    intentionally deferred to future standalone source-localization work.
+    ``EEG.dipfit``. The standard spherical fitting path is standalone; BEM
+    head-model assets and MRI co-registration remain explicit backend limits.
     """
     if EEG is None:
         return (None, "") if return_com else None
@@ -125,8 +125,8 @@ def pop_dipfit_settings_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("spacer"),
         ),
         known_differences=(
-            "EEGPrep records DIPFIT settings but does not yet run FieldTrip co-registration.",
-            "Browse/Coregister buttons are disabled until standalone model-asset loading is implemented.",
+            "EEGPrep records DIPFIT settings and uses them for native spherical fitting.",
+            "Browse/Coregister buttons are disabled until standalone MRI/BEM asset loading is implemented.",
         ),
         row_spacing=10,
     )

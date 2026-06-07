@@ -128,9 +128,10 @@ Remaining plugin-depth areas:
 - `firfilt`: lower-level helper coverage such as detailed reports, inverse
   order helpers, minimum-phase helpers, frequency-response plotting, and order
   calculator dialogs.
-- `ICLabel` / viewprops: alternate network artifacts, exact MATLAB helper
-  parity for `eeg_icalabelstat`, and any viewprops helper behavior still
-  replaced by EEGPrep-native Qt/Python paths.
+- `ICLabel` / viewprops: Phase #163 closes the standalone default-network,
+  `eeg_icalabelstat`, and native Qt/Python diagnostic-browser surface. The
+  EEGLAB `lite`/`beta` network artifacts remain explicit MATLAB/Octave
+  passthrough choices rather than silently emulated standalone assets.
 - `DIPFIT`: lower-level grid/nonlinear/reject/dipplot helpers, manual/batch
   dialogs, atlas conversion helpers, and private transform utilities.
 
