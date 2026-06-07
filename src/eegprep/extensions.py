@@ -411,7 +411,7 @@ class ExtensionRegistry:
                 version="bundled",
                 package_name="eegprep.plugins.dipfit",
                 source_type=ExtensionSourceType.BUNDLED,
-                description="Source-localization menu surfaces and FieldTrip-backed DIPFIT workflows.",
+                description="Source-localization menu surfaces with EEGPrep-native spherical DIPFIT workflows.",
                 capabilities=("source", "localization"),
                 menus=(
                     _extension_menu_from_spec(
@@ -437,8 +437,16 @@ class ExtensionRegistry:
                         ),
                     ),
                     ExtensionPopFunction(
+                        name="pop_dipfit_batch",
+                        target=LazyImport("eegprep.plugins.dipfit.pop_dipfit_batch", "pop_dipfit_batch"),
+                    ),
+                    ExtensionPopFunction(
                         name="pop_dipfit_nonlinear",
                         target=LazyImport("eegprep.plugins.dipfit.pop_dipfit_nonlinear", "pop_dipfit_nonlinear"),
+                    ),
+                    ExtensionPopFunction(
+                        name="pop_dipfit_manual",
+                        target=LazyImport("eegprep.plugins.dipfit.pop_dipfit_manual", "pop_dipfit_manual"),
                     ),
                     ExtensionPopFunction(
                         name="pop_dipplot",

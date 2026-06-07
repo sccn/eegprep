@@ -126,6 +126,47 @@ Precluster and cluster ICA components:
    STUDY, com = pop_clust(STUDY, ALLEEG, clus_num=4, random_state=0, return_com=True)
    STUDY, com, fig = pop_clustedit(STUDY, ALLEEG, action="plot", return_com=True)
 
+DIPFIT Source Localization
+==========================
+
+EEGPrep includes standalone DIPFIT-compatible spherical workflows for ICA
+component source localization. Configure DIPFIT metadata first, then run a
+coarse grid search, nonlinear refinement, and dipole plotting:
+
+.. code-block:: python
+
+   from eegprep.plugins.dipfit.pop_dipfit_settings import pop_dipfit_settings
+   from eegprep.plugins.dipfit.pop_dipfit_gridsearch import pop_dipfit_gridsearch
+   from eegprep.plugins.dipfit.pop_dipfit_nonlinear import pop_dipfit_nonlinear
+   from eegprep.plugins.dipfit.pop_dipplot import pop_dipplot
+
+   EEG, com = pop_dipfit_settings(EEG, model="standardBESA", return_com=True)
+   EEG, com = pop_dipfit_gridsearch(
+       EEG,
+       [1],
+       [-40, -20, 0, 20, 40],
+       [-40, -20, 0, 20, 40],
+       [20, 40, 60],
+       40,
+       return_com=True,
+   )
+   EEG, com = pop_dipfit_nonlinear(EEG, component=1, return_com=True)
+   figures, com = pop_dipplot(EEG, [1], summary="on", projlines="on", return_com=True)
+
+The spherical backend fits an average-referenced leadfield, stores
+``posxyz``, ``momxyz``, ``rv``, ``diffmap``, ``sourcepot``, and ``datapot`` in
+``EEG.dipfit.model``, and keeps command history replayable from
+``eegprep-console``. ``pop_multifit`` chains grid search, nonlinear fitting,
+RV rejection, optional outside-head removal, and optional dipole plotting.
+The deprecated EEGLAB aliases ``pop_dipfit_batch`` and ``pop_dipfit_manual``
+remain available for script compatibility.
+
+``pop_leadfield`` can compute spherical leadfields for explicit source points
+provided as an ``Nx3`` array, ``{"pos": ...}`` dictionary, or simple file with
+source positions. MRI-derived BEM headmodel creation, AFNI atlas clipping, and
+LORETA source analysis remain explicit backend limits and fail clearly rather
+than producing placeholder source-localization outputs.
+
 Session Synchronization
 =======================
 
