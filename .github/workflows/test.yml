@@ -175,6 +175,7 @@ jobs:
           uv pip install "${MATLAB_ROOT}/extern/engines/python"
 
       - name: Check MATLAB Engine availability
+        id: matlab-engine-availability
         if: steps.matlab-availability.outputs.available == 'true'
         shell: bash
         run: |
@@ -185,18 +186,20 @@ jobs:
           PY
           then
             echo "EEGPREP_SKIP_MATLAB=0" >> "$GITHUB_ENV"
+            echo "available=true" >> "$GITHUB_OUTPUT"
           else
             echo "EEGPREP_SKIP_MATLAB=1" >> "$GITHUB_ENV"
+            echo "available=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Run MATLAB tests
-        if: steps.matlab-availability.outputs.available == 'true'
+        if: steps.matlab-engine-availability.outputs.available == 'true'
         uses: matlab-actions/run-command@v2
         with:
           command: "ver"
 
       - name: Run Python tests via MATLAB batch
-        if: steps.matlab-availability.outputs.available == 'true'
+        if: steps.matlab-engine-availability.outputs.available == 'true'
         uses: matlab-actions/run-command@v2
         with:
           command: |
@@ -207,7 +210,7 @@ jobs:
             end
 
       - name: Run Python tests
-        if: steps.matlab-availability.outputs.available != 'true'
+        if: steps.matlab-engine-availability.outputs.available != 'true'
         run: |
           uv run --no-sync pytest tests
 

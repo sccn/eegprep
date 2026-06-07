@@ -580,9 +580,10 @@ def test_correct_mc_uses_rsfit_for_neighbor_correlations():
     def fake_newtimef(data, *_args, **_kwargs):
         return Result(float(data[0]))
 
+    correct_mc_module = importlib.import_module("eegprep.functions.timefreqfunc.correct_mc")
     with (
-        mock.patch("eegprep.functions.timefreqfunc.correct_mc.newtimef", side_effect=fake_newtimef),
-        mock.patch("eegprep.functions.timefreqfunc.correct_mc.rsfit", return_value=0.001) as fitted,
+        mock.patch.object(correct_mc_module, "newtimef", side_effect=fake_newtimef),
+        mock.patch.object(correct_mc_module, "rsfit", return_value=0.001) as fitted,
     ):
         ncorrect, pvalues = correct_mc(eeg, cycles=0, freqrange=(4, 8), timesout=(4,))
 
