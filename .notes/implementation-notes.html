@@ -398,5 +398,51 @@
     <li>Focused tests cover <code>pac</code>, <code>pac_cont</code>, <code>std_pac</code>, <code>std_readpac</code>, <code>std_pacplot</code>, <code>std_limodesign</code>, <code>std_prepare_neighbors</code>, <code>std_interp</code>, and source/LIMO limitation paths.</li>
     <li>No new GUI dialog was introduced for Phase 4. Visual parity evidence remains on existing STUDY dialogs and plotting paths; the changed behavior is API/console/cache based.</li>
   </ul>
+  <h1>Phase 5 Large-Dataset Storage Notes</h1>
+  <p>This phase implements EEGPrep-owned storage behavior for issue #162 without
+  adding runtime dependencies on the vendored EEGLAB tree or porting MATLAB
+  <code>@memmapdata</code>/<code>@mmo</code> overloads one-for-one.</p>
+  <h2>Design Decisions</h2>
+  <ul>
+    <li>Added <code>MemmapData</code>, a NumPy-compatible handle over EEGLAB-style
+    <code>.fdt</code> sidecars. It preserves channel-major EEG shapes and uses the
+    EEGLAB channel-fast float32 file layout for continuous and epoched data.</li>
+    <li>Added <code>OffloadedData</code> for <code>option_storedisk</code>. It records
+    the saved <code>.set</code> path and shape metadata, but raises on sample access
+    until the dataset is retrieved through <code>eeg_retrieve</code> or
+    <code>EEGPrepSession.retrieve</code>.</li>
+    <li>Kept normal EEG dictionaries as the public contract. GUI and console
+    synchronization flows through existing <code>eeg_store</code>,
+    <code>eeg_retrieve</code>, and <code>EEGPrepSession</code> mutation points.</li>
+    <li><code>pop_saveset</code> now accepts <code>savemode="twofiles"</code> and
+    honors <code>EEG_OPTIONS["option_savetwofiles"]</code>. <code>pop_loadset</code>
+    honors <code>EEG_OPTIONS["option_memmapdata"]</code> for sidecar-backed data.</li>
+  </ul>
+  <h2>Tradeoffs And Limitations</h2>
+  <ul>
+    <li>Unsaved resident datasets are not evicted under <code>option_storedisk</code>.
+    This intentionally fails with a clear save-first error instead of pretending
+    data was unloaded.</li>
+    <li>Single-file <code>.set</code> data still loads into memory; memory mapping is
+    only honest for datasets with a separate <code>.fdt</code> sidecar.</li>
+    <li>EEGLAB <code>pop_loadset</code> channel-only and <code>loadmode="info"</code>
+    paths are explicit non-implemented paths in Phase 5. Full dataset loading,
+    storedisk retrieval, save/load, STUDY resave, and GUI/console synchronization
+    are covered.</li>
+    <li>Derived caches such as <code>icaact</code> are not given a separate lazy
+    storage layer in this phase.</li>
+  </ul>
+  <h2>Verification Notes</h2>
+  <ul>
+    <li>Added synthetic tests for two-file save/load, memory-map first/last sample
+    access, sidecar mutation, missing-sidecar errors, default single-file behavior,
+    and a slow large-sidecar smoke.</li>
+    <li>Added storedisk tests for offloading saved non-current datasets, rehydrating
+    through <code>eeg_retrieve</code>, refusing unsaved eviction,
+    <code>pop_newset</code> new-dataset behavior, STUDY resave, and mixed
+    session/console synchronization.</li>
+    <li>Updated the final parity matrix rows for <code>@memmapdata</code> and
+    <code>@mmo</code> to point at the Python-native storage backend and tests.</li>
+  </ul>
 </body>
 </html>

@@ -81,6 +81,12 @@ EEGLAB Format
 
 .. autofunction:: eegprep.pop_saveset
 
+``pop_saveset(..., savemode="twofiles")`` writes an EEGLAB-style ``.set``
+header plus ``.fdt`` float32 sidecar. ``EEG_OPTIONS["option_savetwofiles"]``
+uses that layout by default, and ``EEG_OPTIONS["option_memmapdata"]`` makes
+``pop_loadset`` expose sidecar data through a NumPy-compatible memory map. See
+:ref:`large_dataset_storage` for storedisk session behavior and limitations.
+
 Text And External Export
 ========================
 

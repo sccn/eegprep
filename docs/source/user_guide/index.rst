@@ -40,6 +40,7 @@ Getting Started
    extensions
    eegbrowser
    interactive_console
+   storage
    extension_curation
 
 Core Concepts

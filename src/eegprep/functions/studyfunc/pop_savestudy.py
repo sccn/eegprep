@@ -6,8 +6,10 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
+from eegprep.functions.adminfunc.storage import OffloadedData
 from eegprep.functions.popfunc._file_io import write_json
 from eegprep.functions.popfunc._pop_utils import parse_key_value_args
+from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_saveset import pop_saveset
 from eegprep.functions.studyfunc._study_utils import as_alleeg_list, build_python_call, ensure_study
 from eegprep.functions.studyfunc.std_checkset import std_checkset
@@ -96,6 +98,9 @@ def _resave_datasets(study: dict[str, Any], datasets: list[dict[str, Any]], stud
         raise ValueError("resavedatasets='on' requires loaded ALLEEG datasets")
     infos = study.get("datasetinfo") or []
     for index, eeg in enumerate(datasets):
+        if isinstance(eeg.get("data"), OffloadedData):
+            eeg = pop_loadset(str(eeg["data"].set_path))
+            datasets[index] = eeg
         info = infos[index] if index < len(infos) and isinstance(infos[index], dict) else {}
         filename = eeg.get("filename") or info.get("filename")
         if not filename:

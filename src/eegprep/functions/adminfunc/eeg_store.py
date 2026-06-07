@@ -6,6 +6,7 @@ from copy import deepcopy
 from typing import Any
 
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
+from eegprep.functions.adminfunc.storage import offload_storedisk_datasets
 
 
 def _normalize_index(index: int | None, alleeg: list[dict[str, Any]]) -> int:
@@ -45,4 +46,5 @@ def eeg_store(
     is_loaded = saved_state == "justloaded"
     checked["saved"] = "yes" if is_loaded else "no"
     alleeg[index - 1] = checked
+    offload_storedisk_datasets(alleeg, {index})
     return alleeg, checked, index

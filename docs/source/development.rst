@@ -185,10 +185,11 @@ show replayable Python input before progress messages or warnings from the same
 action. ``eegh`` presents history newest-first like EEGLAB while
 ``EEGPrepSession.ALLCOM`` remains chronological internally.
 
-Do not fake EEGLAB's one-dataset-in-memory ``option_storedisk`` behavior. If a
-feature cannot truly save/retrieve data from disk in that mode, keep the
-in-memory dataset contract explicit and fail clearly for unsupported storedisk
-paths.
+Do not fake EEGLAB's one-dataset-in-memory ``option_storedisk`` behavior.
+Use ``eeg_store``/``eeg_retrieve`` or ``EEGPrepSession`` so saved non-current
+datasets are represented by explicit offloaded disk handles and rehydrated
+through the shared storage path. Unsaved resident datasets must stay resident
+or fail clearly until the user saves them.
 
 Menu placeholders are machine-readable. Each placeholder action has either a
 target epic phase or an explicit exclusion reason for workflows that cannot be

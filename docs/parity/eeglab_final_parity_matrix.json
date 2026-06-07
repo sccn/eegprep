@@ -786,21 +786,27 @@
         "functions/@memmapdata/subsref.m",
         "functions/@memmapdata/sum.m"
       ],
-      "eegprep_equivalent": null,
-      "status": "port",
+      "eegprep_equivalent": [
+        "eegprep.functions.adminfunc.storage.MemmapData",
+        "eegprep.functions.popfunc.pop_saveset",
+        "eegprep.functions.popfunc.pop_loadset",
+        "EEG_OPTIONS[\"option_memmapdata\"]"
+      ],
+      "status": "implemented",
       "responsible_phase": "phase_5",
       "phase_issue": "#162 Large-dataset storage and storedisk semantics",
-      "rationale": "Phase 5 should design Python-native lazy array and storedisk semantics if EEGPrep supports large datasets, instead of porting MATLAB class overloads directly.",
+      "rationale": "EEGPrep implements the user-visible large-array behavior with a NumPy-compatible .fdt memory-map handle and two-file save/load semantics instead of porting MATLAB class overloads directly.",
       "user_facing_surface": [
         "large datasets",
         "option_memmapdata",
         "save/load workflows"
       ],
       "docs_targets": [
-        "docs/source/user_guide/concepts.rst",
+        "docs/source/user_guide/storage.rst",
+        "docs/source/api/io.rst",
         "docs/source/development.rst"
       ],
-      "test_notes": "Phase 5 must test first/last sample access, mutation, save/load, GUI refresh, and console state if a backend is implemented."
+      "test_notes": "Phase 5 verifies first/last sample access, sidecar mutation, missing-sidecar failure, save/load round trips, and a slow memmap load smoke in tests/test_storage.py."
     },
     {
       "row_id": "mmo-python-storedisk-backend",
@@ -832,21 +838,28 @@
         "functions/@mmo/unitaryopp.m",
         "functions/@mmo/var.m"
       ],
-      "eegprep_equivalent": null,
-      "status": "port",
+      "eegprep_equivalent": [
+        "eegprep.functions.adminfunc.storage.OffloadedData",
+        "eegprep.functions.adminfunc.eeg_store",
+        "eegprep.functions.adminfunc.eeg_retrieve",
+        "eegprep.functions.guifunc.session.EEGPrepSession",
+        "EEG_OPTIONS[\"option_storedisk\"]"
+      ],
+      "status": "implemented",
       "responsible_phase": "phase_5",
       "phase_issue": "#162 Large-dataset storage and storedisk semantics",
-      "rationale": "These MATLAB overloads represent storedisk-era memory-mapped operations. EEGPrep needs an explicit Python storage contract, not a same-name class port.",
+      "rationale": "These MATLAB overloads represent storedisk-era memory-mapped operations. EEGPrep implements the user-visible contract through explicit offloaded dataset handles, shared session retrieval, and deterministic save/load behavior.",
       "user_facing_surface": [
         "option_storedisk",
         "large STUDY data",
         "memory-mapped processing"
       ],
       "docs_targets": [
-        "docs/source/user_guide/concepts.rst",
+        "docs/source/user_guide/storage.rst",
+        "docs/source/api/io.rst",
         "docs/source/development.rst"
       ],
-      "test_notes": "Phase 5 should prove array operations, persistence, and GUI/console synchronization for any Python-native backend."
+      "test_notes": "Phase 5 verifies storedisk offload/rehydrate, unsaved-dataset refusal, pop_newset behavior, STUDY resave, and mixed session/console synchronization in tests/test_eeg_store_storedisk.py and tests/test_console_workspace.py."
     },
     {
       "row_id": "optional-limo-workflows",
