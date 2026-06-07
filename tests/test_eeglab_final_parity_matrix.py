@@ -97,14 +97,15 @@ def test_final_validator_rejects_inconsistent_phase_ownership() -> None:
 
     payload = load_matrix(MATRIX_PATH)
     changed = copy.deepcopy(payload)
-    row = next(row for row in changed["rows"] if row["status"] == "port")
+    row = next(row for row in changed["rows"] if row["responsible_phase"] != "none")
+    status = row["status"]
     row["responsible_phase"] = "none"
     row["phase_issue"] = None
 
     report = validate_matrix_payload(changed, REPO_ROOT)
 
     assert not report.ok
-    assert "responsible_phase: is required for 'port'" in _messages(report)
+    assert f"responsible_phase: is required for {status!r}" in _messages(report)
 
 
 def test_final_validator_rejects_phase_on_skip_rows() -> None:
