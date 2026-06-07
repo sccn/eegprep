@@ -92,6 +92,8 @@ Artifact Removal
    eegprep.clean_flatlines
    eegprep.clean_drifts
    eegprep.clean_windows
+   eegprep.vis_artifacts
+   eegprep.vis_artifacts_diagnostics
 
 Channel Operations
 ------------------
@@ -113,6 +115,15 @@ Signal Processing
 
    eegprep.pop_resample
    eegprep.pop_eegfiltnew
+   eegprep.pop_firws
+   eegprep.pop_firpm
+   eegprep.pop_firma
+   eegprep.pop_kaiserbeta
+   eegprep.pop_firwsord
+   eegprep.pop_firpmord
+   eegprep.pop_xfirws
+   eegprep.firfiltreport
+   eegprep.plotfresp
    eegprep.eeg_amica
    eegprep.eeg_picard
    eegprep.eeg_runica
@@ -241,6 +252,7 @@ for now.
    eegprep.plugin_menu
    eegprep.format_plugin_menu
    eegprep.pop_clean_rawdata
+   eegprep.eeg_icalabelstat
    eegprep.pop_iclabel
    eegprep.pop_icflag
    eegprep.pop_prop_extended

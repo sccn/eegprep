@@ -6,6 +6,9 @@ import os
 import numpy as np
 
 
+_SUPPORTED_ALGORITHMS = ('default', 'lite', 'beta')
+
+
 def iclabel(EEG, algorithm='default', engine=None):
     """Apply ICLabel to classify independent components.
 
@@ -27,16 +30,7 @@ def iclabel(EEG, algorithm='default', engine=None):
     EEG : dict
         EEGLAB EEG structure with ICLabel classifications added
     """
-    try:
-        import torch
-    except ImportError as e:
-        raise ImportError(
-            f"PyTorch is not installed in your environment ({e}). "
-            f"To include torch, install eegprep as eegprep[all] or "
-            f"install the torch package manually (see Getting Started "
-            f"on pytorch.org for specifics for your platform)."
-        ) from e
-
+    algorithm = _normalize_algorithm(algorithm)
     EEG = deepcopy(EEG)
 
     # Check if using MATLAB or Octave implementation
@@ -55,6 +49,22 @@ def iclabel(EEG, algorithm='default', engine=None):
 
     # Default Python implementation
     elif engine is None:
+        if algorithm != 'default':
+            raise NotImplementedError(
+                "EEGPrep standalone Python ICLabel only ships the default network (netICL.mat). "
+                f"The '{algorithm}' network is available only with engine='matlab' or engine='octave' "
+                "and an EEGLAB ICLabel checkout that provides that artifact."
+            )
+        try:
+            import torch
+        except ImportError as e:
+            raise ImportError(
+                f"PyTorch is not installed in your environment ({e}). "
+                f"To include torch, install eegprep as eegprep[all] or "
+                f"install the torch package manually (see Getting Started "
+                f"on pytorch.org for specifics for your platform)."
+            ) from e
+
         from eegprep.plugins.ICLabel.iclabel_net import ICLabelNet
         from eegprep import ICL_feature_extractor
 
@@ -104,3 +114,10 @@ def iclabel(EEG, algorithm='default', engine=None):
         return EEG
     else:
         raise ValueError(f"Unsupported engine: {engine}. Should be None, 'matlab', or 'octave'")
+
+
+def _normalize_algorithm(algorithm):
+    normalized = 'default' if algorithm is None else str(algorithm).lower()
+    if normalized not in _SUPPORTED_ALGORITHMS:
+        raise ValueError("algorithm must be one of 'default', 'lite', or 'beta'")
+    return normalized

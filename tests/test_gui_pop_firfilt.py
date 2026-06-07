@@ -4,11 +4,16 @@ import unittest
 
 import numpy as np
 
+from eegprep.functions.guifunc.spec import controls_by_tag
 from eegprep.functions.popfunc.pop_eegfilt import pop_eegfilt, pop_eegfilt_dialog_spec
 from eegprep.plugins.firfilt.pop_eegfiltnew import pop_eegfiltnew, pop_eegfiltnew_dialog_spec
 from eegprep.plugins.firfilt.pop_firma import pop_firma, pop_firma_dialog_spec
 from eegprep.plugins.firfilt.pop_firpm import pop_firpm, pop_firpm_dialog_spec
+from eegprep.plugins.firfilt.pop_firpmord import pop_firpmord_dialog_spec
 from eegprep.plugins.firfilt.pop_firws import pop_firws, pop_firws_dialog_spec
+from eegprep.plugins.firfilt.pop_firwsord import pop_firwsord_dialog_spec
+from eegprep.plugins.firfilt.pop_kaiserbeta import pop_kaiserbeta_dialog_spec
+from eegprep.plugins.firfilt.pop_xfirws import pop_xfirws_dialog_spec
 
 
 def _eeg():
@@ -131,12 +136,43 @@ class PopFirfiltGuiTests(unittest.TestCase):
             ["plugins/firfilt/pop_firws.m", "plugins/firfilt/pop_firpm.m", "plugins/firfilt/pop_firma.m"],
         )
 
-    def test_unimplemented_firfilt_dialog_buttons_are_disabled(self):
+    def test_firfilt_dialog_buttons_have_live_callbacks(self):
         for spec in (pop_firws_dialog_spec(_eeg()), pop_firpm_dialog_spec(_eeg()), pop_firma_dialog_spec(_eeg())):
             for control in spec.controls:
                 if control.style == "pushbutton" and control.string in {"Estimate", "Plot filter responses"}:
-                    self.assertFalse(control.enabled)
-                    self.assertIsNotNone(control.tooltip)
+                    self.assertIsNotNone(control.callback)
+                    if control.tag != "wargpush":
+                        self.assertTrue(control.enabled)
+
+    def test_firfilt_order_dialog_specs_are_eeglab_labeled(self):
+        specs = [
+            pop_kaiserbeta_dialog_spec(),
+            pop_firwsord_dialog_spec(),
+            pop_firpmord_dialog_spec(),
+            pop_xfirws_dialog_spec(),
+        ]
+
+        self.assertEqual(
+            [spec.function_name for spec in specs],
+            ["pop_kaiserbeta", "pop_firwsord", "pop_firpmord", "pop_xfirws"],
+        )
+        self.assertEqual(
+            [spec.eeglab_source for spec in specs],
+            [
+                "plugins/firfilt/pop_kaiserbeta.m",
+                "plugins/firfilt/pop_firwsord.m",
+                "plugins/firfilt/pop_firpmord.m",
+                "plugins/firfilt/pop_xfirws.m",
+            ],
+        )
+        kaiser_controls = {(control.style, control.string, control.tag) for control in specs[0].controls}
+        self.assertIn(("text", "Max passband deviation/ripple:", None), kaiser_controls)
+        self.assertEqual(specs[1].help_text, "pophelp('pop_firwsord')")
+        firpm_controls = controls_by_tag(specs[2])
+        self.assertIn("rp", firpm_controls)
+        self.assertIn("rs", firpm_controls)
+        self.assertNotIn("f", firpm_controls)
+        self.assertNotIn("a", firpm_controls)
 
     def test_firws_gui_result_filters_and_returns_history(self):
         class Renderer:
