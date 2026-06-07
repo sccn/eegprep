@@ -329,3 +329,15 @@ def test_import_save_and_rebuild_independent_variables():
     assert "oddball" in rebuilt["design"][0]["variable"][0]["value"]
     assert "std_rebuilddesign" in rebuild_command
     assert std_findgroupvars(imported) == ["condition", "group", "age_group"]
+
+
+def test_std_findgroupvars_requires_one_unique_value_within_each_subject():
+    study = {
+        "datasetinfo": [
+            {"index": 1, "subject": "S01", "condition": "target", "group": "control"},
+            {"index": 2, "subject": "S01", "condition": "standard", "group": "control"},
+            {"index": 3, "subject": "S02", "condition": "target", "group": "patient"},
+        ]
+    }
+
+    assert std_findgroupvars(study) == ["group"]

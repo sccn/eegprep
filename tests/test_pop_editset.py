@@ -316,6 +316,18 @@ def test_pop_editset_loads_non_square_ica_fdt_matrices_without_eeg_data_transpos
     np.testing.assert_array_equal(out["icasphere"], sphere)
 
 
+def test_pop_editset_loads_1d_ascii_ica_matrix_in_eeglab_column_order(tmp_path):
+    eeg = _eeg()
+    eeg["nbchan"] = 4
+    eeg["icachansind"] = np.arange(4)
+    weights_file = tmp_path / "weights.txt"
+    np.savetxt(weights_file, np.arange(12, dtype=float))
+
+    out = pop_editset(eeg, "icaweights", weights_file, "dataformat", "ascii")
+
+    np.testing.assert_array_equal(out["icaweights"], np.arange(12, dtype=float).reshape(3, 4, order="F"))
+
+
 def test_pop_editset_rejects_matlab_workspace_expressions():
     with pytest.raises(FileNotFoundError, match="data file not found"):
         pop_editset(_eeg(), "data", "raw.mat")

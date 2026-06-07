@@ -93,14 +93,15 @@ def pop_dipfit_gridsearch(
         reject = result.get("reject", "")
     count = component_count(EEG)
     components = one_based_indices(select, limit=count, default_all=True)
-    out = run_gridsearch(EEG, component=components, xgrid=xgrid, ygrid=ygrid, zgrid=zgrid, reject=reject)
+    reject_value = _blank_to_none(reject)
+    out = run_gridsearch(EEG, component=components, xgrid=xgrid, ygrid=ygrid, zgrid=zgrid, reject=reject_value)
     command = dipfit_history(
         "pop_dipfit_gridsearch",
         components,
         parse_grid_values(xgrid, default=np.linspace(-DEFAULT_HEAD_RADIUS_MM, DEFAULT_HEAD_RADIUS_MM, 11)).tolist(),
         parse_grid_values(ygrid, default=np.linspace(-DEFAULT_HEAD_RADIUS_MM, DEFAULT_HEAD_RADIUS_MM, 11)).tolist(),
         parse_grid_values(zgrid, default=np.linspace(0.0, DEFAULT_HEAD_RADIUS_MM, 6)).tolist(),
-        float(reject if reject not in (None, "") else 40),
+        None if reject_value is None else float(reject_value),
     )
     return (out, command) if return_com else out
 
@@ -652,6 +653,12 @@ def _make_bilateral_starting_models(EEG: dict[str, Any], components: list[int]) 
         )
     out["dipfit"]["model"] = models
     return out
+
+
+def _blank_to_none(value: Any) -> Any:
+    if isinstance(value, str) and not value.strip():
+        return None
+    return value
 
 
 def _source_points_from_option(value: Any) -> np.ndarray:

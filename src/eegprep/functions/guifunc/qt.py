@@ -842,7 +842,7 @@ class QtDialogRenderer:
             srate = float(params.get("srate_value", 2))
         ftype = QtDialogRenderer._combo_choice(widgets.get(params.get("ftype", "")), FILTER_TYPES, "bandpass")
         try:
-            edges, amplitudes = _firpm_order_shape(fcutoff, ftrans, ftype)
+            edges, amplitudes = _firpm_order_shape(fcutoff, ftrans, ftype, srate)
             order, wtpass, wtstop = pop_firpmord(edges, amplitudes, _firpm_default_devs(amplitudes), srate)
         except ValueError as exc:
             qt_widgets.QMessageBox.warning(button, "Warning", str(exc))
@@ -1252,14 +1252,31 @@ def _format_numeric_vector(values: Any) -> str:
     return " ".join(f"{float(value):g}" for value in np.asarray(values, dtype=float).ravel())
 
 
-def _firpm_order_shape(fcutoff: list[float], ftrans: float, ftype: str) -> tuple[list[float], list[float]]:
+def _firpm_order_shape(
+    fcutoff: list[float],
+    ftrans: float,
+    ftype: str,
+    srate: float,
+) -> tuple[list[float], list[float]]:
     cutoff = np.asarray(fcutoff, dtype=float).ravel()
     transition = float(ftrans)
+    nyquist = float(srate) / 2.0
     if cutoff.size == 0 or transition <= 0:
         raise ValueError("Cutoff frequencies and transition width are required")
+    if ftype in {"highpass", "lowpass"} and cutoff.size == 1:
+        low = float(cutoff[0] - transition / 2)
+        high = float(cutoff[0] + transition / 2)
+        if low < 0:
+            raise ValueError("Cutoff frequencies - transition band width / 2 must not be < DC")
+        if high > nyquist:
+            raise ValueError("Cutoff frequencies + transition band width / 2 must not exceed Nyquist")
+        edges = [0.0, low, high, nyquist]
+        return edges, [0, 1] if ftype == "highpass" else [1, 0]
     edges = np.sort(np.concatenate([cutoff - transition / 2, cutoff + transition / 2]))
     if np.any(edges < 0):
         raise ValueError("Cutoff frequencies - transition band width / 2 must not be < DC")
+    if np.any(edges > nyquist):
+        raise ValueError("Cutoff frequencies + transition band width / 2 must not exceed Nyquist")
     desired_by_type = {
         "bandpass": [0, 1, 0],
         "bandstop": [1, 0, 1],

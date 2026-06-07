@@ -16,6 +16,7 @@ from eegprep.plugins.dipfit._mri import dipfit_mri_slice_indices, dipfit_mri_sli
 from eegprep.plugins.dipfit._coordinates import (
     electroderealign,
     headcoordinates,
+    homogenous2traditional,
     mni2tal,
     traditionaldipfit,
     warp_apply,
@@ -245,6 +246,25 @@ def test_dipfit_native_gridsearch_and_nonlinear_fit_known_spherical_source():
     assert _console_python_command(com) == "EEG = pop_dipfit_nonlinear(EEG, component=1, nonlinear='yes')"
 
 
+def test_pop_dipfit_gridsearch_gui_blank_reject_disables_rejection():
+    eeg, true_pos, _true_mom = _known_dipole_eeg()
+
+    with mock.patch(
+        "eegprep.plugins.dipfit._fieldtrip_workflows.inputgui",
+        return_value={
+            "select": "1",
+            "xgrid": f"{true_pos[0]:g}",
+            "ygrid": f"{true_pos[1]:g}",
+            "zgrid": f"{true_pos[2]:g}",
+            "reject": "",
+        },
+    ):
+        out, command = pop_dipfit_gridsearch(eeg, gui=True, return_com=True)
+
+    assert out["dipfit"]["model"][0]["rv"] < 1e-10
+    assert "reject=None" in _console_python_command(command)
+
+
 def test_dipfit_fitting_aligns_ica_subset_maps_with_coordinate_chansel_superset():
     eeg, true_pos, _true_mom = _known_dipole_eeg()
     eeg["chanlocs"].extend(
@@ -356,6 +376,16 @@ def test_dipfit_coordinate_transform_and_realign_helpers_are_deterministic():
     shifted = {"label": template["label"], "pnt": template["pnt"] + np.asarray([3, -2, 4])}
     aligned = electroderealign({"method": "realignfiducial", "elec": shifted, "template": template})
     np.testing.assert_allclose(aligned["pnt"], template["pnt"], atol=1e-10)
+
+
+def test_homogenous2traditional_roundtrips_nonzero_rotation_and_scale():
+    params = np.asarray([1.5, -2.0, 3.25, 0.2, -0.35, 0.45, 1.1, 0.8, 1.4], dtype=float)
+    transform = traditionaldipfit(params)
+
+    recovered = homogenous2traditional(transform)
+
+    np.testing.assert_allclose(recovered, params, atol=1e-12)
+    np.testing.assert_allclose(traditionaldipfit(recovered), transform, atol=1e-12)
 
 
 def test_load_afni_atlas_uses_nibabel_zero_based_voxel_affine(tmp_path):

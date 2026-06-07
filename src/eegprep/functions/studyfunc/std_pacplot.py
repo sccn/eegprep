@@ -28,9 +28,26 @@ def std_pacplot(
 ) -> tuple[Any, ...]:
     """Read and optionally plot precomputed STUDY PAC measures."""
     options = parse_key_value_args(args, kwargs, lowercase_kwargs=True)
-    channels = options.pop("channels", options.pop("channels1", channels1 if channels is None else channels))
-    clusters = options.pop("clusters", options.pop("clusters1", clusters))
-    components = options.pop("components", options.pop("comps", components))
+    option_channels = options.pop("channels", None)
+    option_channels1 = options.pop("channels1", None)
+    if option_channels is not None:
+        channels = option_channels
+    elif option_channels1 is not None:
+        channels = option_channels1
+    elif channels is None:
+        channels = channels1
+    option_clusters = options.pop("clusters", None)
+    option_clusters1 = options.pop("clusters1", None)
+    if option_clusters is not None:
+        clusters = option_clusters
+    elif option_clusters1 is not None:
+        clusters = option_clusters1
+    option_components = options.pop("components", None)
+    option_comps = options.pop("comps", None)
+    if option_components is not None:
+        components = option_components
+    elif option_comps is not None:
+        components = option_comps
     design = options.pop("design", design)
     noplot = options.pop("noplot", noplot)
     plotmode = str(options.pop("plotmode", plotmode) or "normal").lower()

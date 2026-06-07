@@ -128,6 +128,42 @@ def test_std_pac_computes_study_cache_and_std_pacplot_reads_it():
     plt.close(figure)
 
 
+def test_std_pacplot_explicit_channels_take_precedence_over_channels1_alias():
+    study = {
+        "changrp": [
+            {
+                "name": "Ch1",
+                "channels": ["Ch1"],
+                "inds": [1],
+                "pacdata": np.ones((1, 2, 3)),
+                "pacfreqs": [8.0, 12.0],
+                "pactimes": [0.0, 100.0, 200.0],
+            },
+            {
+                "name": "Ch2",
+                "channels": ["Ch2"],
+                "inds": [2],
+                "pacdata": np.ones((1, 2, 3)) * 2.0,
+                "pacfreqs": [8.0, 12.0],
+                "pactimes": [0.0, 100.0, 200.0],
+            },
+        ]
+    }
+
+    _study, plot_data, _times, _freqs, figure, command = std_pacplot(
+        study,
+        None,
+        channels=[1],
+        channels1=[2],
+        noplot="on",
+        return_com=True,
+    )
+
+    np.testing.assert_allclose(plot_data[0], np.ones((1, 2, 3)))
+    assert figure is None
+    assert "channels=[1]" in command
+
+
 def test_std_readpac_reads_and_slices_eegprep_owned_channel_cache():
     study, alleeg = _study_pair()
     raw = np.arange(2 * 4 * 5, dtype=float).reshape(2, 4, 5)

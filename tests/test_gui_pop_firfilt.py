@@ -5,11 +5,12 @@ import unittest
 import numpy as np
 
 from eegprep.functions.guifunc.spec import controls_by_tag
+from eegprep.functions.guifunc.qt import _firpm_order_shape
 from eegprep.functions.popfunc.pop_eegfilt import pop_eegfilt, pop_eegfilt_dialog_spec
 from eegprep.plugins.firfilt.pop_eegfiltnew import pop_eegfiltnew, pop_eegfiltnew_dialog_spec
 from eegprep.plugins.firfilt.pop_firma import pop_firma, pop_firma_dialog_spec
 from eegprep.plugins.firfilt.pop_firpm import pop_firpm, pop_firpm_dialog_spec
-from eegprep.plugins.firfilt.pop_firpmord import pop_firpmord_dialog_spec
+from eegprep.plugins.firfilt.pop_firpmord import pop_firpmord, pop_firpmord_dialog_spec
 from eegprep.plugins.firfilt.pop_firws import pop_firws, pop_firws_dialog_spec
 from eegprep.plugins.firfilt.pop_firwsord import pop_firwsord_dialog_spec
 from eegprep.plugins.firfilt.pop_kaiserbeta import pop_kaiserbeta_dialog_spec
@@ -173,6 +174,17 @@ class PopFirfiltGuiTests(unittest.TestCase):
         self.assertIn("rs", firpm_controls)
         self.assertNotIn("f", firpm_controls)
         self.assertNotIn("a", firpm_controls)
+
+    def test_firpm_estimate_order_shape_uses_paired_edges_for_single_cutoff_filters(self):
+        highpass_edges, highpass_amplitudes = _firpm_order_shape([8], 4, "highpass", 200)
+        lowpass_edges, lowpass_amplitudes = _firpm_order_shape([30], 4, "lowpass", 200)
+
+        self.assertEqual(highpass_edges, [0.0, 6.0, 10.0, 100.0])
+        self.assertEqual(highpass_amplitudes, [0, 1])
+        self.assertEqual(lowpass_edges, [0.0, 28.0, 32.0, 100.0])
+        self.assertEqual(lowpass_amplitudes, [1, 0])
+        self.assertGreater(pop_firpmord(highpass_edges, highpass_amplitudes, [0.001, 0.01], 200)[0], 0)
+        self.assertGreater(pop_firpmord(lowpass_edges, lowpass_amplitudes, [0.01, 0.001], 200)[0], 0)
 
     def test_firws_gui_result_filters_and_returns_history(self):
         class Renderer:

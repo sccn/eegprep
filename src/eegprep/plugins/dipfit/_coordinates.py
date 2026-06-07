@@ -156,14 +156,8 @@ def traditionaldipfit(params: Any) -> np.ndarray:
     if values.size != 9:
         raise ValueError("traditionaldipfit parameters must contain 6 or 9 values")
     tx, ty, tz, rx, ry, rz, sx, sy, sz = values
-    cx, cy, cz = np.cos([rx, ry, rz])
-    sx_sin, sy_sin, sz_sin = np.sin([rx, ry, rz])
     rotation = np.eye(4)
-    rotation[:3, :3] = [
-        [cz * cy + sz_sin * sx_sin * sy_sin, sz_sin * cy + cz * sx_sin * sy_sin, cx * sy_sin],
-        [-sz_sin * cx, cz * cx, sx_sin],
-        [sz_sin * sx_sin * cy - cz * sy_sin, -cz * sx_sin * cy - sz_sin * sy_sin, cx * cy],
-    ]
+    rotation[:3, :3] = _traditionaldipfit_rotation_matrix(rx, ry, rz)
     scaling = np.diag([sx, sy, sz, 1.0])
     return translate([tx, ty, tz]) @ rotation @ scaling
 
@@ -175,18 +169,35 @@ def homogenous2traditional(matrix: Any) -> np.ndarray:
         raise ValueError("matrix must be a 4x4 homogeneous transform")
     tx, ty, tz = transform[:3, 3]
     unshifted = np.linalg.inv(translate([tx, ty, tz])) @ transform
-    scales = np.linalg.norm(unshifted[:3, :3], axis=0)
+    linear = unshifted[:3, :3]
+    sx_scale = np.linalg.norm(linear[:, 0])
+    sz_scale = np.linalg.norm(linear[:, 2])
+    if sx_scale == 0 or sz_scale == 0:
+        raise ValueError("matrix contains a zero scale axis")
+    unit_z = linear[:, 2] / sz_scale
+    rx = np.arcsin(np.clip(unit_z[1], -1.0, 1.0))
+    ry = np.arctan2(unit_z[0], unit_z[2])
+    cos_rx = np.cos(rx)
+    if abs(cos_rx) < np.finfo(float).eps:
+        raise ValueError("matrix has a singular DIPFIT rotation")
+    unit_x = linear[:, 0] / sx_scale
+    sin_rz = -unit_x[1] / cos_rx
+    cos_ry = np.cos(ry)
+    if abs(cos_ry) >= np.finfo(float).eps:
+        cos_rz = (unit_x[0] - sin_rz * np.sin(rx) * np.sin(ry)) / cos_ry
+    else:
+        cos_rz = (sin_rz * np.sin(rx) * cos_ry - unit_x[2]) / np.sin(ry)
+    rz = np.arctan2(sin_rz, cos_rz)
+    rotation = _traditionaldipfit_rotation_matrix(rx, ry, rz)
+    scales = np.asarray(
+        [
+            np.dot(rotation[:, index], linear[:, index]) / np.dot(rotation[:, index], rotation[:, index])
+            for index in range(3)
+        ],
+        dtype=float,
+    )
     if np.any(scales == 0):
         raise ValueError("matrix contains a zero scale axis")
-    rotation = unshifted @ np.linalg.inv(scale(scales))
-    probe = rotation @ np.asarray([0.0, 0.0, 1.0, 0.0])
-    ry = np.arcsin(np.clip(probe[0], -1.0, 1.0))
-    rx = -np.arctan2(probe[1], probe[2])
-    rx_matrix = _dipfit_axis_rotation([rx, 0.0, 0.0])
-    ry_matrix = _dipfit_axis_rotation([0.0, ry, 0.0])
-    rz_matrix = np.linalg.inv(ry_matrix) @ np.linalg.inv(rx_matrix) @ rotation
-    z_probe = rz_matrix @ np.asarray([1.0, 0.0, 0.0, 0.0])
-    rz = np.arcsin(np.clip(z_probe[1], -1.0, 1.0))
     return np.asarray([tx, ty, tz, rx, ry, rz, *scales], dtype=float)
 
 
@@ -452,17 +463,17 @@ def _polynomial_terms(points: np.ndarray, order: int) -> np.ndarray:
     return np.column_stack(terms)
 
 
-def _dipfit_axis_rotation(angles_radians: Sequence[float]) -> np.ndarray:
-    rx, ry, rz = angles_radians
+def _traditionaldipfit_rotation_matrix(rx: float, ry: float, rz: float) -> np.ndarray:
     cx, cy, cz = np.cos([rx, ry, rz])
     sx, sy, sz = np.sin([rx, ry, rz])
-    rotation = np.eye(4)
-    rotation[:3, :3] = [
-        [cz * cy + sz * sx * sy, sz * cy + cz * sx * sy, cx * sy],
-        [-sz * cx, cz * cx, sx],
-        [sz * sx * cy - cz * sy, -cz * sx * cy - sz * sy, cx * cy],
-    ]
-    return rotation
+    return np.asarray(
+        [
+            [cz * cy + sz * sx * sy, sz * cy + cz * sx * sy, cx * sy],
+            [-sz * cx, cz * cx, sx],
+            [sz * sx * cy - cz * sy, -cz * sx * cy - sz * sy, cx * cy],
+        ],
+        dtype=float,
+    )
 
 
 def _as_points(value: Any, *, allow_transposed: bool = False) -> tuple[np.ndarray, bool]:

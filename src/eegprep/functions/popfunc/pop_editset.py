@@ -518,7 +518,7 @@ def _load_matrix_file(path: Path, output: dict[str, Any], *, dataformat: str = "
     if matrix.ndim == 1:
         if nbcol <= 0 or matrix.size % nbcol:
             raise ValueError(f"pop_editset cannot infer matrix shape for {path}")
-        matrix = matrix.reshape(matrix.size // nbcol, nbcol)
+        matrix = matrix.reshape(matrix.size // nbcol, nbcol, order="F")
     if matrix.ndim != 2:
         raise ValueError("ICA matrix files must contain a 2-D array")
     return matrix
