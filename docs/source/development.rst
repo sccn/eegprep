@@ -263,6 +263,44 @@ examples, options, or resources are needed at runtime, convert them into
 EEGPrep-owned packaged resources instead of reaching into the vendored
 reference tree.
 
+EEGLAB Final Standalone Parity Matrix
+=====================================
+
+The final standalone parity epic uses a second machine-readable matrix at
+``docs/parity/eeglab_final_parity_matrix.json``. It extends the core matrix into
+the remaining product surfaces that are not simple core-function parity rows:
+bundled plugin depth, MATLAB object/storage semantics, optional-toolbox
+workflows, and documentation/tutorial coverage.
+
+Rows group source files into user workflows, but every discovered final-epic
+EEGLAB reference path must be covered exactly once. The validator discovers:
+
+- ``plugins/clean_rawdata``, ``plugins/firfilt``, ``plugins/ICLabel``, and
+  ``plugins/dipfit`` files, excluding vendored third-party MatConvNet and
+  Manopt internals, examples, and tests;
+- ``functions/@eegobj``, ``functions/@memmapdata``, and ``functions/@mmo``;
+- EEGLAB tutorial scripts under ``tutorial_scripts``;
+- selected optional-toolbox workflow rows that point back to the core matrix.
+
+Final matrix statuses are ``implemented``, ``partial``, ``port``,
+``consolidated``, ``stale_skip``, ``matlab_runtime_skip``,
+``optional_dependency``, ``external_plugin``, and ``docs_gap``. Non-skip rows
+must name a responsible Phase 2-8 issue. Skip rows must use
+``responsible_phase: "none"``. ``optional_dependency`` rows must name the
+backend decision, fallback behavior, user-facing message, and phase contract so
+later agents do not silently fake external-toolbox behavior.
+
+Validate the final matrix with:
+
+.. code-block:: bash
+
+   uv run --no-sync python -m tools.eeglab_final_parity_matrix --json
+
+The docs architecture for the final epic is recorded in the matrix metadata and
+in ``.notes/eeglab-final-parity-audit.md``. It is modeled after EEGLAB's user
+docs but must describe EEGPrep's standalone Python, Qt GUI, and
+``eegprep-console`` behavior, not MATLAB runtime behavior.
+
 Building Documentation
 ======================
 

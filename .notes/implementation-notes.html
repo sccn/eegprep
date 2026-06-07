@@ -6,6 +6,54 @@
 </head>
 <body>
   <h1>EEGPrep Core Parity Implementation Notes</h1>
+  <h1>Issue #158 Final Standalone Parity Audit Notes</h1>
+  <p>Issue #158 establishes the Phase 1 contract for epic #157. It adds an
+  enforceable final-epic matrix for bundled plugin depth, MATLAB object/storage
+  semantics, optional-toolbox workflows, and EEGLAB-style docs architecture
+  without porting feature behavior.</p>
+  <h2>Issue #158 Design Decisions</h2>
+  <ul>
+    <li>Added <code>docs/parity/eeglab_final_parity_matrix.json</code> as a
+    second matrix instead of changing the completed core matrix, so
+    <code>uv run --no-sync python -m tools.eeglab_parity_matrix --json</code>
+    remains the PR #152 core validator.</li>
+    <li>Grouped MATLAB files into workflow rows while the validator still
+    flattens <code>source_paths</code> and requires every discovered final-epic
+    EEGLAB path to be covered exactly once.</li>
+    <li>Excluded MatConvNet and Manopt third-party internals, examples, and
+    tests from file-by-file coverage, while keeping top-level Riemannian ASR
+    and MatConvNet activation decisions explicitly classified.</li>
+    <li>Encoded the EEGLAB-style docs architecture in matrix metadata and in
+    <code>.notes/eeglab-final-parity-audit.md</code> so Phase 7 can write user
+    docs after Phases 2-6 define final behavior.</li>
+  </ul>
+  <h2>Issue #158 Runtime Contract</h2>
+  <ul>
+    <li>Added a runtime-boundary test that scans installed package Python files
+    for vendored <code>src/eegprep/eeglab</code> dependency patterns.</li>
+    <li>Removed the AMICA binary discovery fallback that searched the vendored
+    EEGLAB plugin tree. Supported AMICA discovery remains explicit binary path,
+    <code>AMICA_BINARY</code>, package <code>bin/</code>, and system
+    <code>PATH</code>.</li>
+  </ul>
+  <h2>Issue #158 Tradeoffs</h2>
+  <ul>
+    <li>The final matrix uses <code>optional_dependency</code> for LIMO, PAC,
+    Riemannian ASR, FieldTrip-style STUDY/source workflows, and DIPFIT fitting
+    instead of pretending those computations are available without a tested
+    backend.</li>
+    <li>The matrix assigns ownership to Phases 2-8 even for <code>partial</code>
+    and <code>consolidated</code> rows, because the final epic still needs each
+    owner to provide verification, docs, or explicit limitation evidence.</li>
+  </ul>
+  <h2>Issue #158 Verification Notes</h2>
+  <ul>
+    <li>Focused tests cover committed final matrix validation, unclassified and
+    duplicated source paths, optional-dependency contracts, phase ownership,
+    docs architecture, CLI JSON output, and runtime independence.</li>
+    <li>The final matrix validator reports 31 workflow rows covering 180
+    discovered final-epic EEGLAB reference paths.</li>
+  </ul>
   <h1>Issue #147 Correct MC Random-Symbol Fitting Notes</h1>
   <p>Issue #147 implements the Ramberg-Schmeiser/random-symbol fitting stack
   needed by <code>correct_mc</code> while keeping EEGPrep runtime code independent
