@@ -71,7 +71,7 @@ def topoplot(datavector, chan_locs, **kwargs):
         Values to plot at each channel location.
     chan_locs : list of dict
         Channel location structures with 'labels', 'theta', and 'radius' fields.
-    **kwargs : dict
+    kwargs : dict
         Additional keyword arguments for customization:
 
         - noplot : str or tuple, default 'off'

@@ -19,6 +19,8 @@ The workflow includes:
 This example shows how eegprep integrates with BIDS to provide a
 standardized, reproducible preprocessing workflow.
 
+Background references include [1]_ and [2]_.
+
 References
 ----------
 .. [1] Gorgolewski, K. J., Auer, T., Calhoun, V. D., Craddock, R. C.,

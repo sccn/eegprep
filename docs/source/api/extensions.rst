@@ -127,7 +127,6 @@ API Reference
 =============
 
 .. autosummary::
-   :toctree: generated/
 
    eegprep.CATALOG_SCHEMA_VERSION
    eegprep.CatalogValidationIssue
@@ -167,13 +166,16 @@ API Reference
    eegprep.build_safe_update_commands
 
 .. automodule:: eegprep.extensions
+   :no-index:
    :members:
    :undoc-members:
 
 .. automodule:: eegprep.extension_catalog
+   :no-index:
    :members:
    :undoc-members:
 
 .. automodule:: eegprep.extension_testing
+   :no-index:
    :members:
    :undoc-members:

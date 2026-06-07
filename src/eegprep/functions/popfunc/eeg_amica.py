@@ -54,7 +54,7 @@ def eeg_amica(
         source-tree development binary, EEGLAB's AMICA plugin, or PATH.
     max_threads : int
         Maximum number of threads for the binary.
-    **kwargs : dict
+    kwargs : dict
         Additional AMICA parameters passed through to the binary.
 
     Returns

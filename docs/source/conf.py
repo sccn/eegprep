@@ -102,7 +102,6 @@ html_context = {
 autodoc_default_options = {
     "members": True,
     "member-order": "bysource",
-    "special-members": "__init__",
     "undoc-members": False,
     "show-inheritance": True,
 }

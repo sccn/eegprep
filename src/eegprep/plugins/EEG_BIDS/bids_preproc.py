@@ -186,8 +186,6 @@ def bids_preproc(
     root : str
         The root directory containing BIDS data or a single EEG file path.
 
-    (BIDS import stage parameters)
-
     ApplyMetadata : bool
         Whether to apply metadata from BIDS sidecar files when loading raw EEG data.
         (default True)
@@ -216,7 +214,7 @@ def bids_preproc(
     OutputDir : str
         The name of the subdirectory where cleaned files will be saved. This can start
         with the placeholder '{root}' which will be replaced with the root path of
-        the BIDS dataset. Defaults to '{root}/derivatives/eegprep' if not specified.    (overall run configuration)
+        the BIDS dataset. Defaults to '{root}/derivatives/eegprep' if not specified.
 
     SkipIfPresent : bool
         skip processing files that already have a cleaned version present.
@@ -230,16 +228,13 @@ def bids_preproc(
     ReservePerJob : str
         Optionally the resource amount and type to reserve per job, e.g. '4GB' or '2CPU';
         the run will then use as many jobs as fit within the system resources of the specified type.
-        * You can also specify how much of a margin of the total system resources should
-        be *withheld* for use by other programs on the computer, by following the amount
-        by a : and then the margin, as in '4GB:10GB' (always leave 10GB unused), '2CPU:10%'
-        (always leave 10% of the total installed RAM unused). This also works with other metrics.
-        * one may also specify a total or maximum number of jobs, as in '10total' or '10max'.
-        * Multiple criteria can be spefied in a comma-separated list of reservations, e.g.
-        '4GB:20%, 2CPU, 5max'.
-        * If neither this nor NumJobs are specified, a single job will run. Note that the
-        system will also run in serial when in debug mode and when on a platform that does
-        not cleanly support multiprocessing.
+        You can add a margin after a colon, as in '4GB:10GB' or '2CPU:10%'.
+        You can also specify a total or maximum number of jobs, such as
+        '10total' or '10max'. Multiple criteria can be provided as a
+        comma-separated list, for example '4GB:20%, 2CPU, 5max'. If neither
+        ReservePerJob nor NumJobs is specified, a single job will run. The
+        system also runs serially in debug mode and on platforms that do not
+        cleanly support multiprocessing.
         Tip: a good way to size this is to perform a serial run and to monitor how much
         peak RAM a single job takes, and then setting this to <PeakUsage>GB:<YourMargin>GB
         where YourMargin is however much you want to leave to other programs, e.g., 5GB
@@ -253,7 +248,6 @@ def bids_preproc(
         quite a lot of memory for large studies and it may be better to iterate over
         the preprocessed files in downstream analyses.
 
-    (overall processing parameters)
     OnlyChannelsWithPosition : bool
         Whether to retain only channels for which positions were recorded or could be
         inferred. If this is not set, then OnlyModalities should be set so as to retain
@@ -269,7 +263,7 @@ def bids_preproc(
     WithInterp : bool
         Whether to reinterpolate dropped channels, thus retaining the same channel
         count as the raw data.
-    WithICA (bool):
+    WithICA : bool
         Whether to apply PICARD ICA decomposition after cleaning.
     AmicaArgs : dict or None
         Additional keyword arguments for AMICA when ICAAlgorithm='amica',
@@ -277,11 +271,9 @@ def bids_preproc(
     WithICLabel : bool
         Whether to apply ICLabel classification after ICA. Normally requires
         WithICA=True.
-    CommonAverageReference (bool):
+    CommonAverageReference : bool
         Whether to transform the EEG data to a common average referencing scheme;
         recommended for cross-study processing.
-
-    (parameters for artifact removal - same as in clean_artifacts function)
 
     ChannelCriterion : float or 'off'
         Minimum channel correlation threshold for channel cleaning; channels below
@@ -336,7 +328,6 @@ def bids_preproc(
     availableRAM_GB : float or None
         Available system RAM in GB to adjust MaxMem. Default None.
 
-     (parameters for an optional epoching and baseline removal step)
     EpochEvents : str or Sequence[str] or None
         Optionally a list of event types or regular expression matching event types
         at which to time-lock epochs. If None (default), no epoching is done. If [],
@@ -349,8 +340,6 @@ def bids_preproc(
         correction. If None (default), no baseline correction is applied. The special
         value None can be used to refer to the respective end of the epoch limits,
         as in (None, 0).
-
-    (misc parameters)
 
     StageNames : Sequence[str]
         list of file name parts for the preprocessing stages, in the order of cleaning,ica,iclabel;
@@ -367,8 +356,6 @@ def bids_preproc(
     MinimizeDiskUsage : bool
         whether to minimize disk usage by not saving some intermediate files (specifically
         the PICARD output if WithICLabel=False). Default True.
-
-    (parameters retained for backwards compatibility with EEGLAB's pop_importbids call signature)
 
     bidsmetadata : bool
         alias for ApplyMetadata

@@ -20,9 +20,9 @@ def eeg_picard(EEG, engine=None, posact='off', sortcomps='off', **kwargs):
         If 'on' or True, normalize component signs so max(abs(activations)) is positive. Default is 'off'.
     sortcomps : str | bool, optional
         If 'on' or True, sort components by descending activation variance. Default is 'off'.
-    **kwargs : dict
-        Additional keyword arguments to be passed to the Picard algorithm.
-        For example, `{'maxiter': 500}`.
+    kwargs : dict
+        Additional keyword arguments to pass to the Picard algorithm. For
+        example, ``{"maxiter": 500}``.
 
     Returns
     -------

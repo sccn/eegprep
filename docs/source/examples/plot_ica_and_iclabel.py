@@ -21,6 +21,8 @@ The workflow includes:
 This example demonstrates best practices for ICA-based artifact removal,
 a standard approach in modern EEG preprocessing pipelines.
 
+Background references include [1]_ and [2]_.
+
 References
 ----------
 .. [1] Pion-Tonachini, L., Kreutz-Delgado, K., & Makeig, S. (2019).

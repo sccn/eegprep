@@ -30,14 +30,11 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
     EEG : dict
         EEG data structure with 'data', 'chanlocs', 'nbchan', etc.
     bad_chans : list, array-like, or list of dicts
-        Can be one of:
-        - List of channel names (strings): e.g., ['Fp1', 'Fp2']
-        - List of channel indices (integers): e.g., [0, 1, 2]
-        - List of chanloc structures (dicts): e.g., [{'labels': 'T7', 'X': 0.8, 'Y': 0.0, 'Z': 0.6}, ...]
-          When chanloc structures are provided, the function supports three modes:
-          1. If chanlocs are identical to EEG['chanlocs'], returns data unchanged
-          2. If no overlap with existing channels, appends new channels and interpolates them
-          3. If existing channels are a subset, remaps data to new channel structure
+        Channel names, channel indices, or channel-location dictionaries.
+        When channel-location dictionaries are provided, the function can
+        return unchanged data for identical locations, append new channels when
+        no existing locations overlap, or remap data when existing channels are
+        a subset of the requested channel structure.
     method : str, optional
         Interpolation method ('spherical', 'sphericalKang', 'sphericalCRD',
         'sphericalfast', 'invdist'/'v4', or 'spacetime').
@@ -45,10 +42,10 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
         Time range for interpolation
     params : tuple, optional
         Method-specific parameters
-    dtype: str | dtype, optional
-        Optionally the precision in which to perform the computation;
-        * 'float32' : matches MATLAB, but limits precision (default)
-        * 'float64': operate at full precision; requires twice the memory
+    dtype : str or dtype, optional
+        Precision for the interpolation computation. Use ``"float32"`` to
+        match MATLAB-oriented workflows with lower memory use, or
+        ``"float64"`` for full precision.
 
     Returns
     -------
