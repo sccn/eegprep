@@ -298,9 +298,10 @@ Validate the final matrix with:
    uv run --no-sync python -m tools.eeglab_final_parity_matrix --json
 
 The docs architecture for the final epic is recorded in the matrix metadata and
-in ``.notes/eeglab-final-parity-audit.md``. It is modeled after EEGLAB's user
-docs but must describe EEGPrep's standalone Python, Qt GUI, and
-``eegprep-console`` behavior, not MATLAB runtime behavior.
+in ``.notes/eeglab-final-parity-audit.md``. It should be useful to EEG
+researchers first: describe EEGPrep's standalone Python package, Qt GUI, and
+``eegprep-console`` behavior accurately, and use EEGLAB comparisons only where
+they help users migrate or understand familiar concepts.
 
 Building Documentation
 ======================

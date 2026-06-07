@@ -4,7 +4,7 @@
 Preprocessing Pipeline
 ======================
 
-This page describes a practical EEGLAB-style preprocessing order in EEGPrep.
+This page describes a practical preprocessing order in EEGPrep.
 It is not a mandatory recipe for every experiment. Adapt thresholds and review
 steps to your data, task, and lab standards.
 
@@ -92,8 +92,8 @@ Use FIRFilt helpers for custom filter design:
 Clean Continuous Data
 =====================
 
-Use ``pop_clean_rawdata`` when you want the EEGLAB-style GUI wrapper and
-history string:
+Use ``pop_clean_rawdata`` when you want the interactive wrapper and history
+string:
 
 .. code-block:: python
 

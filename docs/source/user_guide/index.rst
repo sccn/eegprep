@@ -4,17 +4,18 @@
 User Guide
 ==========
 
-The EEGPrep user guide is organized like a working EEGLAB manual: first the
-workspace and data structures, then GUI workflows, console history, scripting,
-plugins, group analysis, migration notes, and troubleshooting.
+The EEGPrep user guide is organized around real research workflows: load data,
+understand the dataset structure, work in the GUI and console together, script
+repeatable steps, review artifacts and components, manage plugins, and run
+group-level analyses.
 
 .. raw:: html
 
    <div class="eegprep-callout">
      <strong>Recommended path:</strong> run the quick start with
      <code>sample_data/eeglab_data.set</code>, read the Concepts Guide, then
-     repeat the same workflow once through the GUI and once from
-     <code>eegprep-console</code>.
+     repeat the same workflow with the GUI and <code>eegprep-console</code>
+     open side by side.
    </div>
 
 Getting Started
@@ -34,6 +35,7 @@ GUI, Console, and Scripts
 .. toctree::
    :maxdepth: 1
 
+   gui_console_session
    gui_tutorials
    interactive_console
    scripting_workflows

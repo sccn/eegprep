@@ -4,17 +4,16 @@
 Concepts Guide
 ==============
 
-EEGPrep keeps EEGLAB's user-facing vocabulary because it is the most useful
-mental model for many EEG researchers. The runtime is Python, but the main
-objects, command names, history behavior, and menu flow are designed so EEGLAB
-users can predict what will happen.
+EEGPrep uses plain Python objects while keeping the EEG workflow vocabulary many
+researchers already know. The main objects, command names, history behavior,
+and menu flow are designed to be predictable for EEG researchers, including
+people coming from EEGLAB.
 
 Workspace Names
 ===============
 
 ``eegprep-console --full`` opens a Qt GUI and an IPython console against one
-shared ``EEGPrepSession``. The console starts with the familiar EEGLAB
-workspace names:
+shared ``EEGPrepSession``. The console starts with familiar workspace names:
 
 .. list-table::
    :header-rows: 1
@@ -90,14 +89,14 @@ Practical rules:
 * Use event ``latency`` values as EEGLAB-facing sample positions when reading
   or writing event metadata.
 * Use Python zero-based indexing when slicing ``EEG["data"]``.
-* Most ``pop_*`` command strings print EEGLAB-facing values so history can be
-  understood by EEGLAB users.
+* Most ``pop_*`` command strings print user-facing values so history can be
+  read and reused later.
 * ``icachansind`` is normalized to zero-based integer indices after loading a
   MATLAB ``.set`` file, then converted back to one-based values when saving.
 
 For epoched data, ``EEG["data"][:, :, trial_index]`` is zero-based Python
 indexing. User-facing epoch and component selectors in GUI dialogs use
-EEGLAB-style one-based values.
+one-based values.
 
 Channel Locations
 =================
@@ -108,14 +107,14 @@ Channel Locations
 names so topographic plotting, interpolation, DIPFIT, ICLabel features, and
 STUDY channel measures can share the same metadata.
 
-Use ``pop_chanedit`` or ``pop_readlocs`` when working through EEGLAB-style
-dialogs. Use ``readlocs`` or direct dictionary updates only when scripting and
-you already know the channel table shape you need.
+Use ``pop_chanedit`` or ``pop_readlocs`` when working through interactive
+channel-location dialogs. Use ``readlocs`` or direct dictionary updates only
+when scripting and you already know the channel table shape you need.
 
 ICA and ICLabel Fields
 ======================
 
-ICA workflows write the same core fields EEGLAB users expect:
+ICA workflows write the core fields used throughout EEGPrep:
 
 * ``icaweights`` and ``icasphere`` store the unmixing transform.
 * ``icawinv`` stores scalp maps.

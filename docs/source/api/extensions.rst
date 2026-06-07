@@ -81,7 +81,7 @@ Author Test Harness
 ``ExtensionTestHarness`` provides reusable assertions for extension authors. It
 checks that a spec validates, menus reference declared actions or ``pop_*``
 functions, help resources exist, lazy targets load, and callable actions or
-``pop_*`` functions return EEGLAB-style ``(EEG, com)`` results when tested by
+``pop_*`` functions return history-aware ``(EEG, com)`` results when tested by
 the author.
 
 Extension Manager and catalog

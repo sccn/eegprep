@@ -4,9 +4,9 @@
 GUI Tutorials
 =============
 
-EEGPrep's GUI is intentionally close to EEGLAB's menu workflow. The difference
-is that ``eegprep-console`` can sit beside the GUI and expose the same session
-as Python names.
+EEGPrep's GUI is built for practical EEG review: use menus and dialogs for
+visual decisions, keep ``eegprep-console`` beside it for inspection and
+repeatable commands, and save the resulting datasets when review is complete.
 
 Launch
 ======
@@ -24,7 +24,8 @@ Use the GUI-only launcher when you do not need a console:
    uv run eegprep-gui --full
 
 The console workflow is recommended because it shows ``LASTCOM`` and ``ALLCOM``
-after each menu action.
+after each menu action. See :ref:`gui_console_session` for the shared-session
+model and implementation details.
 
 Load, Inspect, and Save a Dataset
 =================================

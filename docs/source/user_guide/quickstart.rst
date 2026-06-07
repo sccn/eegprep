@@ -4,9 +4,9 @@
 Quick Start
 ===========
 
-This quick start uses the checked-in EEGLAB tutorial data under
-``sample_data/``. It shows the same first workflow in normal Python and in the
-GUI plus ``eegprep-console`` session.
+This quick start uses the checked-in tutorial data under ``sample_data/``. It
+shows the same first workflow in normal Python and in the shared GUI plus
+``eegprep-console`` session.
 
 Sample Data
 ===========
@@ -135,7 +135,9 @@ Where to Go Next
 ================
 
 * Read :ref:`concepts` before writing longer scripts.
+* Use :ref:`gui_console_session` to understand switching between the GUI and
+  console.
 * Use :ref:`gui_tutorials` to repeat the workflow from menus.
-* Use :ref:`interactive_console` to understand auto-store behavior.
+* Use :ref:`interactive_console` for console launch and history details.
 * Use :ref:`scripting_workflows` to turn history into reproducible scripts.
 * Use :ref:`mne_integration` for issue #22's MNE examples.

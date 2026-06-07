@@ -1,14 +1,14 @@
 .. _pop_functions_api:
 
 ============================
-EEGLAB-Style pop_ Wrappers
+Interactive Pop Workflow API
 ============================
 
 This page lists the public ``pop_*`` wrappers exported by ``eegprep``. Use
 ``return_com=True`` on history-relevant wrappers when you need the replayable
-EEGLAB-style command string. In normal Python, assign returned values
-explicitly; in ``eegprep-console``, registered wrappers can update the shared
-session automatically.
+command string. In normal Python, assign returned values explicitly; in
+``eegprep-console``, registered wrappers can update the shared session
+automatically.
 
 .. autosummary::
    :nosignatures:

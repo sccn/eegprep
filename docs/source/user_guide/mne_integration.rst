@@ -6,9 +6,8 @@ MNE-Python Integration
 
 This page addresses the MNE examples requested in GitHub issue #22. EEGPrep is
 not a replacement for MNE-Python. The intended workflow is to use EEGPrep when
-you want EEGLAB-style preprocessing, ``pop_*`` history, GUI review, and
-standalone plugin ports, then convert to MNE when your downstream analysis
-belongs in MNE.
+you want EEGPrep preprocessing, ``pop_*`` history, GUI review, and standalone
+plugin ports, then convert to MNE when your downstream analysis belongs in MNE.
 
 Install
 =======
@@ -106,7 +105,7 @@ A practical workflow is:
      <p>Use MNE to read a hardware-specific file format when MNE has the best
      reader for your data.</p>
      <p>Convert the MNE object to EEGPrep with <code>eeg_mne2eeg</code>.</p>
-     <p>Run EEGLAB-style preprocessing, GUI review, ICLabel, or STUDY setup in
+     <p>Run EEGPrep preprocessing, GUI review, ICLabel, or STUDY setup in
      EEGPrep.</p>
      <p>Convert back with <code>eeg_eeg2mne</code> for MNE source analysis,
      statistics, reports, or pipelines that require MNE objects.</p>
@@ -115,8 +114,8 @@ A practical workflow is:
 Boundary Notes
 ==============
 
-* EEGPrep stores data in EEGLAB-style dictionaries. MNE stores data in ``Raw``
-  and ``Epochs`` objects with an ``Info`` structure.
+* EEGPrep stores data in EEG dictionaries. MNE stores data in ``Raw`` and
+  ``Epochs`` objects with an ``Info`` structure.
 * MNE channel data is usually in volts. EEGLAB ``.set`` readers and writers may
   display EEG data in microvolt-oriented workflows. Inspect units before
   comparing absolute amplitudes.

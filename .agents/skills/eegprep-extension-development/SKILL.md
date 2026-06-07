@@ -6,7 +6,8 @@ description: Build EEGPrep external extension packages with SDK registration, de
 # EEGPrep Extension Development
 
 Use this skill to build extension packages that work as standalone Python
-packages and feel natural to EEGLAB users inside EEGPrep.
+packages and feel natural inside EEGPrep, including for researchers migrating
+from EEGLAB.
 
 ## Start Here
 
@@ -96,6 +97,11 @@ must not import heavy code, start Qt, read data files, or call EEGLAB.
   Python indexing internally.
 - Package GUI Help and `pophelp` text as Markdown resources and declare them
   with `ExtensionResource`.
+- Update the relevant Sphinx docs when an extension changes user-facing menus,
+  workflows, console/history behavior, optional dependency expectations,
+  package data, curation metadata, or troubleshooting guidance. Keep the docs
+  centered on standalone EEGPrep behavior, with EEGLAB comparisons only where
+  they clarify migration or compatibility.
 - Put data/model resources in the package and access them with
   `importlib.resources` or declared `ExtensionResource` records. Do not read
   from `src/eegprep/eeglab` at runtime.

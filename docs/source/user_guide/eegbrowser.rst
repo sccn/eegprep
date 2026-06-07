@@ -4,9 +4,9 @@
 EEGBrowser Workflows
 ====================
 
-EEGPrep includes an EEGLAB-style scrolling browser for inspecting continuous,
-epoched, component, spectral, and overlay data. The browser is available from
-the Plot menu, rejection workflows, Python APIs, and ``eegprep-console``.
+EEGPrep includes a scrolling browser for inspecting continuous, epoched,
+component, spectral, and overlay data. The browser is available from the Plot
+menu, rejection workflows, Python APIs, and ``eegprep-console``.
 
 Opening The Browser
 ===================

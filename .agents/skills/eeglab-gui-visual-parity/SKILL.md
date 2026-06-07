@@ -11,6 +11,9 @@ same controls, labels, order, enabled state, layout, and obvious hierarchy.
 EEGLAB users must feel at home while using EEGPrep, so compare alignment,
 arrangement, button placement, text fields, labels, defaults, enabled states,
 and workflow before accepting a GUI as complete. Remember, while we are doing a porting project, EEGPrep must work well standalone and must be a delight to use for EEG Researchers.
+When the GUI behavior, menu path, help surface, command history, or
+GUI/`eegprep-console` synchronization changes, update the relevant Sphinx
+workflow docs and packaged help resources in the same branch.
 
 ## Work From The Repo Root
 

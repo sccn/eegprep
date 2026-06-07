@@ -27,7 +27,7 @@ native file pickers, launch:
 
    uv run eegprep-console --full --native-file-dialogs
 
-The console starts with EEGLAB-style workspace names already defined:
+The console starts with familiar workspace names already defined:
 
 .. code-block:: python
 
@@ -41,6 +41,9 @@ The console starts with EEGLAB-style workspace names already defined:
 
 Actions taken in the GUI update these names in the console. Commands run in the
 console update the same GUI session.
+
+For the full mixed workflow and implementation model, see
+:ref:`gui_console_session`.
 
 Sample Data Walkthrough
 =======================

@@ -233,15 +233,15 @@ instead of reaching into private EEGPrep modules.
 ``pop_*`` History and Console Rules
 ===================================
 
-Extension ``pop_*`` functions should follow EEGPrep and EEGLAB-facing
-conventions:
+Extension ``pop_*`` functions should follow EEGPrep interactive conventions:
 
 * Accept an EEG dict or EEG-like object explicitly.
 * Return the updated EEG object for data-changing calls.
 * Support ``return_com=True`` and return ``(EEG, com)`` when the call should be
   recorded in history.
-* Use EEGLAB-facing 1-based values in command strings when users provide
-  EEGLAB-style indices, and convert to Python 0-based indexing internally.
+* Use user-facing 1-based values in command strings when users provide
+  channel, component, dataset, epoch, or event positions, and convert to Python
+  0-based indexing internally.
 * Keep GUI and console workflows synchronized through the registered action and
   ``EEGPrepSession`` helpers instead of mutating GUI-only state.
 * Add packaged help resources for GUI Help buttons and ``pophelp`` surfaces.

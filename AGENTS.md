@@ -65,6 +65,7 @@ Primary references:
 - GUI/menu actions must update datasets and history through `EEGPrepSession` helpers such as `store_current`, `add_history`, and `notify_changed`; do not mutate GUI-only state that the console cannot see.
 - User-facing `pop_*` functions should support `return_com=True` and return EEGLAB-style history commands. The console wrappers rely on `(EEG, com)` results to auto-store bare calls like `pop_reref(EEG, [])`.
 - When adding or changing a GUI-reachable function, test both interaction directions when relevant: GUI action then console inspection, and console command then GUI refresh/history.
+- When GUI/console synchronization, history behavior, dataset selection, STUDY state, or registered menu actions change, update the Sphinx workflow docs so users understand how to move between the GUI and `eegprep-console`, and update developer notes when `EEGPrepSession` contracts change.
 - Menu placeholders must carry phase/exclusion metadata in `menu_placeholders.py`; mark EEGBrowser/eegplot-style scrolling workflows with an explicit exclusion instead of treating them as ordinary TODOs.
 
 ## Code Style
@@ -90,7 +91,8 @@ Primary references:
 
 - Public APIs need concise docstrings. Use the style already present in nearby code; Google-style is preferred for new public functions.
 - Skip docstrings for trivial private helpers with clear names.
-- When adding a feature or changing user-facing behavior, update Sphinx docs under `docs/source/`. Update examples/API pages when relevant.
+- Any user-facing EEGPrep change must include matching Sphinx updates under `docs/source/` in the same branch unless the change has no user-visible behavior. Update workflow/tutorial pages, examples, generated or hand-written API pages, troubleshooting notes, and migration notes where relevant.
+- Write docs from an EEGPrep standalone user point of view. Use EEGLAB comparisons when they clarify migration, parity, file compatibility, or indexing boundaries, but do not frame normal EEGPrep behavior as merely "EEGLAB-style."
 - When adding a user-facing function or GUI dialog with a Help button, add or update the corresponding Markdown help resource in `src/eegprep/resources/help/`, for example `src/eegprep/resources/help/pop_reref.md`.
 - Keep comments for module/class behavior, subtle logic, or non-obvious boolean arguments. Do not restate code.
 - Delete stale comments when you encounter them in touched code.

@@ -26,7 +26,7 @@ Bundled Plugin Inventory
    * - FIRFilt
      - ``pop_eegfiltnew``, ``pop_firws``, ``pop_firpm``, ``pop_firma``,
        ``pop_xfirws``
-     - EEGLAB-style FIR filtering, filter-order helpers, response reports, and
+     - FIR filtering, filter-order helpers, response reports, and
        boundary-aware filtering.
    * - ICLabel
      - ``pop_iclabel``, ``pop_icflag``, ``eeg_icalabelstat``,

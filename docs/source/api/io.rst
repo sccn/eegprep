@@ -10,6 +10,7 @@ BIDS Loading
 ============
 
 .. autofunction:: eegprep.pop_load_frombids
+   :no-index:
 
 .. autofunction:: eegprep.pop_importbids
 
@@ -81,8 +82,8 @@ EEGLAB Format
 
 .. autofunction:: eegprep.pop_saveset
 
-``pop_saveset(..., savemode="twofiles")`` writes an EEGLAB-style ``.set``
-header plus ``.fdt`` float32 sidecar. ``EEG_OPTIONS["option_savetwofiles"]``
+``pop_saveset(..., savemode="twofiles")`` writes a ``.set`` header plus
+``.fdt`` float32 sidecar. ``EEG_OPTIONS["option_savetwofiles"]``
 uses that layout by default, and ``EEG_OPTIONS["option_memmapdata"]`` makes
 ``pop_loadset`` expose sidecar data through a NumPy-compatible memory map. See
 :ref:`large_dataset_storage` for storedisk session behavior and limitations.
@@ -92,7 +93,7 @@ Text And External Export
 
 .. autofunction:: eegprep.pop_export
 
-``pop_export`` supports EEGLAB-style text export options including ICA export,
+``pop_export`` supports text export options including ICA export,
 time/electrode rows, transpose, ERP averaging, precision, separator, and a
 standalone numeric ``expr`` transform applied to the exported array ``x``.
 Most expression function calls are positional; ``clip`` and ``nan_to_num`` also

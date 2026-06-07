@@ -90,7 +90,7 @@ All gallery examples are designed to be self-contained and executable:
 4. **Documentation** - Each example includes detailed comments explaining each step
 
 The user guide tutorials use the repository's checked-in ``sample_data`` files
-when the workflow is easier to understand with EEGLAB-style datasets:
+when the workflow is easier to understand with tutorial datasets:
 
 - :ref:`quickstart`
 - :ref:`gui_tutorials`

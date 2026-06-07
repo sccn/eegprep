@@ -8,7 +8,7 @@ EEGPrep is a Python port, not a MATLAB compatibility layer. Use these notes
 when translating EEGLAB habits into EEGPrep scripts and GUI workflows.
 
 What Carries Over
-================
+=================
 
 .. list-table::
    :header-rows: 1
@@ -60,7 +60,7 @@ Command Translation Examples
 .. list-table::
    :header-rows: 1
 
-   * - EEGLAB-style intent
+   * - Migration intent
      - EEGPrep Python
    * - Load a dataset
      - ``EEG = pop_loadset("sample_data/eeglab_data.set")``
@@ -133,5 +133,5 @@ When to Stay in MNE or MATLAB
 Use MNE-Python when your analysis depends on MNE-native object workflows,
 forward models, reports, or statistics. Use MATLAB EEGLAB when you need an
 unported MATLAB-only plugin or toolbox today. Use EEGPrep when you want
-EEGLAB-style preprocessing and review in Python with standalone package
+familiar preprocessing and review workflows in Python with standalone package
 behavior.

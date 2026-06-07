@@ -5,10 +5,11 @@ EEGPrep
 .. raw:: html
 
    <div class="eegprep-hero">
-     <div class="eegprep-kicker">Standalone Python manual for EEGLAB users</div>
-     <p>EEGPrep ports core EEGLAB preprocessing ideas, names, data structures,
-     GUI workflows, command history, and bundled plugin behavior into a Python
-     package that can run without a MATLAB or EEGLAB checkout.</p>
+     <div class="eegprep-kicker">Standalone EEG preprocessing for researchers</div>
+     <p>EEGPrep is a Python application for loading, cleaning, reviewing, and
+     scripting EEG datasets. It keeps familiar EEG workflow concepts where they
+     help, but the package, GUI, console, help, examples, and documentation are
+     EEGPrep-owned and work without a MATLAB or EEGLAB checkout.</p>
    </div>
 
 Use this manual as a working path, not only as an API index. Start with the
@@ -32,12 +33,19 @@ sample datasets in ``sample_data/``, move between the Qt GUI and
       Understand ``EEG``, ``ALLEEG``, events, epochs, channel locations, ICA
       fields, STUDY, and history replay.
 
+   .. grid-item-card:: Work in GUI and Console
+      :link: user_guide/gui_console_session
+      :link-type: doc
+
+      Keep the main window and ``eegprep-console`` side by side: run menu
+      actions, inspect ``EEG`` and history, then continue from Python.
+
    .. grid-item-card:: Follow GUI Workflows
       :link: user_guide/gui_tutorials
       :link-type: doc
 
-      Run EEGLAB-style menus for filtering, rejection, ICA, ICLabel, EEGBrowser,
-      STUDY, and DIPFIT while tracking console state.
+      Run menu workflows for filtering, rejection, ICA, ICLabel, EEGBrowser,
+      STUDY, and DIPFIT while tracking the same session from the console.
 
    .. grid-item-card:: Script the Same Steps
       :link: user_guide/scripting_workflows
@@ -75,8 +83,8 @@ Manual
 Five-Minute Script
 ==================
 
-Load the checked-in EEGLAB tutorial dataset, run two common preprocessing steps,
-and keep the replayable command strings.
+Load the checked-in tutorial dataset, run two common preprocessing steps, and
+keep the replayable command strings.
 
 .. code-block:: python
 
@@ -104,7 +112,8 @@ Where EEGLAB Users Should Go First
    * - ``EEG`` / ``ALLEEG`` / ``CURRENTSET``
      - :doc:`user_guide/concepts`
    * - GUI menus plus MATLAB command history
-     - :doc:`user_guide/gui_tutorials` and :doc:`user_guide/interactive_console`
+     - :doc:`user_guide/gui_console_session`, :doc:`user_guide/gui_tutorials`,
+       and :doc:`user_guide/interactive_console`
    * - ``pop_*`` scripts
      - :doc:`user_guide/scripting_workflows` and :doc:`api/pop_functions`
    * - clean_rawdata, FIRFilt, ICLabel, DIPFIT, EEG-BIDS

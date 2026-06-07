@@ -4,9 +4,9 @@
 Scripting Workflows
 ===================
 
-EEGPrep scripts should look familiar to EEGLAB users but use ordinary Python
-imports, assignments, and paths. The safest pattern is explicit input, explicit
-return value, and ``return_com=True`` whenever a command should be replayable.
+EEGPrep scripts should be ordinary Python: explicit imports, explicit
+assignments, and clear paths. Use ``return_com=True`` whenever a command should
+be replayable from session history.
 
 From Menu History to Script
 ===========================
@@ -66,7 +66,7 @@ Use ``pathlib`` and keep outputs outside immutable tutorial files:
 
 Do not mutate ``ALLEEG`` by hand in scripts unless you are deliberately
 building a session-like workflow. Use ``EEGPrepSession`` when you need
-EEGLAB-style dataset storage.
+the same dataset storage model as the GUI and console.
 
 Use an EEGPrepSession
 =====================

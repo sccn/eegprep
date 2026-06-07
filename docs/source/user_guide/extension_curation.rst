@@ -180,5 +180,5 @@ mistakes before submitting catalog metadata.
        harness.assert_pop_function_history_result("pop_my_extension", sample_eeg)
 
 The harness checks spec validation, menu references, help resources, lazy action
-loads, ``pop_*`` loads, and EEGLAB-style ``(EEG, com)`` console/history results
-for actions or pop functions that the author calls in tests.
+loads, ``pop_*`` loads, and history-aware ``(EEG, com)`` console results for
+actions or pop functions that the author calls in tests.
