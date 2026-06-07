@@ -16,6 +16,8 @@ The workflow includes:
 This example is self-contained and executable, requiring only synthetic data
 generation. It serves as a template for preprocessing real EEG datasets.
 
+Background references include [1]_ and [2]_.
+
 References
 ----------
 .. [1] Delorme, A., & Makeig, S. (2004). EEGLAB: an open source toolbox for

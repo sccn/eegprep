@@ -26,6 +26,8 @@ The workflow includes:
 This example demonstrates best practices for channel quality control
 and recovery in EEG preprocessing pipelines.
 
+Background references include [1]_ and [2]_.
+
 References
 ----------
 .. [1] Perrin, F., Pernier, J., Bertrand, O., & Echallier, J. F. (1989).

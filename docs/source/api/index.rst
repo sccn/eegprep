@@ -15,6 +15,7 @@ This section contains the complete API documentation for eegprep. The API is org
    signal_processing
    statistics
    io
+   pop_functions
    extensions
    utils
 
@@ -222,8 +223,6 @@ Utilities
    eegprep.eeg_decodechan
    eegprep.eeg_lat2point
    eegprep.eeg_point2lat
-   eegprep.bids_list_eeg_files
-   eegprep.bids_preproc
 
 BIDS Pipeline
 =============
@@ -233,7 +232,6 @@ BIDS Pipeline
 
    eegprep.bids_preproc
    eegprep.bids_list_eeg_files
-   eegprep.pop_load_frombids
    eegprep.pop_importbids
    eegprep.pop_exportbids
 
@@ -257,10 +255,6 @@ for now.
    eegprep.pop_icflag
    eegprep.pop_prop_extended
    eegprep.pop_viewprops
-   eegprep.pop_eegfiltnew
-   eegprep.pop_firws
-   eegprep.pop_firpm
-   eegprep.pop_firma
    eegprep.firws
    eegprep.firwsord
    eegprep.pop_dipfit_settings
@@ -295,8 +289,14 @@ them.
    eegprep.ExtensionRegistry
    eegprep.ExtensionRecord
    eegprep.ExtensionStatus
+   eegprep.ExtensionSourceType
+   eegprep.ExtensionCatalog
+   eegprep.ExtensionCatalogEntry
+   eegprep.CatalogSourceType
    eegprep.ExtensionAction
    eegprep.ExtensionPopFunction
+   eegprep.ExtensionMenu
+   eegprep.ExtensionDependency
    eegprep.ExtensionResource
    eegprep.ExtensionLoadError
    eegprep.ExtensionValidationResult
@@ -310,6 +310,9 @@ them.
    eegprep.validate_catalog_entries
    eegprep.validate_catalog_file
    eegprep.validate_extension_spec
+   eegprep.load_extension_catalog
+   eegprep.build_safe_install_commands
+   eegprep.build_safe_update_commands
 
 STUDY Workflows
 ===============
@@ -382,7 +385,7 @@ measure plotting, component preclustering, clustering, and cluster editing.
 Configuration
 ==============
 
-.. autosummary::
-   :toctree: generated/
+.. toctree::
+   :maxdepth: 1
 
-   eegprep.EEG_OPTIONS
+   generated/eegprep.EEG_OPTIONS

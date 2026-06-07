@@ -112,5 +112,6 @@ matlab/clean_rawdata
 
 # Sphinx documentation
 docs/build/
+docs/_build/
 docs/source/auto_examples/
 !docs/source/auto_examples/index.rst

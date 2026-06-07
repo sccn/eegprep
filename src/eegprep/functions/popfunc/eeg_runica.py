@@ -17,8 +17,8 @@ def eeg_runica(EEG, posact='off', sortcomps='off', **kwargs):
         If 'on' or True, normalize component signs so max(abs(activations)) is positive. Default is 'off'.
     sortcomps : str | bool, optional
         If 'on' or True, sort components by descending activation variance. Default is 'off'.
-    **kwargs : dict
-        Additional keyword arguments to be passed to the runica algorithm.
+    kwargs : dict
+        Additional keyword arguments to pass to the runica algorithm.
 
     Returns
     -------

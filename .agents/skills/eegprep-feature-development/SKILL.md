@@ -34,8 +34,15 @@ Use this workflow when building a new EEGPrep feature.
    workspace contract: return `(EEG, com)` with `return_com=True`, update
    GUI state through `EEGPrepSession`, and keep `EEG`/`ALLEEG`/history visible
    from both the GUI and the console. Make the GUI-plus-console workflow feel
-   seamless for EEGLAB users who switch between menus/dialogs, command history,
+   seamless for researchers who switch between menus/dialogs, command history,
    and workspace inspection.
+   Whenever a user-facing API, GUI, console, workflow, plugin, or help behavior
+   changes, update the relevant Sphinx docs and packaged help resources in the
+   same branch. The docs should describe EEGPrep as a standalone Python/Qt
+   application first, with EEGLAB comparisons only where they help users
+   migrate, understand parity decisions, or handle file/indexing boundaries.
+   For mixed GUI plus `eegprep-console` features, document both the user
+   workflow and the `EEGPrepSession` state that stays synchronized.
 
 6. For features that involve a GUI component, use the
    [`eeglab-gui-visual-parity`](../eeglab-gui-visual-parity/SKILL.md) skill to

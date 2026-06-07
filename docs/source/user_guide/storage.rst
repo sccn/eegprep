@@ -5,16 +5,16 @@ Large-Dataset Storage
 =====================
 
 EEGPrep keeps normal EEG dictionaries as the public API while supporting
-EEGLAB-style large-dataset workflows through explicit Python storage handles.
+large-dataset workflows through explicit Python storage handles.
 The runtime does not depend on EEGLAB's MATLAB ``@memmapdata`` or ``@mmo``
 classes.
 
 Two-File ``.set`` / ``.fdt`` Datasets
 =====================================
 
-``pop_saveset`` saves one-file ``.set`` files by default. To write a MATLAB
-EEGLAB-style header plus float32 data sidecar, pass ``savemode="twofiles"`` or
-set ``EEG_OPTIONS["option_savetwofiles"] = 1``:
+``pop_saveset`` saves one-file ``.set`` files by default. To write a two-file
+``.set`` header plus float32 data sidecar, pass ``savemode="twofiles"`` or set
+``EEG_OPTIONS["option_savetwofiles"] = 1``:
 
 .. code-block:: python
 

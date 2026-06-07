@@ -8,6 +8,33 @@ EEGPrep includes standalone STUDY/session surfaces for common group-level
 workflows. These APIs mirror EEGLAB's STUDY-facing names while storing cached
 measure data in EEGPrep-owned JSON-safe structures.
 
+GUI Plus Console Flow
+=====================
+
+Load two or more datasets, then use ``File > Create study > Using all loaded
+datasets``. ``eegprep-console`` will show ``STUDY`` and ``CURRENTSTUDY`` update
+immediately. Continue with ``Study > Precompute channel measures`` and
+``Study > Plot channel measures`` when the selected datasets have compatible
+metadata and shapes.
+
+The same workflow in Python can reuse the sample epoched ICA dataset:
+
+.. code-block:: python
+
+   from pathlib import Path
+   from eegprep import pop_loadset, pop_precomp, pop_study
+
+   ALLEEG = [
+       pop_loadset(Path("sample_data") / "eeglab_data_epochs_ica.set"),
+       pop_loadset(Path("sample_data") / "eeglab_data_epochs_ica.set"),
+   ]
+   for index, EEG in enumerate(ALLEEG, start=1):
+       EEG["subject"] = f"S{index:02d}"
+       EEG["condition"] = "tutorial"
+
+   STUDY, ALLEEG, com = pop_study(None, ALLEEG, name="Tutorial study", return_com=True)
+   STUDY, ALLEEG, com = pop_precomp(STUDY, ALLEEG, "channels", erp="on", return_com=True)
+
 Implemented Workflows
 =====================
 

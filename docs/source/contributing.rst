@@ -163,25 +163,25 @@ Use Google-style docstrings:
 
         Returns
         -------
-        EEGobj
-            The preprocessed EEG object.
+        dict
+            The preprocessed EEG dictionary.
 
         Raises
         ------
         ValueError
             If filter_type is not recognized.
         TypeError
-            If eeg is not an EEGobj instance.
+            If eeg is not an EEG dictionary.
 
         Examples
         --------
-        >>> import eegprep
-        >>> eeg = eegprep.EEGobj.load('data.set')
-        >>> eeg_clean = eegprep.preprocess_eeg(eeg, freq_range=(1, 50))
+        >>> from eegprep import pop_eegfiltnew, pop_loadset
+        >>> EEG = pop_loadset("data.set")
+        >>> EEG, com = pop_eegfiltnew(EEG, locutoff=1, hicutoff=50, return_com=True)
 
         Notes
         -----
-        This function modifies the EEG object in place and returns it.
+        This function returns the updated EEG dictionary.
 
         See Also
         --------

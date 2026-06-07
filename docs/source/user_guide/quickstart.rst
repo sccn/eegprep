@@ -4,354 +4,140 @@
 Quick Start
 ===========
 
-This guide will get you up and running with eegprep in just a few minutes. We'll cover the basic workflow for loading, preprocessing, and saving EEG data.
+This quick start uses the checked-in tutorial data under ``sample_data/``. It
+shows the same first workflow in normal Python and in the shared GUI plus
+``eegprep-console`` session.
 
-Basic Preprocessing (5-Minute Example)
-======================================
+Sample Data
+===========
 
-Here's a complete example that demonstrates the core eegprep workflow:
+The repository includes small tutorial datasets named after EEGLAB's
+``sample_data`` convention:
 
-.. code-block:: python
+.. list-table::
+   :header-rows: 1
 
-    import eegprep
-    from eegprep import pop_loadset, pop_saveset, clean_artifacts, iclabel
+   * - File
+     - Use
+   * - ``sample_data/eeglab_data.set``
+     - Continuous 32-channel tutorial data with events.
+   * - ``sample_data/eeglab_data_epochs_ica.set``
+     - Epoched tutorial data with ICA fields.
+   * - ``sample_data/eeglab_data_with_ica_tmp.set``
+     - Continuous tutorial data with ICA fields.
+   * - ``sample_data/eeglab_data_hdf5.set``
+     - HDF5-backed EEGLAB ``.set`` load path.
 
-    # Load EEG data
-    eeg = pop_loadset('sample_data.set')
-    print(f"Loaded EEG with {eeg.nbchan} channels and {eeg.pnts} points")
+Five-Minute Python Workflow
+===========================
 
-    # Run preprocessing
-    eeg = clean_artifacts(eeg)
-    print("Artifacts cleaned")
-
-    # Save results
-    pop_saveset(eeg, 'sample_data_preprocessed.set')
-    print("Data saved")
-
-Loading EEG Data
-================
-
-Using pop_loadset
------------------
-
-The :func:`eegprep.pop_loadset` function loads EEGLAB .set files:
+Run this from the repository root after installing EEGPrep or syncing the
+source checkout.
 
 .. code-block:: python
 
-    from eegprep import pop_loadset
+   from pathlib import Path
 
-    # Load a .set file
-    eeg = pop_loadset('sample_data/subject_01.set')
+   from eegprep import pop_eegfiltnew, pop_loadset, pop_resample, pop_saveset
 
-    # Access basic information
-    print(f"Channels: {eeg.nbchan}")
-    print(f"Sampling rate: {eeg.srate} Hz")
-    print(f"Duration: {eeg.pnts / eeg.srate} seconds")
-    print(f"Channel names: {eeg.chanlocs}")
+   input_file = Path("sample_data") / "eeglab_data.set"
+   output_file = Path("sample_data") / "eeglab_data_quickstart.set"
 
-**Expected Output:**
+   EEG = pop_loadset(input_file)
+   print(EEG["setname"], EEG["nbchan"], EEG["pnts"], EEG["srate"])
 
-.. code-block:: text
+   EEG, filter_com = pop_eegfiltnew(
+       EEG,
+       locutoff=1.0,
+       hicutoff=40.0,
+       plotfreqz=False,
+       return_com=True,
+   )
+   EEG, resample_com = pop_resample(EEG, 64, return_com=True)
+   pop_saveset(EEG, output_file)
 
-    Channels: 64
-    Sampling rate: 500 Hz
-    Duration: 120.0 seconds
-    Channel names: [Fp1, Fp2, F3, F4, ...]
+   print(filter_com)
+   print(resample_com)
 
-Loading from BIDS Format
--------------------------
+The important pattern is ``return_com=True``. It gives you the updated dataset
+and the history command that the GUI or console would record.
 
-For BIDS-formatted datasets, use :func:`eegprep.pop_load_frombids`:
-
-.. code-block:: python
-
-    from eegprep import pop_load_frombids
-
-    # Load from BIDS dataset
-    eeg = pop_load_frombids(
-        bids_root='sample_data/bids_dataset',
-        subject='01',
-        session='01',
-        task='rest'
-    )
-
-Running Preprocessing
-======================
-
-Basic Artifact Removal
-----------------------
-
-The :func:`eegprep.clean_artifacts` function performs comprehensive artifact removal:
-
-.. code-block:: python
-
-    from eegprep import clean_artifacts
-
-    # Run artifact removal with default settings
-    eeg = clean_artifacts(eeg)
-    print("Preprocessing complete")
-
-    # Check what was removed
-    print(f"Channels removed: {eeg.removed_channels}")
-    print(f"Windows rejected: {eeg.removed_windows}")
-
-**Expected Output:**
-
-.. code-block:: text
-
-    Preprocessing complete
-    Channels removed: []
-    Windows rejected: 12
-
-Advanced Preprocessing with Custom Parameters
-----------------------------------------------
-
-Customize the preprocessing pipeline:
-
-.. code-block:: python
-
-    from eegprep import clean_artifacts
-
-    # Custom preprocessing parameters
-    eeg = clean_artifacts(
-        eeg,
-        flatline_criterion=5,  # Flatline detection threshold
-        highpass=1,            # High-pass filter at 1 Hz
-        lowpass=100,           # Low-pass filter at 100 Hz
-        asr_criterion=20,      # ASR threshold
-        ica=True,              # Enable ICA
-        iclabel=True           # Enable ICLabel classification
-    )
-
-Step-by-Step Preprocessing
----------------------------
-
-For more control, apply preprocessing steps individually:
-
-.. code-block:: python
-
-    from eegprep import (
-        clean_flatlines,
-        clean_channels,
-        pop_resample,
-        pop_eegfiltnew,
-        eeg_picard,
-        iclabel
-    )
-
-    # 1. Remove flatline channels
-    eeg = clean_flatlines(eeg, flatline_criterion=5)
-    print(f"Channels after flatline removal: {eeg.nbchan}")
-
-    # 2. Remove noisy channels
-    eeg = clean_channels(eeg)
-    print(f"Channels after noise removal: {eeg.nbchan}")
-
-    # 3. Resample if needed
-    eeg = pop_resample(eeg, 250)  # Resample to 250 Hz
-    print(f"New sampling rate: {eeg.srate} Hz")
-
-    # 4. Filter the data
-    eeg = pop_eegfiltnew(eeg, locutoff=1, hicutoff=100)
-    print("Data filtered")
-
-    # 5. Run ICA
-    eeg = eeg_picard(eeg)
-    print(f"ICA components: {eeg.icaweights.shape[0]}")
-
-    # 6. Classify components with ICLabel
-    eeg = iclabel(eeg)
-    print("Components classified")
-
-Saving Results
-==============
-
-Using pop_saveset
------------------
-
-Save preprocessed data back to EEGLAB format:
-
-.. code-block:: python
-
-    from eegprep import pop_saveset
-
-    # Save to .set file
-    pop_saveset(eeg, 'sample_data/subject_01_preprocessed.set')
-    print("Data saved successfully")
-
-Saving with Compression
-------------------------
-
-Save with compression to reduce file size:
-
-.. code-block:: python
-
-    from eegprep import pop_saveset
-
-    # Save with compression
-    pop_saveset(
-        eeg,
-        'sample_data/subject_01_preprocessed.set',
-        savemode='onefile'  # Save as single file
-    )
-
-Saving to HDF5 Format
----------------------
-
-For large datasets, save to HDF5 format:
-
-.. code-block:: python
-
-    from eegprep import pop_saveset
-
-    # Save to HDF5
-    pop_saveset(
-        eeg,
-        'sample_data/subject_01_preprocessed.h5',
-        fmt='h5'
-    )
-
-Visualization
-=============
-
-Topographic Plots
-------------------
-
-Visualize channel locations and data:
-
-.. code-block:: python
-
-    from eegprep import topoplot
-    import matplotlib.pyplot as plt
-
-    # Plot channel locations
-    topoplot(eeg)
-    plt.title('Channel Locations')
-    plt.show()
-
-    # Plot component topographies
-    topoplot(eeg, components=[0, 1, 2, 3])
-    plt.title('ICA Component Topographies')
-    plt.show()
-
-Plotting Preprocessed Data
----------------------------
-
-Visualize the preprocessed signal:
-
-.. code-block:: python
-
-    import matplotlib.pyplot as plt
-
-    # Plot first 5 seconds of data
-    start_sample = 0
-    end_sample = int(eeg.srate * 5)  # 5 seconds
-
-    plt.figure(figsize=(12, 8))
-    for ch in range(min(10, eeg.nbchan)):  # Plot first 10 channels
-        plt.plot(eeg.data[ch, start_sample:end_sample] + ch * 100)
-    plt.xlabel('Sample')
-    plt.ylabel('Channel')
-    plt.title('Preprocessed EEG Data (First 5 seconds)')
-    plt.show()
-
-Complete Workflow Example
+GUI Plus Console Workflow
 =========================
 
-Here's a complete example combining all steps:
+Launch the shared GUI/console session:
+
+.. code-block:: bash
+
+   uv run eegprep-console --full
+
+Then:
+
+.. raw:: html
+
+   <div class="eegprep-path">
+     <p>Choose <strong>File > Load existing dataset</strong> and open
+     <code>sample_data/eeglab_data.set</code>.</p>
+     <p>In the console, inspect <code>EEG["nbchan"]</code>,
+     <code>EEG["srate"]</code>, <code>CURRENTSET</code>, and
+     <code>LASTCOM</code>.</p>
+     <p>Choose <strong>Tools > Filter the data</strong> or run
+     <code>pop_eegfiltnew(EEG, locutoff=1, hicutoff=40)</code> from the
+     console.</p>
+     <p>Choose <strong>Tools > Change sampling rate</strong> or run
+     <code>pop_resample(EEG, 64)</code>.</p>
+     <p>Choose <strong>Plot > Channel data (scroll)</strong> to inspect the
+     current dataset in EEGBrowser.</p>
+   </div>
+
+The GUI and console share the same ``EEGPrepSession``. A GUI action updates the
+console's ``EEG``, ``ALLEEG``, ``CURRENTSET``, ``LASTCOM``, and ``ALLCOM``.
+Console ``pop_*`` calls update the GUI when they use the console wrappers.
+
+Inspect the EEG Structure
+=========================
+
+EEGPrep datasets are dictionaries:
 
 .. code-block:: python
 
-    from eegprep import (
-        pop_loadset,
-        pop_saveset,
-        clean_artifacts,
-        iclabel,
-        topoplot
-    )
-    import matplotlib.pyplot as plt
+   print(EEG.keys())
+   print(EEG["data"].shape)
+   print(EEG["event"][0])
+   print([chan["labels"] for chan in EEG["chanlocs"][:5]])
 
-    # 1. Load data
-    print("Loading data...")
-    eeg = pop_loadset('raw_data.set')
-    print(f"Loaded: {eeg.nbchan} channels, {eeg.pnts} samples")
+Continuous data is usually ``(nbchan, pnts)``. Epoched data is usually
+``(nbchan, pnts, trials)``.
 
-    # 2. Preprocess
-    print("Preprocessing...")
-    eeg = clean_artifacts(
-        eeg,
-        highpass=1,
-        lowpass=100,
-        ica=True,
-        iclabel=True
-    )
-    print("Preprocessing complete")
+Load Epoched ICA Data
+=====================
 
-    # 3. Visualize
-    print("Visualizing...")
-    topoplot(eeg)
-    plt.show()
-
-    # 4. Save
-    print("Saving...")
-    pop_saveset(eeg, 'preprocessed_data.set')
-    print("Done!")
-
-Common Tasks
-============
-
-Selecting Specific Channels
-----------------------------
+Use the ICA sample when you want to review ICLabel/component workflows without
+waiting for a decomposition:
 
 .. code-block:: python
 
-    from eegprep import pop_select
+   from pathlib import Path
+   from eegprep import eeg_icalabelstat, pop_iclabel, pop_loadset, pop_viewprops
 
-    # Select only EEG channels (exclude EOG, EMG, etc.)
-    eeg = pop_select(eeg, 'type', 'EEG')
+   EEG = pop_loadset(Path("sample_data") / "eeglab_data_epochs_ica.set")
+   EEG, com = pop_iclabel(EEG, "default", return_com=True)
+   stats = eeg_icalabelstat(EEG, threshold=0.9, verbose=False)
+   figures = pop_viewprops(EEG, typecomp=0, chanorcomp=[1], plot=False)
 
-    # Select specific channels by name
-    eeg = pop_select(eeg, 'channel', ['Cz', 'Pz', 'Oz'])
+   print(com)
+   print(stats["counts"])
 
-Epoching Data
--------------
+``typecomp=0`` means component mode, matching EEGLAB's component property
+dialogs. Component numbers are user-facing one-based values.
 
-.. code-block:: python
+Where to Go Next
+================
 
-    from eegprep import pop_epoch
-
-    # Epoch data around event markers
-    eeg, indices = pop_epoch(eeg, ["stim"], [-1, 2])
-    print(f"Epochs: {eeg['trials']}")
-
-Re-referencing
----------------
-
-.. code-block:: python
-
-    from eegprep import pop_reref
-
-    # Re-reference to average
-    eeg = pop_reref(eeg, [])  # Empty list = average reference
-
-    # Re-reference to a specific channel by 0-based index
-    eeg = pop_reref(eeg, 31)  # Reference to the 32nd channel
-
-.. note::
-
-   Numeric channel indices in EEGPrep Python calls and GUI text fields are
-   0-based. For example, enter ``0`` for the first channel. EEGPrep still writes
-   generated EEGLAB-style history commands with 1-based indices so the command
-   text matches EEGLAB conventions.
-
-Next Steps
-==========
-
-Now that you understand the basics:
-
-1. Read the :ref:`preprocessing_pipeline` guide for detailed information about each preprocessing step
-2. Explore the :ref:`bids_workflow` for batch processing
-3. Check the :ref:`configuration` guide for advanced parameter tuning
-4. Review the :ref:`advanced_topics` for custom pipelines and optimization
-
-For detailed API documentation, see the :ref:`api_reference`.
+* Read :ref:`concepts` before writing longer scripts.
+* Use :ref:`gui_console_session` to understand switching between the GUI and
+  console.
+* Use :ref:`gui_tutorials` to repeat the workflow from menus.
+* Use :ref:`interactive_console` for console launch and history details.
+* Use :ref:`scripting_workflows` to turn history into reproducible scripts.
+* Use :ref:`mne_integration` for issue #22's MNE examples.

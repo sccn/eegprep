@@ -276,6 +276,6 @@ Additional Resources
 ====================
 
 - `EEGLAB Wiki <https://sccn.ucsd.edu/wiki/EEGLAB>`_ - EEGLAB documentation
-- `MNE-Python Glossary <https://mne.tools/stable/glossary.html>`_ - MNE-Python glossary
+- `MNE-Python Glossary <https://mne.tools/stable/documentation/glossary.html>`_ - MNE-Python glossary
 - `Signal Processing Basics <https://en.wikipedia.org/wiki/Signal_processing>`_ - Wikipedia overview
 - `EEG Analysis Tutorials <https://mne.tools/stable/auto_tutorials/index.html>`_ - MNE-Python tutorials

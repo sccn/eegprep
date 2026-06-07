@@ -7,8 +7,10 @@
 import sys
 from pathlib import Path
 
+DOCS_SOURCE = Path(__file__).parent
+
 # Add the source directory to the path so we can import eegprep
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
+sys.path.insert(0, str(DOCS_SOURCE.parent.parent / "src"))
 
 # -- Project information -------------------------------------------------------
 project = "eegprep"
@@ -51,6 +53,8 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 html_theme = "pydata_sphinx_theme"
 html_static_path = ["_static"]
+html_title = "EEGPrep manual"
+html_favicon = "_static/logo.jpg"
 
 html_theme_options = {
     "logo": {
@@ -67,7 +71,7 @@ html_theme_options = {
     "footer_start": ["copyright"],
     "footer_end": ["sphinx-version"],
     "secondary_sidebar_items": ["page-toc"],
-    "header_links_before_dropdown": 4,
+    "header_links_before_dropdown": 5,
     # Social and repository links
     "icon_links": [
         {
@@ -80,7 +84,7 @@ html_theme_options = {
     "show_nav_level": 2,
     "use_edit_page_button": False,
     # Search settings
-    "search_bar_text": "Search documentation...",
+    "search_bar_text": "Search the EEGPrep manual...",
     # Sidebar behavior
     "collapse_navigation": False,
 }
@@ -98,13 +102,13 @@ html_context = {
 autodoc_default_options = {
     "members": True,
     "member-order": "bysource",
-    "special-members": "__init__",
     "undoc-members": False,
     "show-inheritance": True,
 }
 
 autodoc_typehints = "description"
 autodoc_typehints_format = "short"
+autosummary_generate_overwrite = False
 
 # -- Options for Napoleon (Google-style docstrings) ---------------------------
 # https://www.sphinx-doc.org/en/master/usage/extensions/napoleon.html
@@ -140,13 +144,13 @@ intersphinx_mapping = {
 
 sphinx_gallery_conf = {
     # Directory where example scripts are located
-    "examples_dirs": "examples",
+    "examples_dirs": str(DOCS_SOURCE / "examples"),
     # Directory where gallery will be generated
     "gallery_dirs": "auto_examples",
     # Pattern for example filenames
     "filename_pattern": "/plot_",
     # Pattern for files to ignore
-    "ignore_pattern": r"__init__\.py",
+    "ignore_pattern": r"(__init__\.py|examples/extensions/)",
     # Whether to execute examples
     "plot_gallery": True,
     # Whether to download all examples

@@ -298,9 +298,10 @@ Validate the final matrix with:
    uv run --no-sync python -m tools.eeglab_final_parity_matrix --json
 
 The docs architecture for the final epic is recorded in the matrix metadata and
-in ``.notes/eeglab-final-parity-audit.md``. It is modeled after EEGLAB's user
-docs but must describe EEGPrep's standalone Python, Qt GUI, and
-``eegprep-console`` behavior, not MATLAB runtime behavior.
+in ``.notes/eeglab-final-parity-audit.md``. It should be useful to EEG
+researchers first: describe EEGPrep's standalone Python package, Qt GUI, and
+``eegprep-console`` behavior accurately, and use EEGLAB comparisons only where
+they help users migrate or understand familiar concepts.
 
 Building Documentation
 ======================
@@ -308,13 +309,22 @@ Building Documentation
 Build HTML Documentation
 ------------------------
 
-Navigate to the docs directory and build:
+Sync the docs extra, then build with the same command used by the Phase 7
+acceptance criteria:
+
+.. code-block:: bash
+
+    uv sync --group dev --extra docs
+    uv run --no-sync sphinx-build -b html docs/source docs/_build/html
+
+The ``docs/Makefile`` target remains available for local iteration:
 
 .. code-block:: bash
 
     uv run make -C docs html
 
-The built documentation is in ``docs/build/html/``.
+The direct Sphinx command writes to ``docs/_build/html/``. The Makefile target
+writes to ``docs/build/html/``.
 
 View Documentation Locally
 ---------------------------
