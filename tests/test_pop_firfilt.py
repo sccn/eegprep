@@ -263,6 +263,24 @@ def test_pop_order_helpers_gui_results():
     assert dev == pytest.approx(0.001)
 
 
+def test_pop_firpmord_gui_uses_eeglab_required_frequency_arguments():
+    class FirpmRenderer:
+        def run(self, spec, initial_values=None):
+            return {"rp": "1", "rs": "60"}
+
+    with pytest.raises(ValueError, match="Not enough input arguments"):
+        pop_firpmord(gui=True, renderer=FirpmRenderer())
+
+    (order, wtpass, wtstop), command = pop_firpmord(
+        [0, 40, 48, 125], [1, 0], gui=True, renderer=FirpmRenderer(), return_com=True
+    )
+
+    assert order > 0
+    assert wtpass > 0
+    assert wtstop > 0
+    assert "[m, wtpass, wtstop] = pop_firpmord(" in command
+
+
 def test_pop_xfirws_designs_and_exports_filter_file(tmp_path):
     path = tmp_path / "demo.fir"
 

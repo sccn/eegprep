@@ -1344,7 +1344,7 @@
     {
       "id": "pop_firpmord_dialog",
       "description": "Parks-McClellan order helper dialog opened from pop_firpmord.",
-      "window_size": [840, 348],
+      "window_size": [560, 176],
       "timeout_seconds": 120,
       "targets": {
         "eeglab": {

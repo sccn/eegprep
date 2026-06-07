@@ -192,6 +192,26 @@ class PopCleanRawdataGuiTests(unittest.TestCase):
         np.testing.assert_array_equal(diag["rejected_intervals"], [[1, 3]])
         self.assertEqual(diag["rejected_fraction"], 3 / 40)
 
+    def test_vis_artifacts_diagnostics_infers_original_size_from_masks(self):
+        clean = _eeg()
+        clean["data"] = clean["data"][:1, :30]
+        clean["nbchan"] = 1
+        clean["pnts"] = 30
+        clean["chanlocs"] = [{"labels": "Cz"}]
+        clean["etc"] = {
+            "clean_sample_mask": np.r_[np.ones(10, dtype=bool), np.zeros(5, dtype=bool), np.ones(25, dtype=bool)],
+            "clean_channel_mask": np.asarray([True, False]),
+        }
+
+        diag = vis_artifacts_diagnostics(clean)
+
+        self.assertEqual(diag["original_samples"], 40)
+        self.assertEqual(diag["clean_samples"], 30)
+        self.assertEqual(diag["original_channels"], 2)
+        self.assertEqual(diag["clean_channels"], 1)
+        np.testing.assert_array_equal(diag["rejected_intervals"], [[11, 15]])
+        self.assertEqual(diag["removed_channel_indices"], [2])
+
     def test_string_channel_lists_use_matlab_cell_history(self):
         eeg = _eeg()
         with mock.patch(

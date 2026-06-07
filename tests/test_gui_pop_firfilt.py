@@ -4,6 +4,7 @@ import unittest
 
 import numpy as np
 
+from eegprep.functions.guifunc.spec import controls_by_tag
 from eegprep.functions.popfunc.pop_eegfilt import pop_eegfilt, pop_eegfilt_dialog_spec
 from eegprep.plugins.firfilt.pop_eegfiltnew import pop_eegfiltnew, pop_eegfiltnew_dialog_spec
 from eegprep.plugins.firfilt.pop_firma import pop_firma, pop_firma_dialog_spec
@@ -167,6 +168,11 @@ class PopFirfiltGuiTests(unittest.TestCase):
         kaiser_controls = {(control.style, control.string, control.tag) for control in specs[0].controls}
         self.assertIn(("text", "Max passband deviation/ripple:", None), kaiser_controls)
         self.assertEqual(specs[1].help_text, "pophelp('pop_firwsord')")
+        firpm_controls = controls_by_tag(specs[2])
+        self.assertIn("rp", firpm_controls)
+        self.assertIn("rs", firpm_controls)
+        self.assertNotIn("f", firpm_controls)
+        self.assertNotIn("a", firpm_controls)
 
     def test_firws_gui_result_filters_and_returns_history(self):
         class Renderer:

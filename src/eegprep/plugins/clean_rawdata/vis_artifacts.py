@@ -53,14 +53,20 @@ def vis_artifacts_diagnostics(
 ) -> dict[str, Any]:
     """Return clean_rawdata sample/channel rejection diagnostics."""
     source = original_eeg if original_eeg is not None else clean_eeg
+    raw_sample_mask = _mask(clean_eeg, "clean_sample_mask")
+    raw_channel_mask = _mask(clean_eeg, "clean_channel_mask")
     original_samples = _pnts(source)
+    if original_eeg is None and raw_sample_mask.size:
+        original_samples = max(original_samples, raw_sample_mask.size)
     clean_samples = _pnts(clean_eeg)
     original_channels = _nbchan(source)
+    if original_eeg is None and raw_channel_mask.size:
+        original_channels = max(original_channels, raw_channel_mask.size)
     clean_channels = _nbchan(clean_eeg)
-    sample_mask = _sample_mask(clean_eeg, original_samples)
+    sample_mask = _sample_mask(raw_sample_mask, original_samples)
     rejected_intervals = mask_to_intervals(sample_mask, value=False)
     rejected_sample_count = int(np.count_nonzero(~sample_mask))
-    channel_mask = _channel_mask(clean_eeg, original_channels)
+    channel_mask = _channel_mask(raw_channel_mask, original_channels)
     removed_indices = [index + 1 for index, keep in enumerate(channel_mask) if not keep]
     removed_labels = _removed_channel_labels(source, removed_indices)
     return {
@@ -94,15 +100,17 @@ def clean_rawdata_winrej(rejected_intervals: np.ndarray, nbchan: int) -> np.ndar
     return rows
 
 
-def _sample_mask(clean_eeg: dict[str, Any], original_samples: int) -> np.ndarray:
-    mask = np.asarray((clean_eeg.get("etc") or {}).get("clean_sample_mask", []), dtype=bool).ravel()
+def _mask(clean_eeg: dict[str, Any], key: str) -> np.ndarray:
+    return np.asarray((clean_eeg.get("etc") or {}).get(key, []), dtype=bool).ravel()
+
+
+def _sample_mask(mask: np.ndarray, original_samples: int) -> np.ndarray:
     if mask.size == original_samples:
         return mask.copy()
     return np.ones(original_samples, dtype=bool)
 
 
-def _channel_mask(clean_eeg: dict[str, Any], original_channels: int) -> np.ndarray:
-    mask = np.asarray((clean_eeg.get("etc") or {}).get("clean_channel_mask", []), dtype=bool).ravel()
+def _channel_mask(mask: np.ndarray, original_channels: int) -> np.ndarray:
     if mask.size == original_channels:
         return mask.copy()
     return np.ones(original_channels, dtype=bool)

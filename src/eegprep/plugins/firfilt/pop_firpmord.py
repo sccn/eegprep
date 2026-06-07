@@ -22,6 +22,10 @@ def pop_firpmord(
     return_com: bool = False,
 ):
     """Estimate Parks-McClellan FIR order and pass/stop weights."""
+    freqs_input = vector_or_none(f)
+    amps_input = vector_or_none(a)
+    if freqs_input is None or amps_input is None:
+        raise ValueError("Not enough input arguments")
     if gui is None:
         gui = dev is None
     if gui:
@@ -29,20 +33,18 @@ def pop_firpmord(
         if result is None:
             empty = (None, None, None)
             return (empty, "") if return_com else empty
-        f = result.get("f")
-        a = result.get("a")
         rp = numeric_or_none(result.get("rp"))
         rs = numeric_or_none(result.get("rs"))
         if rp is None or rs is None:
             raise ValueError("Not enough input arguments.")
-        amps = np.asarray(vector_or_none(a), dtype=float)
+        amps = np.asarray(amps_input, dtype=float)
         dev_values = np.zeros(amps.size, dtype=float)
         dev_values[amps == 1] = (10 ** (rp / 20) - 1) / (10 ** (rp / 20) + 1)
         dev_values[amps == 0] = 10 ** (-abs(rs) / 20)
         dev = dev_values
     fs = 2 if fs is None or str(fs).strip() == "" else float(fs)
-    freqs = np.asarray(vector_or_none(f), dtype=float)
-    amps = np.asarray(vector_or_none(a), dtype=float)
+    freqs = np.asarray(freqs_input, dtype=float)
+    amps = np.asarray(amps_input, dtype=float)
     devs = np.asarray(vector_or_none(dev), dtype=float)
     if freqs.size == 0 or amps.size == 0 or devs.size == 0:
         raise ValueError("Not enough input arguments")
@@ -71,15 +73,11 @@ def pop_firpmord_dialog_spec() -> DialogSpec:
         title="Estimate filter order and weights -- pop_firpmord()",
         function_name="pop_firpmord",
         eeglab_source="plugins/firfilt/pop_firpmord.m",
-        geometry=((1, 1), (1, 1), (1, 1), (1, 1)),
-        geomvert=(1, 1, 1, 1),
-        size=(560, 232),
+        geometry=((1, 1), (1, 1)),
+        geomvert=(1, 1),
+        size=(560, 176),
         help_text="pophelp('pop_firpmord')",
         controls=(
-            ControlSpec("text", "Frequency band edges:"),
-            ControlSpec("edit", tag="f", value=""),
-            ControlSpec("text", "Desired amplitudes:"),
-            ControlSpec("edit", tag="a", value=""),
             ControlSpec("text", "Peak-to-peak passband ripple (dB):"),
             ControlSpec("edit", tag="rp", value=""),
             ControlSpec("text", "Stopband attenuation (dB):"),
