@@ -53,6 +53,32 @@
     <code>rspdfsolv</code>, and <code>rspfunc</code> outputs when MATLAB Engine
     and the EEGLAB reference checkout are available.</li>
   </ul>
+  <h1>EEGPrep Follow-up #149 STUDY Long-Tail Notes</h1>
+  <p>Follow-up #149 closes the non-PAC Phase 6 STUDY helper rows that remained
+  after the core STUDY implementation. The branch implements the standalone
+  selection and trialinfo helpers that EEGPrep workflows can use directly, and
+  classifies the remaining plotting, precompute, MATLAB-runtime, or
+  external-toolbox rows with row-level rationale in the parity matrix.</p>
+  <h2>Follow-up #149 Design Decisions</h2>
+  <ul>
+    <li>Added standalone STUDY helpers for independent-variable matching, dataset and trial selection, trialinfo construction/combination, design consistency checks, subject selection, same-ICA grouping, STUDY subsetting, dataset removal, and stale measure-cache clearing.</li>
+    <li>Preserved EEGLAB-facing 1-based dataset/trial indices at public boundaries while keeping runtime code independent of <code>src/eegprep/eeglab</code>.</li>
+    <li>Integrated the helpers through lazy package exports and Sphinx API/user-guide docs so console users can discover the workflow without adding GUI-only internals.</li>
+    <li>Expanded STUDY cache-field invalidation to include long-tail cached measure and plotting fields that become stale after selection/substudy/removal operations.</li>
+  </ul>
+  <h2>Follow-up #149 Classifications</h2>
+  <ul>
+    <li>Rows already covered by existing STUDY precompute, cache-reader, plotting, clustering, design-matrix, topoplot, statistics, load/save, or PVAF surfaces are marked <code>consolidated</code> with the owning EEGPrep path and focused test notes.</li>
+    <li>Rows tied to MATLAB figure refresh, ERP-image viewers, arbitrary MATLAB custom callbacks, sidecar-file migration, or command-window helper behavior are marked <code>matlab_runtime_skip</code>.</li>
+    <li>Rows requiring DIPFIT, FieldTrip-style neighbours/interpolation, LIMO, MATLAB neural-network tooling, or EEGLAB worker infrastructure are marked <code>external_dependency_skip</code>.</li>
+    <li>PAC rows are intentionally left actionable for <a href="https://github.com/sccn/eegprep/issues/148">#148</a>; this branch only avoids breaking existing PAC cache interfaces.</li>
+  </ul>
+  <h2>Follow-up #149 Verification Notes</h2>
+  <ul>
+    <li>No new GUI dialogs were added or changed, so GUI visual parity captures were not applicable for this branch.</li>
+    <li>Focused coverage uses multi-dataset STUDY fixtures for dataset-level metadata, per-trial event metadata, subject filtering, ICA grouping, dataset removal, cache clearing, and EEGLAB-facing 1-based indices.</li>
+    <li>MATLAB filename-backed trialinfo loading is intentionally rejected in runtime code. EEGPrep users pass loaded trialinfo rows, keeping the package standalone.</li>
+  </ul>
   <h1>EEGPrep Phase 8 Epic Closeout Notes</h1>
   <p>Phase 8 reviews the integrated Phases 1-7 surface for closeout evidence
   rather than adding another feature area. The branch remains scoped to matrix,

@@ -128,11 +128,27 @@ History And STUDY Files
 
 .. autofunction:: eegprep.std_checkdatasetinfo
 
+.. autofunction:: eegprep.std_checkconsist
+
+.. autofunction:: eegprep.std_checkdesign
+
 .. autofunction:: eegprep.std_makedesign
 
 .. autofunction:: eegprep.std_addvarlevel
 
 .. autofunction:: eegprep.std_builddesignmat
+
+.. autofunction:: eegprep.std_getindvar
+
+.. autofunction:: eegprep.std_indvarmatch
+
+.. autofunction:: eegprep.std_selectdataset
+
+.. autofunction:: eegprep.std_gettrialsind
+
+.. autofunction:: eegprep.std_maketrialinfo
+
+.. autofunction:: eegprep.std_combtrialinfo
 
 .. autofunction:: eegprep.std_rebuilddesign
 
@@ -173,6 +189,16 @@ History And STUDY Files
 .. autofunction:: eegprep.std_uniformfiles
 
 .. autofunction:: eegprep.std_uniformsetinds
+
+.. autofunction:: eegprep.std_findsameica
+
+.. autofunction:: eegprep.std_selsubject
+
+.. autofunction:: eegprep.std_substudy
+
+.. autofunction:: eegprep.std_rmdat
+
+.. autofunction:: eegprep.std_rmalldatafields
 
 .. autofunction:: eegprep.std_erpplot
 
