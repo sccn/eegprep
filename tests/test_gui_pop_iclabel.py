@@ -28,6 +28,8 @@ class PopIclabelGuiTests(unittest.TestCase):
         self.assertEqual(spec.title, "ICLabel")
         self.assertEqual(spec.function_name, "pop_iclabel")
         self.assertEqual(spec.eeglab_source, "plugins/ICLabel/pop_iclabel.m")
+        self.assertIsNone(spec.help_text)
+        self.assertFalse(spec.show_help_button)
         self.assertEqual(
             [(control.style, control.string, control.tag) for control in spec.controls],
             [

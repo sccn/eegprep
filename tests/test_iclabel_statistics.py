@@ -55,9 +55,11 @@ def test_eeg_icalabelstat_matches_eeglab_threshold_counts_and_prints_summary(cap
     np.testing.assert_array_equal(stats["rejected_counts"], [0, 1, 1, 0, 0, 0, 0])
     np.testing.assert_array_equal(stats["kept_counts"], [0, 0, 0, 0, 0, 0, 0])
 
-    output = capsys.readouterr().out
-    assert 'IClabel class "Muscle": 1/4 components at 90% threshold' in output
-    assert 'IClabel class "Eye": 1/4 components at 90% threshold' in output
+    lines = capsys.readouterr().out.splitlines()
+    assert len(lines) == len(ICLABEL_CLASSES)
+    assert lines[0].strip() == 'IClabel class "Brain": 0/4 components at 90% threshold'
+    assert lines[1].strip() == 'IClabel class "Muscle": 1/4 components at 90% threshold'
+    assert lines[2].strip() == 'IClabel class "Eye": 1/4 components at 90% threshold'
 
 
 def test_eeg_icalabelstat_accepts_class_specific_thresholds_and_default_classes() -> None:

@@ -16,6 +16,8 @@ Behavior:
 
 - Prints EEGLAB-style class counts such as the number of Muscle components
   above the selected probability threshold.
+- Mirrors the ICLabel plugin `eeg_icalabelstat.m` console summary, including
+  the historical `IClabel` label capitalization used by EEGLAB.
 - Returns a dictionary with class names, thresholds, per-class counts,
   1-based component indices above threshold, mean probabilities, dominant
   class counts, and rejected/kept tallies based on `EEG.reject.gcompreject`.

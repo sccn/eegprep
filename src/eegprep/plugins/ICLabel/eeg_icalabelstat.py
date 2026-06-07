@@ -1,4 +1,4 @@
-"""ICLabel component summary statistics."""
+"""EEGLAB ICLabel component summary statistics."""
 
 from __future__ import annotations
 
@@ -19,6 +19,10 @@ def eeg_icalabelstat(
     stream: TextIO | None = None,
 ) -> dict[str, Any]:
     """Return and optionally print ICLabel class statistics.
+
+    This mirrors EEGLAB's ``plugins/ICLabel/eeg_icalabelstat.m`` summary,
+    including class order and the historical ``IClabel`` console label, while
+    returning structured Python statistics for programmatic use.
 
     Args:
         EEG: EEGPrep/EEGLAB-style dataset with ICLabel classifications under
