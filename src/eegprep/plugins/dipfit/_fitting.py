@@ -75,7 +75,7 @@ def dipfit_gridsearch(
         fit = fit_component_grid(forward, component_index, candidates)
         models[component_index - 1].update(fit)
     if reject is not None:
-        models = dipfit_reject(models, _threshold_fraction(reject))
+        models = dipfit_reject(models, reject)
     out["dipfit"]["model"] = models
     return out
 
@@ -158,7 +158,7 @@ def prepare_forward_data(EEG: dict[str, Any], components: Any = None) -> DipfitF
     chansel = [index for index in chansel if index in usable]
     if not chansel:
         raise ValueError("No channel locations with coordinates remain for DIPFIT")
-    map_rows = _map_rows_for_channels(EEG, maps, chansel, len(chanlocs))
+    map_rows, chansel = _map_rows_for_channels(EEG, maps, chansel, len(chanlocs))
     positions = _channel_positions([chanlocs[index - 1] for index in chansel])
     head_radius = _head_radius(dipfit, positions)
     positions = _scale_or_project_to_head(positions, head_radius)
@@ -380,18 +380,22 @@ def _average_reference(values: np.ndarray) -> np.ndarray:
     return array - np.mean(array, axis=0, keepdims=True)
 
 
-def _map_rows_for_channels(EEG: dict[str, Any], maps: np.ndarray, chansel: list[int], chanloc_count: int) -> list[int]:
+def _map_rows_for_channels(
+    EEG: dict[str, Any], maps: np.ndarray, chansel: list[int], chanloc_count: int
+) -> tuple[list[int], list[int]]:
     zero_based = [index - 1 for index in chansel]
     if maps.shape[0] == chanloc_count:
-        return zero_based
+        return zero_based, chansel
     ica_channels = component_channel_indices(EEG, chanloc_count).tolist()
     rows = []
-    for channel in zero_based:
+    kept_chansel = []
+    for channel_index, channel in zip(chansel, zero_based, strict=True):
         if channel in ica_channels:
             rows.append(ica_channels.index(channel))
+            kept_chansel.append(channel_index)
     if not rows:
         raise ValueError("No DIPFIT channels overlap with ICA channel indices")
-    return rows
+    return rows, kept_chansel
 
 
 def _channel_positions(chanlocs: list[dict[str, Any]]) -> np.ndarray:

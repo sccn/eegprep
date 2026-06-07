@@ -43,7 +43,7 @@ def load_afni_atlas(
     indices = np.argwhere(reduced != 0)
     labels = reduced[tuple(indices.T)] if indices.size else np.asarray([], dtype=int)
     voxel_centers = indices * int(downsample) + (int(downsample) - 1) / 2.0
-    homogeneous = np.column_stack([voxel_centers + 1.0, np.ones(indices.shape[0])])
+    homogeneous = np.column_stack([voxel_centers, np.ones(indices.shape[0])])
     xyz = homogeneous @ np.asarray(image.affine, dtype=float).T
     if sourcemodel2mni is not None and np.asarray(sourcemodel2mni, dtype=float).size:
         xyz = xyz @ traditionaldipfit(sourcemodel2mni).T
@@ -83,7 +83,7 @@ def _atlas_labels(image: Any) -> list[str]:
     for key in ("BRICK_LABS", "brick_labs"):
         try:
             value = header[key]
-        except (KeyError, TypeError):
+        except (KeyError, TypeError, ValueError):
             continue
         if isinstance(value, bytes):
             value = value.decode("utf-8", errors="ignore")

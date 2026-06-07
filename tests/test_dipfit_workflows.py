@@ -20,7 +20,8 @@ from eegprep.plugins.dipfit._coordinates import (
     traditionaldipfit,
     warp_apply,
 )
-from eegprep.plugins.dipfit._fitting import leadfield_matrix
+from eegprep.plugins.dipfit._fitting import leadfield_matrix, prepare_forward_data
+from eegprep.plugins.dipfit.load_afni_atlas import load_afni_atlas
 from eegprep.plugins.dipfit.dipfit_reject import dipfit_reject
 from eegprep.plugins.dipfit._utils import DIPFITUnavailableError
 from eegprep.plugins.dipfit.pop_dipfit_batch import pop_dipfit_batch
@@ -244,6 +245,41 @@ def test_dipfit_native_gridsearch_and_nonlinear_fit_known_spherical_source():
     assert _console_python_command(com) == "EEG = pop_dipfit_nonlinear(EEG, component=1, nonlinear='yes')"
 
 
+def test_dipfit_fitting_aligns_ica_subset_maps_with_coordinate_chansel_superset():
+    eeg, true_pos, _true_mom = _known_dipole_eeg()
+    eeg["chanlocs"].extend(
+        [
+            {"labels": "EOG1", "type": "EOG", "X": 95.0, "Y": 0.0, "Z": 0.0},
+            {"labels": "M1", "type": "REF", "X": -95.0, "Y": 0.0, "Z": 0.0},
+        ]
+    )
+    eeg["data"] = np.vstack([eeg["data"], np.zeros((2, eeg["pnts"]))])
+    eeg["nbchan"] = len(eeg["chanlocs"])
+    eeg["dipfit"]["chansel"] = list(range(1, eeg["nbchan"] + 1))
+
+    forward = prepare_forward_data(eeg, [1])
+
+    assert forward.maps.shape == (18, 1)
+    assert forward.positions.shape == (18, 3)
+    assert forward.chansel == list(range(1, 19))
+
+    coarse, _com = pop_dipfit_gridsearch(
+        eeg,
+        [1],
+        [true_pos[0]],
+        [true_pos[1]],
+        [true_pos[2]],
+        100,
+        gui=False,
+        return_com=True,
+    )
+    assert coarse["dipfit"]["model"][0]["rv"] < 1e-10
+
+    coarse["dipfit"]["model"][0]["posxyz"] = [[5.0, -15.0, 35.0]]
+    refined = pop_dipfit_nonlinear(coarse, component=1, gui=False)
+    assert refined["dipfit"]["model"][0]["rv"] < 0.02
+
+
 def test_pop_multifit_batch_manual_and_leadfield_use_native_backend():
     eeg, true_pos, _true_mom = _known_dipole_eeg()
 
@@ -320,6 +356,27 @@ def test_dipfit_coordinate_transform_and_realign_helpers_are_deterministic():
     shifted = {"label": template["label"], "pnt": template["pnt"] + np.asarray([3, -2, 4])}
     aligned = electroderealign({"method": "realignfiducial", "elec": shifted, "template": template})
     np.testing.assert_allclose(aligned["pnt"], template["pnt"], atol=1e-10)
+
+
+def test_load_afni_atlas_uses_nibabel_zero_based_voxel_affine(tmp_path):
+    nib = pytest.importorskip("nibabel")
+    data = np.zeros((3, 3, 3), dtype=np.int16)
+    data[1, 2, 0] = 7
+    affine = np.asarray(
+        [
+            [1.0, 0.0, 0.0, 10.0],
+            [0.0, 2.0, 0.0, 20.0],
+            [0.0, 0.0, 3.0, 30.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ]
+    )
+    atlas_path = tmp_path / "atlas.nii"
+    nib.save(nib.Nifti1Image(data, affine), atlas_path)
+
+    _atlas, xyz, labels, _labelsstr = load_afni_atlas(atlas_path, downsample=1)
+
+    np.testing.assert_allclose(xyz, [[11.0, 24.0, 30.0]])
+    np.testing.assert_array_equal(labels, [7])
 
 
 def test_pop_dipplot_plots_existing_models_and_records_replayable_command():
