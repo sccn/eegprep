@@ -83,6 +83,7 @@ _LAZY_EXPORTS = {
     "eeg_decodechan": ("eegprep.functions.popfunc.eeg_decodechan", "eeg_decodechan"),
     "eeg_eeg2mne": ("eegprep.functions.miscfunc.eeg_eeg2mne", "eeg_eeg2mne"),
     "eeg_eegrej": ("eegprep.functions.popfunc.eeg_eegrej", "eeg_eegrej"),
+    "eeg_icalabelstat": ("eegprep.plugins.ICLabel.eeg_icalabelstat", "eeg_icalabelstat"),
     "eeg_emptyset": ("eegprep.functions.popfunc.eeg_emptyset", "eeg_emptyset"),
     "eeg_multieegplot": ("eegprep.functions.popfunc.eeg_multieegplot", "eeg_multieegplot"),
     "eegplot": ("eegprep.functions.sigprocfunc.eegplot", "eegplot"),
