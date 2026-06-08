@@ -29,7 +29,7 @@ from eegprep.functions.popfunc.pop_reref import pop_reref
 from eegprep.functions.popfunc.pop_resample import pop_resample
 from eegprep.functions.popfunc.pop_runica import pop_runica
 from eegprep.functions.popfunc.pop_saveset import pop_saveset
-from eegprep.plugins.clean_rawdata.clean_artifacts import clean_artifacts
+from eegprep.plugins.clean_rawdata.pop_clean_rawdata import pop_clean_rawdata
 from eegprep.plugins.firfilt.pop_eegfiltnew import pop_eegfiltnew
 
 
@@ -116,7 +116,7 @@ def run_pipeline_config(
                 )
             except CommandError:
                 raise
-            except Exception as exc:  # noqa: BLE001 - converted to stable agent error
+            except Exception as exc:
                 raise CommandError(
                     "PIPELINE_STEP_FAILED",
                     f"Pipeline step {index + 1} ({step['name']}) failed: {exc}",
@@ -163,17 +163,17 @@ def run_pipeline_config(
 def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> argparse.ArgumentParser:
     """Register ``pipeline`` commands with an argparse dispatcher."""
     parser = subparsers.add_parser("pipeline", help="Validate, plan, or run YAML EEGPrep pipelines.")
-    pipeline_subparsers = parser.add_subparsers(dest="pipeline_action", required=True)
+    pipeline_subparsers = parser.add_subparsers(dest="pipeline_action", required=True, parser_class=type(parser))
 
     validate_parser = pipeline_subparsers.add_parser("validate", help="Validate a pipeline YAML file.")
     validate_parser.add_argument("config", help="Pipeline YAML config")
     validate_parser.add_argument("--json", action="store_true", help="Emit structured JSON")
-    validate_parser.set_defaults(func=handle_registered)
+    validate_parser.set_defaults(handler=handle_registered)
 
     plan_parser = pipeline_subparsers.add_parser("plan", help="Plan a pipeline YAML file without writes.")
     plan_parser.add_argument("config", help="Pipeline YAML config")
     plan_parser.add_argument("--json", action="store_true", help="Emit structured JSON")
-    plan_parser.set_defaults(func=handle_registered)
+    plan_parser.set_defaults(handler=handle_registered)
 
     run_parser = pipeline_subparsers.add_parser("run", help="Run a pipeline YAML file.")
     run_parser.add_argument("config", help="Pipeline YAML config")
@@ -181,7 +181,10 @@ def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) ->
     run_parser.add_argument("--manifest", help="Override the default pipeline manifest path")
     run_parser.add_argument("--overwrite", action="store_true", help="Overwrite configured outputs")
     run_parser.add_argument("--json", action="store_true", help="Emit structured JSON")
-    run_parser.set_defaults(func=handle_registered)
+    run_parser.add_argument("--quiet", action="store_true", help="Suppress progress logging")
+    run_parser.add_argument("--verbose", action="store_true", help="Enable verbose progress logging")
+    run_parser.add_argument("--no-progress", action="store_true", help="Disable progress logging")
+    run_parser.set_defaults(handler=handle_registered)
     return parser
 
 
@@ -558,12 +561,7 @@ def _apply_clean(EEG: dict[str, Any], parameters: dict[str, Any]) -> tuple[dict[
     for source, target in key_map.items():
         if source in parameters:
             clean_kwargs[target] = parameters[source]
-    EEG, *_ = clean_artifacts(EEG, **clean_kwargs)
-    history = "EEG = clean_artifacts(EEG"
-    if clean_kwargs:
-        history += ", " + ", ".join(f"{key}={value!r}" for key, value in clean_kwargs.items())
-    history += ");"
-    return EEG, history
+    return pop_clean_rawdata(EEG, gui=False, return_com=True, **clean_kwargs)
 
 
 def _apply_epoch(EEG: dict[str, Any], parameters: dict[str, Any]) -> tuple[dict[str, Any], str]:

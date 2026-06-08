@@ -164,6 +164,107 @@ def test_transform_refuses_output_manifest_path_collision(tmp_path):
     assert not output.exists()
 
 
+def test_filter_uses_modern_eegfiltnew_backend(monkeypatch):
+    calls = []
+
+    def fake_pop_eegfiltnew(eeg, **kwargs):
+        calls.append(kwargs)
+        return eeg, "EEG = pop_eegfiltnew(EEG, 'locutoff', 1, 'hicutoff', 40);"
+
+    monkeypatch.setattr(transforms, "pop_eegfiltnew", fake_pop_eegfiltnew)
+    args = argparse.Namespace(
+        highpass=1.0,
+        lowpass=40.0,
+        notch=None,
+        notch_width=2.0,
+        order=None,
+        minphase=False,
+        usefftfilt=False,
+    )
+
+    result = transforms._filter({"data": []}, args)
+
+    assert calls == [
+        {
+            "locutoff": 1.0,
+            "hicutoff": 40.0,
+            "filtorder": None,
+            "plotfreqz": False,
+            "minphase": False,
+            "usefftfilt": False,
+            "gui": False,
+            "return_com": True,
+        }
+    ]
+    assert "pop_eegfiltnew" in result.history
+
+
+def test_rereference_channels_convert_cli_indices_to_python_indices(monkeypatch):
+    captured = {}
+
+    def fake_pop_reref(eeg, ref, **kwargs):
+        captured["ref"] = ref
+        captured["kwargs"] = kwargs
+        return eeg, "EEG = pop_reref( EEG, [0, 1]);"
+
+    monkeypatch.setattr(transforms, "pop_reref", fake_pop_reref)
+    args = argparse.Namespace(
+        method="channels",
+        channels=["1", "2"],
+        exclude=None,
+        keep_ref=False,
+        huber=None,
+        refica="on",
+    )
+
+    result = transforms._rereference({"data": []}, args)
+
+    assert captured["ref"] == [0, 1]
+    assert captured["kwargs"]["refica"] == "on"
+    assert "pop_reref" in result.history
+
+
+def test_rereference_channels_require_channel_argument():
+    args = argparse.Namespace(
+        method="channels",
+        channels=None,
+        exclude=None,
+        keep_ref=False,
+        huber=None,
+        refica="on",
+    )
+
+    try:
+        transforms._rereference({"data": []}, args)
+    except transforms.CliTransformError as exc:
+        assert exc.code == "CONFIG_SCHEMA_ERROR"
+    else:
+        raise AssertionError("rereference --method channels should require --channels")
+
+
+def test_ica_no_deterministic_does_not_force_runica_random_reset():
+    parser = transforms.build_parser()
+    args = parser.parse_args(
+        [
+            "ica",
+            str(SAMPLE_DATASET_PATH),
+            "--output",
+            "ica.set",
+            "--no-deterministic",
+        ]
+    )
+
+    assert transforms._ica_options(args) == {}
+    assert transforms._ica_is_deterministic("runica", {}, args) is False
+
+
+def test_ica_default_deterministic_forces_runica_random_reset():
+    parser = transforms.build_parser()
+    args = parser.parse_args(["ica", str(SAMPLE_DATASET_PATH), "--output", "ica.set"])
+
+    assert transforms._ica_options(args)["rndreset"] == "off"
+
+
 def test_epoch_command_runs_against_saved_eeg_dataset(tmp_path):
     input_path = tmp_path / "events.set"
     output_path = tmp_path / "epochs.set"

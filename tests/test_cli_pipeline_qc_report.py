@@ -12,6 +12,8 @@ from eegprep.cli.commands.pipeline import (
 )
 from eegprep.cli.commands.qc import compute_qc_metrics, qc_dataset, qc_report_dataset
 from eegprep.cli.commands.report import report_dataset
+from eegprep.functions.popfunc.pop_saveset import pop_saveset
+from tests.fixtures import create_test_eeg
 
 
 SAMPLE_SET = Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data.set"
@@ -74,6 +76,66 @@ def test_pipeline_run_resample_writes_dataset_manifest_and_history(tmp_path):
     assert "pop_resample" in manifest["history"]
     assert any(item["type"] == "eeglab_set" for item in manifest["output_files"])
     assert any("pop_resample" in item for item in result["history"])
+
+
+def test_pipeline_refuses_existing_outputs_without_overwrite(tmp_path):
+    config_path = _write_pipeline_config(
+        tmp_path,
+        steps=[{"name": "qc"}],
+    )
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+    existing_qc = output_dir / "qc.json"
+    existing_qc.write_text("existing", encoding="utf-8")
+
+    result = run_pipeline_config(config_path)
+
+    assert result["status"] == "error"
+    assert result["code"] == "OUTPUT_EXISTS"
+    assert result["error"]["path"] == str(existing_qc)
+    assert existing_qc.read_text(encoding="utf-8") == "existing"
+
+
+def test_pipeline_clean_after_epoch_uses_pop_clean_continuous_data_guard(tmp_path):
+    input_path = tmp_path / "epoched.set"
+    eeg = create_test_eeg(n_channels=2, n_samples=12, srate=100)
+    eeg["data"] = np.stack([eeg["data"], eeg["data"]], axis=2)
+    eeg["pnts"] = 12
+    eeg["trials"] = 2
+    pop_saveset(eeg, str(input_path))
+    config_path = _write_pipeline_config(
+        tmp_path,
+        input_path=input_path,
+        steps=[{"name": "clean", "method": "asr"}],
+    )
+
+    result = run_pipeline_config(config_path)
+
+    assert result["status"] == "error"
+    assert result["code"] == "PIPELINE_STEP_FAILED"
+    assert "Input data must be continuous" in result["message"]
+
+
+def test_pipeline_filter_history_uses_modern_eegfiltnew(monkeypatch, tmp_path):
+    from eegprep.cli.commands import pipeline as pipeline_cli
+
+    calls = []
+
+    def fake_pop_eegfiltnew(eeg, **kwargs):
+        calls.append(kwargs)
+        return eeg, "EEG = pop_eegfiltnew(EEG, 'locutoff', 1);"
+
+    monkeypatch.setattr(pipeline_cli, "pop_eegfiltnew", fake_pop_eegfiltnew)
+    config_path = _write_pipeline_config(
+        tmp_path,
+        steps=[{"name": "filter", "highpass": 1.0}],
+    )
+
+    result = run_pipeline_config(config_path)
+
+    assert result["status"] == "ok"
+    assert calls and calls[0]["locutoff"] == 1.0
+    assert "pop_eegfiltnew" in result["history"][0]
 
 
 def test_pipeline_invalid_config_returns_structured_error(tmp_path):
@@ -165,11 +227,11 @@ def test_report_and_qc_report_write_html_and_manifests(tmp_path):
     assert json.loads((tmp_path / "qc_report.manifest.json").read_text(encoding="utf-8"))["command"] == "qc report"
 
 
-def _write_pipeline_config(tmp_path, *, steps):
+def _write_pipeline_config(tmp_path, *, steps, input_path=SAMPLE_SET):
     config_path = tmp_path / "pipeline.yaml"
     config = {
         "schema_version": "eegprep.pipeline.v1",
-        "input": {"path": str(SAMPLE_SET), "format": "eeglab"},
+        "input": {"path": str(input_path), "format": "eeglab"},
         "output": {"directory": str(tmp_path / "out")},
         "steps": steps,
     }

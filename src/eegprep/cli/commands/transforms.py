@@ -11,20 +11,22 @@ from __future__ import annotations
 import argparse
 from contextlib import redirect_stdout
 from dataclasses import dataclass
-from datetime import datetime, timezone
-import hashlib
-import json
 import logging
 from pathlib import Path
-import platform
 import sys
 from typing import Any
 
 import numpy as np
 
-import eegprep
-from eegprep.cli.core import EEGPrepCLIError
-from eegprep.functions.popfunc.pop_eegfilt import pop_eegfilt
+from eegprep.cli.core import (
+    EEGPrepCLIError,
+    build_manifest,
+    command_error,
+    file_sha256,
+    print_result,
+    utc_now,
+    write_manifest_file,
+)
 from eegprep.functions.popfunc.pop_epoch import pop_epoch
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_reref import pop_reref
@@ -32,12 +34,12 @@ from eegprep.functions.popfunc.pop_resample import pop_resample
 from eegprep.functions.popfunc.pop_runica import pop_runica
 from eegprep.functions.popfunc.pop_saveset import pop_saveset
 from eegprep.plugins.clean_rawdata.pop_clean_rawdata import pop_clean_rawdata
+from eegprep.plugins.firfilt.pop_eegfiltnew import pop_eegfiltnew
 
 
 logger = logging.getLogger(__name__)
 
 RESULT_SCHEMA_VERSION = "eegprep.transform_result.v1"
-ERROR_SCHEMA_VERSION = "eegprep.error.v1"
 MANIFEST_SCHEMA_VERSION = "eegprep.manifest.v1"
 DATASET_OUTPUT_TYPE = "eeglab_set"
 
@@ -102,23 +104,23 @@ def main(argv: list[str] | None = None) -> int:
     try:
         result = run_transform_command(args)
     except CliTransformError as exc:
-        payload = _error_payload(exc)
+        payload = command_error(getattr(args, "transform_command", "transform"), exc)
         if getattr(args, "json", False):
-            _write_json(payload, sys.stdout)
+            print_result(payload, as_json=True)
         else:
             print(f"{exc.code}: {exc.message}", file=sys.stderr)
         return exc.exit_code
     except Exception as exc:
         error = CliTransformError("TRANSFORM_FAILED", str(exc))
-        payload = _error_payload(error)
+        payload = command_error(getattr(args, "transform_command", "transform"), error)
         if getattr(args, "json", False):
-            _write_json(payload, sys.stdout)
+            print_result(payload, as_json=True)
         else:
             print(f"{error.code}: {error.message}", file=sys.stderr)
         return 1
 
     if getattr(args, "json", False):
-        _write_json(result, sys.stdout)
+        print_result(result, as_json=True)
     else:
         print(result["output"]["path"])
     return 0
@@ -130,7 +132,7 @@ def _run_transform_command(args: argparse.Namespace) -> dict[str, Any]:
     manifest_path = _resolve_manifest_path(output_path, args)
     _validate_output_targets(input_path, output_path, manifest_path, overwrite=bool(args.overwrite))
 
-    started_at = _utc_now()
+    started_at = utc_now()
     logger.info("Loading %s", input_path)
     eeg = pop_loadset(str(input_path))
     input_files = _dataset_file_records(input_path, eeg)
@@ -142,10 +144,10 @@ def _run_transform_command(args: argparse.Namespace) -> dict[str, Any]:
 
     logger.info("Saving %s", output_path)
     saved_eeg = pop_saveset(result.eeg, str(output_path))
-    finished_at = _utc_now()
+    finished_at = utc_now()
     output_files = _dataset_file_records(output_path, saved_eeg)
 
-    manifest = _manifest_payload(
+    manifest = build_manifest(
         command=args.transform_command,
         input_files=input_files,
         output_files=output_files,
@@ -156,7 +158,7 @@ def _run_transform_command(args: argparse.Namespace) -> dict[str, Any]:
         started_at=started_at,
         finished_at=finished_at,
     )
-    _write_manifest(manifest_path, manifest)
+    write_manifest_file(manifest_path, manifest, overwrite=True)
 
     return {
         "status": "ok",
@@ -241,16 +243,14 @@ def _filter(eeg: dict[str, Any], args: argparse.Namespace) -> TransformResult:
     output = eeg
     history_parts: list[str] = []
     if args.highpass is not None or args.lowpass is not None:
-        output, history = pop_eegfilt(
+        output, history = pop_eegfiltnew(
             output,
-            0.0 if args.highpass is None else float(args.highpass),
-            0.0 if args.lowpass is None else float(args.lowpass),
-            args.order,
-            0,
-            0,
-            0,
-            args.firtype,
-            int(args.causal),
+            locutoff=args.highpass,
+            hicutoff=args.lowpass,
+            filtorder=args.order,
+            plotfreqz=False,
+            minphase=bool(args.minphase),
+            usefftfilt=bool(args.usefftfilt),
             gui=False,
             return_com=True,
         )
@@ -263,16 +263,15 @@ def _filter(eeg: dict[str, Any], args: argparse.Namespace) -> TransformResult:
         upper_edge = float(args.notch) + notch_width / 2.0
         if lower_edge <= 0:
             raise CliTransformError("CONFIG_SCHEMA_ERROR", "--notch minus half --notch-width must be positive.")
-        output, history = pop_eegfilt(
+        output, history = pop_eegfiltnew(
             output,
-            lower_edge,
-            upper_edge,
-            args.order,
-            1,
-            0,
-            0,
-            args.firtype,
-            int(args.causal),
+            locutoff=lower_edge,
+            hicutoff=upper_edge,
+            filtorder=args.order,
+            revfilt=True,
+            plotfreqz=False,
+            minphase=bool(args.minphase),
+            usefftfilt=bool(args.usefftfilt),
             gui=False,
             return_com=True,
         )
@@ -288,8 +287,8 @@ def _filter(eeg: dict[str, Any], args: argparse.Namespace) -> TransformResult:
             "notch": args.notch,
             "notch_width": args.notch_width,
             "order": args.order,
-            "firtype": args.firtype,
-            "causal": bool(args.causal),
+            "minphase": bool(args.minphase),
+            "usefftfilt": bool(args.usefftfilt),
         },
     )
 
@@ -433,7 +432,9 @@ def _ica_is_deterministic(method: str, options: dict[str, Any], args: argparse.N
         return args.seed is not None
     if "seed" in options:
         return True
-    return str(options.get("rndreset", "off")).lower() in {"off", "false", "0", "no"}
+    if "rndreset" not in options:
+        return bool(args.deterministic)
+    return str(options["rndreset"]).lower() in {"off", "false", "0", "no"}
 
 
 def _add_common_arguments(parser: argparse.ArgumentParser, *, include_common_flags: bool) -> None:
@@ -479,9 +480,9 @@ def _add_filter_parser(subparsers: argparse._SubParsersAction, *, include_common
     parser.add_argument("--lowpass", type=float, help="Upper pass-band edge in Hz.")
     parser.add_argument("--notch", type=float, help="Notch center frequency in Hz.")
     parser.add_argument("--notch-width", type=float, default=2.0, help="Notch width in Hz.")
-    parser.add_argument("--order", type=int, help="FIR filter order. Defaults to the pop_eegfilt heuristic.")
-    parser.add_argument("--firtype", choices=("firls", "fir1"), default="firls")
-    parser.add_argument("--causal", action="store_true", help="Use causal filtering.")
+    parser.add_argument("--order", type=int, help="FIR filter order. Defaults to the pop_eegfiltnew heuristic.")
+    parser.add_argument("--minphase", action="store_true", help="Use minimum-phase causal FIR filtering.")
+    parser.add_argument("--usefftfilt", action="store_true", help="Use frequency-domain FIR filtering.")
     _set_transform_defaults(parser, "filter")
 
 
@@ -515,7 +516,8 @@ def _add_ica_parser(subparsers: argparse._SubParsersAction, *, include_common_fl
     _add_common_arguments(parser, include_common_flags=include_common_flags)
     parser.add_argument("--method", choices=("runica", "picard", "amica", "runamica15"), default="runica")
     parser.add_argument("--seed", type=int, help="Random seed for backends that support one.")
-    parser.add_argument("--deterministic", action="store_true", default=True)
+    parser.add_argument("--deterministic", dest="deterministic", action="store_true", default=True)
+    parser.add_argument("--no-deterministic", dest="deterministic", action="store_false")
     parser.add_argument("--maxsteps", type=int, help="Maximum ICA training steps.")
     parser.add_argument("--pca", type=int, help="Number of principal components to retain.")
     parser.add_argument("--extended", type=int, help="runica extended-ICA option.")
@@ -616,7 +618,7 @@ def _dataset_file_records(set_path: Path, eeg: dict[str, Any]) -> list[dict[str,
 
 
 def _file_record(path: Path) -> dict[str, Any]:
-    return {"path": str(path), "type": _file_type(path), "sha256": _sha256(path), "bytes": path.stat().st_size}
+    return {"path": str(path), "type": _file_type(path), "sha256": file_sha256(path), "bytes": path.stat().st_size}
 
 
 def _file_type(path: Path) -> str:
@@ -626,50 +628,6 @@ def _file_type(path: Path) -> str:
     if suffix == ".fdt":
         return "eeglab_fdt"
     return "file"
-
-
-def _sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
-def _manifest_payload(
-    *,
-    command: str,
-    input_files: list[dict[str, Any]],
-    output_files: list[dict[str, Any]],
-    parameters: dict[str, Any],
-    history: str,
-    deterministic: bool,
-    warnings: list[str],
-    started_at: str,
-    finished_at: str,
-) -> dict[str, Any]:
-    return {
-        "schema_version": MANIFEST_SCHEMA_VERSION,
-        "command": command,
-        "input_files": input_files,
-        "output_files": output_files,
-        "parameters": parameters,
-        "history": history,
-        "software": {
-            "eegprep_version": eegprep.__version__,
-            "python_version": platform.python_version(),
-        },
-        "runtime": {"started_at": started_at, "finished_at": finished_at},
-        "deterministic": bool(deterministic),
-        "warnings": warnings,
-    }
-
-
-def _write_manifest(path: Path, manifest: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as handle:
-        json.dump(manifest, handle, indent=2, sort_keys=True, default=_json_default)
-        handle.write("\n")
 
 
 def _dataset_summary(eeg: dict[str, Any]) -> dict[str, Any]:
@@ -736,10 +694,6 @@ def _string_value(value: Any) -> str:
     return str(value)
 
 
-def _utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
-
-
 def _configure_logging(args: argparse.Namespace) -> None:
     if getattr(args, "quiet", False) or getattr(args, "no_progress", False):
         level = logging.WARNING
@@ -748,37 +702,6 @@ def _configure_logging(args: argparse.Namespace) -> None:
     else:
         level = logging.INFO
     logging.basicConfig(level=level, format="%(message)s", stream=sys.stderr, force=True)
-
-
-def _error_payload(error: CliTransformError) -> dict[str, Any]:
-    payload = {
-        "status": "error",
-        "schema_version": ERROR_SCHEMA_VERSION,
-        "error": {
-            "code": error.code,
-            "message": error.message,
-        },
-    }
-    if error.path is not None:
-        payload["error"]["path"] = str(error.path)
-    if error.suggestion:
-        payload["error"]["suggestion"] = error.suggestion
-    return payload
-
-
-def _write_json(payload: dict[str, Any], stream: Any) -> None:
-    json.dump(payload, stream, default=_json_default, sort_keys=True)
-    stream.write("\n")
-
-
-def _json_default(value: Any) -> Any:
-    if isinstance(value, Path):
-        return str(value)
-    if isinstance(value, np.ndarray):
-        return value.tolist()
-    if isinstance(value, np.generic):
-        return value.item()
-    raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
 
 
 if __name__ == "__main__":

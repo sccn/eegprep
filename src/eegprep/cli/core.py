@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import platform
 import sys
 from dataclasses import dataclass
@@ -150,11 +151,13 @@ def humanize_result(result: dict[str, Any]) -> str:
 
 def json_safe(value: Any) -> Any:
     if isinstance(value, np.generic):
-        return value.item()
+        return json_safe(value.item())
     if isinstance(value, np.ndarray):
         return [json_safe(item) for item in value.tolist()]
     if isinstance(value, Path):
         return str(value)
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
     if isinstance(value, dict):
         return {str(key): json_safe(item) for key, item in value.items()}
     if isinstance(value, (list, tuple, set)):
@@ -229,7 +232,7 @@ def build_manifest(
     started_at: str,
     finished_at: str | None = None,
     deterministic: bool | None = None,
-    warnings: list[dict[str, Any]] | None = None,
+    warnings: list[Any] | None = None,
 ) -> dict[str, Any]:
     stamp = runtime_stamp(started_at) if finished_at is None else RuntimeStamp(started_at, finished_at)
     manifest: dict[str, Any] = {

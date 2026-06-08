@@ -85,6 +85,24 @@ def test_bids_import_refuses_existing_manifest_without_overwrite(tmp_path):
     assert not imported_set.exists()
 
 
+def test_bids_export_refuses_non_empty_root_without_overwrite(tmp_path):
+    from eegprep.cli.commands import bids as bids_cli
+
+    input_set = tmp_path / "input.set"
+    bids_root = tmp_path / "bids"
+    bids_root.mkdir()
+    existing = bids_root / "keep.txt"
+    existing.write_text("existing", encoding="utf-8")
+    pop_saveset(_eeg(), input_set)
+
+    payload = bids_cli.export_dataset(input_set, bids_root, subject="01", task="rest")
+
+    assert payload["status"] == "error"
+    assert payload["code"] == "OUTPUT_EXISTS"
+    assert payload["path"] == str(bids_root)
+    assert existing.read_text(encoding="utf-8") == "existing"
+
+
 def test_eeglab_history_maps_supported_and_unsupported_commands(tmp_path):
     from eegprep.cli.commands import eeglab as eeglab_cli
 

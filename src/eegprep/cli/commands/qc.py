@@ -17,6 +17,7 @@ from eegprep.cli.core import (
     command_ok as success_result,
     emit_command_result as emit_result,
     file_sha256,
+    json_safe,
     utc_now,
     write_manifest_file,
 )
@@ -96,7 +97,7 @@ def compute_qc_metrics(EEG: dict[str, Any], *, dataset_path: str | Path | None =
         },
     }
     metrics["recommendations"] = qc_recommendations(metrics)
-    return _json_safe(metrics)
+    return json_safe(metrics)
 
 
 def qc_recommendations(metrics: dict[str, Any]) -> list[dict[str, str]]:
@@ -236,7 +237,7 @@ def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) ->
     """Register ``qc`` commands with an argparse dispatcher."""
     parser = subparsers.add_parser("qc", help="Compute dataset QC metrics and recommendations.")
     parser.add_argument("qc_args", nargs=argparse.REMAINDER)
-    parser.set_defaults(func=handle_registered)
+    parser.set_defaults(handler=handle_registered)
     return parser
 
 
@@ -409,22 +410,6 @@ def _clean_scalar(value: Any) -> Any:
         if value.size == 1:
             return _clean_scalar(value.reshape(-1)[0])
         return value.tolist()
-    return value
-
-
-def _json_safe(value: Any) -> Any:
-    if isinstance(value, dict):
-        return {str(key): _json_safe(item) for key, item in value.items()}
-    if isinstance(value, list | tuple):
-        return [_json_safe(item) for item in value]
-    if isinstance(value, np.ndarray):
-        return _json_safe(value.tolist())
-    if isinstance(value, np.generic):
-        return value.item()
-    if isinstance(value, Path):
-        return str(value)
-    if isinstance(value, float) and not math.isfinite(value):
-        return None
     return value
 
 

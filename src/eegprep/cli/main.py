@@ -14,9 +14,9 @@ from eegprep.cli.dataset import inspect_channels, inspect_dataset, inspect_event
 from eegprep.cli.commands import batch as batch_commands
 from eegprep.cli.commands import bids as bids_commands
 from eegprep.cli.commands import eeglab as eeglab_commands
+from eegprep.cli.commands import pipeline as pipeline_commands
 from eegprep.cli.commands import qc as qc_commands
 from eegprep.cli.commands import report as report_commands
-from eegprep.cli.commands.pipeline import plan_pipeline_config, run_pipeline_config, validate_pipeline_config
 from eegprep.cli.commands.transforms import register_subcommands
 
 
@@ -121,8 +121,8 @@ def build_parser() -> EEGPrepArgumentParser:
     _register_inspect(subparsers)
     _register_validate(subparsers)
     register_subcommands(subparsers)
-    _register_pipeline(subparsers)
-    _register_qc(subparsers)
+    pipeline_commands.register(subparsers)
+    qc_commands.register(subparsers)
     report_commands.register(subparsers)
     batch_commands.register(subparsers)
     bids_commands.register(subparsers)
@@ -180,42 +180,6 @@ def _register_validate(subparsers: argparse._SubParsersAction) -> None:
     validate.add_argument("path")
     validate.add_argument("--json", action="store_true")
     validate.set_defaults(handler=lambda args: validate_dataset(args.path))
-
-
-def _register_pipeline(subparsers: argparse._SubParsersAction) -> None:
-    pipeline = subparsers.add_parser("pipeline", help="Validate, plan, or run YAML preprocessing pipelines.")
-    pipeline_sub = pipeline.add_subparsers(dest="pipeline_command", required=True, parser_class=EEGPrepArgumentParser)
-    validate = pipeline_sub.add_parser("validate")
-    validate.add_argument("config")
-    validate.add_argument("--json", action="store_true")
-    validate.set_defaults(handler=lambda args: validate_pipeline_config(args.config))
-    plan = pipeline_sub.add_parser("plan")
-    plan.add_argument("config")
-    plan.add_argument("--json", action="store_true")
-    plan.set_defaults(handler=lambda args: plan_pipeline_config(args.config))
-    run = pipeline_sub.add_parser("run")
-    run.add_argument("config")
-    run.add_argument("--dry-run", action="store_true", help="Return the execution plan without writing outputs.")
-    run.add_argument("--manifest", help="Override the default pipeline manifest path.")
-    run.add_argument("--overwrite", action="store_true", help="Overwrite configured outputs.")
-    run.add_argument("--json", action="store_true")
-    run.add_argument("--quiet", action="store_true")
-    run.add_argument("--verbose", action="store_true")
-    run.add_argument("--no-progress", action="store_true")
-    run.set_defaults(
-        handler=lambda args: run_pipeline_config(
-            args.config,
-            dry_run=args.dry_run,
-            manifest_path=args.manifest,
-            overwrite=True if args.overwrite else None,
-        )
-    )
-
-
-def _register_qc(subparsers: argparse._SubParsersAction) -> None:
-    qc = subparsers.add_parser("qc", help="Compute QC metrics or write a QC report.")
-    qc.add_argument("qc_args", nargs=argparse.REMAINDER)
-    qc.set_defaults(handler=lambda args: qc_commands.dispatch(args.qc_args))
 
 
 def _handle_root(args: argparse.Namespace) -> dict[str, Any]:

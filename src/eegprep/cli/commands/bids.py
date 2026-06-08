@@ -372,7 +372,9 @@ def _error(
         "exit_code": exit_code,
     }
     if path is not None:
+        payload["path"] = str(path)
         payload["error"]["path"] = str(path)
     if suggestion is not None:
+        payload["suggestion"] = suggestion
         payload["error"]["suggestion"] = suggestion
     return payload
