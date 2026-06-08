@@ -29,6 +29,7 @@ def test_package_resources_cover_public_workflows() -> None:
     assert package.joinpath("resources/help/eegplot.md").is_file()
     assert package.joinpath("resources/help/pop_eegplot.md").is_file()
     assert package.joinpath("resources/help/eeg_multieegplot.md").is_file()
+    assert package.joinpath("resources/skills/eegprep-cli.md").is_file()
     assert package.joinpath("resources/headplot/colin27headmesh.mat").is_file()
     assert package.joinpath("resources/montages/standard-10-5-342ch.locs").is_file()
     assert package.joinpath("plugins/ICLabel/netICL.mat").is_file()
@@ -68,6 +69,7 @@ def test_project_entry_points_cover_gui_and_console() -> None:
 
     assert pyproject["project"]["scripts"]["eegprep-gui"] == "eegprep.functions.adminfunc.eeglab:main"
     assert pyproject["project"]["scripts"]["eegprep-console"] == "eegprep.functions.adminfunc.console:main"
+    assert pyproject["project"]["scripts"]["eegprep"] == "eegprep.cli.main:main"
 
 
 def test_setuptools_package_data_covers_runtime_resources() -> None:
@@ -87,6 +89,7 @@ def test_setuptools_package_data_covers_runtime_resources() -> None:
         "resources/help/pop_clean_rawdata.md",
         "resources/help/eegplot.md",
         "resources/help/pop_eegplot.md",
+        "resources/skills/eegprep-cli.md",
         "resources/headplot/colin27headmesh.mat",
         "resources/headplot/mheadnew.transform",
         "resources/headplot/mheadnew.xyz",

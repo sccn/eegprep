@@ -38,6 +38,7 @@ GUI, Console, and Scripts
    gui_console_session
    gui_tutorials
    interactive_console
+   agent_cli
    scripting_workflows
    mne_integration
 
@@ -93,6 +94,9 @@ Common Entry Points
    * - Filter data
      - ``Tools > Filter the data``
      - ``pop_eegfiltnew(EEG, locutoff=1, hicutoff=40)``
+   * - Run headless agent workflows
+     - Not applicable
+     - ``eegprep pipeline plan preprocess.yaml --json``
    * - Resample data
      - ``Tools > Change sampling rate``
      - ``pop_resample(EEG, 64)``
