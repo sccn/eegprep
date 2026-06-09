@@ -12,7 +12,8 @@ Use the bundled helper for high-signal closeout review or whole-codebase bug hun
 - Run it for real unless the user asked only for a plan.
 - Treat output as advisory. Verify every accepted finding in the real code path before fixing or reporting it.
 - Accept concrete bugs, regressions, EEGLAB parity breaks, unsafe I/O/security risks, missing tests tied to behavior, and maintainability issues that cause real future defects.
-- Reject speculative edge cases, broad rewrites, stale vendored/reference code, generic lint, and subjective MATLAB/Python style comments.
+- Accept structural findings when the code becomes harder to ship: spaghetti branching, wrong ownership layer, duplicate canonical helpers, non-atomic state updates, file sprawl, weak data boundaries, or indirection that hides EEG invariants.
+- Reject speculative edge cases, broad rewrites, stale vendored/reference code, generic lint, subjective MATLAB/Python style comments, and "cleaner someday" feedback without a concrete failure mode.
 - If a fix changes code, run focused tests and rerun autoreview on the same target. Stop when the final helper run exits 0 or when a remaining finding is consciously rejected with a concrete reason.
 - Do not invoke nested review tools from inside review. The helper already runs one structured review path.
 - Do not push/stage/commit/open PR unless the user requested that separately.
@@ -94,6 +95,17 @@ Prioritize:
 - runtime independence from `src/eegprep/eeglab`;
 - packaged Markdown help for GUI Help / `pophelp`;
 - realistic EEG-size performance and concrete security/path/I/O risks.
+
+## Architecture Bar
+
+Use this only for code that will make EEGPrep less reliable or maintainable, not for taste.
+
+- Look for a simpler "code judo" move that preserves behavior while deleting branches, modes, helper layers, or special cases.
+- Flag spaghetti growth: ad-hoc conditionals in busy flows, scattered feature checks, one-off booleans, nullable modes, and partial updates.
+- Keep logic in the canonical layer: signal processing in `sigprocfunc`, user wrappers in `popfunc`, GUI/session coordination in `guifunc`/`adminfunc`, plugin code in its plugin package, CLI orchestration outside core math.
+- Prefer existing helpers/contracts over near-duplicates; remove thin wrappers or generic magic that hide simple EEG data shapes.
+- Treat file-size growth past roughly 1000 lines as a warning in diff review; in whole-codebase audits, flag large modules only with a concrete bug-prone coupling or focused split.
+- Prefer fixes that remove concepts, collapse duplicate branches, clarify data boundaries, or make state/session/history updates atomic.
 
 ## Loop
 
