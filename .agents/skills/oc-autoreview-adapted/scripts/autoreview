@@ -26,6 +26,7 @@ from __future__ import annotations
 import argparse
 import concurrent.futures
 import copy
+import fnmatch
 import json
 import os
 import queue
@@ -438,13 +439,53 @@ def branch_bundle(repo: Path, base_ref: str, *, skip_fetch: bool) -> str:
     )
 
 
+def normalize_scope_spec(scope: str) -> str:
+    normalized = scope.strip().replace("\\", "/").removeprefix("./").rstrip("/")
+    if not normalized:
+        raise SystemExit("scope path cannot be empty")
+    path = Path(normalized)
+    if path.is_absolute() or ".." in path.parts:
+        raise SystemExit(f"scope path must be repo-relative: {scope}")
+    return normalized
+
+
+def load_scope_specs(args: argparse.Namespace) -> list[str]:
+    scopes = [normalize_scope_spec(scope) for scope in args.path or []]
+    for scope_file in args.scope_file or []:
+        path = Path(scope_file)
+        for line in path.read_text().splitlines():
+            value = line.split("#", 1)[0].strip()
+            if value:
+                scopes.append(normalize_scope_spec(value))
+    seen: set[str] = set()
+    result: list[str] = []
+    for scope in scopes:
+        if scope in seen:
+            continue
+        seen.add(scope)
+        result.append(scope)
+    return result
+
+
+def path_matches_scope(rel: str, scopes: list[str]) -> bool:
+    if not scopes:
+        return True
+    return any(
+        rel == scope
+        or rel.startswith(f"{scope}/")
+        or fnmatch.fnmatchcase(rel, scope)
+        or fnmatch.fnmatchcase(rel, f"{scope}/**")
+        for scope in scopes
+    )
+
+
 def codebase_paths(repo: Path, scopes: list[str] | None = None) -> set[str]:
-    prefixes = [scope.strip().rstrip("/") for scope in scopes or [] if scope.strip()]
+    scope_specs = scopes or []
     paths: set[str] = set()
     for rel in git(repo, "ls-files").splitlines():
         if not rel or any(rel.startswith(prefix) for prefix in CODEBASE_EXCLUDED_PREFIXES):
             continue
-        if prefixes and not any(rel == prefix or rel.startswith(f"{prefix}/") for prefix in prefixes):
+        if not path_matches_scope(rel, scope_specs):
             continue
         paths.add(rel)
     return paths
@@ -480,10 +521,12 @@ def commit_bundle(repo: Path, commit_ref: str) -> str:
     )
 
 
-def review_paths(repo: Path, target: str, target_ref: str | None, commit_ref: str) -> set[str]:
+def review_paths(
+    repo: Path, target: str, target_ref: str | None, commit_ref: str, scopes: list[str] | None = None
+) -> set[str]:
     names: set[str] = set()
     if target == "codebase":
-        return codebase_paths(repo)
+        return codebase_paths(repo, scopes)
     if target == "local":
         sources = [
             git(repo, "diff", "--name-only", "--cached"),
@@ -498,7 +541,7 @@ def review_paths(repo: Path, target: str, target_ref: str | None, commit_ref: st
     for source in sources:
         for line in source.splitlines():
             path = line.strip()
-            if path:
+            if path and path_matches_scope(path, scopes or []):
                 names.add(path)
     return names
 
@@ -1193,6 +1236,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--prompt", action="append", help="Additional review instruction text.")
     parser.add_argument("--prompt-file", action="append", help="Additional review instruction file.")
     parser.add_argument("--dataset", action="append", help="Extra evidence file to include in the review bundle.")
+    parser.add_argument(
+        "--path",
+        action="append",
+        help="Repo-relative file, directory, or glob to include in the review scope. Repeat for multiple scopes.",
+    )
+    parser.add_argument(
+        "--scope-file",
+        action="append",
+        help="File containing repo-relative --path scopes, one per line. Blank lines and # comments are ignored.",
+    )
     parser.add_argument("--output", help="Write human output to a file as well as stdout.")
     parser.add_argument("--json-output", help="Write validated structured review JSON.")
     parser.add_argument("--heartbeat-seconds", type=int, default=60)
@@ -1389,6 +1442,7 @@ def run_panel(
 
 def main() -> int:
     args = parse_args()
+    scope_specs = load_scope_specs(args)
     reviewers = reviewer_args(args)
     repo = repo_root()
     target, target_ref = choose_target(repo, args.mode, args.base)
@@ -1407,6 +1461,8 @@ def main() -> int:
     display_ref = args.commit if target == "commit" else target_ref
     if display_ref:
         print(f"ref: {display_ref}")
+    if scope_specs:
+        print(f"path filters: {', '.join(scope_specs)}")
 
     if target == "local":
         bundle = local_bundle(repo)
@@ -1414,14 +1470,16 @@ def main() -> int:
         assert target_ref
         bundle = branch_bundle(repo, target_ref, skip_fetch=args.skip_fetch)
     elif target == "codebase":
-        changed_paths = codebase_paths(repo)
+        changed_paths = codebase_paths(repo, scope_specs)
         bundle = codebase_bundle(repo, changed_paths)
     else:
         bundle = commit_bundle(repo, args.commit)
         target_ref = args.commit
-        changed_paths = review_paths(repo, target, target_ref, args.commit)
+        changed_paths = review_paths(repo, target, target_ref, args.commit, scope_specs)
     if target != "codebase":
-        changed_paths = review_paths(repo, target, target_ref, args.commit)
+        changed_paths = review_paths(repo, target, target_ref, args.commit, scope_specs)
+    if scope_specs and not changed_paths:
+        raise SystemExit("no files matched --path/--scope-file for this review target")
     instructions = instruction_bundle(repo, changed_paths)
     prompt = build_prompt(
         repo,

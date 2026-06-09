@@ -17,6 +17,7 @@ Use the bundled helper for high-signal closeout review or whole-codebase bug hun
 - If a fix changes code, run focused tests and rerun autoreview on the same target. Stop when the final helper run exits 0 or when a remaining finding is consciously rejected with a concrete reason.
 - Do not invoke nested review tools from inside review. The helper already runs one structured review path.
 - Do not push/stage/commit/open PR unless the user requested that separately.
+- If the user asks to review the whole codebase and wants fixes, default to the campaign workflow below: branch/worktree per codebase area, review/fix/test/rerun, then open a PR before moving to the next area.
 
 ## Commands
 
@@ -54,6 +55,44 @@ Whole EEGPrep-owned codebase audit:
 
 The codebase mode is not diff-limited. It lists tracked EEGPrep-owned files and excludes vendored EEGLAB/reference sample data by default; the reviewer may inspect files read-only and report real bugs anywhere in scope.
 
+Scoped codebase audit:
+
+```bash
+"$AUTOREVIEW" --mode codebase \
+  --path src/eegprep/functions/popfunc \
+  --path tests/test_pop_utils.py \
+  --thinking codex=xhigh
+```
+
+Use `--scope-file scopes.txt` when a slice has many paths.
+
+## Default Whole-Codebase Campaign
+
+When asked to review the whole codebase hands-off, do not make one giant PR. Split work into PR-sized areas, usually:
+
+- `popfunc`: `src/eegprep/functions/popfunc`, matching pop tests/help.
+- `sigproc`: `src/eegprep/functions/sigprocfunc`, numerical/parity tests.
+- `gui-session`: `src/eegprep/functions/guifunc`, `adminfunc`, console/session tests.
+- `plugins`: `src/eegprep/plugins`, bundled plugin tests/resources.
+- `io-bids-study`: file I/O, BIDS, STUDY, dataset/session persistence.
+- `cli-docs-tools`: CLI, docs, skills, tools, workflows.
+
+For each area:
+
+1. Create a fresh worktree/branch from the requested base, e.g. `autoreview/popfunc`.
+2. Run `autoreview --mode codebase --path ... --thinking codex=xhigh`.
+3. Verify each finding from first principles. Fix real issues even when the fix touches a related helper outside the initial path scope; keep the PR conceptually tied to that area.
+4. Run focused tests, lint/type checks when relevant, then rerun the same scoped autoreview until clean or until remaining findings are rejected with reasons.
+5. Commit, push, and open a PR before starting the next area.
+
+PR body must list every finding reviewed:
+
+- **Fixed:** finding, root cause, files changed, tests run.
+- **Rejected:** finding, why it is not real or not worth changing.
+- **Follow-up:** only when real but intentionally outside this PR's area.
+
+Do not auto-merge. The human reviews each PR normally.
+
 ## Useful Options
 
 - `--engine codex|claude|droid|copilot`; default is Codex.
@@ -62,6 +101,7 @@ The codebase mode is not diff-limited. It lists tracked EEGPrep-owned files and 
 - `--stream-engine-output` to see compact live engine activity.
 - `--parallel-tests "uv run pytest tests/test_file.py"` to run tests while review runs.
 - `--prompt` / `--prompt-file` / `--dataset` to add evidence.
+- `--path` / `--scope-file` to constrain a codebase, branch, local, or commit review to a PR-sized area.
 - `--json-output /tmp/review.json` and `--output /tmp/review.txt` for artifacts.
 - `--mode uncommitted` is an alias for `local`; use branch/commit modes after committing.
 - `--skip-fetch` avoids fetching before branch diffs.
