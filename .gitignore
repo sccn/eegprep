@@ -1,5 +1,6 @@
 .claude/settings.local.json
 .context/
+.workflow/
 .coveragerc
 .notes/*
 !.notes/.gitkeep

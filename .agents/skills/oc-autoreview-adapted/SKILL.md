@@ -26,6 +26,7 @@ Set paths once:
 ```bash
 export AUTOREVIEW=".agents/skills/oc-autoreview-adapted/scripts/autoreview"
 export AUTOREVIEW_HARNESS=".agents/skills/oc-autoreview-adapted/scripts/test-review-harness"
+export AUTOREVIEW_CAMPAIGN=".agents/skills/oc-autoreview-adapted/scripts/new-review-campaign.py"
 ```
 
 Dirty local work:
@@ -65,6 +66,7 @@ Scoped codebase audit:
 ```
 
 Use `--scope-file scopes.txt` when a slice has many paths.
+Quote any `--path` value that contains shell globs, e.g. `--path 'tests/test_pop_*.py'`.
 
 ## Default Whole-Codebase Campaign
 
@@ -76,6 +78,14 @@ When asked to review the whole codebase hands-off, do not make one giant PR. Spl
 - `plugins`: `src/eegprep/plugins`, bundled plugin tests/resources.
 - `io-bids-study`: file I/O, BIDS, STUDY, dataset/session persistence.
 - `cli-docs-tools`: CLI, docs, skills, tools, workflows.
+
+Start by scaffolding an orchestration artifact:
+
+```bash
+uv run python "$AUTOREVIEW_CAMPAIGN" "EEGPrep whole-codebase autoreview"
+```
+
+This creates `.workflow/<slug>/` with `plan.md`, `state.json`, `orchestration.md`, `packets/`, `results/`, and `final-report.md`. Keep `plan.md` human-readable, update `state.json` as packet status changes, and write integration evidence in `final-report.md`.
 
 For each area:
 
@@ -92,6 +102,18 @@ PR body must list every finding reviewed:
 - **Follow-up:** only when real but intentionally outside this PR's area.
 
 Do not auto-merge. The human reviews each PR normally.
+
+## Parallel Subagents
+
+Use parallel agents by default for whole-codebase campaigns when the environment exposes subagent/thread/worktree tools and the user has asked for hands-off or parallel work.
+
+- Launch at most 3 packet agents at once unless the user approves more.
+- Give each packet agent its `packets/<id>.md`, base branch, branch name, path scope, test commands, AGENTS.md constraints, and PR-body requirements.
+- Packet agents may edit related files outside their path scope only when required by the verified root cause; they must explain that in the PR.
+- Do not duplicate work across agents. If a packet blocks on another packet's result, keep it pending.
+- Parent agent owns integration: track packet PR URLs, inspect conflicts, synthesize accepted/rejected findings, and run broader checks after packet PRs merge.
+- If no subagent runner is available, simulate packets sequentially and write packet notes under `results/`.
+- Do not claim that a script launched subagents. The campaign script only scaffolds orchestration; actual subagents require exposed agent/thread tools.
 
 ## Useful Options
 

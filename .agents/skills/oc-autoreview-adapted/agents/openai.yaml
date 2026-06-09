@@ -1,4 +1,4 @@
 interface:
   display_name: "OC Autoreview Adapted"
-  short_description: "EEGPrep autoreview loops and PR campaigns"
-  default_prompt: "Use $oc-autoreview-adapted to run scoped autoreview loops or a whole-codebase PR campaign, then verify and fix real bugs, parity breaks, and structural issues."
+  short_description: "Parallel EEGPrep autoreview PR campaigns"
+  default_prompt: "Use $oc-autoreview-adapted to run scoped or parallel whole-codebase autoreview loops, then verify and fix real bugs, parity breaks, and structural issues with one PR per codebase area."
