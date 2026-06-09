@@ -12,6 +12,8 @@ from collections.abc import Callable
 from pathlib import Path
 
 
+ENGINES = ("codex", "claude", "droid", "copilot")
+
 SAFE_INITIAL = """import numpy as np
 
 
@@ -63,20 +65,21 @@ BUGGY_PROMPT = (
     "Review normally and report only concrete defects introduced by the patch."
 )
 BENIGN_PROMPT = (
-    "Calibration fixture: this EEG change intentionally validates sample bounds "
-    "and preserves channel-major data. Do not flag it unless there is a concrete bug."
+    "Calibration fixture: this EEG change validates 1-based sample bounds and "
+    "preserves channel-major data. Do not flag it unless there is a concrete bug."
 )
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description=(
-            "Create a temporary EEG-style git repo and run the adapted autoreview helper "
-            "against a buggy or benign patch."
-        )
+        prog="test-review-harness",
+        description="Create a temporary EEG-style repo and run the adapted autoreview helper.",
     )
     parser.add_argument("--fixture", choices=("buggy", "benign"), default="buggy")
-    parser.add_argument("--dry-run", action="store_true", help="Only verify helper target selection.")
+    parser.add_argument("--engine", action="append", choices=ENGINES, dest="engines")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Verify target/bundle setup without spending a model call."
+    )
     return parser.parse_args(argv)
 
 
@@ -98,38 +101,37 @@ def create_fixture_repo(repo: Path, fixture: str) -> None:
     write_fixture_file(repo, BUGGY_CHANGED if fixture == "buggy" else BENIGN_CHANGED)
 
 
-def run_review(repo: Path, script_dir: Path, fixture: str, *, dry_run: bool) -> None:
+def run_reviews(repo: Path, script_dir: Path, fixture: str, engines: list[str], *, dry_run: bool) -> None:
     autoreview = script_dir / "autoreview"
-    command = [
-        sys.executable,
-        str(autoreview),
-        "--mode",
-        "local",
-        "--prompt",
-        BUGGY_PROMPT if fixture == "buggy" else BENIGN_PROMPT,
-    ]
-    if fixture == "buggy":
-        command.extend(["--require-finding", "channel", "--expect-findings"])
-    if dry_run:
-        command.append("--dry-run")
-    run(command, repo)
+    for engine in engines:
+        print(f"== {engine} ==", flush=True)
+        command = [
+            sys.executable,
+            str(autoreview),
+            "--mode",
+            "local",
+            "--engine",
+            engine,
+            "--prompt",
+            BUGGY_PROMPT if fixture == "buggy" else BENIGN_PROMPT,
+        ]
+        if fixture == "buggy":
+            command.extend(["--require-finding", "channel", "--expect-findings"])
+        if dry_run:
+            command.append("--dry-run")
+        run(command, repo)
 
 
 def cleanup_repo(repo: Path) -> None:
-    def make_writable_and_retry(
-        function: Callable[[str], object],
-        path: str,
-        _exc_info: object,
-    ) -> None:
+    def make_writable_and_retry(function: Callable[[str], object], path: str, _exc_info: object) -> None:
         try:
             os.chmod(path, stat.S_IREAD | stat.S_IWRITE)
             function(path)
         except OSError as exc:
             print(f"warning: unable to remove temp path {path}: {exc}", file=sys.stderr)
 
-    if not repo.exists():
-        return
-    shutil.rmtree(repo, onerror=make_writable_and_retry)
+    if repo.exists():
+        shutil.rmtree(repo, onerror=make_writable_and_retry)
 
 
 def main(argv: list[str]) -> int:
@@ -138,7 +140,7 @@ def main(argv: list[str]) -> int:
     repo = Path(tempfile.mkdtemp(prefix="eegprep-autoreview-fixture."))
     try:
         create_fixture_repo(repo, args.fixture)
-        run_review(repo, script_dir, args.fixture, dry_run=args.dry_run)
+        run_reviews(repo, script_dir, args.fixture, args.engines or ["codex"], dry_run=args.dry_run)
     except subprocess.CalledProcessError as exc:
         return int(exc.returncode or 1)
     finally:

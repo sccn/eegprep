@@ -1,166 +1,108 @@
 ---
 name: oc-autoreview-adapted
-description: Run an autonomous EEGPrep-focused structured autoreview on local changes, branches, commits, or PRs using the bundled Codex helper. Use when the user asks for autoreview, OC autoreview, closeout review, second-pass review, final review before commit/push/PR, or when non-trivial EEGPrep code changes need a high-signal correctness, EEGLAB parity, GUI/session, tests, and repo-instruction check.
+description: Run autonomous EEGPrep-focused structured autoreview on dirty changes, branches, commits, PR stacks, or the whole EEGPrep-owned codebase; verify and fix real findings from first principles using AGENTS.md, EEGLAB parity, GUI/console, tests, docs, and security constraints.
 ---
 
 # OC Autoreview Adapted
 
-Run the bundled structured review helper as an autonomous closeout check for
-EEGPrep. This skill adapts the OpenClaw autoreview principles to this project:
-one frozen diff bundle, one structured JSON result, validated changed-file
-findings, read-only inspection, heartbeat progress, optional parallel tests, and
-repeat-until-clean behavior.
+Use the bundled helper for high-signal closeout review or whole-codebase bug hunts. It builds one bounded review bundle, runs one or more read-only reviewer engines, validates structured JSON, prints heartbeats for long runs, and exits nonzero when actionable findings remain.
 
 ## Contract
 
-- Run the helper for real unless the user explicitly asks for a plan or manual
-  review only.
-- Treat review output as advisory. Verify every accepted finding by reading the
-  real code path and adjacent files before fixing or reporting it.
-- Keep going until the helper exits cleanly with no accepted/actionable findings
-  or until you consciously reject a remaining finding with a concrete reason.
-- If a review-triggered fix changes code, rerun focused tests and rerun the
-  helper on the same target.
-- Do not run nested review tools from inside a review. The helper builds one
-  bundle, calls Codex in read-only mode, validates the result, and exits.
-- Do not push, stage, commit, or open a PR just to run autoreview. Do those only
-  when the user requested that action.
-- Be patient. The helper prints heartbeat lines such as
-  `review still running: codex elapsed=... pid=...`; those are healthy progress.
+- Run it for real unless the user asked only for a plan.
+- Treat output as advisory. Verify every accepted finding in the real code path before fixing or reporting it.
+- Accept concrete bugs, regressions, EEGLAB parity breaks, unsafe I/O/security risks, missing tests tied to behavior, and maintainability issues that cause real future defects.
+- Reject speculative edge cases, broad rewrites, stale vendored/reference code, generic lint, and subjective MATLAB/Python style comments.
+- If a fix changes code, run focused tests and rerun autoreview on the same target. Stop when the final helper run exits 0 or when a remaining finding is consciously rejected with a concrete reason.
+- Do not invoke nested review tools from inside review. The helper already runs one structured review path.
+- Do not push/stage/commit/open PR unless the user requested that separately.
 
-## Helper
+## Commands
 
-Use the repo-local helper:
+Set paths once:
 
 ```bash
-.agents/skills/oc-autoreview-adapted/scripts/autoreview --help
+export AUTOREVIEW=".agents/skills/oc-autoreview-adapted/scripts/autoreview"
+export AUTOREVIEW_HARNESS=".agents/skills/oc-autoreview-adapted/scripts/test-review-harness"
 ```
-
-The helper:
-
-- defaults to Codex with read-only sandboxing and web search enabled;
-- chooses dirty local changes first in `--mode auto`;
-- otherwise uses the current PR base when discoverable, then `origin/develop`;
-- accepts `--mode local`, `--mode branch --base origin/develop`, and
-  `--mode commit --commit HEAD`;
-- includes root/scoped `AGENTS.md` instructions in the review bundle;
-- validates structured JSON against an EEGPrep-specific schema;
-- filters findings to changed files only;
-- exits nonzero when accepted/actionable findings remain;
-- supports `--prompt`, `--prompt-file`, `--dataset`, `--json-output`,
-  `--output`, `--parallel-tests`, `--require-finding`, `--expect-findings`,
-  `--no-web-search`, `--model`, and `--thinking`.
-
-The smoke harness creates a temporary EEG-style fixture repo:
-
-```bash
-.agents/skills/oc-autoreview-adapted/scripts/test-review-harness --dry-run
-```
-
-Run the full harness only when it is acceptable to spend a real Codex review:
-
-```bash
-.agents/skills/oc-autoreview-adapted/scripts/test-review-harness --fixture buggy
-```
-
-## Pick Target
-
-Use the smallest target that covers the request.
 
 Dirty local work:
 
 ```bash
-.agents/skills/oc-autoreview-adapted/scripts/autoreview --mode local
+"$AUTOREVIEW" --mode local
 ```
 
-Branch or PR work:
+Branch or stacked PR work:
 
 ```bash
-.agents/skills/oc-autoreview-adapted/scripts/autoreview --mode branch --base origin/develop
+base=$(gh pr view --json baseRefName --jq .baseRefName 2>/dev/null || echo develop)
+"$AUTOREVIEW" --mode branch --base "origin/$base"
 ```
 
-If an open PR exists, prefer its actual base:
+Single committed change:
 
 ```bash
-base=$(gh pr view --json baseRefName --jq .baseRefName)
-.agents/skills/oc-autoreview-adapted/scripts/autoreview --mode branch --base "origin/$base"
+"$AUTOREVIEW" --mode commit --commit HEAD
 ```
 
-Committed single change:
+Whole EEGPrep-owned codebase audit:
 
 ```bash
-.agents/skills/oc-autoreview-adapted/scripts/autoreview --mode commit --commit HEAD
+"$AUTOREVIEW" --mode codebase --thinking codex=xhigh
 ```
 
-Do not force local mode after committing. A clean local review only proves there
-is no dirty patch.
+The codebase mode is not diff-limited. It lists tracked EEGPrep-owned files and excludes vendored EEGLAB/reference sample data by default; the reviewer may inspect files read-only and report real bugs anywhere in scope.
 
-## Parallel Closeout
+## Useful Options
 
-It is OK to run focused tests concurrently with review after formatting-sensitive
-work is done:
+- `--engine codex|claude|droid|copilot`; default is Codex.
+- `--reviewers codex,claude` or `--panel` for a multi-reviewer pass.
+- `--model codex=gpt-5.1 --thinking codex=xhigh`; Claude also accepts `max`.
+- `--stream-engine-output` to see compact live engine activity.
+- `--parallel-tests "uv run pytest tests/test_file.py"` to run tests while review runs.
+- `--prompt` / `--prompt-file` / `--dataset` to add evidence.
+- `--json-output /tmp/review.json` and `--output /tmp/review.txt` for artifacts.
+- `--mode uncommitted` is an alias for `local`; use branch/commit modes after committing.
+- `--skip-fetch` avoids fetching before branch diffs.
+- `--heartbeat-seconds 60` controls long-run heartbeat cadence.
+
+Smoke check:
 
 ```bash
-.agents/skills/oc-autoreview-adapted/scripts/autoreview \
-  --parallel-tests "uv run pytest tests/test_pop_select.py"
+"$AUTOREVIEW_HARNESS" --dry-run
+"$AUTOREVIEW_HARNESS" --fixture buggy --engine codex
 ```
 
-If tests or review findings lead to edits, rerun the affected tests and rerun
-autoreview. Stop when the final helper run exits 0 with no accepted/actionable
-findings. Do not run another review only for cleaner wording.
+On Windows, use:
+
+```powershell
+python .agents\skills\oc-autoreview-adapted\scripts\autoreview --help
+.agents\skills\oc-autoreview-adapted\scripts\test-review-harness.ps1 -Fixture buggy -Engine codex
+```
 
 ## EEGPrep Review Surface
 
-The helper prompt asks Codex to prioritize:
+Prioritize:
 
-- correctness bugs, import/runtime failures, wrong numerical results, and broken
-  common workflows;
-- EEGLAB parity in APIs, `pop_*` wrappers, history commands, GUI behavior, event
-  semantics, and expected data structures;
-- EEG dict fields including `data`, `nbchan`, `pnts`, `trials`, `srate`,
-  `xmin`, `xmax`, `times`, `chanlocs`, `event`, `urevent`, `epoch`, `history`,
-  `icaact`, `icawinv`, `icasphere`, `icaweights`, and `icachansind`;
-- MATLAB/Python indexing boundaries, especially 1-based EEGLAB latencies and
-  user-facing indices versus 0-based Python arrays;
-- channel-major shape assumptions: continuous `(nbchan, pnts)` and epoched
-  `(nbchan, pnts, trials)`;
+- correctness, runtime/import failures, bad numerical results, broken common workflows;
+- EEGLAB parity in APIs, `pop_*` wrappers, history commands, GUI layout/behavior, events, and data structures;
+- EEG dict invariants: `data`, `nbchan`, `pnts`, `trials`, `srate`, `xmin`, `xmax`, `times`, `chanlocs`, `event`, `urevent`, `epoch`, `history`, ICA fields;
+- 1-based EEGLAB user indices/latencies versus 0-based Python array indices;
+- channel-major continuous `(nbchan, pnts)` and epoched `(nbchan, pnts, trials)` data;
 - GUI plus `eegprep-console` synchronization through `EEGPrepSession`;
-- `return_com=True`, `(EEG, com)` returns, history strings, and session update
-  paths for user-facing `pop_*` functions;
-- runtime independence from `src/eegprep/eeglab/`;
-- packaged Markdown help resources for GUI Help or `pophelp`;
-- missing tests tied to changed behavior;
-- concrete security, path, file I/O, and dependency risks;
-- realistic EEG-size performance regressions.
+- `return_com=True`, `(EEG, com)` returns, history replay, and session update paths;
+- runtime independence from `src/eegprep/eeglab`;
+- packaged Markdown help for GUI Help / `pophelp`;
+- realistic EEG-size performance and concrete security/path/I/O risks.
 
-## Triage Findings
+## Loop
 
-Accept findings only when they are concrete and introduced or exposed by the
-reviewed change. Reject:
+1. Format first if formatting can change line locations.
+2. Run autoreview on the smallest sufficient target.
+3. Verify each finding against code and AGENTS.md.
+4. Fix accepted findings at the right ownership boundary.
+5. Run focused tests, then broader tests if risk warrants.
+6. Rerun the same autoreview target.
+7. Final response: command used, tests run, findings fixed/rejected, and final clean result or remaining risk.
 
-- pre-existing issues outside the diff;
-- generic linter/formatter comments;
-- broad refactors and speculative abstractions;
-- unlikely edge cases that would complicate the code without protecting real
-  workflows;
-- subjective MATLAB-vs-Python style preferences that do not break EEGPrep's
-  parity contract.
-
-For each accepted finding, fix the smallest ownership boundary that addresses
-the bug. For each rejected finding, record the reason briefly in the final
-report. Add an inline code comment only when it documents a real invariant that
-future reviewers need to know.
-
-## Final Report
-
-Include:
-
-- review command used;
-- tests/proof run;
-- findings accepted, fixed, or rejected, briefly why;
-- the clean result from the final helper run, or the exact remaining risk if a
-  finding was consciously left open.
-
-If the final helper run exits 0 and prints
-`autoreview clean: no accepted/actionable findings reported`, report that run as
-clean and stop.
+If the helper prints `autoreview clean: no accepted/actionable findings reported` and exits 0, report that as clean and stop.
