@@ -15,6 +15,7 @@ from eegprep.functions.guifunc.pophelp import pophelp
 from eegprep.functions.guifunc.session import EEGPrepSession, has_eeg_data
 from eegprep.functions.adminfunc.eegh import eegh
 from eegprep.functions.popfunc._coming_soon import coming_soon
+from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
 from eegprep.functions.popfunc.pop_newset import pop_newset
 
 
@@ -899,19 +900,70 @@ class MenuActionDispatcher:
             return
         from eegprep.functions.popfunc.pop_runscript import pop_runscript
 
-        namespace = {
-            "EEG": self.session.EEG,
+        pre_eeg = self.session.EEG
+        pre_currentset = list(self.session.CURRENTSET)
+        pre_study = self.session.STUDY
+        pre_currentstudy = self.session.CURRENTSTUDY
+        namespace: dict[str, Any] = {
+            "EEG": pre_eeg,
             "ALLEEG": self.session.ALLEEG,
             "CURRENTSET": self.session.current_set_value(),
-            "STUDY": self.session.STUDY,
+            "ALLCOM": self.session.ALLCOM,
+            "LASTCOM": self.session.LASTCOM,
+            "STUDY": pre_study,
+            "CURRENTSTUDY": pre_currentstudy,
         }
         command = pop_runscript(filename, namespace)
-        self.session.EEG = namespace.get("EEG", self.session.EEG)
-        self.session.ALLEEG = namespace.get("ALLEEG", self.session.ALLEEG)
-        self.session.CURRENTSET = _currentset_list(namespace.get("CURRENTSET", self.session.current_set_value()))
-        self.session.STUDY = namespace.get("STUDY", self.session.STUDY)
+        self._apply_runscript_namespace(
+            namespace,
+            pre_eeg=pre_eeg,
+            pre_currentset=pre_currentset,
+            pre_study=pre_study,
+            pre_currentstudy=pre_currentstudy,
+        )
         self._add_history_from_gui(command)
         self._refresh()
+
+    def _apply_runscript_namespace(
+        self,
+        namespace: dict[str, Any],
+        *,
+        pre_eeg: Any,
+        pre_currentset: list[int],
+        pre_study: Any,
+        pre_currentstudy: int,
+    ) -> None:
+        """Replay history-script namespace edits through session-owned writes."""
+        alleeg = namespace.get("ALLEEG", self.session.ALLEEG)
+        if not isinstance(alleeg, list):
+            raise ValueError("ALLEEG must be a list of EEG datasets")
+        self.session.ALLEEG = alleeg
+
+        requested_set = _currentset_list(namespace.get("CURRENTSET", self.session.current_set_value()))
+        if requested_set != pre_currentset:
+            if requested_set:
+                self.session.retrieve(requested_set if len(requested_set) > 1 else requested_set[0])
+            else:
+                self.session.CURRENTSET = []
+                self.session.EEG = eeg_emptyset()
+        else:
+            new_eeg = namespace.get("EEG", self.session.EEG)
+            if new_eeg is not pre_eeg and _is_eeg_selection(new_eeg):
+                self.session.store_current(new_eeg)
+
+        requested_study = namespace.get("STUDY", pre_study)
+        if requested_study is not pre_study:
+            self.session.set_study(requested_study)
+        requested_currentstudy = int(namespace.get("CURRENTSTUDY", pre_currentstudy) or 0)
+        if requested_currentstudy != pre_currentstudy:
+            self.session.CURRENTSTUDY = requested_currentstudy
+
+        script_allcom = namespace.get("ALLCOM")
+        if isinstance(script_allcom, list) and script_allcom is not self.session.ALLCOM:
+            self.session.ALLCOM = list(script_allcom)
+        script_lastcom = namespace.get("LASTCOM")
+        if isinstance(script_lastcom, str) and script_lastcom != self.session.LASTCOM:
+            self.session.LASTCOM = script_lastcom
 
     def _bids_tool_action(self, action: str, parent: Any | None) -> None:
         if action == "validate_bids":

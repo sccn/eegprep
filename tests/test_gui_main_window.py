@@ -1339,7 +1339,101 @@ class MenuActionDispatcherTests(unittest.TestCase):
             dispatcher.dispatch("pop_runscript")
 
         self.assertEqual(session.CURRENTSET, [2])
+        self.assertEqual(session.EEG["setname"], "second")
         self.assertEqual(session.ALLCOM[-1], "LASTCOM = pop_runscript('/tmp/script.py');")
+
+    def test_file_menu_runscript_exposes_console_workspace_names(self):
+        session = EEGPrepSession()
+        session.store_current(_demo_eeg(), new=True)
+        session.LASTCOM = "EEG = pop_loadset('demo.set');"
+        session.ALLCOM = list(session.ALLCOM) + [session.LASTCOM]
+        dispatcher = MenuActionDispatcher(session)
+        qt_widgets = _fake_qt_widgets(open_file="/tmp/script.py")
+        seen = {}
+
+        def fake_runscript(_filename, namespace):
+            seen["names"] = set(namespace)
+            seen["EEG"] = namespace["EEG"]
+            seen["ALLEEG"] = namespace["ALLEEG"]
+            seen["CURRENTSET"] = namespace["CURRENTSET"]
+            seen["LASTCOM"] = namespace["LASTCOM"]
+            seen["ALLCOM"] = list(namespace["ALLCOM"])
+            seen["STUDY"] = namespace["STUDY"]
+            seen["CURRENTSTUDY"] = namespace["CURRENTSTUDY"]
+            return "LASTCOM = pop_runscript('/tmp/script.py');"
+
+        with (
+            mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets),
+            mock.patch("eegprep.functions.popfunc.pop_runscript.pop_runscript", side_effect=fake_runscript),
+        ):
+            dispatcher.dispatch("pop_runscript")
+
+        from eegprep.functions.adminfunc.console import WORKSPACE_NAMES
+
+        self.assertEqual(seen["names"], set(WORKSPACE_NAMES))
+        self.assertIs(seen["EEG"], session.EEG)
+        self.assertIs(seen["ALLEEG"], session.ALLEEG)
+        self.assertEqual(seen["CURRENTSET"], 1)
+        self.assertEqual(seen["LASTCOM"], "EEG = pop_loadset('demo.set');")
+        self.assertEqual(seen["ALLCOM"][-1], "EEG = pop_loadset('demo.set');")
+        self.assertIsNone(seen["STUDY"])
+        self.assertEqual(seen["CURRENTSTUDY"], 0)
+
+    def test_file_menu_runscript_syncs_all_workspace_state_back(self):
+        session = EEGPrepSession()
+        session.store_current(_demo_eeg(), new=True)
+        session.store_current(dict(_demo_eeg(), setname="second"), new=True)
+        session.retrieve(1)
+        dispatcher = MenuActionDispatcher(session)
+        qt_widgets = _fake_qt_widgets(open_file="/tmp/script.py")
+        study = {"name": "study-from-script", "datasetinfo": [], "design": []}
+
+        def fake_runscript(_filename, namespace):
+            new_eeg = dict(namespace["EEG"], setname="scripted")
+            namespace["EEG"] = new_eeg
+            namespace["ALLEEG"] = list(namespace["ALLEEG"]) + [dict(_demo_eeg(), setname="third")]
+            namespace["STUDY"] = study
+            namespace["CURRENTSTUDY"] = 1
+            namespace["ALLCOM"] = list(namespace["ALLCOM"]) + ["EEG.setname = 'scripted';"]
+            namespace["LASTCOM"] = "EEG.setname = 'scripted';"
+            return "LASTCOM = pop_runscript('/tmp/script.py');"
+
+        with (
+            mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets),
+            mock.patch("eegprep.functions.popfunc.pop_runscript.pop_runscript", side_effect=fake_runscript),
+        ):
+            dispatcher.dispatch("pop_runscript")
+
+        self.assertEqual(session.EEG["setname"], "scripted")
+        self.assertEqual(session.ALLEEG[0]["setname"], "scripted")
+        self.assertEqual(session.CURRENTSET, [1])
+        self.assertEqual(len(session.ALLEEG), 3)
+        self.assertEqual(session.STUDY, study)
+        self.assertEqual(session.CURRENTSTUDY, 1)
+        self.assertIn("EEG.setname = 'scripted';", session.ALLCOM)
+        self.assertEqual(session.ALLCOM[-1], "LASTCOM = pop_runscript('/tmp/script.py');")
+
+    def test_file_menu_runscript_clear_currentset_resets_eeg(self):
+        session = EEGPrepSession()
+        session.store_current(_demo_eeg(), new=True)
+        dispatcher = MenuActionDispatcher(session)
+        qt_widgets = _fake_qt_widgets(open_file="/tmp/script.py")
+
+        def fake_runscript(_filename, namespace):
+            namespace["CURRENTSET"] = 0
+            return "LASTCOM = pop_runscript('/tmp/script.py');"
+
+        with (
+            mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets),
+            mock.patch("eegprep.functions.popfunc.pop_runscript.pop_runscript", side_effect=fake_runscript),
+        ):
+            dispatcher.dispatch("pop_runscript")
+
+        self.assertEqual(session.CURRENTSET, [])
+        eeg = session.EEG
+        assert isinstance(eeg, dict)
+        self.assertEqual(eeg.get("setname"), "")
+        self.assertEqual(eeg["data"].size, 0)
 
 
 class QtMainWindowTests(unittest.TestCase):
