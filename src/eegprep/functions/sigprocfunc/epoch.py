@@ -4,9 +4,13 @@ This module provides functions for extracting epochs from continuous EEG data ti
 locked to specified events.
 """
 
+import logging
+
 import numpy as np
 
 from ..miscfunc.misc import round_mat
+
+logger = logging.getLogger(__name__)
 
 
 def epoch(data, events, lim, **kwargs):
@@ -51,7 +55,7 @@ def epoch(data, events, lim, **kwargs):
     reallim[1] = int(round_mat(lim[1] * g['srate'] - 1))  # minus 1 sample
 
     # --- epoching ---
-    print('Epoching...')
+    logger.info('Epoching...')
 
     newdatalength = int(reallim[1] - reallim[0] + 1)
 
@@ -116,12 +120,12 @@ def epoch(data, events, lim, **kwargs):
                     indexes[index] = 1
                 else:
                     if g['verbose'] == 'on':
-                        print(f'Warning: event {index + 1} out of value limits')
+                        logger.warning('event %d out of value limits', index + 1)
             else:
                 indexes[index] = 1
         else:
             if g['verbose'] == 'on':
-                print(f'Warning: event {index + 1} out of data boundary')
+                logger.warning('event %d out of data boundary', index + 1)
 
         # Re-reference events
         if g['allevents'] is not None and g['allevents'].size > 0:

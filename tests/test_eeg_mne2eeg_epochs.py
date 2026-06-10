@@ -434,6 +434,46 @@ class TestEEGMNE2EEGEpochs(unittest.TestCase):
             self.skipTest(f"eeg_mne2eeg_epochs empty epochs not available (MNE limitation): {e}")
 
     @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
+    def test_eeg_mne2eeg_epochs_emits_via_logging_not_stdout(self):
+        """Reference-conversion warning must go through logging, not stdout."""
+        import contextlib
+        import io
+        import logging
+
+        n_channels = 8
+        n_times = 50
+        n_epochs = 3
+        sfreq = 250.0
+
+        ch_names = [f'EEG{i:03d}' for i in range(n_channels)]
+        info = mne.create_info(ch_names, sfreq, ch_types='eeg')
+        data = np.random.randn(n_epochs, n_channels, n_times)
+        events = np.array([[i, 0, 1] for i in range(n_epochs)])
+        epochs = mne.EpochsArray(data, info, events, tmin=0, event_id={'event': 1})
+
+        ica = ICA(n_components=4, random_state=42)
+        ica.fit(epochs)
+
+        logger_name = 'eegprep.functions.miscfunc.eeg_mne2eeg_epochs'
+        buf = io.StringIO()
+        handler = logging.StreamHandler(buf)
+        handler.setLevel(logging.WARNING)
+        target_logger = logging.getLogger(logger_name)
+        target_logger.addHandler(handler)
+        previous_level = target_logger.level
+        target_logger.setLevel(logging.WARNING)
+        stdout_buf = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(stdout_buf):
+                eeg_mne2eeg_epochs(epochs, ica)
+        finally:
+            target_logger.removeHandler(handler)
+            target_logger.setLevel(previous_level)
+
+        self.assertEqual(stdout_buf.getvalue(), '')
+        self.assertIn('Reference conversion', buf.getvalue())
+
+    @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
     def test_eeg_mne2eeg_epochs_integration_workflow(self):
         """Test end-to-end conversion workflow."""
         # Create a realistic MNE Epochs object

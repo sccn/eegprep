@@ -214,5 +214,31 @@ class TestEpochFunctional(unittest.TestCase):
         self.assertEqual(len(alllatencyout), 0)
 
 
+def test_epoch_emits_progress_via_logging_not_stdout(capsys, caplog):
+    """epoch() must route progress and warnings through logging, not stdout."""
+    import logging
+
+    srate = 100.0
+    data = np.zeros((1, 500))
+    # Second event sits near the end so the boundary-exclusion warning fires;
+    # exceeding valuelim on the first event exercises the value-limit warning.
+    data[0, 100:120] = 1e3
+    events = np.array([1.1, 4.99], dtype=float)
+    lim = np.array([-0.1, 0.2], dtype=float)
+    valuelim = np.array([-50.0, 50.0], dtype=float)
+
+    with caplog.at_level(logging.INFO, logger='eegprep.functions.sigprocfunc.epoch'):
+        epoch(data, events, lim, srate=srate, valuelim=valuelim, verbose='on')
+
+    captured = capsys.readouterr()
+    assert captured.out == ''
+    assert captured.err == ''
+
+    messages = [rec.getMessage() for rec in caplog.records]
+    assert any('Epoching' in m for m in messages)
+    assert any('value limits' in m for m in messages)
+    assert any('data boundary' in m for m in messages)
+
+
 if __name__ == '__main__':
     unittest.main()

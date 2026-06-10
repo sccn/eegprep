@@ -3,12 +3,15 @@
 # Example to export MNE epochs to EEGLAB dataset
 # Events are not handled correctly in this example but it works
 
-import mne
-from mne.preprocessing import ICA
+import logging
 import math
 
+import mne
 import numpy as np
+from mne.preprocessing import ICA
 from scipy.io import savemat
+
+logger = logging.getLogger(__name__)
 
 
 # Load example data
@@ -45,7 +48,7 @@ def eeg_mne2eeg_epochs(epochs, ica):
 
     ica_act = ica.get_sources(epochs).get_data(copy=True).transpose(1, 2, 0)  # Get the ICA activations
 
-    print('Reference conversion may not be accurate...')
+    logger.warning('Reference conversion may not be accurate...')
     if 'custom_ref_applied' in epochs.info and epochs.info['custom_ref_applied']:
         ref = 'common'  # Custom reference was applied
     else:
