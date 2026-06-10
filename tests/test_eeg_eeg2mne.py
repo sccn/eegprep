@@ -4,11 +4,13 @@ Test suite for eeg_eeg2mne.py - EEGLAB to MNE conversion.
 This module tests the eeg_eeg2mne function that converts EEGLAB datasets to MNE objects.
 """
 
-import unittest
 import os
-import numpy as np
-import tempfile
 import shutil
+import tempfile
+import unittest
+
+import numpy as np
+import pytest
 
 from eegprep.functions.miscfunc.eeg_eeg2mne import eeg_eeg2mne
 
@@ -26,8 +28,12 @@ try:
 except (ImportError, ValueError):
     from fixtures import create_test_eeg
 
-if os.getenv('EEGPREP_SKIP_MATLAB') == '1':
-    raise unittest.SkipTest("MATLAB not available")
+# Tests in this file exercise pure-Python MNE conversion; they do not require MATLAB.
+
+XFAIL_181 = pytest.mark.xfail(
+    strict=True,
+    reason="Converter leaves NamedTemporaryFile and .set sidecars behind; tracked in #181.",
+)
 
 
 class TestEEGEEG2MNE(unittest.TestCase):
@@ -249,6 +255,24 @@ class TestEEGEEG2MNE(unittest.TestCase):
 
         except Exception as e:
             self.skipTest(f"eeg_eeg2mne large dataset conversion not available: {e}")
+
+    @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
+    @XFAIL_181
+    def test_eeg_eeg2mne_leaves_no_temp_files(self):
+        """Converter must not leave temp files (or their .set sidecars) behind."""
+        eeg = self.test_eeg.copy()
+        eeg['data'] = np.random.randn(32, 1000)
+        eeg['trials'] = 1
+
+        tmp_root = tempfile.gettempdir()
+        before = set(os.listdir(tmp_root))
+        try:
+            eeg_eeg2mne(eeg)
+        finally:
+            after = set(os.listdir(tmp_root))
+
+        new_entries = after - before
+        self.assertEqual(new_entries, set(), f"Temp files leaked: {sorted(new_entries)}")
 
     @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
     def test_eeg_eeg2mne_integration_workflow(self):
