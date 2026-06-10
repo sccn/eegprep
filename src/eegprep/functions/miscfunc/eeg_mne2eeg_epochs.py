@@ -28,15 +28,17 @@ def eeg_mne2eeg_epochs(epochs, ica):
         EEGLAB-compatible dataset dictionary.
     """
     # export to EEGLAB dataset
-    data = epochs.get_data()  # Get the data from the epochs
-    n_epochs, n_channels, n_times = data.shape
-    ica_weights = ica.get_components()  # ICA weights (n_components x n_channels)
+    mne_data = epochs.get_data()  # MNE order: (n_epochs, n_channels, n_times)
+    n_epochs, n_channels, n_times = mne_data.shape
+    # EEGLAB stores epoched data channel-major: (nbchan, pnts, trials).
+    data = mne_data.transpose(1, 2, 0)
 
-    # create identity matrix of size n_channels x n_channels
-    ica_sphere = np.eye(n_channels)  # ICA sphere (n_channels x n_channels)
-
-    # Compute the mixing matrix (inverse weights)
-    ica_inverse_weights = np.linalg.pinv(ica_weights)  # Shape: (n_channels, n_components)
+    # MNE's ica.get_components() returns the n_channels x n_components mixing
+    # matrix (spatial maps). Map onto EEGLAB ICA fields so the algebra
+    # icawinv = pinv(icaweights @ icasphere) holds (see eeg_checkset).
+    ica_inverse_weights = ica.get_components()  # icawinv: (n_channels, n_components)
+    ica_sphere = np.eye(n_channels)  # icasphere: (n_channels, n_channels)
+    ica_weights = np.linalg.pinv(ica_inverse_weights)  # icaweights: (n_components, n_channels)
 
     ica_channels = ica.info['ch_names']
     raw_channels = epochs.info['ch_names']  # Assuming you have the raw object
@@ -70,8 +72,8 @@ def eeg_mne2eeg_epochs(epochs, ica):
         'data': data,
         'icaact': ica_act,
         'icawinv': ica_inverse_weights,
-        'icasphere': ica_weights,
-        'icaweights': ica_sphere,
+        'icasphere': ica_sphere,
+        'icaweights': ica_weights,
         'icachansind': ica_channel_indices,
         'chanlocs': np.array([]),
         'urchanlocs': np.array([]),
