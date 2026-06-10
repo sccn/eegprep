@@ -280,6 +280,22 @@ class TestEEGEEG2MNE(unittest.TestCase):
         except Exception as e:
             self.skipTest(f"eeg_eeg2mne integration workflow not available: {e}")
 
+    @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
+    def test_eeg_eeg2mne_cleans_temp_files(self):
+        """Converter must not leave .set/.fdt artifacts in the system temp dir."""
+        continuous_eeg = self.test_eeg.copy()
+        continuous_eeg['data'] = np.random.randn(continuous_eeg['nbchan'], continuous_eeg['pnts']).astype(np.float64)
+        continuous_eeg['trials'] = 1
+
+        saved_tempdir = tempfile.tempdir
+        tempfile.tempdir = self.temp_dir
+        try:
+            eeg_eeg2mne(continuous_eeg)
+        finally:
+            tempfile.tempdir = saved_tempdir
+
+        self.assertEqual(os.listdir(self.temp_dir), [])
+
 
 if __name__ == '__main__':
     unittest.main()

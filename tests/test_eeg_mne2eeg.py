@@ -449,6 +449,25 @@ class TestEEGMNE2EEG(unittest.TestCase):
         except Exception as e:
             self.skipTest(f"eeg_mne2eeg integration workflow not available: {e}")
 
+    @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
+    def test_eeg_mne2eeg_cleans_temp_files(self):
+        """Converter must not leave .set/.fdt artifacts in the system temp dir."""
+        n_channels = 8
+        n_times = 250
+        sfreq = 250.0
+        ch_names = [f'EEG{i:03d}' for i in range(n_channels)]
+        info = mne.create_info(ch_names, sfreq, ch_types='eeg')
+        raw = mne.io.RawArray(np.random.randn(n_channels, n_times), info)
+
+        saved_tempdir = tempfile.tempdir
+        tempfile.tempdir = self.temp_dir
+        try:
+            eeg_mne2eeg(raw)
+        finally:
+            tempfile.tempdir = saved_tempdir
+
+        self.assertEqual(os.listdir(self.temp_dir), [])
+
 
 class TestMNEEventsToEEGLABEvents(unittest.TestCase):
     """Test cases for _mne_events_to_eeglab_events function."""
