@@ -475,5 +475,72 @@
     <li>Updated the final parity matrix rows for <code>@memmapdata</code> and
     <code>@mmo</code> to point at the Python-native storage backend and tests.</li>
   </ul>
+  <h1>Issue #175 CLI Transform Command Notes</h1>
+  <h2>Design Decisions</h2>
+  <ul>
+    <li>Implemented the core transform slice in <code>src/eegprep/cli/commands/transforms.py</code>
+    with argparse registration so the shared dispatcher can mount <code>resample</code>,
+    <code>rereference</code>, <code>filter</code>, <code>clean</code>, <code>epoch</code>,
+    and <code>ica</code> without importing GUI entry points.</li>
+    <li>Each command loads through <code>pop_loadset</code>, runs the existing
+    <code>pop_*</code> or plugin pop wrapper with <code>return_com=True</code>, appends
+    the returned history to the saved dataset, and writes a manifest next to the
+    output unless <code>--manifest</code> is supplied.</li>
+    <li>Output writes require <code>--output</code> unless <code>--overwrite</code> is
+    explicit. JSON mode redirects incidental processing stdout to stderr before
+    emitting the final JSON response.</li>
+  </ul>
+  <h2>Tradeoffs And Boundaries</h2>
+  <ul>
+    <li>The transform command module retains a
+    <code>python -m eegprep.cli.commands.transforms</code> harness for focused
+    subprocess tests, while the public entry point is the top-level
+    <code>eegprep</code> dispatcher.</li>
+    <li>The duplicate early <code>eegprep.cli.transforms</code> helper was removed so
+    future work has one transform command implementation to maintain.</li>
+  </ul>
+  <h2>Verification Notes</h2>
+  <ul>
+    <li>Focused subprocess tests cover clean JSON stdout, output-required and
+    existing-output errors, default manifest creation, saved pop history, sample-data
+    resampling, synthetic epoch extraction, and dispatcher registration.</li>
+  </ul>
+  <h1>Issue #175 Agent-Friendly CLI Closeout Notes</h1>
+  <h2>Design Decisions</h2>
+  <ul>
+    <li>Added the installed <code>eegprep</code> command as the headless agent/batch
+    interface while leaving <code>eegprep-gui</code> and
+    <code>eegprep-console</code> unchanged for human interactive use.</li>
+    <li>Organized commands by research workflow: discovery, inspect, validate,
+    transforms, pipeline, batch, QC, report, BIDS, and EEGLAB migration helpers.</li>
+    <li>Bundled a version-matched <code>eegprep-cli</code> skill under
+    <code>resources/skills</code> and exposed it through
+    <code>eegprep skills get eegprep-cli</code>, so agents can load usage rules
+    without scraping Sphinx docs.</li>
+    <li>Promoted PyYAML to a runtime dependency because config-driven pipelines
+    are a core CLI feature, not only a development tool.</li>
+  </ul>
+  <h2>Tradeoffs And Boundaries</h2>
+  <ul>
+    <li>The CLI calls existing EEGPrep <code>pop_*</code> and plugin functions; it
+    does not duplicate preprocessing math. This keeps parity behavior aligned
+    with GUI and console workflows.</li>
+    <li>EEGLAB script conversion is intentionally best-effort. Unsupported MATLAB
+    commands are reported with stable codes rather than silently guessed.</li>
+    <li>The CLI is headless and does not import GUI/IPython modules. Mixed
+    GUI-plus-console workflows remain owned by <code>eegprep-console</code>.</li>
+  </ul>
+  <h2>Verification Notes</h2>
+  <ul>
+    <li>Integrated CLI tests cover discovery, bundled skills, inspect/validate,
+    transforms with manifests, pipeline validate/plan/run, batch pipeline
+    execution, QC/report, BIDS import/export/validate, and EEGLAB
+    history/compare/convert-script helpers.</li>
+    <li>Closeout review fixes centralize CLI result/error/manifest helpers,
+    keep BIDS validation read-only, prevent output/manifest path collisions,
+    preserve batch output paths relative to the source pipeline config, report
+    EEGLAB-facing 1-based public QC indices, and compare nonfinite data masks in
+    <code>eegprep eeglab compare</code>.</li>
+  </ul>
 </body>
 </html>

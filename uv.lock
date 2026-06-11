@@ -685,6 +685,7 @@ dependencies = [
     { name = "pybids" },
     { name = "pyedflib" },
     { name = "python-picard" },
+    { name = "pyyaml" },
     { name = "scipy" },
     { name = "sympy" },
     { name = "threadpoolctl" },
@@ -753,7 +754,6 @@ torch = [
 [package.dev-dependencies]
 dev = [
     { name = "pytest" },
-    { name = "pyyaml" },
     { name = "ruff" },
     { name = "tomli", marker = "python_full_version < '3.11'" },
     { name = "ty" },
@@ -791,6 +791,7 @@ requires-dist = [
     { name = "pyqtgraph", marker = "extra == 'gui'", specifier = ">=0.13.7" },
     { name = "pyside6", marker = "extra == 'gui'", specifier = ">=6.6" },
     { name = "python-picard", specifier = ">=0.8,<0.9" },
+    { name = "pyyaml", specifier = ">=6.0" },
     { name = "scipy", specifier = ">=1.7.0" },
     { name = "sphinx", marker = "extra == 'docs'", specifier = ">=7.0" },
     { name = "sphinx-autodoc-typehints", marker = "extra == 'docs'", specifier = ">=1.25.0" },
@@ -808,7 +809,6 @@ provides-extras = ["torch", "eeglabio", "gui", "console", "docs", "all"]
 [package.metadata.requires-dev]
 dev = [
     { name = "pytest", specifier = ">=8.0" },
-    { name = "pyyaml", specifier = ">=6.0" },
     { name = "ruff", specifier = ">=0.15.14" },
     { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=2.0" },
     { name = "ty", specifier = ">=0.0.39" },

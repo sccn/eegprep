@@ -35,6 +35,7 @@ dependencies = [
   "psutil>=7.0.0",
   "pybids>=0.4",
   "pyedflib>=0.1.42",
+  "pyyaml>=6.0",
   "python-picard>=0.8,<0.9",
   "scipy>=1.7.0",
   "sympy>=1.14.0",
@@ -77,6 +78,7 @@ all = [
 ]
 
 [project.scripts]
+eegprep = "eegprep.cli.main:main"
 eegprep-gui = "eegprep.functions.adminfunc.eeglab:main"
 eegprep-console = "eegprep.functions.adminfunc.console:main"
 eegprep-validate-extension-catalog = "eegprep.extension_catalog:main"
@@ -84,7 +86,6 @@ eegprep-validate-extension-catalog = "eegprep.extension_catalog:main"
 [dependency-groups]
 dev = [
   "pytest>=8.0",
-  "pyyaml>=6.0",
   "ruff>=0.15.14",
   "tomli>=2.0; python_version < '3.11'",
   "ty>=0.0.39",
