@@ -9,6 +9,7 @@ import os
 import numpy as np
 import tempfile
 import shutil
+from unittest import mock
 
 from eegprep.functions.miscfunc.eeg_eeg2mne import eeg_eeg2mne
 
@@ -25,9 +26,6 @@ try:
     from .fixtures import create_test_eeg
 except (ImportError, ValueError):
     from fixtures import create_test_eeg
-
-if os.getenv('EEGPREP_SKIP_MATLAB') == '1':
-    raise unittest.SkipTest("MATLAB not available")
 
 
 class TestEEGEEG2MNE(unittest.TestCase):
@@ -59,6 +57,22 @@ class TestEEGEEG2MNE(unittest.TestCase):
         # Check that data dimensions match
         self.assertEqual(result.info['nchan'], continuous_eeg['nbchan'])
         self.assertEqual(result.n_times, continuous_eeg['pnts'])
+
+    @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
+    def test_eeg_eeg2mne_cleans_temporary_bridge_files(self):
+        continuous_eeg = self.test_eeg.copy()
+        continuous_eeg['data'] = np.random.randn(32, 1000)
+        continuous_eeg['trials'] = 1
+        real_tempdir = tempfile.TemporaryDirectory
+
+        def tempdir_factory(*args, **kwargs):
+            kwargs["dir"] = self.temp_dir
+            return real_tempdir(*args, **kwargs)
+
+        with mock.patch("eegprep.functions.miscfunc.eeg_eeg2mne.tempfile.TemporaryDirectory", tempdir_factory):
+            eeg_eeg2mne(continuous_eeg)
+
+        self.assertEqual(os.listdir(self.temp_dir), [])
 
     @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
     def test_eeg_eeg2mne_epoched_data(self):

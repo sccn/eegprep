@@ -10,6 +10,7 @@ import numpy as np
 import tempfile
 import os
 import shutil
+from unittest import mock
 
 # Add src to path for imports
 sys.path.insert(0, 'src')
@@ -91,6 +92,21 @@ class TestEEGMNE2EEG(unittest.TestCase):
 
         except Exception as e:
             self.skipTest(f"eeg_mne2eeg raw conversion not available: {e}")
+
+    @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
+    def test_eeg_mne2eeg_cleans_temporary_bridge_files(self):
+        info = mne.create_info(["EEG001", "EEG002"], 100.0, ch_types='eeg')
+        raw = mne.io.RawArray(np.random.randn(2, 100), info)
+        real_tempdir = tempfile.TemporaryDirectory
+
+        def tempdir_factory(*args, **kwargs):
+            kwargs["dir"] = self.temp_dir
+            return real_tempdir(*args, **kwargs)
+
+        with mock.patch("eegprep.functions.miscfunc.eeg_mne2eeg.tempfile.TemporaryDirectory", tempdir_factory):
+            eeg_mne2eeg(raw)
+
+        self.assertEqual(os.listdir(self.temp_dir), [])
 
     @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
     def test_eeg_mne2eeg_epochs_object(self):

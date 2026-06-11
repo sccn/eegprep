@@ -1329,7 +1329,14 @@ class MenuActionDispatcherTests(unittest.TestCase):
         qt_widgets = _fake_qt_widgets(open_file="/tmp/script.py")
 
         def fake_runscript(_filename, namespace):
+            self.assertIn("ALLCOM", namespace)
+            self.assertIn("LASTCOM", namespace)
+            self.assertIn("CURRENTSTUDY", namespace)
             namespace["CURRENTSET"] = 2
+            namespace["ALLCOM"].append("EEG = script_command(EEG);")
+            namespace["LASTCOM"] = "EEG = script_command(EEG);"
+            namespace["STUDY"] = {"name": "script study"}
+            namespace["CURRENTSTUDY"] = 1
             return "LASTCOM = pop_runscript('/tmp/script.py');"
 
         with (
@@ -1339,7 +1346,13 @@ class MenuActionDispatcherTests(unittest.TestCase):
             dispatcher.dispatch("pop_runscript")
 
         self.assertEqual(session.CURRENTSET, [2])
-        self.assertEqual(session.ALLCOM[-1], "LASTCOM = pop_runscript('/tmp/script.py');")
+        self.assertEqual(session.STUDY["name"], "script study")
+        self.assertEqual(session.CURRENTSTUDY, 1)
+        self.assertEqual(
+            session.ALLCOM,
+            ["EEG = script_command(EEG);", "LASTCOM = pop_runscript('/tmp/script.py');"],
+        )
+        self.assertEqual(session.LASTCOM, "LASTCOM = pop_runscript('/tmp/script.py');")
 
 
 class QtMainWindowTests(unittest.TestCase):
