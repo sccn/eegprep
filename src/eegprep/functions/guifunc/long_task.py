@@ -14,9 +14,6 @@ except ImportError:  # pragma: no cover - depends on optional GUI dependency
     QtWidgets = None
 
 
-logger = logging.getLogger(__name__)
-
-
 @dataclass
 class LongTaskHandle:
     """Keep Qt task objects alive until their worker thread finishes."""
@@ -24,6 +21,7 @@ class LongTaskHandle:
     thread: Any
     worker: Any
     dialog: Any
+    receiver: Any | None = None
 
 
 def run_long_task(
@@ -75,19 +73,39 @@ def run_long_task(
 
     thread = qt_core.QThread()
     worker = Worker()
-    handle = LongTaskHandle(thread=thread, worker=worker, dialog=progress)
+
+    class Receiver(qt_core.QObject):
+        @qt_core.Slot(str)
+        def handle_message(self, message: str) -> None:
+            _update_progress_label(progress, label, message)
+
+        @qt_core.Slot(object)
+        def handle_success(self, result: Any) -> None:
+            on_success(result)
+
+        @qt_core.Slot(object)
+        def handle_error(self, exc: Exception) -> None:
+            on_error(exc)
+
+        @qt_core.Slot()
+        def handle_finished(self) -> None:
+            progress.close()
+            if on_finished is not None:
+                on_finished(handle)
+
+    receiver = Receiver()
+    handle = LongTaskHandle(thread=thread, worker=worker, dialog=progress, receiver=receiver)
 
     worker.moveToThread(thread)
     thread.started.connect(worker.run)
-    worker.message.connect(lambda message: _update_progress_label(progress, label, message))
-    worker.succeeded.connect(on_success)
-    worker.failed.connect(on_error)
+    worker.message.connect(receiver.handle_message)
+    worker.succeeded.connect(receiver.handle_success)
+    worker.failed.connect(receiver.handle_error)
     worker.finished.connect(thread.quit)
-    thread.finished.connect(worker.deleteLater)
+    worker.finished.connect(worker.deleteLater)
     thread.finished.connect(thread.deleteLater)
-    thread.finished.connect(progress.close)
-    if on_finished is not None:
-        thread.finished.connect(lambda: on_finished(handle))
+    thread.finished.connect(receiver.handle_finished)
+    thread.finished.connect(receiver.deleteLater)
 
     progress._eegprep_long_task = handle
     progress.show()
@@ -104,7 +122,7 @@ class _SignalLogHandler(logging.Handler):
         try:
             self.signal.emit(self.format(record))
         except Exception:
-            logger.exception("Failed to forward long-task log message")
+            self.handleError(record)
 
 
 def _update_progress_label(progress: Any, label: str, message: str) -> None:
