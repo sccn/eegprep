@@ -367,6 +367,16 @@ def test_console_eegh_displays_and_finds_session_history():
     workspace.close()
 
 
+def test_default_console_eegh_uses_session_history_after_public_exports_bind():
+    session = EEGPrepSession()
+    workspace = EEGPrepConsoleWorkspace(session)
+    session.add_history("EEG = pop_fileio('sample.set');")
+
+    assert workspace.namespace["eegh"]() == "1. EEG = pop_fileio('sample.set');"
+    assert workspace.namespace["eegprep"].eegh() == "1. EEG = pop_fileio('sample.set');"
+    workspace.close()
+
+
 def test_console_eegh_positive_index_replays_command_through_workspace():
     session = EEGPrepSession()
     session.store_current(_demo_eeg(), new=True)
