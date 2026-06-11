@@ -17,6 +17,8 @@ The workflow includes:
 This example shows how different artifact removal strategies affect EEG data
 quality and how to choose appropriate methods for your analysis.
 
+Background references include [1]_ and [2]_.
+
 References
 ----------
 .. [1] Jas, M., Engemann, D. A., Bekhti, Y., Raimondo, F., & Gramfort, A.

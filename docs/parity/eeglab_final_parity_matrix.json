@@ -1,0 +1,1123 @@
+{
+  "metadata": {
+    "schema_version": 1,
+    "source_audit": ".notes/eeglab-final-parity-audit.md",
+    "source_issue": "https://github.com/sccn/eegprep/issues/158",
+    "parent_epic": "https://github.com/sccn/eegprep/issues/157",
+    "scope": {
+      "description": "Final standalone parity epic matrix for bundled plugin depth, MATLAB object/storage surfaces, optional-toolbox workflows, and EEGLAB-style documentation coverage.",
+      "covered_reference_roots": [
+        "src/eegprep/eeglab/plugins/clean_rawdata/**/*.m except vendored Manopt library examples/tests/runtime internals",
+        "src/eegprep/eeglab/plugins/firfilt/**/*.m",
+        "src/eegprep/eeglab/plugins/ICLabel/**/*.m except vendored MatConvNet internals/tests",
+        "src/eegprep/eeglab/plugins/dipfit/**/*.m",
+        "src/eegprep/eeglab/functions/@eegobj/*.m",
+        "src/eegprep/eeglab/functions/@memmapdata/*.m",
+        "src/eegprep/eeglab/functions/@mmo/*.m",
+        "src/eegprep/eeglab/tutorial_scripts/*.{m,mlx}",
+        "selected core matrix rows that represent optional-toolbox workflows"
+      ]
+    },
+    "status_taxonomy": [
+      "implemented",
+      "partial",
+      "port",
+      "consolidated",
+      "stale_skip",
+      "matlab_runtime_skip",
+      "optional_dependency",
+      "external_plugin",
+      "docs_gap"
+    ],
+    "phase_issues": {
+      "phase_2": "#159 clean_rawdata and FIRFilt bundled-plugin completion",
+      "phase_3": "#160 DIPFIT and source-localization standalone parity",
+      "phase_4": "#161 STUDY statistics, PAC, and LIMO-compatible workflows",
+      "phase_5": "#162 Large-dataset storage and storedisk semantics",
+      "phase_6": "#163 ICLabel, viewprops, and visual diagnostics completion",
+      "phase_7": "#164 EEGLAB-style Sphinx documentation and tutorials",
+      "phase_8": "#165 Final integration, QA, release hardening, and evidence"
+    },
+    "optional_dependency_policy": {
+      "standalone_first": "Prefer a tested EEGPrep-owned Python implementation when the workflow is core preprocessing, data structure, GUI, console, or saved-file behavior.",
+      "optional_dependency": "Use optional_dependency only when the scientific computation depends on a substantial external toolbox that can be installed, versioned, tested, and documented without reading the vendored EEGLAB tree.",
+      "external_plugin": "Use external_plugin when the workflow belongs to a third-party EEGLAB ecosystem that should live behind EEGPrep extension contracts instead of core package runtime code.",
+      "user_facing_failure": "Unsupported optional paths must raise clear user-facing limitations, name the missing backend, and link to EEGPrep docs rather than creating placeholder outputs."
+    },
+    "docs_architecture": {
+      "model": "EEGLAB-style user manual, rewritten for standalone EEGPrep Python, Qt GUI, and eegprep-console behavior.",
+      "sections": [
+        {
+          "id": "installation",
+          "title": "Installation and Optional Dependencies",
+          "target": "docs/source/user_guide/installation.rst",
+          "phase_owner": "phase_7"
+        },
+        {
+          "id": "concepts",
+          "title": "Concepts Guide: EEG Data Structures, Events, Epochs, Channels, ICA, STUDY, and History",
+          "target": "docs/source/user_guide/concepts.rst",
+          "phase_owner": "phase_7"
+        },
+        {
+          "id": "gui_tutorials",
+          "title": "GUI Tutorials and Menu Workflows",
+          "target": "docs/source/user_guide/gui_tutorials.rst",
+          "phase_owner": "phase_7"
+        },
+        {
+          "id": "console_and_history",
+          "title": "Command Line, eegprep-console, LASTCOM, ALLCOM, and Script Replay",
+          "target": "docs/source/user_guide/interactive_console.rst",
+          "phase_owner": "phase_7"
+        },
+        {
+          "id": "preprocessing",
+          "title": "Preprocessing and Filtering Tutorials",
+          "target": "docs/source/user_guide/preprocessing_pipeline.rst",
+          "phase_owner": "phase_7"
+        },
+        {
+          "id": "ica_and_rejection",
+          "title": "ICA, ICLabel, Rejection, and Visual Diagnostics",
+          "target": "docs/source/user_guide/ica_rejection.rst",
+          "phase_owner": "phase_7"
+        },
+        {
+          "id": "study_and_statistics",
+          "title": "STUDY, Statistics, PAC, Source Localization, and Optional Backends",
+          "target": "docs/source/user_guide/study_workflows.rst",
+          "phase_owner": "phase_7"
+        },
+        {
+          "id": "plugins_and_extensions",
+          "title": "Bundled Plugins and External Extensions",
+          "target": "docs/source/user_guide/plugins.rst",
+          "phase_owner": "phase_7"
+        },
+        {
+          "id": "api_reference",
+          "title": "API Reference",
+          "target": "docs/source/api/index.rst",
+          "phase_owner": "phase_7"
+        },
+        {
+          "id": "eeglab_migration",
+          "title": "EEGLAB Migration Notes",
+          "target": "docs/source/user_guide/eeglab_migration.rst",
+          "phase_owner": "phase_7"
+        },
+        {
+          "id": "developer_parity",
+          "title": "Developer Parity Contracts and Runtime Boundary",
+          "target": "docs/source/development.rst",
+          "phase_owner": "phase_7"
+        }
+      ]
+    },
+    "source_exclusion_policy": [
+      "Exclude plugins/clean_rawdata/manopt/manopt/** because it is a vendored third-party Manopt library, not an EEGPrep user workflow; Riemannian ASR remains represented by the top-level ASR and Manopt entry rows.",
+      "Exclude plugins/clean_rawdata/manopt/examples/** and plugins/clean_rawdata/manopt/tests/** because they are third-party demos/tests.",
+      "Exclude plugins/ICLabel/matconvnet/** and plugins/ICLabel/tests/** because EEGPrep uses packaged Python ICLabel assets/runtime decisions instead of porting MatConvNet internals."
+    ],
+    "runtime_rule": "Installed eegprep package code must not read, import from, or shell out to src/eegprep/eeglab; that tree is only a development and parity-test oracle."
+  },
+  "rows": [
+    {
+      "row_id": "clean_rawdata-cleaning-pipeline",
+      "title": "clean_rawdata cleaning pipeline and GUI entry point",
+      "area": "bundled_plugin_clean_rawdata",
+      "source_paths": [
+        "plugins/clean_rawdata/clean_artifacts.m",
+        "plugins/clean_rawdata/clean_channels.m",
+        "plugins/clean_rawdata/clean_channels_nolocs.m",
+        "plugins/clean_rawdata/clean_drifts.m",
+        "plugins/clean_rawdata/clean_flatlines.m",
+        "plugins/clean_rawdata/clean_rawdata.m",
+        "plugins/clean_rawdata/clean_windows.m",
+        "plugins/clean_rawdata/eegplugin_clean_rawdata.m",
+        "plugins/clean_rawdata/pop_clean_rawdata.m"
+      ],
+      "eegprep_equivalent": [
+        "eegprep.plugins.clean_rawdata.clean_artifacts",
+        "eegprep.plugins.clean_rawdata.pop_clean_rawdata"
+      ],
+      "status": "implemented",
+      "responsible_phase": "phase_2",
+      "phase_issue": "#159 clean_rawdata and FIRFilt bundled-plugin completion",
+      "rationale": "Phase 2 completed the standalone cleaning audit: pop_clean_rawdata and clean_artifacts cover the useful EEGLAB cleaning sequence, GUI defaults stay synchronized with console history, progress/output behavior is test-covered, and visual diagnostics now route through packaged EEGPrep code.",
+      "user_facing_surface": [
+        "Tools > Clean rawdata",
+        "clean_artifacts",
+        "pop_clean_rawdata"
+      ],
+      "docs_targets": [
+        "docs/source/user_guide/preprocessing_pipeline.rst",
+        "docs/source/api/index.rst"
+      ],
+      "test_notes": "Covered by clean_rawdata unit tests, sample_data pop_clean_rawdata regressions, GUI spec tests, visual checkbox diagnostics tests, and focused nonfinite/progress regressions."
+    },
+    {
+      "row_id": "clean_rawdata-standard-asr",
+      "title": "Standard ASR calibration and processing",
+      "area": "bundled_plugin_clean_rawdata",
+      "source_paths": [
+        "plugins/clean_rawdata/asr_calibrate.m",
+        "plugins/clean_rawdata/asr_process.m",
+        "plugins/clean_rawdata/clean_asr.m"
+      ],
+      "eegprep_equivalent": [
+        "eegprep.plugins.clean_rawdata.asr_calibrate",
+        "eegprep.plugins.clean_rawdata.asr_process",
+        "eegprep.plugins.clean_rawdata.clean_asr"
+      ],
+      "status": "implemented",
+      "responsible_phase": "phase_2",
+      "phase_issue": "#159 clean_rawdata and FIRFilt bundled-plugin completion",
+      "rationale": "Standard ASR calibration, processing, and clean_asr integration are native Python paths with deterministic edge-case coverage; Phase 2 keeps this as the supported standalone ASR workflow.",
+      "user_facing_surface": [
+        "clean_asr",
+        "clean_artifacts"
+      ],
+      "docs_targets": [
+        "docs/source/user_guide/preprocessing_pipeline.rst"
+      ],
+      "test_notes": "Covered by tests/test_clean_asr.py, tests/test_utils_asr.py, tests/test_clean_artifacts.py, and sample_data pop_clean_rawdata ASR regressions; MATLAB-only numerical differences remain documented as implementation tradeoffs."
+    },
+    {
+      "row_id": "clean_rawdata-riemannian-asr",
+      "title": "Riemannian ASR and Manopt-backed behavior",
+      "area": "bundled_plugin_clean_rawdata",
+      "source_paths": [
+        "plugins/clean_rawdata/asr_calibrate_r.m",
+        "plugins/clean_rawdata/asr_process_r.m",
+        "plugins/clean_rawdata/manopt/buildrelease.m",
+        "plugins/clean_rawdata/manopt/checkinstall.m",
+        "plugins/clean_rawdata/manopt/importmanopt.m",
+        "plugins/clean_rawdata/manopt/manopt_version.m",
+        "plugins/clean_rawdata/rasr_nonlinear_eigenspace.m"
+      ],
+      "eegprep_equivalent": [
+        "eegprep.plugins.clean_rawdata.asr_calibrate(useriemannian='calib')",
+        "eegprep.plugins.clean_rawdata.clean_asr explicit full-Riemannian limitation"
+      ],
+      "status": "optional_dependency",
+      "responsible_phase": "phase_2",
+      "phase_issue": "#159 clean_rawdata and FIRFilt bundled-plugin completion",
+      "optional_dependency": {
+        "name": "Riemannian manifold optimizer for ASR",
+        "dependency_type": "scientific optional backend",
+        "fallback_behavior": "Use the supported standard ASR path, or the calibration-time Riemannian estimate, and raise a clear limitation when a user explicitly requests full Riemannian ASR processing.",
+        "user_message": "Full Riemannian ASR processing is not silently emulated in standalone EEGPrep; use standard ASR or useriemannian='calib' until a tested Python manifold-optimization backend is selected.",
+        "phase_contract": "Phase 2 keeps Manopt-backed processing as a documented optional-dependency limitation and covers both the calibration-time path and explicit failure path."
+      },
+      "rationale": "EEGLAB bundles Manopt for full Riemannian ASR. EEGPrep deliberately does not vendor or read that MATLAB library at runtime; it supports the useful calibration-time variant and rejects full processing clearly.",
+      "user_facing_surface": [
+        "clean_asr",
+        "clean_artifacts"
+      ],
+      "docs_targets": [
+        "docs/source/user_guide/preprocessing_pipeline.rst",
+        "docs/source/user_guide/installation.rst"
+      ],
+      "test_notes": "Covered by clean_asr and clean_artifacts tests for useriemannian='calib', sample_data Riemannian calibration regressions, and explicit full-Riemannian failure-path tests."
+    },
+    {
+      "row_id": "clean_rawdata-private-numerics",
+      "title": "clean_rawdata private numerical helpers",
+      "area": "bundled_plugin_clean_rawdata",
+      "source_paths": [
+        "plugins/clean_rawdata/private/block_geometric_median.m",
+        "plugins/clean_rawdata/private/design_fir.m",
+        "plugins/clean_rawdata/private/design_kaiser.m",
+        "plugins/clean_rawdata/private/filter_fast.m",
+        "plugins/clean_rawdata/private/filtfilt_fast.m",
+        "plugins/clean_rawdata/private/fit_eeg_distribution.m",
+        "plugins/clean_rawdata/private/geometric_median.m",
+        "plugins/clean_rawdata/private/sphericalSplineInterpolate.m",
+        "plugins/clean_rawdata/private/window_func.m"
+      ],
+      "eegprep_equivalent": [
+        "eegprep.plugins.clean_rawdata.private.stats",
+        "eegprep.plugins.clean_rawdata.private.sigproc",
+        "eegprep.plugins.clean_rawdata.private.sphericalSplineInterpolate"
+      ],
+      "status": "consolidated",
+      "responsible_phase": "phase_2",
+      "phase_issue": "#159 clean_rawdata and FIRFilt bundled-plugin completion",
+      "rationale": "Phase 2 keeps clean_rawdata's product-relevant private numerics consolidated into native Python statistics, signal-processing, covariance, and interpolation modules instead of recreating MATLAB private-file boundaries.",
+      "user_facing_surface": [
+        "clean_artifacts",
+        "clean_channels",
+        "clean_windows"
+      ],
+      "docs_targets": [
+        "docs/source/api/preprocessing.rst"
+      ],
+      "test_notes": "Covered by existing private numerical utility tests, ASR utility tests, clean_channels/clean_windows regressions, and FIR/filter integration tests where the helpers surface through user workflows."
+    },
+    {
+      "row_id": "clean_rawdata-matlab-helper-shims",
+      "title": "clean_rawdata MATLAB helper and GUI shims",
+      "area": "bundled_plugin_clean_rawdata",
+      "source_paths": [
+        "plugins/clean_rawdata/private/findjobj.m",
+        "plugins/clean_rawdata/private/hlp_handleerror.m",
+        "plugins/clean_rawdata/private/hlp_microcache.m",
+        "plugins/clean_rawdata/private/hlp_split.m",
+        "plugins/clean_rawdata/private/hlp_varargin2struct.m"
+      ],
+      "eegprep_equivalent": [
+        "native Python exceptions",
+        "Python keyword arguments",
+        "NumPy chunking helpers"
+      ],
+      "status": "consolidated",
+      "responsible_phase": "phase_2",
+      "phase_issue": "#159 clean_rawdata and FIRFilt bundled-plugin completion",
+      "rationale": "These MATLAB convenience helpers should stay folded into Python error handling, kwargs, and array utilities rather than becoming public EEGPrep files.",
+      "user_facing_surface": [],
+      "docs_targets": [
+        "docs/source/development.rst"
+      ],
+      "test_notes": "Phase 2 audit found no user-facing workflow requiring standalone ports; kwargs parsing, chunking, cache-free execution, and native exceptions remain covered through clean_rawdata integration tests."
+    },
+    {
+      "row_id": "clean_rawdata-vis-artifacts",
+      "title": "clean_rawdata artifact visualization",
+      "area": "bundled_plugin_clean_rawdata",
+      "source_paths": [
+        "plugins/clean_rawdata/vis_artifacts.m"
+      ],
+      "eegprep_equivalent": [
+        "eegprep.plugins.clean_rawdata.vis_artifacts",
+        "eegprep.plugins.clean_rawdata.vis_artifacts_diagnostics"
+      ],
+      "status": "implemented",
+      "responsible_phase": "phase_2",
+      "phase_issue": "#159 clean_rawdata and FIRFilt bundled-plugin completion",
+      "rationale": "EEGPrep now provides native vis_artifacts-style diagnostics and wires pop_clean_rawdata's visual checkbox to the packaged eegplot-backed viewer without a runtime EEGLAB dependency.",
+      "user_facing_surface": [
+        "clean_artifacts diagnostics"
+      ],
+      "docs_targets": [
+        "docs/source/user_guide/preprocessing_pipeline.rst",
+        "docs/source/user_guide/visual_parity.rst"
+      ],
+      "test_notes": "Covered by diagnostics unit tests and pop_clean_rawdata GUI visual-checkbox tests; PR visual evidence covers the updated dialog path."
+    },
+    {
+      "row_id": "firfilt-current-filter-api",
+      "title": "FIRFilt current filtering APIs",
+      "area": "bundled_plugin_firfilt",
+      "source_paths": [
+        "plugins/firfilt/fir_filterdcpadded.m",
+        "plugins/firfilt/firfilt.m",
+        "plugins/firfilt/firws.m",
+        "plugins/firfilt/firwsord.m",
+        "plugins/firfilt/pop_eegfiltnew.m",
+        "plugins/firfilt/pop_firma.m",
+        "plugins/firfilt/pop_firpm.m",
+        "plugins/firfilt/pop_firws.m"
+      ],
+      "eegprep_equivalent": [
+        "eegprep.plugins.firfilt.fir_filterdcpadded",
+        "eegprep.plugins.firfilt.firws",
+        "eegprep.plugins.firfilt.pop_eegfiltnew",
+        "eegprep.plugins.firfilt.pop_firma",
+        "eegprep.plugins.firfilt.pop_firpm",
+        "eegprep.plugins.firfilt.pop_firws"
+      ],
+      "status": "implemented",
+      "responsible_phase": "phase_2",
+      "phase_issue": "#159 clean_rawdata and FIRFilt bundled-plugin completion",
+      "rationale": "Phase 2 completed useful FIRFilt current API parity with DC-padded filtering, boundary-aware segmentation, report/progress output, response plotting hooks, and GUI callback metadata.",
+      "user_facing_surface": [
+        "Tools > Filter the data",
+        "pop_eegfiltnew",
+        "pop_firws"
+      ],
+      "docs_targets": [
+        "docs/source/user_guide/preprocessing_pipeline.rst",
+        "docs/source/api/signal_processing.rst"
+      ],
+      "test_notes": "Covered by tests/test_pop_firfilt.py, tests/test_firfilt_helpers.py, GUI FIRFilt dialog tests, and MATLAB-marked deterministic helper parity where local MATLAB is available."
+    },
+    {
+      "row_id": "firfilt-order-dialogs",
+      "title": "FIRFilt order calculators and window helpers",
+      "area": "bundled_plugin_firfilt",
+      "source_paths": [
+        "plugins/firfilt/invfirwsord.m",
+        "plugins/firfilt/invkaiserbeta.m",
+        "plugins/firfilt/kaiserbeta.m",
+        "plugins/firfilt/pop_firpmord.m",
+        "plugins/firfilt/pop_firwsord.m",
+        "plugins/firfilt/pop_kaiserbeta.m",
+        "plugins/firfilt/pop_xfirws.m",
+        "plugins/firfilt/windows.m"
+      ],
+      "eegprep_equivalent": [
+        "eegprep.plugins.firfilt.invfirwsord",
+        "eegprep.plugins.firfilt.invkaiserbeta",
+        "eegprep.plugins.firfilt.kaiserbeta",
+        "eegprep.plugins.firfilt.pop_firpmord",
+        "eegprep.plugins.firfilt.pop_firwsord",
+        "eegprep.plugins.firfilt.pop_kaiserbeta",
+        "eegprep.plugins.firfilt.pop_xfirws",
+        "eegprep.plugins.firfilt.windows"
+      ],
+      "status": "implemented",
+      "responsible_phase": "phase_2",
+      "phase_issue": "#159 clean_rawdata and FIRFilt bundled-plugin completion",
+      "rationale": "EEGPrep now exposes EEGLAB-named FIRFilt order/window helpers, command-returning pop_* wrappers, Qt dialog specs, live estimate/plot callback metadata, packaged help, and visual parity capture cases.",
+      "user_facing_surface": [
+        "FIRFilt order dialogs",
+        "filter design helpers"
+      ],
+      "docs_targets": [
+        "docs/source/user_guide/preprocessing_pipeline.rst"
+      ],
+      "test_notes": "Covered by deterministic kaiser/window/order tests, command history tests, dialog spec tests, and visual parity manifest/script-generation tests."
+    },
+    {
+      "row_id": "firfilt-boundary-reports-plots",
+      "title": "FIRFilt boundary helpers, reports, and response plots",
+      "area": "bundled_plugin_firfilt",
+      "source_paths": [
+        "plugins/firfilt/eegplugin_firfilt.m",
+        "plugins/firfilt/findboundaries.m",
+        "plugins/firfilt/firfiltreport.m",
+        "plugins/firfilt/firfiltsplit.m",
+        "plugins/firfilt/minphaserceps.m",
+        "plugins/firfilt/plotfresp.m",
+        "plugins/firfilt/private/firgauss.m"
+      ],
+      "eegprep_equivalent": [
+        "eegprep.plugins.firfilt.findboundaries",
+        "eegprep.plugins.firfilt.firfiltreport",
+        "eegprep.plugins.firfilt.firfiltsplit",
+        "eegprep.plugins.firfilt.minphaserceps",
+        "eegprep.plugins.firfilt.plotfresp",
+        "eegprep.plugins.firfilt.firgauss"
+      ],
+      "status": "implemented",
+      "responsible_phase": "phase_2",
+      "phase_issue": "#159 clean_rawdata and FIRFilt bundled-plugin completion",
+      "rationale": "Boundary-aware split helpers, user-readable FIRFilt reports, minimum-phase conversion, Gaussian helper behavior, and native Matplotlib frequency-response plots are now explicit EEGPrep plugin surfaces.",
+      "user_facing_surface": [
+        "filter reports",
+        "frequency response plots"
+      ],
+      "docs_targets": [
+        "docs/source/user_guide/preprocessing_pipeline.rst",
+        "docs/source/user_guide/visual_parity.rst"
+      ],
+      "test_notes": "Covered by first/last boundary tests, firfiltsplit/fir_filterdcpadded regressions, report text tests, and plotfresp smoke tests using the non-interactive Matplotlib backend."
+    },
+    {
+      "row_id": "iclabel-classification-pipeline",
+      "title": "ICLabel classification pipeline",
+      "area": "bundled_plugin_iclabel_viewprops",
+      "source_paths": [
+        "plugins/ICLabel/ICL_feature_extractor.m",
+        "plugins/ICLabel/eeg_autocorr.m",
+        "plugins/ICLabel/eeg_autocorr_fftw.m",
+        "plugins/ICLabel/eeg_autocorr_welch.m",
+        "plugins/ICLabel/eeg_rpsd.m",
+        "plugins/ICLabel/eegplugin_iclabel.m",
+        "plugins/ICLabel/iclabel.m",
+        "plugins/ICLabel/pop_icflag.m",
+        "plugins/ICLabel/pop_iclabel.m",
+        "plugins/ICLabel/run_ICL.m",
+        "plugins/ICLabel/topoplotFast.m"
+      ],
+      "eegprep_equivalent": [
+        "eegprep.plugins.ICLabel.ICL_feature_extractor",
+        "eegprep.plugins.ICLabel.eeg_icalabelstat",
+        "eegprep.plugins.ICLabel.iclabel",
+        "eegprep.plugins.ICLabel.pop_iclabel",
+        "eegprep.plugins.ICLabel.pop_icflag"
+      ],
+      "status": "implemented",
+      "responsible_phase": "phase_6",
+      "phase_issue": "#163 ICLabel, viewprops, and visual diagnostics completion",
+      "rationale": "EEGPrep has standalone ICLabel feature extraction, default netICL classification, ICLabel flagging, label statistics, menu wiring, and history-capable pop wrappers. The default Python network is packaged; EEGLAB lite/beta artifacts are explicit MATLAB/Octave passthrough choices and raise a clear standalone limitation instead of being silently ignored.",
+      "user_facing_surface": [
+        "Tools > Classify components using ICLabel",
+        "iclabel",
+        "eeg_icalabelstat",
+        "pop_iclabel",
+        "pop_icflag"
+      ],
+      "docs_targets": [
+        "docs/source/user_guide/ica_rejection.rst",
+        "docs/source/api/ica.rst"
+      ],
+      "test_notes": "Covered by ICLabel feature/parity tests, GUI pop wrapper tests, sample-data ICLabel-state statistics tests, and explicit standalone alternate-network limitation tests."
+    },
+    {
+      "row_id": "iclabel-label-statistics",
+      "title": "ICLabel label statistics",
+      "area": "bundled_plugin_iclabel_viewprops",
+      "source_paths": [
+        "plugins/ICLabel/eeg_icalabelstat.m"
+      ],
+      "eegprep_equivalent": [
+        "eegprep.plugins.ICLabel.eeg_icalabelstat"
+      ],
+      "status": "implemented",
+      "responsible_phase": "phase_6",
+      "phase_issue": "#163 ICLabel, viewprops, and visual diagnostics completion",
+      "rationale": "EEGPrep now provides an EEGPrep-owned `eeg_icalabelstat` helper that preserves EEGLAB threshold-count output and returns structured Python statistics for reports, rejection review, and tests.",
+      "user_facing_surface": [
+        "eeg_icalabelstat",
+        "ICLabel statistics"
+      ],
+      "docs_targets": [
+        "docs/source/user_guide/ica_rejection.rst",
+        "docs/source/api/ica.rst"
+      ],
+      "test_notes": "Covered by deterministic label-distribution tests, missing/malformed ICLabel-state tests, class-specific threshold tests, rejected/kept tally tests, packaged help, and sample-data ICA/ICLabel-state integration coverage."
+    },
+    {
+      "row_id": "iclabel-viewprops-component-browser",
+      "title": "Viewprops component browser",
+      "area": "bundled_plugin_iclabel_viewprops",
+      "source_paths": [
+        "plugins/ICLabel/viewprops/eegplugin_viewprops.m",
+        "plugins/ICLabel/viewprops/pop_prop_extended.m",
+        "plugins/ICLabel/viewprops/pop_viewprops.m",
+        "plugins/ICLabel/viewprops/scrollplot.m"
+      ],
+      "eegprep_equivalent": [
+        "eegprep.plugins.ICLabel.pop_prop_extended",
+        "eegprep.plugins.ICLabel.pop_viewprops"
+      ],
+      "status": "implemented",
+      "responsible_phase": "phase_6",
+      "phase_issue": "#163 ICLabel, viewprops, and visual diagnostics completion",
+      "rationale": "EEGPrep has native Qt/matplotlib component-property surfaces for viewprops: component and channel overview entry points, browser-backed activity traces, extended component dashboards with scalp maps, spectra, ERP/image summaries, ICLabel probability panels, accept/reject controls, and DIPFIT overlays when localized models are present.",
+      "user_facing_surface": [
+        "Plot > View extended channel properties",
+        "Plot > View extended component properties",
+        "pop_viewprops",
+        "pop_prop_extended"
+      ],
+      "docs_targets": [
+        "docs/source/user_guide/ica_rejection.rst",
+        "docs/source/user_guide/visual_parity.rst"
+      ],
+      "test_notes": "Covered by pop_viewprops/pop_prop_extended GUI and data-model tests, browser-backed activity tests, rejection dashboard commit/cancel tests, menu/session sync tests, visual parity cases, and sample-data history integration coverage."
+    },
+    {
+      "row_id": "iclabel-matconvnet-activation",
+      "title": "MatConvNet activation shim",
+      "area": "bundled_plugin_iclabel_viewprops",
+      "source_paths": [
+        "plugins/ICLabel/activate_matconvnet.m"
+      ],
+      "eegprep_equivalent": null,
+      "status": "matlab_runtime_skip",
+      "responsible_phase": "none",
+      "phase_issue": null,
+      "rationale": "This modifies MATLAB paths and MatConvNet state. EEGPrep must use packaged Python runtime assets and must not activate vendored MATLAB libraries.",
+      "user_facing_surface": [],
+      "docs_targets": [
+        "docs/source/development.rst"
+      ],
+      "test_notes": "Runtime-boundary tests should continue preventing package code from reading src/eegprep/eeglab."
+    },
+    {
+      "row_id": "iclabel-developer-tests-and-packaging",
+      "title": "ICLabel developer tests and packaging helpers",
+      "area": "bundled_plugin_iclabel_viewprops",
+      "source_paths": [
+        "plugins/ICLabel/run_tests.m",
+        "plugins/ICLabel/zipper.m"
+      ],
+      "eegprep_equivalent": null,
+      "status": "stale_skip",
+      "responsible_phase": "none",
+      "phase_issue": null,
+      "rationale": "These are MATLAB plugin developer helpers, not EEGPrep user workflows or runtime behavior.",
+      "user_facing_surface": [],
+      "docs_targets": [
+        "docs/source/development.rst"
+      ],
+      "test_notes": "No runtime parity tests required; EEGPrep has its own Python test and packaging workflow.",
+      "stale_policy": {
+        "menu_reachable": false,
+        "documented_user_api": false,
+        "called_by_in_scope_workflow": false,
+        "required_by_parity_tests": false,
+        "needed_as_phase_helper": false,
+        "likely_user_alias": false
+      }
+    },
+    {
+      "row_id": "dipfit-settings-and-metadata",
+      "title": "DIPFIT settings and dataset metadata",
+      "area": "bundled_plugin_dipfit",
+      "source_paths": [
+        "plugins/dipfit/channelselection.m",
+        "plugins/dipfit/dipfit_1_to_2.m",
+        "plugins/dipfit/dipfitdefs.m",
+        "plugins/dipfit/eegplugin_dipfit.m",
+        "plugins/dipfit/pop_dipfit_settings.m"
+      ],
+      "eegprep_equivalent": [
+        "eegprep.plugins.dipfit.pop_dipfit_settings",
+        "eegprep.plugins.dipfit.menu"
+      ],
+      "status": "implemented",
+      "responsible_phase": "phase_3",
+      "phase_issue": "#160 DIPFIT and source-localization standalone parity",
+      "rationale": "EEGPrep stores EEGLAB-compatible DIPFIT metadata, template choices, channel selections, GUI help, and replayable console history without using the vendored EEGLAB tree at runtime.",
+      "user_facing_surface": [
+        "Tools > Locate dipoles using DIPFIT > Head model and settings",
+        "pop_dipfit_settings"
+      ],
+      "docs_targets": [
+        "docs/source/user_guide/study_workflows.rst",
+        "docs/source/user_guide/plugins.rst"
+      ],
+      "test_notes": "Covered by DIPFIT settings tests for standard templates, channel omission, GUI application to multiple datasets, sample-data setup, and replayable command history."
+    },
+    {
+      "row_id": "dipfit-fieldtrip-backed-fitting",
+      "title": "DIPFIT fitting and FieldTrip-backed source localization",
+      "area": "bundled_plugin_dipfit",
+      "source_paths": [
+        "plugins/dipfit/LORETA_Talairach_BAs.m",
+        "plugins/dipfit/dipfit_erpeeg.m",
+        "plugins/dipfit/dipfit_gridsearch.m",
+        "plugins/dipfit/dipfit_nonlinear.m",
+        "plugins/dipfit/dipfit_reject.m",
+        "plugins/dipfit/pop_dipfit_batch.m",
+        "plugins/dipfit/pop_dipfit_gridsearch.m",
+        "plugins/dipfit/pop_dipfit_headmodel.m",
+        "plugins/dipfit/pop_dipfit_loreta.m",
+        "plugins/dipfit/pop_dipfit_manual.m",
+        "plugins/dipfit/pop_dipfit_nonlinear.m",
+        "plugins/dipfit/pop_leadfield.m",
+        "plugins/dipfit/pop_multifit.m",
+        "plugins/dipfit/traditionaldipfit.m"
+      ],
+      "eegprep_equivalent": [
+        "eegprep.plugins.dipfit.pop_dipfit_gridsearch",
+        "eegprep.plugins.dipfit.pop_dipfit_nonlinear",
+        "eegprep.plugins.dipfit.pop_multifit",
+        "eegprep.plugins.dipfit.pop_dipfit_batch",
+        "eegprep.plugins.dipfit.pop_dipfit_manual",
+        "eegprep.plugins.dipfit.pop_leadfield",
+        "eegprep.plugins.dipfit.dipfit_reject"
+      ],
+      "status": "partial",
+      "responsible_phase": "phase_3",
+      "phase_issue": "#160 DIPFIT and source-localization standalone parity",
+      "rationale": "EEGPrep now provides deterministic standalone spherical grid search, nonlinear moment/position refinement, multifit, deprecated batch/manual aliases, RV rejection, and explicit-point spherical leadfield construction. MRI-derived BEM headmodel creation, AFNI atlas leadfield preparation, and LORETA source analysis remain explicit missing-backend limitations rather than fake FieldTrip outputs.",
+      "user_facing_surface": [
+        "DIPFIT grid search",
+        "DIPFIT nonlinear fit",
+        "DIPFIT batch/manual fit",
+        "leadfield and LORETA workflows"
+      ],
+      "docs_targets": [
+        "docs/source/user_guide/study_workflows.rst",
+        "docs/source/user_guide/installation.rst"
+      ],
+      "test_notes": "Covered by synthetic known-source DIPFIT tests, nonlinear refinement, multifit, batch/manual aliases, explicit-point leadfield generation, RV rejection, and remaining limitation-path tests for MRI headmodel, unsupported source-model files, and LORETA."
+    },
+    {
+      "row_id": "dipfit-plotting",
+      "title": "DIPFIT dipole plotting",
+      "area": "bundled_plugin_dipfit",
+      "source_paths": [
+        "plugins/dipfit/adjustcylinder2.m",
+        "plugins/dipfit/dipplot.m",
+        "plugins/dipfit/plot3dmeshalign.m",
+        "plugins/dipfit/pop_dipplot.m"
+      ],
+      "eegprep_equivalent": [
+        "eegprep.plugins.dipfit.pop_dipplot"
+      ],
+      "status": "implemented",
+      "responsible_phase": "phase_3",
+      "phase_issue": "#160 DIPFIT and source-localization standalone parity",
+      "rationale": "EEGPrep plots existing dipole positions and moments, honors RV filtering and key EEGLAB dipplot options, and uses packaged standard MNI MRI slices for summary/projection views. Custom MRI and FieldTrip mesh rendering remain explicit asset/backend limits.",
+      "user_facing_surface": [
+        "pop_dipplot",
+        "DIPFIT visual diagnostics"
+      ],
+      "docs_targets": [
+        "docs/source/user_guide/study_workflows.rst",
+        "docs/source/user_guide/visual_parity.rst"
+      ],
+      "test_notes": "Covered by dipplot command-history, localized-component selection, missing-model errors, MRI slice helper tests, and visual parity dialog cases."
+    },
+    {
+      "row_id": "dipfit-atlas-coordinates-and-transforms",
+      "title": "DIPFIT atlas, coordinate, and transform helpers",
+      "area": "bundled_plugin_dipfit",
+      "source_paths": [
+        "plugins/dipfit/eeg_compatlas.m",
+        "plugins/dipfit/eeglab2fieldtrip.m",
+        "plugins/dipfit/electroderealign.m",
+        "plugins/dipfit/fieldtripchan2eeglab.m",
+        "plugins/dipfit/headcoordinates.m",
+        "plugins/dipfit/homogenous2traditional.m",
+        "plugins/dipfit/load_afni_atlas.m",
+        "plugins/dipfit/mni2tal.m",
+        "plugins/dipfit/mni2tal_matrix.m",
+        "plugins/dipfit/private/globalrescale.m",
+        "plugins/dipfit/private/match_str.m",
+        "plugins/dipfit/private/rigidbody.m",
+        "plugins/dipfit/private/rotate.m",
+        "plugins/dipfit/private/scale.m",
+        "plugins/dipfit/private/traditional.m",
+        "plugins/dipfit/private/translate.m",
+        "plugins/dipfit/private/warp_apply.m",
+        "plugins/dipfit/private/warp_error.m",
+        "plugins/dipfit/private/warp_optim.m",
+        "plugins/dipfit/sph2spm.m"
+      ],
+      "eegprep_equivalent": [
+        "eegprep.plugins.dipfit._coordinates",
+        "eegprep.plugins.dipfit.headcoordinates",
+        "eegprep.plugins.dipfit.electroderealign",
+        "eegprep.plugins.dipfit.mni2tal",
+        "eegprep.plugins.dipfit.sph2spm",
+        "eegprep.plugins.dipfit.load_afni_atlas"
+      ],
+      "status": "implemented",
+      "responsible_phase": "phase_3",
+      "phase_issue": "#160 DIPFIT and source-localization standalone parity",
+      "rationale": "EEGPrep now has standalone NumPy/SciPy ports for DIPFIT MNI/Talairach and spherical transforms, homogeneous/traditional transforms, warp application/optimization, head-coordinate construction, FieldTrip-to-EEGLAB channel conversion, and fiducial/template electrode realignment. AFNI/NIfTI atlas loading is explicit through nibabel when available and does not pretend to run FieldTrip head-model clipping for unsupported cases.",
+      "user_facing_surface": [
+        "DIPFIT settings",
+        "coregistration",
+        "source-localization helpers"
+      ],
+      "docs_targets": [
+        "docs/source/user_guide/study_workflows.rst",
+        "docs/source/api/signal_processing.rst"
+      ],
+      "test_notes": "Covered by deterministic mni2tal, headcoordinates, traditional transform, warp_apply, electroderealign, and atlas/backend limitation tests."
+    },
+    {
+      "row_id": "eegobj-python-dataset-contract",
+      "title": "MATLAB @eegobj class facade",
+      "area": "object_storage",
+      "source_paths": [
+        "functions/@eegobj/display.m",
+        "functions/@eegobj/eegobj.m",
+        "functions/@eegobj/fieldnames.m",
+        "functions/@eegobj/horzcat2.m",
+        "functions/@eegobj/isfield.m",
+        "functions/@eegobj/isstruct.m",
+        "functions/@eegobj/length.m",
+        "functions/@eegobj/orderfields.m",
+        "functions/@eegobj/rmfield.m",
+        "functions/@eegobj/subsasgn.m",
+        "functions/@eegobj/subsref.m"
+      ],
+      "eegprep_equivalent": [
+        "eegprep.functions.eegobj.EEGobj",
+        "EEG dict semantics",
+        "eegprep.functions.adminfunc.EEGPrepSession"
+      ],
+      "status": "consolidated",
+      "responsible_phase": "phase_5",
+      "phase_issue": "#162 Large-dataset storage and storedisk semantics",
+      "rationale": "EEGPrep should preserve EEG dict semantics and session behavior rather than porting MATLAB object overloads one-for-one.",
+      "user_facing_surface": [
+        "EEG",
+        "ALLEEG",
+        "EEGPrepSession"
+      ],
+      "docs_targets": [
+        "docs/source/user_guide/concepts.rst",
+        "docs/source/user_guide/interactive_console.rst"
+      ],
+      "test_notes": "Phase 5 should verify object/storage behavior through public EEG dict, save/load, GUI, and console workflows."
+    },
+    {
+      "row_id": "eegobj-simpletest",
+      "title": "@eegobj MATLAB developer simpletest",
+      "area": "object_storage",
+      "source_paths": [
+        "functions/@eegobj/simpletest.m"
+      ],
+      "eegprep_equivalent": null,
+      "status": "stale_skip",
+      "responsible_phase": "none",
+      "phase_issue": null,
+      "rationale": "This is a MATLAB class developer test, not a user workflow. EEGPrep uses Python unit and integration tests instead.",
+      "user_facing_surface": [],
+      "docs_targets": [
+        "docs/source/development.rst"
+      ],
+      "test_notes": "No parity port required; validator coverage prevents it from being forgotten.",
+      "stale_policy": {
+        "menu_reachable": false,
+        "documented_user_api": false,
+        "called_by_in_scope_workflow": false,
+        "required_by_parity_tests": false,
+        "needed_as_phase_helper": false,
+        "likely_user_alias": false
+      }
+    },
+    {
+      "row_id": "memmapdata-python-lazy-array-backend",
+      "title": "MATLAB @memmapdata large-array behavior",
+      "area": "object_storage",
+      "source_paths": [
+        "functions/@memmapdata/display.m",
+        "functions/@memmapdata/double.m",
+        "functions/@memmapdata/end.m",
+        "functions/@memmapdata/isnumeric.m",
+        "functions/@memmapdata/length.m",
+        "functions/@memmapdata/memmapdata.m",
+        "functions/@memmapdata/ndims.m",
+        "functions/@memmapdata/reshape.m",
+        "functions/@memmapdata/size.m",
+        "functions/@memmapdata/subsasgn.m",
+        "functions/@memmapdata/subsref.m",
+        "functions/@memmapdata/sum.m"
+      ],
+      "eegprep_equivalent": [
+        "eegprep.functions.adminfunc.storage.MemmapData",
+        "eegprep.functions.popfunc.pop_saveset",
+        "eegprep.functions.popfunc.pop_loadset",
+        "EEG_OPTIONS[\"option_memmapdata\"]"
+      ],
+      "status": "implemented",
+      "responsible_phase": "phase_5",
+      "phase_issue": "#162 Large-dataset storage and storedisk semantics",
+      "rationale": "EEGPrep implements the user-visible large-array behavior with a NumPy-compatible .fdt memory-map handle and two-file save/load semantics instead of porting MATLAB class overloads directly.",
+      "user_facing_surface": [
+        "large datasets",
+        "option_memmapdata",
+        "save/load workflows"
+      ],
+      "docs_targets": [
+        "docs/source/user_guide/storage.rst",
+        "docs/source/api/io.rst",
+        "docs/source/development.rst"
+      ],
+      "test_notes": "Phase 5 verifies first/last sample access, sidecar mutation, missing-sidecar failure, save/load round trips, and a slow memmap load smoke in tests/test_storage.py."
+    },
+    {
+      "row_id": "mmo-python-storedisk-backend",
+      "title": "MATLAB @mmo memory-mapped object operations",
+      "area": "object_storage",
+      "source_paths": [
+        "functions/@mmo/binaryopp.m",
+        "functions/@mmo/bsxfun.m",
+        "functions/@mmo/changefile.m",
+        "functions/@mmo/checkcopies_local.m",
+        "functions/@mmo/checkworkspace.m",
+        "functions/@mmo/ctranspose.m",
+        "functions/@mmo/display.m",
+        "functions/@mmo/double.m",
+        "functions/@mmo/end.m",
+        "functions/@mmo/fft.m",
+        "functions/@mmo/isnumeric.m",
+        "functions/@mmo/length.m",
+        "functions/@mmo/mmo.m",
+        "functions/@mmo/ndims.m",
+        "functions/@mmo/permute.m",
+        "functions/@mmo/reshape.m",
+        "functions/@mmo/size.m",
+        "functions/@mmo/subsasgn.m",
+        "functions/@mmo/subsasgn_old.m",
+        "functions/@mmo/subsref.m",
+        "functions/@mmo/sum.m",
+        "functions/@mmo/transpose.m",
+        "functions/@mmo/unitaryopp.m",
+        "functions/@mmo/var.m"
+      ],
+      "eegprep_equivalent": [
+        "eegprep.functions.adminfunc.storage.OffloadedData",
+        "eegprep.functions.adminfunc.eeg_store",
+        "eegprep.functions.adminfunc.eeg_retrieve",
+        "eegprep.functions.guifunc.session.EEGPrepSession",
+        "EEG_OPTIONS[\"option_storedisk\"]"
+      ],
+      "status": "implemented",
+      "responsible_phase": "phase_5",
+      "phase_issue": "#162 Large-dataset storage and storedisk semantics",
+      "rationale": "These MATLAB overloads represent storedisk-era memory-mapped operations. EEGPrep implements the user-visible contract through explicit offloaded dataset handles, shared session retrieval, and deterministic save/load behavior.",
+      "user_facing_surface": [
+        "option_storedisk",
+        "large STUDY data",
+        "memory-mapped processing"
+      ],
+      "docs_targets": [
+        "docs/source/user_guide/storage.rst",
+        "docs/source/api/io.rst",
+        "docs/source/development.rst"
+      ],
+      "test_notes": "Phase 5 verifies storedisk offload/rehydrate, unsaved-dataset refusal, pop_newset behavior, STUDY resave, and mixed session/console synchronization in tests/test_eeg_store_storedisk.py and tests/test_console_workspace.py."
+    },
+    {
+      "row_id": "optional-limo-workflows",
+      "title": "LIMO-compatible STUDY workflows",
+      "area": "optional_toolbox_workflow",
+      "source_paths": [
+        "functions/studyfunc/pop_limo.m",
+        "functions/studyfunc/pop_limoresults.m",
+        "functions/studyfunc/std_limo.m",
+        "functions/studyfunc/std_limodesign.m",
+        "functions/studyfunc/std_limoresults.m",
+        "functions/studyfunc/std_readfilelimo.m"
+      ],
+      "eegprep_equivalent": [
+        "eegprep.functions.studyfunc.pop_limo",
+        "eegprep.functions.studyfunc.std_limo",
+        "eegprep.functions.studyfunc.std_limodesign"
+      ],
+      "status": "optional_dependency",
+      "responsible_phase": "phase_4",
+      "phase_issue": "#161 STUDY statistics, PAC, and LIMO-compatible workflows",
+      "optional_dependency": {
+        "name": "LIMO-compatible statistics backend",
+        "dependency_type": "external statistics workflow",
+        "fallback_behavior": "Build standalone design matrices with std_limodesign, and keep explicit NotImplementedError limitations for model execution and result browsing until EEGPrep owns or integrates a tested LIMO-compatible backend.",
+        "user_message": "EEGPrep builds LIMO-compatible design matrices but does not silently emulate EEGLAB LIMO model fitting, result computation, or browsing.",
+        "phase_contract": "Phase 4 implements the feasible standalone design layer and documents the external backend boundary for fitting/results."
+      },
+      "rationale": "LIMO is a separate MATLAB toolbox-level workflow. EEGPrep now owns design-matrix preparation while keeping model fitting and result browsing behind explicit external-backend limitations.",
+      "user_facing_surface": [
+        "STUDY LIMO menus",
+        "pop_limo",
+        "std_limo",
+        "std_limodesign"
+      ],
+      "docs_targets": [
+        "docs/source/user_guide/study_workflows.rst",
+        "docs/source/user_guide/installation.rst"
+      ],
+      "test_notes": "Phase 4 tests std_limodesign matrix/export behavior and keeps limitation tests for model/result entry points; placeholder LIMO outputs are not acceptable."
+    },
+    {
+      "row_id": "optional-pac-workflows",
+      "title": "PAC compute, cache, and plot workflows",
+      "area": "optional_toolbox_workflow",
+      "source_paths": [
+        "functions/studyfunc/std_pac.m",
+        "functions/studyfunc/std_pacplot.m",
+        "functions/studyfunc/std_readpac.m",
+        "functions/timefreqfunc/pac.m",
+        "functions/timefreqfunc/pac_cont.m"
+      ],
+      "eegprep_equivalent": [
+        "eegprep.functions.timefreqfunc.pac",
+        "eegprep.functions.timefreqfunc.pac_cont",
+        "eegprep.functions.studyfunc.std_pac",
+        "eegprep.functions.studyfunc.std_pacplot",
+        "eegprep.functions.studyfunc.std_readpac"
+      ],
+      "status": "implemented",
+      "responsible_phase": "phase_4",
+      "phase_issue": "#161 STUDY statistics, PAC, and LIMO-compatible workflows",
+      "rationale": "PAC now has a tested EEGPrep-owned compute/cache/plot path for practical channel workflows. Unsupported PAC bootstrap and latphase variants raise explicit limitations rather than fake results.",
+      "user_facing_surface": [
+        "PAC computation",
+        "STUDY PAC plotting",
+        "std_readpac"
+      ],
+      "docs_targets": [
+        "docs/source/user_guide/study_workflows.rst"
+      ],
+      "test_notes": "Focused tests cover pac, pac_cont, std_pac cache writing, std_readpac slicing, std_pacplot replayable commands, and unsupported PAC statistics boundaries."
+    },
+    {
+      "row_id": "optional-fieldtrip-study-neighbors",
+      "title": "FieldTrip-style STUDY neighbor, interpolation, and dipole cluster workflows",
+      "area": "optional_toolbox_workflow",
+      "source_paths": [
+        "functions/studyfunc/std_dipoleclusters.m",
+        "functions/studyfunc/std_dipplot.m",
+        "functions/studyfunc/std_interp.m",
+        "functions/studyfunc/std_prepare_neighbors.m"
+      ],
+      "eegprep_equivalent": [
+        "eegprep.functions.studyfunc.std_interp",
+        "eegprep.functions.studyfunc.std_prepare_neighbors",
+        "eegprep.functions.studyfunc.std_dipplot",
+        "eegprep.functions.studyfunc.std_dipoleclusters"
+      ],
+      "status": "partial",
+      "responsible_phase": "phase_4",
+      "phase_issue": "#161 STUDY statistics, PAC, and LIMO-compatible workflows",
+      "rationale": "EEGPrep now owns STUDY channel interpolation and distance-based neighbor/adjacency preparation. STUDY dipole cluster/source plotting remains an explicit DIPFIT/FieldTrip backend boundary coordinated with Phase 3.",
+      "user_facing_surface": [
+        "STUDY interpolation",
+        "STUDY dipole clusters",
+        "neighbor preparation"
+      ],
+      "docs_targets": [
+        "docs/source/user_guide/study_workflows.rst"
+      ],
+      "test_notes": "Focused tests cover neighbor adjacency, STUDY interpolation, and explicit source-workflow limitation paths."
+    },
+    {
+      "row_id": "docs-history-console-migration",
+      "title": "History, console, and EEGLAB command migration tutorial",
+      "area": "documentation",
+      "source_paths": [
+        "tutorial_scripts/eeglab_history.m"
+      ],
+      "eegprep_equivalent": [
+        "docs/source/user_guide/interactive_console.rst",
+        "docs/source/user_guide/eeglab_migration.rst"
+      ],
+      "status": "implemented",
+      "responsible_phase": "phase_7",
+      "phase_issue": "#164 EEGLAB-style Sphinx documentation and tutorials",
+      "rationale": "Phase 7 added the EEGPrep-owned console and migration guides that map EEGLAB command-history habits to eegprep-console, LASTCOM, ALLCOM, GUI session updates, and replayable Python commands.",
+      "user_facing_surface": [
+        "eegprep-console",
+        "history replay"
+      ],
+      "docs_targets": [
+        "docs/source/user_guide/interactive_console.rst",
+        "docs/source/user_guide/eeglab_migration.rst"
+      ],
+      "test_notes": "Covered by the Sphinx docs build, interactive-console examples, GUI/console session docs, and Phase 8 closeout review of shared-session smoke coverage."
+    },
+    {
+      "row_id": "docs-event-processing-tutorials",
+      "title": "Event processing tutorials",
+      "area": "documentation",
+      "source_paths": [
+        "tutorial_scripts/event_processing_single_dataset.m",
+        "tutorial_scripts/event_processing_study.m"
+      ],
+      "eegprep_equivalent": [
+        "docs/source/user_guide/concepts.rst",
+        "docs/source/user_guide/eeglab_migration.rst"
+      ],
+      "status": "implemented",
+      "responsible_phase": "phase_7",
+      "phase_issue": "#164 EEGLAB-style Sphinx documentation and tutorials",
+      "rationale": "Phase 7 added concepts and migration coverage for event latency, urevent, epoch, STUDY event handling, and explicit MATLAB-facing versus Python-indexing boundaries.",
+      "user_facing_surface": [
+        "events",
+        "epochs",
+        "STUDY events"
+      ],
+      "docs_targets": [
+        "docs/source/user_guide/concepts.rst",
+        "docs/source/user_guide/eeglab_migration.rst"
+      ],
+      "test_notes": "Covered by the Sphinx docs build and by existing pop_adjustevents, epoching, STUDY trialinfo, and migration-guide examples referenced from the manual."
+    },
+    {
+      "row_id": "docs-study-tutorials",
+      "title": "STUDY creation, ERP, and group workflow tutorials",
+      "area": "documentation",
+      "source_paths": [
+        "tutorial_scripts/plot_study_erp.mlx",
+        "tutorial_scripts/simple_study_pipeline.m",
+        "tutorial_scripts/simple_study_pipeline_octave.m",
+        "tutorial_scripts/study_script.m"
+      ],
+      "eegprep_equivalent": [
+        "docs/source/user_guide/study_workflows.rst"
+      ],
+      "status": "implemented",
+      "responsible_phase": "phase_7",
+      "phase_issue": "#164 EEGLAB-style Sphinx documentation and tutorials",
+      "rationale": "Phase 7 expanded STUDY documentation into task-oriented GUI, console, scripting, cache, ERP, PAC, clustering, and limitation guidance based on completed Phase 4 behavior.",
+      "user_facing_surface": [
+        "STUDY",
+        "group workflows",
+        "ERP"
+      ],
+      "docs_targets": [
+        "docs/source/user_guide/study_workflows.rst"
+      ],
+      "test_notes": "Covered by the Sphinx docs build, STUDY workflow examples, and existing STUDY cache/design/PAC tests that anchor the documented behavior."
+    },
+    {
+      "row_id": "docs-source-reconstruction-tutorials",
+      "title": "Source reconstruction tutorials",
+      "area": "documentation",
+      "source_paths": [
+        "tutorial_scripts/source_reconstruction_advanced.mlx",
+        "tutorial_scripts/source_reconstruction_custom_mri.m",
+        "tutorial_scripts/source_reconstruction_eeg.mlx"
+      ],
+      "eegprep_equivalent": [
+        "docs/source/user_guide/study_workflows.rst",
+        "docs/source/user_guide/plugins.rst"
+      ],
+      "status": "implemented",
+      "responsible_phase": "phase_7",
+      "phase_issue": "#164 EEGLAB-style Sphinx documentation and tutorials",
+      "rationale": "Phase 7 documented the implemented dataset-level DIPFIT spherical workflows and the explicit MRI/BEM, AFNI atlas clipping, LORETA, FieldTrip, and STUDY source-statistics backend boundaries defined by Phase 3.",
+      "user_facing_surface": [
+        "DIPFIT",
+        "source reconstruction"
+      ],
+      "docs_targets": [
+        "docs/source/user_guide/study_workflows.rst",
+        "docs/source/user_guide/plugins.rst"
+      ],
+      "test_notes": "Covered by the Sphinx docs build, DIPFIT workflow docs, plugins guide, and existing DIPFIT implementation and limitation-path tests."
+    },
+    {
+      "row_id": "docs-time-frequency-and-movie-tutorials",
+      "title": "Time-frequency and EEG movie tutorials",
+      "area": "documentation",
+      "source_paths": [
+        "tutorial_scripts/make_eeg_movie.m",
+        "tutorial_scripts/time_freq_all_elec.mlx"
+      ],
+      "eegprep_equivalent": [
+        "docs/source/user_guide/preprocessing_pipeline.rst",
+        "docs/source/user_guide/visual_parity.rst"
+      ],
+      "status": "implemented",
+      "responsible_phase": "phase_7",
+      "phase_issue": "#164 EEGLAB-style Sphinx documentation and tutorials",
+      "rationale": "Phase 7 documented the supported preprocessing and time-frequency-adjacent workflow surfaces while keeping EEG movie and visual parity capture behavior as explicit tooling or future-work boundaries.",
+      "user_facing_surface": [
+        "time-frequency analysis",
+        "visualization tutorials"
+      ],
+      "docs_targets": [
+        "docs/source/user_guide/preprocessing_pipeline.rst",
+        "docs/source/user_guide/visual_parity.rst"
+      ],
+      "test_notes": "Covered by the Sphinx docs build, preprocessing tutorial examples, visual parity tooling docs, and existing time-frequency/core parity test coverage."
+    },
+    {
+      "row_id": "docs-bids-face-experiment-tutorial",
+      "title": "BIDS face-experiment tutorial",
+      "area": "documentation",
+      "source_paths": [
+        "tutorial_scripts/bids_process_face_experiment.mlx"
+      ],
+      "eegprep_equivalent": [
+        "docs/source/user_guide/bids_workflow.rst"
+      ],
+      "status": "implemented",
+      "responsible_phase": "phase_7",
+      "phase_issue": "#164 EEGLAB-style Sphinx documentation and tutorials",
+      "rationale": "Phase 7 added a standalone BIDS workflow tutorial covering EEGLAB .set/.fdt export, BIDS file listing, sidecar-aware loading, batch preprocessing, derivative loading, and GUI/console menu flow.",
+      "user_facing_surface": [
+        "BIDS workflow",
+        "batch preprocessing"
+      ],
+      "docs_targets": [
+        "docs/source/user_guide/bids_workflow.rst",
+        "docs/source/examples/index.rst"
+      ],
+      "test_notes": "Covered by the Sphinx docs build, BIDS workflow examples, and existing BIDS import/export/preprocessing tests."
+    }
+  ]
+}

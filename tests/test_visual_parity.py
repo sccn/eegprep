@@ -64,6 +64,10 @@ class VisualParityConfigTests(unittest.TestCase):
         self.assertEqual(cases["pop_firws_dialog"].targets["eeglab"].action, "pop_firws")
         self.assertEqual(cases["pop_firpm_dialog"].targets["eeglab"].action, "pop_firpm")
         self.assertEqual(cases["pop_firma_dialog"].targets["eeglab"].action, "pop_firma")
+        self.assertEqual(cases["pop_kaiserbeta_dialog"].targets["eeglab"].action, "pop_kaiserbeta")
+        self.assertEqual(cases["pop_firwsord_dialog"].targets["eeglab"].action, "pop_firwsord")
+        self.assertEqual(cases["pop_firpmord_dialog"].targets["eeglab"].action, "pop_firpmord")
+        self.assertEqual(cases["pop_xfirws_dialog"].targets["eeglab"].action, "pop_xfirws")
         self.assertEqual(cases["pop_spectopo_channels_dialog"].targets["eeglab"].action, "pop_spectopo:channels")
         self.assertEqual(cases["pop_spectopo_components_dialog"].targets["eeglab"].action, "pop_spectopo:components")
         self.assertEqual(cases["pop_prop_channels_dialog"].targets["eeglab"].action, "pop_prop:channels")
@@ -406,6 +410,39 @@ class VisualParityCaptureTests(unittest.TestCase):
                 override_text = next((tmp_path / case_id / "inputgui_plot_override").glob("inputgui.m")).read_text()
                 self.assertIn("args{6} = 'plot';", override_text)
                 self.assertIn("args = [args {'mode' 'plot'}];", override_text)
+
+    def test_matlab_dialog_capture_generates_firfilt_helper_scripts(self):
+        cases = [
+            ("pop_kaiserbeta_dialog", "pop_kaiserbeta", "pop_kaiserbeta;"),
+            ("pop_firwsord_dialog", "pop_firwsord", "pop_firwsord;"),
+            (
+                "pop_firpmord_dialog",
+                "pop_firpmord",
+                "pop_firpmord([0.2 0.3], [0 1]);",
+            ),
+            ("pop_xfirws_dialog", "pop_xfirws", "pop_xfirws;"),
+        ]
+        for case_id, action, call in cases:
+            with self.subTest(case_id=case_id), tempfile.TemporaryDirectory() as tmpdir:
+                tmp_path = pathlib.Path(tmpdir)
+                case = load_manifest()[case_id]
+
+                def fake_run_subprocess(target_name, output_path, command, env, timeout_seconds):
+                    output_path.write_bytes(base64.b64decode(ONE_PIXEL_PNG))
+                    return CaptureResult(target_name, output_path, command, 0)
+
+                with (
+                    mock.patch("tools.visual_parity.capture.shutil.which", return_value="/usr/common/bin/matlab"),
+                    mock.patch("tools.visual_parity.capture._run_subprocess", side_effect=fake_run_subprocess),
+                ):
+                    results = capture_case(case, "eeglab", output_dir=tmp_path)
+
+                self.assertTrue(results[0].ok)
+                script_text = next((tmp_path / case_id).glob("*.m")).read_text()
+                self.assertIn(f"action = '{action}';", script_text)
+                self.assertIn(call, script_text)
+                self.assertNotIn(f"[EEG, com] = {action}(EEG);", script_text)
+                self.assertIn("capture_simple_pop_dialog", script_text)
 
     def test_matlab_dialog_capture_generates_pop_newset_script(self):
         with tempfile.TemporaryDirectory() as tmpdir:

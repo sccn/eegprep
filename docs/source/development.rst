@@ -185,10 +185,11 @@ show replayable Python input before progress messages or warnings from the same
 action. ``eegh`` presents history newest-first like EEGLAB while
 ``EEGPrepSession.ALLCOM`` remains chronological internally.
 
-Do not fake EEGLAB's one-dataset-in-memory ``option_storedisk`` behavior. If a
-feature cannot truly save/retrieve data from disk in that mode, keep the
-in-memory dataset contract explicit and fail clearly for unsupported storedisk
-paths.
+Do not fake EEGLAB's one-dataset-in-memory ``option_storedisk`` behavior.
+Use ``eeg_store``/``eeg_retrieve`` or ``EEGPrepSession`` so saved non-current
+datasets are represented by explicit offloaded disk handles and rehydrated
+through the shared storage path. Unsaved resident datasets must stay resident
+or fail clearly until the user saves them.
 
 Menu placeholders are machine-readable. Each placeholder action has either a
 target epic phase or an explicit exclusion reason for workflows that cannot be
@@ -263,19 +264,67 @@ examples, options, or resources are needed at runtime, convert them into
 EEGPrep-owned packaged resources instead of reaching into the vendored
 reference tree.
 
+EEGLAB Final Standalone Parity Matrix
+=====================================
+
+The final standalone parity epic uses a second machine-readable matrix at
+``docs/parity/eeglab_final_parity_matrix.json``. It extends the core matrix into
+the remaining product surfaces that are not simple core-function parity rows:
+bundled plugin depth, MATLAB object/storage semantics, optional-toolbox
+workflows, and documentation/tutorial coverage.
+
+Rows group source files into user workflows, but every discovered final-epic
+EEGLAB reference path must be covered exactly once. The validator discovers:
+
+- ``plugins/clean_rawdata``, ``plugins/firfilt``, ``plugins/ICLabel``, and
+  ``plugins/dipfit`` files, excluding vendored third-party MatConvNet and
+  Manopt internals, examples, and tests;
+- ``functions/@eegobj``, ``functions/@memmapdata``, and ``functions/@mmo``;
+- EEGLAB tutorial scripts under ``tutorial_scripts``;
+- selected optional-toolbox workflow rows that point back to the core matrix.
+
+Final matrix statuses are ``implemented``, ``partial``, ``port``,
+``consolidated``, ``stale_skip``, ``matlab_runtime_skip``,
+``optional_dependency``, ``external_plugin``, and ``docs_gap``. Non-skip rows
+must name a responsible Phase 2-8 issue. Skip rows must use
+``responsible_phase: "none"``. ``optional_dependency`` rows must name the
+backend decision, fallback behavior, user-facing message, and phase contract so
+later agents do not silently fake external-toolbox behavior.
+
+Validate the final matrix with:
+
+.. code-block:: bash
+
+   uv run --no-sync python -m tools.eeglab_final_parity_matrix --json
+
+The docs architecture for the final epic is recorded in the matrix metadata and
+in ``.notes/eeglab-final-parity-audit.md``. It should be useful to EEG
+researchers first: describe EEGPrep's standalone Python package, Qt GUI, and
+``eegprep-console`` behavior accurately, and use EEGLAB comparisons only where
+they help users migrate or understand familiar concepts.
+
 Building Documentation
 ======================
 
 Build HTML Documentation
 ------------------------
 
-Navigate to the docs directory and build:
+Sync the docs extra, then build with the same command used by the Phase 7
+acceptance criteria:
+
+.. code-block:: bash
+
+    uv sync --group dev --extra docs
+    uv run --no-sync sphinx-build -b html docs/source docs/_build/html
+
+The ``docs/Makefile`` target remains available for local iteration:
 
 .. code-block:: bash
 
     uv run make -C docs html
 
-The built documentation is in ``docs/build/html/``.
+The direct Sphinx command writes to ``docs/_build/html/``. The Makefile target
+writes to ``docs/build/html/``.
 
 View Documentation Locally
 ---------------------------

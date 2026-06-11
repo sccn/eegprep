@@ -14,10 +14,11 @@ from eegprep.functions.popfunc._plot_utils import numeric_vector, python_literal
 
 
 FIELDTRIP_LIMITATION = (
-    "This DIPFIT workflow requires FieldTrip dipole-fitting/head-model routines "
-    "and model assets that are not bundled in standalone EEGPrep yet. EEGPrep "
-    "can store DIPFIT settings and plot existing dipole models, but cannot run "
-    "FieldTrip fitting, headmodel, leadfield, or LORETA workflows yet."
+    "This DIPFIT workflow requires MRI segmentation, BEM head-model, LORETA, "
+    "or FieldTrip source-analysis routines and assets that are not bundled in "
+    "standalone EEGPrep yet. EEGPrep can run deterministic spherical grid and "
+    "nonlinear dipole fitting, store DIPFIT settings, compute explicit-point "
+    "spherical leadfields, and plot existing dipole models."
 )
 
 

@@ -15,6 +15,7 @@ This section contains the complete API documentation for eegprep. The API is org
    signal_processing
    statistics
    io
+   pop_functions
    extensions
    utils
 
@@ -92,6 +93,8 @@ Artifact Removal
    eegprep.clean_flatlines
    eegprep.clean_drifts
    eegprep.clean_windows
+   eegprep.vis_artifacts
+   eegprep.vis_artifacts_diagnostics
 
 Channel Operations
 ------------------
@@ -113,6 +116,15 @@ Signal Processing
 
    eegprep.pop_resample
    eegprep.pop_eegfiltnew
+   eegprep.pop_firws
+   eegprep.pop_firpm
+   eegprep.pop_firma
+   eegprep.pop_kaiserbeta
+   eegprep.pop_firwsord
+   eegprep.pop_firpmord
+   eegprep.pop_xfirws
+   eegprep.firfiltreport
+   eegprep.plotfresp
    eegprep.eeg_amica
    eegprep.eeg_picard
    eegprep.eeg_runica
@@ -211,8 +223,6 @@ Utilities
    eegprep.eeg_decodechan
    eegprep.eeg_lat2point
    eegprep.eeg_point2lat
-   eegprep.bids_list_eeg_files
-   eegprep.bids_preproc
 
 BIDS Pipeline
 =============
@@ -222,7 +232,6 @@ BIDS Pipeline
 
    eegprep.bids_preproc
    eegprep.bids_list_eeg_files
-   eegprep.pop_load_frombids
    eegprep.pop_importbids
    eegprep.pop_exportbids
 
@@ -241,14 +250,11 @@ for now.
    eegprep.plugin_menu
    eegprep.format_plugin_menu
    eegprep.pop_clean_rawdata
+   eegprep.eeg_icalabelstat
    eegprep.pop_iclabel
    eegprep.pop_icflag
    eegprep.pop_prop_extended
    eegprep.pop_viewprops
-   eegprep.pop_eegfiltnew
-   eegprep.pop_firws
-   eegprep.pop_firpm
-   eegprep.pop_firma
    eegprep.firws
    eegprep.firwsord
    eegprep.pop_dipfit_settings
@@ -283,8 +289,14 @@ them.
    eegprep.ExtensionRegistry
    eegprep.ExtensionRecord
    eegprep.ExtensionStatus
+   eegprep.ExtensionSourceType
+   eegprep.ExtensionCatalog
+   eegprep.ExtensionCatalogEntry
+   eegprep.CatalogSourceType
    eegprep.ExtensionAction
    eegprep.ExtensionPopFunction
+   eegprep.ExtensionMenu
+   eegprep.ExtensionDependency
    eegprep.ExtensionResource
    eegprep.ExtensionLoadError
    eegprep.ExtensionValidationResult
@@ -298,6 +310,9 @@ them.
    eegprep.validate_catalog_entries
    eegprep.validate_catalog_file
    eegprep.validate_extension_spec
+   eegprep.load_extension_catalog
+   eegprep.build_safe_install_commands
+   eegprep.build_safe_update_commands
 
 STUDY Workflows
 ===============
@@ -324,6 +339,7 @@ measure plotting, component preclustering, clustering, and cluster editing.
    eegprep.pop_clustedit
    eegprep.std_addvarlevel
    eegprep.std_builddesignmat
+   eegprep.std_limodesign
    eegprep.std_checkconsist
    eegprep.std_checkdesign
    eegprep.std_combtrialinfo
@@ -348,6 +364,10 @@ measure plotting, component preclustering, clustering, and cluster editing.
    eegprep.std_readpac
    eegprep.std_pac
    eegprep.std_pacplot
+   eegprep.std_prepare_neighbors
+   eegprep.std_interp
+   eegprep.std_dipplot
+   eegprep.std_dipoleclusters
    eegprep.std_checkfiles
    eegprep.std_checkdatasession
    eegprep.std_uniformfiles
@@ -365,7 +385,7 @@ measure plotting, component preclustering, clustering, and cluster editing.
 Configuration
 ==============
 
-.. autosummary::
-   :toctree: generated/
+.. toctree::
+   :maxdepth: 1
 
-   eegprep.EEG_OPTIONS
+   generated/eegprep.EEG_OPTIONS

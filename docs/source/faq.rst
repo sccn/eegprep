@@ -85,18 +85,21 @@ EEGPrep supports multiple formats:
 
 .. code-block:: python
 
-    import eegprep
+    from pathlib import Path
+
+    import mne
+    from eegprep import bids_list_eeg_files, eeg_mne2eeg, pop_load_frombids, pop_loadset
 
     # Load EEGLAB .set file
-    eeg = eegprep.EEGobj.load('data.set')
+    EEG = pop_loadset(Path("sample_data") / "eeglab_data.set")
 
-    # Load from BIDS dataset
-    eeg = eegprep.pop_load_frombids('/path/to/bids', 'sub-001')
+    # Load from a BIDS dataset
+    files = bids_list_eeg_files("/path/to/bids-root", subjects=["001"])
+    EEG = pop_load_frombids(files[0])
 
     # Load from MNE-Python
-    import mne
-    raw = mne.io.read_raw_edf('data.edf')
-    eeg = eegprep.eeg_mne2eeg(raw)
+    raw = mne.io.read_raw_edf("data.edf", preload=True)
+    EEG = eeg_mne2eeg(raw)
 
 What data formats are supported?
 --------------------------------
@@ -117,19 +120,18 @@ Apply preprocessing steps in sequence:
 
 .. code-block:: python
 
-    import eegprep
+    from eegprep import pop_clean_rawdata, pop_eegfiltnew, pop_loadset, pop_resample, pop_saveset
 
     # Load data
-    eeg = eegprep.EEGobj.load('data.set')
+    EEG = pop_loadset("data.set")
 
-    # Apply preprocessing pipeline
-    eeg = eegprep.clean_flatlines(eeg)
-    eeg = eegprep.clean_channels(eeg)
-    eeg = eegprep.clean_artifacts(eeg)
-    eeg = eegprep.clean_drifts(eeg)
+    # Apply preprocessing steps
+    EEG, filter_com = pop_eegfiltnew(EEG, locutoff=1, hicutoff=40, plotfreqz=False, return_com=True)
+    EEG, resample_com = pop_resample(EEG, 128, return_com=True)
+    EEG, clean_com = pop_clean_rawdata(EEG, BurstCriterion=20, return_com=True)
 
     # Save processed data
-    eeg.save('data_processed.set')
+    pop_saveset(EEG, "data_processed.set")
 
 How do I save processed data?
 -----------------------------
@@ -178,20 +180,15 @@ Yes! EEGPrep integrates seamlessly with MNE-Python:
 How do I work with BIDS datasets?
 ---------------------------------
 
-Load and process BIDS data:
+Load and process data, then export a BIDS-style folder:
 
 .. code-block:: python
 
-    import eegprep
+    from eegprep import pop_clean_rawdata, pop_exportbids, pop_loadset
 
-    # Load from BIDS
-    eeg = eegprep.pop_load_frombids('/path/to/bids', 'sub-001', 'ses-01')
-
-    # Process
-    eeg = eegprep.clean_artifacts(eeg)
-
-    # Save back to BIDS
-    eeg.save_bids('/path/to/bids', 'sub-001', 'ses-01')
+    EEG = pop_loadset("data.set")
+    EEG, clean_com = pop_clean_rawdata(EEG, BurstCriterion=20, return_com=True)
+    pop_exportbids(EEG, "/path/to/bids-export", subject="001", task="rest")
 
 Performance FAQ
 ===============
@@ -419,7 +416,7 @@ BIDS (Brain Imaging Data Structure) is a standard for organizing neuroimaging da
 - Easy sharing
 - Automated processing
 
-Learn more: `BIDS Documentation <https://bids-standard.github.io/>`_
+Learn more: `BIDS Specification <https://bids-specification.readthedocs.io/en/stable/>`_
 
 How do I convert data to BIDS?
 ------------------------------
@@ -428,10 +425,10 @@ Use the BIDS converter:
 
 .. code-block:: python
 
-    import eegprep
+    from eegprep import pop_exportbids, pop_loadset
 
-    eeg = eegprep.EEGobj.load('data.set')
-    eeg.save_bids('/path/to/bids', 'sub-001', 'ses-01')
+    EEG = pop_loadset("data.set")
+    pop_exportbids(EEG, "/path/to/bids-export", subject="001", task="rest")
 
 What's the difference between .set and .fdt files?
 --------------------------------------------------

@@ -52,7 +52,7 @@ def pop_iclabel_dialog_spec() -> DialogSpec:
         eeglab_source="plugins/ICLabel/pop_iclabel.m",
         geometry=((1,), (1,)),
         size=(356, 199),
-        help_text="pophelp('pop_iclabel')",
+        show_help_button=False,
         controls=(
             ControlSpec("text", "Select which icversion of ICLabel to use:"),
             ControlSpec("popupmenu", "Default (recommended)|Lite|Beta", tag="icversion", value=1),

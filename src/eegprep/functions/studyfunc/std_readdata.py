@@ -118,25 +118,40 @@ def std_readpac(
     ALLEEG: list[dict[str, Any]] | None = None,
     *,
     channels: Any = None,
+    channels1: Any = None,
+    channels2: Any = None,
     clusters: Any = None,
+    clusters1: Any = None,
+    clusters2: Any = None,
     components: Any = None,
+    design: int | None = None,
     timerange: Any = None,
     freqrange: Any = None,
+    condition: Any = None,
+    onepersubj: Any = None,
+    forceread: Any = None,
+    recompute: Any = None,
     **kwargs: Any,
 ) -> tuple[dict[str, Any], list[np.ndarray], np.ndarray, np.ndarray]:
     """Read EEGPrep-owned cached STUDY PAC data when present."""
-    _ = ALLEEG
+    _ = ALLEEG, design, condition, onepersubj, forceread, recompute
     if kwargs:
         unsupported = ", ".join(sorted(kwargs))
         raise ValueError(f"Unknown std_readpac option(s): {unsupported}")
     if components is not None:
         raise ValueError("std_readpac does not yet support component selection for PAC caches")
     study = ensure_study(STUDY)
+    if channels is None:
+        channels = channels1
+    if clusters is None:
+        clusters = clusters1
     if channels is not None:
         groups = _channel_groups(study, channels)
+        secondary = channels2
     else:
         cluster_index = _component_cluster_index(study, clusters)
         groups = [cluster_list(study)[cluster_index - 1]]
+        secondary = clusters2
     missing = [group for group in groups if "pacdata" not in group]
     if missing:
         raise NotImplementedError(
@@ -151,7 +166,7 @@ def std_readpac(
     freq_mask = _range_mask(freqs, freqrange)
     return (
         study,
-        [_slice_pac_cache(group, freq_mask, time_mask) for group in groups],
+        [_slice_pac_cache(group, freq_mask, time_mask, secondary) for group in groups],
         times[time_mask],
         freqs[freq_mask],
     )
@@ -329,13 +344,47 @@ def _slice_measure_data(
     return values[..., freq_mask, :][..., time_mask], x_axis[time_mask], y_axis[freq_mask]
 
 
-def _slice_pac_cache(group: dict[str, Any], freq_mask: np.ndarray, time_mask: np.ndarray) -> np.ndarray:
+def _slice_pac_cache(
+    group: dict[str, Any], freq_mask: np.ndarray, time_mask: np.ndarray, secondary: Any = None
+) -> np.ndarray:
     values = np.asarray(group["pacdata"], dtype=float)
     if values.ndim < 2:
         raise ValueError("PAC cache must have frequency and time axes")
     if values.shape[-2] != freq_mask.size or values.shape[-1] != time_mask.size:
         raise ValueError("PAC cache shape must end with pacfreqs and pactimes axes")
-    return values[..., freq_mask, :][..., time_mask]
+    sliced = values[..., freq_mask, :][..., time_mask]
+    positions = _pac_secondary_positions(group, secondary)
+    if positions is None:
+        return sliced
+    if sliced.ndim < 4:
+        if positions.size == 1:
+            return sliced
+        raise ValueError("PAC cache does not have a secondary channel/component axis")
+    return np.take(sliced, positions, axis=-3)
+
+
+def _pac_secondary_positions(group: dict[str, Any], secondary: Any) -> np.ndarray | None:
+    if secondary is None or (isinstance(secondary, str) and secondary.lower() in {"all", "channels"}):
+        return None
+    requested = numeric_vector(secondary, dtype=int)
+    if requested.size == 0:
+        return None
+    axis = numeric_vector(group.get("pacchannels2"), dtype=int)
+    if axis.size == 0:
+        axis = np.arange(1, requested.size + 1, dtype=int)
+    positions = []
+    missing = []
+    for value in requested.astype(int).tolist():
+        matches = np.where(axis == value)[0]
+        if matches.size:
+            positions.append(int(matches[0]))
+        else:
+            missing.append(value)
+    if missing:
+        available = ", ".join(str(value) for value in axis.tolist()) or "none"
+        requested_text = ", ".join(str(value) for value in missing)
+        raise ValueError(f"PAC secondary channels/components {requested_text} are not cached; available: {available}")
+    return np.asarray(positions, dtype=int)
 
 
 def _range_mask(axis: np.ndarray, bounds: Any) -> np.ndarray:

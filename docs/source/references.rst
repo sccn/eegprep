@@ -156,13 +156,11 @@ Forums and Communities
 
 **GitHub**
 
-- `EEGPrep Issues <https://github.com/NeuroTechX/eegprep/issues>`_ - Report bugs and ask questions
-- `EEGPrep Discussions <https://github.com/NeuroTechX/eegprep/discussions>`_ - Community discussions
+- `EEGPrep Issues <https://github.com/sccn/eegprep/issues>`_ - Report bugs and ask questions
 
-**NeuroTalk**
+**EEG Community Lists**
 
-- `NeuroTalk Forums <https://www.neurotalk.org/>`_ - Neuroscience discussion forums
-- EEG and neuroimaging discussions
+- `EEGLAB mailing list <https://sccn.ucsd.edu/mailman/listinfo/eeglablist>`_ - EEG and neuroimaging discussions
 
 **Stack Overflow**
 
@@ -199,16 +197,16 @@ If you use EEGPrep in your research, please cite it as:
       title={EEGPrep: A comprehensive Python EEG preprocessing pipeline},
       author={EEGPrep Contributors},
       year={2024},
-      url={https://github.com/NeuroTechX/eegprep}
+      url={https://github.com/sccn/eegprep}
     }
 
 **APA Format**:
 
-EEGPrep Contributors. (2024). EEGPrep: A comprehensive Python EEG preprocessing pipeline. Retrieved from https://github.com/NeuroTechX/eegprep
+EEGPrep Contributors. (2024). EEGPrep: A comprehensive Python EEG preprocessing pipeline. Retrieved from https://github.com/sccn/eegprep
 
 **Chicago Format**:
 
-EEGPrep Contributors. "EEGPrep: A comprehensive Python EEG preprocessing pipeline." Accessed 2024. https://github.com/NeuroTechX/eegprep.
+EEGPrep Contributors. "EEGPrep: A comprehensive Python EEG preprocessing pipeline." Accessed 2024. https://github.com/sccn/eegprep.
 
 Citing Dependencies
 -------------------
@@ -265,14 +263,14 @@ Acknowledgments
 Contributors
 ------------
 
-EEGPrep is developed and maintained by the NeuroTechX community. We thank all contributors who have helped improve the project through code contributions, bug reports, and feedback.
+EEGPrep is developed and maintained by SCCN contributors and the EEG research community. We thank all contributors who have helped improve the project through code contributions, bug reports, and feedback.
 
 Funding
 -------
 
 EEGPrep development has been supported by:
 
-- NeuroTechX community
+- SCCN and EEG community contributors
 - Open-source software initiatives
 - Academic institutions
 
@@ -298,7 +296,7 @@ Getting Help with References
 
 - Check the :doc:`user_guide/index` for implementation details
 - Review :doc:`examples/index` for practical examples
-- Search `GitHub Issues <https://github.com/NeuroTechX/eegprep/issues>`_ for related discussions
+- Search `GitHub Issues <https://github.com/sccn/eegprep/issues>`_ for related discussions
 - Contact the maintainers for citation questions
 
 For more information about EEG analysis methods, see the :doc:`glossary` for terminology definitions.

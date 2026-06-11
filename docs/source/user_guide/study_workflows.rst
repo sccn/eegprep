@@ -8,6 +8,33 @@ EEGPrep includes standalone STUDY/session surfaces for common group-level
 workflows. These APIs mirror EEGLAB's STUDY-facing names while storing cached
 measure data in EEGPrep-owned JSON-safe structures.
 
+GUI Plus Console Flow
+=====================
+
+Load two or more datasets, then use ``File > Create study > Using all loaded
+datasets``. ``eegprep-console`` will show ``STUDY`` and ``CURRENTSTUDY`` update
+immediately. Continue with ``Study > Precompute channel measures`` and
+``Study > Plot channel measures`` when the selected datasets have compatible
+metadata and shapes.
+
+The same workflow in Python can reuse the sample epoched ICA dataset:
+
+.. code-block:: python
+
+   from pathlib import Path
+   from eegprep import pop_loadset, pop_precomp, pop_study
+
+   ALLEEG = [
+       pop_loadset(Path("sample_data") / "eeglab_data_epochs_ica.set"),
+       pop_loadset(Path("sample_data") / "eeglab_data_epochs_ica.set"),
+   ]
+   for index, EEG in enumerate(ALLEEG, start=1):
+       EEG["subject"] = f"S{index:02d}"
+       EEG["condition"] = "tutorial"
+
+   STUDY, ALLEEG, com = pop_study(None, ALLEEG, name="Tutorial study", return_com=True)
+   STUDY, ALLEEG, com = pop_precomp(STUDY, ALLEEG, "channels", erp="on", return_com=True)
+
 Implemented Workflows
 =====================
 
@@ -126,6 +153,47 @@ Precluster and cluster ICA components:
    STUDY, com = pop_clust(STUDY, ALLEEG, clus_num=4, random_state=0, return_com=True)
    STUDY, com, fig = pop_clustedit(STUDY, ALLEEG, action="plot", return_com=True)
 
+DIPFIT Source Localization
+==========================
+
+EEGPrep includes standalone DIPFIT-compatible spherical workflows for ICA
+component source localization. Configure DIPFIT metadata first, then run a
+coarse grid search, nonlinear refinement, and dipole plotting:
+
+.. code-block:: python
+
+   from eegprep.plugins.dipfit.pop_dipfit_settings import pop_dipfit_settings
+   from eegprep.plugins.dipfit.pop_dipfit_gridsearch import pop_dipfit_gridsearch
+   from eegprep.plugins.dipfit.pop_dipfit_nonlinear import pop_dipfit_nonlinear
+   from eegprep.plugins.dipfit.pop_dipplot import pop_dipplot
+
+   EEG, com = pop_dipfit_settings(EEG, model="standardBESA", return_com=True)
+   EEG, com = pop_dipfit_gridsearch(
+       EEG,
+       [1],
+       [-40, -20, 0, 20, 40],
+       [-40, -20, 0, 20, 40],
+       [20, 40, 60],
+       40,
+       return_com=True,
+   )
+   EEG, com = pop_dipfit_nonlinear(EEG, component=1, return_com=True)
+   figures, com = pop_dipplot(EEG, [1], summary="on", projlines="on", return_com=True)
+
+The spherical backend fits an average-referenced leadfield, stores
+``posxyz``, ``momxyz``, ``rv``, ``diffmap``, ``sourcepot``, and ``datapot`` in
+``EEG.dipfit.model``, and keeps command history replayable from
+``eegprep-console``. ``pop_multifit`` chains grid search, nonlinear fitting,
+RV rejection, optional outside-head removal, and optional dipole plotting.
+The deprecated EEGLAB aliases ``pop_dipfit_batch`` and ``pop_dipfit_manual``
+remain available for script compatibility.
+
+``pop_leadfield`` can compute spherical leadfields for explicit source points
+provided as an ``Nx3`` array, ``{"pos": ...}`` dictionary, or simple file with
+source positions. MRI-derived BEM headmodel creation, AFNI atlas clipping, and
+LORETA source analysis remain explicit backend limits and fail clearly rather
+than producing placeholder source-localization outputs.
+
 Session Synchronization
 =======================
 
@@ -144,19 +212,40 @@ parity checks focus on deterministic metadata and cluster structure; exact
 numeric clustering labels can differ because EEGPrep uses deterministic
 in-package k-means helpers rather than MATLAB's Statistics Toolbox.
 
+PAC, LIMO Design, And Neighbors
+===============================
+
+EEGPrep includes a standalone PAC backend for practical channel workflows.
+Use ``pac`` for epoched phase-amplitude coupling grids and ``pac_cont`` for
+continuous sliding-window PAC. At the STUDY level, ``std_pac`` computes
+EEGPrep-owned ``pacdata``, ``pactimes``, and ``pacfreqs`` caches on
+``STUDY.changrp``. ``std_readpac`` slices those caches and ``std_pacplot``
+plots their magnitude using the same cache-reading contract as the other
+STUDY measure plots.
+
+The feasible in-package LIMO-compatible layer is design preparation:
+``std_limodesign`` builds categorical and continuous matrices from
+``pop_listfactors`` output and trial metadata, including interaction and split
+regressor descriptions. It can write ``categorical_variables.txt`` and
+``continuous_variables.txt`` for downstream analysis code.
+
+``std_prepare_neighbors`` creates a distance-based FieldTrip-like neighbor
+list and a LIMO-compatible channel adjacency matrix from loaded channel
+locations. ``std_interp`` interpolates requested missing channels across
+STUDY datasets using EEGPrep's existing channel interpolation backend.
+
 Limitations
 ===========
 
-EEGPrep does not silently emulate EEGLAB's external LIMO toolbox. The
-``pop_limo``, ``pop_limoresults``, ``std_limo*``, and ``std_readfilelimo``
-entry points raise clear ``NotImplementedError`` messages.
+EEGPrep does not silently emulate EEGLAB's external LIMO toolbox. ``pop_limo``,
+``pop_limoresults``, ``std_limo``, ``std_limoresults``, and
+``std_readfilelimo`` raise clear ``NotImplementedError`` messages rather than
+creating placeholder LIMO results.
 
-Core EEGPrep also does not implement standalone phase-amplitude coupling
-analysis. The ``pac``, ``pac_cont``, ``std_pac``, and ``std_pacplot`` entry
-points raise clear ``NotImplementedError`` messages until there is a tested
-EEGPrep-owned PAC backend. ``std_readpac`` only returns data when an explicit
-EEGPrep-owned ``pacdata`` cache is present; external PAC or LIMO result files
-are not interpreted as if they were native EEGPrep outputs.
+STUDY-level DIPFIT/FieldTrip source workflows such as ``std_dipplot`` and
+``std_dipoleclusters`` remain explicit source-backend boundaries. Use the
+dedicated EEGPrep DIPFIT helpers for dataset-level source workflows and keep
+STUDY source statistics behind a tested backend contract.
 
 See the :ref:`interactive_console` guide for mixed GUI plus console usage and
 the :ref:`gui_help_menus` guide for menu inventory behavior.

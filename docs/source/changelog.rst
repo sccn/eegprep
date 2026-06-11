@@ -9,7 +9,7 @@ All notable changes to EEGPrep are documented in this file. The format is based 
 Version History
 ===============
 
-For a complete list of releases and detailed release notes, see the `GitHub Releases <https://github.com/NeuroTechX/eegprep/releases>`_ page.
+For a complete list of releases and detailed release notes, see the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 
 Release Notes
 =============
@@ -173,7 +173,7 @@ To set up a development environment, see the :doc:`development` guide.
 Reporting Issues
 ================
 
-Found a bug? Please report it on `GitHub Issues <https://github.com/NeuroTechX/eegprep/issues>`_.
+Found a bug? Please report it on `GitHub Issues <https://github.com/sccn/eegprep/issues>`_.
 
 When reporting issues, please include:
 
@@ -186,7 +186,8 @@ When reporting issues, please include:
 Feature Requests
 ================
 
-Have an idea for a new feature? Open a `GitHub Discussion <https://github.com/NeuroTechX/eegprep/discussions>`_ or create an issue with the "enhancement" label.
+Have an idea for a new feature? Create an issue with the "enhancement" label on
+`GitHub Issues <https://github.com/sccn/eegprep/issues>`_.
 
 When requesting features, please include:
 
@@ -264,7 +265,7 @@ Special thanks to:
 
 - EEGLAB developers for pioneering EEG preprocessing
 - MNE-Python team for excellent neuroimaging tools
-- NeuroTechX community for support and contributions
+- SCCN and the EEG research community for support and contributions
 
 Getting Help
 ============
@@ -273,6 +274,6 @@ Getting Help
 - Review the :doc:`user_guide/index` for usage information
 - See :doc:`examples/index` for practical examples
 - Check :doc:`development` for development setup
-- Open an issue on `GitHub <https://github.com/NeuroTechX/eegprep/issues>`_
+- Open an issue on `GitHub <https://github.com/sccn/eegprep/issues>`_
 
-For more information, visit the `GitHub Repository <https://github.com/NeuroTechX/eegprep>`_.
+For more information, visit the `GitHub Repository <https://github.com/sccn/eegprep>`_.

@@ -6,11 +6,11 @@ from copy import deepcopy
 from typing import Any
 
 import numpy as np
-from scipy.signal import fftconvolve, filtfilt, firls, firwin, lfilter, minimum_phase, remez
+from scipy.signal import filtfilt, firls, firwin, lfilter, minimum_phase, remez
 from scipy.signal import windows as signal_windows
 
-from eegprep.functions.miscfunc.misc import round_mat
-from eegprep.functions.popfunc._file_io import events_to_records
+from eegprep.plugins.firfilt.findboundaries import findboundaries
+from eegprep.plugins.firfilt.fir_filterdcpadded import fir_filterdcpadded
 from eegprep.plugins.firfilt.firws import firws
 
 
@@ -318,26 +318,9 @@ def resolve_channel_indices(
 
 
 def _filter_segment(b: np.ndarray, segment: np.ndarray, *, causal: bool, usefftfilt: bool) -> np.ndarray:
-    group_delay = (b.size - 1) // 2
-    if group_delay == 0:
-        return segment.copy()
     if segment.shape[1] == 0:
         return segment.copy()
-    # EEGLAB fir_filterdcpadded uses two group delays of DC padding even for
-    # minimum-phase causal FIR filters, then trims that padding after filtering.
-    start_width = 2 * group_delay if causal else group_delay
-    start_pad = np.repeat(segment[:, :1], start_width, axis=1)
-    end_pad = (
-        np.empty((segment.shape[0], 0), dtype=segment.dtype)
-        if causal
-        else np.repeat(segment[:, -1:], group_delay, axis=1)
-    )
-    padded = np.concatenate([start_pad, segment, end_pad], axis=1)
-    if usefftfilt:
-        filtered = fftconvolve(padded, b.reshape(1, -1), mode="full", axes=1)[:, : padded.shape[1]]
-    else:
-        filtered = lfilter(b, [1.0], padded, axis=1)
-    return filtered[:, 2 * group_delay :]
+    return fir_filterdcpadded(b, 1, segment.T, causal=causal, usefftfilt=usefftfilt).T
 
 
 def _legacy_filter_segment(b: np.ndarray, segment: np.ndarray, *, causal: bool) -> np.ndarray:
@@ -347,17 +330,9 @@ def _legacy_filter_segment(b: np.ndarray, segment: np.ndarray, *, causal: bool) 
 
 
 def _continuous_bounds(EEG: dict[str, Any], pnts: int) -> np.ndarray:
-    starts = [0]
-    for event in events_to_records(EEG.get("event")):
-        event_type = event.get("type")
-        is_boundary = str(event_type).startswith("boundary") if isinstance(event_type, str) else event_type == -99
-        if not is_boundary:
-            continue
-        try:
-            latency = float(event.get("latency"))
-        except (TypeError, ValueError):
-            continue
-        start = int(round_mat(latency + 0.5)) - 1
+    starts = []
+    for latency in findboundaries(EEG.get("event")):
+        start = int(latency) - 1
         if 0 <= start <= pnts:
             starts.append(start)
     starts.append(pnts)

@@ -82,12 +82,20 @@ These examples show package-level imports and interactive-session patterns:
 Running the Examples
 ====================
 
-All examples are designed to be self-contained and executable:
+All gallery examples are designed to be self-contained and executable:
 
 1. **Synthetic Data** - Examples use synthetic data to avoid external dependencies
 2. **No Setup Required** - All necessary imports and data generation are included
 3. **Visualization** - Examples generate plots showing preprocessing effects
 4. **Documentation** - Each example includes detailed comments explaining each step
+
+The user guide tutorials use the repository's checked-in ``sample_data`` files
+when the workflow is easier to understand with tutorial datasets:
+
+- :ref:`quickstart`
+- :ref:`gui_tutorials`
+- :ref:`scripting_workflows`
+- :ref:`mne_integration`
 
 Example Structure
 =================

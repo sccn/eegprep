@@ -196,8 +196,7 @@ def _find_amica_binary(amica_binary=None):
     1. Explicit amica_binary argument.
     2. AMICA_BINARY environment variable.
     3. Source-tree development binary in src/eegprep/bin/ if present.
-    4. EEGLAB submodule plugins directory.
-    5. System PATH.
+    4. System PATH.
 
     Parameters
     ----------
@@ -244,18 +243,7 @@ def _find_amica_binary(amica_binary=None):
     if os.path.isfile(vendored) and os.access(vendored, os.X_OK):
         return vendored
 
-    # 4. EEGLAB submodule plugins
-    eeglab_dir = os.path.join(PACKAGE_ROOT, 'eeglab')
-    if os.path.isdir(eeglab_dir):
-        plugins_dir = os.path.join(eeglab_dir, 'plugins')
-        if os.path.isdir(plugins_dir):
-            for entry in os.listdir(plugins_dir):
-                if entry.startswith('amica'):
-                    candidate = os.path.join(plugins_dir, entry, binary_name)
-                    if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
-                        return candidate
-
-    # 5. System PATH
+    # 4. System PATH
     found = shutil.which(binary_name)
     if found is not None:
         return found

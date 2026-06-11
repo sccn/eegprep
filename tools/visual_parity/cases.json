@@ -1292,6 +1292,106 @@
       }
     },
     {
+      "id": "pop_kaiserbeta_dialog",
+      "description": "Kaiser beta helper dialog opened from pop_kaiserbeta.",
+      "window_size": [630, 216],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_kaiserbeta"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_kaiserbeta_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_firwsord_dialog",
+      "description": "Windowed-sinc order helper dialog opened from pop_firwsord.",
+      "window_size": [720, 348],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_firwsord"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_firwsord_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_firpmord_dialog",
+      "description": "Parks-McClellan order helper dialog opened from pop_firpmord.",
+      "window_size": [560, 176],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_firpmord"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_firpmord_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pop_xfirws_dialog",
+      "description": "Standalone FIR export dialog opened from pop_xfirws.",
+      "window_size": [1470, 759],
+      "timeout_seconds": 120,
+      "targets": {
+        "eeglab": {
+          "type": "matlab_dialog",
+          "action": "pop_xfirws"
+        },
+        "eegprep": {
+          "type": "command",
+          "action": "pop_xfirws_dialog",
+          "command": [
+            "{python}",
+            "-m",
+            "eegprep.functions.guifunc.visual_capture",
+            "--case",
+            "{case_id}",
+            "--output",
+            "{output}"
+          ]
+        }
+      }
+    },
+    {
       "id": "pop_topoplot_erp_dialog",
       "description": "ERP scalp-map dialog opened from pop_topoplot.",
       "window_size": [650, 383],

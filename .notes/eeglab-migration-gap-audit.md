@@ -128,9 +128,10 @@ Remaining plugin-depth areas:
 - `firfilt`: lower-level helper coverage such as detailed reports, inverse
   order helpers, minimum-phase helpers, frequency-response plotting, and order
   calculator dialogs.
-- `ICLabel` / viewprops: alternate network artifacts, exact MATLAB helper
-  parity for `eeg_icalabelstat`, and any viewprops helper behavior still
-  replaced by EEGPrep-native Qt/Python paths.
+- `ICLabel` / viewprops: Phase #163 closes the standalone default-network,
+  `eeg_icalabelstat`, and native Qt/Python diagnostic-browser surface. The
+  EEGLAB `lite`/`beta` network artifacts remain explicit MATLAB/Octave
+  passthrough choices rather than silently emulated standalone assets.
 - `DIPFIT`: lower-level grid/nonlinear/reject/dipplot helpers, manual/batch
   dialogs, atlas conversion helpers, and private transform utilities.
 
@@ -205,18 +206,35 @@ Avoid these patterns in future migration work:
 
 ## Next Planning Step
 
-The next major migration epic should pick one of the remaining product areas
-above and turn it into a scoped issue tree. The strongest candidates are:
+Epic #157 now turns the remaining product areas above into a scoped issue tree.
+Its Phase 1 contract lives in:
+
+- `.notes/eeglab-final-parity-audit.md`
+- `docs/parity/eeglab_final_parity_matrix.json`
+- `tools/eeglab_final_parity_matrix.py`
+
+The final matrix assigns concrete phase ownership for bundled plugin depth,
+object/storage semantics, optional-toolbox workflows, and docs/tutorial gaps.
+Future phase agents should update that matrix instead of reclassifying product
+scope from this prose audit.
+
+Before the final epic started, the strongest candidates were:
 
 1. Bundled plugin depth, split by plugin family.
 2. Large-dataset storage and memory mapping semantics.
 3. External dependency workflows such as LIMO or advanced DIPFIT.
 4. User documentation/tutorial parity for completed core workflows.
 
-Before any new epic starts, run:
+Before changing core parity rows, run:
 
 ```bash
 uv run --no-sync python -m tools.eeglab_parity_matrix --json
+```
+
+Before changing final epic rows, run:
+
+```bash
+uv run --no-sync python -m tools.eeglab_final_parity_matrix --json
 ```
 
 Then decide whether the work changes the existing matrix rows or belongs to a

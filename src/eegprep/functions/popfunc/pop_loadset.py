@@ -1,9 +1,14 @@
 """EEGLAB dataset loading utilities."""
 
-import scipy.io
-import numpy as np
 import os
+from pathlib import Path
+
+import numpy as np
+import scipy.io
+
+from eegprep.functions.adminfunc.storage import memmap_enabled, memmap_fdt, read_fdt
 from eegprep.functions.popfunc._file_io import normalize_icachansind
+from eegprep.functions.popfunc._pop_utils import parse_key_value_args
 from eegprep.functions.popfunc.pop_loadset_h5 import pop_loadset_h5
 # Allows access using . notation
 # class EEG:
@@ -23,7 +28,7 @@ def loadset(file_path):
     return pop_loadset(file_path)
 
 
-def pop_loadset(file_path=None):
+def pop_loadset(file_path=None, *args, loadmode="all", memmap=None, **kwargs):
     """Load EEGLAB dataset from .set or .mat file.
 
     Parameters
@@ -38,11 +43,9 @@ def pop_loadset(file_path=None):
     """
     from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 
-    if file_path is None:
-        raise ValueError("file_path argument is required")
-
-    if file_path is None:
-        raise ValueError("file_path argument is required")
+    file_path, loadmode, use_memmap = _load_options(file_path, args, kwargs, loadmode, memmap)
+    if loadmode != "all":
+        raise NotImplementedError("pop_loadset currently supports loadmode='all' only; storedisk uses eeg_retrieve().")
 
     def new_check(obj):
         # check if obj is a dictionary and apply recursively the function to each object not changing the struture of the dictionary
@@ -104,6 +107,9 @@ def pop_loadset(file_path=None):
     if 'icachansind' in EEG:
         EEG['icachansind'] = normalize_icachansind(EEG['icachansind'], matlab_one_based=not loaded_with_h5)
 
+    if not loaded_with_h5:
+        _load_sidecar_data(EEG, Path(file_path), use_memmap=use_memmap)
+
     EEG = eeg_checkset(EEG)
     EEG.pop("changes_not_saved", None)
     EEG["saved"] = "justloaded"
@@ -120,6 +126,64 @@ def pop_loadset(file_path=None):
                 EEG['event'][i]['urevent'] = EEG['event'][i]['urevent'] - 1
 
     return EEG
+
+
+def _load_options(file_path, args, kwargs, loadmode, memmap):
+    known_keys = {"filename", "filepath", "loadmode", "memmap", "check", "verbose", "eeg"}
+    if isinstance(file_path, str) and file_path.lower() in known_keys:
+        options = parse_key_value_args((file_path, *args), kwargs, lowercase_keys=True, lowercase_kwargs=True)
+        filename = options.pop("filename", None)
+    else:
+        options = parse_key_value_args(args, kwargs, lowercase_keys=True, lowercase_kwargs=True)
+        filename = file_path
+    filepath = options.pop("filepath", None)
+    loadmode = str(options.pop("loadmode", loadmode) or "all").lower()
+    memmap = options.pop("memmap", memmap)
+    options.pop("check", None)
+    options.pop("verbose", None)
+    if "eeg" in options:
+        eeg = options.pop("eeg")
+        filename = str(Path(str(eeg.get("filepath") or "")) / str(eeg.get("filename") or ""))
+    if options:
+        raise ValueError(f"Unsupported pop_loadset option(s): {', '.join(sorted(options))}")
+    if filename is None:
+        raise ValueError("file_path argument is required")
+    path = Path(os.fspath(filename))
+    if filepath not in {None, ""} and not path.is_absolute():
+        path = Path(os.fspath(filepath)) / path
+    use_memmap = memmap_enabled() if memmap is None else _is_on(memmap)
+    return str(path), loadmode, use_memmap
+
+
+def _load_sidecar_data(EEG, file_path: Path, *, use_memmap: bool) -> None:
+    data_value = EEG.get("data")
+    datfile = _string_value(EEG.get("datfile"))
+    if not datfile and isinstance(data_value, str) and data_value not in {"", "in set file"}:
+        datfile = data_value
+    if not datfile:
+        return
+    datfile_path = Path(datfile)
+    if not datfile_path.is_absolute():
+        datfile_path = file_path.parent / datfile_path.name
+    EEG["datfile"] = datfile_path.name
+    EEG["data"] = memmap_fdt(datfile_path, EEG) if use_memmap else read_fdt(datfile_path, EEG)
+
+
+def _string_value(value):
+    if value is None:
+        return ""
+    if isinstance(value, np.ndarray):
+        if value.size == 0:
+            return ""
+        if value.size == 1:
+            return str(value.reshape(-1)[0])
+    return str(value)
+
+
+def _is_on(value):
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "on", "true", "yes"}
+    return bool(value)
 
 
 def test_pop_loadset():

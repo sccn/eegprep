@@ -77,6 +77,12 @@ To install eegprep from source for development:
 ``uv sync`` creates the project environment, installs EEGPrep in editable mode,
 and uses ``uv.lock`` for reproducible dependency resolution.
 
+To develop or build documentation from source, include the docs extra:
+
+.. code-block:: bash
+
+    uv sync --group dev --extra docs
+
 Optional Dependencies
 =====================
 
@@ -151,7 +157,14 @@ To build the documentation locally:
 
 .. code-block:: bash
 
-    uv sync --extra docs
+    uv sync --group dev --extra docs
+    uv run --no-sync sphinx-build -b html docs/source docs/_build/html
+
+The ``docs/Makefile`` target is also available:
+
+.. code-block:: bash
+
+    uv run --no-sync make -C docs html
 
 All Optional Dependencies
 --------------------------
@@ -285,10 +298,10 @@ Getting Help
 
 If you encounter issues not covered here:
 
-1. Check the `FAQ <faq.rst>`_ section
-2. Review the `Common Issues <common_issues.rst>`_ guide
+1. Check the :doc:`../faq` section
+2. Review the troubleshooting sections in this installation guide and FAQ
 3. Visit the `GitHub Issues <https://github.com/sccn/eegprep/issues>`_ page
-4. Check the `API Documentation <../api/index.rst>`_
+4. Check the :doc:`../api/index`
 
 Next Steps
 ==========

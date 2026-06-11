@@ -1,8 +1,22 @@
 """EEG data saving and loading utilities."""
 
-import scipy.io
-import numpy as np
 import os
+from pathlib import Path
+
+import numpy as np
+import scipy.io
+
+from eegprep.functions.adminfunc.storage import (
+    MemmapData,
+    OffloadedData,
+    dataset_datfile_path,
+    dataset_set_path,
+    memmap_enabled,
+    memmap_fdt,
+    savetwofiles_enabled,
+    write_fdt,
+)
+from eegprep.functions.popfunc._pop_utils import parse_key_value_args
 
 # Allows access using . notation
 # class EEG:
@@ -319,19 +333,27 @@ def _serialize_chaninfo(chaninfo):
     return out
 
 
-def pop_saveset(EEG, file_name):
+def pop_saveset(EEG, file_name=None, *args, **kwargs):
     """Save EEG data to file.
 
     Parameters
     ----------
     EEG : dict
         EEG data.
-    file_name : str
-        File name.
+    file_name : str, optional
+        File name. EEGLAB-style ``filename``/``filepath``/``savemode`` keyword
+        arguments are also accepted.
     """
-    file_name = os.fspath(file_name)
+    file_path, savemode = _save_target(EEG, file_name, args, kwargs)
+    file_name = os.fspath(file_path)
     save_dir = os.path.dirname(file_name) or '.'
     save_name = os.path.basename(file_name)
+    datfile_name = f"{Path(save_name).stem}.fdt"
+    save_two_files = _save_two_files(EEG, savemode)
+    data_value = EEG.get('data', default_empty)
+    if isinstance(data_value, OffloadedData):
+        raise RuntimeError("Cannot save offloaded EEG data; retrieve the dataset before saving it.")
+    mat_data = datfile_name if save_two_files else np.asarray(data_value)
     eeglab_dict = {
         'setname': _string_field(EEG.get('setname', '')),
         'filename': save_name,
@@ -348,7 +370,8 @@ def pop_saveset(EEG, file_name):
         'xmin': float(EEG['xmin']),
         'xmax': float(EEG['xmax']),
         'times': EEG['times'],
-        'data': EEG['data'],
+        'data': mat_data,
+        'datfile': datfile_name if save_two_files else '',
         'icaact': _matlab_empty_if_missing(EEG, 'icaact'),
         'icawinv': _matlab_empty_if_missing(EEG, 'icawinv'),
         'icasphere': _matlab_empty_if_missing(EEG, 'icasphere'),
@@ -464,6 +487,9 @@ def pop_saveset(EEG, file_name):
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
+    if save_two_files:
+        write_fdt(data_value, Path(save_dir) / datfile_name, EEG)
+
     # # Step 4: Save the EEGLAB dataset as a .mat file
     try:
         scipy.io.savemat(file_name, eeglab_dict, appendmat=False)
@@ -476,6 +502,53 @@ def pop_saveset(EEG, file_name):
             if os.path.exists(file_name):
                 os.remove(file_name)
             raise
+    EEG['filename'] = save_name
+    EEG['filepath'] = save_dir
+    EEG['datfile'] = datfile_name if save_two_files else ''
+    EEG['saved'] = 'yes'
+    if save_two_files and (isinstance(data_value, MemmapData) or memmap_enabled()):
+        EEG['data'] = memmap_fdt(Path(save_dir) / datfile_name, EEG)
+    elif not save_two_files and isinstance(data_value, MemmapData):
+        EEG['data'] = np.asarray(data_value).copy()
+    return EEG
+
+
+def _save_target(EEG, file_name, args, kwargs):
+    known_keys = {'filename', 'filepath', 'savemode', 'check', 'version'}
+    if isinstance(file_name, str) and file_name.lower() in known_keys:
+        options = parse_key_value_args((file_name, *args), kwargs, lowercase_keys=True, lowercase_kwargs=True)
+    else:
+        options = parse_key_value_args(args, kwargs, lowercase_keys=True, lowercase_kwargs=True)
+        if file_name is not None:
+            options.setdefault('filename', file_name)
+    unknown = sorted(set(options) - known_keys)
+    if unknown:
+        raise ValueError(f"Unsupported pop_saveset option(s): {', '.join(unknown)}")
+    savemode = str(options.get('savemode') or '').lower()
+    if savemode and savemode not in {'resave', 'onefile', 'twofiles'}:
+        raise ValueError("savemode must be 'resave', 'onefile', or 'twofiles'")
+    filename = options.get('filename')
+    filepath = options.get('filepath')
+    if savemode == 'resave' and filename in {None, ''}:
+        target = dataset_set_path(EEG)
+        if target is None:
+            raise ValueError("savemode='resave' requires EEG filename/filepath metadata")
+        return target, savemode
+    if filename in {None, ''}:
+        raise ValueError("file_name argument is required")
+    path = Path(os.fspath(filename))
+    if filepath not in {None, ''} and not path.is_absolute():
+        path = Path(os.fspath(filepath)) / path.name
+    return path, savemode
+
+
+def _save_two_files(EEG, savemode):
+    if savemode == 'onefile':
+        return False
+    if savemode == 'twofiles':
+        return True
+    datfile = dataset_datfile_path(EEG)
+    return bool(datfile and savemode == 'resave') or savetwofiles_enabled()
 
 
 def test_pop_saveset():

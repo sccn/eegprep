@@ -8,6 +8,8 @@ from contextlib import contextmanager
 import numpy as np
 import os
 
+from eegprep.functions.adminfunc.storage import MemmapData, OffloadedData
+
 logger = logging.getLogger(__name__)
 
 __all__ = ['eeg_checkset', '_eventconsistency', 'strict_mode', 'option_scaleicarms']
@@ -506,6 +508,8 @@ def eeg_checkset(EEG, *checks, load_data=True):
 
         # Special cases for numpy arrays with specific content types
         if isinstance(expected_type, type) and expected_type == np.ndarray:
+            if field == 'data' and isinstance(value, (MemmapData, OffloadedData)):
+                continue
             if not isinstance(value, np.ndarray):
                 logger.warning(
                     f"Field '{field}' is expected to be a numpy array but is of type {type(value).__name__}."

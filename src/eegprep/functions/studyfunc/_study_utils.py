@@ -8,6 +8,7 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc._file_io import channel_labels, json_safe
 from eegprep.functions.popfunc._plot_utils import python_literal
 from eegprep.functions.popfunc._pop_utils import parse_numeric_sequence, parse_text_tokens
@@ -72,6 +73,21 @@ def as_alleeg_list(ALLEEG: Any) -> list[dict[str, Any]]:
     if not isinstance(ALLEEG, list) or not all(isinstance(item, dict) for item in ALLEEG):
         raise TypeError("ALLEEG must be a list of EEG dataset dictionaries")
     return list(ALLEEG)
+
+
+def merged_chanlocs(datasets: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Return unique channel locations across datasets, preserving first-seen order."""
+    merged: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for eeg in datasets:
+        for loc in chanlocs_as_list(eeg.get("chanlocs")):
+            label = str(loc.get("labels") or "")
+            key = label.lower() if label else repr(loc)
+            if key in seen:
+                continue
+            seen.add(key)
+            merged.append(deepcopy(loc))
+    return merged
 
 
 def ensure_study(STUDY: dict[str, Any] | None = None) -> dict[str, Any]:

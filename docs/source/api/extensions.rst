@@ -81,7 +81,7 @@ Author Test Harness
 ``ExtensionTestHarness`` provides reusable assertions for extension authors. It
 checks that a spec validates, menus reference declared actions or ``pop_*``
 functions, help resources exist, lazy targets load, and callable actions or
-``pop_*`` functions return EEGLAB-style ``(EEG, com)`` results when tested by
+``pop_*`` functions return history-aware ``(EEG, com)`` results when tested by
 the author.
 
 Extension Manager and catalog
@@ -127,7 +127,6 @@ API Reference
 =============
 
 .. autosummary::
-   :toctree: generated/
 
    eegprep.CATALOG_SCHEMA_VERSION
    eegprep.CatalogValidationIssue
@@ -167,13 +166,16 @@ API Reference
    eegprep.build_safe_update_commands
 
 .. automodule:: eegprep.extensions
+   :no-index:
    :members:
    :undoc-members:
 
 .. automodule:: eegprep.extension_catalog
+   :no-index:
    :members:
    :undoc-members:
 
 .. automodule:: eegprep.extension_testing
+   :no-index:
    :members:
    :undoc-members:

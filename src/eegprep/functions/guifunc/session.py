@@ -14,6 +14,7 @@ from eegprep.functions.adminfunc.eegh import eegh
 from eegprep.functions.adminfunc.eeg_retrieve import eeg_retrieve
 from eegprep.functions.adminfunc.eeg_store import eeg_store
 from eegprep.functions.adminfunc.pop_delset import pop_delset
+from eegprep.functions.adminfunc.storage import offload_storedisk_datasets
 from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
 
 
@@ -266,6 +267,7 @@ class EEGPrepSession:
             elif not self.ALLEEG:
                 self.CURRENTSET = []
                 self.EEG = eeg_emptyset()
+            offload_storedisk_datasets(self.ALLEEG, set(self.CURRENTSET))
         self.add_history(command, notify=False)
         self.notify_changed()
 
@@ -301,6 +303,7 @@ class EEGPrepSession:
             eeg["saved"] = "yes"
             if 1 <= index <= len(self.ALLEEG):
                 self.ALLEEG[index - 1]["saved"] = "yes"
+        offload_storedisk_datasets(self.ALLEEG, set(self.CURRENTSET))
 
     def menu_statuses(self) -> set[str]:
         """Return EEGLAB-style menu status tokens for the current state."""
