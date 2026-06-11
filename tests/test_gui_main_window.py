@@ -1354,6 +1354,27 @@ class MenuActionDispatcherTests(unittest.TestCase):
         )
         self.assertEqual(session.LASTCOM, "LASTCOM = pop_runscript('/tmp/script.py');")
 
+    def test_file_menu_runscript_clear_currentset_resets_eeg(self):
+        session = EEGPrepSession()
+        session.store_current(_demo_eeg(), new=True)
+        dispatcher = MenuActionDispatcher(session)
+        qt_widgets = _fake_qt_widgets(open_file="/tmp/script.py")
+
+        def fake_runscript(_filename, namespace):
+            namespace["CURRENTSET"] = 0
+            return "LASTCOM = pop_runscript('/tmp/script.py');"
+
+        with (
+            mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets),
+            mock.patch("eegprep.functions.popfunc.pop_runscript.pop_runscript", side_effect=fake_runscript),
+        ):
+            dispatcher.dispatch("pop_runscript")
+
+        self.assertEqual(session.CURRENTSET, [])
+        self.assertIsInstance(session.EEG, dict)
+        self.assertEqual(session.EEG.get("setname"), "")
+        self.assertEqual(session.EEG["data"].size, 0)
+
 
 class QtMainWindowTests(unittest.TestCase):
     def test_gui_main_window_startup_branding_size_and_menu_states(self):

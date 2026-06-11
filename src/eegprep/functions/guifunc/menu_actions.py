@@ -910,16 +910,19 @@ class MenuActionDispatcher:
         }
         command = pop_runscript(filename, namespace)
         self.session.echo_command(command)
-        self.session.apply_workspace_state(
-            eeg=namespace.get("EEG", self.session.EEG),
-            alleeg=namespace.get("ALLEEG", self.session.ALLEEG),
-            currentset=namespace.get("CURRENTSET", self.session.current_set_value()),
-            allcom=namespace.get("ALLCOM", self.session.ALLCOM),
-            lastcom=namespace.get("LASTCOM", self.session.LASTCOM),
-            study=namespace.get("STUDY", self.session.STUDY),
-            currentstudy=namespace.get("CURRENTSTUDY", self.session.CURRENTSTUDY),
-            command=command,
-        )
+        state = {
+            "alleeg": namespace.get("ALLEEG", self.session.ALLEEG),
+            "currentset": namespace.get("CURRENTSET", self.session.current_set_value()),
+            "allcom": namespace.get("ALLCOM", self.session.ALLCOM),
+            "lastcom": namespace.get("LASTCOM", self.session.LASTCOM),
+            "study": namespace.get("STUDY", self.session.STUDY),
+            "currentstudy": namespace.get("CURRENTSTUDY", self.session.CURRENTSTUDY),
+            "command": command,
+        }
+        script_eeg = namespace.get("EEG", self.session.EEG)
+        if script_eeg is not self.session.EEG:
+            state["eeg"] = script_eeg
+        self.session.apply_workspace_state(**state)
         self._refresh()
 
     def _bids_tool_action(self, action: str, parent: Any | None) -> None:
