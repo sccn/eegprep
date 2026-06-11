@@ -52,6 +52,14 @@ class PopHelpAndChanSelTests(unittest.TestCase):
         self.assertIn("resources/help", Path(source_path).as_posix())
         self.assertTrue(source_path.endswith("reref.md"))
 
+    def test_phase_study_pop_help_resources_are_packaged(self):
+        for target in ("pop_addindepvar", "pop_listfactors"):
+            with self.subTest(target=target):
+                text, source_path = pophelp_text(target)
+                self.assertIn(target.upper(), text.upper())
+                self.assertIn("resources/help", Path(source_path).as_posix())
+                self.assertTrue(source_path.endswith(f"{target}.md"))
+
     def test_dialog_help_targets_have_packaged_resources(self):
         interp_eeg = {"data": [], "trials": 1, "chanlocs": [], "chaninfo": {}, "epoch": []}
         specs = (pop_reref_dialog_spec(), pop_interp_dialog_spec(interp_eeg))

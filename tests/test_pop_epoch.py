@@ -9,6 +9,7 @@ MATLAB EEGLAB's pop_epoch function across all tested scenarios.
 import os
 import numpy as np
 import unittest
+import tempfile
 
 import copy
 import eegprep.functions.popfunc.pop_epoch as pop_epoch_module
@@ -16,6 +17,7 @@ import eegprep.functions.popfunc.pop_epoch as pop_epoch_module
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.functions.guifunc.qt import QtDialogRenderer
 from eegprep.functions.popfunc.pop_epoch import pop_epoch, pop_epoch_dialog_spec
+from eegprep.functions.sigprocfunc.floatwrite import floatwrite
 
 
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
@@ -703,17 +705,57 @@ class TestPopEpochEdgeCases(unittest.TestCase):
         # since pop_select would need proper implementation)
         self.assertGreater(len(eeg_out['event']), 3)  # Should have boundary event added
 
-    def test_data_loading_not_implemented(self):
-        """Test that data loading from file raises NotImplementedError"""
-        EEG = {
-            'data': 'filename.dat',  # String instead of array
-            'srate': 100.0,
-            'event': [{'type': 'test', 'latency': 100}],
-            'saved': 'no',
-        }
+    def test_filename_backed_data_is_loaded_for_epoching(self):
+        """Test that pop_epoch loads filename-backed EEG.data arrays."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            data = np.arange(600, dtype=np.float32).reshape(3, 200)
+            data_file = os.path.join(tmpdir, "filename.txt")
+            np.savetxt(data_file, data)
+            EEG = {
+                'data': 'filename.txt',
+                'filepath': tmpdir,
+                'dataformat': 'ascii',
+                'srate': 100.0,
+                'nbchan': 3,
+                'pnts': 200,
+                'trials': 1,
+                'xmin': 0.0,
+                'xmax': 1.99,
+                'event': [{'type': 'test', 'latency': 100}],
+                'saved': 'no',
+            }
 
-        with self.assertRaises(NotImplementedError):
-            pop_epoch(EEG, 'test', [-0.1, 0.1])
+            eeg_out, indices = pop_epoch(EEG, 'test', [-0.1, 0.1])
+
+        self.assertEqual(indices, [0])
+        self.assertEqual(eeg_out['data'].shape, (3, 20))
+        np.testing.assert_allclose(eeg_out['data'][:, 0], data[:, 89])
+
+    def test_filename_backed_fdt_data_uses_eeglab_column_order(self):
+        """Test that filename-backed .fdt data preserves EEGLAB sample order."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            data = np.arange(600, dtype=np.float32).reshape(3, 200)
+            data_file = os.path.join(tmpdir, "filename.fdt")
+            floatwrite(data, data_file, "ieee-le")
+            EEG = {
+                'data': 'filename.fdt',
+                'filepath': tmpdir,
+                'dataformat': 'float32le',
+                'srate': 100.0,
+                'nbchan': 3,
+                'pnts': 200,
+                'trials': 1,
+                'xmin': 0.0,
+                'xmax': 1.99,
+                'event': [{'type': 'test', 'latency': 100}],
+                'saved': 'no',
+            }
+
+            eeg_out, indices = pop_epoch(EEG, 'test', [-0.1, 0.1])
+
+        self.assertEqual(indices, [0])
+        self.assertEqual(eeg_out['data'].shape, (3, 20))
+        np.testing.assert_allclose(eeg_out['data'][:, 0], data[:, 89])
 
 
 class TestPopEpochGuiAndHistory(unittest.TestCase):

@@ -26,6 +26,7 @@ from eegprep.functions.adminfunc import console as console_module
 from eegprep.functions.adminfunc.console import EEGPrepConsoleWorkspace
 from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher
 from eegprep.functions.guifunc.session import EEGPrepSession
+from eegprep.functions.popfunc.pop_newtimef import pop_newtimef
 
 
 def _demo_eeg(setname: str = "demo"):
@@ -255,6 +256,31 @@ def test_console_pop_precomp_result_updates_shared_study_history():
     assert assigned_alleeg is session.ALLEEG
     assert session.STUDY["changrp"][0]["erpdata"]
     assert session.ALLCOM[-1].startswith("STUDY, ALLEEG = pop_precomp(")
+
+
+def test_console_pop_importgroupvar_updates_shared_study_workspace():
+    from eegprep.functions.studyfunc.pop_importgroupvar import pop_importgroupvar
+    from eegprep.functions.studyfunc.pop_study import pop_study
+
+    session = EEGPrepSession()
+    eeg = _demo_eeg()
+    eeg["subject"] = "S01"
+    session.store_current(eeg, new=True)
+    session.STUDY, session.ALLEEG = pop_study(None, session.ALLEEG, name="console group var")
+    session.CURRENTSTUDY = 1
+    workspace = EEGPrepConsoleWorkspace(session, exports={"pop_importgroupvar": pop_importgroupvar})
+
+    result = workspace.namespace["pop_importgroupvar"](
+        workspace.namespace["STUDY"],
+        1,
+        variable="age_group",
+        values={"S01": "young"},
+    )
+
+    assert result.study is session.STUDY
+    assert session.STUDY["datasetinfo"][0]["age_group"] == "young"
+    assert session.CURRENTSTUDY == 1
+    assert session.ALLCOM[-1].startswith("STUDY = pop_importgroupvar(")
 
 
 def test_session_history_commands_do_not_echo_to_console():
@@ -721,6 +747,24 @@ def test_bare_pop_call_updates_session_and_returns_compact_unpackable_result():
     refresh.assert_called_once()
 
 
+def test_bare_legacy_pop_averef_alias_updates_session_history():
+    from eegprep.functions.popfunc.pop_averef import pop_averef
+
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(), new=True)
+    workspace = EEGPrepConsoleWorkspace(session, exports={"pop_averef": pop_averef})
+
+    result = workspace.namespace["pop_averef"](workspace.namespace["EEG"])
+    workspace.after_execute("pop_averef(EEG)")
+
+    eeg, command = result
+    assert eeg is session.EEG
+    assert command == "EEG = pop_averef( EEG, 0);"
+    assert session.ALLCOM == ["EEG = pop_averef( EEG, 0);"]
+    np.testing.assert_allclose(session.EEG["data"].mean(axis=0), np.zeros(2), atol=1e-12)
+    workspace.close()
+
+
 def test_pop_call_without_history_command_records_raw_console_source():
     session = EEGPrepSession()
     session.store_current(_demo_eeg(), new=True)
@@ -747,6 +791,42 @@ def test_non_mutating_pop_plot_call_records_history_without_storing_dataset():
     assert result == (["figure"], "pop_topoplot(EEG, typeplot=1, items=[0])")
     assert session.EEG is original_eeg
     assert session.ALLCOM == ["pop_topoplot(EEG, typeplot=1, items=[0])"]
+
+
+def test_timewarped_pop_newtimef_console_call_records_replayable_history():
+    session = EEGPrepSession()
+    eeg = _demo_eeg()
+    eeg["data"] = np.stack([np.tile(np.sin(np.linspace(0, 4 * np.pi, 64)), (3, 1)).T] * 2)
+    eeg["pnts"] = 64
+    eeg["trials"] = 3
+    eeg["srate"] = 100.0
+    eeg["xmin"] = -0.1
+    eeg["xmax"] = 0.53
+    eeg["times"] = np.linspace(-100, 530, 64)
+    session.store_current(eeg, new=True)
+    original_eeg = session.EEG
+    workspace = EEGPrepConsoleWorkspace(session, exports={"pop_newtimef": pop_newtimef})
+    markers = [[0, 200], [10, 210], [-10, 190]]
+
+    result = workspace.namespace["pop_newtimef"](
+        workspace.namespace["EEG"],
+        1,
+        1,
+        [-100, 530],
+        [0],
+        freqs=[5, 20],
+        timesout=8,
+        timewarp=markers,
+        timewarpms=[0, 200],
+        timewarpidx=[1, 2],
+        plot="off",
+    )
+
+    _tf_result, command = result
+    assert session.EEG is original_eeg
+    assert session.ALLCOM == [command]
+    assert "timewarp=" in command
+    ast.parse(command, mode="eval")
 
 
 def test_gui_pop_eegplot_accept_updates_console_namespace_without_duplicate_history():

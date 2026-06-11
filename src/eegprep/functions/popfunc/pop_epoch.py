@@ -6,6 +6,7 @@ import copy
 import logging
 import re
 from collections.abc import Sequence
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -13,6 +14,7 @@ import numpy as np
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
+from eegprep.functions.popfunc._file_io import infer_dataformat, load_data_array
 from eegprep.functions.popfunc._pop_utils import (
     format_history_value,
     parse_key_value_args,
@@ -181,7 +183,8 @@ def _pop_epoch_one(
     if not any("latency" in event for event in events):
         raise ValueError("Absent latency field in event array/structure: must name one of the fields 'latency'")
     if isinstance(EEG.get("data"), str):
-        raise NotImplementedError("Data loading from file not implemented")
+        EEG = copy.deepcopy(EEG)
+        EEG["data"] = _load_filename_backed_data(EEG)
 
     data = np.asarray(EEG.get("data"))
     if data.ndim not in {2, 3}:
@@ -622,3 +625,24 @@ def _is_boundary_event(event: dict[str, Any]) -> bool:
 
 def _is_multiple(EEG: Any) -> bool:
     return isinstance(EEG, list) and len(EEG) > 1
+
+
+def _load_filename_backed_data(EEG: dict[str, Any]) -> np.ndarray:
+    filename = str(EEG.get("data") or "").strip()
+    if not filename:
+        raise ValueError("pop_epoch: filename-backed EEG.data is empty")
+    path = Path(filename).expanduser()
+    if not path.is_absolute():
+        filepath = str(EEG.get("filepath") or "").strip()
+        if filepath:
+            path = Path(filepath).expanduser() / path
+    if not path.exists():
+        raise FileNotFoundError(f"pop_epoch: filename-backed EEG.data file not found: {path}")
+    dataformat = infer_dataformat(path, str(EEG.get("dataformat") or "") or None)
+    data = load_data_array(path, dataformat=dataformat, nbchan=int(EEG.get("nbchan", 0) or 0) or None)
+    array = np.asarray(data)
+    pnts = int(EEG.get("pnts", 0) or 0)
+    trials = int(EEG.get("trials", 1) or 1)
+    if array.ndim == 2 and pnts > 0 and trials > 1 and array.shape[1] == pnts * trials:
+        array = array.reshape(array.shape[0], trials, pnts).transpose(0, 2, 1)
+    return array

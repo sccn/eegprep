@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import csv
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
@@ -14,10 +13,12 @@ from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args
+from eegprep.functions.sigprocfunc.convertlocs import convertlocs
+from eegprep.functions.sigprocfunc.readlocs import readlocs
+from eegprep.functions.sigprocfunc.writelocs import writelocs
 
 
 _CHANNEL_FIELDS = ("labels", "theta", "radius", "X", "Y", "Z", "sph_theta", "sph_phi", "sph_radius", "type", "ref")
-_CHANNEL_FIELD_ALIASES = {field.lower(): field for field in _CHANNEL_FIELDS}
 
 
 def pop_chanedit(
@@ -152,7 +153,7 @@ def pop_chanedit_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
         title="Edit channel info -- pop_chanedit()",
         function_name="pop_chanedit",
         eeglab_source="functions/popfunc/pop_chanedit.m",
-        size=(900, 900),
+        size=(872, 900),
         content_margins=(42, 26, 42, 30),
         row_spacing=5,
         help_text="pophelp('pop_chanedit')",
@@ -309,15 +310,7 @@ def _new_channel_args(value: Any) -> tuple[int, dict[str, Any]]:
 
 def _convert_locations(chanlocs: list[dict[str, Any]], value: Any) -> None:
     mode = _convert_mode(value)
-    for chan in chanlocs:
-        if mode in {"cart2all", "cart2topo", "cart2sph"}:
-            _cart_to_all(chan)
-        elif mode in {"sph2all", "sph2topo", "sph2cart"}:
-            _sph_to_all(chan)
-        elif mode in {"topo2all", "topo2sph", "topo2cart"}:
-            _topo_to_all(chan)
-        else:
-            raise ValueError(f"Unsupported channel conversion: {mode}")
+    chanlocs[:] = convertlocs(chanlocs, mode)
 
 
 def _cart_to_all(chan: dict[str, Any]) -> None:
@@ -339,65 +332,13 @@ def _cart_to_all(chan: dict[str, Any]) -> None:
     )
 
 
-def _sph_to_all(chan: dict[str, Any]) -> None:
-    theta = np.radians(float(chan.get("sph_theta", 0) or 0))
-    phi = np.radians(float(chan.get("sph_phi", 0) or 0))
-    radius = float(chan.get("sph_radius", 1) or 1)
-    chan.update(
-        {
-            "X": radius * np.cos(phi) * np.cos(theta),
-            "Y": radius * np.cos(phi) * np.sin(theta),
-            "Z": radius * np.sin(phi),
-            "theta": _wrap_degrees(-np.degrees(theta)),
-            "radius": 0.5 - np.degrees(phi) / 180.0,
-        }
-    )
-
-
-def _topo_to_all(chan: dict[str, Any]) -> None:
-    sph_theta = _wrap_degrees(-float(chan.get("theta", 0) or 0))
-    sph_phi = (0.5 - float(chan.get("radius", 0.5) or 0.5)) * 180.0
-    chan["sph_theta"] = sph_theta
-    chan["sph_phi"] = sph_phi
-    chan.setdefault("sph_radius", 1.0)
-    _sph_to_all(chan)
-
-
 def _read_chanloc_file(value: Any) -> list[dict[str, Any]]:
     path = Path(value[0] if isinstance(value, (list, tuple)) else value)
-    rows = [_split_chanloc_row(line) for line in path.read_text(encoding="utf-8").splitlines()]
-    rows = [row for row in rows if row]
-    if not rows:
-        return []
-    header = [item.lower() for item in rows[0]]
-    has_header = any(item in {"labels", "theta", "radius", "x", "y", "z"} for item in header)
-    fields = [_canonical_channel_field(item) for item in rows.pop(0)] if has_header else ["labels", "theta", "radius"]
-    chanlocs = []
-    for row in rows:
-        chanlocs.append({field: _parse_field_value(item) for field, item in zip(fields, row)})
-    return chanlocs
-
-
-def _split_chanloc_row(line: str) -> list[str]:
-    text = line.strip()
-    if not text or text.startswith(("%", "#")):
-        return []
-    if "," in text:
-        return [item.strip() for item in next(csv.reader([text], skipinitialspace=True)) if item.strip()]
-    return text.split()
-
-
-def _canonical_channel_field(field: str) -> str:
-    return _CHANNEL_FIELD_ALIASES.get(str(field).lower(), field)
+    return readlocs(path)
 
 
 def _write_chanloc_file(value: Any, chanlocs: list[dict[str, Any]]) -> None:
-    path = Path(value)
-    fields = [field for field in _CHANNEL_FIELDS if any(field in chan for chan in chanlocs)]
-    lines = ["\t".join(fields)]
-    for chan in chanlocs:
-        lines.append("\t".join(str(chan.get(field, "")) for field in fields))
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    writelocs(chanlocs, value, "filetype", "chanedit", "header", "on")
 
 
 def _indices(value: Any, length: int) -> list[int]:

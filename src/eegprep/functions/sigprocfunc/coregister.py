@@ -322,9 +322,7 @@ def estimate_coregistration_transform(
     target_points = target.points[target_indices]
     method = method.lower()
     if method not in {"traditional", "globalrescale"}:
-        raise NotImplementedError(
-            "EEGPrep coregistration supports standalone 'traditional' and 'globalrescale' alignment"
-        )
+        raise ValueError("EEGPrep coregistration supports standalone 'traditional' and 'globalrescale' alignment")
     initial_transform = _initial_transform(source_points, target_points)
     if initial is not None:
         user_initial = _canonicalise_fit_transform(

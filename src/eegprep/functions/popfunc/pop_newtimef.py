@@ -53,7 +53,6 @@ def pop_newtimef(
         tlimits = [float(EEG.get("xmin", 0)) * 1000.0, float(EEG.get("xmax", 0)) * 1000.0]
     if cycles is None:
         cycles = [3, 0.8]
-    _reject_unsupported_options(options)
     data, times = _selected_signal(EEG, typeproc, num, tlimits)
     result = newtimef(data, data.shape[0], [times[0], times[-1]], float(EEG.get("srate", 1) or 1), cycles, **options)
     command = history_command("pop_newtimef", typeproc, _first_index(num), tlimits, cycles, **options)
@@ -95,7 +94,7 @@ def pop_newtimef_dialog_spec(EEG: dict[str, Any], *, typeproc: int = 1) -> Dialo
         ControlSpec("spacer"),
         ControlSpec("text", "Frequency limits [min max] (Hz) or sequence", font_weight="bold"),
         ControlSpec("edit", tag="freqs", value=""),
-        ControlSpec("popupmenu", "|".join(_NFREQS_CHOICES), tag="nfreqs", value=2),
+        ControlSpec("popupmenu", "|".join(_NFREQS_CHOICES), tag="nfreqs", value=1),
         ControlSpec("checkbox", "Log spaced", tag="freqscale", value=False),
         ControlSpec("text", "Baseline limits [min max] (msec) (0->pre-stim.)", font_weight="bold"),
         ControlSpec("edit", tag="baseline", value="0"),
@@ -104,7 +103,17 @@ def pop_newtimef_dialog_spec(EEG: dict[str, Any], *, typeproc: int = 1) -> Dialo
         ControlSpec("text", "Wavelet cycles [min max/fact] or sequence", font_weight="bold"),
         ControlSpec("edit", tag="cycles", value="3 0.8"),
         ControlSpec("checkbox", "Use FFT", tag="fft", value=False),
-        ControlSpec("pushbutton", "tf cycle calc", tag="calcpush", enabled=False),
+        ControlSpec(
+            "pushbutton",
+            "tf cycle calc",
+            tag="calcpush",
+            enabled=True,
+            callback=CallbackSpec(
+                "tf_cycle_calc",
+                params={"button": "calcpush", "freqs": "freqs", "cycles": "cycles", "fft": "fft"},
+                matlab_callback="{@comcalc, EEG.srate, EEG.xmin}",
+            ),
+        ),
         ControlSpec("text", "ERSP color limits [max] (min=-max)", font_weight="bold"),
         ControlSpec("edit", tag="erspmax", value=""),
         ControlSpec("checkbox", "see log power (set)", tag="scale", value=True),
@@ -114,8 +123,8 @@ def pop_newtimef_dialog_spec(EEG: dict[str, Any], *, typeproc: int = 1) -> Dialo
         ControlSpec("checkbox", "plot ITC phase (set)", tag="plotphase", value=False),
         ControlSpec("spacer"),
         ControlSpec("text", "Bootstrap significance level (Ex: 0.01 -> 1%)", font_weight="bold"),
-        ControlSpec("edit", tag="alpha", value="", enabled=False, tooltip="Bootstrap masking is not yet available."),
-        ControlSpec("checkbox", "FDR correct (set)", tag="fdr", value=False, enabled=False),
+        ControlSpec("edit", tag="alpha", value=""),
+        ControlSpec("checkbox", "FDR correct (set)", tag="fdr", value=False),
         ControlSpec("spacer"),
         ControlSpec("text", "Optional newtimef() arguments (see Help)", font_weight="bold"),
         ControlSpec("edit", tag="options", value=""),
@@ -127,8 +136,6 @@ def pop_newtimef_dialog_spec(EEG: dict[str, Any], *, typeproc: int = 1) -> Dialo
             "Plot curve at each frequency",
             tag="plotcurve",
             value=False,
-            enabled=False,
-            tooltip="Curve plots are not yet available in EEGPrep.",
         ),
     ]
     return DialogSpec(
@@ -142,7 +149,27 @@ def pop_newtimef_dialog_spec(EEG: dict[str, Any], *, typeproc: int = 1) -> Dialo
         function_name="pop_newtimef",
         eeglab_source="functions/popfunc/pop_newtimef.m",
         help_text="pophelp('pop_newtimef')",
-        size=(930, 531),
+        size=(1059, 511),
+        row_spacing=4,
+        extra_stylesheet="""
+            QDialog#pop_newtimef QLabel,
+            QDialog#pop_newtimef QCheckBox,
+            QDialog#pop_newtimef QLineEdit,
+            QDialog#pop_newtimef QPushButton,
+            QDialog#pop_newtimef QComboBox {
+                font-size: 11px;
+            }
+            QDialog#pop_newtimef QLineEdit,
+            QDialog#pop_newtimef QPushButton,
+            QDialog#pop_newtimef QComboBox {
+                min-height: 15px;
+                max-height: 15px;
+            }
+            QDialog#pop_newtimef QCheckBox::indicator {
+                width: 11px;
+                height: 11px;
+            }
+        """,
     )
 
 
@@ -162,6 +189,8 @@ def _run_gui(EEG: dict[str, Any], *, typeproc: int, renderer: Any | None = None)
     alpha = numeric_vector(result.get("alpha", []))
     if alpha.size:
         options["alpha"] = float(alpha[0])
+    if bool(result.get("fdr", False)):
+        options["mcorrect"] = "fdr"
     if bool(result.get("freqscale", False)):
         options["freqscale"] = "log"
     if not bool(result.get("scale", True)):
@@ -175,7 +204,7 @@ def _run_gui(EEG: dict[str, Any], *, typeproc: int, renderer: Any | None = None)
     _add_popup_options(
         options,
         int(result.get("ntimesout", 4) or 4),
-        int(result.get("nfreqs", 2) or 2),
+        int(result.get("nfreqs", 1) or 1),
         int(result.get("basenorm", 1) or 1),
         freqs,
     )
@@ -224,33 +253,11 @@ def _add_popup_options(options: dict[str, Any], ntimesout: int, nfreqs: int, bas
         options["trialbase"] = "full"
 
 
-def _reject_unsupported_options(options: dict[str, Any]) -> None:
-    unsupported = {"timewarp", "timewarpms", "timewarpidx", "rboot", "pboot", "erspboot", "itcboot"}
-    present = sorted(key for key in unsupported if key in options)
-    if present:
-        raise NotImplementedError(f"pop_newtimef does not yet support: {', '.join(present)}")
-    alpha = options.pop("alpha", None)
-    if alpha is not None and _first_numeric_option(alpha) != 0:
-        raise NotImplementedError("pop_newtimef bootstrap significance is not yet available")
-    basenorm = options.pop("basenorm", "off")
-    trialbase = options.pop("trialbase", "off")
-    if str(basenorm).lower() == "on" or str(trialbase).lower() != "off":
-        raise NotImplementedError("pop_newtimef baseline normalization modes are not yet available")
-    plottype = options.pop("plottype", "image")
-    if str(plottype).lower() != "image":
-        raise NotImplementedError("pop_newtimef curve plots are not yet available")
-
-
 def _first_index(value: Any) -> int:
     values = numeric_vector(value, dtype=int)
     if values.size != 1:
         raise ValueError("pop_newtimef requires exactly one channel/component number")
     return int(values[0])
-
-
-def _first_numeric_option(value: Any) -> float:
-    values = numeric_vector(value)
-    return float(values[0]) if values.size else 0.0
 
 
 _NTIMES_CHOICES = (

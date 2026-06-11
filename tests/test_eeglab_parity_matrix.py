@@ -1,0 +1,172 @@
+from __future__ import annotations
+
+import copy
+import json
+from pathlib import Path
+
+import pytest
+
+from tools.eeglab_parity_matrix import (
+    VALID_STATUSES,
+    discover_in_scope_eeglab_paths,
+    load_matrix,
+    validate_matrix_file,
+    validate_matrix_payload,
+)
+
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+MATRIX_PATH = REPO_ROOT / "docs/parity/eeglab_core_parity_matrix.json"
+
+
+def test_committed_eeglab_parity_matrix_validates() -> None:
+    _require_eeglab_reference()
+
+    report = validate_matrix_file(MATRIX_PATH, REPO_ROOT)
+
+    assert report.ok, [error.as_text() for error in report.errors]
+    assert report.row_count == report.expected_eeglab_count == len(discover_in_scope_eeglab_paths(REPO_ROOT))
+
+
+def test_parity_matrix_uses_complete_status_taxonomy() -> None:
+    payload = load_matrix(MATRIX_PATH)
+    statuses = {row["status"] for row in payload["rows"]}
+
+    assert tuple(payload["metadata"]["status_taxonomy"]) == VALID_STATUSES
+    assert statuses <= set(VALID_STATUSES)
+
+
+def test_validator_fails_when_in_scope_eeglab_function_is_unclassified() -> None:
+    _require_eeglab_reference()
+
+    payload = load_matrix(MATRIX_PATH)
+    changed = copy.deepcopy(payload)
+    removed = changed["rows"].pop(0)
+
+    report = validate_matrix_payload(changed, REPO_ROOT)
+
+    assert not report.ok
+    assert f"missing classification for {removed['eeglab_path']}" in _messages(report)
+
+
+def test_validator_fails_when_matrix_classifies_out_of_scope_eeglab_path() -> None:
+    _require_eeglab_reference()
+
+    payload = load_matrix(MATRIX_PATH)
+    changed = copy.deepcopy(payload)
+    changed["rows"][0]["eeglab_path"] = "functions/popfunc/not_a_real_function.m"
+    changed["rows"][0]["eeglab_name"] = "not_a_real_function"
+
+    report = validate_matrix_payload(changed, REPO_ROOT)
+
+    assert not report.ok
+    assert "classifies out-of-scope EEGLAB path functions/popfunc/not_a_real_function.m" in _messages(report)
+
+
+def test_validator_reports_missing_eeglab_reference_tree_clearly(tmp_path: Path) -> None:
+    payload = load_matrix(MATRIX_PATH)
+
+    report = validate_matrix_payload(payload, tmp_path)
+
+    messages = _messages(report)
+    assert not report.ok
+    assert "EEGLAB reference tree is missing or empty" in messages
+    assert "classifies out-of-scope EEGLAB path" not in messages
+
+
+def test_explicit_plugin_rows_are_in_scope_when_reference_functions_exist(tmp_path: Path) -> None:
+    function_root = tmp_path / "src/eegprep/eeglab/functions/popfunc"
+    function_root.mkdir(parents=True)
+    (function_root / "pop_dummy.m").write_text("function pop_dummy\nend\n", encoding="utf-8")
+
+    paths = discover_in_scope_eeglab_paths(tmp_path)
+
+    assert "functions/popfunc/pop_dummy.m" in paths
+    assert "plugins/clean_rawdata/clean_asr.m" in paths
+
+
+def test_validator_rejects_incomplete_stale_skip_policy() -> None:
+    _require_eeglab_reference()
+
+    payload = load_matrix(MATRIX_PATH)
+    changed = copy.deepcopy(payload)
+    stale_row = next(row for row in changed["rows"] if row["status"] == "stale_skip")
+    stale_row["stale_policy"]["likely_user_alias"] = True
+
+    report = validate_matrix_payload(changed, REPO_ROOT)
+
+    assert not report.ok
+    assert "stale_policy.likely_user_alias: must be false" in _messages(report)
+
+
+def test_validator_requires_concrete_follow_up_issue_for_actionable_rows() -> None:
+    _require_eeglab_reference()
+
+    payload = load_matrix(MATRIX_PATH)
+    changed = copy.deepcopy(payload)
+    actionable_row = _make_actionable_row(changed)
+    actionable_row["rationale"] = "Deferred to a follow-up after the integrated closeout review."
+    actionable_row["test_notes"] = "Follow-up issue must add parity tests before marking implemented."
+    actionable_row["follow_up_issue"] = ""
+
+    report = validate_matrix_payload(changed, REPO_ROOT)
+
+    assert not report.ok
+    assert "must cite a concrete follow-up issue" in _messages(report)
+
+
+def test_validator_accepts_structured_follow_up_issue_for_actionable_rows() -> None:
+    _require_eeglab_reference()
+
+    payload = load_matrix(MATRIX_PATH)
+    changed = copy.deepcopy(payload)
+    actionable_row = _make_actionable_row(changed)
+    actionable_row["rationale"] = "Deferred to a follow-up after the integrated closeout review."
+    actionable_row["test_notes"] = "Follow-up issue must add parity tests before marking implemented."
+    actionable_row["follow_up_issue"] = "https://github.com/sccn/eegprep/issues/146"
+
+    report = validate_matrix_payload(changed, REPO_ROOT)
+
+    assert report.ok, [error.as_text() for error in report.errors]
+
+
+def test_cli_json_report_is_machine_readable(capsys) -> None:
+    _require_eeglab_reference()
+
+    from tools.eeglab_parity_matrix import main
+
+    exit_code = main([str(MATRIX_PATH), "--json"])
+
+    captured = capsys.readouterr()
+    report = json.loads(captured.out)
+    assert exit_code == 0
+    assert report["ok"] is True
+    assert report["row_count"] == report["expected_eeglab_count"]
+
+
+def test_development_docs_explain_matrix_updates_and_runtime_boundary() -> None:
+    docs = (REPO_ROOT / "docs/source/development.rst").read_text(encoding="utf-8")
+
+    assert "docs/parity/eeglab_core_parity_matrix.json" in docs
+    assert "uv run --no-sync python -m tools.eeglab_parity_matrix" in docs
+    assert "package code under ``src/eegprep`` must not read, import" in docs
+    assert "Use ``stale_skip`` only when every stale-policy field" in docs
+
+
+def _require_eeglab_reference() -> None:
+    if discover_in_scope_eeglab_paths(REPO_ROOT):
+        return
+    pytest.skip("EEGLAB reference tree is not initialized under src/eegprep/eeglab")
+
+
+def _make_actionable_row(payload: dict) -> dict:
+    row = payload["rows"][0]
+    row["status"] = "partial"
+    row["responsible_phase"] = "phase_7"
+    row["eegprep_equivalent"] = row["eegprep_equivalent"] or "eegprep.placeholder"
+    row.pop("stale_policy", None)
+    return row
+
+
+def _messages(report) -> str:
+    return "\n".join(error.as_text() for error in report.errors)

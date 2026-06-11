@@ -47,6 +47,7 @@ def pop_runica(
     parsed = _parse_runica_args(args, kwargs)
     has_programmatic_options = bool(parsed)
     icatype = _normalise_icatype(parsed.pop("icatype", icatype))
+    has_programmatic_options = has_programmatic_options or icatype != "runica"
     options = parsed.pop("options", options)
     reorder = parsed.pop("reorder", reorder)
     chanind = parsed.pop("chanind", chanind)
@@ -163,7 +164,7 @@ def pop_runica_dialog_spec(EEG) -> DialogSpec:
         )
         geometry.extend([(2, 1.5), (2, 0.2), (2, 0.2)])
         geomvert.extend([1, 1, 1])
-        height = 454
+        height = 404
     return DialogSpec(
         title="Run ICA decomposition -- pop_runica()",
         function_name="pop_runica",
@@ -173,6 +174,12 @@ def pop_runica_dialog_spec(EEG) -> DialogSpec:
         size=(824, height),
         help_text="pophelp('pop_runica')",
         controls=tuple(controls),
+        extra_stylesheet="""
+            QDialog#pop_runica QListWidget#dataset {
+                min-height: 50px;
+                max-height: 50px;
+            }
+        """,
     )
 
 

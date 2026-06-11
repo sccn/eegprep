@@ -9,8 +9,21 @@ result, com = pop_comperp(ALLEEG, flag=1, datadd=[1, 2], return_com=True)
 `flag=1` uses channels. `flag=0` uses ICA components. Dataset indices are
 EEGLAB-facing and 1-based.
 
-The Phase 4 implementation wires dataset selection, channel/component subset,
-RMS mode, low-pass display filtering, and plottopo options. Statistical
-highlighting and the full EEGLAB checkbox matrix for all ERP/std display
-variants are intentionally deferred; selecting those unsupported options from
-the GUI raises a clear `NotImplementedError`.
+Supported options include dataset selection, channel/component subset, `mode`
+(`ave` or `rms`), `lowpass`, `title`, `tlim`, `ylim`, `alpha`, and the EEGLAB
+display toggles for added, subtracted, and difference averages, standard
+deviation traces, and per-dataset ERP traces.
+
+Standard-deviation traces follow EEGLAB `pop_comperp` semantics: the spread is
+computed across the selected datasets at each channel/time point, then displayed
+as a compact channel-averaged upper/lower trace in EEGPrep's Python plot.
+
+When `alpha` is supplied, EEGPrep runs deterministic t-tests across datasets
+and highlights significant time regions in the plot. A paired t-test is used
+when both `datadd` and `datsub` are supplied; otherwise added datasets are
+tested against zero. At least two datasets are required for significance
+testing.
+
+Unsupported option names now raise `ValueError` with the unsupported keys
+listed. STUDY-level ERP statistics and EEGLAB plot callbacks that depend on
+MATLAB workspace state remain outside this standalone wrapper.

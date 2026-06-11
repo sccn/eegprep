@@ -101,6 +101,12 @@ Remove bursts of high-amplitude artifacts:
         asr_wlen=0.5           # Window length in seconds
     )
 
+EEGPrep supports the Riemannian ASR calibration variant through
+``clean_asr(eeg, useriemannian="calib")`` and
+``clean_artifacts(eeg, Distance="Riemannian")``. Full Riemannian ASR
+processing is not ported, so direct full-process requests fail clearly instead
+of silently substituting MATLAB-only behavior.
+
 Comprehensive Artifact Removal
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>EEGPrep Core Parity Implementation Notes</title>
+</head>
+<body>
+  <h1>EEGPrep Core Parity Implementation Notes</h1>
+  <h1>Issue #147 Correct MC Random-Symbol Fitting Notes</h1>
+  <p>Issue #147 implements the Ramberg-Schmeiser/random-symbol fitting stack
+  needed by <code>correct_mc</code> while keeping EEGPrep runtime code independent
+  of the vendored EEGLAB checkout.</p>
+  <h2>Issue #147 Design Decisions</h2>
+  <ul>
+    <li>Ported <code>rsfit</code>, <code>rsadjust</code>, <code>rsget</code>,
+    <code>rspdfsolv</code>, and <code>rspfunc</code> as standalone numerical
+    helpers under <code>functions/timefreqfunc</code>, matching the EEGLAB
+    Ramberg-Schmeiser moment and quantile formulas with SciPy optimization and
+    beta/gamma functions already available in the project.</li>
+    <li>Updated <code>correct_mc</code> so neighboring-bin channel correlations
+    are tested with <code>rsfit(correlations, 0)</code>, which is the EEGLAB
+    decision path for the returned p-value array and <code>ncorrect</code>
+    threshold.</li>
+    <li>Ported <code>correctfit</code> as a standalone gamma-parameter correction
+    helper because it belongs to the same EEGLAB distribution-fit stack, but did
+    not add a new <code>bootstat(distfit='on')</code> API in this issue.</li>
+  </ul>
+  <h2>Issue #147 Tradeoffs</h2>
+  <ul>
+    <li>The prior standalone <code>correct_mc</code> input handling, output shape,
+    and time-frequency workflow remain intact; only the temporary t-test
+    p-value estimator was replaced with the EEGLAB RS fit.</li>
+    <li>Degenerate correlation distributions produce <code>NaN</code> p-values
+    inside <code>correct_mc</code> instead of crashing the whole helper, matching
+    the existing EEGPrep behavior for non-estimable cells while the public
+    <code>rsfit</code> helper still fails clearly on invalid distributions.</li>
+    <li><code>rsadjust</code> preserves EEGLAB's <code>C - 2AB + 2A^3</code>
+    sign convention for <code>lambda2</code>. This differs from the
+    standardized third-moment numerator in <code>rspdfsolv</code>, but changing
+    it would break exact parity with <code>functions/timefreqfunc/rsadjust.m</code>.</li>
+    <li><code>bootstat</code> remains EEGPrep's callable bootstrap helper. Its
+    broader EEGLAB <code>distfit</code>/<code>vals</code>/<code>correctp</code>
+    behavior changes the bootstrap API surface and is intentionally left out of
+    this <code>correct_mc</code>-scoped follow-up.</li>
+  </ul>
+  <h2>Issue #147 Verification Notes</h2>
+  <ul>
+    <li>Focused Python tests cover analytic RS helper cases, gamma-parameter
+    <code>correctfit</code> behavior, and <code>correct_mc</code> delegation to
+    <code>rsfit</code>.</li>
+    <li>A skip-aware MATLAB parity test compares deterministic
+    <code>rsfit</code>, <code>rsadjust</code>, <code>rsget</code>,
+    <code>rspdfsolv</code>, and <code>rspfunc</code> outputs when MATLAB Engine
+    and the EEGLAB reference checkout are available.</li>
+  </ul>
+  <h1>EEGPrep Follow-up #149 STUDY Long-Tail Notes</h1>
+  <p>Follow-up #149 closes the non-PAC Phase 6 STUDY helper rows that remained
+  after the core STUDY implementation. The branch implements the standalone
+  selection and trialinfo helpers that EEGPrep workflows can use directly, and
+  classifies the remaining plotting, precompute, MATLAB-runtime, or
+  external-toolbox rows with row-level rationale in the parity matrix.</p>
+  <h2>Follow-up #149 Design Decisions</h2>
+  <ul>
+    <li>Added standalone STUDY helpers for independent-variable matching, dataset and trial selection, trialinfo construction/combination, design consistency checks, subject selection, same-ICA grouping, STUDY subsetting, dataset removal, and stale measure-cache clearing.</li>
+    <li>Preserved EEGLAB-facing 1-based dataset/trial indices at public boundaries while keeping runtime code independent of <code>src/eegprep/eeglab</code>.</li>
+    <li>Integrated the helpers through lazy package exports and Sphinx API/user-guide docs so console users can discover the workflow without adding GUI-only internals.</li>
+    <li>Expanded STUDY cache-field invalidation to include long-tail cached measure and plotting fields that become stale after selection/substudy/removal operations.</li>
+  </ul>
+  <h2>Follow-up #149 Classifications</h2>
+  <ul>
+    <li>Rows already covered by existing STUDY precompute, cache-reader, plotting, clustering, design-matrix, topoplot, statistics, load/save, or PVAF surfaces are marked <code>consolidated</code> with the owning EEGPrep path and focused test notes.</li>
+    <li>Rows tied to MATLAB figure refresh, ERP-image viewers, arbitrary MATLAB custom callbacks, sidecar-file migration, or command-window helper behavior are marked <code>matlab_runtime_skip</code>.</li>
+    <li>Rows requiring DIPFIT, FieldTrip-style neighbours/interpolation, LIMO, MATLAB neural-network tooling, or EEGLAB worker infrastructure are marked <code>external_dependency_skip</code>.</li>
+    <li>PAC rows are intentionally left actionable for <a href="https://github.com/sccn/eegprep/issues/148">#148</a>; this branch only avoids breaking existing PAC cache interfaces.</li>
+  </ul>
+  <h2>Follow-up #149 Verification Notes</h2>
+  <ul>
+    <li>No new GUI dialogs were added or changed, so GUI visual parity captures were not applicable for this branch.</li>
+    <li>Focused coverage uses multi-dataset STUDY fixtures for dataset-level metadata, per-trial event metadata, subject filtering, ICA grouping, dataset removal, cache clearing, and EEGLAB-facing 1-based indices.</li>
+    <li>MATLAB filename-backed trialinfo loading is intentionally rejected in runtime code. EEGPrep users pass loaded trialinfo rows, keeping the package standalone.</li>
+  </ul>
+  <h1>EEGPrep Phase 8 Epic Closeout Notes</h1>
+  <p>Phase 8 reviews the integrated Phases 1-7 surface for closeout evidence
+  rather than adding another feature area. The branch remains scoped to matrix,
+  docs/help, QA evidence, and concrete integration defects.</p>
+  <h2>Phase 8 Closeout Findings</h2>
+  <ul>
+    <li>The committed parity matrix already classified every in-scope EEGLAB file once the EEGLAB reference submodule was initialized, but remaining <code>port</code> and <code>partial</code> rows only named generic follow-up work in <code>test_notes</code>. The closeout now requires actionable rows to cite a concrete issue, and rows point to <a href="https://github.com/sccn/eegprep/issues/146">#146</a>, <a href="https://github.com/sccn/eegprep/issues/147">#147</a>, <a href="https://github.com/sccn/eegprep/issues/148">#148</a>, or <a href="https://github.com/sccn/eegprep/issues/149">#149</a>.</li>
+    <li>Help Markdown coverage was complete for new Phase 2/4/5/7 <code>pop_*</code> wrappers, but Phase 6's public STUDY helpers <code>pop_addindepvar</code> and <code>pop_listfactors</code> were missing packaged help resources. Phase 8 adds those help topics and a focused packaged-help regression check.</li>
+    <li>The docs already explain supported long-tail imports, statistics, time-frequency helpers, STUDY workflows, and legacy wrapper surfaces through the API and user-guide pages added by earlier phases.</li>
+    <li>No Phase 8 runtime GUI implementation was added. The final tree does not commit visual parity artifacts. Phase 4 GUI evidence for <code>pop_newtimef</code> and <code>pop_newcrossf</code> is present in PR review comments rather than committed files; Phase 8 keeps that as evidence documentation because closeout did not change those dialogs.</li>
+  </ul>
+  <h2>Phase 8 Tradeoffs</h2>
+  <ul>
+    <li>Remaining <code>port</code>/<code>partial</code> rows were not force-ported during closeout. They represent follow-up issues whose own scopes require parity-first design, fixtures, or GUI evidence. Closing Phase 8 by naming those issues is safer than adding incomplete analysis math or one-for-one MATLAB GUI internals.</li>
+    <li>The parity matrix validator remains a development tool that may read the EEGLAB submodule. Runtime code under <code>src/eegprep</code> continues to avoid importing from, reading from, or shelling out to <code>src/eegprep/eeglab</code>.</li>
+  </ul>
+  <h2>Phase 8 Verification Notes</h2>
+  <ul>
+    <li><code>uv run --no-sync python -m tools.eeglab_parity_matrix</code>: parity matrix OK, 608 rows cover 608 in-scope EEGLAB functions.</li>
+    <li><code>uv run --no-sync ruff check .</code>, <code>uv run --no-sync ruff format --check .</code>, and <code>uv run --no-sync ty check</code>: passed after syncing optional GUI/torch extras needed by the type checker.</li>
+    <li><code>EEGPREP_SKIP_MATLAB=1 uv run --no-sync pytest -m "not slow"</code>: passed with 1746 tests passing, 233 skipped, and 11 deselected.</li>
+    <li><code>./pre-commit.py --changed-from origin/feature/eeglab-core-parity-completion</code>: passed for the Phase 8 changed-file set.</li>
+    <li>Focused regression coverage passed for parity-matrix validation, packaged help, STUDY metadata, STUDY measures, and STUDY clustering behavior. A sample-data console smoke verified shared <code>EEGPrepSession</code> state across load, bare <code>pop_select</code>, and bare <code>pop_reref</code> calls.</li>
+    <li>MATLAB-marked parity tests were attempted locally. MATLAB CLI exists, but the Python MATLAB engine is unavailable and the marker run stalled after clean_rawdata failures, so the closeout preserves existing skip behavior through the non-slow lane.</li>
+    <li>The OC autoreview helper initially flagged <code>pop_listfactors</code> display-only options as a non-GUI EEGLAB compatibility regression. Phase 8 fixed that by accepting <code>splitreg</code>, <code>contrast</code>, and <code>interaction</code> as non-GUI no-ops, then reran autoreview clean against <code>origin/feature/eeglab-core-parity-completion</code>.</li>
+    <li>Post-PR Claude review comments were addressed by accepting structured <code>follow_up_issue</code> URLs as canonical matrix follow-up evidence and by adding direct channel-cache coverage for the hardened subject-filter error.</li>
+  </ul>
+  <h1>EEGPrep Phase 7 Long-Tail Core Helpers Notes</h1>
+  <p>Phase 7 closes the remaining audit-approved helper and wrapper gaps that
+  were still actionable after Phases 2-6, while classifying obsolete or
+  toolbox-dependent MATLAB surfaces explicitly in the parity matrix.</p>
+  <h2>Phase 7 Design Decisions</h2>
+  <ul>
+    <li>Added standalone EEGLAB-named ICA projection helpers for component activations, back-projection, component variance, and percent variance accounted for. The implementation reuses EEGPrep's existing finite matrix multiplication and rejection activation helpers instead of adding parallel ICA math.</li>
+    <li>Added rejection/statistical compatibility helpers for probability, entropy, thresholding, kurtosis, joint probability, and trend rejection surfaces needed by current menus, tests, and likely user-typed workflows.</li>
+    <li>Added legacy user-facing wrappers for <code>pop_averef</code>, <code>pop_compareerps</code>, <code>pop_findmatchingcomps</code>, <code>pop_fusechanrej</code>, <code>pop_icathresh</code>, <code>pop_rejchanspec</code>, and <code>pop_topochansel</code>. Each wrapper either delegates to an existing modern EEGPrep path or implements the thin compatibility behavior directly with replayable command history.</li>
+    <li>Added packaged help Markdown for every new user-facing <code>pop_*</code> wrapper. No runtime code reads from the vendored EEGLAB checkout.</li>
+    <li>Updated public exports only for user-facing wrappers and helpers that EEGLAB users are likely to import or type directly.</li>
+  </ul>
+  <h2>Phase 7 Deviations</h2>
+  <ul>
+    <li>MATLAB-only GUI shims, figure utilities, demos, install/deployment helpers, and old command-window support functions remain skipped instead of being recreated as stale runtime code.</li>
+    <li>Legacy external ICA backends such as JADE, SOBI, and binary ICA routes remain external-dependency skips unless a modern EEGPrep backend is deliberately added.</li>
+    <li>No new EEGLAB-style GUI dialogs were added. <code>pop_topochansel</code> reuses the existing EEGPrep channel selector for GUI fallback, so visual parity captures were not applicable.</li>
+  </ul>
+  <h2>Phase 7 Follow-Ups</h2>
+  <ul>
+    <li><a href="https://github.com/sccn/eegprep/issues/146">#146</a> tracks time-warped <code>newtimef</code> marker and cycle GUI workflows.</li>
+    <li><a href="https://github.com/sccn/eegprep/issues/147">#147</a> tracks exact <code>correct_mc</code> random-symbol distribution fitting.</li>
+    <li><a href="https://github.com/sccn/eegprep/issues/148">#148</a> tracks phase-amplitude coupling time-frequency helpers.</li>
+    <li><a href="https://github.com/sccn/eegprep/issues/149">#149</a> tracks remaining STUDY plotting, precompute, and selection long-tail helpers.</li>
+  </ul>
+  <h2>Phase 7 Verification Notes</h2>
+  <ul>
+    <li>Focused tests cover wrapper delegation/history, console auto-store behavior for <code>pop_averef</code>, spectral channel rejection, topographic channel selection, ICA helper math, and rejection helper outputs.</li>
+    <li>The parity matrix now has no <code>port</code> or <code>partial</code> rows without either an implementation/classification or a concrete follow-up issue.</li>
+  </ul>
+  <h1>EEGPrep Phase 5 Unsupported User-Facing Options Notes</h1>
+  <p>Phase 5 closes option-level gaps in existing user-facing functions while
+  keeping EEGPrep standalone and explicit about MATLAB-only or toolbox-dependent
+  behavior.</p>
+  <h2>Phase 5 Design Decisions</h2>
+  <ul>
+    <li>Implemented concrete standalone option paths for <code>pop_export</code> expressions, filename-backed <code>pop_epoch</code> data, <code>pop_editset</code> file assignments, <code>pop_comperp</code> display/significance toggles, <code>pop_erpimage</code> event sorting, and <code>headplot_setup</code> preview/original-location options.</li>
+    <li>Kept MATLAB workspace expression evaluation out of runtime code. Users must pass Python values directly or provide concrete file paths so GUI and console history remain replayable.</li>
+    <li>Classified legacy or external-toolbox behavior as explicit non-goals where a standalone path is not maintainable: legacy <code>pop_eegfilt</code> FFT filtering, MATLAB/text <code>pop_runscript</code>, unsupported <code>pop_runica</code> algorithms, FieldTrip-style <code>coregister</code> methods, and full Riemannian ASR processing.</li>
+    <li>Did not change GUI layout or dialog geometry. Existing GUI controls now reach more supported paths, so new visual parity captures were not required for this phase.</li>
+  </ul>
+  <h2>Phase 5 Tradeoffs</h2>
+  <ul>
+    <li><code>pop_export</code> accepts a restricted numeric expression language instead of arbitrary Python evaluation. This covers common scale/log/clip transforms without exposing broad runtime objects through command history.</li>
+    <li><code>clean_artifacts(Distance='Riemannian')</code> uses the supported calibration-time Riemannian ASR estimate. Full Riemannian ASR processing remains unported and raises a clear error when requested directly.</li>
+    <li><code>pop_envtopo</code> remains a one-dataset wrapper because multi-dataset component envelopes need a deliberate group workflow rather than a silent merge of dataset-specific ICA maps.</li>
+    <li>Post-review tightening keeps useful options permissive but explicit: selected safe <code>pop_export</code> keywords are accepted, missing <code>pop_editset</code> paths fail as missing files, <code>dataformat</code> applies to numeric ICA imports, <code>pop_comperp</code> standard-deviation traces use EEGLAB's dataset-axis spread, and unknown ASR distance names are rejected.</li>
+  </ul>
+  <h2>Phase 5 Verification Notes</h2>
+  <ul>
+    <li>Focused tests cover sample-data export, filename-backed epoching, editset history replay, invalid option paths, plot option behavior, clean ASR limitations, and legacy non-goals.</li>
+    <li>MATLAB parity tests remain available behind the existing skip behavior. Local MATLAB parity execution exposed unrelated EEGLAB save-wrapper failures, so Python-focused runs use <code>EEGPREP_SKIP_MATLAB=1</code> where needed.</li>
+  </ul>
+  <h1>EEGPrep Phase 6 STUDY And Group-Level Notes</h1>
+  <p>Phase 6 deepens standalone STUDY workflows without adding runtime dependencies
+  on the vendored EEGLAB tree or pretending external LIMO behavior is available.</p>
+  <h2>Phase 6 Design Decisions</h2>
+  <ul>
+    <li>Added EEGLAB-named STUDY design helpers for factor listing, imported group variables, design matrix construction, design rebuilds, independent-variable snapshots, and one/two-level variable metadata.</li>
+    <li>Kept existing STUDY GUI dialogs unchanged. The new work is backend/API and console-visible, so GUI visual parity artifacts and GUI Agent QA were not applicable for this branch.</li>
+    <li>Extended cached measure readers for ERP, spectrum, ERSP, ITC, topographies, and PAC cache detection. PAC reads only succeed when an EEGPrep-owned <code>pacdata</code> cache exists.</li>
+    <li>Added deterministic clustering helpers that run in package: robust k-means, silhouette-based k selection, affinity-propagation-style exemplar clustering, centroid calculation, and outlier detection.</li>
+    <li>Added standalone consistency helpers for dataset/session checks, uniform channel distribution checks, and cached measure-shape reports.</li>
+    <li>Implemented LIMO entry points as explicit <code>NotImplementedError</code> limitations because EEGPrep does not ship an external LIMO toolbox equivalent.</li>
+  </ul>
+  <h2>Phase 6 Deviations</h2>
+  <ul>
+    <li>EEGLAB sidecar file semantics are represented through EEGPrep-owned JSON/MAT sidecar writing and in-memory <code>STUDY</code> caches. Runtime code does not read from EEGLAB's reference checkout.</li>
+    <li><code>std_addvarlevel</code> stores EEGLAB-like <code>level</code> values of <code>one</code> or <code>two</code>; the previous numeric level list is preserved as <code>levelindex</code> for deterministic downstream use.</li>
+    <li><code>std_apcluster</code> is a deterministic standalone affinity-propagation implementation for EEGPrep workflows, not a dependency on EEGLAB's MATLAB <code>apcluster</code> helper.</li>
+  </ul>
+  <h2>Phase 6 Tradeoffs</h2>
+  <ul>
+    <li>Subject filtering is applied only when the leading cache axis is the loaded dataset axis. Child-cluster component rows are not silently treated as subjects.</li>
+    <li>The LIMO surface is exported so users receive clear limitations from familiar names, but the parity matrix keeps those rows classified as external dependency limitations rather than implemented analysis behavior.</li>
+    <li>GUI dialogs were not broadened in this phase to avoid conflicting with the parallel Phase 5 user-facing option work.</li>
+  </ul>
+  <h2>Phase 6 Open Questions</h2>
+  <ul>
+    <li>A future phase can add native PAC precompute once there is a tested EEGPrep PAC implementation to populate <code>pacdata</code>.</li>
+    <li>If standalone LIMO-equivalent modeling becomes a product goal, it should be scoped as a separate statistics feature rather than hidden inside these limitation functions.</li>
+  </ul>
+  <h2>EEGPrep Phase 2 File Format And Channel-Location Notes</h2>
+  <h3>Design Decisions</h3>
+  <ul>
+    <li>Implemented the useful channel-location core as standalone Python modules under <code>src/eegprep/functions/sigprocfunc</code>: <code>readlocs</code>, <code>writelocs</code>, <code>convertlocs</code>, <code>chancenter</code>, <code>floatread</code>, <code>floatwrite</code>, <code>snapread</code>, and EGI location lookup.</li>
+    <li>Added EEGLAB-style public wrappers under <code>src/eegprep/functions/popfunc</code> for <code>pop_readlocs</code>, <code>pop_writelocs</code>, <code>pop_chancenter</code>, <code>pop_chancoresp</code>, <code>pop_loadbci</code>, and <code>pop_snapread</code>.</li>
+    <li>Kept runtime behavior independent of the vendored EEGLAB tree. Packaged montage files are read explicitly through package resources or user-supplied paths.</li>
+    <li>Reused the new channel-location parser/writer inside <code>pop_chanedit</code> so GUI and command workflows share one implementation.</li>
+    <li>Preserved EEGLAB-facing 1-based channel indices in <code>readchans</code>, <code>elecind</code>, <code>omitchans</code>, and channel-correspondence return values.</li>
+  </ul>
+  <h3>Deviations</h3>
+  <ul>
+    <li>No new channel-location GUI dialogs were added in this phase. The command paths are tested and history-capable; GUI visual parity artifacts were therefore not applicable.</li>
+    <li><code>pop_chancoresp</code> implements the workflow-supporting label and fiducial pairing behavior without recreating EEGLAB's full interactive listbox editor.</li>
+    <li>BCI2000 and SnapMaster support is limited to documented, fixture-testable import surfaces. Obsolete or toolbox-dependent readers are classified in the matrix instead of being ported blindly.</li>
+    <li>Coordinate conversion keeps original Cartesian coordinates stable during <code>cart2all</code> and fills derived fields without avoidable spherical round-trip drift.</li>
+  </ul>
+  <h3>Tradeoffs</h3>
+  <ul>
+    <li>Text location parsing accepts common EEGLAB formats and explicit custom column formats, but it rejects malformed rows early instead of silently padding incompatible files.</li>
+    <li>EGI sensor-location lookup maps 128/129 and 256/257-channel workflows to packaged HydroCel montage resources. Legacy binary EGI RAW import remains consolidated under modern file import routes.</li>
+    <li>Low-level <code>floatread</code> and <code>floatwrite</code> are implemented for EEGLAB-style binary helper coverage, while high-level EEG file export remains owned by existing <code>pop_writeeeg</code> paths.</li>
+  </ul>
+  <h3>Open Questions</h3>
+  <ul>
+    <li>Future GUI parity work may add EEGLAB-style modal dialogs for <code>pop_readlocs</code>, <code>pop_writelocs</code>, <code>pop_chancenter</code>, and <code>pop_chancoresp</code>; this phase intentionally shipped API and console behavior first.</li>
+    <li>Rare historical readers such as Neurodata, old EGI segmented RAW, and BIOSIG conversion shims should stay skipped or consolidated until a documented user workflow and deterministic fixture justify them.</li>
+  </ul>
+  <h2>Core Parity GUI Layout Pass</h2>
+  <ul>
+    <li>Recaptured changed-dialog visual parity cases for <code>pop_chanedit</code>, <code>pop_comperp</code>, <code>pop_editset</code>, <code>pop_eegfilt</code>, <code>pop_envtopo</code>, <code>pop_epoch</code>, <code>pop_erpimage</code>, <code>pop_newcrossf</code>, <code>pop_newtimef</code>, and <code>pop_runica</code>.</li>
+    <li>Tightened EEGPrep dialog widths, heights, margins, row spacing, and compact widget heights so captured window dimensions now match EEGLAB for every changed case, except <code>pop_editset</code> which is one pixel narrower in the capture.</li>
+    <li>Kept <code>pop_editset</code> disabled channel/ICA file controls visible because they mirror EEGLAB's field inventory and make future parity paths discoverable without pretending those assignments are currently enabled.</li>
+    <li>Visual parity artifacts remain under <code>.visual-parity/</code> for PR attachment/review evidence and are not committed as package files.</li>
+  </ul>
+  <h2>Final Review Fixes</h2>
+  <ul>
+    <li>Fixed shared float32 file loading to preserve EEGLAB <code>.fdt</code> column-major channel/time ordering for filename-backed <code>pop_epoch</code> and <code>pop_editset</code> workflows.</li>
+    <li>Added <code>return_com=True</code> history support for <code>pop_addindepvar</code> and <code>pop_listfactors</code> so new public STUDY pop helpers remain usable from the mixed GUI/console workspace.</li>
+    <li>Aligned <code>bootstat</code> <code>basevect</code> handling with EEGLAB's 1-based user-facing indices, kept empty MATLAB parity arguments as numeric <code>[]</code>, and accepted NumPy vector selections in channel-location read/write helpers.</li>
+  </ul>
+  <h2>Follow-up #148 PAC Classification</h2>
+  <ul>
+    <li>Upstream EEGLAB <code>pac.m</code>, <code>pac_cont.m</code>, <code>std_pac.m</code>, <code>std_pacplot.m</code>, and <code>std_readpac.m</code> were inspected from <code>sccn/eeglab</code> <code>develop</code> because the local vendored EEGLAB tree in this worktree is empty.</li>
+    <li>Core PAC computation was intentionally not implemented. The EEGLAB helpers combine time-frequency decomposition, PAC-specific method choices, continuous filtering/statistics, plotting, and <code>.icapac</code>/<code>.datpac</code> sidecar cache semantics. Adding same-name analysis math without a tested EEGPrep-owned PAC backend would be misleading.</li>
+    <li><code>pac</code>, <code>pac_cont</code>, <code>std_pac</code>, and <code>std_pacplot</code> are exposed as familiar names that raise a shared <code>NotImplementedError</code> limitation, matching the existing LIMO limitation pattern.</li>
+    <li><code>std_readpac</code> remains a deterministic standalone cache reader for explicit EEGPrep-owned <code>pacdata</code>, <code>pactimes</code>, and <code>pacfreqs</code> fields and now supports time/frequency range slicing and malformed-cache validation.</li>
+    <li>No GUI changed in this follow-up, so GUI visual parity capture and PR image attachments are not applicable.</li>
+  </ul>
+  <h1>Follow-up #146 Time-Warped newtimef And Cycle Calculator Notes</h1>
+  <h2>Design Decisions</h2>
+  <ul>
+    <li>Ported <code>timewarp</code>, <code>angtimewarp</code>, and <code>tf_cycle_calc</code> as standalone Python helpers under <code>functions/timefreqfunc</code>; runtime code does not read from <code>src/eegprep/eeglab</code>.</li>
+    <li><code>newtimef</code> accepts matrix-form <code>timewarp</code> latencies in milliseconds, optional <code>timewarpms</code> reference latencies, and EEGLAB-facing 1-based <code>timewarpidx</code> marker indices.</li>
+    <li>The complex time-frequency decomposition is warped at the same stage as EEGLAB: after single-trial spectral estimates are computed and before ERSP/ITC averaging or baseline statistics.</li>
+    <li>The <code>pop_newtimef</code> GUI keeps EEGLAB's visible control inventory and routes time-warp options through the existing optional arguments field; explicit time-warp controls were not added because EEGLAB does not expose them in this dialog.</li>
+    <li>The <code>tf cycle calc</code> button now opens a nested EEGPrep dialog matching EEGLAB's cycle calculator controls and writes calculated frequency/cycle vectors back to the parent dialog.</li>
+  </ul>
+  <h2>Deviations And Tradeoffs</h2>
+  <ul>
+    <li>Only matrix-form <code>timewarp</code> is supported. EEGLAB's comments mention cell-form historical variants, but current EEGLAB raises for cell-form <code>timewarp</code>, so EEGPrep rejects non-matrix input clearly.</li>
+    <li>The time-warp helper requires unique integer frame markers after adding the synchronized first frame. This avoids undefined interpolation across repeated output positions.</li>
+    <li><code>tf_cycle_calc</code> returns a dataclass with named arrays instead of MATLAB multiple outputs; the cycles and widths table match EEGLAB numerically.</li>
+  </ul>
+  <h2>Verification Notes</h2>
+  <ul>
+    <li>Focused tests cover direct time-warp matrices, angular wrapping, cycle-width conversion, replayable <code>pop_newtimef</code> time-warp history, console history recording, and dialog inventory.</li>
+    <li>MATLAB parity coverage for <code>timewarp</code>, <code>angtimewarp</code>, and <code>tf_cycle_calc</code> is included behind the existing MATLAB skip behavior.</li>
+  </ul>
+</body>
+</html>

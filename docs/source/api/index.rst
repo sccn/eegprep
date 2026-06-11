@@ -13,6 +13,7 @@ This section contains the complete API documentation for eegprep. The API is org
    preprocessing
    ica
    signal_processing
+   statistics
    io
    extensions
    utils
@@ -137,9 +138,31 @@ Spectral Analysis
    eegprep.eeg_autocorr_fftw
    eegprep.newtimef
    eegprep.newcrossf
+   eegprep.timefreq
+   eegprep.timef
+   eegprep.crossf
+   eegprep.pac
+   eegprep.pac_cont
+   eegprep.timewarp
+   eegprep.angtimewarp
+   eegprep.tf_cycle_calc
+   eegprep.newtimefbaseln
+   eegprep.newtimeftrialbaseln
+   eegprep.newtimefitc
+   eegprep.newtimefpowerunit
+   eegprep.bootstat
+   eegprep.correct_mc
+   eegprep.correctfit
+   eegprep.rsadjust
+   eegprep.rsfit
+   eegprep.rsget
+   eegprep.rspdfsolv
+   eegprep.rspfunc
    eegprep.signalstat
    eegprep.pop_newtimef
    eegprep.pop_newcrossf
+   eegprep.pop_timef
+   eegprep.pop_crossf
    eegprep.pop_signalstat
    eegprep.pop_eventstat
 
@@ -291,15 +314,53 @@ measure plotting, component preclustering, clustering, and cluster editing.
    eegprep.pop_studyerp
    eegprep.pop_loadstudy
    eegprep.pop_savestudy
+   eegprep.pop_addindepvar
+   eegprep.pop_importgroupvar
+   eegprep.pop_listfactors
    eegprep.pop_precomp
    eegprep.pop_chanplot
    eegprep.pop_preclust
    eegprep.pop_clust
    eegprep.pop_clustedit
+   eegprep.std_addvarlevel
+   eegprep.std_builddesignmat
+   eegprep.std_checkconsist
+   eegprep.std_checkdesign
+   eegprep.std_combtrialinfo
+   eegprep.std_findsameica
+   eegprep.std_getindvar
+   eegprep.std_gettrialsind
+   eegprep.std_indvarmatch
+   eegprep.std_maketrialinfo
+   eegprep.std_rmdat
+   eegprep.std_rmalldatafields
+   eegprep.std_rebuilddesign
+   eegprep.std_saveindvar
+   eegprep.std_selectdataset
+   eegprep.std_selsubject
+   eegprep.std_substudy
+   eegprep.std_readdata
+   eegprep.std_readerp
+   eegprep.std_readspec
+   eegprep.std_readersp
+   eegprep.std_readitc
+   eegprep.std_readtopo
+   eegprep.std_readpac
+   eegprep.std_pac
+   eegprep.std_pacplot
+   eegprep.std_checkfiles
+   eegprep.std_checkdatasession
+   eegprep.std_uniformfiles
+   eegprep.std_uniformsetinds
    eegprep.std_erpplot
    eegprep.std_specplot
    eegprep.std_erspplot
    eegprep.std_itcplot
+   eegprep.optimal_kmeans
+   eegprep.robust_kmeans
+   eegprep.std_apcluster
+   eegprep.std_centroid
+   eegprep.std_findoutlierclust
 
 Configuration
 ==============

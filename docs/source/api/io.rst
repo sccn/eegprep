@@ -34,6 +34,44 @@ Generic Import
 
 .. autofunction:: eegprep.pop_importerplab
 
+Channel Locations
+=================
+
+.. autofunction:: eegprep.pop_readlocs
+
+.. autofunction:: eegprep.pop_writelocs
+
+.. autofunction:: eegprep.readlocs
+
+.. autofunction:: eegprep.writelocs
+
+.. autofunction:: eegprep.convertlocs
+
+.. autofunction:: eegprep.chancenter
+
+.. autofunction:: eegprep.pop_chancenter
+
+.. autofunction:: eegprep.pop_chancoresp
+
+.. autofunction:: eegprep.readegilocs
+
+.. autofunction:: eegprep.readelp
+
+.. autofunction:: eegprep.readeetraklocs
+
+Long-Tail Import Helpers
+========================
+
+.. autofunction:: eegprep.pop_loadbci
+
+.. autofunction:: eegprep.pop_snapread
+
+.. autofunction:: eegprep.snapread
+
+.. autofunction:: eegprep.floatread
+
+.. autofunction:: eegprep.floatwrite
+
 EEGLAB Format
 =============
 
@@ -47,6 +85,13 @@ Text And External Export
 ========================
 
 .. autofunction:: eegprep.pop_export
+
+``pop_export`` supports EEGLAB-style text export options including ICA export,
+time/electrode rows, transpose, ERP averaging, precision, separator, and a
+standalone numeric ``expr`` transform applied to the exported array ``x``.
+Most expression function calls are positional; ``clip`` and ``nan_to_num`` also
+accept documented safe numeric keywords. Power operators require small constant
+exponents.
 
 .. autofunction:: eegprep.pop_expica
 
@@ -83,7 +128,37 @@ History And STUDY Files
 
 .. autofunction:: eegprep.std_checkdatasetinfo
 
+.. autofunction:: eegprep.std_checkconsist
+
+.. autofunction:: eegprep.std_checkdesign
+
 .. autofunction:: eegprep.std_makedesign
+
+.. autofunction:: eegprep.std_addvarlevel
+
+.. autofunction:: eegprep.std_builddesignmat
+
+.. autofunction:: eegprep.std_getindvar
+
+.. autofunction:: eegprep.std_indvarmatch
+
+.. autofunction:: eegprep.std_selectdataset
+
+.. autofunction:: eegprep.std_gettrialsind
+
+.. autofunction:: eegprep.std_maketrialinfo
+
+.. autofunction:: eegprep.std_combtrialinfo
+
+.. autofunction:: eegprep.std_rebuilddesign
+
+.. autofunction:: eegprep.std_saveindvar
+
+.. autofunction:: eegprep.pop_addindepvar
+
+.. autofunction:: eegprep.pop_importgroupvar
+
+.. autofunction:: eegprep.pop_listfactors
 
 .. autofunction:: eegprep.std_precomp
 
@@ -95,6 +170,36 @@ History And STUDY Files
 
 .. autofunction:: eegprep.std_readersp
 
+.. autofunction:: eegprep.std_readitc
+
+.. autofunction:: eegprep.std_readtopo
+
+.. autofunction:: eegprep.std_readpac
+
+.. autofunction:: eegprep.std_pac
+
+.. autofunction:: eegprep.std_pacplot
+
+.. autofunction:: eegprep.std_savedat
+
+.. autofunction:: eegprep.std_checkfiles
+
+.. autofunction:: eegprep.std_checkdatasession
+
+.. autofunction:: eegprep.std_uniformfiles
+
+.. autofunction:: eegprep.std_uniformsetinds
+
+.. autofunction:: eegprep.std_findsameica
+
+.. autofunction:: eegprep.std_selsubject
+
+.. autofunction:: eegprep.std_substudy
+
+.. autofunction:: eegprep.std_rmdat
+
+.. autofunction:: eegprep.std_rmalldatafields
+
 .. autofunction:: eegprep.std_erpplot
 
 .. autofunction:: eegprep.std_specplot
@@ -102,6 +207,20 @@ History And STUDY Files
 .. autofunction:: eegprep.std_erspplot
 
 .. autofunction:: eegprep.std_itcplot
+
+.. autofunction:: eegprep.optimal_kmeans
+
+.. autofunction:: eegprep.robust_kmeans
+
+.. autofunction:: eegprep.std_apcluster
+
+.. autofunction:: eegprep.std_centroid
+
+.. autofunction:: eegprep.std_findoutlierclust
+
+.. autofunction:: eegprep.pop_limo
+
+.. autofunction:: eegprep.pop_limoresults
 
 .. autofunction:: eegprep.std_selectdesign
 

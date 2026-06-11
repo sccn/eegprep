@@ -12,6 +12,8 @@ The GUI provides the shared session namespace containing `EEG`, `ALLEEG`,
 `CURRENTSET`, and `STUDY`. After the script runs, EEGPrep copies those names
 back into the session and refreshes the GUI.
 
-MATLAB `.m` and text scripts are recognized but not executed by EEGPrep.
+MATLAB `.m` and text scripts are recognized but not executed by EEGPrep. Use
+Python history scripts for replayable EEGPrep sessions; MATLAB/text history
+replay is a documented non-goal for the standalone runtime.
 
 See also: POP_SAVEH

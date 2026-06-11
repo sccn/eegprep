@@ -19,6 +19,7 @@ from eegprep.functions.popfunc.pop_saveset import pop_saveset
 from eegprep.functions.studyfunc.pop_chanplot import pop_chanplot
 from eegprep.functions.studyfunc.pop_clust import pop_clust
 from eegprep.functions.studyfunc.pop_clustedit import pop_clustedit
+from eegprep.functions.studyfunc.pop_limo import pop_limo
 from eegprep.functions.studyfunc.pop_loadstudy import pop_loadstudy
 from eegprep.functions.studyfunc.pop_preclust import pop_preclust
 from eegprep.functions.studyfunc.pop_precomp import pop_precomp
@@ -180,6 +181,11 @@ def test_study_menu_actions_owned_by_epic_are_implemented():
     assert {action: action_kind(action) for action in study_actions} == {
         action: "implemented" for action in study_actions
     }
+
+
+def test_limo_entry_points_report_standalone_limitation():
+    with pytest.raises(NotImplementedError, match="does not implement EEGLAB's external LIMO toolbox"):
+        pop_limo({}, [])
 
 
 def test_eeglabcompat_requires_external_reference_checkout(monkeypatch, tmp_path):

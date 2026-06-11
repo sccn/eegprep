@@ -34,6 +34,23 @@ else:
         os.makedirs(temp_dir, exist_ok=True)
 
 
+def _prepare_matlab_arg(arg: Any) -> Any:
+    """Return one Python value in the shape expected by MATLAB ``savemat``."""
+    if isinstance(arg, (list, tuple)) and len(arg) == 0:
+        return np.array([], dtype=np.float64)
+    if isinstance(arg, (list, tuple)) and all(isinstance(x, str) for x in arg):
+        return np.array(arg, dtype=object).reshape(1, -1)
+    if isinstance(arg, list) and all(isinstance(x, (int, float, np.integer, np.floating)) for x in arg):
+        return np.array(arg, dtype=np.float64)
+    if isinstance(arg, np.ndarray) and all(isinstance(x, (int, float, np.integer, np.floating)) for x in np.ravel(arg)):
+        return np.array(arg, dtype=np.float64)
+    if isinstance(arg, (int, float, np.integer, np.floating)):
+        return np.array(arg, dtype=np.float64)
+    if isinstance(arg, str):
+        return arg
+    return py2mat(arg)
+
+
 def _resolve_eeglab_root() -> Path:
     """Return an external EEGLAB checkout for MATLAB/Octave parity calls."""
     candidates = []
@@ -142,18 +159,7 @@ class MatlabWrapper:
 
             # convert numerical list arguments to numpy arrays
             for i, arg in enumerate(new_args):
-                if isinstance(arg, list) and all(isinstance(x, (int, float, np.integer, np.floating)) for x in arg):
-                    new_args[i] = np.array(arg, dtype=np.float64)
-                elif isinstance(arg, np.ndarray) and all(
-                    isinstance(x, (int, float, np.integer, np.floating)) for x in np.ravel(arg)
-                ):
-                    new_args[i] = np.array(arg, dtype=np.float64)
-                elif isinstance(arg, (int, float, np.integer, np.floating)):
-                    new_args[i] = np.array(arg, dtype=np.float64)
-                elif isinstance(arg, str):
-                    new_args[i] = arg
-                else:
-                    new_args[i] = py2mat(arg)  # it is unclear if the flatten function of pop_saveset is better here
+                new_args[i] = _prepare_matlab_arg(arg)
 
             try:
                 # temporary files
@@ -162,6 +168,7 @@ class MatlabWrapper:
                 with tempfile.NamedTemporaryFile(dir=temp_dir, suffix='.mat', delete=False) as temp_file2:
                     temp_filename2 = temp_file2.name
                 result_filename = temp_filename1 + '.result.set'
+                result_extra_filename = temp_filename1 + '.result.mat'
                 print(f"temp_filename1: {temp_filename1}")
                 print(f"temp_filename2: {temp_filename2}")
                 print(f"result_filename: {result_filename}")
@@ -192,7 +199,20 @@ class MatlabWrapper:
                 # Functions that return numeric arrays instead of EEG structures
                 numeric_output_functions = ['eeg_autocorr', 'eeg_autocorr_fftw', 'eeg_autocorr_welch']
 
-                if (needs_roundtrip or name == 'pop_loadset') and name not in numeric_output_functions:
+                if (
+                    needs_roundtrip
+                    and nargout is not None
+                    and int(nargout) > 1
+                    and name not in numeric_output_functions
+                ):
+                    self.engine.eval(f"pop_saveset(OUT1, '{result_filename}');", nargout=0)
+                    OUT = pop_loadset(result_filename)
+                    extra_names = ",".join(f"'OUT{i}'" for i in range(2, int(nargout) + 1))
+                    self.engine.eval(f"save('-mat', '{result_extra_filename}', {extra_names});", nargout=0)
+                    extra_data = scipy.io.loadmat(result_extra_filename, squeeze_me=True)
+                    extras = tuple(extra_data[f"OUT{i}"] for i in range(2, int(nargout) + 1))
+                    return (OUT, *extras)
+                elif (needs_roundtrip or name == 'pop_loadset') and name not in numeric_output_functions:
                     # Always round-trip OUT for pop_loadset to get a proper Python EEG dict
                     self.engine.eval(f"pop_saveset(OUT, '{result_filename}');", nargout=0)
                     OUT = pop_loadset(result_filename)
@@ -231,6 +251,8 @@ class MatlabWrapper:
                         os.remove(result_filename)
                     if os.path.exists(result_filename.replace('result.set', 'result.fdt')):
                         os.remove(result_filename.replace('result.set', 'result.fdt'))
+                    if os.path.exists(result_extra_filename):
+                        os.remove(result_extra_filename)
                 except OSError as e:
                     logger.warning(f"Error deleting temporary file(s) in temp dir {temp_dir}: {e}")
             # else:

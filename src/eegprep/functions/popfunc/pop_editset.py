@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import logging
 from collections.abc import Mapping, Sequence
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -12,11 +13,14 @@ import numpy as np
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
+from eegprep.functions.popfunc._file_io import infer_dataformat, load_data_array
 from eegprep.functions.popfunc._pop_utils import (
     format_history_value,
     is_empty_value as _is_empty_value,
     parse_key_value_args,
 )
+from eegprep.functions.sigprocfunc.floatread import floatread
+from eegprep.functions.sigprocfunc.readlocs import readlocs
 
 
 logger = logging.getLogger(__name__)
@@ -25,8 +29,23 @@ _TEXT_FIELDS = ("setname", "subject", "condition", "group", "comments")
 _NUMERIC_FIELDS = ("srate", "pnts", "xmin", "nbchan")
 _OPTIONAL_NUMERIC_FIELDS = ("run", "session")
 _DIRECT_ASSIGNMENT_FIELDS = ("chanlocs", "icaweights", "icasphere", "icachansind", "data")
+_PATH_EXTENSIONS = {
+    ".asc",
+    ".bdf",
+    ".csv",
+    ".dat",
+    ".elp",
+    ".fdt",
+    ".mat",
+    ".npy",
+    ".npz",
+    ".sfp",
+    ".tsv",
+    ".txt",
+}
 _SUPPORTED_FIELDS = {
     "ref",
+    "dataformat",
     *_TEXT_FIELDS,
     *_NUMERIC_FIELDS,
     *_OPTIONAL_NUMERIC_FIELDS,
@@ -72,8 +91,11 @@ def pop_editset(
     old_xmin = float(output.get("xmin", 0.0) or 0.0)
     old_srate = float(output.get("srate", 1.0) or 1.0)
 
+    dataformat = str(options.get("dataformat") or "auto")
     for key, value in options.items():
-        _assign_option(output, key, value)
+        if key == "dataformat":
+            continue
+        _assign_option(output, key, value, dataformat=dataformat)
 
     _normalize_data_dimensions(output, strict_pnts="pnts" in options)
     if "xmin" in options:
@@ -91,7 +113,7 @@ def pop_editset_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
         title="Edit dataset information - pop_editset()",
         function_name="pop_editset",
         eeglab_source="functions/popfunc/pop_editset.m",
-        size=(688, 389),
+        size=(701, 389),
         geometry=(
             (2, 3.38),
             1,
@@ -107,8 +129,8 @@ def pop_editset_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             (1.4, 0.7, 0.8, 0.5),
             (1.4, 0.7, 0.8, 0.5),
         ),
-        content_margins=(36, 28, 36, 13),
-        row_spacing=7,
+        content_margins=(36, 20, 36, 8),
+        row_spacing=2,
         help_text="pop_editset",
         controls=(
             ControlSpec("text", "Dataset name", font_weight="bold"),
@@ -163,7 +185,12 @@ def pop_editset_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             QDialog#pop_editset QLabel,
             QDialog#pop_editset QLineEdit,
             QDialog#pop_editset QPushButton {
-                font-size: 11px;
+                font-size: 10px;
+            }
+            QDialog#pop_editset QLineEdit,
+            QDialog#pop_editset QPushButton {
+                min-height: 14px;
+                max-height: 14px;
             }
         """,
     )
@@ -190,7 +217,7 @@ def _changed_options_from_gui(EEG: dict[str, Any], result: Mapping[str, Any]) ->
     return options
 
 
-def _assign_option(output: dict[str, Any], key: str, value: Any) -> None:
+def _assign_option(output: dict[str, Any], key: str, value: Any, *, dataformat: str = "auto") -> None:
     if key in _TEXT_FIELDS:
         output[key] = "" if value is None else str(value)
         return
@@ -219,24 +246,44 @@ def _assign_option(output: dict[str, Any], key: str, value: Any) -> None:
         _assign_chanlocs(output, value)
         return
     if key in {"icaweights", "icasphere"}:
-        _assign_ica_matrix(output, key, value)
+        _assign_ica_matrix(output, key, value, dataformat=dataformat)
         return
     if key == "icachansind":
+        if isinstance(value, (str, Path)) and str(value).strip() != "[]":
+            path = _existing_path(value)
+            if path is not None:
+                output[key] = _as_int_array(_load_array_path(path, dataformat=dataformat))
+                return
+            if _looks_like_path(value):
+                raise FileNotFoundError(f"pop_editset icachansind file not found: {value}")
+            raise ValueError(
+                "pop_editset cannot evaluate MATLAB workspace expressions for icachansind; "
+                "pass Python indices directly or provide a numeric file path."
+            )
         output[key] = _as_int_array(value)
         return
     if key == "data":
-        _assign_data(output, value)
+        _assign_data(output, value, dataformat=dataformat)
 
 
 def _assign_chanlocs(output: dict[str, Any], value: Any) -> None:
     if _is_empty_value(value):
         output["chanlocs"] = []
         return
-    if isinstance(value, str):
-        if value.strip() == "[]":
+    if isinstance(value, (str, Path)):
+        if str(value).strip() == "[]":
             output["chanlocs"] = []
             return
-        raise NotImplementedError("pop_editset chanlocs file/workspace expressions are handled by pop_chanedit.")
+        path = _existing_path(value)
+        if path is None:
+            if _looks_like_path(value):
+                raise FileNotFoundError(f"pop_editset channel-location file not found: {value}")
+            raise ValueError(
+                "pop_editset cannot evaluate MATLAB workspace expressions for chanlocs; "
+                "pass channel-location structures directly or provide a file path."
+            )
+        output["chanlocs"] = readlocs(path)
+        return
     if _looks_like_chanloc_package(value):
         package = list(value)
         output["chanlocs"] = copy.deepcopy(package[0])
@@ -248,14 +295,22 @@ def _assign_chanlocs(output: dict[str, Any], value: Any) -> None:
     output["chanlocs"] = copy.deepcopy(value)
 
 
-def _assign_ica_matrix(output: dict[str, Any], key: str, value: Any) -> None:
+def _assign_ica_matrix(output: dict[str, Any], key: str, value: Any, *, dataformat: str = "auto") -> None:
     if _is_empty_value(value):
         output[key] = np.array([])
-    elif isinstance(value, str):
-        if value.strip() == "[]":
+    elif isinstance(value, (str, Path)):
+        if str(value).strip() == "[]":
             output[key] = np.array([])
         else:
-            raise NotImplementedError(f"pop_editset {key} file/workspace expressions are not yet supported.")
+            path = _existing_path(value)
+            if path is None:
+                if _looks_like_path(value):
+                    raise FileNotFoundError(f"pop_editset {key} file not found: {value}")
+                raise ValueError(
+                    f"pop_editset cannot evaluate MATLAB workspace expressions for {key}; "
+                    "pass a Python array directly or provide a matrix file path."
+                )
+            output[key] = _load_matrix_file(path, output, dataformat=dataformat)
     else:
         output[key] = np.asarray(value)
     output["icawinv"] = np.array([])
@@ -268,12 +323,24 @@ def _assign_ica_matrix(output: dict[str, Any], key: str, value: Any) -> None:
         output["icasphere"] = np.eye(np.asarray(output["icaweights"]).shape[1])
 
 
-def _assign_data(output: dict[str, Any], value: Any) -> None:
-    if isinstance(value, str):
-        raise NotImplementedError(
-            "pop_editset data file/workspace expressions are not supported; use pop_importdata instead."
+def _assign_data(output: dict[str, Any], value: Any, *, dataformat: str = "auto") -> None:
+    if isinstance(value, (str, Path)):
+        path = _existing_path(value)
+        if path is None:
+            if _looks_like_path(value):
+                raise FileNotFoundError(f"pop_editset data file not found: {value}")
+            raise ValueError(
+                "pop_editset cannot evaluate MATLAB workspace expressions for data; "
+                "pass a Python array directly or provide a data file path."
+            )
+        data = load_data_array(
+            path,
+            dataformat=infer_dataformat(path, None if dataformat == "auto" else dataformat),
+            nbchan=int(output.get("nbchan", 0) or 0) or None,
         )
-    data = np.asarray(value)
+    else:
+        data = value
+    data = np.asarray(data)
     if data.ndim == 1:
         data = data.reshape(1, -1)
     if data.ndim not in {2, 3}:
@@ -340,6 +407,8 @@ def _continuous_to_epoched(data: np.ndarray, pnts: int, trials: int) -> np.ndarr
 
 
 def _adjust_event_latencies_for_xmin_change(output: dict[str, Any], old_xmin: float, old_srate: float) -> None:
+    if int(output.get("trials", 1) or 1) <= 1:
+        return
     new_xmin = float(output.get("xmin", old_xmin) or 0.0)
     delta_samples = (new_xmin - old_xmin) * old_srate
     if not delta_samples:
@@ -398,10 +467,65 @@ def _history_value(value: Any) -> str:
     if isinstance(value, np.ndarray) and value.dtype == object:
         value = value.tolist()
     if isinstance(value, Mapping):
-        raise NotImplementedError("pop_editset history cannot serialize mapping values yet")
+        return _history_mapping(value)
     if isinstance(value, (list, tuple)) and any(isinstance(item, Mapping) for item in value):
-        raise NotImplementedError("pop_editset history cannot serialize channel-location structures yet")
+        return "[" + ", ".join(_history_value(item) for item in value) + "]"
     return format_history_value(value)
+
+
+def _history_mapping(value: Mapping[str, Any]) -> str:
+    pieces = []
+    for key, item in value.items():
+        pieces.append(f"{format_history_value(str(key))}: {_history_value(item)}")
+    return "{" + ", ".join(pieces) + "}"
+
+
+def _existing_path(value: Any) -> Path | None:
+    if not isinstance(value, (str, Path)):
+        return None
+    text = str(value).strip()
+    if not text or text == "[]":
+        return None
+    path = Path(text).expanduser()
+    return path if path.exists() else None
+
+
+def _looks_like_path(value: Any) -> bool:
+    if isinstance(value, Path):
+        return True
+    if not isinstance(value, str):
+        return False
+    text = str(value).strip()
+    if not text or text == "[]":
+        return False
+    return any(separator in text for separator in ("/", "\\")) or Path(text).suffix.lower() in _PATH_EXTENSIONS
+
+
+def _load_array_path(path: Path, *, dataformat: str = "auto") -> np.ndarray:
+    return load_data_array(path, dataformat=_resolved_dataformat(path, dataformat)).ravel()
+
+
+def _load_matrix_file(path: Path, output: dict[str, Any], *, dataformat: str = "auto") -> np.ndarray:
+    resolved_format = _resolved_dataformat(path, dataformat)
+    nbcol = int(np.asarray(output.get("icachansind", [])).size or output.get("nbchan", 0) or 0)
+    if resolved_format in {"float32le", "float32be"}:
+        values = np.asarray(floatread(path, [1, np.inf], resolved_format), dtype=float).reshape(-1)
+        if nbcol <= 0 or values.size % nbcol:
+            raise ValueError(f"pop_editset cannot infer matrix shape for {path}")
+        matrix = values.reshape(values.size // nbcol, nbcol, order="F")
+    else:
+        matrix = np.asarray(load_data_array(path, dataformat=resolved_format))
+    if matrix.ndim == 1:
+        if nbcol <= 0 or matrix.size % nbcol:
+            raise ValueError(f"pop_editset cannot infer matrix shape for {path}")
+        matrix = matrix.reshape(matrix.size // nbcol, nbcol)
+    if matrix.ndim != 2:
+        raise ValueError("ICA matrix files must contain a 2-D array")
+    return matrix
+
+
+def _resolved_dataformat(path: Path, dataformat: str) -> str:
+    return infer_dataformat(path, None if dataformat == "auto" else dataformat)
 
 
 def _parse_required_number(value: Any, key: str) -> float | int:

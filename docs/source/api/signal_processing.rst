@@ -22,11 +22,57 @@ Time-Frequency And Statistics
 
 .. autofunction:: eegprep.newcrossf
 
+.. autofunction:: eegprep.timefreq
+
+.. autofunction:: eegprep.timef
+
+.. autofunction:: eegprep.crossf
+
+.. autofunction:: eegprep.dftfilt
+
+.. autofunction:: eegprep.dftfilt2
+
+.. autofunction:: eegprep.dftfilt3
+
+.. autofunction:: eegprep.timewarp
+
+.. autofunction:: eegprep.angtimewarp
+
+.. autofunction:: eegprep.tf_cycle_calc
+
+.. autofunction:: eegprep.newtimefbaseln
+
+.. autofunction:: eegprep.newtimeftrialbaseln
+
+.. autofunction:: eegprep.newtimefitc
+
+.. autofunction:: eegprep.newtimefpowerunit
+
+.. autofunction:: eegprep.bootstat
+
+.. autofunction:: eegprep.correct_mc
+
+.. autofunction:: eegprep.correctfit
+
+.. autofunction:: eegprep.rsadjust
+
+.. autofunction:: eegprep.rsfit
+
+.. autofunction:: eegprep.rsget
+
+.. autofunction:: eegprep.rspdfsolv
+
+.. autofunction:: eegprep.rspfunc
+
 .. autofunction:: eegprep.signalstat
 
 .. autofunction:: eegprep.pop_newtimef
 
 .. autofunction:: eegprep.pop_newcrossf
+
+.. autofunction:: eegprep.pop_timef
+
+.. autofunction:: eegprep.pop_crossf
 
 .. autofunction:: eegprep.pop_signalstat
 

@@ -63,9 +63,8 @@ def clean_asr(
                                     for a channel to be considered 'bad' during calibration data selection. Default: (-3.5, 5.5). Use 'off' to disable.
         ref_wndlen (Union[float, str], optional): Window length in seconds for calibration data selection granularity. Default: 1.0. Use 'off' to disable.
         use_gpu (bool, optional): Whether to try using GPU (requires compatible hardware and libraries, currently ignored). Default: False.
-        useriemannian (str, optional): Option to use a Riemannian ASR variant. Can be set to 'calib' to use a Riemannian estimate
-            at calibration time; this make somewhat different statistical tradeoffs than the default, resulting in a somewhat different
-            baseline rejection threshold; as a result it is suggested to visually check results and adjust the cutoff as needed. Default: None (disabled).
+        useriemannian (str, optional): Option to use a Riemannian ASR variant. Set to 'calib' to use a Riemannian estimate
+            at calibration time. Full Riemannian ASR processing is not ported in EEGPrep. Default: None (disabled).
         maxmem (Optional[int], optional): Maximum memory in MB (passed to asr_calibrate/process, but chunking based on it is not implemented in Python port). Default: 64.
 
     Returns
@@ -74,12 +73,12 @@ def clean_asr(
 
     Raises
     ------
-    NotImplementedError : If useriemannian is True.
     ImportError : If automatic calibration data selection is needed (`ref_maxbadchannels` is float) but `clean_windows` cannot be imported.
-    ValueError : If input arguments are invalid or calibration fails critically.
+    ValueError : If input arguments are invalid, full Riemannian ASR processing is requested, or calibration fails critically.
     """
     if 'data' not in EEG or 'srate' not in EEG or 'nbchan' not in EEG:
         raise ValueError("EEG dictionary must contain 'data', 'srate', and 'nbchan'.")
+    useriemannian = _normalise_useriemannian(useriemannian)
 
     data = np.asarray(EEG['data'], dtype=np.float64)
     srate = float(EEG['srate'])
@@ -205,3 +204,23 @@ def clean_asr(
     logger.info('ASR cleaning finished.')
 
     return EEG
+
+
+def _normalise_useriemannian(value: Optional[str]) -> Optional[str]:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        if not value:
+            return None
+        raise ValueError("clean_asr supports useriemannian='calib' only; full Riemannian ASR processing is not ported.")
+    if isinstance(value, str):
+        lower = value.strip().lower()
+        if lower in {"", "0", "false", "no", "none", "off"}:
+            return None
+        if lower in {"calib", "calibration"}:
+            return "calib"
+        if lower in {"1", "true", "yes", "on", "all", "process", "riemannian"}:
+            raise ValueError(
+                "clean_asr supports useriemannian='calib' only; full Riemannian ASR processing is not ported."
+            )
+    raise ValueError("clean_asr useriemannian must be None, 'off', or 'calib'.")

@@ -10,6 +10,7 @@ import pytest
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.functions.popfunc.pop_editset import pop_editset
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
+from eegprep.functions.sigprocfunc.floatwrite import floatwrite
 from tests.fixtures import SAMPLE_DATASET_PATH
 
 
@@ -98,13 +99,13 @@ def test_pop_editset_updates_timing_fields_and_shifts_event_latencies_for_xmin()
     np.testing.assert_allclose(out["times"], np.linspace(-100.0, -55.0, 10))
 
 
-def test_pop_editset_continuous_xmin_shift_updates_event_latencies():
+def test_pop_editset_continuous_xmin_shift_leaves_event_latencies_unchanged():
     eeg = _eeg()
 
     out = pop_editset(eeg, xmin=0.05)
 
     assert out["trials"] == 1
-    assert out["event"][0]["latency"] == 5.0
+    assert out["event"][0]["latency"] == 10.0
     assert eeg["event"][0]["latency"] == 10.0
 
 
@@ -231,25 +232,105 @@ def test_pop_editset_pnts_metadata_keeps_data_dimensions_consistent():
         pop_editset(eeg, "pnts", 7)
 
 
-def test_pop_editset_history_rejects_unserializable_channel_structures():
+def test_pop_editset_history_serializes_channel_structures_for_replay():
     eeg = _eeg()
 
-    out = pop_editset(eeg, "chanlocs", [{"labels": "Fz"}])
+    chanlocs = [{"labels": "Fz"}, {"labels": "Cz"}]
+    out, com = pop_editset(eeg, "chanlocs", chanlocs, return_com=True)
+    namespace = {"EEG": _eeg(), "pop_editset": pop_editset}
 
+    exec(com, namespace)
     assert list(out["chanlocs"])[0]["labels"] == "Fz"
-    with pytest.raises(NotImplementedError, match="channel-location"):
-        pop_editset(eeg, "chanlocs", [{"labels": "Fz"}], return_com=True)
-    with pytest.raises(NotImplementedError, match="channel-location"):
-        pop_editset(eeg, "chanlocs", np.array([{"labels": "Fz"}], dtype=object), return_com=True)
+    assert namespace["EEG"]["chanlocs"][1]["labels"] == "Cz"
+
+    out, com = pop_editset(eeg, "chanlocs", np.array(chanlocs, dtype=object), return_com=True)
+    namespace = {"EEG": _eeg(), "pop_editset": pop_editset}
+    exec(com, namespace)
+    assert list(out["chanlocs"])[0]["labels"] == "Fz"
+    assert namespace["EEG"]["chanlocs"][1]["labels"] == "Cz"
 
 
-def test_pop_editset_rejects_unsupported_file_workspace_expressions():
-    with pytest.raises(NotImplementedError, match="pop_importdata"):
+def test_pop_editset_loads_data_chanlocs_and_ica_from_files(tmp_path):
+    data_file = tmp_path / "raw.txt"
+    locs_file = tmp_path / "locs.sfp"
+    weights_file = tmp_path / "weights.fdt"
+    sphere_file = tmp_path / "sphere.fdt"
+    index_file = tmp_path / "icachansind.fdt"
+    np.savetxt(data_file, np.arange(15, dtype=float).reshape(3, 5))
+    locs_file.write_text("Fz 0 0 1\nCz 0 1 0\nPz 1 0 0\n", encoding="utf-8")
+    np.savetxt(weights_file, np.eye(3))
+    np.savetxt(sphere_file, np.eye(3) * 2)
+    np.savetxt(index_file, [0, 1, 2], fmt="%d")
+
+    out, com = pop_editset(
+        _eeg(),
+        "data",
+        data_file,
+        "chanlocs",
+        locs_file,
+        "icaweights",
+        weights_file,
+        "icasphere",
+        sphere_file,
+        "icachansind",
+        index_file,
+        "dataformat",
+        "ascii",
+        return_com=True,
+    )
+
+    assert out["data"].shape == (3, 5)
+    assert out["chanlocs"][0]["labels"] == "Fz"
+    np.testing.assert_allclose(out["icaweights"], np.eye(3))
+    np.testing.assert_allclose(out["icasphere"], np.eye(3) * 2)
+    np.testing.assert_array_equal(out["icachansind"], [0, 1, 2])
+    assert "'dataformat', 'ascii'" in com
+
+
+def test_pop_editset_loads_fdt_data_in_eeglab_column_order(tmp_path):
+    data = np.arange(10, dtype=np.float32).reshape(2, 5)
+    data_file = tmp_path / "raw.fdt"
+    floatwrite(data, data_file, "ieee-le")
+
+    out = pop_editset(_eeg(), "data", data_file, "dataformat", "float32le")
+
+    np.testing.assert_array_equal(out["data"], data)
+    assert out["nbchan"] == 2
+    assert out["pnts"] == 5
+
+
+def test_pop_editset_loads_non_square_ica_fdt_matrices_without_eeg_data_transpose(tmp_path):
+    eeg = _eeg()
+    eeg["nbchan"] = 4
+    eeg["icachansind"] = np.arange(4)
+    weights = np.arange(12, dtype=np.float32).reshape(3, 4)
+    sphere = np.arange(16, dtype=np.float32).reshape(4, 4) / 10.0
+    weights_file = tmp_path / "weights.fdt"
+    sphere_file = tmp_path / "sphere.fdt"
+    floatwrite(weights, weights_file, "ieee-le")
+    floatwrite(sphere, sphere_file, "ieee-le")
+
+    out = pop_editset(eeg, "icaweights", weights_file, "icasphere", sphere_file, "dataformat", "float32le")
+
+    np.testing.assert_array_equal(out["icaweights"], weights)
+    np.testing.assert_array_equal(out["icasphere"], sphere)
+
+
+def test_pop_editset_rejects_matlab_workspace_expressions():
+    with pytest.raises(FileNotFoundError, match="data file not found"):
         pop_editset(_eeg(), "data", "raw.mat")
-    with pytest.raises(NotImplementedError, match="pop_chanedit"):
+    with pytest.raises(FileNotFoundError, match="channel-location file not found"):
         pop_editset(_eeg(), "chanlocs", "locs.elp")
-    with pytest.raises(ValueError, match="dataformat"):
-        pop_editset(_eeg(), "dataformat", "ascii")
+    with pytest.raises(FileNotFoundError, match="icaweights file not found"):
+        pop_editset(_eeg(), "icaweights", "weights.txt")
+    with pytest.raises(FileNotFoundError, match="icachansind file not found"):
+        pop_editset(_eeg(), "icachansind", "icachansind.txt")
+    with pytest.raises(ValueError, match="workspace expressions for data"):
+        pop_editset(_eeg(), "data", "rawdata")
+    with pytest.raises(ValueError, match="workspace expressions for chanlocs"):
+        pop_editset(_eeg(), "chanlocs", "locs")
+    with pytest.raises(ValueError, match="workspace expressions for icachansind"):
+        pop_editset(_eeg(), "icachansind", "icachansind")
 
 
 def test_pop_editset_accepts_sample_data_metadata_edit():

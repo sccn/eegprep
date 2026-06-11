@@ -20,18 +20,29 @@ def std_readdata(
     clusters: Any = None,
     components: Any = None,
     design: int | None = None,
-    **_kwargs: Any,
+    timerange: Any = None,
+    freqrange: Any = None,
+    subject: Any = None,
+    infotype: str | None = None,
+    **kwargs: Any,
 ) -> tuple[dict[str, Any], list[np.ndarray], np.ndarray, np.ndarray]:
     """Read precomputed STUDY measures from EEGPrep's in-memory cache."""
     study = ensure_study(STUDY)
-    measure = _datatype(datatype)
+    _ = design, ALLEEG, kwargs
+    measure = _datatype(infotype or datatype)
     if channels is not None:
         groups = _channel_groups(study, channels)
+        data = [
+            _slice_measure_data(
+                _subject_filter(_data_array(group, measure), study, subject), group, measure, timerange, freqrange
+            )
+            for group in groups
+        ]
         return (
             study,
-            [_data_array(group, measure) for group in groups],
-            _x_axis(groups[0], measure),
-            _y_axis(groups[0], measure),
+            [item[0] for item in data],
+            data[0][1],
+            data[0][2],
         )
     if clusters is not None or components is not None:
         cluster_index = _component_cluster_index(study, clusters)
@@ -39,13 +50,18 @@ def std_readdata(
         cluster = clusters_list[cluster_index - 1]
         source = clusters_list[0] if cluster_index > 1 else cluster
         data = _data_array(source, measure)
+        if cluster_index > 1 and _subject_values(subject):
+            raise ValueError("subject filter requires a parent component cache with a dataset axis")
         if cluster_index > 1:
             data = _cluster_component_data(source, cluster, data, components)
         elif components is not None:
             component_axis = component_measure_axis(cluster, data.shape[1] if data.ndim >= 2 else 0)
             selected = component_measure_selection(components, component_axis)
             data = data[:, selected, ...]
-        return study, [data], _x_axis(source, measure), _y_axis(source, measure)
+        data, x_axis, y_axis = _slice_measure_data(data, source, measure, timerange, freqrange)
+        if cluster_index == 1:
+            data = _subject_filter(data, study, subject)
+        return study, [data], x_axis, y_axis
     raise ValueError("std_readdata requires channels or clusters/components")
 
 
@@ -64,10 +80,89 @@ def std_readersp(STUDY: dict[str, Any], ALLEEG: list[dict[str, Any]] | None = No
     return std_readdata(STUDY, ALLEEG, datatype="ersp", **kwargs)
 
 
+def std_readitc(STUDY: dict[str, Any], ALLEEG: list[dict[str, Any]] | None = None, **kwargs: Any):
+    """Read cached STUDY ITC measures."""
+    return std_readdata(STUDY, ALLEEG, datatype="itc", **kwargs)
+
+
+def std_readtopo(
+    STUDY: dict[str, Any],
+    ALLEEG: list[dict[str, Any]] | None = None,
+    *,
+    clusters: Any = None,
+    components: Any = None,
+    **_kwargs: Any,
+) -> tuple[dict[str, Any], list[np.ndarray], np.ndarray]:
+    """Read cached STUDY component scalp topographies."""
+    _ = ALLEEG
+    study = ensure_study(STUDY)
+    clusters_list = cluster_list(study)
+    cluster_index = _component_cluster_index(study, clusters)
+    cluster = clusters_list[cluster_index - 1]
+    source = clusters_list[0] if cluster_index > 1 else cluster
+    if "topo" not in source:
+        raise ValueError("component scalp topographies have not been precomputed")
+    data = np.asarray(source["topo"], dtype=float)
+    if cluster_index > 1:
+        data = _cluster_component_data(source, cluster, data, components)
+    elif components is not None:
+        component_axis = component_measure_axis(source, data.shape[1] if data.ndim >= 2 else 0)
+        selected = component_measure_selection(components, component_axis)
+        data = data[:, selected, :]
+    channel_axis = np.arange(1, data.shape[-1] + 1, dtype=int) if data.ndim else np.asarray([], dtype=int)
+    return study, [data], channel_axis
+
+
+def std_readpac(
+    STUDY: dict[str, Any],
+    ALLEEG: list[dict[str, Any]] | None = None,
+    *,
+    channels: Any = None,
+    clusters: Any = None,
+    components: Any = None,
+    timerange: Any = None,
+    freqrange: Any = None,
+    **kwargs: Any,
+) -> tuple[dict[str, Any], list[np.ndarray], np.ndarray, np.ndarray]:
+    """Read EEGPrep-owned cached STUDY PAC data when present."""
+    _ = ALLEEG
+    if kwargs:
+        unsupported = ", ".join(sorted(kwargs))
+        raise ValueError(f"Unknown std_readpac option(s): {unsupported}")
+    if components is not None:
+        raise ValueError("std_readpac does not yet support component selection for PAC caches")
+    study = ensure_study(STUDY)
+    if channels is not None:
+        groups = _channel_groups(study, channels)
+    else:
+        cluster_index = _component_cluster_index(study, clusters)
+        groups = [cluster_list(study)[cluster_index - 1]]
+    missing = [group for group in groups if "pacdata" not in group]
+    if missing:
+        raise NotImplementedError(
+            "STUDY PAC reading requires EEGPrep-owned pacdata caches; external LIMO/PAC toolbox output is not "
+            "silently emulated"
+        )
+    # PAC caches selected together share the first group's axes; shape checks below catch incompatible groups.
+    first = groups[0]
+    times = np.asarray(first.get("pactimes", []), dtype=float)
+    freqs = np.asarray(first.get("pacfreqs", []), dtype=float)
+    time_mask = _range_mask(times, timerange)
+    freq_mask = _range_mask(freqs, freqrange)
+    return (
+        study,
+        [_slice_pac_cache(group, freq_mask, time_mask) for group in groups],
+        times[time_mask],
+        freqs[freq_mask],
+    )
+
+
 def _datatype(value: str) -> str:
     text = str(value or "erp").lower()
     if text == "timef":
         text = "ersp"
+    if text == "itc":
+        return "itc"
     if text not in {"erp", "spec", "ersp", "itc"}:
         raise ValueError("datatype must be 'erp', 'spec', 'ersp', or 'itc'")
     return text
@@ -217,6 +312,72 @@ def _data_array(group: dict[str, Any], measure: str) -> np.ndarray:
     return np.asarray(group[field], dtype=float)
 
 
+def _slice_measure_data(
+    data: np.ndarray, group: dict[str, Any], measure: str, timerange: Any, freqrange: Any
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    x_axis = _x_axis(group, measure)
+    y_axis = _y_axis(group, measure)
+    values = np.asarray(data, dtype=float)
+    if measure == "erp":
+        mask = _range_mask(x_axis, timerange)
+        return values[..., mask], x_axis[mask], y_axis
+    if measure == "spec":
+        mask = _range_mask(x_axis, freqrange)
+        return values[..., mask], x_axis[mask], y_axis
+    time_mask = _range_mask(x_axis, timerange)
+    freq_mask = _range_mask(y_axis, freqrange)
+    return values[..., freq_mask, :][..., time_mask], x_axis[time_mask], y_axis[freq_mask]
+
+
+def _slice_pac_cache(group: dict[str, Any], freq_mask: np.ndarray, time_mask: np.ndarray) -> np.ndarray:
+    values = np.asarray(group["pacdata"], dtype=float)
+    if values.ndim < 2:
+        raise ValueError("PAC cache must have frequency and time axes")
+    if values.shape[-2] != freq_mask.size or values.shape[-1] != time_mask.size:
+        raise ValueError("PAC cache shape must end with pacfreqs and pactimes axes")
+    return values[..., freq_mask, :][..., time_mask]
+
+
+def _range_mask(axis: np.ndarray, bounds: Any) -> np.ndarray:
+    axis = np.asarray(axis, dtype=float).ravel()
+    if axis.size == 0:
+        return np.asarray([], dtype=bool)
+    values = numeric_vector(bounds, dtype=float)
+    if values.size == 0:
+        return np.ones(axis.size, dtype=bool)
+    if values.size != 2:
+        raise ValueError("range filters must contain [min max]")
+    mask = (axis >= values[0]) & (axis <= values[1])
+    if not np.any(mask):
+        raise ValueError("range filter does not include any cached measure samples")
+    return mask
+
+
+def _subject_filter(data: np.ndarray, study: dict[str, Any], subject: Any) -> np.ndarray:
+    subjects = _subject_values(subject)
+    if not subjects:
+        return data
+    datasetinfo = study.get("datasetinfo") or []
+    if data.ndim == 0 or data.shape[0] != len(datasetinfo):
+        raise ValueError("subject filter requires a dataset-axis cache")
+    keep = [index for index, info in enumerate(datasetinfo) if str(info.get("subject") or "") in subjects]
+    if not keep:
+        raise ValueError("subject filter did not match any STUDY datasets")
+    return data[np.asarray(keep, dtype=int), ...]
+
+
+def _subject_values(subject: Any) -> set[str]:
+    if subject is None or subject == "":
+        return set()
+    if isinstance(subject, str):
+        return {subject}
+    if isinstance(subject, np.ndarray):
+        subject = subject.tolist()
+    if isinstance(subject, (list, tuple, set)):
+        return {str(item) for item in subject}
+    return {str(subject)}
+
+
 def _x_axis(group: dict[str, Any], measure: str) -> np.ndarray:
     field = {"erp": "erptimes", "spec": "specfreqs", "ersp": "ersptimes", "itc": "itctimes"}[measure]
     return np.asarray(group.get(field, []), dtype=float)
@@ -235,6 +396,9 @@ __all__ = [
     "component_measure_selection",
     "std_readdata",
     "std_readerp",
+    "std_readitc",
+    "std_readpac",
     "std_readspec",
     "std_readersp",
+    "std_readtopo",
 ]

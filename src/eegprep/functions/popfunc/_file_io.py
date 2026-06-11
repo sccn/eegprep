@@ -84,7 +84,7 @@ def load_data_array(
             if nbchan and nbchan > 0:
                 if values.size % nbchan:
                     raise ValueError("float32 file length is not divisible by nbchan")
-                return values.reshape((int(nbchan), values.size // int(nbchan)))
+                return values.reshape((values.size // int(nbchan), int(nbchan))).T
             return values[np.newaxis, :]
         raise ValueError(f"Unsupported import data format: {resolved_format}")
     return np.asarray(data)

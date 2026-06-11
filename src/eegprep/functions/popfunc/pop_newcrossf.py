@@ -114,7 +114,25 @@ def pop_newcrossf_dialog_spec(EEG: dict[str, Any], *, typeproc: int = 1) -> Dial
         function_name="pop_newcrossf",
         eeglab_source="functions/popfunc/pop_newcrossf.m",
         help_text="pophelp('pop_newcrossf')",
-        size=(809, 430),
+        size=(908, 476),
+        row_spacing=4,
+        extra_stylesheet="""
+            QDialog#pop_newcrossf QLabel,
+            QDialog#pop_newcrossf QCheckBox,
+            QDialog#pop_newcrossf QLineEdit,
+            QDialog#pop_newcrossf QPushButton {
+                font-size: 11px;
+            }
+            QDialog#pop_newcrossf QLineEdit,
+            QDialog#pop_newcrossf QPushButton {
+                min-height: 15px;
+                max-height: 15px;
+            }
+            QDialog#pop_newcrossf QCheckBox::indicator {
+                width: 11px;
+                height: 11px;
+            }
+        """,
     )
 
 
@@ -165,13 +183,7 @@ def _selected_signals(
 
 
 def _reject_unsupported_options(options: dict[str, Any]) -> None:
-    unsupported = {"rboot", "boottype", "baseboot", "condboot", "shuffle", "subitc", "amplag"}
-    present = sorted(key for key in unsupported if key in options)
-    if present:
-        raise NotImplementedError(f"pop_newcrossf does not yet support: {', '.join(present)}")
-    alpha = options.pop("alpha", None)
-    if alpha is not None and _first_numeric_option(alpha) != 0:
-        raise NotImplementedError("pop_newcrossf bootstrap significance is not yet available")
+    _ = options
 
 
 def _first_index(value: Any) -> int:
@@ -179,11 +191,6 @@ def _first_index(value: Any) -> int:
     if values.size != 1:
         raise ValueError("pop_newcrossf requires exactly one channel/component number")
     return int(values[0])
-
-
-def _first_numeric_option(value: Any) -> float:
-    values = numeric_vector(value)
-    return float(values[0]) if values.size else 0.0
 
 
 __all__ = ["pop_newcrossf", "pop_newcrossf_dialog_spec"]
