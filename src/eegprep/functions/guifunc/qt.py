@@ -470,6 +470,11 @@ class QtDialogRenderer:
             source = widgets.get(params["button"])
             if source is not None:
                 source.clicked.connect(lambda: self._show_callback_message(source, params))
+        elif callback.name == "edit_text":
+            source = widgets.get(params["button"])
+            target = widgets.get(params.get("target", params["button"]))
+            if source is not None and target is not None:
+                source.clicked.connect(lambda: self._edit_text(source, target, params))
         elif callback.name == "open_eegplot":
             source = widgets.get(params["button"])
             if source is not None:
@@ -1113,6 +1118,20 @@ class QtDialogRenderer:
     def _show_callback_message(parent: Any, params: Mapping[str, Any]) -> None:
         _qt_core, qt_widgets = _require_qt()
         qt_widgets.QMessageBox.information(parent, str(params.get("title", "EEGPrep")), str(params.get("message", "")))
+
+    @staticmethod
+    def _edit_text(parent: Any, target: Any, params: Mapping[str, Any]) -> None:
+        _qt_core, qt_widgets = _require_qt()
+        stored_value = target.property(_VALUE_PROPERTY)
+        current = stored_value if stored_value is not None else params.get("value", "")
+        value, accepted = qt_widgets.QInputDialog.getMultiLineText(
+            parent,
+            str(params.get("title", "Edit text")),
+            str(params.get("label", "Text")),
+            str(current),
+        )
+        if accepted:
+            target.setProperty(_VALUE_PROPERTY, str(value))
 
     @staticmethod
     def _select_interp_channels(button: Any, target: Any, params: Mapping[str, Any]) -> None:
