@@ -1,9 +1,13 @@
 """EEG data rejection functions."""
 
+import logging
 from typing import List, Dict, Optional, Tuple
 import numpy as np
 from copy import deepcopy
 from ..miscfunc.misc import round_mat
+
+
+logger = logging.getLogger(__name__)
 
 
 def _is_boundary_event(event: Dict) -> bool:
@@ -359,7 +363,7 @@ def _combine_regions(regs):
             merged.append([beg, end])
     newregs = np.asarray(merged, dtype=np.int64)
     if newregs.shape[0] != regs.shape[0]:
-        print("Warning: overlapping regions detected and fixed in eeg_eegrej")
+        logger.warning("Overlapping regions detected and fixed in eeg_eegrej")
     return newregs
 
 

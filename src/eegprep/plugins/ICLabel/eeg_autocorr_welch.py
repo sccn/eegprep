@@ -7,7 +7,6 @@ the Welch method for spectral estimation.
 import numpy as np
 from scipy.signal import resample_poly
 import random
-from ...functions.popfunc.pop_loadset import pop_loadset
 from numpy.fft import fft, ifft
 
 
@@ -83,18 +82,3 @@ def eeg_autocorr_welch(EEG, pct_data=100):
     ac = ac[:, 1:101]
 
     return ac
-
-
-def test_eeg_autocorr_welch():
-    """Test function for eeg_autocorr_welch."""
-    eeglab_file_path = './eeglab_data_with_ica_tmp.set'
-    EEG = pop_loadset(eeglab_file_path)
-
-    eeg_autocorr_welch(EEG, 100)
-
-    # print information about psdmed
-    # print(psdmed.shape)
-    # print(psdmed)
-
-
-# test_eeg_autocorr_welch()

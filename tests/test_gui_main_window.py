@@ -982,6 +982,26 @@ class MenuActionDispatcherTests(unittest.TestCase):
         self.assertIs(session.ALLEEG[0], original_eeg)
         self.assertEqual(session.ALLCOM[-1], "pop_topoplot(EEG, typeplot=1, items=[0])")
 
+    def test_dipfit_mutating_menu_action_updates_session_and_history(self):
+        session = EEGPrepSession()
+        session.store_current(_demo_eeg(), new=True)
+        dispatcher = MenuActionDispatcher(session)
+        original = session.EEG
+        fitted = dict(original, setname="dipfit updated")
+        fitted["dipfit"] = {"model": [{"rv": 0.01}]}
+
+        with mock.patch(
+            "eegprep.plugins.dipfit.pop_dipfit_gridsearch.pop_dipfit_gridsearch",
+            return_value=(fitted, "EEG = pop_dipfit_gridsearch(EEG, select=[1]);"),
+        ) as gridsearch:
+            dispatcher.dispatch("pop_dipfit_gridsearch")
+
+        gridsearch.assert_called_once_with(original, return_com=True)
+        self.assertEqual(session.EEG["setname"], "dipfit updated")
+        self.assertEqual(session.ALLEEG[0]["dipfit"]["model"][0]["rv"], 0.01)
+        self.assertEqual(session.LASTCOM, "EEG = pop_dipfit_gridsearch(EEG, select=[1]);")
+        self.assertEqual(session.ALLCOM[-1], "EEG = pop_dipfit_gridsearch(EEG, select=[1]);")
+
     def test_copyset_menu_updates_alleeg_eeg_currentset_and_history(self):
         session = EEGPrepSession()
         session.store_current(_demo_eeg(), new=True)

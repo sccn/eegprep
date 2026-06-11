@@ -388,16 +388,3 @@ def eeg_compare(eeg1, eeg2, verbose_level=0, trigger_error=False):
         raise ValueError(error_message)
 
     return summary
-
-
-# add test data and compare with it
-
-# load test data
-if __name__ == '__main__':
-    from eegprep import pop_loadset
-
-    eeg1 = pop_loadset('../../sample_data/eeglab_data_tmp.set')
-    eeg2 = pop_loadset('../../sample_data/eeglab_data_tmp.set')
-
-    # compare
-    eeg_compare(eeg1, eeg2)

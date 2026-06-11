@@ -169,9 +169,9 @@ class MatlabWrapper:
                     temp_filename2 = temp_file2.name
                 result_filename = temp_filename1 + '.result.set'
                 result_extra_filename = temp_filename1 + '.result.mat'
-                print(f"temp_filename1: {temp_filename1}")
-                print(f"temp_filename2: {temp_filename2}")
-                print(f"result_filename: {result_filename}")
+                logger.debug("MATLAB roundtrip input set path: %s", temp_filename1)
+                logger.debug("MATLAB roundtrip args path: %s", temp_filename2)
+                logger.debug("MATLAB roundtrip result set path: %s", result_filename)
 
                 # save all parameters in the temp_filename which is a .mat file
                 if len(new_args) > 0:
@@ -192,7 +192,7 @@ class MatlabWrapper:
                     pop_saveset(args[0], temp_filename1)
                     self.engine.eval(f"EEG = pop_loadset('{temp_filename1}');", nargout=0)
 
-                print(f"Running in MATLAB/Octave: {eval_str}")
+                logger.debug("Running in MATLAB/Octave: %s", eval_str)
                 self.engine.eval(eval_str, nargout=0)
 
                 # output
@@ -280,12 +280,12 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
     try:
         engine = _cache[rt]
     except KeyError:
-        print(f"Loading {runtime} runtime...", end='', flush=True)
+        logger.info("Loading %s runtime...", runtime)
         # On the command line, type "octave-8.4.0" OCTAVE_EXECUTABLE or OCTAVE var
         path2eeglab = str(_resolve_eeglab_root())
         matlab_test_dir = REPO_ROOT / 'tests' / 'matlab'
         scripts_dir = str(REPO_ROOT / 'scripts')
-        print("This is the path2eeglab: ", path2eeglab)
+        logger.debug("EEGLAB reference path: %s", path2eeglab)
 
         # not yet loaded, do so now
         if rt == 'oct':
@@ -344,7 +344,7 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
             engine.logger.setLevel(logging.INFO)
 
         _cache[rt] = engine
-        print('done.')
+        logger.info("Loaded %s runtime.", runtime)
 
     # optionally wrap the engine in a file-roundtripping wrapper
     if auto_file_roundtrip:
@@ -496,66 +496,29 @@ def clean_artifacts(
     else:
         BurstRejection = 'on'
 
-    pop_saveset(EEG, './tmp.set')  # 0.8 seconds
-    EEG2 = eeglab.pop_loadset('./tmp.set')  # 2 seconds
-    EEG3 = eeglab.clean_artifacts(
-        EEG2,
-        'ChannelCriterion',
-        ChannelCriterion,
-        'LineNoiseCriterion',
-        LineNoiseCriterion,
-        'FlatlineCriterion',
-        FlatlineCriterion,
-        'BurstCriterion',
-        BurstCriterion,
-        'BurstRejection',
-        BurstRejection,
-        'WindowCriterion',
-        WindowCriterion,
-        'Highpass',
-        Highpass,
-        'WindowCriterionTolerances',
-        WindowCriterionTolerances,
-    )
-    eeglab.pop_saveset(EEG3, './tmp2.set')  # 2.4 seconds
-    EEG4 = pop_loadset('./tmp2.set')  # 0.2 seconds
-
-    # delete temporary files
-    os.remove('./tmp.set')
-    os.remove('./tmp2.set')
-    return EEG4
-
-
-# sys.exit()
-def test_eeglab_compat():
-    """Test EEGLAB compatibility."""
-    eeglab_file_path = '/System/Volumes/Data/data/matlab/eeglab/sample_data/eeglab_data_epochs_ica.set'
-
-    EEG = pop_loadset(eeglab_file_path)
-    EEG = pop_eegfiltnew(EEG, locutoff=5, hicutoff=25, revfilt=True, plotfreqz=False)
-    EEG = clean_artifacts(
-        EEG,
-        FlatlineCriterion=5,
-        ChannelCriterion=0.87,
-        LineNoiseCriterion=4,
-        Highpass=False,
-        BurstCriterion=20,
-        WindowCriterion=0.25,
-        BurstRejection=False,
-        WindowCriterionTolerances=[float('-inf'), 7],
-    )
-
-    # EEG = eeglab.pop_loadset(eeglab_file_path)
-    # TMPEEG = eeglab.pop_eegfiltnew(EEG, 'locutoff',5,'hicutoff',25,'revfilt',1,'plotfreqz',0)
-    # CLEANEDEEG = eeglab.clean_artifacts(TMPEEG, 'ChannelCriterion', 'off',
-    #     'LineNoiseCriterion', 'off',
-    #     'FlatlineCriterion', 'off',
-    #     'BurstCriterion', 'off',
-    #     'WindowCriterion', 0,
-    #     'Highpass',[0.25, 0.75],
-    #     'WindowCriterionTolerances', [-10000000, 8])
-
-    # clean_artifacts( EEG, ChannelCriterion='on' )
-
-
-# test_eeglab_compat()
+    with tempfile.TemporaryDirectory(prefix="eegprep_clean_artifacts_") as workdir:
+        input_path = Path(workdir) / "input.set"
+        output_path = Path(workdir) / "output.set"
+        pop_saveset(EEG, input_path)
+        EEG2 = eeglab.pop_loadset(str(input_path))
+        EEG3 = eeglab.clean_artifacts(
+            EEG2,
+            'ChannelCriterion',
+            ChannelCriterion,
+            'LineNoiseCriterion',
+            LineNoiseCriterion,
+            'FlatlineCriterion',
+            FlatlineCriterion,
+            'BurstCriterion',
+            BurstCriterion,
+            'BurstRejection',
+            BurstRejection,
+            'WindowCriterion',
+            WindowCriterion,
+            'Highpass',
+            Highpass,
+            'WindowCriterionTolerances',
+            WindowCriterionTolerances,
+        )
+        eeglab.pop_saveset(EEG3, str(output_path))
+        return pop_loadset(output_path)

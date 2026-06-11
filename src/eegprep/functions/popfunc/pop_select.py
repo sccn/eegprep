@@ -1,4 +1,5 @@
 import copy
+import logging
 import re
 from typing import Any
 
@@ -16,6 +17,9 @@ from eegprep.functions.popfunc.eeg_lat2point import eeg_lat2point
 from eegprep.functions.popfunc.eeg_point2lat import eeg_point2lat
 from eegprep.functions.popfunc.eeg_decodechan import eeg_decodechan
 from eegprep.functions.popfunc.eeg_eegrej import eeg_eegrej
+
+
+logger = logging.getLogger(__name__)
 
 
 def pop_select(EEG, *args, gui=None, renderer=None, return_com=False, **kwargs):
@@ -184,7 +188,7 @@ def _pop_select_apply(EEG, **kwargs):
                 inds, _ = eeg_decodechan(EEG, g['channel'], 'labels', True)
             # show warning if not all channels are found and error if no channels are found
             if len(inds) != len(g['channel']):
-                print(f"Warning: {len(g['channel']) - len(inds)} channels not found")
+                logger.warning("%s channels not found", len(g['channel']) - len(inds))
             if len(inds) == 0:
                 raise ValueError(f"Channels not found: {g['channel']}")
             chan_selected_flag[:] = False
@@ -199,7 +203,7 @@ def _pop_select_apply(EEG, **kwargs):
             chan_selected_flag[np.array(inds, dtype=int)] = False
             # show warning if not all channels are found and error if no channels are found
             if len(inds) != len(g['nochannel']):
-                print(f"Warning: {len(g['nochannel']) - len(inds)} channels not found")
+                logger.warning("%s channels not found", len(g['nochannel']) - len(inds))
 
     else:
         # by type
@@ -226,7 +230,7 @@ def _pop_select_apply(EEG, **kwargs):
             if x.size <= 2:
                 return np.array(x).reshape(1, 2)
             # vector form → [first last]
-            print('Warning: vector format for point/time range is deprecated')
+            logger.warning("Vector format for point/time range is deprecated")
             return np.array([x[0], x[-1]], dtype=float).reshape(1, 2)
         if x.shape[1] != 2:
             raise ValueError('Time/point range must contain exactly 2 columns')
@@ -289,14 +293,14 @@ def _pop_select_apply(EEG, **kwargs):
 
     # 4) Informational prints (optional)
     if len(g['trial']) != trials:
-        print(f"Removing {trials - len(g['trial'])} trial(s)...")
+        logger.info("Removing %s trial(s)...", trials - len(g['trial']))
     if len(g['channel']) != nbchan:
-        print(f"Removing {nbchan - len(g['channel'])} channel(s)...")
+        logger.info("Removing %s channel(s)...", nbchan - len(g['channel']))
 
     # 5) Recompute event epoch indices and latencies when trials are dropped
     if len(g['trial']) != trials and (EEG.get('event') is not None and len(EEG.get('event', [])) > 0):
         if not any('epoch' in ev for ev in EEG['event']):
-            print('Pop_epoch warning: bad event format with epoch dataset, removing events')
+            logger.warning("Bad event format with epoch dataset, removing events")
             EEG['event'] = []
         else:
             keepevent = []
@@ -317,7 +321,7 @@ def _pop_select_apply(EEG, **kwargs):
                         ev['epoch'] = int(newindex[0] + 1)  # back to 1-based for consistency
             diffevent = np.setdiff1d(np.arange(len(EEG['event'])), np.array(keepevent, dtype=int))
             if diffevent.size:
-                print(f"Pop_select: removing {diffevent.size} unreferenced events")
+                logger.info("Removing %s unreferenced events", diffevent.size)
                 EEG['event'] = [EEG['event'][i] for i in range(len(EEG['event'])) if i in keepevent]
 
     # 6) Apply time selection
@@ -434,7 +438,7 @@ def _pop_select_apply(EEG, **kwargs):
 
     # erase dipfit if channels removed
     if len(chan_idx) != nbchan and _has_content(EEG.get('dipfit')):
-        print('warning: erasing dipole information since channels have been removed')
+        logger.warning("Erasing dipole information since channels have been removed")
         EEG['dipfit'] = np.array([])
         EEG['roi'] = {}
 
@@ -769,11 +773,3 @@ def _history_command(options):
     for key, value in options.items():
         parts.extend([f"'{key}'", format_history_value(value, empty_sequence="{}")])
     return f"EEG = pop_select( EEG, {', '.join(parts)});"
-
-
-if __name__ == '__main__':
-    from eegprep.functions.popfunc.pop_loadset import pop_loadset
-
-    EEG = pop_loadset('sample_data/eeglab_data.set')
-    EEG2 = pop_select(EEG, channel=['FP1', 'FP2'])
-    print(EEG2)

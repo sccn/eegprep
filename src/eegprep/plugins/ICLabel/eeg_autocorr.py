@@ -56,27 +56,3 @@ def eeg_autocorr(EEG, pct_data=None):
     ac = ac[:, 1:]
 
     return ac
-
-
-def test_eeg_autocorr():
-    """Test the eeg_autocorr function."""
-    EEG = {
-        'srate': 256,
-        'icaweights': np.random.randn(10, 256),
-        'pnts': 1000,
-        'trials': 5,
-        'icaact': np.random.randn(10, 1000, 5),
-    }
-
-    eeg_autocorr(EEG, 100)
-
-    # print information about psdmed
-    # print(psdmed.shape)
-
-    # print(psdmed)
-
-    # assert psdmed.shape == (10, 100)
-    # assert np.all(np.isfinite(psdmed))
-
-
-# test_eeg_autocorr()

@@ -2,7 +2,6 @@ import os
 import tempfile
 import unittest
 import numpy as np
-from unittest.mock import patch
 
 # Assume eeg_eegrej is defined as in your module that imports: from eegrej import eegrej
 from eegprep import eeg_eegrej
@@ -253,10 +252,12 @@ class TestEEGEegrejExtended(unittest.TestCase):
         # Overlapping regions: [3, 7] and [5, 10] should merge to [3, 10]
         regions = np.array([[3, 7], [5, 10]])
 
-        with patch('builtins.print') as mock_print:
+        with self.assertLogs("eegprep.functions.popfunc.eeg_eegrej", level="WARNING") as captured:
             result = eeg_eegrej(EEG, regions)
-            # Should print warning about overlapping regions
-            mock_print.assert_called_with("Warning: overlapping regions detected and fixed in eeg_eegrej")
+
+        self.assertTrue(
+            any("Overlapping regions detected and fixed in eeg_eegrej" in message for message in captured.output)
+        )
 
         # Should have 20 - 8 = 12 samples remaining (removed samples 3-10)
         self.assertEqual(result['pnts'], 12)

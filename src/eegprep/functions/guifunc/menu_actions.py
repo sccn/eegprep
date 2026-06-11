@@ -1423,34 +1423,36 @@ class MenuActionDispatcher:
         if name == "pop_dipfit_headmodel":
             from eegprep.plugins.dipfit.pop_dipfit_headmodel import pop_dipfit_headmodel
 
-            pop_dipfit_headmodel(selection, return_com=True)
-            return
-        if name == "pop_dipfit_gridsearch":
+            out = pop_dipfit_headmodel(selection, return_com=True)
+        elif name == "pop_dipfit_gridsearch":
             from eegprep.plugins.dipfit.pop_dipfit_gridsearch import pop_dipfit_gridsearch
 
-            pop_dipfit_gridsearch(selection, return_com=True)
-            return
-        if name == "pop_dipfit_nonlinear":
+            out = pop_dipfit_gridsearch(selection, return_com=True)
+        elif name == "pop_dipfit_nonlinear":
             from eegprep.plugins.dipfit.pop_dipfit_nonlinear import pop_dipfit_nonlinear
 
-            pop_dipfit_nonlinear(selection, return_com=True)
-            return
-        if name == "pop_multifit":
+            out = pop_dipfit_nonlinear(selection, return_com=True)
+        elif name == "pop_multifit":
             from eegprep.plugins.dipfit.pop_multifit import pop_multifit
 
-            pop_multifit(selection, return_com=True)
-            return
-        if name == "pop_leadfield":
+            out = pop_multifit(selection, return_com=True)
+        elif name == "pop_leadfield":
             from eegprep.plugins.dipfit.pop_leadfield import pop_leadfield
 
-            pop_leadfield(selection, return_com=True)
-            return
-        if name == "pop_dipfit_loreta":
+            out = pop_leadfield(selection, return_com=True)
+        elif name == "pop_dipfit_loreta":
             from eegprep.plugins.dipfit.pop_dipfit_loreta import pop_dipfit_loreta
 
-            pop_dipfit_loreta(selection, return_com=True)
+            out = pop_dipfit_loreta(selection, return_com=True)
+        else:
+            self.show_coming_soon(name, parent)
             return
-        self.show_coming_soon(name, parent)
+        if not isinstance(out, tuple):
+            return
+        eeg_out, command = out[0], out[1] if len(out) > 1 else ""
+        if command:
+            self._store_current_from_gui(eeg_out, command=command)
+            self._refresh()
 
     def _plot_channel_locations(self, variant: str, parent: Any | None) -> None:
         selection = self._current_selection_or_warn(parent)

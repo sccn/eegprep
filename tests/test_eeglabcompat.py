@@ -8,6 +8,7 @@ Python interfaces to MATLAB/Octave EEGLAB functions.
 import os
 import unittest
 from copy import deepcopy
+from pathlib import Path
 
 import numpy as np
 
@@ -22,9 +23,49 @@ from eegprep.functions.adminfunc.eeglabcompat import (
 from eegprep import clean_artifacts, pop_loadset
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 from eegprep.utils.testing import DebuggableTestCase
+import eegprep.functions.adminfunc.eeglabcompat as eeglabcompat
 
 # Path to test data
 LOCAL_DATA_PATH = os.path.join(os.path.dirname(__file__), '../sample_data/')
+
+
+def test_eeglab_clean_artifacts_roundtrip_uses_private_tempdir(monkeypatch, tmp_path):
+    paths: dict[str, list[Path]] = {"save": [], "matlab_load": [], "matlab_save": [], "load": []}
+
+    class DummyEeglab:
+        def pop_loadset(self, filename):
+            paths["matlab_load"].append(Path(filename))
+            return {"loaded": filename}
+
+        def clean_artifacts(self, EEG, *_args):
+            return {"cleaned": EEG}
+
+        def pop_saveset(self, EEG, filename):
+            paths["matlab_save"].append(Path(filename))
+            Path(filename).write_text("cleaned", encoding="utf-8")
+            return EEG
+
+    def fake_pop_saveset(EEG, filename):
+        paths["save"].append(Path(filename))
+        Path(filename).write_text("input", encoding="utf-8")
+        return EEG
+
+    def fake_pop_loadset(filename):
+        paths["load"].append(Path(filename))
+        return {"loaded_from": str(filename)}
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(eeglabcompat, "get_eeglab", lambda auto_file_roundtrip=False: DummyEeglab())
+    monkeypatch.setattr(eeglabcompat, "pop_saveset", fake_pop_saveset)
+    monkeypatch.setattr(eeglabcompat, "pop_loadset", fake_pop_loadset)
+
+    result = eeglabcompat.clean_artifacts({"data": np.zeros((1, 4))}, BurstCriterion="off")
+
+    assert result["loaded_from"].endswith("output.set")
+    assert not (tmp_path / "tmp.set").exists()
+    assert not (tmp_path / "tmp2.set").exists()
+    assert all(path.parent != tmp_path for values in paths.values() for path in values)
+    assert {path.name for values in paths.values() for path in values} == {"input.set", "output.set"}
 
 
 class TestMatlabWrapper(DebuggableTestCase):

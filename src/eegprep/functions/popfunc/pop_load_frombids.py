@@ -1083,7 +1083,7 @@ def pop_load_frombids(
 
         EEG = eeg_checkchanlocs(EEG)
     except ImportError:
-        print("eeg_checkchanlocs not available, skipping channel location check.")
+        logger.info("eeg_checkchanlocs not available, skipping channel location check.")
 
     # Assign channel types based on channel labels (matching MATLAB's eeg_getchantype behavior)
     # Standard 10-20 channel names that should be classified as EEG

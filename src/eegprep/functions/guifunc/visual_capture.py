@@ -7,7 +7,7 @@ import math
 import os
 import pathlib
 import sys
-from typing import Any
+from typing import Any, Callable
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -1339,237 +1339,171 @@ def capture_pophelp_dialog(output: pathlib.Path, function_name: str) -> None:
     _grab_dialog(dialog, output, app)
 
 
+CaptureHandler = Callable[[pathlib.Path], None]
+
+
+def _capture_with(function: Callable[..., None], **kwargs: Any) -> CaptureHandler:
+    def handler(output: pathlib.Path) -> None:
+        function(output, **kwargs)
+
+    return handler
+
+
+def _capture_case_handlers() -> dict[str, CaptureHandler]:
+    handlers: dict[str, CaptureHandler] = {
+        "adjust_events_dialog": capture_adjust_events_dialog,
+        "main_window": capture_main_window,
+        "main_window_continuous": _capture_with(capture_main_window, state="continuous"),
+        "main_window_epoched": _capture_with(capture_main_window, state="epoched"),
+        "main_window_multiple": _capture_with(capture_main_window, state="multiple"),
+        "main_window_study": _capture_with(capture_main_window, state="study"),
+        "file_menu": _capture_with(capture_main_window, menu_label="File"),
+        "edit_menu": _capture_with(capture_main_window, menu_label="Edit"),
+        "tools_menu": _capture_with(capture_main_window, menu_label="Tools"),
+        "plot_menu": _capture_with(capture_main_window, menu_label="Plot"),
+        "study_menu": _capture_with(capture_main_window, menu_label="Study"),
+        "datasets_menu": _capture_with(capture_main_window, menu_label="Datasets"),
+        "help_menu": _capture_with(capture_main_window, menu_label="Help"),
+        "pop_comments_dialog": capture_pop_comments_dialog,
+        "pop_editset_dialog": capture_pop_editset_dialog,
+        "pop_editeventfield_dialog": capture_pop_editeventfield_dialog,
+        "pop_editeventvals_dialog": capture_pop_editeventvals_dialog,
+        "pop_selectevent_dialog": capture_pop_selectevent_dialog,
+        "pop_rmdat_dialog": capture_pop_rmdat_dialog,
+        "pop_chanedit_dialog": capture_pop_chanedit_dialog,
+        "pop_copyset_dialog": capture_pop_copyset_dialog,
+        "pop_mergeset_dialog": capture_pop_mergeset_dialog,
+        "pop_study_dialog": capture_pop_study_dialog,
+        "pop_studydesign_dialog": capture_pop_studydesign_dialog,
+        "pop_precomp_dialog": capture_pop_precomp_dialog,
+        "pop_preclust_dialog": capture_pop_preclust_dialog,
+        "pop_clust_dialog": capture_pop_clust_dialog,
+        "pop_chanplot_dialog": capture_pop_chanplot_dialog,
+        "pop_clustedit_dialog": capture_pop_clustedit_dialog,
+        "reref_dialog": capture_reref_dialog,
+        "reref_dialog_channel_ref": _capture_with(capture_reref_dialog, variant="channels"),
+        "reref_dialog_huber_ref": _capture_with(capture_reref_dialog, variant="huber"),
+        "reref_dialog_interp_removed": _capture_with(capture_reref_dialog, variant="interp_removed"),
+        "pop_interp_dialog": capture_pop_interp_dialog,
+        "pop_interp_removed_dialog": _capture_with(capture_pop_interp_dialog, variant="removed"),
+        "pop_interp_epoched_dialog": _capture_with(capture_pop_interp_dialog, variant="epoched"),
+        "pop_select_dialog": capture_pop_select_dialog,
+        "pop_resample_dialog": capture_pop_resample_dialog,
+        "pop_newset_dialog": capture_pop_newset_dialog,
+        "pop_rmbase_dialog": capture_pop_rmbase_dialog,
+        "pop_eegfilt_dialog": capture_pop_eegfilt_dialog,
+        "pop_eegfiltnew_dialog": capture_pop_eegfiltnew_dialog,
+        "pop_firws_dialog": capture_pop_firws_dialog,
+        "pop_firpm_dialog": capture_pop_firpm_dialog,
+        "pop_firma_dialog": capture_pop_firma_dialog,
+        "pop_kaiserbeta_dialog": capture_pop_kaiserbeta_dialog,
+        "pop_firwsord_dialog": capture_pop_firwsord_dialog,
+        "pop_firpmord_dialog": capture_pop_firpmord_dialog,
+        "pop_xfirws_dialog": capture_pop_xfirws_dialog,
+        "pop_epoch_dialog": capture_pop_epoch_dialog,
+        "pop_topoplot_erp_dialog": _capture_with(capture_pop_topoplot_dialog, variant="erp"),
+        "pop_topoplot_components_dialog": _capture_with(capture_pop_topoplot_dialog, variant="components"),
+        "pop_spectopo_channels_dialog": _capture_with(capture_pop_spectopo_dialog, variant="channels"),
+        "pop_spectopo_components_dialog": _capture_with(capture_pop_spectopo_dialog, variant="components"),
+        "pop_prop_channels_dialog": _capture_with(capture_pop_prop_dialog, variant="channels"),
+        "pop_prop_components_dialog": _capture_with(capture_pop_prop_dialog, variant="components"),
+        "pop_timtopo_dialog": capture_pop_timtopo_dialog,
+        "pop_plottopo_dialog": capture_pop_plottopo_dialog,
+        "pop_headplot_erp_dialog": _capture_with(capture_pop_headplot_dialog, variant="erp"),
+        "pop_headplot_components_dialog": _capture_with(capture_pop_headplot_dialog, variant="components"),
+        "coregister_dialog": capture_coregister_dialog,
+        "pop_plotdata_dialog": capture_pop_plotdata_dialog,
+        "pop_erpimage_channels_dialog": _capture_with(capture_pop_erpimage_dialog, variant="channels"),
+        "pop_erpimage_components_dialog": _capture_with(capture_pop_erpimage_dialog, variant="components"),
+        "pop_envtopo_dialog": capture_pop_envtopo_dialog,
+        "pop_comperp_channels_dialog": _capture_with(capture_pop_comperp_dialog, variant="channels"),
+        "pop_comperp_components_dialog": _capture_with(capture_pop_comperp_dialog, variant="components"),
+        "pop_newtimef_channels_dialog": _capture_with(capture_pop_newtimef_dialog, variant="channels"),
+        "pop_newtimef_components_dialog": _capture_with(capture_pop_newtimef_dialog, variant="components"),
+        "pop_newcrossf_channels_dialog": _capture_with(capture_pop_newcrossf_dialog, variant="channels"),
+        "pop_newcrossf_components_dialog": _capture_with(capture_pop_newcrossf_dialog, variant="components"),
+        "pop_signalstat_channels_dialog": _capture_with(capture_pop_signalstat_dialog, variant="channels"),
+        "pop_signalstat_components_dialog": _capture_with(capture_pop_signalstat_dialog, variant="components"),
+        "pop_eventstat_dialog": capture_pop_eventstat_dialog,
+        "pop_runica_dialog": capture_pop_runica_dialog,
+        "pop_runica_multiple_dialog": capture_pop_runica_multiple_dialog,
+        "pop_iclabel_dialog": capture_pop_iclabel_dialog,
+        "pop_icflag_dialog": capture_pop_icflag_dialog,
+        "iclabel_pop_prop_extended_dashboard": capture_pop_prop_extended_dashboard,
+        "pop_subcomp_dialog": capture_pop_subcomp_dialog,
+        "pop_clean_rawdata_dialog": capture_pop_clean_rawdata_dialog,
+        "pop_chansel_dialog": capture_pop_chansel_dialog,
+        "select_multiple_datasets_dialog": capture_select_multiple_datasets_dialog,
+        "pop_interp_dataset_index_dialog": capture_dataset_index_dialog,
+        "pop_reref_help_dialog": _capture_with(capture_pophelp_dialog, function_name="pop_reref"),
+        "pop_interp_help_dialog": _capture_with(capture_pophelp_dialog, function_name="pop_interp"),
+    }
+    handlers.update(
+        {
+            f"eegbrowser_{variant}": _capture_with(capture_eegbrowser, variant=variant)
+            for variant in (
+                "continuous",
+                "continuous_marked",
+                "epoched",
+                "epoched_marked",
+                "events",
+                "grid_off",
+                "labels",
+                "component_activity",
+                "data2_overlay",
+                "spectral_overlay",
+                "pop_eegplot_reject_data",
+                "rejcont_continuous",
+                "rejection_epochs",
+            )
+        }
+    )
+    handlers.update(
+        {
+            case_id: _capture_with(capture_rejection_dialog, case_id=case_id)
+            for case_id in (
+                "pop_autorej_dialog",
+                "pop_eegthresh_dialog",
+                "pop_jointprob_dialog",
+                "pop_rejchan_dialog",
+                "pop_rejcont_dialog",
+                "pop_rejkurt_dialog",
+                "pop_rejmenu_dialog",
+                "pop_rejspec_dialog",
+                "pop_rejtrend_dialog",
+                "pop_selectcomps_dialog",
+                "pop_viewprops_dialog",
+            )
+        }
+    )
+    handlers.update(
+        {
+            case_id: _capture_with(capture_dipfit_dialog, case_id=case_id)
+            for case_id in (
+                "pop_dipfit_settings_dialog",
+                "pop_dipfit_headmodel_dialog",
+                "pop_dipfit_gridsearch_dialog",
+                "pop_dipfit_nonlinear_dialog",
+                "pop_dipplot_dialog",
+                "pop_multifit_dialog",
+                "pop_leadfield_dialog",
+                "pop_dipfit_loreta_dialog",
+            )
+        }
+    )
+    return handlers
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--case", required=True)
     parser.add_argument("--output", required=True, type=pathlib.Path)
     args = parser.parse_args(argv)
 
-    if args.case == "adjust_events_dialog":
-        capture_adjust_events_dialog(args.output)
-    elif args.case == "main_window":
-        capture_main_window(args.output)
-    elif args.case == "main_window_continuous":
-        capture_main_window(args.output, state="continuous")
-    elif args.case == "main_window_epoched":
-        capture_main_window(args.output, state="epoched")
-    elif args.case == "main_window_multiple":
-        capture_main_window(args.output, state="multiple")
-    elif args.case == "main_window_study":
-        capture_main_window(args.output, state="study")
-    elif args.case == "eegbrowser_continuous":
-        capture_eegbrowser(args.output, variant="continuous")
-    elif args.case == "eegbrowser_continuous_marked":
-        capture_eegbrowser(args.output, variant="continuous_marked")
-    elif args.case == "eegbrowser_epoched":
-        capture_eegbrowser(args.output, variant="epoched")
-    elif args.case == "eegbrowser_epoched_marked":
-        capture_eegbrowser(args.output, variant="epoched_marked")
-    elif args.case == "eegbrowser_events":
-        capture_eegbrowser(args.output, variant="events")
-    elif args.case == "eegbrowser_grid_off":
-        capture_eegbrowser(args.output, variant="grid_off")
-    elif args.case == "eegbrowser_labels":
-        capture_eegbrowser(args.output, variant="labels")
-    elif args.case == "eegbrowser_component_activity":
-        capture_eegbrowser(args.output, variant="component_activity")
-    elif args.case == "eegbrowser_data2_overlay":
-        capture_eegbrowser(args.output, variant="data2_overlay")
-    elif args.case == "eegbrowser_spectral_overlay":
-        capture_eegbrowser(args.output, variant="spectral_overlay")
-    elif args.case == "eegbrowser_pop_eegplot_reject_data":
-        capture_eegbrowser(args.output, variant="pop_eegplot_reject_data")
-    elif args.case == "eegbrowser_rejcont_continuous":
-        capture_eegbrowser(args.output, variant="rejcont_continuous")
-    elif args.case == "eegbrowser_rejection_epochs":
-        capture_eegbrowser(args.output, variant="rejection_epochs")
-    elif args.case == "file_menu":
-        capture_main_window(args.output, menu_label="File")
-    elif args.case == "edit_menu":
-        capture_main_window(args.output, menu_label="Edit")
-    elif args.case == "tools_menu":
-        capture_main_window(args.output, menu_label="Tools")
-    elif args.case == "plot_menu":
-        capture_main_window(args.output, menu_label="Plot")
-    elif args.case == "study_menu":
-        capture_main_window(args.output, menu_label="Study")
-    elif args.case == "datasets_menu":
-        capture_main_window(args.output, menu_label="Datasets")
-    elif args.case == "help_menu":
-        capture_main_window(args.output, menu_label="Help")
-    elif args.case == "pop_comments_dialog":
-        capture_pop_comments_dialog(args.output)
-    elif args.case == "pop_editset_dialog":
-        capture_pop_editset_dialog(args.output)
-    elif args.case == "pop_editeventfield_dialog":
-        capture_pop_editeventfield_dialog(args.output)
-    elif args.case == "pop_editeventvals_dialog":
-        capture_pop_editeventvals_dialog(args.output)
-    elif args.case == "pop_selectevent_dialog":
-        capture_pop_selectevent_dialog(args.output)
-    elif args.case == "pop_rmdat_dialog":
-        capture_pop_rmdat_dialog(args.output)
-    elif args.case == "pop_chanedit_dialog":
-        capture_pop_chanedit_dialog(args.output)
-    elif args.case == "pop_copyset_dialog":
-        capture_pop_copyset_dialog(args.output)
-    elif args.case == "pop_mergeset_dialog":
-        capture_pop_mergeset_dialog(args.output)
-    elif args.case == "pop_study_dialog":
-        capture_pop_study_dialog(args.output)
-    elif args.case == "pop_studydesign_dialog":
-        capture_pop_studydesign_dialog(args.output)
-    elif args.case == "pop_precomp_dialog":
-        capture_pop_precomp_dialog(args.output)
-    elif args.case == "pop_preclust_dialog":
-        capture_pop_preclust_dialog(args.output)
-    elif args.case == "pop_clust_dialog":
-        capture_pop_clust_dialog(args.output)
-    elif args.case == "pop_chanplot_dialog":
-        capture_pop_chanplot_dialog(args.output)
-    elif args.case == "pop_clustedit_dialog":
-        capture_pop_clustedit_dialog(args.output)
-    elif args.case == "reref_dialog":
-        capture_reref_dialog(args.output)
-    elif args.case == "reref_dialog_channel_ref":
-        capture_reref_dialog(args.output, variant="channels")
-    elif args.case == "reref_dialog_huber_ref":
-        capture_reref_dialog(args.output, variant="huber")
-    elif args.case == "reref_dialog_interp_removed":
-        capture_reref_dialog(args.output, variant="interp_removed")
-    elif args.case == "pop_interp_dialog":
-        capture_pop_interp_dialog(args.output)
-    elif args.case == "pop_interp_removed_dialog":
-        capture_pop_interp_dialog(args.output, variant="removed")
-    elif args.case == "pop_interp_epoched_dialog":
-        capture_pop_interp_dialog(args.output, variant="epoched")
-    elif args.case == "pop_select_dialog":
-        capture_pop_select_dialog(args.output)
-    elif args.case == "pop_resample_dialog":
-        capture_pop_resample_dialog(args.output)
-    elif args.case == "pop_newset_dialog":
-        capture_pop_newset_dialog(args.output)
-    elif args.case == "pop_rmbase_dialog":
-        capture_pop_rmbase_dialog(args.output)
-    elif args.case == "pop_eegfilt_dialog":
-        capture_pop_eegfilt_dialog(args.output)
-    elif args.case == "pop_eegfiltnew_dialog":
-        capture_pop_eegfiltnew_dialog(args.output)
-    elif args.case == "pop_firws_dialog":
-        capture_pop_firws_dialog(args.output)
-    elif args.case == "pop_firpm_dialog":
-        capture_pop_firpm_dialog(args.output)
-    elif args.case == "pop_firma_dialog":
-        capture_pop_firma_dialog(args.output)
-    elif args.case == "pop_kaiserbeta_dialog":
-        capture_pop_kaiserbeta_dialog(args.output)
-    elif args.case == "pop_firwsord_dialog":
-        capture_pop_firwsord_dialog(args.output)
-    elif args.case == "pop_firpmord_dialog":
-        capture_pop_firpmord_dialog(args.output)
-    elif args.case == "pop_xfirws_dialog":
-        capture_pop_xfirws_dialog(args.output)
-    elif args.case == "pop_epoch_dialog":
-        capture_pop_epoch_dialog(args.output)
-    elif args.case == "pop_topoplot_erp_dialog":
-        capture_pop_topoplot_dialog(args.output, variant="erp")
-    elif args.case == "pop_topoplot_components_dialog":
-        capture_pop_topoplot_dialog(args.output, variant="components")
-    elif args.case == "pop_spectopo_channels_dialog":
-        capture_pop_spectopo_dialog(args.output, variant="channels")
-    elif args.case == "pop_spectopo_components_dialog":
-        capture_pop_spectopo_dialog(args.output, variant="components")
-    elif args.case == "pop_prop_channels_dialog":
-        capture_pop_prop_dialog(args.output, variant="channels")
-    elif args.case == "pop_prop_components_dialog":
-        capture_pop_prop_dialog(args.output, variant="components")
-    elif args.case == "pop_timtopo_dialog":
-        capture_pop_timtopo_dialog(args.output)
-    elif args.case == "pop_plottopo_dialog":
-        capture_pop_plottopo_dialog(args.output)
-    elif args.case == "pop_headplot_erp_dialog":
-        capture_pop_headplot_dialog(args.output, variant="erp")
-    elif args.case == "pop_headplot_components_dialog":
-        capture_pop_headplot_dialog(args.output, variant="components")
-    elif args.case == "coregister_dialog":
-        capture_coregister_dialog(args.output)
-    elif args.case == "pop_plotdata_dialog":
-        capture_pop_plotdata_dialog(args.output)
-    elif args.case == "pop_erpimage_channels_dialog":
-        capture_pop_erpimage_dialog(args.output, variant="channels")
-    elif args.case == "pop_erpimage_components_dialog":
-        capture_pop_erpimage_dialog(args.output, variant="components")
-    elif args.case == "pop_envtopo_dialog":
-        capture_pop_envtopo_dialog(args.output)
-    elif args.case == "pop_comperp_channels_dialog":
-        capture_pop_comperp_dialog(args.output, variant="channels")
-    elif args.case == "pop_comperp_components_dialog":
-        capture_pop_comperp_dialog(args.output, variant="components")
-    elif args.case == "pop_newtimef_channels_dialog":
-        capture_pop_newtimef_dialog(args.output, variant="channels")
-    elif args.case == "pop_newtimef_components_dialog":
-        capture_pop_newtimef_dialog(args.output, variant="components")
-    elif args.case == "pop_newcrossf_channels_dialog":
-        capture_pop_newcrossf_dialog(args.output, variant="channels")
-    elif args.case == "pop_newcrossf_components_dialog":
-        capture_pop_newcrossf_dialog(args.output, variant="components")
-    elif args.case == "pop_signalstat_channels_dialog":
-        capture_pop_signalstat_dialog(args.output, variant="channels")
-    elif args.case == "pop_signalstat_components_dialog":
-        capture_pop_signalstat_dialog(args.output, variant="components")
-    elif args.case == "pop_eventstat_dialog":
-        capture_pop_eventstat_dialog(args.output)
-    elif args.case == "pop_runica_dialog":
-        capture_pop_runica_dialog(args.output)
-    elif args.case == "pop_runica_multiple_dialog":
-        capture_pop_runica_multiple_dialog(args.output)
-    elif args.case == "pop_iclabel_dialog":
-        capture_pop_iclabel_dialog(args.output)
-    elif args.case == "pop_icflag_dialog":
-        capture_pop_icflag_dialog(args.output)
-    elif args.case == "iclabel_pop_prop_extended_dashboard":
-        capture_pop_prop_extended_dashboard(args.output)
-    elif args.case == "pop_subcomp_dialog":
-        capture_pop_subcomp_dialog(args.output)
-    elif args.case in {
-        "pop_autorej_dialog",
-        "pop_eegthresh_dialog",
-        "pop_jointprob_dialog",
-        "pop_rejchan_dialog",
-        "pop_rejcont_dialog",
-        "pop_rejkurt_dialog",
-        "pop_rejmenu_dialog",
-        "pop_rejspec_dialog",
-        "pop_rejtrend_dialog",
-        "pop_selectcomps_dialog",
-        "pop_viewprops_dialog",
-    }:
-        capture_rejection_dialog(args.output, case_id=args.case)
-    elif args.case in {
-        "pop_dipfit_settings_dialog",
-        "pop_dipfit_headmodel_dialog",
-        "pop_dipfit_gridsearch_dialog",
-        "pop_dipfit_nonlinear_dialog",
-        "pop_dipplot_dialog",
-        "pop_multifit_dialog",
-        "pop_leadfield_dialog",
-        "pop_dipfit_loreta_dialog",
-    }:
-        capture_dipfit_dialog(args.output, case_id=args.case)
-    elif args.case == "pop_clean_rawdata_dialog":
-        capture_pop_clean_rawdata_dialog(args.output)
-    elif args.case == "pop_chansel_dialog":
-        capture_pop_chansel_dialog(args.output)
-    elif args.case == "select_multiple_datasets_dialog":
-        capture_select_multiple_datasets_dialog(args.output)
-    elif args.case == "pop_interp_dataset_index_dialog":
-        capture_dataset_index_dialog(args.output)
-    elif args.case == "pop_reref_help_dialog":
-        capture_pophelp_dialog(args.output, "pop_reref")
-    elif args.case == "pop_interp_help_dialog":
-        capture_pophelp_dialog(args.output, "pop_interp")
-    else:
+    handler = _capture_case_handlers().get(args.case)
+    if handler is None:
         parser.error(f"unsupported EEGPrep visual capture case: {args.case}")
+    handler(args.output)
     return 0
 
 

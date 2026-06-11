@@ -551,23 +551,6 @@ def _save_two_files(EEG, savemode):
     return bool(datfile and savemode == 'resave') or savetwofiles_enabled()
 
 
-def test_pop_saveset():
-    """Test pop_saveset function."""
-    from eegprep.functions.popfunc.pop_loadset import pop_loadset
-
-    file_path = './sample_data/eeglab_data_with_ica_tmp.set'
-    EEG = pop_loadset(file_path)
-    pop_saveset(EEG, '/Users/arno/Python/eegprep/sample_data/tmp.set')
-    pop_saveset_old(
-        EEG, '/Users/arno/Python/eegprep/sample_data/tmp2.set'
-    )  # does not do events and function above is better
-    # print the keys of the EEG dictionary
-    print(EEG.keys())
-
-
-if __name__ == '__main__':
-    test_pop_saveset()
-
 # STILL OPEN QUESTION: Better to have empty MATLAB arrays as None for empty numpy arrays (current default).
 # The current default is to make it more MALTAB compatible. A lot of MATLAB function start indexing MATLAB
 # empty arrays to add values to them. This is not possible with None and would create more conversion and

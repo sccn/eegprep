@@ -545,16 +545,3 @@ def eeg_checkset(EEG, *checks, load_data=True):
                 )
 
     return EEG
-
-
-def test_eeg_checkset():
-    from eegprep.functions.popfunc.pop_loadset import pop_loadset
-
-    eeglab_file_path = './sample_data/eeglab_data_with_ica_tmp_out2.set'
-    EEG = pop_loadset(eeglab_file_path)
-    EEG = eeg_checkset(EEG)
-    logger.info('Checkset done')
-
-
-if __name__ == '__main__':
-    test_eeg_checkset()
