@@ -260,12 +260,12 @@ def test_gui_displayed_channels_and_vertical_slider_update_visible_state(qapp) -
     window = EEGBrowserWindow(model)
 
     assert window.channel_slider.isHidden() is False
-    assert tuple(window.canvas._visible_channels()) == (0, 1)
+    assert tuple(window.canvas._visible_channels()) == (0, 1, 2, 3)
     window.channel_slider.setValue(2)
     qapp.processEvents()
 
     assert model.state.channel_offset == 2
-    assert tuple(window.canvas._visible_channels()) == (2, 3)
+    assert tuple(window.canvas._visible_channels()) == (2, 3, 4)
 
     window.set_displayed_channels(5)
     qapp.processEvents()
@@ -274,6 +274,59 @@ def test_gui_displayed_channels_and_vertical_slider_update_visible_state(qapp) -
     assert tuple(window.canvas._visible_channels()) == (0, 1, 2, 3, 4)
     assert window.channel_slider.isVisible() is False
     window.close()
+
+
+def test_gui_eegbrowser_uses_eeglab_extra_visible_channel_row(qapp) -> None:
+    from eegprep.functions.guifunc.eegbrowser import EEGBrowserWindow
+
+    model = build_eegplot_model(np.zeros((8, 100)), srate=10, spacing=1, winlength=2, dispchans=6)
+    window = EEGBrowserWindow(model)
+
+    assert tuple(window.canvas._visible_channels()) == (0, 1, 2, 3, 4, 5, 6, 7)
+    assert window.channel_slider.maximum() == 2
+    window.channel_slider.setValue(2)
+    qapp.processEvents()
+
+    assert model.state.channel_offset == 2
+    assert tuple(window.canvas._visible_channels()) == (2, 3, 4, 5, 6, 7)
+    window.close()
+
+
+def test_gui_epoched_browser_uses_eeglab_epoch_and_latency_axes(qapp) -> None:
+    from eegprep.functions.guifunc.eegbrowser import EEGBrowserWindow, _EPOCHED_XTICK_LABEL_ROTATION
+
+    data = np.zeros((8, 250, 3))
+    model = build_eegplot_model(
+        {"data": data, "nbchan": 8, "pnts": 250, "trials": 3, "srate": 250, "xmin": -0.2, "xmax": 0.796},
+        winlength=3,
+        dispchans=6,
+        spacing=1,
+        xgrid="on",
+    )
+    window = EEGBrowserWindow(model)
+    qapp.processEvents()
+
+    assert tuple(window.canvas._visible_channels()) == (0, 1, 2, 3, 4, 5, 6, 7)
+    assert window.canvas._epoch_ticks(0, 750) == [(125.0, "1"), (375.0, "2"), (625.0, "3")]
+    assert window.canvas._trial_boundary_ticks(0, 750) == [0.0, 250.0, 500.0]
+
+    latency_ticks = window.canvas._bottom_x_ticks(0, 750)
+    assert (50.0, "0") in latency_ticks
+    assert (300.0, "0") in latency_ticks
+    assert (550.0, "0") in latency_ticks
+    assert len(window.canvas._bottom_tick_label_items) == len(latency_ticks)
+    assert {label.rotation() for label in window.canvas._bottom_tick_label_items} == {_EPOCHED_XTICK_LABEL_ROTATION}
+    assert window.canvas.plot.getAxis("bottom").height() == 44
+    assert len(window.canvas._trial_boundary_items) == 3
+    assert window.canvas.plot.getAxis("top").height() == 22
+    window.close()
+
+
+def test_gui_epoched_latency_tick_increment_matches_eeglab_visual_divisor(qapp) -> None:
+    from eegprep.functions.guifunc.eegbrowser import _epoch_latency_increment_ms
+
+    assert _epoch_latency_increment_ms(3.0, 996.0) == pytest.approx(100.0)
+    assert _epoch_latency_increment_ms(1.0, 996.0) == pytest.approx(50.0)
 
 
 def test_gui_cancel_and_accept_buttons_set_close_state(qapp) -> None:
@@ -304,7 +357,7 @@ def test_gui_keyboard_shortcuts_match_navigation_and_scale(qapp) -> None:
     qt_test = pytest.importorskip("PySide6.QtTest")
     from eegprep.functions.guifunc.eegbrowser import EEGBrowserWindow
 
-    model = build_eegplot_model(np.zeros((3, 100)), srate=10, winlength=2, dispchans=2, spacing=10)
+    model = build_eegplot_model(np.zeros((4, 100)), srate=10, winlength=2, dispchans=2, spacing=10)
     window = EEGBrowserWindow(model)
     window.show()
     window.activateWindow()
@@ -471,7 +524,7 @@ def test_gui_eegplot_children_option_links_opened_browser(qapp) -> None:
 def test_gui_noui_publication_view_hides_and_restores_browser_controls(qapp) -> None:
     from eegprep.functions.guifunc.eegbrowser import EEGBrowserWindow
 
-    model = build_eegplot_model(np.zeros((3, 100)), srate=10, winlength=2, dispchans=2, spacing=1, noui="on")
+    model = build_eegplot_model(np.zeros((4, 100)), srate=10, winlength=2, dispchans=2, spacing=1, noui="on")
     window = EEGBrowserWindow(model)
     window.show()
     qapp.processEvents()
