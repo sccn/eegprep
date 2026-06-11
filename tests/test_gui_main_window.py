@@ -12,6 +12,7 @@ from eegprep.functions.guifunc.menu_actions import (
     MenuActionDispatcher,
     action_kind,
 )
+from eegprep.functions.guifunc.long_task import LongTaskHandle
 from eegprep.functions.guifunc.menu_placeholders import is_placeholder_action, placeholder_message
 from eegprep.functions.guifunc.menu_spec import menu_enabled
 from eegprep.functions.guifunc.session import EEGPrepSession
@@ -854,6 +855,93 @@ class MenuActionDispatcherTests(unittest.TestCase):
                     self.assertIn(f"EEG = {action}(EEG);", session.EEG["history"])
                 else:
                     self.assertEqual(session.ALLCOM[-1], f"EEG = {action}(EEG);")
+
+    def test_gui_pop_runica_runs_ica_in_long_task_before_committing_result(self):
+        session = EEGPrepSession()
+        session.store_current(_demo_eeg(), new=True)
+        refresh = mock.Mock()
+        dispatcher = MenuActionDispatcher(session, refresh=refresh)
+        output = dict(session.EEG, setname="ica")
+        options = {
+            "icatype": "runica",
+            "options": {"extended": 1, "interrupt": "on"},
+            "reorder": "on",
+            "chanind": None,
+            "dataset": None,
+            "concatenate": "off",
+            "concatcond": "off",
+        }
+        captured = {}
+        handle = LongTaskHandle(thread=object(), worker=object(), dialog=object())
+        events = []
+        original_selection = session.EEG
+        session.add_gui_action_listener(lambda event, action: events.append((event, action)))
+
+        def fake_run_long_task(**kwargs):
+            captured.update(kwargs)
+            return handle
+
+        with (
+            mock.patch("eegprep.functions.popfunc.pop_runica.pop_runica_gui_options", return_value=options),
+            mock.patch(
+                "eegprep.functions.popfunc.pop_runica.pop_runica",
+                return_value=(output, "EEG = pop_runica(EEG, 'icatype', 'runica', 'extended', 1, 'interrupt', 'on');"),
+            ) as pop_func,
+            mock.patch("eegprep.functions.guifunc.menu_actions.run_long_task", side_effect=fake_run_long_task),
+        ):
+            dispatcher.dispatch("pop_runica", parent=object())
+            self.assertEqual(session.EEG["setname"], "demo")
+
+            result = captured["task"]()
+            captured["on_success"](result)
+            captured["on_finished"](handle)
+
+        pop_func.assert_called_once_with(original_selection, gui=False, return_com=True, **options)
+        self.assertEqual(session.EEG["setname"], "ica")
+        self.assertEqual(session.ALLEEG[0]["setname"], "ica")
+        self.assertEqual(
+            session.ALLCOM[-1],
+            "EEG = pop_runica(EEG, 'icatype', 'runica', 'extended', 1, 'interrupt', 'on');",
+        )
+        refresh.assert_called_once()
+        self.assertEqual(events, [("begin", "pop_runica"), ("end", "pop_runica")])
+        self.assertEqual(dispatcher._long_tasks, [])
+
+    def test_gui_pop_runica_long_task_error_does_not_mutate_session(self):
+        session = EEGPrepSession()
+        session.store_current(_demo_eeg(), new=True)
+        dispatcher = MenuActionDispatcher(session)
+        options = {
+            "icatype": "runica",
+            "options": {"extended": 1},
+            "reorder": "on",
+            "chanind": None,
+            "dataset": None,
+            "concatenate": "off",
+            "concatcond": "off",
+        }
+        captured = {}
+        handle = LongTaskHandle(thread=object(), worker=object(), dialog=object())
+        warnings = []
+
+        def fake_run_long_task(**kwargs):
+            captured.update(kwargs)
+            return handle
+
+        with (
+            mock.patch("eegprep.functions.popfunc.pop_runica.pop_runica_gui_options", return_value=options),
+            mock.patch("eegprep.functions.guifunc.menu_actions.run_long_task", side_effect=fake_run_long_task),
+            mock.patch.object(dispatcher, "_warn", side_effect=lambda _parent, message: warnings.append(message)),
+        ):
+            dispatcher.dispatch("pop_runica", parent=object())
+            captured["on_error"](ValueError("runica failed"))
+            captured["on_finished"](handle)
+
+        self.assertEqual(session.EEG["setname"], "demo")
+        self.assertEqual(session.ALLEEG[0]["setname"], "demo")
+        self.assertEqual(session.ALLCOM, [])
+        self.assertEqual(warnings, ["runica failed"])
+        self.assertEqual(dispatcher._long_tasks, [])
 
     def test_gui_transform_action_can_commit_processed_dataset_as_new_set(self):
         session = EEGPrepSession()

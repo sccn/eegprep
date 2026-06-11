@@ -101,6 +101,14 @@ GUI actions should update state through session helpers such as
 ``notify_changed()``. They should not mutate a GUI-only copy of ``EEG`` that
 the console cannot see.
 
+Long-running GUI actions use the same session boundary. For example,
+GUI-launched ICA opens the EEGLAB-like ``pop_runica`` options dialog on the main
+thread, runs the ICA computation behind a progress dialog, then stores the
+updated dataset and history only after the worker finishes successfully. While
+the worker is running, progress messages are buffered safely for
+``eegprep-console`` so the replayable command remains visible before related
+output.
+
 ``eegprep-console`` wraps registered ``pop_*`` functions. When a bare call such
 as ``pop_resample(EEG, 64)`` returns a dataset and command string, the wrapper
 stores the returned dataset, updates ``LASTCOM`` and ``ALLCOM``, and tells the

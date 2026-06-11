@@ -60,7 +60,7 @@ def pop_runica(
     elif gui is None:
         gui = options is None and not has_programmatic_options and chanind is None and dataset is None
     if gui:
-        gui_result = _run_gui(EEG, renderer=renderer, initial_values=_selectamica_initial_values(selectamica))
+        gui_result = pop_runica_gui_options(EEG, renderer=renderer, selectamica=selectamica)
         if gui_result is None:
             return (EEG, "") if return_com else EEG
         icatype = gui_result["icatype"]
@@ -70,9 +70,6 @@ def pop_runica(
         dataset = gui_result["dataset"]
         concatenate = gui_result["concatenate"]
         concatcond = gui_result["concatcond"]
-        if icatype == "runica":
-            options = dict(options)
-            options.setdefault("interrupt", "on")
 
     ica_options = _normalise_ica_options(icatype, options, parsed)
     if isinstance(EEG, list):
@@ -200,6 +197,18 @@ def _run_gui(EEG, renderer=None, initial_values=None):
         "concatenate": "on" if result.get("concatenate") else "off",
         "concatcond": "on" if result.get("concatcond") else "off",
     }
+
+
+def pop_runica_gui_options(EEG, *, renderer=None, selectamica: str | None = None) -> dict[str, Any] | None:
+    """Collect ``pop_runica`` GUI options without running the ICA backend."""
+    gui_result = _run_gui(EEG, renderer=renderer, initial_values=_selectamica_initial_values(selectamica))
+    if gui_result is None:
+        return None
+    if gui_result["icatype"] == "runica":
+        options = dict(gui_result["options"])
+        options.setdefault("interrupt", "on")
+        gui_result["options"] = options
+    return gui_result
 
 
 def _runica_on_dataset(EEG, icatype, options, *, reorder, chanind):

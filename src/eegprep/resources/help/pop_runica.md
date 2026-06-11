@@ -30,6 +30,10 @@ Calling `pop_runica(EEG)` opens an EEGLAB-style dialog with:
 - Channel type/index selection controls.
 - For multiple datasets, a dataset selector and concatenate controls.
 
+When `pop_runica` is started from the main EEGPrep GUI, the ICA computation
+runs behind an indeterminate progress dialog so the window can continue
+repainting while the decomposition is being computed.
+
 Behavior:
 
 - Supplying a non-default `icatype` programmatically, for example
@@ -41,6 +45,9 @@ Behavior:
 - Existing ICLabel classifications are removed when ICA is recomputed because they no longer describe the active components.
 - `EEG.icaweights`, `EEG.icasphere`, `EEG.icawinv`, `EEG.icaact`, and `EEG.icachansind` are updated.
 - GUI-launched runica adds `'interrupt', 'on'` to the history command, matching EEGLAB's GUI path.
+- GUI-launched ICA stores the updated dataset only after the background
+  computation finishes successfully. Failed runs leave the current dataset and
+  history unchanged.
 
 Examples:
 

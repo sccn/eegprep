@@ -50,6 +50,7 @@ GUI_FILE_SUFFIXES = (
     "tests/test_gui_pop_runica.py",
     "tests/test_gui_pop_select.py",
     "tests/test_gui_pop_study.py",
+    "tests/test_gui_long_task.py",
     "tests/test_gui_main_window.py",
     "tests/test_eegplot_gui.py",
 )

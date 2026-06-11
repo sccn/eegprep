@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from eegprep.extension_runtime import ExtensionRuntime
+from eegprep.functions.guifunc.long_task import LongTaskHandle, run_long_task
 from eegprep.functions.guifunc.menu_placeholders import PLACEHOLDER_ACTIONS, is_placeholder_action, placeholder_message
 from eegprep.functions.guifunc.pophelp import pophelp
 from eegprep.functions.guifunc.session import EEGPrepSession, has_eeg_data
@@ -231,6 +232,7 @@ class MenuActionDispatcher:
         self.refresh = refresh
         self.native_file_dialogs = native_file_dialogs
         self.extension_runtime = extension_runtime or ExtensionRuntime.empty()
+        self._long_tasks: list[LongTaskHandle] = []
 
     def dispatch_gui(self, action: str, parent: Any | None = None) -> None:
         """Run a menu action from Qt and show user-facing errors."""
@@ -1156,8 +1158,14 @@ class MenuActionDispatcher:
 
             out = pop_rmdat(selection, return_com=True)
         elif name == "pop_runica":
-            from eegprep.functions.popfunc.pop_runica import pop_runica
+            from eegprep.functions.popfunc.pop_runica import pop_runica, pop_runica_gui_options
 
+            if parent is not None:
+                gui_options = pop_runica_gui_options(selection)
+                if gui_options is None:
+                    return
+                self._run_pop_runica_long_task(selection, gui_options, parent)
+                return
             out = pop_runica(selection, return_com=True)
         elif name == "pop_select":
             from eegprep.functions.popfunc.pop_select import pop_select
@@ -1299,6 +1307,59 @@ class MenuActionDispatcher:
             else:
                 self._store_current_from_gui(eeg_out, command=command)
             self._refresh()
+
+    def _run_pop_runica_long_task(
+        self,
+        selection: Any,
+        gui_options: Mapping[str, Any],
+        parent: Any,
+    ) -> None:
+        from eegprep.functions.popfunc.pop_runica import pop_runica
+
+        self.session.begin_gui_action("pop_runica")
+
+        def task() -> Any:
+            return pop_runica(selection, gui=False, return_com=True, **dict(gui_options))
+
+        def on_success(out: Any) -> None:
+            try:
+                if isinstance(out, tuple):
+                    eeg_out, command = out[0], out[1] if len(out) > 1 else ""
+                else:
+                    eeg_out, command = out, ""
+                if command:
+                    self._store_current_from_gui(eeg_out, command=command)
+                    self._refresh()
+            except Exception as exc:
+                logger.exception("EEGPrep GUI menu action failed: pop_runica")
+                self._warn(parent, str(exc))
+
+        def on_error(exc: Exception) -> None:
+            logger.error(
+                "EEGPrep GUI menu action failed: pop_runica",
+                exc_info=(type(exc), exc, exc.__traceback__),
+            )
+            self._warn(parent, str(exc))
+
+        def on_finished(handle: LongTaskHandle) -> None:
+            if handle in self._long_tasks:
+                self._long_tasks.remove(handle)
+            self.session.end_gui_action("pop_runica")
+
+        try:
+            handle = run_long_task(
+                parent=parent,
+                title="Running ICA decomposition",
+                label="Running ICA decomposition. This may take several minutes.",
+                task=task,
+                on_success=on_success,
+                on_error=on_error,
+                on_finished=on_finished,
+            )
+        except Exception:
+            self.session.end_gui_action("pop_runica")
+            raise
+        self._long_tasks.append(handle)
 
     def _run_browser_accept_pop_action(
         self,
