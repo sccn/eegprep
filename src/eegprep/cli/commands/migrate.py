@@ -1,4 +1,4 @@
-"""EEGLAB migration and compatibility commands for the EEGPrep CLI."""
+"""Migration and compatibility commands for the EEGPrep CLI."""
 
 from __future__ import annotations
 
@@ -33,22 +33,22 @@ _COMMAND_MAP = {
 
 
 def register(subparsers: argparse._SubParsersAction) -> argparse.ArgumentParser:
-    """Register ``eeglab`` compatibility commands."""
-    parser = subparsers.add_parser("eeglab", help="Inspect EEGLAB history and migration compatibility.")
-    eeglab_sub = parser.add_subparsers(dest="eeglab_command", required=True)
+    """Register migration compatibility commands."""
+    parser = subparsers.add_parser("migrate", help="Inspect old EEGLAB histories and migration compatibility.")
+    migrate_sub = parser.add_subparsers(dest="migrate_command", required=True)
 
-    history_parser = eeglab_sub.add_parser("history", help="Inspect mapped EEGLAB history operations.")
+    history_parser = migrate_sub.add_parser("history", help="Inspect mapped EEGLAB history operations.")
     history_parser.add_argument("input")
     history_parser.add_argument("--json", action="store_true")
     history_parser.set_defaults(handler=lambda args: history(args.input))
 
-    compare_parser = eeglab_sub.add_parser("compare", help="Compare two EEGLAB .set datasets.")
+    compare_parser = migrate_sub.add_parser("compare", help="Compare two EEGLAB .set datasets.")
     compare_parser.add_argument("left")
     compare_parser.add_argument("right")
     compare_parser.add_argument("--json", action="store_true")
     compare_parser.set_defaults(handler=lambda args: compare(args.left, args.right))
 
-    convert = eeglab_sub.add_parser("convert-script", help="Best-effort conversion of simple EEGLAB scripts to YAML.")
+    convert = migrate_sub.add_parser("convert-script", help="Best-effort conversion of simple EEGLAB scripts to YAML.")
     convert.add_argument("script")
     convert.add_argument("--to", choices=("eegprep-yaml",), default="eegprep-yaml")
     convert.add_argument("--output")
@@ -95,7 +95,7 @@ def history(input_path: str | Path) -> dict[str, Any]:
         operations.append(record)
     return {
         "status": "ok",
-        "schema_version": "eegprep.eeglab.history.v1",
+        "schema_version": "eegprep.migrate.history.v1",
         "input": str(input_path),
         "history_detected": bool(operations),
         "operations": operations,
@@ -148,7 +148,7 @@ def compare(left: str | Path, right: str | Path) -> dict[str, Any]:
             differences.append({"path": "data", "code": "DATA_VALUE_MISMATCH", "max_abs_diff": max_abs_diff})
     return {
         "status": "ok",
-        "schema_version": "eegprep.eeglab.compare.v1",
+        "schema_version": "eegprep.migrate.compare.v1",
         "left": str(left),
         "right": str(right),
         "equivalent": not differences,
@@ -207,7 +207,7 @@ def convert_script(
         output_path_value = str(destination)
     return {
         "status": "ok",
-        "schema_version": "eegprep.eeglab.convert_script.v1",
+        "schema_version": "eegprep.migrate.convert_script.v1",
         "source": str(source),
         "target": target,
         "output": output_path_value,
@@ -219,10 +219,10 @@ def convert_script(
 
 def main(argv: list[str] | None = None) -> int:
     """Standalone module harness for tests and local debugging."""
-    parser = argparse.ArgumentParser(prog="eegprep eeglab")
+    parser = argparse.ArgumentParser(prog="eegprep migrate")
     subparsers = parser.add_subparsers(dest="command", required=True)
     register(subparsers)
-    args = parser.parse_args(["eeglab", *(sys.argv[1:] if argv is None else argv)])
+    args = parser.parse_args(["migrate", *(sys.argv[1:] if argv is None else argv)])
     result = args.handler(args)
     print(json.dumps(json_safe(result), sort_keys=True))
     return 0 if result.get("status") in {"ok", "warning"} else 1

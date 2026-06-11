@@ -37,6 +37,8 @@ def test_help_has_agent_start_section():
     assert result.returncode == 0
     assert "Start here (for AI agents):" in result.stdout
     assert "eegprep skills get eegprep-cli" in result.stdout
+    assert "migrate" in result.stdout
+    assert "eeglab              Inspect EEGLAB history" not in result.stdout
 
 
 def test_capabilities_schema_examples_and_skill_are_json_readable():
@@ -49,6 +51,8 @@ def test_capabilities_schema_examples_and_skill_are_json_readable():
     commands = _json_stdout(capabilities)["commands"]
     assert "filter" in commands
     assert "batch" in commands
+    assert "migrate" in commands
+    assert "eeglab" not in commands
     assert schema.returncode == 0
     assert _json_stdout(schema)["schema"]["schema_version"] == "eegprep.schema.command.filter.v1"
     assert examples.returncode == 0

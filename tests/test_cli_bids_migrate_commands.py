@@ -103,8 +103,8 @@ def test_bids_export_refuses_non_empty_root_without_overwrite(tmp_path):
     assert existing.read_text(encoding="utf-8") == "existing"
 
 
-def test_eeglab_history_maps_supported_and_unsupported_commands(tmp_path):
-    from eegprep.cli.commands import eeglab as eeglab_cli
+def test_migrate_history_maps_supported_and_unsupported_commands(tmp_path):
+    from eegprep.cli.commands import migrate as migrate_cli
 
     set_file = tmp_path / "history.set"
     eeg = _eeg()
@@ -117,9 +117,10 @@ def test_eeglab_history_maps_supported_and_unsupported_commands(tmp_path):
     )
     pop_saveset(eeg, set_file)
 
-    payload = eeglab_cli.history(set_file)
+    payload = migrate_cli.history(set_file)
 
     assert payload["status"] == "ok"
+    assert payload["schema_version"] == "eegprep.migrate.history.v1"
     assert [operation["eeglab_command"] for operation in payload["operations"]] == [
         "pop_loadset",
         "pop_resample",
@@ -131,8 +132,8 @@ def test_eeglab_history_maps_supported_and_unsupported_commands(tmp_path):
     assert payload["operations"][2]["unsupported"]["code"] == "COMMAND_NOT_IMPLEMENTED"
 
 
-def test_eeglab_compare_reports_structured_differences(tmp_path):
-    from eegprep.cli.commands import eeglab as eeglab_cli
+def test_migrate_compare_reports_structured_differences(tmp_path):
+    from eegprep.cli.commands import migrate as migrate_cli
 
     left = tmp_path / "left.set"
     right = tmp_path / "right.set"
@@ -144,9 +145,10 @@ def test_eeglab_compare_reports_structured_differences(tmp_path):
     pop_saveset(eeg_left, left)
     pop_saveset(eeg_right, right)
 
-    payload = eeglab_cli.compare(left, right)
+    payload = migrate_cli.compare(left, right)
 
     assert payload["status"] == "ok"
+    assert payload["schema_version"] == "eegprep.migrate.compare.v1"
     assert payload["equivalent"] is False
     differences_by_path = {difference["path"]: difference for difference in payload["differences"]}
     assert differences_by_path["srate"]["code"] == "VALUE_MISMATCH"
@@ -154,8 +156,8 @@ def test_eeglab_compare_reports_structured_differences(tmp_path):
     assert payload["data"]["max_abs_diff"] == 1.25
 
 
-def test_eeglab_compare_reports_nan_placement_differences(tmp_path):
-    from eegprep.cli.commands import eeglab as eeglab_cli
+def test_migrate_compare_reports_nan_placement_differences(tmp_path):
+    from eegprep.cli.commands import migrate as migrate_cli
 
     left = tmp_path / "left_nan.set"
     right = tmp_path / "right_nan.set"
@@ -168,14 +170,14 @@ def test_eeglab_compare_reports_nan_placement_differences(tmp_path):
     pop_saveset(eeg_left, left)
     pop_saveset(eeg_right, right)
 
-    payload = eeglab_cli.compare(left, right)
+    payload = migrate_cli.compare(left, right)
 
     assert payload["equivalent"] is False
     assert any(difference["code"] == "DATA_FINITE_MASK_MISMATCH" for difference in payload["differences"])
 
 
-def test_eeglab_convert_script_reports_best_effort_conversion(tmp_path):
-    from eegprep.cli.commands import eeglab as eeglab_cli
+def test_migrate_convert_script_reports_best_effort_conversion(tmp_path):
+    from eegprep.cli.commands import migrate as migrate_cli
 
     script = tmp_path / "pipeline.m"
     output = tmp_path / "pipeline.yaml"
@@ -190,9 +192,10 @@ def test_eeglab_convert_script_reports_best_effort_conversion(tmp_path):
         encoding="utf-8",
     )
 
-    payload = eeglab_cli.convert_script(script, output=output)
+    payload = migrate_cli.convert_script(script, output=output)
 
     assert payload["status"] == "ok"
+    assert payload["schema_version"] == "eegprep.migrate.convert_script.v1"
     assert payload["target"] == "eegprep-yaml"
     assert payload["converted_steps"][1]["name"] == "resample"
     assert payload["unsupported_commands"][0]["command"] == "topoplot"
