@@ -230,7 +230,7 @@ Or from source:
 
 .. code-block:: bash
 
-    git pull origin main
+    git pull origin develop
     pip install -e .
 
 Checking Your Version

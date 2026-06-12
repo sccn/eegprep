@@ -5,16 +5,20 @@ EEGPrep
 .. raw:: html
 
    <div class="eegprep-hero">
-     <div class="eegprep-kicker">Standalone EEG preprocessing for researchers</div>
-     <p>EEGPrep is a Python application for loading, cleaning, reviewing, and
-     scripting EEG datasets. It keeps familiar EEG workflow concepts where they
-     help, but the package, GUI, console, help, examples, and documentation are
-     EEGPrep-owned and work without a MATLAB or EEGLAB checkout.</p>
+     <div class="eegprep-kicker">EEGLAB workflows, modern Python tooling</div>
+     <p>EEGPrep is a modernized Python port of core
+     <a href="https://sccn.ucsd.edu/eeglab/">EEGLAB</a> preprocessing
+     workflows for EEG researchers. It preserves familiar concepts such as
+     <code>EEG</code>, <code>ALLEEG</code>, <code>pop_*</code> commands,
+     EEGBrowser review, ICA/component workflows, STUDY analyses, and command
+     history, while making those workflows easier to run, review, automate,
+     and share from Python.</p>
    </div>
 
-Use this manual as a working path, not only as an API index. Start with the
-sample datasets in ``sample_data/``, move between the Qt GUI and
-``eegprep-console``, then reuse the recorded ``pop_*`` commands in scripts.
+Use this manual to move from a first dataset to a reproducible workflow. Start
+with the sample data, try the same steps in the GUI and ``eegprep-console``,
+then turn the recorded ``pop_*`` history into scripts, pipelines, or
+agent-assisted analyses.
 
 .. grid:: 1 1 2 2
    :gutter: 2
@@ -52,6 +56,13 @@ sample datasets in ``sample_data/``, move between the Qt GUI and
       :link-type: doc
 
       Convert menu history into reusable Python scripts and batch workflows.
+
+   .. grid-item-card:: Work With Research Agents
+      :link: user_guide/agent_cli
+      :link-type: doc
+
+      Use the EEGPrep CLI, JSON outputs, manifests, pipeline plans, and bundled
+      agent skill guidance for AI-assisted EEG research projects.
 
 Manual
 ======
@@ -124,6 +135,14 @@ Where EEGLAB Users Should Go First
      - :doc:`user_guide/study_workflows`
    * - MNE-Python interop
      - :doc:`user_guide/mne_integration`
+
+Core Maintainers
+================
+
+- `Arnaud Delorme <https://arnauddelorme.com/>`_, UCSD, CA, USA
+- `Suraj Ranganath <https://surajr.dev/>`_, UCSD, CA, USA
+- Christian Kothe, Intheon, CA, USA
+- Bruno Aristimunha Pinto, Inria, France
 
 Indices
 =======

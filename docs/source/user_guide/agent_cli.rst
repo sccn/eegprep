@@ -9,9 +9,33 @@ reproducible preprocessing pipelines. It complements the human-facing
 ``eegprep-gui`` and ``eegprep-console`` entry points; it does not replace the
 shared GUI plus console workspace.
 
+To get started, point your AI agent at this page or at the EEGPrep repository.
+The documentation, bundled CLI skill, and repository ``AGENTS.md`` file provide
+the context agents need to use EEGPrep commands safely and reproducibly.
+
 The CLI is organized around researcher workflows rather than internal modules:
 inspect, validate, filter, rereference, resample, epoch, ICA, QC, reports,
 pipelines, BIDS, and EEGLAB migration helpers.
+
+For EEG Researchers Working With Agents
+=======================================
+
+Start agents from EEGPrep's machine-readable CLI instead of asking them to guess
+Python calls from prose documentation. A practical workflow is:
+
+* use ``eegprep skills get eegprep-cli`` to give the agent version-matched
+  EEGPrep CLI rules and examples;
+* use ``eegprep inspect`` and ``eegprep validate`` before changing data;
+* use ``eegprep pipeline plan`` or ``--dry-run`` before expensive processing;
+* use ``--json`` and manifests so the agent can make decisions from structured
+  results and provenance;
+* review generated HTML reports and QC summaries before accepting changes.
+
+When an agent is working inside the EEGPrep source repository rather than on
+your research data, use the project skills under ``.agents/skills/``:
+``eegprep-extension-development`` for creating extensions,
+``eegprep-feature-development`` for contributing EEGPrep features, and
+``eeglab-gui-visual-parity`` for GUI parity work.
 
 Agent Contract
 ==============
