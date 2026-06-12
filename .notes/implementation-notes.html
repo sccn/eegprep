@@ -6,6 +6,111 @@
 </head>
 <body>
   <h1>EEGPrep Core Parity Implementation Notes</h1>
+  <h1>Issue #213 Statistics and ICLabel Closeout Notes</h1>
+  <p>Issue #213 closes the final Fable 5 architecture closeout phase for
+  statistics and ICLabel/viewprops ownership. The branch keeps public call
+  signatures, return values, command strings, GUI labels, and Matplotlib
+  dashboard layout behavior stable while moving implementations into focused
+  owner modules.</p>
+  <h2>Issue #213 Design Decisions</h2>
+  <ul>
+    <li>Moved statistics implementations out of
+    <code>functions/statistics/_core.py</code> into the existing same-name
+    public modules such as <code>fdr.py</code>, <code>statcond.py</code>,
+    <code>surrogdistrib.py</code>, and the <code>anova*_cell.py</code> and
+    <code>ttest*_cell.py</code> helpers. <code>_core.py</code> is now only a
+    compatibility re-export shell; shared array/grid helpers and two-way ANOVA
+    data containers live in <code>_shared.py</code>.</li>
+    <li>Split <code>plugins/ICLabel/pop_prop_extended.py</code> into pop/dialog
+    glue, <code>_prop_numerics.py</code> for classifier, DIPFIT, PVAF, spectra,
+    and dashboard data assembly, and <code>_prop_browser.py</code> for the
+    Matplotlib property-browser rendering and rejection controls.</li>
+    <li>Kept the public <code>pop_prop_extended</code> module as a facade that
+    re-exports the existing helper names used by tests and by
+    <code>pop_viewprops</code>, so users do not need to change imports.</li>
+    <li>No GUI layout, text, button order, or rendering constants were changed.
+    Because the visual surface was moved without visible behavior changes,
+    visual parity attachment is not required for this phase.</li>
+  </ul>
+  <h2>Issue #213 Closeout Mapping for Remaining #197/#205 Items</h2>
+  <table>
+    <thead>
+      <tr><th>Remaining item</th><th>Disposition</th><th>Rationale</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>pop_load_frombids.py</code> raw-reader and montage
+      ownership</td><td>Fixed in PR #216 / issue #212</td><td>BIDS raw loading
+      and montage inference moved into EEG-BIDS helper modules while
+      <code>pop_load_frombids</code> stayed orchestration/history glue.</td></tr>
+      <tr><td><code>functions/statistics/_core.py</code> mega-module</td><td>Fixed
+      in issue #213</td><td>Implementations now live in same-name statistics
+      modules, with <code>_shared.py</code> holding only shared helpers.</td></tr>
+      <tr><td><code>plugins/ICLabel/pop_prop_extended.py</code> mixed
+      ownership</td><td>Fixed in issue #213</td><td>Pop/history/dialog glue,
+      numerics/data assembly, and Matplotlib browser rendering now have
+      separate owner modules.</td></tr>
+      <tr><td><code>functions/guifunc/qt.py</code> stateless renderer namespace</td><td>Fixed
+      in PR #216 / issue #212</td><td>Qt renderer helpers were split into
+      module-level helpers while preserving call-site compatibility and dialog
+      behavior.</td></tr>
+      <tr><td><code>pop_clust</code> finite-outlier robust k-means dispatch</td><td>Fixed
+      in PR #217 / issue #210</td><td>STUDY clustering behavior was consolidated
+      in the STUDY/time-frequency/statistics phase with dedicated tests.</td></tr>
+      <tr><td><code>pop_chanplot</code>, measure-field maps, cached measure
+      axes, range masks, default plot targets, <code>_trial_rows</code>, factor
+      matching, and <code>std_clustplot</code> history construction</td><td>Fixed
+      in PR #217 / issue #210</td><td>STUDY measure/cache helper ownership was
+      consolidated as one phase because those paths share STUDY data contracts.</td></tr>
+      <tr><td>Time-frequency numeric-vector parsing, bootstrap/FDR helpers,
+      threshold-vector helpers, and empirical p-value convention audit</td><td>Fixed
+      or explicitly documented in PR #214 / issue #208 and PR #217 / issue
+      #210</td><td>Shared parsing moved to lower-level helpers in Phase 1;
+      time-frequency and statistics behavior consolidation landed in Phase 3
+      where numerical behavior could be tested together.</td></tr>
+      <tr><td>Divergent <code>is_on()</code>, empty-value, Python literal,
+      chanloc serialization, topographic channel selection, boundary-event
+      detection, and <code>ConsoleEegh</code> history mutation copies</td><td>Fixed
+      in PR #214 / issue #208</td><td>Shared low-level contracts were centralized
+      before later phases consumed them.</td></tr>
+      <tr><td>Rejection-family browser plumbing, epoched rejection scaffolds,
+      component activation access, ICA finalization, and clean_rawdata
+      channel-removal masks</td><td>Fixed in PR #215 / issue #209</td><td>These
+      scientific rejection/ICA/cleaning helpers were consolidated in the phase
+      that could test visual rejection state and numerical side effects
+      together.</td></tr>
+      <tr><td>CLI transform/pipeline duplication, JSON detection, stale
+      per-module harness contracts, extension catalog split, entry-point
+      helpers, active-record predicate, and bundled-plugin metadata</td><td>Fixed
+      in PR #218 / issue #211</td><td>CLI and extension ownership was
+      consolidated in one agent-facing architecture phase.</td></tr>
+      <tr><td>FIR helper ownership and FIR GUI band-edge/shape duplication</td><td>Fixed
+      in PR #216 / issue #212</td><td><code>plugins/firfilt</code> now owns FIR
+      design helpers, and clean_rawdata imports downward from firfilt.</td></tr>
+      <tr><td>GUI extension pop-result STUDY return handling from #197/#205</td><td>Non-goal
+      for #213</td><td>The earlier tracker identified this as behavior-changing
+      because GUI extension <code>pop_*</code> functions returning STUDY state
+      would expand observable session behavior. No #213 work touched extension
+      GUI result semantics; this remains outside a mechanical closeout split
+      unless a future behavior issue requests it.</td></tr>
+      <tr><td>All other #197 findings not named above</td><td>Superseded by epic
+      #207 phase split</td><td>#197 and #205 were closed as superseded by the
+      replacement architecture closeout epic. PRs #214, #215, #217, #218, #216,
+      and this #213 branch are the final accounting set for those remaining
+      findings.</td></tr>
+    </tbody>
+  </table>
+  <h2>Issue #213 Verification Notes</h2>
+  <ul>
+    <li>Focused statistics tests cover same-name module ownership, package-level
+    callable exports after submodule imports, <code>_core.py</code>
+    compatibility re-exports, and existing statistical behavior.</li>
+    <li>Focused ICLabel/viewprops tests cover the preserved
+    <code>pop_prop_extended</code> facade, classifier/DIPFIT/PVAF data assembly,
+    dashboard rendering, navigation, rejection controls, packaged help, and
+    <code>pop_viewprops</code> delegation.</li>
+    <li>No packaged help text or Sphinx user docs changed because the public
+    behavior, GUI workflow, and help resource names did not change.</li>
+  </ul>
   <h1>Issue #212 BIDS, Qt, and FIR Ownership Notes</h1>
   <p>Issue #212 closes the Phase 5 architecture ownership work for BIDS
   import helpers, Qt dialog rendering helpers, and FIR design helpers while
