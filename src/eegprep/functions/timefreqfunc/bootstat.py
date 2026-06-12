@@ -7,6 +7,8 @@ from typing import Any, Callable
 
 import numpy as np
 
+from eegprep.functions.timefreqfunc._bootstrap import bootstrap_threshold, resample_array
+
 
 Statistic = Callable[..., np.ndarray]
 
@@ -43,27 +45,11 @@ def bootstat(
     dims = _shuffle_dims(shuffledim, selected[0].ndim, boottype=boottype)
     surrogates = []
     for _ in range(int(naccu)):
-        boot_args = [_resample_array(array, rng, boottype=boottype, shuffledim=dims) for array in selected]
+        boot_args = [resample_array(array, rng, boottype=boottype, shuffledim=dims) for array in selected]
         surrogates.append(np.asarray(statistic(*boot_args)))
     accumulated = np.stack(surrogates, axis=0)
     thresholds = bootstrap_threshold(accumulated, alpha=alpha, bootside=bootside)
     return BootstrapResult(thresholds=thresholds, surrogates=accumulated)
-
-
-def bootstrap_threshold(surrogates: Any, *, alpha: float = 0.05, bootside: str = "both") -> np.ndarray:
-    """Return lower/upper or upper-only thresholds from accumulated surrogates."""
-    values = np.asarray(surrogates)
-    if values.ndim < 1:
-        raise ValueError("surrogates must contain an accumulation axis")
-    if np.iscomplexobj(values):
-        values = np.abs(values)
-    sorted_values = np.sort(values, axis=0)
-    tail_count = max(1, int(round(sorted_values.shape[0] * float(alpha))))
-    upper = np.nanmean(sorted_values[-tail_count:, ...], axis=0)
-    if str(bootside).lower() == "upper":
-        return np.squeeze(upper)
-    lower = np.nanmean(sorted_values[:tail_count, ...], axis=0)
-    return np.stack([lower, upper], axis=-1).squeeze()
 
 
 def exact_p_values(observed: Any, surrogates: Any, *, center: Any = None) -> np.ndarray:
@@ -107,22 +93,6 @@ def _shuffle_dims(shuffledim: Any, ndim: int, *, boottype: str) -> list[int]:
             raise ValueError("shuffledim contains an invalid axis")
         dims.append(axis)
     return dims
-
-
-def _resample_array(array: np.ndarray, rng: np.random.Generator, *, boottype: str, shuffledim: list[int]) -> np.ndarray:
-    values = np.asarray(array).copy()
-    mode = str(boottype).lower()
-    if mode == "rand":
-        if np.iscomplexobj(values):
-            phases = rng.uniform(0.0, 2.0 * np.pi, size=values.shape)
-            return values * np.exp(1j * phases)
-        signs = rng.choice(np.asarray([-1.0, 1.0]), size=values.shape)
-        return values * signs
-    if mode != "shuffle":
-        raise ValueError("boottype must be 'shuffle' or 'rand'")
-    for axis in shuffledim:
-        values = np.take(values, rng.permutation(values.shape[axis]), axis=axis)
-    return values
 
 
 __all__ = ["BootstrapResult", "bootstat", "bootstrap_threshold", "exact_p_values"]

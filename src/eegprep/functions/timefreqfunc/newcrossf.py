@@ -11,10 +11,15 @@ from scipy import stats
 
 from eegprep.functions.miscfunc.value_parsing import is_on as _is_on
 from eegprep.functions.miscfunc.value_parsing import parse_numeric_sequence
-from eegprep.functions.timefreqfunc.bootstat import bootstrap_threshold, exact_p_values
-from eegprep.functions.timefreqfunc.newtimef import _threshold_vector, compute_time_frequency
+from eegprep.functions.timefreqfunc._bootstrap import (
+    bootstrap_indices as shared_bootstrap_indices,
+    resample_pair,
+    threshold_vector as _threshold_vector,
+    thresholds_by_frequency,
+)
+from eegprep.functions.timefreqfunc.bootstat import exact_p_values
+from eegprep.functions.timefreqfunc.newtimef import compute_time_frequency
 from eegprep.functions.timefreqfunc.newtimefitc import newtimefitc
-from eegprep.functions.timefreqfunc.newtimeftrialbaseln import baseline_indices
 
 
 @dataclass(frozen=True)
@@ -218,34 +223,18 @@ def _bootstrap_coherence(
     source_y = tf_y[:, base_indices, :] if base_indices.size else tf_y
     threshold_source = np.empty((int(naccu), tf_x.shape[0], max(1, source_x.shape[1])), dtype=float)
     for index in range(int(naccu)):
-        sample_x, sample_y = _resample_pair(tf_x, tf_y, generator, boottype=boottype)
+        sample_x, sample_y = resample_pair(tf_x, tf_y, generator, boottype=boottype)
         coher, _allcoher, _lagmap = _coherence(sample_x, sample_y, mode=mode, amplag=np.asarray([0]), alpha=None)
         surrogates[index] = np.abs(coher)
-        boot_x, boot_y = _resample_pair(source_x, source_y, generator, boottype=boottype)
+        boot_x, boot_y = resample_pair(source_x, source_y, generator, boottype=boottype)
         boot_coher, _allcoher, _lagmap = _coherence(boot_x, boot_y, mode=mode, amplag=np.asarray([0]), alpha=None)
         threshold_source[index] = np.abs(boot_coher)
     thresholds = _upper_thresholds_by_frequency(threshold_source, alpha=alpha)
     return thresholds, surrogates
 
 
-def _resample_pair(
-    tf_x: np.ndarray, tf_y: np.ndarray, generator: np.random.Generator, *, boottype: str
-) -> tuple[np.ndarray, np.ndarray]:
-    mode = str(boottype).lower()
-    if mode in {"shuffle", "shufftrials"}:
-        indices = generator.permutation(tf_y.shape[2])
-        return tf_x, tf_y[:, :, indices]
-    if mode in {"rand", "randall"}:
-        phases = np.exp(1j * generator.uniform(0.0, 2.0 * np.pi, size=tf_x.shape))
-        return tf_x * phases, tf_y
-    raise ValueError("boottype must be 'shuffle', 'shufftrials', 'rand', or 'randall'")
-
-
 def _upper_thresholds_by_frequency(values: np.ndarray, *, alpha: float) -> np.ndarray:
-    nfreq = values.shape[1]
-    pooled = values.transpose(0, 2, 1).reshape(-1, nfreq)
-    thresholds = np.asarray(bootstrap_threshold(pooled, alpha=alpha, bootside="upper"))
-    return thresholds.reshape(nfreq)
+    return thresholds_by_frequency(values, alpha=alpha, bootside="upper")
 
 
 def _shuffle_trials(tf_y: np.ndarray, count: int, rng: Any) -> np.ndarray:
@@ -263,15 +252,7 @@ def _remove_itc(tfdata: np.ndarray) -> np.ndarray:
 
 
 def _bootstrap_indices(times: np.ndarray, baseboot: Any) -> np.ndarray:
-    values = _numeric_vector(baseboot)
-    if values.size == 0:
-        return np.nonzero(times <= 0)[0]
-    if values.size == 1:
-        if values[0] == 0:
-            return np.asarray([], dtype=int)
-        indices = np.nonzero(times <= values[0])[0]
-        return indices if indices.size else np.arange(times.size, dtype=int)
-    return baseline_indices(times, values)
+    return shared_bootstrap_indices(times, baseboot=baseboot, limit_to_baseboot=True)
 
 
 def _plot_cross_frequency(

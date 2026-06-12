@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import ast
+
 import numpy as np
 import pytest
 from matplotlib import pyplot as plt
@@ -16,6 +18,7 @@ from eegprep.functions.studyfunc.optimal_kmeans import optimal_kmeans
 from eegprep.functions.studyfunc.robust_kmeans import robust_kmeans
 from eegprep.functions.studyfunc.std_apcluster import std_apcluster
 from eegprep.functions.studyfunc.std_centroid import std_centroid
+from eegprep.functions.studyfunc.std_clustplot import std_clustplot
 from eegprep.functions.studyfunc.std_createclust import std_createclust
 from eegprep.functions.studyfunc.std_findoutlierclust import std_findoutlierclust
 from eegprep.functions.studyfunc.std_mergeclust import std_mergeclust
@@ -225,6 +228,36 @@ def test_pop_clust_outlier_threshold_uses_mean_distance_guard():
     assert not any(str(cluster["name"]).startswith("outlier") for cluster in clustered["cluster"])
 
 
+def test_pop_clust_finite_outliers_uses_robust_kmeans_provenance_and_labels():
+    study, alleeg = _preclustered_study()
+    data = np.asarray([[0.0, 0.0], [0.1, 0.0], [0.2, 0.0], [5.0, 5.0], [5.1, 5.0], [20.0, 20.0]])
+    study["etc"]["preclust"]["preclustdata"] = data.tolist()
+    expected_labels, _centers, _sumd, _distances, expected_outliers = robust_kmeans(
+        data,
+        2,
+        STD=2.5,
+        MAXiter=5,
+        method="kmeans",
+        random_state=7,
+    )
+
+    clustered, command = pop_clust(study, alleeg, clus_num=2, outliers=2.5, random_state=7, return_com=True)
+
+    outlier_clusters = [
+        cluster for cluster in clustered["cluster"] if str(cluster.get("name") or "").startswith("outlier")
+    ]
+    assert len(outlier_clusters) == 1
+    np.testing.assert_allclose(outlier_clusters[0]["preclust"]["preclustdata"], data[expected_outliers - 1])
+    assert all(cluster.get("algorithm") == ["robust_kmeans", 2] for cluster in clustered["cluster"][1:])
+    assert "outliers=2.5" in command
+    ast.parse(command)
+
+    rows_by_cluster = []
+    for cluster in clustered["cluster"][1:]:
+        rows_by_cluster.extend(np.asarray(cluster["preclust"]["preclustdata"], dtype=float).tolist())
+    np.testing.assert_allclose(sorted(rows_by_cluster), sorted(data[expected_labels >= 0].tolist()))
+
+
 def test_std_createclust_numbers_outliers_separately_from_clusters():
     study, alleeg = _preclustered_study()
 
@@ -272,6 +305,21 @@ def test_cluster_gui_all_selection_expands_to_all_clusters():
 
     assert "clusters=[1, 2, 3]" in command
     plt.close(figure)
+
+
+def test_std_clustplot_history_omits_empty_cluster_selection_and_replays():
+    study, alleeg = _preclustered_study()
+    study = pop_clust(study, alleeg, clus_num=2, random_state=11)
+
+    _study, command, figure = std_clustplot(study, alleeg, clusters=[], return_com=True)
+
+    assert "clusters=" not in command
+    ast.parse(command)
+    namespace = {"STUDY": study, "ALLEEG": alleeg, "std_clustplot": std_clustplot}
+    exec(command, namespace)
+    assert "FIGURE" in namespace
+    plt.close(figure)
+    plt.close(namespace["FIGURE"])
 
 
 def test_moveoutlier_reuses_outlier_cluster_after_source_rename():
