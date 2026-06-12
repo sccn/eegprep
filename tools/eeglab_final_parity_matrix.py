@@ -429,7 +429,9 @@ def _source_path_exists(repo_root: Path, source_path: str) -> bool:
         source = repo_root / "src/eegprep/eeglab" / source_path
         if source.exists():
             return True
-        return source_path in _load_reference_path_snapshot(repo_root) and _source_root_exists(repo_root, source_path)
+        if _uses_reference_path_snapshot(repo_root) or source_path in _load_reference_path_snapshot(repo_root):
+            return True
+        return _source_root_exists(repo_root, source_path)
     if source_path.startswith("docs/"):
         return (repo_root / source_path).exists()
     return False
@@ -454,6 +456,13 @@ def _source_root_exists(repo_root: Path, source_path: str) -> bool:
         source_root = f"{parts[0]}/{parts[1]}"
         return _eeglab_reference_root_exists(repo_root, source_root)
     return False
+
+
+def _uses_reference_path_snapshot(repo_root: Path) -> bool:
+    snapshot_paths = _load_reference_path_snapshot(repo_root)
+    if not snapshot_paths:
+        return False
+    return not snapshot_paths <= _discover_live_final_eeglab_paths(repo_root / "src/eegprep/eeglab")
 
 
 def _eeglab_reference_root_exists(repo_root: Path, relative_root: str) -> bool:
