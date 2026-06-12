@@ -53,6 +53,8 @@ class TestCleanArtifactsBasic(DebuggableTestCase):
 
     def test_clean_artifacts_all_off(self):
         """Test clean_artifacts with all criteria disabled."""
+        self.test_eeg.pop('etc')
+        original_keys = set(self.test_eeg)
         EEG, HP, BUR, removed_channels = clean_artifacts(
             self.test_eeg,
             ChannelCriterion='off',
@@ -67,6 +69,7 @@ class TestCleanArtifactsBasic(DebuggableTestCase):
         self.assertEqual(EEG['nbchan'], self.test_eeg['nbchan'])
         self.assertEqual(EEG['pnts'], self.test_eeg['pnts'])
         np.testing.assert_array_equal(EEG['data'], self.test_eeg['data'])
+        self.assertEqual(set(self.test_eeg), original_keys)
 
     def test_clean_artifacts_invalid_highpass_string(self):
         """Test clean_artifacts with invalid highpass string parameter."""

@@ -150,6 +150,8 @@ def clean_artifacts(
     if distance not in _DISTANCE_MODES:
         raise ValueError("Distance must be 'euclidian', 'euclidean', or 'riemannian'")
 
+    EEG = copy.deepcopy(EEG)
+
     # Ensure some obligatory fields exist in the structure (MATLAB code assumes)
     if 'etc' not in EEG:
         EEG['etc'] = {}

@@ -1604,9 +1604,7 @@ def test_console_pop_select_numeric_channels_zero_based_on_replay():
     # GUI/history is 1-based (EEGLAB parity); the 0-based Python API requires the
     # console to zero-base numeric channel selections so replayed history selects
     # the same channels. Channel-by-name and chantype selections must pass through.
-    numeric = console_module._console_python_command(
-        "EEG = pop_select(EEG, 'channel', [1 3], 'rmchannel', [5]);"
-    )
+    numeric = console_module._console_python_command("EEG = pop_select(EEG, 'channel', [1 3], 'rmchannel', [5]);")
     assert numeric == "EEG = pop_select(EEG, channel=[0, 2], rmchannel=[4])"
     by_name = console_module._console_python_command(
         "EEG = pop_select(EEG, 'channel', {'Fz' 'Cz'}, 'chantype', {'EEG'});"

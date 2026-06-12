@@ -413,6 +413,8 @@ def _picard_options(options):
         lower_key = str(key).lower()
         if lower_key == "maxiter":
             mapped["max_iter"] = value
+        elif lower_key == "seed":
+            mapped["random_state"] = int(value)
         elif lower_key == "mode":
             if str(value).lower() == "standard":
                 mapped["ortho"] = False

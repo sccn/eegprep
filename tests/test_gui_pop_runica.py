@@ -308,13 +308,22 @@ class PopRunicaGuiTests(unittest.TestCase):
         updated = dict(eeg, icaweights=np.eye(4), icasphere=np.eye(4), icawinv=np.eye(4), icaact=np.zeros((4, 20, 1)))
 
         with mock.patch("eegprep.functions.popfunc.pop_runica.eeg_picard", return_value=updated) as picard:
-            out, com = pop_runica(eeg, icatype="picard", options={"maxiter": 7, "mode": "standard"}, return_com=True)
+            out, com = pop_runica(
+                eeg,
+                icatype="picard",
+                options={"maxiter": 7, "mode": "standard", "seed": 3},
+                return_com=True,
+            )
 
         picard.assert_called_once()
         self.assertEqual(picard.call_args.kwargs["max_iter"], 7)
+        self.assertEqual(picard.call_args.kwargs["random_state"], 3)
         self.assertFalse(picard.call_args.kwargs["ortho"])
         self.assertEqual(out["icaweights"].shape, (4, 4))
-        self.assertEqual(com, "EEG = pop_runica(EEG, 'icatype', 'picard', 'maxiter', 7, 'mode', 'standard');")
+        self.assertEqual(
+            com,
+            "EEG = pop_runica(EEG, 'icatype', 'picard', 'maxiter', 7, 'mode', 'standard', 'seed', 3);",
+        )
 
     def test_unported_ica_algorithm_fails_clearly(self):
         with self.assertRaisesRegex(NotImplementedError, "not ported"):
