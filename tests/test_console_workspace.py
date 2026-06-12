@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import ast
+from contextlib import redirect_stderr
 import io
 import importlib
 import logging
 import sys
+import threading
 import textwrap
 import warnings
 from types import SimpleNamespace
@@ -1724,6 +1726,38 @@ def test_prompt_safe_logging_install_restores_stream_handlers():
         assert handler.stream is stream
     finally:
         root_logger.removeHandler(handler)
+
+
+def test_prompt_safe_logging_handles_background_thread_records_without_traceback():
+    logger = logging.getLogger("eegprep.tests.console_background")
+    original_level = logger.level
+    original_propagate = logger.propagate
+    original_raise_exceptions = logging.raiseExceptions
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
+    logging.raiseExceptions = True
+    output = io.StringIO()
+    errors = io.StringIO()
+    handler = logging.StreamHandler(output)
+    handler.setFormatter(logging.Formatter("%(levelname)s (%(name)s) %(message)s"))
+    logger.addHandler(handler)
+    restore = console_module._install_prompt_safe_logging()
+
+    try:
+        with redirect_stderr(errors):
+            thread = threading.Thread(target=lambda: logger.info("worker progress"))
+            thread.start()
+            thread.join()
+    finally:
+        restore()
+        logger.removeHandler(handler)
+        logger.setLevel(original_level)
+        logger.propagate = original_propagate
+        logging.raiseExceptions = original_raise_exceptions
+
+    assert "INFO (eegprep.tests.console_background) worker progress" in output.getvalue()
+    assert "Logging error" not in errors.getvalue()
+    assert "RuntimeError" not in errors.getvalue()
 
 
 def test_terminal_write_prints_above_active_prompt():

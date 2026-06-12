@@ -10,6 +10,7 @@ import inspect
 import logging
 import re
 import sys
+import threading
 import warnings
 from collections.abc import Callable, Iterator, Mapping
 from typing import Any
@@ -1255,15 +1256,15 @@ def _terminal_write(message: str, *, stream: Any | None = None, sync: bool = Fal
         return
     if sync:
         # GUI previews have to appear before warnings raised by the same Qt callback.
-        prefix = ANSI_CLEAR_LINE if _is_tty(output) else "\n"
-        output.write(f"{prefix}{message}")
-        output.flush()
+        _write_terminal_direct(message, output)
+        return
+    if threading.current_thread() is not threading.main_thread():
+        _write_terminal_direct(message, output)
         return
     try:
         run_module = importlib.import_module("prompt_toolkit.application.run_in_terminal")
     except ImportError:
-        output.write(f"\n{message}")
-        output.flush()
+        _write_terminal_direct(message, output)
         return
 
     def write_message() -> None:
@@ -1271,6 +1272,12 @@ def _terminal_write(message: str, *, stream: Any | None = None, sync: bool = Fal
         output.flush()
 
     run_module.run_in_terminal(write_message)
+
+
+def _write_terminal_direct(message: str, output: Any) -> None:
+    prefix = ANSI_CLEAR_LINE if _is_tty(output) else "\n"
+    output.write(f"{prefix}{message}")
+    output.flush()
 
 
 def _is_tty(stream: Any) -> bool:
