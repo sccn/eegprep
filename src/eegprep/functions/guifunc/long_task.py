@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 import logging
+import threading
 from typing import Any
 
 try:  # pragma: no cover - depends on optional GUI dependency
@@ -22,6 +23,11 @@ class LongTaskHandle:
     worker: Any
     dialog: Any
     receiver: Any | None = None
+
+
+_LOGGER_LOCK = threading.Lock()
+_LOGGER_DEPTH = 0
+_LOGGER_OLD_LEVEL: int | None = None
 
 
 def run_long_task(
@@ -54,22 +60,15 @@ def run_long_task(
         def run(self) -> None:
             handler = _SignalLogHandler(self.message)
             handler.setFormatter(logging.Formatter("%(message)s"))
-            handler.setLevel(logging.INFO)
-            eegprep_logger = logging.getLogger("eegprep")
-            old_level = eegprep_logger.level
-            if old_level == logging.NOTSET or old_level > logging.INFO:
-                eegprep_logger.setLevel(logging.INFO)
-            eegprep_logger.addHandler(handler)
-            try:
+            with _ForwardEegprepLogs(handler):
                 self.message.emit(label)
-                result = task()
-                self.succeeded.emit(result)
-            except Exception as exc:  # noqa: BLE001 - forwarded to GUI error handler.
-                self.failed.emit(exc)
-            finally:
-                eegprep_logger.removeHandler(handler)
-                eegprep_logger.setLevel(old_level)
-                self.finished.emit()
+                try:
+                    result = task()
+                    self.succeeded.emit(result)
+                except Exception as exc:  # noqa: BLE001 - forwarded to GUI error handler.
+                    self.failed.emit(exc)
+                finally:
+                    self.finished.emit()
 
     thread = qt_core.QThread()
     worker = Worker()
@@ -123,6 +122,31 @@ class _SignalLogHandler(logging.Handler):
             self.signal.emit(self.format(record))
         except Exception:
             self.handleError(record)
+
+
+class _ForwardEegprepLogs:
+    def __init__(self, handler: logging.Handler) -> None:
+        self.handler = handler
+        self.logger = logging.getLogger("eegprep")
+
+    def __enter__(self) -> None:
+        global _LOGGER_DEPTH, _LOGGER_OLD_LEVEL
+        with _LOGGER_LOCK:
+            if _LOGGER_DEPTH == 0:
+                _LOGGER_OLD_LEVEL = self.logger.level
+                if self.logger.level == logging.NOTSET or self.logger.level > logging.INFO:
+                    self.logger.setLevel(logging.INFO)
+            _LOGGER_DEPTH += 1
+            self.logger.addHandler(self.handler)
+
+    def __exit__(self, _exc_type: Any, _exc: Any, _tb: Any) -> None:
+        global _LOGGER_DEPTH, _LOGGER_OLD_LEVEL
+        with _LOGGER_LOCK:
+            self.logger.removeHandler(self.handler)
+            _LOGGER_DEPTH -= 1
+            if _LOGGER_DEPTH == 0:
+                self.logger.setLevel(logging.NOTSET if _LOGGER_OLD_LEVEL is None else _LOGGER_OLD_LEVEL)
+                _LOGGER_OLD_LEVEL = None
 
 
 def _update_progress_label(progress: Any, label: str, message: str) -> None:

@@ -10,7 +10,7 @@ import pytest
 from eegprep.functions.guifunc.spec import controls_by_tag
 from eegprep.functions.guifunc.qt import QtDialogRenderer
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
-from eegprep.functions.popfunc.pop_runica import pop_runica, pop_runica_dialog_spec
+from eegprep.functions.popfunc.pop_runica import pop_runica, pop_runica_dialog_spec, pop_runica_gui_options
 
 
 def _eeg():
@@ -95,6 +95,19 @@ class PopRunicaGuiTests(unittest.TestCase):
             com,
             "EEG = pop_runica(EEG, 'icatype', 'runica', 'extended', 1, 'maxsteps', 2, 'interrupt', 'on');",
         )
+
+    def test_gui_options_do_not_inject_interrupt_for_non_runica_algorithms(self):
+        class Renderer:
+            def run(self, spec, initial_values=None):
+                return {"icatype": 4, "params": "'maxiter', 7", "reorder": True, "chantype": ""}
+
+        options = pop_runica_gui_options(_eeg(), renderer=Renderer())
+
+        self.assertIsNotNone(options)
+        assert options is not None
+        self.assertEqual(options["icatype"], "picard")
+        self.assertEqual(options["options"], {"maxiter": 7})
+        self.assertNotIn("interrupt", options["options"])
 
     def test_gui_result_runs_runica_and_returns_history(self):
         class Renderer:

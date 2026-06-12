@@ -253,6 +253,9 @@ class EEGPrepSession:
             if resolved_currentset and max(resolved_currentset) > len(resolved_alleeg):
                 raise ValueError("CURRENTSET contains indices outside ALLEEG")
             resolved_eeg = self._resolve_workspace_eeg(eeg, resolved_alleeg, resolved_currentset)
+            current = resolved_eeg if isinstance(resolved_eeg, list) else [resolved_eeg]
+            if resolved_currentset and len(current) != len(resolved_currentset):
+                raise ValueError("EEG selection length must match CURRENTSET")
             self.ALLEEG = resolved_alleeg
             self.EEG = resolved_eeg
             self.CURRENTSET = resolved_currentset

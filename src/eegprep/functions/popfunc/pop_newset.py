@@ -153,8 +153,9 @@ def _run_gui(
         "gui": "off",
     }
     comments = result.get("comments")
-    if comments is None:
-        comments = result.get("editdescription")
+    edited_comments = result.get("editdescription")
+    if comments is None and isinstance(edited_comments, str):
+        comments = edited_comments
     if comments is not None:
         gui_options["comments"] = str(comments)
     if _is_on(result.get("savenew")):

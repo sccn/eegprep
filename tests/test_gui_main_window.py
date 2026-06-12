@@ -360,6 +360,41 @@ class EEGPrepSessionTests(unittest.TestCase):
         self.assertEqual(session.CURRENTSET, [1, 2])
         self.assertEqual([item["ref"] for item in session.ALLEEG], ["average", "average"])
 
+    def test_apply_workspace_state_rejects_currentset_outside_alleeg_before_mutating(self):
+        session = EEGPrepSession()
+        session.store_current(_demo_eeg(), new=True)
+        original_eeg = session.EEG
+        original_alleeg = list(session.ALLEEG)
+        original_currentset = list(session.CURRENTSET)
+
+        with self.assertRaisesRegex(ValueError, "CURRENTSET contains indices outside ALLEEG"):
+            session.apply_workspace_state(alleeg=[_demo_eeg()], currentset=2)
+
+        self.assertIs(session.EEG, original_eeg)
+        self.assertEqual(len(session.ALLEEG), len(original_alleeg))
+        self.assertIs(session.ALLEEG[0], original_alleeg[0])
+        self.assertEqual(session.CURRENTSET, original_currentset)
+
+    def test_apply_workspace_state_rejects_eeg_list_length_mismatch_before_mutating(self):
+        session = EEGPrepSession()
+        first = _demo_eeg()
+        second = _demo_eeg()
+        second["setname"] = "second"
+        session.store_current(first, new=True)
+        session.store_current(second, new=True)
+        original_eeg = session.EEG
+        original_alleeg = list(session.ALLEEG)
+        original_currentset = list(session.CURRENTSET)
+
+        with self.assertRaisesRegex(ValueError, "EEG selection length must match CURRENTSET"):
+            session.apply_workspace_state(alleeg=[first, second], eeg=[first], currentset=[1, 2])
+
+        self.assertIs(session.EEG, original_eeg)
+        self.assertEqual(len(session.ALLEEG), len(original_alleeg))
+        self.assertIs(session.ALLEEG[0], original_alleeg[0])
+        self.assertIs(session.ALLEEG[1], original_alleeg[1])
+        self.assertEqual(session.CURRENTSET, original_currentset)
+
     def test_session_delete_current_selects_remaining_dataset(self):
         session = EEGPrepSession()
         first = _demo_eeg()

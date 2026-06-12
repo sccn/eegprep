@@ -171,6 +171,26 @@ def test_pop_newset_gui_description_button_value_updates_comments():
     )
 
 
+def test_pop_newset_gui_untouched_description_button_preserves_comments():
+    class Renderer:
+        def run(self, _spec, initial_values=None):
+            return {"setname": "processed", "editdescription": False, "overwrite": 1}
+
+    alleeg, current, current_set, _command = pop_newset([], _eeg(name="original"), 0)
+    current["comments"] = "old notes"
+    processed = _eeg(name="processed")
+    processed["comments"] = "old notes"
+
+    alleeg, current, current_set, command = pop_newset(alleeg, processed, current_set, "gui", "on", renderer=Renderer())
+
+    assert len(alleeg) == 2
+    assert current_set == 2
+    assert current["comments"] == "old notes"
+    assert command == (
+        "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, 'setname', 'processed', 'overwrite', 'off');"
+    )
+
+
 def test_pop_newset_gui_choice_can_overwrite_current_dataset():
     class Renderer:
         def run(self, _spec, initial_values=None):
