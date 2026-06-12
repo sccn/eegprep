@@ -388,6 +388,8 @@ def _validate_step_parameters(
         for key in ("burst_criterion", "channel_criterion", "line_noise_criterion", "window_criterion"):
             if key in parameters and parameters[key] != "off":
                 _positive_number(parameters[key], f"{path}.{key}", errors)
+        if "highpass" in parameters and parameters["highpass"] not in (None, "", "off"):
+            _clean_highpass(parameters["highpass"], f"{path}.highpass", errors)
     elif name == "epoch":
         if not (parameters.get("event_type") or parameters.get("event_types")):
             _add_error(errors, f"{path}.event_type", "epoch requires event_type or event_types.")
@@ -568,9 +570,26 @@ def _resolve_path(value: str | Path, base_dir: Path) -> Path:
 
 
 def _channel_indices(value: Any) -> list[Any]:
-    return transform_commands._channel_tokens(
-        value if isinstance(value, list | tuple) else [value], numeric_base=1, output_base=0
+    return transform_commands.channel_tokens(
+        value if isinstance(value, list | tuple) else [value],
+        numeric_base=1,
+        output_base=0,
+        path="steps[].channels",
     )
+
+
+def _clean_highpass(value: Any, path: str, errors: list[dict[str, Any]]) -> None:
+    if isinstance(value, str):
+        values: Any = [item for item in value.replace(",", " ").split() if item]
+    else:
+        values = value
+    if not isinstance(values, list | tuple) or len(values) != 2:
+        _add_error(errors, path, "clean highpass must contain [low high] transition band values.")
+        return
+    low = _positive_number(values[0], f"{path}[0]", errors)
+    high = _positive_number(values[1], f"{path}[1]", errors)
+    if low is not None and high is not None and low >= high:
+        _add_error(errors, path, "clean highpass values must be ordered as [low, high].")
 
 
 def _number(value: Any, path: str, errors: list[dict[str, Any]], *, required: bool = False) -> float | None:

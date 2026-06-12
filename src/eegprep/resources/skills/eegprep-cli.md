@@ -58,6 +58,10 @@ steps:
   - name: qc
   - name: report
     format: html
+
+Pipeline transform steps share direct CLI defaults. For `clean`, unspecified
+flatline/channel/line-noise/window/high-pass criteria stay `off`; pass
+`highpass: [0.25, 0.75]` when ASR should high-pass first.
 ```
 
 ## Extended Reference
