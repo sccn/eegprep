@@ -588,14 +588,14 @@ def test_timefreq_threshold_helpers_pool_through_canonical_bootstrap_threshold()
 
 
 def test_timefreq_shared_bootstrap_helpers_cover_newtimef_and_newcrossf_paths():
-    times = np.asarray([-100.0, 0.0, 100.0, 200.0])
+    times = np.asarray([-100.0, 0.0, 0.5, 100.0, 200.0])
     baseln = np.asarray([0, 1], dtype=int)
 
     np.testing.assert_array_equal(bootstrap_indices(times, baseline=0, baseboot=[], baseln=baseln), baseln)
     np.testing.assert_array_equal(bootstrap_indices(times, baseline=np.nan, baseboot=1, baseln=baseln), [0, 1])
     np.testing.assert_array_equal(bootstrap_indices(times, baseline=np.nan, baseboot=0, baseln=baseln), [])
-    np.testing.assert_array_equal(bootstrap_indices(times, baseline=np.nan, baseboot=[50, 200], baseln=baseln), [2, 3])
-    np.testing.assert_array_equal(bootstrap_indices(times, baseboot=1, baseln=None, limit_to_baseboot=True), [0, 1])
+    np.testing.assert_array_equal(bootstrap_indices(times, baseline=np.nan, baseboot=[50, 200], baseln=baseln), [3, 4])
+    np.testing.assert_array_equal(bootstrap_indices(times, baseboot=1, baseln=None, limit_to_baseboot=True), [0, 1, 2])
 
     surrogates = np.arange(24, dtype=float).reshape(2, 3, 4)
     np.testing.assert_allclose(

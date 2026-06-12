@@ -67,7 +67,8 @@ def bootstrap_indices(
             baseline_values = np.asarray(parse_numeric_sequence(baseline, dtype=float), dtype=float)
             if baseline_values.size and not np.isnan(baseline_values[0]):
                 return np.asarray([] if baseln is None else baseln, dtype=int)
-        indices = np.nonzero(np.asarray(times) <= values[0])[0]
+        upper_bound = values[0] if limit_to_baseboot else 0
+        indices = np.nonzero(np.asarray(times) <= upper_bound)[0]
         return indices if indices.size else np.arange(np.asarray(times).size, dtype=int)
     return baseline_indices(times, values)
 
