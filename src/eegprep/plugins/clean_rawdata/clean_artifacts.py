@@ -241,9 +241,8 @@ def clean_artifacts(
     BUR = EEG  # default in case ASR is skipped
     if BurstCriterion not in (None, 'off'):
         logger.info('Applying ASR burst repair...')
-        # Save original data before clean_asr modifies EEG in place.
-        # MATLAB passes structs by value so the caller's EEG retains the
-        # original data, but Python dicts are passed by reference.
+        # Snapshot the pre-repair data to compare against the ASR-repaired
+        # result; clean_asr returns a fresh dataset (BUR) and leaves EEG intact.
         original_data = EEG['data'].copy() if BurstRejection else None
         useriemannian = _DISTANCE_MODES[distance]
         BUR = clean_asr(
@@ -257,8 +256,8 @@ def clean_artifacts(
         )
 
         if BurstRejection:
-            # Determine unchanged samples: compare original (pre-ASR) with repaired.
-            # Use original_data saved before clean_asr modified EEG['data'] in place.
+            # Determine unchanged samples: compare the pre-repair snapshot with
+            # the ASR-repaired data returned in BUR.
             sample_mask = np.sum(np.abs(original_data - BUR['data']), axis=0) < 1e-8
             del original_data
             # Convert retained samples to inclusive zero-based intervals.
@@ -272,8 +271,7 @@ def clean_artifacts(
                     sample_mask[s : e + 1] = False
                 retain_intervals = retain_intervals[~small]
 
-            # Reject bad periods from the ASR-repaired dataset (BUR), preserving
-            # the prior behaviour where clean_asr updated the data in place.
+            # Reject bad periods from the ASR-repaired dataset (BUR).
             EEG = BUR
             rejected_intervals = mask_to_intervals(sample_mask, value=False)
             if rejected_intervals.size:
