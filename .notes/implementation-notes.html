@@ -566,5 +566,28 @@
     dialog, while the console action boundary keeps command echo and progress
     output ordered for mixed GUI-plus-console workflows.</li>
   </ul>
+  <h1>Issue #211 CLI And Extension Architecture Notes</h1>
+  <h2>Design Decisions</h2>
+  <ul>
+    <li>Made the top-level <code>eegprep</code> dispatcher the canonical owner of
+    JSON error envelopes, including nested command parse failures such as
+    <code>eegprep qc report --json</code>.</li>
+    <li>Routed pipeline preprocessing steps through the transform command module so
+    CLI subcommands and YAML pipelines share option normalization and
+    <code>pop_*</code> invocation behavior.</li>
+    <li>Split runtime extension catalog loading from catalog curation validation.
+    The validator CLI now lives in <code>eegprep.extension_catalog_validation</code>
+    while <code>eegprep.extension_catalog</code> remains the manager-facing runtime
+    catalog module.</li>
+    <li>Centralized extension entry-point selection, API-version parsing, package
+    naming, and active/installed status predicates in <code>eegprep.extensions</code>
+    so the registry, validator, and plugin menu use the same metadata rules.</li>
+  </ul>
+  <h2>Verification Notes</h2>
+  <ul>
+    <li>Added regression tests for canonical JSON parse errors, transform/pipeline
+    option equivalence, catalog validator ownership, shared extension metadata
+    helpers, and bundled plugin menu projection from registry metadata.</li>
+  </ul>
 </body>
 </html>

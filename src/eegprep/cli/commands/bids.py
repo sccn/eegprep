@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
-import json
 import sys
 from pathlib import Path
 from typing import Any
 
-from eegprep.cli.core import build_manifest, json_safe, now_iso, output_path, sha256_file, write_manifest_file
+from eegprep.cli.core import build_manifest, now_iso, output_path, sha256_file, write_manifest_file
 from eegprep.cli.dataset import dataset_summary, load_dataset
 from eegprep.functions.popfunc.pop_saveset import pop_saveset
 from eegprep.plugins.EEG_BIDS.bids_list_eeg_files import bids_list_eeg_files
@@ -243,14 +242,10 @@ def export_dataset(
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Standalone module harness for tests and local debugging."""
-    parser = argparse.ArgumentParser(prog="eegprep bids")
-    subparsers = parser.add_subparsers(dest="command", required=True)
-    register(subparsers)
-    args = parser.parse_args(["bids", *(sys.argv[1:] if argv is None else argv)])
-    result = args.handler(args)
-    print(json.dumps(json_safe(result), sort_keys=True))
-    return 0 if result.get("status") in {"ok", "warning"} else int(result.get("exit_code", 1))
+    """Route module execution through the canonical top-level CLI dispatcher."""
+    from eegprep.cli.main import main as cli_main
+
+    return cli_main(["bids", *(sys.argv[1:] if argv is None else argv)])
 
 
 def _file_type(path: Path) -> str:

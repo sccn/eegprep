@@ -26,12 +26,12 @@ from eegprep.extensions import (
     ExtensionRegistry,
     ExtensionSpec,
     ExtensionStatus,
-    _entry_point_package_name,
-    _major_version,
-    _select_entry_points,
     check_extension_compatibility,
+    extension_api_major_version,
+    extension_entry_point_package_name,
     extension_version_satisfies,
     extension_version_spec_is_valid,
+    select_extension_entry_points,
 )
 
 CATALOG_CURATION_STATUSES = ("submitted", "curated", "private", "internal")
@@ -362,7 +362,7 @@ def _validate_version_policy(
     errors: list[CatalogValidationIssue],
 ) -> None:
     api_version = str(entry.get("api_version") or "")
-    if _major_version(api_version) != _major_version(EXTENSION_API_VERSION):
+    if extension_api_major_version(api_version) != extension_api_major_version(EXTENSION_API_VERSION):
         errors.append(
             CatalogValidationIssue(
                 f"Extension API version {api_version!r} is not supported by this EEGPrep extension API",
@@ -497,7 +497,7 @@ def _validate_installed_entries(
     options: CatalogValidationOptions,
     errors: list[CatalogValidationIssue],
 ) -> None:
-    selected_entry_points = _select_entry_points(options.entry_points_provider, EXTENSION_ENTRY_POINT_GROUP)
+    selected_entry_points = select_extension_entry_points(options.entry_points_provider, EXTENSION_ENTRY_POINT_GROUP)
     for entry in entries:
         entry_id = _entry_id(entry)
         package_name = str(entry.get("package_name") or "")
@@ -622,7 +622,7 @@ def _matching_entry_point(entry_points: tuple[Any, ...], package_name: str, entr
     for entry_point in entry_points:
         if getattr(entry_point, "name", None) != entry_point_name:
             continue
-        entry_point_package = _entry_point_package_name(entry_point)
+        entry_point_package = extension_entry_point_package_name(entry_point)
         if entry_point_package and _normalize(entry_point_package) != normalized_package:
             continue
         return entry_point

@@ -102,7 +102,7 @@ def test_transform_requires_output_unless_overwrite_is_explicit():
     assert result.returncode == 1
     payload = _json_stdout(result)
     assert payload["status"] == "error"
-    assert payload["error"]["code"] == "OUTPUT_REQUIRED"
+    assert payload["code"] == "OUTPUT_REQUIRED"
     assert result.stdout.strip().startswith("{")
 
 
@@ -138,8 +138,8 @@ def test_transform_refuses_existing_output_without_overwrite(tmp_path):
 
     assert result.returncode == 1
     payload = _json_stdout(result)
-    assert payload["error"]["code"] == "OUTPUT_EXISTS"
-    assert payload["error"]["path"] == str(output)
+    assert payload["code"] == "OUTPUT_EXISTS"
+    assert payload["path"] == str(output)
     assert output.read_text(encoding="utf-8") == "already here"
 
 
@@ -160,7 +160,7 @@ def test_transform_refuses_output_manifest_path_collision(tmp_path):
 
     assert result.returncode == 1
     payload = _json_stdout(result)
-    assert payload["error"]["code"] == "OUTPUT_PATH_COLLISION"
+    assert payload["code"] == "OUTPUT_PATH_COLLISION"
     assert not output.exists()
 
 

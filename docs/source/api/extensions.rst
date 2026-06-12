@@ -62,11 +62,12 @@ external extension contributions follow one status and lazy-loading model.
 Catalog and Governance
 ======================
 
-Catalog metadata validation lives in ``eegprep.extension_catalog`` and is also
-available as the ``eegprep-validate-extension-catalog`` console script. Static
-validation checks JSON schema version, required metadata, naming, URLs, license,
-maintainer contact, docs, conflicts, curation status, and compatibility fields
-without requiring the extension package to be installed.
+Extension Manager catalog loading lives in ``eegprep.extension_catalog``. Catalog
+submission validation lives in ``eegprep.extension_catalog_validation`` and is
+also available as the ``eegprep-validate-extension-catalog`` console script.
+Static validation checks JSON schema version, required metadata, naming, URLs,
+license, maintainer contact, docs, conflicts, curation status, and compatibility
+fields without requiring the extension package to be installed.
 
 Stricter validation can also check installed package versions, required
 dependencies, the ``eegprep.extensions`` entry point, import failures, and
@@ -171,6 +172,11 @@ API Reference
    :undoc-members:
 
 .. automodule:: eegprep.extension_catalog
+   :no-index:
+   :members:
+   :undoc-members:
+
+.. automodule:: eegprep.extension_catalog_validation
    :no-index:
    :members:
    :undoc-members:

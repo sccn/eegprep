@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from eegprep.extension_catalog import main
+from eegprep.extension_catalog_validation import main
 
 
 if __name__ == "__main__":

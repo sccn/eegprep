@@ -4,6 +4,7 @@ from pathlib import Path
 import numpy as np
 import yaml
 
+from eegprep.cli.commands import transforms as transforms_cli
 from eegprep.cli.commands.pipeline import (
     _channel_indices,
     plan_pipeline_config,
@@ -117,24 +118,42 @@ def test_pipeline_clean_after_epoch_uses_pop_clean_continuous_data_guard(tmp_pat
 
 
 def test_pipeline_filter_history_uses_modern_eegfiltnew(monkeypatch, tmp_path):
-    from eegprep.cli.commands import pipeline as pipeline_cli
-
     calls = []
 
     def fake_pop_eegfiltnew(eeg, **kwargs):
         calls.append(kwargs)
         return eeg, "EEG = pop_eegfiltnew(EEG, 'locutoff', 1);"
 
-    monkeypatch.setattr(pipeline_cli, "pop_eegfiltnew", fake_pop_eegfiltnew)
+    monkeypatch.setattr(transforms_cli, "pop_eegfiltnew", fake_pop_eegfiltnew)
     config_path = _write_pipeline_config(
         tmp_path,
-        steps=[{"name": "filter", "highpass": 1.0}],
+        steps=[
+            {
+                "name": "filter",
+                "highpass": 1.0,
+                "lowpass": 40.0,
+                "order": 128,
+                "minphase": True,
+                "usefftfilt": True,
+            }
+        ],
     )
 
     result = run_pipeline_config(config_path)
 
     assert result["status"] == "ok"
-    assert calls and calls[0]["locutoff"] == 1.0
+    assert calls == [
+        {
+            "locutoff": 1.0,
+            "hicutoff": 40.0,
+            "filtorder": 128,
+            "plotfreqz": False,
+            "minphase": True,
+            "usefftfilt": True,
+            "gui": False,
+            "return_com": True,
+        }
+    ]
     assert "pop_eegfiltnew" in result["history"][0]
 
 
