@@ -123,18 +123,19 @@ QC results include stable recommendation codes that an agent can reason over.
 HTML reports are for human review; the paired JSON and manifests are for
 automation.
 
-BIDS And EEGLAB Migration
-=========================
+BIDS And Migration
+==================
 
 .. code-block:: bash
 
    eegprep bids validate bids_root --json
    eegprep bids import bids_root --subject 01 --task rest --output sub-01.set --json
    eegprep bids export clean.set --bids-root bids_out --subject 01 --task rest --json
-   eegprep eeglab history old_pipeline.set --json
-   eegprep eeglab compare matlab_output.set eegprep_output.set --json
-   eegprep eeglab convert-script old_pipeline.m --output preprocess.yaml --json
+   eegprep migrate history old_pipeline.set --json
+   eegprep migrate compare matlab_output.set eegprep_output.set --json
+   eegprep migrate convert-script old_pipeline.m --output preprocess.yaml --json
 
-The EEGLAB helpers are migration aids. Script conversion is intentionally
-best-effort and reports unsupported commands instead of silently inventing
-behavior.
+Migration helpers can inspect EEGLAB command histories and compare datasets
+without making normal EEGPrep CLI usage depend on MATLAB or an EEGLAB checkout.
+Script conversion is intentionally best-effort and reports unsupported commands
+instead of silently inventing behavior.

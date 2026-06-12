@@ -72,6 +72,7 @@ def pop_newset(
 def pop_newset_dialog_spec(EEG: dict[str, Any], CURRENTSET: Any = None, *, guistring: str = "") -> DialogSpec:
     """Return the EEGLAB-like dialog spec for ``pop_newset``."""
     dataset_name = str(EEG.get("setname") or "")
+    comments = _comments_text(EEG.get("comments", ""))
     prompt = guistring or "What do you want to do with the new dataset?"
     old_prompt = "What do you want to do with the old dataset (not modified since last saved)?"
     return DialogSpec(
@@ -93,11 +94,13 @@ def pop_newset_dialog_spec(EEG: dict[str, Any], CURRENTSET: Any = None, *, guist
                 "Edit description",
                 tag="editdescription",
                 callback=CallbackSpec(
-                    "show_message",
+                    "edit_text",
                     params={
                         "button": "editdescription",
+                        "target": "editdescription",
                         "title": "Edit description",
-                        "message": "Dataset description editing is available from the command line using the comments option.",
+                        "label": "Dataset description:",
+                        "value": comments,
                     },
                 ),
             ),
@@ -149,8 +152,11 @@ def _run_gui(
         "overwrite": "on" if overwrite else "off",
         "gui": "off",
     }
-    if "comments" in result:
-        gui_options["comments"] = str(result.get("comments") or "")
+    comments = result.get("comments")
+    if comments is None:
+        comments = result.get("editdescription")
+    if comments is not None:
+        gui_options["comments"] = str(comments)
     if _is_on(result.get("savenew")):
         gui_options["savenew"] = str(result.get("savefile") or "on").strip() or "on"
     return gui_options
@@ -272,3 +278,13 @@ def _currentset_label(CURRENTSET: Any) -> str:
     if isinstance(CURRENTSET, (list, tuple)):
         return ", ".join(str(item) for item in CURRENTSET) if CURRENTSET else "0"
     return str(CURRENTSET or 0)
+
+
+def _comments_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, (list, tuple)):
+        return "\n".join(str(item) for item in value)
+    return str(value)

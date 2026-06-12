@@ -70,7 +70,7 @@ def capabilities() -> dict[str, Any]:
                 "supports_json": True,
                 "supports_dry_run": False,
             },
-            "eeglab": {
+            "migrate": {
                 "description": "Inspect EEGLAB history, compare datasets, and convert simple MATLAB histories.",
                 "inputs": ["eeglab_set", "matlab_script"],
                 "outputs": ["json", "eegprep_pipeline_yaml"],
@@ -149,9 +149,9 @@ def command_schema(command: str) -> dict[str, Any]:
                 "task": {"type": "string"},
             },
         },
-        "eeglab": {
-            "schema_version": "eegprep.schema.command.eeglab.v1",
-            "syntax": "eegprep eeglab <history|compare|convert-script> ... --json",
+        "migrate": {
+            "schema_version": "eegprep.schema.command.migrate.v1",
+            "syntax": "eegprep migrate <history|compare|convert-script> ... --json",
             "required": ["subcommand"],
             "properties": {
                 "left": {"type": "string"},
@@ -238,9 +238,9 @@ def examples(name: str) -> dict[str, Any]:
             "eegprep bids validate bids_root --json",
             "eegprep bids export input.set --bids-root bids_out --subject 01 --task rest --json",
         ],
-        "eeglab": [
-            "eegprep eeglab history sample_data/eeglab_data.set --json",
-            "eegprep eeglab compare left.set right.set --json",
+        "migrate": [
+            "eegprep migrate history sample_data/eeglab_data.set --json",
+            "eegprep migrate compare left.set right.set --json",
         ],
         "skills": ["eegprep skills list --json", "eegprep skills get eegprep-cli"],
     }

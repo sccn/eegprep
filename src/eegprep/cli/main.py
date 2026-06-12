@@ -13,7 +13,7 @@ from eegprep.cli.core import EEGPrepCLIError, print_result
 from eegprep.cli.dataset import inspect_channels, inspect_dataset, inspect_events, inspect_ica, validate_dataset
 from eegprep.cli.commands import batch as batch_commands
 from eegprep.cli.commands import bids as bids_commands
-from eegprep.cli.commands import eeglab as eeglab_commands
+from eegprep.cli.commands import migrate as migrate_commands
 from eegprep.cli.commands import pipeline as pipeline_commands
 from eegprep.cli.commands import qc as qc_commands
 from eegprep.cli.commands import report as report_commands
@@ -126,7 +126,7 @@ def build_parser() -> EEGPrepArgumentParser:
     report_commands.register(subparsers)
     batch_commands.register(subparsers)
     bids_commands.register(subparsers)
-    eeglab_commands.register(subparsers)
+    migrate_commands.register(subparsers)
 
     parser.set_defaults(handler=_handle_root)
     return parser

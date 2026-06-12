@@ -542,5 +542,29 @@
     EEGLAB-facing 1-based public QC indices, and compare nonfinite data masks in
     <code>eegprep eeglab compare</code>.</li>
   </ul>
+  <h1>Async GUI ICA Progress Notes</h1>
+  <h2>Design Decisions</h2>
+  <ul>
+    <li>Kept <code>pop_runica</code> itself synchronous for scripts, tests, CLI,
+    and console calls. The background worker is owned by the Qt menu action
+    layer because only the GUI needs to keep repainting while the computation
+    runs.</li>
+    <li>Split <code>pop_runica</code> GUI option collection from ICA execution
+    so the options dialog always opens on the main Qt thread and only the pure
+    computation runs in the worker.</li>
+    <li>Session mutation remains on the main thread. The worker returns an
+    updated EEG object and command string; <code>EEGPrepSession</code> is updated
+    only from the success callback.</li>
+  </ul>
+  <h2>Tradeoffs</h2>
+  <ul>
+    <li>The progress dialog is indeterminate because runica progress is
+    iteration/log-message based rather than a reliable percentage. Cancellation
+    is intentionally not exposed until the ICA backends support safe
+    interruption.</li>
+    <li>The reusable long-task helper captures EEGPrep log messages for the
+    dialog, while the console action boundary keeps command echo and progress
+    output ordered for mixed GUI-plus-console workflows.</li>
+  </ul>
 </body>
 </html>

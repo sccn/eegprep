@@ -241,6 +241,8 @@ class ConsoleEEGPrepModule:
     def __getattr__(self, name: str) -> Any:
         if name.startswith("pop_"):
             return self._bridge.pop_wrapper(name)
+        if name == "eegh":
+            return self._bridge.namespace["eegh"]
         return getattr(eegprep, name)
 
     def __dir__(self) -> list[str]:
@@ -451,6 +453,8 @@ class EEGPrepConsoleWorkspace:
         for name in export_names:
             if name == "__version__":
                 self.namespace[name] = eegprep.__version__
+            elif name == "eegh":
+                continue
             elif name.startswith("pop_"):
                 wrapped = ConsolePopFunction(name, self, None if exports is None else exports[name])
                 self._wrapped_pop_exports[name] = wrapped
