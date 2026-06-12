@@ -20,6 +20,8 @@ Reference:
 """
 
 import logging
+import time
+
 import numpy as np
 from scipy.linalg import sqrtm, pinv, eig
 from ...plugins.clean_rawdata.private.ransac import rand_permutation
@@ -621,8 +623,6 @@ def runica(data, **kwargs):
     elif reset_randomseed:
         # Set seed based on time (random state)
         # Use None to get time-based seed, similar to MATLAB's sum(100*clock)
-        import time
-
         seed = int(time.time() * 1000) % (2**32)
         rng = np.random.RandomState(seed)
     else:
@@ -644,22 +644,6 @@ def runica(data, **kwargs):
     # =========================================================================
     # Phase 2: Core ICA Training Loop
     # =========================================================================
-
-    # Helper function for random permutation with MATLAB parity
-    def custom_randperm(n, rng_state):
-        """
-        Random permutation with MATLAB parity.
-
-        This function produces the SAME permutation sequence as MATLAB's randperm()
-        by using rand() + round_mat() instead of permutation(). This achieves exact
-        parity because:
-        - rand() (uniform [0,1]) matches between Python and MATLAB
-        - round_mat() matches MATLAB's round() tie-breaking behavior
-        - permutation() uses different algorithms and does NOT match
-
-        For details see test_parity_rng.py and clean_rawdata/private/ransac.py:rand_permutation()
-        """
-        return rand_permutation(n, rng_state)
 
     # Initialize step counters and tracking variables
     step = 0  # Training step counter (MATLAB line 795)
@@ -690,7 +674,7 @@ def runica(data, **kwargs):
     if biasflag and extended:
         while step < maxsteps:  # MATLAB line 828
             # Shuffle data order at each step (MATLAB line 829)
-            timeperm = custom_randperm(datalength, rng)
+            timeperm = rand_permutation(datalength, rng)
 
             # Process data in blocks (MATLAB line 831)
             for t in range(0, lastt, block):
@@ -877,7 +861,7 @@ def runica(data, **kwargs):
     elif biasflag and not extended:
         while step < maxsteps:  # MATLAB line 1004
             # Shuffle data order at each step (MATLAB line 1005)
-            timeperm = custom_randperm(datalength, rng)
+            timeperm = rand_permutation(datalength, rng)
 
             # Process data in blocks (MATLAB line 1007)
             for t in range(0, lastt, block):
@@ -1020,7 +1004,7 @@ def runica(data, **kwargs):
     elif not biasflag and extended:
         while step < maxsteps:  # MATLAB line 1128
             # Shuffle data order at each step (MATLAB line 1129)
-            timeperm = custom_randperm(datalength, rng)
+            timeperm = rand_permutation(datalength, rng)
 
             # Process data in blocks (MATLAB line 1131)
             for t in range(0, lastt, block):
@@ -1182,7 +1166,7 @@ def runica(data, **kwargs):
     else:  # not biasflag and not extended
         while step < maxsteps:  # MATLAB line 1299
             # Shuffle data order at each step (MATLAB line 1300)
-            timeperm = custom_randperm(datalength, rng)
+            timeperm = rand_permutation(datalength, rng)
 
             # Process data in blocks (MATLAB line 1302)
             for t in range(0, lastt, block):

@@ -5,7 +5,7 @@ from __future__ import annotations
 import inspect
 import logging
 import webbrowser
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -1776,25 +1776,6 @@ def _default_bids_metadata(action: str) -> str:
 
 def _icacomp_from_variant(variant: str) -> int:
     return 0 if variant == "ica" else 1
-
-
-def _currentset_list(value: Any) -> list[int]:
-    if value is None:
-        return []
-    if isinstance(value, str):
-        if value == "":
-            return []
-        current = int(value)
-        return [current] if current > 0 else []
-    if isinstance(value, bool):
-        return [1] if value else []
-    if isinstance(value, (int, float)):
-        current = int(value)
-        return [current] if current > 0 else []
-    if isinstance(value, Iterable) and not isinstance(value, (str, bytes)):
-        return [int(item) for item in value if int(item) > 0]
-    current = int(value)
-    return [current] if current > 0 else []
 
 
 def _extension_dataset_state(result: Any) -> tuple[list[dict[str, Any]], Any, Any, str] | None:

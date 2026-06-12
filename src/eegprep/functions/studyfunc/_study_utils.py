@@ -109,7 +109,6 @@ def ensure_study(STUDY: dict[str, Any] | None = None) -> dict[str, Any]:
     study.setdefault("design", [])
     study.setdefault("currentdesign", 0)
     study.setdefault("cache", [])
-    study.setdefault("preclust", _default_preclust())
     study.setdefault("history", "STUDY = []")
     study.setdefault("saved", "no")
     etc = study.get("etc")
@@ -377,15 +376,6 @@ def _datasetinfo_list(value: Any) -> list[dict[str, Any]]:
     if not isinstance(value, list):
         return []
     return [deepcopy(item) for item in value if isinstance(item, dict)]
-
-
-def _default_preclust() -> dict[str, list[Any]]:
-    return {
-        "erpclusttimes": [],
-        "specclustfreqs": [],
-        "erspclustfreqs": [],
-        "erspclusttimes": [],
-    }
 
 
 def _default_components(eeg: dict[str, Any]) -> list[int]:
