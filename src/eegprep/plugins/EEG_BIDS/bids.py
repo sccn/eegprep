@@ -124,6 +124,7 @@ def gen_derived_fpath(
             # single directory name, need to prepend everything else
             outputdir = os.path.join(root_relative, 'derivatives', outputdir)
 
+    outputdir = os.path.normpath(outputdir)
     out_path = os.path.join(outputdir, root_relative, new_fprefix + new_fext)
     return out_path
 
