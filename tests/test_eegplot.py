@@ -76,6 +76,7 @@ def test_epoched_data_flattens_in_eeglab_trial_order_and_clamps_window() -> None
 
     np.testing.assert_array_equal(model.data.flat_data[0], np.arange(1, 13))
     assert model.data.mode == "epoched"
+    assert model.state.limits == (0.0, 750.0)
     assert visible_sample_bounds(model.data, model.state) == (4, 8)
 
 
