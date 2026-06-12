@@ -4,9 +4,13 @@ from __future__ import annotations
 
 from typing import Any
 
-import numpy as np
-
-from eegprep.functions.studyfunc._study_utils import RESERVED_VARIABLE_FIELDS, _empty_value, ensure_study
+from eegprep.functions.studyfunc._study_utils import (
+    RESERVED_VARIABLE_FIELDS,
+    _empty_value,
+    ensure_study,
+    equal_value,
+    trialinfo_rows,
+)
 
 
 DATASETINFO_EXCLUDE = RESERVED_VARIABLE_FIELDS | {"ncomps", "subject"}
@@ -71,13 +75,13 @@ def _append_trial_factors(
 ) -> None:
     labels = []
     for info in infos:
-        for row in _trial_rows(info.get("trialinfo")):
+        for row in trialinfo_rows(info.get("trialinfo")):
             for label, value in row.items():
                 if not _empty_value(value) and label not in labels:
                     labels.append(label)
     for label in labels:
         values = _unique_values(
-            row.get(label) for info in infos for row in _trial_rows(info.get("trialinfo")) if label in row
+            row.get(label) for info in infos for row in trialinfo_rows(info.get("trialinfo")) if label in row
         )
         if len(values) <= 1 or label in factors:
             continue
@@ -87,7 +91,7 @@ def _append_trial_factors(
             _unique_values(
                 info.get("subject")
                 for info in infos
-                if any(_equal_value(row.get(label), value) for row in _trial_rows(info.get("trialinfo")))
+                if any(_equal_value(row.get(label), value) for row in trialinfo_rows(info.get("trialinfo")))
             )
             for value in values
         ]
@@ -114,18 +118,6 @@ def _append_design_values(study: dict[str, Any], factors: list[str], factorvals:
                     factorvals[index].append(value)
 
 
-def _trial_rows(value: Any) -> list[dict[str, Any]]:
-    if value is None:
-        return []
-    if isinstance(value, np.ndarray):
-        value = value.tolist()
-    if isinstance(value, dict):
-        return [value]
-    if not isinstance(value, list):
-        return []
-    return [row for row in value if isinstance(row, dict)]
-
-
 def _unique_values(values: Any) -> list[Any]:
     output: list[Any] = []
     for value in values:
@@ -150,11 +142,7 @@ def _paired_subject_sets(value_subjects: list[list[Any]]) -> bool:
 
 
 def _equal_value(left: Any, right: Any) -> bool:
-    if isinstance(left, np.ndarray):
-        left = left.tolist()
-    if isinstance(right, np.ndarray):
-        right = right.tolist()
-    return left == right
+    return equal_value(left, right)
 
 
 __all__ = ["std_getindvar"]

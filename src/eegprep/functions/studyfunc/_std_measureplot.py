@@ -8,8 +8,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from eegprep.functions.popfunc._pop_utils import is_on, parse_key_value_args
-from eegprep.functions.studyfunc._study_utils import build_python_call
-from eegprep.functions.studyfunc.std_readdata import MEASURE_DATA_FIELDS, std_readdata
+from eegprep.functions.studyfunc._study_utils import MEASURE_DATA_FIELDS, build_python_call, range_mask
+from eegprep.functions.studyfunc.std_readdata import std_readdata
 
 
 LINE_MEASURES = {"erp", "spec"}
@@ -68,7 +68,7 @@ def std_measureplot(
         design=design,
     )
     data, x_axis, y_axis = _apply_ranges(data, datatype, x_axis, y_axis, timerange, freqrange)
-    figure = None if is_on(noplot) or plotmode == "none" else _plot_measure(data, datatype, x_axis, y_axis)
+    figure = None if is_on(noplot) or plotmode == "none" else plot_measure_data(data, datatype, x_axis, y_axis)
     command = _history_command(
         datatype,
         channels=channels,
@@ -132,53 +132,79 @@ def _axis_subset(axis: np.ndarray, bounds: Any) -> np.ndarray:
 
 
 def _axis_mask(axis: np.ndarray, bounds: Any) -> np.ndarray | None:
-    if bounds is None or (isinstance(bounds, str) and bounds == ""):
+    mask = range_mask(
+        axis,
+        bounds,
+        name="range options",
+        empty_message="range option does not include any measure samples",
+    )
+    if mask.size == 0 or np.all(mask):
         return None
-    values = np.asarray(bounds, dtype=float).ravel()
-    if values.size == 0:
-        return None
-    if values.size != 2:
-        raise ValueError("range options must contain [min max]")
-    mask = (axis >= values[0]) & (axis <= values[1])
-    if not np.any(mask):
-        raise ValueError("range option does not include any measure samples")
     return mask
 
 
-def _plot_measure(data: list[np.ndarray], datatype: str, x_axis: np.ndarray, y_axis: np.ndarray) -> Any:
+def plot_measure_data(
+    data: list[np.ndarray],
+    datatype: str,
+    x_axis: np.ndarray,
+    y_axis: np.ndarray,
+    *,
+    title: str | None = None,
+    line_labels: list[str] | None = None,
+) -> Any:
+    """Plot cached STUDY measure arrays read by ``std_readdata``."""
     if datatype in LINE_MEASURES:
-        return _plot_lines(data, datatype, x_axis)
-    return _plot_image(data, datatype, x_axis, y_axis)
+        return _plot_lines(data, datatype, x_axis, title=title, line_labels=line_labels)
+    return _plot_image(data, datatype, x_axis, y_axis, title=title)
 
 
-def _plot_lines(data: list[np.ndarray], datatype: str, x_axis: np.ndarray) -> Any:
+def _plot_lines(
+    data: list[np.ndarray],
+    datatype: str,
+    x_axis: np.ndarray,
+    *,
+    title: str | None,
+    line_labels: list[str] | None,
+) -> Any:
     fig, ax = plt.subplots(figsize=(8, 4.5))
-    for label, values in _line_series(data):
+    for label, values in _line_series(data, line_labels):
         ax.plot(x_axis, values, label=label)
     ax.set_xlabel("Time (ms)" if datatype == "erp" else "Frequency (Hz)")
     ax.set_ylabel("uV" if datatype == "erp" else "Power 10*log10(uV^2/Hz)")
-    ax.set_title(f"STUDY {datatype.upper()}")
+    ax.set_title(title or f"STUDY {datatype.upper()}")
     ax.grid(True, alpha=0.25)
     ax.legend(fontsize=8)
     fig.tight_layout()
     return fig
 
 
-def _line_series(data: list[np.ndarray]) -> list[tuple[str, np.ndarray]]:
+def _line_series(data: list[np.ndarray], line_labels: list[str] | None) -> list[tuple[str, np.ndarray]]:
     series = []
+    labels = iter(line_labels or [])
     for group_index, values in enumerate(data, start=1):
         array = np.asarray(values, dtype=float)
         if array.ndim == 2:
-            series.append((f"Group {group_index}", np.nanmean(array, axis=0)))
+            series.append((_next_label(labels, f"Group {group_index}"), np.nanmean(array, axis=0)))
         elif array.ndim == 3:
             for component_index, component_values in enumerate(np.nanmean(array, axis=0), start=1):
-                series.append((f"IC {component_index}", component_values))
+                series.append((_next_label(labels, f"IC {component_index}"), component_values))
         else:
             raise ValueError("line measure data must be 2-D or 3-D")
     return series
 
 
-def _plot_image(data: list[np.ndarray], datatype: str, x_axis: np.ndarray, y_axis: np.ndarray) -> Any:
+def _next_label(labels: Any, fallback: str) -> str:
+    return next(labels, fallback)
+
+
+def _plot_image(
+    data: list[np.ndarray],
+    datatype: str,
+    x_axis: np.ndarray,
+    y_axis: np.ndarray,
+    *,
+    title: str | None,
+) -> Any:
     images = []
     for values in data:
         array = np.asarray(values, dtype=float)
@@ -198,7 +224,7 @@ def _plot_image(data: list[np.ndarray], datatype: str, x_axis: np.ndarray, y_axi
     )
     ax.set_xlabel("Time (ms)")
     ax.set_ylabel("Frequency (Hz)")
-    ax.set_title(f"STUDY {datatype.upper()}")
+    ax.set_title(title or f"STUDY {datatype.upper()}")
     fig.colorbar(mesh, ax=ax)
     fig.tight_layout()
     return fig

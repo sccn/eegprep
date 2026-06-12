@@ -6,6 +6,8 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.studyfunc._study_utils import trialinfo_rows, value_matches
+
 
 def std_builddesignmat(
     design: dict[str, Any], trialinfo: list[dict[str, Any]] | dict[str, Any], expanding: int | bool = False
@@ -16,7 +18,7 @@ def std_builddesignmat(
     1-based level numbers, continuous factors keep their numeric values, and a
     constant column is appended at the end.
     """
-    rows = _trial_rows(trialinfo)
+    rows = trialinfo_rows(trialinfo)
     variables = [variable for variable in design.get("variable") or [] if isinstance(variable, dict)]
     variables = [variable for variable in variables if str(variable.get("label") or "") != "group"]
     matrix = np.full((len(rows), len(variables)), np.nan, dtype=float)
@@ -51,25 +53,6 @@ def std_builddesignmat(
     return matrix, labels, categorical
 
 
-def _trial_rows(trialinfo: list[dict[str, Any]] | dict[str, Any]) -> list[dict[str, Any]]:
-    if isinstance(trialinfo, list):
-        return [row if isinstance(row, dict) else {} for row in trialinfo]
-    if not isinstance(trialinfo, dict):
-        return []
-    lengths = [len(value) for value in trialinfo.values() if isinstance(value, (list, tuple, np.ndarray))]
-    count = max(lengths) if lengths else 0
-    rows = []
-    for index in range(count):
-        row = {}
-        for key, values in trialinfo.items():
-            if isinstance(values, np.ndarray):
-                values = values.tolist()
-            if isinstance(values, (list, tuple)) and index < len(values):
-                row[key] = values[index]
-        rows.append(row)
-    return rows
-
-
 def _levels(variable: dict[str, Any]) -> list[Any]:
     values = variable.get("value")
     if isinstance(values, np.ndarray):
@@ -89,11 +72,7 @@ def _matching_level(value: Any, levels: list[Any]) -> int | None:
 
 
 def _level_contains(level: Any, value: Any) -> bool:
-    if isinstance(level, np.ndarray):
-        level = level.tolist()
-    if isinstance(level, (list, tuple, set)):
-        return any(_level_contains(item, value) for item in level)
-    return level == value
+    return value_matches(value, level)
 
 
 def _expand_categorical(

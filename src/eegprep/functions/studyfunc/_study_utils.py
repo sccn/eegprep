@@ -62,6 +62,9 @@ STUDY_DATA_FIELDS = (
     "topopol",
     "dipoles",
 )
+MEASURE_DATA_FIELDS = {"erp": "erpdata", "spec": "specdata", "ersp": "erspdata", "itc": "itcdata"}
+MEASURE_X_AXIS_FIELDS = {"erp": "erptimes", "spec": "specfreqs", "ersp": "ersptimes", "itc": "itctimes"}
+MEASURE_Y_AXIS_FIELDS = {"ersp": "erspfreqs", "itc": "itcfreqs"}
 
 
 def as_alleeg_list(ALLEEG: Any) -> list[dict[str, Any]]:
@@ -361,15 +364,101 @@ def unique_preserving_order(values: list[int]) -> list[int]:
 
 def trialinfo_rows(value: Any) -> list[dict[str, Any]]:
     """Normalize STUDY trialinfo into a list of row dictionaries."""
+    if isinstance(value, dict) and "trialinfo" in value:
+        value = value.get("trialinfo")
     if value is None:
         return []
     if isinstance(value, np.ndarray):
         value = value.tolist()
     if isinstance(value, dict):
-        return [value]
+        lengths = [len(item) for item in value.values() if isinstance(item, (list, tuple, np.ndarray))]
+        if not lengths:
+            return [value]
+        rows = []
+        count = max(lengths)
+        for index in range(count):
+            row = {}
+            for key, column in value.items():
+                if isinstance(column, np.ndarray):
+                    column = column.tolist()
+                if isinstance(column, (list, tuple)):
+                    if index < len(column):
+                        row[key] = column[index]
+                elif not _empty_value(column):
+                    row[key] = deepcopy(column)
+            rows.append(row)
+        return rows
     if not isinstance(value, list):
         return []
     return [row for row in value if isinstance(row, dict)]
+
+
+def cached_measure_axis(
+    group: dict[str, Any], measureinfo_key: str, fallback_key: str, count: int, *, fallback_start: int = 1
+) -> np.ndarray:
+    """Return cached STUDY measure-axis IDs with EEGLAB-facing fallbacks."""
+    raw_measureinfo = group.get("measureinfo")
+    measureinfo: dict[str, Any] = raw_measureinfo if isinstance(raw_measureinfo, dict) else {}
+    values = _as_int_vector(measureinfo.get(measureinfo_key))
+    if values.size == count:
+        return values.astype(int)
+    values = _as_int_vector(group.get(fallback_key))
+    unique_values = np.asarray(unique_preserving_order(values.tolist()), dtype=int)
+    if unique_values.size == count:
+        return unique_values
+    return np.arange(fallback_start, fallback_start + count, dtype=int)
+
+
+def component_measure_axis(group: dict[str, Any], count: int) -> np.ndarray:
+    """Return cached component IDs for a STUDY component-measure axis."""
+    return cached_measure_axis(group, "components", "comps", count, fallback_start=1)
+
+
+def component_dataset_axis(group: dict[str, Any], count: int) -> np.ndarray:
+    """Return cached STUDY dataset IDs for a component-measure axis."""
+    return cached_measure_axis(group, "datasets", "sets", count, fallback_start=1)
+
+
+def axis_position(axis: np.ndarray, value: int, label: str, *, context: str = "Component measure cache") -> int:
+    """Return the zero-based position of an EEGLAB-facing cached-axis value."""
+    matches = np.where(np.asarray(axis) == value)[0]
+    if matches.size == 0:
+        raise ValueError(f"{context} is missing {label}")
+    return int(matches[0])
+
+
+def range_mask(axis: Any, bounds: Any, *, name: str = "range filter", empty_message: str | None = None) -> np.ndarray:
+    """Return an inclusive mask for a cached measure axis."""
+    axis_values = np.asarray(axis, dtype=float).ravel()
+    if axis_values.size == 0:
+        return np.asarray([], dtype=bool)
+    values = parse_numeric_sequence(bounds, dtype=float)
+    if len(values) == 0:
+        return np.ones(axis_values.size, dtype=bool)
+    if len(values) != 2:
+        raise ValueError(f"{name} must contain [min max]")
+    mask = (axis_values >= values[0]) & (axis_values <= values[1])
+    if not np.any(mask):
+        raise ValueError(empty_message or f"{name} does not include any cached measure samples")
+    return mask
+
+
+def value_matches(value: Any, expected: Any) -> bool:
+    """Return whether a trialinfo value matches a categorical factor level."""
+    if isinstance(expected, np.ndarray):
+        expected = expected.tolist()
+    if isinstance(expected, (list, tuple, set)):
+        return any(value_matches(value, item) for item in expected)
+    return equal_value(value, expected)
+
+
+def equal_value(left: Any, right: Any) -> bool:
+    """Compare MATLAB-loaded scalar/list values without numpy ambiguity."""
+    if isinstance(left, np.ndarray):
+        left = left.tolist()
+    if isinstance(right, np.ndarray):
+        right = right.tolist()
+    return left == right
 
 
 def clear_study_data_fields(study: dict[str, Any]) -> dict[str, Any]:
@@ -422,6 +511,15 @@ def _normalize_optional_number(value: Any) -> Any:
     if isinstance(value, (np.floating, float)):
         return int(value) if float(value).is_integer() else float(value)
     return value
+
+
+def _as_int_vector(value: Any) -> np.ndarray:
+    if value is None:
+        return np.asarray([], dtype=int)
+    array = np.asarray(value, dtype=int)
+    if array.size == 0:
+        return np.asarray([], dtype=int)
+    return array.ravel()
 
 
 def _unique_values(values: Any) -> list[Any]:
