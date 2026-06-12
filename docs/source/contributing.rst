@@ -58,6 +58,7 @@ If you only need documentation dependencies, sync the docs extra:
 
 - The eegprep package in editable mode
 - Repo tooling dependencies
+- GUI and ``eegprep-console`` runtime dependencies
 - Documentation dependencies when ``--extra docs`` is used
 
 Code Style Guidelines

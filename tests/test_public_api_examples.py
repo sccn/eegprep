@@ -72,6 +72,15 @@ def test_project_entry_points_cover_gui_and_console() -> None:
     assert pyproject["project"]["scripts"]["eegprep"] == "eegprep.cli.main:main"
 
 
+def test_development_dependencies_cover_console_runtime() -> None:
+    pyproject = _read_pyproject()
+    dev_dependencies = set(pyproject["dependency-groups"]["dev"])
+
+    assert "ipython>=8.0" in dev_dependencies
+    assert "pyqtgraph>=0.13.7" in dev_dependencies
+    assert "PySide6>=6.6" in dev_dependencies
+
+
 def test_setuptools_package_data_covers_runtime_resources() -> None:
     pyproject = _read_pyproject()
     package_root = REPO_ROOT / "src/eegprep"

@@ -75,7 +75,9 @@ To install eegprep from source for development:
     uv sync --group dev
 
 ``uv sync`` creates the project environment, installs EEGPrep in editable mode,
-and uses ``uv.lock`` for reproducible dependency resolution.
+and uses ``uv.lock`` for reproducible dependency resolution. The development
+environment includes the GUI and console runtime dependencies, so a fresh
+checkout can immediately launch ``uv run eegprep-console --full``.
 
 To develop or build documentation from source, include the docs extra:
 

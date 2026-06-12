@@ -85,7 +85,12 @@ eegprep-validate-extension-catalog = "eegprep.extension_catalog:main"
 
 [dependency-groups]
 dev = [
+  # Keep `uv run eegprep-console --full` working from a fresh source checkout.
+  # Published installs still keep GUI/console dependencies behind extras.
+  "ipython>=8.0",
   "pytest>=8.0",
+  "pyqtgraph>=0.13.7",
+  "PySide6>=6.6",
   "ruff>=0.15.14",
   "tomli>=2.0; python_version < '3.11'",
   "ty>=0.0.39",

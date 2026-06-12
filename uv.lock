@@ -753,6 +753,10 @@ torch = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "ipython", version = "8.39.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "ipython", version = "9.13.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "pyqtgraph" },
+    { name = "pyside6" },
     { name = "pytest" },
     { name = "ruff" },
     { name = "tomli", marker = "python_full_version < '3.11'" },
@@ -808,6 +812,9 @@ provides-extras = ["torch", "eeglabio", "gui", "console", "docs", "all"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "ipython", specifier = ">=8.0" },
+    { name = "pyqtgraph", specifier = ">=0.13.7" },
+    { name = "pyside6", specifier = ">=6.6" },
     { name = "pytest", specifier = ">=8.0" },
     { name = "ruff", specifier = ">=0.15.14" },
     { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=2.0" },
