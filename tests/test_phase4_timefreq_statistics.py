@@ -33,17 +33,25 @@ from eegprep.functions.popfunc.pop_signalstat import pop_signalstat, pop_signals
 from eegprep.functions.sigprocfunc.signalstat import signalstat
 from eegprep.functions.guifunc.tf_cycle_calc_dialog import tf_cycle_calc_dialog_spec
 from eegprep.functions.timefreqfunc.angtimewarp import angtimewarp
-from eegprep.functions.timefreqfunc.bootstat import bootstat, bootstrap_threshold
+from eegprep.functions.timefreqfunc._bootstrap import (
+    bootstrap_indices,
+    resample_trials,
+    threshold_vector,
+    thresholds_by_frequency,
+)
+from eegprep.functions.timefreqfunc.bootstat import bootstat, bootstrap_threshold, exact_p_values
 from eegprep.functions.timefreqfunc.correct_mc import correct_mc
 from eegprep.functions.timefreqfunc.correctfit import correctfit
 from eegprep.functions.timefreqfunc.dftfilt import dftfilt
 from eegprep.functions.timefreqfunc.dftfilt2 import dftfilt2
 from eegprep.functions.timefreqfunc.dftfilt3 import dftfilt3
 from eegprep.functions.statistics.fdr import fdr
+from eegprep.functions.statistics.stat_surrogate_pvals import stat_surrogate_pvals
 from eegprep.functions.timefreqfunc.newcrossf import _is_on as newcrossf_is_on
 from eegprep.functions.timefreqfunc.newcrossf import _threshold_vector as newcrossf_threshold_vector
 from eegprep.functions.timefreqfunc.newcrossf import _upper_thresholds_by_frequency
 from eegprep.functions.timefreqfunc.newcrossf import newcrossf
+from eegprep.functions.timefreqfunc._pac_support import _empirical_pvalue as pac_empirical_pvalue
 from eegprep.functions.timefreqfunc.newtimef import _is_on as newtimef_is_on
 from eegprep.functions.timefreqfunc.newtimef import _significance_mask, _thresholds_by_frequency
 from eegprep.functions.timefreqfunc.newtimef import _threshold_vector as newtimef_threshold_vector
@@ -579,6 +587,35 @@ def test_timefreq_threshold_helpers_pool_through_canonical_bootstrap_threshold()
     assert _upper_thresholds_by_frequency(single, alpha=0.1).shape == (1,)
 
 
+def test_timefreq_shared_bootstrap_helpers_cover_newtimef_and_newcrossf_paths():
+    times = np.asarray([-100.0, 0.0, 100.0, 200.0])
+    baseln = np.asarray([0, 1], dtype=int)
+
+    np.testing.assert_array_equal(bootstrap_indices(times, baseline=0, baseboot=[], baseln=baseln), baseln)
+    np.testing.assert_array_equal(bootstrap_indices(times, baseline=np.nan, baseboot=1, baseln=baseln), [0, 1])
+    np.testing.assert_array_equal(bootstrap_indices(times, baseline=np.nan, baseboot=0, baseln=baseln), [])
+    np.testing.assert_array_equal(bootstrap_indices(times, baseline=np.nan, baseboot=[50, 200], baseln=baseln), [2, 3])
+    np.testing.assert_array_equal(bootstrap_indices(times, baseboot=1, baseln=None, limit_to_baseboot=True), [0, 1])
+
+    surrogates = np.arange(24, dtype=float).reshape(2, 3, 4)
+    np.testing.assert_allclose(
+        thresholds_by_frequency(surrogates, alpha=0.1, bootside="both"),
+        _thresholds_by_frequency(surrogates, alpha=0.1, both=True),
+    )
+    np.testing.assert_allclose(
+        thresholds_by_frequency(surrogates, alpha=0.1, bootside="upper"),
+        _upper_thresholds_by_frequency(surrogates, alpha=0.1),
+    )
+    assert threshold_vector(2.0, (3, 4)).shape == (3, 4)
+    assert threshold_vector(np.asarray([1.0, 2.0, 3.0]), (3, 4)).shape == (3, 1)
+
+    values = np.arange(24, dtype=float).reshape(2, 3, 4)
+    shuffled = resample_trials(values, np.random.default_rng(0), "shuffle")
+    randomized = resample_trials(values.astype(complex), np.random.default_rng(0), "rand", complex_phase=True)
+    assert shuffled.shape == values.shape
+    np.testing.assert_allclose(np.abs(randomized), np.abs(values))
+
+
 def test_newtimef_fdr_branch_matches_canonical_fdr_threshold():
     rng = np.random.default_rng(11)
     pvalues = rng.random(size=(4, 6))
@@ -593,6 +630,7 @@ def test_newtimef_fdr_branch_matches_canonical_fdr_threshold():
 def test_timefreq_is_on_and_threshold_vector_are_the_canonical_shared_helpers():
     # newcrossf reuses newtimef's threshold helper and the canonical is_on whitelist.
     assert newcrossf_threshold_vector is newtimef_threshold_vector
+    assert newtimef_threshold_vector is threshold_vector
     assert newcrossf_is_on is newtimef_is_on
     assert newcrossf_is_on("on") is True
     assert newcrossf_is_on("display") is False
@@ -611,6 +649,17 @@ def test_bootstat_basevect_uses_eeglab_one_based_indices():
     np.testing.assert_array_equal(seen[0], data[:, :1, :])
     with pytest.raises(ValueError, match="1-based"):
         bootstat(data, statistic=statistic, basevect=[0], naccu=1, rng=0)
+
+
+def test_empirical_pvalue_conventions_are_intentionally_distinct():
+    distribution = np.asarray([1.0, 2.0, 3.0, 4.0])
+    observed = 5.0
+
+    assert pac_empirical_pvalue(distribution, observed) == pytest.approx(1 / 5)
+    np.testing.assert_allclose(
+        stat_surrogate_pvals(distribution[np.newaxis, :], np.asarray([observed]), "right"), [0.0]
+    )
+    np.testing.assert_allclose(exact_p_values(observed, distribution, center=0.0), 0.0)
 
 
 def test_correct_mc_returns_phase4_standalone_shapes():

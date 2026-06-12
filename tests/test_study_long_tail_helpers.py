@@ -81,6 +81,40 @@ def test_independent_variable_selection_and_trialinfo_queries_are_1_based():
     assert [row["type"] for row in combined] == ["rare", "standard", "rare"]
 
 
+def test_columnar_trialinfo_rows_are_shared_by_study_helpers():
+    datasetinfo = [
+        {
+            "subject": "S01",
+            "condition": "target",
+            "trialinfo": {"type": ["rare", "standard"], "rt": [320.0, 410.0]},
+        },
+        {
+            "subject": "S02",
+            "condition": "standard",
+            "trialinfo": {"type": ["rare"], "rt": [350.0]},
+        },
+    ]
+    study = {"datasetinfo": deepcopy(datasetinfo)}
+
+    combined = std_combtrialinfo(datasetinfo, [1, 2])
+    selected, trials = std_selectdataset(study, None, "type", "rare")
+    factors, factorvals, subjects, paired = std_getindvar(study, mode="trialinfo")
+    rt_trials, rt_values = std_gettrialsind(
+        {"trialinfo": datasetinfo[0]["trialinfo"]}, "rt", "300<400", return_values=True
+    )
+
+    assert [row["condition"] for row in combined] == ["target", "target", "standard"]
+    assert [row["type"] for row in combined] == ["rare", "standard", "rare"]
+    assert selected == [1, 2]
+    assert trials == [[1], [1]]
+    assert set(factors) == {"rt", "type"}
+    assert factorvals[factors.index("type")] == ["rare", "standard"]
+    assert subjects[factors.index("type")] == [["S01", "S02"], ["S01"]]
+    assert paired[factors.index("type")] == "off"
+    assert rt_trials == [1]
+    assert rt_values == [[320.0]]
+
+
 def test_indvarmatch_and_gettrialsind_validate_standalone_inputs():
     assert std_indvarmatch("target", ["standard", "target", "target"]) == [2, 3]
     assert std_indvarmatch([2, 3], [1, 2, 3]) == [2, 3]

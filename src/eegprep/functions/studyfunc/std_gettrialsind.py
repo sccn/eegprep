@@ -8,6 +8,7 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.popfunc._pop_utils import parse_key_value_args
+from eegprep.functions.studyfunc._study_utils import equal_value, trialinfo_rows
 
 
 def std_gettrialsind(
@@ -24,7 +25,7 @@ def std_gettrialsind(
     """
     if isinstance(trialinfo, (str, Path)):
         raise ValueError("std_gettrialsind expects loaded trialinfo rows, not a MATLAB filename")
-    rows = _trial_rows(trialinfo)
+    rows = trialinfo_rows(trialinfo)
     queries = parse_key_value_args(args, kwargs, lowercase_kwargs=False)
     if not queries:
         indices = list(range(1, len(rows) + 1))
@@ -84,18 +85,6 @@ def _numeric_or_none(value: Any) -> float | None:
     return float(value)
 
 
-def _trial_rows(value: Any) -> list[dict[str, Any]]:
-    if isinstance(value, dict) and "trialinfo" in value:
-        value = value.get("trialinfo")
-    if isinstance(value, np.ndarray):
-        value = value.tolist()
-    if isinstance(value, dict):
-        return [value]
-    if not isinstance(value, list):
-        return []
-    return [row for row in value if isinstance(row, dict)]
-
-
 def _as_values(value: Any) -> list[Any]:
     if isinstance(value, np.ndarray):
         value = value.tolist()
@@ -105,11 +94,7 @@ def _as_values(value: Any) -> list[Any]:
 
 
 def _equal(left: Any, right: Any) -> bool:
-    if isinstance(left, np.ndarray):
-        left = left.tolist()
-    if isinstance(right, np.ndarray):
-        right = right.tolist()
-    return left == right
+    return equal_value(left, right)
 
 
 __all__ = ["std_gettrialsind"]

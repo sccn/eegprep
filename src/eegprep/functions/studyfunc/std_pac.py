@@ -15,7 +15,7 @@ from eegprep.functions.popfunc._plot_utils import (
     numeric_vector,
 )
 from eegprep.functions.popfunc._pop_utils import is_on, parse_key_value_args
-from eegprep.functions.studyfunc._study_utils import as_alleeg_list, build_python_call, ensure_study
+from eegprep.functions.studyfunc._study_utils import as_alleeg_list, build_python_call, ensure_study, range_mask
 from eegprep.functions.studyfunc.std_checkset import std_checkset
 from eegprep.functions.studyfunc.std_savedat import std_savedat
 from eegprep.functions.timefreqfunc.pac import pac
@@ -428,16 +428,7 @@ def _apply_ranges(
 
 
 def _range_mask(axis: np.ndarray, bounds: Any, name: str) -> np.ndarray:
-    values = numeric_vector(bounds, dtype=float)
-    axis = np.asarray(axis, dtype=float).ravel()
-    if values.size == 0:
-        return np.ones(axis.size, dtype=bool)
-    if values.size != 2:
-        raise ValueError(f"{name} must contain [min max]")
-    mask = (axis >= values[0]) & (axis <= values[1])
-    if not np.any(mask):
-        raise ValueError(f"{name} does not include any PAC samples")
-    return mask
+    return range_mask(axis, bounds, name=name, empty_message=f"{name} does not include any PAC samples")
 
 
 def _check_axis(existing: Any, candidate: np.ndarray, name: str) -> np.ndarray:

@@ -107,6 +107,9 @@ cached arrays. Cached measure fields follow EEGLAB names such as ``erpdata``,
 ``specdata``, ``erspdata``, and ``itcdata``. The selected ``design`` is recorded
 in each measure group's metadata. EEGPrep stores dataset-level averages in the
 current standalone cache rather than EEGLAB sidecar measure files.
+``pop_chanplot`` reads cached channel and component measures through the same
+``std_readdata``/``std_erpplot``/``std_erspplot`` cache contract used by scripts,
+so GUI and console plots slice axes and cached channel groups consistently.
 
 Use ``std_checkfiles``, ``std_checkdatasession``, ``std_uniformfiles``, and
 ``std_uniformsetinds`` to audit loaded dataset consistency and cached measure
@@ -129,10 +132,12 @@ Select datasets or trials from STUDY metadata:
        ["target"],
    )
 
-These helpers return EEGLAB-facing 1-based dataset and trial indices. Use
-``std_substudy`` or ``std_rmdat`` when a workflow needs to remove datasets;
-EEGPrep remaps STUDY references and invalidates cached measure arrays after
-membership changes.
+These helpers return EEGLAB-facing 1-based dataset and trial indices. Trial
+metadata may be stored as row dictionaries or as EEGLAB-loaded columnar
+``{"factor": [values...]}`` dictionaries; STUDY selectors normalize both forms
+before matching factor levels and numerical ranges. Use ``std_substudy`` or
+``std_rmdat`` when a workflow needs to remove datasets; EEGPrep remaps STUDY
+references and invalidates cached measure arrays after membership changes.
 
 ``std_findsameica`` groups matching ICA decompositions within each subject.
 This preserves the subject boundary used by STUDY designs instead of merging
@@ -152,6 +157,12 @@ Precluster and cluster ICA components:
    )
    STUDY, com = pop_clust(STUDY, ALLEEG, clus_num=4, random_state=0, return_com=True)
    STUDY, com, fig = pop_clustedit(STUDY, ALLEEG, action="plot", return_com=True)
+
+Finite ``outliers`` values in ``pop_clust`` use the EEGLAB-compatible
+``robust_kmeans`` path and record ``["robust_kmeans", clus_num]`` in each
+created cluster's algorithm provenance. Infinite ``outliers`` keeps the plain
+k-means path. In both cases command history remains pasteable in
+``eegprep-console``.
 
 DIPFIT Source Localization
 ==========================
@@ -222,6 +233,14 @@ EEGPrep-owned ``pacdata``, ``pactimes``, and ``pacfreqs`` caches on
 ``STUDY.changrp``. ``std_readpac`` slices those caches and ``std_pacplot``
 plots their magnitude using the same cache-reading contract as the other
 STUDY measure plots.
+
+Empirical p-value conventions are explicit. ``pac`` applies the common
+``(exceedances + 1) / (permutations + 1)`` finite-sample convention,
+``bootstat`` exposes exact permutation proportions for bootstrap helper tests,
+and statistics helpers such as ``stat_surrogate_pvals`` follow EEGLAB's
+surrogate-tail convention with FDR correction available through the statistics
+module. These definitions are intentionally not collapsed when they answer
+different inferential questions.
 
 The feasible in-package LIMO-compatible layer is design preparation:
 ``std_limodesign`` builds categorical and continuous matrices from

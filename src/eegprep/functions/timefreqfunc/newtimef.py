@@ -12,10 +12,16 @@ from eegprep.functions.miscfunc.value_parsing import is_empty_value as _is_empty
 from eegprep.functions.miscfunc.value_parsing import is_on as _is_on
 from eegprep.functions.miscfunc.value_parsing import parse_numeric_sequence
 from eegprep.functions.statistics.fdr import fdr
-from eegprep.functions.timefreqfunc.bootstat import bootstrap_threshold, exact_p_values
+from eegprep.functions.timefreqfunc._bootstrap import (
+    bootstrap_indices as shared_bootstrap_indices,
+    resample_trials,
+    threshold_vector as _threshold_vector,
+    thresholds_by_frequency,
+)
+from eegprep.functions.timefreqfunc.bootstat import exact_p_values
 from eegprep.functions.timefreqfunc.newtimefbaseln import newtimefbaseln
 from eegprep.functions.timefreqfunc.newtimefitc import newtimefitc
-from eegprep.functions.timefreqfunc.newtimeftrialbaseln import baseline_indices, newtimeftrialbaseln
+from eegprep.functions.timefreqfunc.newtimeftrialbaseln import newtimeftrialbaseln
 from eegprep.functions.timefreqfunc.timefreq import timefreq
 
 
@@ -421,18 +427,7 @@ def _boot_array(value: Any) -> np.ndarray | None:
 
 
 def _bootstrap_indices(times: np.ndarray, baseline: Any, baseboot: Any, baseln: np.ndarray) -> np.ndarray:
-    values = _numeric_vector(baseboot)
-    if values.size == 0:
-        return baseln
-    if values.size == 1:
-        if values[0] == 0:
-            return np.asarray([], dtype=int)
-        baseline_values = _numeric_vector(baseline)
-        if baseline_values.size and not np.isnan(baseline_values[0]):
-            return baseln
-        indices = np.nonzero(times <= 0)[0]
-        return indices if indices.size else np.arange(times.size, dtype=int)
-    return baseline_indices(times, values)
+    return shared_bootstrap_indices(times, baseline=baseline, baseboot=baseboot, baseln=baseln)
 
 
 def _bootstrap_power(
@@ -450,9 +445,9 @@ def _bootstrap_power(
     boot_source = power[:, base_indices, :] if base_indices.size else power
     threshold_source = np.empty((int(naccu), power.shape[0], max(1, boot_source.shape[1])), dtype=float)
     for index in range(int(naccu)):
-        sample = _resample_trials(power, generator, boottype)
+        sample = resample_trials(power, generator, boottype)
         surrogates[index] = _power_to_output(np.nanmean(sample, axis=2), scale)
-        threshold_sample = _resample_trials(boot_source, generator, boottype)
+        threshold_sample = resample_trials(boot_source, generator, boottype)
         threshold_source[index] = _power_to_output(np.nanmean(threshold_sample, axis=2), scale)
     thresholds = _thresholds_by_frequency(threshold_source, alpha=alpha, both=True)
     return thresholds, surrogates
@@ -473,40 +468,16 @@ def _bootstrap_itc(
     boot_source = tfdata[:, base_indices, :] if base_indices.size else tfdata
     threshold_source = np.empty((int(naccu), tfdata.shape[0], max(1, boot_source.shape[1])), dtype=float)
     for index in range(int(naccu)):
-        sample = _resample_trials(tfdata, generator, boottype, complex_phase=True)
+        sample = resample_trials(tfdata, generator, boottype, complex_phase=True)
         surrogates[index] = np.abs(newtimefitc(sample, itctype))
-        threshold_sample = _resample_trials(boot_source, generator, boottype, complex_phase=True)
+        threshold_sample = resample_trials(boot_source, generator, boottype, complex_phase=True)
         threshold_source[index] = np.abs(newtimefitc(threshold_sample, itctype))
     thresholds = _thresholds_by_frequency(threshold_source, alpha=alpha, both=False)
     return thresholds, surrogates
 
 
-def _resample_trials(
-    values: np.ndarray,
-    generator: np.random.Generator,
-    boottype: str,
-    *,
-    complex_phase: bool = False,
-) -> np.ndarray:
-    mode = str(boottype).lower()
-    sample = np.asarray(values).copy()
-    if mode in {"shuffle", "shufftrials"}:
-        trial_indices = generator.integers(0, sample.shape[2], size=sample.shape[2])
-        return sample[:, :, trial_indices]
-    if mode in {"rand", "randall"}:
-        if complex_phase or np.iscomplexobj(sample):
-            return sample * np.exp(1j * generator.uniform(0.0, 2.0 * np.pi, size=sample.shape))
-        signs = generator.choice(np.asarray([-1.0, 1.0]), size=sample.shape)
-        return sample * signs
-    raise ValueError("boottype must be 'shuffle', 'shufftrials', 'rand', or 'randall'")
-
-
 def _thresholds_by_frequency(values: np.ndarray, *, alpha: float, both: bool) -> np.ndarray:
-    nfreq = values.shape[1]
-    pooled = values.transpose(0, 2, 1).reshape(-1, nfreq)
-    bootside = "both" if both else "upper"
-    thresholds = np.asarray(bootstrap_threshold(pooled, alpha=alpha, bootside=bootside))
-    return thresholds.reshape(nfreq, 2) if both else thresholds.reshape(nfreq)
+    return thresholds_by_frequency(values, alpha=alpha, bootside="both" if both else "upper")
 
 
 def _significance_mask(pvalues: np.ndarray, alpha: float, correction: str) -> np.ndarray:
@@ -528,15 +499,6 @@ def _threshold_mask(values: np.ndarray, thresholds: np.ndarray) -> np.ndarray:
     lower = threshold_values[:, 0][:, np.newaxis]
     upper = threshold_values[:, 1][:, np.newaxis]
     return (values <= lower) | (values >= upper)
-
-
-def _threshold_vector(thresholds: np.ndarray, target_shape: tuple[int, ...]) -> np.ndarray:
-    values = np.asarray(thresholds, dtype=float).squeeze()
-    if values.ndim == 0:
-        return np.full(target_shape, float(values))
-    if values.ndim == 1:
-        return values[:, np.newaxis]
-    return values
 
 
 def _plot_time_frequency(
