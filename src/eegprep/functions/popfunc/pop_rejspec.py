@@ -8,17 +8,12 @@ import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
-from eegprep.functions.popfunc._eegplot_rejection import open_epoched_rejection_browser
+from eegprep.functions.popfunc._eegplot_rejection import run_epoched_mark_rejection
 from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args
 from eegprep.functions.popfunc._rejection import (
-    copy_eeg,
-    one_based_indices,
     parse_numeric_sequence,
-    rejection_data,
     spectrum_marks,
-    update_reject_fields,
 )
-from eegprep.functions.popfunc.pop_rejepoch import pop_rejepoch
 
 
 def pop_rejspec(
@@ -169,46 +164,44 @@ def _apply_one(
     command_callback: Any | None = None,
     show: bool = True,
 ) -> tuple[dict[str, Any], list[int], str]:
-    out = copy_eeg(EEG)
-    data, row_count = rejection_data(out, icacomp)
-    if int(out.get("trials", data.shape[2]) or data.shape[2]) <= 1:
-        raise ValueError("pop_rejspec requires epoched data")
-    elecrange = one_based_indices(options.get("elecrange"), limit=row_count, default_all=True)
-    threshold = options.get("threshold", [-30, 30])
-    freqlimits = options.get("freqlimits", [15, 30])
-    method = str(options.get("method", "multitaper")).lower()
-    marks, marks_e, spectra = spectrum_marks(
-        data, elecrange, float(out.get("srate", 1.0)), threshold, freqlimits, method
-    )
-    if int(bool(icacomp)):
-        out["specdata"] = spectra
-    else:
-        out["specicaact"] = spectra
-    update_reject_fields(out, icacomp=icacomp, kind="rejfreq", reject=marks, reject_e=marks_e)
-    rejected = (np.flatnonzero(marks) + 1).tolist()
-    normalized_options = dict(options)
-    normalized_options["elecrange"] = elecrange
-    normalized_options["method"] = method
-    normalized_options.setdefault("threshold", threshold)
-    normalized_options.setdefault("freqlimits", freqlimits)
-    normalized_options.setdefault("eegplotplotallrej", 0)
-    normalized_options.setdefault("eegplotreject", 0)
-    command = _history_command(icacomp, normalized_options)
-    if display:
-        open_epoched_rejection_browser(
-            out,
-            data=data,
-            icacomp=icacomp,
-            elecrange=elecrange,
-            kind="rejfreq",
-            superpose=_int_option(normalized_options.get("eegplotplotallrej", 0)),
-            reject=int(bool(_int_option(normalized_options.get("eegplotreject", 0)))),
-            command=command,
-            command_callback=command_callback,
-            show=show,
+    def _marks(out: dict[str, Any], data: np.ndarray, elecrange: list[int]):
+        threshold = options.get("threshold", [-30, 30])
+        freqlimits = options.get("freqlimits", [15, 30])
+        method = str(options.get("method", "multitaper")).lower()
+        marks, marks_e, spectra = spectrum_marks(
+            data, elecrange, float(out.get("srate", 1.0)), threshold, freqlimits, method
         )
-    elif int(bool(options.get("eegplotreject", 0))) and rejected:
-        out = pop_rejepoch(out, rejected, 0)
+        if int(bool(icacomp)):
+            out["specdata"] = spectra
+        else:
+            out["specicaact"] = spectra
+        normalized_options = dict(options)
+        normalized_options["elecrange"] = elecrange
+        normalized_options["method"] = method
+        normalized_options.setdefault("threshold", threshold)
+        normalized_options.setdefault("freqlimits", freqlimits)
+        normalized_options.setdefault("eegplotplotallrej", 0)
+        normalized_options.setdefault("eegplotreject", 0)
+        return marks, marks_e, normalized_options
+
+    def _command(_elecrange: list[int], normalized_options: dict[str, Any]) -> str:
+        return _history_command(icacomp, normalized_options)
+
+    normalized_reject = int(bool(_int_option(options.get("eegplotreject", 0))))
+    out, rejected, command, _normalized_options = run_epoched_mark_rejection(
+        EEG,
+        icacomp,
+        options.get("elecrange"),
+        _int_option(options.get("eegplotplotallrej", 0)),
+        normalized_reject,
+        marks_fn=_marks,
+        kind="rejfreq",
+        error_message="pop_rejspec requires epoched data",
+        command_fn=_command,
+        display=display,
+        command_callback=command_callback,
+        show=show,
+    )
     return out, rejected, command
 
 

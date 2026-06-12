@@ -5,6 +5,8 @@ import logging
 
 import numpy as np
 
+from .private.channel_removal import remove_channels_without_pop_select, update_clean_channel_mask
+
 logger = logging.getLogger(__name__)
 
 
@@ -59,18 +61,7 @@ def clean_flatlines(EEG: Dict[str, Any], max_flatline_duration: float = 5.0, max
                 logger.error('Could not select channels using EEGLAB\'s pop_select(); details: %s', str(e))
                 logger.debug('Exception traceback:', exc_info=True)
             logger.info('Falling back to a basic substitute and dropping signal meta-data.')
-            # pop_select() by default truncates the data to float32, so we need to do the same
-            EEG['data'] = np.asarray(EEG['data'], dtype=np.float32)
-            EEG['data'] = EEG['data'][np.logical_not(removed_channels), :]
-            if len(EEG['chanlocs']) == len(removed_channels):
-                EEG['chanlocs'] = EEG['chanlocs'][np.logical_not(removed_channels)]
-            EEG['nbchan'] = EEG['data'].shape[0]
-            for fn in EEG.keys() & {'icawinv', 'icasphere', 'icaweights', 'icaact', 'stats', 'specdata', 'specicaact'}:
-                EEG[fn] = np.array([])
-            CCM = EEG['etc'].get('clean_channel_mask')
-            if CCM is not None:
-                CCM[CCM] = ~removed_channels
-            else:
-                EEG['etc']['clean_channel_mask'] = ~removed_channels
+            EEG = remove_channels_without_pop_select(EEG, removed_channels)
+        update_clean_channel_mask(EEG, removed_channels)
 
     return EEG

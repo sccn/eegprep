@@ -140,4 +140,4 @@ def load_amica_model(EEG, mods, model_num=0):
     EEG['icaact'] = (EEG['icaweights'] @ EEG['icasphere']) @ data
     EEG['icaact'] = reshape_ica_activations(EEG['icaact'], EEG['pnts'], EEG['trials'])
 
-    return EEG
+    return finalize_ica_fields(EEG)

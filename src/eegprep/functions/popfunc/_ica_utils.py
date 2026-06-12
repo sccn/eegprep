@@ -1,5 +1,8 @@
 import numpy as np
 
+from eegprep.functions.miscfunc.misc import finite_matmul, finite_pinv
+from eegprep.functions.miscfunc.pinv import pinv
+
 
 def flatten_ica_data(data):
     """Flatten channel-major EEG data using EEGLAB/MATLAB epoch ordering."""
@@ -20,6 +23,8 @@ def finalize_ica_fields(EEG, *, sortcomps='off', posact='off'):
     ``EEG['icawinv']`` and returns ``EEG``. Shared by the runica, AMICA, and
     Picard backends so the post-decomposition behavior stays identical.
     """
+    EEG['icawinv'] = finite_pinv(finite_matmul(EEG['icaweights'], EEG['icasphere']), solver=pinv)
+
     # Optionally sort components by mean descending activation variance
     if sortcomps in ('on', True):
         # Flatten icaact to 2D for variance computation
@@ -52,4 +57,5 @@ def finalize_ica_fields(EEG, *, sortcomps='off', posact='off'):
                 EEG['icawinv'][:, r] = -EEG['icawinv'][:, r]
                 EEG['icaweights'][r, :] = -EEG['icaweights'][r, :]
 
+    EEG['icawinv'] = finite_pinv(finite_matmul(EEG['icaweights'], EEG['icasphere']), solver=pinv)
     return EEG
