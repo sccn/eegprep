@@ -71,27 +71,23 @@ class TestEEGMNE2EEG(unittest.TestCase):
         # Create Raw object
         raw = mne.io.RawArray(data, info)
 
-        try:
-            result = eeg_mne2eeg(raw)
+        result = eeg_mne2eeg(raw)
 
-            # Check that result is a dict (EEGLAB format)
-            self.assertIsInstance(result, dict)
+        # Check that result is a dict (EEGLAB format)
+        self.assertIsInstance(result, dict)
 
-            # Check basic fields
-            self.assertIn('data', result)
-            self.assertIn('srate', result)
-            self.assertIn('nbchan', result)
-            self.assertIn('pnts', result)
-            self.assertIn('trials', result)
+        # Check basic fields
+        self.assertIn('data', result)
+        self.assertIn('srate', result)
+        self.assertIn('nbchan', result)
+        self.assertIn('pnts', result)
+        self.assertIn('trials', result)
 
-            # Check data dimensions
-            self.assertEqual(result['nbchan'], n_channels)
-            self.assertEqual(result['pnts'], n_times)
-            self.assertEqual(result['trials'], 1)
-            self.assertEqual(result['srate'], sfreq)
-
-        except Exception as e:
-            self.skipTest(f"eeg_mne2eeg raw conversion not available: {e}")
+        # Check data dimensions
+        self.assertEqual(result['nbchan'], n_channels)
+        self.assertEqual(result['pnts'], n_times)
+        self.assertEqual(result['trials'], 1)
+        self.assertEqual(result['srate'], sfreq)
 
     @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
     def test_eeg_mne2eeg_cleans_temporary_bridge_files(self):
@@ -133,27 +129,23 @@ class TestEEGMNE2EEG(unittest.TestCase):
         # Create Epochs object
         epochs = mne.EpochsArray(data, info, events, tmin=0, event_id=event_id)
 
-        try:
-            result = eeg_mne2eeg(epochs)
+        result = eeg_mne2eeg(epochs)
 
-            # Check that result is a dict (EEGLAB format)
-            self.assertIsInstance(result, dict)
+        # Check that result is a dict (EEGLAB format)
+        self.assertIsInstance(result, dict)
 
-            # Check basic fields
-            self.assertIn('data', result)
-            self.assertIn('srate', result)
-            self.assertIn('nbchan', result)
-            self.assertIn('pnts', result)
-            self.assertIn('trials', result)
+        # Check basic fields
+        self.assertIn('data', result)
+        self.assertIn('srate', result)
+        self.assertIn('nbchan', result)
+        self.assertIn('pnts', result)
+        self.assertIn('trials', result)
 
-            # Check data dimensions
-            self.assertEqual(result['nbchan'], n_channels)
-            self.assertEqual(result['pnts'], n_times)
-            self.assertEqual(result['trials'], n_epochs)
-            self.assertEqual(result['srate'], sfreq)
-
-        except Exception as e:
-            self.skipTest(f"eeg_mne2eeg epochs conversion not available: {e}")
+        # Check data dimensions
+        self.assertEqual(result['nbchan'], n_channels)
+        self.assertEqual(result['pnts'], n_times)
+        self.assertEqual(result['trials'], n_epochs)
+        self.assertEqual(result['srate'], sfreq)
 
     @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
     def test_eeg_mne2eeg_with_annotations(self):
@@ -174,28 +166,24 @@ class TestEEGMNE2EEG(unittest.TestCase):
         )
         raw.set_annotations(annotations)
 
-        try:
-            result = eeg_mne2eeg(raw)
+        result = eeg_mne2eeg(raw)
 
-            # Check that result is a dict
-            self.assertIsInstance(result, dict)
+        # Check that result is a dict
+        self.assertIsInstance(result, dict)
 
-            # Check that events were converted
-            self.assertIn('event', result)
-            self.assertIsInstance(result['event'], list)
+        # Check that events were converted
+        self.assertIn('event', result)
+        self.assertIsInstance(result['event'], list)
 
-            # Check event count
-            self.assertEqual(len(result['event']), 3)
+        # Check event count
+        self.assertEqual(len(result['event']), 3)
 
-            # Check event structure
-            for event in result['event']:
-                self.assertIn('latency', event)
-                self.assertIn('type', event)
-                self.assertIsInstance(event['latency'], int)
-                self.assertIsInstance(event['type'], str)
-
-        except Exception as e:
-            self.skipTest(f"eeg_mne2eeg with annotations not available: {e}")
+        # Check event structure
+        for event in result['event']:
+            self.assertIn('latency', event)
+            self.assertIn('type', event)
+            self.assertIsInstance(event['latency'], int)
+            self.assertIsInstance(event['type'], str)
 
     @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
     def test_eeg_mne2eeg_with_events(self):
@@ -224,27 +212,23 @@ class TestEEGMNE2EEG(unittest.TestCase):
 
         epochs = mne.EpochsArray(data, info, events, tmin=0, event_id=event_id)
 
-        try:
-            result = eeg_mne2eeg(epochs)
+        result = eeg_mne2eeg(epochs)
 
-            # Check that result is a dict
-            self.assertIsInstance(result, dict)
+        # Check that result is a dict
+        self.assertIsInstance(result, dict)
 
-            # Check that events were converted
-            self.assertIn('event', result)
-            self.assertIsInstance(result['event'], list)
+        # Check that events were converted
+        self.assertIn('event', result)
+        self.assertIsInstance(result['event'], list)
 
-            # Check event count
-            self.assertEqual(len(result['event']), 5)
+        # Check event count
+        self.assertEqual(len(result['event']), 5)
 
-            # Check event types
-            event_types = [event['type'] for event in result['event']]
-            self.assertIn('stimulus', event_types)
-            self.assertIn('response', event_types)
-            self.assertIn('feedback', event_types)
-
-        except Exception as e:
-            self.skipTest(f"eeg_mne2eeg with events not available: {e}")
+        # Check event types
+        event_types = [event['type'] for event in result['event']]
+        self.assertIn('stimulus', event_types)
+        self.assertIn('response', event_types)
+        self.assertIn('feedback', event_types)
 
     @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
     def test_eeg_mne2eeg_single_channel(self):
@@ -259,19 +243,15 @@ class TestEEGMNE2EEG(unittest.TestCase):
         data = np.random.randn(n_channels, n_times)
         raw = mne.io.RawArray(data, info)
 
-        try:
-            result = eeg_mne2eeg(raw)
+        result = eeg_mne2eeg(raw)
 
-            # Check that result is a dict
-            self.assertIsInstance(result, dict)
+        # Check that result is a dict
+        self.assertIsInstance(result, dict)
 
-            # Check data dimensions
-            self.assertEqual(result['nbchan'], 1)
-            self.assertEqual(result['pnts'], 500)
-            self.assertEqual(result['trials'], 1)
-
-        except Exception as e:
-            self.skipTest(f"eeg_mne2eeg single channel not available: {e}")
+        # Check data dimensions
+        self.assertEqual(result['nbchan'], 1)
+        self.assertEqual(result['pnts'], 500)
+        self.assertEqual(result['trials'], 1)
 
     @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
     def test_eeg_mne2eeg_short_data(self):
@@ -286,19 +266,15 @@ class TestEEGMNE2EEG(unittest.TestCase):
         data = np.random.randn(n_channels, n_times)
         raw = mne.io.RawArray(data, info)
 
-        try:
-            result = eeg_mne2eeg(raw)
+        result = eeg_mne2eeg(raw)
 
-            # Check that result is a dict
-            self.assertIsInstance(result, dict)
+        # Check that result is a dict
+        self.assertIsInstance(result, dict)
 
-            # Check data dimensions
-            self.assertEqual(result['nbchan'], 8)
-            self.assertEqual(result['pnts'], 10)
-            self.assertEqual(result['trials'], 1)
-
-        except Exception as e:
-            self.skipTest(f"eeg_mne2eeg short data not available: {e}")
+        # Check data dimensions
+        self.assertEqual(result['nbchan'], 8)
+        self.assertEqual(result['pnts'], 10)
+        self.assertEqual(result['trials'], 1)
 
     @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
     def test_eeg_mne2eeg_float32_data(self):
@@ -313,17 +289,13 @@ class TestEEGMNE2EEG(unittest.TestCase):
         data = np.random.randn(n_channels, n_times).astype(np.float32)
         raw = mne.io.RawArray(data, info)
 
-        try:
-            result = eeg_mne2eeg(raw)
+        result = eeg_mne2eeg(raw)
 
-            # Check that result is a dict
-            self.assertIsInstance(result, dict)
+        # Check that result is a dict
+        self.assertIsInstance(result, dict)
 
-            # Check data type
-            self.assertEqual(result['data'].dtype, np.float32)
-
-        except Exception as e:
-            self.skipTest(f"eeg_mne2eeg float32 data not available: {e}")
+        # Check data type
+        self.assertEqual(result['data'].dtype, np.float32)
 
     @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
     def test_eeg_mne2eeg_large_dataset(self):
@@ -338,20 +310,16 @@ class TestEEGMNE2EEG(unittest.TestCase):
         data = np.random.randn(n_channels, n_times)
         raw = mne.io.RawArray(data, info)
 
-        try:
-            result = eeg_mne2eeg(raw)
+        result = eeg_mne2eeg(raw)
 
-            # Check that result is a dict
-            self.assertIsInstance(result, dict)
+        # Check that result is a dict
+        self.assertIsInstance(result, dict)
 
-            # Check data dimensions
-            self.assertEqual(result['nbchan'], 64)
-            self.assertEqual(result['pnts'], 5000)
-            self.assertEqual(result['trials'], 1)
-            self.assertEqual(result['srate'], 1000.0)
-
-        except Exception as e:
-            self.skipTest(f"eeg_mne2eeg large dataset not available: {e}")
+        # Check data dimensions
+        self.assertEqual(result['nbchan'], 64)
+        self.assertEqual(result['pnts'], 5000)
+        self.assertEqual(result['trials'], 1)
+        self.assertEqual(result['srate'], 1000.0)
 
     @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
     def test_eeg_mne2eeg_empty_annotations(self):
@@ -370,18 +338,14 @@ class TestEEGMNE2EEG(unittest.TestCase):
         empty_annotations = mne.Annotations([], [], [])
         raw.set_annotations(empty_annotations)
 
-        try:
-            result = eeg_mne2eeg(raw)
+        result = eeg_mne2eeg(raw)
 
-            # Check that result is a dict
-            self.assertIsInstance(result, dict)
+        # Check that result is a dict
+        self.assertIsInstance(result, dict)
 
-            # Check that events field exists but is empty
-            self.assertIn('event', result)
-            self.assertEqual(len(result['event']), 0)
-
-        except Exception as e:
-            self.skipTest(f"eeg_mne2eeg empty annotations not available: {e}")
+        # Check that events field exists but is empty
+        self.assertIn('event', result)
+        self.assertEqual(len(result['event']), 0)
 
     @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
     def test_eeg_mne2eeg_no_events(self):
@@ -401,24 +365,20 @@ class TestEEGMNE2EEG(unittest.TestCase):
 
         epochs = mne.EpochsArray(data, info, events, tmin=0)
 
-        try:
-            result = eeg_mne2eeg(epochs)
+        result = eeg_mne2eeg(epochs)
 
-            # Check that result is a dict
-            self.assertIsInstance(result, dict)
+        # Check that result is a dict
+        self.assertIsInstance(result, dict)
 
-            # Check that events were converted with string types
-            self.assertIn('event', result)
-            self.assertIsInstance(result['event'], list)
-            self.assertEqual(len(result['event']), 3)
+        # Check that events were converted with string types
+        self.assertIn('event', result)
+        self.assertIsInstance(result['event'], list)
+        self.assertEqual(len(result['event']), 3)
 
-            # Check that event types are strings
-            for event in result['event']:
-                self.assertIsInstance(event['type'], str)
-                self.assertEqual(event['type'], '999')
-
-        except Exception as e:
-            self.skipTest(f"eeg_mne2eeg no events not available: {e}")
+        # Check that event types are strings
+        for event in result['event']:
+            self.assertIsInstance(event['type'], str)
+            self.assertEqual(event['type'], '999')
 
     @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
     def test_eeg_mne2eeg_integration_workflow(self):
@@ -441,29 +401,25 @@ class TestEEGMNE2EEG(unittest.TestCase):
         )
         raw.set_annotations(annotations)
 
-        try:
-            result = eeg_mne2eeg(raw)
+        result = eeg_mne2eeg(raw)
 
-            # Check that result is a dict
-            self.assertIsInstance(result, dict)
+        # Check that result is a dict
+        self.assertIsInstance(result, dict)
 
-            # Check basic properties
-            self.assertEqual(result['nbchan'], 32)
-            self.assertEqual(result['pnts'], 2000)
-            self.assertEqual(result['trials'], 1)
-            self.assertEqual(result['srate'], 500.0)
+        # Check basic properties
+        self.assertEqual(result['nbchan'], 32)
+        self.assertEqual(result['pnts'], 2000)
+        self.assertEqual(result['trials'], 1)
+        self.assertEqual(result['srate'], 500.0)
 
-            # Check events
-            self.assertIn('event', result)
-            self.assertEqual(len(result['event']), 5)
+        # Check events
+        self.assertIn('event', result)
+        self.assertEqual(len(result['event']), 5)
 
-            # Check event types
-            event_types = [event['type'] for event in result['event']]
-            self.assertIn('stimulus', event_types)
-            self.assertIn('response', event_types)
-
-        except Exception as e:
-            self.skipTest(f"eeg_mne2eeg integration workflow not available: {e}")
+        # Check event types
+        event_types = [event['type'] for event in result['event']]
+        self.assertIn('stimulus', event_types)
+        self.assertIn('response', event_types)
 
 
 class TestMNEEventsToEEGLABEvents(unittest.TestCase):
@@ -485,27 +441,23 @@ class TestMNEEventsToEEGLABEvents(unittest.TestCase):
 
         raw = MockRaw(annotations, 500.0)
 
-        try:
-            result = _mne_events_to_eeglab_events(raw)
+        result = _mne_events_to_eeglab_events(raw)
 
-            # Check result structure
-            self.assertIsInstance(result, list)
-            self.assertEqual(len(result), 3)
+        # Check result structure
+        self.assertIsInstance(result, list)
+        self.assertEqual(len(result), 3)
 
-            # Check event structure
-            for event in result:
-                self.assertIn('latency', event)
-                self.assertIn('type', event)
-                self.assertIsInstance(event['latency'], int)
-                self.assertIsInstance(event['type'], str)
+        # Check event structure
+        for event in result:
+            self.assertIn('latency', event)
+            self.assertIn('type', event)
+            self.assertIsInstance(event['latency'], int)
+            self.assertIsInstance(event['type'], str)
 
-            # Check latency values (1-based indexing)
-            latencies = [event['latency'] for event in result]
-            expected_latencies = [int(0.1 * 500) + 1, int(0.5 * 500) + 1, int(1.0 * 500) + 1]
-            self.assertEqual(latencies, expected_latencies)
-
-        except Exception as e:
-            self.skipTest(f"_mne_events_to_eeglab_events annotations not available: {e}")
+        # Check latency values (1-based indexing)
+        latencies = [event['latency'] for event in result]
+        expected_latencies = [int(0.1 * 500) + 1, int(0.5 * 500) + 1, int(1.0 * 500) + 1]
+        self.assertEqual(latencies, expected_latencies)
 
     @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
     def test_mne_events_to_eeglab_events_events_array(self):
@@ -529,32 +481,28 @@ class TestMNEEventsToEEGLABEvents(unittest.TestCase):
         event_id = {'stimulus': 1, 'response': 2}
         epochs = MockEpochs(events, event_id, 500.0)
 
-        try:
-            result = _mne_events_to_eeglab_events(epochs)
+        result = _mne_events_to_eeglab_events(epochs)
 
-            # Check result structure
-            self.assertIsInstance(result, list)
-            self.assertEqual(len(result), 3)
+        # Check result structure
+        self.assertIsInstance(result, list)
+        self.assertEqual(len(result), 3)
 
-            # Check event structure
-            for event in result:
-                self.assertIn('latency', event)
-                self.assertIn('type', event)
-                self.assertIsInstance(event['latency'], int)
-                self.assertIsInstance(event['type'], str)
+        # Check event structure
+        for event in result:
+            self.assertIn('latency', event)
+            self.assertIn('type', event)
+            self.assertIsInstance(event['latency'], int)
+            self.assertIsInstance(event['type'], str)
 
-            # Check latency values (1-based indexing)
-            latencies = [event['latency'] for event in result]
-            expected_latencies = [1, 101, 201]
-            self.assertEqual(latencies, expected_latencies)
+        # Check latency values (1-based indexing)
+        latencies = [event['latency'] for event in result]
+        expected_latencies = [1, 101, 201]
+        self.assertEqual(latencies, expected_latencies)
 
-            # Check event types
-            event_types = [event['type'] for event in result]
-            expected_types = ['stimulus', 'response', 'stimulus']
-            self.assertEqual(event_types, expected_types)
-
-        except Exception as e:
-            self.skipTest(f"_mne_events_to_eeglab_events events array not available: {e}")
+        # Check event types
+        event_types = [event['type'] for event in result]
+        expected_types = ['stimulus', 'response', 'stimulus']
+        self.assertEqual(event_types, expected_types)
 
     @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
     def test_mne_events_to_eeglab_events_no_event_id(self):
@@ -575,20 +523,16 @@ class TestMNEEventsToEEGLABEvents(unittest.TestCase):
 
         epochs = MockEpochs(events, 500.0)
 
-        try:
-            result = _mne_events_to_eeglab_events(epochs)
+        result = _mne_events_to_eeglab_events(epochs)
 
-            # Check result structure
-            self.assertIsInstance(result, list)
-            self.assertEqual(len(result), 2)
+        # Check result structure
+        self.assertIsInstance(result, list)
+        self.assertEqual(len(result), 2)
 
-            # Check event types (should be string representations of numbers)
-            event_types = [event['type'] for event in result]
-            expected_types = ['1', '2']
-            self.assertEqual(event_types, expected_types)
-
-        except Exception as e:
-            self.skipTest(f"_mne_events_to_eeglab_events no event_id not available: {e}")
+        # Check event types (should be string representations of numbers)
+        event_types = [event['type'] for event in result]
+        expected_types = ['1', '2']
+        self.assertEqual(event_types, expected_types)
 
     @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
     def test_mne_events_to_eeglab_events_empty_annotations(self):
@@ -603,15 +547,11 @@ class TestMNEEventsToEEGLABEvents(unittest.TestCase):
 
         raw = MockRaw(annotations, 500.0)
 
-        try:
-            result = _mne_events_to_eeglab_events(raw)
+        result = _mne_events_to_eeglab_events(raw)
 
-            # Check result structure
-            self.assertIsInstance(result, list)
-            self.assertEqual(len(result), 0)
-
-        except Exception as e:
-            self.skipTest(f"_mne_events_to_eeglab_events empty annotations not available: {e}")
+        # Check result structure
+        self.assertIsInstance(result, list)
+        self.assertEqual(len(result), 0)
 
     @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
     def test_mne_events_to_eeglab_events_no_events(self):
@@ -626,15 +566,11 @@ class TestMNEEventsToEEGLABEvents(unittest.TestCase):
 
         epochs = MockEpochs(events, 500.0)
 
-        try:
-            result = _mne_events_to_eeglab_events(epochs)
+        result = _mne_events_to_eeglab_events(epochs)
 
-            # Check result structure
-            self.assertIsInstance(result, list)
-            self.assertEqual(len(result), 0)
-
-        except Exception as e:
-            self.skipTest(f"_mne_events_to_eeglab_events no events not available: {e}")
+        # Check result structure
+        self.assertIsInstance(result, list)
+        self.assertEqual(len(result), 0)
 
 
 if __name__ == '__main__':

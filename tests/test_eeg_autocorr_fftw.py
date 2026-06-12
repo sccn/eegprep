@@ -311,9 +311,12 @@ class TestEegAutocorrFftw(DebuggableTestCase):
         # Both should have same shape
         self.assertEqual(result_fftw.shape, result_regular.shape)
 
-        # Results should be similar (but not necessarily identical due to different FFT implementations)
-        # Check that they're in the same ballpark
-        self.assertTrue(np.allclose(result_fftw, result_regular, rtol=0.1, atol=0.1))
+        # Both compute the same autocorrelation; the only divergence is that
+        # eeg_autocorr casts its FFT to single precision (complex64) for MATLAB
+        # parity while eeg_autocorr_fftw stays double precision. Observed max
+        # relative difference is ~3e-5, so a float-realistic tolerance still
+        # catches any several-percent port regression.
+        self.assertTrue(np.allclose(result_fftw, result_regular, rtol=1e-4, atol=1e-7))
 
     def test_axis_handling_in_fft(self):
         """Test that FFT operations handle axes correctly."""

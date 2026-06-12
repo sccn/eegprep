@@ -3,6 +3,7 @@ import numpy as np
 from unittest.mock import patch, MagicMock
 
 from eegprep.plugins.clean_rawdata.private.ransac import rand_sample, calc_projector
+from eegprep.plugins.clean_rawdata.private.sphericalSplineInterpolate import sphericalSplineInterpolate
 
 
 class TestRandSample(unittest.TestCase):
@@ -327,6 +328,44 @@ class TestCalcProjector(unittest.TestCase):
 
             self.assertEqual(result.shape, (self.n_channels, self.n_channels * 3))
             self.assertEqual(mock_interp.call_count, 3)
+
+    def test_real_interpolation_channel_mapping_and_assembly(self):
+        """Validate calc_projector against the real spherical-spline kernel.
+
+        The mock-based tests above only check output shape and call counts, so a
+        bug that permutes channel indices or mishandles the per-subset transpose
+        would pass. This test runs the real interpolation on a small montage and
+        independently reproduces each subset's reconstruction matrix, catching
+        such assembly bugs.
+        """
+        num_samples = 4
+        subset_size = self.n_channels - 2
+
+        # Reproduce the exact subsets calc_projector samples (k from num_samples-1..0).
+        subset_stream = np.random.RandomState(7)
+        subsets = {k: rand_sample(self.n_channels, subset_size, subset_stream) for k in range(num_samples - 1, -1, -1)}
+
+        projector = calc_projector(self.locs, num_samples, subset_size, stream=np.random.RandomState(7))
+
+        # Output must be a finite, real-valued bag of reconstruction matrices.
+        self.assertEqual(projector.shape, (self.n_channels, self.n_channels * num_samples))
+        self.assertTrue(np.isrealobj(projector))
+        self.assertTrue(np.all(np.isfinite(projector)))
+
+        blocks = projector.reshape(self.n_channels, num_samples, self.n_channels)
+        for k, sample in subsets.items():
+            block = blocks[:, k, :]
+
+            # Only the rows of the sampled source channels carry weight; the two
+            # unsampled channels must stay all-zero. A channel-index permutation
+            # would shift the zero rows away from the unsampled channels.
+            nonzero_rows = np.flatnonzero(np.any(block != 0, axis=1))
+            np.testing.assert_array_equal(np.sort(nonzero_rows), np.sort(sample))
+
+            # The non-zero rows must equal the real spherical-spline weights for
+            # this subset, transposed exactly as calc_projector assembles them.
+            expected_w = sphericalSplineInterpolate(self.locs[sample, :].T, self.locs.T)[0]
+            np.testing.assert_allclose(block[sample, :], np.real(expected_w).T, rtol=1e-10, atol=1e-12)
 
 
 class TestRansacIntegration(unittest.TestCase):

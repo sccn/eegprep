@@ -336,30 +336,39 @@ class TestAsrProcess(unittest.TestCase):
 
             self.assertIn('Not enough memory', str(cm.exception))
 
-    def test_eigendecomposition_failure_handling(self):
-        """Test handling of eigendecomposition failures."""
-        # Create problematic covariance that might cause eigendecomposition to fail
-        with patch('numpy.linalg.eigh') as mock_eigh:
-            mock_eigh.side_effect = np.linalg.LinAlgError("Eigendecomposition failed")
+    def test_rank_deficient_covariance_produces_sane_output(self):
+        """Process genuinely rank-deficient data (singular covariance).
 
-            with self.assertLogs('eegprep.plugins.clean_rawdata.asr_process', level='WARNING') as log:
-                cleaned_data, new_state = asr_process(self.test_data, self.srate, self.state)
+        Duplicate and zeroed channels make the per-window covariance singular,
+        exercising the eigendecomposition and pseudo-inverse paths with a real
+        degenerate input rather than monkeypatching numpy to raise. The cleaned
+        output must stay finite and keep its shape.
+        """
+        degenerate = self.test_data.copy()
+        degenerate[3, :] = degenerate[0, :]  # duplicate channel -> singular covariance
+        degenerate[5, :] = 0.0  # flat channel -> singular covariance
 
-            # Should log warning and use fallback
-            self.assertTrue(any('Eigendecomposition failed' in msg for msg in log.output))
-            self.assertEqual(cleaned_data.shape, self.test_data.shape)
+        cleaned_data, new_state = asr_process(degenerate, self.srate, self.state)
 
-    def test_reconstruction_matrix_failure(self):
-        """Test handling of reconstruction matrix calculation failures."""
-        with patch('numpy.linalg.pinv') as mock_pinv:
-            mock_pinv.side_effect = np.linalg.LinAlgError("Singular matrix")
+        self.assertEqual(cleaned_data.shape, degenerate.shape)
+        self.assertTrue(np.all(np.isfinite(cleaned_data)))
 
-            with self.assertLogs('eegprep.plugins.clean_rawdata.asr_process', level='WARNING') as log:
-                cleaned_data, new_state = asr_process(self.test_data, self.srate, self.state)
+    def test_extreme_artifact_amplitudes_produce_sane_output(self):
+        """Process data with extreme-amplitude artifacts.
 
-            # Should log warning and use identity matrix fallback
-            self.assertTrue(any('Failed to calculate inverse' in msg for msg in log.output))
-            self.assertEqual(cleaned_data.shape, self.test_data.shape)
+        Huge transient amplitudes drive the reconstruction matrix toward
+        ill-conditioning, exercising the same numeric path. The cleaned output
+        must remain finite, keep its shape, and attenuate the injected spike.
+        """
+        extreme = self.test_data.copy()
+        spike_peak = float(np.max(np.abs(extreme))) * 1e4
+        extreme[2, 100:150] += spike_peak
+
+        cleaned_data, new_state = asr_process(extreme, self.srate, self.state)
+
+        self.assertEqual(cleaned_data.shape, extreme.shape)
+        self.assertTrue(np.all(np.isfinite(cleaned_data)))
+        self.assertLess(float(np.max(np.abs(cleaned_data))), spike_peak)
 
     def test_state_persistence_across_calls(self):
         """Test that state is properly maintained across multiple processing calls."""
@@ -394,17 +403,6 @@ class TestAsrProcess(unittest.TestCase):
         # Should complete without errors despite small data
         self.assertEqual(cleaned_data.shape, small_data.shape)
         self.assertTrue(np.all(np.isfinite(cleaned_data)))
-
-    def test_component_selection_error_handling(self):
-        """Test error handling in component selection logic."""
-        # Mock numpy.sum to raise an error during threshold calculation
-        with patch('numpy.sum', side_effect=Exception("Threshold error")):
-            with self.assertLogs('eegprep.plugins.clean_rawdata.asr_process', level='ERROR') as log:
-                cleaned_data, new_state = asr_process(self.test_data, self.srate, self.state)
-
-            # Should log error and use fallback (keep all components)
-            self.assertTrue(any('Error in component selection' in msg for msg in log.output))
-            self.assertEqual(cleaned_data.shape, self.test_data.shape)
 
 
 class TestAsrIntegration(unittest.TestCase):
