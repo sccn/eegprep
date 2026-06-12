@@ -672,6 +672,18 @@ def test_channel_and_continuous_rejection_work_on_sample_data_without_ica():
         pop_eegthresh(sample, 0, [1], -10, 10, 0, 1)
 
 
+def test_rejection_component_threshold_recomputes_stale_stored_icaact():
+    eeg = _epoched_eeg()
+    eeg["icaweights"] = 2.0 * np.eye(4)
+    eeg["icasphere"] = np.eye(4)
+    eeg["icaact"] = np.zeros((4, eeg["pnts"], eeg["trials"]))
+
+    out, rejected = pop_eegthresh(eeg, 0, [1], -40, 40, 0, 0.79, 0, 0)
+
+    assert rejected == [2]
+    assert out["reject"]["icarejthresh"].tolist() == [False, True, False, False, False]
+
+
 def test_pop_rejchan_default_threshold_matches_gui_zscore_default():
     eeg = create_test_eeg(n_channels=2, n_samples=20, n_trials=1, srate=100)
     eeg["data"] = np.zeros((2, 20))

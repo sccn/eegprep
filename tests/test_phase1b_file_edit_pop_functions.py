@@ -8,6 +8,7 @@ import numpy as np
 import pytest
 
 from eegprep.functions.adminfunc.console import _console_python_command
+from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
 from eegprep.functions.guifunc.select_multiple_datasets import select_multiple_datasets
 from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.functions.popfunc.pop_chanedit import pop_chanedit
@@ -198,13 +199,17 @@ def test_pop_selectevent_renames_events_before_epoched_trial_selection():
 
 def test_pop_selectevent_keeps_numeric_boundary_when_deleting_continuous_events():
     eeg = _eeg()
-    eeg["event"].insert(1, {"type": -1, "latency": 25.0, "duration": 0.0, "urevent": 3})
-    eeg["urevent"].append({"type": -1, "latency": 25.0, "duration": 0.0})
-
-    out, selected = pop_selectevent(eeg, "type", "stim", "deleteevents", "on")
+    eeg["event"].insert(1, {"type": -99, "latency": 25.0, "duration": 0.0, "urevent": 3})
+    eeg["urevent"].append({"type": -99, "latency": 25.0, "duration": 0.0})
+    old = EEG_OPTIONS["option_boundary99"]
+    EEG_OPTIONS["option_boundary99"] = 1
+    try:
+        out, selected = pop_selectevent(eeg, "type", "stim", "deleteevents", "on")
+    finally:
+        EEG_OPTIONS["option_boundary99"] = old
 
     assert selected == [1, 2]
-    assert [event["type"] for event in out["event"]] == ["stim", -1]
+    assert [event["type"] for event in out["event"]] == ["stim", -99]
 
 
 def test_pop_rmdat_removes_or_keeps_continuous_windows_around_events():
@@ -217,6 +222,21 @@ def test_pop_rmdat_removes_or_keeps_continuous_windows_around_events():
     assert kept["pnts"] < eeg["pnts"]
     assert kept["pnts"] < removed["pnts"]
     _assert_python_echo_is_parseable(command)
+
+
+def test_pop_rmdat_uses_numeric_boundary99_to_limit_windows():
+    eeg = _eeg()
+    eeg["event"].insert(1, {"type": -99, "latency": 15.0, "duration": 0.0, "urevent": 3})
+    old = EEG_OPTIONS["option_boundary99"]
+    try:
+        EEG_OPTIONS["option_boundary99"] = 1
+        limited = pop_rmdat(eeg, ["stim"], [-0.05, 0.1], 1)
+        EEG_OPTIONS["option_boundary99"] = 0
+        unlimited = pop_rmdat(eeg, ["stim"], [-0.05, 0.1], 1)
+    finally:
+        EEG_OPTIONS["option_boundary99"] = old
+
+    assert limited["pnts"] > unlimited["pnts"]
 
 
 def test_pop_rmdat_matches_sorted_event_behavior_when_events_are_unsorted():

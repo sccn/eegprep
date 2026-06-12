@@ -8,17 +8,12 @@ import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
-from eegprep.functions.popfunc._eegplot_rejection import open_epoched_rejection_browser
+from eegprep.functions.popfunc._eegplot_rejection import run_epoched_mark_rejection
 from eegprep.functions.popfunc._pop_utils import format_history_value
 from eegprep.functions.popfunc._rejection import (
-    copy_eeg,
-    one_based_indices,
     parse_numeric_sequence,
-    rejection_data,
     trend_marks,
-    update_reject_fields,
 )
-from eegprep.functions.popfunc.pop_rejepoch import pop_rejepoch
 
 
 def pop_rejtrend(
@@ -151,33 +146,46 @@ def _apply_one(
     command_callback: Any | None = None,
     show: bool = True,
 ) -> tuple[dict[str, Any], str]:
-    out = copy_eeg(EEG)
-    data, row_count = rejection_data(out, icacomp)
-    if int(out.get("trials", data.shape[2]) or data.shape[2]) <= 1:
-        raise ValueError("pop_rejtrend requires epoched data")
-    elecrange = one_based_indices(elecrange, limit=row_count, default_all=True)
-    winsize = int(parse_numeric_sequence(winsize if winsize is not None else [data.shape[1]], dtype=float)[0])
-    minslope = float(parse_numeric_sequence(minslope, dtype=float)[0])
-    minstd = float(parse_numeric_sequence(minstd, dtype=float)[0])
-    marks, marks_e = trend_marks(data, elecrange, winsize, minslope, minstd)
-    update_reject_fields(out, icacomp=icacomp, kind="rejconst", reject=marks, reject_e=marks_e)
-    rejected = (np.flatnonzero(marks) + 1).tolist()
-    command = _history_command(icacomp, elecrange, winsize, minslope, minstd, superpose, reject)
-    if display:
-        open_epoched_rejection_browser(
-            out,
-            data=data,
-            icacomp=icacomp,
-            elecrange=elecrange,
-            kind="rejconst",
-            superpose=superpose,
-            reject=reject,
-            command=command,
-            command_callback=command_callback,
-            show=show,
+    def _marks(_out: dict[str, Any], data: np.ndarray, normalized_elecrange: list[int]):
+        normalized = {
+            "winsize": int(parse_numeric_sequence(winsize if winsize is not None else [data.shape[1]], dtype=float)[0]),
+            "minslope": float(parse_numeric_sequence(minslope, dtype=float)[0]),
+            "minstd": float(parse_numeric_sequence(minstd, dtype=float)[0]),
+        }
+        marks, marks_e = trend_marks(
+            data,
+            normalized_elecrange,
+            normalized["winsize"],
+            normalized["minslope"],
+            normalized["minstd"],
         )
-    elif int(bool(reject)) and rejected:
-        out = pop_rejepoch(out, rejected, 0)
+        return marks, marks_e, normalized
+
+    def _command(normalized_elecrange: list[int], normalized: dict[str, Any]) -> str:
+        return _history_command(
+            icacomp,
+            normalized_elecrange,
+            normalized["winsize"],
+            normalized["minslope"],
+            normalized["minstd"],
+            superpose,
+            reject,
+        )
+
+    out, _rejected, command, _normalized = run_epoched_mark_rejection(
+        EEG,
+        icacomp,
+        elecrange,
+        superpose,
+        reject,
+        marks_fn=_marks,
+        kind="rejconst",
+        error_message="pop_rejtrend requires epoched data",
+        command_fn=_command,
+        display=display,
+        command_callback=command_callback,
+        show=show,
+    )
     return out, command
 
 

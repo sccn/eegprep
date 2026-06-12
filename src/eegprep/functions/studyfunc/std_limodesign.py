@@ -9,7 +9,7 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.popfunc._pop_utils import is_on, parse_key_value_args
-from eegprep.functions.studyfunc._study_utils import build_python_call
+from eegprep.functions.studyfunc._study_utils import build_python_call, equal_value, trialinfo_rows, value_matches
 from eegprep.functions.studyfunc.pop_listfactors import pop_listfactors
 
 
@@ -33,7 +33,7 @@ def std_limodesign(
     if options:
         raise ValueError(f"Unknown std_limodesign option(s): {', '.join(sorted(options))}")
 
-    rows = _trial_rows(trialinfo)
+    rows = trialinfo_rows(trialinfo)
     factor_rows = _factor_rows(factors)
     categorical = _categorical_options(factor_rows)
     continuous = _continuous_options(factor_rows)
@@ -73,30 +73,6 @@ def _factor_rows(factors: Any) -> list[dict[str, Any]]:
     if not isinstance(factors, list):
         return []
     return [factor for factor in factors if isinstance(factor, dict) and str(factor.get("label") or "") != "constant"]
-
-
-def _trial_rows(value: Any) -> list[dict[str, Any]]:
-    if isinstance(value, dict) and "trialinfo" in value:
-        value = value["trialinfo"]
-    if isinstance(value, np.ndarray):
-        value = value.tolist()
-    if isinstance(value, dict):
-        lengths = [len(item) for item in value.values() if isinstance(item, (list, tuple, np.ndarray))]
-        if not lengths:
-            return [value]
-        rows = []
-        for index in range(max(lengths)):
-            row = {}
-            for key, column in value.items():
-                if isinstance(column, np.ndarray):
-                    column = column.tolist()
-                if isinstance(column, (list, tuple)) and index < len(column):
-                    row[key] = column[index]
-            rows.append(row)
-        return rows
-    if not isinstance(value, list):
-        return []
-    return [row if isinstance(row, dict) else {} for row in value]
 
 
 def _categorical_options(factors: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -209,19 +185,11 @@ def _matching_rows(rows: list[dict[str, Any]], option: list[tuple[str, Any]]) ->
 
 
 def _value_matches(value: Any, expected: Any) -> bool:
-    if isinstance(expected, np.ndarray):
-        expected = expected.tolist()
-    if isinstance(expected, (list, tuple, set)):
-        return any(_value_matches(value, item) for item in expected)
-    return _equal(value, expected)
+    return value_matches(value, expected)
 
 
 def _equal(left: Any, right: Any) -> bool:
-    if isinstance(left, np.ndarray):
-        left = left.tolist()
-    if isinstance(right, np.ndarray):
-        right = right.tolist()
-    return left == right
+    return equal_value(left, right)
 
 
 def _save_design_files(path: Path, cat_matrix: np.ndarray, cont_matrix: np.ndarray) -> None:

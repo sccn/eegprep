@@ -5,9 +5,12 @@ from typing import Any, Dict
 
 import numpy as np
 
+from eegprep.plugins.firfilt.design import design_fir
+
 from ...functions.miscfunc.misc import finite_matmul, round_mat
+from .private.channel_removal import remove_channels_without_pop_select, update_clean_channel_mask
 from .private.ransac import calc_projector
-from .private.sigproc import design_fir, filtfilt_fast
+from .private.sigproc import filtfilt_fast
 from .private.stats import mad
 
 logger = logging.getLogger(__name__)
@@ -158,24 +161,7 @@ def clean_channels(
                 logger.debug("Exception traceback:", exc_info=True)
 
             logger.info(f'Removing {np.sum(removed_channels)} channels and dropping signal meta-data.')
-            if len(EEG['chanlocs']) == EEG['data'].shape[0]:
-                EEG['chanlocs'] = np.asarray([ch for i, ch in enumerate(EEG['chanlocs']) if not removed_channels[i]])
-            # pop_select() by default truncates the data to float32, so we need to do the same
-            EEG['data'] = np.asarray(EEG['data'], dtype=np.float32)
-            EEG['data'] = EEG['data'][~removed_channels, :]
-            EEG['nbchan'] = EEG['data'].shape[0]
-
-            # Clear other fields
-            for field in ['icawinv', 'icasphere', 'icaweights', 'icaact', 'stats', 'specdata', 'specicaact']:
-                if field in EEG:
-                    EEG[field] = np.array([])
-
-        # Update clean_channel_mask
-        if 'etc' in EEG and 'clean_channel_mask' in EEG['etc']:
-            EEG['etc']['clean_channel_mask'][EEG['etc']['clean_channel_mask']] = ~removed_channels
-        else:
-            if 'etc' not in EEG:
-                EEG['etc'] = {}
-            EEG['etc']['clean_channel_mask'] = ~removed_channels
+            EEG = remove_channels_without_pop_select(EEG, removed_channels)
+        update_clean_channel_mask(EEG, removed_channels)
 
     return EEG

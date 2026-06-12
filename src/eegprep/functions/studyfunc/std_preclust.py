@@ -8,6 +8,12 @@ import numpy as np
 
 from eegprep.functions.popfunc._plot_utils import component_maps, python_literal
 from eegprep.functions.popfunc._pop_utils import parse_numeric_sequence
+from eegprep.functions.studyfunc._study_utils import (
+    axis_position,
+    component_dataset_axis,
+    component_measure_axis,
+    range_mask,
+)
 from eegprep.functions.studyfunc._cluster_utils import (
     checked_study_and_datasets,
     cluster_command,
@@ -183,8 +189,8 @@ def _component_measure_values(
     data = np.asarray(parent[data_field], dtype=float)
     if data.ndim < 3:
         raise ValueError(f"Component measure '{measure}' requires dataset x component data")
-    dataset_axis = _measure_axis(parent, "datasets", data.shape[0], fallback_start=1)
-    component_axis = _measure_axis(parent, "components", data.shape[1], fallback_start=1)
+    dataset_axis = component_dataset_axis(parent, data.shape[0])
+    component_axis = component_measure_axis(parent, data.shape[1])
     dataset_index = _axis_position(dataset_axis, study_set, f"dataset {study_set}", measure)
     component_index = _axis_position(component_axis, component, f"component {component}", measure)
     values = np.asarray(data[dataset_index, component_index], dtype=float)
@@ -194,44 +200,8 @@ def _component_measure_values(
     return _slice_measure_axes(values, source, measure, spec)
 
 
-def _measure_axis(parent: dict[str, Any], key: str, count: int, *, fallback_start: int) -> np.ndarray:
-    raw_measureinfo = parent.get("measureinfo")
-    measureinfo: dict[str, Any] = raw_measureinfo if isinstance(raw_measureinfo, dict) else {}
-    values = _as_int_vector(measureinfo.get(key))
-    if values.size == count:
-        return values
-    if key == "datasets":
-        values = _as_int_vector(parent.get("sets"))
-    else:
-        values = _as_int_vector(parent.get("comps"))
-    unique_values = np.asarray(_unique_preserving_order(values.tolist()), dtype=int)
-    if unique_values.size == count:
-        return unique_values
-    return np.arange(fallback_start, fallback_start + count, dtype=int)
-
-
-def _as_int_vector(value: Any) -> np.ndarray:
-    if value is None:
-        return np.asarray([], dtype=int)
-    array = np.asarray(value, dtype=int)
-    if array.size == 0:
-        return np.asarray([], dtype=int)
-    return array.ravel()
-
-
 def _axis_position(axis: np.ndarray, value: int, label: str, measure: str) -> int:
-    matches = np.where(axis == value)[0]
-    if matches.size == 0:
-        raise ValueError(f"Component measure '{measure}' is missing {label}")
-    return int(matches[0])
-
-
-def _unique_preserving_order(values: list[int]) -> list[int]:
-    output = []
-    for value in values:
-        if value not in output:
-            output.append(value)
-    return output
+    return axis_position(axis, value, label, context=f"Component measure '{measure}'")
 
 
 def _slice_measure_axes(values: np.ndarray, source: dict[str, Any], measure: str, spec: dict[str, Any]) -> np.ndarray:
@@ -259,10 +229,11 @@ def _slice_one_axis(values: np.ndarray, axis_values: Any, bounds: Any) -> np.nda
     flat = values.ravel()
     if parsed.size == 0 or axis.size != flat.size:
         return flat
-    mask = (axis >= parsed[0]) & (axis <= parsed[1])
-    if not np.any(mask):
-        raise ValueError("preclust measure range does not contain any samples")
-    return flat[mask]
+    return flat[
+        range_mask(
+            axis, parsed, name="preclust ranges", empty_message="preclust measure range does not contain any samples"
+        )
+    ]
 
 
 def _bounds(value: Any) -> np.ndarray:

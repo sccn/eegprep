@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib
 import os
 from pathlib import Path
 from typing import Any
@@ -265,6 +266,20 @@ def test_teststat_smoke_helper_runs_deterministic_checks():
     result = statistics_teststat(seed=0)
 
     assert sorted(result) == ["one_way_f_mean", "paired_t_mean", "two_way_interaction_mean"]
+
+
+def test_statistics_package_exports_remain_functions_after_submodule_imports():
+    import eegprep.functions.statistics as statistics
+
+    fdr_module = importlib.import_module("eegprep.functions.statistics.fdr")
+    statcond_module = importlib.import_module("eegprep.functions.statistics.statcond")
+    core_module = importlib.import_module("eegprep.functions.statistics._core")
+
+    assert statistics.fdr is fdr_module.fdr
+    assert statistics.statcond is statcond_module.statcond
+    assert statistics.FDRResult is fdr_module.FDRResult
+    assert statistics.StatcondResult is statcond_module.StatcondResult
+    assert core_module.fdr is fdr_module.fdr
 
 
 @pytest.fixture(scope="module")

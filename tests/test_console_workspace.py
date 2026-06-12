@@ -427,6 +427,28 @@ def test_console_eegh_string_command_notifies_session_listeners():
     workspace.close()
 
 
+def test_console_eegh_clear_and_remove_notify_session_listeners():
+    session = EEGPrepSession()
+    workspace = EEGPrepConsoleWorkspace(session, exports={})
+    session.add_history("EEG = first;")
+    session.add_history("EEG = second;")
+    notified: list[tuple[list[str], str]] = []
+    session.add_change_listener(lambda _session: notified.append((list(session.ALLCOM), session.LASTCOM)))
+
+    assert workspace.namespace["eegh"](-1) == ""
+    assert session.ALLCOM == ["EEG = first;"]
+    assert session.LASTCOM == "EEG = first;"
+    assert workspace.namespace["LASTCOM"] == "EEG = first;"
+
+    assert workspace.namespace["eegh"](0) == ""
+    assert session.ALLCOM == []
+    assert session.LASTCOM == ""
+    assert workspace.namespace["ALLCOM"] == []
+    assert workspace.namespace["LASTCOM"] == ""
+    assert notified == [(["EEG = first;"], "EEG = first;"), ([], "")]
+    workspace.close()
+
+
 def test_menu_actions_reuses_console_pop_result_decoders():
     # The GUI extension-result path delegates to the canonical console decoders
     # instead of keeping its own copies.

@@ -11,8 +11,8 @@ from typing import Any
 import numpy as np
 from scipy.optimize import least_squares
 
+from eegprep.functions.miscfunc.value_parsing import parse_numeric_sequence as _parse_numeric_sequence_value
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
-from eegprep.functions.popfunc._pop_utils import parse_numeric_sequence as _parse_numeric_sequence_value
 
 DEFAULT_COREGISTER_TRANSFORM = np.asarray([0.0, -10.0, 0.0, -0.1, 0.0, -1.6, 1100.0, 1100.0, 1100.0])
 _SCALE_LOWER_BOUND = 1e-9

@@ -265,8 +265,20 @@ class ConsoleEegh:
             text = "" if not args else str(args[0])
             return eegh_find(self.bridge.session.ALLCOM, text)
         if isinstance(command, (int, float)) and not isinstance(command, bool):
-            history_command = eegh(command, self.bridge.session.ALLCOM)
-            if history_command and int(command) > 0:
+            value = int(command)
+            if float(command) != value:
+                raise ValueError("eegh numeric command must be an integer")
+            session = self.bridge.session
+            if value == 0:
+                session.clear_history()
+                self.bridge.pull_from_session()
+                return ""
+            if value < 0:
+                session.remove_history(abs(value))
+                self.bridge.pull_from_session()
+                return ""
+            history_command = session.history_command_at(value)
+            if history_command:
                 self.bridge.execute_history_command(history_command)
             return history_command
         session = self.bridge.session
@@ -274,7 +286,7 @@ class ConsoleEegh:
         if normalized:
             session.add_history(command)
         else:
-            session.LASTCOM = ""
+            session.clear_last_command()
         if args and isinstance(args[0], dict):
             eegh(normalized, args[0])
         self.bridge.pull_from_session()

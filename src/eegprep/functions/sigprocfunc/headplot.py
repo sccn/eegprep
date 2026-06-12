@@ -16,9 +16,9 @@ from scipy.io import loadmat, savemat
 from scipy.special import eval_legendre
 
 from eegprep.functions.miscfunc.misc import finite_matmul, finite_pinv
+from eegprep.functions.miscfunc.value_parsing import is_on as _is_on_value
+from eegprep.functions.miscfunc.value_parsing import parse_numeric_sequence as _parse_numeric_sequence_value
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
-from eegprep.functions.popfunc._pop_utils import is_on as _is_on_value
-from eegprep.functions.popfunc._pop_utils import parse_numeric_sequence as _parse_numeric_sequence_value
 from eegprep.functions.sigprocfunc.coregister import (
     DEFAULT_COREGISTER_TRANSFORM,
     apply_coregistration_transform,

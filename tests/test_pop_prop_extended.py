@@ -6,6 +6,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
+from eegprep.plugins.ICLabel import _prop_browser, _prop_numerics
+from eegprep.plugins.ICLabel import pop_prop_extended as pop_prop_extended_module
 from eegprep.plugins.ICLabel.pop_prop_extended import (
     DEFAULT_ICLABEL_CLASSES,
     build_extended_property_data,
@@ -180,3 +182,10 @@ def test_missing_classifier_falls_back_to_lightweight_viewprops_display() -> Non
     assert len(figures[0].eegprep_activity_views) == 2
     assert figures[0].eegprep_activity_views[0].state.events
     plt.close(figures[0])
+
+
+def test_pop_prop_extended_facade_preserves_public_helper_imports() -> None:
+    assert pop_prop_extended_module.build_extended_property_data is _prop_numerics.build_extended_property_data
+    assert pop_prop_extended_module.resolve_classifier_data is _prop_numerics.resolve_classifier_data
+    assert pop_prop_extended_module.resolve_dipfit_data is _prop_numerics.resolve_dipfit_data
+    assert _prop_browser.build_navigable_dashboard.__module__.endswith("._prop_browser")
