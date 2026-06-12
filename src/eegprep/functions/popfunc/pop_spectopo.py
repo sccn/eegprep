@@ -56,6 +56,7 @@ def pop_spectopo(
         map_labels = None
         title = "Channel spectra and maps"
     else:
+        _raise_for_unsupported_component_options(options)
         plot_data, component_numbers = _component_spectral_data(EEG, timerange, options.get("icacomps"))
         maps, chanlocs = component_map_data(EEG)
         map_numbers = _component_map_numbers(
@@ -233,6 +234,27 @@ def _component_map_numbers(
     if np.any(numbers < 1) or np.any(numbers > map_count):
         raise ValueError(f"component map indices must be within 1..{map_count}")
     return numbers.astype(int)
+
+
+def _raise_for_unsupported_component_options(options: dict[str, Any]) -> None:
+    """Fail loudly when component controls EEGPrep does not implement are set to non-default values.
+
+    EEGLAB's component dialog offers ``plotchan`` (``0`` = whole scalp) and ``icamode``
+    (checked = component spectra). EEGPrep only computes whole-scalp component spectra, so a
+    non-default ``plotchan`` (a specific electrode or ``[]`` = max-power electrode) or an unchecked
+    ``icamode`` ((data-comp) spectra) is rejected instead of being silently ignored.
+    """
+    if "plotchan" in options:
+        plotchan = numeric_vector(options["plotchan"])
+        if plotchan.size != 1 or int(plotchan[0]) != 0:
+            raise ValueError(
+                "pop_spectopo only supports whole-scalp component spectra (plotchan=0); "
+                "per-electrode or max-power projection is not available in EEGPrep"
+            )
+    if "icamode" in options and not bool(options["icamode"]):
+        raise ValueError(
+            "pop_spectopo only supports component spectra (icamode on); (data-comp) spectra is not available in EEGPrep"
+        )
 
 
 def _split_spectopo_options(options: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:

@@ -100,6 +100,10 @@ class TestCleanASRParameters(unittest.TestCase):
             'nbchan': self.n_channels,
             'pnts': self.n_samples,
             'trials': 1,
+            'xmin': 0.0,
+            'xmax': (self.n_samples - 1) / self.srate,
+            'times': np.arange(self.n_samples) / self.srate,
+            'event': [],
         }
 
     def test_clean_asr_parameter_acceptance(self):
@@ -159,6 +163,10 @@ class TestCleanASRCalibrationData(unittest.TestCase):
             'nbchan': self.n_channels,
             'pnts': self.n_samples,
             'trials': 1,
+            'xmin': 0.0,
+            'xmax': (self.n_samples - 1) / self.srate,
+            'times': np.arange(self.n_samples) / self.srate,
+            'event': [],
         }
 
     def test_clean_asr_ref_maxbadchannels_off(self):
@@ -288,6 +296,66 @@ class TestCleanASRCalibrationFailure(unittest.TestCase):
             else:
                 self.skipTest(f"clean_asr automatic calibration test not available: {e}")
 
+    def test_clean_asr_unexpected_clean_windows_error_propagates(self):
+        """An unexpected (non-ValueError) failure in clean_windows must propagate,
+        not be swallowed into a silent 'use all data for calibration' fallback.
+        """
+        import eegprep.plugins.clean_rawdata.clean_asr as casr_mod
+
+        original = casr_mod.clean_windows
+
+        def boom(*args, **kwargs):
+            raise RuntimeError("simulated clean_windows bug")
+
+        casr_mod.clean_windows = boom
+        try:
+            with self.assertRaises(RuntimeError) as cm:
+                clean_asr(
+                    self.test_eeg,
+                    ref_maxbadchannels=0.1,
+                    ref_tolerances=(-3.0, 5.0),
+                    ref_wndlen=1.0,
+                    cutoff=20.0,
+                )
+            self.assertIn('simulated clean_windows bug', str(cm.exception))
+        finally:
+            casr_mod.clean_windows = original
+
+    def test_clean_asr_clean_windows_value_error_falls_back(self):
+        """A ValueError from clean_windows (expected calibration-data problem) still
+        triggers the documented all-data fallback rather than crashing.
+        """
+        import eegprep.plugins.clean_rawdata.clean_asr as casr_mod
+
+        original = casr_mod.clean_windows
+
+        def insufficient(*args, **kwargs):
+            raise ValueError('Not enough data for even a single window.')
+
+        # Enough samples that all-data calibration succeeds once the fallback kicks in.
+        eeg = {
+            'data': np.random.randn(self.n_channels, 5000) * 0.5,
+            'srate': self.srate,
+            'nbchan': self.n_channels,
+            'pnts': 5000,
+            'trials': 1,
+        }
+
+        casr_mod.clean_windows = insufficient
+        try:
+            with self.assertLogs('eegprep.plugins.clean_rawdata.clean_asr', level='WARNING') as log:
+                result = clean_asr(
+                    eeg,
+                    ref_maxbadchannels=0.1,
+                    ref_tolerances=(-3.0, 5.0),
+                    ref_wndlen=1.0,
+                    cutoff=20.0,
+                )
+            self.assertTrue(any('Falling back to using the entire data' in msg for msg in log.output))
+            self.assertIsInstance(result, dict)
+        finally:
+            casr_mod.clean_windows = original
+
 
 class TestCleanASRSignalExtrapolation(unittest.TestCase):
     """Test clean_asr signal extrapolation logic."""
@@ -305,6 +373,10 @@ class TestCleanASRSignalExtrapolation(unittest.TestCase):
             'nbchan': self.n_channels,
             'pnts': self.n_samples,
             'trials': 1,
+            'xmin': 0.0,
+            'xmax': (self.n_samples - 1) / self.srate,
+            'times': np.arange(self.n_samples) / self.srate,
+            'event': [],
         }
 
     def test_clean_asr_with_different_window_lengths(self):
@@ -359,6 +431,10 @@ class TestCleanASREdgeCases(unittest.TestCase):
             'nbchan': self.n_channels,
             'pnts': self.n_samples,
             'trials': 1,
+            'xmin': 0.0,
+            'xmax': (self.n_samples - 1) / self.srate,
+            'times': np.arange(self.n_samples) / self.srate,
+            'event': [],
         }
 
     def test_clean_asr_single_channel_data(self):
@@ -369,6 +445,10 @@ class TestCleanASREdgeCases(unittest.TestCase):
             'nbchan': 1,
             'pnts': self.n_samples,
             'trials': 1,
+            'xmin': 0.0,
+            'xmax': (self.n_samples - 1) / self.srate,
+            'times': np.arange(self.n_samples) / self.srate,
+            'event': [],
         }
 
         try:

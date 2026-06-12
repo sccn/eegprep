@@ -84,6 +84,31 @@ def test_pop_spectopo_plots_sample_data_headlessly(sample_eeg):
     plt.close(result["figure"])
 
 
+def test_pop_spectopo_component_default_controls_succeed(ica_epoch):
+    result, command = pop_spectopo(
+        ica_epoch, dataflag=0, freqs=[10], plotchan=0, icamode=True, icacomps=[1, 2], nicamaps=2, return_com=True
+    )
+
+    assert result["spectra"].shape[0] == 2
+    assert "pop_spectopo(EEG" in command
+    plt.close(result["figure"])
+
+
+def test_pop_spectopo_rejects_nondefault_plotchan(ica_epoch):
+    with pytest.raises(ValueError, match="whole-scalp component spectra"):
+        pop_spectopo(ica_epoch, dataflag=0, freqs=[10], plotchan=3, icacomps=[1, 2])
+
+
+def test_pop_spectopo_rejects_max_power_plotchan(ica_epoch):
+    with pytest.raises(ValueError, match="whole-scalp component spectra"):
+        pop_spectopo(ica_epoch, dataflag=0, freqs=[10], plotchan=[], icacomps=[1, 2])
+
+
+def test_pop_spectopo_rejects_datacomp_icamode(ica_epoch):
+    with pytest.raises(ValueError, match="component spectra"):
+        pop_spectopo(ica_epoch, dataflag=0, freqs=[10], icamode=False, icacomps=[1, 2])
+
+
 def test_pop_prop_plots_sample_channel_properties(sample_eeg):
     figure, command = pop_prop(sample_eeg, typecomp=1, chanorcomp=1, return_com=True)
 

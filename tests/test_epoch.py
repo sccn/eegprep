@@ -162,28 +162,27 @@ class TestEpochFunctional(unittest.TestCase):
         # Put a distinctive ramp in epoch 2 so we can detect correct slicing
         data[0, :, 1] = np.linspace(0, 1, 100)
 
-        # Event at 1.2 s relative to concatenated stream:
-        # global sample for event center = floor(1.2 * 100) = 120
-        # Epoch boundaries every 100 points
-        events = np.array([1.2], dtype=float)
+        # Event at 1.5 s relative to the concatenated stream:
+        # global sample for event center = floor(1.5 * 100) = 150
+        # Epoch boundaries every 100 points, so the window stays inside epoch 2.
+        events = np.array([1.5], dtype=float)
         lim = np.array([-0.2, 0.3], dtype=float)  # [-20, +29] samples window inside epoch 2
 
         ep, newtime, idx, _, _, _ = epoch(data, events, lim, srate=srate, verbose='off')
 
         # Expect one accepted epoch
         self.assertTrue(np.array_equal(idx, np.array([0])))
-        # The extracted data should match the correct slice from linearized data
-        # With MATLAB-compatible indexing: event at 1.2s (sample 120) with window [-0.2, 0.3]
-        # becomes MATLAB indices [101, 149] (1-based), which in Python becomes [99:149] (0-based)
-        pos0 = int(np.floor(events[0] * srate))  # 120 (0-based)
+        # The extracted data should match the correct slice from linearized data.
+        # MATLAB epoch.m uses data(:,posinit:posend) (1-based); Python slices [posinit-1:posend].
+        pos0 = int(np.floor(events[0] * srate))  # 150
         reallim0 = int(np.round(lim[0] * srate))  # -20
         reallim1 = int(np.round(lim[1] * srate - 1))  # 29
-        posinit = pos0 + reallim0  # 100 (0-based)
-        posend = pos0 + reallim1  # 149 (0-based)
+        posinit = pos0 + reallim0  # 130 (MATLAB 1-based column)
+        posend = pos0 + reallim1  # 179 (MATLAB 1-based column)
 
         # MATLAB slicing: posinit:posend (1-based) becomes [posinit-1:posend] (0-based)
-        start_global = posinit - 1  # 99 (Python 0-based)
-        end_global = posend  # 149 (Python 0-based exclusive)
+        start_global = posinit - 1  # 129 (Python 0-based)
+        end_global = posend  # 179 (Python 0-based exclusive)
 
         # Extract the expected slice from linearized data (Fortran order)
         data_linearized = data.reshape(1, -1, order='F')
@@ -191,6 +190,12 @@ class TestEpochFunctional(unittest.TestCase):
         self.assertTrue(np.allclose(ep[0, :, 0], expected, atol=1e-12))
         # newtime should reflect limits divided by srate with the -1 sample convention
         self.assertTrue(np.allclose(newtime, np.array([lim[0], np.round(lim[1] * srate - 1) / srate]), atol=1e-12))
+
+        # A window that straddles the boundary between two source epochs (event at
+        # 1.2 s spans columns 99..148, crossing the 100-sample epoch boundary) must
+        # be rejected, matching EEGLAB's floor((posinit-1)/dataframes) test.
+        _, _, idx_cross, _, _, _ = epoch(data, np.array([1.2]), lim, srate=srate, verbose='off')
+        self.assertEqual(idx_cross.size, 0)
 
     def test_functional_valuelim_pass_all(self):
         srate = 200.0
@@ -212,6 +217,29 @@ class TestEpochFunctional(unittest.TestCase):
         _, _, _, alleventout, alllatencyout, _ = epoch(data, events, lim, srate=srate, verbose='off')
         self.assertEqual(len(alleventout), 0)
         self.assertEqual(len(alllatencyout), 0)
+
+    def test_boundary_first_last_sample(self):
+        # data values equal their 0-based column index so we can verify exact slices
+        srate = 100.0
+        data = np.arange(500, dtype=float).reshape(1, 500)
+        lim = np.array([-0.2, 0.5], dtype=float)  # reallim = [-20, 49] samples
+
+        # Event whose window would start one sample before the data (posinit==0,
+        # 0-based) must be rejected like EEGLAB, not produce a negative-index slice.
+        _, _, idx_before, _, _, _ = epoch(data, np.array([0.2]), lim, srate=srate, verbose='off')
+        self.assertEqual(idx_before.size, 0)
+
+        # Event whose window starts exactly at the first sample (posinit==1, 1-based)
+        # must be accepted and yield the true leading samples.
+        ep_first, _, idx_first, _, _, _ = epoch(data, np.array([0.21]), lim, srate=srate, verbose='off')
+        self.assertTrue(np.array_equal(idx_first, np.array([0])))
+        self.assertTrue(np.allclose(ep_first[0, :3, 0], np.array([0.0, 1.0, 2.0])))
+
+        # Event whose window ends exactly at the last sample (posend==datawidth)
+        # must be accepted; the previous off-by-one rejected it.
+        ep_last, _, idx_last, _, _, _ = epoch(data, np.array([4.51]), lim, srate=srate, verbose='off')
+        self.assertTrue(np.array_equal(idx_last, np.array([0])))
+        self.assertTrue(np.allclose(ep_last[0, -3:, 0], np.array([497.0, 498.0, 499.0])))
 
 
 if __name__ == '__main__':

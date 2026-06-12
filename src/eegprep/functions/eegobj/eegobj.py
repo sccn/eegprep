@@ -26,6 +26,36 @@ def _tolist_if_available(value: Any) -> Any:
     return tolist() if callable(tolist) else value
 
 
+def _resolve_eegprep_function(name):
+    """Resolve an eegprep function by name, or return None if unknown."""
+    # Try globals first (for imported functions)
+    cand = globals().get(name)
+    if callable(cand):
+        return cand
+    # Try public package exports before probing EEGLAB-style modules.
+    try:
+        import eegprep as eegpkg
+
+        cand = getattr(eegpkg, name, None)
+        if callable(cand):
+            return cand
+        if isinstance(cand, types.ModuleType):
+            sub = getattr(cand, name, None)
+            if callable(sub):
+                return sub
+    except Exception:
+        pass
+    for prefix in _EEGPREP_FUNCTION_MODULE_PREFIXES:
+        try:
+            mod = importlib.import_module(f"{prefix}.{name}")
+            cand = getattr(mod, name, None)
+            if callable(cand):
+                return cand
+        except Exception:
+            pass
+    return None
+
+
 class EEGobj:
     """Wrapper class for EEG datasets stored as dictionaries.
 
@@ -48,35 +78,7 @@ class EEGobj:
 
     # Internal helper to resolve and call an eegprep function name
     def _call_eegprep(self, fname, *args, **kwargs):
-        def _resolve(n):
-            # Try globals first (for imported functions)
-            cand = globals().get(n)
-            if callable(cand):
-                return cand
-            # Try public package exports before probing EEGLAB-style modules.
-            try:
-                import eegprep as eegpkg
-
-                cand = getattr(eegpkg, n, None)
-                if callable(cand):
-                    return cand
-                if isinstance(cand, types.ModuleType):
-                    sub = getattr(cand, n, None)
-                    if callable(sub):
-                        return sub
-            except Exception:
-                pass
-            for prefix in _EEGPREP_FUNCTION_MODULE_PREFIXES:
-                try:
-                    mod = importlib.import_module(f"{prefix}.{n}")
-                    cand = getattr(mod, n, None)
-                    if callable(cand):
-                        return cand
-                except Exception:
-                    pass
-            return None
-
-        func = _resolve(fname)
+        func = _resolve_eegprep_function(fname)
         if func is None:
             raise AttributeError(fname)
 
@@ -116,13 +118,18 @@ class EEGobj:
         """Access EEG fields or eegprep functions.
 
         - If 'name' is a key in EEG, return EEG[name] (convenience).
-        - If 'name' is a function in eegprep, return a wrapper that:
+        - If 'name' resolves to a function in eegprep, return a wrapper that:
           self.EEG = func(deepcopy(self.EEG), ...)
           and returns updated EEG for convenience.
+        - Otherwise raise AttributeError so field-name typos fail fast instead
+          of silently returning a no-op callable.
         """
         eeg = object.__getattribute__(self, 'EEG')
         if isinstance(eeg, dict) and name in eeg:
             return eeg[name]
+
+        if _resolve_eegprep_function(name) is None:
+            raise AttributeError(name)
 
         def wrapper(*args, **kwargs):
             return self._call_eegprep(name, *args, **kwargs)

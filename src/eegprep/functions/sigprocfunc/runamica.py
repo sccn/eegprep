@@ -827,23 +827,30 @@ def runamica(
     # Write parameter file
     param_file = _write_param_file(outdir, params)
 
-    # Run the binary
-    _run_amica(binary, param_file)
+    try:
+        # Run the binary
+        _run_amica(binary, param_file)
 
-    # Load output
-    mods = _load_amica_output(
-        outdir,
-        num_models=num_models,
-        num_pcs=pcakeep,
-        data_dim=chans,
-        num_mix_comps=num_mix_comps,
-        max_iter=max_iter,
-        field_dim=frames,
-    )
+        # Load output
+        mods = _load_amica_output(
+            outdir,
+            num_models=num_models,
+            num_pcs=pcakeep,
+            data_dim=chans,
+            num_mix_comps=num_mix_comps,
+            max_iter=max_iter,
+            field_dim=frames,
+        )
 
-    # Extract model 0 weights and sphere
-    weights = mods['W'][:, :, 0]
-    sphere = mods['S'][: mods['num_pcs'], :]
+        # Extract model 0 weights and sphere
+        weights = mods['W'][:, :, 0]
+        sphere = mods['S'][: mods['num_pcs'], :]
+    except BaseException:
+        # A failed run/load must not leak the temp dir we created (it holds the
+        # full float32 .fdt data copy). Remove it, then re-raise the real error.
+        if tmp_created:
+            shutil.rmtree(outdir, ignore_errors=True)
+        raise
 
     # Cleanup
     if cleanup:

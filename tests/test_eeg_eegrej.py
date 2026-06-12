@@ -385,6 +385,25 @@ class TestEEGEegrejExtended(unittest.TestCase):
         self.assertNotIn(0.0, latencies)
         self.assertNotIn(float(result['pnts']), latencies)
 
+    def test_eeg_eegrej_keeps_nonboundary_events_at_edges(self):
+        """Genuine (non-boundary) events at the first/last sample must not be dropped."""
+        EEG = self.base_eeg.copy()
+        # stim at the first sample (latency 0) and a stim that lands on the
+        # final sample after rejection (latency 20 -> 17 once 3 samples removed)
+        EEG['event'] = [
+            {"type": "stim", "latency": 0.0},
+            {"type": "stim", "latency": 20.0},
+        ]
+
+        regions = np.array([[3, 5]])
+        result = eeg_eegrej(EEG, regions)
+
+        self.assertEqual(result['pnts'], 17)
+        stim_events = [e for e in result['event'] if e.get('type') == 'stim']
+        stim_latencies = sorted(e['latency'] for e in stim_events)
+        # both stim events survive: one at the first sample, one at the last sample
+        self.assertEqual(stim_latencies, [0.0, 17.0])
+
     def test_eeg_eegrej_duplicate_event_cleanup(self):
         """Test eeg_eegrej duplicate event cleanup."""
         EEG = self.base_eeg.copy()

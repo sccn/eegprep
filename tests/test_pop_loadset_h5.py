@@ -357,8 +357,8 @@ class TestPopLoadsetH5(DebuggableTestCase):
 
         with h5py.File(filepath, 'w') as f:
             eeg_group = f.create_group('EEG')
-            # Create Unicode string data (special case handled in pop_loadset_h5)
-            unicode_ascii = np.array([104, 101, 108, 108, 111, 32, 240, 159, 146, 150], dtype=np.uint16)  # "hello 👖"
+            # Create Unicode string data: UTF-8 bytes for "hello 💖" stored one byte per uint16
+            unicode_ascii = np.array([104, 101, 108, 108, 111, 32, 240, 159, 146, 150], dtype=np.uint16)  # "hello 💖"
             eeg_group.create_dataset('unicode_string', data=unicode_ascii)
 
             # Add minimal required data to prevent eeg_checkset from failing
@@ -372,8 +372,8 @@ class TestPopLoadsetH5(DebuggableTestCase):
 
         EEG = pop_loadset_h5(filepath)
 
-        # Should handle Unicode strings (special case in the code)
-        self.assertEqual(EEG['unicode_string'], 'hello 👖')
+        # The general uint16 -> UTF-8 decode path returns the correct emoji.
+        self.assertEqual(EEG['unicode_string'], 'hello \U0001f496')
 
 
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")

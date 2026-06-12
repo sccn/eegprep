@@ -52,6 +52,20 @@ def test_bids_export_validate_import_roundtrip(tmp_path, capsys):
     assert captured.err == ""
 
 
+def test_bids_validate_reports_error_when_no_eeg_files(tmp_path):
+    from eegprep.cli.commands import bids as bids_cli
+
+    empty_root = tmp_path / "empty_bids"
+    empty_root.mkdir()
+    (empty_root / "dataset_description.json").write_text("{}", encoding="utf-8")
+
+    payload = bids_cli.validate_dataset(empty_root)
+
+    assert payload["status"] == "error"
+    assert payload["can_continue"] is False
+    assert [issue["code"] for issue in payload["errors"]] == ["BIDS_EEG_FILES_MISSING"]
+
+
 def test_bids_validate_missing_path_returns_structured_error(tmp_path, capsys):
     from eegprep.cli.commands import bids as bids_cli
 
@@ -64,6 +78,29 @@ def test_bids_validate_missing_path_returns_structured_error(tmp_path, capsys):
     assert payload["error"]["code"] == "INPUT_FILE_NOT_FOUND"
     assert payload["error"]["path"] == str(tmp_path / "missing")
     assert captured.err == ""
+
+
+def test_bids_import_set_file_uses_eeglab_loader_without_error_sniffing(tmp_path, monkeypatch):
+    from eegprep.cli.commands import bids as bids_cli
+
+    input_set = tmp_path / "input.set"
+    imported_set = tmp_path / "imported.set"
+    pop_saveset(_eeg(), input_set)
+
+    # A .set file must dispatch to the EEGLAB loader without ever invoking the BIDS sidecar
+    # importer; the previous fallback only recovered when the IndexError message matched a
+    # specific string, so any other wording silently re-raised as an opaque crash.
+    def _fail(*_args, **_kwargs):
+        raise IndexError("array index out of range")
+
+    monkeypatch.setattr(bids_cli, "pop_importbids", _fail)
+
+    payload = bids_cli.import_dataset(input_set, output=imported_set)
+
+    assert payload["status"] == "ok"
+    assert payload["dataset"]["nbchan"] == 2
+    assert imported_set.exists()
+    assert [warning["code"] for warning in payload["warnings"]] == ["BIDS_SIDECARS_SKIPPED"]
 
 
 def test_bids_import_refuses_existing_manifest_without_overwrite(tmp_path):

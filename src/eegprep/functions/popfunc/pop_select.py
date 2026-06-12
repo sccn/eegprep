@@ -208,12 +208,12 @@ def _pop_select_apply(EEG, **kwargs):
     else:
         # by type
         if _decode_list(g['chantype']):
-            inds = eeg_decodechan(EEG, g['chantype'], 'type', True)
+            inds, _ = eeg_decodechan(EEG, g['chantype'], 'type', True)
             chan_selected_flag[:] = False
             chan_selected_flag[np.array(inds, dtype=int)] = True
 
         if _decode_list(g['rmchantype']):
-            inds = eeg_decodechan(EEG, g['rmchantype'], 'type', True)
+            inds, _ = eeg_decodechan(EEG, g['rmchantype'], 'type', True)
             chan_selected_flag[np.array(inds, dtype=int)] = False
 
     g['channel'] = np.where(chan_selected_flag)[0].tolist()

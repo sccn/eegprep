@@ -116,9 +116,12 @@ def clean_artifacts(
         Riemannian path uses EEGPrep's calibration-time estimate; full
         Riemannian ASR processing is not ported.
     Channels : sequence of str or None
-        List of channel labels to include before cleaning (pop_select). Default None.
+        List of channel labels to include before cleaning (pop_select). The
+        returned dataset contains only these channels; channels outside this list
+        are dropped and not re-inserted. Default None.
     Channels_ignore : sequence of str or None
-        List of channel labels to exclude before cleaning. Default None.
+        List of channel labels to exclude before cleaning. The excluded channels
+        are dropped from the returned dataset and not re-inserted. Default None.
     availableRAM_GB : float or None
         Available system RAM in GB to adjust MaxMem. Default None.
 
@@ -154,32 +157,31 @@ def clean_artifacts(
     #             Optional: restrict to / ignore certain channels
     # ------------------------------------------------------------------
     if Channels is not None and len(Channels):
-        # Attempt pop_select based on labels; fall back to manual
+        # Attempt pop_select based on labels; the manual fallback only covers the
+        # documented case where pop_select is unavailable (ImportError). Errors
+        # raised inside pop_select itself must surface, not be masked.
         try:
             from eegprep import pop_select
 
             EEG = pop_select(EEG, channel=list(Channels))
-        except Exception:
-            # Manual selection on labels
+        except ImportError:
             lbl_to_idx = {ch['labels']: idx for idx, ch in enumerate(EEG['chanlocs'])}
             keep_idx = [lbl_to_idx[lbl] for lbl in Channels if lbl in lbl_to_idx]
             EEG['data'] = EEG['data'][keep_idx, :]
             EEG['chanlocs'] = [EEG['chanlocs'][i] for i in keep_idx]
             EEG['nbchan'] = len(keep_idx)
-        EEG['event'] = []  # will be restored later
     elif Channels_ignore is not None and len(Channels_ignore):
         try:
             from eegprep import pop_select
 
             EEG = pop_select(EEG, nochannel=list(Channels_ignore))
-        except Exception:
+        except ImportError:
             lbl_to_idx = {ch['labels']: idx for idx, ch in enumerate(EEG['chanlocs'])}
             drop_idx_set = {lbl_to_idx[lbl] for lbl in Channels_ignore if lbl in lbl_to_idx}
             keep_idx = [i for i in range(len(EEG['chanlocs'])) if i not in drop_idx_set]
             EEG['data'] = EEG['data'][keep_idx, :]
             EEG['chanlocs'] = [EEG['chanlocs'][i] for i in keep_idx]
             EEG['nbchan'] = len(keep_idx)
-        EEG['event'] = []
 
     # ------------------------------------------------------------------
     #                     1) Flat‑line channel removal
@@ -220,10 +222,17 @@ def clean_artifacts(
                 num_samples=int(NumSamples),
                 subset_size=SubsetSize,  # Default 0.25, matches MATLAB default when not passed
             )
-            removed_channels = ~EEG['etc']['clean_channel_mask']
-        except Exception as e:
-            # Fall back to "no‑locs" version if location dependent failure
-            logger.warning(f'clean_channels failed ({e}); falling back to clean_channels_nolocs.')
+            # clean_channels only writes clean_channel_mask when it removes channels;
+            # an absent mask means nothing was removed, so keep the all-False default.
+            mask = EEG.get('etc', {}).get('clean_channel_mask')
+            if mask is not None:
+                removed_channels = ~mask
+        except ValueError as e:
+            # Only the missing-channel-locations case warrants the no-locs fallback;
+            # any other ValueError is a genuine failure and must propagate.
+            if 'location' not in str(e).lower():
+                raise
+            logger.warning(f'clean_channels lacks usable locations ({e}); falling back to clean_channels_nolocs.')
             EEG, removed_channels = clean_channels_nolocs(
                 EEG,
                 min_corr=float(NoLocsChannelCriterion),
@@ -291,11 +300,9 @@ def clean_artifacts(
 
     logger.info('Use vis_artifacts to compare the cleaned data to the original.')
 
-    # ------------------------------------------------------------------
-    #                  Optionally re‑insert ignored channels
-    # ------------------------------------------------------------------
-    # The full MATLAB logic is complicated; the Python port currently skips the
-    # re‑insertion of previously excluded channels for simplicity. Users can
-    # merge channels back manually if needed.
+    # When Channels/Channels_ignore restrict the dataset, the returned EEG holds
+    # only the cleaned subset; excluded channels are not re-inserted (unlike the
+    # MATLAB reference). Callers that need the ignored channels back must merge
+    # them manually. This is documented on the Channels/Channels_ignore parameters.
 
     return EEG, HP, BUR, removed_channels

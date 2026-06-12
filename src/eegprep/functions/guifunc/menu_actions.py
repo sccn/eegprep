@@ -1597,7 +1597,12 @@ class MenuActionDispatcher:
         else:
             self.show_coming_soon(name, parent)
             return
-        self._add_history_from_gui(command)
+        if name == "pop_headplot":
+            # pop_headplot attaches the spline file in place, so commit the edited
+            # dataset through the session instead of only recording history.
+            self._store_current_from_gui(selection, command=command)
+        else:
+            self._add_history_from_gui(command)
         self._refresh()
 
     def _run_chanplot(self, parent: Any | None) -> None:
@@ -1627,9 +1632,6 @@ class MenuActionDispatcher:
         if isinstance(eeg, list):
             for offset, _dataset in enumerate(eeg, start=1):
                 logger.info("Processing group dataset %s of %s.", offset, len(eeg))
-        for dataset in eeg if isinstance(eeg, list) else [eeg]:
-            if isinstance(dataset, dict):
-                eegh(command, dataset)
         alleeg, current, current_set, newset_command = pop_newset(
             self.session.ALLEEG,
             eeg,
@@ -1643,6 +1645,9 @@ class MenuActionDispatcher:
             if old_selection:
                 self.session.retrieve(old_selection if len(old_selection) > 1 else old_selection[0])
             return
+        for dataset in current if isinstance(current, list) else [current]:
+            if isinstance(dataset, dict):
+                eegh(command, dataset)
         self.session.echo_command(command)
         self.session.add_history(command, notify=False)
         self.session.echo_command(newset_command)

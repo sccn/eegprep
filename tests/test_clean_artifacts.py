@@ -988,5 +988,118 @@ class TestCleanArtifactsIntegration(DebuggableTestCase):
             self.skipTest(f"clean_artifacts return values not available: {e}")
 
 
+class TestCleanArtifactsErrorSurfacing(DebuggableTestCase):
+    """Errors inside the selection / channel-cleaning paths must surface, not be masked."""
+
+    def setUp(self):
+        self.test_eeg = create_test_eeg()
+
+    def test_pop_select_internal_error_propagates(self):
+        """A non-ImportError raised inside pop_select must propagate, not silently
+        fall back to manual label selection (which could select different channels).
+        """
+        import eegprep
+
+        original = eegprep.pop_select
+
+        def failing_pop_select(*args, **kwargs):
+            raise RuntimeError("simulated pop_select bug")
+
+        eegprep.pop_select = failing_pop_select
+        try:
+            with self.assertRaises(RuntimeError):
+                clean_artifacts(
+                    self.test_eeg,
+                    Channels_ignore=['EEG001', 'EEG002'],
+                    ChannelCriterion='off',
+                    LineNoiseCriterion='off',
+                    BurstCriterion='off',
+                    WindowCriterion='off',
+                    Highpass='off',
+                    FlatlineCriterion='off',
+                )
+        finally:
+            eegprep.pop_select = original
+
+    def test_channels_ignore_preserves_events(self):
+        """Restricting channels must not wipe the dataset's events."""
+        eeg = create_test_eeg()
+        eeg['event'] = [{'type': 'mark', 'latency': 100.0}, {'type': 'mark', 'latency': 5000.0}]
+        original_events = list(eeg['event'])
+
+        EEG, _HP, _BUR, _removed = clean_artifacts(
+            eeg,
+            Channels_ignore=['EEG001'],
+            ChannelCriterion='off',
+            LineNoiseCriterion='off',
+            BurstCriterion='off',
+            WindowCriterion='off',
+            Highpass='off',
+            FlatlineCriterion='off',
+        )
+
+        self.assertEqual(len(EEG['event']), len(original_events))
+
+    def test_clean_channels_unexpected_value_error_propagates(self):
+        """A ValueError from clean_channels unrelated to missing locations must
+        propagate rather than silently switching to the no-locs algorithm.
+        """
+        import eegprep.plugins.clean_rawdata.clean_artifacts as ca_mod
+
+        original = ca_mod.clean_channels
+
+        def boom(*args, **kwargs):
+            raise ValueError("totally unrelated bug")
+
+        ca_mod.clean_channels = boom
+        try:
+            with self.assertRaises(ValueError) as cm:
+                clean_artifacts(
+                    self.test_eeg,
+                    ChannelCriterion=0.8,
+                    LineNoiseCriterion='off',
+                    BurstCriterion='off',
+                    WindowCriterion='off',
+                    Highpass='off',
+                    FlatlineCriterion='off',
+                )
+            self.assertIn('totally unrelated bug', str(cm.exception))
+        finally:
+            ca_mod.clean_channels = original
+
+    def test_clean_channels_location_error_falls_back(self):
+        """A missing-locations ValueError still triggers the no-locs fallback."""
+        import eegprep.plugins.clean_rawdata.clean_artifacts as ca_mod
+
+        original_cc = ca_mod.clean_channels
+        original_nolocs = ca_mod.clean_channels_nolocs
+
+        def locs_error(*args, **kwargs):
+            raise ValueError('To use this function most of your channels should have X,Y,Z location measurements.')
+
+        called = {'nolocs': False}
+
+        def fake_nolocs(EEG, **kwargs):
+            called['nolocs'] = True
+            return EEG, np.zeros(EEG['nbchan'], dtype=bool)
+
+        ca_mod.clean_channels = locs_error
+        ca_mod.clean_channels_nolocs = fake_nolocs
+        try:
+            clean_artifacts(
+                self.test_eeg,
+                ChannelCriterion=0.8,
+                LineNoiseCriterion='off',
+                BurstCriterion='off',
+                WindowCriterion='off',
+                Highpass='off',
+                FlatlineCriterion='off',
+            )
+            self.assertTrue(called['nolocs'])
+        finally:
+            ca_mod.clean_channels = original_cc
+            ca_mod.clean_channels_nolocs = original_nolocs
+
+
 if __name__ == '__main__':
     unittest.main()

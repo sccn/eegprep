@@ -111,6 +111,31 @@ def test_std_makedesign_selects_1_based_design_and_validates_variables():
         std_selectdesign(study, alleeg, 3)
 
 
+def test_std_makedesign_delfiles_off_preserves_cached_measures():
+    study, alleeg = pop_study(
+        None,
+        [
+            _eeg("one", subject="S01", condition="target", group="control"),
+            _eeg("two", subject="S02", condition="standard", group="patient"),
+        ],
+    )
+    erpdata = [[1.0, 2.0, 3.0]]
+    study["changrp"] = [{"name": "Ch1", "channels": ["Ch1"], "erpdata": erpdata, "erptimes": [0.0, 1.0, 2.0]}]
+
+    kept, _command = std_makedesign(
+        study, alleeg, 2, variable1="group", values1=["control"], delfiles="off", return_com=True
+    )
+    assert kept["changrp"][0]["erpdata"] == erpdata
+    assert kept["changrp"][0]["erptimes"] == [0.0, 1.0, 2.0]
+
+    study["changrp"] = [{"name": "Ch1", "channels": ["Ch1"], "erpdata": erpdata, "erptimes": [0.0, 1.0, 2.0]}]
+    cleared, _command = std_makedesign(
+        study, alleeg, 2, variable1="group", values1=["control"], delfiles="on", return_com=True
+    )
+    assert "erpdata" not in cleared["changrp"][0]
+    assert "erptimes" not in cleared["changrp"][0]
+
+
 def test_pop_studydesign_selects_and_updates_design():
     study, alleeg = pop_study(
         None,

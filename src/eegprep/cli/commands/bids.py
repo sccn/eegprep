@@ -93,7 +93,7 @@ def validate_dataset(root: str | Path) -> dict[str, Any]:
     if not (root_path / "dataset_description.json").exists():
         warnings.append(_issue("BIDS_VALIDATION_WARNING", "dataset_description.json is missing", root_path))
     if not files:
-        warnings.append(_issue("BIDS_VALIDATION_WARNING", "No supported EEG files were found", root_path))
+        errors.append(_issue("BIDS_EEG_FILES_MISSING", "No supported EEG files were found", root_path))
     status = "error" if errors else "warning" if warnings else "ok"
     return {
         "status": status,
@@ -294,12 +294,11 @@ def _output_record(path: Path) -> dict[str, Any]:
 
 
 def _import_bids_file(eeg_file: Path) -> tuple[dict[str, Any] | list[dict[str, Any]], str, list[dict[str, str]]]:
-    try:
-        EEG, history = pop_importbids(eeg_file, return_com=True)
-        return EEG, history, []
-    except IndexError as exc:
-        if "only integers" not in str(exc) or eeg_file.suffix.lower() != ".set":
-            raise
+    # The BIDS metadata importer (pop_importbids -> pop_load_frombids) only applies sidecar
+    # metadata to raw recording formats (.edf/.bdf/.vhdr). EEGLAB .set files carry their own
+    # metadata and cannot be routed through the sidecar-application path, so load them directly
+    # with the EEGLAB .set loader instead of attempting BIDS sidecar import.
+    if eeg_file.suffix.lower() == ".set":
         EEG = load_dataset(eeg_file)
         history = f"EEG = pop_importbids('{eeg_file.as_posix()}');"
         EEG["history"] = history
@@ -310,13 +309,15 @@ def _import_bids_file(eeg_file: Path) -> tuple[dict[str, Any] | list[dict[str, A
                 {
                     "code": "BIDS_SIDECARS_SKIPPED",
                     "message": (
-                        "BIDS sidecar application failed for this EEGLAB .set file; "
-                        "data import was retried with the EEGLAB .set loader."
+                        "EEGLAB .set files are imported with the EEGLAB .set loader; "
+                        "BIDS sidecar metadata is not applied for this format."
                     ),
                     "path": str(eeg_file),
                 }
             ],
         )
+    EEG, history = pop_importbids(eeg_file, return_com=True)
+    return EEG, history, []
 
 
 def _dataset_cli_summary(EEG: dict[str, Any], path: Path) -> dict[str, Any]:
