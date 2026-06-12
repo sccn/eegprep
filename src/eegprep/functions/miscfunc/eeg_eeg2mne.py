@@ -1,13 +1,13 @@
 """EEG to MNE conversion functions."""
 
-from ..popfunc.pop_loadset import pop_loadset
-import mne
+from pathlib import Path
 import tempfile
-import os
+
+import mne
+
 from ..popfunc.pop_saveset import pop_saveset  # in development
 
 
-# write a funtion that converts a MNE raw object to an EEGLAB set file
 def eeg_eeg2mne(EEG):
     """Convert EEG data structure to MNE Raw object.
 
@@ -21,34 +21,10 @@ def eeg_eeg2mne(EEG):
     raw : mne.io.Raw
         MNE Raw object
     """
-    # Generate a temporary file name
-    with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-        temp_file_path = temp_file.name
+    with tempfile.TemporaryDirectory(prefix="eegprep-eeg2mne-") as temp_dir:
+        set_path = Path(temp_dir) / "bridge.set"
+        pop_saveset(EEG, str(set_path))
 
-    base, _ = os.path.splitext(temp_file_path)
-    new_temp_file_path = base + ".set"
-
-    # save the raw file as a new EEGLAB .set file using MNE EEGLAB writer
-    pop_saveset(EEG, new_temp_file_path)
-
-    # load the EEGLAB set file
-    if EEG['trials'] > 1:
-        raw = mne.io.read_epochs_eeglab(new_temp_file_path)
-    else:
-        raw = mne.io.read_raw_eeglab(new_temp_file_path, preload=True)
-
-    return raw
-
-
-def test_eeg_eeg2mne():
-    """Test the eeg_eeg2mne function."""
-    eeglab_file_path = './eeglab_data_with_ica_tmp.set'
-    eeglab_file_path = '/System/Volumes/Data/data/matlab/eeglab/sample_data/eeglab_data_epochs_ica.set'
-    EEG = pop_loadset(eeglab_file_path)
-    raw = eeg_eeg2mne(EEG)
-
-    # print the keys of the EEG dictionary
-    print(raw.info)
-
-
-# test_eeg_eeg2mne()
+        if EEG['trials'] > 1:
+            return mne.io.read_epochs_eeglab(str(set_path))
+        return mne.io.read_raw_eeglab(str(set_path), preload=True)

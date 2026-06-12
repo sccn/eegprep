@@ -301,16 +301,3 @@ def pop_loadset_h5(file_name):
     EEG = eeg_checkset(EEG)
 
     return EEG
-
-
-if __name__ == '__main__':
-    file_name = 'sample_data/eeglab_data_epochs_ica_hdf5.set'
-    EEG = pop_loadset_h5(file_name)
-    print(EEG['data'].shape)
-    print(EEG['icaweights'].shape)
-    print(EEG['icasphere'].shape)
-    print(EEG['icawinv'].shape)
-    print(EEG['icaact'].shape)
-# file_name = 'eeglab_cont73.set'
-# EEG = pop_loadset_h5(file_name)
-# EEG['data'].shape

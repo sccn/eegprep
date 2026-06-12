@@ -1,11 +1,12 @@
 """MNE to EEG conversion functions."""
 
-from ..popfunc.pop_loadset import pop_loadset
-import mne
+from pathlib import Path
 import tempfile
-import os
+
+import mne
 from mne.export import export_raw, export_epochs
-import numpy as np
+
+from ..popfunc.pop_loadset import pop_loadset
 
 
 def _mne_events_to_eeglab_events(raw_or_epochs):
@@ -38,7 +39,6 @@ def _mne_events_to_eeglab_events(raw_or_epochs):
     return events
 
 
-# write a funtion that converts a MNE raw object to an EEGLAB set file
 def eeg_mne2eeg(raw):
     """Convert MNE Raw object to EEG data structure.
 
@@ -54,49 +54,16 @@ def eeg_mne2eeg(raw):
     """
     raw_or_epochs = raw
 
-    # Generate a temporary file name
-    with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-        temp_file_path = temp_file.name
-
-    base, _ = os.path.splitext(temp_file_path)
-    new_temp_file_path = base + ".set"
-
-    # save the raw/epochs file as a new EEGLAB .set file using MNE EEGLAB writer
-    if isinstance(raw_or_epochs, mne.BaseEpochs):
-        export_epochs(new_temp_file_path, raw_or_epochs, fmt='eeglab')
-    else:
-        export_raw(new_temp_file_path, raw_or_epochs, fmt='eeglab')
-
-    # load the EEGLAB set file
-    EEG = pop_loadset(new_temp_file_path)
+    with tempfile.TemporaryDirectory(prefix="eegprep-mne2eeg-") as temp_dir:
+        set_path = Path(temp_dir) / "bridge.set"
+        if isinstance(raw_or_epochs, mne.BaseEpochs):
+            export_epochs(str(set_path), raw_or_epochs, fmt='eeglab')
+        else:
+            export_raw(str(set_path), raw_or_epochs, fmt='eeglab')
+        EEG = pop_loadset(str(set_path))
 
     # Inject events/annotations from MNE object into EEGLAB structure
     eeglab_events = _mne_events_to_eeglab_events(raw_or_epochs)
     if eeglab_events:
         EEG['event'] = eeglab_events
-
     return EEG
-
-
-def test_eeg_mne2eeg():
-    """Test the eeg_mne2eeg function."""
-    eeglab_file_path = './eeglab_data_with_ica_tmp.set'
-    eeglab_file_path = '/System/Volumes/Data/data/matlab/eeglab/sample_data/eeglab_data_epochs_ica.set'
-    EEG = pop_loadset(eeglab_file_path)
-
-    # create MNE info structure
-    info = mne.create_info(ch_names=[x['labels'] for x in EEG['chanlocs']], sfreq=EEG['srate'], ch_types='eeg')
-    if EEG['trials'] > 1:
-        events = np.array([[i, 0, 1] for i in range(EEG['trials'])])  # NOT CORRECT CONVERTION JUST FOR TESTING
-        event_id = dict(dummy=1)
-        raw = mne.EpochsArray(EEG['data'].transpose(2, 0, 1), info, events, tmin=0, event_id=event_id)
-    else:
-        raw = mne.io.RawArray(EEG['data'], info)
-
-    EEG2 = eeg_mne2eeg(raw)
-
-    # print the keys of the EEG dictionary
-    print(EEG2.keys())
-
-
-# test_eeg_mne2eeg()

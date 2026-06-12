@@ -6,6 +6,8 @@ CONCLUSION: The Python implementation achieves perfect numerical parity with
 MATLAB EEGLAB's pop_epoch function across all tested scenarios.
 """
 
+import contextlib
+import io
 import os
 import numpy as np
 import unittest
@@ -389,6 +391,27 @@ class TestPopEpochParity(unittest.TestCase):
 class TestPopEpochEdgeCases(unittest.TestCase):
     def setUp(self):
         np.random.seed(42)
+
+    def test_pop_epoch_does_not_print_to_stdout(self):
+        EEG = {
+            'data': np.random.randn(2, 500).astype(np.float32),
+            'srate': 100.0,
+            'nbchan': 2,
+            'pnts': 500,
+            'trials': 1,
+            'xmin': 0.0,
+            'xmax': 4.99,
+            'setname': 'stdout_test',
+            'event': [{'type': 'stim', 'latency': 250}],
+            'epoch': [],
+            'saved': 'no',
+        }
+        stream = io.StringIO()
+
+        with contextlib.redirect_stdout(stream):
+            pop_epoch(EEG, 'stim', [-0.1, 0.1])
+
+        self.assertEqual(stream.getvalue(), "")
 
     def test_boundary_events_near_edges(self):
         """Test epoching when events are near data boundaries"""

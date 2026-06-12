@@ -352,19 +352,18 @@ class EEGPrepConsoleWorkspace:
         history_command = self._history_command_for_source(source, targets)
         changed = False
 
-        if "ALLEEG" in targets:
+        if "ALLEEG" in targets or "CURRENTSET" in targets:
             alleeg = self.namespace.get("ALLEEG", [])
             if not isinstance(alleeg, list):
                 raise ValueError("ALLEEG must be a list of EEG datasets")
-            self.session.ALLEEG = alleeg
-            changed = True
-
-        if "CURRENTSET" in targets:
-            current = _normalize_currentset(self.namespace.get("CURRENTSET"))
-            if current:
-                self.session.retrieve(current if len(current) > 1 else current[0])
-            else:
-                self.session.CURRENTSET = []
+            current = (
+                _normalize_currentset(self.namespace.get("CURRENTSET"))
+                if "CURRENTSET" in targets
+                else self.session.CURRENTSET
+            )
+            self.session.apply_workspace_state(
+                alleeg=alleeg, currentset=current, command="", append_dataset_history=False
+            )
             changed = True
 
         if self._namespace_eeg_changed(targets):
@@ -380,16 +379,16 @@ class EEGPrepConsoleWorkspace:
                 changed = True
 
         if "STUDY" in targets:
-            self.session.STUDY = self.namespace.get("STUDY")
-            if "CURRENTSTUDY" not in targets:
-                self.session.CURRENTSTUDY = 1 if self.session.STUDY else 0
+            study_kwargs: dict[str, Any] = {"study": self.namespace.get("STUDY"), "command": ""}
+            if "CURRENTSTUDY" in targets:
+                study_kwargs["currentstudy"] = self.namespace.get("CURRENTSTUDY")
+            self.session.apply_workspace_state(**study_kwargs)
             changed = True
-        if "CURRENTSTUDY" in targets:
-            self.session.CURRENTSTUDY = int(self.namespace.get("CURRENTSTUDY") or 0)
+        elif "CURRENTSTUDY" in targets:
+            self.session.apply_workspace_state(currentstudy=self.namespace.get("CURRENTSTUDY"), command="")
             changed = True
 
         if changed:
-            self.session.notify_changed()
             if history_command and history_command != self.session.LASTCOM:
                 self.session.add_history(history_command)
         self.pull_from_session()
@@ -401,12 +400,13 @@ class EEGPrepConsoleWorkspace:
         dataset_state = _extract_pop_dataset_state(result)
         if dataset_state is not None:
             alleeg, eeg, currentset, command = dataset_state
-            self.session.ALLEEG = alleeg
-            self.session.EEG = eeg
-            self.session.CURRENTSET = _normalize_currentset(currentset)
-            if command:
-                self.session.add_history(command, notify=False)
-            self.session.notify_changed()
+            self.session.apply_workspace_state(
+                alleeg=alleeg,
+                eeg=eeg,
+                currentset=currentset,
+                command=command,
+                append_dataset_history=False,
+            )
             self._pop_updated_session = True
             self.pull_from_session()
             self._refresh()

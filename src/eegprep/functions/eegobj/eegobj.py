@@ -255,8 +255,3 @@ class EEGobj:
         return '\n'.join(lines)
 
     __str__ = __repr__
-
-
-if __name__ == '__main__':
-    obj = EEGobj('sample_data/eeglab_data.set')
-    print(obj)

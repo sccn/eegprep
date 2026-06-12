@@ -1,0 +1,4 @@
+interface:
+  display_name: "Thermo-Nuclear Code Quality Review"
+  short_description: "Strict EEGPrep architecture and maintainability review"
+  default_prompt: "Use $thermo-nuclear-code-quality-review to review the current EEGPrep branch for structural regressions, spaghetti branching, wrong ownership layers, and missed simplifications."

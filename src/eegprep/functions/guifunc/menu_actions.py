@@ -903,14 +903,26 @@ class MenuActionDispatcher:
             "EEG": self.session.EEG,
             "ALLEEG": self.session.ALLEEG,
             "CURRENTSET": self.session.current_set_value(),
+            "ALLCOM": list(self.session.ALLCOM),
+            "LASTCOM": self.session.LASTCOM,
             "STUDY": self.session.STUDY,
+            "CURRENTSTUDY": self.session.CURRENTSTUDY,
         }
         command = pop_runscript(filename, namespace)
-        self.session.EEG = namespace.get("EEG", self.session.EEG)
-        self.session.ALLEEG = namespace.get("ALLEEG", self.session.ALLEEG)
-        self.session.CURRENTSET = _currentset_list(namespace.get("CURRENTSET", self.session.current_set_value()))
-        self.session.STUDY = namespace.get("STUDY", self.session.STUDY)
-        self._add_history_from_gui(command)
+        self.session.echo_command(command)
+        state = {
+            "alleeg": namespace.get("ALLEEG", self.session.ALLEEG),
+            "currentset": namespace.get("CURRENTSET", self.session.current_set_value()),
+            "allcom": namespace.get("ALLCOM", self.session.ALLCOM),
+            "lastcom": namespace.get("LASTCOM", self.session.LASTCOM),
+            "study": namespace.get("STUDY", self.session.STUDY),
+            "currentstudy": namespace.get("CURRENTSTUDY", self.session.CURRENTSTUDY),
+            "command": command,
+        }
+        script_eeg = namespace.get("EEG", self.session.EEG)
+        if script_eeg is not self.session.EEG:
+            state["eeg"] = script_eeg
+        self.session.apply_workspace_state(**state)
         self._refresh()
 
     def _bids_tool_action(self, action: str, parent: Any | None) -> None:
@@ -942,8 +954,8 @@ class MenuActionDispatcher:
 
         updated, command = getattr(bids_tools, action)(target, **metadata)
         if self.session.CURRENTSTUDY == 1 and self.session.STUDY:
-            self.session.STUDY = updated
-            self._add_history_from_gui(command)
+            self.session.echo_command(command)
+            self.session.set_study(updated, command=command)
         else:
             self._store_current_from_gui(updated, command=command)
         self._refresh()
@@ -1045,11 +1057,8 @@ class MenuActionDispatcher:
         dataset_state = _extension_dataset_state(result)
         if dataset_state is not None:
             alleeg, eeg_out, currentset, command = dataset_state
-            self.session.ALLEEG = alleeg
-            self.session.EEG = eeg_out
-            self.session.CURRENTSET = _currentset_list(currentset)
-            self._add_history_from_gui(command)
-            self.session.notify_changed()
+            self.session.echo_command(command)
+            self.session.apply_workspace_state(alleeg=alleeg, eeg=eeg_out, currentset=currentset, command=command)
             self._refresh()
             return
         eeg_out, command = _extension_eeg_and_command(result)
@@ -1360,11 +1369,8 @@ class MenuActionDispatcher:
         alleeg, eeg_out, current_set, command = pop_copyset(self.session.ALLEEG, set_in, gui=True, return_com=True)
         if not command:
             return
-        self.session.ALLEEG = alleeg
-        self.session.EEG = eeg_out
-        self.session.CURRENTSET = _currentset_list(current_set)
-        self._add_history_from_gui(command)
-        self.session.notify_changed()
+        self.session.echo_command(command)
+        self.session.apply_workspace_state(alleeg=alleeg, eeg=eeg_out, currentset=current_set, command=command)
         self._refresh()
 
     def _merge_datasets(self, parent: Any | None) -> None:
@@ -1417,34 +1423,36 @@ class MenuActionDispatcher:
         if name == "pop_dipfit_headmodel":
             from eegprep.plugins.dipfit.pop_dipfit_headmodel import pop_dipfit_headmodel
 
-            pop_dipfit_headmodel(selection, return_com=True)
-            return
-        if name == "pop_dipfit_gridsearch":
+            out = pop_dipfit_headmodel(selection, return_com=True)
+        elif name == "pop_dipfit_gridsearch":
             from eegprep.plugins.dipfit.pop_dipfit_gridsearch import pop_dipfit_gridsearch
 
-            pop_dipfit_gridsearch(selection, return_com=True)
-            return
-        if name == "pop_dipfit_nonlinear":
+            out = pop_dipfit_gridsearch(selection, return_com=True)
+        elif name == "pop_dipfit_nonlinear":
             from eegprep.plugins.dipfit.pop_dipfit_nonlinear import pop_dipfit_nonlinear
 
-            pop_dipfit_nonlinear(selection, return_com=True)
-            return
-        if name == "pop_multifit":
+            out = pop_dipfit_nonlinear(selection, return_com=True)
+        elif name == "pop_multifit":
             from eegprep.plugins.dipfit.pop_multifit import pop_multifit
 
-            pop_multifit(selection, return_com=True)
-            return
-        if name == "pop_leadfield":
+            out = pop_multifit(selection, return_com=True)
+        elif name == "pop_leadfield":
             from eegprep.plugins.dipfit.pop_leadfield import pop_leadfield
 
-            pop_leadfield(selection, return_com=True)
-            return
-        if name == "pop_dipfit_loreta":
+            out = pop_leadfield(selection, return_com=True)
+        elif name == "pop_dipfit_loreta":
             from eegprep.plugins.dipfit.pop_dipfit_loreta import pop_dipfit_loreta
 
-            pop_dipfit_loreta(selection, return_com=True)
+            out = pop_dipfit_loreta(selection, return_com=True)
+        else:
+            self.show_coming_soon(name, parent)
             return
-        self.show_coming_soon(name, parent)
+        if not isinstance(out, tuple):
+            return
+        eeg_out, command = out[0], out[1] if len(out) > 1 else ""
+        if command:
+            self._store_current_from_gui(eeg_out, command=command)
+            self._refresh()
 
     def _plot_channel_locations(self, variant: str, parent: Any | None) -> None:
         selection = self._current_selection_or_warn(parent)
@@ -1540,8 +1548,8 @@ class MenuActionDispatcher:
         study, command, _figure = pop_chanplot(self.session.STUDY, self.session.ALLEEG, gui=True, return_com=True)
         if not command:
             return
-        self.session.STUDY = study
-        self._add_history_from_gui(command)
+        self.session.echo_command(command)
+        self.session.set_study(study, command=command)
         self._refresh()
 
     def _store_current_from_gui(self, eeg: Any, **kwargs: Any) -> Any:
@@ -1577,11 +1585,7 @@ class MenuActionDispatcher:
         self.session.echo_command(command)
         self.session.add_history(command, notify=False)
         self.session.echo_command(newset_command)
-        self.session.ALLEEG = alleeg
-        self.session.EEG = current
-        self.session.CURRENTSET = _currentset_list(current_set)
-        self.session.add_history(newset_command, notify=False)
-        self.session.notify_changed()
+        self.session.apply_workspace_state(alleeg=alleeg, eeg=current, currentset=current_set, command=newset_command)
 
     def _add_history_from_gui(self, command: str | None) -> None:
         self.session.echo_command(command)
@@ -1592,7 +1596,7 @@ class MenuActionDispatcher:
         self.session.retrieve(index)
         command = f"[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, 'retrieve', {index});"
         if was_study:
-            self.session.CURRENTSTUDY = 0
+            self.session.apply_workspace_state(currentstudy=0)
             command = f"CURRENTSTUDY = 0;{command}"
         self._add_history_from_gui(command)
         self._refresh()

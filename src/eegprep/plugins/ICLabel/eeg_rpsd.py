@@ -70,21 +70,3 @@ def eeg_rpsd(EEG, nfreqs=None, pct_data=100):
         psdmed[it, :] = 20 * np.log10(np.median(temp, axis=2))
 
     return psdmed
-
-
-def test_eeg_rpsd():
-    """Test the eeg_rpsd function with sample data."""
-    EEG = {
-        'srate': 256,
-        'icaweights': np.random.randn(10, 256),
-        'pnts': 1000,
-        'trials': 5,
-        'icaact': np.random.randn(10, 1000, 5),
-    }
-
-    psdmed = eeg_rpsd(EEG, 100)
-    assert psdmed.shape == (10, 100)
-    assert np.all(np.isfinite(psdmed))
-
-
-# test_eeg_rpsd()

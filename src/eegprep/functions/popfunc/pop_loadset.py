@@ -186,19 +186,6 @@ def _is_on(value):
     return bool(value)
 
 
-def test_pop_loadset():
-    """Test the pop_loadset function with a sample file."""
-    file_path = './tmp2.set'
-    file_path = '/System/Volumes/Data/data/data/STUDIES/STERN/S04/Memorize.set'  #'./eeglab_data_with_ica_tmp.set'
-    EEG = pop_loadset(file_path)
-
-    # print the keys of the EEG dictionary
-    print(EEG.keys())
-
-
-if __name__ == "__main__":
-    test_pop_loadset()
-
 # STILL OPEN QUESTION: Better to have empty MATLAB arrays as None for empty numpy arrays (current default).
 # The current default is to make it more MALTAB compatible. A lot of MATLAB function start indexing MATLAB
 # empty arrays to add values to them. This is not possible with None and would create more conversion and

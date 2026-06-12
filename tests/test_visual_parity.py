@@ -11,7 +11,10 @@ from tools.visual_parity.compare import compare_images, write_report
 from tools.visual_parity.config import load_manifest
 from tools.visual_parity.export_eegprep_menu_inventory import export_inventory
 from tools.visual_parity.menu_inventory import compare_menu_trees
-from eegprep.functions.guifunc.visual_capture import _main_window_menu_state as _eegprep_main_window_menu_state
+from eegprep.functions.guifunc.visual_capture import (
+    _capture_case_handlers,
+    _main_window_menu_state as _eegprep_main_window_menu_state,
+)
 
 
 ONE_PIXEL_PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII="
@@ -130,6 +133,18 @@ class VisualParityConfigTests(unittest.TestCase):
         self.assertEqual(cases["select_multiple_datasets_dialog"].targets["eeglab"].action, "select_multiple_datasets")
         self.assertEqual(cases["pop_interp_dataset_index_dialog"].targets["eeglab"].action, "inputdlg2:dataset_index")
         self.assertEqual(cases["pop_reref_help_dialog"].targets["eeglab"].action, "pophelp:pop_reref")
+
+    def test_eegprep_visual_capture_registry_covers_manifest_cases(self):
+        handlers = _capture_case_handlers()
+        cases = load_manifest()
+
+        for case_id, case in cases.items():
+            eegprep_target = case.targets.get("eegprep")
+            if eegprep_target is None:
+                continue
+            if "eegprep.functions.guifunc.visual_capture" in eegprep_target.command:
+                with self.subTest(case_id=case_id):
+                    self.assertIn(case_id, handlers)
 
     def test_eegbrowser_epoched_cases_compare_raw_matrix_captures(self):
         cases = load_manifest()

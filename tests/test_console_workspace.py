@@ -809,6 +809,26 @@ def test_bare_legacy_pop_averef_alias_updates_session_history():
     workspace.close()
 
 
+def test_console_dataset_state_result_updates_session_once_without_duplicate_history():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg("one"), new=True)
+    session.store_current(_demo_eeg("two"), new=True)
+    refresh = mock.Mock()
+    workspace = EEGPrepConsoleWorkspace(session, refresh=refresh, exports={})
+    first = dict(session.ALLEEG[0], setname="one edited")
+    second = dict(session.ALLEEG[1], setname="two edited")
+    command = "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, retrieve=[2, 1]);"
+
+    result = workspace.accept_pop_result(([first, second], [second, first], [2, 1], command), (), {})
+
+    assert list(result)[3] == command
+    assert session.CURRENTSET == [2, 1]
+    assert [item["setname"] for item in session.EEG] == ["two edited", "one edited"]
+    assert [item["setname"] for item in session.ALLEEG] == ["one edited", "two edited"]
+    assert session.ALLCOM == [command]
+    refresh.assert_called_once()
+
+
 def test_pop_call_without_history_command_records_raw_console_source():
     session = EEGPrepSession()
     session.store_current(_demo_eeg(), new=True)

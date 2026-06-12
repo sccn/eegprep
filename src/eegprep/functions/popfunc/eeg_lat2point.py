@@ -1,6 +1,11 @@
 """EEG latency to point conversion utilities."""
 
+import logging
+
 import numpy as np
+
+
+logger = logging.getLogger(__name__)
 
 
 def eeg_lat2point(lat_array, epoch_array, srate, timewin, timeunit=1.0, **kwargs):
@@ -70,7 +75,7 @@ def eeg_lat2point(lat_array, epoch_array, srate, timewin, timeunit=1.0, **kwargs
                 newlat[idx] = max_valid
                 flag = 1
                 # mirror MATLAB's informational message
-                print('eeg_lat2point(): Points out of range detected. Points replaced with maximum value')
+                logger.warning("Points out of range detected. Points replaced with maximum value")
             else:
                 raise ValueError('Error in eeg_lat2point(): Points out of range detected')
 

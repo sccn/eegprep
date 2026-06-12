@@ -7,7 +7,6 @@ fast Fourier transform methods.
 import numpy as np
 from scipy.fft import fft, ifft, next_fast_len
 from scipy.signal import resample_poly
-from ...functions.popfunc.pop_loadset import pop_loadset
 
 
 def eeg_autocorr_fftw(EEG, pct_data=100):
@@ -60,29 +59,3 @@ def eeg_autocorr_fftw(EEG, pct_data=100):
     ac = ac[:, 1:101]
 
     return ac
-
-
-def test_eeg_autocorr_fftw():
-    """Test function for eeg_autocorr_fftw."""
-    EEG = {
-        'srate': 256,
-        'icaweights': np.random.randn(10, 256),
-        'pnts': 1000,
-        'trials': 5,
-        'icaact': np.random.randn(10, 1000, 5),
-    }
-    EEG = pop_loadset('/System/Volumes/Data/data/data/STUDIES/STERN/S01/Memorize.set')
-
-    # reshape the last two dimensions of EEG['icaact']
-    # EEG['icaact'] = EEG['icaact'].reshape(EEG['icaact'].shape[0], -1)
-
-    # convert EEG['icaact'] to double precision
-
-    psdmed = eeg_autocorr_fftw(EEG, 100)
-
-    # print information about psdmed
-    print(psdmed.shape)
-    print(psdmed)
-
-
-# test_eeg_autocorr_fftw()
