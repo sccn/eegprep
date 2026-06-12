@@ -8,6 +8,7 @@ from typing import Any
 import numpy as np
 from scipy import signal
 
+from eegprep.functions.miscfunc.value_parsing import parse_numeric_sequence
 from eegprep.functions.timefreqfunc.dftfilt2 import dftfilt2
 from eegprep.functions.timefreqfunc.dftfilt3 import dftfilt3, symmetric_hanning
 from eegprep.functions.timefreqfunc.angtimewarp import angtimewarp
@@ -475,18 +476,9 @@ def _subtract_itc(tfdata: np.ndarray, itcvals: np.ndarray | None) -> np.ndarray:
 def _numeric_vector(value: Any, *, dtype: Any = float) -> np.ndarray:
     if value is None:
         return np.asarray([], dtype=dtype)
-    if isinstance(value, np.ndarray):
-        return value.astype(dtype).ravel()
-    if isinstance(value, (int, float, np.integer, np.floating)):
-        return np.asarray([value], dtype=dtype)
-    if isinstance(value, str):
-        text = value.strip().strip("[]")
-        if not text:
-            return np.asarray([], dtype=dtype)
-        return np.asarray([float(token) for token in text.replace(",", " ").split()], dtype=dtype)
-    if isinstance(value, (list, tuple)):
-        return np.asarray(value, dtype=dtype).ravel()
-    return np.asarray([value], dtype=dtype)
+    if isinstance(value, str) and value.strip() == "":
+        return np.asarray([], dtype=dtype)
+    return np.asarray(parse_numeric_sequence(value, dtype=dtype), dtype=dtype).ravel()
 
 
 def _first_numeric(value: Any, default: float) -> float:
