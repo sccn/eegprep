@@ -10,8 +10,8 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
-from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
+from eegprep.functions.miscfunc.event_utils import is_boundary_event
 from eegprep.functions.popfunc._pop_utils import (
     format_history_value,
     parse_key_value_args,
@@ -210,13 +210,7 @@ def _check_force(EEG: dict, events: list[dict[str, Any]], force: str) -> None:
 
 
 def _has_boundary_event(events: list[dict[str, Any]]) -> bool:
-    for event in events:
-        event_type = event.get("type")
-        if isinstance(event_type, str) and event_type.startswith("boundary"):
-            return True
-        if EEG_OPTIONS.get("option_boundary99") and event_type == -99:
-            return True
-    return False
+    return any(is_boundary_event(event) for event in events)
 
 
 def _unique_event_types(events: list[dict[str, Any]]) -> list[Any]:

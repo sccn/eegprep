@@ -13,7 +13,8 @@ from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
-from eegprep.functions.popfunc._plot_utils import component_map_data, python_literal
+from eegprep.functions.popfunc._plot_utils import component_map_data
+from eegprep.functions.popfunc._plot_utils import history_command as plot_history_command
 from eegprep.functions.popfunc._pop_utils import is_on as _is_on
 from eegprep.functions.popfunc._pop_utils import parse_key_value_args, parse_numeric_sequence, parse_text_tokens
 from eegprep.functions.sigprocfunc.topoplot import topoplot
@@ -430,17 +431,15 @@ def _history_command(
     plotdip: int,
     options: dict[str, Any],
 ) -> str:
-    pieces = [
-        "EEG",
-        f"typeplot={int(typeplot)}",
-        f"items={python_literal(items)}",
-        f"topotitle={python_literal(topotitle)}",
-        f"rowcols={python_literal(list(rowcols))}",
-        f"plotdip={int(plotdip)}",
-    ]
-    for key, value in options.items():
-        pieces.append(f"{key}={python_literal(value)}")
-    return f"pop_topoplot({', '.join(pieces)})"
+    kwargs = {
+        "typeplot": int(typeplot),
+        "items": items,
+        "topotitle": topotitle,
+        "rowcols": list(rowcols),
+        "plotdip": int(plotdip),
+    }
+    kwargs.update(options)
+    return plot_history_command("pop_topoplot", **kwargs)
 
 
 __all__ = ["plot_channel_locations", "pop_topoplot", "pop_topoplot_dialog_spec"]

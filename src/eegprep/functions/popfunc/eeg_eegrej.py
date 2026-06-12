@@ -4,22 +4,12 @@ import logging
 from typing import List, Dict, Optional, Tuple
 import numpy as np
 from copy import deepcopy
+from eegprep.functions.miscfunc.event_utils import boundary_event_indices
+from eegprep.functions.miscfunc.event_utils import is_boundary_event as _is_boundary_event
 from ..miscfunc.misc import round_mat
 
 
 logger = logging.getLogger(__name__)
-
-
-def _is_boundary_event(event: Dict) -> bool:
-    t = event.get("type")
-    if isinstance(t, str):
-        return t.lower() == "boundary"
-    if isinstance(t, (int, float)):
-        try:
-            return int(t) == -99
-        except Exception:
-            return False
-    return False
 
 
 def _eegrej(
@@ -373,14 +363,7 @@ def _combine_regions(regs):
 
 
 def _find_boundary_event_indices(events):
-    idx = []
-    for i, ev in enumerate(events):
-        t = ev.get("type")
-        if isinstance(t, str) and t.lower() == "boundary":
-            idx.append(i)
-        elif isinstance(t, (int, float)) and int(t) == -99:
-            idx.append(i)
-    return np.array(idx, dtype=int)
+    return np.asarray(boundary_event_indices(events), dtype=int)
 
 
 def _insert_boundaries(events, old_pnts, regions):

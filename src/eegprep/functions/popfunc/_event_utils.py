@@ -7,7 +7,8 @@ from typing import Any
 
 import numpy as np
 
-from eegprep.functions.popfunc._pop_utils import is_empty_value as _is_empty
+from eegprep.functions.miscfunc.event_utils import is_boundary_event as _is_boundary
+from eegprep.functions.miscfunc.value_parsing import is_empty_value as _is_empty
 
 
 def events_as_list(events: Any) -> list[dict[str, Any]]:
@@ -92,10 +93,7 @@ def sort_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 def is_boundary_event(event: dict[str, Any]) -> bool:
     """Return true for EEGLAB boundary events."""
-    event_type = event.get("type", "")
-    if isinstance(event_type, (int, float, np.integer, np.floating)) and float(event_type) == -1:
-        return True
-    return str(event_type).lower() == "boundary"
+    return _is_boundary(event)
 
 
 def event_value_for_history(value: Any) -> Any:

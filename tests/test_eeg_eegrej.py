@@ -6,6 +6,7 @@ import numpy as np
 # Assume eeg_eegrej is defined as in your module that imports: from eegrej import eegrej
 from eegprep import eeg_eegrej
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
+from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 
@@ -314,6 +315,21 @@ class TestEEGEegrejExtended(unittest.TestCase):
         self.assertGreater(inserted_boundary['latency'], 0.0)
         self.assertLessEqual(inserted_boundary['latency'], result['pnts'] + 1.0)
         self.assertEqual(inserted_boundary['duration'], 5.0)  # Length of removed region
+
+    def test_eeg_eegrej_preserves_numeric_boundary99_when_enabled(self):
+        """Numeric -99 boundaries use the canonical boundary contract."""
+        EEG = self.base_eeg.copy()
+        EEG["event"][1]["type"] = -99
+        old = EEG_OPTIONS["option_boundary99"]
+        EEG_OPTIONS["option_boundary99"] = 1
+        try:
+            result = eeg_eegrej(EEG, np.array([[6, 10]], dtype=int))
+        finally:
+            EEG_OPTIONS["option_boundary99"] = old
+
+        preserved = [event for event in result["event"] if event.get("type") == -99]
+        self.assertEqual(len(preserved), 1)
+        self.assertEqual(preserved[0]["latency"], 6.0)
 
     def test_eeg_eegrej_event_latency_preservation(self):
         """Test eeg_eegrej preserves 1-based event latencies correctly."""

@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import signal, stats
 
-from eegprep.functions.popfunc._pop_utils import is_on, parse_numeric_sequence
+from eegprep.functions.miscfunc.value_parsing import is_on, parse_numeric_sequence
 from eegprep.functions.statistics.fdr import fdr
 from eegprep.functions.timefreqfunc.timefreq import timefreq
 
