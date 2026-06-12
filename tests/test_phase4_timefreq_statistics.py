@@ -106,6 +106,8 @@ def test_newtimef_is_on_uses_whitelist_semantics():
     assert newtimef_is_on("yes-please") is False
     assert newtimef_is_on("display") is False
     assert newtimef_is_on("off") is False
+    assert newtimef_is_on([0, 1]) is False
+    assert newtimef_is_on(np.array([0, 1])) is False
 
 
 def test_newtimef_fails_loudly_on_unimplemented_overlap_and_plotphase():

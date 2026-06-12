@@ -8,8 +8,9 @@ from typing import Any
 import matplotlib.pyplot as plt
 import numpy as np
 
-from eegprep.functions.popfunc._pop_utils import is_on as _is_on
-from eegprep.functions.popfunc._pop_utils import parse_numeric_sequence
+from eegprep.functions.miscfunc.value_parsing import is_empty_value as _is_empty_value
+from eegprep.functions.miscfunc.value_parsing import is_on as _is_on
+from eegprep.functions.miscfunc.value_parsing import parse_numeric_sequence
 from eegprep.functions.statistics.fdr import fdr
 from eegprep.functions.timefreqfunc.bootstat import bootstrap_threshold, exact_p_values
 from eegprep.functions.timefreqfunc.newtimefbaseln import newtimefbaseln
@@ -374,14 +375,6 @@ def _validate_vertical_markers(markers: np.ndarray, tlimits: Any) -> None:
     limits = _tlimits_vector(tlimits)
     if np.min(markers) < limits[0] or np.max(markers) > limits[1]:
         raise ValueError("vertical line ('vert') latency outside of epoch boundaries")
-
-
-def _is_empty_value(value: Any) -> bool:
-    if value is None:
-        return True
-    if isinstance(value, str):
-        return not value.strip() or value.strip() in {"[]", "{}"}
-    return np.asarray(value).size == 0
 
 
 def _split_timesout(timesout: Any) -> tuple[Any, Any]:

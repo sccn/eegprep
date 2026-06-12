@@ -9,8 +9,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import stats
 
-from eegprep.functions.popfunc._pop_utils import is_on as _is_on
-from eegprep.functions.popfunc._pop_utils import parse_numeric_sequence
+from eegprep.functions.miscfunc.value_parsing import is_on as _is_on
+from eegprep.functions.miscfunc.value_parsing import parse_numeric_sequence
 from eegprep.functions.timefreqfunc.bootstat import bootstrap_threshold, exact_p_values
 from eegprep.functions.timefreqfunc.newtimef import _threshold_vector, compute_time_frequency
 from eegprep.functions.timefreqfunc.newtimefitc import newtimefitc

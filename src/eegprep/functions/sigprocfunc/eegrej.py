@@ -2,16 +2,8 @@
 
 import numpy as np
 from typing import List, Dict, Optional, Tuple
+from eegprep.functions.miscfunc.event_utils import is_boundary_event as _is_boundary_event
 from ..miscfunc.misc import round_mat
-
-
-def _is_boundary_event(event: Dict) -> bool:
-    t = event.get("type")
-    if isinstance(t, str):
-        return t.lower() == "boundary"
-    if isinstance(t, (int, float)):
-        return int(t) == -99
-    return False
 
 
 def eegrej(

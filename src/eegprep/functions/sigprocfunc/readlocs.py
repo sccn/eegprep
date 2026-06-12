@@ -10,8 +10,8 @@ import numpy as np
 import scipy.io
 from scipy.io.matlab import mat_struct
 
+from eegprep.functions.miscfunc.value_parsing import is_empty_value, parse_key_value_args, parse_numeric_sequence
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
-from eegprep.functions.popfunc._pop_utils import is_empty_value, parse_key_value_args, parse_numeric_sequence
 from eegprep.functions.sigprocfunc.convertlocs import convertlocs
 
 

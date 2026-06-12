@@ -8,6 +8,8 @@ from typing import Any
 import matplotlib.pyplot as plt
 import numpy as np
 
+from eegprep.functions.miscfunc.value_parsing import parse_numeric_sequence
+
 SIGMA_TO_FWHM = 2.0 * np.sqrt(2.0 * np.log(2.0))
 WIDTH_COLUMNS = ("freq", "cycles", "fwhm_f", "fwhm_t", "2_sigma_f", "2_sigma_t", "sigma_f", "sigma_t")
 WIDTH_UNITS = ("fwhm_t", "fwhm_f", "2_sigma_t", "2_sigma_f", "sigma_t", "sigma_f", "cycles")
@@ -106,41 +108,9 @@ def _width_vector(value: Any, count: int, log_spaced: bool) -> np.ndarray:
 def _numeric_vector(value: Any) -> np.ndarray:
     if value is None:
         return np.asarray([], dtype=float)
-    if isinstance(value, np.ndarray):
-        return value.astype(float).ravel()
-    if isinstance(value, (int, float, np.integer, np.floating)):
-        return np.asarray([value], dtype=float)
-    if isinstance(value, str):
-        text = value.strip().strip("[]")
-        if not text:
-            return np.asarray([], dtype=float)
-        values: list[float] = []
-        for token in text.replace(",", " ").split():
-            if ":" in token:
-                values.extend(_colon_sequence(token))
-            else:
-                values.append(float(token))
-        return np.asarray(values, dtype=float)
-    if isinstance(value, (list, tuple)):
-        return np.asarray(value, dtype=float).ravel()
-    return np.asarray([value], dtype=float)
-
-
-def _colon_sequence(token: str) -> list[float]:
-    pieces = token.split(":")
-    if len(pieces) not in {2, 3}:
-        raise ValueError(f"Invalid colon range: {token}")
-    start = float(pieces[0])
-    if len(pieces) == 2:
-        stop = float(pieces[1])
-        step = 1.0 if stop >= start else -1.0
-    else:
-        step = float(pieces[1])
-        stop = float(pieces[2])
-    if step == 0 or (stop - start) * step < 0:
-        return []
-    count = int(np.floor((stop - start) / step + 1e-9)) + 1
-    return [float(start + index * step) for index in range(max(count, 0))]
+    if isinstance(value, str) and value.strip() == "":
+        return np.asarray([], dtype=float)
+    return np.asarray(parse_numeric_sequence(value, dtype=float), dtype=float).ravel()
 
 
 def _time_frequency_demo_transform(

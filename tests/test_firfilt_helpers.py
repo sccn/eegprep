@@ -8,6 +8,7 @@ import numpy as np
 import pytest
 
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
+from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
 from eegprep.plugins.firfilt.fir_filterdcpadded import fir_filterdcpadded
 from eegprep.plugins.firfilt.findboundaries import findboundaries
 from eegprep.plugins.firfilt.firfiltreport import firfiltreport
@@ -108,7 +109,14 @@ def test_findboundaries_returns_eeglab_boundary_latencies():
     ]
 
     np.testing.assert_array_equal(findboundaries(events), [1, 40, 101])
-    np.testing.assert_array_equal(findboundaries([{"type": -99, "latency": 12.6}]), [1, 13])
+    old = EEG_OPTIONS["option_boundary99"]
+    try:
+        EEG_OPTIONS["option_boundary99"] = 0
+        np.testing.assert_array_equal(findboundaries([{"type": -99, "latency": 12.6}]), [1])
+        EEG_OPTIONS["option_boundary99"] = 1
+        np.testing.assert_array_equal(findboundaries([{"type": -99, "latency": 12.6}]), [1, 13])
+    finally:
+        EEG_OPTIONS["option_boundary99"] = old
     np.testing.assert_array_equal(findboundaries([]), [1])
 
 

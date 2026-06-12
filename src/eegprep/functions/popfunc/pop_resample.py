@@ -12,9 +12,9 @@ from scipy.signal import resample, resample_poly
 from scipy.signal.windows import kaiser
 
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
-from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
+from eegprep.functions.miscfunc.event_utils import is_boundary_event as _shared_is_boundary_event
 from eegprep.functions.popfunc._file_io import events_to_records
 from eegprep.plugins.firfilt.firws import firws
 from eegprep.plugins.firfilt.firwsord import firwsord
@@ -230,10 +230,7 @@ def _segment_bounds(EEG, old_pnts):
 
 
 def _is_boundary_event(event):
-    event_type = event.get("type") if isinstance(event, dict) else None
-    if isinstance(event_type, str):
-        return event_type.lower().startswith("boundary")
-    return bool(EEG_OPTIONS.get("option_boundary99")) and event_type == -99
+    return isinstance(event, dict) and _shared_is_boundary_event(event)
 
 
 def _resample_segment(segment, p, q, *, method, fc, df):
