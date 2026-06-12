@@ -205,6 +205,22 @@ def test_missing_input_returns_stable_error_code():
     assert payload["code"] == "INPUT_FILE_NOT_FOUND"
 
 
+def test_qc_remainder_command_still_honors_json_flag():
+    # ``qc`` consumes its arguments via argparse.REMAINDER, so it never binds a top-level
+    # ``args.json``. The root dispatcher must still emit clean JSON for it via the
+    # command-agnostic --json detection rather than introspecting one subcommand's attribute.
+    json_result = _run_cli("qc", str(ROOT / "does-not-exist.set"), "--json")
+    human_result = _run_cli("qc", str(ROOT / "does-not-exist.set"))
+
+    assert json_result.returncode == 1
+    payload = _json_stdout(json_result)
+    assert payload["status"] == "error"
+    assert payload["code"] == "INPUT_FILE_NOT_FOUND"
+    # The human path must not emit the JSON envelope, proving --json actually toggled output.
+    assert not human_result.stdout.strip().startswith("{")
+    assert "INPUT_FILE_NOT_FOUND" in human_result.stdout
+
+
 def test_structured_command_error_preserves_non_default_exit_code(capsys):
     error = EEGPrepCLIError("CONFIG_SCHEMA_ERROR", "bad config", exit_code=2)
 

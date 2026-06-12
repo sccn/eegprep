@@ -9,7 +9,7 @@ import scipy.io
 
 from eegprep.functions.adminfunc.storage import memmap_enabled, memmap_fdt, read_fdt
 from eegprep.functions.popfunc._file_io import normalize_icachansind
-from eegprep.functions.popfunc._pop_utils import parse_key_value_args
+from eegprep.functions.popfunc._pop_utils import is_on, parse_key_value_args
 from eegprep.functions.popfunc.pop_loadset_h5 import pop_loadset_h5
 # Allows access using . notation
 # class EEG:
@@ -161,7 +161,7 @@ def _load_options(file_path, args, kwargs, loadmode, memmap):
     path = Path(os.fspath(filename))
     if filepath not in {None, ""} and not path.is_absolute():
         path = Path(os.fspath(filepath)) / path
-    use_memmap = memmap_enabled() if memmap is None else _is_on(memmap)
+    use_memmap = memmap_enabled() if memmap is None else is_on(memmap)
     return str(path), loadmode, use_memmap
 
 
@@ -188,12 +188,6 @@ def _string_value(value):
         if value.size == 1:
             return str(value.reshape(-1)[0])
     return str(value)
-
-
-def _is_on(value):
-    if isinstance(value, str):
-        return value.strip().lower() in {"1", "on", "true", "yes"}
-    return bool(value)
 
 
 # STILL OPEN QUESTION: Better to have empty MATLAB arrays as None for empty numpy arrays (current default).

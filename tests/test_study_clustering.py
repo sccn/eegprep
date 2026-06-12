@@ -177,6 +177,27 @@ def test_deterministic_clustering_helpers_return_stable_shapes():
     assert outlier_rows.tolist() == [5]
 
 
+def test_kmeans_kernel_is_shared_by_clustering_callers():
+    # optimal_kmeans and robust_kmeans must reuse the one canonical k-means
+    # kernel so the numerics cannot drift between copies. Single-cluster runs
+    # let us compare labels/centers directly against the kernel output.
+    from eegprep.functions.studyfunc._cluster_kmeans import kmeans_labels, squared_distances
+
+    data = np.asarray([[0.0, 0.0], [0.1, 0.0], [5.0, 5.0], [5.1, 5.0]])
+    kernel_labels, kernel_centers = kmeans_labels(data, 2, random_state=7)
+
+    optimal_labels, optimal_centers, _sumd, optimal_distances = optimal_kmeans(data, 2, random_state=7)
+    np.testing.assert_array_equal(optimal_labels, kernel_labels)
+    np.testing.assert_allclose(optimal_centers, kernel_centers)
+    np.testing.assert_allclose(optimal_distances, np.sqrt(squared_distances(data, kernel_centers)))
+
+    robust_labels, robust_centers, _rsumd, _rdist, _outliers = robust_kmeans(
+        data, 2, STD=float("inf"), MAXiter=1, random_state=7
+    )
+    np.testing.assert_array_equal(robust_labels, kernel_labels)
+    np.testing.assert_allclose(robust_centers, kernel_centers)
+
+
 def test_pop_clust_rejects_invalid_cluster_counts_and_outlier_thresholds():
     study, alleeg = _preclustered_study()
 

@@ -228,7 +228,11 @@ def _handle_skill_path(args: argparse.Namespace) -> dict[str, Any]:
 def _json_requested(args: argparse.Namespace) -> bool:
     if bool(getattr(args, "json", False)):
         return True
-    return "--json" in (getattr(args, "qc_args", []) or [])
+    # Commands that consume their flags via argparse.REMAINDER (e.g. ``qc``) never bind a
+    # top-level ``--json`` on ``args``. The root parser already records whether ``--json``
+    # appeared anywhere in argv, so consult that command-agnostic flag instead of
+    # introspecting any single subcommand's argument attribute.
+    return bool(EEGPrepArgumentParser.json_requested)
 
 
 if __name__ == "__main__":

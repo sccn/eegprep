@@ -111,6 +111,38 @@ def test_eeg_runica_posact_preserves_ica_invariants(monkeypatch):
     assert np.all(icaact2d[np.arange(icaact2d.shape[0]), ix] >= 0)
 
 
+def test_finalize_ica_fields_shared_sort_and_sign_normalization():
+    """Lock the K4 dedup: runica/AMICA/Picard share one finalize_ica_fields.
+
+    The helper must sort components by descending activation variance, then
+    sign-normalize while preserving the ICA factorization invariants.
+    """
+    from eegprep.functions.popfunc._ica_utils import finalize_ica_fields
+
+    rng = np.random.default_rng(11)
+    nbchan, pnts, trials = 4, 12, 3
+    sphere = np.eye(nbchan)
+    weights = rng.standard_normal((nbchan, nbchan))
+    winv = pinv(weights @ sphere)
+    icaact = (weights @ sphere) @ rng.standard_normal((nbchan, pnts * trials))
+    icaact = icaact.reshape(nbchan, pnts, trials, order="F")
+    eeg = {
+        "icaweights": weights.copy(),
+        "icasphere": sphere.copy(),
+        "icawinv": winv.copy(),
+        "icaact": icaact.copy(),
+    }
+
+    out = finalize_ica_fields(eeg, sortcomps=True, posact=True)
+    icaact2d = out["icaact"].reshape(out["icaact"].shape[0], -1, order="F")
+
+    variance_metric = np.sum(out["icawinv"] ** 2, axis=0) * np.sum(icaact2d**2, axis=1)
+    assert np.all(np.diff(variance_metric) <= 1e-9)
+    ix = np.argmax(np.abs(icaact2d), axis=1)
+    assert np.all(icaact2d[np.arange(icaact2d.shape[0]), ix] >= 0)
+    np.testing.assert_allclose(out["icawinv"], pinv(out["icaweights"] @ out["icasphere"]))
+
+
 def test_pop_runica_concatenates_epoched_datasets_in_eeglab_order(monkeypatch):
     first = _epoched_eeg()
     second = _epoched_eeg(offset=100)

@@ -8,7 +8,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from eegprep.functions.popfunc._pop_utils import is_on, parse_key_value_args
-from eegprep.functions.studyfunc._study_utils import build_python_call, ensure_study
+from eegprep.functions.studyfunc._std_measureplot import default_measure_target
+from eegprep.functions.studyfunc._study_utils import build_python_call
 from eegprep.functions.studyfunc.std_readdata import std_readpac
 
 
@@ -57,7 +58,7 @@ def std_pacplot(
     unsupported = sorted(key for key in options if key not in ignored)
     if unsupported:
         raise ValueError(f"Unknown std_pacplot option(s): {', '.join(unsupported)}")
-    channels, clusters = _default_target(STUDY, channels, clusters, components)
+    channels, clusters = default_measure_target(STUDY, "pacdata", channels, clusters, components)
     study, pacdata, pactimes, pacfreqs = std_readpac(
         STUDY,
         ALLEEG,
@@ -85,15 +86,6 @@ def std_pacplot(
     )
     result = (study, pacdata, pactimes, pacfreqs, figure)
     return (*result, command) if return_com else result
-
-
-def _default_target(study: dict[str, Any], channels: Any, clusters: Any, components: Any) -> tuple[Any, Any]:
-    if channels is not None or clusters is not None or components is not None:
-        return channels, clusters
-    prepared = ensure_study(study)
-    if any(isinstance(group, dict) and "pacdata" in group for group in prepared.get("changrp") or []):
-        return "channels", clusters
-    return channels, 1
 
 
 def _plot_pac(data: list[np.ndarray], times: np.ndarray, freqs: np.ndarray) -> Any:

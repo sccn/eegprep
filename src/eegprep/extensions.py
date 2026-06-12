@@ -594,7 +594,7 @@ class ExtensionRegistry:
         final_records: list[ExtensionRecord] = []
 
         for record in records:
-            if not _can_contribute(record):
+            if not record.is_active:
                 final_records.append(record)
                 continue
 
@@ -929,19 +929,6 @@ def _invalid_record(record: ExtensionRecord, errors: tuple[str, ...]) -> Extensi
         status=ExtensionStatus.INVALID_SPEC,
         enabled=False,
         errors=(*record.errors, *errors),
-    )
-
-
-def _can_contribute(record: ExtensionRecord) -> bool:
-    return (
-        record.enabled
-        and record.spec is not None
-        and record.status
-        in {
-            ExtensionStatus.BUNDLED,
-            ExtensionStatus.INSTALLED,
-            ExtensionStatus.CURATED,
-        }
     )
 
 

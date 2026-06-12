@@ -50,6 +50,12 @@ def test_bundled_plugins_match_extension_registry_records() -> None:
     assert [plugin["funcname"] for plugin in plugins] == [
         record.spec.pop_functions[0].name for record in records if record.spec is not None
     ]
+    # Registry-owned metadata must come from the registry so it cannot drift.
+    for plugin, record in zip(plugins, records):
+        assert record.spec is not None
+        assert plugin["description"] == record.spec.description
+        assert plugin["version"] == record.spec.version
+        assert plugin["tags"] == record.spec.capabilities
 
 
 def test_bundled_plugins_returns_copies() -> None:

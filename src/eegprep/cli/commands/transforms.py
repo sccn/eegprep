@@ -1,9 +1,8 @@
 """Core EEG dataset transform commands for the headless CLI.
 
-This module is intentionally dispatcher-neutral. The eventual top-level CLI can
-call :func:`register_subcommands`; tests can use the module-level harness with
-``python -m eegprep.cli.commands.transforms`` until the shared CLI foundation is
-available.
+This module is dispatcher-neutral: the top-level CLI mounts these commands via
+:func:`register_subcommands`, and a standalone ``python -m eegprep.cli.commands.transforms``
+harness runs the same handlers for local testing.
 """
 
 from __future__ import annotations
@@ -80,7 +79,7 @@ def register_subcommands(subparsers: argparse._SubParsersAction, *, include_comm
 
 
 def build_parser() -> argparse.ArgumentParser:
-    """Build a standalone parser for this module's temporary harness."""
+    """Build a standalone parser for this module's local test harness."""
 
     parser = argparse.ArgumentParser(prog="python -m eegprep.cli.commands.transforms")
     subparsers = parser.add_subparsers(dest="transform_command", required=True)
@@ -97,7 +96,7 @@ def run_transform_command(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Temporary module harness until the shared CLI dispatcher is available."""
+    """Standalone module entry point for local transform testing."""
 
     parser = build_parser()
     args = parser.parse_args(argv)

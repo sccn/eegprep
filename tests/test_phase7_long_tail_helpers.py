@@ -9,6 +9,7 @@ from eegprep.functions.popfunc.pop_findmatchingcomps import pop_findmatchingcomp
 from eegprep.functions.popfunc.pop_fusechanrej import pop_fusechanrej
 from eegprep.functions.popfunc.pop_icathresh import pop_icathresh
 from eegprep.functions.popfunc.pop_rejchanspec import pop_rejchanspec
+from eegprep.functions.popfunc.pop_chansel import pop_chansel_resolve
 from eegprep.functions.popfunc.pop_topochansel import pop_topochansel
 from eegprep.functions.sigprocfunc.eegthresh import eegthresh
 from eegprep.functions.sigprocfunc.ica_helpers import compvar, eeg_getica, eeg_pvaf, icaact, icaproj, icavar
@@ -157,6 +158,15 @@ def test_pop_topochansel_resolves_indices_and_labels_without_gui():
     assert selected_names == ["Fz", "Pz"]
     assert selected_text == "Fz Pz"
     assert command.startswith("pop_topochansel(")
+
+
+def test_pop_topochansel_uses_canonical_chansel_resolver():
+    # The non-GUI selection resolution must match pop_chansel's resolver so the
+    # two former parsers cannot drift (e.g. on comma-separated labels).
+    chanlocs = [{"labels": "Fz"}, {"labels": "Cz"}, {"labels": "Pz"}]
+    chanlist, _names, _text = pop_topochansel(chanlocs, "Pz, Fz", gui=False)
+    _values, expected = pop_chansel_resolve(chanlocs, "Pz, Fz")
+    assert chanlist == expected
 
 
 def test_ica_helpers_match_simple_projection_identities():

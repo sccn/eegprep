@@ -18,6 +18,7 @@ from eegprep.functions.popfunc._plot_utils import (
     numeric_vector,
     parse_plot_options_text,
 )
+from eegprep.functions.popfunc._pop_utils import is_on
 from eegprep.functions.sigprocfunc.erpimage import erpimage
 
 
@@ -57,7 +58,7 @@ def pop_erpimage(
     renorm = kwargs.pop("renorm", "no")
     if sorting_field:
         sort_values = _event_sort_values(EEG, sorting_field, sorting_type, sorting_window, renorm)
-    if _is_on(kwargs.pop("nosort", False)):
+    if is_on(kwargs.pop("nosort", False)):
         sort_values = None
     kwargs.pop("noplot", None)
     align = numeric_vector(kwargs.pop("align", []))
@@ -503,20 +504,12 @@ def _normalise_other_options(text: Any) -> dict[str, Any]:
     for key, value in parsed.items():
         normalised = aliases.get(key, key)
         if normalised in {"erp", "cbar", "nosort", "noplot"}:
-            options[normalised] = _is_on(value)
+            options[normalised] = is_on(value)
         elif normalised in {"title", "smooth", "decimate", "limits", "caxis", "vert"}:
             options[normalised] = value
         else:
             raise ValueError(f"pop_erpimage More options does not support '{key}' in EEGPrep")
     return options
-
-
-def _is_on(value: Any) -> bool:
-    if isinstance(value, str):
-        return value.strip().lower() in {"on", "yes", "true", "1"}
-    if isinstance(value, np.ndarray):
-        return bool(value.size and np.asarray(value).ravel()[0])
-    return bool(value)
 
 
 __all__ = ["pop_erpimage", "pop_erpimage_dialog_spec"]

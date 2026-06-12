@@ -7,6 +7,8 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.studyfunc._study_utils import trialinfo_rows
+
 
 DATASETINFO_TRIAL_EXCLUDE = {"filepath", "filename", "comps", "trialinfo"}
 
@@ -19,7 +21,7 @@ def std_combtrialinfo(datasetinfo: Any, inds: Any, trials: Any = None) -> list[d
     rows: list[dict[str, Any]] = []
     for index in selected:
         info = infos[index - 1]
-        base_rows = _trial_rows(info.get("trialinfo"))
+        base_rows = trialinfo_rows(info.get("trialinfo"))
         if not base_rows:
             base_rows = [{} for _trial in range(trial_counts[index - 1])]
         for base in base_rows:
@@ -60,7 +62,7 @@ def _selected_indices(infos: list[dict[str, Any]], inds: Any) -> list[int]:
 
 def _trial_counts(infos: list[dict[str, Any]], trials: Any) -> list[int]:
     if trials is None:
-        return [max(1, len(_trial_rows(info.get("trialinfo")))) for info in infos]
+        return [max(1, len(trialinfo_rows(info.get("trialinfo")))) for info in infos]
     if isinstance(trials, np.ndarray):
         trials = trials.tolist()
     if not isinstance(trials, (list, tuple)):
@@ -69,18 +71,6 @@ def _trial_counts(infos: list[dict[str, Any]], trials: Any) -> list[int]:
     if len(counts) < len(infos):
         counts.extend([1] * (len(infos) - len(counts)))
     return counts[: len(infos)]
-
-
-def _trial_rows(value: Any) -> list[dict[str, Any]]:
-    if value is None:
-        return []
-    if isinstance(value, np.ndarray):
-        value = value.tolist()
-    if isinstance(value, dict):
-        return [value]
-    if not isinstance(value, list):
-        return []
-    return [row for row in value if isinstance(row, dict)]
 
 
 __all__ = ["std_combtrialinfo"]

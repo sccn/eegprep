@@ -269,10 +269,14 @@ class ConsoleEegh:
             if history_command and int(command) > 0:
                 self.bridge.execute_history_command(history_command)
             return history_command
-        normalized = eegh(command, self.bridge.session.ALLCOM)
+        session = self.bridge.session
+        normalized = str(command).strip()
+        if normalized:
+            session.add_history(command)
+        else:
+            session.LASTCOM = ""
         if args and isinstance(args[0], dict):
             eegh(normalized, args[0])
-        self.bridge.session.LASTCOM = normalized
         self.bridge.pull_from_session()
         return normalized
 

@@ -12,7 +12,7 @@ import numpy as np
 
 from eegprep.functions.miscfunc.misc import finite_matmul
 from eegprep.functions.popfunc._file_io import channel_labels
-from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args
+from eegprep.functions.popfunc._pop_utils import format_history_value, is_on, parse_key_value_args
 
 
 _EXPORT_EXPR_FUNCTIONS = {
@@ -34,8 +34,8 @@ _MAX_POWER_EXPONENT = 12
 def pop_export(EEG: dict[str, Any], filename: str | Path, *args: Any, **kwargs: Any) -> str:
     """Export EEG data or ICA activity to a delimited text file."""
     options = parse_key_value_args(args, kwargs, lowercase_kwargs=True)
-    data = _selected_data(EEG, ica=_is_on(options.get("ica", "off")))
-    if _is_on(options.get("erp", "off")) and data.ndim == 3:
+    data = _selected_data(EEG, ica=is_on(options.get("ica", "off")))
+    if is_on(options.get("erp", "off")) and data.ndim == 3:
         data = data.mean(axis=2)
     elif data.ndim == 3:
         data = data.reshape((data.shape[0], data.shape[1] * data.shape[2]))
@@ -43,29 +43,29 @@ def pop_export(EEG: dict[str, Any], filename: str | Path, *args: Any, **kwargs: 
         data = _apply_expression(data, str(options["expr"]))
         if data.ndim == 3:
             data = data.reshape((data.shape[0], data.shape[1] * data.shape[2]))
-    if _is_on(options.get("time", "on")):
+    if is_on(options.get("time", "on")):
         time = np.tile(
             np.linspace(float(EEG.get("xmin", 0)), float(EEG.get("xmax", 0)), int(EEG["pnts"]))
             / float(options.get("timeunit", 1e-3)),
-            int(EEG.get("trials", 1)) if not _is_on(options.get("erp", "off")) else 1,
+            int(EEG.get("trials", 1)) if not is_on(options.get("erp", "off")) else 1,
         )
         data = np.vstack([time, data])
     separator = str(options.get("separator", "\t"))
     precision = int(options.get("precision", 7))
-    labels = ["Time", *channel_labels(EEG)] if _is_on(options.get("time", "on")) else channel_labels(EEG)
+    labels = ["Time", *channel_labels(EEG)] if is_on(options.get("time", "on")) else channel_labels(EEG)
     path = Path(filename)
     path.parent.mkdir(parents=True, exist_ok=True)
-    transpose = _is_on(options.get("transpose", "off"))
+    transpose = is_on(options.get("transpose", "off"))
     with path.open("w", newline="", encoding="utf-8") as stream:
         writer = csv.writer(stream, delimiter=separator)
         if transpose:
-            if _is_on(options.get("elec", "on")):
+            if is_on(options.get("elec", "on")):
                 writer.writerow(labels)
             writer.writerows(_format_row(row, precision) for row in data.T)
         else:
             for index, row in enumerate(data):
                 values = _format_row(row, precision)
-                if _is_on(options.get("elec", "on")):
+                if is_on(options.get("elec", "on")):
                     values = [labels[index], *values]
                 writer.writerow(values)
     return _history_command(filename, options)
@@ -238,10 +238,6 @@ def _literal_number(node: ast.expr) -> float | None:
 
 def _allowed_numpy_attribute(node: ast.Attribute) -> bool:
     return isinstance(node.value, ast.Name) and node.value.id in {"np", "numpy"} and node.attr in _EXPORT_EXPR_FUNCTIONS
-
-
-def _is_on(value: Any) -> bool:
-    return str(value).lower() in {"on", "yes", "true", "1"}
 
 
 def _history_command(filename: str | Path, options: dict[str, Any]) -> str:
