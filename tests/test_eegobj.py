@@ -144,6 +144,29 @@ class TestEEGobj(unittest.TestCase):
         with self.assertRaises(AttributeError):
             obj.nonexistent_function()
 
+    def test_getattr_unknown_name_raises_on_access(self):
+        """Accessing an unknown name (e.g. a field typo) raises AttributeError immediately.
+
+        A typo like obj.icawnv (for icaweights) must fail fast instead of
+        silently returning a no-op callable that only errors when called.
+        """
+        eeg = create_test_eeg()
+        obj = EEGobj(eeg)
+
+        with self.assertRaises(AttributeError):
+            obj.icawnv  # misspelled field name, not an eegprep function
+
+        # hasattr reflects the same contract.
+        self.assertFalse(hasattr(obj, 'not_a_real_field'))
+
+    def test_getattr_known_function_still_dispatches(self):
+        """A name that resolves to an eegprep function is still returned as a wrapper."""
+        eeg = create_test_eeg(n_channels=4, n_samples=50, srate=100.0, n_trials=3)
+        obj = EEGobj(eeg)
+        self.assertTrue(callable(obj.pop_select))
+        out = obj.pop_select(channel=[0, 1])
+        self.assertEqual(out['nbchan'], 2)
+
     def test_forward_function_returning_tuple(self):
         """Test method forwarding with function returning tuple."""
         eeg = create_test_eeg()

@@ -88,12 +88,16 @@ def compute_pac(
     **kwargs: Any,
 ) -> PacResult:
     """Compute EEGLAB-style phase-amplitude coupling from epoched data."""
-    _ = title, vert, newfig
     unsupported = sorted(kwargs)
     if unsupported:
         raise TypeError(f"Unsupported pac option(s): {', '.join(unsupported)}")
     if alpha is not None:
         raise NotImplementedError(PAC_UNSUPPORTED_MESSAGE)
+    if str(title) != "" or vert is not None or str(newfig).strip().lower() not in {"on", "1", "true", "yes"}:
+        raise NotImplementedError(
+            "compute_pac returns PAC arrays without plotting; the 'title', 'vert', and "
+            "'newfig' plotting options are not implemented"
+        )
     method_name = str(method or "mod").lower()
     if method_name == "modulation":
         method_name = "mod"

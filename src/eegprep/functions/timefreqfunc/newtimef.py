@@ -84,7 +84,10 @@ def newtimef(
     verbose: str = "off",
 ) -> TimeFrequencyResult:
     """Compute an EEGLAB-like ERSP/ITC time-frequency decomposition."""
-    _ = overlap, plotphase
+    if overlap is not None:
+        raise NotImplementedError("newtimef does not implement the 'overlap' option")
+    if str(plotphase).strip().lower() not in {"off", "0", "false", "no", "none"}:
+        raise NotImplementedError("newtimef does not implement the 'plotphase' option")
     if freqs is None and freqrange is not None:
         freqs = freqrange
     if type is not None:
@@ -242,7 +245,8 @@ def compute_time_frequency(
     timewarpms: Any = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Return ``(freqs, times_ms, tfdata)`` for one signal."""
-    _ = overlap
+    if overlap is not None:
+        raise NotImplementedError("compute_time_frequency does not implement the 'overlap' option")
     timestretch, _markers = _timewarp_options(timewarp, timewarpms, None, frames, tlimits, srate)
     decomp = _compute_decomposition(
         data,
@@ -698,7 +702,7 @@ def _colon_sequence(token: str) -> list[float]:
 
 
 def _is_on(value: Any) -> bool:
-    return str(value).lower() not in {"0", "false", "off", "no", "none"}
+    return str(value).strip().lower() in {"1", "on", "true", "yes"}
 
 
 __all__ = ["TimeFrequencyResult", "compute_time_frequency", "newtimef"]

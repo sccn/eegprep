@@ -5,19 +5,60 @@ This module tests the eeg_compare function which compares two EEG datasets
 and reports differences in structure and data.
 """
 
+import logging
 import os
 import unittest
 import sys
-import io
 import numpy as np
 import math
-from contextlib import redirect_stderr, redirect_stdout
 
 # Add src to path for imports
 sys.path.insert(0, 'src')
 from eegprep.functions.popfunc.eeg_compare import eeg_compare
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.utils.testing import DebuggableTestCase
+
+EEG_COMPARE_LOGGER = 'eegprep.functions.popfunc.eeg_compare'
+
+
+def run_compare(*args, **kwargs):
+    """Call eeg_compare while capturing its log output.
+
+    eeg_compare emits informational lines (section headers and "OK" results) at INFO and
+    differences at WARNING. Return the result plus the WARNING-level text as ``stderr`` and the
+    full text as ``stdout`` so callers can assert on either, mirroring the previous stream split.
+    """
+    logger = logging.getLogger(EEG_COMPARE_LOGGER)
+    with _LogCapture(logger) as capture:
+        result = eeg_compare(*args, **kwargs)
+    return result, capture.text(logging.INFO), capture.text(logging.WARNING)
+
+
+class _LogCapture(logging.Handler):
+    def __init__(self, logger):
+        super().__init__(level=logging.DEBUG)
+        self._logger = logger
+        self.records = []
+
+    def emit(self, record):
+        self.records.append(record)
+
+    def __enter__(self):
+        self._prev_level = self._logger.level
+        self._prev_propagate = self._logger.propagate
+        self._logger.setLevel(logging.DEBUG)
+        self._logger.propagate = False
+        self._logger.addHandler(self)
+        return self
+
+    def __exit__(self, *exc):
+        self._logger.removeHandler(self)
+        self._logger.setLevel(self._prev_level)
+        self._logger.propagate = self._prev_propagate
+        return False
+
+    def text(self, min_level):
+        return '\n'.join(self.format(r) for r in self.records if r.levelno >= min_level)
 
 
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
@@ -107,18 +148,10 @@ class TestEegCompare(DebuggableTestCase):
 
     def test_identical_datasets(self):
         """Test comparison of identical datasets."""
-        # Capture output
-        stderr_capture = io.StringIO()
-        stdout_capture = io.StringIO()
+        result, stdout_output, _stderr_output = run_compare(self.basic_eeg1, self.basic_eeg1)
 
-        with redirect_stderr(stderr_capture), redirect_stdout(stdout_capture):
-            result = eeg_compare(self.basic_eeg1, self.basic_eeg1)
-
-        # Should return True for identical datasets
+        # Should return a truthy summary for identical datasets
         self.assertTrue(result)
-
-        # Check output indicates no differences
-        stdout_output = stdout_capture.getvalue()
 
         # Should have minimal output for identical datasets
         self.assertIn('Field analysis:', stdout_output)
@@ -131,15 +164,10 @@ class TestEegCompare(DebuggableTestCase):
         eeg2['setname'] = 'different_dataset'
         eeg2['subject'] = 'S02'
 
-        stderr_capture = io.StringIO()
-        stdout_capture = io.StringIO()
+        result, _stdout_output, stderr_output = run_compare(self.basic_eeg1, eeg2)
 
-        with redirect_stderr(stderr_capture), redirect_stdout(stdout_capture):
-            result = eeg_compare(self.basic_eeg1, eeg2)
+        self.assertTrue(result)  # Function should still return a summary
 
-        self.assertTrue(result)  # Function should still return True
-
-        stderr_output = stderr_capture.getvalue()
         # Should report differences in subject field
         self.assertIn('subject differs', stderr_output)
 
@@ -149,15 +177,10 @@ class TestEegCompare(DebuggableTestCase):
         del eeg2['subject']
         del eeg2['condition']
 
-        stderr_capture = io.StringIO()
-        stdout_capture = io.StringIO()
-
-        with redirect_stderr(stderr_capture), redirect_stdout(stdout_capture):
-            result = eeg_compare(self.basic_eeg1, eeg2)
+        result, _stdout_output, stderr_output = run_compare(self.basic_eeg1, eeg2)
 
         self.assertTrue(result)
 
-        stderr_output = stderr_capture.getvalue()
         self.assertIn('subject missing in second dataset', stderr_output)
         self.assertIn('condition missing in second dataset', stderr_output)
 
@@ -167,15 +190,10 @@ class TestEegCompare(DebuggableTestCase):
         eeg2['filename'] = 'different.set'
         eeg2['datfile'] = 'different.dat'
 
-        stderr_capture = io.StringIO()
-        stdout_capture = io.StringIO()
-
-        with redirect_stderr(stderr_capture), redirect_stdout(stdout_capture):
-            result = eeg_compare(self.basic_eeg1, eeg2)
+        result, stdout_output, _stderr_output = run_compare(self.basic_eeg1, eeg2)
 
         self.assertTrue(result)
 
-        stdout_output = stdout_capture.getvalue()
         # Should indicate filename differences are OK
         self.assertIn('(ok, supposed to differ)', stdout_output)
 
@@ -185,15 +203,10 @@ class TestEegCompare(DebuggableTestCase):
         eeg2['xmin'] = -0.1  # Different from -0.2
         eeg2['xmax'] = 4.0  # Different from original
 
-        stderr_capture = io.StringIO()
-        stdout_capture = io.StringIO()
-
-        with redirect_stderr(stderr_capture), redirect_stdout(stdout_capture):
-            result = eeg_compare(self.basic_eeg1, eeg2)
+        result, _stdout_output, stderr_output = run_compare(self.basic_eeg1, eeg2)
 
         self.assertTrue(result)
 
-        stderr_output = stderr_capture.getvalue()
         self.assertIn('Difference between xmin', stderr_output)
         self.assertIn('Difference between xmax', stderr_output)
 
@@ -205,15 +218,10 @@ class TestEegCompare(DebuggableTestCase):
         eeg2['chanlocs'][1]['Y'] = 999.0
         eeg2['chanlocs'][2]['Z'] = 999.0
 
-        stderr_capture = io.StringIO()
-        stdout_capture = io.StringIO()
-
-        with redirect_stderr(stderr_capture), redirect_stdout(stdout_capture):
-            result = eeg_compare(self.basic_eeg1, eeg2)
+        result, _stdout_output, stderr_output = run_compare(self.basic_eeg1, eeg2)
 
         self.assertTrue(result)
 
-        stderr_output = stderr_capture.getvalue()
         self.assertIn('channel coordinates differ', stderr_output)
 
     def test_channel_label_differences(self):
@@ -222,15 +230,10 @@ class TestEegCompare(DebuggableTestCase):
         eeg2['chanlocs'][0]['labels'] = 'DifferentLabel'
         eeg2['chanlocs'][1]['labels'] = 'AnotherLabel'
 
-        stderr_capture = io.StringIO()
-        stdout_capture = io.StringIO()
-
-        with redirect_stderr(stderr_capture), redirect_stdout(stdout_capture):
-            result = eeg_compare(self.basic_eeg1, eeg2)
+        result, _stdout_output, stderr_output = run_compare(self.basic_eeg1, eeg2)
 
         self.assertTrue(result)
 
-        stderr_output = stderr_capture.getvalue()
         self.assertIn('channel label(s) differ', stderr_output)
 
     def test_verbose_channel_labels(self):
@@ -238,30 +241,20 @@ class TestEegCompare(DebuggableTestCase):
         eeg2 = self.create_test_eeg()
         eeg2['chanlocs'][0]['labels'] = 'DifferentLabel'
 
-        stderr_capture = io.StringIO()
-        stdout_capture = io.StringIO()
-
-        with redirect_stderr(stderr_capture), redirect_stdout(stdout_capture):
-            result = eeg_compare(self.basic_eeg1, eeg2, verbose_level=1)
+        result, _stdout_output, stderr_output = run_compare(self.basic_eeg1, eeg2, verbose_level=1)
 
         self.assertTrue(result)
 
-        stderr_output = stderr_capture.getvalue()
         self.assertIn('Ch1 differs from DifferentLabel', stderr_output)
 
     def test_different_channel_numbers(self):
         """Test comparison with different numbers of channels."""
         eeg2 = self.create_test_eeg(nbchan=16)  # Different number of channels
 
-        stderr_capture = io.StringIO()
-        stdout_capture = io.StringIO()
-
-        with redirect_stderr(stderr_capture), redirect_stdout(stdout_capture):
-            result = eeg_compare(self.basic_eeg1, eeg2)
+        result, _stdout_output, stderr_output = run_compare(self.basic_eeg1, eeg2)
 
         self.assertTrue(result)
 
-        stderr_output = stderr_capture.getvalue()
         self.assertIn('Different numbers of channels', stderr_output)
 
     def test_different_event_numbers(self):
@@ -269,15 +262,10 @@ class TestEegCompare(DebuggableTestCase):
         eeg2 = self.create_test_eeg()
         eeg2['event'] = eeg2['event'][:2]  # Remove one event
 
-        stderr_capture = io.StringIO()
-        stdout_capture = io.StringIO()
-
-        with redirect_stderr(stderr_capture), redirect_stdout(stdout_capture):
-            result = eeg_compare(self.basic_eeg1, eeg2)
+        result, _stdout_output, stderr_output = run_compare(self.basic_eeg1, eeg2)
 
         self.assertTrue(result)
 
-        stderr_output = stderr_capture.getvalue()
         self.assertIn('Different numbers of events', stderr_output)
 
     def test_verbose_event_output(self):
@@ -285,15 +273,10 @@ class TestEegCompare(DebuggableTestCase):
         eeg2 = self.create_test_eeg()
         eeg2['event'] = []  # No events
 
-        stderr_capture = io.StringIO()
-        stdout_capture = io.StringIO()
-
-        with redirect_stderr(stderr_capture), redirect_stdout(stdout_capture):
-            result = eeg_compare(self.basic_eeg1, eeg2, verbose_level=1)
+        result, _stdout_output, stderr_output = run_compare(self.basic_eeg1, eeg2, verbose_level=1)
 
         self.assertTrue(result)
 
-        stderr_output = stderr_capture.getvalue()
         self.assertIn('Different numbers of events', stderr_output)
         self.assertIn('First event of first dataset:', stderr_output)
 
@@ -304,15 +287,10 @@ class TestEegCompare(DebuggableTestCase):
         for event in eeg2['event']:
             event['extra_field'] = 'test'
 
-        stderr_capture = io.StringIO()
-        stdout_capture = io.StringIO()
-
-        with redirect_stderr(stderr_capture), redirect_stdout(stdout_capture):
-            result = eeg_compare(self.basic_eeg1, eeg2)
+        result, _stdout_output, stderr_output = run_compare(self.basic_eeg1, eeg2)
 
         self.assertTrue(result)
 
-        stderr_output = stderr_capture.getvalue()
         self.assertIn('Not the same number of event fields', stderr_output)
 
     def test_event_latency_differences(self):
@@ -321,15 +299,10 @@ class TestEegCompare(DebuggableTestCase):
         eeg2['event'][0]['latency'] = 300  # Different from 250
         eeg2['event'][1]['latency'] = 600  # Different from 500
 
-        stderr_capture = io.StringIO()
-        stdout_capture = io.StringIO()
-
-        with redirect_stderr(stderr_capture), redirect_stdout(stdout_capture):
-            result = eeg_compare(self.basic_eeg1, eeg2)
+        result, _stdout_output, stderr_output = run_compare(self.basic_eeg1, eeg2)
 
         self.assertTrue(result)
 
-        stderr_output = stderr_capture.getvalue()
         self.assertIn('Event latency', stderr_output)
         self.assertIn('not OK', stderr_output)
 
@@ -338,15 +311,10 @@ class TestEegCompare(DebuggableTestCase):
         eeg2 = self.create_test_eeg()
         eeg2['event'][0]['type'] = 'different_stimulus'
 
-        stderr_capture = io.StringIO()
-        stdout_capture = io.StringIO()
-
-        with redirect_stderr(stderr_capture), redirect_stdout(stdout_capture):
-            result = eeg_compare(self.basic_eeg1, eeg2)
+        result, _stdout_output, stderr_output = run_compare(self.basic_eeg1, eeg2)
 
         self.assertTrue(result)
 
-        stderr_output = stderr_capture.getvalue()
         # The function should detect differences in event fields
         self.assertTrue(len(stderr_output) > 0)  # Should have some error output
 
@@ -361,11 +329,7 @@ class TestEegCompare(DebuggableTestCase):
         eeg_obj1 = EegObject(self.basic_eeg1)
         eeg_obj2 = EegObject(self.basic_eeg2)
 
-        stderr_capture = io.StringIO()
-        stdout_capture = io.StringIO()
-
-        with redirect_stderr(stderr_capture), redirect_stdout(stdout_capture):
-            result = eeg_compare(eeg_obj1, eeg_obj2)
+        result, _stdout_output, _stderr_output = run_compare(eeg_obj1, eeg_obj2)
 
         self.assertTrue(result)
 
@@ -374,35 +338,23 @@ class TestEegCompare(DebuggableTestCase):
         eeg2 = self.create_test_eeg()
         eeg2['eventdescription'] = ['stimulus', 'response']  # Different length
 
-        stderr_capture = io.StringIO()
-        stdout_capture = io.StringIO()
-
-        with redirect_stderr(stderr_capture), redirect_stdout(stdout_capture):
-            result = eeg_compare(self.basic_eeg1, eeg2)
+        result, stdout_output, stderr_output = run_compare(self.basic_eeg1, eeg2)
 
         self.assertTrue(result)
 
-        stderr_output = stderr_capture.getvalue()
-        stdout_output = stdout_capture.getvalue()
         # The function should report eventdescription differences
-        # It might be in stderr or stdout depending on the logic
+        # It might be at info or warning level depending on the logic
         output_combined = stderr_output + stdout_output
         self.assertTrue('eventdescription' in output_combined or len(stderr_output) > 0)
 
     def test_isequaln_function_coverage(self):
         """Test the internal isequaln function with various data types."""
-        from eegprep.functions.popfunc.eeg_compare import eeg_compare
-
         # Test with None values
         eeg2 = self.create_test_eeg()
         eeg2['subject'] = None
         self.basic_eeg1['subject'] = None
 
-        stderr_capture = io.StringIO()
-        stdout_capture = io.StringIO()
-
-        with redirect_stderr(stderr_capture), redirect_stdout(stdout_capture):
-            result = eeg_compare(self.basic_eeg1, eeg2)
+        result, _stdout_output, _stderr_output = run_compare(self.basic_eeg1, eeg2)
 
         self.assertTrue(result)
 
@@ -412,11 +364,7 @@ class TestEegCompare(DebuggableTestCase):
         eeg2['xmin'] = float('nan')
         self.basic_eeg1['xmin'] = float('nan')
 
-        stderr_capture = io.StringIO()
-        stdout_capture = io.StringIO()
-
-        with redirect_stderr(stderr_capture), redirect_stdout(stdout_capture):
-            result = eeg_compare(self.basic_eeg1, eeg2)
+        result, _stdout_output, _stderr_output = run_compare(self.basic_eeg1, eeg2)
 
         self.assertTrue(result)
 
@@ -426,11 +374,7 @@ class TestEegCompare(DebuggableTestCase):
         # Make arrays identical
         eeg2['data'] = self.basic_eeg1['data'].copy()
 
-        stderr_capture = io.StringIO()
-        stdout_capture = io.StringIO()
-
-        with redirect_stderr(stderr_capture), redirect_stdout(stdout_capture):
-            result = eeg_compare(self.basic_eeg1, eeg2)
+        result, _stdout_output, _stderr_output = run_compare(self.basic_eeg1, eeg2)
 
         self.assertTrue(result)
 
@@ -440,11 +384,7 @@ class TestEegCompare(DebuggableTestCase):
         # Test scalar vs array comparison edge cases
         eeg2['trials'] = np.array([1])  # Array instead of scalar
 
-        stderr_capture = io.StringIO()
-        stdout_capture = io.StringIO()
-
-        with redirect_stderr(stderr_capture), redirect_stdout(stdout_capture):
-            result = eeg_compare(self.basic_eeg1, eeg2)
+        result, _stdout_output, _stderr_output = run_compare(self.basic_eeg1, eeg2)
 
         self.assertTrue(result)
 
@@ -455,11 +395,7 @@ class TestEegCompare(DebuggableTestCase):
         eeg1['event'] = []
         eeg2['event'] = []
 
-        stderr_capture = io.StringIO()
-        stdout_capture = io.StringIO()
-
-        with redirect_stderr(stderr_capture), redirect_stdout(stdout_capture):
-            result = eeg_compare(eeg1, eeg2)
+        result, _stdout_output, _stderr_output = run_compare(eeg1, eeg2)
 
         self.assertTrue(result)
 
@@ -590,6 +526,46 @@ class TestIsequaln(unittest.TestCase):
         arr1 = np.array([[1, 2], [3, 4]])
         arr2 = np.array([[1, 2], [3, 4]])
         self.assertTrue(self.isequaln(arr1, arr2))
+
+
+class TestEegCompareReturnContract(unittest.TestCase):
+    """Pin the documented return contract: eeg_compare returns a summary string."""
+
+    def _eeg(self):
+        return {
+            'setname': 'ds',
+            'subject': 'S01',
+            'xmin': 0.0,
+            'xmax': 1.0,
+            'chanlocs': [],
+            'event': [],
+        }
+
+    def test_identical_returns_match_summary_string(self):
+        result, stdout_output, stderr_output = run_compare(self._eeg(), self._eeg())
+        self.assertIsInstance(result, str)
+        self.assertEqual(result, "All fields match (no differences found)")
+        self.assertEqual(stderr_output, "")
+
+    def test_differences_returned_as_string_not_bool(self):
+        eeg2 = self._eeg()
+        eeg2['subject'] = 'S02'
+        result, _stdout_output, stderr_output = run_compare(self._eeg(), eeg2)
+        self.assertIsInstance(result, str)
+        self.assertNotIsInstance(result, bool)
+        self.assertIn('differences', result.lower())
+        self.assertIn('subject differs', stderr_output)
+
+    def test_array_mismatch_returns_summary_string(self):
+        result, _stdout_output, _stderr_output = run_compare(np.zeros((2, 3)), np.zeros((3, 2)))
+        self.assertIsInstance(result, str)
+        self.assertIn('Array shape mismatch', result)
+
+    def test_trigger_error_raises_on_difference(self):
+        eeg2 = self._eeg()
+        eeg2['subject'] = 'S02'
+        with self.assertRaises(ValueError):
+            eeg_compare(self._eeg(), eeg2, trigger_error=True)
 
 
 if __name__ == '__main__':

@@ -30,12 +30,6 @@ def pop_loadset_h5(file_name):
     def convert_to_string(filecontent):
         if isinstance(filecontent, np.ndarray):
             if filecontent.dtype == 'uint16':
-                # Special handling for the test case with emoji
-                if len(filecontent) == 10 and np.array_equal(
-                    filecontent, np.array([104, 101, 108, 108, 111, 32, 240, 159, 146, 150])
-                ):
-                    return 'hello 👖'
-
                 # Convert uint16 array to bytes and then decode as UTF-8
                 try:
                     # Convert uint16 values to bytes

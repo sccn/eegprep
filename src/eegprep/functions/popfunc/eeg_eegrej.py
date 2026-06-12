@@ -328,10 +328,15 @@ def eeg_eegrej(EEG, regions):
     if len(EEG["event"]) > 1 and EEG["event"][-1].get("latency", 0) - 0.5 > EEG["pnts"] and EEG.get("trials", 1) == 1:
         EEG["event"].pop()
 
-    # light duplicate cleanup mirroring MATLAB edge cases
-    if len(EEG["event"]) > 1 and EEG["event"][0].get("latency") == 0:
+    # light duplicate cleanup mirroring MATLAB edge cases: only drop boundary
+    # events sitting at the very first/last sample, never genuine stimulus events
+    if len(EEG["event"]) > 1 and EEG["event"][0].get("latency") == 0 and _is_boundary_event(EEG["event"][0]):
         EEG["event"] = EEG["event"][1:]
-    if len(EEG["event"]) > 1 and EEG["event"][-1].get("latency") == EEG["pnts"]:
+    if (
+        len(EEG["event"]) > 1
+        and EEG["event"][-1].get("latency") == EEG["pnts"]
+        and _is_boundary_event(EEG["event"][-1])
+    ):
         EEG["event"] = EEG["event"][:-1]
     if len(EEG["event"]) > 2:
         if EEG["event"][-1].get("latency") == EEG["event"][-2].get("latency"):

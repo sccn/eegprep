@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
+import logging
 import sys
+from contextlib import redirect_stdout
 from pathlib import Path
 from typing import Any
 
@@ -195,12 +197,14 @@ def handle_registered(args: argparse.Namespace) -> dict[str, Any]:
     if args.pipeline_action == "plan":
         return plan_pipeline_config(args.config)
     if args.pipeline_action == "run":
-        return run_pipeline_config(
-            args.config,
-            dry_run=args.dry_run,
-            manifest_path=args.manifest,
-            overwrite=True if args.overwrite else None,
-        )
+        _configure_logging(args)
+        with redirect_stdout(sys.stderr):
+            return run_pipeline_config(
+                args.config,
+                dry_run=args.dry_run,
+                manifest_path=args.manifest,
+                overwrite=True if args.overwrite else None,
+            )
     raise CommandError("COMMAND_NOT_IMPLEMENTED", f"Unknown pipeline action: {args.pipeline_action}")
 
 
@@ -525,9 +529,17 @@ def _apply_filter(EEG: dict[str, Any], parameters: dict[str, Any]) -> tuple[dict
     notch = parameters.get("notch")
     if notch is not None:
         width = float(parameters.get("notch_width") or 2.0)
+        lower_edge = float(notch) - width / 2
+        if lower_edge <= 0:
+            raise CommandError(
+                "CONFIG_SCHEMA_ERROR",
+                "notch minus half notch_width must be positive.",
+                path="steps[].notch",
+                suggestion="Increase notch or decrease notch_width so the notch stop band stays above 0 Hz.",
+            )
         EEG, history = pop_eegfiltnew(
             EEG,
-            locutoff=float(notch) - width / 2,
+            locutoff=lower_edge,
             hicutoff=float(notch) + width / 2,
             revfilt=True,
             plotfreqz=False,
@@ -727,6 +739,16 @@ def _raise_schema_errors(errors: list[dict[str, Any]], config_path: Path) -> Non
 
 def _warning(code: str, path: str, message: str) -> dict[str, str]:
     return {"code": code, "path": path, "message": message}
+
+
+def _configure_logging(args: argparse.Namespace) -> None:
+    if getattr(args, "quiet", False) or getattr(args, "no_progress", False):
+        level = logging.WARNING
+    elif getattr(args, "verbose", False):
+        level = logging.DEBUG
+    else:
+        level = logging.INFO
+    logging.basicConfig(level=level, format="%(message)s", stream=sys.stderr, force=True)
 
 
 if __name__ == "__main__":

@@ -382,6 +382,30 @@ class TestPopSelectEdgeCases(unittest.TestCase):
         self.assertEqual(EEG_out['nbchan'], 2)
         self.assertEqual(EEG_out['data'].shape[0], 2)
 
+    def test_channel_selection_by_type(self):
+        """Selecting by chantype keeps only channels whose type matches (no unpack crash)."""
+        EEG = copy.deepcopy(self.EEG)
+        types = ['EEG', 'EEG', 'EOG', 'EOG']
+        for chan, ctype in zip(EEG['chanlocs'], types):
+            chan['type'] = ctype
+
+        EEG_out = pop_select(EEG, chantype=['EEG'])
+
+        self.assertEqual(EEG_out['nbchan'], 2)
+        self.assertEqual([chan['labels'] for chan in EEG_out['chanlocs']], ['Fz', 'Cz'])
+
+    def test_channel_removal_by_type(self):
+        """Removing by rmchantype drops channels whose type matches (no unpack crash)."""
+        EEG = copy.deepcopy(self.EEG)
+        types = ['EEG', 'EEG', 'EOG', 'EOG']
+        for chan, ctype in zip(EEG['chanlocs'], types):
+            chan['type'] = ctype
+
+        EEG_out = pop_select(EEG, rmchantype=['EOG'])
+
+        self.assertEqual(EEG_out['nbchan'], 2)
+        self.assertEqual([chan['labels'] for chan in EEG_out['chanlocs']], ['Fz', 'Cz'])
+
     def test_negative_indices_error(self):
         """Test that negative channel indices raise appropriate errors."""
         EEG = copy.deepcopy(self.EEG)
