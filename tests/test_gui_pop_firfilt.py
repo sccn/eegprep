@@ -5,7 +5,8 @@ import unittest
 import numpy as np
 
 from eegprep.functions.guifunc.spec import controls_by_tag
-from eegprep.functions.guifunc.qt import _firpm_order_shape
+from eegprep.functions.guifunc import qt as qt_renderer
+from eegprep.functions.guifunc.qt import QtDialogRenderer, _firpm_order_shape
 from eegprep.functions.popfunc.pop_eegfilt import pop_eegfilt, pop_eegfilt_dialog_spec
 from eegprep.plugins.firfilt.pop_eegfiltnew import pop_eegfiltnew, pop_eegfiltnew_dialog_spec
 from eegprep.plugins.firfilt.pop_firma import pop_firma, pop_firma_dialog_spec
@@ -174,6 +175,10 @@ class PopFirfiltGuiTests(unittest.TestCase):
         self.assertIn("rs", firpm_controls)
         self.assertNotIn("f", firpm_controls)
         self.assertNotIn("a", firpm_controls)
+
+    def test_qt_renderer_stateless_helpers_have_module_ownership(self):
+        self.assertIs(QtDialogRenderer._read_widget, qt_renderer._read_widget)
+        self.assertIs(QtDialogRenderer._validation_message, qt_renderer._validation_message)
 
     def test_firpm_estimate_order_shape_uses_paired_edges_for_single_cutoff_filters(self):
         highpass_edges, highpass_amplitudes = _firpm_order_shape([8], 4, "highpass", 200)

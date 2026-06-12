@@ -6,7 +6,9 @@ from typing import Any, Dict, Sequence
 import numpy as np
 from scipy.signal import filtfilt
 
-from .private.sigproc import design_fir, design_kaiser, filtfilt_fast
+from eegprep.plugins.firfilt.design import design_fir, design_kaiser
+
+from .private.sigproc import filtfilt_fast
 
 logger = logging.getLogger(__name__)
 

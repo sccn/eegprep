@@ -5,7 +5,9 @@ from typing import Any, Dict, Tuple
 
 import numpy as np
 
-from .private.sigproc import design_fir, design_kaiser, filtfilt_fast
+from eegprep.plugins.firfilt.design import design_fir, design_kaiser
+
+from .private.sigproc import filtfilt_fast
 
 logger = logging.getLogger(__name__)
 
