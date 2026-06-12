@@ -112,7 +112,7 @@ def test_format_plugin_menu_includes_external_plugin_exclusion() -> None:
 
     assert "Available EEGPrep extensions" in text
     assert "ICLabel" in text
-    assert "File > Import data > import data > From BIDS folder structure" in text
+    assert "File > Import data / Export / BIDS tools" in text
     assert EXTERNAL_PLUGIN_NOTICE in text
     assert INSTALL_TRUST_WARNING in text
 

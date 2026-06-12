@@ -110,6 +110,13 @@ planned, reviewed, and rerun.
    eegprep pipeline run preprocess.yaml --json
    eegprep batch run sub-01.set sub-02.set --pipeline preprocess.yaml --output-dir derivatives/eegprep --json
 
+Pipeline transform steps use the same defaults as the matching direct CLI
+commands. In particular, ``clean`` defaults to ASR burst correction with
+``burst_criterion: 20`` and leaves flatline, channel, line-noise, window, and
+high-pass cleaning criteria off unless the YAML config sets them explicitly.
+Set ``highpass`` as a two-value transition band, for example
+``highpass: [0.25, 0.75]``.
+
 QC And Reports
 ==============
 

@@ -55,6 +55,13 @@ _STATUS_COLORS = {
     ExtensionStatus.MISSING_DEPENDENCY.value: "#ffe9cc",
     ExtensionStatus.UNKNOWN.value: "#eeeeee",
 }
+_BUNDLED_PLUGIN_MENU_SUMMARIES = {
+    "clean_rawdata": "Tools > Reject data using Clean Rawdata and ASR",
+    "ICLabel": "Tools > Classify components using ICLabel",
+    "firfilt": "Tools > Filter the data",
+    "dipfit": "Tools > Source localization using DIPFIT",
+    "EEG_BIDS": "File > Import data / Export / BIDS tools",
+}
 
 
 def bundled_plugins() -> tuple[dict[str, Any], ...]:
@@ -835,6 +842,8 @@ def _install_guidance(
 
 
 def _menu_text(record: ExtensionRecord) -> str:
+    if record.source_type == ExtensionSourceType.BUNDLED and record.name in _BUNDLED_PLUGIN_MENU_SUMMARIES:
+        return _BUNDLED_PLUGIN_MENU_SUMMARIES[record.name]
     if record.spec is None or not record.spec.menus:
         return ""
     menu = record.spec.menus[0]

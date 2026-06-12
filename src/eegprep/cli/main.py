@@ -74,7 +74,6 @@ def main(argv: list[str] | None = None) -> int:
     args: argparse.Namespace | None = None
     try:
         args = parser.parse_args(raw_argv)
-        args.json_requested = requested_json
         if not hasattr(args, "handler"):
             parser.print_help()
             return 0

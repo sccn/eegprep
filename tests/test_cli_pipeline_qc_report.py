@@ -117,6 +117,51 @@ def test_pipeline_clean_after_epoch_uses_pop_clean_continuous_data_guard(tmp_pat
     assert "Input data must be continuous" in result["message"]
 
 
+def test_pipeline_clean_uses_direct_cli_defaults(monkeypatch, tmp_path):
+    calls = []
+
+    def fake_pop_clean_rawdata(eeg, **kwargs):
+        calls.append(kwargs)
+        return eeg, "EEG = pop_clean_rawdata(EEG, 'BurstCriterion', 20);"
+
+    monkeypatch.setattr(transforms_cli, "pop_clean_rawdata", fake_pop_clean_rawdata)
+    config_path = _write_pipeline_config(
+        tmp_path,
+        steps=[{"name": "clean", "method": "asr"}],
+    )
+
+    result = run_pipeline_config(config_path)
+
+    assert result["status"] == "ok"
+    assert calls == [
+        {
+            "FlatlineCriterion": "off",
+            "ChannelCriterion": "off",
+            "LineNoiseCriterion": "off",
+            "Highpass": "off",
+            "BurstCriterion": 20.0,
+            "BurstRejection": False,
+            "WindowCriterion": "off",
+            "Distance": "Euclidean",
+            "gui": False,
+            "return_com": True,
+        }
+    ]
+
+
+def test_pipeline_clean_rejects_scalar_highpass(tmp_path):
+    config_path = _write_pipeline_config(
+        tmp_path,
+        steps=[{"name": "clean", "method": "asr", "highpass": 0.5}],
+    )
+
+    result = validate_pipeline_config(config_path)
+
+    assert result["status"] == "error"
+    assert result["error"]["code"] == "CONFIG_SCHEMA_ERROR"
+    assert result["error"]["details"]["errors"][0]["path"] == "steps[0].highpass"
+
+
 def test_pipeline_filter_history_uses_modern_eegfiltnew(monkeypatch, tmp_path):
     calls = []
 

@@ -264,11 +264,11 @@ def _rereference(eeg: dict[str, Any], args: argparse.Namespace) -> TransformResu
                 "rereference --method channels requires --channels.",
                 suggestion="Pass channel labels or EEGLAB-facing 1-based channel indices.",
             )
-        ref = _channel_tokens(args.channels, numeric_base=1, output_base=0)
+        ref = channel_tokens(args.channels, numeric_base=1, output_base=0)
 
     kwargs: dict[str, Any] = {"refica": args.refica}
     if args.exclude:
-        kwargs["exclude"] = _channel_tokens(args.exclude, numeric_base=1, output_base=0)
+        kwargs["exclude"] = channel_tokens(args.exclude, numeric_base=1, output_base=0)
     if args.keep_ref:
         kwargs["keepref"] = "on"
     if args.huber is not None:
@@ -396,7 +396,7 @@ def _epoch(eeg: dict[str, Any], args: argparse.Namespace) -> TransformResult:
 
 def _ica(eeg: dict[str, Any], args: argparse.Namespace) -> TransformResult:
     options = _ica_options(args)
-    chanind = _channel_tokens(args.channels, numeric_base=1, output_base=1) if args.channels else None
+    chanind = channel_tokens(args.channels, numeric_base=1, output_base=1) if args.channels else None
     method = "runamica15" if args.method == "amica" else args.method
     warnings = []
     if args.seed is not None and method != "runica":
@@ -431,12 +431,13 @@ def _ica(eeg: dict[str, Any], args: argparse.Namespace) -> TransformResult:
 
 def _clean_options(args: argparse.Namespace) -> dict[str, Any]:
     distance = "Riemannian" if args.distance == "riemannian" else "Euclidean"
+    highpass = _clean_highpass(args.highpass)
     if args.method == "asr":
         return {
             "FlatlineCriterion": _optional_float_or_off(args.flatline_criterion, default="off"),
             "ChannelCriterion": _optional_float_or_off(args.channel_criterion, default="off"),
             "LineNoiseCriterion": _optional_float_or_off(args.line_noise_criterion, default="off"),
-            "Highpass": list(args.highpass) if args.highpass else "off",
+            "Highpass": highpass,
             "BurstCriterion": float(args.burst_criterion),
             "BurstRejection": bool(args.burst_rejection),
             "WindowCriterion": _optional_float_or_off(args.window_criterion, default="off"),
@@ -450,13 +451,44 @@ def _clean_options(args: argparse.Namespace) -> dict[str, Any]:
         options["ChannelCriterion"] = float(args.channel_criterion)
     if args.line_noise_criterion is not None:
         options["LineNoiseCriterion"] = float(args.line_noise_criterion)
-    if args.highpass:
-        options["Highpass"] = list(args.highpass)
+    if highpass != "off":
+        options["Highpass"] = highpass
     if args.burst_criterion is not None:
         options["BurstCriterion"] = float(args.burst_criterion)
     if args.window_criterion is not None:
         options["WindowCriterion"] = float(args.window_criterion)
     return options
+
+
+def _clean_highpass(value: Any) -> list[float] | str:
+    if value in (None, "", "off"):
+        return "off"
+    if isinstance(value, str):
+        values: Any = [item for item in value.replace(",", " ").split() if item]
+    else:
+        values = value
+    if not isinstance(values, list | tuple) or len(values) != 2:
+        raise CliTransformError(
+            "CONFIG_SCHEMA_ERROR",
+            "clean highpass must contain [low high] transition band values.",
+            path="highpass",
+            suggestion="Use --highpass LOW HIGH or highpass: [LOW, HIGH] in pipeline config.",
+        )
+    try:
+        low, high = (float(values[0]), float(values[1]))
+    except (TypeError, ValueError) as exc:
+        raise CliTransformError(
+            "CONFIG_SCHEMA_ERROR",
+            "clean highpass values must be numeric.",
+            path="highpass",
+        ) from exc
+    if low <= 0 or high <= 0 or low >= high:
+        raise CliTransformError(
+            "CONFIG_SCHEMA_ERROR",
+            "clean highpass must be positive and ordered as [low, high].",
+            path="highpass",
+        )
+    return [low, high]
 
 
 def _ica_options(args: argparse.Namespace) -> dict[str, Any]:
@@ -742,7 +774,14 @@ def _append_history(eeg: dict[str, Any], command: str) -> None:
     eeg["history"] = f"{existing}\n{command}\n" if existing else f"{command}\n"
 
 
-def _channel_tokens(values: list[Any], *, numeric_base: int, output_base: int) -> list[Any]:
+def channel_tokens(
+    values: list[Any] | tuple[Any, ...],
+    *,
+    numeric_base: int,
+    output_base: int,
+    path: str | None = None,
+) -> list[Any]:
+    """Return parsed channel labels or converted EEGLAB-facing indices."""
     tokens: list[Any] = []
     for value in values:
         scalar = _parse_scalar(value)
@@ -751,6 +790,7 @@ def _channel_tokens(values: list[Any], *, numeric_base: int, output_base: int) -
                 raise CliTransformError(
                     "CONFIG_SCHEMA_ERROR",
                     "Channel indices are EEGLAB-facing 1-based values.",
+                    path=path,
                     suggestion="Use channel index 1 for the first channel.",
                 )
             tokens.append(scalar - numeric_base + output_base)
