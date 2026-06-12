@@ -1296,6 +1296,40 @@ def _assert_python_command(command: str) -> None:
     ast.parse(command)
 
 
+def test_component_activations_dedup_contract():
+    """Lock the K4 dedup: rejection delegates recompute to the canonical helper.
+
+    The rejection ``component_activations`` (``_rejection``) and the canonical
+    plotting helper (``_plot_utils``) must agree when recomputing from weights,
+    and rejection must ignore a stored ``icaact`` while plotting trusts it.
+    """
+    from eegprep.functions.popfunc._rejection import component_activations as rejection_activations
+
+    rng = np.random.default_rng(7)
+    nbchan, pnts, trials = 5, 16, 4
+    data = rng.standard_normal((nbchan, pnts, trials))
+    weights = rng.standard_normal((nbchan, nbchan))
+    sphere = rng.standard_normal((nbchan, nbchan))
+    recompute = (weights @ sphere) @ data.reshape(nbchan, -1, order="F")
+    stored = -recompute.reshape(nbchan, pnts, trials, order="F")
+    eeg = {
+        "data": data,
+        "icaweights": weights,
+        "icasphere": sphere,
+        "icachansind": np.arange(nbchan),
+        "nbchan": nbchan,
+        "pnts": pnts,
+        "trials": trials,
+        "icaact": stored,
+    }
+
+    plot_recompute = component_activations(eeg, use_stored=False)
+    assert np.allclose(rejection_activations(eeg), plot_recompute)
+    # Rejection ignores the stored icaact; the default plotting path trusts it.
+    assert not np.allclose(rejection_activations(eeg), stored)
+    assert np.allclose(component_activations(eeg), stored)
+
+
 def _matlab_string(path: Any) -> str:
     return str(path).replace("'", "''")
 

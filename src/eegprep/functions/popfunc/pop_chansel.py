@@ -69,6 +69,17 @@ def pop_chansel_selected_string(
     return _selected_string([channel_values[index - 1] for index in selected])
 
 
+def pop_chansel_resolve(
+    chans: Any,
+    select: Any,
+    *,
+    field: str = "labels",
+) -> tuple[list[str], list[int]]:
+    """Resolve a channel selection to its labels and 1-based indices without a dialog."""
+    channel_values = _channel_values(chans, field)
+    return channel_values, _selection_to_indices(select, channel_values)
+
+
 def _channel_values(chans: Any, field: str) -> list[str]:
     if chans is None:
         return []

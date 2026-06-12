@@ -432,53 +432,10 @@ def pop_saveset(EEG, file_name=None, *args, **kwargs):
         for i in range(len(eeglab_dict['event'])):
             eeglab_dict['event'][i]['urevent'] = eeglab_dict['event'][i]['urevent'] + 1
 
-    # Create the list of dictionaries with a string field
+    # Serialize chanlocs through the single canonical chanloc converter so the
+    # primary channel struct uses the same schema as chaninfo.removedchans.
     if 'chanlocs' in EEG and len(EEG['chanlocs']) > 0:
-        matlab_null = np.array([])
-        d_list = [
-            {
-                'labels': c['labels'],
-                'theta': c['theta'] if not isinstance(c.get('theta', matlab_null), np.ndarray) else None,
-                'radius': c['radius'] if not isinstance(c.get('radius', matlab_null), np.ndarray) else None,
-                'X': c['X'] if not isinstance(c.get('X', matlab_null), np.ndarray) else None,
-                'Y': c['Y'] if not isinstance(c.get('Y', matlab_null), np.ndarray) else None,
-                'Z': c['Z'] if not isinstance(c.get('Z', matlab_null), np.ndarray) else None,
-                'sph_theta': c['sph_theta'] if not isinstance(c.get('sph_theta', matlab_null), np.ndarray) else None,
-                'sph_phi': c['sph_phi'] if not isinstance(c.get('sph_phi', matlab_null), np.ndarray) else None,
-                'sph_radius': c['sph_radius'] if not isinstance(c.get('sph_radius', matlab_null), np.ndarray) else None,
-                'type': c['type'] if not isinstance(c.get('type', matlab_null), np.ndarray) else None,
-                'urchan': c['urchan'] if not isinstance(c.get('urchan', matlab_null), np.ndarray) else None,
-                'ref': c['ref'] if not isinstance(c.get('ref', matlab_null), np.ndarray) else None,
-            }
-            for c in eeglab_dict['chanlocs']
-        ]
-
-        # build a list of fields to selectively filter out if all entries are None
-        retain_fields = [fld for fld in d_list[0].keys() if not all(d[fld] is None for d in d_list)]
-
-        dtype = np.dtype(
-            [
-                (f, t)
-                for f, t in [
-                    ('labels', 'U100'),  # String up to 100 characters
-                    ('theta', np.float64),
-                    ('radius', np.float64),
-                    ('X', np.float64),
-                    ('Y', np.float64),
-                    ('Z', np.float64),
-                    ('sph_theta', np.float64),
-                    ('sph_phi', np.float64),
-                    ('sph_radius', np.float64),
-                    ('type', 'U10'),  # String up to 10 characters
-                    ('urchan', np.int32),
-                    ('ref', 'U100'),  # String up to 100 characters
-                ]
-                if f in retain_fields
-            ]
-        )
-
-        # Convert the list of dictionaries to a structured NumPy array
-        eeglab_dict['chanlocs'] = np.array([tuple(item[fld] for fld in retain_fields) for item in d_list], dtype=dtype)
+        eeglab_dict['chanlocs'] = _chanlocs_to_struct_array(eeglab_dict['chanlocs'])
 
     # Normalize event latencies to float before saving so MATLAB loads them
     # as double.  Without this, integer stimulus latencies become int64 and

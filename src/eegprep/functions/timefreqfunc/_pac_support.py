@@ -447,6 +447,11 @@ def _surrogate_pvalue(surrogates: np.ndarray, observed: float, statlim: str) -> 
 
 
 def _empirical_pvalue(distribution: np.ndarray, observed: float) -> float:
+    # PAC uses the bias-corrected (count + 1) / (N + 1) one-sided convention about
+    # |observed|, which never returns exactly 0. This intentionally differs from the
+    # ERSP/ITC surrogate p-values (bootstat.exact_p_values) and the statcond tail
+    # folding (statistics.stat_surrogate_pvals); they are distinct statistical
+    # conventions, not duplicates, so PAC keeps its own definition.
     values = np.asarray(distribution, dtype=float)
     values = values[np.isfinite(values)]
     if values.size == 0:

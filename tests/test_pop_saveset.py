@@ -3,6 +3,7 @@ import tempfile
 import unittest
 
 import numpy as np
+import scipy.io
 
 from eegprep import pop_loadset, pop_saveset  # Explicitly import pop_resample
 
@@ -110,6 +111,62 @@ class TestPopSaveset(unittest.TestCase):
         #     np.testing.assert_allclose(EEG_python['icaact'], EEG_octave['icaact'],
         #                              rtol=1e-5, atol=1e-8,
         #                              err_msg='ICA activations differ between Python and Octave')
+
+    def test_chanlocs_serialized_through_single_converter(self):
+        # The primary EEG.chanlocs struct must be serialized through the same
+        # canonical converter as chaninfo.removedchans, so a chanloc field such
+        # as ``unit`` is preserved instead of being dropped by a second copy.
+        chanlocs = [
+            {
+                'labels': 'Fz',
+                'theta': 0.0,
+                'radius': 0.5,
+                'X': 1.0,
+                'Y': 2.0,
+                'Z': 3.0,
+                'sph_theta': 0.0,
+                'sph_phi': 0.0,
+                'sph_radius': 1.0,
+                'type': 'EEG',
+                'urchan': 0,
+                'ref': np.array([]),
+                'unit': 'uV',
+            },
+            {
+                'labels': 'Cz',
+                'theta': 10.0,
+                'radius': 0.6,
+                'X': 1.5,
+                'Y': 2.5,
+                'Z': 3.5,
+                'sph_theta': 1.0,
+                'sph_phi': 1.0,
+                'sph_radius': 1.0,
+                'type': 'EEG',
+                'urchan': 1,
+                'ref': np.array([]),
+                'unit': 'uV',
+            },
+        ]
+        EEG = {
+            'setname': 't',
+            'nbchan': 2,
+            'trials': 1,
+            'pnts': 4,
+            'srate': 100.0,
+            'xmin': 0.0,
+            'xmax': 0.03,
+            'times': np.arange(4) / 100.0,
+            'data': np.zeros((2, 4)),
+            'chanlocs': chanlocs,
+            'event': [],
+            'icachansind': np.array([]),
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            out = os.path.join(tmp, 'unit.set')
+            pop_saveset(EEG, out)
+            loaded = scipy.io.loadmat(out, struct_as_record=True)
+        self.assertIn('unit', loaded['chanlocs'].dtype.names)
 
 
 if __name__ == '__main__':

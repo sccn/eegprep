@@ -9,7 +9,12 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.popfunc._plot_utils import component_maps, python_literal
-from eegprep.functions.studyfunc._study_utils import as_alleeg_list, ensure_study, sync_datasetinfo
+from eegprep.functions.studyfunc._study_utils import (
+    as_alleeg_list,
+    ensure_study,
+    sync_datasetinfo,
+    unique_preserving_order,
+)
 
 
 def checked_study_and_datasets(
@@ -85,7 +90,7 @@ def _axis_values(primary: Any, fallback: Any) -> list[int]:
     values = _numeric_values(primary)
     if values:
         return values
-    return _unique_preserving_order(_numeric_values(fallback))
+    return unique_preserving_order(_numeric_values(fallback))
 
 
 def _numeric_values(value: Any) -> list[int]:
@@ -95,14 +100,6 @@ def _numeric_values(value: Any) -> list[int]:
     if array.size == 0:
         return []
     return [int(item) for item in array.ravel().tolist()]
-
-
-def _unique_preserving_order(values: list[int]) -> list[int]:
-    output = []
-    for value in values:
-        if value not in output:
-            output.append(value)
-    return output
 
 
 def cluster_list(study: dict[str, Any]) -> list[dict[str, Any]]:

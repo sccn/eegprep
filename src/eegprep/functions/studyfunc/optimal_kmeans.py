@@ -6,7 +6,7 @@ from typing import Any
 
 import numpy as np
 
-from eegprep.functions.studyfunc.pop_clust import _kmeans_labels, _squared_distances
+from eegprep.functions.studyfunc._cluster_kmeans import kmeans_labels, squared_distances
 
 
 def optimal_kmeans(
@@ -19,9 +19,9 @@ def optimal_kmeans(
     values = _cluster_range(clusnum, data.shape[0])
     best = None
     for cluster_count in values:
-        labels, centers = _kmeans_labels(data, cluster_count, random_state)
+        labels, centers = kmeans_labels(data, cluster_count, random_state)
         score = _silhouette_score(data, labels)
-        distances = np.sqrt(_squared_distances(data, centers))
+        distances = np.sqrt(squared_distances(data, centers))
         sumd = _sum_distances(labels, distances)
         candidate = (score, labels, centers, sumd, distances)
         if best is None or candidate[0] > best[0]:
@@ -47,7 +47,7 @@ def _cluster_range(clusnum: int | list[int] | tuple[int, int], maximum: int) -> 
 
 
 def _silhouette_score(data: np.ndarray, labels: np.ndarray) -> float:
-    distance = np.sqrt(_squared_distances(data, data))
+    distance = np.sqrt(squared_distances(data, data))
     scores = []
     for row, label in enumerate(labels):
         same = labels == label

@@ -8,7 +8,10 @@ import numpy as np
 
 from eegprep.functions.popfunc._plot_utils import numeric_vector
 from eegprep.functions.studyfunc._cluster_utils import cluster_list, sets_array
-from eegprep.functions.studyfunc._study_utils import ensure_study
+from eegprep.functions.studyfunc._study_utils import ensure_study, unique_preserving_order
+
+
+MEASURE_DATA_FIELDS = {"erp": "erpdata", "spec": "specdata", "ersp": "erspdata", "itc": "itcdata"}
 
 
 def std_readdata(
@@ -239,7 +242,7 @@ def _cached_axis_values(
     if values.size == count:
         return values.astype(int)
     values = numeric_vector(group.get(fallback_key), dtype=int)
-    unique_values = np.asarray(_unique_preserving_order(values.tolist()), dtype=int)
+    unique_values = np.asarray(unique_preserving_order(values.tolist()), dtype=int)
     if unique_values.size == count:
         return unique_values
     return np.arange(fallback_start, fallback_start + count, dtype=int)
@@ -266,14 +269,6 @@ def component_measure_selection(components: Any, axis: np.ndarray) -> np.ndarray
         requested = ", ".join(str(value) for value in missing)
         raise ValueError(f"components {requested} are not cached; available component IDs: {available}")
     return np.asarray(selected, dtype=int)
-
-
-def _unique_preserving_order(values: list[int]) -> list[int]:
-    output = []
-    for value in values:
-        if value not in output:
-            output.append(value)
-    return output
 
 
 def _cluster_component_data(
@@ -321,7 +316,7 @@ def _parent_cluster_requested(clusters: Any) -> bool:
 
 
 def _data_array(group: dict[str, Any], measure: str) -> np.ndarray:
-    field = {"erp": "erpdata", "spec": "specdata", "ersp": "erspdata", "itc": "itcdata"}[measure]
+    field = MEASURE_DATA_FIELDS[measure]
     if field not in group:
         raise ValueError(f"{measure.upper()} measures have not been precomputed")
     return np.asarray(group[field], dtype=float)

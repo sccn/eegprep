@@ -6,6 +6,7 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.miscfunc.misc import finite_matmul
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc._pop_utils import is_empty_value, parse_numeric_sequence
 
@@ -94,10 +95,15 @@ def selected_indices(values: Any, maximum: int, *, default_all: bool = True) -> 
     return indices - 1
 
 
-def component_activations(EEG: dict[str, Any]) -> np.ndarray:
-    """Return ICA activations as ``components x points x trials``."""
+def component_activations(EEG: dict[str, Any], *, use_stored: bool = True) -> np.ndarray:
+    """Return ICA activations as ``components x points x trials``.
+
+    When ``use_stored`` is true, a non-empty ``EEG['icaact']`` is returned as-is.
+    Rejection scoring passes ``use_stored=False`` to always recompute from the
+    weight and sphere matrices, matching EEGLAB's rejection path.
+    """
     icaact = EEG.get("icaact")
-    if icaact is not None and np.asarray(icaact).size:
+    if use_stored and icaact is not None and np.asarray(icaact).size:
         data = np.asarray(icaact, dtype=float)
         if data.ndim == 2:
             return data[:, :, np.newaxis]
@@ -110,10 +116,10 @@ def component_activations(EEG: dict[str, Any]) -> np.ndarray:
     data = eeg_epoch_data(EEG)
     icachansind = component_channel_indices(EEG, data.shape[0])
     flat = data[icachansind, :, :].reshape(icachansind.size, -1)
-    unmixing = weights @ sphere
+    unmixing = finite_matmul(weights, sphere)
     if unmixing.shape[1] != flat.shape[0]:
         raise ValueError("ICA weights do not match EEG.icachansind channel count")
-    acts = unmixing @ flat
+    acts = finite_matmul(unmixing, flat)
     return acts.reshape(weights.shape[0], data.shape[1], data.shape[2])
 
 

@@ -37,6 +37,31 @@ def test_kaiserbeta_matches_eeglab_formula_and_inverse_roundtrips():
     assert invkaiserbeta(0) == pytest.approx(10 ** (-21 / 20))
 
 
+def test_firws_and_firwsord_are_owned_by_firfilt_plugin():
+    """The FIR design lives in the firfilt plugin, not clean_rawdata's private helper.
+
+    Locks the ownership move: ``firfilt/firws.py`` and ``firfilt/firwsord.py`` now
+    define the canonical implementations, so the design helpers must no longer leak
+    out of ``clean_rawdata.private.sigproc`` and importers resolve into firfilt.
+    """
+    from eegprep.plugins.clean_rawdata.private import sigproc
+    from eegprep.plugins.firfilt.firws import firws
+    from eegprep.plugins.firfilt.firwsord import firwsord
+
+    assert firws.__module__ == "eegprep.plugins.firfilt.firws"
+    assert firwsord.__module__ == "eegprep.plugins.firfilt.firwsord"
+    assert not hasattr(sigproc, "firws")
+    assert not hasattr(sigproc, "firwsord")
+
+    # The firwsord order still feeds firws to produce a valid type-I linear-phase kernel.
+    fs, cutoff, df = 500.0, 0.5, 1.0
+    m, _dev = firwsord("hamming", fs, df)
+    b, a = firws(m, cutoff / (fs / 2.0), "high")
+    assert a == 1.0
+    assert b.size == m + 1
+    np.testing.assert_allclose(b, b[::-1], atol=1e-12)
+
+
 def test_invfirwsord_returns_transition_width_and_window_deviation():
     df, dev = invfirwsord("hamming", 500, 826)
 

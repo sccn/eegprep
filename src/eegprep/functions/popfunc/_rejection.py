@@ -9,7 +9,7 @@ from typing import Any
 import numpy as np
 from scipy import signal, stats
 
-from eegprep.functions.miscfunc.misc import finite_matmul
+from eegprep.functions.popfunc._plot_utils import component_activations as plot_component_activations
 from eegprep.functions.popfunc._pop_utils import parse_numeric_sequence
 
 
@@ -109,16 +109,16 @@ def data_3d(EEG: dict[str, Any]) -> np.ndarray:
 
 
 def component_activations(EEG: dict[str, Any]) -> np.ndarray:
-    """Return ICA activations as components x points x trials."""
+    """Return ICA activations as components x points x trials.
+
+    Rejection always recomputes from the weight and sphere matrices (ignoring a
+    stored ``EEG['icaact']``) so scoring matches EEGLAB's rejection path.
+    """
     weights = np.asarray(EEG.get("icaweights", []), dtype=float)
     sphere = np.asarray(EEG.get("icasphere", []), dtype=float)
     if weights.size == 0 or sphere.size == 0:
         raise ValueError("ICA decomposition is required")
-    data = data_3d(EEG)
-    icachansind = np.asarray(EEG.get("icachansind", np.arange(data.shape[0])), dtype=int).ravel()
-    data_2d = data.reshape(data.shape[0], -1, order="F")
-    activations = finite_matmul(finite_matmul(weights, sphere), data_2d[icachansind])
-    return activations.reshape(weights.shape[0], data.shape[1], data.shape[2], order="F")
+    return plot_component_activations(EEG, use_stored=False)
 
 
 def rejection_data(EEG: dict[str, Any], icacomp: int | bool) -> tuple[np.ndarray, int]:

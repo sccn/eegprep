@@ -411,6 +411,37 @@ def test_console_eegh_positive_index_replays_command_through_workspace():
     workspace.close()
 
 
+def test_console_eegh_string_command_notifies_session_listeners():
+    session = EEGPrepSession()
+    workspace = EEGPrepConsoleWorkspace(session, exports={})
+    notified: list[int] = []
+    session.add_change_listener(lambda _session: notified.append(len(session.ALLCOM)))
+
+    result = workspace.namespace["eegh"]("EEG = pop_loadset('demo.set');")
+
+    assert result == "EEG = pop_loadset('demo.set');"
+    assert session.ALLCOM == ["EEG = pop_loadset('demo.set');"]
+    assert session.LASTCOM == "EEG = pop_loadset('demo.set');"
+    # Routing through session.add_history fires the change listener.
+    assert notified == [1]
+    workspace.close()
+
+
+def test_menu_actions_reuses_console_pop_result_decoders():
+    # The GUI extension-result path delegates to the canonical console decoders
+    # instead of keeping its own copies.
+    from eegprep.functions.guifunc import menu_actions as menu_actions_module
+
+    assert not hasattr(menu_actions_module, "_extension_dataset_state")
+    assert not hasattr(menu_actions_module, "_extension_eeg_and_command")
+
+    eeg = _demo_eeg()
+    command = "EEG = pop_demo(EEG);"
+    result = ([eeg], eeg, 1, command)
+    assert console_module._extract_pop_dataset_state(result) == ([eeg], eeg, 1, command)
+    assert console_module._extract_pop_eeg_and_command((eeg, command)) == (eeg, command)
+
+
 def test_gui_action_buffers_output_until_command_echo():
     session = EEGPrepSession()
     stream = io.StringIO()
