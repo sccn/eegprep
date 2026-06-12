@@ -21,7 +21,12 @@ from eegprep.extensions import (
     ExtensionSpec,
     ExtensionStatus,
     LazyImport,
+    extension_api_major_version,
+    extension_entry_point_package_name,
+    extension_status_is_active,
+    extension_status_is_installed,
     extension_version_satisfies,
+    select_extension_entry_points,
     validate_extension_spec,
 )
 
@@ -135,6 +140,19 @@ def test_entry_point_provider_without_group_keyword_uses_select_fallback(
     records = registry.discover()
 
     assert [record.name for record in records] == ["selectable_extension"]
+
+
+def test_extension_metadata_helpers_are_shared_for_registry_and_validation() -> None:
+    entry_point = FakeEntryPoint("helper", "helper_pkg.register:register")
+
+    assert select_extension_entry_points(_provider(entry_point), EXTENSION_ENTRY_POINT_GROUP) == (entry_point,)
+    assert extension_entry_point_package_name(entry_point) == "helper"
+    assert extension_api_major_version("1.2.3") == 1
+    assert extension_status_is_active(ExtensionStatus.INSTALLED)
+    assert extension_status_is_active(ExtensionStatus.BUNDLED.value)
+    assert not extension_status_is_active(ExtensionStatus.FAILED_IMPORT)
+    assert extension_status_is_installed(ExtensionStatus.FAILED_IMPORT)
+    assert not extension_status_is_installed(ExtensionStatus.CURATED)
 
 
 def test_registry_records_are_deterministic(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
