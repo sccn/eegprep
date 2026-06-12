@@ -16,6 +16,7 @@ from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher
 from eegprep.functions.guifunc.menu_placeholders import is_placeholder_action
 from eegprep.functions.guifunc.menu_spec import MenuItemSpec, menu_enabled
 from eegprep.functions.guifunc.session import EEGPrepSession
+from eegprep.functions.guifunc.theme import eeglab_floating_dialog_stylesheet
 
 try:  # pragma: no cover - optional GUI dependency
     from PySide6 import QtCore, QtGui, QtWidgets
@@ -476,7 +477,7 @@ def _main_window_stylesheet() -> str:
         border: 1px solid #777777;
         background: {BACKEEGLABCOLOR};
     }}
-    """
+    """ + eeglab_floating_dialog_stylesheet()
 
 
 def _configure_eeglab_label(label: Any, qt_widgets: Any) -> None:

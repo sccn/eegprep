@@ -8,6 +8,8 @@ import logging
 import threading
 from typing import Any
 
+from eegprep.functions.guifunc.theme import append_eeglab_floating_dialog_style
+
 try:  # pragma: no cover - depends on optional GUI dependency
     from PySide6 import QtCore, QtWidgets
 except ImportError:  # pragma: no cover - depends on optional GUI dependency
@@ -50,6 +52,7 @@ def run_long_task(
     progress.setAutoReset(False)
     progress.setMinimumDuration(0)
     progress.setWindowModality(qt_core.Qt.WindowModal)
+    append_eeglab_floating_dialog_style(progress)
 
     class Worker(qt_core.QObject):
         succeeded = qt_core.Signal(object)

@@ -10,6 +10,7 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.guifunc.pophelp import pophelp
+from eegprep.functions.guifunc.theme import eeglab_floating_dialog_stylesheet
 from eegprep.functions.guifunc.tf_cycle_calc_dialog import tf_cycle_calc_dialog_spec
 from eegprep.functions.popfunc.pop_chansel import pop_chansel
 from eegprep.functions.popfunc.pop_eegplot import pop_eegplot
@@ -510,7 +511,7 @@ def _apply_eeglab_style(dialog: Any, spec: DialogSpec) -> None:
             border: 1px solid #7f7f7f;
         }
         """
-    dialog.setStyleSheet(base_stylesheet + (spec.extra_stylesheet or ""))
+    dialog.setStyleSheet(base_stylesheet + eeglab_floating_dialog_stylesheet() + (spec.extra_stylesheet or ""))
 
 
 def _row_weights(row_geometry: Any) -> list[float]:

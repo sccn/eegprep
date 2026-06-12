@@ -46,6 +46,10 @@ def test_run_long_task_returns_result_and_forwards_progress(qapp):
     assert errors == []
     assert finished == [handle]
     assert "worker progress" in handle.dialog.labelText()
+    assert "QProgressDialog" in handle.dialog.styleSheet()
+    assert "QProgressBar::chunk" in handle.dialog.styleSheet()
+    assert "#a8c2ff" in handle.dialog.styleSheet()
+    assert "#000066" in handle.dialog.styleSheet()
 
 
 def test_run_long_task_restores_eegprep_logger_level_after_forwarding_progress(qapp):
