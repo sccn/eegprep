@@ -1,5 +1,9 @@
 import os
+import tempfile
 import unittest
+
+import numpy as np
+
 from eegprep import pop_loadset, pop_saveset  # Explicitly import pop_resample
 
 
@@ -38,6 +42,31 @@ class TestPopSaveset(unittest.TestCase):
         pop_saveset(
             self.EEG, os.path.join(local_url, 'eeglab_data_tmp.set')
         )  # see MATLAB code to compare the results at the end of the file
+
+    def test_saveset_does_not_mutate_caller_indices(self):
+        EEG = pop_loadset(os.path.join(local_url, 'eeglab_data_with_ica_tmp.set'))
+
+        chanlocs = EEG['chanlocs']
+        events = EEG['event']
+        urchan_before = [int(c['urchan']) for c in chanlocs if 'urchan' in c]
+        urevent_before = [int(ev['urevent']) for ev in events if 'urevent' in ev]
+        latency_before = [float(ev['latency']) for ev in events if 'latency' in ev]
+        self.assertTrue(urchan_before, "Dataset must have urchan values to exercise the regression")
+        self.assertTrue(urevent_before, "Dataset must have urevent values to exercise the regression")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            out = os.path.join(tmp, 'roundtrip.set')
+            pop_saveset(EEG, out)
+            # A second save must not double-increment the caller's in-memory indices.
+            pop_saveset(EEG, out)
+
+        urchan_after = [int(c['urchan']) for c in EEG['chanlocs'] if 'urchan' in c]
+        urevent_after = [int(ev['urevent']) for ev in EEG['event'] if 'urevent' in ev]
+        latency_after = [float(ev['latency']) for ev in EEG['event'] if 'latency' in ev]
+
+        self.assertEqual(urchan_after, urchan_before)  # still 0-based in memory
+        self.assertEqual(urevent_after, urevent_before)
+        np.testing.assert_array_equal(latency_after, latency_before)
         # """Test basic resampling functionality with different engines"""
         # # Apply resampling with different engines
         # EEG_python = pop_resample(self.EEG.copy(), self.new_freq, engine='scipy')

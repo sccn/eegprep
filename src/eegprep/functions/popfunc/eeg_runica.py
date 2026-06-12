@@ -1,3 +1,5 @@
+import copy
+
 import numpy as np
 from ._ica_utils import flatten_ica_data, reshape_ica_activations
 from ..miscfunc.misc import finite_matmul, finite_pinv
@@ -25,6 +27,8 @@ def eeg_runica(EEG, posact='off', sortcomps='off', **kwargs):
     dict
         The updated EEG structure with ICA fields.
     """
+    EEG = copy.deepcopy(EEG)
+
     # Extract data and reshape from 3D to 2D
     data = flatten_ica_data(EEG['data'].astype('float64'))
 
@@ -68,19 +72,17 @@ def eeg_runica(EEG, posact='off', sortcomps='off', **kwargs):
         icaact_2d = flatten_ica_data(EEG['icaact'])
         # Find indices of max absolute values for each component
         ix = np.argmax(np.abs(icaact_2d), axis=1)
-        had_flips = False
         ncomps = EEG['icaact'].shape[0]
 
         for r in range(ncomps):
             if np.sign(icaact_2d[r, ix[r]]) < 0:
-                # Flip the activations
+                # A sign flip commutes through the factorization, so negate the
+                # matching row of icaweights and column of icawinv directly. This
+                # preserves the invariants icawinv == pinv(icaweights @ icasphere)
+                # and icaact == icaweights @ icasphere @ data, leaving icasphere
+                # untouched.
                 EEG['icaact'][r, :, :] = -EEG['icaact'][r, :, :]
-                # Flip the corresponding column of the mixing matrix
                 EEG['icawinv'][:, r] = -EEG['icawinv'][:, r]
-                had_flips = True
-
-        if had_flips:
-            # Recompute unmixing matrix
-            EEG['icaweights'] = finite_pinv(EEG['icawinv'], solver=pinv)
+                EEG['icaweights'][r, :] = -EEG['icaweights'][r, :]
 
     return EEG

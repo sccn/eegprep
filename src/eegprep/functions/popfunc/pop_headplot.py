@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import math
 from pathlib import Path
 from typing import Any
@@ -56,6 +57,7 @@ def pop_headplot(
     if EEG is None:
         return ([], "") if return_com else []
 
+    EEG = copy.deepcopy(EEG)
     typeplot = int(typeplot)
     if typeplot not in {0, 1}:
         raise ValueError("typeplot must be 1 for ERP maps or 0 for component maps")

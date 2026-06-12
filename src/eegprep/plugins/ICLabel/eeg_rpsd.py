@@ -53,9 +53,9 @@ def eeg_rpsd(EEG, nfreqs=None, pct_data=100):
         .transpose()
     )
 
-    np.random.seed(0)  # rng('default') in MATLAB
+    rng = np.random.RandomState(0)  # rng('default') in MATLAB; local RNG avoids mutating global state
     n_seg = index.shape[1] * EEG['trials']
-    subset = np.random.permutation(n_seg)[: int(n_seg * pct_data / 100)]
+    subset = rng.permutation(n_seg)[: int(n_seg * pct_data / 100)]
 
     # calculate windowed spectrums
     psdmed = np.zeros((ncomp, nfreqs))

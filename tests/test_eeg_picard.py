@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 from eegprep import pop_loadset, eeg_picard, pop_saveset
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
+from eegprep.functions.miscfunc.pinv import pinv
 from eegprep.utils.testing import DebuggableTestCase, matlab_function_exists
 
 from tests.fixtures import create_test_eeg as _create_test_eeg
@@ -140,6 +141,33 @@ class TestEegPicardSimple(DebuggableTestCase):
         self.assertEqual(result['pnts'], self.test_eeg['pnts'])
         self.assertEqual(result['trials'], self.test_eeg['trials'])
         self.assertEqual(result['srate'], self.test_eeg['srate'])
+
+    def test_eeg_picard_does_not_mutate_caller(self):
+        """eeg_picard must not mutate the caller's data or ICA fields."""
+        data_before = self.test_eeg['data'].copy()
+        # A pre-ICA input has no icaweights yet; "does not mutate" means the
+        # caller's fields stay the exact objects they were (the result is a copy).
+        weights_before = self.test_eeg.get('icaweights')
+        chansind_before = self.test_eeg.get('icachansind')
+
+        eeg_picard(self.test_eeg, posact=True, max_iter=10, random_state=1, verbose=False)
+
+        self.assertTrue(np.array_equal(self.test_eeg['data'], data_before))
+        self.assertIs(self.test_eeg.get('icaweights'), weights_before)
+        self.assertIs(self.test_eeg.get('icachansind'), chansind_before)
+
+    def test_eeg_picard_posact_preserves_unmixing_invariant(self):
+        """After posact sign flips, icawinv must stay pinv(icaweights @ icasphere)."""
+        result = eeg_picard(self.test_eeg, posact=True, max_iter=10, random_state=1, verbose=False)
+
+        icaact_2d = result['icaact'].reshape(result['icaact'].shape[0], -1, order='F')
+        ix = np.argmax(np.abs(icaact_2d), axis=1)
+        # Every component's max-abs activation must be positive after posact.
+        self.assertTrue(np.all(icaact_2d[np.arange(icaact_2d.shape[0]), ix] >= 0))
+        # icasphere is left untouched by the sign-flip step.
+        np.testing.assert_array_equal(result['icasphere'], np.eye(self.test_eeg['nbchan']))
+        # icawinv stays consistent with the (sign-flipped) unmixing matrix.
+        np.testing.assert_allclose(result['icawinv'], pinv(result['icaweights'] @ result['icasphere']))
 
     def test_eeg_picard_ica_structure(self):
         """Test that eeg_picard creates proper ICA structure."""

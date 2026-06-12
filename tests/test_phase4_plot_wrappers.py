@@ -21,7 +21,12 @@ from eegprep.functions.guifunc.spec import controls_by_tag
 from eegprep.functions.popfunc.pop_comperp import pop_comperp, pop_comperp_dialog_spec
 from eegprep.functions.popfunc.pop_envtopo import pop_envtopo
 from eegprep.functions.popfunc.pop_erpimage import pop_erpimage, pop_erpimage_dialog_spec
-from eegprep.functions.popfunc.pop_headplot import pop_headplot, pop_headplot_dialog_spec, _shared_maplimits
+from eegprep.functions.popfunc.pop_headplot import (
+    pop_headplot,
+    pop_headplot_dialog_spec,
+    _current_spline_file,
+    _shared_maplimits,
+)
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_epoch import pop_epoch
 from eegprep.functions.popfunc._plot_utils import component_activations
@@ -103,10 +108,28 @@ def test_pop_headplot_plots_sample_latency_map_with_spline_setup(sample_eeg, tmp
     assert len(figures) == 1
     assert figures[0].axes[0].name == "3d"
     assert splinefile.exists()
-    assert eeg["splinefile"] == str(splinefile)
+    assert _current_spline_file(eeg, 1) != str(splinefile)  # plot must not mutate the caller's EEG
     assert "setup={" in command
     _assert_python_command(command)
     plt.close(figures[0])
+
+
+def test_pop_headplot_does_not_mutate_caller_eeg(sample_eeg, tmp_path):
+    eeg = deepcopy(sample_eeg)
+    before = deepcopy(eeg)
+    setup = {
+        "splinefile": str(tmp_path / "nomutate.spl"),
+        "transform": [0, -10, 0, -0.1, 0, -1.6, 1100, 1100, 1100],
+    }
+
+    figures = pop_headplot(eeg, typeplot=1, items=[0], setup=setup)
+
+    assert set(eeg.keys()) == set(before.keys())  # no new spline/mesh keys added
+    assert np.array_equal(np.asarray(eeg["splinefile"]), np.asarray(before["splinefile"]))
+    assert "headplotmeshfile" not in eeg
+    assert np.array_equal(np.asarray(eeg["data"]), np.asarray(before["data"]))
+    for fig in figures:
+        plt.close(fig)
 
 
 def test_pop_headplot_single_map_has_eeglab_like_title_and_surface(sample_eeg, tmp_path):
@@ -303,7 +326,7 @@ def test_pop_headplot_component_path_creates_ica_spline(ica_epoch, tmp_path):
     )
 
     assert len(figures) == 1
-    assert eeg["icasplinefile"] == str(splinefile)
+    assert _current_spline_file(eeg, 0) != str(splinefile)  # plot must not mutate the caller's EEG
     assert "IC 2" in figures[0].axes[1].get_title()
     _assert_python_command(command)
     plt.close(figures[0])
@@ -383,7 +406,8 @@ def test_pop_headplot_gui_setup_result_is_replayable(sample_eeg, tmp_path):
     figures, command = pop_headplot(eeg, typeplot=1, gui=True, renderer=renderer, return_com=True)
 
     assert renderer.spec.title == "ERP head plot(s) -- pop_headplot()"
-    assert Path(eeg["splinefile"]).exists()
+    assert (tmp_path / "gui.spl").exists()
+    assert _current_spline_file(eeg, 1) == ""  # plot must not mutate the caller's EEG
     assert "setup={" in command
     assert "electrodes='off'" in command
     _assert_python_command(command)

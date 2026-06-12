@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 from eegprep.plugins.clean_rawdata.asr_calibrate import asr_calibrate
 from eegprep.plugins.clean_rawdata.asr_process import asr_process
+from eegprep.plugins.clean_rawdata.clean_asr import clean_asr
 
 
 class TestAsrCalibrate(unittest.TestCase):
@@ -656,6 +657,44 @@ class TestAsrEdgeCases(unittest.TestCase):
                 # Test processing with memory limits
                 cleaned_data, _ = asr_process(data[:, :1000], srate, state, max_mem=max_mem)
                 self.assertEqual(cleaned_data.shape, (n_channels, 1000))
+
+
+class TestCleanAsrNoMutation(unittest.TestCase):
+    """Regression tests that clean_asr never mutates the caller's EEG."""
+
+    def setUp(self):
+        np.random.seed(7)
+        n_channels = 8
+        n_samples = 2500
+        srate = 250.0
+        data = np.random.randn(n_channels, n_samples) * 0.5
+        for i in range(n_channels):
+            for j in range(1, n_samples):
+                data[i, j] += 0.8 * data[i, j - 1]
+        # Inject a non-finite sample to exercise the in-place NaN-zeroing path
+        # that asr_calibrate applies to whatever array it receives.
+        data[0, 100] = np.nan
+        self.EEG = {
+            'data': data,
+            'srate': srate,
+            'nbchan': n_channels,
+            'pnts': n_samples,
+            'etc': {},
+        }
+
+    def test_does_not_mutate_input_data(self):
+        """clean_asr must leave the caller's EEG['data'] (incl. NaNs) unchanged."""
+        EEG_in = self.EEG
+        original_data = EEG_in['data'].copy()
+
+        EEG_out = clean_asr(EEG_in, ref_maxbadchannels='off')
+
+        # The caller's data is byte-for-byte unchanged, including the NaN that
+        # asr_calibrate would otherwise have zeroed in place.
+        self.assertTrue(np.array_equal(original_data, EEG_in['data'], equal_nan=True))
+        # Output is a distinct object with distinct data.
+        self.assertIsNot(EEG_out, EEG_in)
+        self.assertIsNot(EEG_out['data'], EEG_in['data'])
 
 
 if __name__ == '__main__':

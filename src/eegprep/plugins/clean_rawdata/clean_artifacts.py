@@ -1,5 +1,6 @@
 """EEG artifact cleaning functions."""
 
+import copy
 import logging
 from typing import Any, Dict, Optional, Sequence, Tuple, Union
 
@@ -196,8 +197,10 @@ def clean_artifacts(
             raise ValueError('Highpass must be a (low, high) tuple or None/"off".')
         logger.info('Applying high‑pass filter...')
         EEG = clean_drifts(EEG, tuple(Highpass))
-    # Keep a copy after HP for optional return
-    HP = EEG.copy()
+    # Keep a point-in-time snapshot after HP for optional return. Deep-copy so
+    # later stages that mutate EEG['etc'] (channel/sample masks) do not bleed
+    # into the returned high-pass dataset.
+    HP = copy.deepcopy(EEG)
 
     # ------------------------------------------------------------------
     #            3) Channel cleaning (noisy / disconnected)
@@ -238,9 +241,8 @@ def clean_artifacts(
     BUR = EEG  # default in case ASR is skipped
     if BurstCriterion not in (None, 'off'):
         logger.info('Applying ASR burst repair...')
-        # Save original data before clean_asr modifies EEG in place.
-        # MATLAB passes structs by value so the caller's EEG retains the
-        # original data, but Python dicts are passed by reference.
+        # Snapshot the pre-repair data to compare against the ASR-repaired
+        # result; clean_asr returns a fresh dataset (BUR) and leaves EEG intact.
         original_data = EEG['data'].copy() if BurstRejection else None
         useriemannian = _DISTANCE_MODES[distance]
         BUR = clean_asr(
@@ -254,8 +256,8 @@ def clean_artifacts(
         )
 
         if BurstRejection:
-            # Determine unchanged samples: compare original (pre-ASR) with repaired.
-            # Use original_data saved before clean_asr modified EEG['data'] in place.
+            # Determine unchanged samples: compare the pre-repair snapshot with
+            # the ASR-repaired data returned in BUR.
             sample_mask = np.sum(np.abs(original_data - BUR['data']), axis=0) < 1e-8
             del original_data
             # Convert retained samples to inclusive zero-based intervals.
@@ -269,6 +271,8 @@ def clean_artifacts(
                     sample_mask[s : e + 1] = False
                 retain_intervals = retain_intervals[~small]
 
+            # Reject bad periods from the ASR-repaired dataset (BUR).
+            EEG = BUR
             rejected_intervals = mask_to_intervals(sample_mask, value=False)
             if rejected_intervals.size:
                 EEG = eeg_eegrej(EEG, rejected_intervals)
