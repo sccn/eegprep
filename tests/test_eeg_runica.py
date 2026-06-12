@@ -143,6 +143,28 @@ def test_finalize_ica_fields_shared_sort_and_sign_normalization():
     np.testing.assert_allclose(out["icawinv"], pinv(out["icaweights"] @ out["icasphere"]))
 
 
+def test_finalize_ica_fields_recomputes_stale_backend_inverse_after_sorting():
+    """Final ICA fields must be invariant even if a backend reports stale maps."""
+    from eegprep.functions.popfunc._ica_utils import finalize_ica_fields
+
+    rng = np.random.default_rng(17)
+    nbchan, pnts, trials = 3, 5, 2
+    sphere = np.array([[1.0, 0.2, 0.0], [0.0, 1.5, 0.1], [0.3, 0.0, 2.0]])
+    weights = np.array([[2.0, 0.0, 0.5], [0.1, 1.0, 0.0], [0.0, -0.4, 1.5]])
+    data = rng.standard_normal((nbchan, pnts * trials))
+    icaact = (weights @ sphere) @ data
+    eeg = {
+        "icaweights": weights.copy(),
+        "icasphere": sphere.copy(),
+        "icawinv": np.full((nbchan, nbchan), 99.0),
+        "icaact": icaact.reshape(nbchan, pnts, trials, order="F"),
+    }
+
+    out = finalize_ica_fields(eeg, sortcomps=True, posact=False)
+
+    np.testing.assert_allclose(out["icawinv"], pinv(out["icaweights"] @ out["icasphere"]))
+
+
 def test_pop_runica_concatenates_epoched_datasets_in_eeglab_order(monkeypatch):
     first = _epoched_eeg()
     second = _epoched_eeg(offset=100)

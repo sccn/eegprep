@@ -7,11 +7,19 @@ from typing import Any
 from eegprep.functions.popfunc._plot_utils import history_command
 import numpy as np
 
+from eegprep.functions.popfunc._eegplot_rejection import (
+    DEFAULT_REJECTION_COLORS,
+    MANUAL_REJECTION_COLOR,
+    displayed_rejection_families,
+    manual_rejection_color,
+    pad_rejection_rows,
+    rejection_family_color,
+    rejection_row_count,
+)
 from eegprep.functions.popfunc._rejection import copy_eeg
 from eegprep.functions.popfunc.eeg_eegrej import eeg_eegrej
 from eegprep.functions.popfunc.pop_rejepoch import pop_rejepoch
 from eegprep.functions.sigprocfunc.eegplot import (
-    DEFAULT_WINREJ_COLOR,
     eegplot,
     eegplot2event,
     eegplot2trial,
@@ -21,16 +29,6 @@ from eegprep.functions.sigprocfunc.eegplot import (
 )
 
 
-MANUAL_REJECTION_COLOR = (1.0, 0.9, 0.9)
-DEFAULT_REJECTION_COLORS = {
-    "manual": (1.0000, 1.0000, 0.7830),
-    "thresh": (0.8487, 1.0000, 0.5008),
-    "const": (0.6940, 1.0000, 0.7008),
-    "jp": (1.0000, 0.6991, 0.7537),
-    "kurt": (0.6880, 0.7042, 1.0000),
-    "freq": (0.9596, 0.7193, 1.0000),
-}
-REJECTION_FAMILIES = ("manual", "thresh", "const", "jp", "kurt", "freq")
 CONTINUOUS_MANUAL_WINREJ = "rejmanualwinrej"
 CONTINUOUS_ICA_MANUAL_WINREJ = "icarejmanualwinrej"
 
@@ -65,7 +63,7 @@ def pop_eegplot(
     )
     options.setdefault("events", EEG.get("event", []))
     accept_callback = options.pop("command_callback", None)
-    options.setdefault("wincolor", _manual_color(EEG))
+    options.setdefault("wincolor", manual_rejection_color(EEG))
     options.setdefault("butlabel", "Reject" if int(bool(reject)) else "Update Marks")
     trials = int(EEG.get("trials", 1) or 1)
     if trials > 1:
@@ -149,7 +147,7 @@ def apply_eegplot_rejections(
 
     pnts = int(out.get("pnts", np.asarray(out.get("data")).shape[1]))
     if rows.size:
-        trial_marks, row_marks = eegplot2trial(rows, pnts, trials, _manual_color(out), None)
+        trial_marks, row_marks = eegplot2trial(rows, pnts, trials, manual_rejection_color(out), None)
         store_superpose = superpose
     else:
         trial_marks = np.zeros(trials, dtype=bool)
@@ -168,16 +166,16 @@ def _initial_epoch_winrej(EEG: dict[str, Any], icacomp: int, superpose: int) -> 
     row_count = rejection_row_count(EEG, icacomp)
     manual, manual_e = _reject_arrays(reject, "rejmanual", trials, row_count, icacomp=icacomp)
     if int(superpose) == 0:
-        return trial2eegplot(manual, manual_e, pnts, _manual_color(EEG))
+        return trial2eegplot(manual, manual_e, pnts, manual_rejection_color(EEG))
     if int(superpose) == 2:
         return _superposed_epoch_winrej(EEG, reject, icacomp, trials, row_count, pnts, manual, manual_e)
     rows = []
-    old_color = tuple(min(component + 0.15, 1.0) for component in _manual_color(EEG))
+    old_color = tuple(min(component + 0.15, 1.0) for component in manual_rejection_color(EEG))
     old, old_e = _reject_arrays(reject, "rejglobal", trials, row_count, icacomp=1)
     old_rows = trial2eegplot(old, old_e, pnts, old_color)
     if old_rows.size:
         rows.append(old_rows)
-    manual_rows = trial2eegplot(manual, manual_e, pnts, _manual_color(EEG))
+    manual_rows = trial2eegplot(manual, manual_e, pnts, manual_rejection_color(EEG))
     if manual_rows.size:
         rows.append(manual_rows)
     return np.vstack(rows) if rows else np.zeros((0, 5 + row_count), dtype=float)
@@ -207,9 +205,9 @@ def _superposed_epoch_winrej(
     manual_e: np.ndarray,
 ) -> np.ndarray:
     rows = []
-    manual_color = _manual_color(EEG)
-    for family in _displayed_rejection_families(reject):
-        color = _reject_color(reject, family, DEFAULT_REJECTION_COLORS.get(family, manual_color))
+    manual_color = manual_rejection_color(EEG)
+    for family in displayed_rejection_families(reject):
+        color = rejection_family_color(reject, family, DEFAULT_REJECTION_COLORS.get(family, manual_color))
         if tuple(color) == tuple(manual_color):
             continue
         marks, marks_e = _reject_arrays(reject, f"rej{family}", trials, row_count, icacomp=icacomp)
@@ -296,27 +294,6 @@ def _reject_arrays(
     return out, row_marks
 
 
-def pad_rejection_rows(values: np.ndarray, row_count: int, trials: int) -> np.ndarray:
-    """Zero-pad/crop a row-mask array to ``(row_count, trials)``."""
-    out = np.zeros((row_count, trials), dtype=bool)
-    arr = np.asarray(values, dtype=bool)
-    if arr.ndim == 1 and arr.size:
-        arr = arr.reshape(1, -1)
-    if arr.ndim == 2:
-        rows = min(row_count, arr.shape[0])
-        cols = min(trials, arr.shape[1])
-        out[:rows, :cols] = arr[:rows, :cols]
-    return out
-
-
-def rejection_row_count(EEG: dict[str, Any], icacomp: int) -> int:
-    """Return the number of channel or component rows for rejection marks."""
-    if int(bool(icacomp)):
-        return int(EEG.get("nbchan", np.asarray(EEG.get("data")).shape[0]) or 0)
-    weights = np.asarray(EEG.get("icaweights", []))
-    return int(weights.shape[0]) if weights.ndim == 2 else 0
-
-
 def _require_ica(EEG: dict[str, Any]) -> None:
     if _nonempty_array(EEG.get("icaact")):
         return
@@ -336,37 +313,6 @@ def _dataset_pnts(EEG: dict[str, Any]) -> int:
     if data.ndim >= 2:
         return int(data.shape[1])
     return 0
-
-
-def _displayed_rejection_families(reject: dict[str, Any]) -> tuple[str, ...]:
-    disprej = reject.get("disprej")
-    if disprej is None or np.asarray(disprej, dtype=object).size == 0:
-        return tuple(family for family in REJECTION_FAMILIES if _has_rejection_family(reject, family))
-    values = np.asarray(disprej, dtype=object).ravel().tolist()
-    return tuple(str(value) for value in values if str(value) in REJECTION_FAMILIES)
-
-
-def _has_rejection_family(reject: dict[str, Any], family: str) -> bool:
-    data_marks = reject.get(f"rej{family}")
-    component_marks = reject.get(f"icarej{family}")
-    return (data_marks is not None and np.asarray(data_marks).size > 0) or (
-        component_marks is not None and np.asarray(component_marks).size > 0
-    )
-
-
-def _manual_color(EEG: dict[str, Any]) -> tuple[float, float, float]:
-    reject = EEG.get("reject") or {}
-    return _reject_color(reject, "manual", MANUAL_REJECTION_COLOR)
-
-
-def _reject_color(
-    reject: dict[str, Any], family: str, default: tuple[float, float, float]
-) -> tuple[float, float, float]:
-    color = reject.get(f"rej{family}col", default)
-    values = np.asarray(color if color is not None else DEFAULT_WINREJ_COLOR, dtype=float).ravel()
-    if values.size < 3:
-        return default
-    return tuple(float(item) for item in values[:3])
 
 
 __all__ = ["apply_eegplot_rejections", "eegplot_accept_creates_dataset", "pop_eegplot"]
