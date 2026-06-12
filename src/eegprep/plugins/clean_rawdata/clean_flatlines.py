@@ -67,7 +67,8 @@ def clean_flatlines(EEG: Dict[str, Any], max_flatline_duration: float = 5.0, max
             EEG['nbchan'] = EEG['data'].shape[0]
             for fn in EEG.keys() & {'icawinv', 'icasphere', 'icaweights', 'icaact', 'stats', 'specdata', 'specicaact'}:
                 EEG[fn] = np.array([])
-            if CCM := EEG['etc'].get('clean_channel_mask') is not None:
+            CCM = EEG['etc'].get('clean_channel_mask')
+            if CCM is not None:
                 CCM[CCM] = ~removed_channels
             else:
                 EEG['etc']['clean_channel_mask'] = ~removed_channels

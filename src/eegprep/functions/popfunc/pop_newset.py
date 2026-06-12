@@ -10,7 +10,7 @@ from eegprep.functions.adminfunc.eeg_retrieve import eeg_retrieve
 from eegprep.functions.adminfunc.eeg_store import eeg_store
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
-from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args
+from eegprep.functions.popfunc._pop_utils import format_history_value, is_on, parse_key_value_args
 from eegprep.functions.popfunc.pop_saveset import pop_saveset
 
 
@@ -46,7 +46,7 @@ def pop_newset(
         command = _history_command({"retrieve": retrieve})
         return alleeg, current, current_set, command
 
-    if _is_on(options.get("gui", False)) and isinstance(EEG, dict):
+    if is_on(options.get("gui", False)) and isinstance(EEG, dict):
         gui_result = _run_gui(EEG, CURRENTSET, options, renderer=renderer)
         if gui_result is None:
             current, alleeg, current_set = eeg_retrieve(alleeg, CURRENTSET or 1)
@@ -153,11 +153,12 @@ def _run_gui(
         "gui": "off",
     }
     comments = result.get("comments")
-    if comments is None:
-        comments = result.get("editdescription")
+    edited_comments = result.get("editdescription")
+    if comments is None and isinstance(edited_comments, str):
+        comments = edited_comments
     if comments is not None:
         gui_options["comments"] = str(comments)
-    if _is_on(result.get("savenew")):
+    if is_on(result.get("savenew")):
         gui_options["savenew"] = str(result.get("savefile") or "on").strip() or "on"
     return gui_options
 
@@ -184,7 +185,7 @@ def _store_index(
 ) -> int | list[int] | None:
     if isinstance(EEG, list):
         return list(CURRENTSET) if isinstance(CURRENTSET, (list, tuple)) and len(CURRENTSET) == len(EEG) else None
-    if _is_on(options.get("overwrite", False)):
+    if is_on(options.get("overwrite", False)):
         return _first_currentset(CURRENTSET) or None
     return None
 
@@ -245,12 +246,6 @@ def _history_command(options: dict[str, Any]) -> str:
     for key, value in options.items():
         parts.extend([format_history_value(key), format_history_value(value, bool_style="onoff")])
     return f"[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, {', '.join(parts)});"
-
-
-def _is_on(value: Any) -> bool:
-    if isinstance(value, str):
-        return value.strip().lower() in {"1", "on", "true", "yes"}
-    return bool(value)
 
 
 def _should_save(value: Any) -> bool:

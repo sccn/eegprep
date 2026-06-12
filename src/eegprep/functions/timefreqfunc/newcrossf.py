@@ -9,8 +9,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import stats
 
-from eegprep.functions.timefreqfunc.bootstat import exact_p_values
-from eegprep.functions.timefreqfunc.newtimef import compute_time_frequency
+from eegprep.functions.popfunc._pop_utils import is_on as _is_on
+from eegprep.functions.popfunc._pop_utils import parse_numeric_sequence
+from eegprep.functions.timefreqfunc.bootstat import bootstrap_threshold, exact_p_values
+from eegprep.functions.timefreqfunc.newtimef import _threshold_vector, compute_time_frequency
 from eegprep.functions.timefreqfunc.newtimefitc import newtimefitc
 from eegprep.functions.timefreqfunc.newtimeftrialbaseln import baseline_indices
 
@@ -240,10 +242,10 @@ def _resample_pair(
 
 
 def _upper_thresholds_by_frequency(values: np.ndarray, *, alpha: float) -> np.ndarray:
-    reshaped = values.transpose(1, 0, 2).reshape(values.shape[1], -1)
-    sorted_values = np.sort(reshaped, axis=1)
-    tail_count = max(1, int(round(sorted_values.shape[1] * alpha)))
-    return np.nanmean(sorted_values[:, -tail_count:], axis=1)
+    nfreq = values.shape[1]
+    pooled = values.transpose(0, 2, 1).reshape(-1, nfreq)
+    thresholds = np.asarray(bootstrap_threshold(pooled, alpha=alpha, bootside="upper"))
+    return thresholds.reshape(nfreq)
 
 
 def _shuffle_trials(tf_y: np.ndarray, count: int, rng: Any) -> np.ndarray:
@@ -270,15 +272,6 @@ def _bootstrap_indices(times: np.ndarray, baseboot: Any) -> np.ndarray:
         indices = np.nonzero(times <= values[0])[0]
         return indices if indices.size else np.arange(times.size, dtype=int)
     return baseline_indices(times, values)
-
-
-def _threshold_vector(thresholds: np.ndarray, target_shape: tuple[int, ...]) -> np.ndarray:
-    values = np.asarray(thresholds, dtype=float).squeeze()
-    if values.ndim == 0:
-        return np.full(target_shape, float(values))
-    if values.ndim == 1:
-        return values[:, np.newaxis]
-    return values
 
 
 def _plot_cross_frequency(
@@ -394,27 +387,14 @@ def _boot_array(value: Any) -> np.ndarray | None:
 def _numeric_vector(value: Any, *, dtype: Any = float) -> np.ndarray:
     if value is None:
         return np.asarray([], dtype=dtype)
-    if isinstance(value, np.ndarray):
-        return value.astype(dtype).ravel()
-    if isinstance(value, (int, float, np.integer, np.floating)):
-        return np.asarray([value], dtype=dtype)
-    if isinstance(value, str):
-        text = value.strip().strip("[]")
-        if not text:
-            return np.asarray([], dtype=dtype)
-        return np.asarray([float(token) for token in text.replace(",", " ").split()], dtype=dtype)
-    if isinstance(value, (list, tuple)):
-        return np.asarray(value, dtype=dtype).ravel()
-    return np.asarray([value], dtype=dtype)
+    if isinstance(value, str) and value.strip() == "":
+        return np.asarray([], dtype=dtype)
+    return np.asarray(parse_numeric_sequence(value, dtype=dtype), dtype=dtype).ravel()
 
 
 def _first_numeric(value: Any, default: float) -> float:
     values = _numeric_vector(value)
     return float(values[0]) if values.size else float(default)
-
-
-def _is_on(value: Any) -> bool:
-    return str(value).lower() not in {"0", "false", "off", "no", "none"}
 
 
 __all__ = ["CrossFrequencyResult", "newcrossf"]

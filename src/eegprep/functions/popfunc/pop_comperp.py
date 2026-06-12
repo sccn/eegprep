@@ -19,6 +19,7 @@ from eegprep.functions.popfunc._plot_utils import (
     history_command,
     numeric_vector,
 )
+from eegprep.functions.popfunc._pop_utils import is_on
 
 
 def pop_comperp(
@@ -64,22 +65,18 @@ def pop_comperp(
     pvalues = _significance(add_stack, sub_stack, options.get("alpha"))
     lowpass = numeric_vector(options.get("lowpass", []))
     if lowpass.size:
-        erp1 = _lowpass_erp(erp1, float(lowpass[0]), float(datasets[int(add_indices[0])].get("srate", 1) or 1))
+        cutoff = float(lowpass[0])
+        srate = float(datasets[int(add_indices[0])].get("srate", 1) or 1)
+        erp1 = _lowpass(erp1, cutoff, srate, axis=1)
         if erp2 is not None:
-            erp2 = _lowpass_erp(erp2, float(lowpass[0]), float(datasets[int(add_indices[0])].get("srate", 1) or 1))
+            erp2 = _lowpass(erp2, cutoff, srate, axis=1)
         if erpsub is not None:
-            erpsub = _lowpass_erp(erpsub, float(lowpass[0]), float(datasets[int(add_indices[0])].get("srate", 1) or 1))
-        add_stack = _lowpass_stack(
-            add_stack, float(lowpass[0]), float(datasets[int(add_indices[0])].get("srate", 1) or 1)
-        )
+            erpsub = _lowpass(erpsub, cutoff, srate, axis=1)
+        add_stack = _lowpass(add_stack, cutoff, srate, axis=2)
         if sub_stack is not None:
-            sub_stack = _lowpass_stack(
-                sub_stack, float(lowpass[0]), float(datasets[int(add_indices[0])].get("srate", 1) or 1)
-            )
+            sub_stack = _lowpass(sub_stack, cutoff, srate, axis=2)
         if diff_stack is not None:
-            diff_stack = _lowpass_stack(
-                diff_stack, float(lowpass[0]), float(datasets[int(add_indices[0])].get("srate", 1) or 1)
-            )
+            diff_stack = _lowpass(diff_stack, cutoff, srate, axis=2)
     times = eeg_times_ms(datasets[int(add_indices[0])])
     figure = _plot_comperp(
         erp1,
@@ -246,23 +243,23 @@ def _plot_comperp(
     fig, ax = plt.subplots(figsize=(8, 4.5))
     plot_times, mask = _plot_time_mask(times, options.get("tlim"))
     mode = str(options.get("mode") or "ave").lower()
-    if _is_on(options.get("addall")):
+    if is_on(options.get("addall")):
         _plot_all(ax, add_stack, plot_times, mask, color="0.45", label_prefix="add")
-    if _is_on(options.get("suball")) and sub_stack is not None:
+    if is_on(options.get("suball")) and sub_stack is not None:
         _plot_all(ax, sub_stack, plot_times, mask, color="0.65", label_prefix="sub")
-    if _is_on(options.get("diffall")) and diff_stack is not None:
+    if is_on(options.get("diffall")) and diff_stack is not None:
         _plot_all(ax, diff_stack, plot_times, mask, color="0.35", label_prefix="diff")
-    if _is_on(options.get("addavg")):
+    if is_on(options.get("addavg")):
         ax.plot(plot_times, np.nanmean(erp1, axis=0)[mask], color="blue", label="add")
-    if erp2 is not None and _is_on(options.get("subavg")):
+    if erp2 is not None and is_on(options.get("subavg")):
         ax.plot(plot_times, np.nanmean(erp2, axis=0)[mask], color="red", label="subtract")
-    if erpsub is not None and _is_on(options.get("diffavg")):
+    if erpsub is not None and is_on(options.get("diffavg")):
         ax.plot(plot_times, np.nanmean(erpsub, axis=0)[mask], color="black", label="difference")
-    if _is_on(options.get("addstd")):
+    if is_on(options.get("addstd")):
         _plot_std(ax, add_stack, plot_times, mask, color="blue", label="add std", mode=mode)
-    if _is_on(options.get("substd")) and sub_stack is not None:
+    if is_on(options.get("substd")) and sub_stack is not None:
         _plot_std(ax, sub_stack, plot_times, mask, color="red", label="sub std", mode=mode)
-    if _is_on(options.get("diffstd")) and diff_stack is not None:
+    if is_on(options.get("diffstd")) and diff_stack is not None:
         _plot_std(ax, diff_stack, plot_times, mask, color="black", label="diff std", mode=mode)
     alpha = options.get("alpha")
     if pvalues is not None and alpha is not None:
@@ -301,18 +298,11 @@ def _validate_time_grid(datasets: list[dict[str, Any]]) -> None:
             raise ValueError(f"Dataset {index} does not share the same time grid")
 
 
-def _lowpass_erp(values: np.ndarray, cutoff: float, srate: float) -> np.ndarray:
+def _lowpass(values: np.ndarray, cutoff: float, srate: float, axis: int) -> np.ndarray:
     if cutoff <= 0 or cutoff >= srate / 2:
         raise ValueError("lowpass must be greater than 0 and below Nyquist")
     sos = butter(4, cutoff, btype="lowpass", fs=srate, output="sos")
-    return sosfiltfilt(sos, values, axis=1)
-
-
-def _lowpass_stack(values: np.ndarray, cutoff: float, srate: float) -> np.ndarray:
-    if cutoff <= 0 or cutoff >= srate / 2:
-        raise ValueError("lowpass must be greater than 0 and below Nyquist")
-    sos = butter(4, cutoff, btype="lowpass", fs=srate, output="sos")
-    return sosfiltfilt(sos, values, axis=2)
+    return sosfiltfilt(sos, values, axis=axis)
 
 
 def _is_default_off(value: Any) -> bool:
@@ -402,15 +392,7 @@ def _optional_alpha(value: Any) -> float | None:
 def _onoff_option(value: Any, default: bool) -> str:
     if value is None or (_is_default_off(value) and default is False):
         return "on" if default else "off"
-    return "on" if _is_on(value) else "off"
-
-
-def _is_on(value: Any) -> bool:
-    if isinstance(value, str):
-        return value.strip().lower() in {"on", "yes", "true", "1"}
-    if isinstance(value, np.ndarray):
-        return bool(value.size and np.asarray(value).ravel()[0])
-    return bool(value)
+    return "on" if is_on(value) else "off"
 
 
 def _significance(add_stack: np.ndarray, sub_stack: np.ndarray | None, alpha: float | None) -> np.ndarray | None:

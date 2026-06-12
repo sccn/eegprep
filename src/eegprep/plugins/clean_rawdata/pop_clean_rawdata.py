@@ -69,11 +69,13 @@ def pop_clean_rawdata(
         return (output, command) if return_com else output
     if int(EEG.get("trials", 1) or 1) > 1 or np.asarray(EEG.get("data")).ndim == 3:
         raise ValueError("Input data must be continuous. This data seems epoched.")
-    original_eeg = copy.deepcopy(EEG) if show_vis_artifacts else None
-    clean_eeg, _hp, _bur, _removed_channels = clean_artifacts(EEG, **options)
+    # Deep-copy so a failure (or any partial cleaning stage) leaves the caller's
+    # input dataset untouched and a successful run returns a distinct object.
+    working_eeg = copy.deepcopy(EEG)
+    clean_eeg, _hp, _bur, _removed_channels = clean_artifacts(working_eeg, **options)
     command = _history_command(options)
-    if show_vis_artifacts and original_eeg is not None:
-        vis_artifacts(clean_eeg, original_eeg)
+    if show_vis_artifacts:
+        vis_artifacts(clean_eeg, EEG)
     logger.info("Done.")
     return (clean_eeg, command) if return_com else clean_eeg
 

@@ -153,7 +153,7 @@ def apply_eegplot_rejections(
         store_superpose = superpose
     else:
         trial_marks = np.zeros(trials, dtype=bool)
-        row_marks = np.zeros((_row_count(out, icacomp), trials), dtype=bool)
+        row_marks = np.zeros((rejection_row_count(out, icacomp), trials), dtype=bool)
         store_superpose = 0
     _store_epoch_marks(out, trial_marks, row_marks, icacomp=icacomp, superpose=store_superpose)
     if int(bool(reject)) and trial_marks.any():
@@ -165,7 +165,7 @@ def _initial_epoch_winrej(EEG: dict[str, Any], icacomp: int, superpose: int) -> 
     reject = EEG.get("reject") or {}
     trials = int(EEG.get("trials", 1) or 1)
     pnts = int(EEG.get("pnts", np.asarray(EEG.get("data")).shape[1]))
-    row_count = _row_count(EEG, icacomp)
+    row_count = rejection_row_count(EEG, icacomp)
     manual, manual_e = _reject_arrays(reject, "rejmanual", trials, row_count, icacomp=icacomp)
     if int(superpose) == 0:
         return trial2eegplot(manual, manual_e, pnts, _manual_color(EEG))
@@ -184,7 +184,7 @@ def _initial_epoch_winrej(EEG: dict[str, Any], icacomp: int, superpose: int) -> 
 
 
 def _initial_continuous_winrej(EEG: dict[str, Any], icacomp: int) -> np.ndarray:
-    row_count = _row_count(EEG, icacomp)
+    row_count = rejection_row_count(EEG, icacomp)
     rows = _as_winrej_rows((EEG.get("reject") or {}).get(_continuous_mark_field(icacomp), []))
     if rows.size == 0:
         return np.zeros((0, 5 + row_count), dtype=float)
@@ -234,19 +234,19 @@ def _store_epoch_marks(
     field = "rejmanual" if int(bool(icacomp)) else "icarejmanual"
     field_e = f"{field}E"
     trials = int(EEG.get("trials", 1) or 1)
-    row_count = _row_count(EEG, icacomp)
+    row_count = rejection_row_count(EEG, icacomp)
     current, current_e = _reject_arrays(reject, "rejmanual", trials, row_count, icacomp=icacomp)
     if int(superpose):
         trial_marks = np.asarray(trial_marks, dtype=bool) | current
-        row_marks = _pad_rows(row_marks, row_count, trials) | current_e
+        row_marks = pad_rejection_rows(row_marks, row_count, trials) | current_e
     reject[field] = np.asarray(trial_marks, dtype=bool)
-    reject[field_e] = _pad_rows(row_marks, row_count, trials)
+    reject[field_e] = pad_rejection_rows(row_marks, row_count, trials)
     reject.setdefault("rejmanualcol", np.asarray(MANUAL_REJECTION_COLOR, dtype=float))
 
 
 def _store_continuous_marks(EEG: dict[str, Any], rows: np.ndarray, *, icacomp: int) -> None:
     reject = EEG.setdefault("reject", {})
-    row_count = _row_count(EEG, icacomp)
+    row_count = rejection_row_count(EEG, icacomp)
     if rows.size == 0:
         reject[_continuous_mark_field(icacomp)] = np.zeros((0, 5 + row_count), dtype=float)
     else:
@@ -259,7 +259,7 @@ def _store_continuous_marks(EEG: dict[str, Any], rows: np.ndarray, *, icacomp: i
 
 def _clear_continuous_marks(EEG: dict[str, Any], *, icacomp: int) -> None:
     reject = EEG.setdefault("reject", {})
-    reject[_continuous_mark_field(icacomp)] = np.zeros((0, 5 + _row_count(EEG, icacomp)), dtype=float)
+    reject[_continuous_mark_field(icacomp)] = np.zeros((0, 5 + rejection_row_count(EEG, icacomp)), dtype=float)
 
 
 def _continuous_mark_field(icacomp: int) -> str:
@@ -292,11 +292,12 @@ def _reject_arrays(
     marks = np.asarray(reject.get(f"{prefix}{kind}", []), dtype=bool).ravel()
     out = np.zeros(trials, dtype=bool)
     out[: min(trials, marks.size)] = marks[:trials]
-    row_marks = _pad_rows(np.asarray(reject.get(f"{prefix}{kind}E", []), dtype=bool), row_count, trials)
+    row_marks = pad_rejection_rows(np.asarray(reject.get(f"{prefix}{kind}E", []), dtype=bool), row_count, trials)
     return out, row_marks
 
 
-def _pad_rows(values: np.ndarray, row_count: int, trials: int) -> np.ndarray:
+def pad_rejection_rows(values: np.ndarray, row_count: int, trials: int) -> np.ndarray:
+    """Zero-pad/crop a row-mask array to ``(row_count, trials)``."""
     out = np.zeros((row_count, trials), dtype=bool)
     arr = np.asarray(values, dtype=bool)
     if arr.ndim == 1 and arr.size:
@@ -308,7 +309,8 @@ def _pad_rows(values: np.ndarray, row_count: int, trials: int) -> np.ndarray:
     return out
 
 
-def _row_count(EEG: dict[str, Any], icacomp: int) -> int:
+def rejection_row_count(EEG: dict[str, Any], icacomp: int) -> int:
+    """Return the number of channel or component rows for rejection marks."""
     if int(bool(icacomp)):
         return int(EEG.get("nbchan", np.asarray(EEG.get("data")).shape[0]) or 0)
     weights = np.asarray(EEG.get("icaweights", []))

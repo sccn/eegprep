@@ -47,6 +47,21 @@ def _matlab_string(value):
     return "'" + str(value).replace("'", "''") + "'"
 
 
+def test_eeg_from_data_raises_on_ambiguous_tall_array():
+    # A tall channel-major array (more channels than samples) must not be
+    # silently transposed; orientation has to be stated via nbchan.
+    with pytest.raises(ValueError, match="orientation"):
+        eeg_from_data(np.zeros((256, 100)), srate=100)
+
+
+def test_eeg_from_data_loads_tall_channel_major_with_nbchan():
+    eeg = eeg_from_data(np.arange(256 * 100, dtype=float).reshape(256, 100), srate=100, nbchan=256)
+
+    assert eeg["nbchan"] == 256
+    assert eeg["pnts"] == 100
+    assert eeg["data"].shape == (256, 100)
+
+
 def test_pop_importdata_imports_ascii_data(tmp_path):
     data_file = tmp_path / "data.tsv"
     np.savetxt(data_file, np.array([[1, 2, 3], [4, 5, 6]]), delimiter="\t")
@@ -76,6 +91,46 @@ def test_pop_fileio_uses_importdata_for_text_arrays(tmp_path):
     assert eeg["nbchan"] == 2
     assert eeg["pnts"] == 3
     assert command == f"EEG = pop_fileio({_matlab_string(data_file)});"
+
+
+def test_pop_fileio_imports_plain_mat_data_array(tmp_path):
+    import scipy.io
+
+    data_file = tmp_path / "raw.mat"
+    scipy.io.savemat(data_file, {"data": np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])})
+
+    eeg = pop_fileio(data_file)
+
+    assert eeg["nbchan"] == 2
+    assert eeg["pnts"] == 3
+
+
+def test_pop_fileio_does_not_silently_fall_back_for_eeglab_mat(tmp_path):
+    import scipy.io
+
+    # An EEGLAB dataset .mat whose data sidecar is missing must surface the load
+    # failure, not be silently re-imported as a raw MATLAB data array.
+    dataset = tmp_path / "broken.mat"
+    scipy.io.savemat(
+        dataset,
+        {
+            "data": "missing.fdt",
+            "datfile": "missing.fdt",
+            "nbchan": 4,
+            "srate": 100,
+            "pnts": 100,
+            "trials": 1,
+            "xmin": 0.0,
+            "xmax": 1.0,
+            "setname": "x",
+            "chanlocs": np.array([]),
+            "event": np.array([]),
+            "icachansind": np.array([]),
+        },
+    )
+
+    with pytest.raises(FileNotFoundError):
+        pop_fileio(dataset)
 
 
 def test_pop_importevent_replaces_and_appends_events(tmp_path):

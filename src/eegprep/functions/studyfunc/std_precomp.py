@@ -80,12 +80,15 @@ def std_precomp(
     if not computed:
         raise ValueError("std_precomp requires at least one measure enabled")
     kind = _measure_kind(chanorcomp)
+    force = is_on(recompute)
     if kind == "channels":
         study["changrp"] = _precompute_channels(
             datasets,
             chanorcomp,
             computed,
             int(design),
+            cached=_cached_by_name(study.get("changrp")),
+            force=force,
             erpparams=_params_dict(erpparams),
             specparams=_params_dict(specparams),
             erspparams=_params_dict(erspparams),
@@ -97,6 +100,8 @@ def std_precomp(
             chanorcomp,
             computed,
             int(design),
+            cached=_first_cluster(study.get("cluster")),
+            force=force,
             allcomps=is_on(allcomps),
             scalp=is_on(scalp),
             erpparams=_params_dict(erpparams),
@@ -136,6 +141,8 @@ def _precompute_channels(
     computed: list[str],
     design: int,
     *,
+    cached: dict[str, dict[str, Any]],
+    force: bool,
     erpparams: dict[str, Any],
     specparams: dict[str, Any],
     erspparams: dict[str, Any],
@@ -145,6 +152,7 @@ def _precompute_channels(
     groups = []
     for channel_index in selected:
         label = labels[channel_index]
+        prior = cached.get(label, {})
         entry: dict[str, Any] = {
             "name": label,
             "channels": [label],
@@ -159,17 +167,33 @@ def _precompute_channels(
             },
         }
         if "erp" in computed:
-            entry["erpdata"], entry["erptimes"] = _channel_erp(datasets, channel_index, erpparams)
+            if _keep_cached(prior, "erpdata", force):
+                _carry(entry, prior, ("erpdata", "erptimes"))
+            else:
+                entry["erpdata"], entry["erptimes"] = _channel_erp(datasets, channel_index, erpparams)
         if "spec" in computed:
-            entry["specdata"], entry["specfreqs"] = _channel_spec(datasets, channel_index, specparams)
-        if "ersp" in computed or "itc" in computed:
+            if _keep_cached(prior, "specdata", force):
+                _carry(entry, prior, ("specdata", "specfreqs"))
+            else:
+                entry["specdata"], entry["specfreqs"] = _channel_spec(datasets, channel_index, specparams)
+        ersp_cached = _keep_cached(prior, "erspdata", force) if "ersp" in computed else True
+        itc_cached = _keep_cached(prior, "itcdata", force) if "itc" in computed else True
+        if ("ersp" in computed and not ersp_cached) or ("itc" in computed and not itc_cached):
             tf = _channel_time_frequency(datasets, channel_index, erspparams)
-            if "ersp" in computed:
+        else:
+            tf = None
+        if "ersp" in computed:
+            if ersp_cached:
+                _carry(entry, prior, ("erspdata", "ersptimes", "erspfreqs", "erspbase"))
+            else:
                 entry["erspdata"] = tf["erspdata"]
                 entry["ersptimes"] = tf["times"]
                 entry["erspfreqs"] = tf["freqs"]
                 entry["erspbase"] = tf["powbase"]
-            if "itc" in computed:
+        if "itc" in computed:
+            if itc_cached:
+                _carry(entry, prior, ("itcdata", "itctimes", "itcfreqs"))
+            else:
                 entry["itcdata"] = tf["itcdata"]
                 entry["itctimes"] = tf["times"]
                 entry["itcfreqs"] = tf["freqs"]
@@ -184,6 +208,8 @@ def _precompute_components(
     computed: list[str],
     design: int,
     *,
+    cached: dict[str, Any],
+    force: bool,
     allcomps: bool,
     scalp: bool,
     erpparams: dict[str, Any],
@@ -213,21 +239,37 @@ def _precompute_components(
     if scalp:
         cluster["topo"] = _component_topographies(datasets, selected, selection_mask)
     if "erp" in computed:
-        cluster["erpdata"], cluster["erptimes"] = _component_erp(
-            datasets, activations, selected, selection_mask, erpparams
-        )
+        if _keep_cached(cached, "erpdata", force):
+            _carry(cluster, cached, ("erpdata", "erptimes"))
+        else:
+            cluster["erpdata"], cluster["erptimes"] = _component_erp(
+                datasets, activations, selected, selection_mask, erpparams
+            )
     if "spec" in computed:
-        cluster["specdata"], cluster["specfreqs"] = _component_spec(
-            datasets, activations, selected, selection_mask, specparams
-        )
-    if "ersp" in computed or "itc" in computed:
+        if _keep_cached(cached, "specdata", force):
+            _carry(cluster, cached, ("specdata", "specfreqs"))
+        else:
+            cluster["specdata"], cluster["specfreqs"] = _component_spec(
+                datasets, activations, selected, selection_mask, specparams
+            )
+    ersp_cached = _keep_cached(cached, "erspdata", force) if "ersp" in computed else True
+    itc_cached = _keep_cached(cached, "itcdata", force) if "itc" in computed else True
+    if ("ersp" in computed and not ersp_cached) or ("itc" in computed and not itc_cached):
         tf = _component_time_frequency(datasets, activations, selected, selection_mask, erspparams)
-        if "ersp" in computed:
+    else:
+        tf = None
+    if "ersp" in computed:
+        if ersp_cached:
+            _carry(cluster, cached, ("erspdata", "ersptimes", "erspfreqs", "erspbase"))
+        else:
             cluster["erspdata"] = tf["erspdata"]
             cluster["ersptimes"] = tf["times"]
             cluster["erspfreqs"] = tf["freqs"]
             cluster["erspbase"] = tf["powbase"]
-        if "itc" in computed:
+    if "itc" in computed:
+        if itc_cached:
+            _carry(cluster, cached, ("itcdata", "itctimes", "itcfreqs"))
+        else:
             cluster["itcdata"] = tf["itcdata"]
             cluster["itctimes"] = tf["times"]
             cluster["itcfreqs"] = tf["freqs"]
@@ -445,6 +487,28 @@ def _component_topographies(
             dataset_maps.append(maps[:, component_index])
         topographies.append(np.asarray(dataset_maps, dtype=float))
     return np.asarray(topographies, dtype=float).tolist()
+
+
+def _keep_cached(prior: dict[str, Any], data_field: str, force: bool) -> bool:
+    return not force and data_field in prior
+
+
+def _carry(target: dict[str, Any], prior: dict[str, Any], fields: tuple[str, ...]) -> None:
+    for field in fields:
+        if field in prior:
+            target[field] = prior[field]
+
+
+def _cached_by_name(changrp: Any) -> dict[str, dict[str, Any]]:
+    if not isinstance(changrp, list):
+        return {}
+    return {entry["name"]: entry for entry in changrp if isinstance(entry, dict) and entry.get("name")}
+
+
+def _first_cluster(cluster: Any) -> dict[str, Any]:
+    if isinstance(cluster, list) and cluster and isinstance(cluster[0], dict):
+        return cluster[0]
+    return {}
 
 
 def _measure_kind(chanorcomp: Any) -> str:

@@ -150,11 +150,21 @@ def test_deterministic_clustering_helpers_return_stable_shapes():
     centroids = std_centroid(data[:4], optimal_labels)
     outlier_rows = std_findoutlierclust(data, [1, 1, 1, 1, 1], threshold=1.0)
 
+    # The two tight pairs must each share a label and the pairs must differ,
+    # so a regression that swaps or misindexes cluster assignments is caught.
     assert set(optimal_labels.tolist()) == {1, 2}
+    assert optimal_labels[0] == optimal_labels[1]
+    assert optimal_labels[2] == optimal_labels[3]
+    assert optimal_labels[0] != optimal_labels[2]
     assert optimal_centers.shape == (2, 2)
     assert optimal_sumd.shape == (2,)
     assert optimal_distances.shape == (4, 2)
+
+    # The far row [20, 20] (row index 4) must land alone in its own cluster,
+    # distinct from the four tight rows.
     assert robust_labels.shape == (5,)
+    assert robust_labels[4] not in set(robust_labels[:4].tolist())
+    assert int(np.sum(robust_labels == robust_labels[4])) == 1
     assert robust_centers.shape[1] == 2
     assert robust_sumd.ndim == 1
     assert robust_distances.shape[0] == 5
@@ -163,7 +173,29 @@ def test_deterministic_clustering_helpers_return_stable_shapes():
     assert ap_centers.shape[1] == 2
     assert ap_sumd.ndim == 1
     assert centroids.shape == (2, 2)
+    # std_findoutlierclust must flag the far row (1-based index 5) as the outlier.
     assert outlier_rows.tolist() == [5]
+
+
+def test_kmeans_kernel_is_shared_by_clustering_callers():
+    # optimal_kmeans and robust_kmeans must reuse the one canonical k-means
+    # kernel so the numerics cannot drift between copies. Single-cluster runs
+    # let us compare labels/centers directly against the kernel output.
+    from eegprep.functions.studyfunc._cluster_kmeans import kmeans_labels, squared_distances
+
+    data = np.asarray([[0.0, 0.0], [0.1, 0.0], [5.0, 5.0], [5.1, 5.0]])
+    kernel_labels, kernel_centers = kmeans_labels(data, 2, random_state=7)
+
+    optimal_labels, optimal_centers, _sumd, optimal_distances = optimal_kmeans(data, 2, random_state=7)
+    np.testing.assert_array_equal(optimal_labels, kernel_labels)
+    np.testing.assert_allclose(optimal_centers, kernel_centers)
+    np.testing.assert_allclose(optimal_distances, np.sqrt(squared_distances(data, kernel_centers)))
+
+    robust_labels, robust_centers, _rsumd, _rdist, _outliers = robust_kmeans(
+        data, 2, STD=float("inf"), MAXiter=1, random_state=7
+    )
+    np.testing.assert_array_equal(robust_labels, kernel_labels)
+    np.testing.assert_allclose(robust_centers, kernel_centers)
 
 
 def test_pop_clust_rejects_invalid_cluster_counts_and_outlier_thresholds():

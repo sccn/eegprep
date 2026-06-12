@@ -10,7 +10,7 @@ import pytest
 from eegprep.functions.guifunc.spec import controls_by_tag
 from eegprep.functions.guifunc.qt import QtDialogRenderer
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
-from eegprep.functions.popfunc.pop_runica import pop_runica, pop_runica_dialog_spec
+from eegprep.functions.popfunc.pop_runica import pop_runica, pop_runica_dialog_spec, pop_runica_gui_options
 
 
 def _eeg():
@@ -95,6 +95,19 @@ class PopRunicaGuiTests(unittest.TestCase):
             com,
             "EEG = pop_runica(EEG, 'icatype', 'runica', 'extended', 1, 'maxsteps', 2, 'interrupt', 'on');",
         )
+
+    def test_gui_options_do_not_inject_interrupt_for_non_runica_algorithms(self):
+        class Renderer:
+            def run(self, spec, initial_values=None):
+                return {"icatype": 4, "params": "'maxiter', 7", "reorder": True, "chantype": ""}
+
+        options = pop_runica_gui_options(_eeg(), renderer=Renderer())
+
+        self.assertIsNotNone(options)
+        assert options is not None
+        self.assertEqual(options["icatype"], "picard")
+        self.assertEqual(options["options"], {"maxiter": 7})
+        self.assertNotIn("interrupt", options["options"])
 
     def test_gui_result_runs_runica_and_returns_history(self):
         class Renderer:
@@ -295,13 +308,22 @@ class PopRunicaGuiTests(unittest.TestCase):
         updated = dict(eeg, icaweights=np.eye(4), icasphere=np.eye(4), icawinv=np.eye(4), icaact=np.zeros((4, 20, 1)))
 
         with mock.patch("eegprep.functions.popfunc.pop_runica.eeg_picard", return_value=updated) as picard:
-            out, com = pop_runica(eeg, icatype="picard", options={"maxiter": 7, "mode": "standard"}, return_com=True)
+            out, com = pop_runica(
+                eeg,
+                icatype="picard",
+                options={"maxiter": 7, "mode": "standard", "seed": 3},
+                return_com=True,
+            )
 
         picard.assert_called_once()
         self.assertEqual(picard.call_args.kwargs["max_iter"], 7)
+        self.assertEqual(picard.call_args.kwargs["random_state"], 3)
         self.assertFalse(picard.call_args.kwargs["ortho"])
         self.assertEqual(out["icaweights"].shape, (4, 4))
-        self.assertEqual(com, "EEG = pop_runica(EEG, 'icatype', 'picard', 'maxiter', 7, 'mode', 'standard');")
+        self.assertEqual(
+            com,
+            "EEG = pop_runica(EEG, 'icatype', 'picard', 'maxiter', 7, 'mode', 'standard', 'seed', 3);",
+        )
 
     def test_unported_ica_algorithm_fails_clearly(self):
         with self.assertRaisesRegex(NotImplementedError, "not ported"):

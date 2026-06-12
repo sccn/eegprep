@@ -39,7 +39,7 @@ def pop_chansel(
         return [], "", []
 
     allchanstr = [channel_values[index - 1] for index in chanlist]
-    chanliststr = _selected_string(allchanstr, withindex_value)
+    chanliststr = _selected_string(allchanstr)
     if handle is not None and hasattr(handle, "setText"):
         handle.setText(chanliststr)
     return chanlist, chanliststr, allchanstr
@@ -62,12 +62,22 @@ def pop_chansel_selected_string(
     select: Any,
     *,
     field: str = "labels",
-    withindex: str = "off",
 ) -> str:
     """Return EEGLAB's selected channel string without opening the dialog."""
     channel_values = _channel_values(chans, field)
     selected = _selection_to_indices(select, channel_values)
-    return _selected_string([channel_values[index - 1] for index in selected], withindex)
+    return _selected_string([channel_values[index - 1] for index in selected])
+
+
+def pop_chansel_resolve(
+    chans: Any,
+    select: Any,
+    *,
+    field: str = "labels",
+) -> tuple[list[str], list[int]]:
+    """Resolve a channel selection to its labels and 1-based indices without a dialog."""
+    channel_values = _channel_values(chans, field)
+    return channel_values, _selection_to_indices(select, channel_values)
 
 
 def _channel_values(chans: Any, field: str) -> list[str]:
@@ -136,7 +146,7 @@ def _parse_text(text: str) -> list[str]:
     return [next(part for part in token if part) for token in tokens]
 
 
-def _selected_string(values: list[str], withindex: str) -> str:
+def _selected_string(values: list[str]) -> str:
     if not values:
         return ""
     space_present = any(" " in value or "\t" in value for value in values)

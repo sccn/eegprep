@@ -80,7 +80,9 @@ def clean_asr(
         raise ValueError("EEG dictionary must contain 'data', 'srate', and 'nbchan'.")
     useriemannian = _normalise_useriemannian(useriemannian)
 
-    data = np.asarray(EEG['data'], dtype=np.float64)
+    # Operate on a copy so the caller's data array (and dict) are never mutated;
+    # asr_calibrate zeroes non-finite samples in place on whatever array it receives.
+    data = np.array(EEG['data'], dtype=np.float64, copy=True)
     srate = float(EEG['srate'])
     nbchan = int(EEG['nbchan'])
     C, S = data.shape
@@ -119,10 +121,14 @@ def clean_asr(
                     "clean_windows returned insufficient data. Falling back to using all data for calibration."
                 )
                 ref_section_data = data
-        except Exception as e:
-            logger.error(f"An error occurred during clean_windows: {e}")
+        except ValueError as e:
+            # clean_windows raises ValueError for expected calibration-data problems
+            # (empty data, window too small, not enough data for one window). Only
+            # those warrant the all-data fallback; unexpected exceptions propagate so
+            # genuine bugs are not masked as silently weaker ASR calibration.
             logger.warning(
-                "Could not automatically identify clean calibration data. Falling back to using the entire data for calibration."
+                f"Could not automatically identify clean calibration data ({e}). "
+                "Falling back to using the entire data for calibration."
             )
             ref_section_data = data
     elif (isinstance(ref_maxbadchannels, str) and ref_maxbadchannels.lower() == 'off') or ref_maxbadchannels is None:
@@ -200,6 +206,7 @@ def clean_asr(
     # --- Finalize ---
     # shift signal content back (to compensate for processing delay)
     outdata = outdata[:, :S]
+    EEG = deepcopy(EEG)
     EEG['data'] = outdata
     logger.info('ASR cleaning finished.')
 

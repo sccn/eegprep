@@ -14,52 +14,12 @@ sys.path.insert(0, 'src')
 from eegprep.plugins.clean_rawdata.clean_flatlines import clean_flatlines
 from eegprep.utils.testing import DebuggableTestCase
 
+from tests.fixtures import create_test_eeg as _create_test_eeg
+
 
 def create_test_eeg():
-    """Create a complete test EEG structure with all required fields."""
-    return {
-        'data': np.random.randn(32, 1000, 10),
-        'srate': 500.0,
-        'nbchan': 32,
-        'pnts': 1000,
-        'trials': 10,
-        'xmin': -1.0,
-        'xmax': 1.0,
-        'times': np.linspace(-1.0, 1.0, 1000),
-        'icaact': [],
-        'icawinv': [],
-        'icasphere': [],
-        'icaweights': [],
-        'icachansind': [],
-        'chanlocs': [
-            {
-                'labels': f'EEG{i:03d}',
-                'type': 'EEG',
-                'theta': np.random.uniform(-90, 90),
-                'radius': np.random.uniform(0, 1),
-                'X': np.random.uniform(-1, 1),
-                'Y': np.random.uniform(-1, 1),
-                'Z': np.random.uniform(-1, 1),
-                'sph_theta': np.random.uniform(-180, 180),
-                'sph_phi': np.random.uniform(-90, 90),
-                'sph_radius': np.random.uniform(0, 1),
-                'urchan': i + 1,
-                'ref': '',
-            }
-            for i in range(32)
-        ],
-        'urchanlocs': [],
-        'chaninfo': [],
-        'ref': 'common',
-        'history': '',
-        'saved': 'yes',
-        'etc': {},
-        'event': [],
-        'epoch': [],
-        'setname': 'test_dataset',
-        'filename': 'test.set',
-        'filepath': '/tmp',
-    }
+    """Epoched EEG fixture sized for clean_flatlines (32 ch, 1000 pnts, 10 trials)."""
+    return _create_test_eeg(n_channels=32, n_samples=1000, srate=500.0, n_trials=10)
 
 
 class TestCleanFlatlinesBasic(DebuggableTestCase):
@@ -391,6 +351,45 @@ class TestCleanFlatlinesValidation(DebuggableTestCase):
         # Should update existing mask if channel is removed
         if result['nbchan'] < eeg_walrus['nbchan']:
             self.assertFalse(result['etc']['clean_channel_mask'][5])
+
+    def test_clean_flatlines_fallback_composites_existing_mask(self):
+        """Fallback path with a prior clean_channel_mask must composite, not crash.
+
+        Reproduces the walrus-precedence bug: when pop_select fails and a prior
+        clean_channel_mask exists, the mask update must run ``mask[mask] = ~removed``
+        rather than treating the mask as a bool. Uses continuous (2D) data so the
+        composite indexing exercises the real fallback branch.
+        """
+        eeg = self.test_eeg.copy()
+        eeg['data'] = np.random.randn(32, 1000)
+        eeg['trials'] = 1
+        eeg['data'][5, :] = 1.0  # flatline channel 5
+        eeg['etc'] = {'clean_channel_mask': np.ones(32, dtype=bool)}
+        # Empty chanlocs so the unrelated chanlocs-trim branch is skipped and the
+        # test isolates the clean_channel_mask compositing branch.
+        eeg['chanlocs'] = []
+
+        # Force the no-pop_select fallback with a non-ImportError so the
+        # mask-compositing branch runs (this is where the bug lived).
+        import eegprep
+
+        original = eegprep.pop_select
+
+        def failing_pop_select(*args, **kwargs):
+            raise RuntimeError("simulated pop_select failure")
+
+        eegprep.pop_select = failing_pop_select
+        try:
+            result = clean_flatlines(eeg, max_flatline_duration=1.0)
+        finally:
+            eegprep.pop_select = original
+
+        mask = result['etc']['clean_channel_mask']
+        # Original mask had 32 True entries; after compositing exactly channel 5
+        # (the flatline) must be False and the rest True.
+        self.assertEqual(mask.shape[0], 32)
+        self.assertFalse(mask[5])
+        self.assertEqual(int(np.sum(~mask)), 1)
 
 
 class TestCleanFlatlinesNoOpPath(DebuggableTestCase):

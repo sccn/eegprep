@@ -8,6 +8,7 @@ import sys
 
 import yaml
 
+from eegprep.cli.core import EEGPrepCLIError, command_error, emit_command_result
 from tests.fixtures import SAMPLE_DATASET_PATH
 
 
@@ -59,6 +60,18 @@ def test_capabilities_schema_examples_and_skill_are_json_readable():
     assert any("pipeline run" in item for item in _json_stdout(examples)["examples"])
     assert skill.returncode == 0
     assert "Agent Rules" in _json_stdout(skill)["content"]
+
+
+def test_transform_command_schemas_define_every_required_property():
+    for command in ("resample", "rereference", "filter", "clean", "epoch", "ica"):
+        schema = _json_stdout(_run_cli("schema", "command", command, "--json"))["schema"]
+        properties = set(schema["properties"])
+        missing = [name for name in schema["required"] if name not in properties]
+        assert not missing, f"{command} required params absent from properties: {missing}"
+        # --output is conditionally required (allowed to be omitted with --overwrite), so it must
+        # not appear in the unconditional required list and the alternative must be advertised.
+        assert "output" not in schema["required"], command
+        assert schema["anyOf"] == [{"required": ["output"]}, {"required": ["overwrite"]}], command
 
 
 def test_every_advertised_capability_has_schema_and_examples():
@@ -190,3 +203,68 @@ def test_missing_input_returns_stable_error_code():
     payload = _json_stdout(result)
     assert payload["status"] == "error"
     assert payload["code"] == "INPUT_FILE_NOT_FOUND"
+
+
+def test_qc_remainder_command_still_honors_json_flag():
+    # ``qc`` consumes its arguments via argparse.REMAINDER, so it never binds a top-level
+    # ``args.json``. The root dispatcher must still emit clean JSON for it via the
+    # command-agnostic --json detection rather than introspecting one subcommand's attribute.
+    json_result = _run_cli("qc", str(ROOT / "does-not-exist.set"), "--json")
+    human_result = _run_cli("qc", str(ROOT / "does-not-exist.set"))
+
+    assert json_result.returncode == 1
+    payload = _json_stdout(json_result)
+    assert payload["status"] == "error"
+    assert payload["code"] == "INPUT_FILE_NOT_FOUND"
+    # The human path must not emit the JSON envelope, proving --json actually toggled output.
+    assert not human_result.stdout.strip().startswith("{")
+    assert "INPUT_FILE_NOT_FOUND" in human_result.stdout
+
+
+def test_structured_command_error_preserves_non_default_exit_code(capsys):
+    error = EEGPrepCLIError("CONFIG_SCHEMA_ERROR", "bad config", exit_code=2)
+
+    result = command_error("pipeline run", error)
+    exit_code = emit_command_result(result, json_output=True)
+
+    # A structured-result usage error (exit_code=2) must not be silently downgraded to 1, so the
+    # structured path matches the exception path for the same error class.
+    assert result["exit_code"] == 2
+    assert exit_code == 2
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["exit_code"] == 2
+    assert payload["error"]["code"] == "CONFIG_SCHEMA_ERROR"
+
+
+def _write_run_config(tmp_path, name):
+    config = tmp_path / name
+    config.write_text(
+        yaml.safe_dump(
+            {
+                "schema_version": "eegprep.pipeline.v1",
+                "input": {"path": str(SAMPLE_DATASET_PATH), "format": "eeglab"},
+                "output": {"directory": str(tmp_path / f"out_{name}")},
+                "steps": [{"name": "resample", "freq": 128}, {"name": "qc"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    return config
+
+
+def test_pipeline_run_verbose_and_quiet_flags_take_effect(tmp_path):
+    verbose = _run_cli("pipeline", "run", str(_write_run_config(tmp_path, "verbose.yaml")), "--json", "--verbose")
+    quiet = _run_cli("pipeline", "run", str(_write_run_config(tmp_path, "quiet.yaml")), "--json", "--quiet")
+
+    assert verbose.returncode == 0, verbose.stderr
+    assert quiet.returncode == 0, quiet.stderr
+    # The flags must actually drive logging: --verbose emits progress chatter, --quiet suppresses it.
+    verbose_stderr = [line for line in verbose.stderr.splitlines() if line.strip()]
+    quiet_stderr = [line for line in quiet.stderr.splitlines() if line.strip()]
+    assert verbose_stderr, "expected --verbose to emit progress logging on stderr"
+    assert len(quiet_stderr) < len(verbose_stderr)
+    # In both modes the single JSON line agents parse must stay clean on stdout.
+    assert len([line for line in verbose.stdout.splitlines() if line.strip()]) == 1
+    assert len([line for line in quiet.stdout.splitlines() if line.strip()]) == 1
+    assert _json_stdout(verbose)["status"] == "ok"
+    assert _json_stdout(quiet)["status"] == "ok"

@@ -1,7 +1,10 @@
 """Module for performing ICA decomposition using the Picard algorithm."""
 
+import copy
+
 from picard import picard
 import numpy as np
+from ._ica_utils import finalize_ica_fields, flatten_ica_data, reshape_ica_activations
 from ..miscfunc.pinv import pinv
 
 
@@ -29,12 +32,14 @@ def eeg_picard(EEG, engine=None, posact='off', sortcomps='off', **kwargs):
     dict
         The updated EEG structure with ICA fields.
     """
+    EEG = copy.deepcopy(EEG)
+
     if engine is None:
         # Assuming EEG['data'] contains the EEG data as a numpy array of shape (channels, timepoints)
         data = EEG['data'].astype('float64')
 
         # reshape from 3D to 2D
-        data = data.reshape(data.shape[0], -1)
+        data = flatten_ica_data(data)
 
         # Parameters to match MATLAB picard defaults for reproducible parity
         # Using identity w_init ensures deterministic results matching MATLAB
@@ -63,7 +68,7 @@ def eeg_picard(EEG, engine=None, posact='off', sortcomps='off', **kwargs):
         EEG['icaact'] = sources
 
         # reshape EEG['icaact'] back to 3D as EEG['data']
-        EEG['icaact'] = EEG['icaact'].reshape(EEG['icaact'].shape[0], EEG['pnts'], EEG['trials'])
+        EEG['icaact'] = reshape_ica_activations(EEG['icaact'], EEG['pnts'], EEG['trials'])
         EEG['icachansind'] = np.arange(EEG['nbchan'])
 
     else:
@@ -72,38 +77,4 @@ def eeg_picard(EEG, engine=None, posact='off', sortcomps='off', **kwargs):
         # sorting/normalization options)
         EEG = engine.eeg_picard(EEG, **kwargs)
 
-    # optionally sort components by mean descending activation variance
-    if sortcomps in ('on', True):
-        # Flatten icaact to 2D for variance computation
-        icaact_2d = EEG['icaact'].reshape(EEG['icaact'].shape[0], -1)
-        # Compute variance metric: sum(icawinv^2) .* sum(icaact^2)
-        variance_metric = np.sum(EEG['icawinv'] ** 2, axis=0) * np.sum(icaact_2d**2, axis=1)
-        # Sort indices in descending order
-        windex = np.argsort(variance_metric)[::-1]
-        # Reorder components
-        EEG['icaact'] = EEG['icaact'][windex, :, :]
-        EEG['icaweights'] = EEG['icaweights'][windex, :]
-        EEG['icawinv'] = EEG['icawinv'][:, windex]
-
-    # optionally normalize components using the same rule as runica()
-    if posact in ('on', True):
-        # Flatten icaact to 2D for finding max abs values
-        icaact_2d = EEG['icaact'].reshape(EEG['icaact'].shape[0], -1)
-        # Find indices of max absolute values for each component
-        ix = np.argmax(np.abs(icaact_2d), axis=1)
-        had_flips = False
-        ncomps = EEG['icaact'].shape[0]
-
-        for r in range(ncomps):
-            if np.sign(icaact_2d[r, ix[r]]) < 0:
-                # Flip the activations
-                EEG['icaact'][r, :, :] = -EEG['icaact'][r, :, :]
-                # Flip the corresponding column of the mixing matrix
-                EEG['icawinv'][:, r] = -EEG['icawinv'][:, r]
-                had_flips = True
-
-        if had_flips:
-            # Recompute unmixing matrix
-            EEG['icaweights'] = pinv(EEG['icawinv'])
-
-    return EEG
+    return finalize_ica_fields(EEG, sortcomps=sortcomps, posact=posact)

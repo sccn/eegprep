@@ -8,17 +8,9 @@ import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
-from eegprep.functions.popfunc._eegplot_rejection import open_epoched_rejection_browser
+from eegprep.functions.popfunc._eegplot_rejection import run_epoched_rejection, vistype_from_gui
 from eegprep.functions.popfunc._pop_utils import format_history_value
-from eegprep.functions.popfunc._rejection import (
-    copy_eeg,
-    jointprob_marks,
-    one_based_indices,
-    parse_numeric_sequence,
-    rejection_data,
-    update_reject_fields,
-)
-from eegprep.functions.popfunc.pop_rejepoch import pop_rejepoch
+from eegprep.functions.popfunc._rejection import jointprob_marks, parse_numeric_sequence
 
 
 def pop_jointprob(
@@ -146,17 +138,8 @@ def _run_gui(EEG: dict[str, Any], icacomp: int, renderer: Any | None) -> tuple[A
         result.get("globthresh", threshold_default),
         int(bool(result.get("superpose", True))),
         int(bool(result.get("reject", False))),
-        _vistype_from_gui(result.get("vistype", 2)),
+        vistype_from_gui(result.get("vistype", 2)),
     )
-
-
-def _vistype_from_gui(value: Any) -> int:
-    if isinstance(value, str):
-        return 0 if value.strip().lower() in {"rejecttrials", "reject trials", "0"} else 1
-    try:
-        return 0 if int(value) == 1 else 1
-    except (TypeError, ValueError):
-        return 1
 
 
 def _apply_one(
@@ -173,43 +156,28 @@ def _apply_one(
     command_callback: Any | None = None,
     show: bool = True,
 ) -> tuple[dict[str, Any], list[float], list[float], list[int], str]:
-    out = copy_eeg(EEG)
-    data, row_count = rejection_data(out, icacomp)
-    if int(out.get("trials", data.shape[2]) or data.shape[2]) <= 1:
-        raise ValueError("pop_jointprob requires epoched data")
-    elecrange = one_based_indices(elecrange, limit=row_count, default_all=True)
-    marks, marks_e, local_scores, global_scores = jointprob_marks(data, elecrange, locthresh, globthresh)
-    out.setdefault("stats", {})
-    if int(bool(icacomp)):
-        out["stats"]["jpE"] = local_scores
-        out["stats"]["jp"] = global_scores
-    else:
-        out["stats"]["icajpE"] = local_scores
-        out["stats"]["icajp"] = global_scores
-    update_reject_fields(out, icacomp=icacomp, kind="rejjp", reject=marks, reject_e=marks_e)
-    rejected = (np.flatnonzero(marks) + 1).tolist()
-    command = _history_command(icacomp, elecrange, locthresh, globthresh, superpose, reject, vistype, 0)
-    if display:
-        open_epoched_rejection_browser(
-            out,
-            data=data,
-            icacomp=icacomp,
-            elecrange=elecrange,
-            kind="rejjp",
-            superpose=superpose,
-            reject=reject,
-            command=command,
-            command_callback=command_callback,
-            show=show,
-        )
-    elif int(bool(reject)) and rejected:
-        out = pop_rejepoch(out, rejected, 0)
-    return (
-        out,
-        parse_numeric_sequence(locthresh, dtype=float),
-        parse_numeric_sequence(globthresh, dtype=float),
-        rejected,
-        command,
+    return run_epoched_rejection(
+        EEG,
+        icacomp,
+        elecrange,
+        locthresh,
+        globthresh,
+        superpose,
+        reject,
+        vistype,
+        marks_fn=jointprob_marks,
+        kind="rejjp",
+        stats_local_field="jpE",
+        stats_global_field="jp",
+        stats_local_field_ica="icajpE",
+        stats_global_field_ica="icajp",
+        error_message="pop_jointprob requires epoched data",
+        command_fn=lambda normalized_elecrange: _history_command(
+            icacomp, normalized_elecrange, locthresh, globthresh, superpose, reject, vistype, 0
+        ),
+        display=display,
+        command_callback=command_callback,
+        show=show,
     )
 
 

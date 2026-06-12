@@ -58,8 +58,10 @@ Install the default development environment:
     uv sync --group dev
 
 ``uv sync`` creates ``.venv/`` and installs EEGPrep in editable mode from the
-locked dependency set. Use ``uv run`` for commands so they execute inside this
-environment.
+locked dependency set. The development environment includes the GUI and
+``eegprep-console`` runtime dependencies so ``uv run eegprep-console --full``
+works from a fresh checkout. Use ``uv run`` for commands so they execute inside
+this environment.
 
 Install Documentation Dependencies
 ----------------------------------

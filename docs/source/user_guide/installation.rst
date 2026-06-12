@@ -47,22 +47,6 @@ environments:
 
     pip install eegprep
 
-Using conda
------------
-
-If you prefer conda, you can install eegprep from the conda-forge channel:
-
-.. code-block:: bash
-
-    conda install -c conda-forge eegprep
-
-To create a new conda environment with eegprep:
-
-.. code-block:: bash
-
-    conda create -n eegprep-env python=3.10 eegprep
-    conda activate eegprep-env
-
 From Source
 -----------
 
@@ -75,7 +59,9 @@ To install eegprep from source for development:
     uv sync --group dev
 
 ``uv sync`` creates the project environment, installs EEGPrep in editable mode,
-and uses ``uv.lock`` for reproducible dependency resolution.
+and uses ``uv.lock`` for reproducible dependency resolution. The development
+environment includes the GUI and console runtime dependencies, so a fresh
+checkout can immediately launch ``uv run eegprep-console --full``.
 
 To develop or build documentation from source, include the docs extra:
 
@@ -108,24 +94,6 @@ For CPU-only PyTorch:
 .. code-block:: bash
 
     uv add torch --index-url https://download.pytorch.org/whl/cpu
-
-EEGLAB I/O Support
-------------------
-
-To enable reading and writing EEGLAB .set files:
-
-.. code-block:: bash
-
-    uv add eeglabio
-
-MNE-Python Integration
-----------------------
-
-For integration with MNE-Python:
-
-.. code-block:: bash
-
-    uv add mne
 
 AMICA
 -----
@@ -179,7 +147,7 @@ Or with specific extras:
 
 .. code-block:: bash
 
-    uv add "eegprep[torch,eeglabio,gui,docs]"
+    uv add "eegprep[torch,gui,docs]"
 
 Verification
 ============
@@ -268,18 +236,23 @@ EEGLAB File Format Issues
 
 **Problem**: Cannot read .set files
 
-**Solution**: Install eeglabio:
+EEGPrep reads ``.set`` files directly with SciPy (``scipy.io.loadmat``) and
+``h5py`` for newer MATLAB v7.3 files, and writes them with
+``scipy.io.savemat``. These libraries are installed automatically, so a load
+failure is almost always a path or format problem rather than a missing
+dependency.
 
-.. code-block:: bash
-
-    uv add eeglabio
-
-Then verify:
+**Solution**: Check that the path points at an existing ``.set`` file and that
+any companion ``.fdt`` data file sits next to it:
 
 .. code-block:: python
 
+    from pathlib import Path
     from eegprep import pop_loadset
-    # Should work without errors
+
+    path = Path("sub-01_task-rest_eeg.set")
+    assert path.is_file(), f"no such file: {path}"
+    EEG = pop_loadset(str(path))
 
 Memory Issues
 -------------

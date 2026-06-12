@@ -19,7 +19,7 @@ respy.grid{2} = single(repmat(respy.grid{2}, [1 1 1 4]));
 respy.grid{3} = single(repmat(respy.grid{3}, [1 1 1 4]));
 save('python_temp_reformated.mat', '-struct', 'respy');
 
-system([pythonFunc ' iclabel_net_load_py_measures.py']);
+system([pythonFunc ' ../../tools/iclabel/iclabel_net_load_py_measures.py']);
 labels_py4 = load('-mat','output4_py.mat');
 labels_py4 = reshape(mean(reshape(labels_py4.output', [], 4), 2), 7, [])';
 delete('output4_py.mat');

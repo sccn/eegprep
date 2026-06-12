@@ -12,31 +12,14 @@ import tempfile
 import scipy.io
 
 from eegprep.plugins.ICLabel.ICL_feature_extractor import ICL_feature_extractor
+from eegprep.plugins.ICLabel.eeg_rpsd import eeg_rpsd
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_saveset import pop_saveset
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 
+from tests.fixtures import create_test_eeg
+
 local_url = os.path.join(os.path.dirname(__file__), '../sample_data/')
-
-
-def create_test_eeg(n_channels=32, n_samples=1000, srate=250.0, n_trials=1):
-    """Create a synthetic EEG structure for testing."""
-    data = np.random.randn(n_channels, n_samples, n_trials) * 0.5
-    if n_trials == 1:
-        data = data.squeeze(axis=2)  # Remove trial dimension for continuous data
-
-    return {
-        'data': data,
-        'srate': srate,
-        'pnts': n_samples,
-        'nbchan': n_channels,
-        'trials': n_trials,
-        'xmin': 0.0,
-        'xmax': (n_samples - 1) / srate,
-        'times': np.arange(n_samples) / srate,
-        'event': [],
-        'ref': 'unknown',
-    }
 
 
 class TestICLFeatureExtractorBasic(unittest.TestCase):
@@ -81,22 +64,31 @@ class TestICLFeatureExtractorBasic(unittest.TestCase):
         )
 
     def test_icl_feature_extractor_missing_ica_winv(self):
-        """Test ICL_feature_extractor with missing icawinv."""
+        """Missing icawinv raises a clear ValueError before any dereference."""
         EEG = self.test_eeg.copy()
         del EEG['icawinv']
 
-        # Function has a bug - it tries to access icawinv before checking if it exists
-        with self.assertRaises(KeyError):
+        with self.assertRaises(ValueError) as cm:
             ICL_feature_extractor(EEG)
+        self.assertIn('ICA decomposition', str(cm.exception))
 
     def test_icl_feature_extractor_empty_ica_winv(self):
-        """Test ICL_feature_extractor with empty icawinv."""
+        """Empty icawinv raises a clear ValueError before any dereference."""
         EEG = self.test_eeg.copy()
         EEG['icawinv'] = np.array([])
 
-        # Function has a bug - it tries to access shape[1] on empty array
-        with self.assertRaises(IndexError):
+        with self.assertRaises(ValueError) as cm:
             ICL_feature_extractor(EEG)
+        self.assertIn('ICA decomposition', str(cm.exception))
+
+    def test_icl_feature_extractor_missing_ref_field(self):
+        """A dataset without a 'ref' field is treated as non-average and re-referenced."""
+        EEG = self.test_eeg.copy()
+        del EEG['ref']
+
+        # Must not raise KeyError on the missing 'ref'; should proceed to feature extraction.
+        features = ICL_feature_extractor(EEG, flag_autocorr=False)
+        self.assertEqual(len(features), 2)
 
     def test_icl_feature_extractor_missing_icaact(self):
         """Test ICL_feature_extractor with missing icaact."""
@@ -109,54 +101,46 @@ class TestICLFeatureExtractorBasic(unittest.TestCase):
 
     def test_icl_feature_extractor_basic_functionality(self):
         """Test basic ICL_feature_extractor functionality."""
-        try:
-            features = ICL_feature_extractor(self.test_eeg, flag_autocorr=False)
+        features = ICL_feature_extractor(self.test_eeg, flag_autocorr=False)
 
-            # Should return 2 features (topo and psd) when flag_autocorr=False
-            self.assertEqual(len(features), 2)
+        # Should return 2 features (topo and psd) when flag_autocorr=False
+        self.assertEqual(len(features), 2)
 
-            # Check topo features
-            topo = features[0]
-            self.assertEqual(topo.shape, (32, 32, 1, self.n_components))
-            self.assertEqual(topo.dtype, np.float32)
-            self.assertTrue(np.all(np.abs(topo) <= 0.99))  # Should be scaled by 0.99
+        # Check topo features
+        topo = features[0]
+        self.assertEqual(topo.shape, (32, 32, 1, self.n_components))
+        self.assertEqual(topo.dtype, np.float32)
+        self.assertTrue(np.all(np.abs(topo) <= 0.99))  # Should be scaled by 0.99
 
-            # Check psd features
-            psd = features[1]
-            self.assertEqual(psd.shape, (1, 100, 1, self.n_components))
-            self.assertEqual(psd.dtype, np.float32)
-            self.assertTrue(np.all(np.abs(psd) <= 0.99))  # Should be scaled by 0.99
-
-        except Exception as e:
-            self.skipTest(f"ICL_feature_extractor basic functionality not available: {e}")
+        # Check psd features
+        psd = features[1]
+        self.assertEqual(psd.shape, (1, 100, 1, self.n_components))
+        self.assertEqual(psd.dtype, np.float32)
+        self.assertTrue(np.all(np.abs(psd) <= 0.99))  # Should be scaled by 0.99
 
     def test_icl_feature_extractor_with_autocorr(self):
         """Test ICL_feature_extractor with autocorrelation features."""
-        try:
-            features = ICL_feature_extractor(self.test_eeg, flag_autocorr=True)
+        features = ICL_feature_extractor(self.test_eeg, flag_autocorr=True)
 
-            # Should return 3 features (topo, psd, autocorr) when flag_autocorr=True
-            self.assertEqual(len(features), 3)
+        # Should return 3 features (topo, psd, autocorr) when flag_autocorr=True
+        self.assertEqual(len(features), 3)
 
-            # Check topo features
-            topo = features[0]
-            self.assertEqual(topo.shape, (32, 32, 1, self.n_components))
-            self.assertEqual(topo.dtype, np.float32)
+        # Check topo features
+        topo = features[0]
+        self.assertEqual(topo.shape, (32, 32, 1, self.n_components))
+        self.assertEqual(topo.dtype, np.float32)
 
-            # Check psd features
-            psd = features[1]
-            self.assertEqual(psd.shape, (1, 100, 1, self.n_components))
-            self.assertEqual(psd.dtype, np.float32)
+        # Check psd features
+        psd = features[1]
+        self.assertEqual(psd.shape, (1, 100, 1, self.n_components))
+        self.assertEqual(psd.dtype, np.float32)
 
-            # Check autocorr features
-            autocorr = features[2]
-            self.assertEqual(autocorr.ndim, 4)  # Should be 4D
-            self.assertEqual(autocorr.dtype, np.float32)
-            self.assertEqual(autocorr.shape[3], self.n_components)  # Last dimension should be n_components
-            self.assertTrue(np.all(np.abs(autocorr) <= 0.99))  # Should be scaled by 0.99
-
-        except Exception as e:
-            self.skipTest(f"ICL_feature_extractor with autocorr not available: {e}")
+        # Check autocorr features
+        autocorr = features[2]
+        self.assertEqual(autocorr.ndim, 4)  # Should be 4D
+        self.assertEqual(autocorr.dtype, np.float32)
+        self.assertEqual(autocorr.shape[3], self.n_components)  # Last dimension should be n_components
+        self.assertTrue(np.all(np.abs(autocorr) <= 0.99))  # Should be scaled by 0.99
 
 
 class TestICLFeatureExtractorDataTypes(unittest.TestCase):
@@ -201,32 +185,24 @@ class TestICLFeatureExtractorDataTypes(unittest.TestCase):
         EEG = self.base_eeg.copy()
         EEG['icaact'] = EEG['icaact'].astype(np.float32)
 
-        try:
-            features = ICL_feature_extractor(EEG, flag_autocorr=False)
+        features = ICL_feature_extractor(EEG, flag_autocorr=False)
 
-            # Should work and return float32 features
-            self.assertEqual(len(features), 2)
-            for feature in features:
-                self.assertEqual(feature.dtype, np.float32)
-
-        except Exception as e:
-            self.skipTest(f"ICL_feature_extractor float32 test not available: {e}")
+        # Should work and return float32 features
+        self.assertEqual(len(features), 2)
+        for feature in features:
+            self.assertEqual(feature.dtype, np.float32)
 
     def test_icl_feature_extractor_float64_data(self):
         """Test ICL_feature_extractor with float64 input data."""
         EEG = self.base_eeg.copy()
         EEG['icaact'] = EEG['icaact'].astype(np.float64)
 
-        try:
-            features = ICL_feature_extractor(EEG, flag_autocorr=False)
+        features = ICL_feature_extractor(EEG, flag_autocorr=False)
 
-            # Should work and return float32 features (converted internally)
-            self.assertEqual(len(features), 2)
-            for feature in features:
-                self.assertEqual(feature.dtype, np.float32)
-
-        except Exception as e:
-            self.skipTest(f"ICL_feature_extractor float64 test not available: {e}")
+        # Should work and return float32 features (converted internally)
+        self.assertEqual(len(features), 2)
+        for feature in features:
+            self.assertEqual(feature.dtype, np.float32)
 
 
 class TestICLFeatureExtractorEdgeCases(unittest.TestCase):
@@ -268,21 +244,17 @@ class TestICLFeatureExtractorEdgeCases(unittest.TestCase):
 
     def test_icl_feature_extractor_small_eeg_data(self):
         """Test ICL_feature_extractor with small EEG data."""
-        try:
-            features = ICL_feature_extractor(self.base_eeg, flag_autocorr=False)
+        features = ICL_feature_extractor(self.base_eeg, flag_autocorr=False)
 
-            # Should work with small data
-            self.assertEqual(len(features), 2)
+        # Should work with small data
+        self.assertEqual(len(features), 2)
 
-            # Check feature dimensions
-            topo = features[0]
-            self.assertEqual(topo.shape, (32, 32, 1, self.n_components))
+        # Check feature dimensions
+        topo = features[0]
+        self.assertEqual(topo.shape, (32, 32, 1, self.n_components))
 
-            psd = features[1]
-            self.assertEqual(psd.shape, (1, 100, 1, self.n_components))
-
-        except Exception as e:
-            self.skipTest(f"ICL_feature_extractor small EEG test not available: {e}")
+        psd = features[1]
+        self.assertEqual(psd.shape, (1, 100, 1, self.n_components))
 
     def test_icl_feature_extractor_single_component(self):
         """Test ICL_feature_extractor with single ICA component."""
@@ -291,21 +263,17 @@ class TestICLFeatureExtractorEdgeCases(unittest.TestCase):
         EEG['icaweights'] = EEG['icaweights'][:1, :]  # Keep only first component
         EEG['icaact'] = EEG['icaact'][:1, :, :]  # Keep only first component
 
-        try:
-            features = ICL_feature_extractor(EEG, flag_autocorr=False)
+        features = ICL_feature_extractor(EEG, flag_autocorr=False)
 
-            # Should work with single component
-            self.assertEqual(len(features), 2)
+        # Should work with single component
+        self.assertEqual(len(features), 2)
 
-            # Check feature dimensions
-            topo = features[0]
-            self.assertEqual(topo.shape, (32, 32, 1, 1))  # 1 component
+        # Check feature dimensions
+        topo = features[0]
+        self.assertEqual(topo.shape, (32, 32, 1, 1))  # 1 component
 
-            psd = features[1]
-            self.assertEqual(psd.shape, (1, 100, 1, 1))  # 1 component
-
-        except Exception as e:
-            self.skipTest(f"ICL_feature_extractor single component test not available: {e}")
+        psd = features[1]
+        self.assertEqual(psd.shape, (1, 100, 1, 1))  # 1 component
 
     def test_icl_feature_extractor_many_components(self):
         """Test ICL_feature_extractor with many ICA components."""
@@ -317,21 +285,17 @@ class TestICLFeatureExtractorEdgeCases(unittest.TestCase):
         EEG['icaweights'] = np.linalg.pinv(EEG['icawinv'])
         EEG['icaact'] = np.random.randn(n_many_components, self.n_samples, 1) * 0.5
 
-        try:
-            features = ICL_feature_extractor(EEG, flag_autocorr=False)
+        features = ICL_feature_extractor(EEG, flag_autocorr=False)
 
-            # Should work with many components
-            self.assertEqual(len(features), 2)
+        # Should work with many components
+        self.assertEqual(len(features), 2)
 
-            # Check feature dimensions
-            topo = features[0]
-            self.assertEqual(topo.shape, (32, 32, 1, n_many_components))
+        # Check feature dimensions
+        topo = features[0]
+        self.assertEqual(topo.shape, (32, 32, 1, n_many_components))
 
-            psd = features[1]
-            self.assertEqual(psd.shape, (1, 100, 1, n_many_components))
-
-        except Exception as e:
-            self.skipTest(f"ICL_feature_extractor many components test not available: {e}")
+        psd = features[1]
+        self.assertEqual(psd.shape, (1, 100, 1, n_many_components))
 
     def test_icl_feature_extractor_very_short_data(self):
         """Test ICL_feature_extractor with short data (minimum for 100 freq bins)."""
@@ -344,21 +308,17 @@ class TestICLFeatureExtractorEdgeCases(unittest.TestCase):
         EEG['pnts'] = short_samples
         EEG['xmax'] = short_samples / self.srate
 
-        try:
-            features = ICL_feature_extractor(EEG, flag_autocorr=False)
+        features = ICL_feature_extractor(EEG, flag_autocorr=False)
 
-            # Should work with very short data
-            self.assertEqual(len(features), 2)
+        # Should work with very short data
+        self.assertEqual(len(features), 2)
 
-            # Features should still have expected shapes
-            topo = features[0]
-            self.assertEqual(topo.shape[0:3], (32, 32, 1))
+        # Features should still have expected shapes
+        topo = features[0]
+        self.assertEqual(topo.shape[0:3], (32, 32, 1))
 
-            psd = features[1]
-            self.assertEqual(psd.shape[0:3], (1, 100, 1))
-
-        except Exception as e:
-            self.skipTest(f"ICL_feature_extractor very short data test not available: {e}")
+        psd = features[1]
+        self.assertEqual(psd.shape[0:3], (1, 100, 1))
 
     def test_icl_feature_extractor_autocorr_path_selection(self):
         """Test ICL_feature_extractor autocorr path selection based on data length."""
@@ -371,11 +331,8 @@ class TestICLFeatureExtractorEdgeCases(unittest.TestCase):
         short_eeg['xmax'] = 3.0
         short_eeg['times'] = np.arange(short_pnts) / self.srate
 
-        try:
-            features = ICL_feature_extractor(short_eeg, flag_autocorr=True)
-            self.assertEqual(len(features), 3)  # Should include autocorr
-        except Exception as e:
-            self.skipTest(f"ICL_feature_extractor short data autocorr test not available: {e}")
+        features = ICL_feature_extractor(short_eeg, flag_autocorr=True)
+        self.assertEqual(len(features), 3)  # Should include autocorr
 
         # Test long data (> 5 seconds) - should use eeg_autocorr_welch
         long_eeg = self.base_eeg.copy()
@@ -386,11 +343,8 @@ class TestICLFeatureExtractorEdgeCases(unittest.TestCase):
         long_eeg['xmax'] = 6.0
         long_eeg['times'] = np.arange(long_pnts) / self.srate
 
-        try:
-            features = ICL_feature_extractor(long_eeg, flag_autocorr=True)
-            self.assertEqual(len(features), 3)  # Should include autocorr
-        except Exception as e:
-            self.skipTest(f"ICL_feature_extractor long data autocorr test not available: {e}")
+        features = ICL_feature_extractor(long_eeg, flag_autocorr=True)
+        self.assertEqual(len(features), 3)  # Should include autocorr
 
     def test_icl_feature_extractor_multi_trial_data(self):
         """Test ICL_feature_extractor with multi-trial data."""
@@ -402,18 +356,14 @@ class TestICLFeatureExtractorEdgeCases(unittest.TestCase):
         EEG['icaact'] = np.random.randn(self.n_components, self.n_samples, n_trials) * 0.5
         EEG['data'] = np.random.randn(self.n_channels, self.n_samples, n_trials) * 0.5
 
-        try:
-            features = ICL_feature_extractor(EEG, flag_autocorr=True)
+        features = ICL_feature_extractor(EEG, flag_autocorr=True)
 
-            # Should work with multi-trial data and use eeg_autocorr_fftw
-            self.assertEqual(len(features), 3)
+        # Should work with multi-trial data and use eeg_autocorr_fftw
+        self.assertEqual(len(features), 3)
 
-            # Check that features have correct component dimension
-            for feature in features:
-                self.assertEqual(feature.shape[3], self.n_components)
-
-        except Exception as e:
-            self.skipTest(f"ICL_feature_extractor multi-trial test not available: {e}")
+        # Check that features have correct component dimension
+        for feature in features:
+            self.assertEqual(feature.shape[3], self.n_components)
 
 
 class TestICLFeatureExtractorValidation(unittest.TestCase):
@@ -455,49 +405,37 @@ class TestICLFeatureExtractorValidation(unittest.TestCase):
 
     def test_icl_feature_extractor_no_inf_nan_in_features(self):
         """Test ICL_feature_extractor produces no inf/nan values in features."""
-        try:
-            features = ICL_feature_extractor(self.base_eeg, flag_autocorr=False)
+        features = ICL_feature_extractor(self.base_eeg, flag_autocorr=False)
 
-            # Check that no features contain inf or nan
-            for i, feature in enumerate(features):
-                self.assertTrue(np.all(np.isfinite(feature)), f"Feature {i} contains inf or nan values")
-
-        except Exception as e:
-            self.skipTest(f"ICL_feature_extractor inf/nan test not available: {e}")
+        # Check that no features contain inf or nan
+        for i, feature in enumerate(features):
+            self.assertTrue(np.all(np.isfinite(feature)), f"Feature {i} contains inf or nan values")
 
     def test_icl_feature_extractor_deterministic_seed(self):
         """Test ICL_feature_extractor produces consistent results with same seed."""
-        try:
-            # Set seed and extract features
-            np.random.seed(123)
-            features1 = ICL_feature_extractor(self.base_eeg, flag_autocorr=False)
+        # Set seed and extract features
+        np.random.seed(123)
+        features1 = ICL_feature_extractor(self.base_eeg, flag_autocorr=False)
 
-            # Reset seed and extract features again
-            np.random.seed(123)
-            features2 = ICL_feature_extractor(self.base_eeg, flag_autocorr=False)
+        # Reset seed and extract features again
+        np.random.seed(123)
+        features2 = ICL_feature_extractor(self.base_eeg, flag_autocorr=False)
 
-            # Results should be identical (at least for the deterministic parts)
-            # Note: Some randomness may come from internal functions, so we check structure
-            self.assertEqual(len(features1), len(features2))
-            for i in range(len(features1)):
-                self.assertEqual(features1[i].shape, features2[i].shape)
-                self.assertEqual(features1[i].dtype, features2[i].dtype)
-
-        except Exception as e:
-            self.skipTest(f"ICL_feature_extractor deterministic test not available: {e}")
+        # Results should be identical (at least for the deterministic parts)
+        # Note: Some randomness may come from internal functions, so we check structure
+        self.assertEqual(len(features1), len(features2))
+        for i in range(len(features1)):
+            self.assertEqual(features1[i].shape, features2[i].shape)
+            self.assertEqual(features1[i].dtype, features2[i].dtype)
 
     def test_icl_feature_extractor_ref_not_average(self):
         """Test ICL_feature_extractor with reference not set to average."""
         EEG = self.base_eeg.copy()
         EEG['ref'] = 'Cz'  # Not average reference
 
-        try:
-            # Should still work (function re-references internally)
-            features = ICL_feature_extractor(EEG, flag_autocorr=False)
-            self.assertEqual(len(features), 2)
-
-        except Exception as e:
-            self.skipTest(f"ICL_feature_extractor non-average ref test not available: {e}")
+        # Should still work (function re-references internally)
+        features = ICL_feature_extractor(EEG, flag_autocorr=False)
+        self.assertEqual(len(features), 2)
 
     def test_icl_feature_extractor_mismatched_icachansind(self):
         """Test ICL_feature_extractor with mismatched icachansind."""
@@ -514,33 +452,62 @@ class TestICLFeatureExtractorValidation(unittest.TestCase):
         except (ValueError, IndexError):
             # Expected behavior for mismatched indices
             pass
-        except Exception as e:
-            self.skipTest(f"ICL_feature_extractor mismatched icachansind test not available: {e}")
 
     def test_icl_feature_extractor_feature_scaling(self):
         """Test ICL_feature_extractor feature scaling (should be scaled by 0.99)."""
-        try:
-            features = ICL_feature_extractor(self.base_eeg, flag_autocorr=True)
+        features = ICL_feature_extractor(self.base_eeg, flag_autocorr=True)
 
-            # All features should be scaled by 0.99 (max absolute value <= 0.99)
-            for i, feature in enumerate(features):
-                max_abs_val = np.max(np.abs(feature))
-                self.assertLessEqual(max_abs_val, 0.99 + 1e-6, f"Feature {i} not properly scaled by 0.99")
-
-        except Exception as e:
-            self.skipTest(f"ICL_feature_extractor scaling test not available: {e}")
+        # All features should be scaled by 0.99 (max absolute value <= 0.99)
+        for i, feature in enumerate(features):
+            max_abs_val = np.max(np.abs(feature))
+            self.assertLessEqual(max_abs_val, 0.99 + 1e-6, f"Feature {i} not properly scaled by 0.99")
 
     def test_icl_feature_extractor_psd_length_extrapolation(self):
         """Test ICL_feature_extractor PSD length handling (should be 100 frequencies)."""
-        try:
-            features = ICL_feature_extractor(self.base_eeg, flag_autocorr=False)
+        features = ICL_feature_extractor(self.base_eeg, flag_autocorr=False)
 
-            # PSD should always have 100 frequency bins (extrapolated if needed)
-            psd = features[1]
-            self.assertEqual(psd.shape[1], 100, "PSD should have exactly 100 frequency bins")
+        # PSD should always have 100 frequency bins (extrapolated if needed)
+        psd = features[1]
+        self.assertEqual(psd.shape[1], 100, "PSD should have exactly 100 frequency bins")
 
-        except Exception as e:
-            self.skipTest(f"ICL_feature_extractor PSD extrapolation test not available: {e}")
+
+class TestEegRpsdGlobalRng(unittest.TestCase):
+    """Regression tests that eeg_rpsd never mutates the global numpy RNG."""
+
+    def setUp(self):
+        np.random.seed(42)
+        n_channels = 16
+        n_components = 4
+        n_samples = 500
+        srate = 250.0
+        eeg = create_test_eeg(n_channels=n_channels, n_samples=n_samples, srate=srate, n_trials=1)
+        eeg['icawinv'] = np.random.randn(n_channels, n_components) * 0.5
+        eeg['icaweights'] = np.linalg.pinv(eeg['icawinv'])
+        eeg['icasphere'] = np.eye(n_channels)
+        eeg['icaact'] = np.random.randn(n_components, n_samples, 1) * 0.5
+        eeg['icachansind'] = np.arange(n_channels)
+        self.eeg = eeg
+
+    def test_does_not_mutate_global_rng(self):
+        """eeg_rpsd must use a local RNG, leaving np.random's global state intact."""
+        np.random.seed(123)
+        before = np.random.get_state()
+        eeg_rpsd(self.eeg)
+        after = np.random.get_state()
+
+        self.assertEqual(before[0], after[0])
+        self.assertTrue(np.array_equal(before[1], after[1]))
+        self.assertEqual(before[2:], after[2:])
+
+    def test_output_is_deterministic(self):
+        """eeg_rpsd must return identical output regardless of global RNG state."""
+        np.random.seed(1)
+        psd_a = eeg_rpsd(self.eeg)
+        np.random.seed(999)
+        np.random.rand(37)  # perturb the global RNG between calls
+        psd_b = eeg_rpsd(self.eeg)
+
+        self.assertTrue(np.array_equal(psd_a, psd_b))
 
 
 class TestICLFeatureExtractorParity(unittest.TestCase):

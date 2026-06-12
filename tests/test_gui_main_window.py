@@ -1,6 +1,9 @@
+import ast
+import inspect
 import os
 import logging
 import sys
+import textwrap
 import unittest
 from unittest import mock
 
@@ -9,6 +12,7 @@ import pytest
 
 from eegprep.functions.guifunc.eeglab_menu import eeglab_menus, menu_actions
 from eegprep.functions.guifunc.menu_actions import (
+    IMPLEMENTED_ACTIONS,
     MenuActionDispatcher,
     action_kind,
 )
@@ -330,6 +334,52 @@ class MainMenuSpecTests(unittest.TestCase):
         )
         self.assertEqual(action_kind("pop_fileio_brainvision_mat"), "implemented")
 
+    def test_implemented_actions_registry_matches_dispatch_routing(self):
+        # IMPLEMENTED_ACTIONS gates whether a menu item is shown enabled. An entry
+        # with no dispatch arm would render enabled yet fall through to the
+        # show_coming_soon catch-all; a dispatch arm missing from the set would be
+        # classified "unknown"/placeholder. Keep the two in lockstep.
+        routed = _dispatch_routed_actions()
+        self.assertEqual(
+            sorted(IMPLEMENTED_ACTIONS - routed),
+            [],
+            "IMPLEMENTED_ACTIONS entries with no dispatch handler (enabled menu items that no-op)",
+        )
+        self.assertEqual(
+            sorted(routed - IMPLEMENTED_ACTIONS),
+            [],
+            "dispatch handlers missing from IMPLEMENTED_ACTIONS (classified unknown/placeholder)",
+        )
+
+
+def _dispatch_routed_actions():
+    """Base action names routed to a real handler by ``MenuActionDispatcher.dispatch``."""
+    import eegprep.functions.guifunc.menu_actions as menu_actions_module
+
+    source = textwrap.dedent(inspect.getsource(MenuActionDispatcher.dispatch))
+    module_sets = {name: value for name, value in vars(menu_actions_module).items() if isinstance(value, set)}
+    routed: set[str] = set()
+    for node in ast.walk(ast.parse(source)):
+        if not isinstance(node, ast.Compare):
+            continue
+        left = node.left
+        if not (isinstance(left, ast.Name) and left.id in ("base", "action")):
+            continue
+        operator = node.ops[0]
+        comparator = node.comparators[0]
+        if isinstance(operator, ast.Eq) and isinstance(comparator, ast.Constant) and isinstance(comparator.value, str):
+            routed.add(comparator.value)
+        elif isinstance(operator, ast.In):
+            if isinstance(comparator, (ast.Set, ast.List, ast.Tuple)):
+                routed.update(
+                    element.value
+                    for element in comparator.elts
+                    if isinstance(element, ast.Constant) and isinstance(element.value, str)
+                )
+            elif isinstance(comparator, ast.Name) and comparator.id in module_sets:
+                routed.update(module_sets[comparator.id])
+    return routed
+
 
 class EEGPrepSessionTests(unittest.TestCase):
     def test_session_reports_startup_without_data(self):
@@ -359,6 +409,41 @@ class EEGPrepSessionTests(unittest.TestCase):
         self.assertEqual(stored, [1, 2])
         self.assertEqual(session.CURRENTSET, [1, 2])
         self.assertEqual([item["ref"] for item in session.ALLEEG], ["average", "average"])
+
+    def test_apply_workspace_state_rejects_currentset_outside_alleeg_before_mutating(self):
+        session = EEGPrepSession()
+        session.store_current(_demo_eeg(), new=True)
+        original_eeg = session.EEG
+        original_alleeg = list(session.ALLEEG)
+        original_currentset = list(session.CURRENTSET)
+
+        with self.assertRaisesRegex(ValueError, "CURRENTSET contains indices outside ALLEEG"):
+            session.apply_workspace_state(alleeg=[_demo_eeg()], currentset=2)
+
+        self.assertIs(session.EEG, original_eeg)
+        self.assertEqual(len(session.ALLEEG), len(original_alleeg))
+        self.assertIs(session.ALLEEG[0], original_alleeg[0])
+        self.assertEqual(session.CURRENTSET, original_currentset)
+
+    def test_apply_workspace_state_rejects_eeg_list_length_mismatch_before_mutating(self):
+        session = EEGPrepSession()
+        first = _demo_eeg()
+        second = _demo_eeg()
+        second["setname"] = "second"
+        session.store_current(first, new=True)
+        session.store_current(second, new=True)
+        original_eeg = session.EEG
+        original_alleeg = list(session.ALLEEG)
+        original_currentset = list(session.CURRENTSET)
+
+        with self.assertRaisesRegex(ValueError, "EEG selection length must match CURRENTSET"):
+            session.apply_workspace_state(alleeg=[first, second], eeg=[first], currentset=[1, 2])
+
+        self.assertIs(session.EEG, original_eeg)
+        self.assertEqual(len(session.ALLEEG), len(original_alleeg))
+        self.assertIs(session.ALLEEG[0], original_alleeg[0])
+        self.assertIs(session.ALLEEG[1], original_alleeg[1])
+        self.assertEqual(session.CURRENTSET, original_currentset)
 
     def test_session_delete_current_selects_remaining_dataset(self):
         session = EEGPrepSession()
@@ -747,6 +832,73 @@ class MenuActionDispatcherTests(unittest.TestCase):
         self.assertEqual(session.CURRENTSET, [1, 2])
         self.assertEqual([item["ref"] for item in session.EEG], ["average", "average"])
         self.assertEqual([item["ref"] for item in session.ALLEEG], ["average", "average"])
+
+    def test_cancelled_newset_commit_does_not_pollute_dataset_history(self):
+        session = EEGPrepSession()
+        session.store_current(_demo_eeg(), new=True)
+        original_history = session.EEG.get("history", "")
+        original_allcom = list(session.ALLCOM)
+        dispatcher = MenuActionDispatcher(session)
+        select_command = "EEG = pop_select(EEG, 'point', [1 20]);"
+
+        with (
+            mock.patch(
+                "eegprep.functions.popfunc.pop_select.pop_select",
+                return_value=(session.EEG, select_command),
+            ),
+            # User cancels the pop_newset dialog, so no dataset is committed.
+            mock.patch(
+                "eegprep.functions.guifunc.menu_actions.pop_newset",
+                return_value=(session.ALLEEG, session.EEG, [1], ""),
+            ),
+        ):
+            dispatcher.dispatch("pop_select", parent=object())
+
+        self.assertEqual(session.EEG.get("history", ""), original_history)
+        self.assertNotIn(select_command, str(session.EEG.get("history", "")))
+        self.assertEqual(session.ALLCOM, original_allcom)
+
+    def test_committed_newset_records_processing_history_on_stored_dataset(self):
+        session = EEGPrepSession()
+        session.store_current(_demo_eeg(), new=True)
+        dispatcher = MenuActionDispatcher(session)
+        processed = dict(session.EEG, setname="selected")
+        select_command = "EEG = pop_select(EEG, 'point', [1 20]);"
+
+        with mock.patch(
+            "eegprep.functions.popfunc.pop_select.pop_select",
+            return_value=(processed, select_command),
+        ):
+            dispatcher.dispatch("pop_select")
+
+        self.assertEqual(session.EEG["setname"], "selected")
+        self.assertEqual(session.ALLEEG[0]["setname"], "selected")
+        self.assertIn(select_command, str(session.EEG["history"]))
+        self.assertIn(select_command, str(session.ALLEEG[0]["history"]))
+
+    def test_headplot_menu_action_commits_spline_file_through_session(self):
+        session = EEGPrepSession()
+        session.store_current(_demo_eeg(), new=True)
+        events = []
+        session.add_change_listener(lambda _session: events.append("changed"))
+        dispatcher = MenuActionDispatcher(session)
+        headplot_command = "pop_headplot(EEG, 1, [0], '', [1 1]);"
+
+        def fake_pop_headplot(eeg, *, typeplot, return_com):
+            eeg["splinefile"] = "/tmp/demo.spl"
+            return (["figure"], headplot_command)
+
+        with mock.patch("eegprep.functions.popfunc.pop_headplot.pop_headplot", side_effect=fake_pop_headplot):
+            dispatcher.dispatch("pop_headplot")
+
+        self.assertEqual(session.EEG["splinefile"], "/tmp/demo.spl")
+        self.assertEqual(session.ALLEEG[0]["splinefile"], "/tmp/demo.spl")
+        self.assertEqual(session.ALLCOM[-1], headplot_command)
+        self.assertTrue(events, "headplot commit must notify session listeners")
+        # Committing through store_current records the edit in the dataset
+        # history; a history-only path would leave the dataset .history untouched.
+        self.assertIn(headplot_command, str(session.EEG["history"]))
+        self.assertIn(headplot_command, str(session.ALLEEG[0]["history"]))
 
     def test_resave_updates_single_dataset_metadata_and_saved_state(self):
         session = EEGPrepSession()

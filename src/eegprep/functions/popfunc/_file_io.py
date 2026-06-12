@@ -120,7 +120,10 @@ def eeg_from_data(
         else:
             raise ValueError("nbchan does not match imported data")
     if not nbchan and array.ndim == 2 and array.shape[0] > array.shape[1]:
-        array = array.T
+        raise ValueError(
+            "Cannot determine channel-major orientation for a 2-D array with more "
+            "rows than columns; pass nbchan to specify the number of channels."
+        )
     if pnts and array.ndim == 2:
         pnts = int(pnts)
         if pnts > 0 and array.shape[1] % pnts == 0:

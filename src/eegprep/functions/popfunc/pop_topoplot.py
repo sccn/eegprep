@@ -13,7 +13,7 @@ from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
-from eegprep.functions.popfunc._plot_utils import component_map_data
+from eegprep.functions.popfunc._plot_utils import component_map_data, python_literal
 from eegprep.functions.popfunc._pop_utils import is_on as _is_on
 from eegprep.functions.popfunc._pop_utils import parse_key_value_args, parse_numeric_sequence, parse_text_tokens
 from eegprep.functions.sigprocfunc.topoplot import topoplot
@@ -433,35 +433,14 @@ def _history_command(
     pieces = [
         "EEG",
         f"typeplot={int(typeplot)}",
-        f"items={_python_literal(items)}",
-        f"topotitle={_python_literal(topotitle)}",
-        f"rowcols={_python_literal(list(rowcols))}",
+        f"items={python_literal(items)}",
+        f"topotitle={python_literal(topotitle)}",
+        f"rowcols={python_literal(list(rowcols))}",
         f"plotdip={int(plotdip)}",
     ]
     for key, value in options.items():
-        pieces.append(f"{key}={_python_literal(value)}")
+        pieces.append(f"{key}={python_literal(value)}")
     return f"pop_topoplot({', '.join(pieces)})"
-
-
-def _python_literal(value: Any) -> str:
-    if isinstance(value, np.ndarray):
-        value = value.tolist()
-    if isinstance(value, (np.integer, np.floating)):
-        value = value.item()
-    if isinstance(value, float):
-        if np.isnan(value):
-            return "float('nan')"
-        if np.isposinf(value):
-            return "float('inf')"
-        if np.isneginf(value):
-            return "float('-inf')"
-        if value.is_integer():
-            return str(int(value))
-    if isinstance(value, list):
-        return "[" + ", ".join(_python_literal(item) for item in value) + "]"
-    if isinstance(value, tuple):
-        return "(" + ", ".join(_python_literal(item) for item in value) + ("," if len(value) == 1 else "") + ")"
-    return repr(value)
 
 
 __all__ = ["plot_channel_locations", "pop_topoplot", "pop_topoplot_dialog_spec"]

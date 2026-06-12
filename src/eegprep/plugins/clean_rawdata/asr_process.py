@@ -192,15 +192,13 @@ def asr_process(
                 logger.warning(f"Eigendecomposition failed at update point {j}. Using identity matrix.")
                 D, V = np.ones(C), np.eye(C)
 
-            # Determine which components to keep (variance below threshold or not admissible for rejection)
-            try:
-                thresholds = np.sum(finite_matmul(T, V) ** 2, axis=0)
-                keep = (D < thresholds) | (np.arange(1, C + 1) < (C - max_dims_num))
-                trivial = np.all(keep)
-            except Exception as e:
-                logger.error(f"Error in component selection: {e}")
-                keep = np.ones(C, dtype=bool)
-                trivial = True
+            # Determine which components to keep (variance below threshold or not admissible for rejection).
+            # No catch-all here: a shape/contract error in T/V must surface rather than silently
+            # disable artifact removal for this window. Genuine numerical-singularity cases are
+            # handled by the LinAlgError fallbacks for eigendecomposition and the pseudo-inverse.
+            thresholds = np.sum(finite_matmul(T, V) ** 2, axis=0)
+            keep = (D < thresholds) | (np.arange(1, C + 1) < (C - max_dims_num))
+            trivial = np.all(keep)
 
             # Update the reconstruction matrix R
             if not trivial:

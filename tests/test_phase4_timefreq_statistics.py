@@ -39,8 +39,15 @@ from eegprep.functions.timefreqfunc.correctfit import correctfit
 from eegprep.functions.timefreqfunc.dftfilt import dftfilt
 from eegprep.functions.timefreqfunc.dftfilt2 import dftfilt2
 from eegprep.functions.timefreqfunc.dftfilt3 import dftfilt3
+from eegprep.functions.statistics.fdr import fdr
+from eegprep.functions.timefreqfunc.newcrossf import _is_on as newcrossf_is_on
+from eegprep.functions.timefreqfunc.newcrossf import _threshold_vector as newcrossf_threshold_vector
+from eegprep.functions.timefreqfunc.newcrossf import _upper_thresholds_by_frequency
 from eegprep.functions.timefreqfunc.newcrossf import newcrossf
-from eegprep.functions.timefreqfunc.newtimef import newtimef
+from eegprep.functions.timefreqfunc.newtimef import _is_on as newtimef_is_on
+from eegprep.functions.timefreqfunc.newtimef import _significance_mask, _thresholds_by_frequency
+from eegprep.functions.timefreqfunc.newtimef import _threshold_vector as newtimef_threshold_vector
+from eegprep.functions.timefreqfunc.newtimef import compute_time_frequency, newtimef
 from eegprep.functions.timefreqfunc.newtimefbaseln import newtimefbaseln
 from eegprep.functions.timefreqfunc.newtimefpowerunit import newtimefpowerunit
 from eegprep.functions.timefreqfunc.rsadjust import rsadjust
@@ -89,6 +96,31 @@ def test_newtimef_rejects_unknown_options():
 
     with pytest.raises(TypeError, match="unexpected keyword"):
         newtimef(signal, 128, [0, 1000], 128, 0, unsupported_option=1)
+
+
+def test_newtimef_is_on_uses_whitelist_semantics():
+    assert newtimef_is_on("on") is True
+    assert newtimef_is_on("yes") is True
+    assert newtimef_is_on(1) is True
+    # Unrecognized values are treated as OFF, matching the canonical is_on.
+    assert newtimef_is_on("yes-please") is False
+    assert newtimef_is_on("display") is False
+    assert newtimef_is_on("off") is False
+
+
+def test_newtimef_fails_loudly_on_unimplemented_overlap_and_plotphase():
+    signal = np.sin(2 * np.pi * 10 * np.arange(128) / 128)
+
+    with pytest.raises(NotImplementedError, match="overlap"):
+        newtimef(signal, 128, [0, 1000], 128, 0, plot="off", overlap=2)
+    with pytest.raises(NotImplementedError, match="plotphase"):
+        newtimef(signal, 128, [0, 1000], 128, 0, plot="off", plotphase="on")
+    with pytest.raises(NotImplementedError, match="overlap"):
+        compute_time_frequency(signal, 128, [0, 1000], 128, 0, overlap=2)
+
+    # Default values still compute without raising.
+    result = newtimef(signal, 128, [0, 1000], 128, 0, plot="off", overlap=None, plotphase="off")
+    assert result.ersp.shape == result.itc.shape
 
 
 def test_newtimef_nonzero_cycles_use_wavelet_time_grid(sample_epoch):
@@ -522,6 +554,46 @@ def test_bootstat_threshold_sides_and_rand_phase_preserve_magnitude():
     complex_values = np.exp(1j * np.arange(6, dtype=float)).reshape(2, 3)
     randomized = bootstat(complex_values, statistic=np.abs, naccu=5, boottype="rand", rng=0)
     np.testing.assert_allclose(randomized.surrogates, np.broadcast_to(np.abs(complex_values), (5, 2, 3)))
+
+
+def test_timefreq_threshold_helpers_pool_through_canonical_bootstrap_threshold():
+    # newtimef/newcrossf no longer re-sort surrogates; they pool (naccu x baseline)
+    # per frequency and delegate the percentile/tail math to bootstrap_threshold.
+    rng = np.random.default_rng(7)
+    surrogates = rng.normal(size=(24, 3, 5))
+
+    pooled = surrogates.transpose(0, 2, 1).reshape(-1, surrogates.shape[1])
+    expected_both = bootstrap_threshold(pooled, alpha=0.1, bootside="both")
+    expected_upper = bootstrap_threshold(pooled, alpha=0.1, bootside="upper")
+
+    np.testing.assert_allclose(_thresholds_by_frequency(surrogates, alpha=0.1, both=True), expected_both)
+    np.testing.assert_allclose(_thresholds_by_frequency(surrogates, alpha=0.1, both=False), expected_upper)
+    np.testing.assert_allclose(_upper_thresholds_by_frequency(surrogates, alpha=0.1), expected_upper)
+
+    # Single-frequency case keeps the original (nfreq,) / (nfreq, 2) shapes.
+    single = rng.normal(size=(24, 1, 5))
+    assert _thresholds_by_frequency(single, alpha=0.1, both=True).shape == (1, 2)
+    assert _thresholds_by_frequency(single, alpha=0.1, both=False).shape == (1,)
+    assert _upper_thresholds_by_frequency(single, alpha=0.1).shape == (1,)
+
+
+def test_newtimef_fdr_branch_matches_canonical_fdr_threshold():
+    rng = np.random.default_rng(11)
+    pvalues = rng.random(size=(4, 6))
+
+    threshold = float(fdr(pvalues, 0.1).threshold)
+    expected = np.zeros_like(pvalues, dtype=bool) if threshold == 0 else pvalues <= threshold
+
+    np.testing.assert_array_equal(_significance_mask(pvalues, 0.1, "fdr"), expected)
+    np.testing.assert_array_equal(_significance_mask(pvalues, 0.1, "none"), pvalues <= 0.1)
+
+
+def test_timefreq_is_on_and_threshold_vector_are_the_canonical_shared_helpers():
+    # newcrossf reuses newtimef's threshold helper and the canonical is_on whitelist.
+    assert newcrossf_threshold_vector is newtimef_threshold_vector
+    assert newcrossf_is_on is newtimef_is_on
+    assert newcrossf_is_on("on") is True
+    assert newcrossf_is_on("display") is False
 
 
 def test_bootstat_basevect_uses_eeglab_one_based_indices():

@@ -4,30 +4,35 @@ This module provides functions for comparing EEG data structures and reporting
 differences between them.
 """
 
-import sys
+import logging
 import math
 from collections.abc import Sequence
 import numpy as np
 
+logger = logging.getLogger(__name__)
+
 
 def eeg_compare(eeg1, eeg2, verbose_level=0, trigger_error=False):
-    """Compare two EEG-like structures, reporting differences to stderr.
+    """Compare two EEG-like structures (or arrays) and return a difference summary.
+
+    Per-field findings are emitted through this module's logger; the returned value is the
+    human-readable summary string callers print or store.
 
     Parameters
     ----------
-    eeg1 : dict or object
-        First EEG structure to compare.
-    eeg2 : dict or object
-        Second EEG structure to compare.
+    eeg1 : dict, object, or numpy.ndarray
+        First EEG structure (or array) to compare.
+    eeg2 : dict, object, or numpy.ndarray
+        Second EEG structure (or array) to compare.
     verbose_level : int, optional
-        Level of verbosity for output. Default 0.
+        Level of verbosity for logged output. Default 0.
     trigger_error : bool, optional
-        Whether to raise an error if differences are found. Default False.
+        Whether to raise a ``ValueError`` if differences are found. Default False.
 
     Returns
     -------
-    bool
-        True if comparison completed (differences may still exist).
+    str
+        A summary describing the differences found, or that all fields match.
     """
     summary_parts = []
 
@@ -48,24 +53,18 @@ def eeg_compare(eeg1, eeg2, verbose_level=0, trigger_error=False):
         if isinstance(a, np.ndarray) or isinstance(b, np.ndarray):
             try:
                 return bool(np.array_equal(np.array(a), np.array(b), equal_nan=True))
-            except Exception:
-                pass
-        # Handle numpy arrays in general comparison
-        if isinstance(a, np.ndarray) and isinstance(b, np.ndarray):
-            try:
-                return bool(np.array_equal(a, b, equal_nan=True))
-            except Exception:
+            except (TypeError, ValueError):
                 pass
         # Handle scalar vs array comparisons
         if isinstance(a, np.ndarray) and np.isscalar(b):
             try:
                 return bool(np.all(a == b))
-            except Exception:
+            except (TypeError, ValueError):
                 pass
         if isinstance(b, np.ndarray) and np.isscalar(a):
             try:
                 return bool(np.all(b == a))
-            except Exception:
+            except (TypeError, ValueError):
                 pass
         # Final comparison - ensure we return a boolean
         try:
@@ -73,7 +72,7 @@ def eeg_compare(eeg1, eeg2, verbose_level=0, trigger_error=False):
             if isinstance(result, np.ndarray):
                 return bool(result.all())
             return bool(result)
-        except Exception:
+        except (TypeError, ValueError):
             return False
 
     def _numeric_distance(a, b):
@@ -93,7 +92,7 @@ def eeg_compare(eeg1, eeg2, verbose_level=0, trigger_error=False):
             return np.inf
         return float(np.max(np.abs(arr_a - arr_b)))
 
-    print('\nField analysis: (no entries means OK)')
+    logger.info('Field analysis: (no entries means OK)')
 
     # Collect differences for error reporting
     differences = []
@@ -101,7 +100,7 @@ def eeg_compare(eeg1, eeg2, verbose_level=0, trigger_error=False):
     if isinstance(eeg1, np.ndarray) and isinstance(eeg2, np.ndarray):
         if eeg1.shape != eeg2.shape:
             summary = f"Array shape mismatch: {eeg1.shape} vs {eeg2.shape}"
-            print(summary, file=sys.stderr)
+            logger.warning(summary)
             if trigger_error:
                 raise ValueError(summary)
             return summary
@@ -184,7 +183,7 @@ def eeg_compare(eeg1, eeg2, verbose_level=0, trigger_error=False):
     for field in fields1:
         if not has_field2(field):
             error_msg = f'Field {field} missing in second dataset'
-            print(f'    {error_msg}', file=sys.stderr)
+            logger.warning('    %s', error_msg)
             differences.append(error_msg)
         else:
             v1 = get_val1(field)
@@ -192,16 +191,16 @@ def eeg_compare(eeg1, eeg2, verbose_level=0, trigger_error=False):
             if not isequaln(v1, v2):
                 name = field.lower()
                 if any(sub in name for sub in ('filename', 'datfile')):
-                    print(f'    Field {field} differs (ok, supposed to differ)')
+                    logger.info('    Field %s differs (ok, supposed to differ)', field)
                 elif any(sub in name for sub in ('subject', 'session', 'run', 'task')):
                     error_msg = f'Field {field} differs ("{v1}" vs "{v2}")'
-                    print(f'    {error_msg}', file=sys.stderr)
+                    logger.warning('    %s', error_msg)
                     differences.append(error_msg)
                 elif any(sub in name for sub in ('eventdescription')):
                     n1 = len(v1) if isinstance(v1, Sequence) else 1
                     n2 = len(v2) if isinstance(v2, Sequence) else 1
                     error_msg = f'Field {field} differs (n={n1} vs n={n2})'
-                    print(f'    {error_msg}', file=sys.stderr)
+                    logger.warning('    %s', error_msg)
                     differences.append(error_msg)
                 elif any(sub in name for sub in ('chanlocs', 'event', 'reject')):
                     pass
@@ -224,19 +223,19 @@ def eeg_compare(eeg1, eeg2, verbose_level=0, trigger_error=False):
                             max_rel_diff = np.max(rel_diff) if rel_diff.size else 0.0
 
                             error_msg = f'Field {field} differs (max_abs={max_abs_diff:.6e}, mean_abs={mean_abs_diff:.6e}, rms={rms_diff:.6e}, max_rel={max_rel_diff:.6e})'
-                            print(f'    {error_msg}', file=sys.stderr)
+                            logger.warning('    %s', error_msg)
                             differences.append(error_msg)
                             summary_parts.append(
                                 f"  {field}: max_abs={max_abs_diff:.6e}, mean_abs={mean_abs_diff:.6e}, rms={rms_diff:.6e}"
                             )
                         else:
                             error_msg = f'Field {field} differs (shape mismatch: {v1.shape} vs {v2.shape})'
-                            print(f'    {error_msg}', file=sys.stderr)
+                            logger.warning('    %s', error_msg)
                             differences.append(error_msg)
                             summary_parts.append(f"  {field}: shape mismatch")
                     else:
                         error_msg = f'Field {field} differs'
-                        print(f'    {error_msg}', file=sys.stderr)
+                        logger.warning('    %s', error_msg)
                         differences.append(error_msg)
     # compare xmin/xmax
     for attr in ('xmin', 'xmax'):
@@ -245,11 +244,11 @@ def eeg_compare(eeg1, eeg2, verbose_level=0, trigger_error=False):
         if not isequaln(x1, x2):
             diff = (x1 or 0) - (x2 or 0)
             error_msg = f'Difference between {attr} is {diff:1.6f} sec'
-            print(f'    {error_msg}', file=sys.stderr)
+            logger.warning('    %s', error_msg)
             differences.append(error_msg)
 
     # channel locations
-    print('Chanlocs analysis:')
+    logger.info('Chanlocs analysis:')
     chans1 = get_val1('chanlocs')
     if chans1 is None or (isinstance(chans1, np.ndarray) and len(chans1) == 0):
         chans1 = []
@@ -266,26 +265,26 @@ def eeg_compare(eeg1, eeg2, verbose_level=0, trigger_error=False):
             if c1['labels'] != c2['labels']:
                 label_diff += 1
                 if verbose_level > 0:
-                    print(f'    Channel {c1["labels"]} differs from {c2["labels"]}', file=sys.stderr)
+                    logger.warning('    Channel %s differs from %s', c1["labels"], c2["labels"])
         if coord_diff:
             error_msg = f'{coord_diff} channel coordinates differ'
-            print(f'    {error_msg}', file=sys.stderr)
+            logger.warning('    %s', error_msg)
             differences.append(error_msg)
         else:
-            print('    All channel coordinates are OK')
+            logger.info('    All channel coordinates are OK')
         if label_diff:
             error_msg = f'{label_diff} channel label(s) differ'
-            print(f'    {error_msg}', file=sys.stderr)
+            logger.warning('    %s', error_msg)
             differences.append(error_msg)
         else:
-            print('    All channel labels are OK')
+            logger.info('    All channel labels are OK')
     else:
         error_msg = 'Different numbers of channels'
-        print(f'    {error_msg}', file=sys.stderr)
+        logger.warning('    %s', error_msg)
         differences.append(error_msg)
 
     # events
-    print('Event analysis:')
+    logger.info('Event analysis:')
     ev1 = get_val1('event')
     if ev1 is None or (isinstance(ev1, np.ndarray) and len(ev1) == 0):
         ev1 = []
@@ -294,23 +293,23 @@ def eeg_compare(eeg1, eeg2, verbose_level=0, trigger_error=False):
         ev2 = []
     if len(ev1) != len(ev2):
         error_msg = f'Different numbers of events {len(ev1)} vs {len(ev2)}'
-        print(f'    {error_msg}', file=sys.stderr)
+        logger.warning('    %s', error_msg)
         differences.append(error_msg)
         # print the first event of each
         if verbose_level > 0:
             if len(ev1) > 0:
-                print(f'    First event of first dataset: {ev1[0]}', file=sys.stderr)
+                logger.warning('    First event of first dataset: %s', ev1[0])
             if len(ev2) > 0:
-                print(f'    First event of second dataset: {ev2[0]}', file=sys.stderr)
+                logger.warning('    First event of second dataset: %s', ev2[0])
     else:
         if len(ev1) == 0:
-            print('    All events OK (empty)')
+            logger.info('    All events OK (empty)')
         else:
             f1 = set(ev1[0].keys())
             f2 = set(ev2[0].keys())
             if f1 != f2:
                 error_msg = 'Not the same number of event fields'
-                print(f'    {error_msg}', file=sys.stderr)
+                logger.warning('    %s', error_msg)
                 differences.append(error_msg)
             for fld in f1:
                 diffs = []
@@ -321,38 +320,16 @@ def eeg_compare(eeg1, eeg2, verbose_level=0, trigger_error=False):
                         pct = len(nonzero) / len(diffs) * 100
                         avg = sum(abs(d) for d in nonzero) / len(nonzero)
                         error_msg = f'Event latency ({pct:2.1f} %) not OK (abs diff {avg:1.4f} samples)'
-                        print(f'    {error_msg}', file=sys.stderr)
+                        logger.warning('    %s', error_msg)
                         differences.append(error_msg)
-                        # print('    ******** (see plot)')
-                        # import matplotlib.pyplot as plt
-                        # plt.plot(diffs)
-                        # plt.show()
                 else:
                     diffs = [not isequaln(e1.get(fld, None), e2.get(fld, None)) for e1, e2 in zip(ev1, ev2)]
                     if any(diffs):
                         pct = sum(diffs) / len(diffs) * 100
                         error_msg = f'Event fields "{fld}" are NOT OK ({pct:2.1f} % of them)'
-                        print(f'    {error_msg}', file=sys.stderr)
+                        logger.warning('    %s', error_msg)
                         differences.append(error_msg)
-            print('    All other events OK')
-
-    # epochs
-    # if 'epoch' in eeg1:
-    #     print('Epoch analysis:')
-    #     ep1, ep2 =  eeg1['epoch'], eeg2['epoch']
-    #     if len(ep1) != len(ep2):
-    #         print('    Different numbers of epochs', file=sys.stderr)
-    #     else:
-    #         fields = ep1[0].keys()
-    #         all_ok = True
-    #         for fld in fields:
-    #             diffs = [not isequaln(getattr(e1, fld, None), getattr(e2, fld, None)) for e1, e2 in zip(ep1, ep2)]
-    #             if any(diffs):
-    #                 pct = sum(diffs) / len(diffs) * 100
-    #                 print(f'    Epoch fields "{fld}" are NOT OK ({pct:2.1f} % of them)', file=sys.stderr)
-    #                 all_ok = False
-    #         if all_ok:
-    #             print('    All epoch and all epoch fields are OK')
+            logger.info('    All other events OK')
 
     # Build final summary
     if summary_parts:

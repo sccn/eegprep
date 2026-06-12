@@ -6,8 +6,8 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.studyfunc._cluster_kmeans import kmeans_labels, squared_distances
 from eegprep.functions.studyfunc.optimal_kmeans import optimal_kmeans
-from eegprep.functions.studyfunc.pop_clust import _kmeans_labels, _squared_distances
 
 
 def robust_kmeans(
@@ -39,8 +39,8 @@ def robust_kmeans(
                 values[active], [2, cluster_count], random_state=random_state
             )
         else:
-            active_labels, centers = _kmeans_labels(values[active], cluster_count, random_state)
-        distances = np.sqrt(_squared_distances(values, centers))
+            active_labels, centers = kmeans_labels(values[active], cluster_count, random_state)
+        distances = np.sqrt(squared_distances(values, centers))
         labels[:] = 0
         labels[active] = active_labels
         new_outliers = _outlier_rows(active, active_labels, distances[active], float(STD))

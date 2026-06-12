@@ -271,6 +271,32 @@ class TestFindAmicaBinary(unittest.TestCase):
                 _find_amica_binary()
 
 
+class TestRunamicaTempCleanup(unittest.TestCase):
+    """A failed run must not leak the auto-created temp directory."""
+
+    def _amica_temp_dirs(self):
+        root = tempfile.gettempdir()
+        return {name for name in os.listdir(root) if name.startswith('amica_')}
+
+    def test_failed_run_removes_temp_dir(self):
+        data = np.random.RandomState(0).randn(4, 500)
+        before = self._amica_temp_dirs()
+
+        def _boom(binary, param_file):
+            raise RuntimeError("amica binary failed")
+
+        with mock.patch(
+            'eegprep.functions.sigprocfunc.runamica._find_amica_binary',
+            return_value='/dummy/amica',
+        ):
+            with mock.patch('eegprep.functions.sigprocfunc.runamica._run_amica', side_effect=_boom):
+                with self.assertRaises(RuntimeError):
+                    runamica(data, num_models=1, max_iter=10, max_threads=1)
+
+        # No new amica_* temp directory should survive the failure.
+        self.assertEqual(self._amica_temp_dirs() - before, set())
+
+
 @unittest.skipUnless(is_amica_available(), "AMICA binary not functional on this platform")
 class TestRunamicaIntegration(unittest.TestCase):
     """Integration test: run AMICA binary on small synthetic data."""

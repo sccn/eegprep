@@ -111,6 +111,7 @@ def command_error(command: str, error: EEGPrepCLIError) -> dict[str, Any]:
         "command": command,
         "code": error.code,
         "message": error.message,
+        "exit_code": error.exit_code,
         "error": payload,
     }
 
@@ -122,7 +123,9 @@ def emit_command_result(result: dict[str, Any], *, json_output: bool = True) -> 
         print(result.get("status", "ok"))
         if result.get("status") == "error":
             print(result.get("error", {}).get("message", ""), file=sys.stderr)
-    return 0 if result.get("status") == "ok" else 1
+    if result.get("status") == "ok":
+        return 0
+    return int(result.get("exit_code", 1) or 1)
 
 
 def print_result(result: dict[str, Any], *, as_json: bool) -> None:
@@ -288,44 +291,3 @@ def _input_file_record(path: Path | dict[str, Any]) -> dict[str, Any]:
     if isinstance(path, dict):
         return json_safe(path)
     return {"path": str(path), "sha256": sha256_file(path)}
-
-
-def run_main(handler: Any, args: Any) -> int:
-    try:
-        result = handler(args)
-        print_result(result, as_json=bool(getattr(args, "json", False)))
-        return 1 if result.get("status") == "error" else 0
-    except EEGPrepCLIError as exc:
-        print_result(exc.to_response(), as_json=bool(getattr(args, "json", False)))
-        return exc.exit_code
-    except Exception as exc:
-        code = getattr(exc, "code", None)
-        message = getattr(exc, "message", None)
-        if code and message:
-            payload = {
-                "status": "error",
-                "schema_version": "eegprep.error.v1",
-                "code": code,
-                "message": message,
-            }
-            path = getattr(exc, "path", None)
-            suggestion = getattr(exc, "suggestion", None)
-            if path is not None:
-                payload["path"] = str(path)
-            if suggestion is not None:
-                payload["suggestion"] = suggestion
-            print_result(payload, as_json=bool(getattr(args, "json", False)))
-            return int(getattr(exc, "exit_code", 1) or 1)
-        error = EEGPrepCLIError(
-            "UNEXPECTED_ERROR",
-            str(exc),
-            suggestion="Rerun with --verbose or file an issue if this is reproducible.",
-        )
-        print_result(error.to_response(), as_json=bool(getattr(args, "json", False)))
-        if bool(getattr(args, "verbose", False)):
-            raise
-        return 1
-
-
-def eprint(message: str) -> None:
-    print(message, file=sys.stderr)

@@ -109,7 +109,6 @@ def ensure_study(STUDY: dict[str, Any] | None = None) -> dict[str, Any]:
     study.setdefault("design", [])
     study.setdefault("currentdesign", 0)
     study.setdefault("cache", [])
-    study.setdefault("preclust", _default_preclust())
     study.setdefault("history", "STUDY = []")
     study.setdefault("saved", "no")
     etc = study.get("etc")
@@ -351,6 +350,28 @@ def build_python_call(targets: tuple[str, ...], function_name: str, *args: str, 
     return f"{assignment} = {function_name}({', '.join(pieces)})"
 
 
+def unique_preserving_order(values: list[int]) -> list[int]:
+    """Return integers de-duplicated while keeping first-seen order."""
+    output: list[int] = []
+    for value in values:
+        if value not in output:
+            output.append(value)
+    return output
+
+
+def trialinfo_rows(value: Any) -> list[dict[str, Any]]:
+    """Normalize STUDY trialinfo into a list of row dictionaries."""
+    if value is None:
+        return []
+    if isinstance(value, np.ndarray):
+        value = value.tolist()
+    if isinstance(value, dict):
+        return [value]
+    if not isinstance(value, list):
+        return []
+    return [row for row in value if isinstance(row, dict)]
+
+
 def clear_study_data_fields(study: dict[str, Any]) -> dict[str, Any]:
     """Remove precomputed measure arrays from STUDY channel/component groups."""
     study = deepcopy(study)
@@ -377,15 +398,6 @@ def _datasetinfo_list(value: Any) -> list[dict[str, Any]]:
     if not isinstance(value, list):
         return []
     return [deepcopy(item) for item in value if isinstance(item, dict)]
-
-
-def _default_preclust() -> dict[str, list[Any]]:
-    return {
-        "erpclusttimes": [],
-        "specclustfreqs": [],
-        "erspclustfreqs": [],
-        "erspclusttimes": [],
-    }
 
 
 def _default_components(eeg: dict[str, Any]) -> list[int]:

@@ -96,12 +96,79 @@ def command_schema(command: str) -> dict[str, Any]:
             "properties": {"kind": {"enum": ["dataset", "events", "channels", "ica"]}},
         },
         "pipeline": pipeline_schema()["schema"],
-        "resample": _command_schema("resample", required=["input", "freq", "output"]),
-        "rereference": _command_schema("rereference", required=["input", "method", "output"]),
-        "filter": _command_schema("filter", required=["input", "output"]),
-        "clean": _command_schema("clean", required=["input", "method", "output"]),
-        "epoch": _command_schema("epoch", required=["input", "event_type", "tmin", "tmax", "output"]),
-        "ica": _command_schema("ica", required=["input", "method", "output"]),
+        "resample": _command_schema(
+            "resample",
+            required=["input", "freq"],
+            properties={
+                "freq": {"type": "number"},
+                "engine": {"enum": ["poly", "scipy"], "default": "poly"},
+            },
+        ),
+        "rereference": _command_schema(
+            "rereference",
+            required=["input", "method"],
+            properties={
+                "method": {"enum": ["average", "channels"], "default": "average"},
+                "channels": {"type": "array", "items": {"type": "string"}},
+                "exclude": {"type": "array", "items": {"type": "string"}},
+                "keep_ref": {"type": "boolean", "default": False},
+                "huber": {"type": "number"},
+                "refica": {"enum": ["on", "off", "backwardcomp", "remove"], "default": "on"},
+            },
+        ),
+        "filter": _command_schema(
+            "filter",
+            required=["input"],
+            properties={
+                "highpass": {"type": "number"},
+                "lowpass": {"type": "number"},
+                "notch": {"type": "number"},
+                "notch_width": {"type": "number", "default": 2.0},
+                "order": {"type": "integer"},
+                "minphase": {"type": "boolean", "default": False},
+                "usefftfilt": {"type": "boolean", "default": False},
+            },
+        ),
+        "clean": _command_schema(
+            "clean",
+            required=["input", "method"],
+            properties={
+                "method": {"enum": ["asr", "rawdata"], "default": "asr"},
+                "burst_criterion": {"type": "number", "default": 20.0},
+                "burst_rejection": {"type": "boolean", "default": False},
+                "distance": {"enum": ["euclidean", "riemannian"], "default": "euclidean"},
+                "flatline_criterion": {"type": "number"},
+                "channel_criterion": {"type": "number"},
+                "line_noise_criterion": {"type": "number"},
+                "window_criterion": {"type": "number"},
+                "highpass": {"type": "array", "items": {"type": "number"}},
+            },
+        ),
+        "epoch": _command_schema(
+            "epoch",
+            required=["input", "event_type", "tmin", "tmax"],
+            properties={
+                "event_type": {"type": "array", "items": {"type": "string"}},
+                "tmin": {"type": "number"},
+                "tmax": {"type": "number"},
+                "new_name": {"type": "string"},
+            },
+        ),
+        "ica": _command_schema(
+            "ica",
+            required=["input", "method"],
+            properties={
+                "method": {"enum": ["runica", "picard", "amica", "runamica15"], "default": "runica"},
+                "seed": {"type": "integer"},
+                "deterministic": {"type": "boolean", "default": True},
+                "maxsteps": {"type": "integer"},
+                "pca": {"type": "integer"},
+                "extended": {"type": "integer"},
+                "channels": {"type": "array", "items": {"type": "string"}},
+                "option": {"type": "array", "items": {"type": "string"}},
+                "reorder": {"type": "boolean", "default": True},
+            },
+        ),
         "batch": {
             "schema_version": "eegprep.schema.command.batch.v1",
             "syntax": "eegprep batch run <inputs...> --pipeline <config.yaml> --output-dir <dir> --json",
@@ -291,20 +358,22 @@ def _write_capability(description: str) -> dict[str, Any]:
         "outputs": ["eeglab_set", "manifest"],
         "supports_json": True,
         "supports_dry_run": False,
-        "requires_output": True,
+        "requires_output_or_overwrite": True,
     }
 
 
-def _command_schema(command: str, *, required: list[str]) -> dict[str, Any]:
+def _command_schema(command: str, *, required: list[str], properties: dict[str, Any]) -> dict[str, Any]:
     return {
         "schema_version": f"eegprep.schema.command.{command}.v1",
         "type": "object",
         "required": required,
+        "anyOf": [{"required": ["output"]}, {"required": ["overwrite"]}],
         "properties": {
             "input": {"type": "string"},
             "output": {"type": "string"},
             "manifest": {"type": "string"},
             "overwrite": {"type": "boolean", "default": False},
             "json": {"type": "boolean", "default": False},
+            **properties,
         },
     }

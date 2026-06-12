@@ -115,10 +115,14 @@ def fdr(pvals: Any, q: float | None = None, fdr_type: str = "parametric") -> FDR
         Threshold and boolean mask with the same shape as ``pvals``.
     """
 
-    values = _as_numeric_array(pvals, "pvals", require_axis=False)
+    values = np.asarray(pvals)
+    if not np.issubdtype(values.dtype, np.number):
+        raise TypeError("pvals must be numeric")
     if values.size == 0:
         return FDRResult(np.array([], dtype=float), np.array([], dtype=bool))
-    if np.any((values < 0) | (values > 1)):
+    finite_mask = np.isfinite(values)
+    finite_values = values[finite_mask]
+    if np.any((finite_values < 0) | (finite_values > 1)):
         raise ValueError("pvals must contain probabilities between 0 and 1")
 
     if q is None:
@@ -127,7 +131,7 @@ def fdr(pvals: Any, q: float | None = None, fdr_type: str = "parametric") -> FDR
         for current in thresholds:
             current_result = fdr(values, float(current), fdr_type=fdr_type)
             threshold[current_result.mask] = current
-        return FDRResult(threshold, values <= threshold)
+        return FDRResult(threshold, finite_mask & (values <= threshold))
 
     q_value = float(q)
     if not 0 <= q_value <= 1:
@@ -137,13 +141,16 @@ def fdr(pvals: Any, q: float | None = None, fdr_type: str = "parametric") -> FDR
     if fdr_type_name not in {"parametric", "nonparametric"}:
         raise ValueError("fdr_type must be 'parametric' or 'nonparametric'")
 
-    flat = np.sort(values.reshape(-1))
+    if finite_values.size == 0:
+        return FDRResult(0.0, np.zeros(values.shape, dtype=bool))
+
+    flat = np.sort(finite_values.reshape(-1))
     count = flat.size
     indices = np.arange(1, count + 1, dtype=float)
     correction = 1.0 if fdr_type_name == "parametric" else float(np.sum(1.0 / indices))
     accepted = flat <= indices / count * q_value / correction
     threshold_value = float(flat[np.flatnonzero(accepted).max()]) if np.any(accepted) else 0.0
-    return FDRResult(threshold_value, values <= threshold_value)
+    return FDRResult(threshold_value, finite_mask & (values <= threshold_value))
 
 
 def stat_surrogate_pvals(distribution: Any, observed: Any, tail: str = "both") -> np.ndarray:

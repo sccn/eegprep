@@ -59,6 +59,7 @@ def _pop_select_apply(EEG, **kwargs):
     -------
     EEG_out, com
     """
+    EEG = copy.deepcopy(EEG)
     # shallow options with MATLAB-compatible aliases
     g = {
         'time': kwargs.get('time', []),  # seconds; can be Nx2 for continuous
@@ -208,12 +209,12 @@ def _pop_select_apply(EEG, **kwargs):
     else:
         # by type
         if _decode_list(g['chantype']):
-            inds = eeg_decodechan(EEG, g['chantype'], 'type', True)
+            inds, _ = eeg_decodechan(EEG, g['chantype'], 'type', True)
             chan_selected_flag[:] = False
             chan_selected_flag[np.array(inds, dtype=int)] = True
 
         if _decode_list(g['rmchantype']):
-            inds = eeg_decodechan(EEG, g['rmchantype'], 'type', True)
+            inds, _ = eeg_decodechan(EEG, g['rmchantype'], 'type', True)
             chan_selected_flag[np.array(inds, dtype=int)] = False
 
     g['channel'] = np.where(chan_selected_flag)[0].tolist()
@@ -368,12 +369,11 @@ def _pop_select_apply(EEG, **kwargs):
                 newevents = []
                 for ev in EEG['event']:
                     if 'epoch' in ev and 'latency' in ev:
-                        e = copy.deepcopy(ev)
                         # within-epoch latency shift by (a-1) samples
-                        e['latency'] = e['latency'] - (a - 1)
+                        ev['latency'] = ev['latency'] - (a - 1)
                         # keep only events that remain inside the cropped window
-                        if 1 <= e['latency'] <= pnts * len(g['trial']):
-                            newevents.append(e)
+                        if 1 <= ev['latency'] <= pnts * len(g['trial']):
+                            newevents.append(ev)
                 EEG['event'] = newevents
 
             # erase epoch-level event fields

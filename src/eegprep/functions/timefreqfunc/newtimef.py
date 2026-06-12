@@ -8,7 +8,10 @@ from typing import Any
 import matplotlib.pyplot as plt
 import numpy as np
 
-from eegprep.functions.timefreqfunc.bootstat import exact_p_values
+from eegprep.functions.popfunc._pop_utils import is_on as _is_on
+from eegprep.functions.popfunc._pop_utils import parse_numeric_sequence
+from eegprep.functions.statistics.fdr import fdr
+from eegprep.functions.timefreqfunc.bootstat import bootstrap_threshold, exact_p_values
 from eegprep.functions.timefreqfunc.newtimefbaseln import newtimefbaseln
 from eegprep.functions.timefreqfunc.newtimefitc import newtimefitc
 from eegprep.functions.timefreqfunc.newtimeftrialbaseln import baseline_indices, newtimeftrialbaseln
@@ -84,7 +87,10 @@ def newtimef(
     verbose: str = "off",
 ) -> TimeFrequencyResult:
     """Compute an EEGLAB-like ERSP/ITC time-frequency decomposition."""
-    _ = overlap, plotphase
+    if overlap is not None:
+        raise NotImplementedError("newtimef does not implement the 'overlap' option")
+    if str(plotphase).strip().lower() not in {"off", "0", "false", "no", "none"}:
+        raise NotImplementedError("newtimef does not implement the 'plotphase' option")
     if freqs is None and freqrange is not None:
         freqs = freqrange
     if type is not None:
@@ -242,7 +248,8 @@ def compute_time_frequency(
     timewarpms: Any = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Return ``(freqs, times_ms, tfdata)`` for one signal."""
-    _ = overlap
+    if overlap is not None:
+        raise NotImplementedError("compute_time_frequency does not implement the 'overlap' option")
     timestretch, _markers = _timewarp_options(timewarp, timewarpms, None, frames, tlimits, srate)
     decomp = _compute_decomposition(
         data,
@@ -502,36 +509,21 @@ def _resample_trials(
 
 
 def _thresholds_by_frequency(values: np.ndarray, *, alpha: float, both: bool) -> np.ndarray:
-    reshaped = values.transpose(1, 0, 2).reshape(values.shape[1], -1)
-    sorted_values = np.sort(reshaped, axis=1)
-    tail_count = max(1, int(round(sorted_values.shape[1] * alpha)))
-    upper = np.nanmean(sorted_values[:, -tail_count:], axis=1)
-    if not both:
-        return upper
-    lower = np.nanmean(sorted_values[:, :tail_count], axis=1)
-    return np.stack([lower, upper], axis=1)
+    nfreq = values.shape[1]
+    pooled = values.transpose(0, 2, 1).reshape(-1, nfreq)
+    bootside = "both" if both else "upper"
+    thresholds = np.asarray(bootstrap_threshold(pooled, alpha=alpha, bootside=bootside))
+    return thresholds.reshape(nfreq, 2) if both else thresholds.reshape(nfreq)
 
 
 def _significance_mask(pvalues: np.ndarray, alpha: float, correction: str) -> np.ndarray:
     mode = str(correction).lower()
     if mode == "fdr":
-        threshold = _fdr_threshold(pvalues, alpha)
+        threshold = float(fdr(pvalues, alpha).threshold)
         if threshold == 0:
             return np.zeros_like(pvalues, dtype=bool)
         return pvalues <= threshold
     return pvalues <= alpha
-
-
-def _fdr_threshold(pvalues: np.ndarray, alpha: float) -> float:
-    values = np.sort(np.asarray(pvalues, dtype=float).ravel())
-    values = values[np.isfinite(values)]
-    if values.size == 0:
-        return 0.0
-    ranks = np.arange(1, values.size + 1, dtype=float)
-    accepted = values <= alpha * ranks / values.size
-    if not np.any(accepted):
-        return 0.0
-    return float(values[np.nonzero(accepted)[0][-1]])
 
 
 def _threshold_mask(values: np.ndarray, thresholds: np.ndarray) -> np.ndarray:
@@ -655,50 +647,14 @@ def _plot_panel(
 def _numeric_vector(value: Any, *, dtype: Any = float) -> np.ndarray:
     if value is None:
         return np.asarray([], dtype=dtype)
-    if isinstance(value, np.ndarray):
-        return value.astype(dtype).ravel()
-    if isinstance(value, (int, float, np.integer, np.floating)):
-        return np.asarray([value], dtype=dtype)
-    if isinstance(value, str):
-        text = value.strip().strip("[]")
-        if not text:
-            return np.asarray([], dtype=dtype)
-        values = []
-        for token in text.replace(",", " ").split():
-            if ":" in token:
-                values.extend(_colon_sequence(token))
-            else:
-                values.append(float(token))
-        return np.asarray(values, dtype=dtype)
-    if isinstance(value, (list, tuple)):
-        return np.asarray(value, dtype=dtype).ravel()
-    return np.asarray([value], dtype=dtype)
+    if isinstance(value, str) and value.strip() == "":
+        return np.asarray([], dtype=dtype)
+    return np.asarray(parse_numeric_sequence(value, dtype=dtype), dtype=dtype).ravel()
 
 
 def _first_numeric(value: Any, default: float) -> float:
     values = _numeric_vector(value)
     return float(values[0]) if values.size else float(default)
-
-
-def _colon_sequence(token: str) -> list[float]:
-    pieces = token.split(":")
-    if len(pieces) not in {2, 3}:
-        raise ValueError(f"Invalid colon range: {token}")
-    start = float(pieces[0])
-    if len(pieces) == 2:
-        stop = float(pieces[1])
-        step = 1.0 if stop >= start else -1.0
-    else:
-        step = float(pieces[1])
-        stop = float(pieces[2])
-    if step == 0 or (stop - start) * step < 0:
-        return []
-    count = int(np.floor((stop - start) / step + 1e-9)) + 1
-    return [float(start + index * step) for index in range(max(count, 0))]
-
-
-def _is_on(value: Any) -> bool:
-    return str(value).lower() not in {"0", "false", "off", "no", "none"}
 
 
 __all__ = ["TimeFrequencyResult", "compute_time_frequency", "newtimef"]

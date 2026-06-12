@@ -5,7 +5,7 @@ from __future__ import annotations
 import inspect
 import logging
 import webbrowser
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -24,7 +24,6 @@ logger = logging.getLogger(__name__)
 # Action handlers import user-facing pop/plugin modules lazily so launching the
 # main GUI does not eagerly load heavier signal-processing and optional stacks.
 _EXTENSION_FILE_PARAMETERS = ("filename", "filepath", "path")
-_EEG_CORE_FIELDS = ("nbchan", "srate", "pnts", "trials")
 
 IMPLEMENTED_ACTIONS = {
     "clear_study",
@@ -216,6 +215,36 @@ _NEWSET_COMMIT_ACTIONS = {
     "pop_subcomp",
 }
 
+# Actions dispatched straight to _run_pop_function by name, with no variant; that
+# method owns all per-action wiring. Variant-aware actions (pop_eegplot, the
+# rejection group) are dispatched separately below.
+_SIMPLE_POP_ACTIONS = {
+    "pop_adjustevents",
+    "pop_comments",
+    "pop_editset",
+    "pop_editeventfield",
+    "pop_editeventvals",
+    "pop_chanedit",
+    "pop_clean_rawdata",
+    "pop_eegfilt",
+    "pop_eegfiltnew",
+    "pop_epoch",
+    "pop_firma",
+    "pop_firpm",
+    "pop_firws",
+    "pop_reref",
+    "pop_interp",
+    "pop_resample",
+    "pop_rmbase",
+    "pop_rmdat",
+    "pop_runica",
+    "pop_select",
+    "pop_selectevent",
+    "pop_iclabel",
+    "pop_icflag",
+    "pop_subcomp",
+}
+
 
 class MenuActionDispatcher:
     """Dispatch menu action identifiers to real functions or placeholders."""
@@ -353,77 +382,8 @@ class MenuActionDispatcher:
         if base in {"pop_taskinfo", "pop_participantinfo", "pop_eventinfo", "validate_bids"}:
             self._bids_tool_action(base, parent)
             return
-        if base == "pop_adjustevents":
-            self._run_pop_function("pop_adjustevents", parent)
-            return
-        if base == "pop_comments":
-            self._run_pop_function("pop_comments", parent)
-            return
-        if base == "pop_editset":
-            self._run_pop_function("pop_editset", parent)
-            return
-        if base == "pop_editeventfield":
-            self._run_pop_function("pop_editeventfield", parent)
-            return
-        if base == "pop_editeventvals":
-            self._run_pop_function("pop_editeventvals", parent)
-            return
-        if base == "pop_chanedit":
-            self._run_pop_function("pop_chanedit", parent)
-            return
-        if base == "pop_clean_rawdata":
-            self._run_pop_function("pop_clean_rawdata", parent)
-            return
-        if base == "pop_eegfilt":
-            self._run_pop_function("pop_eegfilt", parent)
-            return
-        if base == "pop_eegfiltnew":
-            self._run_pop_function("pop_eegfiltnew", parent)
-            return
-        if base == "pop_epoch":
-            self._run_pop_function("pop_epoch", parent)
-            return
-        if base == "pop_firma":
-            self._run_pop_function("pop_firma", parent)
-            return
-        if base == "pop_firpm":
-            self._run_pop_function("pop_firpm", parent)
-            return
-        if base == "pop_firws":
-            self._run_pop_function("pop_firws", parent)
-            return
-        if base == "pop_reref":
-            self._run_pop_function("pop_reref", parent)
-            return
-        if base == "pop_interp":
-            self._run_pop_function("pop_interp", parent)
-            return
-        if base == "pop_resample":
-            self._run_pop_function("pop_resample", parent)
-            return
-        if base == "pop_rmbase":
-            self._run_pop_function("pop_rmbase", parent)
-            return
-        if base == "pop_rmdat":
-            self._run_pop_function("pop_rmdat", parent)
-            return
-        if base == "pop_runica":
-            self._run_pop_function("pop_runica", parent)
-            return
-        if base == "pop_select":
-            self._run_pop_function("pop_select", parent)
-            return
-        if base == "pop_selectevent":
-            self._run_pop_function("pop_selectevent", parent)
-            return
-        if base == "pop_iclabel":
-            self._run_pop_function("pop_iclabel", parent)
-            return
-        if base == "pop_icflag":
-            self._run_pop_function("pop_icflag", parent)
-            return
-        if base == "pop_subcomp":
-            self._run_pop_function("pop_subcomp", parent)
+        if base in _SIMPLE_POP_ACTIONS:
+            self._run_pop_function(base, parent)
             return
         if base == "pop_eegplot":
             self._run_pop_function("pop_eegplot", parent, variant=variant)
@@ -1056,14 +1016,18 @@ class MenuActionDispatcher:
         return filename
 
     def _apply_extension_result(self, result: Any) -> None:
-        dataset_state = _extension_dataset_state(result)
+        # Imported here to break the menu_actions <-> console import cycle; the
+        # console owns the canonical pop-result interpretation contract.
+        from eegprep.functions.adminfunc.console import _extract_pop_dataset_state, _extract_pop_eeg_and_command
+
+        dataset_state = _extract_pop_dataset_state(result)
         if dataset_state is not None:
             alleeg, eeg_out, currentset, command = dataset_state
             self.session.echo_command(command)
             self.session.apply_workspace_state(alleeg=alleeg, eeg=eeg_out, currentset=currentset, command=command)
             self._refresh()
             return
-        eeg_out, command = _extension_eeg_and_command(result)
+        eeg_out, command = _extract_pop_eeg_and_command(result)
         if eeg_out is not None:
             self._store_current_from_gui(eeg_out, command=command)
             self._refresh()
@@ -1597,7 +1561,12 @@ class MenuActionDispatcher:
         else:
             self.show_coming_soon(name, parent)
             return
-        self._add_history_from_gui(command)
+        if name == "pop_headplot":
+            # pop_headplot attaches the spline file in place, so commit the edited
+            # dataset through the session instead of only recording history.
+            self._store_current_from_gui(selection, command=command)
+        else:
+            self._add_history_from_gui(command)
         self._refresh()
 
     def _run_chanplot(self, parent: Any | None) -> None:
@@ -1627,9 +1596,6 @@ class MenuActionDispatcher:
         if isinstance(eeg, list):
             for offset, _dataset in enumerate(eeg, start=1):
                 logger.info("Processing group dataset %s of %s.", offset, len(eeg))
-        for dataset in eeg if isinstance(eeg, list) else [eeg]:
-            if isinstance(dataset, dict):
-                eegh(command, dataset)
         alleeg, current, current_set, newset_command = pop_newset(
             self.session.ALLEEG,
             eeg,
@@ -1643,6 +1609,9 @@ class MenuActionDispatcher:
             if old_selection:
                 self.session.retrieve(old_selection if len(old_selection) > 1 else old_selection[0])
             return
+        for dataset in current if isinstance(current, list) else [current]:
+            if isinstance(dataset, dict):
+                eegh(command, dataset)
         self.session.echo_command(command)
         self.session.add_history(command, notify=False)
         self.session.echo_command(newset_command)
@@ -1776,59 +1745,6 @@ def _default_bids_metadata(action: str) -> str:
 
 def _icacomp_from_variant(variant: str) -> int:
     return 0 if variant == "ica" else 1
-
-
-def _currentset_list(value: Any) -> list[int]:
-    if value is None:
-        return []
-    if isinstance(value, str):
-        if value == "":
-            return []
-        current = int(value)
-        return [current] if current > 0 else []
-    if isinstance(value, bool):
-        return [1] if value else []
-    if isinstance(value, (int, float)):
-        current = int(value)
-        return [current] if current > 0 else []
-    if isinstance(value, Iterable) and not isinstance(value, (str, bytes)):
-        return [int(item) for item in value if int(item) > 0]
-    current = int(value)
-    return [current] if current > 0 else []
-
-
-def _extension_dataset_state(result: Any) -> tuple[list[dict[str, Any]], Any, Any, str] | None:
-    if not isinstance(result, tuple) or len(result) < 4:
-        return None
-    alleeg, eeg, currentset, command = result[0], result[1], result[2], result[3]
-    if not isinstance(alleeg, list) or not _is_eeg_selection(eeg) or not isinstance(command, str):
-        return None
-    return alleeg, eeg, currentset, command.strip()
-
-
-def _extension_eeg_and_command(result: Any) -> tuple[Any | None, str]:
-    if isinstance(result, tuple):
-        command = str(result[1]).strip() if len(result) > 1 and isinstance(result[1], str) else ""
-        if _history_only_command(command):
-            return None, command
-        if result and _is_eeg_selection(result[0]):
-            return result[0], command
-        return None, command
-    if _is_eeg_selection(result):
-        return result, ""
-    if isinstance(result, str):
-        return None, result.strip()
-    return None, ""
-
-
-def _is_eeg_selection(value: Any) -> bool:
-    if isinstance(value, dict):
-        return "data" in value and any(key in value for key in _EEG_CORE_FIELDS)
-    return isinstance(value, list) and bool(value) and all(_is_eeg_selection(item) for item in value)
-
-
-def _history_only_command(command: str) -> bool:
-    return command.lstrip().startswith("LASTCOM")
 
 
 def _extension_file_parameter(parameters: Mapping[str, inspect.Parameter]) -> str | None:

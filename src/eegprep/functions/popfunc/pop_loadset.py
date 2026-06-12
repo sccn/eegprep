@@ -3,12 +3,13 @@
 import os
 from pathlib import Path
 
+import h5py
 import numpy as np
 import scipy.io
 
 from eegprep.functions.adminfunc.storage import memmap_enabled, memmap_fdt, read_fdt
 from eegprep.functions.popfunc._file_io import normalize_icachansind
-from eegprep.functions.popfunc._pop_utils import parse_key_value_args
+from eegprep.functions.popfunc._pop_utils import is_on, parse_key_value_args
 from eegprep.functions.popfunc.pop_loadset_h5 import pop_loadset_h5
 # Allows access using . notation
 # class EEG:
@@ -81,16 +82,16 @@ def pop_loadset(file_path=None, *args, loadmode="all", memmap=None, **kwargs):
                 dict_obj[field_name] = new_check(field_value)
             return dict_obj
 
-    # Load MATLAB file
-    loaded_with_h5 = False
-    try:
+    # Load MATLAB file. MAT v7.3 files are HDF5; older v5/v7 files are not.
+    # Dispatch on the real format instead of treating every scipy error as "must be HDF5".
+    loaded_with_h5 = _is_hdf5_file(file_path)
+    if loaded_with_h5:
+        EEG = pop_loadset_h5(file_path)
+    else:
         EEG = scipy.io.loadmat(file_path, struct_as_record=False, squeeze_me=True, appendmat=False)
         EEG = new_check(EEG)
         if 'EEG' in EEG:
             EEG = EEG['EEG']
-    except Exception:
-        EEG = pop_loadset_h5(file_path)
-        loaded_with_h5 = True
 
     EEG['filepath'] = os.path.dirname(file_path)
     EEG['filename'] = os.path.basename(file_path)
@@ -128,6 +129,15 @@ def pop_loadset(file_path=None, *args, loadmode="all", memmap=None, **kwargs):
     return EEG
 
 
+def _is_hdf5_file(file_path):
+    """Return True when the file is HDF5 (MAT v7.3).
+
+    MAT v7.3 files carry a text header in an HDF5 userblock, so the signature is not at
+    byte 0; ``h5py.is_hdf5`` checks the userblock offsets HDF5 actually uses.
+    """
+    return h5py.is_hdf5(os.fspath(file_path))
+
+
 def _load_options(file_path, args, kwargs, loadmode, memmap):
     known_keys = {"filename", "filepath", "loadmode", "memmap", "check", "verbose", "eeg"}
     if isinstance(file_path, str) and file_path.lower() in known_keys:
@@ -151,7 +161,7 @@ def _load_options(file_path, args, kwargs, loadmode, memmap):
     path = Path(os.fspath(filename))
     if filepath not in {None, ""} and not path.is_absolute():
         path = Path(os.fspath(filepath)) / path
-    use_memmap = memmap_enabled() if memmap is None else _is_on(memmap)
+    use_memmap = memmap_enabled() if memmap is None else is_on(memmap)
     return str(path), loadmode, use_memmap
 
 
@@ -178,12 +188,6 @@ def _string_value(value):
         if value.size == 1:
             return str(value.reshape(-1)[0])
     return str(value)
-
-
-def _is_on(value):
-    if isinstance(value, str):
-        return value.strip().lower() in {"1", "on", "true", "yes"}
-    return bool(value)
 
 
 # STILL OPEN QUESTION: Better to have empty MATLAB arrays as None for empty numpy arrays (current default).

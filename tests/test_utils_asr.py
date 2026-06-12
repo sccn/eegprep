@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 from eegprep.plugins.clean_rawdata.asr_calibrate import asr_calibrate
 from eegprep.plugins.clean_rawdata.asr_process import asr_process
+from eegprep.plugins.clean_rawdata.clean_asr import clean_asr
 
 
 class TestAsrCalibrate(unittest.TestCase):
@@ -69,20 +70,31 @@ class TestAsrCalibrate(unittest.TestCase):
                 self.assertTrue(len(state['B']) > 1)
                 self.assertTrue(len(state['A']) > 0)
 
-    def test_unsupported_sampling_rate(self):
-        """Test calibration with unsupported sampling rate (triggers warning)."""
-        unsupported_srate = 999.0
+    def test_unsupported_sampling_rate_raises(self):
+        """Unsupported sampling rates must fail loudly, not silently degrade.
+
+        Common rates like 999/1000/1024 Hz have no pre-computed spectral filter.
+        Substituting a trivial difference filter would silently miscalibrate ASR
+        thresholds, so asr_calibrate must raise rather than warn-and-continue.
+        """
         data = np.random.randn(4, 1000) * 0.3
 
-        with self.assertLogs('eegprep.plugins.clean_rawdata.asr_calibrate', level='WARNING') as log:
-            state = asr_calibrate(data, unsupported_srate)
+        for unsupported_srate in (999.0, 1000.0, 1024.0):
+            with self.subTest(srate=unsupported_srate):
+                with self.assertRaises(ValueError) as cm:
+                    asr_calibrate(data, unsupported_srate)
+                self.assertIn('No pre-computed ASR spectral filter', str(cm.exception))
 
-        # Check that warning was logged
-        self.assertTrue(any('No pre-computed spectral filter' in msg for msg in log.output))
+    def test_unsupported_sampling_rate_allows_explicit_filter(self):
+        """An explicit B/A bypasses the precomputed-filter lookup for any srate."""
+        data = np.random.randn(4, 1000) * 0.3
+        B = np.array([1.0, -0.5])
+        A = np.array([1.0])
 
-        # Check that fallback filter was used
-        self.assertEqual(len(state['B']), 2)  # Simple fallback filter
-        self.assertEqual(len(state['A']), 1)
+        state = asr_calibrate(data, 999.0, B=B, A=A)
+        self.assertIn('M', state)
+        np.testing.assert_array_equal(state['B'], B)
+        np.testing.assert_array_equal(state['A'], A)
 
     def test_parameter_validation(self):
         """Test parameter validation and edge cases."""
@@ -336,30 +348,51 @@ class TestAsrProcess(unittest.TestCase):
 
             self.assertIn('Not enough memory', str(cm.exception))
 
-    def test_eigendecomposition_failure_handling(self):
-        """Test handling of eigendecomposition failures."""
-        # Create problematic covariance that might cause eigendecomposition to fail
-        with patch('numpy.linalg.eigh') as mock_eigh:
-            mock_eigh.side_effect = np.linalg.LinAlgError("Eigendecomposition failed")
+    def test_rank_deficient_covariance_produces_sane_output(self):
+        """Process genuinely rank-deficient data (singular covariance).
 
-            with self.assertLogs('eegprep.plugins.clean_rawdata.asr_process', level='WARNING') as log:
-                cleaned_data, new_state = asr_process(self.test_data, self.srate, self.state)
+        Duplicate and zeroed channels make the per-window covariance singular,
+        exercising the eigendecomposition and pseudo-inverse paths with a real
+        degenerate input rather than monkeypatching numpy to raise. The cleaned
+        output must stay finite and keep its shape.
+        """
+        degenerate = self.test_data.copy()
+        degenerate[3, :] = degenerate[0, :]  # duplicate channel -> singular covariance
+        degenerate[5, :] = 0.0  # flat channel -> singular covariance
 
-            # Should log warning and use fallback
-            self.assertTrue(any('Eigendecomposition failed' in msg for msg in log.output))
-            self.assertEqual(cleaned_data.shape, self.test_data.shape)
+        cleaned_data, new_state = asr_process(degenerate, self.srate, self.state)
 
-    def test_reconstruction_matrix_failure(self):
-        """Test handling of reconstruction matrix calculation failures."""
-        with patch('numpy.linalg.pinv') as mock_pinv:
-            mock_pinv.side_effect = np.linalg.LinAlgError("Singular matrix")
+        self.assertEqual(cleaned_data.shape, degenerate.shape)
+        self.assertTrue(np.all(np.isfinite(cleaned_data)))
 
-            with self.assertLogs('eegprep.plugins.clean_rawdata.asr_process', level='WARNING') as log:
-                cleaned_data, new_state = asr_process(self.test_data, self.srate, self.state)
+    def test_extreme_artifact_amplitudes_produce_sane_output(self):
+        """Process data with extreme-amplitude artifacts.
 
-            # Should log warning and use identity matrix fallback
-            self.assertTrue(any('Failed to calculate inverse' in msg for msg in log.output))
-            self.assertEqual(cleaned_data.shape, self.test_data.shape)
+        Huge transient amplitudes drive the reconstruction matrix toward
+        ill-conditioning, exercising the same numeric path. The cleaned output
+        must remain finite, keep its shape, and attenuate the injected spike.
+        """
+        extreme = self.test_data.copy()
+        spike_peak = float(np.max(np.abs(extreme))) * 1e4
+        extreme[2, 100:150] += spike_peak
+
+        cleaned_data, new_state = asr_process(extreme, self.srate, self.state)
+
+        self.assertEqual(cleaned_data.shape, extreme.shape)
+        self.assertTrue(np.all(np.isfinite(cleaned_data)))
+        self.assertLess(float(np.max(np.abs(cleaned_data))), spike_peak)
+
+    def test_component_selection_shape_error_propagates(self):
+        """A shape/contract bug during component selection must surface, not be
+        silently swallowed into a no-op (keep-all) for the affected window.
+        """
+        bad_state = dict(self.state)
+        # T is C x C in a valid state; an incompatible threshold matrix makes
+        # finite_matmul(T, V) fail. This must raise rather than disable cleaning.
+        bad_state['T'] = np.ones((self.n_channels + 1, self.n_channels + 1))
+
+        with self.assertRaises(ValueError):
+            asr_process(self.test_data, self.srate, bad_state)
 
     def test_state_persistence_across_calls(self):
         """Test that state is properly maintained across multiple processing calls."""
@@ -396,15 +429,16 @@ class TestAsrProcess(unittest.TestCase):
         self.assertTrue(np.all(np.isfinite(cleaned_data)))
 
     def test_component_selection_error_handling(self):
-        """Test error handling in component selection logic."""
-        # Mock numpy.sum to raise an error during threshold calculation
-        with patch('numpy.sum', side_effect=Exception("Threshold error")):
-            with self.assertLogs('eegprep.plugins.clean_rawdata.asr_process', level='ERROR') as log:
-                cleaned_data, new_state = asr_process(self.test_data, self.srate, self.state)
+        """An unexpected error during threshold computation must propagate.
 
-            # Should log error and use fallback (keep all components)
-            self.assertTrue(any('Error in component selection' in msg for msg in log.output))
-            self.assertEqual(cleaned_data.shape, self.test_data.shape)
+        Previously such errors were swallowed and the window silently kept all
+        components (no artifact removal). They must now surface so genuine bugs are
+        visible rather than producing quietly under-cleaned data.
+        """
+        with patch('numpy.sum', side_effect=Exception("Threshold error")):
+            with self.assertRaises(Exception) as cm:
+                asr_process(self.test_data, self.srate, self.state)
+            self.assertIn('Threshold error', str(cm.exception))
 
 
 class TestAsrIntegration(unittest.TestCase):
@@ -603,25 +637,27 @@ class TestAsrEdgeCases(unittest.TestCase):
         self.assertEqual(cleaned_data.shape, test_data.shape)
 
     def test_very_high_sampling_rate(self):
-        """Test ASR with very high sampling rate."""
-        n_channels = 4
-        srate = 2000.0  # High sampling rate
+        """Very high (unsupported) sampling rate must fail loudly in calibration.
 
-        # Create appropriate amount of data
+        2000 Hz has no pre-computed spectral filter; calibration must raise rather
+        than silently substitute a degenerate difference filter.
+        """
+        n_channels = 4
+        srate = 2000.0  # High, unsupported sampling rate
+
         n_samples = int(srate * 2)  # 2 seconds
         calib_data = np.random.randn(n_channels, n_samples) * 0.3
 
-        # Should use fallback filter for unsupported sampling rate
-        with self.assertLogs('eegprep.plugins.clean_rawdata.asr_calibrate', level='WARNING'):
-            state = asr_calibrate(calib_data, srate)
+        with self.assertRaises(ValueError) as cm:
+            asr_calibrate(calib_data, srate)
+        self.assertIn('No pre-computed ASR spectral filter', str(cm.exception))
 
-        # Should still work
-        self.assertIsInstance(state, dict)
-
-        # Test processing
+        # With explicit filter coefficients the high rate is processable end-to-end.
+        B = np.array([1.0, -0.5])
+        A = np.array([1.0])
+        state = asr_calibrate(calib_data, srate, B=B, A=A)
         test_data = np.random.randn(n_channels, 200) * 0.4
         cleaned_data, _ = asr_process(test_data, srate, state)
-
         self.assertEqual(cleaned_data.shape, test_data.shape)
 
     def test_zero_variance_data(self):
@@ -658,6 +694,44 @@ class TestAsrEdgeCases(unittest.TestCase):
                 # Test processing with memory limits
                 cleaned_data, _ = asr_process(data[:, :1000], srate, state, max_mem=max_mem)
                 self.assertEqual(cleaned_data.shape, (n_channels, 1000))
+
+
+class TestCleanAsrNoMutation(unittest.TestCase):
+    """Regression tests that clean_asr never mutates the caller's EEG."""
+
+    def setUp(self):
+        np.random.seed(7)
+        n_channels = 8
+        n_samples = 2500
+        srate = 250.0
+        data = np.random.randn(n_channels, n_samples) * 0.5
+        for i in range(n_channels):
+            for j in range(1, n_samples):
+                data[i, j] += 0.8 * data[i, j - 1]
+        # Inject a non-finite sample to exercise the in-place NaN-zeroing path
+        # that asr_calibrate applies to whatever array it receives.
+        data[0, 100] = np.nan
+        self.EEG = {
+            'data': data,
+            'srate': srate,
+            'nbchan': n_channels,
+            'pnts': n_samples,
+            'etc': {},
+        }
+
+    def test_does_not_mutate_input_data(self):
+        """clean_asr must leave the caller's EEG['data'] (incl. NaNs) unchanged."""
+        EEG_in = self.EEG
+        original_data = EEG_in['data'].copy()
+
+        EEG_out = clean_asr(EEG_in, ref_maxbadchannels='off')
+
+        # The caller's data is byte-for-byte unchanged, including the NaN that
+        # asr_calibrate would otherwise have zeroed in place.
+        self.assertTrue(np.array_equal(original_data, EEG_in['data'], equal_nan=True))
+        # Output is a distinct object with distinct data.
+        self.assertIsNot(EEG_out, EEG_in)
+        self.assertIsNot(EEG_out['data'], EEG_in['data'])
 
 
 if __name__ == '__main__':

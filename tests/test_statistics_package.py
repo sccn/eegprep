@@ -46,6 +46,22 @@ def test_fdr_matches_bh_and_by_thresholds():
     npt.assert_array_equal(by.mask, [True, True, False, False])
 
 
+def test_fdr_uses_finite_pvalues_for_threshold_denominator():
+    pvals = np.array([0.01, 0.03, np.nan, np.inf])
+
+    result = fdr(pvals, 0.05)
+
+    assert result.threshold == pytest.approx(0.03)
+    npt.assert_array_equal(result.mask, [True, True, False, False])
+
+
+def test_fdr_no_finite_pvalues_returns_empty_mask():
+    result = fdr(np.array([np.nan, np.inf]), 0.05)
+
+    assert result.threshold == 0
+    npt.assert_array_equal(result.mask, [False, False])
+
+
 def test_surrogate_pvals_and_ci_use_last_axis():
     distribution = np.array([[1, 2, 3, 4], [4, 5, 6, 7]], dtype=float)
     observed = np.array([3, 5], dtype=float)

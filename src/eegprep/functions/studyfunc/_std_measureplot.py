@@ -9,10 +9,23 @@ import numpy as np
 
 from eegprep.functions.popfunc._pop_utils import is_on, parse_key_value_args
 from eegprep.functions.studyfunc._study_utils import build_python_call
-from eegprep.functions.studyfunc.std_readdata import std_readdata
+from eegprep.functions.studyfunc.std_readdata import MEASURE_DATA_FIELDS, std_readdata
 
 
 LINE_MEASURES = {"erp", "spec"}
+
+
+def default_measure_target(study: dict[str, Any], field: str, channels: Any, clusters: Any, components: Any):
+    """Choose channels-vs-parent-cluster default target by cached measure field.
+
+    Returns ``("channels", clusters)`` when any STUDY channel group caches
+    ``field``; otherwise defaults to the parent component cluster (``1``).
+    """
+    if channels is not None or clusters is not None or components is not None:
+        return channels, clusters
+    if any(isinstance(group, dict) and field in group for group in study.get("changrp") or []):
+        return "channels", clusters
+    return channels, 1
 
 
 def std_measureplot(
@@ -73,12 +86,7 @@ def std_measureplot(
 def _default_target(
     study: dict[str, Any], datatype: str, channels: Any, clusters: Any, components: Any
 ) -> tuple[Any, Any]:
-    if channels is not None or clusters is not None or components is not None:
-        return channels, clusters
-    field = {"erp": "erpdata", "spec": "specdata", "ersp": "erspdata", "itc": "itcdata"}[datatype]
-    if any(isinstance(group, dict) and field in group for group in study.get("changrp") or []):
-        return "channels", clusters
-    return channels, 1
+    return default_measure_target(study, MEASURE_DATA_FIELDS[datatype], channels, clusters, components)
 
 
 def _apply_ranges(

@@ -13,7 +13,7 @@ import numpy as np
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.popfunc._ica_utils import flatten_ica_data
-from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args
+from eegprep.functions.popfunc._pop_utils import format_history_value, is_on, parse_key_value_args
 from eegprep.functions.popfunc.eeg_amica import eeg_amica
 from eegprep.functions.popfunc.eeg_decodechan import eeg_decodechan
 from eegprep.functions.popfunc.eeg_picard import eeg_picard
@@ -239,10 +239,10 @@ def _runica_on_datasets(EEG, *, dataset, icatype, options, reorder, chanind, con
     indices = _dataset_indices(output, dataset)
     selected = [output[index] for index in indices]
     logger.info("NOW RUNNING ALL DECOMPOSITIONS")
-    if _is_on(concatcond):
+    if is_on(concatcond):
         logger.info("Concatenating datasets by subject and session.")
         updated = _runica_by_subject_session(selected, icatype, options, reorder=reorder, chanind=chanind)
-    elif _is_on(concatenate):
+    elif is_on(concatenate):
         logger.info("Concatenating datasets...")
         updated = _runica_concatenated(selected, icatype, options, reorder=reorder, chanind=chanind)
     else:
@@ -413,6 +413,8 @@ def _picard_options(options):
         lower_key = str(key).lower()
         if lower_key == "maxiter":
             mapped["max_iter"] = value
+        elif lower_key == "seed":
+            mapped["random_state"] = int(value)
         elif lower_key == "mode":
             if str(value).lower() == "standard":
                 mapped["ortho"] = False
@@ -584,16 +586,12 @@ def _history_command(icatype, options, reorder, chanind, *, dataset=None, concat
         parts.extend(["'reorder'", _runica_history_value(reorder)])
     if chanind is not None:
         parts.extend(["'chanind'", _runica_history_value(chanind)])
-    if _is_on(concatenate):
+    if is_on(concatenate):
         parts.extend(["'concatenate'", "'on'"])
-    if _is_on(concatcond):
+    if is_on(concatcond):
         parts.extend(["'concatcond'", "'on'"])
     return f"EEG = pop_runica(EEG, {', '.join(parts)});"
 
 
 def _runica_history_value(value):
     return format_history_value(value, cell_for_sequence=None)
-
-
-def _is_on(value):
-    return str(value).lower() in {"on", "yes", "true", "1"}

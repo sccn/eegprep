@@ -48,6 +48,37 @@ def test_run_long_task_returns_result_and_forwards_progress(qapp):
     assert "worker progress" in handle.dialog.labelText()
 
 
+def test_run_long_task_restores_eegprep_logger_level_after_forwarding_progress(qapp):
+    from PySide6 import QtCore
+
+    loop = QtCore.QEventLoop()
+    logger = logging.getLogger("eegprep")
+    original_level = logger.level
+    logger.setLevel(logging.WARNING)
+
+    def task():
+        logging.getLogger("eegprep.tests").info("worker progress")
+        return "done"
+
+    try:
+        handle = run_long_task(
+            parent=None,
+            title="Running test task",
+            label="Running test task.",
+            task=task,
+            on_success=lambda _result: None,
+            on_error=lambda _exc: None,
+            on_finished=lambda _handle: loop.quit(),
+        )
+        QtCore.QTimer.singleShot(3000, loop.quit)
+        loop.exec()
+
+        assert "worker progress" in handle.dialog.labelText()
+        assert logger.level == logging.WARNING
+    finally:
+        logger.setLevel(original_level)
+
+
 def test_run_long_task_callbacks_are_delivered_on_main_thread(qapp, monkeypatch):
     from PySide6 import QtCore
 

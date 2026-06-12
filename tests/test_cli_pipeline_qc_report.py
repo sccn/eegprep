@@ -138,6 +138,20 @@ def test_pipeline_filter_history_uses_modern_eegfiltnew(monkeypatch, tmp_path):
     assert "pop_eegfiltnew" in result["history"][0]
 
 
+def test_pipeline_filter_rejects_negative_notch_lower_edge(tmp_path):
+    config_path = _write_pipeline_config(
+        tmp_path,
+        steps=[{"name": "filter", "notch": 1, "notch_width": 4}],
+    )
+
+    result = run_pipeline_config(config_path)
+
+    assert result["status"] == "error"
+    assert result["code"] == "CONFIG_SCHEMA_ERROR"
+    assert "notch minus half notch_width must be positive" in result["message"]
+    assert not (tmp_path / "out").exists()
+
+
 def test_pipeline_invalid_config_returns_structured_error(tmp_path):
     config_path = _write_pipeline_config(
         tmp_path,

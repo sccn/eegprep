@@ -28,15 +28,14 @@ def ICL_feature_extractor(EEG, flag_autocorr=False):
 
     EEG = deepcopy(EEG)
 
-    # Check inputs
-    ncomp = EEG['icawinv'].shape[1]
-
-    # Check for ICA key and if it is not empty
+    # Check for ICA key and if it is not empty before dereferencing it
     if 'icawinv' not in EEG.keys() or EEG['icawinv'].size == 0:
         raise ValueError('You must have an ICA decomposition to use ICLabel')
 
+    ncomp = EEG['icawinv'].shape[1]
+
     # Assuming chanlocs are correct
-    if EEG['ref'] != 'average' and EEG['ref'] != 'averef':
+    if EEG.get('ref') != 'average' and EEG.get('ref') != 'averef':
         EEG = pop_reref(EEG, [])
 
     # Calculate ICA activations if missing and cast to double

@@ -58,6 +58,7 @@ If you only need documentation dependencies, sync the docs extra:
 
 - The eegprep package in editable mode
 - Repo tooling dependencies
+- GUI and ``eegprep-console`` runtime dependencies
 - Documentation dependencies when ``--extra docs`` is used
 
 Code Style Guidelines
@@ -121,19 +122,32 @@ When adding new features, include tests:
 
 .. code-block:: python
 
+    import numpy as np
     from eegprep import EEGobj
 
     def test_new_feature():
         """Test description of what this tests."""
-        # Setup
-        eeg = EEGobj()
+        # Setup: EEGobj wraps an EEG dict (or a .set file path).
+        eeg_dict = {
+            "data": np.zeros((4, 100), dtype=np.float32),
+            "nbchan": 4,
+            "pnts": 100,
+            "trials": 1,
+            "srate": 128.0,
+            "xmin": 0.0,
+            "xmax": 99 / 128.0,
+            "chanlocs": [{"labels": f"Ch{i + 1}"} for i in range(4)],
+            "event": [],
+            "epoch": [],
+        }
+        eeg = EEGobj(eeg_dict)
 
-        # Execute
-        result = eeg.new_feature()
+        # Execute: EEGobj dispatches pop_* operations, e.g. eeg.pop_reref([]).
+        result = eeg.pop_reref([])
 
         # Assert
         assert result is not None
-        assert len(result) > 0
+        assert result["nbchan"] == 4
 
 Documentation Standards
 =======================

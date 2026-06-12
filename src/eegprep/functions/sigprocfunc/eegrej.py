@@ -10,10 +10,7 @@ def _is_boundary_event(event: Dict) -> bool:
     if isinstance(t, str):
         return t.lower() == "boundary"
     if isinstance(t, (int, float)):
-        try:
-            return int(t) == -99
-        except Exception:
-            return False
+        return int(t) == -99
     return False
 
 
@@ -135,10 +132,12 @@ def eegrej(
                     extra += float(ev.get("duration", 0.0) or 0.0)
             durations[i_region] += extra
 
-    # Compute boundevents considering prior removals
+    # Compute boundevents considering prior removals. EEGLAB shifts each later
+    # boundary by the prior regions' base spans (eegrej.m L139), not by the
+    # augmented durations (those only feed the inserted boundary's .duration).
     boundevents = r[:, 0].astype(float) - 1.0
-    if len(durations) > 1:
-        cums = np.concatenate([[0.0], np.cumsum(durations[:-1])])
+    if len(base_durations) > 1:
+        cums = np.concatenate([[0.0], np.cumsum(base_durations[:-1].astype(float))])
         boundevents = boundevents - cums
     boundevents = boundevents + 0.5
     boundevents = boundevents[boundevents >= 0]

@@ -219,6 +219,26 @@ def test_storedisk_session_retrieve_and_console_pop_call_stay_synchronized(tmp_p
         EEG_OPTIONS.update(old_options)
 
 
+def test_console_currentset_reassignment_preserves_both_datasets():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg("first"), new=True)
+    session.store_current(_demo_eeg("second"), new=True)
+    workspace = EEGPrepConsoleWorkspace(session, exports={})
+    session.retrieve(1)
+
+    assert workspace.namespace["EEG"]["setname"] == "first"
+    assert session.CURRENTSET == [1]
+
+    workspace.namespace["CURRENTSET"] = 2
+    workspace.after_execute("CURRENTSET = 2")
+
+    assert session.CURRENTSET == [2]
+    assert session.EEG["setname"] == "second"
+    assert session.ALLEEG[0]["setname"] == "first"
+    assert session.ALLEEG[1]["setname"] == "second"
+    assert workspace.namespace["EEG"]["setname"] == "second"
+
+
 def test_console_pop_study_result_updates_shared_study_workspace():
     session = EEGPrepSession()
     session.store_current(_demo_eeg(), new=True)
@@ -389,6 +409,37 @@ def test_console_eegh_positive_index_replays_command_through_workspace():
     assert session.EEG["setname"] == "reref"
     assert session.LASTCOM == "EEG = pop_reref(EEG, []);"
     workspace.close()
+
+
+def test_console_eegh_string_command_notifies_session_listeners():
+    session = EEGPrepSession()
+    workspace = EEGPrepConsoleWorkspace(session, exports={})
+    notified: list[int] = []
+    session.add_change_listener(lambda _session: notified.append(len(session.ALLCOM)))
+
+    result = workspace.namespace["eegh"]("EEG = pop_loadset('demo.set');")
+
+    assert result == "EEG = pop_loadset('demo.set');"
+    assert session.ALLCOM == ["EEG = pop_loadset('demo.set');"]
+    assert session.LASTCOM == "EEG = pop_loadset('demo.set');"
+    # Routing through session.add_history fires the change listener.
+    assert notified == [1]
+    workspace.close()
+
+
+def test_menu_actions_reuses_console_pop_result_decoders():
+    # The GUI extension-result path delegates to the canonical console decoders
+    # instead of keeping its own copies.
+    from eegprep.functions.guifunc import menu_actions as menu_actions_module
+
+    assert not hasattr(menu_actions_module, "_extension_dataset_state")
+    assert not hasattr(menu_actions_module, "_extension_eeg_and_command")
+
+    eeg = _demo_eeg()
+    command = "EEG = pop_demo(EEG);"
+    result = ([eeg], eeg, 1, command)
+    assert console_module._extract_pop_dataset_state(result) == ([eeg], eeg, 1, command)
+    assert console_module._extract_pop_eeg_and_command((eeg, command)) == (eeg, command)
 
 
 def test_gui_action_buffers_output_until_command_echo():
@@ -1534,7 +1585,7 @@ def test_console_python_command_converts_common_eeglab_history_syntax():
     assert converted == [
         "ALLEEG, EEG, CURRENTSET = pop_newset(ALLEEG, EEG, CURRENTSET, retrieve=1)",
         "CURRENTSTUDY = 0; ALLEEG, EEG, CURRENTSET = pop_newset(ALLEEG, EEG, CURRENTSET, retrieve=2)",
-        "EEG = pop_select(EEG, channel=[1, 2], chantype=['EEG', 'EOG'])",
+        "EEG = pop_select(EEG, channel=[0, 1], chantype=['EEG', 'EOG'])",
         'LASTCOM = pop_export(EEG, filename="/tmp/demo\'s data.tsv")',
         "EEG = pop_resample(EEG, freq=64)",
         "EEG = pop_comments(EEG, plottitle='', newcomments='sample notes')",
@@ -1546,6 +1597,20 @@ def test_console_python_command_converts_common_eeglab_history_syntax():
         "ALLEEG, EEG, CURRENTSET = pop_newset(ALLEEG, EEG, CURRENTSET, retrieve=3)",
     ]
     for command in converted:
+        ast.parse(command)
+
+
+def test_console_pop_select_numeric_channels_zero_based_on_replay():
+    # GUI/history is 1-based (EEGLAB parity); the 0-based Python API requires the
+    # console to zero-base numeric channel selections so replayed history selects
+    # the same channels. Channel-by-name and chantype selections must pass through.
+    numeric = console_module._console_python_command("EEG = pop_select(EEG, 'channel', [1 3], 'rmchannel', [5]);")
+    assert numeric == "EEG = pop_select(EEG, channel=[0, 2], rmchannel=[4])"
+    by_name = console_module._console_python_command(
+        "EEG = pop_select(EEG, 'channel', {'Fz' 'Cz'}, 'chantype', {'EEG'});"
+    )
+    assert by_name == "EEG = pop_select(EEG, channel=['Fz', 'Cz'], chantype=['EEG'])"
+    for command in (numeric, by_name):
         ast.parse(command)
 
 

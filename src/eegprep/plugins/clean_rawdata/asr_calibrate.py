@@ -12,6 +12,9 @@ from .private.stats import fit_eeg_distribution, geometric_median
 
 logger = logging.getLogger(__name__)
 
+# Sampling rates (Hz) for which a pre-computed spectral-shaping IIR filter is available.
+_SUPPORTED_SRATES = frozenset({100, 128, 200, 250, 256, 300, 500, 512})
+
 
 def asr_calibrate(
     X,
@@ -356,16 +359,14 @@ def asr_calibrate(
                 dtype=np.float64,
             )
         else:
-            # Fallback if no precomputed filter matches or yulewalk is unavailable
-            # Consider adding a call to a yulewalk implementation if available,
-            # or raising a more specific error/warning.
-            logger.warning(
-                f"No pre-computed spectral filter for srate {srate}. Using a simple default (may be suboptimal)."
+            # No precomputed spectral-shaping filter for this sampling rate. Degrading
+            # to a trivial difference filter would silently miscalibrate the ASR
+            # thresholds, so fail loudly instead (mirrors MATLAB's asr_calibrate:NoYulewalk).
+            raise ValueError(
+                f"No pre-computed ASR spectral filter for srate {srate} Hz "
+                f"(supported: {sorted(_SUPPORTED_SRATES)}). Resample the data to a "
+                "supported rate or pass explicit filter coefficients via B and A."
             )
-            B = np.array([1.0, -1.0])  # Simple high-pass/difference filter as a basic fallback
-            A = np.array([1.0])
-            # Original MATLAB error:
-            # error('asr_calibrate:NoYulewalk','The yulewalk() function was not found and there is no pre-computed spectral filter for your sampling rate...');
 
     # Ensure data is finite
     X[~np.isfinite(X)] = 0.0

@@ -8,6 +8,9 @@ resampling, filtering, epoching, selecting data, rereferencing, interpolation,
 and cleaning. Choose whether the processed dataset should overwrite the current
 dataset or be stored as a new dataset.
 
+Use **Edit description** to open a multiline editor for the dataset
+`comments` field.
+
 Common command-line forms:
 
 ```python

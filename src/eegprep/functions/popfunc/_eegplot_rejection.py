@@ -2,20 +2,112 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Callable
 
 import numpy as np
 
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
-from eegprep.functions.popfunc._rejection import copy_eeg, reject_field_names, update_reject_fields
-from eegprep.functions.popfunc.pop_eegplot import DEFAULT_REJECTION_COLORS, MANUAL_REJECTION_COLOR
+from eegprep.functions.popfunc._rejection import (
+    copy_eeg,
+    one_based_indices,
+    parse_numeric_sequence,
+    reject_field_names,
+    rejection_data,
+    update_reject_fields,
+)
+from eegprep.functions.popfunc.pop_eegplot import (
+    DEFAULT_REJECTION_COLORS,
+    MANUAL_REJECTION_COLOR,
+    REJECTION_FAMILIES,
+    pad_rejection_rows,
+    rejection_row_count,
+)
 from eegprep.functions.popfunc.pop_rejepoch import pop_rejepoch
 from eegprep.functions.sigprocfunc.eegplot import eegplot, eegplot2trial, trial2eegplot
 
 
-DISPLAY_REJECTION_FAMILIES = ("manual", "thresh", "const", "jp", "kurt", "freq")
 # Autorej shares manual-color browser marks and is not superposed as a separate EEGLAB family.
 _AUTO_REJECTION_COLOR = MANUAL_REJECTION_COLOR
+
+
+def run_epoched_rejection(
+    EEG: dict[str, Any],
+    icacomp: int | bool,
+    elecrange: Any,
+    locthresh: Any,
+    globthresh: Any,
+    superpose: int | bool,
+    reject: int | bool,
+    vistype: int,
+    *,
+    marks_fn: Callable[..., tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]],
+    kind: str,
+    stats_local_field: str,
+    stats_global_field: str,
+    stats_local_field_ica: str,
+    stats_global_field_ica: str,
+    error_message: str,
+    command_fn: Callable[[list[int]], str],
+    display: bool = False,
+    command_callback: Any | None = None,
+    show: bool = True,
+) -> tuple[dict[str, Any], list[float], list[float], list[int], str]:
+    """Run a local/global epoched-rejection method and store marks and stats.
+
+    Shared scaffold for the per-method ``pop_*`` epoched rejection wrappers
+    (kurtosis, joint probability, ...). The method-specific pieces are supplied
+    by ``marks_fn``, ``kind``, the stats field names, the error message, and
+    ``command_fn``, which builds the history string from the normalized
+    1-based electrode/component range.
+    """
+    out = copy_eeg(EEG)
+    data, row_count = rejection_data(out, icacomp)
+    if int(out.get("trials", data.shape[2]) or data.shape[2]) <= 1:
+        raise ValueError(error_message)
+    elecrange = one_based_indices(elecrange, limit=row_count, default_all=True)
+    marks, marks_e, local_scores, global_scores = marks_fn(data, elecrange, locthresh, globthresh)
+    out.setdefault("stats", {})
+    if int(bool(icacomp)):
+        out["stats"][stats_local_field] = local_scores
+        out["stats"][stats_global_field] = global_scores
+    else:
+        out["stats"][stats_local_field_ica] = local_scores
+        out["stats"][stats_global_field_ica] = global_scores
+    update_reject_fields(out, icacomp=icacomp, kind=kind, reject=marks, reject_e=marks_e)
+    rejected = (np.flatnonzero(marks) + 1).tolist()
+    command = command_fn(elecrange)
+    if display:
+        open_epoched_rejection_browser(
+            out,
+            data=data,
+            icacomp=icacomp,
+            elecrange=elecrange,
+            kind=kind,
+            superpose=superpose,
+            reject=reject,
+            command=command,
+            command_callback=command_callback,
+            show=show,
+        )
+    elif int(bool(reject)) and rejected:
+        out = pop_rejepoch(out, rejected, 0)
+    return (
+        out,
+        parse_numeric_sequence(locthresh, dtype=float),
+        parse_numeric_sequence(globthresh, dtype=float),
+        rejected,
+        command,
+    )
+
+
+def vistype_from_gui(value: Any) -> int:
+    """Map an EEGLAB visualization-mode popup value to a vistype flag."""
+    if isinstance(value, str):
+        return 0 if value.strip().lower() in {"rejecttrials", "reject trials", "0"} else 1
+    try:
+        return 0 if int(value) == 1 else 1
+    except (TypeError, ValueError):
+        return 1
 
 
 def open_epoched_rejection_browser(
@@ -165,7 +257,7 @@ def apply_epoched_rejection_browser(
     trials = int(out.get("trials", 1) or 1)
     pnts = int(out.get("pnts", np.asarray(out.get("data")).shape[1]))
     if row_count is None:
-        row_count = _row_count(out, icacomp)
+        row_count = rejection_row_count(out, icacomp)
     selected_rows = _selected_row_indices(elecrange, row_count)
     rows = _as_winrej_rows(winrej)
     if int(superpose) == 2:
@@ -243,7 +335,7 @@ def _family_rows(
 ) -> np.ndarray:
     field, field_e = reject_field_names(icacomp, kind)
     marks = _trial_marks(reject.get(field), trials)
-    row_marks = _row_marks(reject.get(field_e), row_count, trials)[selected_rows, :]
+    row_marks = pad_rejection_rows(reject.get(field_e), row_count, trials)[selected_rows, :]
     return trial2eegplot(marks, row_marks, pnts, color)
 
 
@@ -257,7 +349,7 @@ def _store_manual_marks(
     field, field_e = reject_field_names(icacomp, "rejmanual")
     reject = EEG.setdefault("reject", {})
     current = _trial_marks(reject.get(field), np.asarray(trial_marks).size)
-    current_e = _row_marks(reject.get(field_e), row_marks.shape[0], np.asarray(trial_marks).size)
+    current_e = pad_rejection_rows(reject.get(field_e), row_marks.shape[0], np.asarray(trial_marks).size)
     reject[field] = current | np.asarray(trial_marks, dtype=bool)
     reject[field_e] = current_e | np.asarray(row_marks, dtype=bool)
     reject.setdefault("rejmanualcol", np.asarray(MANUAL_REJECTION_COLOR, dtype=float))
@@ -297,32 +389,11 @@ def _trial_marks(value: Any, trials: int) -> np.ndarray:
     return out
 
 
-def _row_marks(value: Any, row_count: int, trials: int) -> np.ndarray:
-    out = np.zeros((row_count, trials), dtype=bool)
-    marks = np.asarray(value if value is not None else [], dtype=bool)
-    if marks.ndim == 1 and marks.size:
-        marks = marks.reshape(1, -1)
-    if marks.ndim == 2:
-        rows = min(row_count, marks.shape[0])
-        cols = min(trials, marks.shape[1])
-        out[:rows, :cols] = marks[:rows, :cols]
-    return out
-
-
-def _row_count(EEG: dict[str, Any], icacomp: int | bool) -> int:
-    if int(bool(icacomp)):
-        return int(EEG.get("nbchan", np.asarray(EEG.get("data")).shape[0]) or 0)
-    weights = np.asarray(EEG.get("icaweights", []))
-    return int(weights.shape[0]) if weights.ndim == 2 else 0
-
-
 def _displayed_families(reject: dict[str, Any]) -> tuple[str, ...]:
     disprej = reject.get("disprej")
     if disprej is not None and np.asarray(disprej, dtype=object).size:
-        return tuple(
-            str(item) for item in np.asarray(disprej, dtype=object).ravel() if str(item) in DISPLAY_REJECTION_FAMILIES
-        )
-    return tuple(family for family in DISPLAY_REJECTION_FAMILIES if _has_family_marks(reject, family))
+        return tuple(str(item) for item in np.asarray(disprej, dtype=object).ravel() if str(item) in REJECTION_FAMILIES)
+    return tuple(family for family in REJECTION_FAMILIES if _has_family_marks(reject, family))
 
 
 def _has_family_marks(reject: dict[str, Any], family: str) -> bool:

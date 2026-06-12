@@ -79,6 +79,21 @@ def test_pac_reports_explicit_unsupported_statistics_and_latphase():
     assert "not silently emulated" in PAC_UNSUPPORTED_MESSAGE
 
 
+def test_pac_rejects_unimplemented_plotting_options():
+    amp, phase, srate = _coupled_trials()
+
+    with pytest.raises(NotImplementedError, match="not implemented"):
+        pac(amp, phase, srate, title="my coupling")
+    with pytest.raises(NotImplementedError, match="not implemented"):
+        pac(amp, phase, srate, vert=[100.0])
+    with pytest.raises(NotImplementedError, match="not implemented"):
+        pac(amp, phase, srate, newfig="off")
+
+    # Default plotting values still compute PAC without plotting.
+    result = pac(amp, phase, srate, title="", vert=None, newfig="on", ntimesout=4)
+    assert isinstance(result, PacResult)
+
+
 def test_std_pac_computes_study_cache_and_std_pacplot_reads_it():
     study, alleeg = _study_pair()
 
