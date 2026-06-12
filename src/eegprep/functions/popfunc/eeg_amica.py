@@ -1,7 +1,9 @@
 """Perform ICA decomposition using the AMICA (Adaptive Mixture ICA) algorithm."""
 
+import copy
+
 import numpy as np
-from ..miscfunc.pinv import pinv
+from ._ica_utils import flatten_ica_data, reshape_ica_activations
 from ..sigprocfunc.runamica import runamica
 
 
@@ -62,9 +64,10 @@ def eeg_amica(
     dict
         The updated EEG structure with ICA fields.
     """
+    EEG = copy.deepcopy(EEG)
+
     # Extract data and reshape from 3D to 2D
-    data = EEG['data'].astype('float64')
-    data = data.reshape(data.shape[0], -1)
+    data = flatten_ica_data(EEG['data'].astype('float64'))
 
     # Run AMICA
     weights, sphere, mods = runamica(
@@ -88,7 +91,7 @@ def eeg_amica(
     # Compute ICA activations
     EEG['icaact'] = (EEG['icaweights'] @ EEG['icasphere']) @ data
     # Reshape icaact back to 3D
-    EEG['icaact'] = EEG['icaact'].reshape(EEG['icaact'].shape[0], EEG['pnts'], EEG['trials'])
+    EEG['icaact'] = reshape_ica_activations(EEG['icaact'], EEG['pnts'], EEG['trials'])
     EEG['icachansind'] = np.arange(EEG['nbchan'])
 
     # Store full multi-model results
@@ -99,7 +102,7 @@ def eeg_amica(
     # Optionally sort components by mean descending activation variance
     if sortcomps in ('on', True):
         # Flatten icaact to 2D for variance computation
-        icaact_2d = EEG['icaact'].reshape(EEG['icaact'].shape[0], -1)
+        icaact_2d = flatten_ica_data(EEG['icaact'])
         # Compute variance metric: sum(icawinv^2) .* sum(icaact^2)
         variance_metric = np.sum(EEG['icawinv'] ** 2, axis=0) * np.sum(icaact_2d**2, axis=1)
         # Sort indices in descending order
@@ -112,23 +115,21 @@ def eeg_amica(
     # Optionally normalize components using the same rule as runica()
     if posact in ('on', True):
         # Flatten icaact to 2D for finding max abs values
-        icaact_2d = EEG['icaact'].reshape(EEG['icaact'].shape[0], -1)
+        icaact_2d = flatten_ica_data(EEG['icaact'])
         # Find indices of max absolute values for each component
         ix = np.argmax(np.abs(icaact_2d), axis=1)
-        had_flips = False
         ncomps = EEG['icaact'].shape[0]
 
         for r in range(ncomps):
             if np.sign(icaact_2d[r, ix[r]]) < 0:
-                # Flip the activations
+                # A sign flip commutes through the factorization, so negate the
+                # matching row of icaweights and column of icawinv directly. This
+                # preserves the invariants icawinv == pinv(icaweights @ icasphere)
+                # and icaact == icaweights @ icasphere @ data, leaving icasphere
+                # untouched.
                 EEG['icaact'][r, :, :] = -EEG['icaact'][r, :, :]
-                # Flip the corresponding column of the mixing matrix
                 EEG['icawinv'][:, r] = -EEG['icawinv'][:, r]
-                had_flips = True
-
-        if had_flips:
-            # Recompute unmixing matrix
-            EEG['icaweights'] = pinv(EEG['icawinv'])
+                EEG['icaweights'][r, :] = -EEG['icaweights'][r, :]
 
     return EEG
 
@@ -160,13 +161,15 @@ def load_amica_model(EEG, mods, model_num=0):
     if model_num < 0 or model_num >= num_models:
         raise ValueError(f"model_num={model_num} out of range for {num_models} models")
 
+    EEG = copy.deepcopy(EEG)
+
     EEG['icaweights'] = mods['W'][:, :, model_num]
     EEG['icasphere'] = mods['S'][:num_pcs, :]
     EEG['icawinv'] = mods['A'][:, :, model_num]
 
     # Recompute activations
-    data = EEG['data'].astype('float64').reshape(EEG['data'].shape[0], -1)
+    data = flatten_ica_data(EEG['data'].astype('float64'))
     EEG['icaact'] = (EEG['icaweights'] @ EEG['icasphere']) @ data
-    EEG['icaact'] = EEG['icaact'].reshape(EEG['icaact'].shape[0], EEG['pnts'], EEG['trials'])
+    EEG['icaact'] = reshape_ica_activations(EEG['icaact'], EEG['pnts'], EEG['trials'])
 
     return EEG

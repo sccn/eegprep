@@ -222,8 +222,10 @@ def runica(data, **kwargs):
     # 1. DATA VALIDATION AND INITIALIZATION
     # =========================================================================
 
-    # Ensure data is float64 for numerical consistency with MATLAB
-    data = np.asarray(data, dtype=np.float64)
+    # Ensure data is float64 for numerical consistency with MATLAB.
+    # Copy at entry so the in-place channel-mean subtraction below never
+    # mutates the caller's array, regardless of input dtype.
+    data = np.array(data, dtype=np.float64, copy=True)
 
     chans, frames = data.shape
     urchans = chans  # remember original data channels

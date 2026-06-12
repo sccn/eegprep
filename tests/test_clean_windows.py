@@ -488,6 +488,25 @@ class TestCleanWindows(unittest.TestCase):
         # Check that sample_mask is boolean
         self.assertEqual(sample_mask.dtype, bool)
 
+    def test_does_not_mutate_input(self):
+        """clean_windows must not mutate the caller's EEG dict or data array."""
+        EEG_in = self.EEG_artifacts
+        original_data = EEG_in['data'].copy()
+        original_dtype = EEG_in['data'].dtype
+        original_keys = set(EEG_in.keys())
+
+        EEG_out, _ = clean_windows(EEG_in)
+
+        # Caller's data array is unchanged in value, dtype, and shape.
+        self.assertTrue(np.array_equal(original_data, EEG_in['data']))
+        self.assertEqual(EEG_in['data'].dtype, original_dtype)
+        # No new keys (e.g. 'etc') were injected into the caller's dict.
+        self.assertEqual(set(EEG_in.keys()), original_keys)
+        self.assertNotIn('etc', EEG_in)
+        # Output is a distinct object from the input.
+        self.assertIsNot(EEG_out, EEG_in)
+        self.assertIsNot(EEG_out['data'], EEG_in['data'])
+
 
 if __name__ == '__main__':
     unittest.main()

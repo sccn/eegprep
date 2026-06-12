@@ -202,6 +202,30 @@ class TestPopSelectFunctional(unittest.TestCase):
 
             self.assertEqual(np.asarray(EEG_out.get('epoch')).size, 0)
 
+    def test_caller_eeg_is_not_mutated(self):
+        EEG = copy.deepcopy(self.EEG)
+        original_data = EEG['data'].copy()
+        original_nbchan = int(EEG['nbchan'])
+        events = EEG.get('event')
+        original_event_count = 0 if events is None else len(events)
+        original_first_latency = (
+            float(events[0]['latency']) if original_event_count and 'latency' in events[0] else None
+        )
+
+        labels = _chan_labels(EEG)
+        self.assertGreaterEqual(len(labels), 2, "Dataset must have at least 2 channels")
+        EEG_out = pop_select(EEG, channel=labels[:2])
+
+        # The returned dataset reflects the selection ...
+        self.assertEqual(EEG_out['nbchan'], 2)
+        # ... while the caller's EEG is left completely untouched.
+        self.assertTrue(np.array_equal(original_data, EEG['data']))
+        self.assertEqual(int(EEG['nbchan']), original_nbchan)
+        events_after = EEG.get('event')
+        self.assertEqual(0 if events_after is None else len(events_after), original_event_count)
+        if original_first_latency is not None:
+            self.assertEqual(float(events_after[0]['latency']), original_first_latency)
+
 
 class TestPopSelectEdgeCases(unittest.TestCase):
     """Test edge cases and error conditions in pop_select."""
