@@ -22,16 +22,21 @@ EEGLAB_ROOT_ENV = "EEGPREP_EEGLAB_ROOT"
 # can be either 'OCT' (for Oct2Py) or 'MAT' (MATLAB engine)
 default_runtime = 'MAT'
 
-# directory where temporary .set files are written
-# use environment variable if it exists
-if 'TEMP_DIR' in os.environ:
-    temp_dir = os.environ['TEMP_DIR']
-elif 'TMPDIR' in os.environ:
-    temp_dir = os.environ['TMPDIR']
-else:
+
+def _temp_dir() -> str:
+    """Return the directory for temporary .set files used by MATLAB roundtrips.
+
+    Resolved lazily so that importing this module has no filesystem side
+    effect; the fallback ``temp/`` directory is created only when a MATLAB
+    roundtrip actually runs.
+    """
+    if 'TEMP_DIR' in os.environ:
+        return os.environ['TEMP_DIR']
+    if 'TMPDIR' in os.environ:
+        return os.environ['TMPDIR']
     temp_dir = str(REPO_ROOT / 'temp')
-    if not os.path.exists(temp_dir):
-        os.makedirs(temp_dir, exist_ok=True)
+    os.makedirs(temp_dir, exist_ok=True)
+    return temp_dir
 
 
 def _prepare_matlab_arg(arg: Any) -> Any:
@@ -161,6 +166,7 @@ class MatlabWrapper:
             for i, arg in enumerate(new_args):
                 new_args[i] = _prepare_matlab_arg(arg)
 
+            temp_dir = _temp_dir()
             try:
                 # temporary files
                 with tempfile.NamedTemporaryFile(dir=temp_dir, suffix='.set', delete=False) as temp_file1:

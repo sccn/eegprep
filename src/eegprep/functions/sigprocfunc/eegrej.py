@@ -10,10 +10,7 @@ def _is_boundary_event(event: Dict) -> bool:
     if isinstance(t, str):
         return t.lower() == "boundary"
     if isinstance(t, (int, float)):
-        try:
-            return int(t) == -99
-        except Exception:
-            return False
+        return int(t) == -99
     return False
 
 

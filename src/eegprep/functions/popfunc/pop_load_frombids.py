@@ -2,6 +2,7 @@
 
 import os
 import copy
+from importlib.resources import files
 from typing import Dict, Any, Tuple, Union, Optional
 import logging
 import warnings
@@ -930,12 +931,10 @@ def pop_load_frombids(
         fractions = []
         caplabels = []
 
-        # Determine montage path and files to check
-        # Resources are now always in the package directory
-        # Resources live at the package root (src/eegprep/resources/), not
-        # next to this file which was moved during the EEGLAB-style reorg.
-        _pkg_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-        montage_path = os.path.join(_pkg_root, 'resources', 'montages')
+        # Determine montage path and files to check. Resolve the packaged
+        # montages directory through importlib.resources so the lookup does not
+        # depend on this module's location on disk.
+        montage_path = str(files("eegprep").joinpath("resources").joinpath("montages"))
 
         if not os.path.isdir(montage_path):
             raise RuntimeError(
