@@ -6,7 +6,13 @@ from typing import Any
 
 import numpy as np
 
-from eegprep.functions.studyfunc._study_utils import _empty_value, as_alleeg_list, ensure_study, sync_datasetinfo
+from eegprep.functions.studyfunc._study_utils import (
+    _empty_value,
+    as_alleeg_list,
+    ensure_study,
+    sync_datasetinfo,
+    trialinfo_rows,
+)
 from eegprep.functions.studyfunc.std_indvarmatch import std_indvarmatch
 
 
@@ -44,7 +50,7 @@ def std_selectdataset(
     selected_trials: list[list[int]] = [[] for _info in infos]
     found_field = False
     for index, info in enumerate(infos):
-        rows = _trial_rows(info.get("trialinfo"))
+        rows = trialinfo_rows(info.get("trialinfo"))
         if not rows:
             continue
         if any(label in row for row in rows):
@@ -80,7 +86,7 @@ def _dataset_field_present(infos: list[dict[str, Any]], label: str) -> bool:
 def _all_trials(infos: list[dict[str, Any]], datasets: list[dict[str, Any]]) -> list[list[int]]:
     selections: list[list[int]] = []
     for index, info in enumerate(infos):
-        rows = _trial_rows(info.get("trialinfo"))
+        rows = trialinfo_rows(info.get("trialinfo"))
         if rows:
             selections.append(list(range(1, len(rows) + 1)))
             continue
@@ -89,18 +95,6 @@ def _all_trials(infos: list[dict[str, Any]], datasets: list[dict[str, Any]]) -> 
             trials = int(datasets[index].get("trials", 1) or 1)
         selections.append(list(range(1, trials + 1)))
     return selections
-
-
-def _trial_rows(value: Any) -> list[dict[str, Any]]:
-    if value is None:
-        return []
-    if isinstance(value, np.ndarray):
-        value = value.tolist()
-    if isinstance(value, dict):
-        return [value]
-    if not isinstance(value, list):
-        return []
-    return [row for row in value if isinstance(row, dict)]
 
 
 def _unique(values: list[int]) -> list[int]:

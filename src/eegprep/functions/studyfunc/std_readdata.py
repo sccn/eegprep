@@ -8,10 +8,16 @@ import numpy as np
 
 from eegprep.functions.popfunc._plot_utils import numeric_vector
 from eegprep.functions.studyfunc._cluster_utils import cluster_list, sets_array
-from eegprep.functions.studyfunc._study_utils import ensure_study, unique_preserving_order
-
-
-MEASURE_DATA_FIELDS = {"erp": "erpdata", "spec": "specdata", "ersp": "erspdata", "itc": "itcdata"}
+from eegprep.functions.studyfunc._study_utils import (
+    MEASURE_DATA_FIELDS,
+    MEASURE_X_AXIS_FIELDS,
+    MEASURE_Y_AXIS_FIELDS,
+    axis_position,
+    component_dataset_axis as _shared_component_dataset_axis,
+    component_measure_axis as _shared_component_measure_axis,
+    ensure_study,
+    range_mask,
+)
 
 
 def std_readdata(
@@ -225,27 +231,12 @@ def _component_cluster_index(study: dict[str, Any], clusters: Any) -> int:
 
 def component_measure_axis(group: dict[str, Any], count: int) -> np.ndarray:
     """Return cached component IDs for a STUDY component-measure axis."""
-    return _cached_axis_values(group, "components", "comps", count, fallback_start=1)
+    return _shared_component_measure_axis(group, count)
 
 
 def component_dataset_axis(group: dict[str, Any], count: int) -> np.ndarray:
     """Return cached STUDY dataset IDs for a component-measure axis."""
-    return _cached_axis_values(group, "datasets", "sets", count, fallback_start=1)
-
-
-def _cached_axis_values(
-    group: dict[str, Any], measureinfo_key: str, fallback_key: str, count: int, *, fallback_start: int
-) -> np.ndarray:
-    raw_measureinfo = group.get("measureinfo")
-    measureinfo: dict[str, Any] = raw_measureinfo if isinstance(raw_measureinfo, dict) else {}
-    values = numeric_vector(measureinfo.get(measureinfo_key), dtype=int)
-    if values.size == count:
-        return values.astype(int)
-    values = numeric_vector(group.get(fallback_key), dtype=int)
-    unique_values = np.asarray(unique_preserving_order(values.tolist()), dtype=int)
-    if unique_values.size == count:
-        return unique_values
-    return np.arange(fallback_start, fallback_start + count, dtype=int)
+    return _shared_component_dataset_axis(group, count)
 
 
 def component_measure_selection(components: Any, axis: np.ndarray) -> np.ndarray:
@@ -301,14 +292,19 @@ def _cluster_component_data(
 
 
 def _axis_position(axis: np.ndarray, value: int, label: str) -> int:
-    matches = np.where(axis == value)[0]
-    if matches.size == 0:
-        raise ValueError(f"Component measure cache is missing {label}")
-    return int(matches[0])
+    return axis_position(axis, value, label)
 
 
 def _all_channels_requested(channels: Any) -> bool:
-    return channels is None or (isinstance(channels, str) and channels in {"", "channels"})
+    if channels is None:
+        return True
+    if isinstance(channels, str):
+        return channels in {"", "channels"}
+    if isinstance(channels, np.ndarray):
+        return channels.size == 0
+    if isinstance(channels, (list, tuple)):
+        return len(channels) == 0
+    return False
 
 
 def _parent_cluster_requested(clusters: Any) -> bool:
@@ -383,18 +379,12 @@ def _pac_secondary_positions(group: dict[str, Any], secondary: Any) -> np.ndarra
 
 
 def _range_mask(axis: np.ndarray, bounds: Any) -> np.ndarray:
-    axis = np.asarray(axis, dtype=float).ravel()
-    if axis.size == 0:
-        return np.asarray([], dtype=bool)
-    values = numeric_vector(bounds, dtype=float)
-    if values.size == 0:
-        return np.ones(axis.size, dtype=bool)
-    if values.size != 2:
-        raise ValueError("range filters must contain [min max]")
-    mask = (axis >= values[0]) & (axis <= values[1])
-    if not np.any(mask):
-        raise ValueError("range filter does not include any cached measure samples")
-    return mask
+    return range_mask(
+        axis,
+        bounds,
+        name="range filters",
+        empty_message="range filter does not include any cached measure samples",
+    )
 
 
 def _subject_filter(data: np.ndarray, study: dict[str, Any], subject: Any) -> np.ndarray:
@@ -423,12 +413,11 @@ def _subject_values(subject: Any) -> set[str]:
 
 
 def _x_axis(group: dict[str, Any], measure: str) -> np.ndarray:
-    field = {"erp": "erptimes", "spec": "specfreqs", "ersp": "ersptimes", "itc": "itctimes"}[measure]
-    return np.asarray(group.get(field, []), dtype=float)
+    return np.asarray(group.get(MEASURE_X_AXIS_FIELDS[measure], []), dtype=float)
 
 
 def _y_axis(group: dict[str, Any], measure: str) -> np.ndarray:
-    field = {"ersp": "erspfreqs", "itc": "itcfreqs"}.get(measure)
+    field = MEASURE_Y_AXIS_FIELDS.get(measure)
     if field is None:
         return np.asarray([], dtype=float)
     return np.asarray(group.get(field, []), dtype=float)

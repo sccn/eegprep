@@ -11,6 +11,7 @@ from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.popfunc._plot_utils import numeric_vector
 from eegprep.functions.studyfunc._cluster_kmeans import kmeans_labels
 from eegprep.functions.studyfunc._cluster_utils import checked_study_and_datasets, cluster_command
+from eegprep.functions.studyfunc.robust_kmeans import robust_kmeans
 from eegprep.functions.studyfunc.std_createclust import std_createclust
 
 
@@ -64,16 +65,26 @@ def pop_clust(
     if clus_num > data.shape[0]:
         raise ValueError("Number of clusters cannot exceed the number of preclustered components")
 
-    labels, centers = kmeans_labels(data, clus_num, random_state)
+    algorithm_provenance = ["Kmeans", clus_num]
     if np.isfinite(outliers):
         if outliers <= 0:
             raise ValueError("Outlier threshold must be greater than 0")
-        labels = _mark_outliers(data, labels, centers, outliers)
+        labels, _centers, _sumd, _distances, _outlier_rows = robust_kmeans(
+            data,
+            clus_num,
+            STD=outliers,
+            MAXiter=5,
+            method=algorithm,
+            random_state=random_state,
+        )
+        algorithm_provenance = ["robust_kmeans", clus_num]
+    else:
+        labels, _centers = kmeans_labels(data, clus_num, random_state)
     study = std_createclust(
         study,
         datasets,
         clusterind=labels,
-        algorithm=["Kmeans", clus_num],
+        algorithm=algorithm_provenance,
         name="Cls",
     )
     command = cluster_command(
@@ -128,27 +139,6 @@ def pop_clust_dialog_spec(STUDY: dict[str, Any]) -> DialogSpec:
             }
         """,
     )
-
-
-def _mark_outliers(data: np.ndarray, labels: np.ndarray, centers: np.ndarray, threshold: float) -> np.ndarray:
-    output = labels.copy()
-    cluster_distances = []
-    for label in sorted(set(labels.tolist())):
-        rows = np.flatnonzero(labels == label)
-        if rows.size:
-            cluster_distances.append(np.linalg.norm(data[rows] - centers[label - 1], axis=1))
-    if not cluster_distances:
-        return output
-    reference_distance = float(np.mean([np.mean(distances) for distances in cluster_distances if distances.size]))
-    for label, distances in zip(sorted(set(labels.tolist())), cluster_distances):
-        rows = np.flatnonzero(labels == label)
-        distances = np.linalg.norm(data[rows] - centers[label - 1], axis=1)
-        spread = float(np.std(distances))
-        if spread == 0:
-            continue
-        outlier_mask = (distances > spread * threshold) & (distances > reference_distance * threshold)
-        output[rows[outlier_mask]] = 0
-    return output
 
 
 def _algorithm_from_gui(value: Any) -> str:

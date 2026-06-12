@@ -18,6 +18,8 @@ from eegprep.functions.popfunc._plot_utils import (
     numeric_vector,
     python_literal,
 )
+from eegprep.functions.studyfunc._std_measureplot import plot_measure_data
+from eegprep.functions.studyfunc._study_utils import MEASURE_DATA_FIELDS
 from eegprep.functions.studyfunc.std_readdata import component_measure_axis, component_measure_selection, std_readdata
 
 
@@ -194,10 +196,16 @@ def _plot_channel_measure(
 ) -> tuple[Any, list[int]]:
     if _has_cached_channels(study, measure):
         groups = _cached_channel_groups(study, channels)
-        if measure in {"erp", "spec"}:
-            fig = _plot_cached_lines(groups, measure, title=str(study.get("name") or "STUDY channel measures"))
-        else:
-            fig = _plot_cached_image(groups, measure, title=str(study.get("name") or "STUDY channel measures"))
+        _study, data, x_axis, y_axis = std_readdata(study, datasets, datatype=measure, channels=channels)
+        labels = [str(group.get("name") or "channel") for group in groups]
+        fig = plot_measure_data(
+            data,
+            measure,
+            x_axis,
+            y_axis,
+            title=str(study.get("name") or "STUDY channel measures"),
+            line_labels=labels,
+        )
         return fig, [_group_channel_index(group, index) for index, group in enumerate(groups, start=1)]
     if measure != "erp":
         raise ValueError(f"{measure.upper()} channel measures have not been precomputed")
@@ -207,26 +215,20 @@ def _plot_channel_measure(
 
 def _plot_component_measure(study: dict[str, Any], components: Any, measure: str) -> tuple[Any, list[int]]:
     parent = (study.get("cluster") or [{}])[0]
-    raw_data = np.asarray(parent.get(_field(measure), []), dtype=float)
+    raw_data = np.asarray(parent.get(MEASURE_DATA_FIELDS[measure], []), dtype=float)
     component_axis = component_measure_axis(parent, raw_data.shape[1] if raw_data.ndim >= 2 else 0)
     positions = component_measure_selection(components, component_axis)
     selected = component_axis[positions].astype(int).tolist()
     _study, data, x_axis, y_axis = std_readdata(study, datatype=measure, clusters=1, components=components)
-    values = data[0]
-    if measure in {"erp", "spec"}:
-        fig, ax = plt.subplots(figsize=(8, 4.5))
-        y_values = np.nanmean(values, axis=0)
-        for index, component_values in zip(selected, y_values):
-            ax.plot(x_axis, component_values, label=f"IC {index}")
-        ax.set_xlabel("Time (ms)" if measure == "erp" else "Frequency (Hz)")
-        ax.set_ylabel("uV" if measure == "erp" else "Power 10*log10(uV^2/Hz)")
-        ax.set_title(str(study.get("name") or f"STUDY component {measure.upper()}"))
-        ax.grid(True, alpha=0.25)
-        ax.legend(fontsize=8)
-        fig.tight_layout()
-        return fig, selected
-    image = np.nanmean(values, axis=(0, 1))
-    return _plot_image(image, x_axis, y_axis, str(study.get("name") or f"STUDY component {measure.upper()}")), selected
+    fig = plot_measure_data(
+        data,
+        measure,
+        x_axis,
+        y_axis,
+        title=str(study.get("name") or f"STUDY component {measure.upper()}"),
+        line_labels=[f"IC {index}" for index in selected],
+    )
+    return fig, selected
 
 
 def _plot_button(label: str, measure: str, tag: str, *, enabled: bool = True) -> ControlSpec:
@@ -280,51 +282,16 @@ def _plot_loaded_erp(study: dict[str, Any], datasets: list[dict[str, Any]], chan
     return fig, (selected + 1).tolist()
 
 
-def _plot_cached_lines(groups: list[dict[str, Any]], measure: str, *, title: str) -> Any:
-    fig, ax = plt.subplots(figsize=(8, 4.5))
-    x_axis = _axis(groups[0], measure)
-    for group in groups:
-        data = _data(group, measure)
-        ax.plot(x_axis, np.nanmean(data, axis=0), label=str(group.get("name") or "channel"))
-    ax.set_xlabel("Time (ms)" if measure == "erp" else "Frequency (Hz)")
-    ax.set_ylabel("uV" if measure == "erp" else "Power 10*log10(uV^2/Hz)")
-    ax.set_title(title)
-    ax.grid(True, alpha=0.25)
-    ax.legend(fontsize=8)
-    fig.tight_layout()
-    return fig
-
-
-def _plot_cached_image(groups: list[dict[str, Any]], measure: str, *, title: str) -> Any:
-    images = [_data(group, measure) for group in groups]
-    image = np.nanmean(np.stack(images, axis=0), axis=(0, 1))
-    return _plot_image(image, _axis(groups[0], measure), _freq_axis(groups[0], measure), title)
-
-
-def _plot_image(image: np.ndarray, x_axis: np.ndarray, y_axis: np.ndarray, title: str) -> Any:
-    fig, ax = plt.subplots(figsize=(7, 4.8))
-    mesh = ax.imshow(
-        image,
-        aspect="auto",
-        origin="lower",
-        extent=[float(x_axis[0]), float(x_axis[-1]), float(y_axis[0]), float(y_axis[-1])],
-    )
-    ax.set_xlabel("Time (ms)")
-    ax.set_ylabel("Frequency (Hz)")
-    ax.set_title(title)
-    fig.colorbar(mesh, ax=ax)
-    fig.tight_layout()
-    return fig
-
-
 def _has_cached_channels(study: dict[str, Any], measure: str) -> bool:
-    return any(isinstance(group, dict) and _field(measure) in group for group in study.get("changrp") or [])
+    return any(
+        isinstance(group, dict) and MEASURE_DATA_FIELDS[measure] in group for group in study.get("changrp") or []
+    )
 
 
 def _has_cached_components(study: dict[str, Any], measure: str) -> bool:
     clusters = study.get("cluster") or []
     parent = clusters[0] if clusters and isinstance(clusters[0], dict) else {}
-    return _field(measure) in parent
+    return MEASURE_DATA_FIELDS[measure] in parent
 
 
 def _cached_channel_groups(study: dict[str, Any], channels: Any) -> list[dict[str, Any]]:
@@ -359,26 +326,6 @@ def _cached_channel_groups_by_name(groups: list[dict[str, Any]], channels: list[
 
 def _all_cached_channels_requested(channels: Any) -> bool:
     return channels is None or (isinstance(channels, str) and channels in {"", "channels"})
-
-
-def _data(group: dict[str, Any], measure: str) -> np.ndarray:
-    if _field(measure) not in group:
-        raise ValueError(f"{measure.upper()} channel measures have not been precomputed")
-    return np.asarray(group[_field(measure)], dtype=float)
-
-
-def _axis(group: dict[str, Any], measure: str) -> np.ndarray:
-    field = {"erp": "erptimes", "spec": "specfreqs", "ersp": "ersptimes", "itc": "itctimes"}[measure]
-    return np.asarray(group[field], dtype=float)
-
-
-def _freq_axis(group: dict[str, Any], measure: str) -> np.ndarray:
-    field = {"ersp": "erspfreqs", "itc": "itcfreqs"}[measure]
-    return np.asarray(group[field], dtype=float)
-
-
-def _field(measure: str) -> str:
-    return {"erp": "erpdata", "spec": "specdata", "ersp": "erspdata", "itc": "itcdata"}[measure]
 
 
 def _group_channel_index(group: dict[str, Any], fallback: int) -> int:

@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from eegprep.functions.studyfunc._cluster_utils import checked_study_and_datasets, cluster_at, cluster_list
+from eegprep.functions.studyfunc._study_utils import build_python_call
 
 
 def std_clustplot(
@@ -40,7 +41,7 @@ def std_clustplot(
     ax.set_title(f"{study.get('name') or 'STUDY'} cluster {measure} summary")
     ax.grid(axis="y", alpha=0.25)
     fig.tight_layout()
-    command = f"fig = std_clustplot(STUDY, ALLEEG, clusters={cluster_indices}, measure={measure!r})"
+    command = build_python_call(("FIGURE",), "std_clustplot", "STUDY", "ALLEEG", clusters=clusters, measure=measure)
     return (study, command, fig) if return_com else fig
 
 
