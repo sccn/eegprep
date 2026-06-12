@@ -71,14 +71,14 @@ def eeglab_floating_dialog_stylesheet() -> str:
         QProgressDialog QPushButton:disabled {{
             color: {EEGLAB_DISABLED_TEXT};
         }}
-        QProgressBar {{
+        QProgressDialog QProgressBar {{
             background: {EEGLAB_CONTROL_DISABLED_BACKGROUND};
             border: 1px solid {EEGLAB_CONTROL_BORDER};
             color: {EEGLAB_TEXT};
             min-height: 12px;
             text-align: center;
         }}
-        QProgressBar::chunk {{
+        QProgressDialog QProgressBar::chunk {{
             background: {EEGLAB_PROGRESS_CHUNK};
         }}
         """

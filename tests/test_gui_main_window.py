@@ -296,7 +296,8 @@ class MainMenuSpecTests(unittest.TestCase):
         self.assertIn("background: transparent", stylesheet)
         self.assertIn("QFileDialog", stylesheet)
         self.assertIn("QProgressDialog", stylesheet)
-        self.assertIn("QProgressBar::chunk", stylesheet)
+        self.assertIn("QProgressDialog QProgressBar::chunk", stylesheet)
+        self.assertNotIn("\n        QProgressBar {", stylesheet)
         self.assertIn("selection-background-color: #c6d9ff", stylesheet)
 
     def test_all_menu_actions_are_classified(self):

@@ -10,7 +10,16 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.guifunc.pophelp import pophelp
-from eegprep.functions.guifunc.theme import eeglab_floating_dialog_stylesheet
+from eegprep.functions.guifunc.theme import (
+    EEGLAB_BACKGROUND,
+    EEGLAB_BUTTON_BACKGROUND,
+    EEGLAB_CONTROL_BACKGROUND,
+    EEGLAB_CONTROL_BORDER,
+    EEGLAB_CONTROL_DISABLED_BACKGROUND,
+    EEGLAB_DISABLED_TEXT,
+    EEGLAB_TEXT,
+    eeglab_floating_dialog_stylesheet,
+)
 from eegprep.functions.guifunc.tf_cycle_calc_dialog import tf_cycle_calc_dialog_spec
 from eegprep.functions.popfunc.pop_chansel import pop_chansel
 from eegprep.functions.popfunc.pop_eegplot import pop_eegplot
@@ -394,122 +403,122 @@ def _QDialog() -> Any:
 
 
 def _apply_eeglab_style(dialog: Any, spec: DialogSpec) -> None:
-    base_stylesheet = """
-        QDialog {
-            background: #a8c2ff;
-            color: #000066;
+    base_stylesheet = f"""
+        QDialog {{
+            background: {EEGLAB_BACKGROUND};
+            color: {EEGLAB_TEXT};
             font-size: 16px;
-        }
-        QLabel, QCheckBox, QPushButton, QLineEdit, QTextEdit, QComboBox, QListWidget {
+        }}
+        QLabel, QCheckBox, QPushButton, QLineEdit, QTextEdit, QComboBox, QListWidget {{
             font-size: 16px;
-        }
-        QLabel, QCheckBox {
-            color: #000066;
+        }}
+        QLabel, QCheckBox {{
+            color: {EEGLAB_TEXT};
             background: transparent;
-        }
-        QLabel:disabled, QCheckBox:disabled {
-            color: #7c86a8;
-        }
-        QLineEdit {
-            background: white;
-            border: 1px solid #7f7f7f;
+        }}
+        QLabel:disabled, QCheckBox:disabled {{
+            color: {EEGLAB_DISABLED_TEXT};
+        }}
+        QLineEdit {{
+            background: {EEGLAB_CONTROL_BACKGROUND};
+            border: 1px solid {EEGLAB_CONTROL_BORDER};
             min-height: 18px;
             max-height: 18px;
             margin-left: 1px;
             padding: 0 3px;
-            color: #000066;
-        }
-        QLineEdit:disabled {
-            background: #dce6ff;
-            color: #7c86a8;
-        }
-        QTextEdit {
-            background: white;
-            border: 1px solid #7f7f7f;
-            color: #000066;
-        }
-        QComboBox {
-            background: white;
-            border: 1px solid #7f7f7f;
+            color: {EEGLAB_TEXT};
+        }}
+        QLineEdit:disabled {{
+            background: {EEGLAB_CONTROL_DISABLED_BACKGROUND};
+            color: {EEGLAB_DISABLED_TEXT};
+        }}
+        QTextEdit {{
+            background: {EEGLAB_CONTROL_BACKGROUND};
+            border: 1px solid {EEGLAB_CONTROL_BORDER};
+            color: {EEGLAB_TEXT};
+        }}
+        QComboBox {{
+            background: {EEGLAB_CONTROL_BACKGROUND};
+            border: 1px solid {EEGLAB_CONTROL_BORDER};
             min-height: 20px;
             max-height: 20px;
-            color: #000066;
-        }
-        QComboBox:disabled {
-            background: #dce6ff;
-            color: #7c86a8;
-        }
-        QListWidget {
-            background: white;
-            border: 1px solid #7f7f7f;
+            color: {EEGLAB_TEXT};
+        }}
+        QComboBox:disabled {{
+            background: {EEGLAB_CONTROL_DISABLED_BACKGROUND};
+            color: {EEGLAB_DISABLED_TEXT};
+        }}
+        QListWidget {{
+            background: {EEGLAB_CONTROL_BACKGROUND};
+            border: 1px solid {EEGLAB_CONTROL_BORDER};
             min-height: 74px;
             max-height: 74px;
-            color: #000066;
-        }
-        QPushButton {
-            background: #eeeeee;
-            border: 1px solid #7f7f7f;
+            color: {EEGLAB_TEXT};
+        }}
+        QPushButton {{
+            background: {EEGLAB_BUTTON_BACKGROUND};
+            border: 1px solid {EEGLAB_CONTROL_BORDER};
             min-height: 18px;
             max-height: 18px;
             padding: 0 10px;
-            color: #000066;
-        }
-        QPushButton:disabled {
+            color: {EEGLAB_TEXT};
+        }}
+        QPushButton:disabled {{
             color: #b0b0b0;
-        }
-        QPushButton#double_dip_help {
+        }}
+        QPushButton#double_dip_help {{
             min-width: 150px;
             max-width: 150px;
-        }
-        QPushButton#events_button {
+        }}
+        QPushButton#events_button {{
             min-width: 130px;
             max-width: 130px;
-        }
-        QPushButton#scroll {
+        }}
+        QPushButton#scroll {{
             min-width: 159px;
             max-width: 159px;
-        }
-        QPushButton#refbr, QPushButton#exclude_button, QPushButton#refloc_button {
+        }}
+        QPushButton#refbr, QPushButton#exclude_button, QPushButton#refloc_button {{
             min-width: 33px;
             max-width: 33px;
             padding: 0;
-        }
+        }}
         QPushButton#interp_nondatchan,
         QPushButton#interp_removedchans,
         QPushButton#interp_datchan,
         QPushButton#interp_selectchan,
-        QPushButton#interp_uselist {
+        QPushButton#interp_uselist {{
             min-width: 434px;
             max-width: 434px;
             padding: 0;
-        }
-        QDialog#pop_interp QPushButton {
+        }}
+        QDialog#pop_interp QPushButton {{
             padding: 0;
-        }
+        }}
         QDialog#pop_interp QLineEdit,
-        QDialog#pop_interp QComboBox {
+        QDialog#pop_interp QComboBox {{
             min-width: 198px;
             max-width: 198px;
-        }
-        QDialog#pop_reref QLineEdit {
+        }}
+        QDialog#pop_reref QLineEdit {{
             min-width: 163px;
             max-width: 163px;
-        }
-        QDialog#pop_runica QListWidget {
+        }}
+        QDialog#pop_runica QListWidget {{
             min-height: 102px;
             max-height: 102px;
-        }
-        QCheckBox {
+        }}
+        QCheckBox {{
             spacing: 4px;
-        }
-        QCheckBox::indicator {
+        }}
+        QCheckBox::indicator {{
             width: 13px;
             height: 13px;
-        }
-        QCheckBox::indicator:unchecked {
-            background: white;
-            border: 1px solid #7f7f7f;
-        }
+        }}
+        QCheckBox::indicator:unchecked {{
+            background: {EEGLAB_CONTROL_BACKGROUND};
+            border: 1px solid {EEGLAB_CONTROL_BORDER};
+        }}
         """
     dialog.setStyleSheet(base_stylesheet + eeglab_floating_dialog_stylesheet() + (spec.extra_stylesheet or ""))
 

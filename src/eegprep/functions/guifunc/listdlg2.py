@@ -5,6 +5,14 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
+from eegprep.functions.guifunc.theme import (
+    EEGLAB_BACKGROUND,
+    EEGLAB_BUTTON_BACKGROUND,
+    EEGLAB_CONTROL_BACKGROUND,
+    EEGLAB_CONTROL_BORDER,
+    EEGLAB_TEXT,
+)
+
 try:  # pragma: no cover - depends on optional GUI dependency
     from PySide6 import QtCore, QtWidgets
 except ImportError:  # pragma: no cover - depends on optional GUI dependency
@@ -159,33 +167,33 @@ def _normalise_initial(
 
 def _apply_listdlg_style(dialog: Any) -> None:
     dialog.setStyleSheet(
-        """
-        QDialog {
-            background: #a8c2ff;
-            color: #000066;
+        f"""
+        QDialog {{
+            background: {EEGLAB_BACKGROUND};
+            color: {EEGLAB_TEXT};
             font-size: 16px;
-        }
-        QLabel {
-            color: #000066;
+        }}
+        QLabel {{
+            color: {EEGLAB_TEXT};
             background: transparent;
             font-size: 16px;
-        }
-        QListWidget {
-            background: white;
+        }}
+        QListWidget {{
+            background: {EEGLAB_CONTROL_BACKGROUND};
             color: black;
-            border: 1px solid #7f7f7f;
+            border: 1px solid {EEGLAB_CONTROL_BORDER};
             font-size: 16px;
-        }
-        QPushButton {
-            background: #eeeeee;
-            border: 1px solid #7f7f7f;
+        }}
+        QPushButton {{
+            background: {EEGLAB_BUTTON_BACKGROUND};
+            border: 1px solid {EEGLAB_CONTROL_BORDER};
             min-width: 62px;
             max-width: 62px;
             min-height: 18px;
             max-height: 18px;
             padding: 0;
-            color: #000066;
+            color: {EEGLAB_TEXT};
             font-size: 16px;
-        }
+        }}
         """
     )

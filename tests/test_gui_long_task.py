@@ -47,7 +47,7 @@ def test_run_long_task_returns_result_and_forwards_progress(qapp):
     assert finished == [handle]
     assert "worker progress" in handle.dialog.labelText()
     assert "QProgressDialog" in handle.dialog.styleSheet()
-    assert "QProgressBar::chunk" in handle.dialog.styleSheet()
+    assert "QProgressDialog QProgressBar::chunk" in handle.dialog.styleSheet()
     assert "#a8c2ff" in handle.dialog.styleSheet()
     assert "#000066" in handle.dialog.styleSheet()
 
