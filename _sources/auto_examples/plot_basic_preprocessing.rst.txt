@@ -35,6 +35,8 @@ The workflow includes:
 This example is self-contained and executable, requiring only synthetic data
 generation. It serves as a template for preprocessing real EEG datasets.
 
+Background references include [1]_ and [2]_.
+
 References
 ----------
 .. [1] Delorme, A., & Makeig, S. (2004). EEGLAB: an open source toolbox for
@@ -44,13 +46,13 @@ References
        (2017). Autoreject: Automated artifact rejection for MEG and EEG data.
        NeuroImage, 159, 417-429.
 
-.. GENERATED FROM PYTHON SOURCE LINES 30-33
+.. GENERATED FROM PYTHON SOURCE LINES 32-35
 
 Imports and Setup
 -----------------
 Import necessary libraries for EEG processing and visualization
 
-.. GENERATED FROM PYTHON SOURCE LINES 33-46
+.. GENERATED FROM PYTHON SOURCE LINES 35-49
 
 .. code-block:: Python
 
@@ -60,6 +62,7 @@ Import necessary libraries for EEG processing and visualization
     from mne import create_info, EpochsArray
     from mne.channels import make_standard_montage
     import sys
+
     sys.path.insert(0, '/Users/baristim/Projects/eegprep/src')
 
     import eegprep
@@ -74,7 +77,7 @@ Import necessary libraries for EEG processing and visualization
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 47-52
+.. GENERATED FROM PYTHON SOURCE LINES 50-55
 
 Create Synthetic EEG Data
 -------------------------
@@ -82,7 +85,7 @@ Generate realistic synthetic EEG data with known characteristics.
 This data includes alpha oscillations (8-12 Hz) and background noise,
 simulating typical resting-state EEG recordings.
 
-.. GENERATED FROM PYTHON SOURCE LINES 52-110
+.. GENERATED FROM PYTHON SOURCE LINES 55-141
 
 .. code-block:: Python
 
@@ -95,10 +98,38 @@ simulating typical resting-state EEG recordings.
 
     # Create standard 10-20 channel names
     ch_names = [
-        'Fp1', 'Fpz', 'Fp2', 'F7', 'F3', 'Fz', 'F4', 'F8',
-        'T7', 'C3', 'Cz', 'C4', 'T8', 'P7', 'P3', 'Pz',
-        'P4', 'P8', 'O1', 'Oz', 'O2', 'A1', 'A2', 'M1',
-        'M2', 'Fc1', 'Fc2', 'Cp1', 'Cp2', 'Fc5', 'Fc6', 'Cp5'
+        'Fp1',
+        'Fpz',
+        'Fp2',
+        'F7',
+        'F3',
+        'Fz',
+        'F4',
+        'F8',
+        'T7',
+        'C3',
+        'Cz',
+        'C4',
+        'T8',
+        'P7',
+        'P3',
+        'Pz',
+        'P4',
+        'P8',
+        'O1',
+        'Oz',
+        'O2',
+        'A1',
+        'A2',
+        'M1',
+        'M2',
+        'Fc1',
+        'Fc2',
+        'Cp1',
+        'Cp2',
+        'Fc5',
+        'Fc6',
+        'Cp5',
     ]
 
     # Initialize data array
@@ -116,7 +147,7 @@ simulating typical resting-state EEG recordings.
         data[i, :] = 10 * np.sin(2 * np.pi * alpha_freq * t)
         # Add background noise (typical EEG noise level ~2 µV)
         data[i, :] += np.random.randn(n_samples) * 2
-    
+
         # Introduce artifacts in specific channels to demonstrate cleaning
         # These simulate realistic artifacts that would be removed
         if i in [5, 15]:  # Channels Fz and Pz
@@ -169,7 +200,7 @@ simulating typical resting-state EEG recordings.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 111-116
+.. GENERATED FROM PYTHON SOURCE LINES 142-147
 
 Apply Artifact Cleaning
 -----------------------
@@ -177,7 +208,7 @@ Remove transient artifacts using the clean_artifacts function.
 This function identifies and removes high-amplitude transient artifacts
 while preserving the underlying EEG signal.
 
-.. GENERATED FROM PYTHON SOURCE LINES 116-176
+.. GENERATED FROM PYTHON SOURCE LINES 147-209
 
 .. code-block:: Python
 
@@ -207,18 +238,20 @@ while preserving the underlying EEG signal.
                     theta = (i / len(ch_names)) * 2 * np.pi
                     phi = np.pi / 4
                     pos = np.array([np.sin(phi) * np.cos(theta), np.sin(phi) * np.sin(theta), np.cos(phi)])
-        except:
+        except Exception:
             # Default: generate position on unit sphere
             theta = (i / len(ch_names)) * 2 * np.pi
             phi = np.pi / 4
             pos = np.array([np.sin(phi) * np.cos(theta), np.sin(phi) * np.sin(theta), np.cos(phi)])
-    
-        chanlocs.append({
-            'labels': ch_name,
-            'X': float(pos[0]),
-            'Y': float(pos[1]),
-            'Z': float(pos[2]),
-        })
+
+        chanlocs.append(
+            {
+                'labels': ch_name,
+                'X': float(pos[0]),
+                'Y': float(pos[1]),
+                'Z': float(pos[2]),
+            }
+        )
 
     EEG_dict = {
         'data': raw_data,
@@ -228,7 +261,7 @@ while preserving the underlying EEG signal.
         'xmin': 0,
         'xmax': (raw_data.shape[1] - 1) / sfreq,
         'chanlocs': chanlocs,
-        'etc': {}
+        'etc': {},
     }
 
     # Apply artifact cleaning with default parameters
@@ -258,14 +291,14 @@ while preserving the underlying EEG signal.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 177-181
+.. GENERATED FROM PYTHON SOURCE LINES 210-214
 
 Identify and Interpolate Bad Channels
 ----------------------------------------
 Identify channels with abnormally high variance (potential bad channels)
 and perform spherical spline interpolation to recover their data.
 
-.. GENERATED FROM PYTHON SOURCE LINES 181-225
+.. GENERATED FROM PYTHON SOURCE LINES 214-255
 
 .. code-block:: Python
 
@@ -301,12 +334,9 @@ and perform spherical spline interpolation to recover their data.
             'xmin': 0,
             'xmax': (cleaned_data.shape[1] - 1) / sfreq,
             'chanlocs': chanlocs,
-            'etc': {}
+            'etc': {},
         }
-        EEG_interp_result = eegprep.eeg_interp(
-            EEG_interp_dict,
-            bad_chans=bad_channels
-        )
+        EEG_interp_result = eegprep.eeg_interp(EEG_interp_dict, bad_chans=bad_channels)
         interpolated_data = EEG_interp_result['data']
         print(f"Interpolated data shape: {interpolated_data.shape}")
     else:
@@ -335,14 +365,14 @@ and perform spherical spline interpolation to recover their data.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 226-230
+.. GENERATED FROM PYTHON SOURCE LINES 256-260
 
 Visualize Preprocessing Results
 --------------------------------
 Create comprehensive visualizations comparing original, cleaned,
 and interpolated data to assess preprocessing effects.
 
-.. GENERATED FROM PYTHON SOURCE LINES 230-279
+.. GENERATED FROM PYTHON SOURCE LINES 260-311
 
 .. code-block:: Python
 
@@ -357,40 +387,42 @@ and interpolated data to assess preprocessing effects.
     ax = axes[0]
     for i, ch_idx in enumerate(channels_to_plot):
         offset = i * 30  # Vertical offset for clarity
-        ax.plot(t[time_window], raw_data[ch_idx, time_window] + offset,
-                label=ch_names[ch_idx], linewidth=1.5)
+        ax.plot(t[time_window], raw_data[ch_idx, time_window] + offset, label=ch_names[ch_idx], linewidth=1.5)
     ax.set_ylabel('Amplitude (µV)', fontsize=11)
     ax.set_title('Original EEG Data (with artifacts)', fontsize=12, fontweight='bold')
     ax.legend(loc='upper right', fontsize=9, ncol=2)
     ax.grid(True, alpha=0.3)
-    ax.set_xlim([t[time_window.start], t[time_window.stop-1]])
+    ax.set_xlim([t[time_window.start], t[time_window.stop - 1]])
 
     # Plot 2: After artifact cleaning
     ax = axes[1]
     for i, ch_idx in enumerate(channels_to_plot):
         offset = i * 30
-        ax.plot(t[time_window], cleaned_data[ch_idx, time_window] + offset,
-                label=ch_names[ch_idx], linewidth=1.5)
+        ax.plot(t[time_window], cleaned_data[ch_idx, time_window] + offset, label=ch_names[ch_idx], linewidth=1.5)
     ax.set_ylabel('Amplitude (µV)', fontsize=11)
     ax.set_title('After Artifact Cleaning', fontsize=12, fontweight='bold')
     ax.legend(loc='upper right', fontsize=9, ncol=2)
     ax.grid(True, alpha=0.3)
-    ax.set_xlim([t[time_window.start], t[time_window.stop-1]])
+    ax.set_xlim([t[time_window.start], t[time_window.stop - 1]])
 
     # Plot 3: After channel interpolation
     ax = axes[2]
     for i, ch_idx in enumerate(channels_to_plot):
         offset = i * 30
         color = 'orange' if ch_idx in bad_channels else 'steelblue'
-        ax.plot(t[time_window], interpolated_data[ch_idx, time_window] + offset,
-                label=ch_names[ch_idx], linewidth=1.5, color=color)
+        ax.plot(
+            t[time_window],
+            interpolated_data[ch_idx, time_window] + offset,
+            label=ch_names[ch_idx],
+            linewidth=1.5,
+            color=color,
+        )
     ax.set_xlabel('Time (s)', fontsize=11)
     ax.set_ylabel('Amplitude (µV)', fontsize=11)
-    ax.set_title('After Channel Interpolation (interpolated channels in orange)',
-                 fontsize=12, fontweight='bold')
+    ax.set_title('After Channel Interpolation (interpolated channels in orange)', fontsize=12, fontweight='bold')
     ax.legend(loc='upper right', fontsize=9, ncol=2)
     ax.grid(True, alpha=0.3)
-    ax.set_xlim([t[time_window.start], t[time_window.stop-1]])
+    ax.set_xlim([t[time_window.start], t[time_window.stop - 1]])
 
     plt.tight_layout()
     plt.show()
@@ -407,13 +439,13 @@ and interpolated data to assess preprocessing effects.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 280-283
+.. GENERATED FROM PYTHON SOURCE LINES 312-315
 
 Summary Statistics and Quality Assessment
 -------------------------------------------
 Compute and display summary statistics to quantify preprocessing effects
 
-.. GENERATED FROM PYTHON SOURCE LINES 283-321
+.. GENERATED FROM PYTHON SOURCE LINES 315-353
 
 .. code-block:: Python
 
@@ -451,7 +483,7 @@ Compute and display summary statistics to quantify preprocessing effects
     # Channel quality summary
     print(f"\n{'Total channels':<20} {n_channels}")
     print(f"{'Bad channels identified':<20} {len(bad_channels)}")
-    print(f"{'Percentage bad':<20} {len(bad_channels)/n_channels*100:.1f}%")
+    print(f"{'Percentage bad':<20} {len(bad_channels) / n_channels * 100:.1f}%")
 
     print("=" * 70)
 
@@ -470,11 +502,11 @@ Compute and display summary statistics to quantify preprocessing effects
 
     Metric               Original        Cleaned         Interpolated   
     ----------------------------------------------------------------------
-    Mean (µV)                     0.027         -0.012         -0.014
-    Std Dev (µV)                  7.508          2.075          2.026
-    Variance (µV²)               56.363          4.307          4.106
+    Mean (µV)                     0.019         -0.012         -0.014
+    Std Dev (µV)                  7.450          2.075          2.026
+    Variance (µV²)               55.497          4.307          4.106
 
-    Variance Reduction             92.4%           92.7%
+    Variance Reduction             92.2%           92.6%
 
     Total channels       32
     Bad channels identified 2
@@ -484,7 +516,7 @@ Compute and display summary statistics to quantify preprocessing effects
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 322-339
+.. GENERATED FROM PYTHON SOURCE LINES 354-371
 
 Key Takeaways
 ---------------
@@ -507,7 +539,7 @@ For real data, you would:
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 2.959 seconds)
+   **Total running time of the script:** (0 minutes 3.579 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_basic_preprocessing.py:

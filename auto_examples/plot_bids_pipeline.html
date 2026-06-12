@@ -2,19 +2,19 @@
 <!DOCTYPE html>
 
 
-<html lang="en" data-content_root="../" >
+<html lang="en" data-content_root="../" data-theme="light">
 
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>BIDS Dataset Preprocessing Pipeline &#8212; eegprep 0.2.23 documentation</title>
+    <title>BIDS Dataset Preprocessing Pipeline &#8212; EEGPrep manual</title>
   
   
   
   <script data-cfasync="false">
-    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
-    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "light";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "light";
   </script>
   <!--
     this give us a css class that will be invisible only if js is disabled
@@ -27,28 +27,29 @@
   </noscript>
   
   <!-- Loaded before other Sphinx assets -->
-  <link href="../_static/styles/theme.css?digest=7f76b32a3354e82990f2" rel="stylesheet" />
-<link href="../_static/styles/pydata-sphinx-theme.css?digest=7f76b32a3354e82990f2" rel="stylesheet" />
+  <link href="../_static/styles/theme.css?digest=55c26ed414f5f8a31ebb" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=55c26ed414f5f8a31ebb" rel="stylesheet" />
 
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
     <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
     <link rel="stylesheet" type="text/css" href="../_static/togglebutton.css?v=9c3e77be" />
-    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=d2d258e8" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=fd6457a4" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
     <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
-    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=eb9c3aa4" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=92c3505e" />
   
   <!-- So that users can add custom icons -->
-  <script defer src="../_static/scripts/fontawesome.js?digest=7f76b32a3354e82990f2"></script>
+  <script defer src="../_static/scripts/fontawesome.js?digest=55c26ed414f5f8a31ebb"></script>
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=7f76b32a3354e82990f2" />
-<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=7f76b32a3354e82990f2" />
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=55c26ed414f5f8a31ebb" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=55c26ed414f5f8a31ebb" />
 
     <script src="../_static/documentation_options.js?v=171860b8"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/sg-tags.js?v=d80f6fa4"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
     <script src="../_static/copybutton.js?v=6dbb43f8"></script>
     <script>let toggleHintShow = 'Click to show';</script>
@@ -59,6 +60,7 @@
     <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'auto_examples/plot_bids_pipeline';</script>
     <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <link rel="icon" href="../_static/logo.jpg"/>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Channel Interpolation for Bad Channel Recovery" href="plot_channel_interpolation.html" />
@@ -73,7 +75,7 @@
     <script src="../searchindex.js"></script>
   
   </head>
-  <body data-default-mode="">
+  <body data-default-mode="light">
   
   
   <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
@@ -83,7 +85,9 @@
   
   <button type="button" class="btn rounded-pill" id="pst-back-to-top">
     <i class="fa-solid fa-arrow-up"></i>Back to top</button>
-
+  
+  
+  
   
   <dialog id="pst-search-dialog">
     
@@ -94,8 +98,8 @@
   <input type="search"
          class="form-control"
          name="q"
-         placeholder="Search documentation..."
-         aria-label="Search documentation..."
+         placeholder="Search the EEGPrep manual..."
+         aria-label="Search the EEGPrep manual..."
          autocomplete="off"
          autocorrect="off"
          autocapitalize="off"
@@ -130,6 +134,12 @@
   
   
   
+    
+    
+    
+    <img src="../_static/logo.jpg" class="logo__image only-light" alt=""/>
+    <img src="../_static/logo.jpg" class="logo__image only-dark pst-js-only" alt=""/>
+  
   
     <p class="title logo__title">eegprep</p>
   
@@ -146,13 +156,6 @@
   <ul class="bd-navbar-elements navbar-nav">
     
 <li class="nav-item ">
-  <a class="nav-link nav-internal" href="../api/index.html">
-    API Reference
-  </a>
-</li>
-
-
-<li class="nav-item ">
   <a class="nav-link nav-internal" href="../user_guide/index.html">
     User Guide
   </a>
@@ -167,8 +170,22 @@
 
 
 <li class="nav-item ">
-  <a class="nav-link nav-internal" href="../contributing.html">
-    Contributing to EEGPrep
+  <a class="nav-link nav-internal" href="../api/index.html">
+    API Reference
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../faq.html">
+    Frequently Asked Questions
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../glossary.html">
+    Glossary
   </a>
 </li>
 
@@ -181,20 +198,6 @@
                 <ul id="pst-nav-more-links" class="dropdown-menu">
                     
 <li class=" ">
-  <a class="nav-link dropdown-item nav-internal" href="../development.html">
-    Development Setup
-  </a>
-</li>
-
-
-<li class=" ">
-  <a class="nav-link dropdown-item nav-internal" href="../faq.html">
-    Frequently Asked Questions
-  </a>
-</li>
-
-
-<li class=" ">
   <a class="nav-link dropdown-item nav-internal" href="../references.html">
     References and Citations
   </a>
@@ -202,15 +205,22 @@
 
 
 <li class=" ">
-  <a class="nav-link dropdown-item nav-internal" href="../changelog.html">
-    Changelog
+  <a class="nav-link dropdown-item nav-internal" href="../contributing.html">
+    Contributing to EEGPrep
   </a>
 </li>
 
 
 <li class=" ">
-  <a class="nav-link dropdown-item nav-internal" href="../glossary.html">
-    Glossary
+  <a class="nav-link dropdown-item nav-internal" href="../development.html">
+    Development Setup
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../changelog.html">
+    Changelog
   </a>
 </li>
 
@@ -225,6 +235,14 @@
     
     <div class="navbar-header-items__end">
       
+      
+        <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
       
         <div class="navbar-item">
 
@@ -286,13 +304,6 @@
   <ul class="bd-navbar-elements navbar-nav">
     
 <li class="nav-item ">
-  <a class="nav-link nav-internal" href="../api/index.html">
-    API Reference
-  </a>
-</li>
-
-
-<li class="nav-item ">
   <a class="nav-link nav-internal" href="../user_guide/index.html">
     User Guide
   </a>
@@ -302,6 +313,34 @@
 <li class="nav-item current active">
   <a class="nav-link nav-internal" href="../examples/index.html">
     Examples
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../api/index.html">
+    API Reference
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../faq.html">
+    Frequently Asked Questions
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../glossary.html">
+    Glossary
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../references.html">
+    References and Citations
   </a>
 </li>
 
@@ -321,29 +360,8 @@
 
 
 <li class="nav-item ">
-  <a class="nav-link nav-internal" href="../faq.html">
-    Frequently Asked Questions
-  </a>
-</li>
-
-
-<li class="nav-item ">
-  <a class="nav-link nav-internal" href="../references.html">
-    References and Citations
-  </a>
-</li>
-
-
-<li class="nav-item ">
   <a class="nav-link nav-internal" href="../changelog.html">
     Changelog
-  </a>
-</li>
-
-
-<li class="nav-item ">
-  <a class="nav-link nav-internal" href="../glossary.html">
-    Glossary
   </a>
 </li>
 
@@ -356,6 +374,14 @@
     
     
       <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
         
           <div class="navbar-item">
 
@@ -403,6 +429,7 @@
 <li class="toctree-l2 current active"><a class="current reference internal" href="#">BIDS Dataset Preprocessing Pipeline</a></li>
 <li class="toctree-l2"><a class="reference internal" href="plot_channel_interpolation.html">Channel Interpolation for Bad Channel Recovery</a></li>
 <li class="toctree-l2"><a class="reference internal" href="plot_ica_and_iclabel.html">ICA Decomposition and ICLabel Classification</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plot_public_api_and_plugins.html">Public API, Plugins, and Console Session</a></li>
 </ul>
 </details></li>
 </ul>
@@ -483,18 +510,19 @@ datasets across different labs and tools.</p>
 </ul>
 <p>This example shows how eegprep integrates with BIDS to provide a
 standardized, reproducible preprocessing workflow.</p>
+<p>Background references include <a class="footnote-reference brackets" href="#id3" id="id1" role="doc-noteref"><span class="fn-bracket">[</span>1<span class="fn-bracket">]</span></a> and <a class="footnote-reference brackets" href="#id4" id="id2" role="doc-noteref"><span class="fn-bracket">[</span>2<span class="fn-bracket">]</span></a>.</p>
 <section id="references">
 <h2>References<a class="headerlink" href="#references" title="Link to this heading">#</a></h2>
 <aside class="footnote-list brackets">
-<aside class="footnote brackets" id="id1" role="doc-footnote">
-<span class="label"><span class="fn-bracket">[</span>1<span class="fn-bracket">]</span></span>
+<aside class="footnote brackets" id="id3" role="doc-footnote">
+<span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id1">1</a><span class="fn-bracket">]</span></span>
 <p>Gorgolewski, K. J., Auer, T., Calhoun, V. D., Craddock, R. C.,
 Das, S., Duff, E. P., … &amp; Poldrack, R. A. (2016). The brain
 imaging data structure, a format for organizing and describing
 outputs of neuroimaging experiments. Scientific data, 3(1), 1-9.</p>
 </aside>
-<aside class="footnote brackets" id="id2" role="doc-footnote">
-<span class="label"><span class="fn-bracket">[</span>2<span class="fn-bracket">]</span></span>
+<aside class="footnote brackets" id="id4" role="doc-footnote">
+<span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id2">2</a><span class="fn-bracket">]</span></span>
 <p>Pernet, C. R., Appelhoff, S., Gorgolewski, K. J., Flandin, G.,
 Phillips, C., Delorme, A., &amp; Oostenveld, R. (2019). EEG-BIDS,
 an extension to the brain imaging data structure for
@@ -505,12 +533,12 @@ electroencephalography. Scientific data, 6(1), 1-5.</p>
 <section id="imports-and-setup">
 <h2>Imports and Setup<a class="headerlink" href="#imports-and-setup" title="Link to this heading">#</a></h2>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">shutil</span>
+
 <span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;/Users/baristim/Projects/eegprep/src&#39;</span><span class="p">)</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">eegprep</span>
@@ -616,30 +644,14 @@ with synthetic EEG data</p>
     <span class="s2">&quot;BIDSVersion&quot;</span><span class="p">:</span> <span class="s2">&quot;1.9.0&quot;</span><span class="p">,</span>
     <span class="s2">&quot;DatasetType&quot;</span><span class="p">:</span> <span class="s2">&quot;raw&quot;</span><span class="p">,</span>
     <span class="s2">&quot;License&quot;</span><span class="p">:</span> <span class="s2">&quot;CC0&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;Authors&quot;</span><span class="p">:</span> <span class="p">[</span>
-        <span class="p">{</span>
-            <span class="s2">&quot;Name&quot;</span><span class="p">:</span> <span class="s2">&quot;Example Author&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;Email&quot;</span><span class="p">:</span> <span class="s2">&quot;author@example.com&quot;</span>
-        <span class="p">}</span>
-    <span class="p">],</span>
+    <span class="s2">&quot;Authors&quot;</span><span class="p">:</span> <span class="p">[{</span><span class="s2">&quot;Name&quot;</span><span class="p">:</span> <span class="s2">&quot;Example Author&quot;</span><span class="p">,</span> <span class="s2">&quot;Email&quot;</span><span class="p">:</span> <span class="s2">&quot;author@example.com&quot;</span><span class="p">}],</span>
     <span class="s2">&quot;Acknowledgements&quot;</span><span class="p">:</span> <span class="s2">&quot;Example dataset for eegprep documentation&quot;</span><span class="p">,</span>
     <span class="s2">&quot;HowToAcknowledge&quot;</span><span class="p">:</span> <span class="s2">&quot;Please cite this paper: Example et al. (2024)&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;Funding&quot;</span><span class="p">:</span> <span class="p">[</span>
-        <span class="p">{</span>
-            <span class="s2">&quot;Funder&quot;</span><span class="p">:</span> <span class="s2">&quot;Example Foundation&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;Grant&quot;</span><span class="p">:</span> <span class="s2">&quot;EX-12345&quot;</span>
-        <span class="p">}</span>
-    <span class="p">],</span>
+    <span class="s2">&quot;Funding&quot;</span><span class="p">:</span> <span class="p">[{</span><span class="s2">&quot;Funder&quot;</span><span class="p">:</span> <span class="s2">&quot;Example Foundation&quot;</span><span class="p">,</span> <span class="s2">&quot;Grant&quot;</span><span class="p">:</span> <span class="s2">&quot;EX-12345&quot;</span><span class="p">}],</span>
     <span class="s2">&quot;EthicsApprovals&quot;</span><span class="p">:</span> <span class="p">[</span>
-        <span class="p">{</span>
-            <span class="s2">&quot;HipApproval&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
-            <span class="s2">&quot;Committee&quot;</span><span class="p">:</span> <span class="s2">&quot;Example IRB&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;CommitteeAbbreviation&quot;</span><span class="p">:</span> <span class="s2">&quot;IRB&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;ExpireDate&quot;</span><span class="p">:</span> <span class="s2">&quot;2025-12-31&quot;</span>
-        <span class="p">}</span>
+        <span class="p">{</span><span class="s2">&quot;HipApproval&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s2">&quot;Committee&quot;</span><span class="p">:</span> <span class="s2">&quot;Example IRB&quot;</span><span class="p">,</span> <span class="s2">&quot;CommitteeAbbreviation&quot;</span><span class="p">:</span> <span class="s2">&quot;IRB&quot;</span><span class="p">,</span> <span class="s2">&quot;ExpireDate&quot;</span><span class="p">:</span> <span class="s2">&quot;2025-12-31&quot;</span><span class="p">}</span>
     <span class="p">],</span>
     <span class="s2">&quot;ReferencesAndLinks&quot;</span><span class="p">:</span> <span class="p">[],</span>
-    <span class="s2">&quot;DatasetType&quot;</span><span class="p">:</span> <span class="s2">&quot;raw&quot;</span>
 <span class="p">}</span>
 
 <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><a href="https://docs.python.org/3/library/os.path.html#os.path.join" title="os.path.join" class="sphx-glr-backref-module-os-path sphx-glr-backref-type-py-function"><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span></a><span class="p">(</span><a href="https://docs.python.org/3/library/stdtypes.html#str" title="builtins.str" class="sphx-glr-backref-module-builtins sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">bids_root</span></a><span class="p">,</span> <span class="s1">&#39;dataset_description.json&#39;</span><span class="p">),</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <a href="https://docs.python.org/3/library/io.html#io.TextIOWrapper" title="io.TextIOWrapper" class="sphx-glr-backref-module-io sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">f</span></a><span class="p">:</span>
@@ -669,10 +681,38 @@ with synthetic EEG data</p>
 
     <span class="c1"># Create channel names</span>
     <a href="https://docs.python.org/3/library/stdtypes.html#list" title="builtins.list" class="sphx-glr-backref-module-builtins sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">ch_names</span></a> <span class="o">=</span> <span class="p">[</span>
-        <span class="s1">&#39;Fp1&#39;</span><span class="p">,</span> <span class="s1">&#39;Fpz&#39;</span><span class="p">,</span> <span class="s1">&#39;Fp2&#39;</span><span class="p">,</span> <span class="s1">&#39;F7&#39;</span><span class="p">,</span> <span class="s1">&#39;F3&#39;</span><span class="p">,</span> <span class="s1">&#39;Fz&#39;</span><span class="p">,</span> <span class="s1">&#39;F4&#39;</span><span class="p">,</span> <span class="s1">&#39;F8&#39;</span><span class="p">,</span>
-        <span class="s1">&#39;T7&#39;</span><span class="p">,</span> <span class="s1">&#39;C3&#39;</span><span class="p">,</span> <span class="s1">&#39;Cz&#39;</span><span class="p">,</span> <span class="s1">&#39;C4&#39;</span><span class="p">,</span> <span class="s1">&#39;T8&#39;</span><span class="p">,</span> <span class="s1">&#39;P7&#39;</span><span class="p">,</span> <span class="s1">&#39;P3&#39;</span><span class="p">,</span> <span class="s1">&#39;Pz&#39;</span><span class="p">,</span>
-        <span class="s1">&#39;P4&#39;</span><span class="p">,</span> <span class="s1">&#39;P8&#39;</span><span class="p">,</span> <span class="s1">&#39;O1&#39;</span><span class="p">,</span> <span class="s1">&#39;Oz&#39;</span><span class="p">,</span> <span class="s1">&#39;O2&#39;</span><span class="p">,</span> <span class="s1">&#39;A1&#39;</span><span class="p">,</span> <span class="s1">&#39;A2&#39;</span><span class="p">,</span> <span class="s1">&#39;M1&#39;</span><span class="p">,</span>
-        <span class="s1">&#39;M2&#39;</span><span class="p">,</span> <span class="s1">&#39;Fc1&#39;</span><span class="p">,</span> <span class="s1">&#39;Fc2&#39;</span><span class="p">,</span> <span class="s1">&#39;Cp1&#39;</span><span class="p">,</span> <span class="s1">&#39;Cp2&#39;</span><span class="p">,</span> <span class="s1">&#39;Fc5&#39;</span><span class="p">,</span> <span class="s1">&#39;Fc6&#39;</span><span class="p">,</span> <span class="s1">&#39;Cp5&#39;</span>
+        <span class="s1">&#39;Fp1&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;Fpz&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;Fp2&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;F7&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;F3&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;Fz&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;F4&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;F8&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;T7&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;C3&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;Cz&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;C4&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;T8&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;P7&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;P3&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;Pz&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;P4&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;P8&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;O1&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;Oz&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;O2&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;A1&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;A2&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;M1&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;M2&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;Fc1&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;Fc2&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;Cp1&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;Cp2&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;Fc5&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;Fc6&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;Cp5&#39;</span><span class="p">,</span>
     <span class="p">]</span>
 
     <span class="c1"># Create synthetic data</span>
@@ -698,7 +738,7 @@ with synthetic EEG data</p>
         <span class="s2">&quot;EEGReference&quot;</span><span class="p">:</span> <span class="s2">&quot;average&quot;</span><span class="p">,</span>
         <span class="s2">&quot;EEGGround&quot;</span><span class="p">:</span> <span class="s2">&quot;Fpz&quot;</span><span class="p">,</span>
         <span class="s2">&quot;RecordingDuration&quot;</span><span class="p">:</span> <a href="https://docs.python.org/3/library/functions.html#int" title="builtins.int" class="sphx-glr-backref-module-builtins sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">n_samples</span></a> <span class="o">/</span> <a href="https://docs.python.org/3/library/functions.html#int" title="builtins.int" class="sphx-glr-backref-module-builtins sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">sfreq</span></a><span class="p">,</span>
-        <span class="s2">&quot;RecordingType&quot;</span><span class="p">:</span> <span class="s2">&quot;continuous&quot;</span>
+        <span class="s2">&quot;RecordingType&quot;</span><span class="p">:</span> <span class="s2">&quot;continuous&quot;</span><span class="p">,</span>
     <span class="p">}</span>
 
     <a href="https://docs.python.org/3/library/stdtypes.html#str" title="builtins.str" class="sphx-glr-backref-module-builtins sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">json_file</span></a> <span class="o">=</span> <a href="https://docs.python.org/3/library/os.path.html#os.path.join" title="os.path.join" class="sphx-glr-backref-module-os-path sphx-glr-backref-type-py-function"><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span></a><span class="p">(</span><a href="https://docs.python.org/3/library/stdtypes.html#str" title="builtins.str" class="sphx-glr-backref-module-builtins sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">sub_dir</span></a><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;sub-</span><span class="si">{</span><a href="https://docs.python.org/3/library/stdtypes.html#str" title="builtins.str" class="sphx-glr-backref-module-builtins sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">sub_id</span></a><span class="si">}</span><span class="s1">_ses-01_task-rest_eeg.json&#39;</span><span class="p">)</span>
@@ -723,13 +763,13 @@ with synthetic EEG data</p>
 
     <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  ✓ Created subject sub-</span><span class="si">{</span><a href="https://docs.python.org/3/library/stdtypes.html#str" title="builtins.str" class="sphx-glr-backref-module-builtins sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">sub_id</span></a><span class="si">}</span><span class="s2"> data&quot;</span><span class="p">)</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">BIDS dataset created successfully!&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">BIDS dataset created successfully!&quot;</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Dataset location: </span><span class="si">{</span><a href="https://docs.python.org/3/library/stdtypes.html#str" title="builtins.str" class="sphx-glr-backref-module-builtins sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">bids_root</span></a><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
 <div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>Creating minimal BIDS dataset for demonstration...
 ----------------------------------------------------------------------
-Created temporary BIDS directory: /tmp/bids_example_1gnazxvv
+Created temporary BIDS directory: /tmp/bids_example_4ppdr2zl
 ✓ Created dataset_description.json
 ✓ Created participants.tsv
 
@@ -738,7 +778,7 @@ Creating subject data...
   ✓ Created subject sub-02 data
 
 BIDS dataset created successfully!
-Dataset location: /tmp/bids_example_1gnazxvv
+Dataset location: /tmp/bids_example_4ppdr2zl
 </pre></div>
 </div>
 </section>
@@ -756,7 +796,7 @@ Dataset location: /tmp/bids_example_1gnazxvv
     <span class="k">for</span> <a href="https://docs.python.org/3/library/io.html#io.TextIOWrapper" title="io.TextIOWrapper" class="sphx-glr-backref-module-io sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">f</span></a> <span class="ow">in</span> <a href="https://docs.python.org/3/library/stdtypes.html#list" title="builtins.list" class="sphx-glr-backref-module-builtins sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">eeg_files</span></a><span class="p">:</span>
         <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  - </span><span class="si">{</span><a href="https://docs.python.org/3/library/io.html#io.TextIOWrapper" title="io.TextIOWrapper" class="sphx-glr-backref-module-io sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">f</span></a><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Note: bids_list_eeg_files may require specific BIDS structure&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Note: bids_list_eeg_files may require specific BIDS structure&quot;</span><span class="p">)</span>
     <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
     <span class="c1"># List files manually</span>
     <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Manually listing EEG files:&quot;</span><span class="p">)</span>
@@ -882,7 +922,7 @@ The bids_preproc function applies the following preprocessing steps:
     <span class="s1">&#39;asr_threshold&#39;</span><span class="p">:</span> <span class="mi">20</span><span class="p">,</span>
     <span class="s1">&#39;ica_method&#39;</span><span class="p">:</span> <span class="s1">&#39;picard&#39;</span><span class="p">,</span>
     <span class="s1">&#39;iclabel_threshold&#39;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">,</span>
-    <span class="s1">&#39;verbose&#39;</span><span class="p">:</span> <span class="kc">False</span>
+    <span class="s1">&#39;verbose&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
 <span class="p">}</span>
 
 <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Preprocessing Configuration:&quot;</span><span class="p">)</span>
@@ -1116,10 +1156,8 @@ BIDS BEST PRACTICES
 <span class="nb">print</span><span class="p">(</span><a href="https://docs.python.org/3/library/stdtypes.html#str" title="builtins.str" class="sphx-glr-backref-module-builtins sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">summary</span></a><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;=&quot;</span> <span class="o">*</span> <span class="mi">70</span><span class="p">)</span>
 
-<span class="c1"># Clean up temporary directory</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">shutil</span>
 <a href="https://docs.python.org/3/library/shutil.html#shutil.rmtree" title="shutil.rmtree" class="sphx-glr-backref-module-shutil sphx-glr-backref-type-py-function"><span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span></a><span class="p">(</span><a href="https://docs.python.org/3/library/stdtypes.html#str" title="builtins.str" class="sphx-glr-backref-module-builtins sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">bids_root</span></a><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Cleaned up temporary BIDS directory&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Cleaned up temporary BIDS directory&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
 <div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>======================================================================
@@ -1182,7 +1220,7 @@ Cleaned up temporary BIDS directory
 <li><p>Document all preprocessing decisions</p></li>
 <li><p>Share derivatives with original data</p></li>
 </ul>
-<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 0.312 seconds)</p>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 0.119 seconds)</p>
 <div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-examples-plot-bids-pipeline-py">
 <div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
 <p><a class="reference download internal" download="" href="../_downloads/5b37628fc88781e07fe6fd42065f3c08/plot_bids_pipeline.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_bids_pipeline.ipynb</span></code></a></p>
@@ -1272,8 +1310,8 @@ Cleaned up temporary BIDS directory
   </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script defer src="../_static/scripts/bootstrap.js?digest=7f76b32a3354e82990f2"></script>
-<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=7f76b32a3354e82990f2"></script>
+  <script defer src="../_static/scripts/bootstrap.js?digest=55c26ed414f5f8a31ebb"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=55c26ed414f5f8a31ebb"></script>
 
   <footer class="bd-footer">
 <div class="bd-footer__inner bd-page-width">
@@ -1284,7 +1322,7 @@ Cleaned up temporary BIDS directory
 
   <p class="copyright">
     
-      © Copyright 2024 - , EEGPrep contributors.
+      © Copyright 2024-2026, EEGPrep contributors.
       <br/>
     
   </p>

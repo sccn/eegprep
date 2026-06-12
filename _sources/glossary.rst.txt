@@ -46,7 +46,7 @@ EEG Terminology
 
     Frequency Band
         A range of frequencies in the EEG signal. Common bands include:
-        
+
         - Delta (0.5-4 Hz): Sleep and deep relaxation
         - Theta (4-8 Hz): Drowsiness and meditation
         - Alpha (8-12 Hz): Relaxation and idling
@@ -81,7 +81,7 @@ Signal Processing Terms
 
     Filter
         A mathematical operation that removes or attenuates certain frequencies from the signal. Common types include:
-        
+
         - Highpass: Removes low frequencies
         - Lowpass: Removes high frequencies
         - Bandpass: Keeps frequencies within a range
@@ -276,6 +276,6 @@ Additional Resources
 ====================
 
 - `EEGLAB Wiki <https://sccn.ucsd.edu/wiki/EEGLAB>`_ - EEGLAB documentation
-- `MNE-Python Glossary <https://mne.tools/stable/glossary.html>`_ - MNE-Python glossary
+- `MNE-Python Glossary <https://mne.tools/stable/documentation/glossary.html>`_ - MNE-Python glossary
 - `Signal Processing Basics <https://en.wikipedia.org/wiki/Signal_processing>`_ - Wikipedia overview
 - `EEG Analysis Tutorials <https://mne.tools/stable/auto_tutorials/index.html>`_ - MNE-Python tutorials

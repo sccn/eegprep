@@ -26,6 +26,8 @@ The workflow includes:
 This example demonstrates best practices for channel quality control
 and recovery in EEG preprocessing pipelines.
 
+Background references include [1]_ and [2]_.
+
 References
 ----------
 .. [1] Perrin, F., Pernier, J., Bertrand, O., & Echallier, J. F. (1989).
@@ -42,9 +44,10 @@ References
 
 import numpy as np
 import matplotlib.pyplot as plt
-from mne import create_info, EpochsArray
+from mne import create_info
 from mne.channels import make_standard_montage
 import sys
+
 sys.path.insert(0, '/Users/baristim/Projects/eegprep/src')
 
 import eegprep
@@ -66,10 +69,38 @@ duration = n_samples / sfreq
 
 # Create standard 10-20 channel names
 ch_names = [
-    'Fp1', 'Fpz', 'Fp2', 'F7', 'F3', 'Fz', 'F4', 'F8',
-    'T7', 'C3', 'Cz', 'C4', 'T8', 'P7', 'P3', 'Pz',
-    'P4', 'P8', 'O1', 'Oz', 'O2', 'A1', 'A2', 'M1',
-    'M2', 'Fc1', 'Fc2', 'Cp1', 'Cp2', 'Fc5', 'Fc6', 'Cp5'
+    'Fp1',
+    'Fpz',
+    'Fp2',
+    'F7',
+    'F3',
+    'Fz',
+    'F4',
+    'F8',
+    'T7',
+    'C3',
+    'Cz',
+    'C4',
+    'T8',
+    'P7',
+    'P3',
+    'Pz',
+    'P4',
+    'P8',
+    'O1',
+    'Oz',
+    'O2',
+    'A1',
+    'A2',
+    'M1',
+    'M2',
+    'Fc1',
+    'Fc2',
+    'Cp1',
+    'Cp2',
+    'Fc5',
+    'Fc6',
+    'Cp5',
 ]
 
 # Create time vector
@@ -109,17 +140,17 @@ print(f"Bad channels to introduce: {bad_ch_names}")
 
 # Type 1: High noise channel (excessive noise)
 print(f"\n  Type 1: High noise channel ({ch_names[5]})")
-print(f"    - Adding 50 µV noise (vs. typical 2 µV)")
+print("    - Adding 50 µV noise (vs. typical 2 µV)")
 data[5, :] += np.random.randn(n_samples) * 50
 
 # Type 2: Flat/dead channel (no signal variation)
 print(f"\n  Type 2: Flat/dead channel ({ch_names[15]})")
-print(f"    - Replacing signal with minimal noise")
+print("    - Replacing signal with minimal noise")
 data[15, :] = np.random.randn(n_samples) * 0.1
 
 # Type 3: Noisy channel with artifacts
 print(f"\n  Type 3: Noisy channel with artifacts ({ch_names[25]})")
-print(f"    - Adding 30 µV noise + 50 Hz artifact")
+print("    - Adding 30 µV noise + 50 Hz artifact")
 data[25, :] += np.random.randn(n_samples) * 30
 data[25, 2000:2500] += 100 * np.sin(2 * np.pi * 50 * t[2000:2500])
 
@@ -246,18 +277,20 @@ for i, ch_name in enumerate(ch_names):
             theta = (i / len(ch_names)) * 2 * np.pi
             phi = np.pi / 4
             pos = np.array([np.sin(phi) * np.cos(theta), np.sin(phi) * np.sin(theta), np.cos(phi)])
-    except:
+    except Exception:
         # Default: generate position on unit sphere
         theta = (i / len(ch_names)) * 2 * np.pi
         phi = np.pi / 4
         pos = np.array([np.sin(phi) * np.cos(theta), np.sin(phi) * np.sin(theta), np.cos(phi)])
-    
-    chanlocs.append({
-        'labels': ch_name,
-        'X': float(pos[0]),
-        'Y': float(pos[1]),
-        'Z': float(pos[2]),
-    })
+
+    chanlocs.append(
+        {
+            'labels': ch_name,
+            'X': float(pos[0]),
+            'Y': float(pos[1]),
+            'Z': float(pos[2]),
+        }
+    )
 
 EEG_dict = {
     'data': data.copy(),
@@ -267,17 +300,14 @@ EEG_dict = {
     'xmin': 0,
     'xmax': (data.shape[1] - 1) / sfreq,
     'chanlocs': chanlocs,
-    'etc': {}
+    'etc': {},
 }
 
 # Perform interpolation
-EEG_interp = eegprep.eeg_interp(
-    EEG_dict,
-    bad_chans=bad_channel_indices
-)
+EEG_interp = eegprep.eeg_interp(EEG_dict, bad_chans=bad_channel_indices)
 interpolated_data = EEG_interp['data']
 
-print(f"Interpolation complete!")
+print("Interpolation complete!")
 print(f"  Interpolated data shape: {interpolated_data.shape}")
 print(f"  Interpolated channels: {bad_ch_names}")
 
@@ -300,7 +330,7 @@ for i in range(n_channels):
 ax.set_ylabel('Amplitude (µV)', fontsize=11)
 ax.set_title('Original Data (Bad Channels in Red)', fontsize=12, fontweight='bold')
 ax.grid(True, alpha=0.3)
-ax.set_xlim([t[time_window.start], t[time_window.stop-1]])
+ax.set_xlim([t[time_window.start], t[time_window.stop - 1]])
 
 # Plot 2: Interpolated data
 ax = axes[1]
@@ -311,7 +341,7 @@ for i in range(n_channels):
 ax.set_ylabel('Amplitude (µV)', fontsize=11)
 ax.set_title('After Interpolation (Previously Bad Channels in Orange)', fontsize=12, fontweight='bold')
 ax.grid(True, alpha=0.3)
-ax.set_xlim([t[time_window.start], t[time_window.stop-1]])
+ax.set_xlim([t[time_window.start], t[time_window.stop - 1]])
 
 # Plot 3: Difference (interpolation effect)
 ax = axes[2]
@@ -324,7 +354,7 @@ ax.set_xlabel('Time (s)', fontsize=11)
 ax.set_ylabel('Amplitude (µV)', fontsize=11)
 ax.set_title('Interpolation Effect (Difference)', fontsize=12, fontweight='bold')
 ax.grid(True, alpha=0.3)
-ax.set_xlim([t[time_window.start], t[time_window.stop-1]])
+ax.set_xlim([t[time_window.start], t[time_window.stop - 1]])
 
 plt.tight_layout()
 plt.show()
@@ -403,7 +433,7 @@ if len(correlations) > 1:
         good_bins = max(1, min(unique_good - 1, 5)) if unique_good > 1 else 1
     else:
         good_bins = 1
-    
+
     if bad_corrs:
         unique_bad = len(np.unique(np.round(bad_corrs, 5)))
         bad_bins = max(1, min(unique_bad - 1, 5)) if unique_bad > 1 else 1
@@ -411,11 +441,25 @@ if len(correlations) > 1:
         bad_bins = 1
 
     if good_corrs:
-        ax.hist(good_corrs, bins=good_bins, alpha=0.6, label='Good Channels', color='steelblue',
-                edgecolor='black', linewidth=1.5)
+        ax.hist(
+            good_corrs,
+            bins=good_bins,
+            alpha=0.6,
+            label='Good Channels',
+            color='steelblue',
+            edgecolor='black',
+            linewidth=1.5,
+        )
     if bad_corrs:
-        ax.hist(bad_corrs, bins=bad_bins, alpha=0.6, label='Bad Channels (Interpolated)', color='orange',
-                edgecolor='black', linewidth=1.5)
+        ax.hist(
+            bad_corrs,
+            bins=bad_bins,
+            alpha=0.6,
+            label='Bad Channels (Interpolated)',
+            color='orange',
+            edgecolor='black',
+            linewidth=1.5,
+        )
     ax.set_xlabel('Correlation Coefficient', fontsize=11)
     ax.set_ylabel('Number of Channels', fontsize=11)
     ax.set_title('Correlation Distribution: Original vs Interpolated Data', fontsize=12, fontweight='bold')
@@ -436,11 +480,11 @@ print("SUMMARY")
 print("=" * 70)
 print(f"Total channels: {n_channels}")
 print(f"Bad channels identified: {len(bad_channel_indices)}")
-print(f"Percentage of bad channels: {len(bad_channel_indices)/n_channels*100:.1f}%")
+print(f"Percentage of bad channels: {len(bad_channel_indices) / n_channels * 100:.1f}%")
 print(f"\nMean correlation (good channels): {np.mean(good_corrs):.4f}")
 print(f"Mean correlation (bad channels): {np.mean(bad_corrs):.4f}")
-print(f"\nInterpolation successfully recovered bad channels")
-print(f"Interpolated channels can be used for further analysis")
+print("\nInterpolation successfully recovered bad channels")
+print("Interpolated channels can be used for further analysis")
 print("=" * 70)
 
 print("\nRecommendations:")

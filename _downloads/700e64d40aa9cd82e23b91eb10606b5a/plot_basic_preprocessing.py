@@ -16,6 +16,8 @@ The workflow includes:
 This example is self-contained and executable, requiring only synthetic data
 generation. It serves as a template for preprocessing real EEG datasets.
 
+Background references include [1]_ and [2]_.
+
 References
 ----------
 .. [1] Delorme, A., & Makeig, S. (2004). EEGLAB: an open source toolbox for
@@ -36,6 +38,7 @@ import matplotlib.pyplot as plt
 from mne import create_info, EpochsArray
 from mne.channels import make_standard_montage
 import sys
+
 sys.path.insert(0, '/Users/baristim/Projects/eegprep/src')
 
 import eegprep
@@ -58,10 +61,38 @@ duration = n_samples / sfreq
 
 # Create standard 10-20 channel names
 ch_names = [
-    'Fp1', 'Fpz', 'Fp2', 'F7', 'F3', 'Fz', 'F4', 'F8',
-    'T7', 'C3', 'Cz', 'C4', 'T8', 'P7', 'P3', 'Pz',
-    'P4', 'P8', 'O1', 'Oz', 'O2', 'A1', 'A2', 'M1',
-    'M2', 'Fc1', 'Fc2', 'Cp1', 'Cp2', 'Fc5', 'Fc6', 'Cp5'
+    'Fp1',
+    'Fpz',
+    'Fp2',
+    'F7',
+    'F3',
+    'Fz',
+    'F4',
+    'F8',
+    'T7',
+    'C3',
+    'Cz',
+    'C4',
+    'T8',
+    'P7',
+    'P3',
+    'Pz',
+    'P4',
+    'P8',
+    'O1',
+    'Oz',
+    'O2',
+    'A1',
+    'A2',
+    'M1',
+    'M2',
+    'Fc1',
+    'Fc2',
+    'Cp1',
+    'Cp2',
+    'Fc5',
+    'Fc6',
+    'Cp5',
 ]
 
 # Initialize data array
@@ -79,7 +110,7 @@ for i in range(n_channels):
     data[i, :] = 10 * np.sin(2 * np.pi * alpha_freq * t)
     # Add background noise (typical EEG noise level ~2 µV)
     data[i, :] += np.random.randn(n_samples) * 2
-    
+
     # Introduce artifacts in specific channels to demonstrate cleaning
     # These simulate realistic artifacts that would be removed
     if i in [5, 15]:  # Channels Fz and Pz
@@ -139,18 +170,20 @@ for i, ch_name in enumerate(ch_names):
                 theta = (i / len(ch_names)) * 2 * np.pi
                 phi = np.pi / 4
                 pos = np.array([np.sin(phi) * np.cos(theta), np.sin(phi) * np.sin(theta), np.cos(phi)])
-    except:
+    except Exception:
         # Default: generate position on unit sphere
         theta = (i / len(ch_names)) * 2 * np.pi
         phi = np.pi / 4
         pos = np.array([np.sin(phi) * np.cos(theta), np.sin(phi) * np.sin(theta), np.cos(phi)])
-    
-    chanlocs.append({
-        'labels': ch_name,
-        'X': float(pos[0]),
-        'Y': float(pos[1]),
-        'Z': float(pos[2]),
-    })
+
+    chanlocs.append(
+        {
+            'labels': ch_name,
+            'X': float(pos[0]),
+            'Y': float(pos[1]),
+            'Z': float(pos[2]),
+        }
+    )
 
 EEG_dict = {
     'data': raw_data,
@@ -160,7 +193,7 @@ EEG_dict = {
     'xmin': 0,
     'xmax': (raw_data.shape[1] - 1) / sfreq,
     'chanlocs': chanlocs,
-    'etc': {}
+    'etc': {},
 }
 
 # Apply artifact cleaning with default parameters
@@ -210,12 +243,9 @@ if len(bad_channels) > 0:
         'xmin': 0,
         'xmax': (cleaned_data.shape[1] - 1) / sfreq,
         'chanlocs': chanlocs,
-        'etc': {}
+        'etc': {},
     }
-    EEG_interp_result = eegprep.eeg_interp(
-        EEG_interp_dict,
-        bad_chans=bad_channels
-    )
+    EEG_interp_result = eegprep.eeg_interp(EEG_interp_dict, bad_chans=bad_channels)
     interpolated_data = EEG_interp_result['data']
     print(f"Interpolated data shape: {interpolated_data.shape}")
 else:
@@ -238,40 +268,42 @@ time_window = slice(0, 2000)  # First 4 seconds
 ax = axes[0]
 for i, ch_idx in enumerate(channels_to_plot):
     offset = i * 30  # Vertical offset for clarity
-    ax.plot(t[time_window], raw_data[ch_idx, time_window] + offset,
-            label=ch_names[ch_idx], linewidth=1.5)
+    ax.plot(t[time_window], raw_data[ch_idx, time_window] + offset, label=ch_names[ch_idx], linewidth=1.5)
 ax.set_ylabel('Amplitude (µV)', fontsize=11)
 ax.set_title('Original EEG Data (with artifacts)', fontsize=12, fontweight='bold')
 ax.legend(loc='upper right', fontsize=9, ncol=2)
 ax.grid(True, alpha=0.3)
-ax.set_xlim([t[time_window.start], t[time_window.stop-1]])
+ax.set_xlim([t[time_window.start], t[time_window.stop - 1]])
 
 # Plot 2: After artifact cleaning
 ax = axes[1]
 for i, ch_idx in enumerate(channels_to_plot):
     offset = i * 30
-    ax.plot(t[time_window], cleaned_data[ch_idx, time_window] + offset,
-            label=ch_names[ch_idx], linewidth=1.5)
+    ax.plot(t[time_window], cleaned_data[ch_idx, time_window] + offset, label=ch_names[ch_idx], linewidth=1.5)
 ax.set_ylabel('Amplitude (µV)', fontsize=11)
 ax.set_title('After Artifact Cleaning', fontsize=12, fontweight='bold')
 ax.legend(loc='upper right', fontsize=9, ncol=2)
 ax.grid(True, alpha=0.3)
-ax.set_xlim([t[time_window.start], t[time_window.stop-1]])
+ax.set_xlim([t[time_window.start], t[time_window.stop - 1]])
 
 # Plot 3: After channel interpolation
 ax = axes[2]
 for i, ch_idx in enumerate(channels_to_plot):
     offset = i * 30
     color = 'orange' if ch_idx in bad_channels else 'steelblue'
-    ax.plot(t[time_window], interpolated_data[ch_idx, time_window] + offset,
-            label=ch_names[ch_idx], linewidth=1.5, color=color)
+    ax.plot(
+        t[time_window],
+        interpolated_data[ch_idx, time_window] + offset,
+        label=ch_names[ch_idx],
+        linewidth=1.5,
+        color=color,
+    )
 ax.set_xlabel('Time (s)', fontsize=11)
 ax.set_ylabel('Amplitude (µV)', fontsize=11)
-ax.set_title('After Channel Interpolation (interpolated channels in orange)',
-             fontsize=12, fontweight='bold')
+ax.set_title('After Channel Interpolation (interpolated channels in orange)', fontsize=12, fontweight='bold')
 ax.legend(loc='upper right', fontsize=9, ncol=2)
 ax.grid(True, alpha=0.3)
-ax.set_xlim([t[time_window.start], t[time_window.stop-1]])
+ax.set_xlim([t[time_window.start], t[time_window.stop - 1]])
 
 plt.tight_layout()
 plt.show()
@@ -314,7 +346,7 @@ print(f"\n{'Variance Reduction':<20} {var_reduction_clean:>14.1f}% {var_reductio
 # Channel quality summary
 print(f"\n{'Total channels':<20} {n_channels}")
 print(f"{'Bad channels identified':<20} {len(bad_channels)}")
-print(f"{'Percentage bad':<20} {len(bad_channels)/n_channels*100:.1f}%")
+print(f"{'Percentage bad':<20} {len(bad_channels) / n_channels * 100:.1f}%")
 
 print("=" * 70)
 

@@ -2,19 +2,19 @@
 <!DOCTYPE html>
 
 
-<html lang="en" data-content_root="./" >
+<html lang="en" data-content_root="./" data-theme="light">
 
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>eegprep &#8212; eegprep 0.2.23 documentation</title>
+    <title>EEGPrep &#8212; EEGPrep manual</title>
   
   
   
   <script data-cfasync="false">
-    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
-    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "light";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "light";
   </script>
   <!--
     this give us a css class that will be invisible only if js is disabled
@@ -27,28 +27,29 @@
   </noscript>
   
   <!-- Loaded before other Sphinx assets -->
-  <link href="_static/styles/theme.css?digest=7f76b32a3354e82990f2" rel="stylesheet" />
-<link href="_static/styles/pydata-sphinx-theme.css?digest=7f76b32a3354e82990f2" rel="stylesheet" />
+  <link href="_static/styles/theme.css?digest=55c26ed414f5f8a31ebb" rel="stylesheet" />
+<link href="_static/styles/pydata-sphinx-theme.css?digest=55c26ed414f5f8a31ebb" rel="stylesheet" />
 
     <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
     <link rel="stylesheet" type="text/css" href="_static/copybutton.css?v=76b2166b" />
     <link rel="stylesheet" type="text/css" href="_static/togglebutton.css?v=9c3e77be" />
-    <link rel="stylesheet" type="text/css" href="_static/sg_gallery.css?v=d2d258e8" />
+    <link rel="stylesheet" type="text/css" href="_static/sg_gallery.css?v=fd6457a4" />
     <link rel="stylesheet" type="text/css" href="_static/sg_gallery-binder.css?v=f4aeca0c" />
     <link rel="stylesheet" type="text/css" href="_static/sg_gallery-dataframe.css?v=2082cf3c" />
     <link rel="stylesheet" type="text/css" href="_static/sg_gallery-rendered-html.css?v=1277b6f3" />
     <link rel="stylesheet" type="text/css" href="_static/sphinx-design.min.css?v=95c83b7e" />
-    <link rel="stylesheet" type="text/css" href="_static/custom.css?v=eb9c3aa4" />
+    <link rel="stylesheet" type="text/css" href="_static/custom.css?v=92c3505e" />
   
   <!-- So that users can add custom icons -->
-  <script defer src="_static/scripts/fontawesome.js?digest=7f76b32a3354e82990f2"></script>
+  <script defer src="_static/scripts/fontawesome.js?digest=55c26ed414f5f8a31ebb"></script>
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=7f76b32a3354e82990f2" />
-<link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=7f76b32a3354e82990f2" />
+  <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=55c26ed414f5f8a31ebb" />
+<link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=55c26ed414f5f8a31ebb" />
 
     <script src="_static/documentation_options.js?v=171860b8"></script>
     <script src="_static/doctools.js?v=fd6eb6e6"></script>
     <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/sg-tags.js?v=d80f6fa4"></script>
     <script src="_static/clipboard.min.js?v=a7894cd8"></script>
     <script src="_static/copybutton.js?v=6dbb43f8"></script>
     <script>let toggleHintShow = 'Click to show';</script>
@@ -59,9 +60,10 @@
     <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'index';</script>
     <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <link rel="icon" href="_static/logo.jpg"/>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="API Reference" href="api/index.html" />
+    <link rel="next" title="User Guide" href="user_guide/index.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2.23" />
@@ -72,7 +74,7 @@
     <script src="searchindex.js"></script>
   
   </head>
-  <body data-default-mode="">
+  <body data-default-mode="light">
   
   
   <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
@@ -82,7 +84,9 @@
   
   <button type="button" class="btn rounded-pill" id="pst-back-to-top">
     <i class="fa-solid fa-arrow-up"></i>Back to top</button>
-
+  
+  
+  
   
   <dialog id="pst-search-dialog">
     
@@ -93,8 +97,8 @@
   <input type="search"
          class="form-control"
          name="q"
-         placeholder="Search documentation..."
-         aria-label="Search documentation..."
+         placeholder="Search the EEGPrep manual..."
+         aria-label="Search the EEGPrep manual..."
          autocomplete="off"
          autocorrect="off"
          autocapitalize="off"
@@ -129,6 +133,12 @@
   
   
   
+    
+    
+    
+    <img src="_static/logo.jpg" class="logo__image only-light" alt=""/>
+    <img src="_static/logo.jpg" class="logo__image only-dark pst-js-only" alt=""/>
+  
   
     <p class="title logo__title">eegprep</p>
   
@@ -145,13 +155,6 @@
   <ul class="bd-navbar-elements navbar-nav">
     
 <li class="nav-item ">
-  <a class="nav-link nav-internal" href="api/index.html">
-    API Reference
-  </a>
-</li>
-
-
-<li class="nav-item ">
   <a class="nav-link nav-internal" href="user_guide/index.html">
     User Guide
   </a>
@@ -166,8 +169,22 @@
 
 
 <li class="nav-item ">
-  <a class="nav-link nav-internal" href="contributing.html">
-    Contributing to EEGPrep
+  <a class="nav-link nav-internal" href="api/index.html">
+    API Reference
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="faq.html">
+    Frequently Asked Questions
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="glossary.html">
+    Glossary
   </a>
 </li>
 
@@ -180,20 +197,6 @@
                 <ul id="pst-nav-more-links" class="dropdown-menu">
                     
 <li class=" ">
-  <a class="nav-link dropdown-item nav-internal" href="development.html">
-    Development Setup
-  </a>
-</li>
-
-
-<li class=" ">
-  <a class="nav-link dropdown-item nav-internal" href="faq.html">
-    Frequently Asked Questions
-  </a>
-</li>
-
-
-<li class=" ">
   <a class="nav-link dropdown-item nav-internal" href="references.html">
     References and Citations
   </a>
@@ -201,15 +204,22 @@
 
 
 <li class=" ">
-  <a class="nav-link dropdown-item nav-internal" href="changelog.html">
-    Changelog
+  <a class="nav-link dropdown-item nav-internal" href="contributing.html">
+    Contributing to EEGPrep
   </a>
 </li>
 
 
 <li class=" ">
-  <a class="nav-link dropdown-item nav-internal" href="glossary.html">
-    Glossary
+  <a class="nav-link dropdown-item nav-internal" href="development.html">
+    Development Setup
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="changelog.html">
+    Changelog
   </a>
 </li>
 
@@ -224,6 +234,14 @@
     
     <div class="navbar-header-items__end">
       
+      
+        <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
       
         <div class="navbar-item">
 
@@ -287,13 +305,6 @@
   <ul class="bd-navbar-elements navbar-nav">
     
 <li class="nav-item ">
-  <a class="nav-link nav-internal" href="api/index.html">
-    API Reference
-  </a>
-</li>
-
-
-<li class="nav-item ">
   <a class="nav-link nav-internal" href="user_guide/index.html">
     User Guide
   </a>
@@ -303,6 +314,34 @@
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="examples/index.html">
     Examples
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="api/index.html">
+    API Reference
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="faq.html">
+    Frequently Asked Questions
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="glossary.html">
+    Glossary
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="references.html">
+    References and Citations
   </a>
 </li>
 
@@ -322,29 +361,8 @@
 
 
 <li class="nav-item ">
-  <a class="nav-link nav-internal" href="faq.html">
-    Frequently Asked Questions
-  </a>
-</li>
-
-
-<li class="nav-item ">
-  <a class="nav-link nav-internal" href="references.html">
-    References and Citations
-  </a>
-</li>
-
-
-<li class="nav-item ">
   <a class="nav-link nav-internal" href="changelog.html">
     Changelog
-  </a>
-</li>
-
-
-<li class="nav-item ">
-  <a class="nav-link nav-internal" href="glossary.html">
-    Glossary
   </a>
 </li>
 
@@ -357,6 +375,14 @@
     
     
       <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
         
           <div class="navbar-item">
 
@@ -406,50 +432,96 @@
                 <article class="bd-article">
                   
   <section id="eegprep">
-<h1>eegprep<a class="headerlink" href="#eegprep" title="Link to this heading">#</a></h1>
-<p>A comprehensive Python EEG preprocessing pipeline for neuroscience research.</p>
-<div style="text-align: center; margin: 2rem 0;">
-   <p style="font-size: 1.1rem; margin-bottom: 0.5rem;">Get started with:</p>
-   <div style="background-color: #f5f5f5; padding: 1rem; border-radius: 0.5rem; display: inline-block; border-left: 4px solid #0066cc;">
-      <code style="font-size: 1.1rem; color: #0066cc; font-weight: 500;">pip install eegprep</code>
-   </div>
-</div><div class="toctree-wrapper compound">
-<p aria-level="2" class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<h1>EEGPrep<a class="headerlink" href="#eegprep" title="Link to this heading">#</a></h1>
+<div class="eegprep-hero">
+  <div class="eegprep-kicker">EEGLAB workflows, modern Python tooling</div>
+  <p>EEGPrep is a modernized Python port of core
+  <a href="https://sccn.ucsd.edu/eeglab/">EEGLAB</a> preprocessing
+  workflows for EEG researchers. It preserves familiar concepts such as
+  <code>EEG</code>, <code>ALLEEG</code>, <code>pop_*</code> commands,
+  EEGBrowser review, ICA/component workflows, STUDY analyses, and command
+  history, while making those workflows easier to run, review, automate,
+  and share from Python.</p>
+</div><p>Use this manual to move from a first dataset to a reproducible workflow. Start
+with the sample data, try the same steps in the GUI and <code class="docutils literal notranslate"><span class="pre">eegprep-console</span></code>,
+then turn the recorded <code class="docutils literal notranslate"><span class="pre">pop_*</span></code> history into scripts, pipelines, or
+agent-assisted analyses.</p>
+<div class="sd-container-fluid sd-sphinx-override sd-mb-4 docutils">
+<div class="sd-row sd-row-cols-1 sd-row-cols-xs-1 sd-row-cols-sm-1 sd-row-cols-md-2 sd-row-cols-lg-2 sd-g-2 sd-g-xs-2 sd-g-sm-2 sd-g-md-2 sd-g-lg-2 docutils">
+<div class="sd-col sd-d-flex-row docutils">
+<div class="sd-card sd-sphinx-override sd-w-100 sd-shadow-sm sd-card-hover docutils">
+<div class="sd-card-body docutils">
+<div class="sd-card-title sd-font-weight-bold docutils">
+Start and Load Data</div>
+<p class="sd-card-text">Install EEGPrep, launch the GUI/console, load <code class="docutils literal notranslate"><span class="pre">eeglab_data.set</span></code>, inspect
+the EEG structure, and save the result.</p>
+</div>
+<a class="sd-stretched-link sd-hide-link-text reference internal" href="user_guide/quickstart.html"><span class="doc">Quick Start</span></a></div>
+</div>
+<div class="sd-col sd-d-flex-row docutils">
+<div class="sd-card sd-sphinx-override sd-w-100 sd-shadow-sm sd-card-hover docutils">
+<div class="sd-card-body docutils">
+<div class="sd-card-title sd-font-weight-bold docutils">
+Learn the Data Model</div>
+<p class="sd-card-text">Understand <code class="docutils literal notranslate"><span class="pre">EEG</span></code>, <code class="docutils literal notranslate"><span class="pre">ALLEEG</span></code>, events, epochs, channel locations, ICA
+fields, STUDY, and history replay.</p>
+</div>
+<a class="sd-stretched-link sd-hide-link-text reference internal" href="user_guide/concepts.html"><span class="doc">Concepts Guide</span></a></div>
+</div>
+<div class="sd-col sd-d-flex-row docutils">
+<div class="sd-card sd-sphinx-override sd-w-100 sd-shadow-sm sd-card-hover docutils">
+<div class="sd-card-body docutils">
+<div class="sd-card-title sd-font-weight-bold docutils">
+Work in GUI and Console</div>
+<p class="sd-card-text">Keep the main window and <code class="docutils literal notranslate"><span class="pre">eegprep-console</span></code> side by side: run menu
+actions, inspect <code class="docutils literal notranslate"><span class="pre">EEG</span></code> and history, then continue from Python.</p>
+</div>
+<a class="sd-stretched-link sd-hide-link-text reference internal" href="user_guide/gui_console_session.html"><span class="doc">GUI and Console Together</span></a></div>
+</div>
+<div class="sd-col sd-d-flex-row docutils">
+<div class="sd-card sd-sphinx-override sd-w-100 sd-shadow-sm sd-card-hover docutils">
+<div class="sd-card-body docutils">
+<div class="sd-card-title sd-font-weight-bold docutils">
+Follow GUI Workflows</div>
+<p class="sd-card-text">Run menu workflows for filtering, rejection, ICA, ICLabel, EEGBrowser,
+STUDY, and DIPFIT while tracking the same session from the console.</p>
+</div>
+<a class="sd-stretched-link sd-hide-link-text reference internal" href="user_guide/gui_tutorials.html"><span class="doc">GUI Tutorials</span></a></div>
+</div>
+<div class="sd-col sd-d-flex-row docutils">
+<div class="sd-card sd-sphinx-override sd-w-100 sd-shadow-sm sd-card-hover docutils">
+<div class="sd-card-body docutils">
+<div class="sd-card-title sd-font-weight-bold docutils">
+Script the Same Steps</div>
+<p class="sd-card-text">Convert menu history into reusable Python scripts and batch workflows.</p>
+</div>
+<a class="sd-stretched-link sd-hide-link-text reference internal" href="user_guide/scripting_workflows.html"><span class="doc">Scripting Workflows</span></a></div>
+</div>
+<div class="sd-col sd-d-flex-row docutils">
+<div class="sd-card sd-sphinx-override sd-w-100 sd-shadow-sm sd-card-hover docutils">
+<div class="sd-card-body docutils">
+<div class="sd-card-title sd-font-weight-bold docutils">
+Work With Research Agents</div>
+<p class="sd-card-text">Use the EEGPrep CLI, JSON outputs, manifests, pipeline plans, and bundled
+agent skill guidance for AI-assisted EEG research projects.</p>
+</div>
+<a class="sd-stretched-link sd-hide-link-text reference internal" href="user_guide/agent_cli.html"><span class="doc">Agent-Friendly EEGPrep CLI</span></a></div>
+</div>
+</div>
+</div>
+<section id="manual">
+<h2>Manual<a class="headerlink" href="#manual" title="Link to this heading">#</a></h2>
+<div class="toctree-wrapper compound">
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Workflows</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="api/index.html">API Reference</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="api/core.html">Core Functions and Classes</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/preprocessing.html">Preprocessing Functions</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/ica.html">Independent Component Analysis</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/signal_processing.html">Signal Processing Functions</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/io.html">Input/Output Functions</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/utils.html">Utility Functions</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/index.html#core-classes">Core Classes</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/index.html#data-loading-and-saving">Data Loading and Saving</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/index.html#preprocessing-functions">Preprocessing Functions</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/index.html#independent-component-analysis">Independent Component Analysis</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/index.html#spectral-analysis">Spectral Analysis</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/index.html#epoching-and-selection">Epoching and Selection</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/index.html#visualization">Visualization</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/index.html#format-conversion">Format Conversion</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/index.html#utilities">Utilities</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/index.html#bids-pipeline">BIDS Pipeline</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/index.html#configuration">Configuration</a></li>
-</ul>
-</li>
 <li class="toctree-l1"><a class="reference internal" href="user_guide/index.html">User Guide</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="user_guide/index.html#learning-path">Learning Path</a></li>
 <li class="toctree-l2"><a class="reference internal" href="user_guide/index.html#getting-started">Getting Started</a></li>
-<li class="toctree-l2"><a class="reference internal" href="user_guide/index.html#core-concepts">Core Concepts</a></li>
-<li class="toctree-l2"><a class="reference internal" href="user_guide/index.html#data-workflows">Data Workflows</a></li>
-<li class="toctree-l2"><a class="reference internal" href="user_guide/index.html#advanced-topics">Advanced Topics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="user_guide/index.html#quick-reference">Quick Reference</a></li>
-<li class="toctree-l2"><a class="reference internal" href="user_guide/index.html#documentation-structure">Documentation Structure</a></li>
-<li class="toctree-l2"><a class="reference internal" href="user_guide/index.html#key-concepts">Key Concepts</a></li>
-<li class="toctree-l2"><a class="reference internal" href="user_guide/index.html#getting-help">Getting Help</a></li>
-<li class="toctree-l2"><a class="reference internal" href="user_guide/index.html#contributing">Contributing</a></li>
-<li class="toctree-l2"><a class="reference internal" href="user_guide/index.html#license">License</a></li>
-<li class="toctree-l2"><a class="reference internal" href="user_guide/index.html#citation">Citation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="user_guide/index.html#acknowledgments">Acknowledgments</a></li>
+<li class="toctree-l2"><a class="reference internal" href="user_guide/index.html#gui-console-and-scripts">GUI, Console, and Scripts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="user_guide/index.html#preprocessing-and-review">Preprocessing and Review</a></li>
+<li class="toctree-l2"><a class="reference internal" href="user_guide/index.html#group-and-plugin-workflows">Group and Plugin Workflows</a></li>
+<li class="toctree-l2"><a class="reference internal" href="user_guide/index.html#admin-help-and-development">Admin, Help, and Development</a></li>
+<li class="toctree-l2"><a class="reference internal" href="user_guide/index.html#common-entry-points">Common Entry Points</a></li>
+<li class="toctree-l2"><a class="reference internal" href="user_guide/index.html#help-coverage">Help Coverage</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="examples/index.html">Examples</a><ul>
@@ -463,6 +535,82 @@
 <li class="toctree-l2"><a class="reference internal" href="examples/index.html#tips-for-using-examples">Tips for Using Examples</a></li>
 </ul>
 </li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="api/index.html">API Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api/core.html">Core Functions and Classes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/preprocessing.html">Preprocessing Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/ica.html">Independent Component Analysis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/signal_processing.html">Signal Processing Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/statistics.html">Statistics Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/io.html">Input/Output Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/pop_functions.html">Interactive Pop Workflow API</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/extensions.html">Extension SDK and Registry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/extensions.html#minimal-extension-entry-point">Minimal extension entry point</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/extensions.html#status-model">Status model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/extensions.html#catalog-and-governance">Catalog and Governance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/extensions.html#author-test-harness">Author Test Harness</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/extensions.html#extension-manager-and-catalog">Extension Manager and catalog</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/extensions.html#authoring-examples">Authoring examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/extensions.html#api-reference">API Reference</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/utils.html">Utility Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/index.html#core-classes">Core Classes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/index.html#interactive-gui-and-console">Interactive GUI and Console</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/index.html#dataset-workspace-helpers">Dataset Workspace Helpers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/index.html#gui-and-session-entry-points">GUI and Session Entry Points</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/index.html#data-loading-and-saving">Data Loading and Saving</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/index.html#preprocessing-functions">Preprocessing Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/index.html#independent-component-analysis">Independent Component Analysis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/index.html#spectral-analysis">Spectral Analysis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/index.html#epoching-and-selection">Epoching and Selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/index.html#visualization">Visualization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/index.html#format-conversion">Format Conversion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/index.html#utilities">Utilities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/index.html#bids-pipeline">BIDS Pipeline</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/index.html#bundled-plugins">Bundled Plugins</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/index.html#extension-sdk">Extension SDK</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/index.html#study-workflows">STUDY Workflows</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/index.html#configuration">Configuration</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="faq.html">Frequently Asked Questions</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="faq.html#installation-faq">Installation FAQ</a></li>
+<li class="toctree-l2"><a class="reference internal" href="faq.html#usage-faq">Usage FAQ</a></li>
+<li class="toctree-l2"><a class="reference internal" href="faq.html#performance-faq">Performance FAQ</a></li>
+<li class="toctree-l2"><a class="reference internal" href="faq.html#troubleshooting-faq">Troubleshooting FAQ</a></li>
+<li class="toctree-l2"><a class="reference internal" href="faq.html#comparison-faq">Comparison FAQ</a></li>
+<li class="toctree-l2"><a class="reference internal" href="faq.html#data-format-faq">Data Format FAQ</a></li>
+<li class="toctree-l2"><a class="reference internal" href="faq.html#getting-help">Getting Help</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="glossary.html">Glossary</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="glossary.html#eeg-terminology">EEG Terminology</a></li>
+<li class="toctree-l2"><a class="reference internal" href="glossary.html#signal-processing-terms">Signal Processing Terms</a></li>
+<li class="toctree-l2"><a class="reference internal" href="glossary.html#data-format-terms">Data Format Terms</a></li>
+<li class="toctree-l2"><a class="reference internal" href="glossary.html#statistical-terms">Statistical Terms</a></li>
+<li class="toctree-l2"><a class="reference internal" href="glossary.html#related-concepts">Related Concepts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="glossary.html#cross-references">Cross-References</a></li>
+<li class="toctree-l2"><a class="reference internal" href="glossary.html#additional-resources">Additional Resources</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="references.html">References and Citations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="references.html#key-publications">Key Publications</a></li>
+<li class="toctree-l2"><a class="reference internal" href="references.html#related-tools">Related Tools</a></li>
+<li class="toctree-l2"><a class="reference internal" href="references.html#external-resources">External Resources</a></li>
+<li class="toctree-l2"><a class="reference internal" href="references.html#citation-information">Citation Information</a></li>
+<li class="toctree-l2"><a class="reference internal" href="references.html#acknowledgments">Acknowledgments</a></li>
+<li class="toctree-l2"><a class="reference internal" href="references.html#related-publications-using-eegprep">Related Publications Using EEGPrep</a></li>
+<li class="toctree-l2"><a class="reference internal" href="references.html#getting-help-with-references">Getting Help with References</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Project</span></p>
+<ul>
 <li class="toctree-l1"><a class="reference internal" href="contributing.html">Contributing to EEGPrep</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="contributing.html#getting-started">Getting Started</a></li>
 <li class="toctree-l2"><a class="reference internal" href="contributing.html#development-environment">Development Environment</a></li>
@@ -478,6 +626,9 @@
 <li class="toctree-l2"><a class="reference internal" href="development.html#prerequisites">Prerequisites</a></li>
 <li class="toctree-l2"><a class="reference internal" href="development.html#installation-from-source">Installation from Source</a></li>
 <li class="toctree-l2"><a class="reference internal" href="development.html#running-tests">Running Tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="development.html#eeg-and-session-contracts">EEG And Session Contracts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="development.html#eeglab-core-parity-matrix">EEGLAB Core Parity Matrix</a></li>
+<li class="toctree-l2"><a class="reference internal" href="development.html#eeglab-final-standalone-parity-matrix">EEGLAB Final Standalone Parity Matrix</a></li>
 <li class="toctree-l2"><a class="reference internal" href="development.html#building-documentation">Building Documentation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="development.html#debugging-tips">Debugging Tips</a></li>
 <li class="toctree-l2"><a class="reference internal" href="development.html#release-process">Release Process</a></li>
@@ -485,30 +636,10 @@
 <li class="toctree-l2"><a class="reference internal" href="development.html#getting-help">Getting Help</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="faq.html">Frequently Asked Questions</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="faq.html#installation-faq">Installation FAQ</a></li>
-<li class="toctree-l2"><a class="reference internal" href="faq.html#usage-faq">Usage FAQ</a></li>
-<li class="toctree-l2"><a class="reference internal" href="faq.html#performance-faq">Performance FAQ</a></li>
-<li class="toctree-l2"><a class="reference internal" href="faq.html#troubleshooting-faq">Troubleshooting FAQ</a></li>
-<li class="toctree-l2"><a class="reference internal" href="faq.html#comparison-faq">Comparison FAQ</a></li>
-<li class="toctree-l2"><a class="reference internal" href="faq.html#data-format-faq">Data Format FAQ</a></li>
-<li class="toctree-l2"><a class="reference internal" href="faq.html#getting-help">Getting Help</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="references.html">References and Citations</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="references.html#key-publications">Key Publications</a></li>
-<li class="toctree-l2"><a class="reference internal" href="references.html#related-tools">Related Tools</a></li>
-<li class="toctree-l2"><a class="reference internal" href="references.html#external-resources">External Resources</a></li>
-<li class="toctree-l2"><a class="reference internal" href="references.html#citation-information">Citation Information</a></li>
-<li class="toctree-l2"><a class="reference internal" href="references.html#acknowledgments">Acknowledgments</a></li>
-<li class="toctree-l2"><a class="reference internal" href="references.html#related-publications-using-eegprep">Related Publications Using EEGPrep</a></li>
-<li class="toctree-l2"><a class="reference internal" href="references.html#getting-help-with-references">Getting Help with References</a></li>
-</ul>
-</li>
 <li class="toctree-l1"><a class="reference internal" href="changelog.html">Changelog</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="changelog.html#version-history">Version History</a></li>
 <li class="toctree-l2"><a class="reference internal" href="changelog.html#release-notes">Release Notes</a></li>
-<li class="toctree-l2"><a class="reference internal" href="changelog.html#breaking-changes">Breaking Changes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="changelog.html#id2">Breaking Changes</a></li>
 <li class="toctree-l2"><a class="reference internal" href="changelog.html#deprecations">Deprecations</a></li>
 <li class="toctree-l2"><a class="reference internal" href="changelog.html#future-plans">Future Plans</a></li>
 <li class="toctree-l2"><a class="reference internal" href="changelog.html#contributing-to-development">Contributing to Development</a></li>
@@ -522,74 +653,74 @@
 <li class="toctree-l2"><a class="reference internal" href="changelog.html#getting-help">Getting Help</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="glossary.html">Glossary</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="glossary.html#eeg-terminology">EEG Terminology</a></li>
-<li class="toctree-l2"><a class="reference internal" href="glossary.html#signal-processing-terms">Signal Processing Terms</a></li>
-<li class="toctree-l2"><a class="reference internal" href="glossary.html#data-format-terms">Data Format Terms</a></li>
-<li class="toctree-l2"><a class="reference internal" href="glossary.html#statistical-terms">Statistical Terms</a></li>
-<li class="toctree-l2"><a class="reference internal" href="glossary.html#related-concepts">Related Concepts</a></li>
-<li class="toctree-l2"><a class="reference internal" href="glossary.html#cross-references">Cross-References</a></li>
-<li class="toctree-l2"><a class="reference internal" href="glossary.html#additional-resources">Additional Resources</a></li>
-</ul>
-</li>
 </ul>
 </div>
-<section id="quick-start">
-<h2>Quick Start<a class="headerlink" href="#quick-start" title="Link to this heading">#</a></h2>
-<section id="installation">
-<h3>Installation<a class="headerlink" href="#installation" title="Link to this heading">#</a></h3>
-<p>Install eegprep using pip:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>eegprep
+</section>
+<section id="five-minute-script">
+<h2>Five-Minute Script<a class="headerlink" href="#five-minute-script" title="Link to this heading">#</a></h2>
+<p>Load the checked-in tutorial dataset, run two common preprocessing steps, and
+keep the replayable command strings.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_eegfiltnew</span><span class="p">,</span> <span class="n">pop_loadset</span><span class="p">,</span> <span class="n">pop_resample</span><span class="p">,</span> <span class="n">pop_saveset</span>
+
+<span class="n">sample</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;sample_data&quot;</span><span class="p">)</span> <span class="o">/</span> <span class="s2">&quot;eeglab_data.set&quot;</span>
+<span class="n">EEG</span> <span class="o">=</span> <span class="n">pop_loadset</span><span class="p">(</span><span class="n">sample</span><span class="p">)</span>
+
+<span class="n">EEG</span><span class="p">,</span> <span class="n">filter_com</span> <span class="o">=</span> <span class="n">pop_eegfiltnew</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="n">locutoff</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">hicutoff</span><span class="o">=</span><span class="mf">40.0</span><span class="p">,</span> <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">EEG</span><span class="p">,</span> <span class="n">resample_com</span> <span class="o">=</span> <span class="n">pop_resample</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">pop_saveset</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;sample_data&quot;</span><span class="p">)</span> <span class="o">/</span> <span class="s2">&quot;eeglab_data_preprocessed.set&quot;</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">filter_com</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">resample_com</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
-<section id="basic-usage">
-<h3>Basic Usage<a class="headerlink" href="#basic-usage" title="Link to this heading">#</a></h3>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">eegprep</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">EEGobj</span>
-
-<span class="c1"># Load EEG data</span>
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">EEGobj</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s1">&#39;data.set&#39;</span><span class="p">)</span>
-
-<span class="c1"># Apply preprocessing pipeline</span>
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">eegprep</span><span class="o">.</span><span class="n">clean_artifacts</span><span class="p">(</span><span class="n">eeg</span><span class="p">)</span>
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">eegprep</span><span class="o">.</span><span class="n">clean_flatlines</span><span class="p">(</span><span class="n">eeg</span><span class="p">)</span>
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">eegprep</span><span class="o">.</span><span class="n">clean_channels</span><span class="p">(</span><span class="n">eeg</span><span class="p">)</span>
-
-<span class="c1"># Save processed data</span>
-<span class="n">eeg</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s1">&#39;data_processed.set&#39;</span><span class="p">)</span>
-</pre></div>
+<section id="where-eeglab-users-should-go-first">
+<h2>Where EEGLAB Users Should Go First<a class="headerlink" href="#where-eeglab-users-should-go-first" title="Link to this heading">#</a></h2>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>If you know EEGLAB as…</p></th>
+<th class="head"><p>Start here in EEGPrep</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">EEG</span></code> / <code class="docutils literal notranslate"><span class="pre">ALLEEG</span></code> / <code class="docutils literal notranslate"><span class="pre">CURRENTSET</span></code></p></td>
+<td><p><a class="reference internal" href="user_guide/concepts.html"><span class="doc">Concepts Guide</span></a></p></td>
+</tr>
+<tr class="row-odd"><td><p>GUI menus plus MATLAB command history</p></td>
+<td><p><a class="reference internal" href="user_guide/gui_console_session.html"><span class="doc">GUI and Console Together</span></a>, <a class="reference internal" href="user_guide/gui_tutorials.html"><span class="doc">GUI Tutorials</span></a>,
+and <a class="reference internal" href="user_guide/interactive_console.html"><span class="doc">Interactive Console</span></a></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">pop_*</span></code> scripts</p></td>
+<td><p><a class="reference internal" href="user_guide/scripting_workflows.html"><span class="doc">Scripting Workflows</span></a> and <a class="reference internal" href="api/pop_functions.html"><span class="doc">Interactive Pop Workflow API</span></a></p></td>
+</tr>
+<tr class="row-odd"><td><p>clean_rawdata, FIRFilt, ICLabel, DIPFIT, EEG-BIDS</p></td>
+<td><p><a class="reference internal" href="user_guide/plugins.html"><span class="doc">Bundled Plugins and Extensions</span></a></p></td>
+</tr>
+<tr class="row-even"><td><p>EEGBrowser and visual rejection</p></td>
+<td><p><a class="reference internal" href="user_guide/eegbrowser.html"><span class="doc">EEGBrowser Workflows</span></a></p></td>
+</tr>
+<tr class="row-odd"><td><p>STUDY workflows</p></td>
+<td><p><a class="reference internal" href="user_guide/study_workflows.html"><span class="doc">STUDY Workflows</span></a></p></td>
+</tr>
+<tr class="row-even"><td><p>MNE-Python interop</p></td>
+<td><p><a class="reference internal" href="user_guide/mne_integration.html"><span class="doc">MNE-Python Integration</span></a></p></td>
+</tr>
+</tbody>
+</table>
 </div>
 </section>
-</section>
-<section id="features">
-<h2>Features<a class="headerlink" href="#features" title="Link to this heading">#</a></h2>
+<section id="core-maintainers">
+<h2>Core Maintainers<a class="headerlink" href="#core-maintainers" title="Link to this heading">#</a></h2>
 <ul class="simple">
-<li><p><strong>Comprehensive preprocessing</strong>: Artifact removal, channel cleaning, and data quality assessment</p></li>
-<li><p><strong>ICA-based component classification</strong>: Automatic IC labeling using ICLabel</p></li>
-<li><p><strong>BIDS compatibility</strong>: Direct support for BIDS-formatted EEG datasets</p></li>
-<li><p><strong>MNE integration</strong>: Seamless conversion between eegprep and MNE-Python formats</p></li>
-<li><p><strong>Flexible pipeline</strong>: Mix and match preprocessing steps for your specific needs</p></li>
-<li><p><strong>Well-documented</strong>: Extensive API documentation and user guides</p></li>
+<li><p><a class="reference external" href="https://arnauddelorme.com/">Arnaud Delorme</a>, UCSD, CA, USA</p></li>
+<li><p><a class="reference external" href="https://surajr.dev/">Suraj Ranganath</a>, UCSD, CA, USA</p></li>
+<li><p>Christian Kothe, Intheon, CA, USA</p></li>
+<li><p>Bruno Aristimunha Pinto, Inria, France</p></li>
 </ul>
 </section>
-<section id="quick-links">
-<h2>Quick Links<a class="headerlink" href="#quick-links" title="Link to this heading">#</a></h2>
-<ul class="simple">
-<li><p><a class="reference internal" href="api/index.html"><span class="doc">API Reference</span></a> - Complete API documentation</p></li>
-<li><p><a class="reference internal" href="user_guide/index.html"><span class="doc">User Guide</span></a> - Detailed usage guides and tutorials</p></li>
-<li><p><a class="reference internal" href="examples/index.html"><span class="doc">Examples</span></a> - Example scripts and notebooks</p></li>
-<li><p><a class="reference internal" href="contributing.html"><span class="doc">Contributing</span></a> - Contributing guidelines and code of conduct</p></li>
-<li><p><a class="reference internal" href="development.html"><span class="doc">Development</span></a> - Development setup and debugging</p></li>
-<li><p><a class="reference internal" href="faq.html"><span class="doc">FAQ</span></a> - Frequently asked questions</p></li>
-<li><p><a class="reference internal" href="references.html"><span class="doc">References</span></a> - Key publications and related tools</p></li>
-<li><p><a class="reference internal" href="changelog.html"><span class="doc">Changelog</span></a> - Version history and release notes</p></li>
-<li><p><a class="reference internal" href="glossary.html"><span class="doc">Glossary</span></a> - EEG and signal processing terminology</p></li>
-<li><p><a class="reference external" href="https://github.com/NeuroTechX/eegprep">GitHub Repository</a> - Source code and issue tracker</p></li>
-</ul>
-</section>
-<section id="indices-and-tables">
-<h2>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Link to this heading">#</a></h2>
+<section id="indices">
+<h2>Indices<a class="headerlink" href="#indices" title="Link to this heading">#</a></h2>
 <ul class="simple">
 <li><p><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></p></li>
 <li><p><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></p></li>
@@ -609,11 +740,11 @@
                   
 <div class="prev-next-area">
     <a class="right-next"
-       href="api/index.html"
+       href="user_guide/index.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">API Reference</p>
+        <p class="prev-next-title">User Guide</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -636,14 +767,13 @@
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="pst-show_toc_level nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#quick-start">Quick Start</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#installation">Installation</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#basic-usage">Basic Usage</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#manual">Manual</a><ul class="nav section-nav flex-column">
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#features">Features</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#quick-links">Quick Links</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#indices-and-tables">Indices and tables</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#five-minute-script">Five-Minute Script</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#where-eeglab-users-should-go-first">Where EEGLAB Users Should Go First</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#core-maintainers">Core Maintainers</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#indices">Indices</a></li>
 </ul>
   </nav></div>
 
@@ -660,8 +790,8 @@
   </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script defer src="_static/scripts/bootstrap.js?digest=7f76b32a3354e82990f2"></script>
-<script defer src="_static/scripts/pydata-sphinx-theme.js?digest=7f76b32a3354e82990f2"></script>
+  <script defer src="_static/scripts/bootstrap.js?digest=55c26ed414f5f8a31ebb"></script>
+<script defer src="_static/scripts/pydata-sphinx-theme.js?digest=55c26ed414f5f8a31ebb"></script>
 
   <footer class="bd-footer">
 <div class="bd-footer__inner bd-page-width">
@@ -672,7 +802,7 @@
 
   <p class="copyright">
     
-      © Copyright 2024 - , EEGPrep contributors.
+      © Copyright 2024-2026, EEGPrep contributors.
       <br/>
     
   </p>

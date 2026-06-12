@@ -38,6 +38,8 @@ The workflow includes:
 This example shows how eegprep integrates with BIDS to provide a
 standardized, reproducible preprocessing workflow.
 
+Background references include [1]_ and [2]_.
+
 References
 ----------
 .. [1] Gorgolewski, K. J., Auer, T., Calhoun, V. D., Craddock, R. C.,
@@ -49,23 +51,23 @@ References
        an extension to the brain imaging data structure for
        electroencephalography. Scientific data, 6(1), 1-5.
 
-.. GENERATED FROM PYTHON SOURCE LINES 35-37
+.. GENERATED FROM PYTHON SOURCE LINES 37-39
 
 Imports and Setup
 -----------------
 
-.. GENERATED FROM PYTHON SOURCE LINES 37-52
+.. GENERATED FROM PYTHON SOURCE LINES 39-54
 
 .. code-block:: Python
 
 
     import numpy as np
-    import matplotlib.pyplot as plt
     import tempfile
     import os
     import json
-    from pathlib import Path
     import sys
+    import shutil
+
     sys.path.insert(0, '/Users/baristim/Projects/eegprep/src')
 
     import eegprep
@@ -80,14 +82,14 @@ Imports and Setup
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 53-57
+.. GENERATED FROM PYTHON SOURCE LINES 55-59
 
 Understanding BIDS Structure
 ----------------------------
 BIDS (Brain Imaging Data Structure) organizes neuroimaging data hierarchically.
 For EEG, the structure follows a specific naming convention and directory layout.
 
-.. GENERATED FROM PYTHON SOURCE LINES 57-95
+.. GENERATED FROM PYTHON SOURCE LINES 59-97
 
 .. code-block:: Python
 
@@ -174,14 +176,14 @@ For EEG, the structure follows a specific naming convention and directory layout
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 96-100
+.. GENERATED FROM PYTHON SOURCE LINES 98-102
 
 Create a Minimal BIDS Dataset
 ------------------------------
 For demonstration, we'll create a minimal BIDS dataset structure
 with synthetic EEG data
 
-.. GENERATED FROM PYTHON SOURCE LINES 100-225
+.. GENERATED FROM PYTHON SOURCE LINES 102-239
 
 .. code-block:: Python
 
@@ -200,30 +202,14 @@ with synthetic EEG data
         "BIDSVersion": "1.9.0",
         "DatasetType": "raw",
         "License": "CC0",
-        "Authors": [
-            {
-                "Name": "Example Author",
-                "Email": "author@example.com"
-            }
-        ],
+        "Authors": [{"Name": "Example Author", "Email": "author@example.com"}],
         "Acknowledgements": "Example dataset for eegprep documentation",
         "HowToAcknowledge": "Please cite this paper: Example et al. (2024)",
-        "Funding": [
-            {
-                "Funder": "Example Foundation",
-                "Grant": "EX-12345"
-            }
-        ],
+        "Funding": [{"Funder": "Example Foundation", "Grant": "EX-12345"}],
         "EthicsApprovals": [
-            {
-                "HipApproval": True,
-                "Committee": "Example IRB",
-                "CommitteeAbbreviation": "IRB",
-                "ExpireDate": "2025-12-31"
-            }
+            {"HipApproval": True, "Committee": "Example IRB", "CommitteeAbbreviation": "IRB", "ExpireDate": "2025-12-31"}
         ],
         "ReferencesAndLinks": [],
-        "DatasetType": "raw"
     }
 
     with open(os.path.join(bids_root, 'dataset_description.json'), 'w') as f:
@@ -245,34 +231,62 @@ with synthetic EEG data
     for sub_id in ['01', '02']:
         sub_dir = os.path.join(bids_root, f'sub-{sub_id}', 'ses-01', 'eeg')
         os.makedirs(sub_dir, exist_ok=True)
-    
+
         # Define recording parameters
         n_channels = 32
         n_samples = 5000
         sfreq = 500
-    
+
         # Create channel names
         ch_names = [
-            'Fp1', 'Fpz', 'Fp2', 'F7', 'F3', 'Fz', 'F4', 'F8',
-            'T7', 'C3', 'Cz', 'C4', 'T8', 'P7', 'P3', 'Pz',
-            'P4', 'P8', 'O1', 'Oz', 'O2', 'A1', 'A2', 'M1',
-            'M2', 'Fc1', 'Fc2', 'Cp1', 'Cp2', 'Fc5', 'Fc6', 'Cp5'
+            'Fp1',
+            'Fpz',
+            'Fp2',
+            'F7',
+            'F3',
+            'Fz',
+            'F4',
+            'F8',
+            'T7',
+            'C3',
+            'Cz',
+            'C4',
+            'T8',
+            'P7',
+            'P3',
+            'Pz',
+            'P4',
+            'P8',
+            'O1',
+            'Oz',
+            'O2',
+            'A1',
+            'A2',
+            'M1',
+            'M2',
+            'Fc1',
+            'Fc2',
+            'Cp1',
+            'Cp2',
+            'Fc5',
+            'Fc6',
+            'Cp5',
         ]
-    
+
         # Create synthetic data
         np.random.seed(int(sub_id))
         data = np.random.randn(n_channels, n_samples) * 10
-    
+
         # Add alpha oscillations
         t = np.arange(n_samples) / sfreq
         for i in range(n_channels):
             alpha_freq = 10 + np.random.randn() * 0.5
             data[i, :] += 5 * np.sin(2 * np.pi * alpha_freq * t)
-    
+
         # Save as .npy for simplicity (in real BIDS, would be .edf or .bdf)
         data_file = os.path.join(sub_dir, f'sub-{sub_id}_ses-01_task-rest_eeg.npy')
         np.save(data_file, data)
-    
+
         # Create JSON sidecar with recording metadata
         eeg_json = {
             "TaskName": "rest",
@@ -282,32 +296,32 @@ with synthetic EEG data
             "EEGReference": "average",
             "EEGGround": "Fpz",
             "RecordingDuration": n_samples / sfreq,
-            "RecordingType": "continuous"
+            "RecordingType": "continuous",
         }
-    
+
         json_file = os.path.join(sub_dir, f'sub-{sub_id}_ses-01_task-rest_eeg.json')
         with open(json_file, 'w') as f:
             json.dump(eeg_json, f, indent=2)
-    
+
         # Create channels.tsv with channel information
         channels_content = "name\tx\ty\tz\tsize\n"
         for ch_name in ch_names:
             channels_content += f"{ch_name}\t0\t0\t0\t1\n"
-    
+
         channels_file = os.path.join(sub_dir, f'sub-{sub_id}_ses-01_task-rest_channels.tsv')
         with open(channels_file, 'w') as f:
             f.write(channels_content)
-    
+
         # Create events.tsv with event information
         events_content = "onset\tduration\ttrial_type\n0.0\t1.0\trest\n"
-    
+
         events_file = os.path.join(sub_dir, f'sub-{sub_id}_ses-01_task-rest_events.tsv')
         with open(events_file, 'w') as f:
             f.write(events_content)
-    
+
         print(f"  ✓ Created subject sub-{sub_id} data")
 
-    print(f"\nBIDS dataset created successfully!")
+    print("\nBIDS dataset created successfully!")
     print(f"Dataset location: {bids_root}")
 
 
@@ -321,7 +335,7 @@ with synthetic EEG data
 
     Creating minimal BIDS dataset for demonstration...
     ----------------------------------------------------------------------
-    Created temporary BIDS directory: /tmp/bids_example_1gnazxvv
+    Created temporary BIDS directory: /tmp/bids_example_4ppdr2zl
     ✓ Created dataset_description.json
     ✓ Created participants.tsv
 
@@ -330,18 +344,18 @@ with synthetic EEG data
       ✓ Created subject sub-02 data
 
     BIDS dataset created successfully!
-    Dataset location: /tmp/bids_example_1gnazxvv
+    Dataset location: /tmp/bids_example_4ppdr2zl
 
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 226-229
+.. GENERATED FROM PYTHON SOURCE LINES 240-243
 
 List BIDS Files
 ----------------
 Use bids_list_eeg_files to discover EEG files in the BIDS dataset
 
-.. GENERATED FROM PYTHON SOURCE LINES 229-250
+.. GENERATED FROM PYTHON SOURCE LINES 243-264
 
 .. code-block:: Python
 
@@ -357,7 +371,7 @@ Use bids_list_eeg_files to discover EEG files in the BIDS dataset
         for f in eeg_files:
             print(f"  - {f}")
     except Exception as e:
-        print(f"Note: bids_list_eeg_files may require specific BIDS structure")
+        print("Note: bids_list_eeg_files may require specific BIDS structure")
         print(f"Error: {e}")
         # List files manually
         print("\nManually listing EEG files:")
@@ -385,14 +399,14 @@ Use bids_list_eeg_files to discover EEG files in the BIDS dataset
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 251-255
+.. GENERATED FROM PYTHON SOURCE LINES 265-269
 
 BIDS Preprocessing Pipeline
 ----------------------------
 The bids_preproc function applies a complete preprocessing pipeline
 to BIDS-formatted data
 
-.. GENERATED FROM PYTHON SOURCE LINES 255-301
+.. GENERATED FROM PYTHON SOURCE LINES 269-315
 
 .. code-block:: Python
 
@@ -496,13 +510,13 @@ to BIDS-formatted data
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 302-305
+.. GENERATED FROM PYTHON SOURCE LINES 316-319
 
 Preprocessing Parameters
 -------------------------
 Define preprocessing parameters for the pipeline
 
-.. GENERATED FROM PYTHON SOURCE LINES 305-325
+.. GENERATED FROM PYTHON SOURCE LINES 319-339
 
 .. code-block:: Python
 
@@ -518,7 +532,7 @@ Define preprocessing parameters for the pipeline
         'asr_threshold': 20,
         'ica_method': 'picard',
         'iclabel_threshold': 0.5,
-        'verbose': False
+        'verbose': False,
     }
 
     print("\nPreprocessing Configuration:")
@@ -551,13 +565,13 @@ Define preprocessing parameters for the pipeline
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 326-329
+.. GENERATED FROM PYTHON SOURCE LINES 340-343
 
 Output Structure
 ----------------
 The bids_preproc function creates a derivatives directory with processed data
 
-.. GENERATED FROM PYTHON SOURCE LINES 329-369
+.. GENERATED FROM PYTHON SOURCE LINES 343-383
 
 .. code-block:: Python
 
@@ -649,13 +663,13 @@ The bids_preproc function creates a derivatives directory with processed data
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 370-373
+.. GENERATED FROM PYTHON SOURCE LINES 384-387
 
 BIDS Best Practices
 -------------------
 Key recommendations for BIDS-compliant preprocessing
 
-.. GENERATED FROM PYTHON SOURCE LINES 373-416
+.. GENERATED FROM PYTHON SOURCE LINES 387-430
 
 .. code-block:: Python
 
@@ -752,12 +766,12 @@ Key recommendations for BIDS-compliant preprocessing
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 417-419
+.. GENERATED FROM PYTHON SOURCE LINES 431-433
 
 Summary
 -------
 
-.. GENERATED FROM PYTHON SOURCE LINES 419-466
+.. GENERATED FROM PYTHON SOURCE LINES 433-478
 
 .. code-block:: Python
 
@@ -803,10 +817,8 @@ Summary
     print(summary)
     print("=" * 70)
 
-    # Clean up temporary directory
-    import shutil
     shutil.rmtree(bids_root)
-    print(f"\nCleaned up temporary BIDS directory")
+    print("\nCleaned up temporary BIDS directory")
 
 
 
@@ -860,7 +872,7 @@ Summary
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 467-484
+.. GENERATED FROM PYTHON SOURCE LINES 479-496
 
 Key Takeaways
 ---------------
@@ -883,7 +895,7 @@ For real BIDS datasets:
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 0.312 seconds)
+   **Total running time of the script:** (0 minutes 0.119 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_bids_pipeline.py:

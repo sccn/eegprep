@@ -9,10 +9,18 @@ All notable changes to EEGPrep are documented in this file. The format is based 
 Version History
 ===============
 
-For a complete list of releases and detailed release notes, see the `GitHub Releases <https://github.com/NeuroTechX/eegprep/releases>`_ page.
+For a complete list of releases and detailed release notes, see the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 
 Release Notes
 =============
+
+Unreleased
+----------
+
+Breaking Changes
+~~~~~~~~~~~~~~~~
+
+- ``eegprep.rmbase`` now exposes the low-level EEGLAB-style numeric baseline helper; use ``pop_rmbase`` for EEG dataset dictionaries.
 
 Version 1.0.0 (Current)
 -----------------------
@@ -26,37 +34,37 @@ Major Features
 
 - **Comprehensive Preprocessing Pipeline**: Complete suite of preprocessing tools for EEG data
 - **Artifact Removal**: Multiple algorithms for detecting and removing artifacts
-  
+
   - ASR (Artifact Subspace Reconstruction)
   - ICA-based artifact removal
   - Automatic artifact detection
 
 - **Channel Management**: Tools for channel interpolation and quality assessment
-  
+
   - Flat-line detection and removal
   - Channel interpolation using spherical spline
   - Channel quality assessment
 
 - **ICA and Component Classification**: Independent Component Analysis with automatic labeling
-  
+
   - FastICA and Infomax ICA implementations
   - ICLabel for automatic component classification
   - Component visualization and inspection
 
 - **BIDS Support**: Native support for Brain Imaging Data Structure format
-  
+
   - Load BIDS-formatted datasets
   - Save processed data in BIDS format
   - BIDS validation
 
 - **MNE Integration**: Seamless conversion between EEGPrep and MNE-Python
-  
+
   - Convert MNE Raw objects to EEGPrep
   - Convert EEGPrep to MNE format
   - Compatible with MNE analysis tools
 
 - **Data Format Support**: Multiple input/output formats
-  
+
   - EEGLAB (.set, .fdt)
   - EDF (European Data Format)
   - BrainVision (.vhdr, .vmrk, .eeg)
@@ -64,7 +72,7 @@ Major Features
   - HDF5
 
 - **Comprehensive Documentation**: Extensive user guides and API documentation
-  
+
   - User guide with tutorials
   - API reference
   - Example scripts
@@ -165,7 +173,7 @@ To set up a development environment, see the :doc:`development` guide.
 Reporting Issues
 ================
 
-Found a bug? Please report it on `GitHub Issues <https://github.com/NeuroTechX/eegprep/issues>`_.
+Found a bug? Please report it on `GitHub Issues <https://github.com/sccn/eegprep/issues>`_.
 
 When reporting issues, please include:
 
@@ -178,7 +186,8 @@ When reporting issues, please include:
 Feature Requests
 ================
 
-Have an idea for a new feature? Open a `GitHub Discussion <https://github.com/NeuroTechX/eegprep/discussions>`_ or create an issue with the "enhancement" label.
+Have an idea for a new feature? Create an issue with the "enhancement" label on
+`GitHub Issues <https://github.com/sccn/eegprep/issues>`_.
 
 When requesting features, please include:
 
@@ -221,7 +230,7 @@ Or from source:
 
 .. code-block:: bash
 
-    git pull origin main
+    git pull origin develop
     pip install -e .
 
 Checking Your Version
@@ -256,7 +265,7 @@ Special thanks to:
 
 - EEGLAB developers for pioneering EEG preprocessing
 - MNE-Python team for excellent neuroimaging tools
-- NeuroTechX community for support and contributions
+- SCCN and the EEG research community for support and contributions
 
 Getting Help
 ============
@@ -265,6 +274,6 @@ Getting Help
 - Review the :doc:`user_guide/index` for usage information
 - See :doc:`examples/index` for practical examples
 - Check :doc:`development` for development setup
-- Open an issue on `GitHub <https://github.com/NeuroTechX/eegprep/issues>`_
+- Open an issue on `GitHub <https://github.com/sccn/eegprep/issues>`_
 
-For more information, visit the `GitHub Repository <https://github.com/NeuroTechX/eegprep>`_.
+For more information, visit the `GitHub Repository <https://github.com/sccn/eegprep>`_.

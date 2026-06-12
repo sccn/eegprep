@@ -2,19 +2,19 @@
 <!DOCTYPE html>
 
 
-<html lang="en" data-content_root="../" >
+<html lang="en" data-content_root="../" data-theme="light">
 
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Configuration &#8212; eegprep 0.2.23 documentation</title>
+    <title>Configuration &#8212; EEGPrep manual</title>
   
   
   
   <script data-cfasync="false">
-    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
-    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "light";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "light";
   </script>
   <!--
     this give us a css class that will be invisible only if js is disabled
@@ -27,28 +27,29 @@
   </noscript>
   
   <!-- Loaded before other Sphinx assets -->
-  <link href="../_static/styles/theme.css?digest=7f76b32a3354e82990f2" rel="stylesheet" />
-<link href="../_static/styles/pydata-sphinx-theme.css?digest=7f76b32a3354e82990f2" rel="stylesheet" />
+  <link href="../_static/styles/theme.css?digest=55c26ed414f5f8a31ebb" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=55c26ed414f5f8a31ebb" rel="stylesheet" />
 
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
     <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
     <link rel="stylesheet" type="text/css" href="../_static/togglebutton.css?v=9c3e77be" />
-    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=d2d258e8" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=fd6457a4" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
     <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
-    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=eb9c3aa4" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=92c3505e" />
   
   <!-- So that users can add custom icons -->
-  <script defer src="../_static/scripts/fontawesome.js?digest=7f76b32a3354e82990f2"></script>
+  <script defer src="../_static/scripts/fontawesome.js?digest=55c26ed414f5f8a31ebb"></script>
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=7f76b32a3354e82990f2" />
-<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=7f76b32a3354e82990f2" />
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=55c26ed414f5f8a31ebb" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=55c26ed414f5f8a31ebb" />
 
     <script src="../_static/documentation_options.js?v=171860b8"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/sg-tags.js?v=d80f6fa4"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
     <script src="../_static/copybutton.js?v=6dbb43f8"></script>
     <script>let toggleHintShow = 'Click to show';</script>
@@ -59,10 +60,11 @@
     <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'user_guide/configuration';</script>
     <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <link rel="icon" href="../_static/logo.jpg"/>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="BIDS Workflow" href="bids_workflow.html" />
-    <link rel="prev" title="Preprocessing Pipeline" href="preprocessing_pipeline.html" />
+    <link rel="next" title="Visual Parity Testing" href="visual_parity.html" />
+    <link rel="prev" title="GUI and Help Menus" href="gui_help_menus.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2.23" />
@@ -73,7 +75,7 @@
     <script src="../searchindex.js"></script>
   
   </head>
-  <body data-default-mode="">
+  <body data-default-mode="light">
   
   
   <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
@@ -83,7 +85,9 @@
   
   <button type="button" class="btn rounded-pill" id="pst-back-to-top">
     <i class="fa-solid fa-arrow-up"></i>Back to top</button>
-
+  
+  
+  
   
   <dialog id="pst-search-dialog">
     
@@ -94,8 +98,8 @@
   <input type="search"
          class="form-control"
          name="q"
-         placeholder="Search documentation..."
-         aria-label="Search documentation..."
+         placeholder="Search the EEGPrep manual..."
+         aria-label="Search the EEGPrep manual..."
          autocomplete="off"
          autocorrect="off"
          autocapitalize="off"
@@ -130,6 +134,12 @@
   
   
   
+    
+    
+    
+    <img src="../_static/logo.jpg" class="logo__image only-light" alt=""/>
+    <img src="../_static/logo.jpg" class="logo__image only-dark pst-js-only" alt=""/>
+  
   
     <p class="title logo__title">eegprep</p>
   
@@ -145,13 +155,6 @@
 <nav>
   <ul class="bd-navbar-elements navbar-nav">
     
-<li class="nav-item ">
-  <a class="nav-link nav-internal" href="../api/index.html">
-    API Reference
-  </a>
-</li>
-
-
 <li class="nav-item current active">
   <a class="nav-link nav-internal" href="index.html">
     User Guide
@@ -167,8 +170,22 @@
 
 
 <li class="nav-item ">
-  <a class="nav-link nav-internal" href="../contributing.html">
-    Contributing to EEGPrep
+  <a class="nav-link nav-internal" href="../api/index.html">
+    API Reference
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../faq.html">
+    Frequently Asked Questions
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../glossary.html">
+    Glossary
   </a>
 </li>
 
@@ -181,20 +198,6 @@
                 <ul id="pst-nav-more-links" class="dropdown-menu">
                     
 <li class=" ">
-  <a class="nav-link dropdown-item nav-internal" href="../development.html">
-    Development Setup
-  </a>
-</li>
-
-
-<li class=" ">
-  <a class="nav-link dropdown-item nav-internal" href="../faq.html">
-    Frequently Asked Questions
-  </a>
-</li>
-
-
-<li class=" ">
   <a class="nav-link dropdown-item nav-internal" href="../references.html">
     References and Citations
   </a>
@@ -202,15 +205,22 @@
 
 
 <li class=" ">
-  <a class="nav-link dropdown-item nav-internal" href="../changelog.html">
-    Changelog
+  <a class="nav-link dropdown-item nav-internal" href="../contributing.html">
+    Contributing to EEGPrep
   </a>
 </li>
 
 
 <li class=" ">
-  <a class="nav-link dropdown-item nav-internal" href="../glossary.html">
-    Glossary
+  <a class="nav-link dropdown-item nav-internal" href="../development.html">
+    Development Setup
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../changelog.html">
+    Changelog
   </a>
 </li>
 
@@ -225,6 +235,14 @@
     
     <div class="navbar-header-items__end">
       
+      
+        <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
       
         <div class="navbar-item">
 
@@ -285,13 +303,6 @@
 <nav>
   <ul class="bd-navbar-elements navbar-nav">
     
-<li class="nav-item ">
-  <a class="nav-link nav-internal" href="../api/index.html">
-    API Reference
-  </a>
-</li>
-
-
 <li class="nav-item current active">
   <a class="nav-link nav-internal" href="index.html">
     User Guide
@@ -302,6 +313,34 @@
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../examples/index.html">
     Examples
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../api/index.html">
+    API Reference
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../faq.html">
+    Frequently Asked Questions
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../glossary.html">
+    Glossary
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../references.html">
+    References and Citations
   </a>
 </li>
 
@@ -321,29 +360,8 @@
 
 
 <li class="nav-item ">
-  <a class="nav-link nav-internal" href="../faq.html">
-    Frequently Asked Questions
-  </a>
-</li>
-
-
-<li class="nav-item ">
-  <a class="nav-link nav-internal" href="../references.html">
-    References and Citations
-  </a>
-</li>
-
-
-<li class="nav-item ">
   <a class="nav-link nav-internal" href="../changelog.html">
     Changelog
-  </a>
-</li>
-
-
-<li class="nav-item ">
-  <a class="nav-link nav-internal" href="../glossary.html">
-    Glossary
   </a>
 </li>
 
@@ -356,6 +374,14 @@
     
     
       <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
         
           <div class="navbar-item">
 
@@ -398,15 +424,43 @@
   <div class="bd-toc-item navbar-nav"><ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="concepts.html">Concepts Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="eeglab_migration.html">EEGLAB Migration Notes</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="gui_console_session.html">GUI and Console Together</a></li>
+<li class="toctree-l1"><a class="reference internal" href="gui_tutorials.html">GUI Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="interactive_console.html">Interactive Console</a></li>
+<li class="toctree-l1"><a class="reference internal" href="agent_cli.html">Agent-Friendly EEGPrep CLI</a></li>
+<li class="toctree-l1"><a class="reference internal" href="scripting_workflows.html">Scripting Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mne_integration.html">MNE-Python Integration</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="preprocessing_pipeline.html">Preprocessing Pipeline</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ica_rejection.html">ICA, ICLabel, Rejection, and Visual Diagnostics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="eegbrowser.html">EEGBrowser Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bids_workflow.html">BIDS Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="storage.html">Large-Dataset Storage</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="study_workflows.html">STUDY Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="plugins.html">Bundled Plugins and Extensions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="extensions.html">External Extensions</a></li>
+
+
+
+
+
+
+
+
+
+<li class="toctree-l1"><a class="reference internal" href="extension_curation.html">Extension Curation and Catalog Policy</a></li>
 </ul>
 <ul class="current nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="preprocessing_pipeline.html">Preprocessing Pipeline</a></li>
+<li class="toctree-l1"><a class="reference internal" href="gui_help_menus.html">GUI and Help Menus</a></li>
 <li class="toctree-l1 current active"><a class="current reference internal" href="#">Configuration</a></li>
-</ul>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="bids_workflow.html">BIDS Workflow</a></li>
-</ul>
-<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="visual_parity.html">Visual Parity Testing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="advanced_topics.html">Advanced Topics</a></li>
 </ul>
 </div>
@@ -463,555 +517,206 @@
                   
   <section id="configuration">
 <span id="id1"></span><h1>Configuration<a class="headerlink" href="#configuration" title="Link to this heading">#</a></h1>
-<p>This guide covers configuration options for eegprep, including the EEG_OPTIONS object, common parameters, and custom preprocessing chains.</p>
-<section id="eeg-options-overview">
-<h2>EEG_OPTIONS Overview<a class="headerlink" href="#eeg-options-overview" title="Link to this heading">#</a></h2>
-<p>The <a class="reference internal" href="../api/generated/eegprep.EEG_OPTIONS.html#eegprep.EEG_OPTIONS" title="eegprep.EEG_OPTIONS"><code class="xref py py-class docutils literal notranslate"><span class="pre">eegprep.EEG_OPTIONS</span></code></a> class provides a centralized way to configure eegprep behavior:</p>
+<p>EEGPrep keeps global options intentionally small. Use explicit function
+arguments for preprocessing choices, and use <code class="docutils literal notranslate"><span class="pre">EEG_OPTIONS</span></code> only for session,
+storage, compatibility, and GUI behavior that really is global.</p>
+<p><code class="docutils literal notranslate"><span class="pre">EEG_OPTIONS</span></code> is a dictionary, not a configuration object:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">EEG_OPTIONS</span>
 
-<span class="c1"># Access default options</span>
-<span class="n">options</span> <span class="o">=</span> <span class="n">EEG_OPTIONS</span><span class="p">()</span>
-
-<span class="c1"># View all options</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">options</span><span class="p">)</span>
-
-<span class="c1"># Modify options</span>
-<span class="n">options</span><span class="o">.</span><span class="n">ica_method</span> <span class="o">=</span> <span class="s1">&#39;picard&#39;</span>
-<span class="n">options</span><span class="o">.</span><span class="n">asr_criterion</span> <span class="o">=</span> <span class="mi">20</span>
+<span class="nb">print</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="n">EEG_OPTIONS</span><span class="p">))</span>
+<span class="n">EEG_OPTIONS</span><span class="p">[</span><span class="s2">&quot;option_allmenus&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="n">EEG_OPTIONS</span><span class="p">[</span><span class="s2">&quot;option_savetwofiles&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
 </pre></div>
 </div>
+<p>Save the previous values when a script changes global options:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">EEG_OPTIONS</span>
+
+<span class="n">old_options</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">EEG_OPTIONS</span><span class="p">)</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="n">EEG_OPTIONS</span><span class="p">[</span><span class="s2">&quot;option_memmapdata&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="c1"># Load or save datasets here.</span>
+<span class="k">finally</span><span class="p">:</span>
+    <span class="n">EEG_OPTIONS</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+    <span class="n">EEG_OPTIONS</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">old_options</span><span class="p">)</span>
+</pre></div>
+</div>
+<section id="common-global-options">
+<h2>Common Global Options<a class="headerlink" href="#common-global-options" title="Link to this heading">#</a></h2>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Key</p></th>
+<th class="head"><p>Effect</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">option_allmenus</span></code></p></td>
+<td><p>Show advanced and legacy menu entries in the main GUI.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">option_storedisk</span></code></p></td>
+<td><p>Keep saved non-current <code class="docutils literal notranslate"><span class="pre">ALLEEG</span></code> datasets on disk to reduce memory use.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">option_savetwofiles</span></code></p></td>
+<td><p>Make <code class="docutils literal notranslate"><span class="pre">pop_saveset</span></code> write a <code class="docutils literal notranslate"><span class="pre">.set</span></code> header plus <code class="docutils literal notranslate"><span class="pre">.fdt</span></code> sidecar by
+default.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">option_memmapdata</span></code></p></td>
+<td><p>Memory-map two-file <code class="docutils literal notranslate"><span class="pre">.fdt</span></code> data when loading with <code class="docutils literal notranslate"><span class="pre">pop_loadset</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">option_boundary99</span></code></p></td>
+<td><p>Treat numeric <code class="docutils literal notranslate"><span class="pre">-99</span></code> events as boundary events for ERPLAB-style data.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">option_computeica</span></code></p></td>
+<td><p>Precompute ICA activations where supported.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">option_scaleicarms</span></code></p></td>
+<td><p>Scale ICA component activations to RMS microvolt during checkset paths.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">option_cachesize</span></code></p></td>
+<td><p>STUDY cache size in MB for implemented STUDY measure workflows.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>For storage details, see <a class="reference internal" href="storage.html#large-dataset-storage"><span class="std std-ref">Large-Dataset Storage</span></a>.</p>
 </section>
-<section id="common-configuration-parameters">
-<h2>Common Configuration Parameters<a class="headerlink" href="#common-configuration-parameters" title="Link to this heading">#</a></h2>
+<section id="set-options-from-gui-or-console">
+<h2>Set Options From GUI or Console<a class="headerlink" href="#set-options-from-gui-or-console" title="Link to this heading">#</a></h2>
+<p>Use the Options menu in the GUI, or call <code class="docutils literal notranslate"><span class="pre">pop_editoptions</span></code> from
+<code class="docutils literal notranslate"><span class="pre">eegprep-console</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">EEG_OPTIONS</span><span class="p">,</span> <span class="n">pop_editoptions</span>
+
+<span class="n">com</span> <span class="o">=</span> <span class="n">pop_editoptions</span><span class="p">(</span><span class="n">option_allmenus</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">option_savetwofiles</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">com</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">EEG_OPTIONS</span><span class="p">[</span><span class="s2">&quot;option_allmenus&quot;</span><span class="p">])</span>
+</pre></div>
+</div>
+<p>In a shared GUI/console session, the menu refresh uses the same
+<code class="docutils literal notranslate"><span class="pre">EEG_OPTIONS</span></code> dictionary.</p>
+</section>
 <section id="preprocessing-parameters">
-<h3>Preprocessing Parameters<a class="headerlink" href="#preprocessing-parameters" title="Link to this heading">#</a></h3>
-<p><strong>Artifact Detection</strong></p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">EEG_OPTIONS</span>
+<h2>Preprocessing Parameters<a class="headerlink" href="#preprocessing-parameters" title="Link to this heading">#</a></h2>
+<p>Most analysis choices are ordinary function arguments. This keeps scripts
+readable and prevents hidden global state from changing scientific results.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 
-<span class="n">options</span> <span class="o">=</span> <span class="n">EEG_OPTIONS</span><span class="p">()</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_clean_rawdata</span><span class="p">,</span> <span class="n">pop_eegfiltnew</span><span class="p">,</span> <span class="n">pop_loadset</span><span class="p">,</span> <span class="n">pop_resample</span>
 
-<span class="c1"># Flatline detection</span>
-<span class="n">options</span><span class="o">.</span><span class="n">flatline_criterion</span> <span class="o">=</span> <span class="mi">5</span>  <span class="c1"># Duration in seconds</span>
+<span class="n">EEG</span> <span class="o">=</span> <span class="n">pop_loadset</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="s2">&quot;sample_data&quot;</span><span class="p">)</span> <span class="o">/</span> <span class="s2">&quot;eeglab_data.set&quot;</span><span class="p">)</span>
 
-<span class="c1"># ASR (Artifact Subspace Reconstruction)</span>
-<span class="n">options</span><span class="o">.</span><span class="n">asr_criterion</span> <span class="o">=</span> <span class="mi">20</span>      <span class="c1"># Standard deviation threshold</span>
-<span class="n">options</span><span class="o">.</span><span class="n">asr_wlen</span> <span class="o">=</span> <span class="mf">0.5</span>          <span class="c1"># Window length in seconds</span>
-
-<span class="c1"># Channel noise detection</span>
-<span class="n">options</span><span class="o">.</span><span class="n">ransac_criterion</span> <span class="o">=</span> <span class="mf">0.8</span>  <span class="c1"># Correlation threshold</span>
-<span class="n">options</span><span class="o">.</span><span class="n">max_broken_time</span> <span class="o">=</span> <span class="mf">0.5</span>   <span class="c1"># Max proportion of broken time</span>
-</pre></div>
-</div>
-<p><strong>Filtering</strong></p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># High-pass filter</span>
-<span class="n">options</span><span class="o">.</span><span class="n">highpass</span> <span class="o">=</span> <span class="mi">1</span>            <span class="c1"># Frequency in Hz</span>
-
-<span class="c1"># Low-pass filter</span>
-<span class="n">options</span><span class="o">.</span><span class="n">lowpass</span> <span class="o">=</span> <span class="mi">100</span>           <span class="c1"># Frequency in Hz</span>
-
-<span class="c1"># Filter order</span>
-<span class="n">options</span><span class="o">.</span><span class="n">filter_order</span> <span class="o">=</span> <span class="mi">4</span>        <span class="c1"># FIR filter order</span>
-</pre></div>
-</div>
-<p><strong>Resampling</strong></p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Target sampling rate</span>
-<span class="n">options</span><span class="o">.</span><span class="n">resample_rate</span> <span class="o">=</span> <span class="mi">250</span>     <span class="c1"># Hz</span>
-</pre></div>
-</div>
-<p><strong>ICA</strong></p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># ICA method</span>
-<span class="n">options</span><span class="o">.</span><span class="n">ica_method</span> <span class="o">=</span> <span class="s1">&#39;picard&#39;</span>   <span class="c1"># &#39;picard&#39; or &#39;infomax&#39;</span>
-
-<span class="c1"># Number of components</span>
-<span class="n">options</span><span class="o">.</span><span class="n">ica_ncomps</span> <span class="o">=</span> <span class="kc">None</span>       <span class="c1"># None = number of channels</span>
-
-<span class="c1"># Maximum iterations</span>
-<span class="n">options</span><span class="o">.</span><span class="n">ica_max_iter</span> <span class="o">=</span> <span class="mi">500</span>
-</pre></div>
-</div>
-<p><strong>Component Classification</strong></p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Use ICLabel for component classification</span>
-<span class="n">options</span><span class="o">.</span><span class="n">use_iclabel</span> <span class="o">=</span> <span class="kc">True</span>
-
-<span class="c1"># ICLabel threshold for artifact removal</span>
-<span class="n">options</span><span class="o">.</span><span class="n">iclabel_threshold</span> <span class="o">=</span> <span class="mf">0.5</span>
-</pre></div>
-</div>
-</section>
-<section id="reference-and-re-referencing">
-<h3>Reference and Re-referencing<a class="headerlink" href="#reference-and-re-referencing" title="Link to this heading">#</a></h3>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Reference type</span>
-<span class="n">options</span><span class="o">.</span><span class="n">reference</span> <span class="o">=</span> <span class="s1">&#39;average&#39;</span>   <span class="c1"># &#39;average&#39;, &#39;common&#39;, or channel name</span>
-
-<span class="c1"># Exclude channels from reference</span>
-<span class="n">options</span><span class="o">.</span><span class="n">reference_exclude</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;HEOG&#39;</span><span class="p">,</span> <span class="s1">&#39;VEOG&#39;</span><span class="p">]</span>
-</pre></div>
-</div>
-</section>
-<section id="data-handling">
-<h3>Data Handling<a class="headerlink" href="#data-handling" title="Link to this heading">#</a></h3>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Memory mode</span>
-<span class="n">options</span><span class="o">.</span><span class="n">memory_mode</span> <span class="o">=</span> <span class="s1">&#39;disk&#39;</span>    <span class="c1"># &#39;memory&#39; or &#39;disk&#39;</span>
-
-<span class="c1"># Verbose output</span>
-<span class="n">options</span><span class="o">.</span><span class="n">verbose</span> <span class="o">=</span> <span class="kc">True</span>
-
-<span class="c1"># Random seed for reproducibility</span>
-<span class="n">options</span><span class="o">.</span><span class="n">random_seed</span> <span class="o">=</span> <span class="mi">42</span>
-</pre></div>
-</div>
-</section>
-</section>
-<section id="creating-custom-preprocessing-chains">
-<h2>Creating Custom Preprocessing Chains<a class="headerlink" href="#creating-custom-preprocessing-chains" title="Link to this heading">#</a></h2>
-<section id="using-configuration-objects">
-<h3>Using Configuration Objects<a class="headerlink" href="#using-configuration-objects" title="Link to this heading">#</a></h3>
-<p>Create a custom configuration for your preprocessing:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">EEG_OPTIONS</span><span class="p">,</span> <span class="n">clean_artifacts</span>
-
-<span class="c1"># Create custom options</span>
-<span class="n">custom_options</span> <span class="o">=</span> <span class="n">EEG_OPTIONS</span><span class="p">()</span>
-<span class="n">custom_options</span><span class="o">.</span><span class="n">highpass</span> <span class="o">=</span> <span class="mf">0.5</span>
-<span class="n">custom_options</span><span class="o">.</span><span class="n">lowpass</span> <span class="o">=</span> <span class="mi">50</span>
-<span class="n">custom_options</span><span class="o">.</span><span class="n">asr_criterion</span> <span class="o">=</span> <span class="mi">15</span>
-<span class="n">custom_options</span><span class="o">.</span><span class="n">ica_method</span> <span class="o">=</span> <span class="s1">&#39;picard&#39;</span>
-
-<span class="c1"># Use custom options in preprocessing</span>
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">clean_artifacts</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="n">custom_options</span><span class="p">)</span>
-</pre></div>
-</div>
-</section>
-<section id="preprocessing-presets">
-<h3>Preprocessing Presets<a class="headerlink" href="#preprocessing-presets" title="Link to this heading">#</a></h3>
-<p>Create preset configurations for different use cases:</p>
-<p><strong>Resting State EEG</strong></p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">EEG_OPTIONS</span>
-
-<span class="k">def</span><span class="w"> </span><span class="nf">get_resting_state_options</span><span class="p">():</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Configuration for resting state EEG preprocessing&quot;&quot;&quot;</span>
-    <span class="n">options</span> <span class="o">=</span> <span class="n">EEG_OPTIONS</span><span class="p">()</span>
-    <span class="n">options</span><span class="o">.</span><span class="n">highpass</span> <span class="o">=</span> <span class="mi">1</span>
-    <span class="n">options</span><span class="o">.</span><span class="n">lowpass</span> <span class="o">=</span> <span class="mi">100</span>
-    <span class="n">options</span><span class="o">.</span><span class="n">asr_criterion</span> <span class="o">=</span> <span class="mi">20</span>
-    <span class="n">options</span><span class="o">.</span><span class="n">ica_method</span> <span class="o">=</span> <span class="s1">&#39;picard&#39;</span>
-    <span class="n">options</span><span class="o">.</span><span class="n">use_iclabel</span> <span class="o">=</span> <span class="kc">True</span>
-    <span class="k">return</span> <span class="n">options</span>
-
-<span class="c1"># Use preset</span>
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">clean_artifacts</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="n">get_resting_state_options</span><span class="p">())</span>
-</pre></div>
-</div>
-<p><strong>Event-Related Potentials (ERP)</strong></p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">EEG_OPTIONS</span>
-
-<span class="k">def</span><span class="w"> </span><span class="nf">get_erp_options</span><span class="p">():</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Configuration for ERP preprocessing&quot;&quot;&quot;</span>
-    <span class="n">options</span> <span class="o">=</span> <span class="n">EEG_OPTIONS</span><span class="p">()</span>
-    <span class="n">options</span><span class="o">.</span><span class="n">highpass</span> <span class="o">=</span> <span class="mf">0.1</span>
-    <span class="n">options</span><span class="o">.</span><span class="n">lowpass</span> <span class="o">=</span> <span class="mi">30</span>
-    <span class="n">options</span><span class="o">.</span><span class="n">asr_criterion</span> <span class="o">=</span> <span class="mi">15</span>
-    <span class="n">options</span><span class="o">.</span><span class="n">ica_method</span> <span class="o">=</span> <span class="s1">&#39;picard&#39;</span>
-    <span class="n">options</span><span class="o">.</span><span class="n">use_iclabel</span> <span class="o">=</span> <span class="kc">True</span>
-    <span class="k">return</span> <span class="n">options</span>
-
-<span class="c1"># Use preset</span>
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">clean_artifacts</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="n">get_erp_options</span><span class="p">())</span>
-</pre></div>
-</div>
-<p><strong>High-Frequency Activity</strong></p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">EEG_OPTIONS</span>
-
-<span class="k">def</span><span class="w"> </span><span class="nf">get_hfa_options</span><span class="p">():</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Configuration for high-frequency activity analysis&quot;&quot;&quot;</span>
-    <span class="n">options</span> <span class="o">=</span> <span class="n">EEG_OPTIONS</span><span class="p">()</span>
-    <span class="n">options</span><span class="o">.</span><span class="n">highpass</span> <span class="o">=</span> <span class="mi">1</span>
-    <span class="n">options</span><span class="o">.</span><span class="n">lowpass</span> <span class="o">=</span> <span class="mi">200</span>
-    <span class="n">options</span><span class="o">.</span><span class="n">asr_criterion</span> <span class="o">=</span> <span class="mi">25</span>
-    <span class="n">options</span><span class="o">.</span><span class="n">resample_rate</span> <span class="o">=</span> <span class="mi">500</span>
-    <span class="n">options</span><span class="o">.</span><span class="n">ica_method</span> <span class="o">=</span> <span class="s1">&#39;picard&#39;</span>
-    <span class="k">return</span> <span class="n">options</span>
-
-<span class="c1"># Use preset</span>
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">clean_artifacts</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="n">get_hfa_options</span><span class="p">())</span>
-</pre></div>
-</div>
-<p><strong>Clinical EEG</strong></p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">EEG_OPTIONS</span>
-
-<span class="k">def</span><span class="w"> </span><span class="nf">get_clinical_options</span><span class="p">():</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Configuration for clinical EEG preprocessing&quot;&quot;&quot;</span>
-    <span class="n">options</span> <span class="o">=</span> <span class="n">EEG_OPTIONS</span><span class="p">()</span>
-    <span class="n">options</span><span class="o">.</span><span class="n">highpass</span> <span class="o">=</span> <span class="mf">0.5</span>
-    <span class="n">options</span><span class="o">.</span><span class="n">lowpass</span> <span class="o">=</span> <span class="mi">70</span>
-    <span class="n">options</span><span class="o">.</span><span class="n">asr_criterion</span> <span class="o">=</span> <span class="mi">20</span>
-    <span class="n">options</span><span class="o">.</span><span class="n">flatline_criterion</span> <span class="o">=</span> <span class="mi">10</span>
-    <span class="n">options</span><span class="o">.</span><span class="n">ica_method</span> <span class="o">=</span> <span class="s1">&#39;picard&#39;</span>
-    <span class="n">options</span><span class="o">.</span><span class="n">use_iclabel</span> <span class="o">=</span> <span class="kc">True</span>
-    <span class="k">return</span> <span class="n">options</span>
-
-<span class="c1"># Use preset</span>
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">clean_artifacts</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="n">get_clinical_options</span><span class="p">())</span>
-</pre></div>
-</div>
-</section>
-<section id="custom-preprocessing-functions">
-<h3>Custom Preprocessing Functions<a class="headerlink" href="#custom-preprocessing-functions" title="Link to this heading">#</a></h3>
-<p>Create custom preprocessing functions:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
-    <span class="n">clean_flatlines</span><span class="p">,</span>
-    <span class="n">clean_channels</span><span class="p">,</span>
-    <span class="n">pop_resample</span><span class="p">,</span>
-    <span class="n">pop_eegfiltnew</span><span class="p">,</span>
-    <span class="n">eeg_picard</span><span class="p">,</span>
-    <span class="n">iclabel</span>
-<span class="p">)</span>
-
-<span class="k">def</span><span class="w"> </span><span class="nf">custom_preprocessing_pipeline</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Custom preprocessing pipeline&quot;&quot;&quot;</span>
-
-    <span class="c1"># Step 1: Remove flatlines</span>
-    <span class="n">eeg</span> <span class="o">=</span> <span class="n">clean_flatlines</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="n">flatline_criterion</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
-
-    <span class="c1"># Step 2: Remove noisy channels</span>
-    <span class="n">eeg</span> <span class="o">=</span> <span class="n">clean_channels</span><span class="p">(</span><span class="n">eeg</span><span class="p">)</span>
-
-    <span class="c1"># Step 3: Resample</span>
-    <span class="n">eeg</span> <span class="o">=</span> <span class="n">pop_resample</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="mi">250</span><span class="p">)</span>
-
-    <span class="c1"># Step 4: Filter</span>
-    <span class="n">eeg</span> <span class="o">=</span> <span class="n">pop_eegfiltnew</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="n">locutoff</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">hicutoff</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
-
-    <span class="c1"># Step 5: ICA</span>
-    <span class="n">eeg</span> <span class="o">=</span> <span class="n">eeg_picard</span><span class="p">(</span><span class="n">eeg</span><span class="p">)</span>
-
-    <span class="c1"># Step 6: Component classification</span>
-    <span class="n">eeg</span> <span class="o">=</span> <span class="n">iclabel</span><span class="p">(</span><span class="n">eeg</span><span class="p">)</span>
-
-    <span class="k">return</span> <span class="n">eeg</span>
-
-<span class="c1"># Use custom pipeline</span>
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">custom_preprocessing_pipeline</span><span class="p">(</span><span class="n">eeg</span><span class="p">)</span>
-</pre></div>
-</div>
-</section>
-</section>
-<section id="advanced-settings">
-<h2>Advanced Settings<a class="headerlink" href="#advanced-settings" title="Link to this heading">#</a></h2>
-<section id="ica-configuration">
-<h3>ICA Configuration<a class="headerlink" href="#ica-configuration" title="Link to this heading">#</a></h3>
-<p><strong>Picard Algorithm</strong></p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">eeg_picard</span>
-
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">eeg_picard</span><span class="p">(</span>
-    <span class="n">eeg</span><span class="p">,</span>
-    <span class="n">ncomps</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>        <span class="c1"># Number of components</span>
-    <span class="n">max_iter</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span>       <span class="c1"># Maximum iterations</span>
-    <span class="n">tol</span><span class="o">=</span><span class="mf">1e-7</span><span class="p">,</span>          <span class="c1"># Convergence tolerance</span>
-    <span class="n">ortho</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>        <span class="c1"># Orthogonalize components</span>
-    <span class="n">extended</span><span class="o">=</span><span class="kc">False</span>     <span class="c1"># Extended ICA</span>
-<span class="p">)</span>
-</pre></div>
-</div>
-<p><strong>Infomax Algorithm</strong></p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">eeg_picard</span>
-
-<span class="c1"># Picard is recommended, but you can adjust parameters</span>
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">eeg_picard</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="n">ncomps</span><span class="o">=</span><span class="n">eeg</span><span class="o">.</span><span class="n">nbchan</span><span class="p">)</span>
-</pre></div>
-</div>
-</section>
-<section id="asr-configuration">
-<h3>ASR Configuration<a class="headerlink" href="#asr-configuration" title="Link to this heading">#</a></h3>
-<p><strong>Standard ASR</strong></p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">clean_asr</span>
-
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">clean_asr</span><span class="p">(</span>
-    <span class="n">eeg</span><span class="p">,</span>
-    <span class="n">asr_criterion</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>   <span class="c1"># Standard deviation threshold</span>
-    <span class="n">asr_wlen</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>      <span class="c1"># Window length in seconds</span>
-    <span class="n">asr_overlap</span><span class="o">=</span><span class="mf">0.5</span>    <span class="c1"># Window overlap</span>
-<span class="p">)</span>
-</pre></div>
-</div>
-<p><strong>Aggressive ASR</strong></p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">clean_asr</span>
-
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">clean_asr</span><span class="p">(</span>
-    <span class="n">eeg</span><span class="p">,</span>
-    <span class="n">asr_criterion</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>   <span class="c1"># Lower threshold = more aggressive</span>
-    <span class="n">asr_wlen</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
-    <span class="n">asr_overlap</span><span class="o">=</span><span class="mf">0.5</span>
-<span class="p">)</span>
-</pre></div>
-</div>
-<p><strong>Conservative ASR</strong></p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">clean_asr</span>
-
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">clean_asr</span><span class="p">(</span>
-    <span class="n">eeg</span><span class="p">,</span>
-    <span class="n">asr_criterion</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>   <span class="c1"># Higher threshold = more conservative</span>
-    <span class="n">asr_wlen</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
-    <span class="n">asr_overlap</span><span class="o">=</span><span class="mf">0.5</span>
-<span class="p">)</span>
-</pre></div>
-</div>
-</section>
-<section id="filter-configuration">
-<h3>Filter Configuration<a class="headerlink" href="#filter-configuration" title="Link to this heading">#</a></h3>
-<p><strong>FIR Filters</strong></p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_eegfiltnew</span>
-
-<span class="c1"># FIR filter (default)</span>
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">pop_eegfiltnew</span><span class="p">(</span>
-    <span class="n">eeg</span><span class="p">,</span>
+<span class="n">EEG</span><span class="p">,</span> <span class="n">filter_com</span> <span class="o">=</span> <span class="n">pop_eegfiltnew</span><span class="p">(</span>
+    <span class="n">EEG</span><span class="p">,</span>
     <span class="n">locutoff</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
-    <span class="n">hicutoff</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span>
-    <span class="n">filtorder</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>  <span class="c1"># Filter order</span>
-    <span class="n">revfilt</span><span class="o">=</span><span class="mi">0</span>     <span class="c1"># Forward filter</span>
+    <span class="n">hicutoff</span><span class="o">=</span><span class="mi">40</span><span class="p">,</span>
+    <span class="n">plotfreqz</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">EEG</span><span class="p">,</span> <span class="n">resample_com</span> <span class="o">=</span> <span class="n">pop_resample</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">EEG</span><span class="p">,</span> <span class="n">clean_com</span> <span class="o">=</span> <span class="n">pop_clean_rawdata</span><span class="p">(</span>
+    <span class="n">EEG</span><span class="p">,</span>
+    <span class="n">FlatlineCriterion</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+    <span class="n">ChannelCriterion</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span>
+    <span class="n">LineNoiseCriterion</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
+    <span class="n">Highpass</span><span class="o">=</span><span class="p">(</span><span class="mf">0.25</span><span class="p">,</span> <span class="mf">0.75</span><span class="p">),</span>
+    <span class="n">BurstCriterion</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>
+    <span class="n">WindowCriterion</span><span class="o">=</span><span class="mf">0.25</span><span class="p">,</span>
+    <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">history</span> <span class="o">=</span> <span class="p">[</span><span class="n">filter_com</span><span class="p">,</span> <span class="n">resample_com</span><span class="p">,</span> <span class="n">clean_com</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>The same rule applies to ICA, ICLabel, and BIDS preprocessing:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">bids_preproc</span><span class="p">,</span> <span class="n">pop_iclabel</span><span class="p">,</span> <span class="n">pop_runica</span>
+
+<span class="n">EEG</span><span class="p">,</span> <span class="n">ica_com</span> <span class="o">=</span> <span class="n">pop_runica</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="n">icatype</span><span class="o">=</span><span class="s2">&quot;picard&quot;</span><span class="p">,</span> <span class="n">gui</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">EEG</span><span class="p">,</span> <span class="n">label_com</span> <span class="o">=</span> <span class="n">pop_iclabel</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="s2">&quot;default&quot;</span><span class="p">,</span> <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="n">bids_preproc</span><span class="p">(</span>
+    <span class="s2">&quot;/path/to/bids-root&quot;</span><span class="p">,</span>
+    <span class="n">OutputDir</span><span class="o">=</span><span class="s2">&quot;/path/to/bids-root/derivatives/eegprep&quot;</span><span class="p">,</span>
+    <span class="n">Subjects</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;01&quot;</span><span class="p">],</span>
+    <span class="n">Tasks</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;rest&quot;</span><span class="p">],</span>
+    <span class="n">WithInterp</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">WithICA</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">NumJobs</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
 <span class="p">)</span>
 </pre></div>
 </div>
-<p><strong>IIR Filters</strong></p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_eegfiltnew</span>
-
-<span class="c1"># IIR filter</span>
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">pop_eegfiltnew</span><span class="p">(</span>
-    <span class="n">eeg</span><span class="p">,</span>
-    <span class="n">locutoff</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
-    <span class="n">hicutoff</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span>
-    <span class="n">filtorder</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
-    <span class="n">revfilt</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
-    <span class="n">iir</span><span class="o">=</span><span class="kc">True</span>  <span class="c1"># Use IIR filter</span>
-<span class="p">)</span>
-</pre></div>
-</div>
 </section>
-<section id="resampling-configuration">
-<h3>Resampling Configuration<a class="headerlink" href="#resampling-configuration" title="Link to this heading">#</a></h3>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_resample</span>
-
-<span class="c1"># Resample to 250 Hz</span>
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">pop_resample</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="mi">250</span><span class="p">)</span>
-
-<span class="c1"># Resample with specific method</span>
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">pop_resample</span><span class="p">(</span>
-    <span class="n">eeg</span><span class="p">,</span>
-    <span class="n">newrate</span><span class="o">=</span><span class="mi">250</span><span class="p">,</span>
-    <span class="n">method</span><span class="o">=</span><span class="s1">&#39;sinc&#39;</span>  <span class="c1"># Sinc interpolation</span>
-<span class="p">)</span>
-</pre></div>
-</div>
-</section>
-</section>
-<section id="configuration-files">
-<h2>Configuration Files<a class="headerlink" href="#configuration-files" title="Link to this heading">#</a></h2>
-<section id="saving-configuration">
-<h3>Saving Configuration<a class="headerlink" href="#saving-configuration" title="Link to this heading">#</a></h3>
-<p>Save your configuration to a file:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">EEG_OPTIONS</span>
-
-<span class="c1"># Create configuration</span>
-<span class="n">config</span> <span class="o">=</span> <span class="p">{</span>
-    <span class="s1">&#39;highpass&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
-    <span class="s1">&#39;lowpass&#39;</span><span class="p">:</span> <span class="mi">100</span><span class="p">,</span>
-    <span class="s1">&#39;asr_criterion&#39;</span><span class="p">:</span> <span class="mi">20</span><span class="p">,</span>
-    <span class="s1">&#39;ica_method&#39;</span><span class="p">:</span> <span class="s1">&#39;picard&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;use_iclabel&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
-    <span class="s1">&#39;resample_rate&#39;</span><span class="p">:</span> <span class="mi">250</span>
+<section id="reusable-presets">
+<h2>Reusable Presets<a class="headerlink" href="#reusable-presets" title="Link to this heading">#</a></h2>
+<p>Represent lab presets as plain dictionaries and pass them explicitly:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">CLEANING_PRESETS</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;resting&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;FlatlineCriterion&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>
+        <span class="s2">&quot;ChannelCriterion&quot;</span><span class="p">:</span> <span class="mf">0.8</span><span class="p">,</span>
+        <span class="s2">&quot;LineNoiseCriterion&quot;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>
+        <span class="s2">&quot;Highpass&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">0.25</span><span class="p">,</span> <span class="mf">0.75</span><span class="p">),</span>
+        <span class="s2">&quot;BurstCriterion&quot;</span><span class="p">:</span> <span class="mi">20</span><span class="p">,</span>
+        <span class="s2">&quot;WindowCriterion&quot;</span><span class="p">:</span> <span class="mf">0.25</span><span class="p">,</span>
+    <span class="p">},</span>
+    <span class="s2">&quot;erp&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;FlatlineCriterion&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>
+        <span class="s2">&quot;ChannelCriterion&quot;</span><span class="p">:</span> <span class="mf">0.85</span><span class="p">,</span>
+        <span class="s2">&quot;LineNoiseCriterion&quot;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>
+        <span class="s2">&quot;Highpass&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">),</span>
+        <span class="s2">&quot;BurstCriterion&quot;</span><span class="p">:</span> <span class="mi">20</span><span class="p">,</span>
+        <span class="s2">&quot;WindowCriterion&quot;</span><span class="p">:</span> <span class="mf">0.25</span><span class="p">,</span>
+    <span class="p">},</span>
 <span class="p">}</span>
 
-<span class="c1"># Save to JSON</span>
-<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s1">&#39;preprocessing_config.json&#39;</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-    <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">EEG</span><span class="p">,</span> <span class="n">com</span> <span class="o">=</span> <span class="n">pop_clean_rawdata</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="o">**</span><span class="n">CLEANING_PRESETS</span><span class="p">[</span><span class="s2">&quot;resting&quot;</span><span class="p">],</span> <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>Keep these preset dictionaries in your lab package, notebook, or analysis repo
+so parameter changes are version-controlled with the study.</p>
 </section>
-<section id="loading-configuration">
-<h3>Loading Configuration<a class="headerlink" href="#loading-configuration" title="Link to this heading">#</a></h3>
-<p>Load configuration from a file:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">EEG_OPTIONS</span><span class="p">,</span> <span class="n">clean_artifacts</span>
-
-<span class="c1"># Load configuration</span>
-<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s1">&#39;preprocessing_config.json&#39;</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-    <span class="n">config</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
-
-<span class="c1"># Create options from configuration</span>
-<span class="n">options</span> <span class="o">=</span> <span class="n">EEG_OPTIONS</span><span class="p">()</span>
-<span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">config</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-    <span class="nb">setattr</span><span class="p">(</span><span class="n">options</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
-
-<span class="c1"># Use configuration</span>
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">clean_artifacts</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="n">options</span><span class="p">)</span>
-</pre></div>
+<section id="when-to-use-which-surface">
+<h2>When to Use Which Surface<a class="headerlink" href="#when-to-use-which-surface" title="Link to this heading">#</a></h2>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Need</p></th>
+<th class="head"><p>Use</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Change menu visibility or storage behavior</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">EEG_OPTIONS</span></code> or <code class="docutils literal notranslate"><span class="pre">pop_editoptions</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Change filtering, cleaning, resampling, ICA, ICLabel, or BIDS behavior</p></td>
+<td><p>Explicit function arguments.</p></td>
+</tr>
+<tr class="row-even"><td><p>Record replayable commands</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">return_com=True</span></code> and keep the returned command strings.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Share settings across scripts</p></td>
+<td><p>A normal Python dictionary or module constant in your analysis code.</p></td>
+</tr>
+<tr class="row-even"><td><p>Use the same state model as the GUI</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">EEGPrepSession</span></code>; see <a class="reference internal" href="gui_console_session.html#gui-console-session"><span class="std std-ref">GUI and Console Together</span></a>.</p></td>
+</tr>
+</tbody>
+</table>
 </div>
 </section>
-<section id="example-configuration-files">
-<h3>Example Configuration Files<a class="headerlink" href="#example-configuration-files" title="Link to this heading">#</a></h3>
-<p><strong>resting_state_config.json</strong></p>
-<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
-<span class="w">    </span><span class="nt">&quot;highpass&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;lowpass&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">100</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;asr_criterion&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">20</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;asr_wlen&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.5</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;flatline_criterion&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;ransac_criterion&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.8</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;ica_method&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;picard&quot;</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;ica_ncomps&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;use_iclabel&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;resample_rate&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">250</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;reference&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;average&quot;</span>
-<span class="p">}</span>
-</pre></div>
-</div>
-<p><strong>erp_config.json</strong></p>
-<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
-<span class="w">    </span><span class="nt">&quot;highpass&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.1</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;lowpass&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;asr_criterion&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">15</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;asr_wlen&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.5</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;flatline_criterion&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;ica_method&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;picard&quot;</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;use_iclabel&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;resample_rate&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">250</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;reference&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;average&quot;</span>
-<span class="p">}</span>
-</pre></div>
-</div>
+<section id="troubleshooting">
+<h2>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading">#</a></h2>
+<section id="option-did-not-affect-a-processing-step">
+<h3>Option Did Not Affect a Processing Step<a class="headerlink" href="#option-did-not-affect-a-processing-step" title="Link to this heading">#</a></h3>
+<p>Check whether the function actually reads <code class="docutils literal notranslate"><span class="pre">EEG_OPTIONS</span></code>. Most processing
+functions are configured through explicit keyword arguments.</p>
 </section>
+<section id="memory-mapped-loading-did-not-happen">
+<h3>Memory-Mapped Loading Did Not Happen<a class="headerlink" href="#memory-mapped-loading-did-not-happen" title="Link to this heading">#</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">option_memmapdata</span></code> applies to two-file <code class="docutils literal notranslate"><span class="pre">.set</span></code>/<code class="docutils literal notranslate"><span class="pre">.fdt</span></code> datasets. Save with
+<code class="docutils literal notranslate"><span class="pre">savemode=&quot;twofiles&quot;</span></code> or set <code class="docutils literal notranslate"><span class="pre">option_savetwofiles</span></code> before saving, then load
+again with <code class="docutils literal notranslate"><span class="pre">option_memmapdata</span></code> enabled.</p>
 </section>
-<section id="parameter-recommendations">
-<h2>Parameter Recommendations<a class="headerlink" href="#parameter-recommendations" title="Link to this heading">#</a></h2>
-<section id="by-data-type">
-<h3>By Data Type<a class="headerlink" href="#by-data-type" title="Link to this heading">#</a></h3>
-<p><strong>Resting State EEG</strong></p>
-<ul class="simple">
-<li><p>Highpass: 1 Hz</p></li>
-<li><p>Lowpass: 100 Hz</p></li>
-<li><p>ASR criterion: 20</p></li>
-<li><p>Resample: 250 Hz</p></li>
-</ul>
-<p><strong>Event-Related Potentials (ERP)</strong></p>
-<ul class="simple">
-<li><p>Highpass: 0.1 Hz</p></li>
-<li><p>Lowpass: 30 Hz</p></li>
-<li><p>ASR criterion: 15</p></li>
-<li><p>Resample: 250 Hz</p></li>
-</ul>
-<p><strong>High-Frequency Activity</strong></p>
-<ul class="simple">
-<li><p>Highpass: 1 Hz</p></li>
-<li><p>Lowpass: 200 Hz</p></li>
-<li><p>ASR criterion: 25</p></li>
-<li><p>Resample: 500 Hz</p></li>
-</ul>
-<p><strong>Clinical EEG</strong></p>
-<ul class="simple">
-<li><p>Highpass: 0.5 Hz</p></li>
-<li><p>Lowpass: 70 Hz</p></li>
-<li><p>ASR criterion: 20</p></li>
-<li><p>Resample: 250 Hz</p></li>
-</ul>
+<section id="menu-entries-did-not-change">
+<h3>Menu Entries Did Not Change<a class="headerlink" href="#menu-entries-did-not-change" title="Link to this heading">#</a></h3>
+<p>After changing <code class="docutils literal notranslate"><span class="pre">option_allmenus</span></code> in a running GUI, reopen or refresh the main
+window so menu status is rebuilt from the current option dictionary.</p>
 </section>
-<section id="by-artifact-type">
-<h3>By Artifact Type<a class="headerlink" href="#by-artifact-type" title="Link to this heading">#</a></h3>
-<p><strong>Muscle Artifacts</strong></p>
-<ul class="simple">
-<li><p>ASR criterion: 15 (more aggressive)</p></li>
-<li><p>Flatline criterion: 5</p></li>
-<li><p>Use ICLabel: True</p></li>
-</ul>
-<p><strong>Eye Movement Artifacts</strong></p>
-<ul class="simple">
-<li><p>Highpass: 0.5 Hz</p></li>
-<li><p>Use ICLabel: True</p></li>
-<li><p>Manual component removal</p></li>
-</ul>
-<p><strong>Line Noise (50/60 Hz)</strong></p>
-<ul class="simple">
-<li><p>Notch filter: 50 or 60 Hz</p></li>
-<li><p>Lowpass: 100 Hz</p></li>
-</ul>
-<p><strong>Drift</strong></p>
-<ul class="simple">
-<li><p>Highpass: 0.5 Hz</p></li>
-<li><p>ASR criterion: 20</p></li>
-</ul>
-</section>
-</section>
-<section id="troubleshooting-configuration">
-<h2>Troubleshooting Configuration<a class="headerlink" href="#troubleshooting-configuration" title="Link to this heading">#</a></h2>
-<section id="configuration-not-applied">
-<h3>Configuration Not Applied<a class="headerlink" href="#configuration-not-applied" title="Link to this heading">#</a></h3>
-<p><strong>Problem</strong>: Configuration changes don’t affect preprocessing</p>
-<p><strong>Solution</strong>:</p>
-<ol class="arabic simple">
-<li><p>Verify options are passed to preprocessing function</p></li>
-<li><p>Check that options object is correctly created</p></li>
-<li><p>Ensure parameter names are correct</p></li>
-</ol>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">EEG_OPTIONS</span><span class="p">,</span> <span class="n">clean_artifacts</span>
-
-<span class="c1"># Correct way</span>
-<span class="n">options</span> <span class="o">=</span> <span class="n">EEG_OPTIONS</span><span class="p">()</span>
-<span class="n">options</span><span class="o">.</span><span class="n">highpass</span> <span class="o">=</span> <span class="mi">1</span>
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">clean_artifacts</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="n">options</span><span class="p">)</span>
-
-<span class="c1"># Incorrect way (won&#39;t work)</span>
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">clean_artifacts</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="n">highpass</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-</pre></div>
-</div>
-</section>
-<section id="unexpected-results">
-<h3>Unexpected Results<a class="headerlink" href="#unexpected-results" title="Link to this heading">#</a></h3>
-<p><strong>Problem</strong>: Preprocessing produces unexpected results</p>
-<p><strong>Solution</strong>:</p>
-<ol class="arabic simple">
-<li><p>Visualize data before and after preprocessing</p></li>
-<li><p>Check parameter values</p></li>
-<li><p>Try different parameter combinations</p></li>
-<li><p>Review the preprocessing pipeline steps</p></li>
-</ol>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
-
-<span class="c1"># Plot before and after</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">6</span><span class="p">))</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">eeg</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:</span><span class="mi">1000</span><span class="p">])</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;Preprocessed Data&#39;</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
-</pre></div>
-</div>
-</section>
-<section id="performance-issues">
-<h3>Performance Issues<a class="headerlink" href="#performance-issues" title="Link to this heading">#</a></h3>
-<p><strong>Problem</strong>: Preprocessing is slow</p>
-<p><strong>Solution</strong>:</p>
-<ol class="arabic simple">
-<li><p>Reduce number of components in ICA</p></li>
-<li><p>Increase resampling rate</p></li>
-<li><p>Use parallel processing for batch jobs</p></li>
-<li><p>Reduce filter order</p></li>
-</ol>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">EEG_OPTIONS</span>
-
-<span class="n">options</span> <span class="o">=</span> <span class="n">EEG_OPTIONS</span><span class="p">()</span>
-<span class="n">options</span><span class="o">.</span><span class="n">ica_ncomps</span> <span class="o">=</span> <span class="mi">30</span>  <span class="c1"># Reduce components</span>
-<span class="n">options</span><span class="o">.</span><span class="n">resample_rate</span> <span class="o">=</span> <span class="mi">250</span>  <span class="c1"># Increase rate</span>
-<span class="n">options</span><span class="o">.</span><span class="n">filter_order</span> <span class="o">=</span> <span class="mi">2</span>  <span class="c1"># Reduce filter order</span>
-</pre></div>
-</div>
-</section>
-</section>
-<section id="next-steps">
-<h2>Next Steps<a class="headerlink" href="#next-steps" title="Link to this heading">#</a></h2>
-<p>Now that you understand configuration:</p>
-<ol class="arabic simple">
-<li><p>Read the <a class="reference internal" href="preprocessing_pipeline.html#preprocessing-pipeline"><span class="std std-ref">Preprocessing Pipeline</span></a> guide for detailed preprocessing steps</p></li>
-<li><p>Explore the <a class="reference internal" href="advanced_topics.html#advanced-topics"><span class="std std-ref">Advanced Topics</span></a> for custom pipelines</p></li>
-<li><p>Check the <a class="reference internal" href="quickstart.html#quickstart"><span class="std std-ref">Quick Start</span></a> for practical examples</p></li>
-<li><p>Review the <a class="reference internal" href="../api/index.html#api-reference"><span class="std std-ref">API Reference</span></a> for detailed function documentation</p></li>
-</ol>
 </section>
 </section>
 
@@ -1026,20 +731,20 @@
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="preprocessing_pipeline.html"
+       href="gui_help_menus.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">Preprocessing Pipeline</p>
+        <p class="prev-next-title">GUI and Help Menus</p>
       </div>
     </a>
     <a class="right-next"
-       href="bids_workflow.html"
+       href="visual_parity.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">BIDS Workflow</p>
+        <p class="prev-next-title">Visual Parity Testing</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -1062,44 +767,17 @@
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="pst-show_toc_level nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#eeg-options-overview">EEG_OPTIONS Overview</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#common-configuration-parameters">Common Configuration Parameters</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#preprocessing-parameters">Preprocessing Parameters</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#reference-and-re-referencing">Reference and Re-referencing</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#data-handling">Data Handling</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#common-global-options">Common Global Options</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#set-options-from-gui-or-console">Set Options From GUI or Console</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#preprocessing-parameters">Preprocessing Parameters</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#reusable-presets">Reusable Presets</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#when-to-use-which-surface">When to Use Which Surface</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting">Troubleshooting</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#option-did-not-affect-a-processing-step">Option Did Not Affect a Processing Step</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#memory-mapped-loading-did-not-happen">Memory-Mapped Loading Did Not Happen</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#menu-entries-did-not-change">Menu Entries Did Not Change</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#creating-custom-preprocessing-chains">Creating Custom Preprocessing Chains</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#using-configuration-objects">Using Configuration Objects</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#preprocessing-presets">Preprocessing Presets</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#custom-preprocessing-functions">Custom Preprocessing Functions</a></li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#advanced-settings">Advanced Settings</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ica-configuration">ICA Configuration</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#asr-configuration">ASR Configuration</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#filter-configuration">Filter Configuration</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#resampling-configuration">Resampling Configuration</a></li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#configuration-files">Configuration Files</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#saving-configuration">Saving Configuration</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#loading-configuration">Loading Configuration</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#example-configuration-files">Example Configuration Files</a></li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#parameter-recommendations">Parameter Recommendations</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#by-data-type">By Data Type</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#by-artifact-type">By Artifact Type</a></li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting-configuration">Troubleshooting Configuration</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#configuration-not-applied">Configuration Not Applied</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#unexpected-results">Unexpected Results</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#performance-issues">Performance Issues</a></li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#next-steps">Next Steps</a></li>
 </ul>
   </nav></div>
 
@@ -1116,8 +794,8 @@
   </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script defer src="../_static/scripts/bootstrap.js?digest=7f76b32a3354e82990f2"></script>
-<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=7f76b32a3354e82990f2"></script>
+  <script defer src="../_static/scripts/bootstrap.js?digest=55c26ed414f5f8a31ebb"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=55c26ed414f5f8a31ebb"></script>
 
   <footer class="bd-footer">
 <div class="bd-footer__inner bd-page-width">
@@ -1128,7 +806,7 @@
 
   <p class="copyright">
     
-      © Copyright 2024 - , EEGPrep contributors.
+      © Copyright 2024-2026, EEGPrep contributors.
       <br/>
     
   </p>

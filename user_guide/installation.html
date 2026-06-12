@@ -2,19 +2,19 @@
 <!DOCTYPE html>
 
 
-<html lang="en" data-content_root="../" >
+<html lang="en" data-content_root="../" data-theme="light">
 
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Installation &#8212; eegprep 0.2.23 documentation</title>
+    <title>Installation &#8212; EEGPrep manual</title>
   
   
   
   <script data-cfasync="false">
-    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
-    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "light";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "light";
   </script>
   <!--
     this give us a css class that will be invisible only if js is disabled
@@ -27,28 +27,29 @@
   </noscript>
   
   <!-- Loaded before other Sphinx assets -->
-  <link href="../_static/styles/theme.css?digest=7f76b32a3354e82990f2" rel="stylesheet" />
-<link href="../_static/styles/pydata-sphinx-theme.css?digest=7f76b32a3354e82990f2" rel="stylesheet" />
+  <link href="../_static/styles/theme.css?digest=55c26ed414f5f8a31ebb" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=55c26ed414f5f8a31ebb" rel="stylesheet" />
 
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
     <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
     <link rel="stylesheet" type="text/css" href="../_static/togglebutton.css?v=9c3e77be" />
-    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=d2d258e8" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=fd6457a4" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
     <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
-    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=eb9c3aa4" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=92c3505e" />
   
   <!-- So that users can add custom icons -->
-  <script defer src="../_static/scripts/fontawesome.js?digest=7f76b32a3354e82990f2"></script>
+  <script defer src="../_static/scripts/fontawesome.js?digest=55c26ed414f5f8a31ebb"></script>
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=7f76b32a3354e82990f2" />
-<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=7f76b32a3354e82990f2" />
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=55c26ed414f5f8a31ebb" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=55c26ed414f5f8a31ebb" />
 
     <script src="../_static/documentation_options.js?v=171860b8"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/sg-tags.js?v=d80f6fa4"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
     <script src="../_static/copybutton.js?v=6dbb43f8"></script>
     <script>let toggleHintShow = 'Click to show';</script>
@@ -59,6 +60,7 @@
     <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'user_guide/installation';</script>
     <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <link rel="icon" href="../_static/logo.jpg"/>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Quick Start" href="quickstart.html" />
@@ -73,7 +75,7 @@
     <script src="../searchindex.js"></script>
   
   </head>
-  <body data-default-mode="">
+  <body data-default-mode="light">
   
   
   <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
@@ -83,7 +85,9 @@
   
   <button type="button" class="btn rounded-pill" id="pst-back-to-top">
     <i class="fa-solid fa-arrow-up"></i>Back to top</button>
-
+  
+  
+  
   
   <dialog id="pst-search-dialog">
     
@@ -94,8 +98,8 @@
   <input type="search"
          class="form-control"
          name="q"
-         placeholder="Search documentation..."
-         aria-label="Search documentation..."
+         placeholder="Search the EEGPrep manual..."
+         aria-label="Search the EEGPrep manual..."
          autocomplete="off"
          autocorrect="off"
          autocapitalize="off"
@@ -130,6 +134,12 @@
   
   
   
+    
+    
+    
+    <img src="../_static/logo.jpg" class="logo__image only-light" alt=""/>
+    <img src="../_static/logo.jpg" class="logo__image only-dark pst-js-only" alt=""/>
+  
   
     <p class="title logo__title">eegprep</p>
   
@@ -145,13 +155,6 @@
 <nav>
   <ul class="bd-navbar-elements navbar-nav">
     
-<li class="nav-item ">
-  <a class="nav-link nav-internal" href="../api/index.html">
-    API Reference
-  </a>
-</li>
-
-
 <li class="nav-item current active">
   <a class="nav-link nav-internal" href="index.html">
     User Guide
@@ -167,8 +170,22 @@
 
 
 <li class="nav-item ">
-  <a class="nav-link nav-internal" href="../contributing.html">
-    Contributing to EEGPrep
+  <a class="nav-link nav-internal" href="../api/index.html">
+    API Reference
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../faq.html">
+    Frequently Asked Questions
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../glossary.html">
+    Glossary
   </a>
 </li>
 
@@ -181,20 +198,6 @@
                 <ul id="pst-nav-more-links" class="dropdown-menu">
                     
 <li class=" ">
-  <a class="nav-link dropdown-item nav-internal" href="../development.html">
-    Development Setup
-  </a>
-</li>
-
-
-<li class=" ">
-  <a class="nav-link dropdown-item nav-internal" href="../faq.html">
-    Frequently Asked Questions
-  </a>
-</li>
-
-
-<li class=" ">
   <a class="nav-link dropdown-item nav-internal" href="../references.html">
     References and Citations
   </a>
@@ -202,15 +205,22 @@
 
 
 <li class=" ">
-  <a class="nav-link dropdown-item nav-internal" href="../changelog.html">
-    Changelog
+  <a class="nav-link dropdown-item nav-internal" href="../contributing.html">
+    Contributing to EEGPrep
   </a>
 </li>
 
 
 <li class=" ">
-  <a class="nav-link dropdown-item nav-internal" href="../glossary.html">
-    Glossary
+  <a class="nav-link dropdown-item nav-internal" href="../development.html">
+    Development Setup
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../changelog.html">
+    Changelog
   </a>
 </li>
 
@@ -225,6 +235,14 @@
     
     <div class="navbar-header-items__end">
       
+      
+        <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
       
         <div class="navbar-item">
 
@@ -285,13 +303,6 @@
 <nav>
   <ul class="bd-navbar-elements navbar-nav">
     
-<li class="nav-item ">
-  <a class="nav-link nav-internal" href="../api/index.html">
-    API Reference
-  </a>
-</li>
-
-
 <li class="nav-item current active">
   <a class="nav-link nav-internal" href="index.html">
     User Guide
@@ -302,6 +313,34 @@
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../examples/index.html">
     Examples
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../api/index.html">
+    API Reference
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../faq.html">
+    Frequently Asked Questions
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../glossary.html">
+    Glossary
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../references.html">
+    References and Citations
   </a>
 </li>
 
@@ -321,29 +360,8 @@
 
 
 <li class="nav-item ">
-  <a class="nav-link nav-internal" href="../faq.html">
-    Frequently Asked Questions
-  </a>
-</li>
-
-
-<li class="nav-item ">
-  <a class="nav-link nav-internal" href="../references.html">
-    References and Citations
-  </a>
-</li>
-
-
-<li class="nav-item ">
   <a class="nav-link nav-internal" href="../changelog.html">
     Changelog
-  </a>
-</li>
-
-
-<li class="nav-item ">
-  <a class="nav-link nav-internal" href="../glossary.html">
-    Glossary
   </a>
 </li>
 
@@ -356,6 +374,14 @@
     
     
       <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
         
           <div class="navbar-item">
 
@@ -398,15 +424,43 @@
   <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
 <li class="toctree-l1 current active"><a class="current reference internal" href="#">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="concepts.html">Concepts Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="eeglab_migration.html">EEGLAB Migration Notes</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="gui_console_session.html">GUI and Console Together</a></li>
+<li class="toctree-l1"><a class="reference internal" href="gui_tutorials.html">GUI Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="interactive_console.html">Interactive Console</a></li>
+<li class="toctree-l1"><a class="reference internal" href="agent_cli.html">Agent-Friendly EEGPrep CLI</a></li>
+<li class="toctree-l1"><a class="reference internal" href="scripting_workflows.html">Scripting Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mne_integration.html">MNE-Python Integration</a></li>
 </ul>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="preprocessing_pipeline.html">Preprocessing Pipeline</a></li>
-<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
-</ul>
-<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="ica_rejection.html">ICA, ICLabel, Rejection, and Visual Diagnostics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="eegbrowser.html">EEGBrowser Workflows</a></li>
 <li class="toctree-l1"><a class="reference internal" href="bids_workflow.html">BIDS Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="storage.html">Large-Dataset Storage</a></li>
 </ul>
 <ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="study_workflows.html">STUDY Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="plugins.html">Bundled Plugins and Extensions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="extensions.html">External Extensions</a></li>
+
+
+
+
+
+
+
+
+
+<li class="toctree-l1"><a class="reference internal" href="extension_curation.html">Extension Curation and Catalog Policy</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="gui_help_menus.html">GUI and Help Menus</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="visual_parity.html">Visual Parity Testing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="advanced_topics.html">Advanced Topics</a></li>
 </ul>
 </div>
@@ -469,8 +523,9 @@
 <p>Before installing eegprep, ensure your system meets the following requirements:</p>
 <ul class="simple">
 <li><p><strong>Python</strong>: 3.10 or higher</p></li>
-<li><p><strong>pip</strong>: Latest version (for pip installation)</p></li>
-<li><p><strong>conda</strong>: Latest version (for conda installation, optional)</p></li>
+<li><p><strong>uv</strong>: Default package and environment manager for source installs and development</p></li>
+<li><p><strong>pip</strong>: Optional fallback for published package installs</p></li>
+<li><p><strong>conda</strong>: Optional environment manager when required by a local setup</p></li>
 <li><p><strong>Operating System</strong>: Linux, macOS, or Windows</p></li>
 <li><p><strong>RAM</strong>: Minimum 4GB (8GB+ recommended for large datasets)</p></li>
 <li><p><strong>Disk Space</strong>: At least 500MB for installation and dependencies</p></li>
@@ -478,26 +533,22 @@
 </section>
 <section id="installation-methods">
 <h2>Installation Methods<a class="headerlink" href="#installation-methods" title="Link to this heading">#</a></h2>
-<section id="using-pip-recommended">
-<h3>Using pip (Recommended)<a class="headerlink" href="#using-pip-recommended" title="Link to this heading">#</a></h3>
-<p>The easiest way to install eegprep is using pip:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>eegprep
+<section id="using-uv-recommended">
+<h3>Using uv (Recommended)<a class="headerlink" href="#using-uv-recommended" title="Link to this heading">#</a></h3>
+<p>For a project managed by uv, add eegprep with:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>add<span class="w"> </span>eegprep
 </pre></div>
 </div>
-<p>To upgrade an existing installation:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>--upgrade<span class="w"> </span>eegprep
+<p>To include all optional EEGPrep dependencies:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>add<span class="w"> </span><span class="s2">&quot;eegprep[all]&quot;</span>
 </pre></div>
 </div>
 </section>
-<section id="using-conda">
-<h3>Using conda<a class="headerlink" href="#using-conda" title="Link to this heading">#</a></h3>
-<p>If you prefer conda, you can install eegprep from the conda-forge channel:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>conda<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span>conda-forge<span class="w"> </span>eegprep
-</pre></div>
-</div>
-<p>To create a new conda environment with eegprep:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>conda<span class="w"> </span>create<span class="w"> </span>-n<span class="w"> </span>eegprep-env<span class="w"> </span><span class="nv">python</span><span class="o">=</span><span class="m">3</span>.10<span class="w"> </span>eegprep
-conda<span class="w"> </span>activate<span class="w"> </span>eegprep-env
+<section id="using-pip">
+<h3>Using pip<a class="headerlink" href="#using-pip" title="Link to this heading">#</a></h3>
+<p>Published EEGPrep packages can also be installed with pip in non-uv
+environments:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>eegprep
 </pre></div>
 </div>
 </section>
@@ -506,10 +557,17 @@ conda<span class="w"> </span>activate<span class="w"> </span>eegprep-env
 <p>To install eegprep from source for development:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/sccn/eegprep.git
 <span class="nb">cd</span><span class="w"> </span>eegprep
-pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
+uv<span class="w"> </span>sync<span class="w"> </span>--group<span class="w"> </span>dev
 </pre></div>
 </div>
-<p>The <code class="docutils literal notranslate"><span class="pre">-e</span></code> flag installs the package in editable mode, allowing you to modify the source code and see changes immediately.</p>
+<p><code class="docutils literal notranslate"><span class="pre">uv</span> <span class="pre">sync</span></code> creates the project environment, installs EEGPrep in editable mode,
+and uses <code class="docutils literal notranslate"><span class="pre">uv.lock</span></code> for reproducible dependency resolution. The development
+environment includes the GUI and console runtime dependencies, so a fresh
+checkout can immediately launch <code class="docutils literal notranslate"><span class="pre">uv</span> <span class="pre">run</span> <span class="pre">eegprep-console</span> <span class="pre">--full</span></code>.</p>
+<p>To develop or build documentation from source, include the docs extra:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>sync<span class="w"> </span>--group<span class="w"> </span>dev<span class="w"> </span>--extra<span class="w"> </span>docs
+</pre></div>
+</div>
 </section>
 </section>
 <section id="optional-dependencies">
@@ -518,47 +576,55 @@ pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </s
 <section id="pytorch-for-gpu-acceleration">
 <h3>PyTorch (for GPU acceleration)<a class="headerlink" href="#pytorch-for-gpu-acceleration" title="Link to this heading">#</a></h3>
 <p>To use GPU-accelerated processing with PyTorch:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>torch
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>add<span class="w"> </span>torch
 </pre></div>
 </div>
 <p>For CUDA support (NVIDIA GPUs):</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>torch<span class="w"> </span>torchvision<span class="w"> </span>torchaudio<span class="w"> </span>--index-url<span class="w"> </span>https://download.pytorch.org/whl/cu118
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>add<span class="w"> </span>torch<span class="w"> </span>torchvision<span class="w"> </span>torchaudio<span class="w"> </span>--index-url<span class="w"> </span>https://download.pytorch.org/whl/cu118
 </pre></div>
 </div>
 <p>For CPU-only PyTorch:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>torch<span class="w"> </span>--index-url<span class="w"> </span>https://download.pytorch.org/whl/cpu
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>add<span class="w"> </span>torch<span class="w"> </span>--index-url<span class="w"> </span>https://download.pytorch.org/whl/cpu
 </pre></div>
 </div>
 </section>
-<section id="eeglab-i-o-support">
-<h3>EEGLAB I/O Support<a class="headerlink" href="#eeglab-i-o-support" title="Link to this heading">#</a></h3>
-<p>To enable reading and writing EEGLAB .set files:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>eeglabio
+<section id="amica">
+<h3>AMICA<a class="headerlink" href="#amica" title="Link to this heading">#</a></h3>
+<p>EEGPrep can run AMICA through <code class="docutils literal notranslate"><span class="pre">eeg_amica</span></code> and <code class="docutils literal notranslate"><span class="pre">ICAAlgorithm='amica'</span></code>, but
+published EEGPrep packages do not include AMICA binaries. This keeps Python
+package downloads smaller and avoids shipping platform-specific executables.</p>
+<p>To use AMICA, install or download an AMICA executable separately, then provide
+it in one of these ways:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span><span class="w"> </span><span class="nv">AMICA_BINARY</span><span class="o">=</span>/path/to/amica15ub
 </pre></div>
 </div>
-</section>
-<section id="mne-python-integration">
-<h3>MNE-Python Integration<a class="headerlink" href="#mne-python-integration" title="Link to this heading">#</a></h3>
-<p>For integration with MNE-Python:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>mne
+<p>or pass the path directly:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">eeg</span> <span class="o">=</span> <span class="n">eeg_amica</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="n">amica_binary</span><span class="o">=</span><span class="s2">&quot;/path/to/amica15ub&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>Source checkouts may contain development binaries under <code class="docutils literal notranslate"><span class="pre">src/eegprep/bin/</span></code>.
+Those files are for local development and tests, not for package distribution.</p>
 </section>
 <section id="documentation-building">
 <h3>Documentation Building<a class="headerlink" href="#documentation-building" title="Link to this heading">#</a></h3>
 <p>To build the documentation locally:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>sphinx<span class="w"> </span>sphinx-rtd-theme<span class="w"> </span>sphinx-autodoc-typehints
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>sync<span class="w"> </span>--group<span class="w"> </span>dev<span class="w"> </span>--extra<span class="w"> </span>docs
+uv<span class="w"> </span>run<span class="w"> </span>--no-sync<span class="w"> </span>sphinx-build<span class="w"> </span>-b<span class="w"> </span>html<span class="w"> </span>docs/source<span class="w"> </span>docs/_build/html
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">docs/Makefile</span></code> target is also available:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>run<span class="w"> </span>--no-sync<span class="w"> </span>make<span class="w"> </span>-C<span class="w"> </span>docs<span class="w"> </span>html
 </pre></div>
 </div>
 </section>
 <section id="all-optional-dependencies">
 <h3>All Optional Dependencies<a class="headerlink" href="#all-optional-dependencies" title="Link to this heading">#</a></h3>
 <p>To install all optional dependencies at once:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>eegprep<span class="o">[</span>all<span class="o">]</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>add<span class="w"> </span><span class="s2">&quot;eegprep[all]&quot;</span>
 </pre></div>
 </div>
 <p>Or with specific extras:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>eegprep<span class="o">[</span>torch,mne,docs<span class="o">]</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>add<span class="w"> </span><span class="s2">&quot;eegprep[torch,gui,docs]&quot;</span>
 </pre></div>
 </div>
 </section>
@@ -591,11 +657,11 @@ pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </s
 <h3>Import Errors<a class="headerlink" href="#import-errors" title="Link to this heading">#</a></h3>
 <p><strong>Problem</strong>: <code class="docutils literal notranslate"><span class="pre">ModuleNotFoundError:</span> <span class="pre">No</span> <span class="pre">module</span> <span class="pre">named</span> <span class="pre">'eegprep'</span></code></p>
 <p><strong>Solution</strong>: Ensure eegprep is installed:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>eegprep
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>add<span class="w"> </span>eegprep
 </pre></div>
 </div>
 <p>If installing from source, ensure you’re in the correct directory and use:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>sync<span class="w"> </span>--group<span class="w"> </span>dev
 </pre></div>
 </div>
 </section>
@@ -603,9 +669,9 @@ pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </s
 <h3>Version Conflicts<a class="headerlink" href="#version-conflicts" title="Link to this heading">#</a></h3>
 <p><strong>Problem</strong>: Conflicts with NumPy, SciPy, or other dependencies</p>
 <p><strong>Solution</strong>: Create a fresh virtual environment:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>-m<span class="w"> </span>venv<span class="w"> </span>eegprep_env
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>venv<span class="w"> </span>eegprep_env
 <span class="nb">source</span><span class="w"> </span>eegprep_env/bin/activate<span class="w">  </span><span class="c1"># On Windows: eegprep_env\Scripts\activate</span>
-pip<span class="w"> </span>install<span class="w"> </span>eegprep
+uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>eegprep
 </pre></div>
 </div>
 </section>
@@ -631,13 +697,19 @@ pip<span class="w"> </span>install<span class="w"> </span>eegprep
 <section id="eeglab-file-format-issues">
 <h3>EEGLAB File Format Issues<a class="headerlink" href="#eeglab-file-format-issues" title="Link to this heading">#</a></h3>
 <p><strong>Problem</strong>: Cannot read .set files</p>
-<p><strong>Solution</strong>: Install eeglabio:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>eeglabio
-</pre></div>
-</div>
-<p>Then verify:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_loadset</span>
-<span class="c1"># Should work without errors</span>
+<p>EEGPrep reads <code class="docutils literal notranslate"><span class="pre">.set</span></code> files directly with SciPy (<code class="docutils literal notranslate"><span class="pre">scipy.io.loadmat</span></code>) and
+<code class="docutils literal notranslate"><span class="pre">h5py</span></code> for newer MATLAB v7.3 files, and writes them with
+<code class="docutils literal notranslate"><span class="pre">scipy.io.savemat</span></code>. These libraries are installed automatically, so a load
+failure is almost always a path or format problem rather than a missing
+dependency.</p>
+<p><strong>Solution</strong>: Check that the path points at an existing <code class="docutils literal notranslate"><span class="pre">.set</span></code> file and that
+any companion <code class="docutils literal notranslate"><span class="pre">.fdt</span></code> data file sits next to it:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_loadset</span>
+
+<span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;sub-01_task-rest_eeg.set&quot;</span><span class="p">)</span>
+<span class="k">assert</span> <span class="n">path</span><span class="o">.</span><span class="n">is_file</span><span class="p">(),</span> <span class="sa">f</span><span class="s2">&quot;no such file: </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&quot;</span>
+<span class="n">EEG</span> <span class="o">=</span> <span class="n">pop_loadset</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">path</span><span class="p">))</span>
 </pre></div>
 </div>
 </section>
@@ -657,10 +729,10 @@ pip<span class="w"> </span>install<span class="w"> </span>eegprep
 <h2>Getting Help<a class="headerlink" href="#getting-help" title="Link to this heading">#</a></h2>
 <p>If you encounter issues not covered here:</p>
 <ol class="arabic simple">
-<li><p>Check the <a class="reference external" href="faq.rst">FAQ</a> section</p></li>
-<li><p>Review the <a class="reference external" href="common_issues.rst">Common Issues</a> guide</p></li>
+<li><p>Check the <a class="reference internal" href="../faq.html"><span class="doc">Frequently Asked Questions</span></a> section</p></li>
+<li><p>Review the troubleshooting sections in this installation guide and FAQ</p></li>
 <li><p>Visit the <a class="reference external" href="https://github.com/sccn/eegprep/issues">GitHub Issues</a> page</p></li>
-<li><p>Check the <a class="reference external" href="../api/index.rst">API Documentation</a></p></li>
+<li><p>Check the <a class="reference internal" href="../api/index.html"><span class="doc">API Reference</span></a></p></li>
 </ol>
 </section>
 <section id="next-steps">
@@ -718,15 +790,14 @@ pip<span class="w"> </span>install<span class="w"> </span>eegprep
     <ul class="pst-show_toc_level nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#system-requirements">System Requirements</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#installation-methods">Installation Methods</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#using-pip-recommended">Using pip (Recommended)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#using-conda">Using conda</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#using-uv-recommended">Using uv (Recommended)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#using-pip">Using pip</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#from-source">From Source</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#optional-dependencies">Optional Dependencies</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#pytorch-for-gpu-acceleration">PyTorch (for GPU acceleration)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#eeglab-i-o-support">EEGLAB I/O Support</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#mne-python-integration">MNE-Python Integration</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#amica">AMICA</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#documentation-building">Documentation Building</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#all-optional-dependencies">All Optional Dependencies</a></li>
 </ul>
@@ -758,8 +829,8 @@ pip<span class="w"> </span>install<span class="w"> </span>eegprep
   </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script defer src="../_static/scripts/bootstrap.js?digest=7f76b32a3354e82990f2"></script>
-<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=7f76b32a3354e82990f2"></script>
+  <script defer src="../_static/scripts/bootstrap.js?digest=55c26ed414f5f8a31ebb"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=55c26ed414f5f8a31ebb"></script>
 
   <footer class="bd-footer">
 <div class="bd-footer__inner bd-page-width">
@@ -770,7 +841,7 @@ pip<span class="w"> </span>install<span class="w"> </span>eegprep
 
   <p class="copyright">
     
-      © Copyright 2024 - , EEGPrep contributors.
+      © Copyright 2024-2026, EEGPrep contributors.
       <br/>
     
   </p>

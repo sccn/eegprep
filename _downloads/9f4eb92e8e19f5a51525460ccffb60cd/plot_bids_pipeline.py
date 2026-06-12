@@ -19,6 +19,8 @@ The workflow includes:
 This example shows how eegprep integrates with BIDS to provide a
 standardized, reproducible preprocessing workflow.
 
+Background references include [1]_ and [2]_.
+
 References
 ----------
 .. [1] Gorgolewski, K. J., Auer, T., Calhoun, V. D., Craddock, R. C.,
@@ -36,12 +38,12 @@ References
 # -----------------
 
 import numpy as np
-import matplotlib.pyplot as plt
 import tempfile
 import os
 import json
-from pathlib import Path
 import sys
+import shutil
+
 sys.path.insert(0, '/Users/baristim/Projects/eegprep/src')
 
 import eegprep
@@ -112,30 +114,14 @@ dataset_desc = {
     "BIDSVersion": "1.9.0",
     "DatasetType": "raw",
     "License": "CC0",
-    "Authors": [
-        {
-            "Name": "Example Author",
-            "Email": "author@example.com"
-        }
-    ],
+    "Authors": [{"Name": "Example Author", "Email": "author@example.com"}],
     "Acknowledgements": "Example dataset for eegprep documentation",
     "HowToAcknowledge": "Please cite this paper: Example et al. (2024)",
-    "Funding": [
-        {
-            "Funder": "Example Foundation",
-            "Grant": "EX-12345"
-        }
-    ],
+    "Funding": [{"Funder": "Example Foundation", "Grant": "EX-12345"}],
     "EthicsApprovals": [
-        {
-            "HipApproval": True,
-            "Committee": "Example IRB",
-            "CommitteeAbbreviation": "IRB",
-            "ExpireDate": "2025-12-31"
-        }
+        {"HipApproval": True, "Committee": "Example IRB", "CommitteeAbbreviation": "IRB", "ExpireDate": "2025-12-31"}
     ],
     "ReferencesAndLinks": [],
-    "DatasetType": "raw"
 }
 
 with open(os.path.join(bids_root, 'dataset_description.json'), 'w') as f:
@@ -157,34 +143,62 @@ print("\nCreating subject data...")
 for sub_id in ['01', '02']:
     sub_dir = os.path.join(bids_root, f'sub-{sub_id}', 'ses-01', 'eeg')
     os.makedirs(sub_dir, exist_ok=True)
-    
+
     # Define recording parameters
     n_channels = 32
     n_samples = 5000
     sfreq = 500
-    
+
     # Create channel names
     ch_names = [
-        'Fp1', 'Fpz', 'Fp2', 'F7', 'F3', 'Fz', 'F4', 'F8',
-        'T7', 'C3', 'Cz', 'C4', 'T8', 'P7', 'P3', 'Pz',
-        'P4', 'P8', 'O1', 'Oz', 'O2', 'A1', 'A2', 'M1',
-        'M2', 'Fc1', 'Fc2', 'Cp1', 'Cp2', 'Fc5', 'Fc6', 'Cp5'
+        'Fp1',
+        'Fpz',
+        'Fp2',
+        'F7',
+        'F3',
+        'Fz',
+        'F4',
+        'F8',
+        'T7',
+        'C3',
+        'Cz',
+        'C4',
+        'T8',
+        'P7',
+        'P3',
+        'Pz',
+        'P4',
+        'P8',
+        'O1',
+        'Oz',
+        'O2',
+        'A1',
+        'A2',
+        'M1',
+        'M2',
+        'Fc1',
+        'Fc2',
+        'Cp1',
+        'Cp2',
+        'Fc5',
+        'Fc6',
+        'Cp5',
     ]
-    
+
     # Create synthetic data
     np.random.seed(int(sub_id))
     data = np.random.randn(n_channels, n_samples) * 10
-    
+
     # Add alpha oscillations
     t = np.arange(n_samples) / sfreq
     for i in range(n_channels):
         alpha_freq = 10 + np.random.randn() * 0.5
         data[i, :] += 5 * np.sin(2 * np.pi * alpha_freq * t)
-    
+
     # Save as .npy for simplicity (in real BIDS, would be .edf or .bdf)
     data_file = os.path.join(sub_dir, f'sub-{sub_id}_ses-01_task-rest_eeg.npy')
     np.save(data_file, data)
-    
+
     # Create JSON sidecar with recording metadata
     eeg_json = {
         "TaskName": "rest",
@@ -194,32 +208,32 @@ for sub_id in ['01', '02']:
         "EEGReference": "average",
         "EEGGround": "Fpz",
         "RecordingDuration": n_samples / sfreq,
-        "RecordingType": "continuous"
+        "RecordingType": "continuous",
     }
-    
+
     json_file = os.path.join(sub_dir, f'sub-{sub_id}_ses-01_task-rest_eeg.json')
     with open(json_file, 'w') as f:
         json.dump(eeg_json, f, indent=2)
-    
+
     # Create channels.tsv with channel information
     channels_content = "name\tx\ty\tz\tsize\n"
     for ch_name in ch_names:
         channels_content += f"{ch_name}\t0\t0\t0\t1\n"
-    
+
     channels_file = os.path.join(sub_dir, f'sub-{sub_id}_ses-01_task-rest_channels.tsv')
     with open(channels_file, 'w') as f:
         f.write(channels_content)
-    
+
     # Create events.tsv with event information
     events_content = "onset\tduration\ttrial_type\n0.0\t1.0\trest\n"
-    
+
     events_file = os.path.join(sub_dir, f'sub-{sub_id}_ses-01_task-rest_events.tsv')
     with open(events_file, 'w') as f:
         f.write(events_content)
-    
+
     print(f"  ✓ Created subject sub-{sub_id} data")
 
-print(f"\nBIDS dataset created successfully!")
+print("\nBIDS dataset created successfully!")
 print(f"Dataset location: {bids_root}")
 
 # %%
@@ -238,7 +252,7 @@ try:
     for f in eeg_files:
         print(f"  - {f}")
 except Exception as e:
-    print(f"Note: bids_list_eeg_files may require specific BIDS structure")
+    print("Note: bids_list_eeg_files may require specific BIDS structure")
     print(f"Error: {e}")
     # List files manually
     print("\nManually listing EEG files:")
@@ -314,7 +328,7 @@ preproc_params = {
     'asr_threshold': 20,
     'ica_method': 'picard',
     'iclabel_threshold': 0.5,
-    'verbose': False
+    'verbose': False,
 }
 
 print("\nPreprocessing Configuration:")
@@ -458,10 +472,8 @@ Key Points About BIDS Preprocessing with eegprep:
 print(summary)
 print("=" * 70)
 
-# Clean up temporary directory
-import shutil
 shutil.rmtree(bids_root)
-print(f"\nCleaned up temporary BIDS directory")
+print("\nCleaned up temporary BIDS directory")
 
 # %%
 # Key Takeaways

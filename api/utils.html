@@ -2,19 +2,19 @@
 <!DOCTYPE html>
 
 
-<html lang="en" data-content_root="../" >
+<html lang="en" data-content_root="../" data-theme="light">
 
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Utility Functions &#8212; eegprep 0.2.23 documentation</title>
+    <title>Utility Functions &#8212; EEGPrep manual</title>
   
   
   
   <script data-cfasync="false">
-    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
-    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "light";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "light";
   </script>
   <!--
     this give us a css class that will be invisible only if js is disabled
@@ -27,28 +27,29 @@
   </noscript>
   
   <!-- Loaded before other Sphinx assets -->
-  <link href="../_static/styles/theme.css?digest=7f76b32a3354e82990f2" rel="stylesheet" />
-<link href="../_static/styles/pydata-sphinx-theme.css?digest=7f76b32a3354e82990f2" rel="stylesheet" />
+  <link href="../_static/styles/theme.css?digest=55c26ed414f5f8a31ebb" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=55c26ed414f5f8a31ebb" rel="stylesheet" />
 
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
     <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
     <link rel="stylesheet" type="text/css" href="../_static/togglebutton.css?v=9c3e77be" />
-    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=d2d258e8" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=fd6457a4" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
     <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
-    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=eb9c3aa4" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=92c3505e" />
   
   <!-- So that users can add custom icons -->
-  <script defer src="../_static/scripts/fontawesome.js?digest=7f76b32a3354e82990f2"></script>
+  <script defer src="../_static/scripts/fontawesome.js?digest=55c26ed414f5f8a31ebb"></script>
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=7f76b32a3354e82990f2" />
-<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=7f76b32a3354e82990f2" />
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=55c26ed414f5f8a31ebb" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=55c26ed414f5f8a31ebb" />
 
     <script src="../_static/documentation_options.js?v=171860b8"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/sg-tags.js?v=d80f6fa4"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
     <script src="../_static/copybutton.js?v=6dbb43f8"></script>
     <script>let toggleHintShow = 'Click to show';</script>
@@ -59,10 +60,11 @@
     <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'api/utils';</script>
     <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <link rel="icon" href="../_static/logo.jpg"/>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="eegprep.EEGobj" href="generated/eegprep.EEGobj.html" />
-    <link rel="prev" title="Input/Output Functions" href="io.html" />
+    <link rel="prev" title="Extension SDK and Registry" href="extensions.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2.23" />
@@ -73,7 +75,7 @@
     <script src="../searchindex.js"></script>
   
   </head>
-  <body data-default-mode="">
+  <body data-default-mode="light">
   
   
   <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
@@ -83,7 +85,9 @@
   
   <button type="button" class="btn rounded-pill" id="pst-back-to-top">
     <i class="fa-solid fa-arrow-up"></i>Back to top</button>
-
+  
+  
+  
   
   <dialog id="pst-search-dialog">
     
@@ -94,8 +98,8 @@
   <input type="search"
          class="form-control"
          name="q"
-         placeholder="Search documentation..."
-         aria-label="Search documentation..."
+         placeholder="Search the EEGPrep manual..."
+         aria-label="Search the EEGPrep manual..."
          autocomplete="off"
          autocorrect="off"
          autocapitalize="off"
@@ -130,6 +134,12 @@
   
   
   
+    
+    
+    
+    <img src="../_static/logo.jpg" class="logo__image only-light" alt=""/>
+    <img src="../_static/logo.jpg" class="logo__image only-dark pst-js-only" alt=""/>
+  
   
     <p class="title logo__title">eegprep</p>
   
@@ -145,13 +155,6 @@
 <nav>
   <ul class="bd-navbar-elements navbar-nav">
     
-<li class="nav-item current active">
-  <a class="nav-link nav-internal" href="index.html">
-    API Reference
-  </a>
-</li>
-
-
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../user_guide/index.html">
     User Guide
@@ -166,9 +169,23 @@
 </li>
 
 
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="index.html">
+    API Reference
+  </a>
+</li>
+
+
 <li class="nav-item ">
-  <a class="nav-link nav-internal" href="../contributing.html">
-    Contributing to EEGPrep
+  <a class="nav-link nav-internal" href="../faq.html">
+    Frequently Asked Questions
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../glossary.html">
+    Glossary
   </a>
 </li>
 
@@ -181,20 +198,6 @@
                 <ul id="pst-nav-more-links" class="dropdown-menu">
                     
 <li class=" ">
-  <a class="nav-link dropdown-item nav-internal" href="../development.html">
-    Development Setup
-  </a>
-</li>
-
-
-<li class=" ">
-  <a class="nav-link dropdown-item nav-internal" href="../faq.html">
-    Frequently Asked Questions
-  </a>
-</li>
-
-
-<li class=" ">
   <a class="nav-link dropdown-item nav-internal" href="../references.html">
     References and Citations
   </a>
@@ -202,15 +205,22 @@
 
 
 <li class=" ">
-  <a class="nav-link dropdown-item nav-internal" href="../changelog.html">
-    Changelog
+  <a class="nav-link dropdown-item nav-internal" href="../contributing.html">
+    Contributing to EEGPrep
   </a>
 </li>
 
 
 <li class=" ">
-  <a class="nav-link dropdown-item nav-internal" href="../glossary.html">
-    Glossary
+  <a class="nav-link dropdown-item nav-internal" href="../development.html">
+    Development Setup
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../changelog.html">
+    Changelog
   </a>
 </li>
 
@@ -225,6 +235,14 @@
     
     <div class="navbar-header-items__end">
       
+      
+        <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
       
         <div class="navbar-item">
 
@@ -285,13 +303,6 @@
 <nav>
   <ul class="bd-navbar-elements navbar-nav">
     
-<li class="nav-item current active">
-  <a class="nav-link nav-internal" href="index.html">
-    API Reference
-  </a>
-</li>
-
-
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../user_guide/index.html">
     User Guide
@@ -302,6 +313,34 @@
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../examples/index.html">
     Examples
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="index.html">
+    API Reference
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../faq.html">
+    Frequently Asked Questions
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../glossary.html">
+    Glossary
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../references.html">
+    References and Citations
   </a>
 </li>
 
@@ -321,29 +360,8 @@
 
 
 <li class="nav-item ">
-  <a class="nav-link nav-internal" href="../faq.html">
-    Frequently Asked Questions
-  </a>
-</li>
-
-
-<li class="nav-item ">
-  <a class="nav-link nav-internal" href="../references.html">
-    References and Citations
-  </a>
-</li>
-
-
-<li class="nav-item ">
   <a class="nav-link nav-internal" href="../changelog.html">
     Changelog
-  </a>
-</li>
-
-
-<li class="nav-item ">
-  <a class="nav-link nav-internal" href="../glossary.html">
-    Glossary
   </a>
 </li>
 
@@ -356,6 +374,14 @@
     
     
       <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
         
           <div class="navbar-item">
 
@@ -400,11 +426,46 @@
 <li class="toctree-l1"><a class="reference internal" href="preprocessing.html">Preprocessing Functions</a></li>
 <li class="toctree-l1"><a class="reference internal" href="ica.html">Independent Component Analysis</a></li>
 <li class="toctree-l1"><a class="reference internal" href="signal_processing.html">Signal Processing Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="statistics.html">Statistics Functions</a></li>
 <li class="toctree-l1"><a class="reference internal" href="io.html">Input/Output Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="pop_functions.html">Interactive Pop Workflow API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="extensions.html">Extension SDK and Registry</a></li>
+
+
+
+
+
+
+
 <li class="toctree-l1 current active"><a class="current reference internal" href="#">Utility Functions</a></li>
 </ul>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="generated/eegprep.EEGobj.html">eegprep.EEGobj</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.EEGPrepSession.html">eegprep.EEGPrepSession</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.gui.html">eegprep.gui</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeglab.html">eegprep.eeglab</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.EEGPrepConsoleWorkspace.html">eegprep.EEGPrepConsoleWorkspace</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.ConsolePopResult.html">eegprep.ConsolePopResult</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.ConsoleDatasetResult.html">eegprep.ConsoleDatasetResult</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.inputgui.html">eegprep.inputgui</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.listdlg2.html">eegprep.listdlg2</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pophelp.html">eegprep.pophelp</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.DialogSpec.html">eegprep.DialogSpec</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.ControlSpec.html">eegprep.ControlSpec</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.CallbackSpec.html">eegprep.CallbackSpec</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_emptyset.html">eegprep.eeg_emptyset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_store.html">eegprep.eeg_store</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_retrieve.html">eegprep.eeg_retrieve</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_newset.html">eegprep.pop_newset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_delset.html">eegprep.pop_delset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_editoptions.html">eegprep.pop_editoptions</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.select_multiple_datasets.html">eegprep.select_multiple_datasets</a></li>
 </ul>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_loadset.html">eegprep.pop_loadset</a></li>
@@ -419,17 +480,31 @@
 <li class="toctree-l1"><a class="reference internal" href="generated/eegprep.clean_flatlines.html">eegprep.clean_flatlines</a></li>
 <li class="toctree-l1"><a class="reference internal" href="generated/eegprep.clean_drifts.html">eegprep.clean_drifts</a></li>
 <li class="toctree-l1"><a class="reference internal" href="generated/eegprep.clean_windows.html">eegprep.clean_windows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.vis_artifacts.html">eegprep.vis_artifacts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.vis_artifacts_diagnostics.html">eegprep.vis_artifacts_diagnostics</a></li>
 </ul>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="generated/eegprep.clean_channels.html">eegprep.clean_channels</a></li>
 <li class="toctree-l1"><a class="reference internal" href="generated/eegprep.clean_channels_nolocs.html">eegprep.clean_channels_nolocs</a></li>
 <li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_interp.html">eegprep.eeg_interp</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_interp.html">eegprep.pop_interp</a></li>
 <li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_reref.html">eegprep.pop_reref</a></li>
 </ul>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_resample.html">eegprep.pop_resample</a></li>
 <li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_eegfiltnew.html">eegprep.pop_eegfiltnew</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_firws.html">eegprep.pop_firws</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_firpm.html">eegprep.pop_firpm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_firma.html">eegprep.pop_firma</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_kaiserbeta.html">eegprep.pop_kaiserbeta</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_firwsord.html">eegprep.pop_firwsord</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_firpmord.html">eegprep.pop_firpmord</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_xfirws.html">eegprep.pop_xfirws</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.firfiltreport.html">eegprep.firfiltreport</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.plotfresp.html">eegprep.plotfresp</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_amica.html">eegprep.eeg_amica</a></li>
 <li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_picard.html">eegprep.eeg_picard</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_runica.html">eegprep.eeg_runica</a></li>
 </ul>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="generated/eegprep.iclabel.html">eegprep.iclabel</a></li>
@@ -440,14 +515,48 @@
 <li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_autocorr.html">eegprep.eeg_autocorr</a></li>
 <li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_autocorr_welch.html">eegprep.eeg_autocorr_welch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_autocorr_fftw.html">eegprep.eeg_autocorr_fftw</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.newtimef.html">eegprep.newtimef</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.newcrossf.html">eegprep.newcrossf</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.timefreq.html">eegprep.timefreq</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.timef.html">eegprep.timef</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.crossf.html">eegprep.crossf</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pac.html">eegprep.pac</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pac_cont.html">eegprep.pac_cont</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.timewarp.html">eegprep.timewarp</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.angtimewarp.html">eegprep.angtimewarp</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.tf_cycle_calc.html">eegprep.tf_cycle_calc</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.newtimefbaseln.html">eegprep.newtimefbaseln</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.newtimeftrialbaseln.html">eegprep.newtimeftrialbaseln</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.newtimefitc.html">eegprep.newtimefitc</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.newtimefpowerunit.html">eegprep.newtimefpowerunit</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.bootstat.html">eegprep.bootstat</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.correct_mc.html">eegprep.correct_mc</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.correctfit.html">eegprep.correctfit</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.rsadjust.html">eegprep.rsadjust</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.rsfit.html">eegprep.rsfit</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.rsget.html">eegprep.rsget</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.rspdfsolv.html">eegprep.rspdfsolv</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.rspfunc.html">eegprep.rspfunc</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.signalstat.html">eegprep.signalstat</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_newtimef.html">eegprep.pop_newtimef</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_newcrossf.html">eegprep.pop_newcrossf</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_timef.html">eegprep.pop_timef</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_crossf.html">eegprep.pop_crossf</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_signalstat.html">eegprep.pop_signalstat</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_eventstat.html">eegprep.pop_eventstat</a></li>
 </ul>
 <ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_adjustevents.html">eegprep.pop_adjustevents</a></li>
 <li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_epoch.html">eegprep.pop_epoch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_select.html">eegprep.pop_select</a></li>
 <li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_eegrej.html">eegprep.eeg_eegrej</a></li>
 <li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eegrej.html">eegprep.eegrej</a></li>
 </ul>
 <ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.cart2topo.html">eegprep.cart2topo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eegplot.html">eegprep.eegplot</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_multieegplot.html">eegprep.eeg_multieegplot</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_topoplot.html">eegprep.pop_topoplot</a></li>
 <li class="toctree-l1"><a class="reference internal" href="generated/eegprep.topoplot.html">eegprep.topoplot</a></li>
 </ul>
 <ul class="nav bd-sidenav">
@@ -461,13 +570,131 @@
 <li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_decodechan.html">eegprep.eeg_decodechan</a></li>
 <li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_lat2point.html">eegprep.eeg_lat2point</a></li>
 <li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_point2lat.html">eegprep.eeg_point2lat</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.bids_list_eeg_files.html">eegprep.bids_list_eeg_files</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.bids_preproc.html">eegprep.bids_preproc</a></li>
 </ul>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="generated/eegprep.bids_preproc.html">eegprep.bids_preproc</a></li>
 <li class="toctree-l1"><a class="reference internal" href="generated/eegprep.bids_list_eeg_files.html">eegprep.bids_list_eeg_files</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_load_frombids.html">eegprep.pop_load_frombids</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_importbids.html">eegprep.pop_importbids</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_exportbids.html">eegprep.pop_exportbids</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.bundled_plugins.html">eegprep.bundled_plugins</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.plugin_status.html">eegprep.plugin_status</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.plugin_menu.html">eegprep.plugin_menu</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.format_plugin_menu.html">eegprep.format_plugin_menu</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_clean_rawdata.html">eegprep.pop_clean_rawdata</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_icalabelstat.html">eegprep.eeg_icalabelstat</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_iclabel.html">eegprep.pop_iclabel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_icflag.html">eegprep.pop_icflag</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_prop_extended.html">eegprep.pop_prop_extended</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_viewprops.html">eegprep.pop_viewprops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.firws.html">eegprep.firws</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.firwsord.html">eegprep.firwsord</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_dipfit_settings.html">eegprep.pop_dipfit_settings</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_dipplot.html">eegprep.pop_dipplot</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_dipfit_headmodel.html">eegprep.pop_dipfit_headmodel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_dipfit_gridsearch.html">eegprep.pop_dipfit_gridsearch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_dipfit_nonlinear.html">eegprep.pop_dipfit_nonlinear</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_multifit.html">eegprep.pop_multifit</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_leadfield.html">eegprep.pop_leadfield</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_dipfit_loreta.html">eegprep.pop_dipfit_loreta</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.CATALOG_SCHEMA_VERSION.html">eegprep.CATALOG_SCHEMA_VERSION</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.CatalogValidationIssue.html">eegprep.CatalogValidationIssue</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.CatalogValidationOptions.html">eegprep.CatalogValidationOptions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.CatalogValidationReport.html">eegprep.CatalogValidationReport</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.EXTENSION_COMPATIBILITY_POLICY.html">eegprep.EXTENSION_COMPATIBILITY_POLICY</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.EXTENSION_CURATION_POLICY_URL.html">eegprep.EXTENSION_CURATION_POLICY_URL</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.EXTENSION_NAMING_PREFIX.html">eegprep.EXTENSION_NAMING_PREFIX</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.EXTENSION_TRUST_MESSAGE.html">eegprep.EXTENSION_TRUST_MESSAGE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.ExtensionSpec.html">eegprep.ExtensionSpec</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.ExtensionRegistry.html">eegprep.ExtensionRegistry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.ExtensionRecord.html">eegprep.ExtensionRecord</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.ExtensionStatus.html">eegprep.ExtensionStatus</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.ExtensionSourceType.html">eegprep.ExtensionSourceType</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.ExtensionCatalog.html">eegprep.ExtensionCatalog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.ExtensionCatalogEntry.html">eegprep.ExtensionCatalogEntry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.CatalogSourceType.html">eegprep.CatalogSourceType</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.ExtensionAction.html">eegprep.ExtensionAction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.ExtensionPopFunction.html">eegprep.ExtensionPopFunction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.ExtensionMenu.html">eegprep.ExtensionMenu</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.ExtensionDependency.html">eegprep.ExtensionDependency</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.ExtensionResource.html">eegprep.ExtensionResource</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.ExtensionLoadError.html">eegprep.ExtensionLoadError</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.ExtensionValidationResult.html">eegprep.ExtensionValidationResult</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.ExtensionTestHarness.html">eegprep.ExtensionTestHarness</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.LazyImport.html">eegprep.LazyImport</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.assert_extension_entry_point_loads.html">eegprep.assert_extension_entry_point_loads</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.check_extension_compatibility.html">eegprep.check_extension_compatibility</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.discover_extensions.html">eegprep.discover_extensions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.extension_version_satisfies.html">eegprep.extension_version_satisfies</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.load_catalog_entries.html">eegprep.load_catalog_entries</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.validate_catalog_entries.html">eegprep.validate_catalog_entries</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.validate_catalog_file.html">eegprep.validate_catalog_file</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.validate_extension_spec.html">eegprep.validate_extension_spec</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.load_extension_catalog.html">eegprep.load_extension_catalog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.build_safe_install_commands.html">eegprep.build_safe_install_commands</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.build_safe_update_commands.html">eegprep.build_safe_update_commands</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_study.html">eegprep.pop_study</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_studywizard.html">eegprep.pop_studywizard</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_studyerp.html">eegprep.pop_studyerp</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_loadstudy.html">eegprep.pop_loadstudy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_savestudy.html">eegprep.pop_savestudy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_addindepvar.html">eegprep.pop_addindepvar</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_importgroupvar.html">eegprep.pop_importgroupvar</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_listfactors.html">eegprep.pop_listfactors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_precomp.html">eegprep.pop_precomp</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_chanplot.html">eegprep.pop_chanplot</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_preclust.html">eegprep.pop_preclust</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_clust.html">eegprep.pop_clust</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_clustedit.html">eegprep.pop_clustedit</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_addvarlevel.html">eegprep.std_addvarlevel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_builddesignmat.html">eegprep.std_builddesignmat</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_limodesign.html">eegprep.std_limodesign</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_checkconsist.html">eegprep.std_checkconsist</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_checkdesign.html">eegprep.std_checkdesign</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_combtrialinfo.html">eegprep.std_combtrialinfo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_findsameica.html">eegprep.std_findsameica</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_getindvar.html">eegprep.std_getindvar</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_gettrialsind.html">eegprep.std_gettrialsind</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_indvarmatch.html">eegprep.std_indvarmatch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_maketrialinfo.html">eegprep.std_maketrialinfo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_rmdat.html">eegprep.std_rmdat</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_rmalldatafields.html">eegprep.std_rmalldatafields</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_rebuilddesign.html">eegprep.std_rebuilddesign</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_saveindvar.html">eegprep.std_saveindvar</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_selectdataset.html">eegprep.std_selectdataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_selsubject.html">eegprep.std_selsubject</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_substudy.html">eegprep.std_substudy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_readdata.html">eegprep.std_readdata</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_readerp.html">eegprep.std_readerp</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_readspec.html">eegprep.std_readspec</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_readersp.html">eegprep.std_readersp</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_readitc.html">eegprep.std_readitc</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_readtopo.html">eegprep.std_readtopo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_readpac.html">eegprep.std_readpac</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_pac.html">eegprep.std_pac</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_pacplot.html">eegprep.std_pacplot</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_prepare_neighbors.html">eegprep.std_prepare_neighbors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_interp.html">eegprep.std_interp</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_dipplot.html">eegprep.std_dipplot</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_dipoleclusters.html">eegprep.std_dipoleclusters</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_checkfiles.html">eegprep.std_checkfiles</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_checkdatasession.html">eegprep.std_checkdatasession</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_uniformfiles.html">eegprep.std_uniformfiles</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_uniformsetinds.html">eegprep.std_uniformsetinds</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_erpplot.html">eegprep.std_erpplot</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_specplot.html">eegprep.std_specplot</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_erspplot.html">eegprep.std_erspplot</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_itcplot.html">eegprep.std_itcplot</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.optimal_kmeans.html">eegprep.optimal_kmeans</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.robust_kmeans.html">eegprep.robust_kmeans</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_apcluster.html">eegprep.std_apcluster</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_centroid.html">eegprep.std_centroid</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_findoutlierclust.html">eegprep.std_findoutlierclust</a></li>
 </ul>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="generated/eegprep.EEG_OPTIONS.html">eegprep.EEG_OPTIONS</a></li>
@@ -530,26 +757,28 @@
 <section id="data-comparison">
 <h2>Data Comparison<a class="headerlink" href="#data-comparison" title="Link to this heading">#</a></h2>
 <dl class="py function">
-<dt class="sig sig-object py" id="eegprep.eeg_compare">
-<span class="sig-prename descclassname"><span class="pre">eegprep.</span></span><span class="sig-name descname"><span class="pre">eeg_compare</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">eeg1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eeg2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose_level</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trigger_error</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.eeg_compare" title="Link to this definition">#</a></dt>
-<dd><p>Compare two EEG-like structures, reporting differences to stderr.</p>
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">eegprep.</span></span><span class="sig-name descname"><span class="pre">eeg_compare</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">eeg1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eeg2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose_level</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trigger_error</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span></dt>
+<dd><p>Compare two EEG-like structures (or arrays) and return a difference summary.</p>
+<p>Per-field findings are emitted through this module’s logger; the returned value is the
+human-readable summary string callers print or store.</p>
 <section id="parameters">
 <h3>Parameters<a class="headerlink" href="#parameters" title="Link to this heading">#</a></h3>
 <dl class="simple">
-<dt>eeg1<span class="classifier">dict or object</span></dt><dd><p>First EEG structure to compare.</p>
+<dt>eeg1<span class="classifier">dict, object, or numpy.ndarray</span></dt><dd><p>First EEG structure (or array) to compare.</p>
 </dd>
-<dt>eeg2<span class="classifier">dict or object</span></dt><dd><p>Second EEG structure to compare.</p>
+<dt>eeg2<span class="classifier">dict, object, or numpy.ndarray</span></dt><dd><p>Second EEG structure (or array) to compare.</p>
 </dd>
-<dt>verbose_level<span class="classifier">int, optional</span></dt><dd><p>Level of verbosity for output. Default 0.</p>
+<dt>verbose_level<span class="classifier">int, optional</span></dt><dd><p>Level of verbosity for logged output. Default 0.</p>
 </dd>
-<dt>trigger_error<span class="classifier">bool, optional</span></dt><dd><p>Whether to raise an error if differences are found. Default False.</p>
+<dt>trigger_error<span class="classifier">bool, optional</span></dt><dd><p>Whether to raise a <code class="docutils literal notranslate"><span class="pre">ValueError</span></code> if differences are found. Default False.</p>
 </dd>
 </dl>
 </section>
 <section id="returns">
 <h3>Returns<a class="headerlink" href="#returns" title="Link to this heading">#</a></h3>
 <dl class="simple">
-<dt>bool</dt><dd><p>True if comparison completed (differences may still exist).</p>
+<dt>str</dt><dd><p>A summary describing the differences found, or that all fields match.</p>
 </dd>
 </dl>
 </section>
@@ -559,8 +788,8 @@
 <section id="channel-operations">
 <h2>Channel Operations<a class="headerlink" href="#channel-operations" title="Link to this heading">#</a></h2>
 <dl class="py function">
-<dt class="sig sig-object py" id="eegprep.eeg_decodechan">
-<span class="sig-prename descclassname"><span class="pre">eegprep.</span></span><span class="sig-name descname"><span class="pre">eeg_decodechan</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">chanlocs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chanstr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">field</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'labels'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ignoremissing</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.eeg_decodechan" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">eegprep.</span></span><span class="sig-name descname"><span class="pre">eeg_decodechan</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">chanlocs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chanstr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">field</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'labels'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ignoremissing</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span></dt>
 <dd><p>Resolve channel identifiers to 0-based indices and labels.</p>
 <dl class="simple">
 <dt>Supports:</dt><dd><ul class="simple">
@@ -600,8 +829,8 @@
 <section id="visualization">
 <h2>Visualization<a class="headerlink" href="#visualization" title="Link to this heading">#</a></h2>
 <dl class="py function">
-<dt class="sig sig-object py" id="eegprep.topoplot">
-<span class="sig-prename descclassname"><span class="pre">eegprep.</span></span><span class="sig-name descname"><span class="pre">topoplot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">datavector</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chan_locs</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.topoplot" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">eegprep.</span></span><span class="sig-name descname"><span class="pre">topoplot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">datavector</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chan_locs</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span></dt>
 <dd><p>Plot a 2D topographic map of EEG data.</p>
 <section id="id3">
 <h3>Parameters<a class="headerlink" href="#id3" title="Link to this heading">#</a></h3>
@@ -610,7 +839,7 @@
 </dd>
 <dt>chan_locs<span class="classifier">list of dict</span></dt><dd><p>Channel location structures with ‘labels’, ‘theta’, and ‘radius’ fields.</p>
 </dd>
-<dt><a href="#id4"><span class="problematic" id="id5">**</span></a>kwargs<span class="classifier">dict</span></dt><dd><p>Additional keyword arguments for customization:</p>
+<dt>kwargs<span class="classifier">dict</span></dt><dd><p>Additional keyword arguments for customization:</p>
 <ul class="simple">
 <li><p>noplot : str or tuple, default ‘off’</p></li>
 <li><p>plotgrid : str, default ‘off’</p></li>
@@ -624,8 +853,8 @@
 </dd>
 </dl>
 </section>
-<section id="id6">
-<h3>Returns<a class="headerlink" href="#id6" title="Link to this heading">#</a></h3>
+<section id="id4">
+<h3>Returns<a class="headerlink" href="#id4" title="Link to this heading">#</a></h3>
 <dl class="simple">
 <dt>handle<span class="classifier">matplotlib.figure.Figure or None</span></dt><dd><p>Figure handle if plotted, None otherwise.</p>
 </dd>
@@ -636,45 +865,32 @@
 </section>
 <section id="utility-modules">
 <h2>Utility Modules<a class="headerlink" href="#utility-modules" title="Link to this heading">#</a></h2>
-<section id="module-eegprep.utils.coords">
-<span id="coordinate-utilities"></span><h3>Coordinate Utilities<a class="headerlink" href="#module-eegprep.utils.coords" title="Link to this heading">#</a></h3>
+<section id="coordinate-utilities">
+<h3>Coordinate Utilities<a class="headerlink" href="#coordinate-utilities" title="Link to this heading">#</a></h3>
 <p>Coordinate system utilities.</p>
 <dl class="py function">
-<dt class="sig sig-object py" id="eegprep.utils.coords.coords_to_mm">
-<span class="sig-prename descclassname"><span class="pre">eegprep.utils.coords.</span></span><span class="sig-name descname"><span class="pre">coords_to_mm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">coords</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">unit</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.utils.coords.coords_to_mm" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">eegprep.plugins.EEG_BIDS.coords.</span></span><span class="sig-name descname"><span class="pre">coords_to_mm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">coords</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">unit</span></span></em><span class="sig-paren">)</span></dt>
 <dd><p>Convert the given coordinates array from the specified unit to millimeters.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code></a></span></p>
-</dd>
-<dt class="field-even">Parameters<span class="colon">:</span></dt>
-<dd class="field-even"><ul class="simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
 <li><p><strong>coords</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><em>ndarray</em></a>)</p></li>
 <li><p><strong>unit</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
 </ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><em>ndarray</em></a></p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py function">
-<dt class="sig sig-object py" id="eegprep.utils.coords.coords_any_to_RAS">
-<span class="sig-prename descclassname"><span class="pre">eegprep.utils.coords.</span></span><span class="sig-name descname"><span class="pre">coords_any_to_RAS</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">coords</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.utils.coords.coords_any_to_RAS" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">eegprep.plugins.EEG_BIDS.coords.</span></span><span class="sig-name descname"><span class="pre">coords_any_to_RAS</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">coords</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span></em><span class="sig-paren">)</span></dt>
 <dd><p>Convert the given coordinates (Nx3 array) to the RAS (Right-Anterior-Superior) system.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code></a></span></p>
-</dd>
-<dt class="field-even">Parameters<span class="colon">:</span></dt>
-<dd class="field-even"><ul class="simple">
-<li><p><strong>coords</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><em>ndarray</em></a>)</p></li>
-<li><p><strong>x</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
-<li><p><strong>y</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
-<li><p><strong>z</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
-</ul>
-</dd>
-</dl>
-<section id="id7">
-<h4>Parameters<a class="headerlink" href="#id7" title="Link to this heading">#</a></h4>
+<section id="id5">
+<h4>Parameters<a class="headerlink" href="#id5" title="Link to this heading">#</a></h4>
 <dl class="simple">
 <dt>coords<span class="classifier">np.ndarray</span></dt><dd><p>Nx3 array of coordinates to convert.</p>
 </dd>
@@ -686,50 +902,55 @@
 </dd>
 </dl>
 </section>
-<section id="id8">
-<h4>Returns<a class="headerlink" href="#id8" title="Link to this heading">#</a></h4>
+<section id="id6">
+<h4>Returns<a class="headerlink" href="#id6" title="Link to this heading">#</a></h4>
 <dl class="simple">
 <dt>coords<span class="classifier">np.ndarray</span></dt><dd><p>The transformed coordinates.</p>
 </dd>
 </dl>
 </section>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>coords</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><em>ndarray</em></a>)</p></li>
+<li><p><strong>x</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>y</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>z</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><em>ndarray</em></a></p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">
-<dt class="sig sig-object py" id="eegprep.utils.coords.coords_RAS_to_ALS">
-<span class="sig-prename descclassname"><span class="pre">eegprep.utils.coords.</span></span><span class="sig-name descname"><span class="pre">coords_RAS_to_ALS</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">coords</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.utils.coords.coords_RAS_to_ALS" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">eegprep.plugins.EEG_BIDS.coords.</span></span><span class="sig-name descname"><span class="pre">coords_RAS_to_ALS</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">coords</span></span></em><span class="sig-paren">)</span></dt>
 <dd><p>Convert coordinates from RAS (Right-Anterior-Superior) to ALS (Anterior-Left-Superior) convention.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code></a></span></p>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>coords</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><em>ndarray</em></a>)</p>
 </dd>
-<dt class="field-even">Parameters<span class="colon">:</span></dt>
-<dd class="field-even"><p><strong>coords</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><em>ndarray</em></a>)</p>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><em>ndarray</em></a></p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py function">
-<dt class="sig sig-object py" id="eegprep.utils.coords.coords_ALS_to_angular">
-<span class="sig-prename descclassname"><span class="pre">eegprep.utils.coords.</span></span><span class="sig-name descname"><span class="pre">coords_ALS_to_angular</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">coords</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.utils.coords.coords_ALS_to_angular" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">eegprep.plugins.EEG_BIDS.coords.</span></span><span class="sig-name descname"><span class="pre">coords_ALS_to_angular</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">coords</span></span></em><span class="sig-paren">)</span></dt>
 <dd><p>Convert Cartesian coordinates to spherical coordinates (sph_theta, sph_phi, sph_radius) and 2d polar coordinates (polar_theta, polar_radius).</p>
-<dl class="field-list simple">
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code></a></span></p>
-</dd>
-<dt class="field-even">Parameters<span class="colon">:</span></dt>
-<dd class="field-even"><p><strong>coords</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><em>ndarray</em></a>)</p>
-</dd>
-</dl>
-<section id="id9">
-<h4>Parameters<a class="headerlink" href="#id9" title="Link to this heading">#</a></h4>
+<section id="id7">
+<h4>Parameters<a class="headerlink" href="#id7" title="Link to this heading">#</a></h4>
 <dl class="simple">
 <dt>coords<span class="classifier">np.ndarray</span></dt><dd><p>Nx3 array of Cartesian coordinates (x, y, z).</p>
 </dd>
 </dl>
 </section>
-<section id="id10">
-<h4>Returns<a class="headerlink" href="#id10" title="Link to this heading">#</a></h4>
+<section id="id8">
+<h4>Returns<a class="headerlink" href="#id8" title="Link to this heading">#</a></h4>
 <dl class="simple">
 <dt>sph_theta<span class="classifier">np.ndarray</span></dt><dd><p>Nx1 arrays of spherical coordinates.</p>
 </dd>
@@ -743,79 +964,87 @@
 </dd>
 </dl>
 </section>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>coords</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><em>ndarray</em></a>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><em>ndarray</em></a></p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">
-<dt class="sig sig-object py" id="eegprep.utils.coords.clear_chanloc">
-<span class="sig-prename descclassname"><span class="pre">eegprep.utils.coords.</span></span><span class="sig-name descname"><span class="pre">clear_chanloc</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ch</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">numeric_null</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.utils.coords.clear_chanloc" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">eegprep.plugins.EEG_BIDS.coords.</span></span><span class="sig-name descname"><span class="pre">clear_chanloc</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ch</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">numeric_null</span></span></em><span class="sig-paren">)</span></dt>
 <dd><p>Clear a channel-location record for a single channel in-place.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></a></span></p>
-</dd>
-<dt class="field-even">Parameters<span class="colon">:</span></dt>
-<dd class="field-even"><ul class="simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
 <li><p><strong>ch</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a><em>]</em>)</p></li>
 <li><p><strong>numeric_null</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>)</p></li>
 </ul>
 </dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
 </dl>
 </dd></dl>
 
 <dl class="py function">
-<dt class="sig sig-object py" id="eegprep.utils.coords.chanloc_has_coords">
-<span class="sig-prename descclassname"><span class="pre">eegprep.utils.coords.</span></span><span class="sig-name descname"><span class="pre">chanloc_has_coords</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ch</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.utils.coords.chanloc_has_coords" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">eegprep.plugins.EEG_BIDS.coords.</span></span><span class="sig-name descname"><span class="pre">chanloc_has_coords</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ch</span></span></em><span class="sig-paren">)</span></dt>
 <dd><p>Check if a given channel location record has valid (Cartesian) coordinates.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></span></p>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>ch</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a><em>]</em>)</p>
 </dd>
-<dt class="field-even">Parameters<span class="colon">:</span></dt>
-<dd class="field-even"><p><strong>ch</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a><em>]</em>)</p>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)">bool</a></p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py function">
-<dt class="sig sig-object py" id="eegprep.utils.coords.chanlocs_to_coords">
-<span class="sig-prename descclassname"><span class="pre">eegprep.utils.coords.</span></span><span class="sig-name descname"><span class="pre">chanlocs_to_coords</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">chanlocs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.utils.coords.chanlocs_to_coords" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">eegprep.plugins.EEG_BIDS.coords.</span></span><span class="sig-name descname"><span class="pre">chanlocs_to_coords</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">chanlocs</span></span></em><span class="sig-paren">)</span></dt>
 <dd><p>Convert an EEGLAB chanlocs data structure to a Nx3 coordinates array.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code></a></span></p>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>chanlocs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.14)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a><em>]</em><em>]</em>)</p>
 </dd>
-<dt class="field-even">Parameters<span class="colon">:</span></dt>
-<dd class="field-even"><p><strong>chanlocs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.14)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a><em>]</em><em>]</em>)</p>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><em>ndarray</em></a></p>
 </dd>
 </dl>
 </dd></dl>
 
 </section>
-<section id="module-eegprep.utils.spatial">
-<span id="spatial-utilities"></span><h3>Spatial Utilities<a class="headerlink" href="#module-eegprep.utils.spatial" title="Link to this heading">#</a></h3>
+<section id="spatial-utilities">
+<h3>Spatial Utilities<a class="headerlink" href="#spatial-utilities" title="Link to this heading">#</a></h3>
 <p>Spatial interpolation utilities.</p>
 <dl class="py function">
-<dt class="sig sig-object py" id="eegprep.utils.spatial.sphericalSplineInterpolate">
-<span class="sig-prename descclassname"><span class="pre">eegprep.utils.spatial.</span></span><span class="sig-name descname"><span class="pre">sphericalSplineInterpolate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">src</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dest</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lambda_reg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-05</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">order</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'spline'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tol</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">np.float64(2.220446049250313e-16)</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.utils.spatial.sphericalSplineInterpolate" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">eegprep.plugins.clean_rawdata.private.sphericalSplineInterpolate.</span></span><span class="sig-name descname"><span class="pre">sphericalSplineInterpolate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">src</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dest</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lambda_reg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-05</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">order</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'spline'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tol</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">np.float64(2.220446049250313e-16)</span></span></em><span class="sig-paren">)</span></dt>
 <dd><p>Interpolation matrix for spherical interpolation. Python port of Jason Farquhar’s MATLAB code.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>src</strong> (<em>np.ndarray</em>) – Source electrode positions [3 x N]. Assumes coordinates are in columns.</p></li>
 <li><p><strong>dest</strong> (<em>np.ndarray</em>) – Destination electrode positions [3 x M]. Assumes coordinates are in columns.</p></li>
-<li><p><strong>lambda_reg</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><em>optional</em>) – Regularisation parameter for smoothing estimates. Defaults to 1e-5.
+<li><p><strong>lambda_reg</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><a class="reference internal" href="generated/eegprep.ExtensionDependency.html#eegprep.ExtensionDependency.optional" title="eegprep.ExtensionDependency.optional"><em>optional</em></a>) – Regularisation parameter for smoothing estimates. Defaults to 1e-5.
 (Renamed from ‘lambda’ to avoid clash with Python keyword).</p></li>
-<li><p><strong>order</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>optional</em>) – Order of the polynomial interpolation to use. Defaults to 4.</p></li>
-<li><p><strong>type</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>optional</em>) – Interpolation type, one of ‘spline’ or ‘slap’. Defaults to ‘spline’.
+<li><p><strong>order</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference internal" href="generated/eegprep.ExtensionDependency.html#eegprep.ExtensionDependency.optional" title="eegprep.ExtensionDependency.optional"><em>optional</em></a>) – Order of the polynomial interpolation to use. Defaults to 4.</p></li>
+<li><p><strong>type</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><a class="reference internal" href="generated/eegprep.ExtensionDependency.html#eegprep.ExtensionDependency.optional" title="eegprep.ExtensionDependency.optional"><em>optional</em></a>) – Interpolation type, one of ‘spline’ or ‘slap’. Defaults to ‘spline’.
 ‘spline’ -&gt; spherical Spline
 ‘slap’   -&gt; surface Laplician (aka CSD)</p></li>
-<li><p><strong>tol</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><em>optional</em>) – Tolerance for the Legendre polynomial approximation convergence.
+<li><p><strong>tol</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><a class="reference internal" href="generated/eegprep.ExtensionDependency.html#eegprep.ExtensionDependency.optional" title="eegprep.ExtensionDependency.optional"><em>optional</em></a>) – Tolerance for the Legendre polynomial approximation convergence.
 Defaults to machine epsilon for float.</p></li>
 </ul>
 </dd>
 </dl>
-<section id="id11">
-<h4>Returns<a class="headerlink" href="#id11" title="Link to this heading">#</a></h4>
+<section id="id9">
+<h4>Returns<a class="headerlink" href="#id9" title="Link to this heading">#</a></h4>
 <blockquote>
 <div><dl class="simple">
 <dt>tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:</dt><dd><p>W: [M x N] linear mapping matrix between old and new coords.
@@ -846,12 +1075,12 @@ warranty, express or implied.</p>
 </dd></dl>
 
 </section>
-<section id="module-eegprep.utils.stats">
-<span id="statistical-utilities"></span><h3>Statistical Utilities<a class="headerlink" href="#module-eegprep.utils.stats" title="Link to this heading">#</a></h3>
+<section id="statistical-utilities">
+<h3>Statistical Utilities<a class="headerlink" href="#statistical-utilities" title="Link to this heading">#</a></h3>
 <p>Statistical utilities for EEG data.</p>
 <dl class="py function">
-<dt class="sig sig-object py" id="eegprep.utils.stats.fit_eeg_distribution">
-<span class="sig-prename descclassname"><span class="pre">eegprep.utils.stats.</span></span><span class="sig-name descname"><span class="pre">fit_eeg_distribution</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">X</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_clean_fraction</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_dropout_fraction</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">quants</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">step_sizes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">beta</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.utils.stats.fit_eeg_distribution" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">eegprep.plugins.clean_rawdata.private.stats.</span></span><span class="sig-name descname"><span class="pre">fit_eeg_distribution</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">X</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_clean_fraction</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_dropout_fraction</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">quants</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">step_sizes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">beta</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span></dt>
 <dd><p>Estimate the mean and standard deviation of clean EEG from contaminated data.</p>
 <p>Mu,Sigma,Alpha,Beta = fit_eeg_distribution(X,MinCleanFraction,MaxDropoutFraction,FitQuantiles,StepSizes,ShapeRange)</p>
 <p>This function estimates the mean and standard deviation of clean EEG from a
@@ -902,8 +1131,8 @@ Range that the clean EEG distribution’s shape parameter beta may take
 </ul>
 </dd>
 </dl>
-<section id="id12">
-<h4>Returns<a class="headerlink" href="#id12" title="Link to this heading">#</a></h4>
+<section id="id10">
+<h4>Returns<a class="headerlink" href="#id10" title="Link to this heading">#</a></h4>
 <blockquote>
 <div><dl class="simple">
 <dt>tuple:</dt><dd><ul class="simple">
@@ -927,8 +1156,8 @@ Range that the clean EEG distribution’s shape parameter beta may take
 </dd></dl>
 
 <dl class="py function">
-<dt class="sig sig-object py" id="eegprep.utils.stats.geometric_median">
-<span class="sig-prename descclassname"><span class="pre">eegprep.utils.stats.</span></span><span class="sig-name descname"><span class="pre">geometric_median</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">X</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tol</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-05</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_iter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">500</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.utils.stats.geometric_median" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">eegprep.plugins.clean_rawdata.private.stats.</span></span><span class="sig-name descname"><span class="pre">geometric_median</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">X</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tol</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-05</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_iter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">500</span></span></em><span class="sig-paren">)</span></dt>
 <dd><p>Calculate the geometric median for a set of observations.</p>
 <p>This is the mean under a Laplacian noise distribution, using
 Weiszfeld’s algorithm.</p>
@@ -936,15 +1165,15 @@ Weiszfeld’s algorithm.</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>X</strong> (<em>np.ndarray</em>) – The data, expected shape (n_samples, n_features).</p></li>
-<li><p><strong>tol</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><em>optional</em>) – Tolerance for convergence. Defaults to 1.e-5.</p></li>
-<li><p><strong>y</strong> (<em>np.ndarray</em><em>, </em><em>optional</em>) – Initial value for the geometric median.
+<li><p><strong>tol</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><a class="reference internal" href="generated/eegprep.ExtensionDependency.html#eegprep.ExtensionDependency.optional" title="eegprep.ExtensionDependency.optional"><em>optional</em></a>) – Tolerance for convergence. Defaults to 1.e-5.</p></li>
+<li><p><strong>y</strong> (<em>np.ndarray</em><em>, </em><a class="reference internal" href="generated/eegprep.ExtensionDependency.html#eegprep.ExtensionDependency.optional" title="eegprep.ExtensionDependency.optional"><em>optional</em></a>) – Initial value for the geometric median.
 Defaults to the coordinate-wise median of X.</p></li>
-<li><p><strong>max_iter</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>optional</em>) – Maximum number of iterations. Defaults to 500.</p></li>
+<li><p><strong>max_iter</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference internal" href="generated/eegprep.ExtensionDependency.html#eegprep.ExtensionDependency.optional" title="eegprep.ExtensionDependency.optional"><em>optional</em></a>) – Maximum number of iterations. Defaults to 500.</p></li>
 </ul>
 </dd>
 </dl>
-<section id="id13">
-<h4>Returns<a class="headerlink" href="#id13" title="Link to this heading">#</a></h4>
+<section id="id11">
+<h4>Returns<a class="headerlink" href="#id11" title="Link to this heading">#</a></h4>
 <blockquote>
 <div><p>np.ndarray: The geometric median of X, shape (n_features,).</p>
 </div></blockquote>
@@ -952,8 +1181,8 @@ Defaults to the coordinate-wise median of X.</p></li>
 </dd></dl>
 
 <dl class="py function">
-<dt class="sig sig-object py" id="eegprep.utils.stats.block_geometric_median">
-<span class="sig-prename descclassname"><span class="pre">eegprep.utils.stats.</span></span><span class="sig-name descname"><span class="pre">block_geometric_median</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">X</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">blocksize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tol</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-05</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_iter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">500</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.utils.stats.block_geometric_median" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">eegprep.plugins.clean_rawdata.private.stats.</span></span><span class="sig-name descname"><span class="pre">block_geometric_median</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">X</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">blocksize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tol</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-05</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_iter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">500</span></span></em><span class="sig-paren">)</span></dt>
 <dd><p>Calculate a blockwise geometric median.</p>
 <p>Faster and less memory-intensive than the regular geom_median function.
 This statistic is not robust to artifacts that persist over a duration that
@@ -962,23 +1191,23 @@ is significantly shorter than the blocksize.</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>X</strong> (<em>np.ndarray</em>) – The data (#observations x #variables).</p></li>
-<li><p><strong>blocksize</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>optional</em>) – The number of successive samples over which a regular mean
+<li><p><strong>blocksize</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference internal" href="generated/eegprep.ExtensionDependency.html#eegprep.ExtensionDependency.optional" title="eegprep.ExtensionDependency.optional"><em>optional</em></a>) – The number of successive samples over which a regular mean
 should be taken. Defaults to 1.</p></li>
-<li><p><strong>tol</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><em>optional</em>) – Tolerance for convergence. Defaults to 1.e-5.</p></li>
-<li><p><strong>y</strong> (<em>np.ndarray</em><em>, </em><em>optional</em>) – Initial value for the geometric median.
+<li><p><strong>tol</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><a class="reference internal" href="generated/eegprep.ExtensionDependency.html#eegprep.ExtensionDependency.optional" title="eegprep.ExtensionDependency.optional"><em>optional</em></a>) – Tolerance for convergence. Defaults to 1.e-5.</p></li>
+<li><p><strong>y</strong> (<em>np.ndarray</em><em>, </em><a class="reference internal" href="generated/eegprep.ExtensionDependency.html#eegprep.ExtensionDependency.optional" title="eegprep.ExtensionDependency.optional"><em>optional</em></a>) – Initial value for the geometric median.
 Defaults to the coordinate-wise median of X.</p></li>
-<li><p><strong>max_iter</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>optional</em>) – Maximum number of iterations. Defaults to 500.</p></li>
+<li><p><strong>max_iter</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference internal" href="generated/eegprep.ExtensionDependency.html#eegprep.ExtensionDependency.optional" title="eegprep.ExtensionDependency.optional"><em>optional</em></a>) – Maximum number of iterations. Defaults to 500.</p></li>
 </ul>
 </dd>
 </dl>
-<section id="id14">
-<h4>Returns<a class="headerlink" href="#id14" title="Link to this heading">#</a></h4>
+<section id="id12">
+<h4>Returns<a class="headerlink" href="#id12" title="Link to this heading">#</a></h4>
 <blockquote>
 <div><p>np.ndarray: Geometric median over X, scaled by 1/blocksize.</p>
 </div></blockquote>
 </section>
-<section id="id15">
-<h4>Notes<a class="headerlink" href="#id15" title="Link to this heading">#</a></h4>
+<section id="id13">
+<h4>Notes<a class="headerlink" href="#id13" title="Link to this heading">#</a></h4>
 <blockquote>
 <div><p>This function is noticeably faster if the length of the data is divisible
 by the block size.</p>
@@ -987,8 +1216,8 @@ by the block size.</p>
 </dd></dl>
 
 <dl class="py function">
-<dt class="sig sig-object py" id="eegprep.utils.stats.mad">
-<span class="sig-prename descclassname"><span class="pre">eegprep.utils.stats.</span></span><span class="sig-name descname"><span class="pre">mad</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">X</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">keepdims</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.utils.stats.mad" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">eegprep.plugins.clean_rawdata.private.stats.</span></span><span class="sig-name descname"><span class="pre">mad</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">X</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">keepdims</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span></dt>
 <dd><p>Calculate the median absolute deviation from the median along a given axis.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -1005,8 +1234,8 @@ Default is False.</p></li>
 </ul>
 </dd>
 </dl>
-<section id="id16">
-<h4>Returns<a class="headerlink" href="#id16" title="Link to this heading">#</a></h4>
+<section id="id14">
+<h4>Returns<a class="headerlink" href="#id14" title="Link to this heading">#</a></h4>
 <blockquote>
 <div><dl class="simple">
 <dt>array-like:</dt><dd><p>Median absolute deviation of the input data.</p>
@@ -1017,121 +1246,17 @@ Default is False.</p></li>
 </dd></dl>
 
 </section>
-<section id="module-eegprep.utils.sigproc">
-<span id="signal-processing-utilities"></span><h3>Signal Processing Utilities<a class="headerlink" href="#module-eegprep.utils.sigproc" title="Link to this heading">#</a></h3>
+<section id="signal-processing-utilities">
+<h3>Signal Processing Utilities<a class="headerlink" href="#signal-processing-utilities" title="Link to this heading">#</a></h3>
 <p>Signal processing utilities.</p>
 <dl class="py function">
-<dt class="sig sig-object py" id="eegprep.utils.sigproc.design_kaiser">
-<span class="sig-prename descclassname"><span class="pre">eegprep.utils.sigproc.</span></span><span class="sig-name descname"><span class="pre">design_kaiser</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lo</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hi</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">atten</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">want_odd</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_scipy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.utils.sigproc.design_kaiser" title="Link to this definition">#</a></dt>
-<dd><p>Design a Kaiser window for a low-pass FIR filter.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code></a></span></p>
-</dd>
-<dt class="field-even">Parameters<span class="colon">:</span></dt>
-<dd class="field-even"><ul class="simple">
-<li><p><strong>lo</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
-<li><p><strong>hi</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
-<li><p><strong>atten</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
-<li><p><strong>want_odd</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
-<li><p><strong>use_scipy</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
-</ul>
-</dd>
-</dl>
-<section id="id17">
-<h4>Parameters<a class="headerlink" href="#id17" title="Link to this heading">#</a></h4>
-<dl class="simple">
-<dt>lo<span class="classifier">float</span></dt><dd><p>Normalized lower edge of the transition band.</p>
-</dd>
-<dt>hi<span class="classifier">float</span></dt><dd><p>Normalized upper edge of the transition band.</p>
-</dd>
-<dt>atten<span class="classifier">float</span></dt><dd><p>Stop-band attenuation in dB (-20log10(ratio)).</p>
-</dd>
-<dt>want_odd<span class="classifier">bool</span></dt><dd><p>Whether the desired window length shall be odd.</p>
-</dd>
-<dt>use_scipy<span class="classifier">bool, optional</span></dt><dd><p>Whether to use scipy’s kaiserord() function, which gives
-an approx. 2x longer window than the original function clean_rawdata.</p>
-</dd>
-</dl>
-</section>
-<section id="id18">
-<h4>Returns<a class="headerlink" href="#id18" title="Link to this heading">#</a></h4>
-<dl class="simple">
-<dt>np.ndarray</dt><dd><p>The Kaiser window.</p>
-</dd>
-</dl>
-</section>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="eegprep.utils.sigproc.design_fir">
-<span class="sig-prename descclassname"><span class="pre">eegprep.utils.sigproc.</span></span><span class="sig-name descname"><span class="pre">design_fir</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">f</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">a</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">nfft</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">w</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compat</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.utils.sigproc.design_fir" title="Link to this definition">#</a></dt>
-<dd><p>Design an FIR filter using the frequency-sampling method.</p>
-<p>The frequency response is interpolated cubically between the specified
-frequency points.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code></a></span></p>
-</dd>
-<dt class="field-even">Parameters<span class="colon">:</span></dt>
-<dd class="field-even"><ul class="simple">
-<li><p><strong>n</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
-<li><p><strong>f</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><em>ndarray</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.14)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>]</em>)</p></li>
-<li><p><strong>a</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><em>ndarray</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.14)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>]</em>)</p></li>
-<li><p><strong>nfft</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>)</p></li>
-<li><p><strong>w</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><em>ndarray</em></a><em> | </em><em>None</em>)</p></li>
-<li><p><strong>compat</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
-</ul>
-</dd>
-</dl>
-<section id="id19">
-<h4>Parameters<a class="headerlink" href="#id19" title="Link to this heading">#</a></h4>
-<dl class="simple">
-<dt>n<span class="classifier">int</span></dt><dd><p>Order of the filter.</p>
-</dd>
-<dt>f<span class="classifier">array_like</span></dt><dd><p>Vector of frequencies at which amplitudes shall be defined
-(starts with 0 and goes up to 1; try to avoid too sharp transitions).</p>
-</dd>
-<dt>a<span class="classifier">array_like</span></dt><dd><p>Vector of amplitudes, one value per specified frequency.</p>
-</dd>
-<dt>nfft<span class="classifier">int, optional</span></dt><dd><p>Optionally number of FFT bins to use.</p>
-</dd>
-<dt>w<span class="classifier">array_like, optional</span></dt><dd><p>Optionally the window function to use.</p>
-</dd>
-<dt>compat<span class="classifier">bool, optional</span></dt><dd><p>Whether to use the original MATLAB-compatible filter design
-(where the window is off by 1 sample).</p>
-</dd>
-</dl>
-</section>
-<section id="id20">
-<h4>Returns<a class="headerlink" href="#id20" title="Link to this heading">#</a></h4>
-<dl class="simple">
-<dt>np.ndarray</dt><dd><p>The filter coefficients.</p>
-</dd>
-</dl>
-</section>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="eegprep.utils.sigproc.filtfilt_fast">
-<span class="sig-prename descclassname"><span class="pre">eegprep.utils.sigproc.</span></span><span class="sig-name descname"><span class="pre">filtfilt_fast</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">b</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">a</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.utils.sigproc.filtfilt_fast" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">eegprep.plugins.clean_rawdata.private.sigproc.</span></span><span class="sig-name descname"><span class="pre">filtfilt_fast</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">b</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">a</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span></em><span class="sig-paren">)</span></dt>
 <dd><p>Apply a zero-phase forward-backward filter to a signal using FFTs.</p>
 <p>This is a drop-in replacement for scipy.signal.filtfilt() that is considerably faster
 for long signals.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code></a></span></p>
-</dd>
-<dt class="field-even">Parameters<span class="colon">:</span></dt>
-<dd class="field-even"><ul class="simple">
-<li><p><strong>b</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><em>ndarray</em></a>)</p></li>
-<li><p><strong>a</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> | </em><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><em>ndarray</em></a>)</p></li>
-<li><p><strong>x</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><em>ndarray</em></a>)</p></li>
-</ul>
-</dd>
-</dl>
-<section id="id21">
-<h4>Parameters<a class="headerlink" href="#id21" title="Link to this heading">#</a></h4>
+<section id="id15">
+<h4>Parameters<a class="headerlink" href="#id15" title="Link to this heading">#</a></h4>
 <dl class="simple">
 <dt>b<span class="classifier">np.ndarray</span></dt><dd><p>Numerator coefficients of the filter.</p>
 </dd>
@@ -1141,108 +1266,86 @@ for long signals.</p>
 </dd>
 </dl>
 </section>
-<section id="id22">
-<h4>Returns<a class="headerlink" href="#id22" title="Link to this heading">#</a></h4>
+<section id="id16">
+<h4>Returns<a class="headerlink" href="#id16" title="Link to this heading">#</a></h4>
 <dl class="simple">
 <dt>np.ndarray</dt><dd><p>The filtered signal.</p>
 </dd>
 </dl>
 </section>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>b</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><em>ndarray</em></a>)</p></li>
+<li><p><strong>a</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> | </em><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><em>ndarray</em></a>)</p></li>
+<li><p><strong>x</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><em>ndarray</em></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><em>ndarray</em></a></p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">
-<dt class="sig sig-object py" id="eegprep.utils.sigproc.firwsord">
-<span class="sig-prename descclassname"><span class="pre">eegprep.utils.sigproc.</span></span><span class="sig-name descname"><span class="pre">firwsord</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">wintype</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dev</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.utils.sigproc.firwsord" title="Link to this definition">#</a></dt>
-<dd><p>Estimate windowed sinc FIR filter order depending on window type and requested transition band width.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Tuple</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></a>]</span></p>
-</dd>
-<dt class="field-even">Parameters<span class="colon">:</span></dt>
-<dd class="field-even"><ul class="simple">
-<li><p><strong>wintype</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
-<li><p><strong>fs</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
-<li><p><strong>df</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
-<li><p><strong>dev</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> | </em><em>None</em>)</p></li>
-</ul>
-</dd>
-</dl>
-<section id="id23">
-<h4>Parameters<a class="headerlink" href="#id23" title="Link to this heading">#</a></h4>
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">eegprep.plugins.clean_rawdata.private.sigproc.</span></span><span class="sig-name descname"><span class="pre">moving_average</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">X</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">N</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Z</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inplace</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">transform</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">init</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span></dt>
+<dd><p>Lfilter()-style moving average function with support for state.</p>
+<section id="id17">
+<h4>Parameters<a class="headerlink" href="#id17" title="Link to this heading">#</a></h4>
 <dl class="simple">
-<dt>wintype<span class="classifier">str</span></dt><dd><p>Window type. One of ‘rectangular’, ‘hann’, ‘hamming’, ‘blackman’, or ‘kaiser’.</p>
+<dt>X<span class="classifier">array_like</span></dt><dd><p>Signal to filter.</p>
 </dd>
-<dt>fs<span class="classifier">float</span></dt><dd><p>Sampling frequency.</p>
+<dt>N<span class="classifier">int, optional</span></dt><dd><p>Number of points that shall be averaged (window length).</p>
 </dd>
-<dt>df<span class="classifier">float</span></dt><dd><p>Requested transition band width.</p>
+<dt>axis<span class="classifier">int, optional</span></dt><dd><p>Axis along which to filter; note: IF you use transform, and if
+it inserts additional axes, the same index needs to work before and
+after the transform (e.g., you can use negative indices to count from
+the end if needed to accomplish that).</p>
 </dd>
-<dt>dev<span class="classifier">float, optional</span></dt><dd><p>Maximum passband deviation/ripple (Kaiser window only).</p>
+<dt>Z<span class="classifier">object, optional</span></dt><dd><p>Initial state (or None).</p>
+</dd>
+<dt>inplace<span class="classifier">bool, optional</span></dt><dd><p>Whether to overwrite the input.</p>
+</dd>
+<dt>transform<span class="classifier">callable, optional</span></dt><dd><p>Optionally a transformation to apply to each input sample,
+usually to generate higher-dimensional data; one use case is to calculate
+covariance matrices per sample on the fly instead of having the moving average
+to apply to and buffer potentially very large covariance data
+(by passing lambda x: x[:, None] &#64; x[None, :]).</p>
+</dd>
+<dt>init<span class="classifier">int or None, optional</span></dt><dd><p>How to behave on the first N samples of input; if set to 0,
+this will behave as if the data were pre-pended by zeros; if set to None,
+this will average the (fewer, noisier) samples in the buffer.</p>
 </dd>
 </dl>
 </section>
-<section id="id24">
-<h4>Returns<a class="headerlink" href="#id24" title="Link to this heading">#</a></h4>
+<section id="id18">
+<h4>Returns<a class="headerlink" href="#id18" title="Link to this heading">#</a></h4>
 <dl class="simple">
-<dt>m<span class="classifier">int</span></dt><dd><p>Estimated filter order.</p>
+<dt>X’<span class="classifier">array_like</span></dt><dd><p>Filtered signal.</p>
 </dd>
-<dt>dev<span class="classifier">float</span></dt><dd><p>Maximum passband deviation/ripple.</p>
-</dd>
-</dl>
-</section>
-<section id="id25">
-<h4>Notes<a class="headerlink" href="#id25" title="Link to this heading">#</a></h4>
-<p>Based on a MATLAB implementation by Andreas Widmann, University of Leipzig, 2005.</p>
-</section>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="eegprep.utils.sigproc.firws">
-<span class="sig-prename descclassname"><span class="pre">eegprep.utils.sigproc.</span></span><span class="sig-name descname"><span class="pre">firws</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">m</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">f</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">w</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.utils.sigproc.firws" title="Link to this definition">#</a></dt>
-<dd><p>Designs windowed sinc type I linear phase FIR filter.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Tuple</span></code></a>[<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></a>]</span></p>
-</dd>
-<dt class="field-even">Parameters<span class="colon">:</span></dt>
-<dd class="field-even"><ul class="simple">
-<li><p><strong>m</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
-<li><p><strong>f</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.14)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>]</em>)</p></li>
-<li><p><strong>t</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>)</p></li>
-<li><p><strong>w</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><em>ndarray</em></a><em> | </em><em>None</em>)</p></li>
-</ul>
-</dd>
-</dl>
-<section id="id26">
-<h4>Parameters<a class="headerlink" href="#id26" title="Link to this heading">#</a></h4>
-<dl class="simple">
-<dt>m<span class="classifier">int</span></dt><dd><p>Filter order (mandatory even).</p>
-</dd>
-<dt>f<span class="classifier">float or sequence of float</span></dt><dd><p>Vector or scalar of cutoff frequency/ies (-6 dB; pi rad / sample).</p>
-</dd>
-<dt>t<span class="classifier">str, optional</span></dt><dd><p>‘high’ for highpass, ‘stop’ for bandstop filter (default low-/bandpass).</p>
-</dd>
-<dt>w<span class="classifier">array_like, optional</span></dt><dd><p>Vector of length m + 1 defining window (default hamming).</p>
+<dt>Z’<span class="classifier">object</span></dt><dd><p>Final state (can be passed into the next call to moving_average()).</p>
 </dd>
 </dl>
 </section>
-<section id="id27">
-<h4>Returns<a class="headerlink" href="#id27" title="Link to this heading">#</a></h4>
-<dl class="simple">
-<dt>b<span class="classifier">np.ndarray</span></dt><dd><p>Filter coefficients.</p>
-</dd>
-<dt>a<span class="classifier">float</span></dt><dd><p>Always 1 (FIR filter).</p>
-</dd>
-</dl>
-</section>
-<section id="examples">
-<h4>Examples<a class="headerlink" href="#examples" title="Link to this heading">#</a></h4>
-<p>fs = 500; cutoff = 0.5; df = 1;
-m = firwsord(‘hamming’, fs, df)[0]
-b, a = firws(m, cutoff / (fs / 2), ‘high’, scipy.signal.windows.hamming(m + 1))</p>
-</section>
-<section id="id28">
-<h4>Notes<a class="headerlink" href="#id28" title="Link to this heading">#</a></h4>
-<p>Based on a MATLAB implementation by Andreas Widmann, University of Leipzig, 2005.</p>
+<section id="license">
+<h4>License<a class="headerlink" href="#license" title="Link to this heading">#</a></h4>
+<p>Copyright (c) 2015-2025 Syntrogi Inc. dba Intheon.</p>
+<p>Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the “Software”), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:</p>
+<p>The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.</p>
+<p>THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.</p>
 </section>
 </dd></dl>
 
@@ -1261,12 +1364,12 @@ b, a = firws(m, cutoff / (fs / 2), ‘high’, scipy.signal.windows.hamming(m + 
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="io.html"
+       href="extensions.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">Input/Output Functions</p>
+        <p class="prev-next-title">Extension SDK and Registry</p>
       </div>
     </a>
     <a class="right-next"
@@ -1297,48 +1400,14 @@ b, a = firws(m, cutoff / (fs / 2), ‘high’, scipy.signal.windows.hamming(m + 
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="pst-show_toc_level nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-comparison">Data Comparison</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.eeg_compare"><code class="docutils literal notranslate"><span class="pre">eeg_compare()</span></code></a></li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#channel-operations">Channel Operations</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.eeg_decodechan"><code class="docutils literal notranslate"><span class="pre">eeg_decodechan()</span></code></a></li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#visualization">Visualization</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.topoplot"><code class="docutils literal notranslate"><span class="pre">topoplot()</span></code></a></li>
-</ul>
-</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-comparison">Data Comparison</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#channel-operations">Channel Operations</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#visualization">Visualization</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#utility-modules">Utility Modules</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#module-eegprep.utils.coords">Coordinate Utilities</a><ul class="nav section-nav flex-column">
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.utils.coords.coords_to_mm"><code class="docutils literal notranslate"><span class="pre">coords_to_mm()</span></code></a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.utils.coords.coords_any_to_RAS"><code class="docutils literal notranslate"><span class="pre">coords_any_to_RAS()</span></code></a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.utils.coords.coords_RAS_to_ALS"><code class="docutils literal notranslate"><span class="pre">coords_RAS_to_ALS()</span></code></a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.utils.coords.coords_ALS_to_angular"><code class="docutils literal notranslate"><span class="pre">coords_ALS_to_angular()</span></code></a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.utils.coords.clear_chanloc"><code class="docutils literal notranslate"><span class="pre">clear_chanloc()</span></code></a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.utils.coords.chanloc_has_coords"><code class="docutils literal notranslate"><span class="pre">chanloc_has_coords()</span></code></a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.utils.coords.chanlocs_to_coords"><code class="docutils literal notranslate"><span class="pre">chanlocs_to_coords()</span></code></a></li>
-</ul>
-</li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#module-eegprep.utils.spatial">Spatial Utilities</a><ul class="nav section-nav flex-column">
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.utils.spatial.sphericalSplineInterpolate"><code class="docutils literal notranslate"><span class="pre">sphericalSplineInterpolate()</span></code></a></li>
-</ul>
-</li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#module-eegprep.utils.stats">Statistical Utilities</a><ul class="nav section-nav flex-column">
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.utils.stats.fit_eeg_distribution"><code class="docutils literal notranslate"><span class="pre">fit_eeg_distribution()</span></code></a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.utils.stats.geometric_median"><code class="docutils literal notranslate"><span class="pre">geometric_median()</span></code></a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.utils.stats.block_geometric_median"><code class="docutils literal notranslate"><span class="pre">block_geometric_median()</span></code></a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.utils.stats.mad"><code class="docutils literal notranslate"><span class="pre">mad()</span></code></a></li>
-</ul>
-</li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#module-eegprep.utils.sigproc">Signal Processing Utilities</a><ul class="nav section-nav flex-column">
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.utils.sigproc.design_kaiser"><code class="docutils literal notranslate"><span class="pre">design_kaiser()</span></code></a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.utils.sigproc.design_fir"><code class="docutils literal notranslate"><span class="pre">design_fir()</span></code></a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.utils.sigproc.filtfilt_fast"><code class="docutils literal notranslate"><span class="pre">filtfilt_fast()</span></code></a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.utils.sigproc.firwsord"><code class="docutils literal notranslate"><span class="pre">firwsord()</span></code></a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.utils.sigproc.firws"><code class="docutils literal notranslate"><span class="pre">firws()</span></code></a></li>
-</ul>
-</li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#coordinate-utilities">Coordinate Utilities</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#spatial-utilities">Spatial Utilities</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#statistical-utilities">Statistical Utilities</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#signal-processing-utilities">Signal Processing Utilities</a></li>
 </ul>
 </li>
 </ul>
@@ -1357,8 +1426,8 @@ b, a = firws(m, cutoff / (fs / 2), ‘high’, scipy.signal.windows.hamming(m + 
   </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script defer src="../_static/scripts/bootstrap.js?digest=7f76b32a3354e82990f2"></script>
-<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=7f76b32a3354e82990f2"></script>
+  <script defer src="../_static/scripts/bootstrap.js?digest=55c26ed414f5f8a31ebb"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=55c26ed414f5f8a31ebb"></script>
 
   <footer class="bd-footer">
 <div class="bd-footer__inner bd-page-width">
@@ -1369,7 +1438,7 @@ b, a = firws(m, cutoff / (fs / 2), ‘high’, scipy.signal.windows.hamming(m + 
 
   <p class="copyright">
     
-      © Copyright 2024 - , EEGPrep contributors.
+      © Copyright 2024-2026, EEGPrep contributors.
       <br/>
     
   </p>

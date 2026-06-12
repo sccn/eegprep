@@ -4,628 +4,246 @@
 Advanced Topics
 ===============
 
-This guide covers advanced topics for experienced users, including custom preprocessing chains, extending the pipeline, MNE-Python integration, parallel processing, and performance optimization.
+This page collects patterns for experienced EEGPrep users who are building lab
+pipelines, batch scripts, or small extensions. The examples use EEGPrep's
+current dictionary-based EEG data model and explicit ``pop_*`` calls.
 
-Custom Preprocessing Chains
-===========================
+Custom Pipelines
+================
 
-Building Custom Pipelines
---------------------------
-
-Create a custom preprocessing pipeline tailored to your specific needs:
-
-.. code-block:: python
-
-    from eegprep import (
-        clean_flatlines,
-        clean_channels,
-        pop_resample,
-        pop_eegfiltnew,
-        eeg_picard,
-        iclabel,
-        eeg_interp
-    )
-
-    def custom_pipeline(eeg, params=None):
-        """Custom preprocessing pipeline with logging"""
-        
-        if params is None:
-            params = {}
-        
-        # Set defaults
-        flatline_crit = params.get('flatline_criterion', 5)
-        highpass = params.get('highpass', 1)
-        lowpass = params.get('lowpass', 100)
-        resample_rate = params.get('resample_rate', 250)
-        asr_crit = params.get('asr_criterion', 20)
-        
-        print(f"Starting preprocessing with {eeg.nbchan} channels")
-        
-        # Step 1: Remove flatlines
-        print("Step 1: Removing flatlines...")
-        eeg = clean_flatlines(eeg, flatline_criterion=flatline_crit)
-        print(f"  Channels remaining: {eeg.nbchan}")
-        
-        # Step 2: Remove noisy channels
-        print("Step 2: Removing noisy channels...")
-        eeg = clean_channels(eeg)
-        print(f"  Channels remaining: {eeg.nbchan}")
-        
-        # Step 3: Interpolate removed channels
-        print("Step 3: Interpolating removed channels...")
-        eeg = eeg_interp(eeg)
-        
-        # Step 4: Resample
-        print(f"Step 4: Resampling to {resample_rate} Hz...")
-        eeg = pop_resample(eeg, resample_rate)
-        
-        # Step 5: Filter
-        print(f"Step 5: Filtering {highpass}-{lowpass} Hz...")
-        eeg = pop_eegfiltnew(eeg, locutoff=highpass, hicutoff=lowpass)
-        
-        # Step 6: ICA
-        print("Step 6: Running ICA...")
-        eeg = eeg_picard(eeg)
-        print(f"  Components: {eeg.icaweights.shape[0]}")
-        
-        # Step 7: Component classification
-        print("Step 7: Classifying components...")
-        eeg = iclabel(eeg)
-        
-        print("Preprocessing complete!")
-        return eeg
-
-    # Use custom pipeline
-    params = {
-        'flatline_criterion': 5,
-        'highpass': 1,
-        'lowpass': 100,
-        'resample_rate': 250,
-        'asr_criterion': 20
-    }
-    eeg = custom_pipeline(eeg, params)
-
-Conditional Preprocessing
---------------------------
-
-Apply different preprocessing based on data characteristics:
+A reliable custom pipeline is just a Python function that accepts an EEG
+dictionary, returns an EEG dictionary, and records command strings when you want
+to reproduce the workflow later.
 
 .. code-block:: python
 
-    from eegprep import clean_artifacts, eeg_rpsd
+   from pathlib import Path
 
-    def adaptive_preprocessing(eeg):
-        """Adapt preprocessing based on data quality"""
-        
-        # Assess data quality
-        psd = eeg_rpsd(eeg)
-        noise_level = psd[50:100].mean()
-        
-        if noise_level > 100:
-            # High noise: aggressive preprocessing
-            print("High noise detected: using aggressive preprocessing")
-            eeg = clean_artifacts(
-                eeg,
-                asr_criterion=15,
-                flatline_criterion=3
-            )
-        elif noise_level > 50:
-            # Medium noise: standard preprocessing
-            print("Medium noise detected: using standard preprocessing")
-            eeg = clean_artifacts(eeg)
-        else:
-            # Low noise: conservative preprocessing
-            print("Low noise detected: using conservative preprocessing")
-            eeg = clean_artifacts(
-                eeg,
-                asr_criterion=25,
-                flatline_criterion=10
-            )
-        
-        return eeg
+   from eegprep import pop_eegfiltnew, pop_loadset, pop_resample, pop_saveset
 
-    eeg = adaptive_preprocessing(eeg)
+   def tutorial_pipeline(EEG, *, output_rate=64):
+       history = []
 
-Extending the Pipeline
-======================
+       EEG, com = pop_eegfiltnew(
+           EEG,
+           locutoff=1,
+           hicutoff=40,
+           plotfreqz=False,
+           return_com=True,
+       )
+       history.append(com)
 
-Creating Custom Functions
---------------------------
+       EEG, com = pop_resample(EEG, output_rate, return_com=True)
+       history.append(com)
 
-Create custom preprocessing functions that integrate with eegprep:
+       return EEG, history
+
+   EEG = pop_loadset(Path("sample_data") / "eeglab_data.set")
+   EEG, history = tutorial_pipeline(EEG)
+   Path("tutorial_outputs").mkdir(exist_ok=True)
+   pop_saveset(EEG, Path("tutorial_outputs") / "eeglab_data_pipeline.set")
+
+Use dictionary fields, not object attributes:
 
 .. code-block:: python
 
-    from eegprep import EEGobj
-    import numpy as np
+   print(EEG["nbchan"], EEG["pnts"], EEG["srate"])
+   print(EEG["data"].shape)
+   print(EEG.get("history", ""))
 
-    def custom_artifact_removal(eeg, threshold=3):
-        """Custom artifact removal based on amplitude threshold"""
-        
-        if not isinstance(eeg, EEGobj):
-            raise TypeError("Input must be an EEGobj")
-        
-        # Find samples exceeding threshold
-        artifact_samples = np.where(
-            np.abs(eeg.data).max(axis=0) > threshold * np.std(eeg.data)
-        )[0]
-        
-        # Mark artifacts
-        if not hasattr(eeg, 'removed_windows'):
-            eeg.removed_windows = []
-        
-        eeg.removed_windows.extend(artifact_samples)
-        
-        print(f"Marked {len(artifact_samples)} artifact samples")
-        return eeg
+Conditional Steps
+=================
 
-    # Use custom function
-    eeg = custom_artifact_removal(eeg, threshold=5)
-
-Creating Preprocessing Decorators
-----------------------------------
-
-Use decorators to add functionality to preprocessing functions:
+Inspect the current EEG dictionary and make explicit decisions:
 
 .. code-block:: python
 
-    import time
-    from functools import wraps
+   from eegprep import pop_clean_rawdata, pop_iclabel, pop_runica
 
-    def timing_decorator(func):
-        """Decorator to measure function execution time"""
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            start = time.time()
-            result = func(*args, **kwargs)
-            elapsed = time.time() - start
-            print(f"{func.__name__} took {elapsed:.2f} seconds")
-            return result
-        return wrapper
+   def clean_and_optionally_label(EEG, *, run_ica=False):
+       EEG, clean_com = pop_clean_rawdata(
+           EEG,
+           FlatlineCriterion=5,
+           ChannelCriterion=0.8,
+           LineNoiseCriterion=4,
+           Highpass=(0.25, 0.75),
+           BurstCriterion=20,
+           WindowCriterion=0.25,
+           return_com=True,
+       )
+       history = [clean_com]
 
-    def logging_decorator(func):
-        """Decorator to log function calls"""
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            print(f"Calling {func.__name__}")
-            result = func(*args, **kwargs)
-            print(f"Completed {func.__name__}")
-            return result
-        return wrapper
+       if run_ica and EEG["pnts"] > 30 * EEG["nbchan"]:
+           EEG, ica_com = pop_runica(EEG, icatype="picard", gui=False, return_com=True)
+           EEG, label_com = pop_iclabel(EEG, "default", return_com=True)
+           history.extend([ica_com, label_com])
 
-    # Apply decorators
-    @timing_decorator
-    @logging_decorator
-    def my_preprocessing(eeg):
-        from eegprep import clean_artifacts
-        return clean_artifacts(eeg)
+       return EEG, history
 
-    eeg = my_preprocessing(eeg)
+This style keeps scientific choices visible in code review and lab notebooks.
 
-Integration with MNE-Python
-============================
-
-Converting Between Formats
----------------------------
-
-Convert between eegprep and MNE-Python formats:
-
-.. code-block:: python
-
-    from eegprep import eeg_eeg2mne, eeg_mne2eeg
-    import mne
-
-    # Convert eegprep to MNE
-    raw = eeg_eeg2mne(eeg)
-
-    # Use MNE functions
-    raw.plot()
-    raw.compute_psd().plot()
-
-    # Convert back to eegprep
-    eeg = eeg_mne2eeg(raw)
-
-Using MNE Preprocessing
------------------------
-
-Combine eegprep and MNE preprocessing:
-
-.. code-block:: python
-
-    from eegprep import eeg_eeg2mne, eeg_mne2eeg, clean_artifacts
-    import mne
-
-    # Preprocess with eegprep
-    eeg = clean_artifacts(eeg)
-
-    # Convert to MNE
-    raw = eeg_eeg2mne(eeg)
-
-    # Apply MNE preprocessing
-    raw.filter(l_freq=1, h_freq=100)
-    raw.set_eeg_reference('average')
-
-    # Convert back
-    eeg = eeg_mne2eeg(raw)
-
-Epoching with MNE
------------------
-
-Create epochs using MNE and convert to eegprep:
-
-.. code-block:: python
-
-    from eegprep import eeg_eeg2mne, eeg_mne2eeg_epochs
-    import mne
-
-    # Convert to MNE
-    raw = eeg_eeg2mne(eeg)
-
-    # Create epochs
-    events = mne.find_events(raw)
-    epochs = mne.Epochs(raw, events, event_id=1, tmin=-0.2, tmax=0.5)
-
-    # Convert back to eegprep
-    eeg = eeg_mne2eeg_epochs(epochs)
-
-Parallel Processing
-===================
-
-Batch Processing with Multiprocessing
---------------------------------------
-
-Process multiple subjects in parallel:
-
-.. code-block:: python
-
-    from multiprocessing import Pool
-    from eegprep import pop_loadset, clean_artifacts, pop_saveset
-    import os
-
-    def process_subject(subject_id):
-        """Process a single subject"""
-        
-        # Load data
-        input_file = f'data/sub-{subject_id:02d}.set'
-        eeg = pop_loadset(input_file)
-        
-        # Preprocess
-        eeg = clean_artifacts(eeg)
-        
-        # Save
-        output_file = f'data/preprocessed/sub-{subject_id:02d}_preprocessed.set'
-        pop_saveset(eeg, output_file)
-        
-        return f"Processed subject {subject_id}"
-
-    # Process subjects in parallel
-    subject_ids = range(1, 11)  # Subjects 1-10
-    
-    with Pool(processes=4) as pool:
-        results = pool.map(process_subject, subject_ids)
-    
-    for result in results:
-        print(result)
-
-Using joblib for Parallel Processing
--------------------------------------
-
-Use joblib for more flexible parallel processing:
-
-.. code-block:: python
-
-    from joblib import Parallel, delayed
-    from eegprep import pop_loadset, clean_artifacts, pop_saveset
-
-    def process_subject(subject_id):
-        """Process a single subject"""
-        input_file = f'data/sub-{subject_id:02d}.set'
-        eeg = pop_loadset(input_file)
-        eeg = clean_artifacts(eeg)
-        output_file = f'data/preprocessed/sub-{subject_id:02d}_preprocessed.set'
-        pop_saveset(eeg, output_file)
-        return f"Processed subject {subject_id}"
-
-    # Process with joblib
-    results = Parallel(n_jobs=4)(
-        delayed(process_subject)(i) for i in range(1, 11)
-    )
-
-    for result in results:
-        print(result)
-
-GPU Acceleration
-----------------
-
-Use GPU acceleration for faster processing:
-
-.. code-block:: python
-
-    import torch
-    from eegprep import clean_artifacts
-
-    # Check GPU availability
-    if torch.cuda.is_available():
-        print(f"GPU available: {torch.cuda.get_device_name(0)}")
-        device = 'cuda'
-    else:
-        print("GPU not available, using CPU")
-        device = 'cpu'
-
-    # Preprocess with GPU
-    eeg = clean_artifacts(eeg, device=device)
-
-Performance Optimization
+Custom Marking Functions
 ========================
 
-Memory Optimization
--------------------
-
-Reduce memory usage for large datasets:
+If a lab-specific quality-control step marks samples or channels, write into
+clear EEG dictionary fields and keep NumPy indexing internal:
 
 .. code-block:: python
 
-    from eegprep import pop_loadset, pop_saveset
-    import numpy as np
+   import numpy as np
 
-    def process_in_chunks(filename, chunk_size=10):
-        """Process data in chunks to reduce memory usage"""
-        
-        # Load data
-        eeg = pop_loadset(filename)
-        
-        # Process in chunks
-        n_chunks = int(np.ceil(eeg.pnts / (chunk_size * eeg.srate)))
-        
-        for i in range(n_chunks):
-            start = i * chunk_size * eeg.srate
-            end = min((i + 1) * chunk_size * eeg.srate, eeg.pnts)
-            
-            print(f"Processing chunk {i+1}/{n_chunks}")
-            # Process chunk
-            chunk_data = eeg.data[:, start:end]
-            # ... process chunk ...
-        
-        return eeg
+   def mark_large_sample_artifacts(EEG, *, z_threshold=6):
+       data = np.asarray(EEG["data"])
+       channel_scale = np.std(data, axis=1, keepdims=True)
+       channel_scale[channel_scale == 0] = 1
+       z = np.abs(data / channel_scale)
+       bad_samples = np.flatnonzero(z.max(axis=0) > z_threshold)
 
-Computation Optimization
-------------------------
+       reject = EEG.setdefault("reject", {})
+       reject["manual_bad_samples"] = (bad_samples + 1).tolist()
+       return EEG
 
-Speed up preprocessing:
+The stored sample numbers are one-based because they are user-facing EEG
+metadata. Direct array slicing remains zero-based Python.
+
+Batch Processing
+================
+
+For small local batches, use ``pathlib`` and keep outputs outside the immutable
+sample files:
 
 .. code-block:: python
 
-    from eegprep import clean_artifacts, EEG_OPTIONS
+   from pathlib import Path
 
-    # Use optimized parameters
-    options = EEG_OPTIONS()
-    options.ica_ncomps = 30  # Reduce components
-    options.filter_order = 2  # Reduce filter order
-    options.asr_wlen = 1.0   # Increase window length
+   from eegprep import pop_loadset, pop_saveset
 
-    # Preprocess with optimized settings
-    eeg = clean_artifacts(eeg, options=options)
+   input_files = sorted(Path("sample_data").glob("eeglab_data*.set"))
+   output_dir = Path("tutorial_outputs") / "batch"
+   output_dir.mkdir(parents=True, exist_ok=True)
 
-Caching Results
----------------
+   for input_file in input_files:
+       EEG = pop_loadset(input_file)
+       EEG, history = tutorial_pipeline(EEG)
+       EEG["etc"] = {**EEG.get("etc", {}), "eegprep_history": history}
+       pop_saveset(EEG, output_dir / input_file.name)
 
-Cache preprocessing results to avoid recomputation:
+For BIDS studies, prefer ``bids_preproc`` so file discovery, derivative paths,
+and sidecar handling stay consistent. See :ref:`bids_workflow`.
 
-.. code-block:: python
+Multiprocessing Pattern
+=======================
 
-    import pickle
-    import hashlib
-    from eegprep import pop_loadset, clean_artifacts
-
-    def get_preprocessed_data(filename, params):
-        """Get preprocessed data with caching"""
-        
-        # Create cache key
-        cache_key = hashlib.md5(
-            f"{filename}{str(params)}".encode()
-        ).hexdigest()
-        cache_file = f"cache/{cache_key}.pkl"
-        
-        # Check cache
-        try:
-            with open(cache_file, 'rb') as f:
-                eeg = pickle.load(f)
-            print(f"Loaded from cache: {cache_file}")
-            return eeg
-        except FileNotFoundError:
-            pass
-        
-        # Preprocess
-        eeg = pop_loadset(filename)
-        eeg = clean_artifacts(eeg, **params)
-        
-        # Save to cache
-        with open(cache_file, 'wb') as f:
-            pickle.dump(eeg, f)
-        
-        return eeg
-
-Profiling and Benchmarking
---------------------------
-
-Profile preprocessing to identify bottlenecks:
+Python multiprocessing requires a main guard. Keep the worker function
+top-level so it can be imported by child processes:
 
 .. code-block:: python
 
-    import cProfile
-    import pstats
-    from eegprep import clean_artifacts
+   from concurrent.futures import ProcessPoolExecutor
+   from pathlib import Path
 
-    def profile_preprocessing(eeg):
-        """Profile preprocessing function"""
-        
-        profiler = cProfile.Profile()
-        profiler.enable()
-        
-        # Run preprocessing
-        eeg = clean_artifacts(eeg)
-        
-        profiler.disable()
-        
-        # Print statistics
-        stats = pstats.Stats(profiler)
-        stats.sort_stats('cumulative')
-        stats.print_stats(10)  # Print top 10 functions
-        
-        return eeg
+   from eegprep import pop_loadset, pop_saveset
 
-Best Practices
-==============
+   def process_one(path_text):
+       path = Path(path_text)
+       EEG = pop_loadset(path)
+       EEG, history = tutorial_pipeline(EEG)
+       output = Path("tutorial_outputs") / "parallel" / path.name
+       output.parent.mkdir(parents=True, exist_ok=True)
+       pop_saveset(EEG, output)
+       return path.name, history
 
-Code Organization
------------------
+   if __name__ == "__main__":
+       files = [str(path) for path in Path("sample_data").glob("eeglab_data*.set")]
+       with ProcessPoolExecutor(max_workers=2) as pool:
+           for name, history in pool.map(process_one, files):
+               print(name, history[-1] if history else "")
 
-Organize custom preprocessing code:
+Avoid sending a live ``EEGPrepSession`` or Qt GUI object into worker processes.
+Use filenames and returned results at process boundaries.
 
-.. code-block:: python
+MNE Interoperability
+====================
 
-    # preprocessing/pipelines.py
-    from eegprep import clean_artifacts
-
-    class PreprocessingPipeline:
-        """Base class for preprocessing pipelines"""
-        
-        def __init__(self, params=None):
-            self.params = params or {}
-        
-        def run(self, eeg):
-            raise NotImplementedError
-
-    class RestingStatePipeline(PreprocessingPipeline):
-        """Resting state preprocessing pipeline"""
-        
-        def run(self, eeg):
-            return clean_artifacts(
-                eeg,
-                highpass=1,
-                lowpass=100,
-                asr_criterion=20
-            )
-
-    class ERPPipeline(PreprocessingPipeline):
-        """ERP preprocessing pipeline"""
-        
-        def run(self, eeg):
-            return clean_artifacts(
-                eeg,
-                highpass=0.1,
-                lowpass=30,
-                asr_criterion=15
-            )
-
-    # Usage
-    pipeline = RestingStatePipeline()
-    eeg = pipeline.run(eeg)
-
-Error Handling
---------------
-
-Implement robust error handling:
+Use MNE when you need MNE-specific algorithms, then convert back to an EEGPrep
+dictionary for EEGPrep GUI review or ``pop_*`` workflows:
 
 .. code-block:: python
 
-    from eegprep import pop_loadset, clean_artifacts, pop_saveset
-    import logging
+   from pathlib import Path
 
-    logging.basicConfig(level=logging.INFO)
-    logger = logging.getLogger(__name__)
+   from eegprep import eeg_eeg2mne, eeg_mne2eeg, pop_loadset
 
-    def safe_preprocessing(filename, output_file):
-        """Preprocess with error handling"""
-        
-        try:
-            # Load data
-            logger.info(f"Loading {filename}")
-            eeg = pop_loadset(filename)
-            
-            # Preprocess
-            logger.info("Preprocessing...")
-            eeg = clean_artifacts(eeg)
-            
-            # Save
-            logger.info(f"Saving to {output_file}")
-            pop_saveset(eeg, output_file)
-            
-            logger.info("Success!")
-            return True
-            
-        except FileNotFoundError as e:
-            logger.error(f"File not found: {e}")
-            return False
-        except Exception as e:
-            logger.error(f"Unexpected error: {e}")
-            return False
+   EEG = pop_loadset(Path("sample_data") / "eeglab_data.set")
+   raw = eeg_eeg2mne(EEG)
+   raw.filter(l_freq=1, h_freq=40)
+   EEG = eeg_mne2eeg(raw)
 
-Documentation
---------------
+For full examples, see :ref:`mne_integration`.
 
-Document custom functions:
+Memory and Storage
+==================
+
+Large projects should use the storage options instead of keeping every dataset
+resident:
 
 .. code-block:: python
 
-    def custom_preprocessing(eeg, threshold=3):
-        """
-        Apply custom artifact removal.
-        
-        Parameters
-        ----------
-        eeg : EEGobj
-            Input EEG data
-        threshold : float, optional
-            Amplitude threshold in standard deviations (default: 3)
-        
-        Returns
-        -------
-        eeg : EEGobj
-            Preprocessed EEG data
-        
-        Examples
-        --------
-        >>> eeg = custom_preprocessing(eeg, threshold=5)
-        """
-        # Implementation
-        return eeg
+   from pathlib import Path
 
-Testing
--------
+   from eegprep import EEG_OPTIONS, pop_loadset, pop_saveset
 
-Test custom preprocessing functions:
+   old_options = dict(EEG_OPTIONS)
+   try:
+       EEG_OPTIONS["option_savetwofiles"] = 1
+       EEG_OPTIONS["option_memmapdata"] = 1
+       EEG = pop_loadset("sample_data/eeglab_data.set")
+       output_dir = Path("tutorial_outputs") / "storage"
+       output_dir.mkdir(parents=True, exist_ok=True)
+       output_file = output_dir / "subject01.set"
+       pop_saveset(EEG, output_file)
+       EEG = pop_loadset(output_file)
+   finally:
+       EEG_OPTIONS.clear()
+       EEG_OPTIONS.update(old_options)
+
+See :ref:`large_dataset_storage` for ``option_storedisk`` and two-file storage
+details.
+
+Extending EEGPrep
+=================
+
+Use the extension SDK for reusable lab tools instead of patching EEGPrep
+internals. A good extension:
+
+* registers an ``eegprep.extensions`` entry point;
+* exposes user-facing ``pop_*`` functions with ``return_com=True`` support;
+* packages Markdown help resources;
+* uses ``EEGPrepSession`` helpers when adding GUI actions;
+* documents the workflow in Sphinx docs and packaged help.
+
+See :ref:`extensions` and :ref:`extension_curation` for the extension contract.
+
+Testing Custom Workflows
+========================
+
+Use the checked-in sample files for smoke tests and keep assertions tied to EEG
+dictionary behavior:
 
 .. code-block:: python
 
-    import unittest
-    from eegprep import pop_loadset
+   from pathlib import Path
 
-    class TestCustomPreprocessing(unittest.TestCase):
-        
-        def setUp(self):
-            """Load test data"""
-            self.eeg = pop_loadset('test_data.set')
-        
-        def test_preprocessing_runs(self):
-            """Test that preprocessing runs without error"""
-            eeg = custom_preprocessing(self.eeg)
-            self.assertIsNotNone(eeg)
-        
-        def test_preprocessing_preserves_shape(self):
-            """Test that preprocessing preserves data shape"""
-            eeg = custom_preprocessing(self.eeg)
-            self.assertEqual(eeg.nbchan, self.eeg.nbchan)
+   from eegprep import pop_loadset
 
-    if __name__ == '__main__':
-        unittest.main()
+   def test_tutorial_pipeline_preserves_eeg_shape():
+       EEG = pop_loadset(Path("sample_data") / "eeglab_data.set")
+       output, history = tutorial_pipeline(EEG)
 
-Next Steps
-==========
+       assert output["nbchan"] == EEG["nbchan"]
+       assert output["pnts"] < EEG["pnts"]
+       assert history
 
-Now that you understand advanced topics:
-
-1. Review the :ref:`preprocessing_pipeline` guide for detailed preprocessing steps
-2. Explore the :ref:`configuration` guide for parameter tuning
-3. Check the :ref:`bids_workflow` for batch processing
-4. Review the :ref:`api_reference` for detailed function documentation
+For GUI/console synchronization changes, add coverage near
+``tests/test_console_workspace.py`` so ``EEG``, ``ALLEEG``, ``CURRENTSET``,
+``LASTCOM``, ``ALLCOM``, ``STUDY``, and ``CURRENTSTUDY`` stay synchronized.

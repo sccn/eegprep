@@ -1,0 +1,969 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" data-theme="light">
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>External Extensions &#8212; EEGPrep manual</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "light";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "light";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=55c26ed414f5f8a31ebb" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=55c26ed414f5f8a31ebb" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/togglebutton.css?v=9c3e77be" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=fd6457a4" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=92c3505e" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="../_static/scripts/fontawesome.js?digest=55c26ed414f5f8a31ebb"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=55c26ed414f5f8a31ebb" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=55c26ed414f5f8a31ebb" />
+
+    <script src="../_static/documentation_options.js?v=171860b8"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/sg-tags.js?v=d80f6fa4"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=6dbb43f8"></script>
+    <script>let toggleHintShow = 'Click to show';</script>
+    <script>let toggleHintHide = 'Click to hide';</script>
+    <script>let toggleOpenOnPrint = 'true';</script>
+    <script src="../_static/togglebutton.js?v=b8b12719"></script>
+    <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'user_guide/extensions';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <link rel="icon" href="../_static/logo.jpg"/>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Extension Curation and Catalog Policy" href="extension_curation.html" />
+    <link rel="prev" title="Bundled Plugins and Extensions" href="plugins.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="0.2.23" />
+  
+    
+    <script src="../_static/searchtools.js"></script>
+    <script src="../_static/language_data.js"></script>
+    <script src="../searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="light">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the EEGPrep manual..."
+         aria-label="Search the EEGPrep manual..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+    
+    
+    
+    <img src="../_static/logo.jpg" class="logo__image only-light" alt=""/>
+    <img src="../_static/logo.jpg" class="logo__image only-dark pst-js-only" alt=""/>
+  
+  
+    <p class="title logo__title">eegprep</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="index.html">
+    User Guide
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../examples/index.html">
+    Examples
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../api/index.html">
+    API Reference
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../faq.html">
+    Frequently Asked Questions
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../glossary.html">
+    Glossary
+  </a>
+</li>
+
+            <li class="nav-item dropdown">
+                <button class="btn dropdown-toggle nav-item" type="button"
+                data-bs-toggle="dropdown" aria-expanded="false"
+                aria-controls="pst-nav-more-links">
+                    More
+                </button>
+                <ul id="pst-nav-more-links" class="dropdown-menu">
+                    
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../references.html">
+    References and Citations
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../contributing.html">
+    Contributing to EEGPrep
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../development.html">
+    Development Setup
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../changelog.html">
+    Changelog
+  </a>
+</li>
+
+                </ul>
+            </li>
+            
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+      
+        <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+      
+        <div class="navbar-item">
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button></div>
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/sccn/eegprep" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fab fa-github-square fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+</ul></div>
+      
+    </div>
+    
+  </div>
+  
+  
+
+  
+    <button class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="index.html">
+    User Guide
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../examples/index.html">
+    Examples
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../api/index.html">
+    API Reference
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../faq.html">
+    Frequently Asked Questions
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../glossary.html">
+    Glossary
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../references.html">
+    References and Citations
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../contributing.html">
+    Contributing to EEGPrep
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../development.html">
+    Development Setup
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../changelog.html">
+    Changelog
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+        
+          <div class="navbar-item">
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button></div>
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/sccn/eegprep" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fab fa-github-square fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+</ul></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item pst-sidebar-collapse"><button id="pst-collapse-sidebar-button" aria-expanded="true" aria-controls="pst-primary-sidebar"><svg class="pst-icon svg-inline--fa" role="img" aria-hidden="true" focusable="false" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+    <path fill="currentColor" d="M3 15.5C2.36232 15.5 1.74874 15.2564 1.28478 14.8189C0.820828 14.3815 0.541576 13.7832 0.504167 13.1467L0.5 13L0.5 3C0.499965 2.36232 0.743605 1.74874 1.18107 1.28478C1.61854 0.820828 2.21676 0.541576 2.85333 0.504167L3 0.5L13 0.5C13.6377 0.499965 14.2513 0.743605 14.7152 1.18107C15.1792 1.61854 15.4584 2.21676 15.4958 2.85333L15.5 3L15.5 13C15.5 13.6377 15.2564 14.2513 14.8189 14.7152C14.3815 15.1792 13.7832 15.4584 13.1467 15.4958L13 15.5L3 15.5ZM3 13.8333L10.5 13.8333L10.5 2.16667L3 2.16667C2.79589 2.16669 2.59889 2.24163 2.44636 2.37726C2.29383 2.5129 2.19638 2.69979 2.1725 2.9025L2.16667 3L2.16667 13C2.16669 13.2041 2.24163 13.4011 2.37726 13.5536C2.5129 13.7062 2.69979 13.8036 2.9025 13.8275L3 13.8333ZM6.65583 10.325L6.5775 10.2558L4.91083 8.58917C4.76735 8.44567 4.68116 8.25476 4.66843 8.05223C4.65569 7.84971 4.71729 7.6495 4.84167 7.48917L4.91083 7.41083L6.5775 5.74417C6.72747 5.59471 6.9287 5.50794 7.14032 5.50148C7.35194 5.49502 7.55809 5.56935 7.7169 5.70937C7.8757 5.8494 7.97525 6.04463 7.99533 6.25539C8.01541 6.46616 7.95451 6.67667 7.825 6.84417L7.75583 6.9225L6.67917 8L7.75583 9.0775C7.89931 9.22099 7.98551 9.41191 7.99824 9.61443C8.01097 9.81695 7.94938 10.0172 7.825 10.1775L7.75583 10.2558C7.61234 10.3993 7.42142 10.4855 7.2189 10.4982C7.01638 10.511 6.81617 10.4494 6.65583 10.325Z"/>
+  </svg>
+  <span class="pst-collapse-sidebar-label">Collapse Sidebar</span>
+  <span class="pst-expand-sidebar-label">Expand Sidebar</span>
+</button></div>
+        <div class="sidebar-primary-item">
+
+<nav class="bd-docs-nav bd-links"
+     aria-label="Section Navigation">
+  <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
+  <div class="bd-toc-item navbar-nav"><ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="concepts.html">Concepts Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="eeglab_migration.html">EEGLAB Migration Notes</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="gui_console_session.html">GUI and Console Together</a></li>
+<li class="toctree-l1"><a class="reference internal" href="gui_tutorials.html">GUI Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="interactive_console.html">Interactive Console</a></li>
+<li class="toctree-l1"><a class="reference internal" href="agent_cli.html">Agent-Friendly EEGPrep CLI</a></li>
+<li class="toctree-l1"><a class="reference internal" href="scripting_workflows.html">Scripting Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mne_integration.html">MNE-Python Integration</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="preprocessing_pipeline.html">Preprocessing Pipeline</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ica_rejection.html">ICA, ICLabel, Rejection, and Visual Diagnostics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="eegbrowser.html">EEGBrowser Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bids_workflow.html">BIDS Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="storage.html">Large-Dataset Storage</a></li>
+</ul>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="study_workflows.html">STUDY Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="plugins.html">Bundled Plugins and Extensions</a></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">External Extensions</a></li>
+
+
+
+
+
+
+
+
+
+<li class="toctree-l1"><a class="reference internal" href="extension_curation.html">Extension Curation and Catalog Policy</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="gui_help_menus.html">GUI and Help Menus</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="visual_parity.html">Visual Parity Testing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="advanced_topics.html">Advanced Topics</a></li>
+</ul>
+</div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="index.html" class="nav-link">User Guide</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">External Extensions</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="external-extensions">
+<span id="extensions"></span><h1>External Extensions<a class="headerlink" href="#external-extensions" title="Link to this heading">#</a></h1>
+<p>EEGPrep extensions are normal Python packages. Install them with standard
+Python package tooling, then start <code class="docutils literal notranslate"><span class="pre">eegprep-gui</span></code> or <code class="docutils literal notranslate"><span class="pre">eegprep-console</span></code> in
+the same environment. EEGPrep discovers installed extensions through the
+<code class="docutils literal notranslate"><span class="pre">eegprep.extensions</span></code> entry-point group and validates their declarative
+<code class="docutils literal notranslate"><span class="pre">ExtensionSpec</span></code> records before they contribute menus, actions, help, or
+<code class="docutils literal notranslate"><span class="pre">pop_*</span></code> functions.</p>
+<p>The Extension Manager is available from <code class="docutils literal notranslate"><span class="pre">File</span> <span class="pre">&gt;</span> <span class="pre">Manage</span> <span class="pre">EEGPrep</span> <span class="pre">extensions</span></code> or
+from Python:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">eegprep</span>
+
+<span class="n">plugins</span> <span class="o">=</span> <span class="n">eegprep</span><span class="o">.</span><span class="n">plugin_menu</span><span class="p">(</span><span class="n">show</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">eegprep</span><span class="o">.</span><span class="n">format_plugin_menu</span><span class="p">())</span>
+</pre></div>
+</div>
+<p>The Extension Manager separates installed runtime state from curated catalog
+metadata. Installed state comes from the local Python environment. Catalog
+entries are metadata-only records that point to a package name, repository,
+documentation URL, maintainer, and capabilities. EEGPrep does not host extension
+zips, does not host arbitrary extension zip files, and the manager does not
+download, unzip, install, update, or remove extension code.</p>
+</section>
+<section id="installing-extensions">
+<h1>Installing Extensions<a class="headerlink" href="#installing-extensions" title="Link to this heading">#</a></h1>
+<p>Install EEGPrep first, then add extension packages to the same project or
+virtual environment. The manager shows copyable commands when catalog metadata
+is available; it never runs them for you.</p>
+<section id="local-or-private-editable-extension">
+<h2>Local or private editable extension<a class="headerlink" href="#local-or-private-editable-extension" title="Link to this heading">#</a></h2>
+<p>Use an editable install while developing an extension or keeping a lab-only
+extension on disk:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>add<span class="w"> </span>--editable<span class="w"> </span>/path/to/eegprep-ext-foo
+</pre></div>
+</div>
+<p>This is the best path for private lab workflows, prototype methods, and
+extensions that should never leave a controlled environment. If the extension
+uses optional dependencies, install the extra declared by that package:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>add<span class="w"> </span>--editable<span class="w"> </span><span class="s2">&quot;/path/to/eegprep-ext-foo[models]&quot;</span>
+</pre></div>
+</div>
+</section>
+<section id="github-extension">
+<h2>GitHub extension<a class="headerlink" href="#github-extension" title="Link to this heading">#</a></h2>
+<p>A researcher does not need to publish to PyPI to share an extension. A GitHub
+repository can be installed directly:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>add<span class="w"> </span>git+https://github.com/lab/eegprep-ext-foo
+</pre></div>
+</div>
+<p>Pin a branch, tag, or commit when reproducibility matters:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>add<span class="w"> </span>git+https://github.com/lab/eegprep-ext-foo<span class="w"> </span>--tag<span class="w"> </span>v0.3.0
+</pre></div>
+</div>
+</section>
+<section id="pypi-extension">
+<h2>PyPI extension<a class="headerlink" href="#pypi-extension" title="Link to this heading">#</a></h2>
+<p>Use the package name when the extension is published on PyPI:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>add<span class="w"> </span>eegprep-ext-foo
+</pre></div>
+</div>
+<p>PyPI is useful when an extension is public, versioned, and meant for broad
+reuse. It is not required for GitHub-only or private lab distribution.</p>
+</section>
+<section id="private-package-index">
+<h2>Private package index<a class="headerlink" href="#private-package-index" title="Link to this heading">#</a></h2>
+<p>For a private package index, point uv at the lab or institution index:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>add<span class="w"> </span>--index<span class="w"> </span>https://packages.lab.example/simple<span class="w"> </span>eegprep-ext-foo
+</pre></div>
+</div>
+<p>When the private index should replace PyPI rather than supplement it, use:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>add<span class="w"> </span>--default-index<span class="w"> </span>https://packages.lab.example/simple<span class="w"> </span>eegprep-ext-foo
+</pre></div>
+</div>
+<p>Configure authentication through uv-supported environment variables, keyring
+configuration, or your institution’s package-index instructions. Do not put
+passwords in committed <code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code> files.</p>
+</section>
+</section>
+<section id="using-installed-extensions">
+<h1>Using Installed Extensions<a class="headerlink" href="#using-installed-extensions" title="Link to this heading">#</a></h1>
+<p>After installation, launch EEGPrep from the same environment:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>run<span class="w"> </span>eegprep-gui<span class="w"> </span>--full
+uv<span class="w"> </span>run<span class="w"> </span>eegprep-console<span class="w"> </span>--full
+</pre></div>
+</div>
+<p>Use <code class="docutils literal notranslate"><span class="pre">--no-plugins</span></code> when troubleshooting startup or when you need a session
+with only core EEGPrep menus and console exports:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>run<span class="w"> </span>eegprep-gui<span class="w"> </span>--no-plugins
+uv<span class="w"> </span>run<span class="w"> </span>eegprep-console<span class="w"> </span>--no-plugins
+</pre></div>
+</div>
+<p>Extension menus and actions appear automatically when the extension record is
+active. In <code class="docutils literal notranslate"><span class="pre">eegprep-console</span></code>, extension <code class="docutils literal notranslate"><span class="pre">pop_*</span></code> functions should behave like
+EEGPrep <code class="docutils literal notranslate"><span class="pre">pop_*</span></code> functions: GUI actions and console calls share one
+<code class="docutils literal notranslate"><span class="pre">EEGPrepSession</span></code>, update <code class="docutils literal notranslate"><span class="pre">EEG</span></code> and <code class="docutils literal notranslate"><span class="pre">ALLEEG</span></code> when data changes, and append
+the returned command to <code class="docutils literal notranslate"><span class="pre">LASTCOM</span></code> and <code class="docutils literal notranslate"><span class="pre">ALLCOM</span></code>.</p>
+<p>For example, a user-facing extension function should support:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">EEG</span><span class="p">,</span> <span class="n">LASTCOM</span> <span class="o">=</span> <span class="n">pop_my_extension</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">pop_my_extension</span><span class="p">(</span><span class="n">EEG</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Normal Python imports still use standard Python semantics. The automatic
+session storage behavior is specific to <code class="docutils literal notranslate"><span class="pre">eegprep-console</span></code> and registered GUI
+actions.</p>
+</section>
+<section id="startup-and-extension-loading">
+<h1>Startup and Extension Loading<a class="headerlink" href="#startup-and-extension-loading" title="Link to this heading">#</a></h1>
+<p>EEGPrep registry discovery imports only the lightweight entry-point target that
+returns <code class="docutils literal notranslate"><span class="pre">ExtensionSpec</span></code>. Processing functions, Qt dialogs, optional machine
+learning stacks, and large model loaders should stay behind <code class="docutils literal notranslate"><span class="pre">LazyImport</span></code> so
+<code class="docutils literal notranslate"><span class="pre">import</span> <span class="pre">eegprep</span></code>, <code class="docutils literal notranslate"><span class="pre">eegprep-gui</span></code>, <code class="docutils literal notranslate"><span class="pre">eegprep-console</span></code>, Extension Manager
+inspection, and menu construction do not import them until the user invokes the
+extension action or <code class="docutils literal notranslate"><span class="pre">pop_*</span></code> function.</p>
+<p>Disabled extensions remain visible in the Extension Manager for inspection, but
+they do not contribute menus, actions, help resources, or console <code class="docutils literal notranslate"><span class="pre">pop_*</span></code>
+wrappers after registry rediscovery. Failed, incompatible, invalid, and
+missing-dependency extensions are also listed without becoming active, so one
+broken package should not prevent GUI or console startup.</p>
+</section>
+<section id="required-package-format">
+<h1>Required Package Format<a class="headerlink" href="#required-package-format" title="Link to this heading">#</a></h1>
+<p>An EEGPrep extension package must provide:</p>
+<ul class="simple">
+<li><p>A <code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code> project.</p></li>
+<li><p>A <code class="docutils literal notranslate"><span class="pre">[project.entry-points.&quot;eegprep.extensions&quot;]</span></code> entry point.</p></li>
+<li><p>A lightweight <code class="docutils literal notranslate"><span class="pre">register()</span></code> function that returns <code class="docutils literal notranslate"><span class="pre">ExtensionSpec</span></code>.</p></li>
+<li><p>Declarative <code class="docutils literal notranslate"><span class="pre">ExtensionAction</span></code>, <code class="docutils literal notranslate"><span class="pre">ExtensionMenu</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">ExtensionPopFunction</span></code> records where applicable.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">LazyImport</span></code> targets for heavy modules, GUI modules, processing code, and
+model code.</p></li>
+<li><p>Packaged Markdown help and package data declared through
+<code class="docutils literal notranslate"><span class="pre">ExtensionResource</span></code> when those files are user-facing or required at
+validation time.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_*</span></code> functions that support <code class="docutils literal notranslate"><span class="pre">return_com=True</span></code> when the call is
+user-facing or history-relevant.</p></li>
+<li><p>No runtime dependency on <code class="docutils literal notranslate"><span class="pre">src/eegprep/eeglab</span></code> or any local EEGLAB checkout.</p></li>
+</ul>
+<p>Minimal <code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code> metadata:</p>
+<div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="k">[project]</span>
+<span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;eegprep-ext-foo&quot;</span>
+<span class="n">version</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;0.1.0&quot;</span>
+<span class="n">dependencies</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;eegprep&quot;</span><span class="p">]</span>
+
+<span class="k">[project.entry-points.</span><span class="s2">&quot;eegprep.extensions&quot;</span><span class="k">]</span>
+<span class="n">foo</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;eegprep_ext_foo.register:register&quot;</span>
+</pre></div>
+</div>
+<p>Minimal registration:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">ExtensionAction</span><span class="p">,</span>
+    <span class="n">ExtensionMenu</span><span class="p">,</span>
+    <span class="n">ExtensionPopFunction</span><span class="p">,</span>
+    <span class="n">ExtensionResource</span><span class="p">,</span>
+    <span class="n">ExtensionSpec</span><span class="p">,</span>
+    <span class="n">LazyImport</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">register</span><span class="p">():</span>
+    <span class="k">return</span> <span class="n">ExtensionSpec</span><span class="p">(</span>
+        <span class="n">name</span><span class="o">=</span><span class="s2">&quot;foo&quot;</span><span class="p">,</span>
+        <span class="n">display_name</span><span class="o">=</span><span class="s2">&quot;Foo&quot;</span><span class="p">,</span>
+        <span class="n">version</span><span class="o">=</span><span class="s2">&quot;0.1.0&quot;</span><span class="p">,</span>
+        <span class="n">package_name</span><span class="o">=</span><span class="s2">&quot;eegprep-ext-foo&quot;</span><span class="p">,</span>
+        <span class="n">eegprep_requires</span><span class="o">=</span><span class="s2">&quot;&gt;=0.2&quot;</span><span class="p">,</span>
+        <span class="n">actions</span><span class="o">=</span><span class="p">(</span>
+            <span class="n">ExtensionAction</span><span class="p">(</span>
+                <span class="n">name</span><span class="o">=</span><span class="s2">&quot;foo.run&quot;</span><span class="p">,</span>
+                <span class="n">target</span><span class="o">=</span><span class="n">LazyImport</span><span class="p">(</span><span class="s2">&quot;eegprep_ext_foo.actions&quot;</span><span class="p">,</span> <span class="s2">&quot;run&quot;</span><span class="p">),</span>
+            <span class="p">),</span>
+        <span class="p">),</span>
+        <span class="n">menus</span><span class="o">=</span><span class="p">(</span>
+            <span class="n">ExtensionMenu</span><span class="p">(</span><span class="n">path</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;Tools&quot;</span><span class="p">,</span> <span class="s2">&quot;Foo&quot;</span><span class="p">),</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;foo.run&quot;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Run Foo&quot;</span><span class="p">),</span>
+        <span class="p">),</span>
+        <span class="n">pop_functions</span><span class="o">=</span><span class="p">(</span>
+            <span class="n">ExtensionPopFunction</span><span class="p">(</span>
+                <span class="n">name</span><span class="o">=</span><span class="s2">&quot;pop_foo&quot;</span><span class="p">,</span>
+                <span class="n">target</span><span class="o">=</span><span class="n">LazyImport</span><span class="p">(</span><span class="s2">&quot;eegprep_ext_foo.pop_foo&quot;</span><span class="p">,</span> <span class="s2">&quot;pop_foo&quot;</span><span class="p">),</span>
+            <span class="p">),</span>
+        <span class="p">),</span>
+        <span class="n">help_resources</span><span class="o">=</span><span class="p">(</span>
+            <span class="n">ExtensionResource</span><span class="p">(</span><span class="s2">&quot;eegprep_ext_foo&quot;</span><span class="p">,</span> <span class="s2">&quot;help/pop_foo.md&quot;</span><span class="p">),</span>
+        <span class="p">),</span>
+    <span class="p">)</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">register()</span></code> should import only the SDK and small metadata. Import processing
+functions, Qt dialogs, and model loaders lazily through <code class="docutils literal notranslate"><span class="pre">LazyImport</span></code> so a
+broken optional module does not slow or break EEGPrep startup.</p>
+<p>Menus must be declarative. Do not mutate EEGPrep Qt objects, monkeypatch menu
+builders, or write directly to <code class="docutils literal notranslate"><span class="pre">EEGPrepSession</span></code> internals from an extension.
+If an extension needs a new integration surface, add or request SDK support
+instead of reaching into private EEGPrep modules.</p>
+</section>
+<section id="pop-history-and-console-rules">
+<h1><code class="docutils literal notranslate"><span class="pre">pop_*</span></code> History and Console Rules<a class="headerlink" href="#pop-history-and-console-rules" title="Link to this heading">#</a></h1>
+<p>Extension <code class="docutils literal notranslate"><span class="pre">pop_*</span></code> functions should follow EEGPrep interactive conventions:</p>
+<ul class="simple">
+<li><p>Accept an EEG dict or EEG-like object explicitly.</p></li>
+<li><p>Return the updated EEG object for data-changing calls.</p></li>
+<li><p>Support <code class="docutils literal notranslate"><span class="pre">return_com=True</span></code> and return <code class="docutils literal notranslate"><span class="pre">(EEG,</span> <span class="pre">com)</span></code> when the call should be
+recorded in history.</p></li>
+<li><p>Use user-facing 1-based values in command strings when users provide
+channel, component, dataset, epoch, or event positions, and convert to Python
+0-based indexing internally.</p></li>
+<li><p>Keep GUI and console workflows synchronized through the registered action and
+<code class="docutils literal notranslate"><span class="pre">EEGPrepSession</span></code> helpers instead of mutating GUI-only state.</p></li>
+<li><p>Add packaged help resources for GUI Help buttons and <code class="docutils literal notranslate"><span class="pre">pophelp</span></code> surfaces.</p></li>
+</ul>
+</section>
+<section id="package-data-optional-dependencies-and-large-files">
+<h1>Package Data, Optional Dependencies, and Large Files<a class="headerlink" href="#package-data-optional-dependencies-and-large-files" title="Link to this heading">#</a></h1>
+<p>Use package resources for help text, small calibration files, montages, and
+other data that must ship with the extension. Declare required runtime files
+with <code class="docutils literal notranslate"><span class="pre">ExtensionResource</span></code> so <code class="docutils literal notranslate"><span class="pre">validate_extension_spec</span></code> can catch missing
+resources before users click the action.</p>
+<p>Resolve files with package-relative resource paths, not absolute paths into a
+source checkout. <code class="docutils literal notranslate"><span class="pre">ExtensionResource</span></code> uses Python package resources, which keeps
+extension data portable across editable installs, wheels, Windows paths with
+spaces, macOS/Linux virtual environments, and private package indexes.</p>
+<p>For optional dependencies, declare <code class="docutils literal notranslate"><span class="pre">ExtensionDependency(...,</span> <span class="pre">optional=True)</span></code>
+when the dependency unlocks optional behavior. Declare required dependencies
+without <code class="docutils literal notranslate"><span class="pre">optional=True</span></code> so missing packages appear as
+<code class="docutils literal notranslate"><span class="pre">missing_dependency</span></code> rather than a runtime crash.</p>
+<p>Large model files need an explicit distribution choice. Prefer package extras,
+an institution-controlled package index, or an explicit first-run download
+implemented by the extension. Do not imply that a curated catalog entry hosts
+or downloads large model artifacts for EEGPrep.</p>
+</section>
+<section id="trust-levels-and-states">
+<h1>Trust Levels and States<a class="headerlink" href="#trust-levels-and-states" title="Link to this heading">#</a></h1>
+<p>Installing Python packages executes third-party code. Review the package,
+maintainer, source repository, documentation, and your lab’s software policy
+before running any install command. Treat private package indexes and editable
+local paths with the same care as public packages.</p>
+<p>The Extension Manager may show installed packages that are not in the curated
+catalog. Those are not automatically unsafe, but they are outside EEGPrep’s
+catalog metadata. Manage them through the package source you used to install
+them.</p>
+<p>The Extension Manager and registry use these user-facing meanings:</p>
+<dl class="simple">
+<dt>Bundled/Core</dt><dd><p>Ships with EEGPrep and is covered by the EEGPrep CI and release process.
+Registry value: <code class="docutils literal notranslate"><span class="pre">bundled</span></code>.</p>
+</dd>
+<dt>Curated</dt><dd><p>Appears in an EEGPrep catalog that has been reviewed for metadata quality,
+package-format requirements, and mechanical validation. Curated does not mean
+SCCN, EEGLAB, or EEGPrep scientifically endorses the method, results, claims,
+or clinical suitability. Registry value: <code class="docutils literal notranslate"><span class="pre">curated</span></code>.</p>
+</dd>
+<dt>Installed</dt><dd><p>Present in the user’s Python environment and discovered through
+<code class="docutils literal notranslate"><span class="pre">eegprep.extensions</span></code>. Installed does not imply catalog review. Registry
+value: <code class="docutils literal notranslate"><span class="pre">installed</span></code>.</p>
+</dd>
+<dt>Disabled</dt><dd><p>Present but intentionally turned off by the user or configuration. Disabled
+extensions remain visible so users can re-enable them or inspect why they are
+inactive. Registry value: <code class="docutils literal notranslate"><span class="pre">disabled</span></code>.</p>
+</dd>
+<dt>Failed or incompatible</dt><dd><p>Present but not active because import, registration, validation, dependency,
+or version checks failed. Registry values include <code class="docutils literal notranslate"><span class="pre">failed_import</span></code>,
+<code class="docutils literal notranslate"><span class="pre">invalid_spec</span></code>, <code class="docutils literal notranslate"><span class="pre">missing_dependency</span></code>, <code class="docutils literal notranslate"><span class="pre">incompatible</span></code>, and <code class="docutils literal notranslate"><span class="pre">unknown</span></code>.
+The user action is to update, reinstall with missing dependencies, disable,
+or contact the extension maintainer.</p>
+</dd>
+</dl>
+<p>The important combinations are:</p>
+<ul class="simple">
+<li><p>Curated but not installed: visible as reviewed catalog metadata only; it does
+not run until the user installs the package.</p></li>
+<li><p>Installed but not curated: usable if valid, but not reviewed by the catalog.</p></li>
+<li><p>Curated and installed: both reviewed in the catalog and present locally.</p></li>
+<li><p>Installed then broken after an EEGPrep update: visible as incompatible or
+failed, with errors preserved so the user can update or disable it.</p></li>
+<li><p>Experimental: can be installed or curated as experimental, but the docs and
+UI must not imply scientific endorsement.</p></li>
+</ul>
+</section>
+<section id="catalog-schema">
+<h1>Catalog Schema<a class="headerlink" href="#catalog-schema" title="Link to this heading">#</a></h1>
+<p>EEGPrep ships a packaged <code class="docutils literal notranslate"><span class="pre">resources/extension_catalog.json</span></code> file and can load
+a local JSON catalog for tests or future download integration. Set
+<code class="docutils literal notranslate"><span class="pre">EEGPREP_EXTENSION_CATALOG</span></code> or pass <code class="docutils literal notranslate"><span class="pre">catalog_path=</span></code> to <code class="docutils literal notranslate"><span class="pre">plugin_menu</span></code>.
+Catalog loading is local-file-only; it does not fetch URLs. This Extension
+Manager catalog uses <code class="docutils literal notranslate"><span class="pre">catalog_kind:</span> <span class="pre">&quot;extension_manager&quot;</span></code>; public curation
+submissions use the separate <code class="docutils literal notranslate"><span class="pre">extension_curation</span></code> format described below.</p>
+<p>Minimal catalog:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;catalog_kind&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;extension_manager&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;schema_version&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;extensions&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;example_extension&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;display_name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Example Extension&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;version&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;1.0.0&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;package_name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;eegprep-ext-example&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;description&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Example EEGPrep extension metadata.&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;maintainer&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Example Lab&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;docs_url&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;https://example.org/eegprep-ext-example&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;source&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;pypi&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;url&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;https://pypi.org/project/eegprep-ext-example/&quot;</span>
+<span class="w">      </span><span class="p">},</span>
+<span class="w">      </span><span class="nt">&quot;repository_url&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;https://github.com/example/eegprep-ext-example&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;capabilities&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;preprocessing&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;reporting&quot;</span><span class="p">],</span>
+<span class="w">      </span><span class="nt">&quot;eegprep_requires&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;&gt;=0.2.23&quot;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">]</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Supported <code class="docutils literal notranslate"><span class="pre">source.type</span></code> values are <code class="docutils literal notranslate"><span class="pre">pypi</span></code>, <code class="docutils literal notranslate"><span class="pre">git</span></code>, <code class="docutils literal notranslate"><span class="pre">local</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">private</span></code>. Source URLs must point to package metadata, documentation, local
+paths, or repositories, not zip archives or wheel files. The catalog is a guide
+for users and tests; installed extension compatibility is still determined by
+the extension registry.</p>
+</section>
+<section id="catalog-submission-checks">
+<h1>Catalog Submission Checks<a class="headerlink" href="#catalog-submission-checks" title="Link to this heading">#</a></h1>
+<p>Catalog submission and governance automation are maintained separately from
+runtime extension loading. Before submitting an extension for curation, check
+that:</p>
+<ul class="simple">
+<li><p>The package installs from a normal Python distribution path.</p></li>
+<li><p>The entry point returns a valid <code class="docutils literal notranslate"><span class="pre">ExtensionSpec</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">validate_extension_spec</span></code> passes in a clean environment.</p></li>
+<li><p>Menus and <code class="docutils literal notranslate"><span class="pre">pop_*</span></code> functions are declarative and use <code class="docutils literal notranslate"><span class="pre">LazyImport</span></code> targets.</p></li>
+<li><p>Help and package data are included in the built wheel or source distribution.</p></li>
+<li><p>GUI extensions pass the relevant visual parity and user-flow checks.</p></li>
+<li><p>The README or package metadata states whether the method is experimental.</p></li>
+<li><p>Large files, optional dependencies, and private indexes are documented.</p></li>
+<li><p>No runtime code imports from the vendored EEGLAB reference checkout.</p></li>
+</ul>
+<p>See <a class="reference internal" href="../api/extensions.html#api-extensions"><span class="std std-ref">Extension SDK and Registry</span></a> for the SDK API reference.</p>
+</section>
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="plugins.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Bundled Plugins and Extensions</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="extension_curation.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Extension Curation and Catalog Policy</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#">External Extensions</a></li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#installing-extensions">Installing Extensions</a><ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#local-or-private-editable-extension">Local or private editable extension</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#github-extension">GitHub extension</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#pypi-extension">PyPI extension</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#private-package-index">Private package index</a></li>
+</ul>
+</li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#using-installed-extensions">Using Installed Extensions</a></li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#startup-and-extension-loading">Startup and Extension Loading</a></li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#required-package-format">Required Package Format</a></li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#pop-history-and-console-rules"><code class="docutils literal notranslate"><span class="pre">pop_*</span></code> History and Console Rules</a></li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#package-data-optional-dependencies-and-large-files">Package Data, Optional Dependencies, and Large Files</a></li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#trust-levels-and-states">Trust Levels and States</a></li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#catalog-schema">Catalog Schema</a></li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#catalog-submission-checks">Catalog Submission Checks</a></li>
+</ul>
+
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../_static/scripts/bootstrap.js?digest=55c26ed414f5f8a31ebb"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=55c26ed414f5f8a31ebb"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2024-2026, EEGPrep contributors.
+      <br/>
+    
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 9.0.4.
+    <br/>
+  </p>
+</div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>

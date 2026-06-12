@@ -2,19 +2,19 @@
 <!DOCTYPE html>
 
 
-<html lang="en" data-content_root="../" >
+<html lang="en" data-content_root="../" data-theme="light">
 
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Advanced Topics &#8212; eegprep 0.2.23 documentation</title>
+    <title>Advanced Topics &#8212; EEGPrep manual</title>
   
   
   
   <script data-cfasync="false">
-    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
-    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "light";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "light";
   </script>
   <!--
     this give us a css class that will be invisible only if js is disabled
@@ -27,28 +27,29 @@
   </noscript>
   
   <!-- Loaded before other Sphinx assets -->
-  <link href="../_static/styles/theme.css?digest=7f76b32a3354e82990f2" rel="stylesheet" />
-<link href="../_static/styles/pydata-sphinx-theme.css?digest=7f76b32a3354e82990f2" rel="stylesheet" />
+  <link href="../_static/styles/theme.css?digest=55c26ed414f5f8a31ebb" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=55c26ed414f5f8a31ebb" rel="stylesheet" />
 
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
     <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
     <link rel="stylesheet" type="text/css" href="../_static/togglebutton.css?v=9c3e77be" />
-    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=d2d258e8" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=fd6457a4" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
     <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
-    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=eb9c3aa4" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=92c3505e" />
   
   <!-- So that users can add custom icons -->
-  <script defer src="../_static/scripts/fontawesome.js?digest=7f76b32a3354e82990f2"></script>
+  <script defer src="../_static/scripts/fontawesome.js?digest=55c26ed414f5f8a31ebb"></script>
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=7f76b32a3354e82990f2" />
-<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=7f76b32a3354e82990f2" />
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=55c26ed414f5f8a31ebb" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=55c26ed414f5f8a31ebb" />
 
     <script src="../_static/documentation_options.js?v=171860b8"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/sg-tags.js?v=d80f6fa4"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
     <script src="../_static/copybutton.js?v=6dbb43f8"></script>
     <script>let toggleHintShow = 'Click to show';</script>
@@ -59,10 +60,11 @@
     <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'user_guide/advanced_topics';</script>
     <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <link rel="icon" href="../_static/logo.jpg"/>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Examples" href="../examples/index.html" />
-    <link rel="prev" title="BIDS Workflow" href="bids_workflow.html" />
+    <link rel="prev" title="Visual Parity Testing" href="visual_parity.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2.23" />
@@ -73,7 +75,7 @@
     <script src="../searchindex.js"></script>
   
   </head>
-  <body data-default-mode="">
+  <body data-default-mode="light">
   
   
   <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
@@ -83,7 +85,9 @@
   
   <button type="button" class="btn rounded-pill" id="pst-back-to-top">
     <i class="fa-solid fa-arrow-up"></i>Back to top</button>
-
+  
+  
+  
   
   <dialog id="pst-search-dialog">
     
@@ -94,8 +98,8 @@
   <input type="search"
          class="form-control"
          name="q"
-         placeholder="Search documentation..."
-         aria-label="Search documentation..."
+         placeholder="Search the EEGPrep manual..."
+         aria-label="Search the EEGPrep manual..."
          autocomplete="off"
          autocorrect="off"
          autocapitalize="off"
@@ -130,6 +134,12 @@
   
   
   
+    
+    
+    
+    <img src="../_static/logo.jpg" class="logo__image only-light" alt=""/>
+    <img src="../_static/logo.jpg" class="logo__image only-dark pst-js-only" alt=""/>
+  
   
     <p class="title logo__title">eegprep</p>
   
@@ -145,13 +155,6 @@
 <nav>
   <ul class="bd-navbar-elements navbar-nav">
     
-<li class="nav-item ">
-  <a class="nav-link nav-internal" href="../api/index.html">
-    API Reference
-  </a>
-</li>
-
-
 <li class="nav-item current active">
   <a class="nav-link nav-internal" href="index.html">
     User Guide
@@ -167,8 +170,22 @@
 
 
 <li class="nav-item ">
-  <a class="nav-link nav-internal" href="../contributing.html">
-    Contributing to EEGPrep
+  <a class="nav-link nav-internal" href="../api/index.html">
+    API Reference
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../faq.html">
+    Frequently Asked Questions
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../glossary.html">
+    Glossary
   </a>
 </li>
 
@@ -181,20 +198,6 @@
                 <ul id="pst-nav-more-links" class="dropdown-menu">
                     
 <li class=" ">
-  <a class="nav-link dropdown-item nav-internal" href="../development.html">
-    Development Setup
-  </a>
-</li>
-
-
-<li class=" ">
-  <a class="nav-link dropdown-item nav-internal" href="../faq.html">
-    Frequently Asked Questions
-  </a>
-</li>
-
-
-<li class=" ">
   <a class="nav-link dropdown-item nav-internal" href="../references.html">
     References and Citations
   </a>
@@ -202,15 +205,22 @@
 
 
 <li class=" ">
-  <a class="nav-link dropdown-item nav-internal" href="../changelog.html">
-    Changelog
+  <a class="nav-link dropdown-item nav-internal" href="../contributing.html">
+    Contributing to EEGPrep
   </a>
 </li>
 
 
 <li class=" ">
-  <a class="nav-link dropdown-item nav-internal" href="../glossary.html">
-    Glossary
+  <a class="nav-link dropdown-item nav-internal" href="../development.html">
+    Development Setup
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../changelog.html">
+    Changelog
   </a>
 </li>
 
@@ -225,6 +235,14 @@
     
     <div class="navbar-header-items__end">
       
+      
+        <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
       
         <div class="navbar-item">
 
@@ -285,13 +303,6 @@
 <nav>
   <ul class="bd-navbar-elements navbar-nav">
     
-<li class="nav-item ">
-  <a class="nav-link nav-internal" href="../api/index.html">
-    API Reference
-  </a>
-</li>
-
-
 <li class="nav-item current active">
   <a class="nav-link nav-internal" href="index.html">
     User Guide
@@ -302,6 +313,34 @@
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../examples/index.html">
     Examples
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../api/index.html">
+    API Reference
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../faq.html">
+    Frequently Asked Questions
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../glossary.html">
+    Glossary
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../references.html">
+    References and Citations
   </a>
 </li>
 
@@ -321,29 +360,8 @@
 
 
 <li class="nav-item ">
-  <a class="nav-link nav-internal" href="../faq.html">
-    Frequently Asked Questions
-  </a>
-</li>
-
-
-<li class="nav-item ">
-  <a class="nav-link nav-internal" href="../references.html">
-    References and Citations
-  </a>
-</li>
-
-
-<li class="nav-item ">
   <a class="nav-link nav-internal" href="../changelog.html">
     Changelog
-  </a>
-</li>
-
-
-<li class="nav-item ">
-  <a class="nav-link nav-internal" href="../glossary.html">
-    Glossary
   </a>
 </li>
 
@@ -356,6 +374,14 @@
     
     
       <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
         
           <div class="navbar-item">
 
@@ -398,15 +424,43 @@
   <div class="bd-toc-item navbar-nav"><ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="concepts.html">Concepts Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="eeglab_migration.html">EEGLAB Migration Notes</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="gui_console_session.html">GUI and Console Together</a></li>
+<li class="toctree-l1"><a class="reference internal" href="gui_tutorials.html">GUI Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="interactive_console.html">Interactive Console</a></li>
+<li class="toctree-l1"><a class="reference internal" href="agent_cli.html">Agent-Friendly EEGPrep CLI</a></li>
+<li class="toctree-l1"><a class="reference internal" href="scripting_workflows.html">Scripting Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mne_integration.html">MNE-Python Integration</a></li>
 </ul>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="preprocessing_pipeline.html">Preprocessing Pipeline</a></li>
-<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ica_rejection.html">ICA, ICLabel, Rejection, and Visual Diagnostics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="eegbrowser.html">EEGBrowser Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bids_workflow.html">BIDS Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="storage.html">Large-Dataset Storage</a></li>
 </ul>
 <ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="bids_workflow.html">BIDS Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="study_workflows.html">STUDY Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="plugins.html">Bundled Plugins and Extensions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="extensions.html">External Extensions</a></li>
+
+
+
+
+
+
+
+
+
+<li class="toctree-l1"><a class="reference internal" href="extension_curation.html">Extension Curation and Catalog Policy</a></li>
 </ul>
 <ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="gui_help_menus.html">GUI and Help Menus</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="visual_parity.html">Visual Parity Testing</a></li>
 <li class="toctree-l1 current active"><a class="current reference internal" href="#">Advanced Topics</a></li>
 </ul>
 </div>
@@ -463,594 +517,222 @@
                   
   <section id="advanced-topics">
 <span id="id1"></span><h1>Advanced Topics<a class="headerlink" href="#advanced-topics" title="Link to this heading">#</a></h1>
-<p>This guide covers advanced topics for experienced users, including custom preprocessing chains, extending the pipeline, MNE-Python integration, parallel processing, and performance optimization.</p>
-<section id="custom-preprocessing-chains">
-<h2>Custom Preprocessing Chains<a class="headerlink" href="#custom-preprocessing-chains" title="Link to this heading">#</a></h2>
-<section id="building-custom-pipelines">
-<h3>Building Custom Pipelines<a class="headerlink" href="#building-custom-pipelines" title="Link to this heading">#</a></h3>
-<p>Create a custom preprocessing pipeline tailored to your specific needs:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
-    <span class="n">clean_flatlines</span><span class="p">,</span>
-    <span class="n">clean_channels</span><span class="p">,</span>
-    <span class="n">pop_resample</span><span class="p">,</span>
-    <span class="n">pop_eegfiltnew</span><span class="p">,</span>
-    <span class="n">eeg_picard</span><span class="p">,</span>
-    <span class="n">iclabel</span><span class="p">,</span>
-    <span class="n">eeg_interp</span>
-<span class="p">)</span>
+<p>This page collects patterns for experienced EEGPrep users who are building lab
+pipelines, batch scripts, or small extensions. The examples use EEGPrep’s
+current dictionary-based EEG data model and explicit <code class="docutils literal notranslate"><span class="pre">pop_*</span></code> calls.</p>
+<section id="custom-pipelines">
+<h2>Custom Pipelines<a class="headerlink" href="#custom-pipelines" title="Link to this heading">#</a></h2>
+<p>A reliable custom pipeline is just a Python function that accepts an EEG
+dictionary, returns an EEG dictionary, and records command strings when you want
+to reproduce the workflow later.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 
-<span class="k">def</span><span class="w"> </span><span class="nf">custom_pipeline</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Custom preprocessing pipeline with logging&quot;&quot;&quot;</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_eegfiltnew</span><span class="p">,</span> <span class="n">pop_loadset</span><span class="p">,</span> <span class="n">pop_resample</span><span class="p">,</span> <span class="n">pop_saveset</span>
 
-    <span class="k">if</span> <span class="n">params</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">params</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">tutorial_pipeline</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">output_rate</span><span class="o">=</span><span class="mi">64</span><span class="p">):</span>
+    <span class="n">history</span> <span class="o">=</span> <span class="p">[]</span>
 
-    <span class="c1"># Set defaults</span>
-    <span class="n">flatline_crit</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;flatline_criterion&#39;</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
-    <span class="n">highpass</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;highpass&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-    <span class="n">lowpass</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;lowpass&#39;</span><span class="p">,</span> <span class="mi">100</span><span class="p">)</span>
-    <span class="n">resample_rate</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;resample_rate&#39;</span><span class="p">,</span> <span class="mi">250</span><span class="p">)</span>
-    <span class="n">asr_crit</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;asr_criterion&#39;</span><span class="p">,</span> <span class="mi">20</span><span class="p">)</span>
+    <span class="n">EEG</span><span class="p">,</span> <span class="n">com</span> <span class="o">=</span> <span class="n">pop_eegfiltnew</span><span class="p">(</span>
+        <span class="n">EEG</span><span class="p">,</span>
+        <span class="n">locutoff</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">hicutoff</span><span class="o">=</span><span class="mi">40</span><span class="p">,</span>
+        <span class="n">plotfreqz</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">history</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">com</span><span class="p">)</span>
 
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Starting preprocessing with </span><span class="si">{</span><span class="n">eeg</span><span class="o">.</span><span class="n">nbchan</span><span class="si">}</span><span class="s2"> channels&quot;</span><span class="p">)</span>
+    <span class="n">EEG</span><span class="p">,</span> <span class="n">com</span> <span class="o">=</span> <span class="n">pop_resample</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="n">output_rate</span><span class="p">,</span> <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">history</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">com</span><span class="p">)</span>
 
-    <span class="c1"># Step 1: Remove flatlines</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Step 1: Removing flatlines...&quot;</span><span class="p">)</span>
-    <span class="n">eeg</span> <span class="o">=</span> <span class="n">clean_flatlines</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="n">flatline_criterion</span><span class="o">=</span><span class="n">flatline_crit</span><span class="p">)</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Channels remaining: </span><span class="si">{</span><span class="n">eeg</span><span class="o">.</span><span class="n">nbchan</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">EEG</span><span class="p">,</span> <span class="n">history</span>
 
-    <span class="c1"># Step 2: Remove noisy channels</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Step 2: Removing noisy channels...&quot;</span><span class="p">)</span>
-    <span class="n">eeg</span> <span class="o">=</span> <span class="n">clean_channels</span><span class="p">(</span><span class="n">eeg</span><span class="p">)</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Channels remaining: </span><span class="si">{</span><span class="n">eeg</span><span class="o">.</span><span class="n">nbchan</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-
-    <span class="c1"># Step 3: Interpolate removed channels</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Step 3: Interpolating removed channels...&quot;</span><span class="p">)</span>
-    <span class="n">eeg</span> <span class="o">=</span> <span class="n">eeg_interp</span><span class="p">(</span><span class="n">eeg</span><span class="p">)</span>
-
-    <span class="c1"># Step 4: Resample</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Step 4: Resampling to </span><span class="si">{</span><span class="n">resample_rate</span><span class="si">}</span><span class="s2"> Hz...&quot;</span><span class="p">)</span>
-    <span class="n">eeg</span> <span class="o">=</span> <span class="n">pop_resample</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="n">resample_rate</span><span class="p">)</span>
-
-    <span class="c1"># Step 5: Filter</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Step 5: Filtering </span><span class="si">{</span><span class="n">highpass</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">lowpass</span><span class="si">}</span><span class="s2"> Hz...&quot;</span><span class="p">)</span>
-    <span class="n">eeg</span> <span class="o">=</span> <span class="n">pop_eegfiltnew</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="n">locutoff</span><span class="o">=</span><span class="n">highpass</span><span class="p">,</span> <span class="n">hicutoff</span><span class="o">=</span><span class="n">lowpass</span><span class="p">)</span>
-
-    <span class="c1"># Step 6: ICA</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Step 6: Running ICA...&quot;</span><span class="p">)</span>
-    <span class="n">eeg</span> <span class="o">=</span> <span class="n">eeg_picard</span><span class="p">(</span><span class="n">eeg</span><span class="p">)</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Components: </span><span class="si">{</span><span class="n">eeg</span><span class="o">.</span><span class="n">icaweights</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-
-    <span class="c1"># Step 7: Component classification</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Step 7: Classifying components...&quot;</span><span class="p">)</span>
-    <span class="n">eeg</span> <span class="o">=</span> <span class="n">iclabel</span><span class="p">(</span><span class="n">eeg</span><span class="p">)</span>
-
-    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Preprocessing complete!&quot;</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">eeg</span>
-
-<span class="c1"># Use custom pipeline</span>
-<span class="n">params</span> <span class="o">=</span> <span class="p">{</span>
-    <span class="s1">&#39;flatline_criterion&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>
-    <span class="s1">&#39;highpass&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
-    <span class="s1">&#39;lowpass&#39;</span><span class="p">:</span> <span class="mi">100</span><span class="p">,</span>
-    <span class="s1">&#39;resample_rate&#39;</span><span class="p">:</span> <span class="mi">250</span><span class="p">,</span>
-    <span class="s1">&#39;asr_criterion&#39;</span><span class="p">:</span> <span class="mi">20</span>
-<span class="p">}</span>
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">custom_pipeline</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
+<span class="n">EEG</span> <span class="o">=</span> <span class="n">pop_loadset</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="s2">&quot;sample_data&quot;</span><span class="p">)</span> <span class="o">/</span> <span class="s2">&quot;eeglab_data.set&quot;</span><span class="p">)</span>
+<span class="n">EEG</span><span class="p">,</span> <span class="n">history</span> <span class="o">=</span> <span class="n">tutorial_pipeline</span><span class="p">(</span><span class="n">EEG</span><span class="p">)</span>
+<span class="n">Path</span><span class="p">(</span><span class="s2">&quot;tutorial_outputs&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">pop_saveset</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;tutorial_outputs&quot;</span><span class="p">)</span> <span class="o">/</span> <span class="s2">&quot;eeglab_data_pipeline.set&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Use dictionary fields, not object attributes:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="n">EEG</span><span class="p">[</span><span class="s2">&quot;nbchan&quot;</span><span class="p">],</span> <span class="n">EEG</span><span class="p">[</span><span class="s2">&quot;pnts&quot;</span><span class="p">],</span> <span class="n">EEG</span><span class="p">[</span><span class="s2">&quot;srate&quot;</span><span class="p">])</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">EEG</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">EEG</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;history&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">))</span>
 </pre></div>
 </div>
 </section>
-<section id="conditional-preprocessing">
-<h3>Conditional Preprocessing<a class="headerlink" href="#conditional-preprocessing" title="Link to this heading">#</a></h3>
-<p>Apply different preprocessing based on data characteristics:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">clean_artifacts</span><span class="p">,</span> <span class="n">eeg_rpsd</span>
+<section id="conditional-steps">
+<h2>Conditional Steps<a class="headerlink" href="#conditional-steps" title="Link to this heading">#</a></h2>
+<p>Inspect the current EEG dictionary and make explicit decisions:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_clean_rawdata</span><span class="p">,</span> <span class="n">pop_iclabel</span><span class="p">,</span> <span class="n">pop_runica</span>
 
-<span class="k">def</span><span class="w"> </span><span class="nf">adaptive_preprocessing</span><span class="p">(</span><span class="n">eeg</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Adapt preprocessing based on data quality&quot;&quot;&quot;</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">clean_and_optionally_label</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">run_ica</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="n">EEG</span><span class="p">,</span> <span class="n">clean_com</span> <span class="o">=</span> <span class="n">pop_clean_rawdata</span><span class="p">(</span>
+        <span class="n">EEG</span><span class="p">,</span>
+        <span class="n">FlatlineCriterion</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+        <span class="n">ChannelCriterion</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span>
+        <span class="n">LineNoiseCriterion</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
+        <span class="n">Highpass</span><span class="o">=</span><span class="p">(</span><span class="mf">0.25</span><span class="p">,</span> <span class="mf">0.75</span><span class="p">),</span>
+        <span class="n">BurstCriterion</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>
+        <span class="n">WindowCriterion</span><span class="o">=</span><span class="mf">0.25</span><span class="p">,</span>
+        <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">history</span> <span class="o">=</span> <span class="p">[</span><span class="n">clean_com</span><span class="p">]</span>
 
-    <span class="c1"># Assess data quality</span>
-    <span class="n">psd</span> <span class="o">=</span> <span class="n">eeg_rpsd</span><span class="p">(</span><span class="n">eeg</span><span class="p">)</span>
-    <span class="n">noise_level</span> <span class="o">=</span> <span class="n">psd</span><span class="p">[</span><span class="mi">50</span><span class="p">:</span><span class="mi">100</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">run_ica</span> <span class="ow">and</span> <span class="n">EEG</span><span class="p">[</span><span class="s2">&quot;pnts&quot;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">30</span> <span class="o">*</span> <span class="n">EEG</span><span class="p">[</span><span class="s2">&quot;nbchan&quot;</span><span class="p">]:</span>
+        <span class="n">EEG</span><span class="p">,</span> <span class="n">ica_com</span> <span class="o">=</span> <span class="n">pop_runica</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="n">icatype</span><span class="o">=</span><span class="s2">&quot;picard&quot;</span><span class="p">,</span> <span class="n">gui</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">EEG</span><span class="p">,</span> <span class="n">label_com</span> <span class="o">=</span> <span class="n">pop_iclabel</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="s2">&quot;default&quot;</span><span class="p">,</span> <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">history</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">ica_com</span><span class="p">,</span> <span class="n">label_com</span><span class="p">])</span>
 
-    <span class="k">if</span> <span class="n">noise_level</span> <span class="o">&gt;</span> <span class="mi">100</span><span class="p">:</span>
-        <span class="c1"># High noise: aggressive preprocessing</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;High noise detected: using aggressive preprocessing&quot;</span><span class="p">)</span>
-        <span class="n">eeg</span> <span class="o">=</span> <span class="n">clean_artifacts</span><span class="p">(</span>
-            <span class="n">eeg</span><span class="p">,</span>
-            <span class="n">asr_criterion</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span>
-            <span class="n">flatline_criterion</span><span class="o">=</span><span class="mi">3</span>
-        <span class="p">)</span>
-    <span class="k">elif</span> <span class="n">noise_level</span> <span class="o">&gt;</span> <span class="mi">50</span><span class="p">:</span>
-        <span class="c1"># Medium noise: standard preprocessing</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Medium noise detected: using standard preprocessing&quot;</span><span class="p">)</span>
-        <span class="n">eeg</span> <span class="o">=</span> <span class="n">clean_artifacts</span><span class="p">(</span><span class="n">eeg</span><span class="p">)</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="c1"># Low noise: conservative preprocessing</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Low noise detected: using conservative preprocessing&quot;</span><span class="p">)</span>
-        <span class="n">eeg</span> <span class="o">=</span> <span class="n">clean_artifacts</span><span class="p">(</span>
-            <span class="n">eeg</span><span class="p">,</span>
-            <span class="n">asr_criterion</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span>
-            <span class="n">flatline_criterion</span><span class="o">=</span><span class="mi">10</span>
-        <span class="p">)</span>
-
-    <span class="k">return</span> <span class="n">eeg</span>
-
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">adaptive_preprocessing</span><span class="p">(</span><span class="n">eeg</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">EEG</span><span class="p">,</span> <span class="n">history</span>
 </pre></div>
 </div>
+<p>This style keeps scientific choices visible in code review and lab notebooks.</p>
 </section>
-</section>
-<section id="extending-the-pipeline">
-<h2>Extending the Pipeline<a class="headerlink" href="#extending-the-pipeline" title="Link to this heading">#</a></h2>
-<section id="creating-custom-functions">
-<h3>Creating Custom Functions<a class="headerlink" href="#creating-custom-functions" title="Link to this heading">#</a></h3>
-<p>Create custom preprocessing functions that integrate with eegprep:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">EEGobj</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<section id="custom-marking-functions">
+<h2>Custom Marking Functions<a class="headerlink" href="#custom-marking-functions" title="Link to this heading">#</a></h2>
+<p>If a lab-specific quality-control step marks samples or channels, write into
+clear EEG dictionary fields and keep NumPy indexing internal:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 
-<span class="k">def</span><span class="w"> </span><span class="nf">custom_artifact_removal</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mi">3</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Custom artifact removal based on amplitude threshold&quot;&quot;&quot;</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">mark_large_sample_artifacts</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">z_threshold</span><span class="o">=</span><span class="mi">6</span><span class="p">):</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">EEG</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">])</span>
+    <span class="n">channel_scale</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">channel_scale</span><span class="p">[</span><span class="n">channel_scale</span> <span class="o">==</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">z</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">data</span> <span class="o">/</span> <span class="n">channel_scale</span><span class="p">)</span>
+    <span class="n">bad_samples</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">flatnonzero</span><span class="p">(</span><span class="n">z</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">z_threshold</span><span class="p">)</span>
 
-    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="n">EEGobj</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Input must be an EEGobj&quot;</span><span class="p">)</span>
-
-    <span class="c1"># Find samples exceeding threshold</span>
-    <span class="n">artifact_samples</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
-        <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">eeg</span><span class="o">.</span><span class="n">data</span><span class="p">)</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">threshold</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">eeg</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
-    <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
-
-    <span class="c1"># Mark artifacts</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="s1">&#39;removed_windows&#39;</span><span class="p">):</span>
-        <span class="n">eeg</span><span class="o">.</span><span class="n">removed_windows</span> <span class="o">=</span> <span class="p">[]</span>
-
-    <span class="n">eeg</span><span class="o">.</span><span class="n">removed_windows</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">artifact_samples</span><span class="p">)</span>
-
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Marked </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">artifact_samples</span><span class="p">)</span><span class="si">}</span><span class="s2"> artifact samples&quot;</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">eeg</span>
-
-<span class="c1"># Use custom function</span>
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">custom_artifact_removal</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+    <span class="n">reject</span> <span class="o">=</span> <span class="n">EEG</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s2">&quot;reject&quot;</span><span class="p">,</span> <span class="p">{})</span>
+    <span class="n">reject</span><span class="p">[</span><span class="s2">&quot;manual_bad_samples&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">bad_samples</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">EEG</span>
 </pre></div>
 </div>
+<p>The stored sample numbers are one-based because they are user-facing EEG
+metadata. Direct array slicing remains zero-based Python.</p>
 </section>
-<section id="creating-preprocessing-decorators">
-<h3>Creating Preprocessing Decorators<a class="headerlink" href="#creating-preprocessing-decorators" title="Link to this heading">#</a></h3>
-<p>Use decorators to add functionality to preprocessing functions:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">functools</span><span class="w"> </span><span class="kn">import</span> <span class="n">wraps</span>
+<section id="batch-processing">
+<h2>Batch Processing<a class="headerlink" href="#batch-processing" title="Link to this heading">#</a></h2>
+<p>For small local batches, use <code class="docutils literal notranslate"><span class="pre">pathlib</span></code> and keep outputs outside the immutable
+sample files:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 
-<span class="k">def</span><span class="w"> </span><span class="nf">timing_decorator</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Decorator to measure function execution time&quot;&quot;&quot;</span>
-    <span class="nd">@wraps</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
-        <span class="n">result</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-        <span class="n">elapsed</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">func</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2"> took </span><span class="si">{</span><span class="n">elapsed</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> seconds&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">result</span>
-    <span class="k">return</span> <span class="n">wrapper</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_loadset</span><span class="p">,</span> <span class="n">pop_saveset</span>
 
-<span class="k">def</span><span class="w"> </span><span class="nf">logging_decorator</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Decorator to log function calls&quot;&quot;&quot;</span>
-    <span class="nd">@wraps</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Calling </span><span class="si">{</span><span class="n">func</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="n">result</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Completed </span><span class="si">{</span><span class="n">func</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">result</span>
-    <span class="k">return</span> <span class="n">wrapper</span>
+<span class="n">input_files</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="s2">&quot;sample_data&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">&quot;eeglab_data*.set&quot;</span><span class="p">))</span>
+<span class="n">output_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;tutorial_outputs&quot;</span><span class="p">)</span> <span class="o">/</span> <span class="s2">&quot;batch&quot;</span>
+<span class="n">output_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
-<span class="c1"># Apply decorators</span>
-<span class="nd">@timing_decorator</span>
-<span class="nd">@logging_decorator</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">my_preprocessing</span><span class="p">(</span><span class="n">eeg</span><span class="p">):</span>
-    <span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">clean_artifacts</span>
-    <span class="k">return</span> <span class="n">clean_artifacts</span><span class="p">(</span><span class="n">eeg</span><span class="p">)</span>
-
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">my_preprocessing</span><span class="p">(</span><span class="n">eeg</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">input_file</span> <span class="ow">in</span> <span class="n">input_files</span><span class="p">:</span>
+    <span class="n">EEG</span> <span class="o">=</span> <span class="n">pop_loadset</span><span class="p">(</span><span class="n">input_file</span><span class="p">)</span>
+    <span class="n">EEG</span><span class="p">,</span> <span class="n">history</span> <span class="o">=</span> <span class="n">tutorial_pipeline</span><span class="p">(</span><span class="n">EEG</span><span class="p">)</span>
+    <span class="n">EEG</span><span class="p">[</span><span class="s2">&quot;etc&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="o">**</span><span class="n">EEG</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;etc&quot;</span><span class="p">,</span> <span class="p">{}),</span> <span class="s2">&quot;eegprep_history&quot;</span><span class="p">:</span> <span class="n">history</span><span class="p">}</span>
+    <span class="n">pop_saveset</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="n">output_dir</span> <span class="o">/</span> <span class="n">input_file</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>For BIDS studies, prefer <code class="docutils literal notranslate"><span class="pre">bids_preproc</span></code> so file discovery, derivative paths,
+and sidecar handling stay consistent. See <a class="reference internal" href="bids_workflow.html#bids-workflow"><span class="std std-ref">BIDS Workflow</span></a>.</p>
 </section>
-</section>
-<section id="integration-with-mne-python">
-<h2>Integration with MNE-Python<a class="headerlink" href="#integration-with-mne-python" title="Link to this heading">#</a></h2>
-<section id="converting-between-formats">
-<h3>Converting Between Formats<a class="headerlink" href="#converting-between-formats" title="Link to this heading">#</a></h3>
-<p>Convert between eegprep and MNE-Python formats:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">eeg_eeg2mne</span><span class="p">,</span> <span class="n">eeg_mne2eeg</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">mne</span>
+<section id="multiprocessing-pattern">
+<h2>Multiprocessing Pattern<a class="headerlink" href="#multiprocessing-pattern" title="Link to this heading">#</a></h2>
+<p>Python multiprocessing requires a main guard. Keep the worker function
+top-level so it can be imported by child processes:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">concurrent.futures</span><span class="w"> </span><span class="kn">import</span> <span class="n">ProcessPoolExecutor</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 
-<span class="c1"># Convert eegprep to MNE</span>
-<span class="n">raw</span> <span class="o">=</span> <span class="n">eeg_eeg2mne</span><span class="p">(</span><span class="n">eeg</span><span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_loadset</span><span class="p">,</span> <span class="n">pop_saveset</span>
 
-<span class="c1"># Use MNE functions</span>
-<span class="n">raw</span><span class="o">.</span><span class="n">plot</span><span class="p">()</span>
-<span class="n">raw</span><span class="o">.</span><span class="n">compute_psd</span><span class="p">()</span><span class="o">.</span><span class="n">plot</span><span class="p">()</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">process_one</span><span class="p">(</span><span class="n">path_text</span><span class="p">):</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path_text</span><span class="p">)</span>
+    <span class="n">EEG</span> <span class="o">=</span> <span class="n">pop_loadset</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="n">EEG</span><span class="p">,</span> <span class="n">history</span> <span class="o">=</span> <span class="n">tutorial_pipeline</span><span class="p">(</span><span class="n">EEG</span><span class="p">)</span>
+    <span class="n">output</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;tutorial_outputs&quot;</span><span class="p">)</span> <span class="o">/</span> <span class="s2">&quot;parallel&quot;</span> <span class="o">/</span> <span class="n">path</span><span class="o">.</span><span class="n">name</span>
+    <span class="n">output</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">pop_saveset</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="n">output</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">path</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">history</span>
 
-<span class="c1"># Convert back to eegprep</span>
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">eeg_mne2eeg</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span>
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">files</span> <span class="o">=</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">path</span><span class="p">)</span> <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;sample_data&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">&quot;eeglab_data*.set&quot;</span><span class="p">)]</span>
+    <span class="k">with</span> <span class="n">ProcessPoolExecutor</span><span class="p">(</span><span class="n">max_workers</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span> <span class="k">as</span> <span class="n">pool</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">history</span> <span class="ow">in</span> <span class="n">pool</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">process_one</span><span class="p">,</span> <span class="n">files</span><span class="p">):</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">history</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="k">if</span> <span class="n">history</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>Avoid sending a live <code class="docutils literal notranslate"><span class="pre">EEGPrepSession</span></code> or Qt GUI object into worker processes.
+Use filenames and returned results at process boundaries.</p>
 </section>
-<section id="using-mne-preprocessing">
-<h3>Using MNE Preprocessing<a class="headerlink" href="#using-mne-preprocessing" title="Link to this heading">#</a></h3>
-<p>Combine eegprep and MNE preprocessing:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">eeg_eeg2mne</span><span class="p">,</span> <span class="n">eeg_mne2eeg</span><span class="p">,</span> <span class="n">clean_artifacts</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">mne</span>
+<section id="mne-interoperability">
+<h2>MNE Interoperability<a class="headerlink" href="#mne-interoperability" title="Link to this heading">#</a></h2>
+<p>Use MNE when you need MNE-specific algorithms, then convert back to an EEGPrep
+dictionary for EEGPrep GUI review or <code class="docutils literal notranslate"><span class="pre">pop_*</span></code> workflows:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 
-<span class="c1"># Preprocess with eegprep</span>
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">clean_artifacts</span><span class="p">(</span><span class="n">eeg</span><span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">eeg_eeg2mne</span><span class="p">,</span> <span class="n">eeg_mne2eeg</span><span class="p">,</span> <span class="n">pop_loadset</span>
 
-<span class="c1"># Convert to MNE</span>
-<span class="n">raw</span> <span class="o">=</span> <span class="n">eeg_eeg2mne</span><span class="p">(</span><span class="n">eeg</span><span class="p">)</span>
-
-<span class="c1"># Apply MNE preprocessing</span>
-<span class="n">raw</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">l_freq</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">h_freq</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
-<span class="n">raw</span><span class="o">.</span><span class="n">set_eeg_reference</span><span class="p">(</span><span class="s1">&#39;average&#39;</span><span class="p">)</span>
-
-<span class="c1"># Convert back</span>
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">eeg_mne2eeg</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span>
+<span class="n">EEG</span> <span class="o">=</span> <span class="n">pop_loadset</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="s2">&quot;sample_data&quot;</span><span class="p">)</span> <span class="o">/</span> <span class="s2">&quot;eeglab_data.set&quot;</span><span class="p">)</span>
+<span class="n">raw</span> <span class="o">=</span> <span class="n">eeg_eeg2mne</span><span class="p">(</span><span class="n">EEG</span><span class="p">)</span>
+<span class="n">raw</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">l_freq</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">h_freq</span><span class="o">=</span><span class="mi">40</span><span class="p">)</span>
+<span class="n">EEG</span> <span class="o">=</span> <span class="n">eeg_mne2eeg</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>For full examples, see <a class="reference internal" href="mne_integration.html#mne-integration"><span class="std std-ref">MNE-Python Integration</span></a>.</p>
 </section>
-<section id="epoching-with-mne">
-<h3>Epoching with MNE<a class="headerlink" href="#epoching-with-mne" title="Link to this heading">#</a></h3>
-<p>Create epochs using MNE and convert to eegprep:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">eeg_eeg2mne</span><span class="p">,</span> <span class="n">eeg_mne2eeg_epochs</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">mne</span>
+<section id="memory-and-storage">
+<h2>Memory and Storage<a class="headerlink" href="#memory-and-storage" title="Link to this heading">#</a></h2>
+<p>Large projects should use the storage options instead of keeping every dataset
+resident:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 
-<span class="c1"># Convert to MNE</span>
-<span class="n">raw</span> <span class="o">=</span> <span class="n">eeg_eeg2mne</span><span class="p">(</span><span class="n">eeg</span><span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">EEG_OPTIONS</span><span class="p">,</span> <span class="n">pop_loadset</span><span class="p">,</span> <span class="n">pop_saveset</span>
 
-<span class="c1"># Create epochs</span>
-<span class="n">events</span> <span class="o">=</span> <span class="n">mne</span><span class="o">.</span><span class="n">find_events</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span>
-<span class="n">epochs</span> <span class="o">=</span> <span class="n">mne</span><span class="o">.</span><span class="n">Epochs</span><span class="p">(</span><span class="n">raw</span><span class="p">,</span> <span class="n">events</span><span class="p">,</span> <span class="n">event_id</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">tmin</span><span class="o">=-</span><span class="mf">0.2</span><span class="p">,</span> <span class="n">tmax</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
-
-<span class="c1"># Convert back to eegprep</span>
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">eeg_mne2eeg_epochs</span><span class="p">(</span><span class="n">epochs</span><span class="p">)</span>
+<span class="n">old_options</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">EEG_OPTIONS</span><span class="p">)</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="n">EEG_OPTIONS</span><span class="p">[</span><span class="s2">&quot;option_savetwofiles&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">EEG_OPTIONS</span><span class="p">[</span><span class="s2">&quot;option_memmapdata&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">EEG</span> <span class="o">=</span> <span class="n">pop_loadset</span><span class="p">(</span><span class="s2">&quot;sample_data/eeglab_data.set&quot;</span><span class="p">)</span>
+    <span class="n">output_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;tutorial_outputs&quot;</span><span class="p">)</span> <span class="o">/</span> <span class="s2">&quot;storage&quot;</span>
+    <span class="n">output_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">output_file</span> <span class="o">=</span> <span class="n">output_dir</span> <span class="o">/</span> <span class="s2">&quot;subject01.set&quot;</span>
+    <span class="n">pop_saveset</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="n">output_file</span><span class="p">)</span>
+    <span class="n">EEG</span> <span class="o">=</span> <span class="n">pop_loadset</span><span class="p">(</span><span class="n">output_file</span><span class="p">)</span>
+<span class="k">finally</span><span class="p">:</span>
+    <span class="n">EEG_OPTIONS</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+    <span class="n">EEG_OPTIONS</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">old_options</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>See <a class="reference internal" href="storage.html#large-dataset-storage"><span class="std std-ref">Large-Dataset Storage</span></a> for <code class="docutils literal notranslate"><span class="pre">option_storedisk</span></code> and two-file storage
+details.</p>
 </section>
+<section id="extending-eegprep">
+<h2>Extending EEGPrep<a class="headerlink" href="#extending-eegprep" title="Link to this heading">#</a></h2>
+<p>Use the extension SDK for reusable lab tools instead of patching EEGPrep
+internals. A good extension:</p>
+<ul class="simple">
+<li><p>registers an <code class="docutils literal notranslate"><span class="pre">eegprep.extensions</span></code> entry point;</p></li>
+<li><p>exposes user-facing <code class="docutils literal notranslate"><span class="pre">pop_*</span></code> functions with <code class="docutils literal notranslate"><span class="pre">return_com=True</span></code> support;</p></li>
+<li><p>packages Markdown help resources;</p></li>
+<li><p>uses <code class="docutils literal notranslate"><span class="pre">EEGPrepSession</span></code> helpers when adding GUI actions;</p></li>
+<li><p>documents the workflow in Sphinx docs and packaged help.</p></li>
+</ul>
+<p>See <a class="reference internal" href="extensions.html#extensions"><span class="std std-ref">External Extensions</span></a> and <a class="reference internal" href="extension_curation.html#extension-curation"><span class="std std-ref">Extension Curation and Catalog Policy</span></a> for the extension contract.</p>
 </section>
-<section id="parallel-processing">
-<h2>Parallel Processing<a class="headerlink" href="#parallel-processing" title="Link to this heading">#</a></h2>
-<section id="batch-processing-with-multiprocessing">
-<h3>Batch Processing with Multiprocessing<a class="headerlink" href="#batch-processing-with-multiprocessing" title="Link to this heading">#</a></h3>
-<p>Process multiple subjects in parallel:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">multiprocessing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Pool</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_loadset</span><span class="p">,</span> <span class="n">clean_artifacts</span><span class="p">,</span> <span class="n">pop_saveset</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<section id="testing-custom-workflows">
+<h2>Testing Custom Workflows<a class="headerlink" href="#testing-custom-workflows" title="Link to this heading">#</a></h2>
+<p>Use the checked-in sample files for smoke tests and keep assertions tied to EEG
+dictionary behavior:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 
-<span class="k">def</span><span class="w"> </span><span class="nf">process_subject</span><span class="p">(</span><span class="n">subject_id</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Process a single subject&quot;&quot;&quot;</span>
-
-    <span class="c1"># Load data</span>
-    <span class="n">input_file</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;data/sub-</span><span class="si">{</span><span class="n">subject_id</span><span class="si">:</span><span class="s1">02d</span><span class="si">}</span><span class="s1">.set&#39;</span>
-    <span class="n">eeg</span> <span class="o">=</span> <span class="n">pop_loadset</span><span class="p">(</span><span class="n">input_file</span><span class="p">)</span>
-
-    <span class="c1"># Preprocess</span>
-    <span class="n">eeg</span> <span class="o">=</span> <span class="n">clean_artifacts</span><span class="p">(</span><span class="n">eeg</span><span class="p">)</span>
-
-    <span class="c1"># Save</span>
-    <span class="n">output_file</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;data/preprocessed/sub-</span><span class="si">{</span><span class="n">subject_id</span><span class="si">:</span><span class="s1">02d</span><span class="si">}</span><span class="s1">_preprocessed.set&#39;</span>
-    <span class="n">pop_saveset</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="n">output_file</span><span class="p">)</span>
-
-    <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;Processed subject </span><span class="si">{</span><span class="n">subject_id</span><span class="si">}</span><span class="s2">&quot;</span>
-
-<span class="c1"># Process subjects in parallel</span>
-<span class="n">subject_ids</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">11</span><span class="p">)</span>  <span class="c1"># Subjects 1-10</span>
-
-<span class="k">with</span> <span class="n">Pool</span><span class="p">(</span><span class="n">processes</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span> <span class="k">as</span> <span class="n">pool</span><span class="p">:</span>
-    <span class="n">results</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">process_subject</span><span class="p">,</span> <span class="n">subject_ids</span><span class="p">)</span>
-
-<span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
-</pre></div>
-</div>
-</section>
-<section id="using-joblib-for-parallel-processing">
-<h3>Using joblib for Parallel Processing<a class="headerlink" href="#using-joblib-for-parallel-processing" title="Link to this heading">#</a></h3>
-<p>Use joblib for more flexible parallel processing:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">joblib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Parallel</span><span class="p">,</span> <span class="n">delayed</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_loadset</span><span class="p">,</span> <span class="n">clean_artifacts</span><span class="p">,</span> <span class="n">pop_saveset</span>
-
-<span class="k">def</span><span class="w"> </span><span class="nf">process_subject</span><span class="p">(</span><span class="n">subject_id</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Process a single subject&quot;&quot;&quot;</span>
-    <span class="n">input_file</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;data/sub-</span><span class="si">{</span><span class="n">subject_id</span><span class="si">:</span><span class="s1">02d</span><span class="si">}</span><span class="s1">.set&#39;</span>
-    <span class="n">eeg</span> <span class="o">=</span> <span class="n">pop_loadset</span><span class="p">(</span><span class="n">input_file</span><span class="p">)</span>
-    <span class="n">eeg</span> <span class="o">=</span> <span class="n">clean_artifacts</span><span class="p">(</span><span class="n">eeg</span><span class="p">)</span>
-    <span class="n">output_file</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;data/preprocessed/sub-</span><span class="si">{</span><span class="n">subject_id</span><span class="si">:</span><span class="s1">02d</span><span class="si">}</span><span class="s1">_preprocessed.set&#39;</span>
-    <span class="n">pop_saveset</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="n">output_file</span><span class="p">)</span>
-    <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;Processed subject </span><span class="si">{</span><span class="n">subject_id</span><span class="si">}</span><span class="s2">&quot;</span>
-
-<span class="c1"># Process with joblib</span>
-<span class="n">results</span> <span class="o">=</span> <span class="n">Parallel</span><span class="p">(</span><span class="n">n_jobs</span><span class="o">=</span><span class="mi">4</span><span class="p">)(</span>
-    <span class="n">delayed</span><span class="p">(</span><span class="n">process_subject</span><span class="p">)(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">11</span><span class="p">)</span>
-<span class="p">)</span>
-
-<span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
-</pre></div>
-</div>
-</section>
-<section id="gpu-acceleration">
-<h3>GPU Acceleration<a class="headerlink" href="#gpu-acceleration" title="Link to this heading">#</a></h3>
-<p>Use GPU acceleration for faster processing:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">clean_artifacts</span>
-
-<span class="c1"># Check GPU availability</span>
-<span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">():</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;GPU available: </span><span class="si">{</span><span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">get_device_name</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-    <span class="n">device</span> <span class="o">=</span> <span class="s1">&#39;cuda&#39;</span>
-<span class="k">else</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;GPU not available, using CPU&quot;</span><span class="p">)</span>
-    <span class="n">device</span> <span class="o">=</span> <span class="s1">&#39;cpu&#39;</span>
-
-<span class="c1"># Preprocess with GPU</span>
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">clean_artifacts</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
-</pre></div>
-</div>
-</section>
-</section>
-<section id="performance-optimization">
-<h2>Performance Optimization<a class="headerlink" href="#performance-optimization" title="Link to this heading">#</a></h2>
-<section id="memory-optimization">
-<h3>Memory Optimization<a class="headerlink" href="#memory-optimization" title="Link to this heading">#</a></h3>
-<p>Reduce memory usage for large datasets:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_loadset</span><span class="p">,</span> <span class="n">pop_saveset</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
-
-<span class="k">def</span><span class="w"> </span><span class="nf">process_in_chunks</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">chunk_size</span><span class="o">=</span><span class="mi">10</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Process data in chunks to reduce memory usage&quot;&quot;&quot;</span>
-
-    <span class="c1"># Load data</span>
-    <span class="n">eeg</span> <span class="o">=</span> <span class="n">pop_loadset</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
-
-    <span class="c1"># Process in chunks</span>
-    <span class="n">n_chunks</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">eeg</span><span class="o">.</span><span class="n">pnts</span> <span class="o">/</span> <span class="p">(</span><span class="n">chunk_size</span> <span class="o">*</span> <span class="n">eeg</span><span class="o">.</span><span class="n">srate</span><span class="p">)))</span>
-
-    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_chunks</span><span class="p">):</span>
-        <span class="n">start</span> <span class="o">=</span> <span class="n">i</span> <span class="o">*</span> <span class="n">chunk_size</span> <span class="o">*</span> <span class="n">eeg</span><span class="o">.</span><span class="n">srate</span>
-        <span class="n">end</span> <span class="o">=</span> <span class="nb">min</span><span class="p">((</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">chunk_size</span> <span class="o">*</span> <span class="n">eeg</span><span class="o">.</span><span class="n">srate</span><span class="p">,</span> <span class="n">eeg</span><span class="o">.</span><span class="n">pnts</span><span class="p">)</span>
-
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Processing chunk </span><span class="si">{</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">n_chunks</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="c1"># Process chunk</span>
-        <span class="n">chunk_data</span> <span class="o">=</span> <span class="n">eeg</span><span class="o">.</span><span class="n">data</span><span class="p">[:,</span> <span class="n">start</span><span class="p">:</span><span class="n">end</span><span class="p">]</span>
-        <span class="c1"># ... process chunk ...</span>
-
-    <span class="k">return</span> <span class="n">eeg</span>
-</pre></div>
-</div>
-</section>
-<section id="computation-optimization">
-<h3>Computation Optimization<a class="headerlink" href="#computation-optimization" title="Link to this heading">#</a></h3>
-<p>Speed up preprocessing:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">clean_artifacts</span><span class="p">,</span> <span class="n">EEG_OPTIONS</span>
-
-<span class="c1"># Use optimized parameters</span>
-<span class="n">options</span> <span class="o">=</span> <span class="n">EEG_OPTIONS</span><span class="p">()</span>
-<span class="n">options</span><span class="o">.</span><span class="n">ica_ncomps</span> <span class="o">=</span> <span class="mi">30</span>  <span class="c1"># Reduce components</span>
-<span class="n">options</span><span class="o">.</span><span class="n">filter_order</span> <span class="o">=</span> <span class="mi">2</span>  <span class="c1"># Reduce filter order</span>
-<span class="n">options</span><span class="o">.</span><span class="n">asr_wlen</span> <span class="o">=</span> <span class="mf">1.0</span>   <span class="c1"># Increase window length</span>
-
-<span class="c1"># Preprocess with optimized settings</span>
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">clean_artifacts</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="n">options</span><span class="p">)</span>
-</pre></div>
-</div>
-</section>
-<section id="caching-results">
-<h3>Caching Results<a class="headerlink" href="#caching-results" title="Link to this heading">#</a></h3>
-<p>Cache preprocessing results to avoid recomputation:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">pickle</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">hashlib</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_loadset</span><span class="p">,</span> <span class="n">clean_artifacts</span>
-
-<span class="k">def</span><span class="w"> </span><span class="nf">get_preprocessed_data</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Get preprocessed data with caching&quot;&quot;&quot;</span>
-
-    <span class="c1"># Create cache key</span>
-    <span class="n">cache_key</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">md5</span><span class="p">(</span>
-        <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">filename</span><span class="si">}{</span><span class="nb">str</span><span class="p">(</span><span class="n">params</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">encode</span><span class="p">()</span>
-    <span class="p">)</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
-    <span class="n">cache_file</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;cache/</span><span class="si">{</span><span class="n">cache_key</span><span class="si">}</span><span class="s2">.pkl&quot;</span>
-
-    <span class="c1"># Check cache</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">cache_file</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-            <span class="n">eeg</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loaded from cache: </span><span class="si">{</span><span class="n">cache_file</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">eeg</span>
-    <span class="k">except</span> <span class="ne">FileNotFoundError</span><span class="p">:</span>
-        <span class="k">pass</span>
-
-    <span class="c1"># Preprocess</span>
-    <span class="n">eeg</span> <span class="o">=</span> <span class="n">pop_loadset</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
-    <span class="n">eeg</span> <span class="o">=</span> <span class="n">clean_artifacts</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="o">**</span><span class="n">params</span><span class="p">)</span>
-
-    <span class="c1"># Save to cache</span>
-    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">cache_file</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-        <span class="n">pickle</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span>
-
-    <span class="k">return</span> <span class="n">eeg</span>
-</pre></div>
-</div>
-</section>
-<section id="profiling-and-benchmarking">
-<h3>Profiling and Benchmarking<a class="headerlink" href="#profiling-and-benchmarking" title="Link to this heading">#</a></h3>
-<p>Profile preprocessing to identify bottlenecks:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">cProfile</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">pstats</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">clean_artifacts</span>
-
-<span class="k">def</span><span class="w"> </span><span class="nf">profile_preprocessing</span><span class="p">(</span><span class="n">eeg</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Profile preprocessing function&quot;&quot;&quot;</span>
-
-    <span class="n">profiler</span> <span class="o">=</span> <span class="n">cProfile</span><span class="o">.</span><span class="n">Profile</span><span class="p">()</span>
-    <span class="n">profiler</span><span class="o">.</span><span class="n">enable</span><span class="p">()</span>
-
-    <span class="c1"># Run preprocessing</span>
-    <span class="n">eeg</span> <span class="o">=</span> <span class="n">clean_artifacts</span><span class="p">(</span><span class="n">eeg</span><span class="p">)</span>
-
-    <span class="n">profiler</span><span class="o">.</span><span class="n">disable</span><span class="p">()</span>
-
-    <span class="c1"># Print statistics</span>
-    <span class="n">stats</span> <span class="o">=</span> <span class="n">pstats</span><span class="o">.</span><span class="n">Stats</span><span class="p">(</span><span class="n">profiler</span><span class="p">)</span>
-    <span class="n">stats</span><span class="o">.</span><span class="n">sort_stats</span><span class="p">(</span><span class="s1">&#39;cumulative&#39;</span><span class="p">)</span>
-    <span class="n">stats</span><span class="o">.</span><span class="n">print_stats</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>  <span class="c1"># Print top 10 functions</span>
-
-    <span class="k">return</span> <span class="n">eeg</span>
-</pre></div>
-</div>
-</section>
-</section>
-<section id="best-practices">
-<h2>Best Practices<a class="headerlink" href="#best-practices" title="Link to this heading">#</a></h2>
-<section id="code-organization">
-<h3>Code Organization<a class="headerlink" href="#code-organization" title="Link to this heading">#</a></h3>
-<p>Organize custom preprocessing code:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># preprocessing/pipelines.py</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">clean_artifacts</span>
-
-<span class="k">class</span><span class="w"> </span><span class="nc">PreprocessingPipeline</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base class for preprocessing pipelines&quot;&quot;&quot;</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">params</span> <span class="ow">or</span> <span class="p">{}</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">eeg</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
-
-<span class="k">class</span><span class="w"> </span><span class="nc">RestingStatePipeline</span><span class="p">(</span><span class="n">PreprocessingPipeline</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Resting state preprocessing pipeline&quot;&quot;&quot;</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">eeg</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">clean_artifacts</span><span class="p">(</span>
-            <span class="n">eeg</span><span class="p">,</span>
-            <span class="n">highpass</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
-            <span class="n">lowpass</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span>
-            <span class="n">asr_criterion</span><span class="o">=</span><span class="mi">20</span>
-        <span class="p">)</span>
-
-<span class="k">class</span><span class="w"> </span><span class="nc">ERPPipeline</span><span class="p">(</span><span class="n">PreprocessingPipeline</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;ERP preprocessing pipeline&quot;&quot;&quot;</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">eeg</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">clean_artifacts</span><span class="p">(</span>
-            <span class="n">eeg</span><span class="p">,</span>
-            <span class="n">highpass</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span>
-            <span class="n">lowpass</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>
-            <span class="n">asr_criterion</span><span class="o">=</span><span class="mi">15</span>
-        <span class="p">)</span>
-
-<span class="c1"># Usage</span>
-<span class="n">pipeline</span> <span class="o">=</span> <span class="n">RestingStatePipeline</span><span class="p">()</span>
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">eeg</span><span class="p">)</span>
-</pre></div>
-</div>
-</section>
-<section id="error-handling">
-<h3>Error Handling<a class="headerlink" href="#error-handling" title="Link to this heading">#</a></h3>
-<p>Implement robust error handling:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_loadset</span><span class="p">,</span> <span class="n">clean_artifacts</span><span class="p">,</span> <span class="n">pop_saveset</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
-
-<span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
-<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
-
-<span class="k">def</span><span class="w"> </span><span class="nf">safe_preprocessing</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">output_file</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Preprocess with error handling&quot;&quot;&quot;</span>
-
-    <span class="k">try</span><span class="p">:</span>
-        <span class="c1"># Load data</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loading </span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="n">eeg</span> <span class="o">=</span> <span class="n">pop_loadset</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
-
-        <span class="c1"># Preprocess</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Preprocessing...&quot;</span><span class="p">)</span>
-        <span class="n">eeg</span> <span class="o">=</span> <span class="n">clean_artifacts</span><span class="p">(</span><span class="n">eeg</span><span class="p">)</span>
-
-        <span class="c1"># Save</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Saving to </span><span class="si">{</span><span class="n">output_file</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="n">pop_saveset</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="n">output_file</span><span class="p">)</span>
-
-        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Success!&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="kc">True</span>
-
-    <span class="k">except</span> <span class="ne">FileNotFoundError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;File not found: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="kc">False</span>
-    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unexpected error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="kc">False</span>
-</pre></div>
-</div>
-</section>
-<section id="documentation">
-<h3>Documentation<a class="headerlink" href="#documentation" title="Link to this heading">#</a></h3>
-<p>Document custom functions:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">custom_preprocessing</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mi">3</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Apply custom artifact removal.</span>
-
-<span class="sd">    Parameters</span>
-<span class="sd">    ----------</span>
-<span class="sd">    eeg : EEGobj</span>
-<span class="sd">        Input EEG data</span>
-<span class="sd">    threshold : float, optional</span>
-<span class="sd">        Amplitude threshold in standard deviations (default: 3)</span>
-
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    eeg : EEGobj</span>
-<span class="sd">        Preprocessed EEG data</span>
-
-<span class="sd">    Examples</span>
-<span class="sd">    --------</span>
-<span class="sd">    &gt;&gt;&gt; eeg = custom_preprocessing(eeg, threshold=5)</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="c1"># Implementation</span>
-    <span class="k">return</span> <span class="n">eeg</span>
-</pre></div>
-</div>
-</section>
-<section id="testing">
-<h3>Testing<a class="headerlink" href="#testing" title="Link to this heading">#</a></h3>
-<p>Test custom preprocessing functions:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">unittest</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_loadset</span>
 
-<span class="k">class</span><span class="w"> </span><span class="nc">TestCustomPreprocessing</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">test_tutorial_pipeline_preserves_eeg_shape</span><span class="p">():</span>
+    <span class="n">EEG</span> <span class="o">=</span> <span class="n">pop_loadset</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="s2">&quot;sample_data&quot;</span><span class="p">)</span> <span class="o">/</span> <span class="s2">&quot;eeglab_data.set&quot;</span><span class="p">)</span>
+    <span class="n">output</span><span class="p">,</span> <span class="n">history</span> <span class="o">=</span> <span class="n">tutorial_pipeline</span><span class="p">(</span><span class="n">EEG</span><span class="p">)</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Load test data&quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">eeg</span> <span class="o">=</span> <span class="n">pop_loadset</span><span class="p">(</span><span class="s1">&#39;test_data.set&#39;</span><span class="p">)</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">test_preprocessing_runs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Test that preprocessing runs without error&quot;&quot;&quot;</span>
-        <span class="n">eeg</span> <span class="o">=</span> <span class="n">custom_preprocessing</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">eeg</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsNotNone</span><span class="p">(</span><span class="n">eeg</span><span class="p">)</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">test_preprocessing_preserves_shape</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Test that preprocessing preserves data shape&quot;&quot;&quot;</span>
-        <span class="n">eeg</span> <span class="o">=</span> <span class="n">custom_preprocessing</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">eeg</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">eeg</span><span class="o">.</span><span class="n">nbchan</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">eeg</span><span class="o">.</span><span class="n">nbchan</span><span class="p">)</span>
-
-<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
-    <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="n">output</span><span class="p">[</span><span class="s2">&quot;nbchan&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">EEG</span><span class="p">[</span><span class="s2">&quot;nbchan&quot;</span><span class="p">]</span>
+    <span class="k">assert</span> <span class="n">output</span><span class="p">[</span><span class="s2">&quot;pnts&quot;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">EEG</span><span class="p">[</span><span class="s2">&quot;pnts&quot;</span><span class="p">]</span>
+    <span class="k">assert</span> <span class="n">history</span>
 </pre></div>
 </div>
-</section>
-</section>
-<section id="next-steps">
-<h2>Next Steps<a class="headerlink" href="#next-steps" title="Link to this heading">#</a></h2>
-<p>Now that you understand advanced topics:</p>
-<ol class="arabic simple">
-<li><p>Review the <a class="reference internal" href="preprocessing_pipeline.html#preprocessing-pipeline"><span class="std std-ref">Preprocessing Pipeline</span></a> guide for detailed preprocessing steps</p></li>
-<li><p>Explore the <a class="reference internal" href="configuration.html#configuration"><span class="std std-ref">Configuration</span></a> guide for parameter tuning</p></li>
-<li><p>Check the <a class="reference internal" href="bids_workflow.html#bids-workflow"><span class="std std-ref">BIDS Workflow</span></a> for batch processing</p></li>
-<li><p>Review the <a class="reference internal" href="../api/index.html#api-reference"><span class="std std-ref">API Reference</span></a> for detailed function documentation</p></li>
-</ol>
+<p>For GUI/console synchronization changes, add coverage near
+<code class="docutils literal notranslate"><span class="pre">tests/test_console_workspace.py</span></code> so <code class="docutils literal notranslate"><span class="pre">EEG</span></code>, <code class="docutils literal notranslate"><span class="pre">ALLEEG</span></code>, <code class="docutils literal notranslate"><span class="pre">CURRENTSET</span></code>,
+<code class="docutils literal notranslate"><span class="pre">LASTCOM</span></code>, <code class="docutils literal notranslate"><span class="pre">ALLCOM</span></code>, <code class="docutils literal notranslate"><span class="pre">STUDY</span></code>, and <code class="docutils literal notranslate"><span class="pre">CURRENTSTUDY</span></code> stay synchronized.</p>
 </section>
 </section>
 
@@ -1065,12 +747,12 @@
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="bids_workflow.html"
+       href="visual_parity.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">BIDS Workflow</p>
+        <p class="prev-next-title">Visual Parity Testing</p>
       </div>
     </a>
     <a class="right-next"
@@ -1101,43 +783,15 @@
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="pst-show_toc_level nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#custom-preprocessing-chains">Custom Preprocessing Chains</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#building-custom-pipelines">Building Custom Pipelines</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#conditional-preprocessing">Conditional Preprocessing</a></li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#extending-the-pipeline">Extending the Pipeline</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#creating-custom-functions">Creating Custom Functions</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#creating-preprocessing-decorators">Creating Preprocessing Decorators</a></li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#integration-with-mne-python">Integration with MNE-Python</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#converting-between-formats">Converting Between Formats</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#using-mne-preprocessing">Using MNE Preprocessing</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#epoching-with-mne">Epoching with MNE</a></li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#parallel-processing">Parallel Processing</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#batch-processing-with-multiprocessing">Batch Processing with Multiprocessing</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#using-joblib-for-parallel-processing">Using joblib for Parallel Processing</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#gpu-acceleration">GPU Acceleration</a></li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#performance-optimization">Performance Optimization</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#memory-optimization">Memory Optimization</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#computation-optimization">Computation Optimization</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#caching-results">Caching Results</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#profiling-and-benchmarking">Profiling and Benchmarking</a></li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#best-practices">Best Practices</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#code-organization">Code Organization</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#error-handling">Error Handling</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#documentation">Documentation</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#testing">Testing</a></li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#next-steps">Next Steps</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#custom-pipelines">Custom Pipelines</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#conditional-steps">Conditional Steps</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#custom-marking-functions">Custom Marking Functions</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#batch-processing">Batch Processing</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#multiprocessing-pattern">Multiprocessing Pattern</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#mne-interoperability">MNE Interoperability</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#memory-and-storage">Memory and Storage</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#extending-eegprep">Extending EEGPrep</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#testing-custom-workflows">Testing Custom Workflows</a></li>
 </ul>
   </nav></div>
 
@@ -1154,8 +808,8 @@
   </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script defer src="../_static/scripts/bootstrap.js?digest=7f76b32a3354e82990f2"></script>
-<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=7f76b32a3354e82990f2"></script>
+  <script defer src="../_static/scripts/bootstrap.js?digest=55c26ed414f5f8a31ebb"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=55c26ed414f5f8a31ebb"></script>
 
   <footer class="bd-footer">
 <div class="bd-footer__inner bd-page-width">
@@ -1166,7 +820,7 @@
 
   <p class="copyright">
     
-      © Copyright 2024 - , EEGPrep contributors.
+      © Copyright 2024-2026, EEGPrep contributors.
       <br/>
     
   </p>

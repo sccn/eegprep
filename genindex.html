@@ -2,18 +2,18 @@
 <!DOCTYPE html>
 
 
-<html lang="en" data-content_root="./" >
+<html lang="en" data-content_root="./" data-theme="light">
 
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Index &#8212; eegprep 0.2.23 documentation</title>
+    <title>Index &#8212; EEGPrep manual</title>
   
   
   
   <script data-cfasync="false">
-    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
-    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "light";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "light";
   </script>
   <!--
     this give us a css class that will be invisible only if js is disabled
@@ -26,28 +26,29 @@
   </noscript>
   
   <!-- Loaded before other Sphinx assets -->
-  <link href="_static/styles/theme.css?digest=7f76b32a3354e82990f2" rel="stylesheet" />
-<link href="_static/styles/pydata-sphinx-theme.css?digest=7f76b32a3354e82990f2" rel="stylesheet" />
+  <link href="_static/styles/theme.css?digest=55c26ed414f5f8a31ebb" rel="stylesheet" />
+<link href="_static/styles/pydata-sphinx-theme.css?digest=55c26ed414f5f8a31ebb" rel="stylesheet" />
 
     <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
     <link rel="stylesheet" type="text/css" href="_static/copybutton.css?v=76b2166b" />
     <link rel="stylesheet" type="text/css" href="_static/togglebutton.css?v=9c3e77be" />
-    <link rel="stylesheet" type="text/css" href="_static/sg_gallery.css?v=d2d258e8" />
+    <link rel="stylesheet" type="text/css" href="_static/sg_gallery.css?v=fd6457a4" />
     <link rel="stylesheet" type="text/css" href="_static/sg_gallery-binder.css?v=f4aeca0c" />
     <link rel="stylesheet" type="text/css" href="_static/sg_gallery-dataframe.css?v=2082cf3c" />
     <link rel="stylesheet" type="text/css" href="_static/sg_gallery-rendered-html.css?v=1277b6f3" />
     <link rel="stylesheet" type="text/css" href="_static/sphinx-design.min.css?v=95c83b7e" />
-    <link rel="stylesheet" type="text/css" href="_static/custom.css?v=eb9c3aa4" />
+    <link rel="stylesheet" type="text/css" href="_static/custom.css?v=92c3505e" />
   
   <!-- So that users can add custom icons -->
-  <script defer src="_static/scripts/fontawesome.js?digest=7f76b32a3354e82990f2"></script>
+  <script defer src="_static/scripts/fontawesome.js?digest=55c26ed414f5f8a31ebb"></script>
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=7f76b32a3354e82990f2" />
-<link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=7f76b32a3354e82990f2" />
+  <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=55c26ed414f5f8a31ebb" />
+<link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=55c26ed414f5f8a31ebb" />
 
     <script src="_static/documentation_options.js?v=171860b8"></script>
     <script src="_static/doctools.js?v=fd6eb6e6"></script>
     <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/sg-tags.js?v=d80f6fa4"></script>
     <script src="_static/clipboard.min.js?v=a7894cd8"></script>
     <script src="_static/copybutton.js?v=6dbb43f8"></script>
     <script>let toggleHintShow = 'Click to show';</script>
@@ -58,6 +59,7 @@
     <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'genindex';</script>
     <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <link rel="icon" href="_static/logo.jpg"/>
     <link rel="index" title="Index" href="#" />
     <link rel="search" title="Search" href="search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
@@ -70,7 +72,7 @@
     <script src="searchindex.js"></script>
   
   </head>
-  <body data-default-mode="">
+  <body data-default-mode="light">
   
   
   <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
@@ -80,7 +82,9 @@
   
   <button type="button" class="btn rounded-pill" id="pst-back-to-top">
     <i class="fa-solid fa-arrow-up"></i>Back to top</button>
-
+  
+  
+  
   
   <dialog id="pst-search-dialog">
     
@@ -91,8 +95,8 @@
   <input type="search"
          class="form-control"
          name="q"
-         placeholder="Search documentation..."
-         aria-label="Search documentation..."
+         placeholder="Search the EEGPrep manual..."
+         aria-label="Search the EEGPrep manual..."
          autocomplete="off"
          autocorrect="off"
          autocapitalize="off"
@@ -127,6 +131,12 @@
   
   
   
+    
+    
+    
+    <img src="_static/logo.jpg" class="logo__image only-light" alt=""/>
+    <img src="_static/logo.jpg" class="logo__image only-dark pst-js-only" alt=""/>
+  
   
     <p class="title logo__title">eegprep</p>
   
@@ -143,13 +153,6 @@
   <ul class="bd-navbar-elements navbar-nav">
     
 <li class="nav-item ">
-  <a class="nav-link nav-internal" href="api/index.html">
-    API Reference
-  </a>
-</li>
-
-
-<li class="nav-item ">
   <a class="nav-link nav-internal" href="user_guide/index.html">
     User Guide
   </a>
@@ -164,8 +167,22 @@
 
 
 <li class="nav-item ">
-  <a class="nav-link nav-internal" href="contributing.html">
-    Contributing to EEGPrep
+  <a class="nav-link nav-internal" href="api/index.html">
+    API Reference
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="faq.html">
+    Frequently Asked Questions
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="glossary.html">
+    Glossary
   </a>
 </li>
 
@@ -178,20 +195,6 @@
                 <ul id="pst-nav-more-links" class="dropdown-menu">
                     
 <li class=" ">
-  <a class="nav-link dropdown-item nav-internal" href="development.html">
-    Development Setup
-  </a>
-</li>
-
-
-<li class=" ">
-  <a class="nav-link dropdown-item nav-internal" href="faq.html">
-    Frequently Asked Questions
-  </a>
-</li>
-
-
-<li class=" ">
   <a class="nav-link dropdown-item nav-internal" href="references.html">
     References and Citations
   </a>
@@ -199,15 +202,22 @@
 
 
 <li class=" ">
-  <a class="nav-link dropdown-item nav-internal" href="changelog.html">
-    Changelog
+  <a class="nav-link dropdown-item nav-internal" href="contributing.html">
+    Contributing to EEGPrep
   </a>
 </li>
 
 
 <li class=" ">
-  <a class="nav-link dropdown-item nav-internal" href="glossary.html">
-    Glossary
+  <a class="nav-link dropdown-item nav-internal" href="development.html">
+    Development Setup
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="changelog.html">
+    Changelog
   </a>
 </li>
 
@@ -222,6 +232,14 @@
     
     <div class="navbar-header-items__end">
       
+      
+        <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
       
         <div class="navbar-item">
 
@@ -281,13 +299,6 @@
   <ul class="bd-navbar-elements navbar-nav">
     
 <li class="nav-item ">
-  <a class="nav-link nav-internal" href="api/index.html">
-    API Reference
-  </a>
-</li>
-
-
-<li class="nav-item ">
   <a class="nav-link nav-internal" href="user_guide/index.html">
     User Guide
   </a>
@@ -297,6 +308,34 @@
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="examples/index.html">
     Examples
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="api/index.html">
+    API Reference
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="faq.html">
+    Frequently Asked Questions
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="glossary.html">
+    Glossary
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="references.html">
+    References and Citations
   </a>
 </li>
 
@@ -316,29 +355,8 @@
 
 
 <li class="nav-item ">
-  <a class="nav-link nav-internal" href="faq.html">
-    Frequently Asked Questions
-  </a>
-</li>
-
-
-<li class="nav-item ">
-  <a class="nav-link nav-internal" href="references.html">
-    References and Citations
-  </a>
-</li>
-
-
-<li class="nav-item ">
   <a class="nav-link nav-internal" href="changelog.html">
     Changelog
-  </a>
-</li>
-
-
-<li class="nav-item ">
-  <a class="nav-link nav-internal" href="glossary.html">
-    Glossary
   </a>
 </li>
 
@@ -351,6 +369,14 @@
     
     
       <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
         
           <div class="navbar-item">
 
@@ -414,6 +440,7 @@
  | <a href="#G"><strong>G</strong></a>
  | <a href="#H"><strong>H</strong></a>
  | <a href="#I"><strong>I</strong></a>
+ | <a href="#K"><strong>K</strong></a>
  | <a href="#L"><strong>L</strong></a>
  | <a href="#M"><strong>M</strong></a>
  | <a href="#N"><strong>N</strong></a>
@@ -423,6 +450,7 @@
  | <a href="#R"><strong>R</strong></a>
  | <a href="#S"><strong>S</strong></a>
  | <a href="#T"><strong>T</strong></a>
+ | <a href="#U"><strong>U</strong></a>
  | <a href="#V"><strong>V</strong></a>
  | <a href="#W"><strong>W</strong></a>
  | <a href="#Z"><strong>Z</strong></a>
@@ -443,17 +471,71 @@
 <h2 id="_">_</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="api/core.html#eegprep.EEGobj.__getattr__">__getattr__() (eegprep.EEGobj method)</a>, <a href="api/generated/eegprep.EEGobj.html#eegprep.EEGobj.__getattr__">[1]</a>
+      <li><a href="api/generated/eegprep.EEGobj.html#eegprep.EEGobj.__getattr__">__getattr__() (eegprep.EEGobj method)</a>
 </li>
-      <li><a href="api/core.html#eegprep.EEGobj.__init__">__init__() (eegprep.EEGobj method)</a>, <a href="api/generated/eegprep.EEGobj.html#eegprep.EEGobj.__init__">[1]</a>, <a href="api/generated/eegprep.EEGobj.html#id0">[2]</a>
+      <li><a href="api/generated/eegprep.CallbackSpec.html#eegprep.CallbackSpec.__init__">__init__() (eegprep.CallbackSpec method)</a>
+
+      <ul>
+        <li><a href="api/generated/eegprep.CatalogSourceType.html#eegprep.CatalogSourceType.__init__">(eegprep.CatalogSourceType method)</a>
 </li>
+        <li><a href="api/generated/eegprep.CatalogValidationIssue.html#eegprep.CatalogValidationIssue.__init__">(eegprep.CatalogValidationIssue method)</a>
+</li>
+        <li><a href="api/generated/eegprep.CatalogValidationOptions.html#eegprep.CatalogValidationOptions.__init__">(eegprep.CatalogValidationOptions method)</a>
+</li>
+        <li><a href="api/generated/eegprep.CatalogValidationReport.html#eegprep.CatalogValidationReport.__init__">(eegprep.CatalogValidationReport method)</a>
+</li>
+        <li><a href="api/generated/eegprep.ConsoleDatasetResult.html#eegprep.ConsoleDatasetResult.__init__">(eegprep.ConsoleDatasetResult method)</a>
+</li>
+        <li><a href="api/generated/eegprep.ConsolePopResult.html#eegprep.ConsolePopResult.__init__">(eegprep.ConsolePopResult method)</a>
+</li>
+        <li><a href="api/generated/eegprep.ControlSpec.html#eegprep.ControlSpec.__init__">(eegprep.ControlSpec method)</a>
+</li>
+        <li><a href="api/generated/eegprep.DialogSpec.html#eegprep.DialogSpec.__init__">(eegprep.DialogSpec method)</a>
+</li>
+        <li><a href="api/generated/eegprep.EEGobj.html#eegprep.EEGobj.__init__">(eegprep.EEGobj method)</a>
+</li>
+        <li><a href="api/generated/eegprep.EEGPrepConsoleWorkspace.html#eegprep.EEGPrepConsoleWorkspace.__init__">(eegprep.EEGPrepConsoleWorkspace method)</a>
+</li>
+        <li><a href="api/generated/eegprep.EEGPrepSession.html#eegprep.EEGPrepSession.__init__">(eegprep.EEGPrepSession method)</a>
+</li>
+        <li><a href="api/generated/eegprep.ExtensionAction.html#eegprep.ExtensionAction.__init__">(eegprep.ExtensionAction method)</a>
+</li>
+        <li><a href="api/generated/eegprep.ExtensionCatalog.html#eegprep.ExtensionCatalog.__init__">(eegprep.ExtensionCatalog method)</a>
+</li>
+        <li><a href="api/generated/eegprep.ExtensionCatalogEntry.html#eegprep.ExtensionCatalogEntry.__init__">(eegprep.ExtensionCatalogEntry method)</a>
+</li>
+        <li><a href="api/generated/eegprep.ExtensionDependency.html#eegprep.ExtensionDependency.__init__">(eegprep.ExtensionDependency method)</a>
+</li>
+        <li><a href="api/generated/eegprep.ExtensionMenu.html#eegprep.ExtensionMenu.__init__">(eegprep.ExtensionMenu method)</a>
+</li>
+        <li><a href="api/generated/eegprep.ExtensionPopFunction.html#eegprep.ExtensionPopFunction.__init__">(eegprep.ExtensionPopFunction method)</a>
+</li>
+        <li><a href="api/generated/eegprep.ExtensionRecord.html#eegprep.ExtensionRecord.__init__">(eegprep.ExtensionRecord method)</a>
+</li>
+        <li><a href="api/generated/eegprep.ExtensionRegistry.html#eegprep.ExtensionRegistry.__init__">(eegprep.ExtensionRegistry method)</a>
+</li>
+        <li><a href="api/generated/eegprep.ExtensionResource.html#eegprep.ExtensionResource.__init__">(eegprep.ExtensionResource method)</a>
+</li>
+        <li><a href="api/generated/eegprep.ExtensionSourceType.html#eegprep.ExtensionSourceType.__init__">(eegprep.ExtensionSourceType method)</a>
+</li>
+        <li><a href="api/generated/eegprep.ExtensionSpec.html#eegprep.ExtensionSpec.__init__">(eegprep.ExtensionSpec method)</a>
+</li>
+        <li><a href="api/generated/eegprep.ExtensionStatus.html#eegprep.ExtensionStatus.__init__">(eegprep.ExtensionStatus method)</a>
+</li>
+        <li><a href="api/generated/eegprep.ExtensionTestHarness.html#eegprep.ExtensionTestHarness.__init__">(eegprep.ExtensionTestHarness method)</a>
+</li>
+        <li><a href="api/generated/eegprep.ExtensionValidationResult.html#eegprep.ExtensionValidationResult.__init__">(eegprep.ExtensionValidationResult method)</a>
+</li>
+        <li><a href="api/generated/eegprep.LazyImport.html#eegprep.LazyImport.__init__">(eegprep.LazyImport method)</a>
+</li>
+      </ul></li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="api/core.html#eegprep.EEGobj.__repr__">__repr__() (eegprep.EEGobj method)</a>, <a href="api/generated/eegprep.EEGobj.html#eegprep.EEGobj.__repr__">[1]</a>
+      <li><a href="api/generated/eegprep.EEGobj.html#eegprep.EEGobj.__repr__">__repr__() (eegprep.EEGobj method)</a>
 </li>
-      <li><a href="api/core.html#eegprep.EEGobj.__setattr__">__setattr__() (eegprep.EEGobj method)</a>, <a href="api/generated/eegprep.EEGobj.html#eegprep.EEGobj.__setattr__">[1]</a>
+      <li><a href="api/generated/eegprep.EEGobj.html#eegprep.EEGobj.__setattr__">__setattr__() (eegprep.EEGobj method)</a>
 </li>
-      <li><a href="api/core.html#eegprep.EEGobj.__str__">__str__() (eegprep.EEGobj method)</a>, <a href="api/generated/eegprep.EEGobj.html#eegprep.EEGobj.__str__">[1]</a>
+      <li><a href="api/generated/eegprep.EEGobj.html#eegprep.EEGobj.__str__">__str__() (eegprep.EEGobj method)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -461,15 +543,69 @@
 <h2 id="A">A</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/eegprep.EEGPrepConsoleWorkspace.html#eegprep.EEGPrepConsoleWorkspace.accept_pop_result">accept_pop_result() (eegprep.EEGPrepConsoleWorkspace method)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionMenu.html#eegprep.ExtensionMenu.action">action (eegprep.ExtensionMenu attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionSpec.html#eegprep.ExtensionSpec.actions">actions (eegprep.ExtensionSpec attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.EEGPrepSession.html#eegprep.EEGPrepSession.add_change_listener">add_change_listener() (eegprep.EEGPrepSession method)</a>
+</li>
+      <li><a href="api/generated/eegprep.EEGPrepSession.html#eegprep.EEGPrepSession.add_command_echo_listener">add_command_echo_listener() (eegprep.EEGPrepSession method)</a>
+</li>
+      <li><a href="api/generated/eegprep.EEGPrepSession.html#eegprep.EEGPrepSession.add_gui_action_listener">add_gui_action_listener() (eegprep.EEGPrepSession method)</a>
+</li>
+      <li><a href="api/generated/eegprep.EEGPrepSession.html#eegprep.EEGPrepSession.add_history">add_history() (eegprep.EEGPrepSession method)</a>
+</li>
+      <li><a href="api/generated/eegprep.EEGPrepConsoleWorkspace.html#eegprep.EEGPrepConsoleWorkspace.after_execute">after_execute() (eegprep.EEGPrepConsoleWorkspace method)</a>
+</li>
+      <li><a href="api/generated/eegprep.EEGPrepSession.html#eegprep.EEGPrepSession.ALLCOM">ALLCOM (eegprep.EEGPrepSession attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.EEGPrepSession.html#eegprep.EEGPrepSession.ALLEEG">ALLEEG (eegprep.EEGPrepSession attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.CatalogValidationOptions.html#eegprep.CatalogValidationOptions.allow_private">allow_private (eegprep.CatalogValidationOptions attribute)</a>
+</li>
       <li><a href="glossary.html#term-Amplitude"><strong>Amplitude</strong></a>
 </li>
-      <li><a href="glossary.html#term-Artifact"><strong>Artifact</strong></a>
+      <li><a href="api/generated/eegprep.angtimewarp.html#eegprep.angtimewarp">angtimewarp() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionSpec.html#eegprep.ExtensionSpec.api_version">api_version (eegprep.ExtensionSpec attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.EEGPrepSession.html#eegprep.EEGPrepSession.apply_workspace_state">apply_workspace_state() (eegprep.EEGPrepSession method)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="glossary.html#term-Artifact"><strong>Artifact</strong></a>
+</li>
       <li><a href="glossary.html#term-Artifact-Detection-Threshold"><strong>Artifact Detection Threshold</strong></a>
 </li>
       <li><a href="glossary.html#term-Artifact-Subspace-Reconstruction-ASR"><strong>Artifact Subspace Reconstruction (ASR)</strong></a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionTestHarness.html#eegprep.ExtensionTestHarness.assert_action_callable">assert_action_callable() (eegprep.ExtensionTestHarness method)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionTestHarness.html#eegprep.ExtensionTestHarness.assert_action_history_result">assert_action_history_result() (eegprep.ExtensionTestHarness method)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionTestHarness.html#eegprep.ExtensionTestHarness.assert_actions_load">assert_actions_load() (eegprep.ExtensionTestHarness method)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionTestHarness.html#eegprep.ExtensionTestHarness.assert_all_static_contracts">assert_all_static_contracts() (eegprep.ExtensionTestHarness method)</a>
+</li>
+      <li><a href="api/generated/eegprep.assert_extension_entry_point_loads.html#eegprep.assert_extension_entry_point_loads">assert_extension_entry_point_loads() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionTestHarness.html#eegprep.ExtensionTestHarness.assert_help_resources_exist">assert_help_resources_exist() (eegprep.ExtensionTestHarness method)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionTestHarness.html#eegprep.ExtensionTestHarness.assert_menus_register">assert_menus_register() (eegprep.ExtensionTestHarness method)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionTestHarness.html#eegprep.ExtensionTestHarness.assert_pop_function_callable">assert_pop_function_callable() (eegprep.ExtensionTestHarness method)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionTestHarness.html#eegprep.ExtensionTestHarness.assert_pop_function_history_result">assert_pop_function_history_result() (eegprep.ExtensionTestHarness method)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionTestHarness.html#eegprep.ExtensionTestHarness.assert_pop_functions_load">assert_pop_functions_load() (eegprep.ExtensionTestHarness method)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionTestHarness.html#eegprep.ExtensionTestHarness.assert_spec_valid">assert_spec_valid() (eegprep.ExtensionTestHarness method)</a>
+</li>
+      <li><a href="api/generated/eegprep.LazyImport.html#eegprep.LazyImport.attr">attr (eegprep.LazyImport attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionCatalog.html#eegprep.ExtensionCatalog.available">available (eegprep.ExtensionCatalog property)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -483,19 +619,39 @@
 </li>
       <li><a href="glossary.html#term-Batch-Processing"><strong>Batch Processing</strong></a>
 </li>
+      <li><a href="api/generated/eegprep.EEGPrepSession.html#eegprep.EEGPrepSession.begin_gui_action">begin_gui_action() (eegprep.EEGPrepSession method)</a>
+</li>
       <li><a href="glossary.html#term-BIDS"><strong>BIDS</strong></a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="api/core.html#eegprep.bids_list_eeg_files">bids_list_eeg_files() (in module eegprep)</a>, <a href="api/generated/eegprep.bids_list_eeg_files.html#eegprep.bids_list_eeg_files">[1]</a>
+      <li><a href="api/generated/eegprep.bids_list_eeg_files.html#eegprep.bids_list_eeg_files">bids_list_eeg_files() (in module eegprep)</a>
 </li>
-      <li><a href="api/core.html#eegprep.bids_preproc">bids_preproc() (in module eegprep)</a>, <a href="api/generated/eegprep.bids_preproc.html#eegprep.bids_preproc">[1]</a>
+      <li><a href="api/generated/eegprep.bids_preproc.html#eegprep.bids_preproc">bids_preproc() (in module eegprep)</a>
 </li>
       <li><a href="glossary.html#term-Blind-Source-Separation"><strong>Blind Source Separation</strong></a>
 </li>
-      <li><a href="api/utils.html#eegprep.utils.stats.block_geometric_median">block_geometric_median() (in module eegprep.utils.stats)</a>
+      <li><a href="api/generated/eegprep.bootstat.html#eegprep.bootstat">bootstat() (in module eegprep)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="glossary.html#term-BrainVision"><strong>BrainVision</strong></a>
+</li>
+      <li><a href="api/generated/eegprep.build_safe_install_commands.html#eegprep.build_safe_install_commands">build_safe_install_commands() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.build_safe_update_commands.html#eegprep.build_safe_update_commands">build_safe_update_commands() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionSourceType.html#eegprep.ExtensionSourceType.BUNDLED">BUNDLED (eegprep.ExtensionSourceType attribute)</a>
+
+      <ul>
+        <li><a href="api/generated/eegprep.ExtensionStatus.html#eegprep.ExtensionStatus.BUNDLED">(eegprep.ExtensionStatus attribute)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/eegprep.bundled_plugins.html#eegprep.bundled_plugins">bundled_plugins() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.DialogSpec.html#eegprep.DialogSpec.button_size">button_size (eegprep.DialogSpec attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionCatalog.html#eegprep.ExtensionCatalog.by_name">by_name() (eegprep.ExtensionCatalog method)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionCatalog.html#eegprep.ExtensionCatalog.by_package">by_package() (eegprep.ExtensionCatalog method)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -503,47 +659,113 @@
 <h2 id="C">C</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="api/utils.html#eegprep.utils.coords.chanloc_has_coords">chanloc_has_coords() (in module eegprep.utils.coords)</a>
+      <li><a href="api/generated/eegprep.ControlSpec.html#eegprep.ControlSpec.callback">callback (eegprep.ControlSpec attribute)</a>
 </li>
-      <li><a href="api/utils.html#eegprep.utils.coords.chanlocs_to_coords">chanlocs_to_coords() (in module eegprep.utils.coords)</a>
+      <li><a href="api/generated/eegprep.CallbackSpec.html#eegprep.CallbackSpec">CallbackSpec (class in eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.DialogSpec.html#eegprep.DialogSpec.cancel_first">cancel_first (eegprep.DialogSpec attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.DialogSpec.html#eegprep.DialogSpec.cancel_label">cancel_label (eegprep.DialogSpec attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionAction.html#eegprep.ExtensionAction.capabilities">capabilities (eegprep.ExtensionAction attribute)</a>
+
+      <ul>
+        <li><a href="api/generated/eegprep.ExtensionCatalogEntry.html#eegprep.ExtensionCatalogEntry.capabilities">(eegprep.ExtensionCatalogEntry attribute)</a>
+</li>
+        <li><a href="api/generated/eegprep.ExtensionSpec.html#eegprep.ExtensionSpec.capabilities">(eegprep.ExtensionSpec attribute)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/eegprep.cart2topo.html#eegprep.cart2topo">cart2topo() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.CATALOG_SCHEMA_VERSION.html#eegprep.CATALOG_SCHEMA_VERSION">CATALOG_SCHEMA_VERSION (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.CatalogSourceType.html#eegprep.CatalogSourceType">CatalogSourceType (class in eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.CatalogValidationIssue.html#eegprep.CatalogValidationIssue">CatalogValidationIssue (class in eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.CatalogValidationOptions.html#eegprep.CatalogValidationOptions">CatalogValidationOptions (class in eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.CatalogValidationReport.html#eegprep.CatalogValidationReport">CatalogValidationReport (class in eegprep)</a>
 </li>
       <li><a href="glossary.html#term-Channel"><strong>Channel</strong></a>
 </li>
-      <li><a href="api/generated/eegprep.clean_artifacts.html#eegprep.clean_artifacts">clean_artifacts() (in module eegprep)</a>, <a href="api/preprocessing.html#eegprep.clean_artifacts">[1]</a>
+      <li><a href="api/generated/eegprep.check_extension_compatibility.html#eegprep.check_extension_compatibility">check_extension_compatibility() (in module eegprep)</a>
 </li>
-      <li><a href="api/generated/eegprep.clean_asr.html#eegprep.clean_asr">clean_asr() (in module eegprep)</a>, <a href="api/preprocessing.html#eegprep.clean_asr">[1]</a>
+      <li><a href="api/generated/eegprep.CatalogValidationOptions.html#eegprep.CatalogValidationOptions.check_import">check_import (eegprep.CatalogValidationOptions attribute)</a>
 </li>
-      <li><a href="api/generated/eegprep.clean_channels.html#eegprep.clean_channels">clean_channels() (in module eegprep)</a>, <a href="api/preprocessing.html#eegprep.clean_channels">[1]</a>
+      <li><a href="api/generated/eegprep.CatalogValidationOptions.html#eegprep.CatalogValidationOptions.check_installed">check_installed (eegprep.CatalogValidationOptions attribute)</a>
 </li>
-      <li><a href="api/generated/eegprep.clean_channels_nolocs.html#eegprep.clean_channels_nolocs">clean_channels_nolocs() (in module eegprep)</a>, <a href="api/preprocessing.html#eegprep.clean_channels_nolocs">[1]</a>
+      <li><a href="api/generated/eegprep.ExtensionMenu.html#eegprep.ExtensionMenu.checked">checked (eegprep.ExtensionMenu attribute)</a>
 </li>
-      <li><a href="api/generated/eegprep.clean_drifts.html#eegprep.clean_drifts">clean_drifts() (in module eegprep)</a>, <a href="api/preprocessing.html#eegprep.clean_drifts">[1]</a>
+      <li><a href="api/generated/eegprep.ExtensionMenu.html#eegprep.ExtensionMenu.children">children (eegprep.ExtensionMenu attribute)</a>
 </li>
-      <li><a href="api/generated/eegprep.clean_flatlines.html#eegprep.clean_flatlines">clean_flatlines() (in module eegprep)</a>, <a href="api/preprocessing.html#eegprep.clean_flatlines">[1]</a>
+      <li><a href="api/generated/eegprep.clean_artifacts.html#eegprep.clean_artifacts">clean_artifacts() (in module eegprep)</a>
 </li>
-      <li><a href="api/generated/eegprep.clean_windows.html#eegprep.clean_windows">clean_windows() (in module eegprep)</a>, <a href="api/preprocessing.html#eegprep.clean_windows">[1]</a>
+      <li><a href="api/generated/eegprep.clean_asr.html#eegprep.clean_asr">clean_asr() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.clean_channels.html#eegprep.clean_channels">clean_channels() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.clean_channels_nolocs.html#eegprep.clean_channels_nolocs">clean_channels_nolocs() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.clean_drifts.html#eegprep.clean_drifts">clean_drifts() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.clean_flatlines.html#eegprep.clean_flatlines">clean_flatlines() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.clean_windows.html#eegprep.clean_windows">clean_windows() (in module eegprep)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="api/utils.html#eegprep.utils.coords.clear_chanloc">clear_chanloc() (in module eegprep.utils.coords)</a>
+      <li><a href="api/generated/eegprep.EEGPrepSession.html#eegprep.EEGPrepSession.clear_all">clear_all() (eegprep.EEGPrepSession method)</a>
+</li>
+      <li><a href="api/generated/eegprep.EEGPrepSession.html#eegprep.EEGPrepSession.clear_history">clear_history() (eegprep.EEGPrepSession method)</a>
+</li>
+      <li><a href="api/generated/eegprep.EEGPrepSession.html#eegprep.EEGPrepSession.clear_last_command">clear_last_command() (eegprep.EEGPrepSession method)</a>
+</li>
+      <li><a href="api/generated/eegprep.EEGPrepSession.html#eegprep.EEGPrepSession.clone_current">clone_current() (eegprep.EEGPrepSession method)</a>
+</li>
+      <li><a href="api/generated/eegprep.EEGPrepConsoleWorkspace.html#eegprep.EEGPrepConsoleWorkspace.close">close() (eegprep.EEGPrepConsoleWorkspace method)</a>
 </li>
       <li><a href="glossary.html#term-Coherence"><strong>Coherence</strong></a>
 </li>
       <li><a href="glossary.html#term-Component"><strong>Component</strong></a>
 </li>
+      <li><a href="api/generated/eegprep.ConsoleDatasetResult.html#eegprep.ConsoleDatasetResult">ConsoleDatasetResult (class in eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.ConsolePopResult.html#eegprep.ConsolePopResult">ConsolePopResult (class in eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.DialogSpec.html#eegprep.DialogSpec.content_margins">content_margins (eegprep.DialogSpec attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.DialogSpec.html#eegprep.DialogSpec.controls">controls (eegprep.DialogSpec attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.ControlSpec.html#eegprep.ControlSpec">ControlSpec (class in eegprep)</a>
+</li>
       <li><a href="glossary.html#term-Convolution"><strong>Convolution</strong></a>
 </li>
-      <li><a href="api/utils.html#eegprep.utils.coords.coords_ALS_to_angular">coords_ALS_to_angular() (in module eegprep.utils.coords)</a>
+      <li><a href="api/generated/eegprep.correct_mc.html#eegprep.correct_mc">correct_mc() (in module eegprep)</a>
 </li>
-      <li><a href="api/utils.html#eegprep.utils.coords.coords_any_to_RAS">coords_any_to_RAS() (in module eegprep.utils.coords)</a>
-</li>
-      <li><a href="api/utils.html#eegprep.utils.coords.coords_RAS_to_ALS">coords_RAS_to_ALS() (in module eegprep.utils.coords)</a>
-</li>
-      <li><a href="api/utils.html#eegprep.utils.coords.coords_to_mm">coords_to_mm() (in module eegprep.utils.coords)</a>
+      <li><a href="api/generated/eegprep.correctfit.html#eegprep.correctfit">correctfit() (in module eegprep)</a>
 </li>
       <li><a href="glossary.html#term-Correlation"><strong>Correlation</strong></a>
 </li>
       <li><a href="glossary.html#term-Covariance"><strong>Covariance</strong></a>
+</li>
+      <li><a href="api/generated/eegprep.crossf.html#eegprep.crossf">crossf() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionSourceType.html#eegprep.ExtensionSourceType.CURATED">CURATED (eegprep.ExtensionSourceType attribute)</a>
+
+      <ul>
+        <li><a href="api/generated/eegprep.ExtensionStatus.html#eegprep.ExtensionStatus.CURATED">(eegprep.ExtensionStatus attribute)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/eegprep.EEGPrepSession.html#eegprep.EEGPrepSession.current_eeg">current_eeg() (eegprep.EEGPrepSession method)</a>
+</li>
+      <li><a href="api/generated/eegprep.CatalogValidationOptions.html#eegprep.CatalogValidationOptions.current_eegprep_version">current_eegprep_version (eegprep.CatalogValidationOptions attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.EEGPrepSession.html#eegprep.EEGPrepSession.current_set_value">current_set_value() (eegprep.EEGPrepSession method)</a>
+</li>
+      <li><a href="api/generated/eegprep.EEGPrepSession.html#eegprep.EEGPrepSession.CURRENTSET">CURRENTSET (eegprep.EEGPrepSession attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.EEGPrepSession.html#eegprep.EEGPrepSession.CURRENTSTUDY">CURRENTSTUDY (eegprep.EEGPrepSession attribute)</a>
 </li>
       <li><a href="glossary.html#term-Cutoff-Frequency"><strong>Cutoff Frequency</strong></a>
 </li>
@@ -553,14 +775,48 @@
 <h2 id="D">D</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="api/utils.html#eegprep.utils.sigproc.design_fir">design_fir() (in module eegprep.utils.sigproc)</a>
+      <li><a href="api/generated/eegprep.EEGPrepSession.html#eegprep.EEGPrepSession.dataset_summaries">dataset_summaries() (eegprep.EEGPrepSession method)</a>
 </li>
-      <li><a href="api/utils.html#eegprep.utils.sigproc.design_kaiser">design_kaiser() (in module eegprep.utils.sigproc)</a>
+      <li><a href="api/generated/eegprep.EEGPrepSession.html#eegprep.EEGPrepSession.delete_current">delete_current() (eegprep.EEGPrepSession method)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionSpec.html#eegprep.ExtensionSpec.dependencies">dependencies (eegprep.ExtensionSpec attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionAction.html#eegprep.ExtensionAction.description">description (eegprep.ExtensionAction attribute)</a>
+
+      <ul>
+        <li><a href="api/generated/eegprep.ExtensionCatalogEntry.html#eegprep.ExtensionCatalogEntry.description">(eegprep.ExtensionCatalogEntry attribute)</a>
+</li>
+        <li><a href="api/generated/eegprep.ExtensionPopFunction.html#eegprep.ExtensionPopFunction.description">(eegprep.ExtensionPopFunction attribute)</a>
+</li>
+        <li><a href="api/generated/eegprep.ExtensionSpec.html#eegprep.ExtensionSpec.description">(eegprep.ExtensionSpec attribute)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/eegprep.DialogSpec.html#eegprep.DialogSpec">DialogSpec (class in eegprep)</a>
+</li>
+      <li><a href="glossary.html#term-Dipole"><strong>Dipole</strong></a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="glossary.html#term-Dipole"><strong>Dipole</strong></a>
+      <li><a href="api/generated/eegprep.ExtensionStatus.html#eegprep.ExtensionStatus.DISABLED">DISABLED (eegprep.ExtensionStatus attribute)</a>
 </li>
+      <li><a href="api/generated/eegprep.ExtensionRegistry.html#eegprep.ExtensionRegistry.discover">discover() (eegprep.ExtensionRegistry method)</a>
+</li>
+      <li><a href="api/generated/eegprep.discover_extensions.html#eegprep.discover_extensions">discover_extensions() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionAction.html#eegprep.ExtensionAction.display_name">display_name (eegprep.ExtensionAction attribute)</a>
+
+      <ul>
+        <li><a href="api/generated/eegprep.ExtensionCatalogEntry.html#eegprep.ExtensionCatalogEntry.display_name">(eegprep.ExtensionCatalogEntry attribute)</a>
+</li>
+        <li><a href="api/generated/eegprep.ExtensionSpec.html#eegprep.ExtensionSpec.display_name">(eegprep.ExtensionSpec attribute)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/eegprep.ExtensionCatalogEntry.html#eegprep.ExtensionCatalogEntry.docs_url">docs_url (eegprep.ExtensionCatalogEntry attribute)</a>
+
+      <ul>
+        <li><a href="api/generated/eegprep.ExtensionSpec.html#eegprep.ExtensionSpec.docs_url">(eegprep.ExtensionSpec attribute)</a>
+</li>
+      </ul></li>
       <li><a href="glossary.html#term-Downsampling"><strong>Downsampling</strong></a>
 </li>
   </ul></td>
@@ -569,81 +825,165 @@
 <h2 id="E">E</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/eegprep.EEGPrepSession.html#eegprep.EEGPrepSession.echo_command">echo_command() (eegprep.EEGPrepSession method)</a>
+</li>
       <li><a href="glossary.html#term-EDF"><strong>EDF</strong></a>
 </li>
-      <li><a href="api/generated/eegprep.eeg_autocorr.html#eegprep.eeg_autocorr">eeg_autocorr() (in module eegprep)</a>, <a href="api/signal_processing.html#eegprep.eeg_autocorr">[1]</a>
+      <li><a href="api/generated/eegprep.EEGPrepSession.html#eegprep.EEGPrepSession.EEG">EEG (eegprep.EEGPrepSession attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.eeg_amica.html#eegprep.eeg_amica">eeg_amica() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.eeg_autocorr.html#eegprep.eeg_autocorr">eeg_autocorr() (in module eegprep)</a>
 </li>
       <li><a href="api/generated/eegprep.eeg_autocorr_fftw.html#eegprep.eeg_autocorr_fftw">eeg_autocorr_fftw() (in module eegprep)</a>
 </li>
-      <li><a href="api/generated/eegprep.eeg_autocorr_welch.html#eegprep.eeg_autocorr_welch">eeg_autocorr_welch() (in module eegprep)</a>, <a href="api/signal_processing.html#eegprep.eeg_autocorr_welch">[1]</a>
+      <li><a href="api/generated/eegprep.eeg_autocorr_welch.html#eegprep.eeg_autocorr_welch">eeg_autocorr_welch() (in module eegprep)</a>
 </li>
-      <li><a href="api/core.html#eegprep.eeg_checkset">eeg_checkset() (in module eegprep)</a>, <a href="api/generated/eegprep.eeg_checkset.html#eegprep.eeg_checkset">[1]</a>
+      <li><a href="api/generated/eegprep.eeg_checkset.html#eegprep.eeg_checkset">eeg_checkset() (in module eegprep)</a>
 </li>
-      <li><a href="api/generated/eegprep.eeg_compare.html#eegprep.eeg_compare">eeg_compare() (in module eegprep)</a>, <a href="api/utils.html#eegprep.eeg_compare">[1]</a>
+      <li><a href="api/generated/eegprep.eeg_compare.html#eegprep.eeg_compare">eeg_compare() (in module eegprep)</a>
 </li>
-      <li><a href="api/generated/eegprep.eeg_decodechan.html#eegprep.eeg_decodechan">eeg_decodechan() (in module eegprep)</a>, <a href="api/utils.html#eegprep.eeg_decodechan">[1]</a>
+      <li><a href="api/generated/eegprep.eeg_decodechan.html#eegprep.eeg_decodechan">eeg_decodechan() (in module eegprep)</a>
 </li>
-      <li><a href="api/generated/eegprep.eeg_eeg2mne.html#eegprep.eeg_eeg2mne">eeg_eeg2mne() (in module eegprep)</a>, <a href="api/io.html#eegprep.eeg_eeg2mne">[1]</a>
+      <li><a href="api/generated/eegprep.eeg_eeg2mne.html#eegprep.eeg_eeg2mne">eeg_eeg2mne() (in module eegprep)</a>
 </li>
       <li><a href="api/generated/eegprep.eeg_eegrej.html#eegprep.eeg_eegrej">eeg_eegrej() (in module eegprep)</a>
 </li>
-      <li><a href="api/generated/eegprep.eeg_interp.html#eegprep.eeg_interp">eeg_interp() (in module eegprep)</a>, <a href="api/preprocessing.html#eegprep.eeg_interp">[1]</a>
+      <li><a href="api/generated/eegprep.eeg_emptyset.html#eegprep.eeg_emptyset">eeg_emptyset() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.eeg_icalabelstat.html#eegprep.eeg_icalabelstat">eeg_icalabelstat() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.eeg_interp.html#eegprep.eeg_interp">eeg_interp() (in module eegprep)</a>
 </li>
       <li><a href="api/generated/eegprep.eeg_lat2point.html#eegprep.eeg_lat2point">eeg_lat2point() (in module eegprep)</a>
 </li>
-      <li><a href="api/generated/eegprep.eeg_mne2eeg.html#eegprep.eeg_mne2eeg">eeg_mne2eeg() (in module eegprep)</a>, <a href="api/io.html#eegprep.eeg_mne2eeg">[1]</a>
+      <li><a href="api/generated/eegprep.eeg_mne2eeg.html#eegprep.eeg_mne2eeg">eeg_mne2eeg() (in module eegprep)</a>
 </li>
-      <li><a href="api/generated/eegprep.eeg_mne2eeg_epochs.html#eegprep.eeg_mne2eeg_epochs">eeg_mne2eeg_epochs() (in module eegprep)</a>, <a href="api/io.html#eegprep.eeg_mne2eeg_epochs">[1]</a>
+      <li><a href="api/generated/eegprep.eeg_mne2eeg_epochs.html#eegprep.eeg_mne2eeg_epochs">eeg_mne2eeg_epochs() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.eeg_multieegplot.html#eegprep.eeg_multieegplot">eeg_multieegplot() (in module eegprep)</a>
 </li>
       <li><a href="api/generated/eegprep.EEG_OPTIONS.html#eegprep.EEG_OPTIONS">EEG_OPTIONS (in module eegprep)</a>
 </li>
-      <li><a href="api/generated/eegprep.eeg_picard.html#eegprep.eeg_picard">eeg_picard() (in module eegprep)</a>, <a href="api/ica.html#eegprep.eeg_picard">[1]</a>
+      <li><a href="api/generated/eegprep.eeg_picard.html#eegprep.eeg_picard">eeg_picard() (in module eegprep)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api/generated/eegprep.eeg_point2lat.html#eegprep.eeg_point2lat">eeg_point2lat() (in module eegprep)</a>
 </li>
-      <li><a href="api/generated/eegprep.eeg_rpsd.html#eegprep.eeg_rpsd">eeg_rpsd() (in module eegprep)</a>, <a href="api/signal_processing.html#eegprep.eeg_rpsd">[1]</a>
+      <li><a href="api/generated/eegprep.eeg_retrieve.html#eegprep.eeg_retrieve">eeg_retrieve() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.eeg_rpsd.html#eegprep.eeg_rpsd">eeg_rpsd() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.eeg_runica.html#eegprep.eeg_runica">eeg_runica() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.eeg_store.html#eegprep.eeg_store">eeg_store() (in module eegprep)</a>
 </li>
       <li><a href="glossary.html#term-EEGLAB"><strong>EEGLAB</strong></a>
 </li>
-      <li><a href="api/core.html#eegprep.EEGobj">EEGobj (class in eegprep)</a>, <a href="api/generated/eegprep.EEGobj.html#eegprep.EEGobj">[1]</a>
+      <li><a href="api/generated/eegprep.eeglab.html#eegprep.eeglab">eeglab() (in module eegprep)</a>
 </li>
-      <li>
-    eegprep.utils.coords
+      <li><a href="api/generated/eegprep.DialogSpec.html#eegprep.DialogSpec.eeglab_source">eeglab_source (eegprep.DialogSpec attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.EEGobj.html#eegprep.EEGobj">EEGobj (class in eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.eegplot.html#eegprep.eegplot">eegplot() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionCatalogEntry.html#eegprep.ExtensionCatalogEntry.eegprep_requires">eegprep_requires (eegprep.ExtensionCatalogEntry attribute)</a>
 
       <ul>
-        <li><a href="api/utils.html#module-eegprep.utils.coords">module</a>
+        <li><a href="api/generated/eegprep.ExtensionSpec.html#eegprep.ExtensionSpec.eegprep_requires">(eegprep.ExtensionSpec attribute)</a>
 </li>
       </ul></li>
-      <li>
-    eegprep.utils.sigproc
-
-      <ul>
-        <li><a href="api/utils.html#module-eegprep.utils.sigproc">module</a>
+      <li><a href="api/generated/eegprep.EEGPrepConsoleWorkspace.html#eegprep.EEGPrepConsoleWorkspace">EEGPrepConsoleWorkspace (class in eegprep)</a>
 </li>
-      </ul></li>
-      <li>
-    eegprep.utils.spatial
-
-      <ul>
-        <li><a href="api/utils.html#module-eegprep.utils.spatial">module</a>
+      <li><a href="api/generated/eegprep.EEGPrepSession.html#eegprep.EEGPrepSession">EEGPrepSession (class in eegprep)</a>
 </li>
-      </ul></li>
-      <li>
-    eegprep.utils.stats
-
-      <ul>
-        <li><a href="api/utils.html#module-eegprep.utils.stats">module</a>
-</li>
-      </ul></li>
       <li><a href="api/generated/eegprep.eegrej.html#eegprep.eegrej">eegrej() (in module eegprep)</a>
 </li>
       <li><a href="glossary.html#term-Electrode"><strong>Electrode</strong></a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/eegprep.ControlSpec.html#eegprep.ControlSpec.enabled">enabled (eegprep.ControlSpec attribute)</a>
+
+      <ul>
+        <li><a href="api/generated/eegprep.ExtensionMenu.html#eegprep.ExtensionMenu.enabled">(eegprep.ExtensionMenu attribute)</a>
+</li>
+        <li><a href="api/generated/eegprep.ExtensionRecord.html#eegprep.ExtensionRecord.enabled">(eegprep.ExtensionRecord attribute)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/eegprep.EEGPrepSession.html#eegprep.EEGPrepSession.end_gui_action">end_gui_action() (eegprep.EEGPrepSession method)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionCatalog.html#eegprep.ExtensionCatalog.entries">entries (eegprep.ExtensionCatalog attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.CatalogValidationIssue.html#eegprep.CatalogValidationIssue.entry_id">entry_id (eegprep.CatalogValidationIssue attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionRecord.html#eegprep.ExtensionRecord.entry_point_name">entry_point_name (eegprep.ExtensionRecord attribute)</a>
+
+      <ul>
+        <li><a href="api/generated/eegprep.ExtensionSpec.html#eegprep.ExtensionSpec.entry_point_name">(eegprep.ExtensionSpec attribute)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/eegprep.CatalogValidationOptions.html#eegprep.CatalogValidationOptions.entry_points_provider">entry_points_provider() (eegprep.CatalogValidationOptions method)</a>
+</li>
       <li><a href="glossary.html#term-Epoch"><strong>Epoch</strong></a>
 </li>
+      <li><a href="api/generated/eegprep.CatalogValidationReport.html#eegprep.CatalogValidationReport.errors">errors (eegprep.CatalogValidationReport attribute)</a>
+
+      <ul>
+        <li><a href="api/generated/eegprep.ExtensionCatalog.html#eegprep.ExtensionCatalog.errors">(eegprep.ExtensionCatalog attribute)</a>
+</li>
+        <li><a href="api/generated/eegprep.ExtensionRecord.html#eegprep.ExtensionRecord.errors">(eegprep.ExtensionRecord attribute)</a>
+</li>
+        <li><a href="api/generated/eegprep.ExtensionValidationResult.html#eegprep.ExtensionValidationResult.errors">(eegprep.ExtensionValidationResult property)</a>
+</li>
+      </ul></li>
       <li><a href="glossary.html#term-Event"><strong>Event</strong></a>
+</li>
+      <li><a href="api/generated/eegprep.EEGPrepConsoleWorkspace.html#eegprep.EEGPrepConsoleWorkspace.execute_history_command">execute_history_command() (eegprep.EEGPrepConsoleWorkspace method)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionResource.html#eegprep.ExtensionResource.exists">exists() (eegprep.ExtensionResource method)</a>
+</li>
+      <li><a href="api/generated/eegprep.EXTENSION_COMPATIBILITY_POLICY.html#eegprep.EXTENSION_COMPATIBILITY_POLICY">EXTENSION_COMPATIBILITY_POLICY (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.EXTENSION_CURATION_POLICY_URL.html#eegprep.EXTENSION_CURATION_POLICY_URL">EXTENSION_CURATION_POLICY_URL (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.EXTENSION_NAMING_PREFIX.html#eegprep.EXTENSION_NAMING_PREFIX">EXTENSION_NAMING_PREFIX (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.EXTENSION_TRUST_MESSAGE.html#eegprep.EXTENSION_TRUST_MESSAGE">EXTENSION_TRUST_MESSAGE (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.extension_version_satisfies.html#eegprep.extension_version_satisfies">extension_version_satisfies() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionAction.html#eegprep.ExtensionAction">ExtensionAction (class in eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionCatalog.html#eegprep.ExtensionCatalog">ExtensionCatalog (class in eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionCatalogEntry.html#eegprep.ExtensionCatalogEntry">ExtensionCatalogEntry (class in eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionDependency.html#eegprep.ExtensionDependency">ExtensionDependency (class in eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionLoadError.html#eegprep.ExtensionLoadError">ExtensionLoadError</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionMenu.html#eegprep.ExtensionMenu">ExtensionMenu (class in eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionPopFunction.html#eegprep.ExtensionPopFunction">ExtensionPopFunction (class in eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionRecord.html#eegprep.ExtensionRecord">ExtensionRecord (class in eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionRegistry.html#eegprep.ExtensionRegistry">ExtensionRegistry (class in eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionResource.html#eegprep.ExtensionResource">ExtensionResource (class in eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionSourceType.html#eegprep.ExtensionSourceType">ExtensionSourceType (class in eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionSpec.html#eegprep.ExtensionSpec">ExtensionSpec (class in eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionStatus.html#eegprep.ExtensionStatus">ExtensionStatus (class in eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionTestHarness.html#eegprep.ExtensionTestHarness">ExtensionTestHarness (class in eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionValidationResult.html#eegprep.ExtensionValidationResult">ExtensionValidationResult (class in eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.DialogSpec.html#eegprep.DialogSpec.extra_stylesheet">extra_stylesheet (eegprep.DialogSpec attribute)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -651,9 +991,13 @@
 <h2 id="F">F</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/eegprep.ExtensionStatus.html#eegprep.ExtensionStatus.FAILED_IMPORT">FAILED_IMPORT (eegprep.ExtensionStatus attribute)</a>
+</li>
       <li><a href="glossary.html#term-Fast-Fourier-Transform-FFT"><strong>Fast Fourier Transform (FFT)</strong></a>
 </li>
       <li><a href="glossary.html#term-FastICA"><strong>FastICA</strong></a>
+</li>
+      <li><a href="api/generated/eegprep.CatalogValidationIssue.html#eegprep.CatalogValidationIssue.field">field (eegprep.CatalogValidationIssue attribute)</a>
 </li>
       <li><a href="glossary.html#term-FIF"><strong>FIF</strong></a>
 </li>
@@ -663,19 +1007,31 @@
 </li>
       <li><a href="glossary.html#term-Filtering"><strong>Filtering</strong></a>
 </li>
+      <li><a href="api/generated/eegprep.firfiltreport.html#eegprep.firfiltreport">firfiltreport() (in module eegprep)</a>
+</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="api/utils.html#eegprep.utils.sigproc.filtfilt_fast">filtfilt_fast() (in module eegprep.utils.sigproc)</a>
+      <li><a href="api/generated/eegprep.firws.html#eegprep.firws">firws() (in module eegprep)</a>
 </li>
-      <li><a href="api/utils.html#eegprep.utils.sigproc.firws">firws() (in module eegprep.utils.sigproc)</a>
+      <li><a href="api/generated/eegprep.firwsord.html#eegprep.firwsord">firwsord() (in module eegprep)</a>
 </li>
-      <li><a href="api/utils.html#eegprep.utils.sigproc.firwsord">firwsord() (in module eegprep.utils.sigproc)</a>
+      <li><a href="api/generated/eegprep.ControlSpec.html#eegprep.ControlSpec.font_weight">font_weight (eegprep.ControlSpec attribute)</a>
 </li>
-      <li><a href="api/utils.html#eegprep.utils.stats.fit_eeg_distribution">fit_eeg_distribution() (in module eegprep.utils.stats)</a>
+      <li><a href="api/generated/eegprep.CatalogValidationIssue.html#eegprep.CatalogValidationIssue.format">format() (eegprep.CatalogValidationIssue method)</a>
+
+      <ul>
+        <li><a href="api/generated/eegprep.CatalogValidationReport.html#eegprep.CatalogValidationReport.format">(eegprep.CatalogValidationReport method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/eegprep.format_plugin_menu.html#eegprep.format_plugin_menu">format_plugin_menu() (in module eegprep)</a>
 </li>
       <li><a href="glossary.html#term-Fourier-Transform"><strong>Fourier Transform</strong></a>
 </li>
       <li><a href="glossary.html#term-Frequency-Band"><strong>Frequency Band</strong></a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionTestHarness.html#eegprep.ExtensionTestHarness.from_entry_point">from_entry_point() (eegprep.ExtensionTestHarness class method)</a>
+</li>
+      <li><a href="api/generated/eegprep.DialogSpec.html#eegprep.DialogSpec.function_name">function_name (eegprep.DialogSpec attribute)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -683,7 +1039,19 @@
 <h2 id="G">G</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="api/utils.html#eegprep.utils.stats.geometric_median">geometric_median() (in module eegprep.utils.stats)</a>
+      <li><a href="api/generated/eegprep.DialogSpec.html#eegprep.DialogSpec.geometry">geometry (eegprep.DialogSpec attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.DialogSpec.html#eegprep.DialogSpec.geomvert">geomvert (eegprep.DialogSpec attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionRegistry.html#eegprep.ExtensionRegistry.get">get() (eegprep.ExtensionRegistry method)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/eegprep.CatalogSourceType.html#eegprep.CatalogSourceType.GIT">GIT (eegprep.CatalogSourceType attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.gui.html#eegprep.gui">gui() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.EEGPrepSession.html#eegprep.EEGPrepSession.gui_action">gui_action() (eegprep.EEGPrepSession method)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -693,8 +1061,16 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="glossary.html#term-HDF5"><strong>HDF5</strong></a>
 </li>
+      <li><a href="api/generated/eegprep.DialogSpec.html#eegprep.DialogSpec.help_label">help_label (eegprep.DialogSpec attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionSpec.html#eegprep.ExtensionSpec.help_resources">help_resources (eegprep.ExtensionSpec attribute)</a>
+</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/eegprep.DialogSpec.html#eegprep.DialogSpec.help_text">help_text (eegprep.DialogSpec attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.EEGPrepSession.html#eegprep.EEGPrepSession.history_command_at">history_command_at() (eegprep.EEGPrepSession method)</a>
+</li>
       <li><a href="glossary.html#term-Hz-Hertz"><strong>Hz (Hertz)</strong></a>
 </li>
   </ul></td>
@@ -703,17 +1079,49 @@
 <h2 id="I">I</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="api/generated/eegprep.ICL_feature_extractor.html#eegprep.ICL_feature_extractor">ICL_feature_extractor() (in module eegprep)</a>, <a href="api/ica.html#eegprep.ICL_feature_extractor">[1]</a>
+      <li><a href="api/generated/eegprep.ICL_feature_extractor.html#eegprep.ICL_feature_extractor">ICL_feature_extractor() (in module eegprep)</a>
 </li>
-      <li><a href="api/generated/eegprep.iclabel.html#eegprep.iclabel">iclabel() (in module eegprep)</a>, <a href="api/ica.html#eegprep.iclabel">[1]</a>
+      <li><a href="api/generated/eegprep.iclabel.html#eegprep.iclabel">iclabel() (in module eegprep)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/eegprep.ExtensionStatus.html#eegprep.ExtensionStatus.INCOMPATIBLE">INCOMPATIBLE (eegprep.ExtensionStatus attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionValidationResult.html#eegprep.ExtensionValidationResult.incompatible">incompatible (eegprep.ExtensionValidationResult attribute)</a>
+</li>
       <li><a href="glossary.html#term-Independent-Component-Analysis-ICA"><strong>Independent Component Analysis (ICA)</strong></a>
 </li>
       <li><a href="glossary.html#term-Infomax-ICA"><strong>Infomax ICA</strong></a>
 </li>
+      <li><a href="api/generated/eegprep.inputgui.html#eegprep.inputgui">inputgui() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionMenu.html#eegprep.ExtensionMenu.insert_after">insert_after (eegprep.ExtensionMenu attribute)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/eegprep.ExtensionMenu.html#eegprep.ExtensionMenu.insert_before">insert_before (eegprep.ExtensionMenu attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionCatalogEntry.html#eegprep.ExtensionCatalogEntry.install_target">install_target (eegprep.ExtensionCatalogEntry property)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionSourceType.html#eegprep.ExtensionSourceType.INSTALLED">INSTALLED (eegprep.ExtensionSourceType attribute)</a>
+
+      <ul>
+        <li><a href="api/generated/eegprep.ExtensionStatus.html#eegprep.ExtensionStatus.INSTALLED">(eegprep.ExtensionStatus attribute)</a>
+</li>
+      </ul></li>
       <li><a href="glossary.html#term-Interpolation"><strong>Interpolation</strong></a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionStatus.html#eegprep.ExtensionStatus.INVALID_SPEC">INVALID_SPEC (eegprep.ExtensionStatus attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionValidationResult.html#eegprep.ExtensionValidationResult.invalid_spec">invalid_spec (eegprep.ExtensionValidationResult attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionRecord.html#eegprep.ExtensionRecord.is_active">is_active (eegprep.ExtensionRecord property)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="K">K</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/eegprep.DialogSpec.html#eegprep.DialogSpec.known_differences">known_differences (eegprep.DialogSpec attribute)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -721,11 +1129,33 @@
 <h2 id="L">L</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/eegprep.ExtensionMenu.html#eegprep.ExtensionMenu.label">label (eegprep.ExtensionMenu attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.EEGPrepSession.html#eegprep.EEGPrepSession.LASTCOM">LASTCOM (eegprep.EEGPrepSession attribute)</a>
+</li>
       <li><a href="glossary.html#term-Latency"><strong>Latency</strong></a>
 </li>
+      <li><a href="api/generated/eegprep.LazyImport.html#eegprep.LazyImport">LazyImport (class in eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.listdlg2.html#eegprep.listdlg2">listdlg2() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionAction.html#eegprep.ExtensionAction.load">load() (eegprep.ExtensionAction method)</a>
+
+      <ul>
+        <li><a href="api/generated/eegprep.ExtensionPopFunction.html#eegprep.ExtensionPopFunction.load">(eegprep.ExtensionPopFunction method)</a>
+</li>
+        <li><a href="api/generated/eegprep.LazyImport.html#eegprep.LazyImport.load">(eegprep.LazyImport method)</a>
+</li>
+      </ul></li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/eegprep.load_catalog_entries.html#eegprep.load_catalog_entries">load_catalog_entries() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.load_extension_catalog.html#eegprep.load_extension_catalog">load_extension_catalog() (in module eegprep)</a>
+</li>
       <li><a href="api/generated/eegprep.loadset.html#eegprep.loadset">loadset() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.CatalogSourceType.html#eegprep.CatalogSourceType.LOCAL">LOCAL (eegprep.CatalogSourceType attribute)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -733,31 +1163,38 @@
 <h2 id="M">M</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="api/utils.html#eegprep.utils.stats.mad">mad() (in module eegprep.utils.stats)</a>
+      <li><a href="api/generated/eegprep.ExtensionCatalogEntry.html#eegprep.ExtensionCatalogEntry.maintainer">maintainer (eegprep.ExtensionCatalogEntry attribute)</a>
+
+      <ul>
+        <li><a href="api/generated/eegprep.ExtensionSpec.html#eegprep.ExtensionSpec.maintainer">(eegprep.ExtensionSpec attribute)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/eegprep.EEGPrepSession.html#eegprep.EEGPrepSession.mark_current_saved">mark_current_saved() (eegprep.EEGPrepSession method)</a>
 </li>
       <li><a href="glossary.html#term-Marker"><strong>Marker</strong></a>
+</li>
+      <li><a href="api/generated/eegprep.CallbackSpec.html#eegprep.CallbackSpec.matlab_callback">matlab_callback (eegprep.CallbackSpec attribute)</a>
 </li>
       <li><a href="glossary.html#term-Mean"><strong>Mean</strong></a>
 </li>
       <li><a href="glossary.html#term-Median"><strong>Median</strong></a>
 </li>
-      <li><a href="glossary.html#term-MNE"><strong>MNE</strong></a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li>
-    module
-
-      <ul>
-        <li><a href="api/utils.html#module-eegprep.utils.coords">eegprep.utils.coords</a>
+      <li><a href="api/generated/eegprep.EEGPrepSession.html#eegprep.EEGPrepSession.menu_statuses">menu_statuses() (eegprep.EEGPrepSession method)</a>
 </li>
-        <li><a href="api/utils.html#module-eegprep.utils.sigproc">eegprep.utils.sigproc</a>
+      <li><a href="api/generated/eegprep.ExtensionSpec.html#eegprep.ExtensionSpec.menus">menus (eegprep.ExtensionSpec attribute)</a>
 </li>
-        <li><a href="api/utils.html#module-eegprep.utils.spatial">eegprep.utils.spatial</a>
+      <li><a href="api/generated/eegprep.CatalogValidationIssue.html#eegprep.CatalogValidationIssue.message">message (eegprep.CatalogValidationIssue attribute)</a>
 </li>
-        <li><a href="api/utils.html#module-eegprep.utils.stats">eegprep.utils.stats</a>
+      <li><a href="api/generated/eegprep.ExtensionStatus.html#eegprep.ExtensionStatus.MISSING_DEPENDENCY">MISSING_DEPENDENCY (eegprep.ExtensionStatus attribute)</a>
 </li>
-      </ul></li>
+      <li><a href="api/generated/eegprep.ExtensionValidationResult.html#eegprep.ExtensionValidationResult.missing_dependency">missing_dependency (eegprep.ExtensionValidationResult attribute)</a>
+</li>
+      <li><a href="glossary.html#term-MNE"><strong>MNE</strong></a>
+</li>
+      <li><a href="api/generated/eegprep.LazyImport.html#eegprep.LazyImport.module">module (eegprep.LazyImport attribute)</a>
+</li>
       <li><a href="glossary.html#term-Montage"><strong>Montage</strong></a>
 </li>
   </ul></td>
@@ -766,13 +1203,41 @@
 <h2 id="N">N</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/eegprep.CallbackSpec.html#eegprep.CallbackSpec.name">name (eegprep.CallbackSpec attribute)</a>
+
+      <ul>
+        <li><a href="api/generated/eegprep.ExtensionAction.html#eegprep.ExtensionAction.name">(eegprep.ExtensionAction attribute)</a>
+</li>
+        <li><a href="api/generated/eegprep.ExtensionCatalogEntry.html#eegprep.ExtensionCatalogEntry.name">(eegprep.ExtensionCatalogEntry attribute)</a>
+</li>
+        <li><a href="api/generated/eegprep.ExtensionPopFunction.html#eegprep.ExtensionPopFunction.name">(eegprep.ExtensionPopFunction attribute)</a>
+</li>
+        <li><a href="api/generated/eegprep.ExtensionRecord.html#eegprep.ExtensionRecord.name">(eegprep.ExtensionRecord attribute)</a>
+</li>
+        <li><a href="api/generated/eegprep.ExtensionSpec.html#eegprep.ExtensionSpec.name">(eegprep.ExtensionSpec attribute)</a>
+</li>
+      </ul></li>
       <li><a href="glossary.html#term-Neuroscan"><strong>Neuroscan</strong></a>
+</li>
+      <li><a href="api/generated/eegprep.newcrossf.html#eegprep.newcrossf">newcrossf() (in module eegprep)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/eegprep.newtimef.html#eegprep.newtimef">newtimef() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.newtimefbaseln.html#eegprep.newtimefbaseln">newtimefbaseln() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.newtimefitc.html#eegprep.newtimefitc">newtimefitc() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.newtimefpowerunit.html#eegprep.newtimefpowerunit">newtimefpowerunit() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.newtimeftrialbaseln.html#eegprep.newtimeftrialbaseln">newtimeftrialbaseln() (in module eegprep)</a>
+</li>
       <li><a href="glossary.html#term-Noise"><strong>Noise</strong></a>
 </li>
       <li><a href="glossary.html#term-Normalization"><strong>Normalization</strong></a>
+</li>
+      <li><a href="api/generated/eegprep.EEGPrepSession.html#eegprep.EEGPrepSession.notify_changed">notify_changed() (eegprep.EEGPrepSession method)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -782,8 +1247,20 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="glossary.html#term-Offline-Processing"><strong>Offline Processing</strong></a>
 </li>
+      <li><a href="api/generated/eegprep.CatalogValidationReport.html#eegprep.CatalogValidationReport.ok">ok (eegprep.CatalogValidationReport property)</a>
+
+      <ul>
+        <li><a href="api/generated/eegprep.ExtensionValidationResult.html#eegprep.ExtensionValidationResult.ok">(eegprep.ExtensionValidationResult property)</a>
+</li>
+      </ul></li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/eegprep.DialogSpec.html#eegprep.DialogSpec.ok_label">ok_label (eegprep.DialogSpec attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.optimal_kmeans.html#eegprep.optimal_kmeans">optimal_kmeans() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionDependency.html#eegprep.ExtensionDependency.optional">optional (eegprep.ExtensionDependency attribute)</a>
+</li>
       <li><a href="glossary.html#term-Outlier"><strong>Outlier</strong></a>
 </li>
   </ul></td>
@@ -792,41 +1269,181 @@
 <h2 id="P">P</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/eegprep.pac.html#eegprep.pac">pac() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pac_cont.html#eegprep.pac_cont">pac_cont() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionDependency.html#eegprep.ExtensionDependency.package">package (eegprep.ExtensionDependency attribute)</a>
+
+      <ul>
+        <li><a href="api/generated/eegprep.ExtensionResource.html#eegprep.ExtensionResource.package">(eegprep.ExtensionResource attribute)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/eegprep.ExtensionSpec.html#eegprep.ExtensionSpec.package_data_resources">package_data_resources (eegprep.ExtensionSpec attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionCatalogEntry.html#eegprep.ExtensionCatalogEntry.package_name">package_name (eegprep.ExtensionCatalogEntry attribute)</a>
+
+      <ul>
+        <li><a href="api/generated/eegprep.ExtensionRecord.html#eegprep.ExtensionRecord.package_name">(eegprep.ExtensionRecord attribute)</a>
+</li>
+        <li><a href="api/generated/eegprep.ExtensionSpec.html#eegprep.ExtensionSpec.package_name">(eegprep.ExtensionSpec attribute)</a>
+</li>
+      </ul></li>
       <li><a href="glossary.html#term-Parallel-Processing"><strong>Parallel Processing</strong></a>
 </li>
+      <li><a href="api/generated/eegprep.CallbackSpec.html#eegprep.CallbackSpec.params">params (eegprep.CallbackSpec attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionMenu.html#eegprep.ExtensionMenu.path">path (eegprep.ExtensionMenu attribute)</a>
+
+      <ul>
+        <li><a href="api/generated/eegprep.ExtensionResource.html#eegprep.ExtensionResource.path">(eegprep.ExtensionResource attribute)</a>
+</li>
+      </ul></li>
       <li><a href="glossary.html#term-Phase"><strong>Phase</strong></a>
 </li>
       <li><a href="glossary.html#term-Picard-ICA"><strong>Picard ICA</strong></a>
 </li>
       <li><a href="glossary.html#term-Pipeline"><strong>Pipeline</strong></a>
 </li>
+      <li><a href="api/generated/eegprep.plotfresp.html#eegprep.plotfresp">plotfresp() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.plugin_menu.html#eegprep.plugin_menu">plugin_menu() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.plugin_status.html#eegprep.plugin_status">plugin_status() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.EEGPrepSession.html#eegprep.EEGPrepSession.PLUGINLIST">PLUGINLIST (eegprep.EEGPrepSession attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_addindepvar.html#eegprep.pop_addindepvar">pop_addindepvar() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_adjustevents.html#eegprep.pop_adjustevents">pop_adjustevents() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_chanplot.html#eegprep.pop_chanplot">pop_chanplot() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_clean_rawdata.html#eegprep.pop_clean_rawdata">pop_clean_rawdata() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_clust.html#eegprep.pop_clust">pop_clust() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_clustedit.html#eegprep.pop_clustedit">pop_clustedit() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_crossf.html#eegprep.pop_crossf">pop_crossf() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_delset.html#eegprep.pop_delset">pop_delset() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_dipfit_gridsearch.html#eegprep.pop_dipfit_gridsearch">pop_dipfit_gridsearch() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_dipfit_headmodel.html#eegprep.pop_dipfit_headmodel">pop_dipfit_headmodel() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_dipfit_loreta.html#eegprep.pop_dipfit_loreta">pop_dipfit_loreta() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_dipfit_nonlinear.html#eegprep.pop_dipfit_nonlinear">pop_dipfit_nonlinear() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_dipfit_settings.html#eegprep.pop_dipfit_settings">pop_dipfit_settings() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_dipplot.html#eegprep.pop_dipplot">pop_dipplot() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_editoptions.html#eegprep.pop_editoptions">pop_editoptions() (in module eegprep)</a>
+</li>
       <li><a href="api/generated/eegprep.pop_eegfiltnew.html#eegprep.pop_eegfiltnew">pop_eegfiltnew() (in module eegprep)</a>
 </li>
       <li><a href="api/generated/eegprep.pop_epoch.html#eegprep.pop_epoch">pop_epoch() (in module eegprep)</a>
 </li>
-      <li><a href="api/generated/eegprep.pop_load_frombids.html#eegprep.pop_load_frombids">pop_load_frombids() (in module eegprep)</a>, <a href="api/io.html#eegprep.pop_load_frombids">[1]</a>
+      <li><a href="api/generated/eegprep.pop_eventstat.html#eegprep.pop_eventstat">pop_eventstat() (in module eegprep)</a>
 </li>
-      <li><a href="api/generated/eegprep.pop_loadset.html#eegprep.pop_loadset">pop_loadset() (in module eegprep)</a>, <a href="api/io.html#eegprep.pop_loadset">[1]</a>
+      <li><a href="api/generated/eegprep.pop_exportbids.html#eegprep.pop_exportbids">pop_exportbids() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_firma.html#eegprep.pop_firma">pop_firma() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_firpm.html#eegprep.pop_firpm">pop_firpm() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_firpmord.html#eegprep.pop_firpmord">pop_firpmord() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_firws.html#eegprep.pop_firws">pop_firws() (in module eegprep)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="api/generated/eegprep.pop_loadset_h5.html#eegprep.pop_loadset_h5">pop_loadset_h5() (in module eegprep)</a>, <a href="api/io.html#eegprep.pop_loadset_h5">[1]</a>
+      <li><a href="api/generated/eegprep.pop_firwsord.html#eegprep.pop_firwsord">pop_firwsord() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionSpec.html#eegprep.ExtensionSpec.pop_functions">pop_functions (eegprep.ExtensionSpec attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_icflag.html#eegprep.pop_icflag">pop_icflag() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_iclabel.html#eegprep.pop_iclabel">pop_iclabel() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_importbids.html#eegprep.pop_importbids">pop_importbids() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_importgroupvar.html#eegprep.pop_importgroupvar">pop_importgroupvar() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_interp.html#eegprep.pop_interp">pop_interp() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_kaiserbeta.html#eegprep.pop_kaiserbeta">pop_kaiserbeta() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_leadfield.html#eegprep.pop_leadfield">pop_leadfield() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_listfactors.html#eegprep.pop_listfactors">pop_listfactors() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_load_frombids.html#eegprep.pop_load_frombids">pop_load_frombids() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_loadset.html#eegprep.pop_loadset">pop_loadset() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_loadset_h5.html#eegprep.pop_loadset_h5">pop_loadset_h5() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_loadstudy.html#eegprep.pop_loadstudy">pop_loadstudy() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_multifit.html#eegprep.pop_multifit">pop_multifit() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_newcrossf.html#eegprep.pop_newcrossf">pop_newcrossf() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_newset.html#eegprep.pop_newset">pop_newset() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_newtimef.html#eegprep.pop_newtimef">pop_newtimef() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_preclust.html#eegprep.pop_preclust">pop_preclust() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_precomp.html#eegprep.pop_precomp">pop_precomp() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_prop_extended.html#eegprep.pop_prop_extended">pop_prop_extended() (in module eegprep)</a>
 </li>
       <li><a href="api/generated/eegprep.pop_reref.html#eegprep.pop_reref">pop_reref() (in module eegprep)</a>
 </li>
-      <li><a href="api/generated/eegprep.pop_resample.html#eegprep.pop_resample">pop_resample() (in module eegprep)</a>, <a href="api/preprocessing.html#eegprep.pop_resample">[1]</a>, <a href="api/signal_processing.html#eegprep.pop_resample">[2]</a>
+      <li><a href="api/generated/eegprep.pop_resample.html#eegprep.pop_resample">pop_resample() (in module eegprep)</a>
 </li>
-      <li><a href="api/preprocessing.html#eegprep.pop_rmbase">pop_rmbase() (in module eegprep)</a>, <a href="api/signal_processing.html#eegprep.pop_rmbase">[1]</a>
+      <li><a href="api/generated/eegprep.pop_saveset.html#eegprep.pop_saveset">pop_saveset() (in module eegprep)</a>
 </li>
-      <li><a href="api/generated/eegprep.pop_saveset.html#eegprep.pop_saveset">pop_saveset() (in module eegprep)</a>, <a href="api/io.html#eegprep.pop_saveset">[1]</a>
+      <li><a href="api/generated/eegprep.pop_savestudy.html#eegprep.pop_savestudy">pop_savestudy() (in module eegprep)</a>
 </li>
       <li><a href="api/generated/eegprep.pop_select.html#eegprep.pop_select">pop_select() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_signalstat.html#eegprep.pop_signalstat">pop_signalstat() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_study.html#eegprep.pop_study">pop_study() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_studyerp.html#eegprep.pop_studyerp">pop_studyerp() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_studywizard.html#eegprep.pop_studywizard">pop_studywizard() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_timef.html#eegprep.pop_timef">pop_timef() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_topoplot.html#eegprep.pop_topoplot">pop_topoplot() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_viewprops.html#eegprep.pop_viewprops">pop_viewprops() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.EEGPrepConsoleWorkspace.html#eegprep.EEGPrepConsoleWorkspace.pop_wrapper">pop_wrapper() (eegprep.EEGPrepConsoleWorkspace method)</a>
+</li>
+      <li><a href="api/generated/eegprep.pop_xfirws.html#eegprep.pop_xfirws">pop_xfirws() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.pophelp.html#eegprep.pophelp">pophelp() (in module eegprep)</a>
 </li>
       <li><a href="glossary.html#term-Power-Spectral-Density-PSD"><strong>Power Spectral Density (PSD)</strong></a>
 </li>
       <li><a href="glossary.html#term-Preprocessing"><strong>Preprocessing</strong></a>
 </li>
       <li><a href="glossary.html#term-Principal-Component-Analysis-PCA"><strong>Principal Component Analysis (PCA)</strong></a>
+</li>
+      <li><a href="api/generated/eegprep.CatalogSourceType.html#eegprep.CatalogSourceType.PRIVATE">PRIVATE (eegprep.CatalogSourceType attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.EEGPrepConsoleWorkspace.html#eegprep.EEGPrepConsoleWorkspace.pull_from_session">pull_from_session() (eegprep.EEGPrepConsoleWorkspace method)</a>
+</li>
+      <li><a href="api/generated/eegprep.CatalogSourceType.html#eegprep.CatalogSourceType.PYPI">PYPI (eegprep.CatalogSourceType attribute)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -842,13 +1459,45 @@
 <h2 id="R">R</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/eegprep.ExtensionResource.html#eegprep.ExtensionResource.read_bytes">read_bytes() (eegprep.ExtensionResource method)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionResource.html#eegprep.ExtensionResource.read_text">read_text() (eegprep.ExtensionResource method)</a>
+</li>
       <li><a href="glossary.html#term-Real-time-Processing"><strong>Real-time Processing</strong></a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionRegistry.html#eegprep.ExtensionRegistry.records">records (eegprep.ExtensionRegistry property)</a>
+</li>
+      <li><a href="api/generated/eegprep.EEGPrepSession.html#eegprep.EEGPrepSession.remove_change_listener">remove_change_listener() (eegprep.EEGPrepSession method)</a>
+</li>
+      <li><a href="api/generated/eegprep.EEGPrepSession.html#eegprep.EEGPrepSession.remove_command_echo_listener">remove_command_echo_listener() (eegprep.EEGPrepSession method)</a>
+</li>
+      <li><a href="api/generated/eegprep.EEGPrepSession.html#eegprep.EEGPrepSession.remove_gui_action_listener">remove_gui_action_listener() (eegprep.EEGPrepSession method)</a>
+</li>
+      <li><a href="api/generated/eegprep.EEGPrepSession.html#eegprep.EEGPrepSession.remove_history">remove_history() (eegprep.EEGPrepSession method)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionCatalogEntry.html#eegprep.ExtensionCatalogEntry.repository_url">repository_url (eegprep.ExtensionCatalogEntry attribute)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="glossary.html#term-Reproducibility"><strong>Reproducibility</strong></a>
 </li>
       <li><a href="glossary.html#term-Resampling"><strong>Resampling</strong></a>
+</li>
+      <li><a href="api/generated/eegprep.EEGPrepSession.html#eegprep.EEGPrepSession.retrieve">retrieve() (eegprep.EEGPrepSession method)</a>
+</li>
+      <li><a href="api/generated/eegprep.robust_kmeans.html#eegprep.robust_kmeans">robust_kmeans() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.DialogSpec.html#eegprep.DialogSpec.row_spacing">row_spacing (eegprep.DialogSpec attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.rsadjust.html#eegprep.rsadjust">rsadjust() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.rsfit.html#eegprep.rsfit">rsfit() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.rsget.html#eegprep.rsget">rsget() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.rspdfsolv.html#eegprep.rspdfsolv">rspdfsolv() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.rspfunc.html#eegprep.rspfunc">rspfunc() (in module eegprep)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -858,17 +1507,143 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="glossary.html#term-Sampling-Rate"><strong>Sampling Rate</strong></a>
 </li>
+      <li><a href="api/generated/eegprep.DialogSpec.html#eegprep.DialogSpec.scrollable">scrollable (eegprep.DialogSpec attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.select_multiple_datasets.html#eegprep.select_multiple_datasets">select_multiple_datasets() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.EEGPrepSession.html#eegprep.EEGPrepSession.select_study">select_study() (eegprep.EEGPrepSession method)</a>
+</li>
+      <li><a href="api/generated/eegprep.EEGPrepSession.html#eegprep.EEGPrepSession.selected_dataset_indices">selected_dataset_indices() (eegprep.EEGPrepSession method)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionMenu.html#eegprep.ExtensionMenu.separator">separator (eegprep.ExtensionMenu attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.EEGPrepSession.html#eegprep.EEGPrepSession.set_study">set_study() (eegprep.EEGPrepSession method)</a>
+</li>
+      <li><a href="api/generated/eegprep.DialogSpec.html#eegprep.DialogSpec.show_help_button">show_help_button (eegprep.DialogSpec attribute)</a>
+</li>
       <li><a href="glossary.html#term-Signal-to-Noise-Ratio-SNR"><strong>Signal-to-Noise Ratio (SNR)</strong></a>
 </li>
-      <li><a href="glossary.html#term-Spectrogram"><strong>Spectrogram</strong></a>
+      <li><a href="api/generated/eegprep.signalstat.html#eegprep.signalstat">signalstat() (in module eegprep)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="api/utils.html#eegprep.utils.spatial.sphericalSplineInterpolate">sphericalSplineInterpolate() (in module eegprep.utils.spatial)</a>
+      <li><a href="api/generated/eegprep.DialogSpec.html#eegprep.DialogSpec.size">size (eegprep.DialogSpec attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionCatalog.html#eegprep.ExtensionCatalog.source">source (eegprep.ExtensionCatalog attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionCatalogEntry.html#eegprep.ExtensionCatalogEntry.source_label">source_label (eegprep.ExtensionCatalogEntry property)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionCatalogEntry.html#eegprep.ExtensionCatalogEntry.source_type">source_type (eegprep.ExtensionCatalogEntry attribute)</a>
+
+      <ul>
+        <li><a href="api/generated/eegprep.ExtensionRecord.html#eegprep.ExtensionRecord.source_type">(eegprep.ExtensionRecord attribute)</a>
+</li>
+        <li><a href="api/generated/eegprep.ExtensionSpec.html#eegprep.ExtensionSpec.source_type">(eegprep.ExtensionSpec attribute)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/eegprep.ExtensionCatalogEntry.html#eegprep.ExtensionCatalogEntry.source_url">source_url (eegprep.ExtensionCatalogEntry attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionRecord.html#eegprep.ExtensionRecord.spec">spec (eegprep.ExtensionRecord attribute)</a>
+</li>
+      <li><a href="glossary.html#term-Spectrogram"><strong>Spectrogram</strong></a>
 </li>
       <li><a href="glossary.html#term-Standard-Deviation"><strong>Standard Deviation</strong></a>
 </li>
       <li><a href="glossary.html#term-Standardization"><strong>Standardization</strong></a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionRecord.html#eegprep.ExtensionRecord.status">status (eegprep.ExtensionRecord attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.std_addvarlevel.html#eegprep.std_addvarlevel">std_addvarlevel() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.std_apcluster.html#eegprep.std_apcluster">std_apcluster() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.std_builddesignmat.html#eegprep.std_builddesignmat">std_builddesignmat() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.std_centroid.html#eegprep.std_centroid">std_centroid() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.std_checkconsist.html#eegprep.std_checkconsist">std_checkconsist() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.std_checkdatasession.html#eegprep.std_checkdatasession">std_checkdatasession() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.std_checkdesign.html#eegprep.std_checkdesign">std_checkdesign() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.std_checkfiles.html#eegprep.std_checkfiles">std_checkfiles() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.std_combtrialinfo.html#eegprep.std_combtrialinfo">std_combtrialinfo() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.std_dipoleclusters.html#eegprep.std_dipoleclusters">std_dipoleclusters() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.std_dipplot.html#eegprep.std_dipplot">std_dipplot() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.std_erpplot.html#eegprep.std_erpplot">std_erpplot() (in module eegprep)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/eegprep.std_erspplot.html#eegprep.std_erspplot">std_erspplot() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.std_findoutlierclust.html#eegprep.std_findoutlierclust">std_findoutlierclust() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.std_findsameica.html#eegprep.std_findsameica">std_findsameica() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.std_getindvar.html#eegprep.std_getindvar">std_getindvar() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.std_gettrialsind.html#eegprep.std_gettrialsind">std_gettrialsind() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.std_indvarmatch.html#eegprep.std_indvarmatch">std_indvarmatch() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.std_interp.html#eegprep.std_interp">std_interp() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.std_itcplot.html#eegprep.std_itcplot">std_itcplot() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.std_limodesign.html#eegprep.std_limodesign">std_limodesign() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.std_maketrialinfo.html#eegprep.std_maketrialinfo">std_maketrialinfo() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.std_pac.html#eegprep.std_pac">std_pac() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.std_pacplot.html#eegprep.std_pacplot">std_pacplot() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.std_prepare_neighbors.html#eegprep.std_prepare_neighbors">std_prepare_neighbors() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.std_readdata.html#eegprep.std_readdata">std_readdata() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.std_readerp.html#eegprep.std_readerp">std_readerp() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.std_readersp.html#eegprep.std_readersp">std_readersp() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.std_readitc.html#eegprep.std_readitc">std_readitc() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.std_readpac.html#eegprep.std_readpac">std_readpac() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.std_readspec.html#eegprep.std_readspec">std_readspec() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.std_readtopo.html#eegprep.std_readtopo">std_readtopo() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.std_rebuilddesign.html#eegprep.std_rebuilddesign">std_rebuilddesign() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.std_rmalldatafields.html#eegprep.std_rmalldatafields">std_rmalldatafields() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.std_rmdat.html#eegprep.std_rmdat">std_rmdat() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.std_saveindvar.html#eegprep.std_saveindvar">std_saveindvar() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.std_selectdataset.html#eegprep.std_selectdataset">std_selectdataset() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.std_selsubject.html#eegprep.std_selsubject">std_selsubject() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.std_specplot.html#eegprep.std_specplot">std_specplot() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.std_substudy.html#eegprep.std_substudy">std_substudy() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.std_uniformfiles.html#eegprep.std_uniformfiles">std_uniformfiles() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.std_uniformsetinds.html#eegprep.std_uniformsetinds">std_uniformsetinds() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.EEGPrepSession.html#eegprep.EEGPrepSession.store_current">store_current() (eegprep.EEGPrepSession method)</a>
+</li>
+      <li><a href="api/generated/eegprep.ControlSpec.html#eegprep.ControlSpec.string">string (eegprep.ControlSpec attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.EEGPrepSession.html#eegprep.EEGPrepSession.STUDY">STUDY (eegprep.EEGPrepSession attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.ControlSpec.html#eegprep.ControlSpec.style">style (eegprep.ControlSpec attribute)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -876,13 +1651,53 @@
 <h2 id="T">T</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/eegprep.ControlSpec.html#eegprep.ControlSpec.tag">tag (eegprep.ControlSpec attribute)</a>
+
+      <ul>
+        <li><a href="api/generated/eegprep.ExtensionMenu.html#eegprep.ExtensionMenu.tag">(eegprep.ExtensionMenu attribute)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/eegprep.ExtensionAction.html#eegprep.ExtensionAction.target">target (eegprep.ExtensionAction attribute)</a>
+
+      <ul>
+        <li><a href="api/generated/eegprep.ExtensionPopFunction.html#eegprep.ExtensionPopFunction.target">(eegprep.ExtensionPopFunction attribute)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/eegprep.tf_cycle_calc.html#eegprep.tf_cycle_calc">tf_cycle_calc() (in module eegprep)</a>
+</li>
       <li><a href="glossary.html#term-Threshold"><strong>Threshold</strong></a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="api/generated/eegprep.topoplot.html#eegprep.topoplot">topoplot() (in module eegprep)</a>, <a href="api/utils.html#eegprep.topoplot">[1]</a>
+      <li><a href="api/generated/eegprep.timef.html#eegprep.timef">timef() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.timefreq.html#eegprep.timefreq">timefreq() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.timewarp.html#eegprep.timewarp">timewarp() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.DialogSpec.html#eegprep.DialogSpec.title">title (eegprep.DialogSpec attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.ControlSpec.html#eegprep.ControlSpec.tooltip">tooltip (eegprep.ControlSpec attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.topoplot.html#eegprep.topoplot">topoplot() (in module eegprep)</a>
 </li>
       <li><a href="glossary.html#term-Trial"><strong>Trial</strong></a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="U">U</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/eegprep.ExtensionSourceType.html#eegprep.ExtensionSourceType.UNKNOWN">UNKNOWN (eegprep.ExtensionSourceType attribute)</a>
+
+      <ul>
+        <li><a href="api/generated/eegprep.ExtensionStatus.html#eegprep.ExtensionStatus.UNKNOWN">(eegprep.ExtensionStatus attribute)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/eegprep.ExtensionMenu.html#eegprep.ExtensionMenu.userdata">userdata (eegprep.ExtensionMenu attribute)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -890,11 +1705,35 @@
 <h2 id="V">V</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/eegprep.validate_catalog_entries.html#eegprep.validate_catalog_entries">validate_catalog_entries() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.validate_catalog_file.html#eegprep.validate_catalog_file">validate_catalog_file() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.validate_extension_spec.html#eegprep.validate_extension_spec">validate_extension_spec() (in module eegprep)</a>
+</li>
       <li><a href="glossary.html#term-Validation"><strong>Validation</strong></a>
+</li>
+      <li><a href="api/generated/eegprep.ControlSpec.html#eegprep.ControlSpec.value">value (eegprep.ControlSpec attribute)</a>
+</li>
+      <li><a href="glossary.html#term-Variance"><strong>Variance</strong></a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="glossary.html#term-Variance"><strong>Variance</strong></a>
+      <li><a href="api/generated/eegprep.ExtensionCatalogEntry.html#eegprep.ExtensionCatalogEntry.version">version (eegprep.ExtensionCatalogEntry attribute)</a>
+
+      <ul>
+        <li><a href="api/generated/eegprep.ExtensionSpec.html#eegprep.ExtensionSpec.version">(eegprep.ExtensionSpec attribute)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/eegprep.CatalogValidationOptions.html#eegprep.CatalogValidationOptions.version_provider">version_provider() (eegprep.CatalogValidationOptions method)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionDependency.html#eegprep.ExtensionDependency.version_spec">version_spec (eegprep.ExtensionDependency attribute)</a>
+</li>
+      <li><a href="api/generated/eegprep.vis_artifacts.html#eegprep.vis_artifacts">vis_artifacts() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.vis_artifacts_diagnostics.html#eegprep.vis_artifacts_diagnostics">vis_artifacts_diagnostics() (in module eegprep)</a>
+</li>
+      <li><a href="api/generated/eegprep.ExtensionMenu.html#eegprep.ExtensionMenu.visibility">visibility (eegprep.ExtensionMenu attribute)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -902,10 +1741,12 @@
 <h2 id="W">W</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="glossary.html#term-Wavelet"><strong>Wavelet</strong></a>
+      <li><a href="api/generated/eegprep.CatalogValidationReport.html#eegprep.CatalogValidationReport.warnings">warnings (eegprep.CatalogValidationReport attribute)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="glossary.html#term-Wavelet"><strong>Wavelet</strong></a>
+</li>
       <li><a href="glossary.html#term-Whitening"><strong>Whitening</strong></a>
 </li>
   </ul></td>
@@ -948,8 +1789,8 @@
   </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script defer src="_static/scripts/bootstrap.js?digest=7f76b32a3354e82990f2"></script>
-<script defer src="_static/scripts/pydata-sphinx-theme.js?digest=7f76b32a3354e82990f2"></script>
+  <script defer src="_static/scripts/bootstrap.js?digest=55c26ed414f5f8a31ebb"></script>
+<script defer src="_static/scripts/pydata-sphinx-theme.js?digest=55c26ed414f5f8a31ebb"></script>
 
   <footer class="bd-footer">
 <div class="bd-footer__inner bd-page-width">
@@ -960,7 +1801,7 @@
 
   <p class="copyright">
     
-      © Copyright 2024 - , EEGPrep contributors.
+      © Copyright 2024-2026, EEGPrep contributors.
       <br/>
     
   </p>

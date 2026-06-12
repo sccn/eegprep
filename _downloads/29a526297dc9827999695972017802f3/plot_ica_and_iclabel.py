@@ -21,6 +21,8 @@ The workflow includes:
 This example demonstrates best practices for ICA-based artifact removal,
 a standard approach in modern EEG preprocessing pipelines.
 
+Background references include [1]_ and [2]_.
+
 References
 ----------
 .. [1] Pion-Tonachini, L., Kreutz-Delgado, K., & Makeig, S. (2019).
@@ -37,10 +39,11 @@ References
 
 import numpy as np
 import matplotlib.pyplot as plt
-from mne import create_info, EpochsArray
+from mne import create_info
 from mne.channels import make_standard_montage
 from scipy import signal
 import sys
+
 sys.path.insert(0, '/Users/baristim/Projects/eegprep/src')
 
 import eegprep
@@ -62,10 +65,38 @@ duration = n_samples / sfreq
 
 # Create standard 10-20 channel names
 ch_names = [
-    'Fp1', 'Fpz', 'Fp2', 'F7', 'F3', 'Fz', 'F4', 'F8',
-    'T7', 'C3', 'Cz', 'C4', 'T8', 'P7', 'P3', 'Pz',
-    'P4', 'P8', 'O1', 'Oz', 'O2', 'A1', 'A2', 'M1',
-    'M2', 'Fc1', 'Fc2', 'Cp1', 'Cp2', 'Fc5', 'Fc6', 'Cp5'
+    'Fp1',
+    'Fpz',
+    'Fp2',
+    'F7',
+    'F3',
+    'Fz',
+    'F4',
+    'F8',
+    'T7',
+    'C3',
+    'Cz',
+    'C4',
+    'T8',
+    'P7',
+    'P3',
+    'Pz',
+    'P4',
+    'P8',
+    'O1',
+    'Oz',
+    'O2',
+    'A1',
+    'A2',
+    'M1',
+    'M2',
+    'Fc1',
+    'Fc2',
+    'Cp1',
+    'Cp2',
+    'Fc5',
+    'Fc6',
+    'Cp5',
 ]
 
 # Create time vector
@@ -122,7 +153,7 @@ print("  4. Line noise (50 Hz)")
 for i in range(n_channels):
     data[i, :] += 3 * np.sin(2 * np.pi * 50 * t)
 
-print(f"\nData created:")
+print("\nData created:")
 print(f"  Shape: {data.shape}")
 print(f"  Range: [{np.min(data):.2f}, {np.max(data):.2f}] µV")
 print("=" * 70)
@@ -153,18 +184,20 @@ for i, ch_name in enumerate(ch_names):
             theta = (i / len(ch_names)) * 2 * np.pi
             phi = np.pi / 4
             pos = np.array([np.sin(phi) * np.cos(theta), np.sin(phi) * np.sin(theta), np.cos(phi)])
-    except:
+    except Exception:
         # Default: generate position on unit sphere
         theta = (i / len(ch_names)) * 2 * np.pi
         phi = np.pi / 4
         pos = np.array([np.sin(phi) * np.cos(theta), np.sin(phi) * np.sin(theta), np.cos(phi)])
-    
-    chanlocs.append({
-        'labels': ch_name,
-        'X': float(pos[0]),
-        'Y': float(pos[1]),
-        'Z': float(pos[2]),
-    })
+
+    chanlocs.append(
+        {
+            'labels': ch_name,
+            'X': float(pos[0]),
+            'Y': float(pos[1]),
+            'Z': float(pos[2]),
+        }
+    )
 
 EEG_dict = {
     'data': data.copy(),
@@ -174,14 +207,14 @@ EEG_dict = {
     'xmin': 0,
     'xmax': (data.shape[1] - 1) / sfreq,
     'chanlocs': chanlocs,
-    'etc': {}
+    'etc': {},
 }
 
 result = eegprep.clean_artifacts(EEG_dict, ChannelCriterion='off', LineNoiseCriterion='off')
 EEG_prep = result[0]  # clean_artifacts returns a tuple
 data_prep = EEG_prep['data']
 
-print(f"Data after preprocessing:")
+print("Data after preprocessing:")
 print(f"  Shape: {data_prep.shape}")
 print(f"  Range: [{np.min(data_prep):.2f}, {np.max(data_prep):.2f}] µV")
 
@@ -201,12 +234,8 @@ info.set_montage(montage, on_missing='ignore')
 
 # Perform ICA using eeg_picard
 try:
-    ica_result = eegprep.eeg_picard(
-        data_prep,
-        sfreq=sfreq,
-        verbose=False
-    )
-    
+    ica_result = eegprep.eeg_picard(data_prep, sfreq=sfreq, verbose=False)
+
     # Extract ICA components and mixing matrix
     if isinstance(ica_result, dict):
         ica_components = ica_result.get('components', None)
@@ -214,10 +243,10 @@ try:
     else:
         ica_components = ica_result
         ica_mixing = None
-    
+
     if ica_components is not None:
         n_components = ica_components.shape[0]
-        print(f"ICA decomposition successful!")
+        print("ICA decomposition successful!")
         print(f"  Number of components: {n_components}")
         print(f"  Component shape: {ica_components.shape}")
     else:
@@ -226,7 +255,7 @@ try:
         n_components = min(n_channels, 20)
         ica_components = np.random.randn(n_components, n_samples)
         print(f"  Using dummy components for demonstration: {n_components} components")
-        
+
 except Exception as e:
     print(f"Note: ICA decomposition encountered an issue: {e}")
     print("Using dummy components for demonstration...")
@@ -246,29 +275,21 @@ try:
     # Create classification probabilities
     # In practice, iclabel would classify components using a neural network
     n_classes = 7  # ICLabel has 7 classes
-    
+
     # Create realistic classification probabilities
     # (in practice, these come from the ICLabel neural network)
     iclabel_probs = np.random.dirichlet(np.ones(n_classes), size=n_components)
-    
+
     # Get predicted class for each component
     iclabel_classes = np.argmax(iclabel_probs, axis=1)
-    
+
     # Class names (ICLabel standard)
-    class_names = [
-        'Brain',
-        'Muscle',
-        'Eye',
-        'Heart',
-        'Line Noise',
-        'Channel Noise',
-        'Other'
-    ]
-    
-    print(f"ICLabel classification complete!")
+    class_names = ['Brain', 'Muscle', 'Eye', 'Heart', 'Line Noise', 'Channel Noise', 'Other']
+
+    print("ICLabel classification complete!")
     print(f"  Number of components classified: {n_components}")
     print(f"  Number of classes: {n_classes}")
-    
+
     # Print component classifications
     print("\nComponent Classifications (first 10):")
     print("-" * 70)
@@ -279,10 +300,10 @@ try:
         confidence = iclabel_probs[i, iclabel_classes[i]]
         probs_str = ', '.join([f'{p:.2f}' for p in iclabel_probs[i, :3]])
         print(f"{i:<6} {pred_class:<15} {confidence:<12.3f} [{probs_str}, ...]")
-    
+
     if n_components > 10:
         print(f"... and {n_components - 10} more components")
-    
+
 except Exception as e:
     print(f"Note: ICLabel classification encountered an issue: {e}")
     print("Using dummy classifications for demonstration...")
@@ -311,8 +332,7 @@ ax.grid(True, alpha=0.3, axis='y')
 for bar in bars:
     height = bar.get_height()
     if height > 0:
-        ax.text(bar.get_x() + bar.get_width()/2., height,
-                f'{int(height)}', ha='center', va='bottom', fontsize=10)
+        ax.text(bar.get_x() + bar.get_width() / 2.0, height, f'{int(height)}', ha='center', va='bottom', fontsize=10)
 
 # Component confidence distribution
 ax = axes[1]
@@ -323,8 +343,7 @@ ax.set_ylabel('Number of Components', fontsize=11)
 ax.set_title('Distribution of Classification Confidence', fontsize=12, fontweight='bold')
 ax.grid(True, alpha=0.3, axis='y')
 mean_conf = np.mean(confidences)
-ax.axvline(mean_conf, color='red', linestyle='--', linewidth=2,
-           label=f'Mean: {mean_conf:.3f}')
+ax.axvline(mean_conf, color='red', linestyle='--', linewidth=2, label=f'Mean: {mean_conf:.3f}')
 ax.legend(fontsize=10)
 
 plt.tight_layout()
@@ -350,26 +369,21 @@ for class_idx in range(min(4, n_classes)):
 for plot_idx, comp_idx in enumerate(component_indices):
     if plot_idx >= 4:
         break
-    
+
     ax = axes[plot_idx]
-    
+
     # Compute power spectral density using Welch's method
-    freqs, psd = signal.welch(
-        ica_components[comp_idx, :],
-        sfreq,
-        nperseg=min(1024, n_samples // 4)
-    )
-    
+    freqs, psd = signal.welch(ica_components[comp_idx, :], sfreq, nperseg=min(1024, n_samples // 4))
+
     # Plot spectrum
     ax.semilogy(freqs, psd, linewidth=2, color='steelblue')
     ax.set_xlabel('Frequency (Hz)', fontsize=10)
     ax.set_ylabel('Power (µV²/Hz)', fontsize=10)
-    
+
     pred_class = class_names[iclabel_classes[comp_idx]]
     confidence = iclabel_probs[comp_idx, iclabel_classes[comp_idx]]
-    ax.set_title(f'Component {comp_idx}: {pred_class} (conf: {confidence:.3f})',
-                 fontsize=11, fontweight='bold')
-    
+    ax.set_title(f'Component {comp_idx}: {pred_class} (conf: {confidence:.3f})', fontsize=11, fontweight='bold')
+
     ax.set_xlim([0, 100])
     ax.grid(True, alpha=0.3, which='both')
 
@@ -398,7 +412,7 @@ for i in range(n_components):
         if confidence > rejection_threshold:
             components_to_reject.append(i)
 
-print(f"\nRejection Criteria:")
+print("\nRejection Criteria:")
 print(f"  Confidence threshold: {rejection_threshold}")
 print(f"  Artifact classes: {[class_names[c] for c in artifact_classes]}")
 
@@ -413,7 +427,7 @@ if len(components_to_reject) > 0:
         pred_class = class_names[iclabel_classes[comp_idx]]
         confidence = iclabel_probs[comp_idx, iclabel_classes[comp_idx]]
         print(f"{comp_idx:<6} {pred_class:<15} {confidence:<12.3f}")
-    
+
     if len(components_to_reject) > 10:
         print(f"... and {len(components_to_reject) - 10} more")
 else:
@@ -435,7 +449,7 @@ print(f"Line noise components: {np.sum(iclabel_classes == 4)}")
 print(f"Channel noise components: {np.sum(iclabel_classes == 5)}")
 print(f"Other components: {np.sum(iclabel_classes == 6)}")
 print(f"\nArtifact components: {len(components_to_reject)}")
-print(f"Percentage of artifacts: {len(components_to_reject)/n_components*100:.1f}%")
+print(f"Percentage of artifacts: {len(components_to_reject) / n_components * 100:.1f}%")
 print("=" * 70)
 
 # %%

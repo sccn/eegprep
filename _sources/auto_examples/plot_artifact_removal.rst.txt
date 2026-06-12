@@ -36,6 +36,8 @@ The workflow includes:
 This example shows how different artifact removal strategies affect EEG data
 quality and how to choose appropriate methods for your analysis.
 
+Background references include [1]_ and [2]_.
+
 References
 ----------
 .. [1] Jas, M., Engemann, D. A., Bekhti, Y., Raimondo, F., & Gramfort, A.
@@ -44,21 +46,22 @@ References
 .. [2] Kothe, C. A., & Makeig, S. (2013). BCILAB: a platform for brain–computer
        interface development. Journal of Neural Engineering, 10(5), 056014.
 
-.. GENERATED FROM PYTHON SOURCE LINES 30-32
+.. GENERATED FROM PYTHON SOURCE LINES 32-34
 
 Imports and Setup
 -----------------
 
-.. GENERATED FROM PYTHON SOURCE LINES 32-45
+.. GENERATED FROM PYTHON SOURCE LINES 34-48
 
 .. code-block:: Python
 
 
     import numpy as np
     import matplotlib.pyplot as plt
-    from mne import create_info, EpochsArray
+    from mne import create_info
     from mne.channels import make_standard_montage
     import sys
+
     sys.path.insert(0, '/Users/baristim/Projects/eegprep/src')
 
     import eegprep
@@ -73,14 +76,14 @@ Imports and Setup
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 46-50
+.. GENERATED FROM PYTHON SOURCE LINES 49-53
 
 Create Synthetic EEG Data with Realistic Artifacts
 ---------------------------------------------------
 Generate EEG data containing multiple types of artifacts commonly found
 in real recordings: eye blinks, muscle activity, line noise, and drift.
 
-.. GENERATED FROM PYTHON SOURCE LINES 50-123
+.. GENERATED FROM PYTHON SOURCE LINES 53-154
 
 .. code-block:: Python
 
@@ -93,10 +96,38 @@ in real recordings: eye blinks, muscle activity, line noise, and drift.
 
     # Create standard 10-20 channel names
     ch_names = [
-        'Fp1', 'Fpz', 'Fp2', 'F7', 'F3', 'Fz', 'F4', 'F8',
-        'T7', 'C3', 'Cz', 'C4', 'T8', 'P7', 'P3', 'Pz',
-        'P4', 'P8', 'O1', 'Oz', 'O2', 'A1', 'A2', 'M1',
-        'M2', 'Fc1', 'Fc2', 'Cp1', 'Cp2', 'Fc5', 'Fc6', 'Cp5'
+        'Fp1',
+        'Fpz',
+        'Fp2',
+        'F7',
+        'F3',
+        'Fz',
+        'F4',
+        'F8',
+        'T7',
+        'C3',
+        'Cz',
+        'C4',
+        'T8',
+        'P7',
+        'P3',
+        'Pz',
+        'P4',
+        'P8',
+        'O1',
+        'Oz',
+        'O2',
+        'A1',
+        'A2',
+        'M1',
+        'M2',
+        'Fc1',
+        'Fc2',
+        'Cp1',
+        'Cp2',
+        'Fc5',
+        'Fc6',
+        'Cp5',
     ]
 
     # Create time vector
@@ -152,7 +183,7 @@ in real recordings: eye blinks, muscle activity, line noise, and drift.
         data[i, :] += drift * (0.1 + np.random.rand())
     print("  ✓ Added slow drift artifacts")
 
-    print(f"\nData with artifacts created:")
+    print("\nData with artifacts created:")
     print(f"  Shape: {data.shape}")
     print(f"  Range: [{np.min(data):.2f}, {np.max(data):.2f}] µV")
     print("=" * 70)
@@ -183,13 +214,13 @@ in real recordings: eye blinks, muscle activity, line noise, and drift.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 124-127
+.. GENERATED FROM PYTHON SOURCE LINES 155-158
 
 Method 1: clean_artifacts
 --------------------------
 General-purpose artifact removal using statistical criteria
 
-.. GENERATED FROM PYTHON SOURCE LINES 127-182
+.. GENERATED FROM PYTHON SOURCE LINES 158-215
 
 .. code-block:: Python
 
@@ -218,18 +249,20 @@ General-purpose artifact removal using statistical criteria
                 theta = (i / len(ch_names)) * 2 * np.pi
                 phi = np.pi / 4
                 pos = np.array([np.sin(phi) * np.cos(theta), np.sin(phi) * np.sin(theta), np.cos(phi)])
-        except:
+        except Exception:
             # Default: generate position on unit sphere
             theta = (i / len(ch_names)) * 2 * np.pi
             phi = np.pi / 4
             pos = np.array([np.sin(phi) * np.cos(theta), np.sin(phi) * np.sin(theta), np.cos(phi)])
-    
-        chanlocs.append({
-            'labels': ch_name,
-            'X': float(pos[0]),
-            'Y': float(pos[1]),
-            'Z': float(pos[2]),
-        })
+
+        chanlocs.append(
+            {
+                'labels': ch_name,
+                'X': float(pos[0]),
+                'Y': float(pos[1]),
+                'Z': float(pos[2]),
+            }
+        )
 
     EEG_dict = {
         'data': data.copy(),
@@ -239,7 +272,7 @@ General-purpose artifact removal using statistical criteria
         'xmin': 0,
         'xmax': (data.shape[1] - 1) / sfreq,
         'chanlocs': chanlocs,
-        'etc': {}
+        'etc': {},
     }
 
     result = eegprep.clean_artifacts(EEG_dict, ChannelCriterion='off', LineNoiseCriterion='off')
@@ -263,20 +296,18 @@ General-purpose artifact removal using statistical criteria
     Description: General-purpose artifact removal
     Removes high-amplitude transient artifacts
     Good for: Eye blinks, muscle artifacts, transient noise
-    /home/runner/work/eegprep/eegprep/src/eegprep/utils/stats.py:182: RuntimeWarning: invalid value encountered in divide
-      H = np.asarray(X_shifted[:, :m] * nbins / X_shifted[:, m - 1].reshape((-1, 1)))
     Result: Data range [-18.10, 23.38] µV
 
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 183-186
+.. GENERATED FROM PYTHON SOURCE LINES 216-219
 
 Method 2: clean_asr (Artifact Subspace Reconstruction)
 -------------------------------------------------------
 Sophisticated method that removes artifacts while preserving signal
 
-.. GENERATED FROM PYTHON SOURCE LINES 186-209
+.. GENERATED FROM PYTHON SOURCE LINES 219-236
 
 .. code-block:: Python
 
@@ -288,16 +319,10 @@ Sophisticated method that removes artifacts while preserving signal
     print("Threshold controls aggressiveness (lower = more aggressive)")
 
     # Create EEG dict for ASR (reuse the one created earlier)
-    cleaned_asr_20_result = eegprep.clean_asr(
-        EEG_dict.copy(),
-        cutoff=20
-    )
+    cleaned_asr_20_result = eegprep.clean_asr(EEG_dict.copy(), cutoff=20)
     cleaned_asr_20 = cleaned_asr_20_result['data']
 
-    cleaned_asr_15_result = eegprep.clean_asr(
-        EEG_dict.copy(),
-        cutoff=15
-    )
+    cleaned_asr_15_result = eegprep.clean_asr(EEG_dict.copy(), cutoff=15)
     cleaned_asr_15 = cleaned_asr_15_result['data']
 
     print(f"ASR (threshold=20): Data range [{np.min(cleaned_asr_20):.2f}, {np.max(cleaned_asr_20):.2f}] µV")
@@ -317,19 +342,19 @@ Sophisticated method that removes artifacts while preserving signal
     ======================================================================
     Description: Removes artifacts while preserving signal structure
     Threshold controls aggressiveness (lower = more aggressive)
-    ASR (threshold=20): Data range [-18.10, 23.38] µV
-    ASR (threshold=15): Data range [-18.10, 23.38] µV
+    ASR (threshold=20): Data range [-62.44, 56.40] µV
+    ASR (threshold=15): Data range [-61.41, 58.24] µV
 
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 210-213
+.. GENERATED FROM PYTHON SOURCE LINES 237-240
 
 Method 3: clean_flatlines
 --------------------------
 Removes channels with no signal variation (dead channels)
 
-.. GENERATED FROM PYTHON SOURCE LINES 213-227
+.. GENERATED FROM PYTHON SOURCE LINES 240-252
 
 .. code-block:: Python
 
@@ -340,9 +365,7 @@ Removes channels with no signal variation (dead channels)
     print("Description: Removes channels with flat/dead signals")
     print("Good for: Detecting and handling non-functional channels")
 
-    cleaned_flatlines_result = eegprep.clean_flatlines(
-        EEG_dict.copy()
-    )
+    cleaned_flatlines_result = eegprep.clean_flatlines(EEG_dict.copy())
     cleaned_flatlines = cleaned_flatlines_result['data']
 
     print(f"Result: Data range [{np.min(cleaned_flatlines):.2f}, {np.max(cleaned_flatlines):.2f}] µV")
@@ -361,18 +384,18 @@ Removes channels with no signal variation (dead channels)
     ======================================================================
     Description: Removes channels with flat/dead signals
     Good for: Detecting and handling non-functional channels
-    Result: Data range [-18.10, 23.38] µV
+    Result: Data range [-110.38, 153.36] µV
 
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 228-231
+.. GENERATED FROM PYTHON SOURCE LINES 253-256
 
 Visualize Comparison: Time Domain
 -----------------------------------
 Compare different methods in the time domain
 
-.. GENERATED FROM PYTHON SOURCE LINES 231-302
+.. GENERATED FROM PYTHON SOURCE LINES 256-322
 
 .. code-block:: Python
 
@@ -387,61 +410,56 @@ Compare different methods in the time domain
     ax = axes[0]
     for i, ch_idx in enumerate(channels_to_plot):
         offset = i * 150
-        ax.plot(t[time_window], data[ch_idx, time_window] + offset,
-                linewidth=1.5, label=ch_names[ch_idx])
+        ax.plot(t[time_window], data[ch_idx, time_window] + offset, linewidth=1.5, label=ch_names[ch_idx])
     ax.set_ylabel('Amplitude (µV)', fontsize=11)
     ax.set_title('Original Data with Artifacts', fontsize=12, fontweight='bold')
     ax.grid(True, alpha=0.3)
-    ax.set_xlim([t[time_window.start], t[time_window.stop-1]])
+    ax.set_xlim([t[time_window.start], t[time_window.stop - 1]])
     ax.legend(loc='upper right', fontsize=10)
 
     # Plot 2: clean_artifacts
     ax = axes[1]
     for i, ch_idx in enumerate(channels_to_plot):
         offset = i * 150
-        ax.plot(t[time_window], cleaned_artifacts[ch_idx, time_window] + offset,
-                linewidth=1.5, label=ch_names[ch_idx])
+        ax.plot(t[time_window], cleaned_artifacts[ch_idx, time_window] + offset, linewidth=1.5, label=ch_names[ch_idx])
     ax.set_ylabel('Amplitude (µV)', fontsize=11)
     ax.set_title('After clean_artifacts', fontsize=12, fontweight='bold')
     ax.grid(True, alpha=0.3)
-    ax.set_xlim([t[time_window.start], t[time_window.stop-1]])
+    ax.set_xlim([t[time_window.start], t[time_window.stop - 1]])
     ax.legend(loc='upper right', fontsize=10)
 
     # Plot 3: clean_asr (threshold=20)
     ax = axes[2]
     for i, ch_idx in enumerate(channels_to_plot):
         offset = i * 150
-        ax.plot(t[time_window], cleaned_asr_20[ch_idx, time_window] + offset,
-                linewidth=1.5, label=ch_names[ch_idx])
+        ax.plot(t[time_window], cleaned_asr_20[ch_idx, time_window] + offset, linewidth=1.5, label=ch_names[ch_idx])
     ax.set_ylabel('Amplitude (µV)', fontsize=11)
     ax.set_title('After clean_asr (threshold=20)', fontsize=12, fontweight='bold')
     ax.grid(True, alpha=0.3)
-    ax.set_xlim([t[time_window.start], t[time_window.stop-1]])
+    ax.set_xlim([t[time_window.start], t[time_window.stop - 1]])
     ax.legend(loc='upper right', fontsize=10)
 
     # Plot 4: clean_asr (threshold=15)
     ax = axes[3]
     for i, ch_idx in enumerate(channels_to_plot):
         offset = i * 150
-        ax.plot(t[time_window], cleaned_asr_15[ch_idx, time_window] + offset,
-                linewidth=1.5, label=ch_names[ch_idx])
+        ax.plot(t[time_window], cleaned_asr_15[ch_idx, time_window] + offset, linewidth=1.5, label=ch_names[ch_idx])
     ax.set_ylabel('Amplitude (µV)', fontsize=11)
     ax.set_title('After clean_asr (threshold=15, more aggressive)', fontsize=12, fontweight='bold')
     ax.grid(True, alpha=0.3)
-    ax.set_xlim([t[time_window.start], t[time_window.stop-1]])
+    ax.set_xlim([t[time_window.start], t[time_window.stop - 1]])
     ax.legend(loc='upper right', fontsize=10)
 
     # Plot 5: clean_flatlines
     ax = axes[4]
     for i, ch_idx in enumerate(channels_to_plot):
         offset = i * 150
-        ax.plot(t[time_window], cleaned_flatlines[ch_idx, time_window] + offset,
-                linewidth=1.5, label=ch_names[ch_idx])
+        ax.plot(t[time_window], cleaned_flatlines[ch_idx, time_window] + offset, linewidth=1.5, label=ch_names[ch_idx])
     ax.set_xlabel('Time (s)', fontsize=11)
     ax.set_ylabel('Amplitude (µV)', fontsize=11)
     ax.set_title('After clean_flatlines', fontsize=12, fontweight='bold')
     ax.grid(True, alpha=0.3)
-    ax.set_xlim([t[time_window.start], t[time_window.stop-1]])
+    ax.set_xlim([t[time_window.start], t[time_window.stop - 1]])
     ax.legend(loc='upper right', fontsize=10)
 
     plt.tight_layout()
@@ -459,13 +477,13 @@ Compare different methods in the time domain
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 303-306
+.. GENERATED FROM PYTHON SOURCE LINES 323-326
 
 Statistical Comparison
 ----------------------
 Compare methods using statistical metrics
 
-.. GENERATED FROM PYTHON SOURCE LINES 306-369
+.. GENERATED FROM PYTHON SOURCE LINES 326-385
 
 .. code-block:: Python
 
@@ -487,8 +505,7 @@ Compare methods using statistical metrics
     # Add value labels on bars
     for bar in bars:
         height = bar.get_height()
-        ax.text(bar.get_x() + bar.get_width()/2., height,
-                f'{height:.0f}', ha='center', va='bottom', fontsize=9)
+        ax.text(bar.get_x() + bar.get_width() / 2.0, height, f'{height:.0f}', ha='center', va='bottom', fontsize=9)
 
     # Standard deviation comparison
     ax = axes[0, 1]
@@ -500,8 +517,7 @@ Compare methods using statistical metrics
     ax.grid(True, alpha=0.3, axis='y')
     for bar in bars:
         height = bar.get_height()
-        ax.text(bar.get_x() + bar.get_width()/2., height,
-                f'{height:.1f}', ha='center', va='bottom', fontsize=9)
+        ax.text(bar.get_x() + bar.get_width() / 2.0, height, f'{height:.1f}', ha='center', va='bottom', fontsize=9)
 
     # Range comparison
     ax = axes[1, 0]
@@ -513,8 +529,7 @@ Compare methods using statistical metrics
     ax.grid(True, alpha=0.3, axis='y')
     for bar in bars:
         height = bar.get_height()
-        ax.text(bar.get_x() + bar.get_width()/2., height,
-                f'{height:.0f}', ha='center', va='bottom', fontsize=9)
+        ax.text(bar.get_x() + bar.get_width() / 2.0, height, f'{height:.0f}', ha='center', va='bottom', fontsize=9)
 
     # Mean absolute value comparison
     ax = axes[1, 1]
@@ -526,8 +541,7 @@ Compare methods using statistical metrics
     ax.grid(True, alpha=0.3, axis='y')
     for bar in bars:
         height = bar.get_height()
-        ax.text(bar.get_x() + bar.get_width()/2., height,
-                f'{height:.1f}', ha='center', va='bottom', fontsize=9)
+        ax.text(bar.get_x() + bar.get_width() / 2.0, height, f'{height:.1f}', ha='center', va='bottom', fontsize=9)
 
     plt.tight_layout()
     plt.show()
@@ -544,13 +558,13 @@ Compare methods using statistical metrics
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 370-373
+.. GENERATED FROM PYTHON SOURCE LINES 386-389
 
 Summary and Recommendations
 ----------------------------
 Detailed comparison and recommendations for method selection
 
-.. GENERATED FROM PYTHON SOURCE LINES 373-423
+.. GENERATED FROM PYTHON SOURCE LINES 389-439
 
 .. code-block:: Python
 
@@ -566,7 +580,7 @@ Detailed comparison and recommendations for method selection
     print("   - Removes high-amplitude transient artifacts")
     print("   - Fast and computationally efficient")
     print("   - Good for eye blinks and muscle artifacts")
-    var_reduction = (1 - np.var(cleaned_artifacts)/np.var(data))*100
+    var_reduction = (1 - np.var(cleaned_artifacts) / np.var(data)) * 100
     print(f"   - Variance reduction: {var_reduction:.1f}%")
     print("\n   Best for: Quick preprocessing, real-time applications")
 
@@ -577,8 +591,8 @@ Detailed comparison and recommendations for method selection
     print("   - Threshold controls aggressiveness")
     print("   - More sophisticated than clean_artifacts")
     print("   - Preserves brain activity better")
-    var_reduction_20 = (1 - np.var(cleaned_asr_20)/np.var(data))*100
-    var_reduction_15 = (1 - np.var(cleaned_asr_15)/np.var(data))*100
+    var_reduction_20 = (1 - np.var(cleaned_asr_20) / np.var(data)) * 100
+    var_reduction_15 = (1 - np.var(cleaned_asr_15) / np.var(data)) * 100
     print(f"   - ASR(20) variance reduction: {var_reduction_20:.1f}%")
     print(f"   - ASR(15) variance reduction: {var_reduction_15:.1f}%")
     print("\n   Best for: Research applications, when signal preservation is critical")
@@ -589,7 +603,7 @@ Detailed comparison and recommendations for method selection
     print("   - Removes channels with no signal variation")
     print("   - Detects dead/non-functional channels")
     print("   - Complements other methods")
-    var_reduction_flat = (1 - np.var(cleaned_flatlines)/np.var(data))*100
+    var_reduction_flat = (1 - np.var(cleaned_flatlines) / np.var(data)) * 100
     print(f"   - Variance reduction: {var_reduction_flat:.1f}%")
     print("\n   Best for: Channel quality control, preprocessing pipeline")
 
@@ -635,8 +649,8 @@ Detailed comparison and recommendations for method selection
        - Threshold controls aggressiveness
        - More sophisticated than clean_artifacts
        - Preserves brain activity better
-       - ASR(20) variance reduction: 94.7%
-       - ASR(15) variance reduction: 94.7%
+       - ASR(20) variance reduction: 77.1%
+       - ASR(15) variance reduction: 85.0%
 
        Best for: Research applications, when signal preservation is critical
 
@@ -646,7 +660,7 @@ Detailed comparison and recommendations for method selection
        - Removes channels with no signal variation
        - Detects dead/non-functional channels
        - Complements other methods
-       - Variance reduction: 94.7%
+       - Variance reduction: 0.0%
 
        Best for: Channel quality control, preprocessing pipeline
 
@@ -668,7 +682,7 @@ Detailed comparison and recommendations for method selection
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 7.147 seconds)
+   **Total running time of the script:** (0 minutes 8.100 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_artifact_removal.py:

@@ -45,6 +45,8 @@ The workflow includes:
 This example demonstrates best practices for channel quality control
 and recovery in EEG preprocessing pipelines.
 
+Background references include [1]_ and [2]_.
+
 References
 ----------
 .. [1] Perrin, F., Pernier, J., Bertrand, O., & Echallier, J. F. (1989).
@@ -54,21 +56,22 @@ References
        analysis of single-trial EEG dynamics. Journal of Neuroscience Methods,
        134(1), 9-21.
 
-.. GENERATED FROM PYTHON SOURCE LINES 40-42
+.. GENERATED FROM PYTHON SOURCE LINES 42-44
 
 Imports and Setup
 -----------------
 
-.. GENERATED FROM PYTHON SOURCE LINES 42-55
+.. GENERATED FROM PYTHON SOURCE LINES 44-58
 
 .. code-block:: Python
 
 
     import numpy as np
     import matplotlib.pyplot as plt
-    from mne import create_info, EpochsArray
+    from mne import create_info
     from mne.channels import make_standard_montage
     import sys
+
     sys.path.insert(0, '/Users/baristim/Projects/eegprep/src')
 
     import eegprep
@@ -83,14 +86,14 @@ Imports and Setup
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 56-60
+.. GENERATED FROM PYTHON SOURCE LINES 59-63
 
 Create Synthetic EEG Data with Bad Channels
 -------------------------------------------
 Generate realistic EEG data and artificially introduce bad channels
 to demonstrate detection and interpolation techniques.
 
-.. GENERATED FROM PYTHON SOURCE LINES 60-96
+.. GENERATED FROM PYTHON SOURCE LINES 63-127
 
 .. code-block:: Python
 
@@ -103,10 +106,38 @@ to demonstrate detection and interpolation techniques.
 
     # Create standard 10-20 channel names
     ch_names = [
-        'Fp1', 'Fpz', 'Fp2', 'F7', 'F3', 'Fz', 'F4', 'F8',
-        'T7', 'C3', 'Cz', 'C4', 'T8', 'P7', 'P3', 'Pz',
-        'P4', 'P8', 'O1', 'Oz', 'O2', 'A1', 'A2', 'M1',
-        'M2', 'Fc1', 'Fc2', 'Cp1', 'Cp2', 'Fc5', 'Fc6', 'Cp5'
+        'Fp1',
+        'Fpz',
+        'Fp2',
+        'F7',
+        'F3',
+        'Fz',
+        'F4',
+        'F8',
+        'T7',
+        'C3',
+        'Cz',
+        'C4',
+        'T8',
+        'P7',
+        'P3',
+        'Pz',
+        'P4',
+        'P8',
+        'O1',
+        'Oz',
+        'O2',
+        'A1',
+        'A2',
+        'M1',
+        'M2',
+        'Fc1',
+        'Fc2',
+        'Cp1',
+        'Cp2',
+        'Fc5',
+        'Fc6',
+        'Cp5',
     ]
 
     # Create time vector
@@ -149,13 +180,13 @@ to demonstrate detection and interpolation techniques.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 97-100
+.. GENERATED FROM PYTHON SOURCE LINES 128-131
 
 Introduce Bad Channels
 ----------------------
 Simulate different types of bad channels that commonly occur in real recordings
 
-.. GENERATED FROM PYTHON SOURCE LINES 100-129
+.. GENERATED FROM PYTHON SOURCE LINES 131-160
 
 .. code-block:: Python
 
@@ -171,17 +202,17 @@ Simulate different types of bad channels that commonly occur in real recordings
 
     # Type 1: High noise channel (excessive noise)
     print(f"\n  Type 1: High noise channel ({ch_names[5]})")
-    print(f"    - Adding 50 µV noise (vs. typical 2 µV)")
+    print("    - Adding 50 µV noise (vs. typical 2 µV)")
     data[5, :] += np.random.randn(n_samples) * 50
 
     # Type 2: Flat/dead channel (no signal variation)
     print(f"\n  Type 2: Flat/dead channel ({ch_names[15]})")
-    print(f"    - Replacing signal with minimal noise")
+    print("    - Replacing signal with minimal noise")
     data[15, :] = np.random.randn(n_samples) * 0.1
 
     # Type 3: Noisy channel with artifacts
     print(f"\n  Type 3: Noisy channel with artifacts ({ch_names[25]})")
-    print(f"    - Adding 30 µV noise + 50 Hz artifact")
+    print("    - Adding 30 µV noise + 50 Hz artifact")
     data[25, :] += np.random.randn(n_samples) * 30
     data[25, 2000:2500] += 100 * np.sin(2 * np.pi * 50 * t[2000:2500])
 
@@ -216,13 +247,13 @@ Simulate different types of bad channels that commonly occur in real recordings
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 130-133
+.. GENERATED FROM PYTHON SOURCE LINES 161-164
 
 Identify Bad Channels
 ----------------------
 Use statistical criteria to identify channels with abnormal characteristics
 
-.. GENERATED FROM PYTHON SOURCE LINES 133-161
+.. GENERATED FROM PYTHON SOURCE LINES 164-192
 
 .. code-block:: Python
 
@@ -274,13 +305,13 @@ Use statistical criteria to identify channels with abnormal characteristics
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 162-165
+.. GENERATED FROM PYTHON SOURCE LINES 193-196
 
 Visualize Bad Channel Detection
 --------------------------------
 Show statistical properties of all channels to understand detection criteria
 
-.. GENERATED FROM PYTHON SOURCE LINES 165-223
+.. GENERATED FROM PYTHON SOURCE LINES 196-254
 
 .. code-block:: Python
 
@@ -354,14 +385,14 @@ Show statistical properties of all channels to understand detection criteria
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 224-228
+.. GENERATED FROM PYTHON SOURCE LINES 255-259
 
 Perform Channel Interpolation
 ------------------------------
 Use spherical spline interpolation to recover data from bad channels
 based on neighboring channel information
 
-.. GENERATED FROM PYTHON SOURCE LINES 228-284
+.. GENERATED FROM PYTHON SOURCE LINES 259-314
 
 .. code-block:: Python
 
@@ -386,18 +417,20 @@ based on neighboring channel information
                 theta = (i / len(ch_names)) * 2 * np.pi
                 phi = np.pi / 4
                 pos = np.array([np.sin(phi) * np.cos(theta), np.sin(phi) * np.sin(theta), np.cos(phi)])
-        except:
+        except Exception:
             # Default: generate position on unit sphere
             theta = (i / len(ch_names)) * 2 * np.pi
             phi = np.pi / 4
             pos = np.array([np.sin(phi) * np.cos(theta), np.sin(phi) * np.sin(theta), np.cos(phi)])
-    
-        chanlocs.append({
-            'labels': ch_name,
-            'X': float(pos[0]),
-            'Y': float(pos[1]),
-            'Z': float(pos[2]),
-        })
+
+        chanlocs.append(
+            {
+                'labels': ch_name,
+                'X': float(pos[0]),
+                'Y': float(pos[1]),
+                'Z': float(pos[2]),
+            }
+        )
 
     EEG_dict = {
         'data': data.copy(),
@@ -407,17 +440,14 @@ based on neighboring channel information
         'xmin': 0,
         'xmax': (data.shape[1] - 1) / sfreq,
         'chanlocs': chanlocs,
-        'etc': {}
+        'etc': {},
     }
 
     # Perform interpolation
-    EEG_interp = eegprep.eeg_interp(
-        EEG_dict,
-        bad_chans=bad_channel_indices
-    )
+    EEG_interp = eegprep.eeg_interp(EEG_dict, bad_chans=bad_channel_indices)
     interpolated_data = EEG_interp['data']
 
-    print(f"Interpolation complete!")
+    print("Interpolation complete!")
     print(f"  Interpolated data shape: {interpolated_data.shape}")
     print(f"  Interpolated channels: {bad_ch_names}")
 
@@ -439,13 +469,13 @@ based on neighboring channel information
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 285-288
+.. GENERATED FROM PYTHON SOURCE LINES 315-318
 
 Compare Original and Interpolated Data
 ----------------------------------------
 Visualize the effect of interpolation on bad channels
 
-.. GENERATED FROM PYTHON SOURCE LINES 288-332
+.. GENERATED FROM PYTHON SOURCE LINES 318-362
 
 .. code-block:: Python
 
@@ -464,7 +494,7 @@ Visualize the effect of interpolation on bad channels
     ax.set_ylabel('Amplitude (µV)', fontsize=11)
     ax.set_title('Original Data (Bad Channels in Red)', fontsize=12, fontweight='bold')
     ax.grid(True, alpha=0.3)
-    ax.set_xlim([t[time_window.start], t[time_window.stop-1]])
+    ax.set_xlim([t[time_window.start], t[time_window.stop - 1]])
 
     # Plot 2: Interpolated data
     ax = axes[1]
@@ -475,7 +505,7 @@ Visualize the effect of interpolation on bad channels
     ax.set_ylabel('Amplitude (µV)', fontsize=11)
     ax.set_title('After Interpolation (Previously Bad Channels in Orange)', fontsize=12, fontweight='bold')
     ax.grid(True, alpha=0.3)
-    ax.set_xlim([t[time_window.start], t[time_window.stop-1]])
+    ax.set_xlim([t[time_window.start], t[time_window.stop - 1]])
 
     # Plot 3: Difference (interpolation effect)
     ax = axes[2]
@@ -488,7 +518,7 @@ Visualize the effect of interpolation on bad channels
     ax.set_ylabel('Amplitude (µV)', fontsize=11)
     ax.set_title('Interpolation Effect (Difference)', fontsize=12, fontweight='bold')
     ax.grid(True, alpha=0.3)
-    ax.set_xlim([t[time_window.start], t[time_window.stop-1]])
+    ax.set_xlim([t[time_window.start], t[time_window.stop - 1]])
 
     plt.tight_layout()
     plt.show()
@@ -505,13 +535,13 @@ Visualize the effect of interpolation on bad channels
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 333-336
+.. GENERATED FROM PYTHON SOURCE LINES 363-366
 
 Assess Interpolation Quality
 ----------------------------
 Evaluate how well the interpolation recovered the bad channels
 
-.. GENERATED FROM PYTHON SOURCE LINES 336-366
+.. GENERATED FROM PYTHON SOURCE LINES 366-396
 
 .. code-block:: Python
 
@@ -579,13 +609,13 @@ Evaluate how well the interpolation recovered the bad channels
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 367-370
+.. GENERATED FROM PYTHON SOURCE LINES 397-400
 
 Correlation Analysis
 --------------------
 Analyze correlation between original and interpolated data
 
-.. GENERATED FROM PYTHON SOURCE LINES 370-430
+.. GENERATED FROM PYTHON SOURCE LINES 400-474
 
 .. code-block:: Python
 
@@ -625,7 +655,7 @@ Analyze correlation between original and interpolated data
             good_bins = max(1, min(unique_good - 1, 5)) if unique_good > 1 else 1
         else:
             good_bins = 1
-    
+
         if bad_corrs:
             unique_bad = len(np.unique(np.round(bad_corrs, 5)))
             bad_bins = max(1, min(unique_bad - 1, 5)) if unique_bad > 1 else 1
@@ -633,11 +663,25 @@ Analyze correlation between original and interpolated data
             bad_bins = 1
 
         if good_corrs:
-            ax.hist(good_corrs, bins=good_bins, alpha=0.6, label='Good Channels', color='steelblue',
-                    edgecolor='black', linewidth=1.5)
+            ax.hist(
+                good_corrs,
+                bins=good_bins,
+                alpha=0.6,
+                label='Good Channels',
+                color='steelblue',
+                edgecolor='black',
+                linewidth=1.5,
+            )
         if bad_corrs:
-            ax.hist(bad_corrs, bins=bad_bins, alpha=0.6, label='Bad Channels (Interpolated)', color='orange',
-                    edgecolor='black', linewidth=1.5)
+            ax.hist(
+                bad_corrs,
+                bins=bad_bins,
+                alpha=0.6,
+                label='Bad Channels (Interpolated)',
+                color='orange',
+                edgecolor='black',
+                linewidth=1.5,
+            )
         ax.set_xlabel('Correlation Coefficient', fontsize=11)
         ax.set_ylabel('Number of Channels', fontsize=11)
         ax.set_title('Correlation Distribution: Original vs Interpolated Data', fontsize=12, fontweight='bold')
@@ -676,12 +720,12 @@ Analyze correlation between original and interpolated data
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 431-433
+.. GENERATED FROM PYTHON SOURCE LINES 475-477
 
 Summary and Recommendations
 ----------------------------
 
-.. GENERATED FROM PYTHON SOURCE LINES 433-457
+.. GENERATED FROM PYTHON SOURCE LINES 477-501
 
 .. code-block:: Python
 
@@ -691,11 +735,11 @@ Summary and Recommendations
     print("=" * 70)
     print(f"Total channels: {n_channels}")
     print(f"Bad channels identified: {len(bad_channel_indices)}")
-    print(f"Percentage of bad channels: {len(bad_channel_indices)/n_channels*100:.1f}%")
+    print(f"Percentage of bad channels: {len(bad_channel_indices) / n_channels * 100:.1f}%")
     print(f"\nMean correlation (good channels): {np.mean(good_corrs):.4f}")
     print(f"Mean correlation (bad channels): {np.mean(bad_corrs):.4f}")
-    print(f"\nInterpolation successfully recovered bad channels")
-    print(f"Interpolated channels can be used for further analysis")
+    print("\nInterpolation successfully recovered bad channels")
+    print("Interpolated channels can be used for further analysis")
     print("=" * 70)
 
     print("\nRecommendations:")
@@ -746,7 +790,7 @@ Summary and Recommendations
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 458-475
+.. GENERATED FROM PYTHON SOURCE LINES 502-519
 
 Key Takeaways
 ---------------
@@ -769,7 +813,7 @@ Best practices:
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 1.029 seconds)
+   **Total running time of the script:** (0 minutes 1.081 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_channel_interpolation.py:

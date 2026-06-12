@@ -2,19 +2,19 @@
 <!DOCTYPE html>
 
 
-<html lang="en" data-content_root="../" >
+<html lang="en" data-content_root="../" data-theme="light">
 
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Preprocessing Pipeline &#8212; eegprep 0.2.23 documentation</title>
+    <title>Preprocessing Pipeline &#8212; EEGPrep manual</title>
   
   
   
   <script data-cfasync="false">
-    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
-    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "light";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "light";
   </script>
   <!--
     this give us a css class that will be invisible only if js is disabled
@@ -27,28 +27,29 @@
   </noscript>
   
   <!-- Loaded before other Sphinx assets -->
-  <link href="../_static/styles/theme.css?digest=7f76b32a3354e82990f2" rel="stylesheet" />
-<link href="../_static/styles/pydata-sphinx-theme.css?digest=7f76b32a3354e82990f2" rel="stylesheet" />
+  <link href="../_static/styles/theme.css?digest=55c26ed414f5f8a31ebb" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=55c26ed414f5f8a31ebb" rel="stylesheet" />
 
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
     <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
     <link rel="stylesheet" type="text/css" href="../_static/togglebutton.css?v=9c3e77be" />
-    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=d2d258e8" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=fd6457a4" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
     <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
-    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=eb9c3aa4" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=92c3505e" />
   
   <!-- So that users can add custom icons -->
-  <script defer src="../_static/scripts/fontawesome.js?digest=7f76b32a3354e82990f2"></script>
+  <script defer src="../_static/scripts/fontawesome.js?digest=55c26ed414f5f8a31ebb"></script>
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=7f76b32a3354e82990f2" />
-<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=7f76b32a3354e82990f2" />
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=55c26ed414f5f8a31ebb" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=55c26ed414f5f8a31ebb" />
 
     <script src="../_static/documentation_options.js?v=171860b8"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/sg-tags.js?v=d80f6fa4"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
     <script src="../_static/copybutton.js?v=6dbb43f8"></script>
     <script>let toggleHintShow = 'Click to show';</script>
@@ -59,10 +60,11 @@
     <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'user_guide/preprocessing_pipeline';</script>
     <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <link rel="icon" href="../_static/logo.jpg"/>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Configuration" href="configuration.html" />
-    <link rel="prev" title="Quick Start" href="quickstart.html" />
+    <link rel="next" title="ICA, ICLabel, Rejection, and Visual Diagnostics" href="ica_rejection.html" />
+    <link rel="prev" title="MNE-Python Integration" href="mne_integration.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2.23" />
@@ -73,7 +75,7 @@
     <script src="../searchindex.js"></script>
   
   </head>
-  <body data-default-mode="">
+  <body data-default-mode="light">
   
   
   <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
@@ -83,7 +85,9 @@
   
   <button type="button" class="btn rounded-pill" id="pst-back-to-top">
     <i class="fa-solid fa-arrow-up"></i>Back to top</button>
-
+  
+  
+  
   
   <dialog id="pst-search-dialog">
     
@@ -94,8 +98,8 @@
   <input type="search"
          class="form-control"
          name="q"
-         placeholder="Search documentation..."
-         aria-label="Search documentation..."
+         placeholder="Search the EEGPrep manual..."
+         aria-label="Search the EEGPrep manual..."
          autocomplete="off"
          autocorrect="off"
          autocapitalize="off"
@@ -130,6 +134,12 @@
   
   
   
+    
+    
+    
+    <img src="../_static/logo.jpg" class="logo__image only-light" alt=""/>
+    <img src="../_static/logo.jpg" class="logo__image only-dark pst-js-only" alt=""/>
+  
   
     <p class="title logo__title">eegprep</p>
   
@@ -145,13 +155,6 @@
 <nav>
   <ul class="bd-navbar-elements navbar-nav">
     
-<li class="nav-item ">
-  <a class="nav-link nav-internal" href="../api/index.html">
-    API Reference
-  </a>
-</li>
-
-
 <li class="nav-item current active">
   <a class="nav-link nav-internal" href="index.html">
     User Guide
@@ -167,8 +170,22 @@
 
 
 <li class="nav-item ">
-  <a class="nav-link nav-internal" href="../contributing.html">
-    Contributing to EEGPrep
+  <a class="nav-link nav-internal" href="../api/index.html">
+    API Reference
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../faq.html">
+    Frequently Asked Questions
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../glossary.html">
+    Glossary
   </a>
 </li>
 
@@ -181,20 +198,6 @@
                 <ul id="pst-nav-more-links" class="dropdown-menu">
                     
 <li class=" ">
-  <a class="nav-link dropdown-item nav-internal" href="../development.html">
-    Development Setup
-  </a>
-</li>
-
-
-<li class=" ">
-  <a class="nav-link dropdown-item nav-internal" href="../faq.html">
-    Frequently Asked Questions
-  </a>
-</li>
-
-
-<li class=" ">
   <a class="nav-link dropdown-item nav-internal" href="../references.html">
     References and Citations
   </a>
@@ -202,15 +205,22 @@
 
 
 <li class=" ">
-  <a class="nav-link dropdown-item nav-internal" href="../changelog.html">
-    Changelog
+  <a class="nav-link dropdown-item nav-internal" href="../contributing.html">
+    Contributing to EEGPrep
   </a>
 </li>
 
 
 <li class=" ">
-  <a class="nav-link dropdown-item nav-internal" href="../glossary.html">
-    Glossary
+  <a class="nav-link dropdown-item nav-internal" href="../development.html">
+    Development Setup
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../changelog.html">
+    Changelog
   </a>
 </li>
 
@@ -225,6 +235,14 @@
     
     <div class="navbar-header-items__end">
       
+      
+        <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
       
         <div class="navbar-item">
 
@@ -285,13 +303,6 @@
 <nav>
   <ul class="bd-navbar-elements navbar-nav">
     
-<li class="nav-item ">
-  <a class="nav-link nav-internal" href="../api/index.html">
-    API Reference
-  </a>
-</li>
-
-
 <li class="nav-item current active">
   <a class="nav-link nav-internal" href="index.html">
     User Guide
@@ -302,6 +313,34 @@
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../examples/index.html">
     Examples
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../api/index.html">
+    API Reference
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../faq.html">
+    Frequently Asked Questions
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../glossary.html">
+    Glossary
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../references.html">
+    References and Citations
   </a>
 </li>
 
@@ -321,29 +360,8 @@
 
 
 <li class="nav-item ">
-  <a class="nav-link nav-internal" href="../faq.html">
-    Frequently Asked Questions
-  </a>
-</li>
-
-
-<li class="nav-item ">
-  <a class="nav-link nav-internal" href="../references.html">
-    References and Citations
-  </a>
-</li>
-
-
-<li class="nav-item ">
   <a class="nav-link nav-internal" href="../changelog.html">
     Changelog
-  </a>
-</li>
-
-
-<li class="nav-item ">
-  <a class="nav-link nav-internal" href="../glossary.html">
-    Glossary
   </a>
 </li>
 
@@ -356,6 +374,14 @@
     
     
       <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
         
           <div class="navbar-item">
 
@@ -398,15 +424,43 @@
   <div class="bd-toc-item navbar-nav"><ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="concepts.html">Concepts Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="eeglab_migration.html">EEGLAB Migration Notes</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="gui_console_session.html">GUI and Console Together</a></li>
+<li class="toctree-l1"><a class="reference internal" href="gui_tutorials.html">GUI Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="interactive_console.html">Interactive Console</a></li>
+<li class="toctree-l1"><a class="reference internal" href="agent_cli.html">Agent-Friendly EEGPrep CLI</a></li>
+<li class="toctree-l1"><a class="reference internal" href="scripting_workflows.html">Scripting Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mne_integration.html">MNE-Python Integration</a></li>
 </ul>
 <ul class="current nav bd-sidenav">
 <li class="toctree-l1 current active"><a class="current reference internal" href="#">Preprocessing Pipeline</a></li>
-<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
-</ul>
-<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="ica_rejection.html">ICA, ICLabel, Rejection, and Visual Diagnostics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="eegbrowser.html">EEGBrowser Workflows</a></li>
 <li class="toctree-l1"><a class="reference internal" href="bids_workflow.html">BIDS Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="storage.html">Large-Dataset Storage</a></li>
 </ul>
 <ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="study_workflows.html">STUDY Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="plugins.html">Bundled Plugins and Extensions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="extensions.html">External Extensions</a></li>
+
+
+
+
+
+
+
+
+
+<li class="toctree-l1"><a class="reference internal" href="extension_curation.html">Extension Curation and Catalog Policy</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="gui_help_menus.html">GUI and Help Menus</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="visual_parity.html">Visual Parity Testing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="advanced_topics.html">Advanced Topics</a></li>
 </ul>
 </div>
@@ -463,491 +517,241 @@
                   
   <section id="preprocessing-pipeline">
 <span id="id1"></span><h1>Preprocessing Pipeline<a class="headerlink" href="#preprocessing-pipeline" title="Link to this heading">#</a></h1>
-<p>This guide provides a comprehensive overview of the eegprep preprocessing pipeline, including the order of operations, parameter tuning, and quality control.</p>
-<section id="pipeline-overview">
-<h2>Pipeline Overview<a class="headerlink" href="#pipeline-overview" title="Link to this heading">#</a></h2>
-<p>The eegprep preprocessing pipeline is designed to systematically clean and prepare raw EEG data for analysis. The pipeline removes artifacts, interpolates bad channels, resamples data, applies filtering, performs ICA decomposition, and classifies independent components.</p>
-<p>Key Features:</p>
-<ul class="simple">
-<li><p><strong>Automated artifact detection and removal</strong>: Identifies and removes noisy channels and time windows</p></li>
-<li><p><strong>Flexible component classification</strong>: Uses ICLabel for automatic ICA component classification</p></li>
-<li><p><strong>Customizable parameters</strong>: Adjust thresholds and methods for your specific needs</p></li>
-<li><p><strong>Quality control</strong>: Built-in checks and visualizations to assess preprocessing quality</p></li>
-<li><p><strong>Batch processing</strong>: Process multiple subjects efficiently with <a class="reference internal" href="../api/generated/eegprep.bids_preproc.html#eegprep.bids_preproc" title="eegprep.bids_preproc"><code class="xref py py-func docutils literal notranslate"><span class="pre">eegprep.bids_preproc()</span></code></a></p></li>
-</ul>
+<p>This page describes a practical preprocessing order in EEGPrep.
+It is not a mandatory recipe for every experiment. Adapt thresholds and review
+steps to your data, task, and lab standards.</p>
+<section id="recommended-order">
+<h2>Recommended Order<a class="headerlink" href="#recommended-order" title="Link to this heading">#</a></h2>
+<div class="eegprep-path">
+  <p>Load data and verify channel locations, sampling rate, events, and data
+  shape.</p>
+  <p>Select or remove channels that should not enter EEG cleaning.</p>
+  <p>Filter or clean continuous data before epoching.</p>
+  <p>Resample when lower sampling rate is appropriate for the analysis.</p>
+  <p>Run ICA on cleaned continuous or appropriate epoched data.</p>
+  <p>Classify and inspect components with ICLabel and property dashboards.</p>
+  <p>Epoch, reject, baseline correct, and save reviewed datasets.</p>
+</div></section>
+<section id="start-from-sample-data">
+<h2>Start From Sample Data<a class="headerlink" href="#start-from-sample-data" title="Link to this heading">#</a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_loadset</span>
+
+<span class="n">EEG</span> <span class="o">=</span> <span class="n">pop_loadset</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="s2">&quot;sample_data&quot;</span><span class="p">)</span> <span class="o">/</span> <span class="s2">&quot;eeglab_data.set&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">EEG</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">EEG</span><span class="p">[</span><span class="s2">&quot;srate&quot;</span><span class="p">],</span> <span class="nb">len</span><span class="p">(</span><span class="n">EEG</span><span class="p">[</span><span class="s2">&quot;event&quot;</span><span class="p">]))</span>
+</pre></div>
+</div>
 </section>
-<section id="pipeline-steps">
-<h2>Pipeline Steps<a class="headerlink" href="#pipeline-steps" title="Link to this heading">#</a></h2>
-<p>The preprocessing pipeline follows these steps in order:</p>
-<ol class="arabic simple">
-<li><p>Channel Selection</p></li>
-<li><p>Artifact Removal (ASR and clean_artifacts)</p></li>
-<li><p>Channel Interpolation</p></li>
-<li><p>Resampling</p></li>
-<li><p>Filtering</p></li>
-<li><p>ICA Decomposition</p></li>
-<li><p>Component Classification (ICLabel)</p></li>
-</ol>
-<section id="step-1-channel-selection">
-<h3>Step 1: Channel Selection<a class="headerlink" href="#step-1-channel-selection" title="Link to this heading">#</a></h3>
-<p>Select the channels to include in preprocessing:</p>
+<section id="select-data-and-channels">
+<h2>Select Data and Channels<a class="headerlink" href="#select-data-and-channels" title="Link to this heading">#</a></h2>
+<p>Use <code class="docutils literal notranslate"><span class="pre">pop_select</span></code> for user-facing channel, point, time, trial, and event
+selection:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_select</span>
 
-<span class="c1"># Select only EEG channels</span>
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">pop_select</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="s1">&#39;type&#39;</span><span class="p">,</span> <span class="s1">&#39;EEG&#39;</span><span class="p">)</span>
-
-<span class="c1"># Select specific channels by name</span>
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">pop_select</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="s1">&#39;channel&#39;</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;Cz&#39;</span><span class="p">,</span> <span class="s1">&#39;Pz&#39;</span><span class="p">,</span> <span class="s1">&#39;Oz&#39;</span><span class="p">,</span> <span class="s1">&#39;Fz&#39;</span><span class="p">])</span>
-
-<span class="c1"># Remove specific channels</span>
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">pop_select</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="s1">&#39;nochannel&#39;</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;HEOG&#39;</span><span class="p">,</span> <span class="s1">&#39;VEOG&#39;</span><span class="p">])</span>
+<span class="n">EEG</span><span class="p">,</span> <span class="n">com</span> <span class="o">=</span> <span class="n">pop_select</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">],</span> <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
 </div>
-<p><strong>When to use</strong>: Always perform channel selection first to ensure you’re working with the correct data.</p>
+<p>GUI path: <code class="docutils literal notranslate"><span class="pre">Edit</span> <span class="pre">&gt;</span> <span class="pre">Select</span> <span class="pre">data</span></code>. Channel/component values in GUI dialogs are
+EEGLAB-facing one-based values.</p>
 </section>
-<section id="step-2-artifact-removal">
-<h3>Step 2: Artifact Removal<a class="headerlink" href="#step-2-artifact-removal" title="Link to this heading">#</a></h3>
-<p>Remove noisy channels and time windows using multiple methods:</p>
-<section id="flatline-detection">
-<h4>Flatline Detection<a class="headerlink" href="#flatline-detection" title="Link to this heading">#</a></h4>
-<p>Remove channels with no variation (dead channels):</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">clean_flatlines</span>
-
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">clean_flatlines</span><span class="p">(</span>
-    <span class="n">eeg</span><span class="p">,</span>
-    <span class="n">flatline_criterion</span><span class="o">=</span><span class="mi">5</span>  <span class="c1"># Flatline duration in seconds</span>
-<span class="p">)</span>
-</pre></div>
-</div>
-</section>
-<section id="noisy-channel-removal">
-<h4>Noisy Channel Removal<a class="headerlink" href="#noisy-channel-removal" title="Link to this heading">#</a></h4>
-<p>Remove channels with excessive noise:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">clean_channels</span>
-
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">clean_channels</span><span class="p">(</span>
-    <span class="n">eeg</span><span class="p">,</span>
-    <span class="n">ransac_criterion</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span>  <span class="c1"># RANSAC correlation threshold</span>
-    <span class="n">max_broken_time</span><span class="o">=</span><span class="mf">0.5</span>    <span class="c1"># Max proportion of broken time</span>
-<span class="p">)</span>
-</pre></div>
-</div>
-</section>
-<section id="artifact-subspace-reconstruction-asr">
-<h4>Artifact Subspace Reconstruction (ASR)<a class="headerlink" href="#artifact-subspace-reconstruction-asr" title="Link to this heading">#</a></h4>
-<p>Remove bursts of high-amplitude artifacts:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">clean_asr</span>
-
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">clean_asr</span><span class="p">(</span>
-    <span class="n">eeg</span><span class="p">,</span>
-    <span class="n">asr_criterion</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>      <span class="c1"># Standard deviation threshold</span>
-    <span class="n">asr_wlen</span><span class="o">=</span><span class="mf">0.5</span>           <span class="c1"># Window length in seconds</span>
-<span class="p">)</span>
-</pre></div>
-</div>
-</section>
-<section id="comprehensive-artifact-removal">
-<h4>Comprehensive Artifact Removal<a class="headerlink" href="#comprehensive-artifact-removal" title="Link to this heading">#</a></h4>
-<p>Use the all-in-one <a class="reference internal" href="../api/preprocessing.html#eegprep.clean_artifacts" title="eegprep.clean_artifacts"><code class="xref py py-func docutils literal notranslate"><span class="pre">eegprep.clean_artifacts()</span></code></a> function:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">clean_artifacts</span>
-
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">clean_artifacts</span><span class="p">(</span>
-    <span class="n">eeg</span><span class="p">,</span>
-    <span class="n">flatline_criterion</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
-    <span class="n">highpass</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
-    <span class="n">lowpass</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span>
-    <span class="n">asr_criterion</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>
-    <span class="n">asr_wlen</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
-    <span class="n">remove_channels</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-    <span class="n">remove_windows</span><span class="o">=</span><span class="kc">True</span>
-<span class="p">)</span>
-</pre></div>
-</div>
-<p><strong>Parameters</strong>:</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">flatline_criterion</span></code>: Duration (seconds) of flatline to detect (default: 5)</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">asr_criterion</span></code>: Standard deviation threshold for ASR (default: 20)</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">asr_wlen</span></code>: Window length for ASR in seconds (default: 0.5)</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">highpass</span></code>: High-pass filter frequency in Hz (default: 1)</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">lowpass</span></code>: Low-pass filter frequency in Hz (default: 100)</p></li>
-</ul>
-</section>
-</section>
-<section id="step-3-channel-interpolation">
-<h3>Step 3: Channel Interpolation<a class="headerlink" href="#step-3-channel-interpolation" title="Link to this heading">#</a></h3>
-<p>Interpolate removed channels using spherical spline interpolation:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">eeg_interp</span>
-
-<span class="c1"># Interpolate removed channels</span>
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">eeg_interp</span><span class="p">(</span><span class="n">eeg</span><span class="p">)</span>
-
-<span class="c1"># Interpolate specific channels</span>
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">eeg_interp</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="n">channels</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">10</span><span class="p">])</span>
-</pre></div>
-</div>
-<p><strong>When to use</strong>: After removing noisy channels, interpolate them to maintain spatial coverage.</p>
-</section>
-<section id="step-4-resampling">
-<h3>Step 4: Resampling<a class="headerlink" href="#step-4-resampling" title="Link to this heading">#</a></h3>
-<p>Resample data to a lower sampling rate to reduce file size and computation:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_resample</span>
-
-<span class="c1"># Resample to 250 Hz</span>
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">pop_resample</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="mi">250</span><span class="p">)</span>
-
-<span class="c1"># Resample to 500 Hz</span>
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">pop_resample</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="mi">500</span><span class="p">)</span>
-</pre></div>
-</div>
-<p><strong>Common sampling rates</strong>:</p>
-<ul class="simple">
-<li><p>250 Hz: Standard for most EEG analysis</p></li>
-<li><p>500 Hz: Higher resolution for detailed analysis</p></li>
-<li><p>100 Hz: Lower resolution for quick analysis</p></li>
-</ul>
-<p><strong>When to use</strong>: Resample early in the pipeline to reduce computation time for subsequent steps.</p>
-</section>
-<section id="step-5-filtering">
-<h3>Step 5: Filtering<a class="headerlink" href="#step-5-filtering" title="Link to this heading">#</a></h3>
-<p>Apply frequency filtering to remove noise outside the frequency band of interest:</p>
-<section id="high-pass-filtering">
-<h4>High-Pass Filtering<a class="headerlink" href="#high-pass-filtering" title="Link to this heading">#</a></h4>
-<p>Remove slow drifts and DC offset:</p>
+<section id="filter">
+<h2>Filter<a class="headerlink" href="#filter" title="Link to this heading">#</a></h2>
+<p>The usual FIR filtering entry point is <code class="docutils literal notranslate"><span class="pre">pop_eegfiltnew</span></code>:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_eegfiltnew</span>
 
-<span class="c1"># High-pass filter at 1 Hz</span>
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">pop_eegfiltnew</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="n">locutoff</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="n">EEG</span><span class="p">,</span> <span class="n">com</span> <span class="o">=</span> <span class="n">pop_eegfiltnew</span><span class="p">(</span>
+    <span class="n">EEG</span><span class="p">,</span>
+    <span class="n">locutoff</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
+    <span class="n">hicutoff</span><span class="o">=</span><span class="mf">40.0</span><span class="p">,</span>
+    <span class="n">plotfreqz</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span>
 </pre></div>
 </div>
-</section>
-<section id="low-pass-filtering">
-<h4>Low-Pass Filtering<a class="headerlink" href="#low-pass-filtering" title="Link to this heading">#</a></h4>
-<p>Remove high-frequency noise:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Low-pass filter at 100 Hz</span>
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">pop_eegfiltnew</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="n">hicutoff</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
-</pre></div>
-</div>
-</section>
-<section id="band-pass-filtering">
-<h4>Band-Pass Filtering<a class="headerlink" href="#band-pass-filtering" title="Link to this heading">#</a></h4>
-<p>Apply both high-pass and low-pass filters:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Band-pass filter 1-100 Hz</span>
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">pop_eegfiltnew</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="n">locutoff</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">hicutoff</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
-</pre></div>
-</div>
-<p><strong>Common filter settings</strong>:</p>
-<ul class="simple">
-<li><p><strong>Resting state</strong>: 1-100 Hz</p></li>
-<li><p><strong>Event-related potentials (ERP)</strong>: 0.1-30 Hz</p></li>
-<li><p><strong>Oscillatory analysis</strong>: 1-100 Hz</p></li>
-<li><p><strong>High-frequency activity</strong>: 1-200 Hz</p></li>
-</ul>
-<p><strong>When to use</strong>: Apply filtering after resampling but before ICA for best results.</p>
-</section>
-</section>
-<section id="step-6-ica-decomposition">
-<h3>Step 6: ICA Decomposition<a class="headerlink" href="#step-6-ica-decomposition" title="Link to this heading">#</a></h3>
-<p>Decompose the data into independent components:</p>
-<section id="using-picard-algorithm">
-<h4>Using Picard Algorithm<a class="headerlink" href="#using-picard-algorithm" title="Link to this heading">#</a></h4>
-<p>Fast and reliable ICA decomposition:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">eeg_picard</span>
+<p>GUI path: <code class="docutils literal notranslate"><span class="pre">Tools</span> <span class="pre">&gt;</span> <span class="pre">Filter</span> <span class="pre">the</span> <span class="pre">data</span></code>. The wrapper uses bundled FIRFilt-style
+Hamming-window defaults, respects continuous-data boundary events, clears stale
+ICA activations, and returns a replayable history command.</p>
+<p>Use FIRFilt helpers for custom filter design:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_firws</span><span class="p">,</span> <span class="n">pop_firwsord</span><span class="p">,</span> <span class="n">pop_kaiserbeta</span>
 
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">eeg_picard</span><span class="p">(</span>
-    <span class="n">eeg</span><span class="p">,</span>
-    <span class="n">ncomps</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>  <span class="c1"># Number of components (None = number of channels)</span>
-    <span class="n">max_iter</span><span class="o">=</span><span class="mi">500</span>  <span class="c1"># Maximum iterations</span>
+<span class="n">beta</span> <span class="o">=</span> <span class="n">pop_kaiserbeta</span><span class="p">(</span><span class="mf">0.001</span><span class="p">)</span>
+<span class="n">order</span> <span class="o">=</span> <span class="n">pop_firwsord</span><span class="p">(</span><span class="s2">&quot;kaiser&quot;</span><span class="p">,</span> <span class="n">EEG</span><span class="p">[</span><span class="s2">&quot;srate&quot;</span><span class="p">],</span> <span class="mi">2</span><span class="p">,</span> <span class="mf">0.001</span><span class="p">)</span>
+<span class="n">EEG</span><span class="p">,</span> <span class="n">com</span> <span class="o">=</span> <span class="n">pop_firws</span><span class="p">(</span>
+    <span class="n">EEG</span><span class="p">,</span>
+    <span class="n">fcutoff</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">40</span><span class="p">],</span>
+    <span class="n">ftype</span><span class="o">=</span><span class="s2">&quot;bandpass&quot;</span><span class="p">,</span>
+    <span class="n">wtype</span><span class="o">=</span><span class="s2">&quot;kaiser&quot;</span><span class="p">,</span>
+    <span class="n">warg</span><span class="o">=</span><span class="n">beta</span><span class="p">,</span>
+    <span class="n">forder</span><span class="o">=</span><span class="n">order</span><span class="p">,</span>
+    <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
 <span class="p">)</span>
 </pre></div>
 </div>
 </section>
-<section id="using-extended-infomax-ica">
-<h4>Using Extended Infomax ICA<a class="headerlink" href="#using-extended-infomax-ica" title="Link to this heading">#</a></h4>
-<p>Alternative ICA algorithm:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">eeg_picard</span>
+<section id="clean-continuous-data">
+<h2>Clean Continuous Data<a class="headerlink" href="#clean-continuous-data" title="Link to this heading">#</a></h2>
+<p>Use <code class="docutils literal notranslate"><span class="pre">pop_clean_rawdata</span></code> when you want the interactive wrapper and history
+string:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_clean_rawdata</span>
 
-<span class="c1"># Picard is recommended, but you can adjust parameters</span>
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">eeg_picard</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="n">ncomps</span><span class="o">=</span><span class="n">eeg</span><span class="o">.</span><span class="n">nbchan</span><span class="p">)</span>
+<span class="n">EEG</span><span class="p">,</span> <span class="n">com</span> <span class="o">=</span> <span class="n">pop_clean_rawdata</span><span class="p">(</span>
+    <span class="n">EEG</span><span class="p">,</span>
+    <span class="n">FlatlineCriterion</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+    <span class="n">ChannelCriterion</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span>
+    <span class="n">LineNoiseCriterion</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
+    <span class="n">Highpass</span><span class="o">=</span><span class="p">(</span><span class="mf">0.25</span><span class="p">,</span> <span class="mf">0.75</span><span class="p">),</span>
+    <span class="n">BurstCriterion</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>
+    <span class="n">WindowCriterion</span><span class="o">=</span><span class="mf">0.25</span><span class="p">,</span>
+    <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span>
 </pre></div>
 </div>
-<p><strong>Parameters</strong>:</p>
+<p>Use <code class="docutils literal notranslate"><span class="pre">clean_artifacts</span></code> when you need lower-level state outputs:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">clean_artifacts</span>
+
+<span class="n">clean_eeg</span><span class="p">,</span> <span class="n">highpass_state</span><span class="p">,</span> <span class="n">burst_state</span><span class="p">,</span> <span class="n">removed_channels</span> <span class="o">=</span> <span class="n">clean_artifacts</span><span class="p">(</span>
+    <span class="n">EEG</span><span class="p">,</span>
+    <span class="n">FlatlineCriterion</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+    <span class="n">ChannelCriterion</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span>
+    <span class="n">LineNoiseCriterion</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
+    <span class="n">Highpass</span><span class="o">=</span><span class="p">(</span><span class="mf">0.25</span><span class="p">,</span> <span class="mf">0.75</span><span class="p">),</span>
+    <span class="n">BurstCriterion</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>
+    <span class="n">WindowCriterion</span><span class="o">=</span><span class="mf">0.25</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">clean_artifacts</span></code> returns four values. Scripts that only need the cleaned EEG
+should use the first value or call <code class="docutils literal notranslate"><span class="pre">pop_clean_rawdata</span></code>.</p>
+</section>
+<section id="riemannian-asr-notes">
+<h2>Riemannian ASR Notes<a class="headerlink" href="#riemannian-asr-notes" title="Link to this heading">#</a></h2>
+<p>EEGPrep supports the Riemannian ASR calibration variant through
+<code class="docutils literal notranslate"><span class="pre">clean_asr(EEG,</span> <span class="pre">useriemannian=&quot;calib&quot;)</span></code> and
+<code class="docutils literal notranslate"><span class="pre">clean_artifacts(EEG,</span> <span class="pre">Distance=&quot;Riemannian&quot;)</span></code>. Full Riemannian ASR
+processing is not ported, so direct full-process requests fail clearly instead
+of silently substituting MATLAB-only behavior.</p>
+</section>
+<section id="review-rejected-segments">
+<h2>Review Rejected Segments<a class="headerlink" href="#review-rejected-segments" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">vis_artifacts(clean_eeg,</span> <span class="pre">original_eeg)</span></code> opens an EEG browser with rejected
+sample intervals highlighted from <code class="docutils literal notranslate"><span class="pre">clean_sample_mask</span></code>. Use
+<code class="docutils literal notranslate"><span class="pre">show=False</span></code> when scripting diagnostics:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">vis_artifacts</span>
+
+<span class="n">diagnostics</span> <span class="o">=</span> <span class="n">vis_artifacts</span><span class="p">(</span><span class="n">clean_eeg</span><span class="p">,</span> <span class="n">EEG</span><span class="p">,</span> <span class="n">show</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">diagnostics</span><span class="p">[</span><span class="s2">&quot;rejected_fraction&quot;</span><span class="p">])</span>
+</pre></div>
+</div>
+</section>
+<section id="resample">
+<h2>Resample<a class="headerlink" href="#resample" title="Link to this heading">#</a></h2>
+<p>Resample after early cleaning/filtering when a lower sampling rate is
+appropriate:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_resample</span>
+
+<span class="n">EEG</span><span class="p">,</span> <span class="n">com</span> <span class="o">=</span> <span class="n">pop_resample</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>GUI path: <code class="docutils literal notranslate"><span class="pre">Tools</span> <span class="pre">&gt;</span> <span class="pre">Change</span> <span class="pre">sampling</span> <span class="pre">rate</span></code>. Continuous data with boundary
+events is resampled by segment. Event latencies and the time vector are updated.</p>
+</section>
+<section id="re-reference-and-interpolate">
+<h2>Re-Reference and Interpolate<a class="headerlink" href="#re-reference-and-interpolate" title="Link to this heading">#</a></h2>
+<p>Average reference:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_reref</span>
+
+<span class="n">EEG</span><span class="p">,</span> <span class="n">com</span> <span class="o">=</span> <span class="n">pop_reref</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="p">[],</span> <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Interpolate known bad channels after channel removal or rejection:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_interp</span>
+
+<span class="n">EEG</span><span class="p">,</span> <span class="n">com</span> <span class="o">=</span> <span class="n">pop_interp</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">9</span><span class="p">],</span> <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Use <code class="docutils literal notranslate"><span class="pre">Tools</span> <span class="pre">&gt;</span> <span class="pre">Re-reference</span> <span class="pre">the</span> <span class="pre">data</span></code> and <code class="docutils literal notranslate"><span class="pre">Tools</span> <span class="pre">&gt;</span> <span class="pre">Interpolate</span> <span class="pre">electrodes</span></code>
+from the GUI.</p>
+<p>The programmatic <code class="docutils literal notranslate"><span class="pre">bad_elec</span></code> list for <code class="docutils literal notranslate"><span class="pre">pop_interp</span></code> uses Python zero-based
+indices when integers are supplied. GUI channel selection remains one-based and
+label-driven.</p>
+</section>
+<section id="run-ica-and-iclabel">
+<h2>Run ICA and ICLabel<a class="headerlink" href="#run-ica-and-iclabel" title="Link to this heading">#</a></h2>
+<p>Run ICA:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_runica</span>
+
+<span class="n">EEG</span><span class="p">,</span> <span class="n">com</span> <span class="o">=</span> <span class="n">pop_runica</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="n">icatype</span><span class="o">=</span><span class="s2">&quot;picard&quot;</span><span class="p">,</span> <span class="n">gui</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Label and review components:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">eeg_icalabelstat</span><span class="p">,</span> <span class="n">pop_iclabel</span><span class="p">,</span> <span class="n">pop_viewprops</span>
+
+<span class="n">EEG</span><span class="p">,</span> <span class="n">com</span> <span class="o">=</span> <span class="n">pop_iclabel</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="s2">&quot;default&quot;</span><span class="p">,</span> <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">stats</span> <span class="o">=</span> <span class="n">eeg_icalabelstat</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mf">0.9</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">figures</span> <span class="o">=</span> <span class="n">pop_viewprops</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="n">typecomp</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">chanorcomp</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span>
+</pre></div>
+</div>
+<p>See <a class="reference internal" href="ica_rejection.html#ica-rejection"><span class="std std-ref">ICA, ICLabel, Rejection, and Visual Diagnostics</span></a> before removing components.</p>
+</section>
+<section id="time-frequency-and-erp-images">
+<h2>Time-Frequency and ERP Images<a class="headerlink" href="#time-frequency-and-erp-images" title="Link to this heading">#</a></h2>
+<p>After epoching or component review, use EEGPrep’s standalone time-frequency
+wrappers for the common EEGLAB plotting workflows:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_newcrossf</span><span class="p">,</span> <span class="n">pop_newtimef</span><span class="p">,</span> <span class="n">pop_spectopo</span>
+
+<span class="n">ersp</span><span class="p">,</span> <span class="n">com_timef</span> <span class="o">=</span> <span class="n">pop_newtimef</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="n">typeproc</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">num</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">cross</span><span class="p">,</span> <span class="n">com_crossf</span> <span class="o">=</span> <span class="n">pop_newcrossf</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="n">typeproc</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">num1</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">num2</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">spectra</span><span class="p">,</span> <span class="n">com_spectopo</span> <span class="o">=</span> <span class="n">pop_spectopo</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">timerange</span><span class="o">=</span><span class="p">[],</span> <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Legacy <code class="docutils literal notranslate"><span class="pre">pop_timef</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_crossf</span></code> calls route through the standalone
+<code class="docutils literal notranslate"><span class="pre">pop_newtimef</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_newcrossf</span></code> implementations. ERP-image workflows use
+<code class="docutils literal notranslate"><span class="pre">pop_erpimage</span></code> for channel or component images:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_erpimage</span>
+
+<span class="n">image</span><span class="p">,</span> <span class="n">com</span> <span class="o">=</span> <span class="n">pop_erpimage</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="n">typeplot</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>GUI paths live under the <code class="docutils literal notranslate"><span class="pre">Plot</span></code> menu when a dataset is loaded. EEGPrep
+returns replayable Python history commands for these wrappers. Some MATLAB-only
+<code class="docutils literal notranslate"><span class="pre">pop_erpimage</span></code> event-alignment and advanced renormalization options are not
+standalone EEGPrep features; those requests raise explicit errors instead of
+silently substituting a different analysis.</p>
+</section>
+<section id="epoch-and-baseline">
+<h2>Epoch and Baseline<a class="headerlink" href="#epoch-and-baseline" title="Link to this heading">#</a></h2>
+<p>Use <code class="docutils literal notranslate"><span class="pre">pop_epoch</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_rmbase</span></code> for ERP-style workflows:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_epoch</span><span class="p">,</span> <span class="n">pop_rmbase</span>
+
+<span class="n">EEG</span><span class="p">,</span> <span class="n">com_epoch</span> <span class="o">=</span> <span class="n">pop_epoch</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;square&quot;</span><span class="p">],</span> <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span> <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">EEG</span><span class="p">,</span> <span class="n">com_base</span> <span class="o">=</span> <span class="n">pop_rmbase</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="p">[</span><span class="o">-</span><span class="mi">200</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>GUI paths: <code class="docutils literal notranslate"><span class="pre">Tools</span> <span class="pre">&gt;</span> <span class="pre">Extract</span> <span class="pre">epochs</span></code> and <code class="docutils literal notranslate"><span class="pre">Tools</span> <span class="pre">&gt;</span> <span class="pre">Remove</span> <span class="pre">epoch</span> <span class="pre">baseline</span></code>.</p>
+</section>
+<section id="save">
+<h2>Save<a class="headerlink" href="#save" title="Link to this heading">#</a></h2>
+<p>Save reviewed datasets with <code class="docutils literal notranslate"><span class="pre">pop_saveset</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_saveset</span>
+
+<span class="n">pop_saveset</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;sample_data&quot;</span><span class="p">)</span> <span class="o">/</span> <span class="s2">&quot;eeglab_data_preprocessed.set&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>For large datasets, review <a class="reference internal" href="storage.html#large-dataset-storage"><span class="std std-ref">Large-Dataset Storage</span></a> before deciding whether to keep data
+in memory, memory-map sidecar files, or retrieve offloaded datasets.</p>
+</section>
+<section id="quality-control-checklist">
+<h2>Quality Control Checklist<a class="headerlink" href="#quality-control-checklist" title="Link to this heading">#</a></h2>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">ncomps</span></code>: Number of components to extract (default: number of channels)</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">max_iter</span></code>: Maximum iterations (default: 500)</p></li>
+<li><p>Confirm <code class="docutils literal notranslate"><span class="pre">EEG[&quot;data&quot;].shape</span></code> after each major transform.</p></li>
+<li><p>Inspect events after filtering/resampling and before epoching.</p></li>
+<li><p>Review rejected channels/windows visually before final removal.</p></li>
+<li><p>Inspect ICLabel probabilities, scalp maps, spectra, and activity before
+removing components.</p></li>
+<li><p>Keep <code class="docutils literal notranslate"><span class="pre">LASTCOM</span></code> and <code class="docutils literal notranslate"><span class="pre">ALLCOM</span></code> from GUI/console runs so the workflow can be
+replayed in scripts.</p></li>
 </ul>
-<p><strong>When to use</strong>: After filtering, before component classification.</p>
-</section>
-</section>
-<section id="step-7-component-classification-iclabel">
-<h3>Step 7: Component Classification (ICLabel)<a class="headerlink" href="#step-7-component-classification-iclabel" title="Link to this heading">#</a></h3>
-<p>Automatically classify ICA components using ICLabel:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">iclabel</span>
-
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">iclabel</span><span class="p">(</span><span class="n">eeg</span><span class="p">)</span>
-
-<span class="c1"># Access component labels</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">eeg</span><span class="o">.</span><span class="n">etc</span><span class="o">.</span><span class="n">ic_classification</span><span class="o">.</span><span class="n">ICLabel</span><span class="o">.</span><span class="n">classes</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">eeg</span><span class="o">.</span><span class="n">etc</span><span class="o">.</span><span class="n">ic_classification</span><span class="o">.</span><span class="n">ICLabel</span><span class="o">.</span><span class="n">classifications</span><span class="p">)</span>
-</pre></div>
-</div>
-<p><strong>Component types</strong>:</p>
-<ul class="simple">
-<li><p>Brain: Neural activity</p></li>
-<li><p>Muscle: Muscle artifacts</p></li>
-<li><p>Eye: Eye movement artifacts</p></li>
-<li><p>Heart: Cardiac artifacts</p></li>
-<li><p>Line Noise: 50/60 Hz noise</p></li>
-<li><p>Channel Noise: Noisy channels</p></li>
-<li><p>Other: Unclassified</p></li>
-</ul>
-<p><strong>Removing artifact components</strong>:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Remove muscle and eye components</span>
-<span class="n">artifact_components</span> <span class="o">=</span> <span class="p">[]</span>
-<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">label</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">eeg</span><span class="o">.</span><span class="n">etc</span><span class="o">.</span><span class="n">ic_classification</span><span class="o">.</span><span class="n">ICLabel</span><span class="o">.</span><span class="n">classes</span><span class="p">):</span>
-    <span class="k">if</span> <span class="n">label</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;Muscle&#39;</span><span class="p">,</span> <span class="s1">&#39;Eye&#39;</span><span class="p">]:</span>
-        <span class="n">artifact_components</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
-
-<span class="c1"># Remove components</span>
-<span class="n">eeg</span><span class="o">.</span><span class="n">icaact</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># Clear cached ICA activity</span>
-<span class="n">eeg</span> <span class="o">=</span> <span class="n">pop_select</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="s1">&#39;nochannel&#39;</span><span class="p">,</span> <span class="n">artifact_components</span><span class="p">)</span>
-</pre></div>
-</div>
-</section>
-</section>
-<section id="pipeline-visualization">
-<h2>Pipeline Visualization<a class="headerlink" href="#pipeline-visualization" title="Link to this heading">#</a></h2>
-<p>Here’s a text-based flowchart of the preprocessing pipeline:</p>
-<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Raw EEG Data
-     |
-     v
-Channel Selection
-     |
-     v
-Flatline Detection
-     |
-     v
-Noisy Channel Removal
-     |
-     v
-Channel Interpolation
-     |
-     v
-Resampling
-     |
-     v
-High-Pass Filtering
-     |
-     v
-Low-Pass Filtering
-     |
-     v
-ICA Decomposition
-     |
-     v
-Component Classification (ICLabel)
-     |
-     v
-Artifact Component Removal
-     |
-     v
-Preprocessed EEG Data
-</pre></div>
-</div>
-</section>
-<section id="parameter-tuning">
-<h2>Parameter Tuning<a class="headerlink" href="#parameter-tuning" title="Link to this heading">#</a></h2>
-<section id="key-parameters-and-their-effects">
-<h3>Key Parameters and Their Effects<a class="headerlink" href="#key-parameters-and-their-effects" title="Link to this heading">#</a></h3>
-<p><strong>Flatline Criterion</strong></p>
-<ul class="simple">
-<li><p><strong>Default</strong>: 5 seconds</p></li>
-<li><p><strong>Lower values</strong>: More aggressive channel removal</p></li>
-<li><p><strong>Higher values</strong>: More lenient, may keep noisy channels</p></li>
-<li><p><strong>Recommendation</strong>: 5 seconds for most applications</p></li>
-</ul>
-<p><strong>ASR Criterion</strong></p>
-<ul class="simple">
-<li><p><strong>Default</strong>: 20 (standard deviations)</p></li>
-<li><p><strong>Lower values</strong>: More aggressive artifact removal</p></li>
-<li><p><strong>Higher values</strong>: More lenient, may keep artifacts</p></li>
-<li><p><strong>Recommendation</strong>: 20 for standard EEG, 15-25 for sensitive applications</p></li>
-</ul>
-<p><strong>High-Pass Filter</strong></p>
-<ul class="simple">
-<li><p><strong>Default</strong>: 1 Hz</p></li>
-<li><p><strong>Lower values</strong>: Preserve slow oscillations</p></li>
-<li><p><strong>Higher values</strong>: Remove more low-frequency noise</p></li>
-<li><p><strong>Recommendation</strong>: 0.5-1 Hz for most applications</p></li>
-</ul>
-<p><strong>Low-Pass Filter</strong></p>
-<ul class="simple">
-<li><p><strong>Default</strong>: 100 Hz</p></li>
-<li><p><strong>Lower values</strong>: Remove more high-frequency noise</p></li>
-<li><p><strong>Higher values</strong>: Preserve high-frequency activity</p></li>
-<li><p><strong>Recommendation</strong>: 100 Hz for standard EEG, 200 Hz for high-frequency analysis</p></li>
-</ul>
-<p><strong>Resampling Rate</strong></p>
-<ul class="simple">
-<li><p><strong>Default</strong>: 250 Hz</p></li>
-<li><p><strong>Lower values</strong>: Smaller file size, faster processing</p></li>
-<li><p><strong>Higher values</strong>: Better temporal resolution</p></li>
-<li><p><strong>Recommendation</strong>: 250 Hz for most applications</p></li>
-</ul>
-</section>
-<section id="tuning-strategy">
-<h3>Tuning Strategy<a class="headerlink" href="#tuning-strategy" title="Link to this heading">#</a></h3>
-<ol class="arabic simple">
-<li><p><strong>Start with defaults</strong>: Use the default parameters as a baseline</p></li>
-<li><p><strong>Visualize results</strong>: Plot the data before and after preprocessing</p></li>
-<li><p><strong>Adjust parameters</strong>: Modify parameters based on visual inspection</p></li>
-<li><p><strong>Validate</strong>: Check that preprocessing doesn’t remove important signals</p></li>
-<li><p><strong>Document</strong>: Record the parameters used for reproducibility</p></li>
-</ol>
-</section>
-</section>
-<section id="quality-control">
-<h2>Quality Control<a class="headerlink" href="#quality-control" title="Link to this heading">#</a></h2>
-<section id="assessing-preprocessing-quality">
-<h3>Assessing Preprocessing Quality<a class="headerlink" href="#assessing-preprocessing-quality" title="Link to this heading">#</a></h3>
-<section id="visual-inspection">
-<h4>Visual Inspection<a class="headerlink" href="#visual-inspection" title="Link to this heading">#</a></h4>
-<p>Plot the data before and after preprocessing:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
-
-<span class="c1"># Plot raw data</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">6</span><span class="p">))</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">eeg</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:</span><span class="mi">1000</span><span class="p">])</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;Raw EEG Data&#39;</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
-
-<span class="c1"># Plot preprocessed data</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">6</span><span class="p">))</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">eeg</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:</span><span class="mi">1000</span><span class="p">])</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;Preprocessed EEG Data&#39;</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
-</pre></div>
-</div>
-</section>
-<section id="spectral-analysis">
-<h4>Spectral Analysis<a class="headerlink" href="#spectral-analysis" title="Link to this heading">#</a></h4>
-<p>Compare power spectral density before and after preprocessing:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">eeg_rpsd</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
-
-<span class="c1"># Compute power spectral density</span>
-<span class="n">psd</span> <span class="o">=</span> <span class="n">eeg_rpsd</span><span class="p">(</span><span class="n">eeg</span><span class="p">)</span>
-
-<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">6</span><span class="p">))</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">semilogy</span><span class="p">(</span><span class="n">psd</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">&#39;Frequency (Hz)&#39;</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;Power (µV²/Hz)&#39;</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;Power Spectral Density&#39;</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
-</pre></div>
-</div>
-</section>
-<section id="component-inspection">
-<h4>Component Inspection<a class="headerlink" href="#component-inspection" title="Link to this heading">#</a></h4>
-<p>Visualize ICA components:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">topoplot</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
-
-<span class="c1"># Plot component topographies</span>
-<span class="n">topoplot</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="n">components</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;ICA Component Topographies&#39;</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
-
-<span class="c1"># Check component classifications</span>
-<span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="s1">&#39;etc&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="s1">&#39;ic_classification&#39;</span> <span class="ow">in</span> <span class="n">eeg</span><span class="o">.</span><span class="n">etc</span><span class="p">:</span>
-    <span class="n">classifications</span> <span class="o">=</span> <span class="n">eeg</span><span class="o">.</span><span class="n">etc</span><span class="o">.</span><span class="n">ic_classification</span><span class="o">.</span><span class="n">ICLabel</span><span class="o">.</span><span class="n">classifications</span>
-    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">probs</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">classifications</span><span class="p">):</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Component </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">probs</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-</pre></div>
-</div>
-</section>
-<section id="data-loss-assessment">
-<h4>Data Loss Assessment<a class="headerlink" href="#data-loss-assessment" title="Link to this heading">#</a></h4>
-<p>Check how much data was removed:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Check removed channels</span>
-<span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="s1">&#39;removed_channels&#39;</span><span class="p">):</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Removed channels: </span><span class="si">{</span><span class="n">eeg</span><span class="o">.</span><span class="n">removed_channels</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-
-<span class="c1"># Check removed windows</span>
-<span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="s1">&#39;removed_windows&#39;</span><span class="p">):</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Removed windows: </span><span class="si">{</span><span class="n">eeg</span><span class="o">.</span><span class="n">removed_windows</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-
-<span class="c1"># Calculate percentage of data retained</span>
-<span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="s1">&#39;removed_windows&#39;</span><span class="p">):</span>
-    <span class="n">pct_retained</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">eeg</span><span class="o">.</span><span class="n">removed_windows</span><span class="p">)</span> <span class="o">/</span> <span class="n">eeg</span><span class="o">.</span><span class="n">pnts</span><span class="p">)</span> <span class="o">*</span> <span class="mi">100</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Data retained: </span><span class="si">{</span><span class="n">pct_retained</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">%&quot;</span><span class="p">)</span>
-</pre></div>
-</div>
-</section>
-<section id="quality-metrics">
-<h4>Quality Metrics<a class="headerlink" href="#quality-metrics" title="Link to this heading">#</a></h4>
-<p>Compute quality metrics:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Signal-to-noise ratio</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">eeg_rpsd</span>
-
-<span class="n">psd</span> <span class="o">=</span> <span class="n">eeg_rpsd</span><span class="p">(</span><span class="n">eeg</span><span class="p">)</span>
-<span class="n">snr</span> <span class="o">=</span> <span class="n">psd</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">50</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span> <span class="o">/</span> <span class="n">psd</span><span class="p">[</span><span class="mi">50</span><span class="p">:</span><span class="mi">100</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;SNR: </span><span class="si">{</span><span class="n">snr</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-
-<span class="c1"># Autocorrelation</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">eeg_autocorr</span>
-
-<span class="n">acf</span> <span class="o">=</span> <span class="n">eeg_autocorr</span><span class="p">(</span><span class="n">eeg</span><span class="p">,</span> <span class="n">maxlag</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Autocorrelation: </span><span class="si">{</span><span class="n">acf</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-</pre></div>
-</div>
-</section>
-</section>
-</section>
-<section id="common-issues-and-solutions">
-<h2>Common Issues and Solutions<a class="headerlink" href="#common-issues-and-solutions" title="Link to this heading">#</a></h2>
-<section id="too-many-channels-removed">
-<h3>Too Many Channels Removed<a class="headerlink" href="#too-many-channels-removed" title="Link to this heading">#</a></h3>
-<p><strong>Problem</strong>: Preprocessing removes too many channels</p>
-<p><strong>Solutions</strong>:</p>
-<ol class="arabic simple">
-<li><p>Increase flatline criterion</p></li>
-<li><p>Increase ASR criterion</p></li>
-<li><p>Check data quality before preprocessing</p></li>
-<li><p>Verify channel locations are correct</p></li>
-</ol>
-</section>
-<section id="too-few-artifacts-removed">
-<h3>Too Few Artifacts Removed<a class="headerlink" href="#too-few-artifacts-removed" title="Link to this heading">#</a></h3>
-<p><strong>Problem</strong>: Preprocessing doesn’t remove enough artifacts</p>
-<p><strong>Solutions</strong>:</p>
-<ol class="arabic simple">
-<li><p>Decrease ASR criterion</p></li>
-<li><p>Decrease flatline criterion</p></li>
-<li><p>Apply additional filtering</p></li>
-<li><p>Manually inspect and remove bad components</p></li>
-</ol>
-</section>
-<section id="ica-fails-to-converge">
-<h3>ICA Fails to Converge<a class="headerlink" href="#ica-fails-to-converge" title="Link to this heading">#</a></h3>
-<p><strong>Problem</strong>: ICA decomposition doesn’t converge</p>
-<p><strong>Solutions</strong>:</p>
-<ol class="arabic simple">
-<li><p>Increase max_iter parameter</p></li>
-<li><p>Ensure data is properly filtered</p></li>
-<li><p>Check for remaining artifacts</p></li>
-<li><p>Try different ICA algorithm</p></li>
-</ol>
-</section>
-</section>
-<section id="next-steps">
-<h2>Next Steps<a class="headerlink" href="#next-steps" title="Link to this heading">#</a></h2>
-<p>Now that you understand the preprocessing pipeline:</p>
-<ol class="arabic simple">
-<li><p>Read the <a class="reference internal" href="configuration.html#configuration"><span class="std std-ref">Configuration</span></a> guide for advanced parameter tuning</p></li>
-<li><p>Explore the <a class="reference internal" href="bids_workflow.html#bids-workflow"><span class="std std-ref">BIDS Workflow</span></a> for batch processing</p></li>
-<li><p>Check the <a class="reference internal" href="advanced_topics.html#advanced-topics"><span class="std std-ref">Advanced Topics</span></a> for custom pipelines</p></li>
-<li><p>Review the <a class="reference internal" href="../api/index.html#api-reference"><span class="std std-ref">API Reference</span></a> for detailed function documentation</p></li>
-</ol>
 </section>
 </section>
 
@@ -962,20 +766,20 @@ Preprocessed EEG Data
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="quickstart.html"
+       href="mne_integration.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">Quick Start</p>
+        <p class="prev-next-title">MNE-Python Integration</p>
       </div>
     </a>
     <a class="right-next"
-       href="configuration.html"
+       href="ica_rejection.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">Configuration</p>
+        <p class="prev-next-title">ICA, ICLabel, Rejection, and Visual Diagnostics</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -998,56 +802,20 @@ Preprocessed EEG Data
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="pst-show_toc_level nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#pipeline-overview">Pipeline Overview</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#pipeline-steps">Pipeline Steps</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#step-1-channel-selection">Step 1: Channel Selection</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#step-2-artifact-removal">Step 2: Artifact Removal</a><ul class="nav section-nav flex-column">
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#flatline-detection">Flatline Detection</a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#noisy-channel-removal">Noisy Channel Removal</a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#artifact-subspace-reconstruction-asr">Artifact Subspace Reconstruction (ASR)</a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#comprehensive-artifact-removal">Comprehensive Artifact Removal</a></li>
-</ul>
-</li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#step-3-channel-interpolation">Step 3: Channel Interpolation</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#step-4-resampling">Step 4: Resampling</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#step-5-filtering">Step 5: Filtering</a><ul class="nav section-nav flex-column">
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#high-pass-filtering">High-Pass Filtering</a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#low-pass-filtering">Low-Pass Filtering</a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#band-pass-filtering">Band-Pass Filtering</a></li>
-</ul>
-</li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#step-6-ica-decomposition">Step 6: ICA Decomposition</a><ul class="nav section-nav flex-column">
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#using-picard-algorithm">Using Picard Algorithm</a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#using-extended-infomax-ica">Using Extended Infomax ICA</a></li>
-</ul>
-</li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#step-7-component-classification-iclabel">Step 7: Component Classification (ICLabel)</a></li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#pipeline-visualization">Pipeline Visualization</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#parameter-tuning">Parameter Tuning</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#key-parameters-and-their-effects">Key Parameters and Their Effects</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tuning-strategy">Tuning Strategy</a></li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#quality-control">Quality Control</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#assessing-preprocessing-quality">Assessing Preprocessing Quality</a><ul class="nav section-nav flex-column">
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#visual-inspection">Visual Inspection</a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#spectral-analysis">Spectral Analysis</a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#component-inspection">Component Inspection</a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#data-loss-assessment">Data Loss Assessment</a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#quality-metrics">Quality Metrics</a></li>
-</ul>
-</li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#common-issues-and-solutions">Common Issues and Solutions</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#too-many-channels-removed">Too Many Channels Removed</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#too-few-artifacts-removed">Too Few Artifacts Removed</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ica-fails-to-converge">ICA Fails to Converge</a></li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#next-steps">Next Steps</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#recommended-order">Recommended Order</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#start-from-sample-data">Start From Sample Data</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#select-data-and-channels">Select Data and Channels</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#filter">Filter</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#clean-continuous-data">Clean Continuous Data</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#riemannian-asr-notes">Riemannian ASR Notes</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#review-rejected-segments">Review Rejected Segments</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#resample">Resample</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#re-reference-and-interpolate">Re-Reference and Interpolate</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#run-ica-and-iclabel">Run ICA and ICLabel</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#time-frequency-and-erp-images">Time-Frequency and ERP Images</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#epoch-and-baseline">Epoch and Baseline</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#save">Save</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#quality-control-checklist">Quality Control Checklist</a></li>
 </ul>
   </nav></div>
 
@@ -1064,8 +832,8 @@ Preprocessed EEG Data
   </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script defer src="../_static/scripts/bootstrap.js?digest=7f76b32a3354e82990f2"></script>
-<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=7f76b32a3354e82990f2"></script>
+  <script defer src="../_static/scripts/bootstrap.js?digest=55c26ed414f5f8a31ebb"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=55c26ed414f5f8a31ebb"></script>
 
   <footer class="bd-footer">
 <div class="bd-footer__inner bd-page-width">
@@ -1076,7 +844,7 @@ Preprocessed EEG Data
 
   <p class="copyright">
     
-      © Copyright 2024 - , EEGPrep contributors.
+      © Copyright 2024-2026, EEGPrep contributors.
       <br/>
     
   </p>
