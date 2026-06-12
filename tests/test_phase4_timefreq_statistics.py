@@ -40,7 +40,8 @@ from eegprep.functions.timefreqfunc.dftfilt import dftfilt
 from eegprep.functions.timefreqfunc.dftfilt2 import dftfilt2
 from eegprep.functions.timefreqfunc.dftfilt3 import dftfilt3
 from eegprep.functions.timefreqfunc.newcrossf import newcrossf
-from eegprep.functions.timefreqfunc.newtimef import newtimef
+from eegprep.functions.timefreqfunc.newtimef import _is_on as newtimef_is_on
+from eegprep.functions.timefreqfunc.newtimef import compute_time_frequency, newtimef
 from eegprep.functions.timefreqfunc.newtimefbaseln import newtimefbaseln
 from eegprep.functions.timefreqfunc.newtimefpowerunit import newtimefpowerunit
 from eegprep.functions.timefreqfunc.rsadjust import rsadjust
@@ -89,6 +90,31 @@ def test_newtimef_rejects_unknown_options():
 
     with pytest.raises(TypeError, match="unexpected keyword"):
         newtimef(signal, 128, [0, 1000], 128, 0, unsupported_option=1)
+
+
+def test_newtimef_is_on_uses_whitelist_semantics():
+    assert newtimef_is_on("on") is True
+    assert newtimef_is_on("yes") is True
+    assert newtimef_is_on(1) is True
+    # Unrecognized values are treated as OFF, matching the canonical is_on.
+    assert newtimef_is_on("yes-please") is False
+    assert newtimef_is_on("display") is False
+    assert newtimef_is_on("off") is False
+
+
+def test_newtimef_fails_loudly_on_unimplemented_overlap_and_plotphase():
+    signal = np.sin(2 * np.pi * 10 * np.arange(128) / 128)
+
+    with pytest.raises(NotImplementedError, match="overlap"):
+        newtimef(signal, 128, [0, 1000], 128, 0, plot="off", overlap=2)
+    with pytest.raises(NotImplementedError, match="plotphase"):
+        newtimef(signal, 128, [0, 1000], 128, 0, plot="off", plotphase="on")
+    with pytest.raises(NotImplementedError, match="overlap"):
+        compute_time_frequency(signal, 128, [0, 1000], 128, 0, overlap=2)
+
+    # Default values still compute without raising.
+    result = newtimef(signal, 128, [0, 1000], 128, 0, plot="off", overlap=None, plotphase="off")
+    assert result.ersp.shape == result.itc.shape
 
 
 def test_newtimef_nonzero_cycles_use_wavelet_time_grid(sample_epoch):

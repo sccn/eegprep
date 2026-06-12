@@ -352,6 +352,45 @@ class TestCleanFlatlinesValidation(DebuggableTestCase):
         if result['nbchan'] < eeg_walrus['nbchan']:
             self.assertFalse(result['etc']['clean_channel_mask'][5])
 
+    def test_clean_flatlines_fallback_composites_existing_mask(self):
+        """Fallback path with a prior clean_channel_mask must composite, not crash.
+
+        Reproduces the walrus-precedence bug: when pop_select fails and a prior
+        clean_channel_mask exists, the mask update must run ``mask[mask] = ~removed``
+        rather than treating the mask as a bool. Uses continuous (2D) data so the
+        composite indexing exercises the real fallback branch.
+        """
+        eeg = self.test_eeg.copy()
+        eeg['data'] = np.random.randn(32, 1000)
+        eeg['trials'] = 1
+        eeg['data'][5, :] = 1.0  # flatline channel 5
+        eeg['etc'] = {'clean_channel_mask': np.ones(32, dtype=bool)}
+        # Empty chanlocs so the unrelated chanlocs-trim branch is skipped and the
+        # test isolates the clean_channel_mask compositing branch.
+        eeg['chanlocs'] = []
+
+        # Force the no-pop_select fallback with a non-ImportError so the
+        # mask-compositing branch runs (this is where the bug lived).
+        import eegprep
+
+        original = eegprep.pop_select
+
+        def failing_pop_select(*args, **kwargs):
+            raise RuntimeError("simulated pop_select failure")
+
+        eegprep.pop_select = failing_pop_select
+        try:
+            result = clean_flatlines(eeg, max_flatline_duration=1.0)
+        finally:
+            eegprep.pop_select = original
+
+        mask = result['etc']['clean_channel_mask']
+        # Original mask had 32 True entries; after compositing exactly channel 5
+        # (the flatline) must be False and the rest True.
+        self.assertEqual(mask.shape[0], 32)
+        self.assertFalse(mask[5])
+        self.assertEqual(int(np.sum(~mask)), 1)
+
 
 class TestCleanFlatlinesNoOpPath(DebuggableTestCase):
     """No-operation path test cases for clean_flatlines function."""

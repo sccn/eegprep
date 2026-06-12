@@ -111,6 +111,7 @@ def command_error(command: str, error: EEGPrepCLIError) -> dict[str, Any]:
         "command": command,
         "code": error.code,
         "message": error.message,
+        "exit_code": error.exit_code,
         "error": payload,
     }
 
@@ -122,7 +123,9 @@ def emit_command_result(result: dict[str, Any], *, json_output: bool = True) -> 
         print(result.get("status", "ok"))
         if result.get("status") == "error":
             print(result.get("error", {}).get("message", ""), file=sys.stderr)
-    return 0 if result.get("status") == "ok" else 1
+    if result.get("status") == "ok":
+        return 0
+    return int(result.get("exit_code", 1) or 1)
 
 
 def print_result(result: dict[str, Any], *, as_json: bool) -> None:

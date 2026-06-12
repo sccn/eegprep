@@ -97,6 +97,24 @@ def test_std_precomp_channel_measures_store_eeglab_named_fields():
         std_readerp(collapsed, alleeg, channels=[1], subject="S01")
 
 
+def test_std_precomp_recompute_off_preserves_cached_channel_measures():
+    study, alleeg = _study_pair()
+
+    study, alleeg = std_precomp(study, alleeg, [1], erp="on", spec="on")
+    original_erp = deepcopy(study["changrp"][0]["erpdata"])
+    # Overwrite the cached value with a sentinel the recompute path would never produce.
+    sentinel = (np.asarray(original_erp) + 1000.0).tolist()
+    study["changrp"][0]["erpdata"] = sentinel
+
+    # recompute='off' must keep the cached measure rather than recomputing it.
+    study, alleeg = std_precomp(study, alleeg, [1], erp="on", spec="on", recompute="off")
+    np.testing.assert_allclose(np.asarray(study["changrp"][0]["erpdata"]), np.asarray(sentinel))
+
+    # recompute='on' must overwrite the sentinel with a freshly computed measure.
+    study, alleeg = std_precomp(study, alleeg, [1], erp="on", spec="on", recompute="on")
+    np.testing.assert_allclose(np.asarray(study["changrp"][0]["erpdata"]), np.asarray(original_erp))
+
+
 def test_std_precomp_baseline_and_design_contract(caplog):
     study, alleeg = _study_pair()
     alleeg[0]["times"] = np.asarray([-100.0, 0.0, 100.0, 200.0])

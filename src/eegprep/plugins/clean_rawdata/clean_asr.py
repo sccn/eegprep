@@ -121,10 +121,14 @@ def clean_asr(
                     "clean_windows returned insufficient data. Falling back to using all data for calibration."
                 )
                 ref_section_data = data
-        except Exception as e:
-            logger.error(f"An error occurred during clean_windows: {e}")
+        except ValueError as e:
+            # clean_windows raises ValueError for expected calibration-data problems
+            # (empty data, window too small, not enough data for one window). Only
+            # those warrant the all-data fallback; unexpected exceptions propagate so
+            # genuine bugs are not masked as silently weaker ASR calibration.
             logger.warning(
-                "Could not automatically identify clean calibration data. Falling back to using the entire data for calibration."
+                f"Could not automatically identify clean calibration data ({e}). "
+                "Falling back to using the entire data for calibration."
             )
             ref_section_data = data
     elif (isinstance(ref_maxbadchannels, str) and ref_maxbadchannels.lower() == 'off') or ref_maxbadchannels is None:

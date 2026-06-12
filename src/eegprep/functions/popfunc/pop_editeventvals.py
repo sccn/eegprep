@@ -13,6 +13,7 @@ from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.popfunc._event_utils import event_field_names, events_as_list, normalize_one_based_indices
 from eegprep.functions.popfunc._pop_utils import format_history_value, is_empty_value as _is_empty
 from eegprep.functions.popfunc.eeg_lat2point import eeg_lat2point
+from eegprep.functions.popfunc.eeg_point2lat import eeg_point2lat
 
 
 def pop_editeventvals(
@@ -176,15 +177,14 @@ def _change_field(
 def _internal_event_value(output: dict[str, Any], event: dict[str, Any], field: str, value: Any) -> Any:
     if field == "latency" and value not in {"", None}:
         if int(output.get("trials", 1) or 1) > 1:
-            return float(
-                eeg_lat2point(
-                    float(value),
-                    event.get("epoch", 1),
-                    float(output.get("srate", 1)),
-                    [float(output.get("xmin", 0)) * 1000, float(output.get("xmax", 0)) * 1000],
-                    1e-3,
-                )
+            newlat, _ = eeg_lat2point(
+                float(value),
+                event.get("epoch", 1),
+                float(output.get("srate", 1)),
+                [float(output.get("xmin", 0)) * 1000, float(output.get("xmax", 0)) * 1000],
+                1e-3,
             )
+            return float(newlat.item())
         return (float(value) - float(output.get("xmin", 0))) * float(output.get("srate", 1)) + 1
     if field == "duration" and value not in {"", None}:
         scale = float(output.get("srate", 1)) / (1000 if int(output.get("trials", 1) or 1) > 1 else 1)
@@ -198,7 +198,15 @@ def _display_event_value(EEG: dict[str, Any], event: dict[str, Any], field: str)
         return ""
     if field == "latency":
         if int(EEG.get("trials", 1) or 1) > 1:
-            return value
+            return float(
+                eeg_point2lat(
+                    float(value),
+                    event.get("epoch", 1),
+                    float(EEG.get("srate", 1)),
+                    [float(EEG.get("xmin", 0)) * 1000, float(EEG.get("xmax", 0)) * 1000],
+                    1e-3,
+                ).item()
+            )
         return (float(value) - 1) / float(EEG.get("srate", 1)) + float(EEG.get("xmin", 0))
     if field == "duration":
         scale = float(EEG.get("srate", 1)) / (1000 if int(EEG.get("trials", 1) or 1) > 1 else 1)

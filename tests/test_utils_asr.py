@@ -70,20 +70,31 @@ class TestAsrCalibrate(unittest.TestCase):
                 self.assertTrue(len(state['B']) > 1)
                 self.assertTrue(len(state['A']) > 0)
 
-    def test_unsupported_sampling_rate(self):
-        """Test calibration with unsupported sampling rate (triggers warning)."""
-        unsupported_srate = 999.0
+    def test_unsupported_sampling_rate_raises(self):
+        """Unsupported sampling rates must fail loudly, not silently degrade.
+
+        Common rates like 999/1000/1024 Hz have no pre-computed spectral filter.
+        Substituting a trivial difference filter would silently miscalibrate ASR
+        thresholds, so asr_calibrate must raise rather than warn-and-continue.
+        """
         data = np.random.randn(4, 1000) * 0.3
 
-        with self.assertLogs('eegprep.plugins.clean_rawdata.asr_calibrate', level='WARNING') as log:
-            state = asr_calibrate(data, unsupported_srate)
+        for unsupported_srate in (999.0, 1000.0, 1024.0):
+            with self.subTest(srate=unsupported_srate):
+                with self.assertRaises(ValueError) as cm:
+                    asr_calibrate(data, unsupported_srate)
+                self.assertIn('No pre-computed ASR spectral filter', str(cm.exception))
 
-        # Check that warning was logged
-        self.assertTrue(any('No pre-computed spectral filter' in msg for msg in log.output))
+    def test_unsupported_sampling_rate_allows_explicit_filter(self):
+        """An explicit B/A bypasses the precomputed-filter lookup for any srate."""
+        data = np.random.randn(4, 1000) * 0.3
+        B = np.array([1.0, -0.5])
+        A = np.array([1.0])
 
-        # Check that fallback filter was used
-        self.assertEqual(len(state['B']), 2)  # Simple fallback filter
-        self.assertEqual(len(state['A']), 1)
+        state = asr_calibrate(data, 999.0, B=B, A=A)
+        self.assertIn('M', state)
+        np.testing.assert_array_equal(state['B'], B)
+        np.testing.assert_array_equal(state['A'], A)
 
     def test_parameter_validation(self):
         """Test parameter validation and edge cases."""
@@ -371,6 +382,18 @@ class TestAsrProcess(unittest.TestCase):
         self.assertTrue(np.all(np.isfinite(cleaned_data)))
         self.assertLess(float(np.max(np.abs(cleaned_data))), spike_peak)
 
+    def test_component_selection_shape_error_propagates(self):
+        """A shape/contract bug during component selection must surface, not be
+        silently swallowed into a no-op (keep-all) for the affected window.
+        """
+        bad_state = dict(self.state)
+        # T is C x C in a valid state; an incompatible threshold matrix makes
+        # finite_matmul(T, V) fail. This must raise rather than disable cleaning.
+        bad_state['T'] = np.ones((self.n_channels + 1, self.n_channels + 1))
+
+        with self.assertRaises(ValueError):
+            asr_process(self.test_data, self.srate, bad_state)
+
     def test_state_persistence_across_calls(self):
         """Test that state is properly maintained across multiple processing calls."""
         # First call
@@ -404,6 +427,18 @@ class TestAsrProcess(unittest.TestCase):
         # Should complete without errors despite small data
         self.assertEqual(cleaned_data.shape, small_data.shape)
         self.assertTrue(np.all(np.isfinite(cleaned_data)))
+
+    def test_component_selection_error_handling(self):
+        """An unexpected error during threshold computation must propagate.
+
+        Previously such errors were swallowed and the window silently kept all
+        components (no artifact removal). They must now surface so genuine bugs are
+        visible rather than producing quietly under-cleaned data.
+        """
+        with patch('numpy.sum', side_effect=Exception("Threshold error")):
+            with self.assertRaises(Exception) as cm:
+                asr_process(self.test_data, self.srate, self.state)
+            self.assertIn('Threshold error', str(cm.exception))
 
 
 class TestAsrIntegration(unittest.TestCase):
@@ -602,25 +637,27 @@ class TestAsrEdgeCases(unittest.TestCase):
         self.assertEqual(cleaned_data.shape, test_data.shape)
 
     def test_very_high_sampling_rate(self):
-        """Test ASR with very high sampling rate."""
-        n_channels = 4
-        srate = 2000.0  # High sampling rate
+        """Very high (unsupported) sampling rate must fail loudly in calibration.
 
-        # Create appropriate amount of data
+        2000 Hz has no pre-computed spectral filter; calibration must raise rather
+        than silently substitute a degenerate difference filter.
+        """
+        n_channels = 4
+        srate = 2000.0  # High, unsupported sampling rate
+
         n_samples = int(srate * 2)  # 2 seconds
         calib_data = np.random.randn(n_channels, n_samples) * 0.3
 
-        # Should use fallback filter for unsupported sampling rate
-        with self.assertLogs('eegprep.plugins.clean_rawdata.asr_calibrate', level='WARNING'):
-            state = asr_calibrate(calib_data, srate)
+        with self.assertRaises(ValueError) as cm:
+            asr_calibrate(calib_data, srate)
+        self.assertIn('No pre-computed ASR spectral filter', str(cm.exception))
 
-        # Should still work
-        self.assertIsInstance(state, dict)
-
-        # Test processing
+        # With explicit filter coefficients the high rate is processable end-to-end.
+        B = np.array([1.0, -0.5])
+        A = np.array([1.0])
+        state = asr_calibrate(calib_data, srate, B=B, A=A)
         test_data = np.random.randn(n_channels, 200) * 0.4
         cleaned_data, _ = asr_process(test_data, srate, state)
-
         self.assertEqual(cleaned_data.shape, test_data.shape)
 
     def test_zero_variance_data(self):

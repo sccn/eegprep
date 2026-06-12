@@ -64,22 +64,31 @@ class TestICLFeatureExtractorBasic(unittest.TestCase):
         )
 
     def test_icl_feature_extractor_missing_ica_winv(self):
-        """Test ICL_feature_extractor with missing icawinv."""
+        """Missing icawinv raises a clear ValueError before any dereference."""
         EEG = self.test_eeg.copy()
         del EEG['icawinv']
 
-        # Function has a bug - it tries to access icawinv before checking if it exists
-        with self.assertRaises(KeyError):
+        with self.assertRaises(ValueError) as cm:
             ICL_feature_extractor(EEG)
+        self.assertIn('ICA decomposition', str(cm.exception))
 
     def test_icl_feature_extractor_empty_ica_winv(self):
-        """Test ICL_feature_extractor with empty icawinv."""
+        """Empty icawinv raises a clear ValueError before any dereference."""
         EEG = self.test_eeg.copy()
         EEG['icawinv'] = np.array([])
 
-        # Function has a bug - it tries to access shape[1] on empty array
-        with self.assertRaises(IndexError):
+        with self.assertRaises(ValueError) as cm:
             ICL_feature_extractor(EEG)
+        self.assertIn('ICA decomposition', str(cm.exception))
+
+    def test_icl_feature_extractor_missing_ref_field(self):
+        """A dataset without a 'ref' field is treated as non-average and re-referenced."""
+        EEG = self.test_eeg.copy()
+        del EEG['ref']
+
+        # Must not raise KeyError on the missing 'ref'; should proceed to feature extraction.
+        features = ICL_feature_extractor(EEG, flag_autocorr=False)
+        self.assertEqual(len(features), 2)
 
     def test_icl_feature_extractor_missing_icaact(self):
         """Test ICL_feature_extractor with missing icaact."""

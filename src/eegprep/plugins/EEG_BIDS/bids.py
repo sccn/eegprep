@@ -71,7 +71,7 @@ def query_for_adjacent_fpath(fn: str, **overrides) -> Dict[str, Any]:
 def gen_derived_fpath(
     raw_fn: str,
     *,
-    outputdir: str = '${root}/derivatives/clean_artifacts',
+    outputdir: str = '{root}/derivatives/clean_artifacts',
     keyword: str = '',
     suffix: Optional[str] = None,
     extension: str = '.set',
@@ -84,6 +84,8 @@ def gen_derived_fpath(
         Original raw filename.
     outputdir : str
         Output directory for derived files (e.g., 'derivatives/clean_artifacts').
+        The literal '{root}' placeholder, if present, is replaced with the BIDS
+        dataset root path.
     keyword : str
         Optional keyword tag to splice into the filename (e.g., 'desc-cleaned').
     suffix : str, optional
@@ -122,7 +124,7 @@ def gen_derived_fpath(
             # single directory name, need to prepend everything else
             outputdir = os.path.join(root_relative, 'derivatives', outputdir)
 
-    out_path = f"{outputdir}/{root_relative}/{new_fprefix}{new_fext}"
+    out_path = os.path.join(outputdir, root_relative, new_fprefix + new_fext)
     return out_path
 
 

@@ -3,6 +3,7 @@
 import os
 from pathlib import Path
 
+import h5py
 import numpy as np
 import scipy.io
 
@@ -81,16 +82,16 @@ def pop_loadset(file_path=None, *args, loadmode="all", memmap=None, **kwargs):
                 dict_obj[field_name] = new_check(field_value)
             return dict_obj
 
-    # Load MATLAB file
-    loaded_with_h5 = False
-    try:
+    # Load MATLAB file. MAT v7.3 files are HDF5; older v5/v7 files are not.
+    # Dispatch on the real format instead of treating every scipy error as "must be HDF5".
+    loaded_with_h5 = _is_hdf5_file(file_path)
+    if loaded_with_h5:
+        EEG = pop_loadset_h5(file_path)
+    else:
         EEG = scipy.io.loadmat(file_path, struct_as_record=False, squeeze_me=True, appendmat=False)
         EEG = new_check(EEG)
         if 'EEG' in EEG:
             EEG = EEG['EEG']
-    except Exception:
-        EEG = pop_loadset_h5(file_path)
-        loaded_with_h5 = True
 
     EEG['filepath'] = os.path.dirname(file_path)
     EEG['filename'] = os.path.basename(file_path)
@@ -126,6 +127,15 @@ def pop_loadset(file_path=None, *args, loadmode="all", memmap=None, **kwargs):
                 EEG['event'][i]['urevent'] = EEG['event'][i]['urevent'] - 1
 
     return EEG
+
+
+def _is_hdf5_file(file_path):
+    """Return True when the file is HDF5 (MAT v7.3).
+
+    MAT v7.3 files carry a text header in an HDF5 userblock, so the signature is not at
+    byte 0; ``h5py.is_hdf5`` checks the userblock offsets HDF5 actually uses.
+    """
+    return h5py.is_hdf5(os.fspath(file_path))
 
 
 def _load_options(file_path, args, kwargs, loadmode, memmap):

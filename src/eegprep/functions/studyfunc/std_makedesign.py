@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 from typing import Any
 
 from eegprep.functions.popfunc._pop_utils import parse_key_value_args
@@ -48,9 +49,10 @@ def std_makedesign(
 ) -> Any:
     """Create or replace a 1-based STUDY design.
 
-    This Phase 5a implementation stores design metadata and factor selections.
-    Measure-file deletion/precompute side effects from EEGLAB are intentionally
-    outside this phase.
+    Design metadata and factor selections are stored. ``delfiles`` controls
+    cached measure arrays: ``'on'`` or ``'limited'`` clear them on the design
+    change, while ``'off'`` preserves any precomputed ``changrp``/``cluster``
+    measures attached to the redefined design.
     """
     datasets = as_alleeg_list(ALLEEG)
     study = sync_datasetinfo(ensure_study(STUDY), datasets)
@@ -105,7 +107,14 @@ def std_makedesign(
     designs[design_index - 1] = design
     study["design"] = designs
     study = std_addvarlevel(study, design_index)
+    preserved_changrp = deepcopy(study.get("changrp")) if delfiles == "off" else None
+    preserved_cluster = deepcopy(study.get("cluster")) if delfiles == "off" else None
     study = std_selectdesign(study, datasets, design_index)
+    if delfiles == "off":
+        if preserved_changrp is not None:
+            study["changrp"] = preserved_changrp
+        if preserved_cluster is not None:
+            study["cluster"] = preserved_cluster
     study["cache"] = []
     study["saved"] = "no"
     study = store_consistency(study, datasets)
