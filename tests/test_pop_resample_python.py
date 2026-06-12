@@ -2,6 +2,7 @@ import unittest
 
 import numpy as np
 
+from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
 from eegprep.functions.popfunc.pop_resample import pop_resample
 
 
@@ -57,6 +58,20 @@ class PopResamplePythonTests(unittest.TestCase):
 
         self.assertIsInstance(out["event"], np.ndarray)
         self.assertIsInstance(out["urevent"], np.ndarray)
+        np.testing.assert_allclose([event["latency"] for event in out["urevent"]], [3.5, 5.5, 8.5])
+
+    def test_numeric_boundary99_splits_continuous_segments_when_enabled(self):
+        eeg = _continuous_eeg()
+        eeg["event"][1]["type"] = -99
+        eeg["urevent"][1]["type"] = -99
+        old = EEG_OPTIONS["option_boundary99"]
+        EEG_OPTIONS["option_boundary99"] = 1
+        try:
+            out = pop_resample(eeg, 50, engine="scipy")
+        finally:
+            EEG_OPTIONS["option_boundary99"] = old
+
+        np.testing.assert_allclose([event["latency"] for event in out["event"]], [3.5, 5.5, 8.5])
         np.testing.assert_allclose([event["latency"] for event in out["urevent"]], [3.5, 5.5, 8.5])
 
     def test_epoched_data_resamples_each_epoch_and_clears_urevents(self):

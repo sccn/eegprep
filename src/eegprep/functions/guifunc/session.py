@@ -373,6 +373,34 @@ class EEGPrepSession:
         if notify:
             self.notify_changed()
 
+    def clear_history(self, *, notify: bool = True) -> None:
+        """Clear command history and LASTCOM as one session mutation."""
+        self.ALLCOM.clear()
+        self.LASTCOM = ""
+        if notify:
+            self.notify_changed()
+
+    def remove_history(self, count: int, *, notify: bool = True) -> None:
+        """Remove the most recent ``count`` command-history entries."""
+        remove_count = min(max(int(count), 0), len(self.ALLCOM))
+        if remove_count:
+            del self.ALLCOM[-remove_count:]
+        self.LASTCOM = self.ALLCOM[-1] if self.ALLCOM else ""
+        if notify:
+            self.notify_changed()
+
+    def history_command_at(self, index: int) -> str:
+        """Return the 1-based command from most recent history first."""
+        if index < 1 or index > len(self.ALLCOM):
+            return ""
+        return list(reversed(self.ALLCOM))[index - 1]
+
+    def clear_last_command(self, *, notify: bool = True) -> None:
+        """Clear LASTCOM without deleting ALLCOM."""
+        self.LASTCOM = ""
+        if notify:
+            self.notify_changed()
+
     def _append_current_dataset_history(self, command: str | None) -> None:
         if not command:
             return

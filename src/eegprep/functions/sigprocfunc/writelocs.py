@@ -7,8 +7,8 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.miscfunc.value_parsing import is_empty_value, parse_key_value_args, parse_numeric_sequence
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
-from eegprep.functions.popfunc._pop_utils import is_empty_value, parse_key_value_args, parse_numeric_sequence
 from eegprep.functions.sigprocfunc.convertlocs import convertlocs
 from eegprep.functions.sigprocfunc.readlocs import CHANNEL_FORMATS
 

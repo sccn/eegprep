@@ -6,6 +6,7 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.miscfunc.event_utils import boundary_event_indices
 from eegprep.functions.popfunc._file_io import events_to_records
 
 
@@ -14,14 +15,8 @@ def findboundaries(event: Any) -> np.ndarray:
     events = events_to_records(event)
     boundaries: list[int] = []
     if events and all("type" in record and "latency" in record for record in events):
-        first_type = events[0].get("type")
-        for record in events:
-            event_type = record.get("type")
-            is_boundary = (
-                isinstance(first_type, str) and isinstance(event_type, str) and event_type.startswith("boundary")
-            ) or (not isinstance(first_type, str) and event_type == -99)
-            if not is_boundary:
-                continue
+        for index in boundary_event_indices(events):
+            record = events[index]
             try:
                 boundaries.append(int(np.fix(float(record.get("latency")) + 0.5)))
             except (TypeError, ValueError):
