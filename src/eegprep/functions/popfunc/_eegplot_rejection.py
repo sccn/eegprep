@@ -15,16 +15,20 @@ from eegprep.functions.popfunc._rejection import (
     rejection_data,
     update_reject_fields,
 )
-from eegprep.functions.popfunc.pop_eegplot import (
-    DEFAULT_REJECTION_COLORS,
-    MANUAL_REJECTION_COLOR,
-    REJECTION_FAMILIES,
-    pad_rejection_rows,
-    rejection_row_count,
-)
 from eegprep.functions.popfunc.pop_rejepoch import pop_rejepoch
 from eegprep.functions.sigprocfunc.eegplot import eegplot, eegplot2trial, trial2eegplot
 
+
+MANUAL_REJECTION_COLOR = (1.0, 0.9, 0.9)
+DEFAULT_REJECTION_COLORS = {
+    "manual": (1.0000, 1.0000, 0.7830),
+    "thresh": (0.8487, 1.0000, 0.5008),
+    "const": (0.6940, 1.0000, 0.7008),
+    "jp": (1.0000, 0.6991, 0.7537),
+    "kurt": (0.6880, 0.7042, 1.0000),
+    "freq": (0.9596, 0.7193, 1.0000),
+}
+REJECTION_FAMILIES = ("manual", "thresh", "const", "jp", "kurt", "freq")
 
 # Autorej shares manual-color browser marks and is not superposed as a separate EEGLAB family.
 _AUTO_REJECTION_COLOR = MANUAL_REJECTION_COLOR
@@ -98,6 +102,49 @@ def run_epoched_rejection(
         rejected,
         command,
     )
+
+
+def run_epoched_mark_rejection(
+    EEG: dict[str, Any],
+    icacomp: int | bool,
+    elecrange: Any,
+    superpose: int | bool,
+    reject: int | bool,
+    *,
+    marks_fn: Callable[[dict[str, Any], np.ndarray, list[int]], tuple[np.ndarray, np.ndarray, Any]],
+    kind: str,
+    error_message: str,
+    command_fn: Callable[[list[int], Any], str],
+    display: bool = False,
+    command_callback: Any | None = None,
+    show: bool = True,
+) -> tuple[dict[str, Any], list[int], str, Any]:
+    """Run an epoched rejection method that already computes trial/row marks."""
+    out = copy_eeg(EEG)
+    data, row_count = rejection_data(out, icacomp)
+    if int(out.get("trials", data.shape[2]) or data.shape[2]) <= 1:
+        raise ValueError(error_message)
+    elecrange = one_based_indices(elecrange, limit=row_count, default_all=True)
+    marks, marks_e, payload = marks_fn(out, data, elecrange)
+    update_reject_fields(out, icacomp=icacomp, kind=kind, reject=marks, reject_e=marks_e)
+    rejected = (np.flatnonzero(marks) + 1).tolist()
+    command = command_fn(elecrange, payload)
+    if display:
+        open_epoched_rejection_browser(
+            out,
+            data=data,
+            icacomp=icacomp,
+            elecrange=elecrange,
+            kind=kind,
+            superpose=superpose,
+            reject=reject,
+            command=command,
+            command_callback=command_callback,
+            show=show,
+        )
+    elif int(bool(reject)) and rejected:
+        out = pop_rejepoch(out, rejected, 0)
+    return out, rejected, command, payload
 
 
 def vistype_from_gui(value: Any) -> int:
@@ -290,6 +337,58 @@ def ensure_rejection_defaults(EEG: dict[str, Any]) -> None:
         reject.setdefault(f"rej{family}col", np.asarray(color, dtype=float))
 
 
+def pad_rejection_rows(values: Any, row_count: int, trials: int) -> np.ndarray:
+    """Zero-pad/crop a row-mask array to ``(row_count, trials)``."""
+    out = np.zeros((row_count, trials), dtype=bool)
+    arr = np.asarray(values, dtype=bool)
+    if arr.ndim == 1 and arr.size:
+        arr = arr.reshape(1, -1)
+    if arr.ndim == 2:
+        rows = min(row_count, arr.shape[0])
+        cols = min(trials, arr.shape[1])
+        out[:rows, :cols] = arr[:rows, :cols]
+    return out
+
+
+def rejection_row_count(EEG: dict[str, Any], icacomp: int | bool) -> int:
+    """Return the number of channel or component rows for rejection marks."""
+    if int(bool(icacomp)):
+        return int(EEG.get("nbchan", np.asarray(EEG.get("data")).shape[0]) or 0)
+    weights = np.asarray(EEG.get("icaweights", []))
+    return int(weights.shape[0]) if weights.ndim == 2 else 0
+
+
+def manual_rejection_color(EEG: dict[str, Any]) -> tuple[float, float, float]:
+    """Return the EEG manual rejection color."""
+    return rejection_family_color(EEG.get("reject") or {}, "manual", MANUAL_REJECTION_COLOR)
+
+
+def displayed_rejection_families(reject: dict[str, Any]) -> tuple[str, ...]:
+    """Return the EEGLAB rejection families currently displayed in a browser."""
+    disprej = reject.get("disprej")
+    if disprej is not None and np.asarray(disprej, dtype=object).size:
+        return tuple(str(item) for item in np.asarray(disprej, dtype=object).ravel() if str(item) in REJECTION_FAMILIES)
+    return tuple(family for family in REJECTION_FAMILIES if has_rejection_family(reject, family))
+
+
+def has_rejection_family(reject: dict[str, Any], family: str) -> bool:
+    """Return whether data or component marks exist for a rejection family."""
+    return any(np.asarray(reject.get(field, [])).size for field in (f"rej{family}", f"icarej{family}"))
+
+
+def rejection_family_color(
+    reject: dict[str, Any],
+    family: str,
+    default: tuple[float, float, float] | None = None,
+) -> tuple[float, float, float]:
+    """Return a normalized RGB color for a rejection family."""
+    fallback = default if default is not None else DEFAULT_REJECTION_COLORS.get(family, MANUAL_REJECTION_COLOR)
+    values = np.asarray(reject.get(f"rej{family}col", fallback), dtype=float).ravel()
+    if values.size < 3:
+        return fallback
+    return tuple(float(item) for item in values[:3])
+
+
 def _apply_superposed_family_rows(
     EEG: dict[str, Any],
     rows: np.ndarray,
@@ -302,7 +401,7 @@ def _apply_superposed_family_rows(
     pnts: int,
 ) -> None:
     reject = EEG.setdefault("reject", {})
-    families = set(_displayed_families(reject))
+    families = set(displayed_rejection_families(reject))
     families.add(_family_from_kind(kind))
     for family in sorted(families):
         family_kind = f"rej{family}"
@@ -390,14 +489,7 @@ def _trial_marks(value: Any, trials: int) -> np.ndarray:
 
 
 def _displayed_families(reject: dict[str, Any]) -> tuple[str, ...]:
-    disprej = reject.get("disprej")
-    if disprej is not None and np.asarray(disprej, dtype=object).size:
-        return tuple(str(item) for item in np.asarray(disprej, dtype=object).ravel() if str(item) in REJECTION_FAMILIES)
-    return tuple(family for family in REJECTION_FAMILIES if _has_family_marks(reject, family))
-
-
-def _has_family_marks(reject: dict[str, Any], family: str) -> bool:
-    return any(np.asarray(reject.get(field, [])).size for field in (f"rej{family}", f"icarej{family}"))
+    return displayed_rejection_families(reject)
 
 
 def _kind_color(EEG: dict[str, Any], kind: str) -> tuple[float, float, float]:
@@ -409,11 +501,7 @@ def _kind_color(EEG: dict[str, Any], kind: str) -> tuple[float, float, float]:
 
 
 def _family_color(reject: dict[str, Any], family: str) -> tuple[float, float, float]:
-    default = DEFAULT_REJECTION_COLORS.get(family, MANUAL_REJECTION_COLOR)
-    values = np.asarray(reject.get(f"rej{family}col", default), dtype=float).ravel()
-    if values.size < 3:
-        return default
-    return tuple(float(item) for item in values[:3])
+    return rejection_family_color(reject, family)
 
 
 def _family_from_kind(kind: str) -> str:

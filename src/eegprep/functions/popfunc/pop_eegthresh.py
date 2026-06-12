@@ -8,17 +8,9 @@ import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
-from eegprep.functions.popfunc._eegplot_rejection import open_epoched_rejection_browser
+from eegprep.functions.popfunc._eegplot_rejection import run_epoched_mark_rejection
 from eegprep.functions.popfunc._pop_utils import format_history_value
-from eegprep.functions.popfunc._rejection import (
-    copy_eeg,
-    eegthresh_marks,
-    one_based_indices,
-    parse_numeric_sequence,
-    rejection_data,
-    update_reject_fields,
-)
-from eegprep.functions.popfunc.pop_rejepoch import pop_rejepoch
+from eegprep.functions.popfunc._rejection import eegthresh_marks, parse_numeric_sequence
 
 
 def pop_eegthresh(
@@ -166,45 +158,50 @@ def _apply_one(
     command_callback: Any | None = None,
     show: bool = True,
 ) -> tuple[dict[str, Any], list[int], str]:
-    out = copy_eeg(EEG)
-    data, row_count = rejection_data(out, icacomp)
-    trials = int(out.get("trials", data.shape[2]) or data.shape[2])
-    if trials <= 1:
-        raise ValueError("pop_eegthresh requires epoched data")
-    elecrange = one_based_indices(elecrange, limit=row_count, default_all=True)
-    negthresh = [-10.0] if negthresh is None else negthresh
-    posthresh = [10.0] if posthresh is None else posthresh
-    starttime = [float(out.get("xmin", 0.0))] if starttime is None else starttime
-    endtime = [float(out.get("xmax", 0.0))] if endtime is None else endtime
-    marks, marks_e = eegthresh_marks(
-        data,
-        elecrange,
-        negthresh,
-        posthresh,
-        (float(out.get("xmin", 0.0)), float(out.get("xmax", 0.0))),
-        starttime,
-        endtime,
-    )
-    update_reject_fields(out, icacomp=icacomp, kind="rejthresh", reject=marks, reject_e=marks_e)
-    rejected = (np.flatnonzero(marks) + 1).tolist()
-    command = _history_command(
-        icacomp, elecrange, negthresh, posthresh, starttime, endtime, superpose, int(bool(reject))
-    )
-    if display:
-        open_epoched_rejection_browser(
-            out,
-            data=data,
-            icacomp=icacomp,
-            elecrange=elecrange,
-            kind="rejthresh",
-            superpose=superpose,
-            reject=reject,
-            command=command,
-            command_callback=command_callback,
-            show=show,
+    def _marks(out: dict[str, Any], data: np.ndarray, normalized_elecrange: list[int]):
+        normalized = {
+            "negthresh": [-10.0] if negthresh is None else negthresh,
+            "posthresh": [10.0] if posthresh is None else posthresh,
+            "starttime": [float(out.get("xmin", 0.0))] if starttime is None else starttime,
+            "endtime": [float(out.get("xmax", 0.0))] if endtime is None else endtime,
+        }
+        marks, marks_e = eegthresh_marks(
+            data,
+            normalized_elecrange,
+            normalized["negthresh"],
+            normalized["posthresh"],
+            (float(out.get("xmin", 0.0)), float(out.get("xmax", 0.0))),
+            normalized["starttime"],
+            normalized["endtime"],
         )
-    elif int(bool(reject)) and rejected:
-        out = pop_rejepoch(out, rejected, 0)
+        return marks, marks_e, normalized
+
+    def _command(normalized_elecrange: list[int], normalized: dict[str, Any]) -> str:
+        return _history_command(
+            icacomp,
+            normalized_elecrange,
+            normalized["negthresh"],
+            normalized["posthresh"],
+            normalized["starttime"],
+            normalized["endtime"],
+            superpose,
+            int(bool(reject)),
+        )
+
+    out, rejected, command, _normalized = run_epoched_mark_rejection(
+        EEG,
+        icacomp,
+        elecrange,
+        superpose,
+        reject,
+        marks_fn=_marks,
+        kind="rejthresh",
+        error_message="pop_eegthresh requires epoched data",
+        command_fn=_command,
+        display=display,
+        command_callback=command_callback,
+        show=show,
+    )
     return out, rejected, command
 
 
