@@ -76,14 +76,14 @@ class TestUtilFuncs(DebuggableTestCase):
         self.eeglab = eeglabcompat.get_eeglab('MAT')
 
     def test_design_kaiser(self):
-        from eegprep.plugins.clean_rawdata.private.sigproc import design_kaiser
+        from eegprep.plugins.firfilt.design import design_kaiser
 
         observed = design_kaiser(0.06, 0.08, 75, True)
         expected = np.asarray(self.eeglab.design_kaiser(0.06, 0.08, 75.0, True))
         np.testing.assert_almost_equal(observed.flatten(), expected.flatten(), err_msg='design_kaiser() test failed')
 
     def test_design_fir_default_wnd(self):
-        from eegprep.plugins.clean_rawdata.private.sigproc import design_fir
+        from eegprep.plugins.firfilt.design import design_fir
 
         observed = design_fir(234, [0.0, 0.06, 0.08, 1.0], [0, 0, 1, 1])
         expected = np.asarray(
@@ -94,7 +94,7 @@ class TestUtilFuncs(DebuggableTestCase):
         )
 
     def test_design_fir_custom_wnd(self):
-        from eegprep.plugins.clean_rawdata.private.sigproc import design_fir, design_kaiser
+        from eegprep.plugins.firfilt.design import design_fir, design_kaiser
 
         wnd = design_kaiser(0.06, 0.08, 75.0, True)
         observed = design_fir(234, [0.0, 0.06, 0.08, 1.0], [0, 0, 1.0, 1.0], w=wnd)
