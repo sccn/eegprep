@@ -6,6 +6,33 @@
 </head>
 <body>
   <h1>EEGPrep Core Parity Implementation Notes</h1>
+  <h1>Issue #212 BIDS, Qt, and FIR Ownership Notes</h1>
+  <p>Issue #212 closes the Phase 5 architecture ownership work for BIDS
+  import helpers, Qt dialog rendering helpers, and FIR design helpers while
+  preserving standalone EEGPrep runtime behavior.</p>
+  <h2>Issue #212 Design Decisions</h2>
+  <ul>
+    <li>Kept <code>pop_load_frombids</code> as the BIDS orchestration,
+    metadata, event, history, and report wrapper, and moved raw EEG file
+    loading plus packaged montage inference into <code>plugins/EEG_BIDS</code>
+    helper modules.</li>
+    <li>Moved clean_rawdata FIR design helpers into <code>plugins/firfilt</code>
+    so clean_rawdata imports shared filter design behavior from the plugin
+    that owns FIR filtering semantics.</li>
+    <li>Converted the stateless Qt renderer helper bodies into module-level
+    functions while keeping <code>QtDialogRenderer._helper</code> aliases for
+    existing callers and tests.</li>
+  </ul>
+  <h2>Issue #212 Verification Notes</h2>
+  <ul>
+    <li>Focused tests cover extracted BIDS raw loading, montage inference from
+    packaged resources, FIR design helper ownership, and Qt helper alias
+    compatibility.</li>
+    <li>Sample-data BIDS import tests and representative Qt dialog/visual
+    parity tests exercise the wrapper behavior after decomposition.</li>
+    <li>No runtime code depends on the vendored EEGLAB reference checkout; the
+    EEGLAB and EEG-BIDS sources were used only as development references.</li>
+  </ul>
   <h1>Issue #164 EEGLAB-Style Sphinx Documentation Notes</h1>
   <p>Issue #164 turns the final-epic documentation into a coherent standalone
   EEGPrep manual modeled after EEGLAB's learning path but written for Python,

@@ -5,10 +5,12 @@ from typing import Any, Dict
 
 import numpy as np
 
+from eegprep.plugins.firfilt.design import design_fir
+
 from ...functions.miscfunc.misc import finite_matmul, round_mat
 from .private.channel_removal import remove_channels_without_pop_select, update_clean_channel_mask
 from .private.ransac import calc_projector
-from .private.sigproc import design_fir, filtfilt_fast
+from .private.sigproc import filtfilt_fast
 from .private.stats import mad
 
 logger = logging.getLogger(__name__)

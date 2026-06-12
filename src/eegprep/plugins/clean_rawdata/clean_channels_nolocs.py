@@ -5,8 +5,10 @@ from typing import Any, Dict, Tuple
 
 import numpy as np
 
+from eegprep.plugins.firfilt.design import design_fir, design_kaiser
+
 from .private.channel_removal import remove_channels_without_pop_select, update_clean_channel_mask
-from .private.sigproc import design_fir, design_kaiser, filtfilt_fast
+from .private.sigproc import filtfilt_fast
 
 logger = logging.getLogger(__name__)
 
