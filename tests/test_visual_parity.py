@@ -11,7 +11,7 @@ from tools.visual_parity.compare import compare_images, write_report
 from tools.visual_parity.config import load_manifest
 from tools.visual_parity.export_eegprep_menu_inventory import export_inventory
 from tools.visual_parity.menu_inventory import compare_menu_trees
-from eegprep.functions.guifunc.visual_capture import (
+from tools.visual_parity.visual_capture import (
     _capture_case_handlers,
     _main_window_menu_state as _eegprep_main_window_menu_state,
 )
@@ -27,12 +27,10 @@ class VisualParityConfigTests(unittest.TestCase):
         self.assertIn("main_window", cases)
         self.assertEqual(cases["main_window"].window_size, (520, 380))
         self.assertIn("eeglab", cases["main_window"].targets)
-        self.assertIn("eegprep.functions.guifunc.visual_capture", cases["main_window"].targets["eegprep"].command)
+        self.assertIn("tools.visual_parity.visual_capture", cases["main_window"].targets["eegprep"].command)
         self.assertIn("adjust_events_dialog", cases)
         self.assertEqual(cases["adjust_events_dialog"].targets["eeglab"].type, "matlab_dialog")
-        self.assertIn(
-            "eegprep.functions.guifunc.visual_capture", cases["adjust_events_dialog"].targets["eegprep"].command
-        )
+        self.assertIn("tools.visual_parity.visual_capture", cases["adjust_events_dialog"].targets["eegprep"].command)
         self.assertIn("reref_dialog", cases)
         self.assertEqual(cases["reref_dialog"].targets["eeglab"].action, "pop_reref")
         self.assertEqual(cases["reref_dialog_channel_ref"].targets["eeglab"].action, "pop_reref:channels")
@@ -53,7 +51,7 @@ class VisualParityConfigTests(unittest.TestCase):
         ):
             with self.subTest(case_id=case_id):
                 self.assertEqual(cases[case_id].targets["eeglab"].type, "matlab_figure")
-                self.assertIn("eegprep.functions.guifunc.visual_capture", cases[case_id].targets["eegprep"].command)
+                self.assertIn("tools.visual_parity.visual_capture", cases[case_id].targets["eegprep"].command)
         self.assertIn("pop_interp_dialog", cases)
         self.assertEqual(cases["pop_interp_dialog"].targets["eeglab"].action, "pop_interp:continuous")
         self.assertEqual(cases["pop_interp_epoched_dialog"].targets["eeglab"].action, "pop_interp:epoched")
@@ -142,7 +140,7 @@ class VisualParityConfigTests(unittest.TestCase):
             eegprep_target = case.targets.get("eegprep")
             if eegprep_target is None:
                 continue
-            if "eegprep.functions.guifunc.visual_capture" in eegprep_target.command:
+            if "tools.visual_parity.visual_capture" in eegprep_target.command:
                 with self.subTest(case_id=case_id):
                     self.assertIn(case_id, handlers)
 

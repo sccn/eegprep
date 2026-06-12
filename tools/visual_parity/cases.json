@@ -20,7 +20,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -45,7 +45,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -70,7 +70,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -95,7 +95,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -120,7 +120,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -146,7 +146,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -172,7 +172,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -198,7 +198,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -224,7 +224,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -250,7 +250,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -276,7 +276,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -302,7 +302,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -328,7 +328,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -354,7 +354,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -380,7 +380,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -406,7 +406,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -432,7 +432,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -457,7 +457,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -482,7 +482,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -507,7 +507,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -532,7 +532,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -557,7 +557,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -582,7 +582,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -607,7 +607,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -632,7 +632,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -657,7 +657,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -682,7 +682,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -707,7 +707,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -732,7 +732,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -757,7 +757,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -782,7 +782,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -807,7 +807,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -832,7 +832,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -857,7 +857,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -882,7 +882,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -907,7 +907,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -932,7 +932,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -957,7 +957,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -982,7 +982,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -1007,7 +1007,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -1032,7 +1032,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -1057,7 +1057,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -1082,7 +1082,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -1107,7 +1107,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -1132,7 +1132,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -1157,7 +1157,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -1182,7 +1182,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -1207,7 +1207,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -1232,7 +1232,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -1257,7 +1257,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -1282,7 +1282,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -1307,7 +1307,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -1332,7 +1332,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -1357,7 +1357,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -1382,7 +1382,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -1407,7 +1407,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -1432,7 +1432,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -1457,7 +1457,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -1482,7 +1482,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -1507,7 +1507,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -1532,7 +1532,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -1557,7 +1557,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -1582,7 +1582,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -1607,7 +1607,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -1632,7 +1632,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -1657,7 +1657,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -1682,7 +1682,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -1707,7 +1707,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -1732,7 +1732,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -1757,7 +1757,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -1782,7 +1782,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -1807,7 +1807,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -1832,7 +1832,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -1857,7 +1857,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -1882,7 +1882,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -1907,7 +1907,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -1932,7 +1932,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -1957,7 +1957,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -1982,7 +1982,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -2007,7 +2007,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -2032,7 +2032,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -2057,7 +2057,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -2082,7 +2082,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -2107,7 +2107,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -2126,7 +2126,7 @@
         "eegprep": {
           "type": "command",
           "action": "pop_eegthresh_dialog",
-          "command": ["{python}", "-m", "eegprep.functions.guifunc.visual_capture", "--case", "{case_id}", "--output", "{output}"]
+          "command": ["{python}", "-m", "tools.visual_parity.visual_capture", "--case", "{case_id}", "--output", "{output}"]
         }
       }
     },
@@ -2140,7 +2140,7 @@
         "eegprep": {
           "type": "command",
           "action": "pop_jointprob_dialog",
-          "command": ["{python}", "-m", "eegprep.functions.guifunc.visual_capture", "--case", "{case_id}", "--output", "{output}"]
+          "command": ["{python}", "-m", "tools.visual_parity.visual_capture", "--case", "{case_id}", "--output", "{output}"]
         }
       }
     },
@@ -2154,7 +2154,7 @@
         "eegprep": {
           "type": "command",
           "action": "pop_rejkurt_dialog",
-          "command": ["{python}", "-m", "eegprep.functions.guifunc.visual_capture", "--case", "{case_id}", "--output", "{output}"]
+          "command": ["{python}", "-m", "tools.visual_parity.visual_capture", "--case", "{case_id}", "--output", "{output}"]
         }
       }
     },
@@ -2168,7 +2168,7 @@
         "eegprep": {
           "type": "command",
           "action": "pop_rejtrend_dialog",
-          "command": ["{python}", "-m", "eegprep.functions.guifunc.visual_capture", "--case", "{case_id}", "--output", "{output}"]
+          "command": ["{python}", "-m", "tools.visual_parity.visual_capture", "--case", "{case_id}", "--output", "{output}"]
         }
       }
     },
@@ -2182,7 +2182,7 @@
         "eegprep": {
           "type": "command",
           "action": "pop_rejspec_dialog",
-          "command": ["{python}", "-m", "eegprep.functions.guifunc.visual_capture", "--case", "{case_id}", "--output", "{output}"]
+          "command": ["{python}", "-m", "tools.visual_parity.visual_capture", "--case", "{case_id}", "--output", "{output}"]
         }
       }
     },
@@ -2196,7 +2196,7 @@
         "eegprep": {
           "type": "command",
           "action": "pop_rejmenu_dialog",
-          "command": ["{python}", "-m", "eegprep.functions.guifunc.visual_capture", "--case", "{case_id}", "--output", "{output}"]
+          "command": ["{python}", "-m", "tools.visual_parity.visual_capture", "--case", "{case_id}", "--output", "{output}"]
         }
       }
     },
@@ -2210,7 +2210,7 @@
         "eegprep": {
           "type": "command",
           "action": "pop_autorej_dialog",
-          "command": ["{python}", "-m", "eegprep.functions.guifunc.visual_capture", "--case", "{case_id}", "--output", "{output}"]
+          "command": ["{python}", "-m", "tools.visual_parity.visual_capture", "--case", "{case_id}", "--output", "{output}"]
         }
       }
     },
@@ -2224,7 +2224,7 @@
         "eegprep": {
           "type": "command",
           "action": "pop_rejchan_dialog",
-          "command": ["{python}", "-m", "eegprep.functions.guifunc.visual_capture", "--case", "{case_id}", "--output", "{output}"]
+          "command": ["{python}", "-m", "tools.visual_parity.visual_capture", "--case", "{case_id}", "--output", "{output}"]
         }
       }
     },
@@ -2238,7 +2238,7 @@
         "eegprep": {
           "type": "command",
           "action": "pop_rejcont_dialog",
-          "command": ["{python}", "-m", "eegprep.functions.guifunc.visual_capture", "--case", "{case_id}", "--output", "{output}"]
+          "command": ["{python}", "-m", "tools.visual_parity.visual_capture", "--case", "{case_id}", "--output", "{output}"]
         }
       }
     },
@@ -2252,7 +2252,7 @@
         "eegprep": {
           "type": "command",
           "action": "pop_selectcomps_dialog",
-          "command": ["{python}", "-m", "eegprep.functions.guifunc.visual_capture", "--case", "{case_id}", "--output", "{output}"]
+          "command": ["{python}", "-m", "tools.visual_parity.visual_capture", "--case", "{case_id}", "--output", "{output}"]
         }
       }
     },
@@ -2266,7 +2266,7 @@
         "eegprep": {
           "type": "command",
           "action": "pop_viewprops_dialog",
-          "command": ["{python}", "-m", "eegprep.functions.guifunc.visual_capture", "--case", "{case_id}", "--output", "{output}"]
+          "command": ["{python}", "-m", "tools.visual_parity.visual_capture", "--case", "{case_id}", "--output", "{output}"]
         }
       }
     },
@@ -2285,7 +2285,7 @@
           "type": "command",
           "action": "iclabel_pop_prop_extended_dashboard",
           "env": {"MPLBACKEND": "Agg"},
-          "command": ["{python}", "-m", "eegprep.functions.guifunc.visual_capture", "--case", "{case_id}", "--output", "{output}"]
+          "command": ["{python}", "-m", "tools.visual_parity.visual_capture", "--case", "{case_id}", "--output", "{output}"]
         }
       }
     },
@@ -2299,7 +2299,7 @@
         "eegprep": {
           "type": "command",
           "action": "pop_dipfit_settings_dialog",
-          "command": ["{python}", "-m", "eegprep.functions.guifunc.visual_capture", "--case", "{case_id}", "--output", "{output}"]
+          "command": ["{python}", "-m", "tools.visual_parity.visual_capture", "--case", "{case_id}", "--output", "{output}"]
         }
       }
     },
@@ -2313,7 +2313,7 @@
         "eegprep": {
           "type": "command",
           "action": "pop_dipfit_gridsearch_dialog",
-          "command": ["{python}", "-m", "eegprep.functions.guifunc.visual_capture", "--case", "{case_id}", "--output", "{output}"]
+          "command": ["{python}", "-m", "tools.visual_parity.visual_capture", "--case", "{case_id}", "--output", "{output}"]
         }
       }
     },
@@ -2327,7 +2327,7 @@
         "eegprep": {
           "type": "command",
           "action": "pop_dipfit_nonlinear_dialog",
-          "command": ["{python}", "-m", "eegprep.functions.guifunc.visual_capture", "--case", "{case_id}", "--output", "{output}"]
+          "command": ["{python}", "-m", "tools.visual_parity.visual_capture", "--case", "{case_id}", "--output", "{output}"]
         }
       }
     },
@@ -2341,7 +2341,7 @@
         "eegprep": {
           "type": "command",
           "action": "pop_dipplot_dialog",
-          "command": ["{python}", "-m", "eegprep.functions.guifunc.visual_capture", "--case", "{case_id}", "--output", "{output}"]
+          "command": ["{python}", "-m", "tools.visual_parity.visual_capture", "--case", "{case_id}", "--output", "{output}"]
         }
       }
     },
@@ -2355,7 +2355,7 @@
         "eegprep": {
           "type": "command",
           "action": "pop_multifit_dialog",
-          "command": ["{python}", "-m", "eegprep.functions.guifunc.visual_capture", "--case", "{case_id}", "--output", "{output}"]
+          "command": ["{python}", "-m", "tools.visual_parity.visual_capture", "--case", "{case_id}", "--output", "{output}"]
         }
       }
     },
@@ -2369,7 +2369,7 @@
         "eegprep": {
           "type": "command",
           "action": "pop_leadfield_dialog",
-          "command": ["{python}", "-m", "eegprep.functions.guifunc.visual_capture", "--case", "{case_id}", "--output", "{output}"]
+          "command": ["{python}", "-m", "tools.visual_parity.visual_capture", "--case", "{case_id}", "--output", "{output}"]
         }
       }
     },
@@ -2383,7 +2383,7 @@
         "eegprep": {
           "type": "command",
           "action": "pop_dipfit_loreta_dialog",
-          "command": ["{python}", "-m", "eegprep.functions.guifunc.visual_capture", "--case", "{case_id}", "--output", "{output}"]
+          "command": ["{python}", "-m", "tools.visual_parity.visual_capture", "--case", "{case_id}", "--output", "{output}"]
         }
       }
     },
@@ -2396,7 +2396,7 @@
         "eegprep": {
           "type": "command",
           "action": "pop_dipfit_headmodel_dialog",
-          "command": ["{python}", "-m", "eegprep.functions.guifunc.visual_capture", "--case", "{case_id}", "--output", "{output}"]
+          "command": ["{python}", "-m", "tools.visual_parity.visual_capture", "--case", "{case_id}", "--output", "{output}"]
         }
       }
     },
@@ -2416,7 +2416,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -2441,7 +2441,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -2466,7 +2466,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -2491,7 +2491,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -2516,7 +2516,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -2541,7 +2541,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -2565,7 +2565,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -2589,7 +2589,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -2613,7 +2613,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -2637,7 +2637,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -2661,7 +2661,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -2685,7 +2685,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",
@@ -2709,7 +2709,7 @@
           "command": [
             "{python}",
             "-m",
-            "eegprep.functions.guifunc.visual_capture",
+            "tools.visual_parity.visual_capture",
             "--case",
             "{case_id}",
             "--output",

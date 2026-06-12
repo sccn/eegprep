@@ -693,7 +693,6 @@ dependencies = [
 
 [package.optional-dependencies]
 all = [
-    { name = "eeglabio" },
     { name = "ipython", version = "8.39.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "ipython", version = "9.13.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "myst-parser", version = "4.0.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
@@ -740,9 +739,6 @@ docs = [
     { name = "sphinx-togglebutton" },
     { name = "sphinxcontrib-spelling" },
 ]
-eeglabio = [
-    { name = "eeglabio" },
-]
 gui = [
     { name = "pyqtgraph" },
     { name = "pyside6" },
@@ -771,10 +767,8 @@ release = [
 requires-dist = [
     { name = "colorama", specifier = ">=0.4.6" },
     { name = "eeglabio", specifier = ">=0.1.2" },
-    { name = "eeglabio", marker = "extra == 'eeglabio'", specifier = ">=0.1.2" },
     { name = "eegprep", extras = ["console"], marker = "extra == 'all'" },
     { name = "eegprep", extras = ["docs"], marker = "extra == 'all'" },
-    { name = "eegprep", extras = ["eeglabio"], marker = "extra == 'all'" },
     { name = "eegprep", extras = ["gui"], marker = "extra == 'all'" },
     { name = "eegprep", extras = ["gui"], marker = "extra == 'console'" },
     { name = "eegprep", extras = ["torch"], marker = "extra == 'all'" },
@@ -808,7 +802,7 @@ requires-dist = [
     { name = "threadpoolctl", specifier = ">=3.6.0" },
     { name = "torch", marker = "extra == 'torch'", specifier = ">=2.0" },
 ]
-provides-extras = ["torch", "eeglabio", "gui", "console", "docs", "all"]
+provides-extras = ["torch", "gui", "console", "docs", "all"]
 
 [package.metadata.requires-dev]
 dev = [

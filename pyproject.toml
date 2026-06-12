@@ -46,9 +46,6 @@ dependencies = [
 torch = [
   "torch>=2.0"
 ]
-eeglabio = [
-  "eeglabio>=0.1.2"
-]
 gui = [
   "pyqtgraph>=0.13.7",
   "PySide6>=6.6",
@@ -71,7 +68,6 @@ docs = [
 ]
 all = [
   "eegprep[torch]",
-  "eegprep[eeglabio]",
   "eegprep[gui]",
   "eegprep[console]",
   "eegprep[docs]",

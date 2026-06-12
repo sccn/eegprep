@@ -56,7 +56,6 @@ def pop_newcrossf(
         tlimits = [float(EEG.get("xmin", 0)) * 1000.0, float(EEG.get("xmax", 0)) * 1000.0]
     if cycles is None:
         cycles = [3, 0.5]
-    _reject_unsupported_options(options)
     signal1, signal2, times = _selected_signals(EEG, typeproc, num1, num2, tlimits)
     result = newcrossf(
         signal1, signal2, signal1.shape[0], [times[0], times[-1]], float(EEG.get("srate", 1) or 1), cycles, **options
@@ -180,10 +179,6 @@ def _selected_signals(
     if first < 0 or second < 0 or first >= acts.shape[0] or second >= acts.shape[0]:
         raise ValueError(f"component numbers must be 1-based and within 1..{acts.shape[0]}")
     return acts[first, :, :], acts[second, :, :], full_times
-
-
-def _reject_unsupported_options(options: dict[str, Any]) -> None:
-    _ = options
 
 
 def _first_index(value: Any) -> int:

@@ -97,7 +97,7 @@ Capture only EEGPREP using a command supplied by the caller:
    uv run --no-sync python tools/visual_parity/capture.py \
        --case file_menu \
        --target eegprep \
-       --eegprep-command "python -m eegprep.functions.guifunc.visual_capture --case {case_id} --output {output}"
+       --eegprep-command "python -m tools.visual_parity.visual_capture --case {case_id} --output {output}"
 
 Capture commands receive these environment variables:
 
