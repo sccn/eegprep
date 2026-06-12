@@ -14,6 +14,8 @@ from eegprep.extensions import (
     ExtensionSourceType,
     ExtensionStatus,
     compare_extension_versions,
+    extension_status_is_active,
+    extension_status_is_installed,
 )
 from eegprep.extension_catalog import (
     INSTALL_TRUST_WARNING,
@@ -29,23 +31,6 @@ EXTERNAL_PLUGIN_NOTICE = (
     "This manager never downloads, unzips, installs, updates, or removes extension code."
 )
 
-_ACTIVE_STATUSES = {
-    ExtensionStatus.BUNDLED.value,
-    ExtensionStatus.INSTALLED.value,
-    ExtensionStatus.CURATED.value,
-    "ok",
-}
-_INSTALLED_STATUSES = {
-    ExtensionStatus.BUNDLED.value,
-    ExtensionStatus.INSTALLED.value,
-    ExtensionStatus.DISABLED.value,
-    ExtensionStatus.INCOMPATIBLE.value,
-    ExtensionStatus.FAILED_IMPORT.value,
-    ExtensionStatus.INVALID_SPEC.value,
-    ExtensionStatus.MISSING_DEPENDENCY.value,
-    ExtensionStatus.UNKNOWN.value,
-    "ok",
-}
 _STATUS_LABELS = {
     ExtensionStatus.BUNDLED.value: "Bundled",
     ExtensionStatus.INSTALLED.value: "Installed",
@@ -71,17 +56,6 @@ _STATUS_COLORS = {
     ExtensionStatus.UNKNOWN.value: "#eeeeee",
 }
 
-# EEGLAB-style top-level menu labels for the bundled plugin ports. Names,
-# versions, descriptions, capabilities, and pop functions are derived from the
-# extension registry so they cannot drift from the live discovery path.
-_BUNDLED_PLUGIN_MENUS: dict[str, str] = {
-    "clean_rawdata": "Tools > Reject data using Clean Rawdata and ASR",
-    "ICLabel": "Tools > Classify components using ICLabel",
-    "firfilt": "Tools > Filter the data",
-    "dipfit": "Tools > Source localization using DIPFIT",
-    "EEG_BIDS": "File > Import data / Export / BIDS tools",
-}
-
 
 def bundled_plugins() -> tuple[dict[str, Any], ...]:
     """Return metadata for EEGPrep extensions bundled in the installed package."""
@@ -100,7 +74,7 @@ def bundled_plugins() -> tuple[dict[str, Any], ...]:
                 "status": "ok",
                 "installed": True,
                 "source": record.source_type.value,
-                "menu": _BUNDLED_PLUGIN_MENUS[record.name],
+                "menu": _menu_text(record),
                 "description": spec.description if spec is not None else "",
                 "tags": tuple(spec.capabilities if spec is not None else ()),
             }
@@ -374,8 +348,8 @@ def _plugin_from_record(
     update_commands = build_safe_update_commands(catalog_entry) if catalog_entry is not None else {}
     conflicts = _catalog_conflicts(record, catalog_entry)
     status = record.status.value
-    installed = status in _INSTALLED_STATUSES
-    active = installed and status in _ACTIVE_STATUSES
+    installed = extension_status_is_installed(status)
+    active = record.is_active
     menu = _menu_text(record)
     plugin = {
         "plugin": record.name,
@@ -472,7 +446,7 @@ def _normalize_plugin(plugin: dict[str, Any], *, catalog_info: dict[str, Any] | 
     normalized.setdefault("funcname", "")
     normalized.setdefault("status", "ok" if normalized.get("installed", True) else "unavailable")
     normalized.setdefault("state_label", _STATUS_LABELS.get(str(normalized["status"]), str(normalized["status"])))
-    normalized.setdefault("installed", str(normalized.get("status")) in _INSTALLED_STATUSES)
+    normalized.setdefault("installed", extension_status_is_installed(str(normalized.get("status"))))
     normalized["active"] = _is_active(normalized)
     normalized.setdefault("enabled", normalized["active"])
     normalized.setdefault("curated", False)
@@ -891,7 +865,7 @@ def _source_detail(record: ExtensionRecord, catalog_entry: ExtensionCatalogEntry
 
 def _is_active(plugin: dict[str, Any]) -> bool:
     status = str(plugin.get("status", ""))
-    return bool(plugin.get("installed", status in _INSTALLED_STATUSES)) and status in _ACTIVE_STATUSES
+    return bool(plugin.get("installed", extension_status_is_installed(status))) and extension_status_is_active(status)
 
 
 def _catalog_version_is_newer(installed_version: str, catalog_version: str) -> bool:

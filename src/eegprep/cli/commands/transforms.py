@@ -8,6 +8,7 @@ harness runs the same handlers for local testing.
 from __future__ import annotations
 
 import argparse
+from collections.abc import Mapping
 from contextlib import redirect_stdout
 from dataclasses import dataclass
 import logging
@@ -20,9 +21,7 @@ import numpy as np
 from eegprep.cli.core import (
     EEGPrepCLIError,
     build_manifest,
-    command_error,
     file_sha256,
-    print_result,
     utc_now,
     write_manifest_file,
 )
@@ -96,33 +95,10 @@ def run_transform_command(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Standalone module entry point for local transform testing."""
+    """Route module execution through the canonical top-level CLI dispatcher."""
+    from eegprep.cli.main import main as cli_main
 
-    parser = build_parser()
-    args = parser.parse_args(argv)
-    try:
-        result = run_transform_command(args)
-    except CliTransformError as exc:
-        payload = command_error(getattr(args, "transform_command", "transform"), exc)
-        if getattr(args, "json", False):
-            print_result(payload, as_json=True)
-        else:
-            print(f"{exc.code}: {exc.message}", file=sys.stderr)
-        return exc.exit_code
-    except Exception as exc:
-        error = CliTransformError("TRANSFORM_FAILED", str(exc))
-        payload = command_error(getattr(args, "transform_command", "transform"), error)
-        if getattr(args, "json", False):
-            print_result(payload, as_json=True)
-        else:
-            print(f"{error.code}: {error.message}", file=sys.stderr)
-        return 1
-
-    if getattr(args, "json", False):
-        print_result(result, as_json=True)
-    else:
-        print(result["output"]["path"])
-    return 0
+    return cli_main(sys.argv[1:] if argv is None else argv)
 
 
 def _run_transform_command(args: argparse.Namespace) -> dict[str, Any]:
@@ -137,7 +113,7 @@ def _run_transform_command(args: argparse.Namespace) -> dict[str, Any]:
     input_files = _dataset_file_records(input_path, eeg)
 
     logger.info("Running %s", args.transform_command)
-    result = _run_loaded_transform(eeg, args)
+    result = apply_loaded_transform(eeg, args)
     if result.history:
         _append_history(result.eeg, result.history)
 
@@ -171,7 +147,13 @@ def _run_transform_command(args: argparse.Namespace) -> dict[str, Any]:
     }
 
 
-def _run_loaded_transform(eeg: dict[str, Any], args: argparse.Namespace) -> TransformResult:
+def apply_transform(eeg: dict[str, Any], command: str, parameters: Mapping[str, Any] | None = None) -> TransformResult:
+    """Apply a transform to an already-loaded EEG dict using CLI-equivalent defaults."""
+    return apply_loaded_transform(eeg, transform_args(command, parameters or {}))
+
+
+def apply_loaded_transform(eeg: dict[str, Any], args: argparse.Namespace) -> TransformResult:
+    """Apply a parsed transform command to an already-loaded EEG dict."""
     command = args.transform_command
     if command == "resample":
         return _resample(eeg, args)
@@ -185,6 +167,81 @@ def _run_loaded_transform(eeg: dict[str, Any], args: argparse.Namespace) -> Tran
         return _epoch(eeg, args)
     if command == "ica":
         return _ica(eeg, args)
+    raise CliTransformError("COMMAND_NOT_IMPLEMENTED", f"Transform command is not implemented: {command}")
+
+
+def transform_args(command: str, parameters: Mapping[str, Any]) -> argparse.Namespace:
+    """Return an argparse namespace matching the direct transform subcommand defaults."""
+    normalized = _normalize_transform_command(command)
+    params = dict(parameters)
+    common: dict[str, Any] = {
+        "transform_command": normalized,
+        "input": "",
+        "output": None,
+        "manifest": None,
+        "overwrite": False,
+        "json": False,
+        "quiet": False,
+        "verbose": False,
+        "no_progress": False,
+    }
+    if normalized == "resample":
+        return argparse.Namespace(**common, freq=params.get("freq"), engine=params.get("engine") or "poly")
+    if normalized == "rereference":
+        return argparse.Namespace(
+            **common,
+            method=str(params.get("method") or "average").lower(),
+            channels=_list_or_none(params.get("channels", params.get("ref"))),
+            exclude=_list_or_none(params.get("exclude")),
+            keep_ref=bool(params.get("keep_ref", params.get("keepref", False))),
+            huber=params.get("huber"),
+            refica=params.get("refica") or "on",
+        )
+    if normalized == "filter":
+        return argparse.Namespace(
+            **common,
+            highpass=params.get("highpass"),
+            lowpass=params.get("lowpass"),
+            notch=params.get("notch"),
+            notch_width=params.get("notch_width", 2.0),
+            order=params.get("order"),
+            minphase=bool(params.get("minphase", False)),
+            usefftfilt=bool(params.get("usefftfilt", False)),
+        )
+    if normalized == "clean":
+        return argparse.Namespace(
+            **common,
+            method=str(params.get("method") or "asr").lower(),
+            burst_criterion=params.get("burst_criterion", 20.0),
+            burst_rejection=bool(params.get("burst_rejection", False)),
+            distance=str(params.get("distance") or "euclidean").lower(),
+            flatline_criterion=params.get("flatline_criterion"),
+            channel_criterion=params.get("channel_criterion"),
+            line_noise_criterion=params.get("line_noise_criterion"),
+            window_criterion=params.get("window_criterion"),
+            highpass=params.get("highpass"),
+        )
+    if normalized == "epoch":
+        return argparse.Namespace(
+            **common,
+            event_type=_list_or_empty(params.get("event_type", params.get("event_types"))),
+            tmin=params.get("tmin"),
+            tmax=params.get("tmax"),
+            new_name=params.get("new_name", params.get("newname")),
+        )
+    if normalized == "ica":
+        return argparse.Namespace(
+            **common,
+            method=str(params.get("method") or "runica").lower(),
+            seed=params.get("seed"),
+            deterministic=bool(params.get("deterministic", True)),
+            maxsteps=params.get("maxsteps"),
+            pca=params.get("pca"),
+            extended=params.get("extended"),
+            channels=_list_or_none(params.get("channels")),
+            option=_ica_option_list(params),
+            reorder=bool(params.get("reorder", True)),
+        )
     raise CliTransformError("COMMAND_NOT_IMPLEMENTED", f"Transform command is not implemented: {command}")
 
 
@@ -261,7 +318,7 @@ def _filter(eeg: dict[str, Any], args: argparse.Namespace) -> TransformResult:
         lower_edge = float(args.notch) - notch_width / 2.0
         upper_edge = float(args.notch) + notch_width / 2.0
         if lower_edge <= 0:
-            raise CliTransformError("CONFIG_SCHEMA_ERROR", "--notch minus half --notch-width must be positive.")
+            raise CliTransformError("CONFIG_SCHEMA_ERROR", "notch minus half notch_width must be positive.")
         output, history = pop_eegfiltnew(
             output,
             locutoff=lower_edge,
@@ -423,6 +480,41 @@ def _ica_options(args: argparse.Namespace) -> dict[str, Any]:
             )
         key, value = item.split("=", 1)
         options[key.strip()] = _parse_scalar(value)
+    return options
+
+
+def _normalize_transform_command(command: str) -> str:
+    normalized = str(command).strip().lower()
+    aliases = {"reref": "rereference", "re_reference": "rereference"}
+    return aliases.get(normalized, normalized)
+
+
+def _list_or_none(value: Any) -> list[Any] | None:
+    if value is None:
+        return None
+    if isinstance(value, list):
+        return value
+    if isinstance(value, tuple):
+        return list(value)
+    return [value]
+
+
+def _list_or_empty(value: Any) -> list[Any]:
+    return _list_or_none(value) or []
+
+
+def _ica_option_list(parameters: Mapping[str, Any]) -> list[str]:
+    options: list[str] = []
+    raw_options = parameters.get("options", parameters.get("option", []))
+    if isinstance(raw_options, Mapping):
+        options.extend(f"{key}={value}" for key, value in raw_options.items())
+    elif isinstance(raw_options, str):
+        options.append(raw_options)
+    else:
+        options.extend(str(item) for item in raw_options or [])
+    for key in ("lrate",):
+        if key in parameters:
+            options.append(f"{key}={parameters[key]}")
     return options
 
 
@@ -650,11 +742,17 @@ def _append_history(eeg: dict[str, Any], command: str) -> None:
     eeg["history"] = f"{existing}\n{command}\n" if existing else f"{command}\n"
 
 
-def _channel_tokens(values: list[str], *, numeric_base: int, output_base: int) -> list[Any]:
+def _channel_tokens(values: list[Any], *, numeric_base: int, output_base: int) -> list[Any]:
     tokens: list[Any] = []
     for value in values:
         scalar = _parse_scalar(value)
         if isinstance(scalar, int):
+            if scalar < numeric_base:
+                raise CliTransformError(
+                    "CONFIG_SCHEMA_ERROR",
+                    "Channel indices are EEGLAB-facing 1-based values.",
+                    suggestion="Use channel index 1 for the first channel.",
+                )
             tokens.append(scalar - numeric_base + output_base)
         else:
             tokens.append(scalar)

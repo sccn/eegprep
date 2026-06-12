@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import re
 import sys
 from pathlib import Path
@@ -12,7 +11,7 @@ from typing import Any
 import numpy as np
 import yaml
 
-from eegprep.cli.core import EEGPrepCLIError, json_safe, output_path
+from eegprep.cli.core import EEGPrepCLIError, output_path
 from eegprep.cli.dataset import load_dataset
 
 
@@ -218,14 +217,10 @@ def convert_script(
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Standalone module harness for tests and local debugging."""
-    parser = argparse.ArgumentParser(prog="eegprep migrate")
-    subparsers = parser.add_subparsers(dest="command", required=True)
-    register(subparsers)
-    args = parser.parse_args(["migrate", *(sys.argv[1:] if argv is None else argv)])
-    result = args.handler(args)
-    print(json.dumps(json_safe(result), sort_keys=True))
-    return 0 if result.get("status") in {"ok", "warning"} else 1
+    """Route module execution through the canonical top-level CLI dispatcher."""
+    from eegprep.cli.main import main as cli_main
+
+    return cli_main(["migrate", *(sys.argv[1:] if argv is None else argv)])
 
 
 def _history_lines(history_text: Any) -> list[str]:

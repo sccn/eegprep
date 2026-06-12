@@ -39,7 +39,13 @@ Core agent commands:
 class EEGPrepArgumentParser(argparse.ArgumentParser):
     """ArgumentParser that can emit structured errors for JSON-mode agent calls."""
 
-    json_requested = False
+    def __init__(self, *args: Any, json_requested: bool = False, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.json_requested = json_requested
+
+    def add_subparsers(self, *args: Any, **kwargs: Any) -> argparse._SubParsersAction:
+        kwargs.setdefault("parser_class", self._child_parser_factory())
+        return super().add_subparsers(*args, **kwargs)
 
     def error(self, message: str) -> NoReturn:
         if self.json_requested:
@@ -51,21 +57,30 @@ class EEGPrepArgumentParser(argparse.ArgumentParser):
             )
         super().error(message)
 
+    def _child_parser_factory(self) -> Any:
+        json_requested = self.json_requested
+
+        def factory(*args: Any, **kwargs: Any) -> "EEGPrepArgumentParser":
+            return type(self)(*args, json_requested=json_requested, **kwargs)
+
+        return factory
+
 
 def main(argv: list[str] | None = None) -> int:
     """Run the EEGPrep CLI."""
-    parser = build_parser()
+    raw_argv = sys.argv[1:] if argv is None else list(argv)
+    requested_json = _argv_requests_json(raw_argv)
+    parser = build_parser(json_requested=requested_json)
+    args: argparse.Namespace | None = None
     try:
-        requested_json = "--json" in (sys.argv[1:] if argv is None else argv)
-        EEGPrepArgumentParser.json_requested = requested_json
-        parser.json_requested = requested_json
-        args = parser.parse_args(argv)
+        args = parser.parse_args(raw_argv)
+        args.json_requested = requested_json
         if not hasattr(args, "handler"):
             parser.print_help()
             return 0
         result = args.handler(args)
     except EEGPrepCLIError as exc:
-        print_result(exc.to_response(), as_json=bool(getattr(parser, "json_requested", False)))
+        print_result(exc.to_response(), as_json=requested_json)
         return exc.exit_code
     except Exception as exc:
         code = getattr(exc, "code", None)
@@ -81,7 +96,7 @@ def main(argv: list[str] | None = None) -> int:
                 payload["path"] = str(getattr(exc, "path"))
             if getattr(exc, "suggestion", None) is not None:
                 payload["suggestion"] = getattr(exc, "suggestion")
-            print_result(payload, as_json=_json_requested(args))
+            print_result(payload, as_json=_json_requested(args, requested_json=requested_json))
             return int(getattr(exc, "exit_code", 1) or 1)
         payload = {
             "status": "error",
@@ -90,15 +105,15 @@ def main(argv: list[str] | None = None) -> int:
             "message": str(exc),
             "suggestion": "Rerun with --verbose or file an issue if this is reproducible.",
         }
-        print_result(payload, as_json=_json_requested(args))
-        if bool(getattr(args, "verbose", False)):
+        print_result(payload, as_json=_json_requested(args, requested_json=requested_json))
+        if args is not None and bool(getattr(args, "verbose", False)):
             raise
         return 1
 
-    if isinstance(result, dict) and "_raw_text" in result and not _json_requested(args):
+    if isinstance(result, dict) and "_raw_text" in result and not _json_requested(args, requested_json=requested_json):
         print(result["_raw_text"], end="" if result["_raw_text"].endswith("\n") else "\n")
     else:
-        print_result(result, as_json=_json_requested(args))
+        print_result(result, as_json=_json_requested(args, requested_json=requested_json))
     if isinstance(result, dict) and result.get("status") == "error":
         return int(result.get("exit_code", 1) or 1)
     if isinstance(result, dict):
@@ -106,16 +121,17 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
-def build_parser() -> EEGPrepArgumentParser:
+def build_parser(*, json_requested: bool = False) -> EEGPrepArgumentParser:
     """Build the root parser."""
     parser = EEGPrepArgumentParser(
         prog="eegprep",
         description="EEGLAB-compatible, Python-native EEG preprocessing CLI.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=AGENT_EPILOG,
+        json_requested=json_requested,
     )
     parser.add_argument("--version", action="store_true", help="Show EEGPrep version and exit.")
-    subparsers = parser.add_subparsers(dest="command", parser_class=EEGPrepArgumentParser)
+    subparsers = parser.add_subparsers(dest="command")
 
     _register_discovery(subparsers)
     _register_inspect(subparsers)
@@ -138,7 +154,7 @@ def _register_discovery(subparsers: argparse._SubParsersAction) -> None:
     capabilities.set_defaults(handler=lambda _args: discovery.capabilities())
 
     schema = subparsers.add_parser("schema", help="Print command or pipeline schemas.")
-    schema_sub = schema.add_subparsers(dest="schema_kind", required=True, parser_class=EEGPrepArgumentParser)
+    schema_sub = schema.add_subparsers(dest="schema_kind", required=True)
     pipeline = schema_sub.add_parser("pipeline", help="Print pipeline config schema.")
     pipeline.add_argument("--json", action="store_true")
     pipeline.set_defaults(handler=lambda _args: discovery.pipeline_schema())
@@ -153,7 +169,7 @@ def _register_discovery(subparsers: argparse._SubParsersAction) -> None:
     examples.set_defaults(handler=lambda args: discovery.examples(args.name))
 
     skills = subparsers.add_parser("skills", help="List and retrieve bundled agent skill content.")
-    skills_sub = skills.add_subparsers(dest="skills_command", required=True, parser_class=EEGPrepArgumentParser)
+    skills_sub = skills.add_subparsers(dest="skills_command", required=True)
     skills_list = skills_sub.add_parser("list", help="List bundled CLI skills.")
     skills_list.add_argument("--json", action="store_true")
     skills_list.set_defaults(handler=lambda _args: discovery.skills_list())
@@ -225,14 +241,14 @@ def _handle_skill_path(args: argparse.Namespace) -> dict[str, Any]:
     return {"status": "ok", "schema_version": "eegprep.skills.path.v1", "name": args.name, "path": path}
 
 
-def _json_requested(args: argparse.Namespace) -> bool:
-    if bool(getattr(args, "json", False)):
+def _argv_requests_json(argv: list[str]) -> bool:
+    return "--json" in argv
+
+
+def _json_requested(args: argparse.Namespace | None, *, requested_json: bool) -> bool:
+    if requested_json:
         return True
-    # Commands that consume their flags via argparse.REMAINDER (e.g. ``qc``) never bind a
-    # top-level ``--json`` on ``args``. The root parser already records whether ``--json``
-    # appeared anywhere in argv, so consult that command-agnostic flag instead of
-    # introspecting any single subcommand's argument attribute.
-    return bool(EEGPrepArgumentParser.json_requested)
+    return bool(getattr(args, "json", False))
 
 
 if __name__ == "__main__":

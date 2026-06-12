@@ -58,6 +58,17 @@ def test_bundled_plugins_match_extension_registry_records() -> None:
         assert plugin["tags"] == record.spec.capabilities
 
 
+def test_bundled_plugins_use_registry_menu_projection() -> None:
+    plugin_inventory = {plugin["plugin"]: plugin for plugin in bundled_plugins()}
+    manager_inventory = {
+        plugin["plugin"]: plugin for plugin in plugin_menu(catalog=_catalog(), include_entry_points=False, show=False)
+    }
+
+    assert plugin_inventory.keys() == manager_inventory.keys()
+    for name, plugin in plugin_inventory.items():
+        assert plugin["menu"] == manager_inventory[name]["menu"]
+
+
 def test_bundled_plugins_returns_copies() -> None:
     plugins = bundled_plugins()
     plugins[0]["status"] = "changed"

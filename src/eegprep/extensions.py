@@ -56,6 +56,29 @@ class ExtensionStatus(str, Enum):
     UNKNOWN = "unknown"
 
 
+EXTENSION_ACTIVE_STATUSES = frozenset(
+    {
+        ExtensionStatus.BUNDLED.value,
+        ExtensionStatus.INSTALLED.value,
+        ExtensionStatus.CURATED.value,
+        "ok",
+    }
+)
+EXTENSION_INSTALLED_STATUSES = frozenset(
+    {
+        ExtensionStatus.BUNDLED.value,
+        ExtensionStatus.INSTALLED.value,
+        ExtensionStatus.DISABLED.value,
+        ExtensionStatus.INCOMPATIBLE.value,
+        ExtensionStatus.FAILED_IMPORT.value,
+        ExtensionStatus.INVALID_SPEC.value,
+        ExtensionStatus.MISSING_DEPENDENCY.value,
+        ExtensionStatus.UNKNOWN.value,
+        "ok",
+    }
+)
+
+
 class ExtensionSourceType(str, Enum):
     """Source category declared by an extension."""
 
@@ -244,16 +267,7 @@ class ExtensionRecord:
     @property
     def is_active(self) -> bool:
         """Return whether this record can contribute runtime behavior."""
-        return (
-            self.enabled
-            and self.spec is not None
-            and self.status
-            in {
-                ExtensionStatus.BUNDLED,
-                ExtensionStatus.INSTALLED,
-                ExtensionStatus.CURATED,
-            }
-        )
+        return self.enabled and self.spec is not None and extension_status_is_active(self.status)
 
 
 EntryPointsProvider = Callable[..., Any]
@@ -511,13 +525,13 @@ class ExtensionRegistry:
 
     def _entry_point_records(self) -> list[ExtensionRecord]:
         records = []
-        for entry_point in _select_entry_points(self._entry_points_provider, self.entry_point_group):
+        for entry_point in select_extension_entry_points(self._entry_points_provider, self.entry_point_group):
             records.append(self._record_from_entry_point(entry_point))
         return records
 
     def _record_from_entry_point(self, entry_point: Any) -> ExtensionRecord:
         entry_point_name = str(getattr(entry_point, "name", "") or "<unknown>")
-        package_name = _entry_point_package_name(entry_point)
+        package_name = extension_entry_point_package_name(entry_point)
         try:
             loaded = entry_point.load()
         except Exception as exc:
@@ -889,7 +903,8 @@ def _dependency_errors(dependencies: tuple[Any, ...], version_provider: VersionP
     return invalid, missing
 
 
-def _select_entry_points(provider: EntryPointsProvider, group: str) -> tuple[Any, ...]:
+def select_extension_entry_points(provider: EntryPointsProvider, group: str) -> tuple[Any, ...]:
+    """Return entry points from providers with modern or legacy selection APIs."""
     try:
         selected = provider(group=group)
     except TypeError:
@@ -899,6 +914,18 @@ def _select_entry_points(provider: EntryPointsProvider, group: str) -> tuple[Any
         else:
             selected = [entry_point for entry_point in entry_points if getattr(entry_point, "group", None) == group]
     return tuple(selected or ())
+
+
+def extension_status_is_active(status: ExtensionStatus | str) -> bool:
+    """Return whether an extension status can contribute runtime behavior."""
+    value = status.value if isinstance(status, ExtensionStatus) else str(status)
+    return value in EXTENSION_ACTIVE_STATUSES
+
+
+def extension_status_is_installed(status: ExtensionStatus | str) -> bool:
+    """Return whether an extension status represents an installed package/port."""
+    value = status.value if isinstance(status, ExtensionStatus) else str(status)
+    return value in EXTENSION_INSTALLED_STATUSES
 
 
 def _status_for_spec(
@@ -960,7 +987,8 @@ def _coerce_source_type(source_type: ExtensionSourceType | str) -> ExtensionSour
         return ExtensionSourceType.UNKNOWN
 
 
-def _entry_point_package_name(entry_point: Any) -> str:
+def extension_entry_point_package_name(entry_point: Any) -> str:
+    """Return the distribution name associated with an extension entry point."""
     dist = getattr(entry_point, "dist", None)
     dist_metadata = getattr(dist, "metadata", None)
     if dist_metadata is None:
@@ -978,10 +1006,11 @@ def _current_eegprep_version() -> str:
 
 
 def _api_version_supported(api_version: str) -> bool:
-    return _major_version(api_version) == _major_version(EXTENSION_API_VERSION)
+    return extension_api_major_version(api_version) == extension_api_major_version(EXTENSION_API_VERSION)
 
 
-def _major_version(version: str) -> int:
+def extension_api_major_version(version: str) -> int:
+    """Return the integer major component for an extension API/version string."""
     text = str(version).strip()
     if not text:
         return -1
@@ -1072,9 +1101,11 @@ def _as_tuple(value: Any) -> tuple[Any, ...]:
 
 __all__ = [
     "EXTENSION_API_VERSION",
+    "EXTENSION_ACTIVE_STATUSES",
     "EXTENSION_COMPATIBILITY_POLICY",
     "EXTENSION_CURATION_POLICY_URL",
     "EXTENSION_ENTRY_POINT_GROUP",
+    "EXTENSION_INSTALLED_STATUSES",
     "EXTENSION_NAMING_PREFIX",
     "EXTENSION_TRUST_MESSAGE",
     "ExtensionAction",
@@ -1093,7 +1124,12 @@ __all__ = [
     "check_extension_compatibility",
     "compare_extension_versions",
     "discover_extensions",
+    "extension_api_major_version",
+    "extension_entry_point_package_name",
+    "extension_status_is_active",
+    "extension_status_is_installed",
     "extension_version_satisfies",
     "extension_version_spec_is_valid",
+    "select_extension_entry_points",
     "validate_extension_spec",
 ]

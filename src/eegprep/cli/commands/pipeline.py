@@ -12,13 +12,13 @@ from typing import Any
 
 import yaml
 
+from eegprep.cli.commands import transforms as transform_commands
 from eegprep.cli.commands.qc import compute_qc_metrics
 from eegprep.cli.core import (
     EEGPrepCLIError as CommandError,
     build_manifest,
     command_error as error_result,
     command_ok as success_result,
-    emit_command_result as emit_result,
     file_sha256,
     utc_now,
     write_json_file,
@@ -26,13 +26,7 @@ from eegprep.cli.core import (
 )
 from eegprep.cli.dataset import load_dataset as load_eeg_dataset
 from eegprep.cli.reporting import write_report_html
-from eegprep.functions.popfunc.pop_epoch import pop_epoch
-from eegprep.functions.popfunc.pop_reref import pop_reref
-from eegprep.functions.popfunc.pop_resample import pop_resample
-from eegprep.functions.popfunc.pop_runica import pop_runica
 from eegprep.functions.popfunc.pop_saveset import pop_saveset
-from eegprep.plugins.clean_rawdata.pop_clean_rawdata import pop_clean_rawdata
-from eegprep.plugins.firfilt.pop_eegfiltnew import pop_eegfiltnew
 
 
 PIPELINE_SCHEMA_VERSION = "eegprep.pipeline.v1"
@@ -165,7 +159,7 @@ def run_pipeline_config(
 def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> argparse.ArgumentParser:
     """Register ``pipeline`` commands with an argparse dispatcher."""
     parser = subparsers.add_parser("pipeline", help="Validate, plan, or run YAML EEGPrep pipelines.")
-    pipeline_subparsers = parser.add_subparsers(dest="pipeline_action", required=True, parser_class=type(parser))
+    pipeline_subparsers = parser.add_subparsers(dest="pipeline_action", required=True)
 
     validate_parser = pipeline_subparsers.add_parser("validate", help="Validate a pipeline YAML file.")
     validate_parser.add_argument("config", help="Pipeline YAML config")
@@ -209,13 +203,10 @@ def handle_registered(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Standalone module entry point for local command testing."""
-    parser = argparse.ArgumentParser(prog="eegprep pipeline")
-    subparsers = parser.add_subparsers(dest="pipeline_action", required=True)
-    register(subparsers)
-    args = parser.parse_args(["pipeline", *(sys.argv[1:] if argv is None else argv)])
-    result = handle_registered(args)
-    return emit_result(result, json_output=True)
+    """Route module execution through the canonical top-level CLI dispatcher."""
+    from eegprep.cli.main import main as cli_main
+
+    return cli_main(["pipeline", *(sys.argv[1:] if argv is None else argv)])
 
 
 def _load_normalized_config(config_path: str | Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
@@ -476,23 +467,10 @@ def _run_step(
 ) -> tuple[dict[str, Any], str, list[dict[str, Any]], dict[str, Any] | None]:
     name = step["name"]
     parameters = step["parameters"]
-    if name == "filter":
-        EEG, history = _apply_filter(EEG, parameters)
-        return EEG, history, [], latest_qc
-    if name == "rereference":
-        EEG, history = _apply_rereference(EEG, parameters)
-        return EEG, history, [], latest_qc
-    if name == "resample":
-        EEG, history = _apply_resample(EEG, parameters)
-        return EEG, history, [], latest_qc
-    if name == "clean":
-        EEG, history = _apply_clean(EEG, parameters)
-        return EEG, history, [], latest_qc
-    if name == "epoch":
-        EEG, history = _apply_epoch(EEG, parameters)
-        return EEG, history, [], latest_qc
-    if name == "ica":
-        EEG, history = _apply_ica(EEG, parameters)
+    if name in MUTATING_STEP_NAMES:
+        result = transform_commands.apply_transform(EEG, name, parameters)
+        EEG = result.eeg
+        history = result.history
         return EEG, history, [], latest_qc
     if name == "qc":
         qc_payload = compute_qc_metrics(EEG, dataset_path=config["input"]["path"])
@@ -510,85 +488,6 @@ def _run_step(
         )
         return EEG, "", [entry], metrics
     raise CommandError("COMMAND_NOT_IMPLEMENTED", f"Pipeline step is not implemented: {name}")
-
-
-def _apply_filter(EEG: dict[str, Any], parameters: dict[str, Any]) -> tuple[dict[str, Any], str]:
-    histories = []
-    highpass = parameters.get("highpass")
-    lowpass = parameters.get("lowpass")
-    if highpass is not None or lowpass is not None:
-        EEG, history = pop_eegfiltnew(
-            EEG,
-            locutoff=highpass,
-            hicutoff=lowpass,
-            plotfreqz=False,
-            gui=False,
-            return_com=True,
-        )
-        histories.append(history)
-    notch = parameters.get("notch")
-    if notch is not None:
-        width = float(parameters.get("notch_width") or 2.0)
-        lower_edge = float(notch) - width / 2
-        if lower_edge <= 0:
-            raise CommandError(
-                "CONFIG_SCHEMA_ERROR",
-                "notch minus half notch_width must be positive.",
-                path="steps[].notch",
-                suggestion="Increase notch or decrease notch_width so the notch stop band stays above 0 Hz.",
-            )
-        EEG, history = pop_eegfiltnew(
-            EEG,
-            locutoff=lower_edge,
-            hicutoff=float(notch) + width / 2,
-            revfilt=True,
-            plotfreqz=False,
-            gui=False,
-            return_com=True,
-        )
-        histories.append(history)
-    return EEG, "\n".join(item for item in histories if item)
-
-
-def _apply_rereference(EEG: dict[str, Any], parameters: dict[str, Any]) -> tuple[dict[str, Any], str]:
-    method = str(parameters.get("method") or "average").lower()
-    ref = [] if method == "average" else _channel_indices(parameters.get("channels", parameters.get("ref")))
-    return pop_reref(EEG, ref, gui=False, return_com=True)
-
-
-def _apply_resample(EEG: dict[str, Any], parameters: dict[str, Any]) -> tuple[dict[str, Any], str]:
-    return pop_resample(EEG, float(parameters["freq"]), gui=False, return_com=True)
-
-
-def _apply_clean(EEG: dict[str, Any], parameters: dict[str, Any]) -> tuple[dict[str, Any], str]:
-    clean_kwargs: dict[str, Any] = {}
-    key_map = {
-        "burst_criterion": "BurstCriterion",
-        "channel_criterion": "ChannelCriterion",
-        "line_noise_criterion": "LineNoiseCriterion",
-        "window_criterion": "WindowCriterion",
-        "flatline_criterion": "FlatlineCriterion",
-        "highpass": "Highpass",
-    }
-    for source, target in key_map.items():
-        if source in parameters:
-            clean_kwargs[target] = parameters[source]
-    return pop_clean_rawdata(EEG, gui=False, return_com=True, **clean_kwargs)
-
-
-def _apply_epoch(EEG: dict[str, Any], parameters: dict[str, Any]) -> tuple[dict[str, Any], str]:
-    event_types = parameters.get("event_types", parameters.get("event_type"))
-    limits = [float(parameters["tmin"]), float(parameters["tmax"])]
-    return pop_epoch(EEG, event_types, limits, gui=False, return_com=True)
-
-
-def _apply_ica(EEG: dict[str, Any], parameters: dict[str, Any]) -> tuple[dict[str, Any], str]:
-    method = str(parameters.get("method") or "runica").lower()
-    options = {}
-    for key in ("seed", "maxsteps", "extended", "lrate"):
-        if key in parameters:
-            options[key] = parameters[key]
-    return pop_runica(EEG, icatype=method, options=options or None, gui=False, return_com=True)
 
 
 def _save_dataset(EEG: dict[str, Any], output_path: str | Path, *, history: str) -> list[dict[str, Any]]:
@@ -669,33 +568,9 @@ def _resolve_path(value: str | Path, base_dir: Path) -> Path:
 
 
 def _channel_indices(value: Any) -> list[Any]:
-    values = value if isinstance(value, list | tuple) else [value]
-    refs = []
-    for item in values:
-        if isinstance(item, int | float) and float(item).is_integer():
-            if int(item) < 1:
-                raise CommandError(
-                    "CONFIG_SCHEMA_ERROR",
-                    "Pipeline channel indices are EEGLAB-facing 1-based values.",
-                    path="steps[].channels",
-                    suggestion="Use channel index 1 for the first channel.",
-                )
-            refs.append(int(item) - 1)
-            continue
-        text = str(item)
-        if text.isdecimal():
-            number = int(text)
-            if number < 1:
-                raise CommandError(
-                    "CONFIG_SCHEMA_ERROR",
-                    "Pipeline channel indices are EEGLAB-facing 1-based values.",
-                    path="steps[].channels",
-                    suggestion="Use channel index 1 for the first channel.",
-                )
-            refs.append(number - 1)
-        else:
-            refs.append(item)
-    return refs
+    return transform_commands._channel_tokens(
+        value if isinstance(value, list | tuple) else [value], numeric_base=1, output_base=0
+    )
 
 
 def _number(value: Any, path: str, errors: list[dict[str, Any]], *, required: bool = False) -> float | None:
