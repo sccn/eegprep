@@ -196,13 +196,16 @@ class TestEegPicardSimple(DebuggableTestCase):
     def test_eeg_picard_does_not_mutate_caller(self):
         """eeg_picard must not mutate the caller's data or ICA fields."""
         data_before = self.test_eeg['data'].copy()
-        weights_before = list(self.test_eeg['icaweights'])
+        # A pre-ICA input has no icaweights yet; "does not mutate" means the
+        # caller's fields stay the exact objects they were (the result is a copy).
+        weights_before = self.test_eeg.get('icaweights')
+        chansind_before = self.test_eeg.get('icachansind')
 
         eeg_picard(self.test_eeg, posact=True, max_iter=10, random_state=1, verbose=False)
 
         self.assertTrue(np.array_equal(self.test_eeg['data'], data_before))
-        self.assertEqual(list(self.test_eeg['icaweights']), weights_before)
-        self.assertEqual(list(self.test_eeg['icachansind']), [])
+        self.assertIs(self.test_eeg.get('icaweights'), weights_before)
+        self.assertIs(self.test_eeg.get('icachansind'), chansind_before)
 
     def test_eeg_picard_posact_preserves_unmixing_invariant(self):
         """After posact sign flips, icawinv must stay pinv(icaweights @ icasphere)."""
