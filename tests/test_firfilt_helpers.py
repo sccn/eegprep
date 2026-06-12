@@ -63,6 +63,22 @@ def test_firws_and_firwsord_are_owned_by_firfilt_plugin():
     np.testing.assert_allclose(b, b[::-1], atol=1e-12)
 
 
+def test_clean_rawdata_fir_design_helpers_are_owned_by_firfilt_plugin():
+    """Clean rawdata imports FIR design helpers downward from firfilt."""
+    from eegprep.plugins.clean_rawdata.private import sigproc
+    from eegprep.plugins.firfilt.design import design_fir, design_kaiser
+
+    assert design_fir.__module__ == "eegprep.plugins.firfilt.design"
+    assert design_kaiser.__module__ == "eegprep.plugins.firfilt.design"
+    assert not hasattr(sigproc, "design_fir")
+    assert not hasattr(sigproc, "design_kaiser")
+
+    window = design_kaiser(0.06, 0.08, 75.0, True)
+    coeffs = design_fir(234, [0.0, 0.06, 0.08, 1.0], [0, 0, 1, 1], w=window)
+    assert window.size % 2 == 1
+    assert coeffs.size == 235
+
+
 def test_invfirwsord_returns_transition_width_and_window_deviation():
     df, dev = invfirwsord("hamming", 500, 826)
 

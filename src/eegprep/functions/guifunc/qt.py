@@ -48,6 +48,55 @@ def _require_qt() -> tuple[Any, Any]:
 class QtDialogRenderer:
     """Render :class:`DialogSpec` using PySide6 widgets."""
 
+    # Implementations live at module scope; these aliases preserve existing
+    # QtDialogRenderer._helper callers.
+    _QDialog: Any
+    _apply_eeglab_style: Any
+    _row_weights: Any
+    _row_stretch: Any
+    _spacer_row_height: Any
+    _add_buttons: Any
+    _apply_spec_size: Any
+    _apply_font_hints: Any
+    _apply_widget_size_policy: Any
+    _accept_if_valid: Any
+    _validation_message: Any
+    _validate_pop_reref_dialog: Any
+    _validate_pop_interp_dialog: Any
+    _callback_channels: Any
+    _validate_channel_text: Any
+    _parse_channel_text: Any
+    _parse_numeric_text: Any
+    _widget_number: Any
+    _widget_vector: Any
+    _combo_choice: Any
+    _is_int_text: Any
+    _widget_checked: Any
+    _widget_text: Any
+    _plot_tf_cycle_calc: Any
+    _estimate_fir_kaiser_beta: Any
+    _estimate_firws_order: Any
+    _estimate_firpm_order: Any
+    _plot_fir_response: Any
+    _sync_numeric: Any
+    _select_event_types: Any
+    _select_channels: Any
+    _select_file: Any
+    _open_eegplot: Any
+    _open_rejection_browser: Any
+    _set_headplot_setup_mode: Any
+    _set_headplot_mesh_choice: Any
+    _run_headplot_manual_coreg: Any
+    _choice_or_text: Any
+    _show_callback_message: Any
+    _edit_text: Any
+    _select_interp_channels: Any
+    _store_interp_selection: Any
+    _set_reref_mode: Any
+    _set_enabled: Any
+    _show_help: Any
+    _read_widget: Any
+
     def run(
         self,
         spec: DialogSpec,
@@ -58,15 +107,6 @@ class QtDialogRenderer:
         if dialog.exec() != self._QDialog().Accepted:
             return None
         return {tag: self._read_widget(widget) for tag, widget in widgets.items()}
-
-    @staticmethod
-    def _QDialog() -> Any:
-        if QDialog is None:
-            raise RuntimeError(
-                "PySide6 is required for EEGPrep GUI dialogs. Install it with "
-                "`pip install -e .[gui]` or `pip install eegprep[gui]`."
-            )
-        return QDialog
 
     def build_dialog(
         self,
@@ -143,195 +183,6 @@ class QtDialogRenderer:
         self._apply_spec_size(dialog, spec)
         return app, dialog, widgets
 
-    @staticmethod
-    def _apply_eeglab_style(dialog: Any, spec: DialogSpec) -> None:
-        base_stylesheet = """
-            QDialog {
-                background: #a8c2ff;
-                color: #000066;
-                font-size: 16px;
-            }
-            QLabel, QCheckBox, QPushButton, QLineEdit, QTextEdit, QComboBox, QListWidget {
-                font-size: 16px;
-            }
-            QLabel, QCheckBox {
-                color: #000066;
-                background: transparent;
-            }
-            QLabel:disabled, QCheckBox:disabled {
-                color: #7c86a8;
-            }
-            QLineEdit {
-                background: white;
-                border: 1px solid #7f7f7f;
-                min-height: 18px;
-                max-height: 18px;
-                margin-left: 1px;
-                padding: 0 3px;
-                color: #000066;
-            }
-            QLineEdit:disabled {
-                background: #dce6ff;
-                color: #7c86a8;
-            }
-            QTextEdit {
-                background: white;
-                border: 1px solid #7f7f7f;
-                color: #000066;
-            }
-            QComboBox {
-                background: white;
-                border: 1px solid #7f7f7f;
-                min-height: 20px;
-                max-height: 20px;
-                color: #000066;
-            }
-            QComboBox:disabled {
-                background: #dce6ff;
-                color: #7c86a8;
-            }
-            QListWidget {
-                background: white;
-                border: 1px solid #7f7f7f;
-                min-height: 74px;
-                max-height: 74px;
-                color: #000066;
-            }
-            QPushButton {
-                background: #eeeeee;
-                border: 1px solid #7f7f7f;
-                min-height: 18px;
-                max-height: 18px;
-                padding: 0 10px;
-                color: #000066;
-            }
-            QPushButton:disabled {
-                color: #b0b0b0;
-            }
-            QPushButton#double_dip_help {
-                min-width: 150px;
-                max-width: 150px;
-            }
-            QPushButton#events_button {
-                min-width: 130px;
-                max-width: 130px;
-            }
-            QPushButton#scroll {
-                min-width: 159px;
-                max-width: 159px;
-            }
-            QPushButton#refbr, QPushButton#exclude_button, QPushButton#refloc_button {
-                min-width: 33px;
-                max-width: 33px;
-                padding: 0;
-            }
-            QPushButton#interp_nondatchan,
-            QPushButton#interp_removedchans,
-            QPushButton#interp_datchan,
-            QPushButton#interp_selectchan,
-            QPushButton#interp_uselist {
-                min-width: 434px;
-                max-width: 434px;
-                padding: 0;
-            }
-            QDialog#pop_interp QPushButton {
-                padding: 0;
-            }
-            QDialog#pop_interp QLineEdit,
-            QDialog#pop_interp QComboBox {
-                min-width: 198px;
-                max-width: 198px;
-            }
-            QDialog#pop_reref QLineEdit {
-                min-width: 163px;
-                max-width: 163px;
-            }
-            QDialog#pop_runica QListWidget {
-                min-height: 102px;
-                max-height: 102px;
-            }
-            QCheckBox {
-                spacing: 4px;
-            }
-            QCheckBox::indicator {
-                width: 13px;
-                height: 13px;
-            }
-            QCheckBox::indicator:unchecked {
-                background: white;
-                border: 1px solid #7f7f7f;
-            }
-            """
-        dialog.setStyleSheet(base_stylesheet + (spec.extra_stylesheet or ""))
-
-    @staticmethod
-    def _row_weights(row_geometry: Any) -> list[float]:
-        if isinstance(row_geometry, (list, tuple)):
-            return [max(0.01, float(value)) for value in row_geometry]
-        return [1.0] * max(1, int(row_geometry))
-
-    @staticmethod
-    def _row_stretch(spec: DialogSpec, row_index: int) -> int:
-        if spec.geomvert is None:
-            return 0
-        value = spec.geomvert[min(row_index, len(spec.geomvert) - 1)]
-        return max(1, round(float(value) * 100))
-
-    @staticmethod
-    def _spacer_row_height(spec: DialogSpec, row_index: int) -> int:
-        if spec.geomvert is not None:
-            value = spec.geomvert[min(row_index, len(spec.geomvert) - 1)]
-            return max(8, round(float(value) * 55))
-        return max(8, spec.row_spacing * 7)
-
-    @staticmethod
-    def _add_buttons(
-        QtWidgets: Any,
-        layout: Any,
-        spec: DialogSpec,
-        dialog: Any,
-        widgets: dict[str, Any],
-    ) -> None:
-        if spec.geomvert is None and spec.size is not None:
-            layout.addStretch(1)
-        button_container = QtWidgets.QWidget()
-        button_container.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
-        button_layout = QtWidgets.QHBoxLayout(button_container)
-        button_layout.setContentsMargins(0, 18, 0, 0)
-        button_layout.setSpacing(16)
-        if spec.help_text and spec.show_help_button:
-            help_button = QtWidgets.QPushButton(spec.help_label)
-            help_button.setObjectName("help")
-            help_button.setFixedWidth(spec.button_size[0] if spec.button_size is not None else 80)
-            help_button.clicked.connect(lambda: QtDialogRenderer._show_help(QtWidgets, dialog, spec))
-            button_layout.addWidget(help_button)
-        button_layout.addStretch(1)
-        cancel_button = QtWidgets.QPushButton(spec.cancel_label)
-        ok_button = QtWidgets.QPushButton(spec.ok_label)
-        cancel_button.setObjectName("cancel")
-        ok_button.setObjectName("ok")
-        if spec.button_size is not None:
-            cancel_button.setFixedSize(*spec.button_size)
-            ok_button.setFixedSize(*spec.button_size)
-        else:
-            cancel_button.setFixedWidth(80)
-            ok_button.setFixedWidth(80)
-        cancel_button.clicked.connect(dialog.reject)
-        ok_button.clicked.connect(lambda: QtDialogRenderer._accept_if_valid(dialog, spec, widgets))
-        if spec.cancel_first:
-            button_layout.insertWidget(0, cancel_button)
-            button_layout.addWidget(ok_button)
-        else:
-            button_layout.addWidget(cancel_button)
-            button_layout.addWidget(ok_button)
-        layout.addWidget(button_container)
-
-    @staticmethod
-    def _apply_spec_size(dialog: Any, spec: DialogSpec) -> None:
-        if spec.size is None:
-            return
-        dialog.resize(*spec.size)
-
     def _build_widget(self, QtWidgets: Any, control: ControlSpec, initial_values: Mapping[str, Any]) -> Any:
         style = control.style.lower()
         value = initial_values.get(control.tag, control.value)
@@ -387,30 +238,6 @@ class QtDialogRenderer:
         self._apply_widget_size_policy(QtWidgets, widget, style)
         widget.setEnabled(control.enabled)
         return widget
-
-    @staticmethod
-    def _apply_font_hints(widget: Any, control: ControlSpec) -> None:
-        if control.font_weight is None:
-            return
-        font = widget.font()
-        font.setBold(control.font_weight.lower() == "bold")
-        widget.setFont(font)
-
-    @staticmethod
-    def _apply_widget_size_policy(QtWidgets: Any, widget: Any, style: str) -> None:
-        policy = QtWidgets.QSizePolicy
-        if style in {"edit", "popupmenu", "listbox"}:
-            widget.setSizePolicy(policy.Expanding, policy.Fixed)
-            return
-        if style == "pushbutton":
-            widget.setSizePolicy(policy.Fixed, policy.Fixed)
-            return
-        if style == "textarea":
-            widget.setSizePolicy(policy.Expanding, policy.Expanding)
-            return
-        if style in {"text", "checkbox"}:
-            widget.setMinimumWidth(0)
-            widget.setSizePolicy(policy.Expanding, policy.Fixed)
 
     def _connect_callback(self, callback: CallbackSpec | None, widgets: dict[str, Any]) -> None:
         if callback is None:
@@ -517,203 +344,6 @@ class QtDialogRenderer:
             if source is not None:
                 source.clicked.connect(lambda: self._plot_fir_response(source, widgets, params))
 
-    @staticmethod
-    def _accept_if_valid(dialog: Any, spec: DialogSpec, widgets: dict[str, Any]) -> None:
-        message = QtDialogRenderer._validation_message(spec, widgets)
-        if message:
-            _qt_core, qt_widgets = _require_qt()
-            qt_widgets.QMessageBox.warning(dialog, "Warning", message)
-            return
-        dialog.accept()
-
-    @staticmethod
-    def _validation_message(spec: DialogSpec, widgets: dict[str, Any]) -> str | None:
-        if spec.function_name == "pop_reref":
-            return QtDialogRenderer._validate_pop_reref_dialog(spec, widgets)
-        if spec.function_name == "pop_interp":
-            return QtDialogRenderer._validate_pop_interp_dialog(spec, widgets)
-        if spec.function_name == "pop_resample":
-            text = QtDialogRenderer._widget_text(widgets.get("freq")).strip()
-            if not text:
-                return "New sampling rate is required"
-            try:
-                value = float(text)
-            except ValueError:
-                return "New sampling rate must be numeric"
-            if value <= 0:
-                return "New sampling rate must be positive"
-        if spec.function_name == "pop_epoch":
-            limits_text = QtDialogRenderer._widget_text(widgets.get("limits")).strip()
-            if not limits_text:
-                return "Epoch limits are required"
-            try:
-                limits = QtDialogRenderer._parse_numeric_text(limits_text)
-            except ValueError:
-                return "Epoch limits must be numeric"
-            if len(limits) != 2:
-                return "Epoch limits must contain 2 values"
-            if limits[0] >= limits[1]:
-                return "Epoch start must be lower than epoch end"
-            valuelim_text = QtDialogRenderer._widget_text(widgets.get("valuelim")).strip()
-            if valuelim_text:
-                try:
-                    valuelim = QtDialogRenderer._parse_numeric_text(valuelim_text)
-                except ValueError:
-                    return "Out-of-bounds EEG limits must be numeric"
-                if len(valuelim) not in {1, 2}:
-                    return "Out-of-bounds EEG limits must contain 1 or 2 values"
-        if spec.function_name == "pop_runica" and "dataset" in widgets:
-            if not QtDialogRenderer._read_widget(widgets["dataset"]):
-                return "Select at least one dataset"
-        if spec.function_name == "pop_headplot":
-            if QtDialogRenderer._widget_checked(widgets.get("loadcb")):
-                if not QtDialogRenderer._widget_text(widgets.get("load")).strip():
-                    return "Select a spline file to load"
-            else:
-                if not QtDialogRenderer._widget_text(widgets.get("setup_file")).strip():
-                    return "Enter an output spline file name"
-                transform_text = QtDialogRenderer._widget_text(widgets.get("transform")).strip()
-                if not transform_text:
-                    return "Enter a Talairach transformation matrix"
-                try:
-                    transform = QtDialogRenderer._parse_numeric_text(transform_text)
-                except ValueError:
-                    return "Talairach transformation matrix must contain numeric values"
-                if len(transform) not in {6, 9}:
-                    return "Talairach transformation matrix must contain 6 or 9 values"
-        return None
-
-    @staticmethod
-    def _validate_pop_reref_dialog(spec: DialogSpec, widgets: dict[str, Any]) -> str | None:
-        if QtDialogRenderer._widget_checked(widgets.get("huberef")):
-            huber_text = QtDialogRenderer._widget_text(widgets.get("huberval")).strip()
-            if huber_text:
-                try:
-                    float(huber_text)
-                except ValueError:
-                    return f"could not convert string to float: '{huber_text}'"
-
-        channel_labels = QtDialogRenderer._callback_channels(spec, "refbr")
-        if QtDialogRenderer._widget_checked(widgets.get("rerefstr")):
-            ref_text = QtDialogRenderer._widget_text(widgets.get("reref")).strip()
-            if not ref_text:
-                return "Aborting: you must enter one or more reference channels"
-            message = QtDialogRenderer._validate_channel_text(ref_text, channel_labels, "Channel")
-            if message:
-                return message
-
-        exclude_text = QtDialogRenderer._widget_text(widgets.get("exclude")).strip()
-        if exclude_text:
-            message = QtDialogRenderer._validate_channel_text(exclude_text, channel_labels, "Channel")
-            if message:
-                return message
-
-        refloc_text = QtDialogRenderer._widget_text(widgets.get("refloc")).strip()
-        if refloc_text:
-            refloc_labels = QtDialogRenderer._callback_channels(spec, "refloc_button")
-            return QtDialogRenderer._validate_channel_text(refloc_text, refloc_labels, "Reference location")
-        return None
-
-    @staticmethod
-    def _validate_pop_interp_dialog(spec: DialogSpec, widgets: dict[str, Any]) -> str | None:
-        if "chanlist" in widgets:
-            selection = QtDialogRenderer._read_widget(widgets["chanlist"])
-            if not isinstance(selection, dict) or not selection.get("chans"):
-                return "Select one or more channels to interpolate"
-        for control in spec.controls:
-            if control.callback is None or control.callback.name != "validate_numeric_range":
-                continue
-            widget = widgets.get(control.tag or "")
-            text = QtDialogRenderer._widget_text(widget).strip()
-            if not text:
-                continue
-            params = control.callback.params
-            try:
-                values = QtDialogRenderer._parse_numeric_text(text)
-            except ValueError:
-                return "Time/point range must contain numeric values"
-            if len(values) != int(params.get("columns", 2)):
-                return "Time/point range must contain 2 columns exactly"
-            if min(values) < float(params["lower"]):
-                return "Time/point range exceed lower data limits"
-            if math.floor(max(values)) > float(params["upper"]):
-                return "Time/point range exceed upper data limits"
-        return None
-
-    @staticmethod
-    def _callback_channels(spec: DialogSpec, tag: str) -> tuple[str, ...]:
-        for control in spec.controls:
-            if control.tag == tag and control.callback is not None:
-                return tuple(str(value) for value in control.callback.params.get("channels", ()))
-        return ()
-
-    @staticmethod
-    def _validate_channel_text(text: str, labels: tuple[str, ...], label: str) -> str | None:
-        values = QtDialogRenderer._parse_channel_text(text)
-        lower_labels = [value.lower() for value in labels]
-        for value in values:
-            if QtDialogRenderer._is_int_text(value):
-                index = int(value)
-                if index < 0 or index >= len(labels):
-                    return f"{label} index out of range"
-                continue
-            if value.lower() not in lower_labels:
-                return f"{label} '{value}' not found"
-        return None
-
-    @staticmethod
-    def _parse_channel_text(text: str) -> list[str]:
-        text = text.strip()
-        if text.startswith("[") and text.endswith("]"):
-            text = text[1:-1]
-        if text.startswith("{") and text.endswith("}"):
-            text = text[1:-1]
-        tokens = re.findall(r"'([^']*)'|\"([^\"]*)\"|([^,\s]+)", text)
-        return [next(part for part in token if part) for token in tokens]
-
-    @staticmethod
-    def _parse_numeric_text(text: str) -> list[float]:
-        cleaned = text.strip().strip("[]")
-        if not cleaned:
-            return []
-        return [float(value) for value in re.split(r"[\s,]+", cleaned) if value]
-
-    @staticmethod
-    def _widget_number(widget: Any) -> float | None:
-        try:
-            return numeric_or_none(QtDialogRenderer._widget_text(widget))
-        except ValueError:
-            return None
-
-    @staticmethod
-    def _widget_vector(widget: Any) -> list[float] | None:
-        try:
-            return vector_or_none(QtDialogRenderer._widget_text(widget))
-        except ValueError:
-            return None
-
-    @staticmethod
-    def _combo_choice(widget: Any, values: tuple[str, ...], default: str) -> str:
-        if widget is not None and hasattr(widget, "currentIndex"):
-            index = int(widget.currentIndex())
-            if 0 <= index < len(values):
-                return values[index]
-        return default
-
-    @staticmethod
-    def _is_int_text(value: str) -> bool:
-        return bool(re.fullmatch(r"[+-]?\d+", value.strip()))
-
-    @staticmethod
-    def _widget_checked(widget: Any) -> bool:
-        return bool(widget is not None and hasattr(widget, "isChecked") and widget.isChecked())
-
-    @staticmethod
-    def _widget_text(widget: Any) -> str:
-        if widget is None or not hasattr(widget, "text"):
-            return ""
-        return str(widget.text())
-
     def _run_tf_cycle_calc(self, button: Any, widgets: dict[str, Any], params: Mapping[str, Any]) -> None:
         _qt_core, qt_widgets = _require_qt()
         fft_widget = widgets.get(str(params.get("fft", "")))
@@ -752,515 +382,932 @@ class QtDialogRenderer:
         freqs_widget.setText(_format_numeric_vector(result.widths_table[:, 0]))
         cycles_widget.setText(_format_numeric_vector(result.cycles))
 
-    @staticmethod
-    def _plot_tf_cycle_calc(button: Any, widgets: dict[str, Any]) -> None:
-        _qt_core, qt_widgets = _require_qt()
-        width_index = 0
-        width_widget = widgets.get("widthpop")
-        if width_widget is not None and hasattr(width_widget, "currentIndex"):
-            width_index = int(width_widget.currentIndex())
-        try:
-            tf_cycle_calc(
-                freqs=QtDialogRenderer._widget_text(widgets.get("freqedit")),
-                width=QtDialogRenderer._widget_text(widgets.get("widthedit")),
-                width_unit=WIDTH_UNITS[width_index],
-                log_spaced=QtDialogRenderer._widget_checked(widgets.get("spacingcheck")),
-                plot=True,
-            )
-        except (IndexError, ValueError) as exc:
-            qt_widgets.QMessageBox.warning(button, "Warning", str(exc))
 
-    @staticmethod
-    def _estimate_fir_kaiser_beta(button: Any, widgets: dict[str, Any], params: Mapping[str, Any]) -> None:
-        _qt_core, qt_widgets = _require_qt()
-        target = widgets.get(params.get("target", ""))
-        if target is None or not hasattr(target, "setText"):
-            return
-        dev_widget = widgets.get(params.get("dev", ""))
-        dev = QtDialogRenderer._widget_number(dev_widget)
-        if dev is None:
-            dev, accepted = qt_widgets.QInputDialog.getDouble(
-                button,
-                "Estimate Kaiser window beta",
-                "Max passband deviation/ripple:",
-                0.001,
-                1e-12,
-                1.0,
-                6,
-            )
-            if not accepted:
-                return
-        try:
-            beta = kaiserbeta(dev)
-        except ValueError as exc:
-            qt_widgets.QMessageBox.warning(button, "Warning", str(exc))
-            return
-        target.setText(f"{beta:g}")
-        if dev_widget is not None and hasattr(dev_widget, "setText"):
-            dev_widget.setText(f"{dev:g}")
+def _QDialog() -> Any:
+    if QDialog is None:
+        raise RuntimeError(
+            "PySide6 is required for EEGPrep GUI dialogs. Install it with "
+            "`pip install -e .[gui]` or `pip install eegprep[gui]`."
+        )
+    return QDialog
 
-    @staticmethod
-    def _estimate_firws_order(button: Any, widgets: dict[str, Any], params: Mapping[str, Any]) -> None:
-        _qt_core, qt_widgets = _require_qt()
-        target = widgets.get(params.get("target", ""))
-        if target is None or not hasattr(target, "setText"):
-            return
-        srate = QtDialogRenderer._widget_number(widgets.get(params.get("srate", "")))
-        if srate is None:
-            srate = float(params.get("srate_value", 2))
-        wtype = QtDialogRenderer._combo_choice(widgets.get(params.get("wtype", "")), WINDOW_TYPES, "hamming")
-        dev_widget = widgets.get(params.get("dev", ""))
-        dev = QtDialogRenderer._widget_number(dev_widget)
-        df_widget = widgets.get(params.get("df", ""))
-        df = QtDialogRenderer._widget_number(df_widget)
-        if df is None:
-            df, accepted = qt_widgets.QInputDialog.getDouble(
-                button,
-                "Estimate filter order",
-                "Transition bandwidth (Hz):",
-                max(1.0, srate / 100),
-                1e-12,
-                srate / 2,
-                6,
-            )
-            if not accepted:
-                return
-        try:
-            order, out_dev = firwsord(wtype, srate, df, dev)
-        except ValueError as exc:
-            qt_widgets.QMessageBox.warning(button, "Warning", str(exc))
-            return
-        target.setText(str(int(order)))
-        if dev_widget is not None and hasattr(dev_widget, "setText") and out_dev is not None:
-            dev_widget.setText(f"{float(out_dev):g}")
 
-    @staticmethod
-    def _estimate_firpm_order(button: Any, widgets: dict[str, Any], params: Mapping[str, Any]) -> None:
-        _qt_core, qt_widgets = _require_qt()
-        fcutoff = QtDialogRenderer._widget_vector(widgets.get(params.get("fcutoff", "")))
-        ftrans = QtDialogRenderer._widget_number(widgets.get(params.get("ftrans", "")))
-        if not fcutoff or ftrans is None:
-            qt_widgets.QMessageBox.warning(button, "Warning", "Cutoff frequencies and transition width are required")
-            return
-        srate = QtDialogRenderer._widget_number(widgets.get(params.get("srate", "")))
-        if srate is None:
-            srate = float(params.get("srate_value", 2))
-        ftype = QtDialogRenderer._combo_choice(widgets.get(params.get("ftype", "")), FILTER_TYPES, "bandpass")
-        try:
-            edges, amplitudes = _firpm_order_shape(fcutoff, ftrans, ftype, srate)
-            order, wtpass, wtstop = pop_firpmord(edges, amplitudes, _firpm_default_devs(amplitudes), srate)
-        except ValueError as exc:
-            qt_widgets.QMessageBox.warning(button, "Warning", str(exc))
-            return
-        for tag, value in (
-            (params.get("forder"), order),
-            (params.get("wtpass"), wtpass),
-            (params.get("wtstop"), wtstop),
-        ):
-            widget = widgets.get(tag or "")
-            if widget is not None and hasattr(widget, "setText"):
-                widget.setText(f"{float(value):g}")
+def _apply_eeglab_style(dialog: Any, spec: DialogSpec) -> None:
+    base_stylesheet = """
+        QDialog {
+            background: #a8c2ff;
+            color: #000066;
+            font-size: 16px;
+        }
+        QLabel, QCheckBox, QPushButton, QLineEdit, QTextEdit, QComboBox, QListWidget {
+            font-size: 16px;
+        }
+        QLabel, QCheckBox {
+            color: #000066;
+            background: transparent;
+        }
+        QLabel:disabled, QCheckBox:disabled {
+            color: #7c86a8;
+        }
+        QLineEdit {
+            background: white;
+            border: 1px solid #7f7f7f;
+            min-height: 18px;
+            max-height: 18px;
+            margin-left: 1px;
+            padding: 0 3px;
+            color: #000066;
+        }
+        QLineEdit:disabled {
+            background: #dce6ff;
+            color: #7c86a8;
+        }
+        QTextEdit {
+            background: white;
+            border: 1px solid #7f7f7f;
+            color: #000066;
+        }
+        QComboBox {
+            background: white;
+            border: 1px solid #7f7f7f;
+            min-height: 20px;
+            max-height: 20px;
+            color: #000066;
+        }
+        QComboBox:disabled {
+            background: #dce6ff;
+            color: #7c86a8;
+        }
+        QListWidget {
+            background: white;
+            border: 1px solid #7f7f7f;
+            min-height: 74px;
+            max-height: 74px;
+            color: #000066;
+        }
+        QPushButton {
+            background: #eeeeee;
+            border: 1px solid #7f7f7f;
+            min-height: 18px;
+            max-height: 18px;
+            padding: 0 10px;
+            color: #000066;
+        }
+        QPushButton:disabled {
+            color: #b0b0b0;
+        }
+        QPushButton#double_dip_help {
+            min-width: 150px;
+            max-width: 150px;
+        }
+        QPushButton#events_button {
+            min-width: 130px;
+            max-width: 130px;
+        }
+        QPushButton#scroll {
+            min-width: 159px;
+            max-width: 159px;
+        }
+        QPushButton#refbr, QPushButton#exclude_button, QPushButton#refloc_button {
+            min-width: 33px;
+            max-width: 33px;
+            padding: 0;
+        }
+        QPushButton#interp_nondatchan,
+        QPushButton#interp_removedchans,
+        QPushButton#interp_datchan,
+        QPushButton#interp_selectchan,
+        QPushButton#interp_uselist {
+            min-width: 434px;
+            max-width: 434px;
+            padding: 0;
+        }
+        QDialog#pop_interp QPushButton {
+            padding: 0;
+        }
+        QDialog#pop_interp QLineEdit,
+        QDialog#pop_interp QComboBox {
+            min-width: 198px;
+            max-width: 198px;
+        }
+        QDialog#pop_reref QLineEdit {
+            min-width: 163px;
+            max-width: 163px;
+        }
+        QDialog#pop_runica QListWidget {
+            min-height: 102px;
+            max-height: 102px;
+        }
+        QCheckBox {
+            spacing: 4px;
+        }
+        QCheckBox::indicator {
+            width: 13px;
+            height: 13px;
+        }
+        QCheckBox::indicator:unchecked {
+            background: white;
+            border: 1px solid #7f7f7f;
+        }
+        """
+    dialog.setStyleSheet(base_stylesheet + (spec.extra_stylesheet or ""))
 
-    @staticmethod
-    def _plot_fir_response(button: Any, widgets: dict[str, Any], params: Mapping[str, Any]) -> None:
-        _qt_core, qt_widgets = _require_qt()
-        design = str(params.get("design", "firws"))
-        srate = QtDialogRenderer._widget_number(widgets.get(params.get("srate", "")))
-        if srate is None:
-            srate = float(params.get("srate_value", 2))
-        try:
-            if design == "firpm":
-                b = design_firpm(
-                    srate,
-                    fcutoff=QtDialogRenderer._widget_vector(widgets.get("fcutoff")),
-                    ftrans=QtDialogRenderer._widget_number(widgets.get("ftrans")),
-                    ftype=QtDialogRenderer._combo_choice(widgets.get("ftype"), FILTER_TYPES, "bandpass"),
-                    forder=int(QtDialogRenderer._widget_number(widgets.get("forder")) or 0),
-                    wtpass=QtDialogRenderer._widget_number(widgets.get("wtpass")),
-                    wtstop=QtDialogRenderer._widget_number(widgets.get("wtstop")),
-                )
-            elif design == "firma":
-                b = design_firma(forder=int(QtDialogRenderer._widget_number(widgets.get("forder")) or 0))
-            else:
-                b = design_firws(
-                    srate,
-                    fcutoff=QtDialogRenderer._widget_vector(widgets.get("fcutoff")),
-                    forder=int(QtDialogRenderer._widget_number(widgets.get("forder")) or 0),
-                    ftype=QtDialogRenderer._combo_choice(widgets.get("ftype"), FILTER_TYPES, "bandpass"),
-                    wtype=QtDialogRenderer._combo_choice(widgets.get("wtype"), WINDOW_TYPES, "hamming"),
-                    warg=QtDialogRenderer._widget_number(widgets.get("warg")),
-                )
-            plotfresp(b, 1, fs=srate, dir="onepass-zerophase")
-        except ValueError as exc:
-            qt_widgets.QMessageBox.warning(button, "Warning", str(exc))
 
-    @staticmethod
-    def _sync_numeric(source: Any, target: Any, multiplier: float) -> None:
-        text = source.text().strip()
+def _row_weights(row_geometry: Any) -> list[float]:
+    if isinstance(row_geometry, (list, tuple)):
+        return [max(0.01, float(value)) for value in row_geometry]
+    return [1.0] * max(1, int(row_geometry))
+
+
+def _row_stretch(spec: DialogSpec, row_index: int) -> int:
+    if spec.geomvert is None:
+        return 0
+    value = spec.geomvert[min(row_index, len(spec.geomvert) - 1)]
+    return max(1, round(float(value) * 100))
+
+
+def _spacer_row_height(spec: DialogSpec, row_index: int) -> int:
+    if spec.geomvert is not None:
+        value = spec.geomvert[min(row_index, len(spec.geomvert) - 1)]
+        return max(8, round(float(value) * 55))
+    return max(8, spec.row_spacing * 7)
+
+
+def _add_buttons(
+    QtWidgets: Any,
+    layout: Any,
+    spec: DialogSpec,
+    dialog: Any,
+    widgets: dict[str, Any],
+) -> None:
+    if spec.geomvert is None and spec.size is not None:
+        layout.addStretch(1)
+    button_container = QtWidgets.QWidget()
+    button_container.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
+    button_layout = QtWidgets.QHBoxLayout(button_container)
+    button_layout.setContentsMargins(0, 18, 0, 0)
+    button_layout.setSpacing(16)
+    if spec.help_text and spec.show_help_button:
+        help_button = QtWidgets.QPushButton(spec.help_label)
+        help_button.setObjectName("help")
+        help_button.setFixedWidth(spec.button_size[0] if spec.button_size is not None else 80)
+        help_button.clicked.connect(lambda: _show_help(QtWidgets, dialog, spec))
+        button_layout.addWidget(help_button)
+    button_layout.addStretch(1)
+    cancel_button = QtWidgets.QPushButton(spec.cancel_label)
+    ok_button = QtWidgets.QPushButton(spec.ok_label)
+    cancel_button.setObjectName("cancel")
+    ok_button.setObjectName("ok")
+    if spec.button_size is not None:
+        cancel_button.setFixedSize(*spec.button_size)
+        ok_button.setFixedSize(*spec.button_size)
+    else:
+        cancel_button.setFixedWidth(80)
+        ok_button.setFixedWidth(80)
+    cancel_button.clicked.connect(dialog.reject)
+    ok_button.clicked.connect(lambda: _accept_if_valid(dialog, spec, widgets))
+    if spec.cancel_first:
+        button_layout.insertWidget(0, cancel_button)
+        button_layout.addWidget(ok_button)
+    else:
+        button_layout.addWidget(cancel_button)
+        button_layout.addWidget(ok_button)
+    layout.addWidget(button_container)
+
+
+def _apply_spec_size(dialog: Any, spec: DialogSpec) -> None:
+    if spec.size is None:
+        return
+    dialog.resize(*spec.size)
+
+
+def _apply_font_hints(widget: Any, control: ControlSpec) -> None:
+    if control.font_weight is None:
+        return
+    font = widget.font()
+    font.setBold(control.font_weight.lower() == "bold")
+    widget.setFont(font)
+
+
+def _apply_widget_size_policy(QtWidgets: Any, widget: Any, style: str) -> None:
+    policy = QtWidgets.QSizePolicy
+    if style in {"edit", "popupmenu", "listbox"}:
+        widget.setSizePolicy(policy.Expanding, policy.Fixed)
+        return
+    if style == "pushbutton":
+        widget.setSizePolicy(policy.Fixed, policy.Fixed)
+        return
+    if style == "textarea":
+        widget.setSizePolicy(policy.Expanding, policy.Expanding)
+        return
+    if style in {"text", "checkbox"}:
+        widget.setMinimumWidth(0)
+        widget.setSizePolicy(policy.Expanding, policy.Fixed)
+
+
+def _accept_if_valid(dialog: Any, spec: DialogSpec, widgets: dict[str, Any]) -> None:
+    message = _validation_message(spec, widgets)
+    if message:
+        _qt_core, qt_widgets = _require_qt()
+        qt_widgets.QMessageBox.warning(dialog, "Warning", message)
+        return
+    dialog.accept()
+
+
+def _validation_message(spec: DialogSpec, widgets: dict[str, Any]) -> str | None:
+    if spec.function_name == "pop_reref":
+        return _validate_pop_reref_dialog(spec, widgets)
+    if spec.function_name == "pop_interp":
+        return _validate_pop_interp_dialog(spec, widgets)
+    if spec.function_name == "pop_resample":
+        text = _widget_text(widgets.get("freq")).strip()
         if not text:
-            target.setText("")
-            return
+            return "New sampling rate is required"
         try:
-            value = float(text) * multiplier
+            value = float(text)
         except ValueError:
-            return
-        target.setText(f"{value:g}")
-
-    @staticmethod
-    def _select_event_types(button: Any, target: Any, params: Mapping[str, Any]) -> None:
-        event_types = [str(value) for value in params.get("event_types", ())]
-        if not event_types:
-            return
-        current = target.text().strip()
-        _qt_core, qt_widgets = _require_qt()
-        value, accepted = qt_widgets.QInputDialog.getItem(
-            button,
-            "Select event type",
-            "Event type",
-            event_types,
-            0,
-            editable=False,
-        )
-        if accepted and value:
-            target.setText((current + " " + value).strip())
-
-    @staticmethod
-    def _select_channels(button: Any, target: Any, params: Mapping[str, Any]) -> None:
-        channels = [str(value) for value in params.get("channels", ())]
-        if channels:
-            chanlist, value, _allchanstr = pop_chansel(
-                channels,
-                withindex="on",
-                select=target.text().strip(),
-                selectionmode=str(params.get("selectionmode", "multiple")),
-                parent=button,
-            )
-            if params.get("return_indices"):
-                value = " ".join(str(index) for index in chanlist)
-            accepted = bool(value)
+            return "New sampling rate must be numeric"
+        if value <= 0:
+            return "New sampling rate must be positive"
+    if spec.function_name == "pop_epoch":
+        limits_text = _widget_text(widgets.get("limits")).strip()
+        if not limits_text:
+            return "Epoch limits are required"
+        try:
+            limits = _parse_numeric_text(limits_text)
+        except ValueError:
+            return "Epoch limits must be numeric"
+        if len(limits) != 2:
+            return "Epoch limits must contain 2 values"
+        if limits[0] >= limits[1]:
+            return "Epoch start must be lower than epoch end"
+        valuelim_text = _widget_text(widgets.get("valuelim")).strip()
+        if valuelim_text:
+            try:
+                valuelim = _parse_numeric_text(valuelim_text)
+            except ValueError:
+                return "Out-of-bounds EEG limits must be numeric"
+            if len(valuelim) not in {1, 2}:
+                return "Out-of-bounds EEG limits must contain 1 or 2 values"
+    if spec.function_name == "pop_runica" and "dataset" in widgets:
+        if not _read_widget(widgets["dataset"]):
+            return "Select at least one dataset"
+    if spec.function_name == "pop_headplot":
+        if _widget_checked(widgets.get("loadcb")):
+            if not _widget_text(widgets.get("load")).strip():
+                return "Select a spline file to load"
         else:
-            _qt_core, qt_widgets = _require_qt()
-            no_channels_message = str(params.get("no_channels_message", "")).strip()
-            if no_channels_message:
-                qt_widgets.QMessageBox.warning(button, "Warning", no_channels_message)
-                return
-            value, accepted = qt_widgets.QInputDialog.getText(
-                button,
-                "Select channel",
-                "Channel index or label",
-            )
-        if not accepted or not value:
-            return
-        target.setText(value.strip())
+            if not _widget_text(widgets.get("setup_file")).strip():
+                return "Enter an output spline file name"
+            transform_text = _widget_text(widgets.get("transform")).strip()
+            if not transform_text:
+                return "Enter a Talairach transformation matrix"
+            try:
+                transform = _parse_numeric_text(transform_text)
+            except ValueError:
+                return "Talairach transformation matrix must contain numeric values"
+            if len(transform) not in {6, 9}:
+                return "Talairach transformation matrix must contain 6 or 9 values"
+    return None
 
-    @staticmethod
-    def _select_file(button: Any, target: Any, params: Mapping[str, Any], widgets: Mapping[str, Any]) -> None:
-        _qt_core, qt_widgets = _require_qt()
-        caption = str(params.get("caption", "Select file"))
-        file_filter = str(params.get("filter", "All files (*)"))
-        if params.get("mode") == "save":
-            filename, _selected_filter = qt_widgets.QFileDialog.getSaveFileName(button, caption, "", file_filter)
-        else:
-            filename, _selected_filter = qt_widgets.QFileDialog.getOpenFileName(button, caption, "", file_filter)
-        if not filename:
-            return
-        if hasattr(target, "setText"):
-            target.setText(filename)
-            return
-        if hasattr(target, "setEditable") and hasattr(target, "setEditText"):
-            target.setEditable(True)
-            target.setEditText(filename)
-            target.setProperty(_VALUE_PROPERTY, filename)
-        transform_target = widgets.get(params.get("transform_target", ""))
-        if transform_target is not None and params.get("custom_transform") is not None:
-            transform_target.setText(str(params["custom_transform"]))
 
-    @staticmethod
-    def _open_eegplot(parent: Any, params: Mapping[str, Any]) -> None:
-        eeg = params.get("eeg")
-        if not isinstance(eeg, dict):
-            return
+def _validate_pop_reref_dialog(spec: DialogSpec, widgets: dict[str, Any]) -> str | None:
+    if _widget_checked(widgets.get("huberef")):
+        huber_text = _widget_text(widgets.get("huberval")).strip()
+        if huber_text:
+            try:
+                float(huber_text)
+            except ValueError:
+                return f"could not convert string to float: '{huber_text}'"
+
+    channel_labels = _callback_channels(spec, "refbr")
+    if _widget_checked(widgets.get("rerefstr")):
+        ref_text = _widget_text(widgets.get("reref")).strip()
+        if not ref_text:
+            return "Aborting: you must enter one or more reference channels"
+        message = _validate_channel_text(ref_text, channel_labels, "Channel")
+        if message:
+            return message
+
+    exclude_text = _widget_text(widgets.get("exclude")).strip()
+    if exclude_text:
+        message = _validate_channel_text(exclude_text, channel_labels, "Channel")
+        if message:
+            return message
+
+    refloc_text = _widget_text(widgets.get("refloc")).strip()
+    if refloc_text:
+        refloc_labels = _callback_channels(spec, "refloc_button")
+        return _validate_channel_text(refloc_text, refloc_labels, "Reference location")
+    return None
+
+
+def _validate_pop_interp_dialog(spec: DialogSpec, widgets: dict[str, Any]) -> str | None:
+    if "chanlist" in widgets:
+        selection = _read_widget(widgets["chanlist"])
+        if not isinstance(selection, dict) or not selection.get("chans"):
+            return "Select one or more channels to interpolate"
+    for control in spec.controls:
+        if control.callback is None or control.callback.name != "validate_numeric_range":
+            continue
+        widget = widgets.get(control.tag or "")
+        text = _widget_text(widget).strip()
+        if not text:
+            continue
+        params = control.callback.params
         try:
-            eegplot(
-                eeg,
-                srate=eeg.get("srate", 256),
-                limits=[
-                    float(eeg.get("xmin", 0.0) or 0.0) * 1000.0,
-                    float(eeg.get("xmax", 0.0) or 0.0) * 1000.0,
-                ],
-                events=eeg.get("event", []),
-                winlength=5,
-                xgrid="off",
-                eloc_file=eeg.get("chanlocs", []),
-                title=f"Scroll channel activities -- eegplot() -- {eeg.get('setname', '')}".rstrip(),
-            )
-        except (RuntimeError, ValueError) as exc:
-            _qt_core, qt_widgets = _require_qt()
-            qt_widgets.QMessageBox.warning(parent, "Warning", str(exc))
+            values = _parse_numeric_text(text)
+        except ValueError:
+            return "Time/point range must contain numeric values"
+        if len(values) != int(params.get("columns", 2)):
+            return "Time/point range must contain 2 columns exactly"
+        if min(values) < float(params["lower"]):
+            return "Time/point range exceed lower data limits"
+        if math.floor(max(values)) > float(params["upper"]):
+            return "Time/point range exceed upper data limits"
+    return None
 
-    @staticmethod
-    def _open_rejection_browser(parent: Any, widgets: Mapping[str, Any], params: Mapping[str, Any]) -> None:
-        eeg = params.get("eeg")
-        if not isinstance(eeg, dict):
-            return
-        try:
-            status_widget = widgets.get("rejstatus")
-            status = int(QtDialogRenderer._read_widget(status_widget) if status_widget is not None else 1)
-            superpose = max(0, min(status - 1, 2))
 
-            def accept(eeg_out: dict[str, Any], _command: str) -> None:
-                eeg.clear()
-                eeg.update(eeg_out)
-                for tag in params.get("count_tags", ()):
-                    widget = widgets.get(tag)
-                    field = params.get("count_fields", {}).get(tag)
-                    if widget is not None and field is not None and hasattr(widget, "setText"):
-                        widget.setText(str(int(np.asarray((eeg.get("reject") or {}).get(field, []), dtype=bool).sum())))
+def _callback_channels(spec: DialogSpec, tag: str) -> tuple[str, ...]:
+    for control in spec.controls:
+        if control.tag == tag and control.callback is not None:
+            return tuple(str(value) for value in control.callback.params.get("channels", ()))
+    return ()
 
-            pop_eegplot(
-                eeg,
-                icacomp=int(params.get("icacomp", 1)),
-                superpose=superpose,
-                reject=0,
-                command_callback=accept,
-            )
-        except (RuntimeError, ValueError) as exc:
-            _qt_core, qt_widgets = _require_qt()
-            qt_widgets.QMessageBox.warning(parent, "Warning", str(exc))
 
-    @staticmethod
-    def _set_headplot_setup_mode(widgets: Mapping[str, Any], params: Mapping[str, Any], checked: bool) -> None:
-        source = widgets.get(params["source"])
-        if not checked:
-            if source is not None and hasattr(source, "blockSignals"):
-                source.blockSignals(True)
-                source.setChecked(True)
-                source.blockSignals(False)
-            return
-        peer = widgets.get(params["peer"])
-        if peer is not None:
-            peer.blockSignals(True)
-            peer.setChecked(False)
-            peer.blockSignals(False)
-        load_enabled = params["mode"] == "load"
-        QtDialogRenderer._set_enabled(
-            [widgets[tag] for tag in params.get("load_targets", ()) if tag in widgets],
-            load_enabled,
+def _validate_channel_text(text: str, labels: tuple[str, ...], label: str) -> str | None:
+    values = _parse_channel_text(text)
+    lower_labels = [value.lower() for value in labels]
+    for value in values:
+        if _is_int_text(value):
+            index = int(value)
+            if index < 0 or index >= len(labels):
+                return f"{label} index out of range"
+            continue
+        if value.lower() not in lower_labels:
+            return f"{label} '{value}' not found"
+    return None
+
+
+def _parse_channel_text(text: str) -> list[str]:
+    text = text.strip()
+    if text.startswith("[") and text.endswith("]"):
+        text = text[1:-1]
+    if text.startswith("{") and text.endswith("}"):
+        text = text[1:-1]
+    tokens = re.findall(r"'([^']*)'|\"([^\"]*)\"|([^,\s]+)", text)
+    return [next(part for part in token if part) for token in tokens]
+
+
+def _parse_numeric_text(text: str) -> list[float]:
+    cleaned = text.strip().strip("[]")
+    if not cleaned:
+        return []
+    return [float(value) for value in re.split(r"[\s,]+", cleaned) if value]
+
+
+def _widget_number(widget: Any) -> float | None:
+    try:
+        return numeric_or_none(_widget_text(widget))
+    except ValueError:
+        return None
+
+
+def _widget_vector(widget: Any) -> list[float] | None:
+    try:
+        return vector_or_none(_widget_text(widget))
+    except ValueError:
+        return None
+
+
+def _combo_choice(widget: Any, values: tuple[str, ...], default: str) -> str:
+    if widget is not None and hasattr(widget, "currentIndex"):
+        index = int(widget.currentIndex())
+        if 0 <= index < len(values):
+            return values[index]
+    return default
+
+
+def _is_int_text(value: str) -> bool:
+    return bool(re.fullmatch(r"[+-]?\d+", value.strip()))
+
+
+def _widget_checked(widget: Any) -> bool:
+    return bool(widget is not None and hasattr(widget, "isChecked") and widget.isChecked())
+
+
+def _widget_text(widget: Any) -> str:
+    if widget is None or not hasattr(widget, "text"):
+        return ""
+    return str(widget.text())
+
+
+def _plot_tf_cycle_calc(button: Any, widgets: dict[str, Any]) -> None:
+    _qt_core, qt_widgets = _require_qt()
+    width_index = 0
+    width_widget = widgets.get("widthpop")
+    if width_widget is not None and hasattr(width_widget, "currentIndex"):
+        width_index = int(width_widget.currentIndex())
+    try:
+        tf_cycle_calc(
+            freqs=_widget_text(widgets.get("freqedit")),
+            width=_widget_text(widgets.get("widthedit")),
+            width_unit=WIDTH_UNITS[width_index],
+            log_spaced=_widget_checked(widgets.get("spacingcheck")),
+            plot=True,
         )
-        QtDialogRenderer._set_enabled(
-            [widgets[tag] for tag in params.get("setup_targets", ()) if tag in widgets],
-            not load_enabled,
-        )
+    except (IndexError, ValueError) as exc:
+        qt_widgets.QMessageBox.warning(button, "Warning", str(exc))
 
-    @staticmethod
-    def _set_headplot_mesh_choice(widgets: Mapping[str, Any], params: Mapping[str, Any], index: int) -> None:
-        reference_target = widgets.get(params.get("reference_target", ""))
-        if (
-            reference_target is not None
-            and hasattr(reference_target, "setCurrentIndex")
-            and index < reference_target.count()
-        ):
-            reference_target.setCurrentIndex(index)
-        target = widgets.get(params.get("transform_target", ""))
-        transforms = tuple(str(value) for value in params.get("transform_choices", ()))
-        if target is not None and 0 <= index < len(transforms) and transforms[index]:
-            target.setText(transforms[index])
 
-    @staticmethod
-    def _run_headplot_manual_coreg(parent: Any, widgets: Mapping[str, Any], params: Mapping[str, Any]) -> None:
-        transform_target = widgets.get(params.get("transform_target", ""))
-        if transform_target is None or not hasattr(transform_target, "setText"):
-            return
-        try:
-            # Manual headplot co-registration is the only generic Qt dialog path
-            # that needs matplotlib's 3-D stack, so keep it out of normal
-            # inputgui imports and startup.
-            from eegprep.functions.guifunc.coregister import run_coregister_dialog
-
-            meshfile = QtDialogRenderer._choice_or_text(
-                widgets.get(params.get("mesh_source", "")),
-                tuple(str(value) for value in params.get("mesh_choices", ())),
-            )
-            reference = QtDialogRenderer._choice_or_text(
-                widgets.get(params.get("reference_source", "")),
-                tuple(str(value) for value in params.get("reference_choices", ())),
-            )
-            transform = run_coregister_dialog(
-                params.get("chanlocs", ()),
-                reference,
-                chaninfo=dict(params.get("chaninfo") or {}),
-                meshfile=meshfile,
-                transform=QtDialogRenderer._widget_text(transform_target),
-                parent=parent,
-                title=str(params.get("title", "Co-registration plot for headplot mesh")),
-            )
-        except (RuntimeError, OSError, ValueError) as exc:
-            _qt_core, qt_widgets = _require_qt()
-            qt_widgets.QMessageBox.warning(parent, "Warning", str(exc))
-            return
-        if transform is not None:
-            transform_target.setText(" ".join(f"{value:.6g}" for value in transform))
-
-    @staticmethod
-    def _choice_or_text(widget: Any, choices: tuple[str, ...]) -> str:
-        stored_value = widget.property(_VALUE_PROPERTY) if widget is not None and hasattr(widget, "property") else None
-        if stored_value is not None:
-            return str(stored_value)
-        if widget is not None and hasattr(widget, "currentIndex"):
-            index = int(widget.currentIndex())
-            if 0 <= index < len(choices):
-                return choices[index]
-        if widget is not None and hasattr(widget, "text"):
-            return str(widget.text())
-        return choices[0] if choices else ""
-
-    @staticmethod
-    def _show_callback_message(parent: Any, params: Mapping[str, Any]) -> None:
-        _qt_core, qt_widgets = _require_qt()
-        qt_widgets.QMessageBox.information(parent, str(params.get("title", "EEGPrep")), str(params.get("message", "")))
-
-    @staticmethod
-    def _edit_text(parent: Any, target: Any, params: Mapping[str, Any]) -> None:
-        _qt_core, qt_widgets = _require_qt()
-        stored_value = target.property(_VALUE_PROPERTY)
-        current = stored_value if stored_value is not None else params.get("value", "")
-        value, accepted = qt_widgets.QInputDialog.getMultiLineText(
-            parent,
-            str(params.get("title", "Edit text")),
-            str(params.get("label", "Text")),
-            str(current),
-        )
-        if accepted:
-            target.setProperty(_VALUE_PROPERTY, str(value))
-
-    @staticmethod
-    def _select_interp_channels(button: Any, target: Any, params: Mapping[str, Any]) -> None:
-        source = str(params.get("source", "")).lower()
-        chanlocs = [dict(chan) for chan in params.get("chanlocs", ())]
-        removedchans = [dict(chan) for chan in params.get("removedchans", ())]
-        alleeg = [dict(eeg) for eeg in params.get("alleeg", ())]
-
-        if source in {"removedchans", "nondatchan"}:
-            labels = [str(chan.get("labels", "")) for chan in removedchans]
-            chanlist, chanliststr, _allchanstr = pop_chansel(labels, parent=button)
-            if not chanlist:
-                return
-            selected = [removedchans[index - 1] for index in chanlist]
-            chanstr = "EEG.chaninfo.removedchans([" + " ".join(str(index) for index in chanlist) + "])"
-            QtDialogRenderer._store_interp_selection(target, selected, chanstr, chanliststr)
-            return
-
-        if source == "datchan":
-            labels = [str(chan.get("labels", "")) for chan in chanlocs]
-            chanlist, chanliststr, _allchanstr = pop_chansel(labels, parent=button)
-            if not chanlist:
-                return
-            selected = [index - 1 for index in chanlist]
-            chanstr = "[" + " ".join(str(index) for index in chanlist) + "]"
-            QtDialogRenderer._store_interp_selection(target, selected, chanstr, chanliststr)
-            return
-
-        _qt_core, qt_widgets = _require_qt()
-        dataset_index, accepted = qt_widgets.QInputDialog.getInt(
+def _estimate_fir_kaiser_beta(button: Any, widgets: dict[str, Any], params: Mapping[str, Any]) -> None:
+    _qt_core, qt_widgets = _require_qt()
+    target = widgets.get(params.get("target", ""))
+    if target is None or not hasattr(target, "setText"):
+        return
+    dev_widget = widgets.get(params.get("dev", ""))
+    dev = _widget_number(dev_widget)
+    if dev is None:
+        dev, accepted = qt_widgets.QInputDialog.getDouble(
             button,
-            "Choose dataset",
-            "Dataset index",
-            1,
-            1,
-            max(1, len(alleeg)),
+            "Estimate Kaiser window beta",
+            "Max passband deviation/ripple:",
+            0.001,
+            1e-12,
+            1.0,
+            6,
         )
         if not accepted:
             return
-        if dataset_index < 1 or dataset_index > len(alleeg):
-            qt_widgets.QMessageBox.warning(button, "Warning", "Wrong index")
-            return
+    try:
+        beta = kaiserbeta(dev)
+    except ValueError as exc:
+        qt_widgets.QMessageBox.warning(button, "Warning", str(exc))
+        return
+    target.setText(f"{beta:g}")
+    if dev_widget is not None and hasattr(dev_widget, "setText"):
+        dev_widget.setText(f"{dev:g}")
 
-        other = alleeg[dataset_index - 1]
-        other_chanlocs = [dict(chan) for chan in other.get("chanlocs", ())]
-        if source == "selectchan":
-            labels = [str(chan.get("labels", "")) for chan in other_chanlocs]
-            chanlist, _chanliststr, _allchanstr = pop_chansel(labels, parent=button)
+
+def _estimate_firws_order(button: Any, widgets: dict[str, Any], params: Mapping[str, Any]) -> None:
+    _qt_core, qt_widgets = _require_qt()
+    target = widgets.get(params.get("target", ""))
+    if target is None or not hasattr(target, "setText"):
+        return
+    srate = _widget_number(widgets.get(params.get("srate", "")))
+    if srate is None:
+        srate = float(params.get("srate_value", 2))
+    wtype = _combo_choice(widgets.get(params.get("wtype", "")), WINDOW_TYPES, "hamming")
+    dev_widget = widgets.get(params.get("dev", ""))
+    dev = _widget_number(dev_widget)
+    df_widget = widgets.get(params.get("df", ""))
+    df = _widget_number(df_widget)
+    if df is None:
+        df, accepted = qt_widgets.QInputDialog.getDouble(
+            button,
+            "Estimate filter order",
+            "Transition bandwidth (Hz):",
+            max(1.0, srate / 100),
+            1e-12,
+            srate / 2,
+            6,
+        )
+        if not accepted:
+            return
+    try:
+        order, out_dev = firwsord(wtype, srate, df, dev)
+    except ValueError as exc:
+        qt_widgets.QMessageBox.warning(button, "Warning", str(exc))
+        return
+    target.setText(str(int(order)))
+    if dev_widget is not None and hasattr(dev_widget, "setText") and out_dev is not None:
+        dev_widget.setText(f"{float(out_dev):g}")
+
+
+def _estimate_firpm_order(button: Any, widgets: dict[str, Any], params: Mapping[str, Any]) -> None:
+    _qt_core, qt_widgets = _require_qt()
+    fcutoff = _widget_vector(widgets.get(params.get("fcutoff", "")))
+    ftrans = _widget_number(widgets.get(params.get("ftrans", "")))
+    if not fcutoff or ftrans is None:
+        qt_widgets.QMessageBox.warning(button, "Warning", "Cutoff frequencies and transition width are required")
+        return
+    srate = _widget_number(widgets.get(params.get("srate", "")))
+    if srate is None:
+        srate = float(params.get("srate_value", 2))
+    ftype = _combo_choice(widgets.get(params.get("ftype", "")), FILTER_TYPES, "bandpass")
+    try:
+        edges, amplitudes = _firpm_order_shape(fcutoff, ftrans, ftype, srate)
+        order, wtpass, wtstop = pop_firpmord(edges, amplitudes, _firpm_default_devs(amplitudes), srate)
+    except ValueError as exc:
+        qt_widgets.QMessageBox.warning(button, "Warning", str(exc))
+        return
+    for tag, value in (
+        (params.get("forder"), order),
+        (params.get("wtpass"), wtpass),
+        (params.get("wtstop"), wtstop),
+    ):
+        widget = widgets.get(tag or "")
+        if widget is not None and hasattr(widget, "setText"):
+            widget.setText(f"{float(value):g}")
+
+
+def _plot_fir_response(button: Any, widgets: dict[str, Any], params: Mapping[str, Any]) -> None:
+    _qt_core, qt_widgets = _require_qt()
+    design = str(params.get("design", "firws"))
+    srate = _widget_number(widgets.get(params.get("srate", "")))
+    if srate is None:
+        srate = float(params.get("srate_value", 2))
+    try:
+        if design == "firpm":
+            b = design_firpm(
+                srate,
+                fcutoff=_widget_vector(widgets.get("fcutoff")),
+                ftrans=_widget_number(widgets.get("ftrans")),
+                ftype=_combo_choice(widgets.get("ftype"), FILTER_TYPES, "bandpass"),
+                forder=int(_widget_number(widgets.get("forder")) or 0),
+                wtpass=_widget_number(widgets.get("wtpass")),
+                wtstop=_widget_number(widgets.get("wtstop")),
+            )
+        elif design == "firma":
+            b = design_firma(forder=int(_widget_number(widgets.get("forder")) or 0))
         else:
-            chanlist = list(range(1, len(other_chanlocs) + 1))
+            b = design_firws(
+                srate,
+                fcutoff=_widget_vector(widgets.get("fcutoff")),
+                forder=int(_widget_number(widgets.get("forder")) or 0),
+                ftype=_combo_choice(widgets.get("ftype"), FILTER_TYPES, "bandpass"),
+                wtype=_combo_choice(widgets.get("wtype"), WINDOW_TYPES, "hamming"),
+                warg=_widget_number(widgets.get("warg")),
+            )
+        plotfresp(b, 1, fs=srate, dir="onepass-zerophase")
+    except ValueError as exc:
+        qt_widgets.QMessageBox.warning(button, "Warning", str(exc))
+
+
+def _sync_numeric(source: Any, target: Any, multiplier: float) -> None:
+    text = source.text().strip()
+    if not text:
+        target.setText("")
+        return
+    try:
+        value = float(text) * multiplier
+    except ValueError:
+        return
+    target.setText(f"{value:g}")
+
+
+def _select_event_types(button: Any, target: Any, params: Mapping[str, Any]) -> None:
+    event_types = [str(value) for value in params.get("event_types", ())]
+    if not event_types:
+        return
+    current = target.text().strip()
+    _qt_core, qt_widgets = _require_qt()
+    value, accepted = qt_widgets.QInputDialog.getItem(
+        button,
+        "Select event type",
+        "Event type",
+        event_types,
+        0,
+        editable=False,
+    )
+    if accepted and value:
+        target.setText((current + " " + value).strip())
+
+
+def _select_channels(button: Any, target: Any, params: Mapping[str, Any]) -> None:
+    channels = [str(value) for value in params.get("channels", ())]
+    if channels:
+        chanlist, value, _allchanstr = pop_chansel(
+            channels,
+            withindex="on",
+            select=target.text().strip(),
+            selectionmode=str(params.get("selectionmode", "multiple")),
+            parent=button,
+        )
+        if params.get("return_indices"):
+            value = " ".join(str(index) for index in chanlist)
+        accepted = bool(value)
+    else:
+        _qt_core, qt_widgets = _require_qt()
+        no_channels_message = str(params.get("no_channels_message", "")).strip()
+        if no_channels_message:
+            qt_widgets.QMessageBox.warning(button, "Warning", no_channels_message)
+            return
+        value, accepted = qt_widgets.QInputDialog.getText(
+            button,
+            "Select channel",
+            "Channel index or label",
+        )
+    if not accepted or not value:
+        return
+    target.setText(value.strip())
+
+
+def _select_file(button: Any, target: Any, params: Mapping[str, Any], widgets: Mapping[str, Any]) -> None:
+    _qt_core, qt_widgets = _require_qt()
+    caption = str(params.get("caption", "Select file"))
+    file_filter = str(params.get("filter", "All files (*)"))
+    if params.get("mode") == "save":
+        filename, _selected_filter = qt_widgets.QFileDialog.getSaveFileName(button, caption, "", file_filter)
+    else:
+        filename, _selected_filter = qt_widgets.QFileDialog.getOpenFileName(button, caption, "", file_filter)
+    if not filename:
+        return
+    if hasattr(target, "setText"):
+        target.setText(filename)
+        return
+    if hasattr(target, "setEditable") and hasattr(target, "setEditText"):
+        target.setEditable(True)
+        target.setEditText(filename)
+        target.setProperty(_VALUE_PROPERTY, filename)
+    transform_target = widgets.get(params.get("transform_target", ""))
+    if transform_target is not None and params.get("custom_transform") is not None:
+        transform_target.setText(str(params["custom_transform"]))
+
+
+def _open_eegplot(parent: Any, params: Mapping[str, Any]) -> None:
+    eeg = params.get("eeg")
+    if not isinstance(eeg, dict):
+        return
+    try:
+        eegplot(
+            eeg,
+            srate=eeg.get("srate", 256),
+            limits=[
+                float(eeg.get("xmin", 0.0) or 0.0) * 1000.0,
+                float(eeg.get("xmax", 0.0) or 0.0) * 1000.0,
+            ],
+            events=eeg.get("event", []),
+            winlength=5,
+            xgrid="off",
+            eloc_file=eeg.get("chanlocs", []),
+            title=f"Scroll channel activities -- eegplot() -- {eeg.get('setname', '')}".rstrip(),
+        )
+    except (RuntimeError, ValueError) as exc:
+        _qt_core, qt_widgets = _require_qt()
+        qt_widgets.QMessageBox.warning(parent, "Warning", str(exc))
+
+
+def _open_rejection_browser(parent: Any, widgets: Mapping[str, Any], params: Mapping[str, Any]) -> None:
+    eeg = params.get("eeg")
+    if not isinstance(eeg, dict):
+        return
+    try:
+        status_widget = widgets.get("rejstatus")
+        status = int(_read_widget(status_widget) if status_widget is not None else 1)
+        superpose = max(0, min(status - 1, 2))
+
+        def accept(eeg_out: dict[str, Any], _command: str) -> None:
+            eeg.clear()
+            eeg.update(eeg_out)
+            for tag in params.get("count_tags", ()):
+                widget = widgets.get(tag)
+                field = params.get("count_fields", {}).get(tag)
+                if widget is not None and field is not None and hasattr(widget, "setText"):
+                    widget.setText(str(int(np.asarray((eeg.get("reject") or {}).get(field, []), dtype=bool).sum())))
+
+        pop_eegplot(
+            eeg,
+            icacomp=int(params.get("icacomp", 1)),
+            superpose=superpose,
+            reject=0,
+            command_callback=accept,
+        )
+    except (RuntimeError, ValueError) as exc:
+        _qt_core, qt_widgets = _require_qt()
+        qt_widgets.QMessageBox.warning(parent, "Warning", str(exc))
+
+
+def _set_headplot_setup_mode(widgets: Mapping[str, Any], params: Mapping[str, Any], checked: bool) -> None:
+    source = widgets.get(params["source"])
+    if not checked:
+        if source is not None and hasattr(source, "blockSignals"):
+            source.blockSignals(True)
+            source.setChecked(True)
+            source.blockSignals(False)
+        return
+    peer = widgets.get(params["peer"])
+    if peer is not None:
+        peer.blockSignals(True)
+        peer.setChecked(False)
+        peer.blockSignals(False)
+    load_enabled = params["mode"] == "load"
+    _set_enabled(
+        [widgets[tag] for tag in params.get("load_targets", ()) if tag in widgets],
+        load_enabled,
+    )
+    _set_enabled(
+        [widgets[tag] for tag in params.get("setup_targets", ()) if tag in widgets],
+        not load_enabled,
+    )
+
+
+def _set_headplot_mesh_choice(widgets: Mapping[str, Any], params: Mapping[str, Any], index: int) -> None:
+    reference_target = widgets.get(params.get("reference_target", ""))
+    if (
+        reference_target is not None
+        and hasattr(reference_target, "setCurrentIndex")
+        and index < reference_target.count()
+    ):
+        reference_target.setCurrentIndex(index)
+    target = widgets.get(params.get("transform_target", ""))
+    transforms = tuple(str(value) for value in params.get("transform_choices", ()))
+    if target is not None and 0 <= index < len(transforms) and transforms[index]:
+        target.setText(transforms[index])
+
+
+def _run_headplot_manual_coreg(parent: Any, widgets: Mapping[str, Any], params: Mapping[str, Any]) -> None:
+    transform_target = widgets.get(params.get("transform_target", ""))
+    if transform_target is None or not hasattr(transform_target, "setText"):
+        return
+    try:
+        # Manual headplot co-registration is the only generic Qt dialog path
+        # that needs matplotlib's 3-D stack, so keep it out of normal
+        # inputgui imports and startup.
+        from eegprep.functions.guifunc.coregister import run_coregister_dialog
+
+        meshfile = _choice_or_text(
+            widgets.get(params.get("mesh_source", "")),
+            tuple(str(value) for value in params.get("mesh_choices", ())),
+        )
+        reference = _choice_or_text(
+            widgets.get(params.get("reference_source", "")),
+            tuple(str(value) for value in params.get("reference_choices", ())),
+        )
+        transform = run_coregister_dialog(
+            params.get("chanlocs", ()),
+            reference,
+            chaninfo=dict(params.get("chaninfo") or {}),
+            meshfile=meshfile,
+            transform=_widget_text(transform_target),
+            parent=parent,
+            title=str(params.get("title", "Co-registration plot for headplot mesh")),
+        )
+    except (RuntimeError, OSError, ValueError) as exc:
+        _qt_core, qt_widgets = _require_qt()
+        qt_widgets.QMessageBox.warning(parent, "Warning", str(exc))
+        return
+    if transform is not None:
+        transform_target.setText(" ".join(f"{value:.6g}" for value in transform))
+
+
+def _choice_or_text(widget: Any, choices: tuple[str, ...]) -> str:
+    stored_value = widget.property(_VALUE_PROPERTY) if widget is not None and hasattr(widget, "property") else None
+    if stored_value is not None:
+        return str(stored_value)
+    if widget is not None and hasattr(widget, "currentIndex"):
+        index = int(widget.currentIndex())
+        if 0 <= index < len(choices):
+            return choices[index]
+    if widget is not None and hasattr(widget, "text"):
+        return str(widget.text())
+    return choices[0] if choices else ""
+
+
+def _show_callback_message(parent: Any, params: Mapping[str, Any]) -> None:
+    _qt_core, qt_widgets = _require_qt()
+    qt_widgets.QMessageBox.information(parent, str(params.get("title", "EEGPrep")), str(params.get("message", "")))
+
+
+def _edit_text(parent: Any, target: Any, params: Mapping[str, Any]) -> None:
+    _qt_core, qt_widgets = _require_qt()
+    stored_value = target.property(_VALUE_PROPERTY)
+    current = stored_value if stored_value is not None else params.get("value", "")
+    value, accepted = qt_widgets.QInputDialog.getMultiLineText(
+        parent,
+        str(params.get("title", "Edit text")),
+        str(params.get("label", "Text")),
+        str(current),
+    )
+    if accepted:
+        target.setProperty(_VALUE_PROPERTY, str(value))
+
+
+def _select_interp_channels(button: Any, target: Any, params: Mapping[str, Any]) -> None:
+    source = str(params.get("source", "")).lower()
+    chanlocs = [dict(chan) for chan in params.get("chanlocs", ())]
+    removedchans = [dict(chan) for chan in params.get("removedchans", ())]
+    alleeg = [dict(eeg) for eeg in params.get("alleeg", ())]
+
+    if source in {"removedchans", "nondatchan"}:
+        labels = [str(chan.get("labels", "")) for chan in removedchans]
+        chanlist, chanliststr, _allchanstr = pop_chansel(labels, parent=button)
         if not chanlist:
             return
+        selected = [removedchans[index - 1] for index in chanlist]
+        chanstr = "EEG.chaninfo.removedchans([" + " ".join(str(index) for index in chanlist) + "])"
+        _store_interp_selection(target, selected, chanstr, chanliststr)
+        return
 
-        current_labels = {str(chan.get("labels", "")).lower() for chan in chanlocs}
-        selected_indices = [
-            index
-            for index in chanlist
-            if str(other_chanlocs[index - 1].get("labels", "")).lower() not in current_labels
-        ]
-        if not selected_indices:
-            qt_widgets.QMessageBox.warning(button, "Warning", "No new channels selected")
+    if source == "datchan":
+        labels = [str(chan.get("labels", "")) for chan in chanlocs]
+        chanlist, chanliststr, _allchanstr = pop_chansel(labels, parent=button)
+        if not chanlist:
             return
+        selected = [index - 1 for index in chanlist]
+        chanstr = "[" + " ".join(str(index) for index in chanlist) + "]"
+        _store_interp_selection(target, selected, chanstr, chanliststr)
+        return
 
-        if len(chanlist) == len(other_chanlocs):
-            selected = other_chanlocs
-            chanstr = f"ALLEEG({dataset_index}).chanlocs"
-        else:
-            selected_indices = sorted(selected_indices)
-            selected = [other_chanlocs[index - 1] for index in selected_indices]
-            chanstr = f"ALLEEG({dataset_index}).chanlocs([" + " ".join(str(index) for index in selected_indices) + "])"
-        display = " ".join(str(other_chanlocs[index - 1].get("labels", "")) for index in selected_indices)
-        QtDialogRenderer._store_interp_selection(target, selected, chanstr, display)
+    _qt_core, qt_widgets = _require_qt()
+    dataset_index, accepted = qt_widgets.QInputDialog.getInt(
+        button,
+        "Choose dataset",
+        "Dataset index",
+        1,
+        1,
+        max(1, len(alleeg)),
+    )
+    if not accepted:
+        return
+    if dataset_index < 1 or dataset_index > len(alleeg):
+        qt_widgets.QMessageBox.warning(button, "Warning", "Wrong index")
+        return
 
-    @staticmethod
-    def _store_interp_selection(target: Any, chans: Any, chanstr: str, display: str) -> None:
-        target.setProperty(_VALUE_PROPERTY, {"chans": chans, "chanstr": chanstr})
-        target.setText(display.strip())
+    other = alleeg[dataset_index - 1]
+    other_chanlocs = [dict(chan) for chan in other.get("chanlocs", ())]
+    if source == "selectchan":
+        labels = [str(chan.get("labels", "")) for chan in other_chanlocs]
+        chanlist, _chanliststr, _allchanstr = pop_chansel(labels, parent=button)
+    else:
+        chanlist = list(range(1, len(other_chanlocs) + 1))
+    if not chanlist:
+        return
 
-    @staticmethod
-    def _set_reref_mode(widgets: dict[str, Any], mode: str, checked: bool) -> None:
-        if not checked:
-            if mode == "channels" and "ave" in widgets:
-                widgets["ave"].setChecked(True)
-            return
+    current_labels = {str(chan.get("labels", "")).lower() for chan in chanlocs}
+    selected_indices = [
+        index for index in chanlist if str(other_chanlocs[index - 1].get("labels", "")).lower() not in current_labels
+    ]
+    if not selected_indices:
+        qt_widgets.QMessageBox.warning(button, "Warning", "No new channels selected")
+        return
 
-        average_mode = mode in {"average", "huber"}
-        for tag in ("ave", "huberef", "rerefstr"):
-            if tag in widgets:
-                widgets[tag].blockSignals(True)
-                widgets[tag].setChecked(
-                    (tag == "ave" and mode == "average")
-                    or (tag == "huberef" and mode == "huber")
-                    or (tag == "rerefstr" and mode == "channels")
-                )
-                widgets[tag].blockSignals(False)
+    if len(chanlist) == len(other_chanlocs):
+        selected = other_chanlocs
+        chanstr = f"ALLEEG({dataset_index}).chanlocs"
+    else:
+        selected_indices = sorted(selected_indices)
+        selected = [other_chanlocs[index - 1] for index in selected_indices]
+        chanstr = f"ALLEEG({dataset_index}).chanlocs([" + " ".join(str(index) for index in selected_indices) + "])"
+    display = " ".join(str(other_chanlocs[index - 1].get("labels", "")) for index in selected_indices)
+    _store_interp_selection(target, selected, chanstr, display)
 
-        for tag in ("reref", "refbr", "keepref"):
-            if tag in widgets:
-                widgets[tag].setEnabled(not average_mode)
-        if average_mode and "keepref" in widgets:
-            widgets["keepref"].setChecked(False)
 
-    @staticmethod
-    def _set_enabled(widgets: list[Any], enabled: bool) -> None:
-        for widget in widgets:
-            widget.setEnabled(enabled)
+def _store_interp_selection(target: Any, chans: Any, chanstr: str, display: str) -> None:
+    target.setProperty(_VALUE_PROPERTY, {"chans": chans, "chanstr": chanstr})
+    target.setText(display.strip())
 
-    @staticmethod
-    def _show_help(_qt_widgets: Any, dialog: Any, spec: DialogSpec) -> None:
-        dialog._eegprep_help_dialog = pophelp(spec.help_text or spec.function_name, parent=dialog)
 
-    @staticmethod
-    def _read_widget(widget: Any) -> Any:
-        stored_value = widget.property(_VALUE_PROPERTY)
-        if stored_value is not None:
-            return stored_value
-        if hasattr(widget, "isChecked"):
-            return widget.isChecked()
-        if widget.property(_MULTI_SELECT_PROPERTY) and hasattr(widget, "selectedIndexes"):
-            return sorted({index.row() + 1 for index in widget.selectedIndexes()})
-        if hasattr(widget, "currentRow"):
-            return widget.currentRow() + 1
-        if hasattr(widget, "currentIndex"):
-            return widget.currentIndex() + 1
-        if hasattr(widget, "toPlainText"):
-            return widget.toPlainText()
-        if hasattr(widget, "text"):
-            return widget.text()
-        return None
+def _set_reref_mode(widgets: dict[str, Any], mode: str, checked: bool) -> None:
+    if not checked:
+        if mode == "channels" and "ave" in widgets:
+            widgets["ave"].setChecked(True)
+        return
+
+    average_mode = mode in {"average", "huber"}
+    for tag in ("ave", "huberef", "rerefstr"):
+        if tag in widgets:
+            widgets[tag].blockSignals(True)
+            widgets[tag].setChecked(
+                (tag == "ave" and mode == "average")
+                or (tag == "huberef" and mode == "huber")
+                or (tag == "rerefstr" and mode == "channels")
+            )
+            widgets[tag].blockSignals(False)
+
+    for tag in ("reref", "refbr", "keepref"):
+        if tag in widgets:
+            widgets[tag].setEnabled(not average_mode)
+    if average_mode and "keepref" in widgets:
+        widgets["keepref"].setChecked(False)
+
+
+def _set_enabled(widgets: list[Any], enabled: bool) -> None:
+    for widget in widgets:
+        widget.setEnabled(enabled)
+
+
+def _show_help(_qt_widgets: Any, dialog: Any, spec: DialogSpec) -> None:
+    dialog._eegprep_help_dialog = pophelp(spec.help_text or spec.function_name, parent=dialog)
+
+
+def _read_widget(widget: Any) -> Any:
+    stored_value = widget.property(_VALUE_PROPERTY)
+    if stored_value is not None:
+        return stored_value
+    if hasattr(widget, "isChecked"):
+        return widget.isChecked()
+    if widget.property(_MULTI_SELECT_PROPERTY) and hasattr(widget, "selectedIndexes"):
+        return sorted({index.row() + 1 for index in widget.selectedIndexes()})
+    if hasattr(widget, "currentRow"):
+        return widget.currentRow() + 1
+    if hasattr(widget, "currentIndex"):
+        return widget.currentIndex() + 1
+    if hasattr(widget, "toPlainText"):
+        return widget.toPlainText()
+    if hasattr(widget, "text"):
+        return widget.text()
+    return None
 
 
 def _is_sequence_value(value: Any) -> bool:
@@ -1309,3 +1356,56 @@ def _firpm_order_shape(
 
 def _firpm_default_devs(amplitudes: list[float]) -> list[float]:
     return [0.01 if value == 1 else 0.001 for value in amplitudes]
+
+
+_QT_RENDERER_STATIC_HELPERS = (
+    "_QDialog",
+    "_apply_eeglab_style",
+    "_row_weights",
+    "_row_stretch",
+    "_spacer_row_height",
+    "_add_buttons",
+    "_apply_spec_size",
+    "_apply_font_hints",
+    "_apply_widget_size_policy",
+    "_accept_if_valid",
+    "_validation_message",
+    "_validate_pop_reref_dialog",
+    "_validate_pop_interp_dialog",
+    "_callback_channels",
+    "_validate_channel_text",
+    "_parse_channel_text",
+    "_parse_numeric_text",
+    "_widget_number",
+    "_widget_vector",
+    "_combo_choice",
+    "_is_int_text",
+    "_widget_checked",
+    "_widget_text",
+    "_plot_tf_cycle_calc",
+    "_estimate_fir_kaiser_beta",
+    "_estimate_firws_order",
+    "_estimate_firpm_order",
+    "_plot_fir_response",
+    "_sync_numeric",
+    "_select_event_types",
+    "_select_channels",
+    "_select_file",
+    "_open_eegplot",
+    "_open_rejection_browser",
+    "_set_headplot_setup_mode",
+    "_set_headplot_mesh_choice",
+    "_run_headplot_manual_coreg",
+    "_choice_or_text",
+    "_show_callback_message",
+    "_edit_text",
+    "_select_interp_channels",
+    "_store_interp_selection",
+    "_set_reref_mode",
+    "_set_enabled",
+    "_show_help",
+    "_read_widget",
+)
+for _helper_name in _QT_RENDERER_STATIC_HELPERS:
+    setattr(QtDialogRenderer, _helper_name, staticmethod(globals()[_helper_name]))
+del _helper_name
