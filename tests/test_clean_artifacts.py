@@ -12,6 +12,7 @@ import numpy as np
 # Add src to path for imports
 sys.path.insert(0, 'src')
 from eegprep.plugins.clean_rawdata.clean_artifacts import clean_artifacts
+from eegprep.plugins.clean_rawdata.pop_clean_rawdata import pop_clean_rawdata
 from eegprep.utils.testing import DebuggableTestCase
 
 from tests.fixtures import create_test_eeg as _create_test_eeg
@@ -813,6 +814,63 @@ class TestCleanArtifactsIntegration(DebuggableTestCase):
         # Check removed_channels array
         self.assertEqual(len(removed_channels), self.test_eeg['nbchan'])
         self.assertTrue(np.issubdtype(removed_channels.dtype, np.bool_))
+
+
+class TestCleanArtifactsHpSnapshot(DebuggableTestCase):
+    """Regression test for the high-pass snapshot point-in-time contract."""
+
+    def setUp(self):
+        np.random.seed(11)
+        self.test_eeg = create_test_eeg()
+
+    def test_hp_snapshot_is_point_in_time(self):
+        """HP must not carry the sample mask written by the later window stage."""
+        EEG, HP, _BUR, _removed = clean_artifacts(
+            self.test_eeg,
+            Highpass='off',
+            ChannelCriterion=0.8,
+            LineNoiseCriterion=4.0,
+            BurstCriterion='off',
+            WindowCriterion=0.25,
+        )
+
+        # The window stage populates clean_sample_mask on the final EEG dataset...
+        self.assertIn('clean_sample_mask', EEG['etc'])
+        # ...but the high-pass snapshot predates that stage, so it must not share
+        # the same etc object or carry the later mask.
+        self.assertIsNot(HP['etc'], EEG['etc'])
+        self.assertNotIn('clean_sample_mask', HP['etc'])
+
+
+class TestPopCleanRawdataNoMutation(DebuggableTestCase):
+    """Regression test that pop_clean_rawdata never mutates the caller's EEG."""
+
+    def setUp(self):
+        np.random.seed(13)
+        self.test_eeg = create_test_eeg()
+
+    def test_does_not_mutate_input(self):
+        """The wrapper must deep-copy so the caller's dataset is untouched."""
+        EEG_in = self.test_eeg
+        original_data = EEG_in['data'].copy()
+        original_nbchan = EEG_in['nbchan']
+
+        cleaned = pop_clean_rawdata(
+            EEG_in,
+            gui=False,
+            ChannelCriterion=0.8,
+            LineNoiseCriterion=4.0,
+            BurstCriterion='off',
+            WindowCriterion=0.25,
+        )
+
+        # Caller's data, channel count, and etc are all unchanged.
+        self.assertTrue(np.array_equal(original_data, EEG_in['data']))
+        self.assertEqual(EEG_in['nbchan'], original_nbchan)
+        self.assertNotIn('clean_channel_mask', EEG_in.get('etc', {}))
+        self.assertNotIn('clean_sample_mask', EEG_in.get('etc', {}))
+        # The returned dataset is a distinct object.
+        self.assertIsNot(cleaned, EEG_in)
 
 
 if __name__ == '__main__':

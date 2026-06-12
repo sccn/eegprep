@@ -47,6 +47,21 @@ def _matlab_string(value):
     return "'" + str(value).replace("'", "''") + "'"
 
 
+def test_eeg_from_data_raises_on_ambiguous_tall_array():
+    # A tall channel-major array (more channels than samples) must not be
+    # silently transposed; orientation has to be stated via nbchan.
+    with pytest.raises(ValueError, match="orientation"):
+        eeg_from_data(np.zeros((256, 100)), srate=100)
+
+
+def test_eeg_from_data_loads_tall_channel_major_with_nbchan():
+    eeg = eeg_from_data(np.arange(256 * 100, dtype=float).reshape(256, 100), srate=100, nbchan=256)
+
+    assert eeg["nbchan"] == 256
+    assert eeg["pnts"] == 100
+    assert eeg["data"].shape == (256, 100)
+
+
 def test_pop_importdata_imports_ascii_data(tmp_path):
     data_file = tmp_path / "data.tsv"
     np.savetxt(data_file, np.array([[1, 2, 3], [4, 5, 6]]), delimiter="\t")

@@ -9,12 +9,10 @@ import unittest
 
 import numpy as np
 
+from eegprep.plugins.EEG_BIDS.coords import coords_to_mm
 from eegprep.utils.testing import DebuggableTestCase
 
 logger = logging.getLogger(__name__)
-
-if os.getenv('EEGPREP_SKIP_MATLAB') == '1':
-    raise unittest.SkipTest("MATLAB not available")
 
 curhost = socket.gethostname()
 
@@ -233,3 +231,24 @@ class TestBidsPreproc(DebuggableTestCase):
                 EpochBaseline=[None, 0],
                 MinimizeDiskUsage=False,
             )
+
+
+class TestCoordsToMm(unittest.TestCase):
+    """Regression tests that coords_to_mm never mutates the caller's array."""
+
+    def test_does_not_mutate_input(self):
+        for unit, factor in (('mm', 1.0), ('cm', 10.0), ('m', 1000.0)):
+            with self.subTest(unit=unit):
+                coords = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+                original = coords.copy()
+
+                out = coords_to_mm(coords, unit)
+
+                # Caller's array is unchanged and the result is a distinct array.
+                self.assertTrue(np.array_equal(original, coords))
+                self.assertIsNot(out, coords)
+                np.testing.assert_array_equal(out, original * factor)
+
+
+if __name__ == '__main__':
+    unittest.main()

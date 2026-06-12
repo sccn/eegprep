@@ -1,5 +1,6 @@
 """EEG artifact cleaning functions."""
 
+import copy
 import logging
 from typing import Any, Dict, Optional, Sequence, Tuple, Union
 
@@ -196,8 +197,10 @@ def clean_artifacts(
             raise ValueError('Highpass must be a (low, high) tuple or None/"off".')
         logger.info('Applying high‑pass filter...')
         EEG = clean_drifts(EEG, tuple(Highpass))
-    # Keep a copy after HP for optional return
-    HP = EEG.copy()
+    # Keep a point-in-time snapshot after HP for optional return. Deep-copy so
+    # later stages that mutate EEG['etc'] (channel/sample masks) do not bleed
+    # into the returned high-pass dataset.
+    HP = copy.deepcopy(EEG)
 
     # ------------------------------------------------------------------
     #            3) Channel cleaning (noisy / disconnected)
@@ -269,6 +272,9 @@ def clean_artifacts(
                     sample_mask[s : e + 1] = False
                 retain_intervals = retain_intervals[~small]
 
+            # Reject bad periods from the ASR-repaired dataset (BUR), preserving
+            # the prior behaviour where clean_asr updated the data in place.
+            EEG = BUR
             rejected_intervals = mask_to_intervals(sample_mask, value=False)
             if rejected_intervals.size:
                 EEG = eeg_eegrej(EEG, rejected_intervals)

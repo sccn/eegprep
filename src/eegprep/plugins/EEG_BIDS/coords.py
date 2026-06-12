@@ -17,14 +17,13 @@ __all__ = [
 def coords_to_mm(coords: np.ndarray, unit: str) -> np.ndarray:
     """Convert the given coordinates array from the specified unit to millimeters."""
     if unit in ('mm', 'millimeters'):
-        pass
+        return np.array(coords, copy=True)
     elif unit in ('cm', 'centimeters'):
-        coords *= 10.0
+        return coords * 10.0
     elif unit in ('m', 'meters'):
-        coords *= 1000.0
+        return coords * 1000.0
     else:
         raise ValueError(f"Unsupported coordinate unit: {unit}. Supported units are 'mm', 'cm', 'm'.")
-    return coords
 
 
 def coords_RAS_to_ALS(coords: np.ndarray) -> np.ndarray:

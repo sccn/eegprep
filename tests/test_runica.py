@@ -48,6 +48,17 @@ class TestRunicaFunctionality(unittest.TestCase):
         self.assertTrue(np.all(np.isfinite(bias)))
         self.assertTrue(np.all(np.isfinite(signs)))
 
+    def test_runica_does_not_mutate_input_array(self):
+        """runica must not modify the caller's data array (mean subtraction)."""
+        np.random.seed(42)
+        data = np.random.randn(8, 500).astype(np.float64)
+        original = data.copy()
+
+        runica(data, maxsteps=5, verbose=False, rndreset='off')
+
+        # The float64 input array passed by the caller must be untouched.
+        self.assertTrue(np.array_equal(data, original))
+
     def test_extended_ica(self):
         """Test extended-ICA mode."""
         np.random.seed(42)

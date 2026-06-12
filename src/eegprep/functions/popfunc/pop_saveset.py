@@ -1,5 +1,6 @@
 """EEG data saving and loading utilities."""
 
+import copy
 import os
 from pathlib import Path
 
@@ -86,6 +87,21 @@ def _matlab_empty_if_missing(EEG, key):
     """Return an EEGLAB empty array for optional fields missing from EEG."""
     value = EEG.get(key, default_empty)
     return default_empty if value is None else value
+
+
+def _matlab_empty_or_copy(EEG, key):
+    """Like ``_matlab_empty_if_missing`` but deep-copies struct-array fields.
+
+    Saving applies in-place 1-based offsets and latency coercion to the
+    MATLAB-facing structures; copying first keeps the caller's chanlocs/event
+    dicts (0-based urchan/urevent, untouched latencies) intact.  ``chanlocs``
+    and ``event`` can be Python lists or NumPy object arrays of dicts, so both
+    are deep-copied.
+    """
+    value = _matlab_empty_if_missing(EEG, key)
+    if isinstance(value, list) or (isinstance(value, np.ndarray) and value.dtype == object):
+        return copy.deepcopy(value)
+    return value
 
 
 def _matlab_empty_struct_if_missing(EEG, key):
@@ -377,11 +393,11 @@ def pop_saveset(EEG, file_name=None, *args, **kwargs):
         'icasphere': _matlab_empty_if_missing(EEG, 'icasphere'),
         'icaweights': _matlab_empty_if_missing(EEG, 'icaweights'),
         'icachansind': _matlab_empty_if_missing(EEG, 'icachansind').copy(),
-        'chanlocs': _matlab_empty_if_missing(EEG, 'chanlocs'),
+        'chanlocs': _matlab_empty_or_copy(EEG, 'chanlocs'),
         'urchanlocs': _matlab_empty_if_missing(EEG, 'urchanlocs'),
         'chaninfo': _serialize_chaninfo(EEG.get('chaninfo', {})),
         'ref': EEG.get('ref', 'common'),
-        'event': _matlab_empty_if_missing(EEG, 'event'),
+        'event': _matlab_empty_or_copy(EEG, 'event'),
         'urevent': _matlab_empty_if_missing(EEG, 'urevent'),
         'eventdescription': _matlab_empty_if_missing(EEG, 'eventdescription'),
         'epoch': _matlab_empty_if_missing(EEG, 'epoch'),
@@ -434,7 +450,7 @@ def pop_saveset(EEG, file_name=None, *args, **kwargs):
                 'urchan': c['urchan'] if not isinstance(c.get('urchan', matlab_null), np.ndarray) else None,
                 'ref': c['ref'] if not isinstance(c.get('ref', matlab_null), np.ndarray) else None,
             }
-            for c in EEG['chanlocs']
+            for c in eeglab_dict['chanlocs']
         ]
 
         # build a list of fields to selectively filter out if all entries are None

@@ -5,6 +5,7 @@ from continuous EEG data.
 """
 
 import logging
+from copy import deepcopy
 from typing import Any, Dict, Sequence, Tuple, Union
 
 import numpy as np
@@ -79,9 +80,11 @@ def clean_windows(
     # ------------------------------------------------------------------
     #                           Input handling
     # ------------------------------------------------------------------
+    # Operate on a deep copy so the caller's dataset is never mutated.
+    EEG = deepcopy(EEG)
     input_data = np.asarray(EEG['data'])
     output_dtype = input_data.dtype if np.issubdtype(input_data.dtype, np.floating) else np.dtype(np.float64)
-    EEG['data'] = input_data.astype(np.float64, copy=False)
+    EEG['data'] = input_data.astype(np.float64, copy=True)
     C, S = EEG['data'].shape
     Fs = EEG['srate']
 
