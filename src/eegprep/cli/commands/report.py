@@ -13,7 +13,6 @@ from eegprep.cli.core import (
     build_manifest,
     command_error as error_result,
     command_ok as success_result,
-    emit_command_result as emit_result,
     file_sha256,
     utc_now,
     write_manifest_file,
@@ -95,16 +94,10 @@ def handle_registered(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Standalone module entry point for local command testing."""
-    parser = argparse.ArgumentParser(prog="eegprep report")
-    parser.add_argument("input", help="Input EEGLAB .set dataset")
-    parser.add_argument("--output", required=True, help="Output HTML report path")
-    parser.add_argument("--manifest", help="Optional manifest JSON path")
-    parser.add_argument("--overwrite", action="store_true", help="Overwrite existing output files")
-    parser.add_argument("--json", action="store_true", help="Emit structured JSON")
-    args = parser.parse_args(sys.argv[1:] if argv is None else argv)
-    result = report_dataset(args.input, args.output, manifest_path=args.manifest, overwrite=args.overwrite)
-    return emit_result(result, json_output=True)
+    """Route module execution through the canonical top-level CLI dispatcher."""
+    from eegprep.cli.main import main as cli_main
+
+    return cli_main(["report", *(sys.argv[1:] if argv is None else argv)])
 
 
 if __name__ == "__main__":

@@ -6,7 +6,7 @@ import argparse
 import math
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 import numpy as np
 
@@ -15,7 +15,6 @@ from eegprep.cli.core import (
     build_manifest,
     command_error as error_result,
     command_ok as success_result,
-    emit_command_result as emit_result,
     file_sha256,
     json_safe,
     utc_now,
@@ -26,6 +25,24 @@ from eegprep.cli.reporting import write_report_html
 
 
 QC_SCHEMA_VERSION = "eegprep.qc.v1"
+
+
+class _QCArgumentParser(argparse.ArgumentParser):
+    """Nested qc parser that can defer JSON-mode errors to the top-level CLI."""
+
+    def __init__(self, *args: Any, json_requested: bool = False, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.json_requested = json_requested
+
+    def error(self, message: str) -> NoReturn:
+        if self.json_requested:
+            raise CommandError(
+                "CONFIG_SCHEMA_ERROR",
+                message,
+                suggestion="Run the command with --help or inspect schema command qc.",
+                exit_code=2,
+            )
+        super().error(message)
 
 
 def compute_qc_metrics(EEG: dict[str, Any], *, dataset_path: str | Path | None = None) -> dict[str, Any]:
@@ -249,30 +266,32 @@ def handle_registered(args: argparse.Namespace) -> dict[str, Any]:
 def dispatch(argv: list[str] | tuple[str, ...] | None = None) -> dict[str, Any]:
     """Dispatch qc command arguments without assuming a global CLI foundation."""
     argv = list(argv or [])
+    json_requested = "--json" in argv
     if argv and argv[0] == "report":
-        parser = _report_parser()
+        parser = _report_parser(json_requested=json_requested)
         args = parser.parse_args(argv[1:])
         return qc_report_dataset(args.input, args.html, manifest_path=args.manifest, overwrite=args.overwrite)
-    parser = _qc_parser()
+    parser = _qc_parser(json_requested=json_requested)
     args = parser.parse_args(argv)
     return qc_dataset(args.input)
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Standalone module entry point for local command testing."""
-    result = dispatch(sys.argv[1:] if argv is None else argv)
-    return emit_result(result, json_output=True)
+    """Route module execution through the canonical top-level CLI dispatcher."""
+    from eegprep.cli.main import main as cli_main
+
+    return cli_main(["qc", *(sys.argv[1:] if argv is None else argv)])
 
 
-def _qc_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="eegprep qc")
+def _qc_parser(*, json_requested: bool = False) -> argparse.ArgumentParser:
+    parser = _QCArgumentParser(prog="eegprep qc", json_requested=json_requested)
     parser.add_argument("input", help="Input EEGLAB .set dataset")
     parser.add_argument("--json", action="store_true", help="Emit structured JSON")
     return parser
 
 
-def _report_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="eegprep qc report")
+def _report_parser(*, json_requested: bool = False) -> argparse.ArgumentParser:
+    parser = _QCArgumentParser(prog="eegprep qc report", json_requested=json_requested)
     parser.add_argument("input", help="Input EEGLAB .set dataset")
     parser.add_argument("--html", required=True, help="Output HTML report path")
     parser.add_argument("--manifest", help="Optional manifest JSON path")

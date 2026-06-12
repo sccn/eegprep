@@ -12,10 +12,13 @@ from typing import Any
 
 import pytest
 
+import eegprep.extension_catalog as manager_catalog
 from eegprep.extension_catalog import (
     CATALOG_KIND_CURATION,
     CATALOG_KIND_MANAGER,
     CATALOG_SCHEMA_VERSION,
+)
+from eegprep.extension_catalog_validation import (
     CatalogValidationOptions,
     load_catalog_entries,
     main,
@@ -101,6 +104,14 @@ def test_catalog_cli_emits_json_report(tmp_path: Path, capsys: pytest.CaptureFix
     captured = capsys.readouterr()
     assert exit_code == 0
     assert json.loads(captured.out) == {"ok": True, "errors": [], "warnings": []}
+
+
+def test_catalog_validator_entry_point_is_owned_by_validation_module() -> None:
+    pyproject_text = (Path(__file__).resolve().parents[1] / "pyproject.toml").read_text(encoding="utf-8")
+
+    assert 'eegprep-validate-extension-catalog = "eegprep.extension_catalog_validation:main"' in pyproject_text
+    assert not hasattr(manager_catalog, "main")
+    assert not hasattr(manager_catalog, "validate_catalog_file")
 
 
 def test_schema_version_mismatch_is_reported(tmp_path: Path) -> None:

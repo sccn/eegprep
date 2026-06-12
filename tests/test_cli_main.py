@@ -93,6 +93,18 @@ def test_json_parse_errors_return_stable_error_code():
     assert payload["code"] == "CONFIG_SCHEMA_ERROR"
 
 
+def test_nested_qc_parse_errors_return_stable_json_error():
+    result = _run_cli("qc", "report", "--json")
+
+    assert result.returncode == 2
+    assert result.stderr == ""
+    payload = _json_stdout(result)
+    assert payload["status"] == "error"
+    assert payload["schema_version"] == "eegprep.error.v1"
+    assert payload["code"] == "CONFIG_SCHEMA_ERROR"
+    assert "arguments are required" in payload["message"]
+
+
 def test_batch_run_dry_run_and_qc_pipeline(tmp_path):
     config = tmp_path / "pipeline.yaml"
     config.write_text(

@@ -3,9 +3,7 @@
 This module loads the metadata-only catalog that the Extension Manager dialog and
 console inventory display, and builds copyable (never executed) install/update
 commands. The submission-curation CI validator lives in
-``eegprep.extension_catalog_validation``; its public names are re-exported here so
-the ``eegprep-validate-extension-catalog`` entry point and existing imports keep
-working unchanged.
+``eegprep.extension_catalog_validation``.
 """
 
 from __future__ import annotations
@@ -326,44 +324,18 @@ def _catalog_normalize_name(name: str) -> str:
     return str(name).strip().lower()
 
 
-# The submission-curation CI validator lives in extension_catalog_validation. Its
-# public names are re-exported here so the eegprep-validate-extension-catalog entry
-# point and existing imports of these symbols from eegprep.extension_catalog keep
-# working. The validator imports the shared catalog constants and _is_web_url from
-# this module lazily, so this re-import stays one-directional at module-load time.
-from eegprep.extension_catalog_validation import (  # noqa: E402
-    CATALOG_CURATION_STATUSES,
-    CATALOG_REQUIRED_FIELDS,
-    CatalogValidationIssue,
-    CatalogValidationOptions,
-    CatalogValidationReport,
-    load_catalog_entries,
-    main,
-    validate_catalog_entries,
-    validate_catalog_file,
-)
-
 __all__ = [
-    "CATALOG_CURATION_STATUSES",
     "CATALOG_KIND_CURATION",
     "CATALOG_KIND_MANAGER",
-    "CATALOG_REQUIRED_FIELDS",
     "CATALOG_ENV_VAR",
     "CATALOG_RESOURCE",
     "CATALOG_SCHEMA_VERSION",
     "INSTALL_TRUST_WARNING",
     "CatalogSourceType",
-    "CatalogValidationIssue",
-    "CatalogValidationOptions",
-    "CatalogValidationReport",
     "ExtensionCatalog",
     "ExtensionCatalogEntry",
     "build_safe_install_commands",
     "build_safe_update_commands",
-    "load_catalog_entries",
     "load_extension_catalog",
     "parse_extension_catalog",
-    "main",
-    "validate_catalog_entries",
-    "validate_catalog_file",
 ]
