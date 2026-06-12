@@ -585,7 +585,7 @@ Git Conflicts
 .. code-block:: bash
 
     git fetch upstream
-    git rebase upstream/main
+    git rebase upstream/develop
     # Resolve conflicts in your editor
     git add .
     git rebase --continue

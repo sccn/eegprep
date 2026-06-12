@@ -14,7 +14,7 @@ sys.path.insert(0, str(DOCS_SOURCE.parent.parent / "src"))
 
 # -- Project information -------------------------------------------------------
 project = "eegprep"
-copyright = "2024 - , EEGPrep contributors"
+copyright = "2024-2026, EEGPrep contributors"
 author = "EEGPrep contributors"
 
 # Import version from eegprep package
@@ -38,7 +38,6 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.intersphinx",
     "sphinx_gallery.gen_gallery",
-    "sphinx_autodoc_typehints",
     "myst_parser",
     "sphinx_design",
     "sphinx_copybutton",
@@ -65,7 +64,7 @@ html_theme_options = {
     # Navigation structure
     "navbar_start": ["navbar-logo"],
     "navbar_center": ["navbar-nav"],
-    "navbar_end": ["search-button.html", "navbar-icon-links"],
+    "navbar_end": ["theme-switcher", "search-button.html", "navbar-icon-links"],
     "navbar_persistent": [],
     "primary_sidebar_end": [],
     "footer_start": ["copyright"],
@@ -92,8 +91,9 @@ html_theme_options = {
 html_context = {
     "github_user": "sccn",
     "github_repo": "eegprep",
-    "github_version": "main",
+    "github_version": "develop",
     "doc_path": "docs/source",
+    "default_mode": "light",
 }
 
 # -- Options for autodoc -------------------------------------------------------
