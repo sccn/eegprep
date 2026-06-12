@@ -14,52 +14,12 @@ sys.path.insert(0, 'src')
 from eegprep.plugins.clean_rawdata.clean_flatlines import clean_flatlines
 from eegprep.utils.testing import DebuggableTestCase
 
+from tests.fixtures import create_test_eeg as _create_test_eeg
+
 
 def create_test_eeg():
-    """Create a complete test EEG structure with all required fields."""
-    return {
-        'data': np.random.randn(32, 1000, 10),
-        'srate': 500.0,
-        'nbchan': 32,
-        'pnts': 1000,
-        'trials': 10,
-        'xmin': -1.0,
-        'xmax': 1.0,
-        'times': np.linspace(-1.0, 1.0, 1000),
-        'icaact': [],
-        'icawinv': [],
-        'icasphere': [],
-        'icaweights': [],
-        'icachansind': [],
-        'chanlocs': [
-            {
-                'labels': f'EEG{i:03d}',
-                'type': 'EEG',
-                'theta': np.random.uniform(-90, 90),
-                'radius': np.random.uniform(0, 1),
-                'X': np.random.uniform(-1, 1),
-                'Y': np.random.uniform(-1, 1),
-                'Z': np.random.uniform(-1, 1),
-                'sph_theta': np.random.uniform(-180, 180),
-                'sph_phi': np.random.uniform(-90, 90),
-                'sph_radius': np.random.uniform(0, 1),
-                'urchan': i + 1,
-                'ref': '',
-            }
-            for i in range(32)
-        ],
-        'urchanlocs': [],
-        'chaninfo': [],
-        'ref': 'common',
-        'history': '',
-        'saved': 'yes',
-        'etc': {},
-        'event': [],
-        'epoch': [],
-        'setname': 'test_dataset',
-        'filename': 'test.set',
-        'filepath': '/tmp',
-    }
+    """Epoched EEG fixture sized for clean_flatlines (32 ch, 1000 pnts, 10 trials)."""
+    return _create_test_eeg(n_channels=32, n_samples=1000, srate=500.0, n_trials=10)
 
 
 class TestCleanFlatlinesBasic(DebuggableTestCase):

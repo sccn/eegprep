@@ -14,56 +14,12 @@ sys.path.insert(0, 'src')
 from eegprep.plugins.clean_rawdata.clean_drifts import clean_drifts
 from eegprep.utils.testing import DebuggableTestCase
 
+from tests.fixtures import create_test_eeg as _create_test_eeg
+
 
 def create_test_eeg():
-    """Create a complete test EEG structure with all required fields.
-
-    Note: clean_drifts expects continuous (2D) data, not epoched (3D) data.
-    """
-    n_pnts = 10000  # 20 seconds at 500 Hz
-    return {
-        'data': np.random.randn(32, n_pnts),  # 2D continuous data
-        'srate': 500.0,
-        'nbchan': 32,
-        'pnts': n_pnts,
-        'trials': 1,
-        'xmin': 0.0,
-        'xmax': n_pnts / 500.0,
-        'times': np.linspace(0, n_pnts / 500.0, n_pnts),
-        'icaact': [],
-        'icawinv': [],
-        'icasphere': [],
-        'icaweights': [],
-        'icachansind': [],
-        'chanlocs': [
-            {
-                'labels': f'EEG{i:03d}',
-                'type': 'EEG',
-                'theta': np.random.uniform(-90, 90),
-                'radius': np.random.uniform(0, 1),
-                'X': np.random.uniform(-1, 1),
-                'Y': np.random.uniform(-1, 1),
-                'Z': np.random.uniform(-1, 1),
-                'sph_theta': np.random.uniform(-180, 180),
-                'sph_phi': np.random.uniform(-90, 90),
-                'sph_radius': np.random.uniform(0, 1),
-                'urchan': i + 1,
-                'ref': '',
-            }
-            for i in range(32)
-        ],
-        'urchanlocs': [],
-        'chaninfo': {'removedchans': []},
-        'ref': 'common',
-        'history': '',
-        'saved': 'yes',
-        'etc': {},
-        'event': [],
-        'epoch': [],
-        'setname': 'test_dataset',
-        'filename': 'test.set',
-        'filepath': '/tmp',
-    }
+    """Continuous (2D) EEG fixture sized for clean_drifts (20 s at 500 Hz)."""
+    return _create_test_eeg(n_channels=32, n_samples=10000, srate=500.0, n_trials=1)
 
 
 class TestCleanDriftsBasic(DebuggableTestCase):
@@ -75,90 +31,66 @@ class TestCleanDriftsBasic(DebuggableTestCase):
 
     def test_clean_drifts_basic_functionality(self):
         """Test basic clean_drifts functionality with default parameters."""
-        try:
-            result = clean_drifts(self.test_eeg.copy())
+        result = clean_drifts(self.test_eeg.copy())
 
-            # Check that EEG structure is preserved
-            self.assertIn('data', result)
-            self.assertIn('srate', result)
-            self.assertIn('nbchan', result)
-            self.assertIn('pnts', result)
-            self.assertIn('etc', result)
+        # Check that EEG structure is preserved
+        self.assertIn('data', result)
+        self.assertIn('srate', result)
+        self.assertIn('nbchan', result)
+        self.assertIn('pnts', result)
+        self.assertIn('etc', result)
 
-            # Check that data dimensions are preserved
-            self.assertEqual(result['srate'], self.test_eeg['srate'])
-            self.assertEqual(result['nbchan'], self.test_eeg['nbchan'])
-            self.assertEqual(result['pnts'], self.test_eeg['pnts'])
-            self.assertEqual(result['trials'], self.test_eeg['trials'])
+        # Check that data dimensions are preserved
+        self.assertEqual(result['srate'], self.test_eeg['srate'])
+        self.assertEqual(result['nbchan'], self.test_eeg['nbchan'])
+        self.assertEqual(result['pnts'], self.test_eeg['pnts'])
+        self.assertEqual(result['trials'], self.test_eeg['trials'])
 
-            # Check that data type is float64
-            self.assertEqual(result['data'].dtype, np.float64)
+        # Check that data type is float64
+        self.assertEqual(result['data'].dtype, np.float64)
 
-            # Check that filter kernel is stored
-            self.assertIn('clean_drifts_kernel', result['etc'])
-
-        except Exception as e:
-            self.skipTest(f"clean_drifts basic functionality not available: {e}")
+        # Check that filter kernel is stored
+        self.assertIn('clean_drifts_kernel', result['etc'])
 
     def test_clean_drifts_default_parameters(self):
         """Test clean_drifts with default parameters."""
-        try:
-            result = clean_drifts(self.test_eeg.copy())
+        result = clean_drifts(self.test_eeg.copy())
 
-            # Should work with default parameters
-            self.assertIn('data', result)
-            self.assertIn('clean_drifts_kernel', result['etc'])
-
-        except Exception as e:
-            self.skipTest(f"clean_drifts default parameters not available: {e}")
+        # Should work with default parameters
+        self.assertIn('data', result)
+        self.assertIn('clean_drifts_kernel', result['etc'])
 
     def test_clean_drifts_custom_transition(self):
         """Test clean_drifts with custom transition band."""
-        try:
-            result = clean_drifts(self.test_eeg.copy(), transition=(1.0, 2.0))
+        result = clean_drifts(self.test_eeg.copy(), transition=(1.0, 2.0))
 
-            # Should work with custom transition band
-            self.assertIn('data', result)
-            self.assertIn('clean_drifts_kernel', result['etc'])
-
-        except Exception as e:
-            self.skipTest(f"clean_drifts custom transition not available: {e}")
+        # Should work with custom transition band
+        self.assertIn('data', result)
+        self.assertIn('clean_drifts_kernel', result['etc'])
 
     def test_clean_drifts_custom_attenuation(self):
         """Test clean_drifts with custom attenuation."""
-        try:
-            result = clean_drifts(self.test_eeg.copy(), attenuation=60.0)
+        result = clean_drifts(self.test_eeg.copy(), attenuation=60.0)
 
-            # Should work with custom attenuation
-            self.assertIn('data', result)
-            self.assertIn('clean_drifts_kernel', result['etc'])
-
-        except Exception as e:
-            self.skipTest(f"clean_drifts custom attenuation not available: {e}")
+        # Should work with custom attenuation
+        self.assertIn('data', result)
+        self.assertIn('clean_drifts_kernel', result['etc'])
 
     def test_clean_drifts_fir_method(self):
         """Test clean_drifts with FIR method."""
-        try:
-            result = clean_drifts(self.test_eeg.copy(), method='fir')
+        result = clean_drifts(self.test_eeg.copy(), method='fir')
 
-            # Should work with FIR method
-            self.assertIn('data', result)
-            self.assertIn('clean_drifts_kernel', result['etc'])
-
-        except Exception as e:
-            self.skipTest(f"clean_drifts FIR method not available: {e}")
+        # Should work with FIR method
+        self.assertIn('data', result)
+        self.assertIn('clean_drifts_kernel', result['etc'])
 
     def test_clean_drifts_fft_method(self):
         """Test clean_drifts with FFT method."""
-        try:
-            result = clean_drifts(self.test_eeg.copy(), method='fft')
+        result = clean_drifts(self.test_eeg.copy(), method='fft')
 
-            # Should work with FFT method
-            self.assertIn('data', result)
-            self.assertIn('clean_drifts_kernel', result['etc'])
-
-        except Exception as e:
-            self.skipTest(f"clean_drifts FFT method not available: {e}")
+        # Should work with FFT method
+        self.assertIn('data', result)
+        self.assertIn('clean_drifts_kernel', result['etc'])
 
 
 class TestCleanDriftsEdgeCases(DebuggableTestCase):
@@ -170,87 +102,67 @@ class TestCleanDriftsEdgeCases(DebuggableTestCase):
 
     def test_clean_drifts_single_channel(self):
         """Test clean_drifts with single channel data."""
-        try:
-            # Create single channel data (2D continuous)
-            single_channel_eeg = self.test_eeg.copy()
-            single_channel_eeg['data'] = np.random.randn(1, 10000)
-            single_channel_eeg['nbchan'] = 1
-            single_channel_eeg['chanlocs'] = [single_channel_eeg['chanlocs'][0]]
+        # Create single channel data (2D continuous)
+        single_channel_eeg = self.test_eeg.copy()
+        single_channel_eeg['data'] = np.random.randn(1, 10000)
+        single_channel_eeg['nbchan'] = 1
+        single_channel_eeg['chanlocs'] = [single_channel_eeg['chanlocs'][0]]
 
-            result = clean_drifts(single_channel_eeg)
+        result = clean_drifts(single_channel_eeg)
 
-            # Should work with single channel
-            self.assertEqual(result['nbchan'], 1)
-            self.assertIn('clean_drifts_kernel', result['etc'])
-
-        except Exception as e:
-            self.skipTest(f"clean_drifts single channel not available: {e}")
+        # Should work with single channel
+        self.assertEqual(result['nbchan'], 1)
+        self.assertIn('clean_drifts_kernel', result['etc'])
 
     def test_clean_drifts_single_trial(self):
         """Test clean_drifts with continuous (single trial) data."""
-        try:
-            # Create continuous data (2D - single trial is the normal case)
-            single_trial_eeg = self.test_eeg.copy()
-            single_trial_eeg['data'] = np.random.randn(32, 10000)
-            single_trial_eeg['trials'] = 1
+        # Create continuous data (2D - single trial is the normal case)
+        single_trial_eeg = self.test_eeg.copy()
+        single_trial_eeg['data'] = np.random.randn(32, 10000)
+        single_trial_eeg['trials'] = 1
 
-            result = clean_drifts(single_trial_eeg)
+        result = clean_drifts(single_trial_eeg)
 
-            # Should work with single trial
-            self.assertEqual(result['trials'], 1)
-            self.assertIn('clean_drifts_kernel', result['etc'])
-
-        except Exception as e:
-            self.skipTest(f"clean_drifts single trial not available: {e}")
+        # Should work with single trial
+        self.assertEqual(result['trials'], 1)
+        self.assertIn('clean_drifts_kernel', result['etc'])
 
     def test_clean_drifts_continuous_data(self):
         """Test clean_drifts with continuous (2D) data."""
-        try:
-            # Create continuous data (2D)
-            continuous_eeg = self.test_eeg.copy()
-            continuous_eeg['data'] = np.random.randn(32, 1000)
-            continuous_eeg['trials'] = 1
+        # Create continuous data (2D)
+        continuous_eeg = self.test_eeg.copy()
+        continuous_eeg['data'] = np.random.randn(32, 1000)
+        continuous_eeg['trials'] = 1
 
-            result = clean_drifts(continuous_eeg)
+        result = clean_drifts(continuous_eeg)
 
-            # Should work with continuous data
-            self.assertIn('data', result)
-            self.assertIn('clean_drifts_kernel', result['etc'])
-
-        except Exception as e:
-            self.skipTest(f"clean_drifts continuous data not available: {e}")
+        # Should work with continuous data
+        self.assertIn('data', result)
+        self.assertIn('clean_drifts_kernel', result['etc'])
 
     def test_clean_drifts_float32_data(self):
         """Test clean_drifts with float32 data."""
-        try:
-            # Create float32 data
-            float32_eeg = self.test_eeg.copy()
-            float32_eeg['data'] = np.random.randn(32, 10000).astype(np.float32)
+        # Create float32 data
+        float32_eeg = self.test_eeg.copy()
+        float32_eeg['data'] = np.random.randn(32, 10000).astype(np.float32)
 
-            result = clean_drifts(float32_eeg)
+        result = clean_drifts(float32_eeg)
 
-            # Should convert to float64
-            self.assertEqual(result['data'].dtype, np.float64)
-            self.assertIn('clean_drifts_kernel', result['etc'])
-
-        except Exception as e:
-            self.skipTest(f"clean_drifts float32 data not available: {e}")
+        # Should convert to float64
+        self.assertEqual(result['data'].dtype, np.float64)
+        self.assertIn('clean_drifts_kernel', result['etc'])
 
     def test_clean_drifts_float64_data(self):
         """Test clean_drifts with float64 data."""
-        try:
-            # Create float64 data
-            float64_eeg = self.test_eeg.copy()
-            float64_eeg['data'] = np.random.randn(32, 10000).astype(np.float64)
+        # Create float64 data
+        float64_eeg = self.test_eeg.copy()
+        float64_eeg['data'] = np.random.randn(32, 10000).astype(np.float64)
 
-            result = clean_drifts(float64_eeg)
+        result = clean_drifts(float64_eeg)
 
-            # Should remain float64
-            self.assertEqual(result['data'].dtype, np.float64)
-            self.assertIn('clean_drifts_kernel', result['etc'])
-
-        except Exception as e:
-            self.skipTest(f"clean_drifts float64 data not available: {e}")
+        # Should remain float64
+        self.assertEqual(result['data'].dtype, np.float64)
+        self.assertIn('clean_drifts_kernel', result['etc'])
 
 
 class TestCleanDriftsParameters(DebuggableTestCase):
@@ -262,45 +174,33 @@ class TestCleanDriftsParameters(DebuggableTestCase):
 
     def test_clean_drifts_different_transition_bands(self):
         """Test clean_drifts with different transition bands."""
-        try:
-            # Test different transition bands
-            transitions = [(0.1, 0.5), (0.5, 1.0), (1.0, 2.0), (2.0, 5.0)]
+        # Test different transition bands
+        transitions = [(0.1, 0.5), (0.5, 1.0), (1.0, 2.0), (2.0, 5.0)]
 
-            for transition in transitions:
-                result = clean_drifts(self.test_eeg.copy(), transition=transition)
-                self.assertIn('data', result)
-                self.assertIn('clean_drifts_kernel', result['etc'])
-
-        except Exception as e:
-            self.skipTest(f"clean_drifts different transition bands not available: {e}")
+        for transition in transitions:
+            result = clean_drifts(self.test_eeg.copy(), transition=transition)
+            self.assertIn('data', result)
+            self.assertIn('clean_drifts_kernel', result['etc'])
 
     def test_clean_drifts_different_attenuations(self):
         """Test clean_drifts with different attenuation values."""
-        try:
-            # Test different attenuation values
-            attenuations = [40.0, 60.0, 80.0, 100.0]
+        # Test different attenuation values
+        attenuations = [40.0, 60.0, 80.0, 100.0]
 
-            for attenuation in attenuations:
-                result = clean_drifts(self.test_eeg.copy(), attenuation=attenuation)
-                self.assertIn('data', result)
-                self.assertIn('clean_drifts_kernel', result['etc'])
-
-        except Exception as e:
-            self.skipTest(f"clean_drifts different attenuations not available: {e}")
+        for attenuation in attenuations:
+            result = clean_drifts(self.test_eeg.copy(), attenuation=attenuation)
+            self.assertIn('data', result)
+            self.assertIn('clean_drifts_kernel', result['etc'])
 
     def test_clean_drifts_both_methods(self):
         """Test clean_drifts with both FIR and FFT methods."""
-        try:
-            # Test both methods
-            methods = ['fir', 'fft']
+        # Test both methods
+        methods = ['fir', 'fft']
 
-            for method in methods:
-                result = clean_drifts(self.test_eeg.copy(), method=method)
-                self.assertIn('data', result)
-                self.assertIn('clean_drifts_kernel', result['etc'])
-
-        except Exception as e:
-            self.skipTest(f"clean_drifts both methods not available: {e}")
+        for method in methods:
+            result = clean_drifts(self.test_eeg.copy(), method=method)
+            self.assertIn('data', result)
+            self.assertIn('clean_drifts_kernel', result['etc'])
 
 
 class TestCleanDriftsIntegration(DebuggableTestCase):
@@ -312,56 +212,44 @@ class TestCleanDriftsIntegration(DebuggableTestCase):
 
     def test_clean_drifts_preserves_structure(self):
         """Test that clean_drifts preserves EEG structure."""
-        try:
-            result = clean_drifts(self.test_eeg.copy())
+        result = clean_drifts(self.test_eeg.copy())
 
-            # Check that all essential fields are preserved
-            essential_fields = ['data', 'srate', 'nbchan', 'pnts', 'trials', 'xmin', 'xmax', 'times', 'chanlocs']
-            for field in essential_fields:
-                self.assertIn(field, result)
+        # Check that all essential fields are preserved
+        essential_fields = ['data', 'srate', 'nbchan', 'pnts', 'trials', 'xmin', 'xmax', 'times', 'chanlocs']
+        for field in essential_fields:
+            self.assertIn(field, result)
 
-            # Check that data integrity is maintained
-            self.assertEqual(result['srate'], self.test_eeg['srate'])
-            self.assertEqual(result['nbchan'], self.test_eeg['nbchan'])
-            self.assertEqual(result['pnts'], self.test_eeg['pnts'])
-            self.assertEqual(result['trials'], self.test_eeg['trials'])
-
-        except Exception as e:
-            self.skipTest(f"clean_drifts preserves structure not available: {e}")
+        # Check that data integrity is maintained
+        self.assertEqual(result['srate'], self.test_eeg['srate'])
+        self.assertEqual(result['nbchan'], self.test_eeg['nbchan'])
+        self.assertEqual(result['pnts'], self.test_eeg['pnts'])
+        self.assertEqual(result['trials'], self.test_eeg['trials'])
 
     def test_clean_drifts_data_modification(self):
         """Test that clean_drifts actually modifies the data."""
-        try:
-            original_data = self.test_eeg['data'].copy()
-            result = clean_drifts(self.test_eeg.copy())
+        original_data = self.test_eeg['data'].copy()
+        result = clean_drifts(self.test_eeg.copy())
 
-            # Data should be modified (filtered)
-            self.assertFalse(np.array_equal(original_data, result['data']))
+        # Data should be modified (filtered)
+        self.assertFalse(np.array_equal(original_data, result['data']))
 
-            # But shape should be preserved
-            self.assertEqual(original_data.shape, result['data'].shape)
-
-        except Exception as e:
-            self.skipTest(f"clean_drifts data modification not available: {e}")
+        # But shape should be preserved
+        self.assertEqual(original_data.shape, result['data'].shape)
 
     def test_clean_drifts_kernel_properties(self):
         """Test properties of the filter kernel."""
-        try:
-            result = clean_drifts(self.test_eeg.copy())
+        result = clean_drifts(self.test_eeg.copy())
 
-            kernel = result['etc']['clean_drifts_kernel']
+        kernel = result['etc']['clean_drifts_kernel']
 
-            # Kernel should be a numpy array
-            self.assertIsInstance(kernel, np.ndarray)
+        # Kernel should be a numpy array
+        self.assertIsInstance(kernel, np.ndarray)
 
-            # Kernel should not be empty
-            self.assertGreater(len(kernel), 0)
+        # Kernel should not be empty
+        self.assertGreater(len(kernel), 0)
 
-            # Kernel should be 1D
-            self.assertEqual(kernel.ndim, 1)
-
-        except Exception as e:
-            self.skipTest(f"clean_drifts kernel properties not available: {e}")
+        # Kernel should be 1D
+        self.assertEqual(kernel.ndim, 1)
 
 
 if __name__ == '__main__':
