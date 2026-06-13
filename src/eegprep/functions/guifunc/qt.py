@@ -81,6 +81,7 @@ class QtDialogRenderer:
     _sync_numeric: Any
     _select_event_types: Any
     _select_channels: Any
+    _navigate_event: Any
     _select_file: Any
     _open_eegplot: Any
     _open_rejection_browser: Any
@@ -343,6 +344,10 @@ class QtDialogRenderer:
             source = widgets.get(params.get("button"))
             if source is not None:
                 source.clicked.connect(lambda: self._plot_fir_response(source, widgets, params))
+        elif callback.name == "navigate_event":
+            source = widgets.get(params["source"])
+            if source is not None:
+                source.clicked.connect(lambda: self._navigate_event(widgets, params))
 
     def _run_tf_cycle_calc(self, button: Any, widgets: dict[str, Any], params: Mapping[str, Any]) -> None:
         _qt_core, qt_widgets = _require_qt()
@@ -974,6 +979,25 @@ def _select_event_types(button: Any, target: Any, params: Mapping[str, Any]) -> 
         target.setText((current + " " + value).strip())
 
 
+def _navigate_event(widgets: Mapping[str, Any], params: Mapping[str, Any]) -> None:
+    eventnum = widgets.get(params["eventnum_tag"])
+    if eventnum is None:
+        return
+    max_index = max(1, int(params["max_index"]))
+    try:
+        current = int(float(_widget_text(eventnum) or "1"))
+    except ValueError:
+        current = 1
+    new_index = max(1, min(max_index, current + int(params["delta"])))
+    eventnum.setText(str(new_index))
+    display = params["field_displays"][new_index - 1]
+    for tag, value in display.items():
+        target = widgets.get(tag)
+        if target is None or not hasattr(target, "setText"):
+            continue
+        target.setText("" if value in {None, ""} else str(value))
+
+
 def _select_channels(button: Any, target: Any, params: Mapping[str, Any]) -> None:
     channels = [str(value) for value in params.get("channels", ())]
     if channels:
@@ -1390,6 +1414,7 @@ _QT_RENDERER_STATIC_HELPERS = (
     "_sync_numeric",
     "_select_event_types",
     "_select_channels",
+    "_navigate_event",
     "_select_file",
     "_open_eegplot",
     "_open_rejection_browser",
