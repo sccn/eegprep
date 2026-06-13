@@ -80,15 +80,18 @@ def reref(
     else:
         # Average reference via matrix multiplication, matching MATLAB's
         # reref.m: refmatrix = eye(n) - ones(n)/n; data = refmatrix * data.
-        # This produces results numerically closer to MATLAB than the
-        # algebraically equivalent data - mean(data) because the float32
-        # accumulation order in BLAS matrix multiplication matches MATLAB, while
-        # np.mean uses pairwise summation which can diverge enough to
-        # cascade through nonlinear downstream operations (e.g. ASR).
+        # MATLAB accumulates this product column-major; replicate that float32
+        # accumulation order in NumPy (row-major) by transposing the operands
+        # (refmatrix is symmetric, so (data.T @ refmatrix).T == refmatrix @ data
+        # algebraically). The plain np.dot(refmatrix, data) form is ~0.06 uV off
+        # MATLAB in float32, which cascades through nonlinear downstream steps
+        # (ICA convergence) for borderline subjects; the transposed form is
+        # bit-exact to MATLAB on x86 BLAS.
         n = len(chansin)
         dt = original_dtype
         refmatrix = np.eye(n, dtype=dt) - np.ones((n, n), dtype=dt) / dt.type(n)
-        work[chansin_array, :] = np.dot(refmatrix, work[chansin_array, :].astype(dt))
+        block = np.ascontiguousarray(work[chansin_array, :].astype(dt).T)
+        work[chansin_array, :] = (block @ refmatrix).T
         mean_data = None
 
     if locs is not None:
