@@ -191,7 +191,7 @@ def _change_field(
 
 
 def _internal_event_value(output: dict[str, Any], event: dict[str, Any], field: str, value: Any) -> Any:
-    if field == "latency" and value not in {"", None}:
+    if field == "latency" and not _is_empty(value):
         if int(output.get("trials", 1) or 1) > 1:
             newlat, _ = eeg_lat2point(
                 float(value),
@@ -202,7 +202,7 @@ def _internal_event_value(output: dict[str, Any], event: dict[str, Any], field: 
             )
             return float(newlat.item())
         return (float(value) - float(output.get("xmin", 0))) * float(output.get("srate", 1)) + 1
-    if field == "duration" and value not in {"", None}:
+    if field == "duration" and not _is_empty(value):
         scale = float(output.get("srate", 1)) / (1000 if int(output.get("trials", 1) or 1) > 1 else 1)
         return float(value) * scale
     return value
@@ -210,7 +210,7 @@ def _internal_event_value(output: dict[str, Any], event: dict[str, Any], field: 
 
 def _display_event_value(EEG: dict[str, Any], event: dict[str, Any], field: str) -> Any:
     value = event.get(field, "")
-    if value in {"", None}:
+    if _is_empty(value):
         return ""
     if field == "latency":
         if int(EEG.get("trials", 1) or 1) > 1:

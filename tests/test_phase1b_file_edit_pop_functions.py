@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import os
 from copy import deepcopy
 from pathlib import Path
 
@@ -9,12 +10,13 @@ import pytest
 
 from eegprep.functions.adminfunc.console import _console_python_command
 from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
+from eegprep.functions.guifunc.spec import controls_by_tag
 from eegprep.functions.guifunc.select_multiple_datasets import select_multiple_datasets
 from eegprep.functions.guifunc.session import EEGPrepSession
-from eegprep.functions.popfunc.pop_chanedit import pop_chanedit
+from eegprep.functions.popfunc.pop_chanedit import pop_chanedit, pop_chanedit_dialog_spec
 from eegprep.functions.popfunc.pop_copyset import pop_copyset
 from eegprep.functions.popfunc.pop_editeventfield import pop_editeventfield
-from eegprep.functions.popfunc.pop_editeventvals import pop_editeventvals
+from eegprep.functions.popfunc.pop_editeventvals import pop_editeventvals, pop_editeventvals_dialog_spec
 from eegprep.functions.popfunc.pop_fileio_brainvision_mat import pop_fileio_brainvision_mat
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_mergeset import pop_mergeset
@@ -300,6 +302,85 @@ def test_pop_chanedit_gui_unchanged_submission_does_not_emit_history():
 
     assert output["chanlocs"][0]["labels"] == eeg["chanlocs"][0]["labels"]
     assert command == ""
+
+
+def test_pop_chanedit_navigation_buttons_enabled_with_callbacks():
+    eeg = _eeg()
+
+    spec = pop_chanedit_dialog_spec(eeg)
+    controls = controls_by_tag(spec)
+
+    expected_deltas = {"back10": -10, "back1": -1, "next1": 1, "next10": 10}
+    for tag, delta in expected_deltas.items():
+        control = controls[tag]
+        assert control.enabled, f"{tag} must be enabled when multiple channels exist"
+        assert control.callback is not None
+        assert control.callback.name == "navigate_channel"
+        assert int(control.callback.params["delta"]) == delta
+        assert control.callback.params["channel_tag"] == "channel"
+        assert int(control.callback.params["max_index"]) == len(eeg["chanlocs"])
+        displays = control.callback.params["field_displays"]
+        assert len(displays) == len(eeg["chanlocs"])
+        assert displays[1]["field_labels"] == "Pz"
+
+
+def test_pop_chanedit_gui_submits_change_for_navigated_channel():
+    class Renderer:
+        def run(self, spec, initial_values=None):
+            controls = controls_by_tag(spec)
+            nav = controls["next1"].callback.params
+            result = {tag: control.value for tag, control in controls.items()}
+            result.update(nav["field_displays"][1])
+            result["channel"] = "2"
+            result["field_labels"] = "Oz"
+            return result
+
+    eeg = _eeg()
+
+    output, command = pop_chanedit(eeg, gui=True, renderer=Renderer(), return_com=True)
+
+    assert output["chanlocs"][0]["labels"] == "Cz"
+    assert output["chanlocs"][1]["labels"] == "Oz"
+    assert "'changefield', [2 'labels' 'Oz']" in command
+
+
+def test_qt_renderer_navigation_updates_channel_and_fields():
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    pytest.importorskip("PySide6")
+    from eegprep.functions.guifunc import qt as qt_module
+
+    if qt_module.QtCore is None or qt_module.QtWidgets is None:
+        pytest.skip("PySide6 Qt libraries unavailable in this environment")
+    QtDialogRenderer = qt_module.QtDialogRenderer
+
+    eeg = _eeg()
+    renderer = QtDialogRenderer()
+    spec = pop_chanedit_dialog_spec(eeg)
+    _app, dialog, widgets = renderer.build_dialog(spec)
+    try:
+        assert widgets["channel"].text() == "1"
+        widgets["next1"].click()
+        assert widgets["channel"].text() == "2"
+        assert widgets["field_labels"].text() == "Pz"
+        widgets["next10"].click()
+        assert widgets["channel"].text() == str(len(eeg["chanlocs"]))
+        widgets["back10"].click()
+        assert widgets["channel"].text() == "1"
+        assert widgets["field_labels"].text() == "Cz"
+    finally:
+        dialog.close()
+
+
+def test_sample_data_event_and_channel_dialogs_enable_navigation():
+    eeg = pop_loadset(SAMPLE_DATASET_PATH)
+
+    event_controls = controls_by_tag(pop_editeventvals_dialog_spec(eeg))
+    channel_controls = controls_by_tag(pop_chanedit_dialog_spec(eeg))
+
+    assert event_controls["next1"].enabled
+    assert int(event_controls["next1"].callback.params["max_index"]) == len(eeg["event"])
+    assert channel_controls["next1"].enabled
+    assert int(channel_controls["next1"].callback.params["max_index"]) == len(eeg["chanlocs"])
 
 
 def test_pop_chanedit_reads_comma_delimited_ced_with_comments(tmp_path):
