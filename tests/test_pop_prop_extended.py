@@ -73,6 +73,16 @@ def test_classifier_data_parsing_defaults_to_iclabel_and_standard_classes() -> N
     assert classifier_names(eeg) == ["Other", "ICLabel"]
 
 
+def test_channel_property_data_accepts_numpy_chanlocs() -> None:
+    eeg = _iclabel_eeg()
+    eeg["chanlocs"] = np.asarray(eeg["chanlocs"], dtype=object)
+
+    dashboard = build_extended_property_data(eeg, 1, 1)
+
+    assert len(dashboard.topography_chanlocs) == 4
+    assert dashboard.topography_chanlocs[0]["labels"] == "Ch1"
+
+
 def test_classifier_name_from_gui_matches_string_values_case_insensitively() -> None:
     eeg = _iclabel_eeg()
 

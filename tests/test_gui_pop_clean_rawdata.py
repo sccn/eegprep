@@ -160,6 +160,7 @@ class PopCleanRawdataGuiTests(unittest.TestCase):
 
     def test_vis_artifacts_diagnostics_summarizes_samples_and_channels(self):
         old = _eeg()
+        old["chanlocs"] = np.asarray(old["chanlocs"], dtype=object)
         new = dict(
             old,
             data=old["data"][:, :30],

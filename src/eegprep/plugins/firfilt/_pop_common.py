@@ -7,6 +7,7 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec
+from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args
 
 
@@ -168,7 +169,4 @@ def _channel_field_values(EEG: dict[str, Any], field: str, *, unique: bool = Fal
 
 
 def _chanlocs(EEG: dict[str, Any]) -> list[dict[str, Any]]:
-    chanlocs = EEG.get("chanlocs", [])
-    if isinstance(chanlocs, np.ndarray):
-        chanlocs = chanlocs.tolist()
-    return [chan if isinstance(chan, dict) else {} for chan in list(chanlocs or [])]
+    return [chan if isinstance(chan, dict) else {} for chan in chanlocs_as_list(EEG.get("chanlocs"))]
