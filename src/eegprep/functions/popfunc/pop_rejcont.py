@@ -8,6 +8,7 @@ import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
+from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args
 from eegprep.functions.popfunc._rejection import copy_eeg, one_based_indices, parse_numeric_sequence
 from eegprep.functions.popfunc.pop_select import pop_select
@@ -245,7 +246,7 @@ def _rejcont_winrej(selected: np.ndarray, channel_count: int) -> np.ndarray:
 
 
 def _selected_chanlocs(EEG: dict[str, Any], selected_rows: np.ndarray) -> list[dict[str, Any]]:
-    chanlocs = list(EEG.get("chanlocs", []) or [])
+    chanlocs = chanlocs_as_list(EEG.get("chanlocs"))
     return [chanlocs[index] for index in selected_rows if index < len(chanlocs)]
 
 

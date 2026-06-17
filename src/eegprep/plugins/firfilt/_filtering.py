@@ -9,6 +9,7 @@ import numpy as np
 from scipy.signal import filtfilt, firls, firwin, lfilter, minimum_phase, remez
 from scipy.signal import windows as signal_windows
 
+from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.plugins.firfilt.findboundaries import findboundaries
 from eegprep.plugins.firfilt.fir_filterdcpadded import fir_filterdcpadded
 from eegprep.plugins.firfilt.firws import firws
@@ -475,7 +476,4 @@ def _has_values(value: Any) -> bool:
 
 
 def _chanlocs(EEG: dict[str, Any]) -> list[dict[str, Any]]:
-    chanlocs = EEG.get("chanlocs", [])
-    if isinstance(chanlocs, np.ndarray):
-        chanlocs = chanlocs.tolist()
-    return [chan if isinstance(chan, dict) else {} for chan in list(chanlocs or [])]
+    return [chan if isinstance(chan, dict) else {} for chan in chanlocs_as_list(EEG.get("chanlocs"))]

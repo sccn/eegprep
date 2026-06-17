@@ -85,6 +85,17 @@ class PopSelectGuiTests(unittest.TestCase):
         self.assertEqual(controls["chans_button"].callback.params["channels"], ("Fz", "Cz", "HEOG", "VEOG"))
         self.assertEqual(controls["chantype_button"].callback.params["channels"], ("EEG", "EOG"))
 
+    def test_gui_dialog_spec_accepts_numpy_chanlocs(self):
+        # eeg_checkset normalises EEG['chanlocs'] to a numpy array of dicts;
+        # the dialog builder must accept that storage form (regression for #229).
+        eeg = _eeg()
+        eeg["chanlocs"] = np.asarray(eeg["chanlocs"], dtype=object)
+
+        controls = controls_by_tag(pop_select_dialog_spec(eeg))
+
+        self.assertEqual(controls["chans_button"].callback.params["channels"], ("Fz", "Cz", "HEOG", "VEOG"))
+        self.assertEqual(controls["chantype_button"].callback.params["channels"], ("EEG", "EOG"))
+
     def test_gui_result_runs_selection_and_history(self):
         class Renderer:
             def run(self, spec, initial_values=None):

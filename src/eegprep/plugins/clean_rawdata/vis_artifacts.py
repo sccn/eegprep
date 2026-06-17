@@ -7,6 +7,7 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.sigprocfunc.eegplot import eegplot
 from eegprep.plugins.clean_rawdata.private.masks import mask_to_intervals
 
@@ -142,9 +143,4 @@ def _nbchan(eeg: dict[str, Any]) -> int:
 
 
 def _chanlocs(eeg: dict[str, Any]) -> list[dict[str, Any]]:
-    chanlocs = eeg.get("chanlocs", [])
-    if isinstance(chanlocs, np.ndarray):
-        chanlocs = chanlocs.tolist()
-    if isinstance(chanlocs, dict):
-        chanlocs = [chanlocs]
-    return [chan if isinstance(chan, dict) else {} for chan in list(chanlocs or [])]
+    return [chan if isinstance(chan, dict) else {} for chan in chanlocs_as_list(eeg.get("chanlocs"))]

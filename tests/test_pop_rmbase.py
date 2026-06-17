@@ -227,6 +227,23 @@ def test_pop_rmbase_dialog_disables_channel_controls_for_multiple_datasets():
     assert controls["channels_button"].enabled is False
 
 
+def test_pop_rmbase_dialog_accepts_numpy_chanlocs():
+    eeg = create_test_eeg(n_channels=2, n_samples=50, srate=50.0, n_trials=2)
+    eeg["chanlocs"] = np.asarray(
+        [
+            {"labels": "Cz", "type": "EEG"},
+            {"labels": "EOG", "type": "EOG"},
+        ],
+        dtype=object,
+    )
+
+    spec = pop_rmbase_dialog_spec(eeg)
+    controls = {control.tag: control for control in spec.controls if control.tag}
+
+    assert controls["chantypes_button"].callback.params["channels"] == ["EEG", "EOG"]
+    assert controls["channels_button"].callback.params["channels"] == ["Cz", "EOG"]
+
+
 def test_pop_rmbase_sample_data_zeroes_selected_baseline_channels_without_warnings():
     eeg = pop_loadset(SAMPLE_DATASET_PATH)
 

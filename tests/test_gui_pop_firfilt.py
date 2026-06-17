@@ -54,6 +54,15 @@ class PopFirfiltGuiTests(unittest.TestCase):
         self.assertIn(("text", "Channel type(s)", None), labels)
         self.assertIn(("text", "OR channel labels or indices", None), labels)
 
+    def test_pop_eegfiltnew_dialog_accepts_numpy_chanlocs(self):
+        eeg = _eeg()
+        eeg["chanlocs"] = np.asarray(eeg["chanlocs"], dtype=object)
+
+        controls = controls_by_tag(pop_eegfiltnew_dialog_spec(eeg))
+
+        self.assertEqual(controls["chantype_button"].callback.params["channels"], ["EEG", "EOG"])
+        self.assertEqual(controls["channels_button"].callback.params["channels"], ["Cz", "Pz", "EOG"])
+
     def test_pop_eegfiltnew_gui_result_filters_and_returns_history(self):
         class Renderer:
             def run(self, spec, initial_values=None):
@@ -99,6 +108,26 @@ class PopFirfiltGuiTests(unittest.TestCase):
         self.assertFalse(np.allclose(out["data"][:2], before[:2]))
         np.testing.assert_allclose(out["data"][2], before[2])
         self.assertIn("'channels', {'Cz' 'Pz'}", command)
+
+    def test_pop_eegfiltnew_accepts_numpy_chanlocs_for_channel_type_filtering(self):
+        eeg = _eeg()
+        eeg["chanlocs"] = np.asarray(eeg["chanlocs"], dtype=object)
+        before = eeg["data"].copy()
+
+        out, command = pop_eegfiltnew(
+            eeg,
+            "hicutoff",
+            30,
+            "filtorder",
+            80,
+            "chantype",
+            ["EOG"],
+            return_com=True,
+        )
+
+        np.testing.assert_allclose(out["data"][:2], before[:2])
+        self.assertFalse(np.allclose(out["data"][2], before[2]))
+        self.assertIn("'chantype', {'EOG'}", command)
 
     def test_legacy_pop_eegfilt_dialog_and_gui_result(self):
         spec = pop_eegfilt_dialog_spec(_eeg())

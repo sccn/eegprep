@@ -308,12 +308,14 @@ def test_superposed_browser_winrej_includes_existing_family_marks(monkeypatch):
 def test_pop_rejcont_display_accept_removes_continuous_regions(monkeypatch):
     accepted = []
     eeg = create_test_eeg(n_channels=2, n_samples=120, n_trials=1, srate=100)
+    eeg["chanlocs"] = np.asarray(eeg["chanlocs"], dtype=object)
     time = np.arange(120) / 100
     eeg["data"][0] = 100 * np.sin(2 * np.pi * 30 * time)
 
     def fake_eegplot(data, *args, **kwargs):
         del args
         assert np.asarray(data).shape[0] == 1
+        assert kwargs["eloc_file"][0]["labels"] == "Ch1"
         kwargs["command_callback"](kwargs["winrej"])
         return "window"
 

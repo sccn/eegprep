@@ -8,6 +8,7 @@ import numpy as np
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
+from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc._pop_utils import (
     format_history_value,
     parse_key_value_args,
@@ -578,7 +579,9 @@ def _pop_select_apply(EEG, **kwargs):
 
 def pop_select_dialog_spec(EEG) -> DialogSpec:
     """Return the EEGLAB-like dialog spec for ``pop_select``."""
-    chanlocs = list(EEG.get("chanlocs", []) or [])
+    # eeg_checkset stores EEG['chanlocs'] as a numpy object array, so use the
+    # shared helper instead of `or []`, which raises on ndarray truth checks.
+    chanlocs = chanlocs_as_list(EEG.get("chanlocs"))
     channel_labels = tuple(str(chan.get("labels", "")) for chan in chanlocs if isinstance(chan, dict))
     channel_types = tuple(
         value

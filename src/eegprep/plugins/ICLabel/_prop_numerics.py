@@ -17,6 +17,7 @@ from eegprep.functions.popfunc._plot_utils import (
     numeric_vector,
     parse_plot_options_text,
 )
+from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc._rejection import component_rejection_flags, one_based_indices
 from eegprep.functions.sigprocfunc.spectopo import compute_spectra
 from eegprep.plugins.dipfit._utils import normalize_model_list
@@ -263,7 +264,7 @@ def _channel_dashboard_data(
         figure_title=f"Channel {label} - pop_prop_extended()",
         topography_title=f"Channel {label}",
         topography_values=index,
-        topography_chanlocs=list(EEG.get("chanlocs", []) or []),
+        topography_chanlocs=chanlocs_as_list(EEG.get("chanlocs")),
         activity=activity,
         times_ms=times_ms,
         activity_title="Channel Time Series",

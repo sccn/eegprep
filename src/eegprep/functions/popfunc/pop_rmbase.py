@@ -11,6 +11,7 @@ import numpy as np
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.miscfunc.misc import round_mat
+from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc._pop_utils import format_history_value, parse_text_tokens
 from eegprep.functions.popfunc.eeg_findboundaries import eeg_findboundaries
 from eegprep.functions.sigprocfunc.rmbase import rmbase
@@ -418,10 +419,7 @@ def _channel_field_values(EEG: dict[str, Any], field: str, *, unique: bool = Fal
 
 
 def _chanlocs(EEG: dict[str, Any]) -> list[dict[str, Any]]:
-    chanlocs = EEG.get("chanlocs", [])
-    if isinstance(chanlocs, np.ndarray):
-        chanlocs = chanlocs.tolist()
-    return [chan if isinstance(chan, dict) else {} for chan in list(chanlocs or [])]
+    return [chan if isinstance(chan, dict) else {} for chan in chanlocs_as_list(EEG.get("chanlocs"))]
 
 
 def _default_baseline_timerange(EEG: dict[str, Any]) -> str:
