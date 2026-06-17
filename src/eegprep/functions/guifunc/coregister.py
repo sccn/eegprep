@@ -10,6 +10,7 @@ from matplotlib.figure import Figure
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 from eegprep.functions.guifunc.pophelp import pophelp
+from eegprep.functions.guifunc.theme import EEGLAB_BACKGROUND, EEGLAB_TEXT
 from eegprep.functions.popfunc.pop_chansel import pop_chansel
 from eegprep.functions.sigprocfunc.coregister import (
     ElectrodeSet,
@@ -33,8 +34,8 @@ except ImportError:  # pragma: no cover - optional GUI dependency
     FigureCanvas = None
 
 _BaseDialog = QDialog if QDialog is not None else object
-_EEGLAB_BLUE = "#000066"
-_EEGLAB_BG = "#a8c2ff"
+_EEGLAB_BLUE = EEGLAB_TEXT
+_EEGLAB_BG = EEGLAB_BACKGROUND
 _PLOT_BG = "#edf5ff"
 _SOURCE_COLOR = "#00a000"
 _REFERENCE_COLOR = "#cc9985"

@@ -16,6 +16,7 @@ from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher
 from eegprep.functions.guifunc.menu_placeholders import is_placeholder_action
 from eegprep.functions.guifunc.menu_spec import MenuItemSpec, menu_enabled
 from eegprep.functions.guifunc.session import EEGPrepSession
+from eegprep.functions.guifunc.theme import EEGLAB_BACKGROUND, EEGLAB_TEXT, eeglab_floating_dialog_stylesheet
 
 try:  # pragma: no cover - optional GUI dependency
     from PySide6 import QtCore, QtGui, QtWidgets
@@ -25,8 +26,8 @@ except ImportError:  # pragma: no cover - optional GUI dependency
     QtWidgets = None
 
 
-BACKEEGLABCOLOR = "#a8c2ff"
-GUITEXTCOLOR = "#000066"
+BACKEEGLABCOLOR = EEGLAB_BACKGROUND
+GUITEXTCOLOR = EEGLAB_TEXT
 PLUGINMENUCOLOR = "#800080"
 APP_NAME = "EEGPrep"
 _MACOS_MENU_BRANDING_RETRY_MS = 100
@@ -476,7 +477,7 @@ def _main_window_stylesheet() -> str:
         border: 1px solid #777777;
         background: {BACKEEGLABCOLOR};
     }}
-    """
+    """ + eeglab_floating_dialog_stylesheet()
 
 
 def _configure_eeglab_label(label: Any, qt_widgets: Any) -> None:
