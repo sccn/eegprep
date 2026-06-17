@@ -91,6 +91,8 @@ class QtDialogRenderer:
     _sync_numeric: Any
     _select_event_types: Any
     _select_channels: Any
+    _navigate_event: Any
+    _navigate_channel: Any
     _select_file: Any
     _open_eegplot: Any
     _open_rejection_browser: Any
@@ -353,6 +355,14 @@ class QtDialogRenderer:
             source = widgets.get(params.get("button"))
             if source is not None:
                 source.clicked.connect(lambda: self._plot_fir_response(source, widgets, params))
+        elif callback.name == "navigate_event":
+            source = widgets.get(params["source"])
+            if source is not None:
+                source.clicked.connect(lambda: self._navigate_event(widgets, params))
+        elif callback.name == "navigate_channel":
+            source = widgets.get(params["source"])
+            if source is not None:
+                source.clicked.connect(lambda: self._navigate_channel(widgets, params))
 
     def _run_tf_cycle_calc(self, button: Any, widgets: dict[str, Any], params: Mapping[str, Any]) -> None:
         _qt_core, qt_widgets = _require_qt()
@@ -984,6 +994,42 @@ def _select_event_types(button: Any, target: Any, params: Mapping[str, Any]) -> 
         target.setText((current + " " + value).strip())
 
 
+def _navigate_event(widgets: Mapping[str, Any], params: Mapping[str, Any]) -> None:
+    _navigate_indexed_form(widgets, params, index_tag="eventnum_tag")
+
+
+def _navigate_channel(widgets: Mapping[str, Any], params: Mapping[str, Any]) -> None:
+    _navigate_indexed_form(widgets, params, index_tag="channel_tag")
+
+
+def _navigate_indexed_form(widgets: Mapping[str, Any], params: Mapping[str, Any], *, index_tag: str) -> None:
+    index_widget = widgets.get(params[index_tag])
+    if index_widget is None:
+        return
+    max_index = max(1, int(params["max_index"]))
+    try:
+        current = int(float(_widget_text(index_widget) or "1"))
+    except ValueError:
+        current = 1
+    new_index = max(1, min(max_index, current + int(params["delta"])))
+    index_widget.setText(str(new_index))
+    display = params["field_displays"][new_index - 1]
+    for tag, value in display.items():
+        target = widgets.get(tag)
+        if target is None:
+            continue
+        _set_widget_display_value(target, value)
+
+
+def _set_widget_display_value(widget: Any, value: Any) -> None:
+    if hasattr(widget, "setChecked") and isinstance(value, (bool, np.bool_)):
+        widget.setChecked(bool(value))
+        return
+    if hasattr(widget, "setText"):
+        text = "" if value is None or (isinstance(value, str) and value == "") else str(value)
+        widget.setText(text)
+
+
 def _select_channels(button: Any, target: Any, params: Mapping[str, Any]) -> None:
     channels = [str(value) for value in params.get("channels", ())]
     if channels:
@@ -1400,6 +1446,8 @@ _QT_RENDERER_STATIC_HELPERS = (
     "_sync_numeric",
     "_select_event_types",
     "_select_channels",
+    "_navigate_event",
+    "_navigate_channel",
     "_select_file",
     "_open_eegplot",
     "_open_rejection_browser",

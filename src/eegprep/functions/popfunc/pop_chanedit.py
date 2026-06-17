@@ -10,7 +10,7 @@ import numpy as np
 
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 from eegprep.functions.guifunc.inputgui import inputgui
-from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
+from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args
 from eegprep.functions.sigprocfunc.convertlocs import convertlocs
@@ -74,6 +74,19 @@ def pop_chanedit_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
         ('Index in backup "urchanlocs" structure', "urchan", ""),
         ("Channel in data array (set=yes)", "datachan", ""),
     ]
+    field_displays = tuple(_channel_field_displays(chan, field_rows) for chan in chanlocs)
+    nav_enabled = len(chanlocs) > 1
+    nav_base = {
+        "channel_tag": "channel",
+        "max_index": len(chanlocs),
+        "field_displays": field_displays,
+    }
+
+    def _nav(tag: str, delta: int) -> CallbackSpec | None:
+        if not nav_enabled:
+            return None
+        return CallbackSpec("navigate_channel", params={**nav_base, "delta": delta, "source": tag})
+
     controls: list[ControlSpec] = [
         ControlSpec('text', 'Channel information ("field_name"):', font_weight="bold"),
         ControlSpec("spacer"),
@@ -109,11 +122,11 @@ def pop_chanedit_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("spacer"),
             ControlSpec("spacer"),
             ControlSpec("pushbutton", "Insert chan", tag="insert_button", enabled=False),
-            ControlSpec("pushbutton", "<<", tag="back10", enabled=False),
-            ControlSpec("pushbutton", "<", tag="back1", enabled=False),
+            ControlSpec("pushbutton", "<<", tag="back10", enabled=nav_enabled, callback=_nav("back10", -10)),
+            ControlSpec("pushbutton", "<", tag="back1", enabled=nav_enabled, callback=_nav("back1", -1)),
             ControlSpec("edit", tag="channel", value="1"),
-            ControlSpec("pushbutton", ">", tag="next1", enabled=False),
-            ControlSpec("pushbutton", ">>", tag="next10", enabled=False),
+            ControlSpec("pushbutton", ">", tag="next1", enabled=nav_enabled, callback=_nav("next1", 1)),
+            ControlSpec("pushbutton", ">>", tag="next10", enabled=nav_enabled, callback=_nav("next10", 10)),
             ControlSpec("pushbutton", "Append chan", tag="append_button", enabled=False),
             ControlSpec("pushbutton", "Plot 2-D", tag="plot2d", enabled=False),
             ControlSpec("text", "Plot radius (0.2-1, []=auto)"),
@@ -161,7 +174,7 @@ def pop_chanedit_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
         controls=tuple(controls),
         geomvert=tuple(1 for _row in geometry),
         known_differences=(
-            "EEGPrep supports command-line channel edits and one-channel GUI edits; navigation, plotting, and file buttons are visible but disabled.",
+            "EEGPrep supports command-line channel edits and one-channel-per-submission GUI edits; navigation refreshes the form, while plotting and file buttons remain disabled.",
         ),
     )
 
@@ -189,6 +202,18 @@ def _channel_value_control(field: str, value: Any) -> ControlSpec:
     if field == "urchan":
         return ControlSpec("text", _display_value(value), tag="field_urchan")
     return ControlSpec("edit", tag=f"field_{field}", value=_display_value(value))
+
+
+def _channel_field_displays(chan: dict[str, Any], field_rows: list[tuple[str, str, str]]) -> dict[str, Any]:
+    values: dict[str, Any] = {}
+    for _label, field, _button_label in field_rows:
+        if field == "urchan":
+            values["field_urchan"] = _display_value(chan.get("urchan", ""))
+        elif field == "datachan":
+            values["field_datachan"] = bool(chan.get("datachan", True))
+        else:
+            values[f"field_{field}"] = _display_channel_value(chan, field)
+    return values
 
 
 def _display_channel_value(chan: dict[str, Any], field: str) -> str:

@@ -9,7 +9,7 @@ import numpy as np
 
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 from eegprep.functions.guifunc.inputgui import inputgui
-from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
+from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.popfunc._event_utils import event_field_names, events_as_list, normalize_one_based_indices
 from eegprep.functions.popfunc._pop_utils import format_history_value, is_empty_value as _is_empty
 from eegprep.functions.popfunc.eeg_lat2point import eeg_lat2point
@@ -49,6 +49,22 @@ def pop_editeventvals_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
     events = events_as_list(EEG.get("event"))
     fields = event_field_names(events)
     current = events[0] if events else {}
+    field_tags = {field: f"field_{field}" for field in fields}
+    field_displays = tuple(
+        {field_tags[field]: _display_event_value(EEG, event, field) for field in fields} for event in events
+    )
+    nav_enabled = len(events) > 1
+    _nav_base = {
+        "eventnum_tag": "eventnum",
+        "max_index": len(events),
+        "field_displays": field_displays,
+    }
+
+    def _nav(tag: str, delta: int) -> CallbackSpec | None:
+        if not nav_enabled:
+            return None
+        return CallbackSpec(name="navigate_event", params={**_nav_base, "delta": delta, "source": tag})
+
     controls: list[ControlSpec] = [
         ControlSpec("text", f"Edit event field values (currently {len(events)} events)", font_weight="bold"),
         ControlSpec("pushbutton", "Delete event", tag="delete_button", enabled=False),
@@ -60,7 +76,7 @@ def pop_editeventvals_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             [
                 ControlSpec("spacer"),
                 ControlSpec("pushbutton", label, enabled=False),
-                ControlSpec("edit", tag=f"field_{field}", value=_display_event_value(EEG, current, field)),
+                ControlSpec("edit", tag=field_tags[field], value=_display_event_value(EEG, current, field)),
                 ControlSpec("spacer"),
             ]
         )
@@ -75,11 +91,11 @@ def pop_editeventvals_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("spacer"),
             ControlSpec("spacer"),
             ControlSpec("pushbutton", "Insert event", tag="insert_button", enabled=False),
-            ControlSpec("pushbutton", "<<", tag="back10", enabled=False),
-            ControlSpec("pushbutton", "<", tag="back1", enabled=False),
+            ControlSpec("pushbutton", "<<", tag="back10", enabled=nav_enabled, callback=_nav("back10", -10)),
+            ControlSpec("pushbutton", "<", tag="back1", enabled=nav_enabled, callback=_nav("back1", -1)),
             ControlSpec("edit", tag="eventnum", value="1"),
-            ControlSpec("pushbutton", ">", tag="next1", enabled=False),
-            ControlSpec("pushbutton", ">>", tag="next10", enabled=False),
+            ControlSpec("pushbutton", ">", tag="next1", enabled=nav_enabled, callback=_nav("next1", 1)),
+            ControlSpec("pushbutton", ">>", tag="next10", enabled=nav_enabled, callback=_nav("next10", 10)),
             ControlSpec("pushbutton", "Append event", tag="append_button", enabled=False),
             ControlSpec("spacer"),
             ControlSpec("text", "Original value below", tag="original"),
@@ -104,7 +120,7 @@ def pop_editeventvals_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
         geometry=tuple(geometry),
         controls=tuple(controls),
         known_differences=(
-            "EEGPrep edits one event per dialog submission; navigation buttons are visible but disabled until richer event-browser parity lands.",
+            "EEGPrep edits one event per dialog submission; navigation refreshes the form for the targeted event but Delete/Insert/Append remain disabled.",
         ),
     )
 
@@ -175,7 +191,7 @@ def _change_field(
 
 
 def _internal_event_value(output: dict[str, Any], event: dict[str, Any], field: str, value: Any) -> Any:
-    if field == "latency" and value not in {"", None}:
+    if field == "latency" and not _is_empty(value):
         if int(output.get("trials", 1) or 1) > 1:
             newlat, _ = eeg_lat2point(
                 float(value),
@@ -186,7 +202,7 @@ def _internal_event_value(output: dict[str, Any], event: dict[str, Any], field: 
             )
             return float(newlat.item())
         return (float(value) - float(output.get("xmin", 0))) * float(output.get("srate", 1)) + 1
-    if field == "duration" and value not in {"", None}:
+    if field == "duration" and not _is_empty(value):
         scale = float(output.get("srate", 1)) / (1000 if int(output.get("trials", 1) or 1) > 1 else 1)
         return float(value) * scale
     return value
@@ -194,7 +210,7 @@ def _internal_event_value(output: dict[str, Any], event: dict[str, Any], field: 
 
 def _display_event_value(EEG: dict[str, Any], event: dict[str, Any], field: str) -> Any:
     value = event.get(field, "")
-    if value in {"", None}:
+    if _is_empty(value):
         return ""
     if field == "latency":
         if int(EEG.get("trials", 1) or 1) > 1:
