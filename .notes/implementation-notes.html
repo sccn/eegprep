@@ -721,5 +721,28 @@
     option equivalence, catalog validator ownership, shared extension metadata
     helpers, and bundled plugin menu projection from registry metadata.</li>
   </ul>
+  <h1>EEGPrep MCP Agent Server Notes</h1>
+  <h2>Design Decisions</h2>
+  <ul>
+    <li>Added <code>eegprep-mcp</code> as an optional package extra and entrypoint
+    rather than a base dependency, so normal EEGPrep installs remain lightweight
+    while agent users can opt into the MCP SDK.</li>
+    <li>Kept MCP tool behavior in <code>eegprep.mcp.tools</code> without importing
+    the MCP SDK. The FastMCP server is only an adapter, which lets tests validate
+    the agent contract directly and gives users a clear missing-extra error.</li>
+    <li>Command execution routes through the installed EEGPrep Python CLI
+    dispatcher with captured stdout/stderr. It never uses shell execution, always
+    requires <code>--json</code>, and requires explicit <code>allow_write</code>
+    and <code>allow_overwrite</code> gates for mutating commands.</li>
+    <li>MCP reuses the CLI's existing capabilities, schemas, examples, validation,
+    and bundled skills instead of creating a second agent contract.</li>
+  </ul>
+  <h2>Verification Notes</h2>
+  <ul>
+    <li>Focused tests cover sample-data inspection/validation, command planning,
+    write/overwrite safety gates, in-process CLI execution, FastMCP tool/resource
+    registration, the module help/version path, and CLI discovery of the bundled
+    MCP skill.</li>
+  </ul>
 </body>
 </html>

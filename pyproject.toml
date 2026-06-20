@@ -54,6 +54,9 @@ console = [
   "eegprep[gui]",
   "ipython>=8.0",
 ]
+mcp = [
+  "mcp>=1.22",
+]
 docs = [
   "sphinx>=7.0",
   "pydata-sphinx-theme>=0.14.0",
@@ -69,6 +72,7 @@ all = [
   "eegprep[torch]",
   "eegprep[gui]",
   "eegprep[console]",
+  "eegprep[mcp]",
   "eegprep[docs]",
 ]
 
@@ -76,6 +80,7 @@ all = [
 eegprep = "eegprep.cli.main:main"
 eegprep-gui = "eegprep.functions.adminfunc.eeglab:main"
 eegprep-console = "eegprep.functions.adminfunc.console:main"
+eegprep-mcp = "eegprep.mcp.server:main"
 eegprep-validate-extension-catalog = "eegprep.extension_catalog_validation:main"
 
 [dependency-groups]
@@ -83,6 +88,7 @@ dev = [
   # Keep `uv run eegprep-console --full` working from a fresh source checkout.
   # Published installs still keep GUI/console dependencies behind extras.
   "ipython>=8.0",
+  "mcp>=1.22",
   "pytest>=8.0",
   "pyqtgraph>=0.13.7",
   "PySide6>=6.6",

@@ -9,6 +9,7 @@ from eegprep.cli.core import EEGPrepCLIError, ok
 
 
 CLI_SKILL_NAME = "eegprep-cli"
+MCP_SKILL_NAME = "eegprep-mcp"
 
 
 def capabilities() -> dict[str, Any]:
@@ -324,7 +325,12 @@ def skills_list() -> dict[str, Any]:
                 "name": CLI_SKILL_NAME,
                 "description": "Core EEGPrep CLI usage guide for AI agents.",
                 "path": str(_skill_path(CLI_SKILL_NAME)),
-            }
+            },
+            {
+                "name": MCP_SKILL_NAME,
+                "description": "MCP server usage guide for AI agents working with EEGPrep.",
+                "path": str(_skill_path(MCP_SKILL_NAME)),
+            },
         ],
     )
 
