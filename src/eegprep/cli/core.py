@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.metadata
 import json
 import math
 import platform
@@ -217,11 +218,64 @@ def file_sha256(path: str | Path) -> str:
     return sha256_file(path)
 
 
+def _get_active_packages() -> list[dict[str, str]]:
+    active_tops = {m.split(".")[0] for m in sys.modules if not m.startswith("_")}
+
+    seen = set()
+    packages = []
+
+    for dist in importlib.metadata.distributions():
+        name = dist.metadata.get("Name", dist.name)
+        if name in seen:
+            continue
+
+        norm_name = name.lower().replace("-", "_")
+        is_active = False
+
+        if norm_name in active_tops or name in active_tops:
+            is_active = True
+        else:
+            try:
+                top_level = dist.read_text("top_level.txt")
+                if top_level:
+                    tops = [line.strip() for line in top_level.split("\n") if line.strip()]
+                    if any(t in active_tops for t in tops):
+                        is_active = True
+            except Exception:
+                pass
+
+        if is_active:
+            seen.add(name)
+            try:
+                direct_url = dist.read_text("direct_url.json")
+            except Exception:
+                direct_url = None
+
+            source = "pypi"
+            if direct_url:
+                try:
+                    data = json.loads(direct_url)
+                    if "vcs_info" in data:
+                        source = data["vcs_info"].get("vcs", "git")
+                    elif data.get("url", "").startswith("file://"):
+                        source = "local"
+                    else:
+                        source = "url"
+                except Exception:
+                    source = "unknown"
+
+            packages.append({"name": name, "version": dist.version, "source": source})
+
+    packages.sort(key=lambda x: x["name"].lower())
+    return packages
+
+
 def software_info() -> dict[str, Any]:
     return {
         "eegprep_version": eegprep.__version__,
         "python_version": platform.python_version(),
         "platform": platform.platform(),
+        "packages": _get_active_packages(),
     }
 
 
