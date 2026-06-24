@@ -107,6 +107,8 @@ class QtDialogRenderer:
     _set_reref_mode: Any
     _set_enabled: Any
     _show_help: Any
+    _clear_widgets: Any
+    _select_study_components: Any
     _read_widget: Any
 
     def run(
@@ -363,6 +365,14 @@ class QtDialogRenderer:
             source = widgets.get(params["source"])
             if source is not None:
                 source.clicked.connect(lambda: self._navigate_channel(widgets, params))
+        elif callback.name == "clear_widgets":
+            source = widgets.get(params["button"])
+            if source is not None:
+                source.clicked.connect(lambda: self._clear_widgets(widgets, params))
+        elif callback.name == "select_study_components":
+            button = widgets.get(params["button"])
+            if button is not None:
+                button.clicked.connect(lambda: self._select_study_components(button, widgets, params))
 
     def _run_tf_cycle_calc(self, button: Any, widgets: dict[str, Any], params: Mapping[str, Any]) -> None:
         _qt_core, qt_widgets = _require_qt()
@@ -1347,6 +1357,53 @@ def _show_help(_qt_widgets: Any, dialog: Any, spec: DialogSpec) -> None:
     dialog._eegprep_help_dialog = pophelp(spec.help_text or spec.function_name, parent=dialog)
 
 
+def _clear_widgets(widgets: Mapping[str, Any], params: Mapping[str, Any]) -> None:
+    for tag in params.get("targets", ()):
+        widget = widgets.get(tag)
+        if widget is None:
+            continue
+        if hasattr(widget, "setText"):
+            widget.setText("")
+        if hasattr(widget, "setProperty"):
+            widget.setProperty(_VALUE_PROPERTY, None)
+
+
+def _select_study_components(button: Any, widgets: Mapping[str, Any], params: Mapping[str, Any]) -> None:
+    count = int(params.get("count", 0))
+    if count <= 0:
+        _qt_core, qt_widgets = _require_qt()
+        qt_widgets.QMessageBox.warning(button, "Warning", "No components found for this dataset. Run ICA first.")
+        return
+
+    labels = [f"IC {i + 1}" for i in range(count)]
+    current = button.property(_VALUE_PROPERTY) or params.get("initial", [])
+    if isinstance(current, str):
+        initial = current
+    else:
+        initial = " ".join(str(i) for i in current)
+
+    chanlist, chanliststr, _allchanstr = pop_chansel(
+        labels,
+        withindex="on",
+        select=initial,
+        parent=button,
+    )
+
+    if chanlist is None:
+        return
+
+    button.setProperty(_VALUE_PROPERTY, list(chanlist))
+
+    if not chanlist:
+        button.setText("All comp.")
+    else:
+        if len(chanlist) > 3:
+            label = f"Comp.: {' '.join(str(i) for i in chanlist[:2])} ..."
+        else:
+            label = f"Comp.: {' '.join(str(i) for i in chanlist)}"
+        button.setText(label)
+
+
 def _read_widget(widget: Any) -> Any:
     stored_value = widget.property(_VALUE_PROPERTY)
     if stored_value is not None:
@@ -1462,6 +1519,8 @@ _QT_RENDERER_STATIC_HELPERS = (
     "_set_reref_mode",
     "_set_enabled",
     "_show_help",
+    "_clear_widgets",
+    "_select_study_components",
     "_read_widget",
 )
 for _helper_name in _QT_RENDERER_STATIC_HELPERS:

@@ -197,15 +197,37 @@ def pop_study_dialog_spec(STUDY: dict[str, Any] | None, ALLEEG: list[dict[str, A
                 ),
                 ControlSpec(
                     "pushbutton",
-                    "All comp.",
+                    _format_components_button(info.get("comps")),
                     tag=f"dataset_{index}_components",
-                    callback=_button_callback(coming_soon, f"dataset_{index}_components"),
+                    value=info.get("comps") or [],
+                    callback=CallbackSpec(
+                        "select_study_components",
+                        {
+                            "button": f"dataset_{index}_components",
+                            "count": _dataset_component_count(datasets, index),
+                            "initial": info.get("comps") or [],
+                        },
+                    ),
                 ),
                 ControlSpec(
                     "pushbutton",
                     "Clear",
                     tag=f"dataset_{index}_clear",
-                    callback=_button_callback(coming_soon, f"dataset_{index}_clear"),
+                    callback=CallbackSpec(
+                        "clear_widgets",
+                        {
+                            "button": f"dataset_{index}_clear",
+                            "targets": [
+                                filename_tag,
+                                f"dataset_{index}_subject",
+                                f"dataset_{index}_session",
+                                f"dataset_{index}_run",
+                                f"dataset_{index}_condition",
+                                f"dataset_{index}_group",
+                                f"dataset_{index}_components",
+                            ],
+                        },
+                    ),
                 ),
             )
         )
@@ -215,21 +237,6 @@ def pop_study_dialog_spec(STUDY: dict[str, Any] | None, ALLEEG: list[dict[str, A
                 "text",
                 "Important note: Removed datasets will not be saved before being deleted from EEGPrep memory",
             ),
-            ControlSpec("spacer"),
-            ControlSpec(
-                "pushbutton",
-                "<",
-                tag="previous_page",
-                callback=_button_callback(coming_soon, "previous_page"),
-            ),
-            ControlSpec("text", "Page 1"),
-            ControlSpec(
-                "pushbutton",
-                ">",
-                tag="next_page",
-                callback=_button_callback(coming_soon, "next_page"),
-            ),
-            ControlSpec("spacer"),
             ControlSpec("spacer"),
             ControlSpec("checkbox", "", tag="delete_cluster_info", value=False),
             ControlSpec(
@@ -241,7 +248,7 @@ def pop_study_dialog_spec(STUDY: dict[str, Any] | None, ALLEEG: list[dict[str, A
     header_geometry = (0.2, 1.05, 0.35, 0.4, 0.35, 0.25, 0.6, 0.4, 0.6, 0.3)
     geometry = [(1,), (0.2, 1, 3.5), (0.2, 1, 3.5), (0.2, 1, 3.5), (1,), header_geometry]
     geometry.extend(header_geometry for _index in range(visible_rows))
-    geometry.extend(((1,), (1, 0.2, 0.3, 0.2, 1), (1,), (0.14, 3)))
+    geometry.extend(((1,), (1,), (0.14, 3)))
     return DialogSpec(
         title=title,
         controls=tuple(controls),
@@ -275,11 +282,6 @@ def pop_study_dialog_spec(STUDY: dict[str, Any] | None, ALLEEG: list[dict[str, A
                 min-width: 76px;
                 max-width: 76px;
             }
-            QDialog#pop_study QPushButton#previous_page,
-            QDialog#pop_study QPushButton#next_page {
-                min-width: 46px;
-                max-width: 46px;
-            }
         """,
         known_differences=(
             "EEGPrep Phase 5a edits loaded dataset metadata; dataset browsing is provided by pop_studywizard.",
@@ -311,6 +313,8 @@ def _dataset_row_commands(datasets: list[dict[str, Any]], result: dict[str, Any]
             commands.extend(["session", parse_optional_int_text(result.get(f"{prefix}session"))])
         if f"{prefix}run" in result:
             commands.extend(["run", parse_optional_int_text(result.get(f"{prefix}run"))])
+        if f"{prefix}components" in result:
+            commands.extend(["comps", result.get(f"{prefix}components")])
     return commands
 
 
@@ -343,6 +347,24 @@ def _button_callback(template: CallbackSpec, button: str) -> CallbackSpec:
     params = dict(template.params)
     params["button"] = button
     return CallbackSpec(template.name, params, template.matlab_callback)
+
+
+def _dataset_component_count(datasets: list[dict[str, Any]], index: int) -> int:
+    if index > len(datasets):
+        return 0
+    eeg = datasets[index - 1]
+    weights = eeg.get("icaweights")
+    if weights is not None and hasattr(weights, "shape"):
+        return int(weights.shape[0])
+    return 0
+
+
+def _format_components_button(comps: Any) -> str:
+    if not comps:
+        return "All comp."
+    if len(comps) > 3:
+        return f"Comp.: {' '.join(str(i) for i in comps[:2])} ..."
+    return f"Comp.: {' '.join(str(i) for i in comps)}"
 
 
 __all__ = ["pop_study", "pop_study_dialog_spec"]
