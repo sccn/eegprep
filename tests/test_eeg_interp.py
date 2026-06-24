@@ -160,6 +160,33 @@ class TestEegInterpParity(unittest.TestCase):
             self.assertLess(max_abs_diff, 5e-2, f"Max absolute difference: {max_abs_diff}")
             self.assertLess(max_rel_diff, 5e-2, f"Max relative difference: {max_rel_diff}")
 
+        # Record metrics for parity
+        diff = py_result['data'].flatten() - ml_result['data'].flatten()
+        abs_diff = np.abs(diff)
+        rms_diff = np.sqrt(np.mean(diff**2))
+        mean_abs_diff = np.mean(abs_diff)
+        max_diff = np.max(abs_diff)
+
+        import json
+        import pathlib
+        metrics_file = pathlib.Path('.parity_metrics.json')
+        metrics = {}
+        if metrics_file.exists():
+            try:
+                metrics = json.loads(metrics_file.read_text())
+            except Exception:
+                pass
+        
+        func_name = 'eeg_interp'
+        current = metrics.get(func_name, {})
+        if float(rms_diff) > float(current.get('rms_diff', -1)):
+            metrics[func_name] = {
+                'rms_diff': float(rms_diff),
+                'mean_diff': float(mean_abs_diff),
+                'max_diff': float(max_diff)
+            }
+        metrics_file.write_text(json.dumps(metrics, indent=2))
+
         # Compare structure fields
         self.assertEqual(py_result['nbchan'], ml_result['nbchan'])
         self.assertEqual(py_result['pnts'], ml_result['pnts'])

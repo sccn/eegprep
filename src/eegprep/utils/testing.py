@@ -91,6 +91,32 @@ def compare_eeg(a, b, rtol=0, atol=1e-7, use_32_bit=default_32_bit, err_msg=''):
     summary = "\n".join(summary_lines)
     print(f"Actual differences: rtol: {max_rel_diff}, atol: {max_abs_diff}")
 
+    import re
+    import json
+    from pathlib import Path
+
+    # Try to extract function name from err_msg for parity tracking
+    match = re.search(r'([a-zA-Z0-9_]+)\(\)', err_msg)
+    if match:
+        func_name = match.group(1)
+        metrics_file = Path('.parity_metrics.json')
+        metrics = {}
+        if metrics_file.exists():
+            try:
+                metrics = json.loads(metrics_file.read_text())
+            except Exception:
+                pass
+        
+        current = metrics.get(func_name, {})
+        # Keep worst-case RMS difference
+        if float(rms_diff) > float(current.get('rms_diff', -1)):
+            metrics[func_name] = {
+                'rms_diff': float(rms_diff),
+                'mean_diff': float(mean_abs_diff),
+                'max_diff': float(max_abs_diff)
+            }
+        metrics_file.write_text(json.dumps(metrics, indent=2))
+
     # Perform the assertion
     try:
         np.testing.assert_allclose(a_flat, b_flat, rtol=rtol, atol=atol, err_msg=err_msg)
