@@ -72,11 +72,6 @@ from eegprep.functions.studyfunc.pop_precomp import pop_precomp_dialog_spec
 from eegprep.functions.studyfunc.pop_study import pop_study_dialog_spec
 from eegprep.functions.studyfunc.pop_studydesign import pop_studydesign_dialog_spec
 from eegprep.functions.studyfunc.std_checkset import std_checkset
-from eegprep.plugins.ICLabel.pop_icflag import pop_icflag_dialog_spec
-from eegprep.plugins.ICLabel.pop_iclabel import pop_iclabel_dialog_spec
-from eegprep.plugins.ICLabel.pop_prop_extended import pop_prop_extended
-from eegprep.plugins.ICLabel.pop_viewprops import pop_viewprops_dialog_spec
-from eegprep.plugins.clean_rawdata.pop_clean_rawdata import pop_clean_rawdata_dialog_spec
 from eegprep.plugins.dipfit.pop_dipfit_gridsearch import pop_dipfit_gridsearch_dialog_spec
 from eegprep.plugins.dipfit.pop_dipfit_headmodel import pop_dipfit_headmodel_dialog_spec
 from eegprep.plugins.dipfit.pop_dipfit_loreta import pop_dipfit_loreta_dialog_spec
@@ -1103,36 +1098,7 @@ def capture_pop_runica_multiple_dialog(output: pathlib.Path) -> None:
     _grab_dialog(dialog, output, app)
 
 
-def capture_pop_iclabel_dialog(output: pathlib.Path) -> None:
-    """Render and capture the pop_iclabel dialog."""
-    spec = pop_iclabel_dialog_spec()
     renderer = QtDialogRenderer()
-    app, dialog, _widgets = renderer.build_dialog(spec)
-    _grab_dialog(dialog, output, app)
-
-
-def capture_pop_icflag_dialog(output: pathlib.Path) -> None:
-    """Render and capture the pop_icflag dialog."""
-    spec = pop_icflag_dialog_spec()
-    renderer = QtDialogRenderer()
-    app, dialog, _widgets = renderer.build_dialog(spec)
-    _grab_dialog(dialog, output, app)
-
-
-def capture_pop_prop_extended_dashboard(output: pathlib.Path) -> None:
-    """Render and capture the ICLabel extended property dashboard."""
-    figure = pop_prop_extended(
-        _demo_iclabel_dashboard_eeg(),
-        0,
-        [1, 2],
-        spec_opt="'freqrange', [2 40]",
-        scroll_event=1,
-    )
-    figure.savefig(output, dpi=200)
-    plt.close(figure)
-
-
-def capture_pop_subcomp_dialog(output: pathlib.Path) -> None:
     """Render and capture the pop_subcomp dialog."""
     eeg = _demo_main_eeg()
     eeg["reject"] = {"gcompreject": np.zeros(4, dtype=int)}
@@ -1166,7 +1132,6 @@ def _rejection_spec(case_id: str):
         return pop_autorej_dialog_spec(eeg)
     if case_id == "pop_selectcomps_dialog":
         return pop_selectcomps_dialog_spec(eeg)
-    if case_id == "pop_viewprops_dialog":
         eeg["etc"] = {
             "ic_classification": {
                 "ICLabel": {
@@ -1175,7 +1140,6 @@ def _rejection_spec(case_id: str):
                 }
             }
         }
-        return pop_viewprops_dialog_spec(eeg, 0)
     if case_id == "pop_rejchan_dialog":
         return pop_rejchan_dialog_spec(continuous)
     if case_id == "pop_rejcont_dialog":
@@ -1242,10 +1206,7 @@ def capture_dipfit_dialog(output: pathlib.Path, *, case_id: str) -> None:
     _grab_dialog(dialog, output, app)
 
 
-def capture_pop_clean_rawdata_dialog(output: pathlib.Path) -> None:
-    """Render and capture the pop_clean_rawdata dialog."""
     eeg = _demo_main_eeg()
-    spec = pop_clean_rawdata_dialog_spec(eeg)
     renderer = QtDialogRenderer()
     app, dialog, _widgets = renderer.build_dialog(spec)
     _grab_dialog(dialog, output, app)
@@ -1428,11 +1389,7 @@ def _capture_case_handlers() -> dict[str, CaptureHandler]:
         "pop_eventstat_dialog": capture_pop_eventstat_dialog,
         "pop_runica_dialog": capture_pop_runica_dialog,
         "pop_runica_multiple_dialog": capture_pop_runica_multiple_dialog,
-        "pop_iclabel_dialog": capture_pop_iclabel_dialog,
-        "pop_icflag_dialog": capture_pop_icflag_dialog,
-        "iclabel_pop_prop_extended_dashboard": capture_pop_prop_extended_dashboard,
         "pop_subcomp_dialog": capture_pop_subcomp_dialog,
-        "pop_clean_rawdata_dialog": capture_pop_clean_rawdata_dialog,
         "pop_chansel_dialog": capture_pop_chansel_dialog,
         "select_multiple_datasets_dialog": capture_select_multiple_datasets_dialog,
         "pop_interp_dataset_index_dialog": capture_dataset_index_dialog,
@@ -1473,7 +1430,6 @@ def _capture_case_handlers() -> dict[str, CaptureHandler]:
                 "pop_rejspec_dialog",
                 "pop_rejtrend_dialog",
                 "pop_selectcomps_dialog",
-                "pop_viewprops_dialog",
             )
         }
     )

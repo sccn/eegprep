@@ -47,7 +47,6 @@ _LAZY_EXPORTS = {
     "ExtensionStatus": ("eegprep.extensions", "ExtensionStatus"),
     "ExtensionTestHarness": ("eegprep.extension_testing", "ExtensionTestHarness"),
     "ExtensionValidationResult": ("eegprep.extensions", "ExtensionValidationResult"),
-    "ICL_feature_extractor": ("eegprep.plugins.ICLabel.ICL_feature_extractor", "ICL_feature_extractor"),
     "LazyImport": ("eegprep.extensions", "LazyImport"),
     "assert_extension_entry_point_loads": ("eegprep.extension_testing", "assert_extension_entry_point_loads"),
     "bids_list_eeg_files": ("eegprep.plugins.EEG_BIDS.bids_list_eeg_files", "bids_list_eeg_files"),
@@ -59,16 +58,7 @@ _LAZY_EXPORTS = {
     "chancenter": ("eegprep.functions.sigprocfunc.chancenter", "chancenter"),
     "check_extension_compatibility": ("eegprep.extensions", "check_extension_compatibility"),
     "checkset": ("eegprep.functions.redefine_functions", "checkset"),
-    "clean_artifacts": ("eegprep.plugins.clean_rawdata.clean_artifacts", "clean_artifacts"),
-    "clean_asr": ("eegprep.plugins.clean_rawdata.clean_asr", "clean_asr"),
-    "clean_channels": ("eegprep.plugins.clean_rawdata.clean_channels", "clean_channels"),
-    "clean_channels_nolocs": ("eegprep.plugins.clean_rawdata.clean_channels_nolocs", "clean_channels_nolocs"),
-    "clean_drifts": ("eegprep.plugins.clean_rawdata.clean_drifts", "clean_drifts"),
-    "clean_flatlines": ("eegprep.plugins.clean_rawdata.clean_flatlines", "clean_flatlines"),
-    "clean_windows": ("eegprep.plugins.clean_rawdata.clean_windows", "clean_windows"),
-    "clean_rawdata_vis_artifacts": ("eegprep.plugins.clean_rawdata.vis_artifacts", "vis_artifacts"),
     "clean_rawdata_vis_artifacts_diagnostics": (
-        "eegprep.plugins.clean_rawdata.vis_artifacts",
         "vis_artifacts_diagnostics",
     ),
     "compare": ("eegprep.functions.redefine_functions", "compare"),
@@ -79,16 +69,12 @@ _LAZY_EXPORTS = {
     "discover_extensions": ("eegprep.extensions", "discover_extensions"),
     "eeg2mne": ("eegprep.functions.redefine_functions", "eeg2mne"),
     "eeg_amica": ("eegprep.functions.popfunc.eeg_amica", "eeg_amica"),
-    "eeg_autocorr": ("eegprep.plugins.ICLabel.eeg_autocorr", "eeg_autocorr"),
-    "eeg_autocorr_fftw": ("eegprep.plugins.ICLabel.eeg_autocorr_fftw", "eeg_autocorr_fftw"),
-    "eeg_autocorr_welch": ("eegprep.plugins.ICLabel.eeg_autocorr_welch", "eeg_autocorr_welch"),
     "eeg_checkset": ("eegprep.functions.adminfunc.eeg_checkset", "eeg_checkset"),
     "eeg_checkset_strict_mode": ("eegprep.functions.adminfunc.eeg_checkset", "strict_mode"),
     "eeg_compare": ("eegprep.functions.popfunc.eeg_compare", "eeg_compare"),
     "eeg_decodechan": ("eegprep.functions.popfunc.eeg_decodechan", "eeg_decodechan"),
     "eeg_eeg2mne": ("eegprep.functions.miscfunc.eeg_eeg2mne", "eeg_eeg2mne"),
     "eeg_eegrej": ("eegprep.functions.popfunc.eeg_eegrej", "eeg_eegrej"),
-    "eeg_icalabelstat": ("eegprep.plugins.ICLabel.eeg_icalabelstat", "eeg_icalabelstat"),
     "eeg_emptyset": ("eegprep.functions.popfunc.eeg_emptyset", "eeg_emptyset"),
     "eeg_multieegplot": ("eegprep.functions.popfunc.eeg_multieegplot", "eeg_multieegplot"),
     "eegplot": ("eegprep.functions.sigprocfunc.eegplot", "eegplot"),
@@ -104,7 +90,6 @@ _LAZY_EXPORTS = {
     "eeg_pvaf": ("eegprep.functions.sigprocfunc.ica_helpers", "eeg_pvaf"),
     "eeg_rejsuperpose": ("eegprep.functions.popfunc.eeg_rejsuperpose", "eeg_rejsuperpose"),
     "eeg_retrieve": ("eegprep.functions.adminfunc.eeg_retrieve", "eeg_retrieve"),
-    "eeg_rpsd": ("eegprep.plugins.ICLabel.eeg_rpsd", "eeg_rpsd"),
     "eeg_runica": ("eegprep.functions.popfunc.eeg_runica", "eeg_runica"),
     "eeg_store": ("eegprep.functions.adminfunc.eeg_store", "eeg_store"),
     "eegh": ("eegprep.functions.adminfunc.eegh", "eegh"),
@@ -131,8 +116,6 @@ _LAZY_EXPORTS = {
     "icaact": ("eegprep.functions.sigprocfunc.ica_helpers", "icaact"),
     "icaproj": ("eegprep.functions.sigprocfunc.ica_helpers", "icaproj"),
     "icavar": ("eegprep.functions.sigprocfunc.ica_helpers", "icavar"),
-    "iclabel": ("eegprep.plugins.ICLabel.iclabel", "iclabel"),
-    "eeg_icflag": ("eegprep.plugins.ICLabel.eeg_icflag", "eeg_icflag"),
     "inputgui": ("eegprep.functions.guifunc.inputgui", "inputgui"),
     "interp": ("eegprep.functions.redefine_functions", "interp"),
     "jointprob": ("eegprep.functions.sigprocfunc.jointprob", "jointprob"),
@@ -168,8 +151,6 @@ _LAZY_EXPORTS = {
     "rspdfsolv": ("eegprep.functions.timefreqfunc.rspdfsolv", "rspdfsolv"),
     "rspfunc": ("eegprep.functions.timefreqfunc.rspfunc", "rspfunc"),
     "tf_cycle_calc": ("eegprep.functions.timefreqfunc.tf_cycle_calc", "tf_cycle_calc"),
-    "vis_artifacts": ("eegprep.plugins.clean_rawdata.vis_artifacts", "vis_artifacts"),
-    "vis_artifacts_diagnostics": ("eegprep.plugins.clean_rawdata.vis_artifacts", "vis_artifacts_diagnostics"),
     "options": ("eegprep.functions.redefine_functions", "options"),
     "picard": ("eegprep.functions.redefine_functions", "picard"),
     "plugin_menu": ("eegprep.functions.adminfunc.plugin_menu", "plugin_menu"),
@@ -186,7 +167,6 @@ _LAZY_EXPORTS = {
     "pop_chanplot": ("eegprep.functions.studyfunc.pop_chanplot", "pop_chanplot"),
     "pop_chancoresp": ("eegprep.functions.popfunc.pop_chancoresp", "pop_chancoresp"),
     "pop_chansel": ("eegprep.functions.popfunc.pop_chansel", "pop_chansel"),
-    "pop_clean_rawdata": ("eegprep.plugins.clean_rawdata.pop_clean_rawdata", "pop_clean_rawdata"),
     "pop_chanedit": ("eegprep.functions.popfunc.pop_chanedit", "pop_chanedit"),
     "pop_comments": ("eegprep.functions.popfunc.pop_comments", "pop_comments"),
     "pop_clust": ("eegprep.functions.studyfunc.pop_clust", "pop_clust"),
@@ -234,8 +214,6 @@ _LAZY_EXPORTS = {
     "pop_firwsord": ("eegprep.plugins.firfilt.pop_firwsord", "pop_firwsord"),
     "pop_fusechanrej": ("eegprep.functions.popfunc.pop_fusechanrej", "pop_fusechanrej"),
     "pop_headplot": ("eegprep.functions.popfunc.pop_headplot", "pop_headplot"),
-    "pop_icflag": ("eegprep.plugins.ICLabel.pop_icflag", "pop_icflag"),
-    "pop_iclabel": ("eegprep.plugins.ICLabel.pop_iclabel", "pop_iclabel"),
     "pop_icathresh": ("eegprep.functions.popfunc.pop_icathresh", "pop_icathresh"),
     "pop_jointprob": ("eegprep.functions.popfunc.pop_jointprob", "pop_jointprob"),
     "pop_kaiserbeta": ("eegprep.plugins.firfilt.pop_kaiserbeta", "pop_kaiserbeta"),
@@ -266,7 +244,6 @@ _LAZY_EXPORTS = {
     "pop_preclust": ("eegprep.functions.studyfunc.pop_preclust", "pop_preclust"),
     "pop_precomp": ("eegprep.functions.studyfunc.pop_precomp", "pop_precomp"),
     "pop_prop": ("eegprep.functions.popfunc.pop_prop", "pop_prop"),
-    "pop_prop_extended": ("eegprep.plugins.ICLabel.pop_prop_extended", "pop_prop_extended"),
     "pop_rejchan": ("eegprep.functions.popfunc.pop_rejchan", "pop_rejchan"),
     "pop_rejcont": ("eegprep.functions.popfunc.pop_rejcont", "pop_rejcont"),
     "pop_rejepoch": ("eegprep.functions.popfunc.pop_rejepoch", "pop_rejepoch"),
@@ -300,7 +277,6 @@ _LAZY_EXPORTS = {
     "pop_timef": ("eegprep.functions.popfunc.pop_timef", "pop_timef"),
     "pop_topochansel": ("eegprep.functions.popfunc.pop_topochansel", "pop_topochansel"),
     "pop_topoplot": ("eegprep.functions.popfunc.pop_topoplot", "pop_topoplot"),
-    "pop_viewprops": ("eegprep.plugins.ICLabel.pop_viewprops", "pop_viewprops"),
     "pop_writeeeg": ("eegprep.functions.popfunc.pop_writeeeg", "pop_writeeeg"),
     "pop_writelocs": ("eegprep.functions.popfunc.pop_writelocs", "pop_writelocs"),
     "pop_xfirws": ("eegprep.plugins.firfilt.pop_xfirws", "pop_xfirws"),
@@ -400,8 +376,35 @@ _LAZY_EXPORTS = {
 __all__ = ["__version__", *_LAZY_EXPORTS]
 
 
+_DECOUPLED_PLUGINS = {
+    "pop_iclabel": "eegprep-iclabel",
+    "iclabel": "eegprep-iclabel",
+    "pop_icflag": "eegprep-iclabel",
+    "eeg_icalabelstat": "eegprep-iclabel",
+    "eeg_icflag": "eegprep-iclabel",
+    "ICL_feature_extractor": "eegprep-iclabel",
+    "pop_viewprops": "eegprep-iclabel",
+    "pop_prop_extended": "eegprep-iclabel",
+    "pop_clean_rawdata": "eegprep-clean-rawdata",
+    "clean_artifacts": "eegprep-clean-rawdata",
+    "clean_asr": "eegprep-clean-rawdata",
+    "clean_channels": "eegprep-clean-rawdata",
+    "clean_channels_nolocs": "eegprep-clean-rawdata",
+    "clean_drifts": "eegprep-clean-rawdata",
+    "clean_flatlines": "eegprep-clean-rawdata",
+    "clean_windows": "eegprep-clean-rawdata",
+    "vis_artifacts": "eegprep-clean-rawdata",
+}
+
 def __getattr__(name: str) -> Any:
     """Load public EEGPrep exports on first access."""
+    if name in _DECOUPLED_PLUGINS:
+        pkg = _DECOUPLED_PLUGINS[name]
+        raise RuntimeError(
+            f"The feature {name!r} requires an uninstalled plugin package. "
+            f"Please install it using: pip install {pkg}"
+        )
+
     try:
         module_name, attr_name = _LAZY_EXPORTS[name]
     except KeyError as exc:

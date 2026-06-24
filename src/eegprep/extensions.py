@@ -19,8 +19,6 @@ from eegprep.plugins.EEG_BIDS.menu import (
     eeg_bids_import_items,
     eeg_bids_tools_menu,
 )
-from eegprep.plugins.ICLabel.menu import iclabel_menu, viewprops_plot_menus
-from eegprep.plugins.clean_rawdata.menu import clean_rawdata_menu
 from eegprep.plugins.dipfit.menu import dipfit_menu
 from eegprep.plugins.firfilt.menu import firfilt_filter_items
 
@@ -328,62 +326,6 @@ class ExtensionRegistry:
 
     def _bundled_records(self) -> list[ExtensionRecord]:
         specs = (
-            ExtensionSpec(
-                name="clean_rawdata",
-                display_name="clean_rawdata",
-                version="bundled",
-                package_name="eegprep.plugins.clean_rawdata",
-                source_type=ExtensionSourceType.BUNDLED,
-                description="Artifact Subspace Reconstruction and related channel/window cleaning workflows.",
-                capabilities=("artifact", "preprocessing"),
-                menus=(
-                    _extension_menu_from_spec(
-                        clean_rawdata_menu(),
-                        path=("tools",),
-                        insert_after="pop_eegplot:data",
-                    ),
-                ),
-                pop_functions=(
-                    ExtensionPopFunction(
-                        name="pop_clean_rawdata",
-                        target=LazyImport(
-                            "eegprep.plugins.clean_rawdata.pop_clean_rawdata",
-                            "pop_clean_rawdata",
-                        ),
-                    ),
-                ),
-            ),
-            ExtensionSpec(
-                name="ICLabel",
-                display_name="ICLabel",
-                version="bundled",
-                package_name="eegprep.plugins.ICLabel",
-                source_type=ExtensionSourceType.BUNDLED,
-                description="Independent-component classification, flagging, and extended component properties.",
-                capabilities=("ica", "classification"),
-                menus=(
-                    _extension_menu_from_spec(
-                        iclabel_menu(),
-                        path=("tools",),
-                        insert_after="pop_selectcomps",
-                    ),
-                    *(_extension_menu_from_spec(item, path=("plot",)) for item in viewprops_plot_menus()),
-                ),
-                pop_functions=(
-                    ExtensionPopFunction(
-                        name="pop_iclabel",
-                        target=LazyImport("eegprep.plugins.ICLabel.pop_iclabel", "pop_iclabel"),
-                    ),
-                    ExtensionPopFunction(
-                        name="pop_icflag",
-                        target=LazyImport("eegprep.plugins.ICLabel.pop_icflag", "pop_icflag"),
-                    ),
-                    ExtensionPopFunction(
-                        name="pop_viewprops",
-                        target=LazyImport("eegprep.plugins.ICLabel.pop_viewprops", "pop_viewprops"),
-                    ),
-                ),
-            ),
             ExtensionSpec(
                 name="firfilt",
                 display_name="firfilt",

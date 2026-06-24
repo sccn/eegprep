@@ -24,10 +24,17 @@ import time
 
 import numpy as np
 from scipy.linalg import sqrtm, pinv, eig
-from ...plugins.clean_rawdata.private.ransac import rand_permutation
-from ..miscfunc.misc import finite_pinv
+from ..miscfunc.misc import finite_pinv, round_mat
 
 logger = logging.getLogger(__name__)
+
+def rand_permutation(n: int, stream: np.random.RandomState) -> np.ndarray:
+    """Random permutation with MATLAB parity using Fisher-Yates shuffle."""
+    result = np.arange(n)
+    for k in range(n - 1, 0, -1):
+        j = int(round_mat(k * stream.rand()))
+        result[k], result[j] = result[j], result[k]
+    return result
 
 
 def _matmul(left, right):
