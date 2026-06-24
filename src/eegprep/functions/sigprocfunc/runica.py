@@ -26,6 +26,7 @@ import numpy as np
 from scipy.linalg import sqrtm, pinv, eig
 from ...plugins.clean_rawdata.private.ransac import rand_permutation
 from ..miscfunc.misc import finite_pinv
+from ..miscfunc.parity import MatlabRNG, parity_matmul, parity_weight_update
 
 logger = logging.getLogger(__name__)
 
@@ -621,16 +622,16 @@ def runica(data, **kwargs):
     # MATLAB default seed is 5489, equivalent to rng('default')
     if user_seed is not None:
         # User provided explicit seed - use it for reproducible varied runs
-        rng = np.random.RandomState(user_seed)
+        rng = MatlabRNG(user_seed)
     elif reset_randomseed:
         # Set seed based on time (random state)
         # Use None to get time-based seed, similar to MATLAB's sum(100*clock)
         seed = int(time.time() * 1000) % (2**32)
-        rng = np.random.RandomState(seed)
+        rng = MatlabRNG(seed)
     else:
         # Fixed seed for reproducibility (MATLAB default)
         # MATLAB uses rand('state', 0) which corresponds to seed 5489
-        rng = np.random.RandomState(5489)
+        rng = MatlabRNG(5489)
 
     # Store RNG for use in training loop
     # This will be used for:
@@ -682,21 +683,27 @@ def runica(data, **kwargs):
             for t in range(0, lastt, block):
                 # Extract and process block (MATLAB line 846)
                 # MATLAB: u = weights*double(data(:,timeperm(t:t+block-1))) + bias*onesrow
-                u = _matmul(weights, data[:, timeperm[t : t + block]]) + _matmul(bias, onesrow)
+                u = parity_matmul(weights, data[:, timeperm[t : t + block]]) + parity_matmul(bias, onesrow)
 
                 # Apply tanh nonlinearity (MATLAB line 848)
                 y = np.tanh(u)
 
                 # Extended-ICA natural gradient weight update (MATLAB line 849)
                 # weights = weights + lrate*(BI-signs*y*u'-u*u')*weights
-                weights = weights + lrate * _matmul(
-                    BI - _matmul(_matmul(signs, y), u.T) - _matmul(u, u.T),
+                weights = parity_weight_update(
                     weights,
+                    lrate * parity_matmul(
+                        BI - parity_matmul(parity_matmul(signs, y), u.T) - parity_matmul(u, u.T),
+                        weights,
+                    )
                 )
 
                 # Bias update for tanh (MATLAB line 850)
                 # bias = bias + lrate*sum((-2*y)')';
-                bias = bias + lrate * np.sum(-2 * y, axis=1, keepdims=True)
+                bias = parity_weight_update(
+                    bias,
+                    lrate * np.sum(-2 * y, axis=1, keepdims=True)
+                )
 
                 # Add momentum if enabled (MATLAB lines 852-856)
                 if momentum > 0:
@@ -718,10 +725,10 @@ def runica(data, **kwargs):
                             # Pick random subset (MATLAB lines 869-876)
                             # Use randint to avoid index overflow (rand() * datalength could equal datalength)
                             rp = rng.randint(1, datalength, size=kurtsize)
-                            partact = _matmul(weights, data[:, rp[:kurtsize]])
+                            partact = parity_matmul(weights, data[:, rp[:kurtsize]])
                         else:
                             # For small data sets, use whole data (MATLAB lines 877-878)
-                            partact = _matmul(weights, data)
+                            partact = parity_matmul(weights, data)
 
                         # Compute kurtosis (MATLAB lines 880-882)
                         m2 = np.mean(partact**2, axis=1) ** 2
@@ -870,7 +877,7 @@ def runica(data, **kwargs):
                 # Extract and process block (MATLAB line 1021)
                 # MATLAB: u = weights*double(data(:,timeperm(t:t+block-1))) + bias*onesrow
                 # Note: MATLAB uses 1-based indexing, so t:t+block-1 means t to t+block
-                u = _matmul(weights, data[:, timeperm[t : t + block]]) + _matmul(bias, onesrow)
+                u = parity_matmul(weights, data[:, timeperm[t : t + block]]) + parity_matmul(bias, onesrow)
 
                 # Apply logistic nonlinearity (MATLAB line 1022)
                 # Clip u to prevent overflow in exp
@@ -880,11 +887,11 @@ def runica(data, **kwargs):
 
                 # Natural gradient weight update (MATLAB line 1023)
                 # weights = weights + lrate*(BI+(1-2*y)*u')*weights
-                weights = weights + lrate * _matmul(BI + _matmul(1 - 2 * y, u.T), weights)
+                weights = parity_weight_update(weights, lrate * parity_matmul(BI + parity_matmul(1 - 2 * y, u.T), weights))
 
                 # Bias update (MATLAB line 1024)
                 # bias = bias + lrate*sum((1-2*y)')';
-                bias = bias + lrate * np.sum(1 - 2 * y, axis=1, keepdims=True)
+                bias = parity_weight_update(bias, lrate * np.sum(1 - 2 * y, axis=1, keepdims=True))
 
                 # Add momentum if enabled (MATLAB lines 1026-1030)
                 if momentum > 0:
@@ -1011,15 +1018,18 @@ def runica(data, **kwargs):
             # Process data in blocks (MATLAB line 1131)
             for t in range(0, lastt, block):
                 # Extract and process block - NO BIAS (MATLAB line 1145)
-                u = _matmul(weights, data[:, timeperm[t : t + block]])
+                u = parity_matmul(weights, data[:, timeperm[t : t + block]])
 
                 # Apply tanh nonlinearity (MATLAB line 1146)
                 y = np.tanh(u)
 
                 # Extended-ICA natural gradient weight update (MATLAB line 1147)
-                weights = weights + lrate * _matmul(
-                    BI - _matmul(_matmul(signs, y), u.T) - _matmul(u, u.T),
+                weights = parity_weight_update(
                     weights,
+                    lrate * parity_matmul(
+                        BI - parity_matmul(parity_matmul(signs, y), u.T) - parity_matmul(u, u.T),
+                        weights,
+                    )
                 )
 
                 # NO BIAS UPDATE for no-bias variant
@@ -1041,9 +1051,9 @@ def runica(data, **kwargs):
                         if kurtsize < frames:
                             # Use randint to avoid index overflow (rand() * datalength could equal datalength)
                             rp = rng.randint(1, datalength, size=kurtsize)
-                            partact = _matmul(weights, data[:, rp[:kurtsize]])
+                            partact = parity_matmul(weights, data[:, rp[:kurtsize]])
                         else:
-                            partact = _matmul(weights, data)
+                            partact = parity_matmul(weights, data)
 
                         m2 = np.mean(partact**2, axis=1) ** 2
                         m4 = np.mean(partact**4, axis=1)
@@ -1173,7 +1183,7 @@ def runica(data, **kwargs):
             # Process data in blocks (MATLAB line 1302)
             for t in range(0, lastt, block):
                 # Extract and process block - NO BIAS (MATLAB line 1315)
-                u = _matmul(weights, data[:, timeperm[t : t + block]])
+                u = parity_matmul(weights, data[:, timeperm[t : t + block]])
 
                 # Apply logistic nonlinearity (MATLAB line 1316)
                 u = np.maximum(u, -MAX_WEIGHT)
@@ -1181,7 +1191,7 @@ def runica(data, **kwargs):
                 y = 1.0 / (1.0 + np.exp(-u))
 
                 # Natural gradient weight update (MATLAB line 1317)
-                weights = weights + lrate * _matmul(BI + _matmul(1 - 2 * y, u.T), weights)
+                weights = parity_weight_update(weights, lrate * parity_matmul(BI + parity_matmul(1 - 2 * y, u.T), weights))
 
                 # NO BIAS UPDATE for no-bias variant
 
