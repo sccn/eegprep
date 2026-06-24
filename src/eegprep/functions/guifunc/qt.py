@@ -1358,14 +1358,16 @@ def _show_help(_qt_widgets: Any, dialog: Any, spec: DialogSpec) -> None:
 
 
 def _clear_widgets(widgets: Mapping[str, Any], params: Mapping[str, Any]) -> None:
+    labels = params.get("labels", {})
+    values = params.get("values", {})
     for tag in params.get("targets", ()):
         widget = widgets.get(tag)
         if widget is None:
             continue
         if hasattr(widget, "setText"):
-            widget.setText("")
+            widget.setText(str(labels.get(tag, "")))
         if hasattr(widget, "setProperty"):
-            widget.setProperty(_VALUE_PROPERTY, None)
+            widget.setProperty(_VALUE_PROPERTY, values.get(tag))
 
 
 def _select_study_components(button: Any, widgets: Mapping[str, Any], params: Mapping[str, Any]) -> None:

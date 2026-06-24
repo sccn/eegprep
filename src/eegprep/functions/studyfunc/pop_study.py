@@ -144,8 +144,10 @@ def pop_study_dialog_spec(STUDY: dict[str, Any] | None, ALLEEG: list[dict[str, A
     ]
     for index in range(1, visible_rows + 1):
         info = datasetinfo[index - 1] if index <= len(datasetinfo) else {}
+        component_values = _component_values(info.get("comps"))
         browse_tag = f"dataset_{index}_browse"
         filename_tag = f"dataset_{index}_filename"
+        components_tag = f"dataset_{index}_components"
         controls.extend(
             (
                 ControlSpec("text", str(index)),
@@ -197,15 +199,15 @@ def pop_study_dialog_spec(STUDY: dict[str, Any] | None, ALLEEG: list[dict[str, A
                 ),
                 ControlSpec(
                     "pushbutton",
-                    _format_components_button(info.get("comps")),
-                    tag=f"dataset_{index}_components",
-                    value=info.get("comps") or [],
+                    _format_components_button(component_values),
+                    tag=components_tag,
+                    value=component_values,
                     callback=CallbackSpec(
                         "select_study_components",
                         {
-                            "button": f"dataset_{index}_components",
+                            "button": components_tag,
                             "count": _dataset_component_count(datasets, index),
-                            "initial": info.get("comps") or [],
+                            "initial": component_values,
                         },
                     ),
                 ),
@@ -224,8 +226,10 @@ def pop_study_dialog_spec(STUDY: dict[str, Any] | None, ALLEEG: list[dict[str, A
                                 f"dataset_{index}_run",
                                 f"dataset_{index}_condition",
                                 f"dataset_{index}_group",
-                                f"dataset_{index}_components",
+                                components_tag,
                             ],
+                            "labels": {components_tag: "All comp."},
+                            "values": {components_tag: []},
                         },
                     ),
                 ),
@@ -313,8 +317,9 @@ def _dataset_row_commands(datasets: list[dict[str, Any]], result: dict[str, Any]
             commands.extend(["session", parse_optional_int_text(result.get(f"{prefix}session"))])
         if f"{prefix}run" in result:
             commands.extend(["run", parse_optional_int_text(result.get(f"{prefix}run"))])
-        if f"{prefix}components" in result:
-            commands.extend(["comps", result.get(f"{prefix}components")])
+        components = result.get(f"{prefix}components")
+        if isinstance(components, list):
+            commands.extend(["comps", components])
     return commands
 
 
@@ -359,12 +364,27 @@ def _dataset_component_count(datasets: list[dict[str, Any]], index: int) -> int:
     return 0
 
 
+def _component_values(comps: Any) -> list[Any]:
+    if comps is None:
+        return []
+    if isinstance(comps, str):
+        return comps.split()
+    if hasattr(comps, "ravel") and hasattr(comps, "tolist"):
+        return list(comps.ravel().tolist())
+    if hasattr(comps, "tolist"):
+        comps = comps.tolist()
+    if isinstance(comps, (list, tuple, set)):
+        return list(comps)
+    return [comps]
+
+
 def _format_components_button(comps: Any) -> str:
-    if not comps:
+    values = _component_values(comps)
+    if not values:
         return "All comp."
-    if len(comps) > 3:
-        return f"Comp.: {' '.join(str(i) for i in comps[:2])} ..."
-    return f"Comp.: {' '.join(str(i) for i in comps)}"
+    if len(values) > 3:
+        return f"Comp.: {' '.join(str(i) for i in values[:2])} ..."
+    return f"Comp.: {' '.join(str(i) for i in values)}"
 
 
 __all__ = ["pop_study", "pop_study_dialog_spec"]

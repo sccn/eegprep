@@ -127,13 +127,19 @@ def _flatten_commands(commands: Any) -> list[Any]:
     for item in commands:
         if isinstance(item, dict):
             flat.extend(_flatten_commands(item))
-        elif isinstance(item, (list, tuple)):
+        elif _is_command_sequence(item):
             flat.extend(_flatten_commands(list(item)))
         else:
             flat.append(item)
     if len(flat) % 2:
         raise ValueError("commands must contain key/value pairs")
     return flat
+
+
+def _is_command_sequence(value: Any) -> bool:
+    if not isinstance(value, (list, tuple)):
+        return False
+    return len(value) % 2 == 0 and all(isinstance(value[index], str) for index in range(0, len(value), 2))
 
 
 def _metadata_value(key: str, value: Any) -> Any:
