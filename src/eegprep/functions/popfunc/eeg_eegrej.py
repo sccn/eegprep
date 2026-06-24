@@ -6,7 +6,7 @@ import numpy as np
 from copy import deepcopy
 from eegprep.functions.miscfunc.event_utils import boundary_event_indices
 from eegprep.functions.miscfunc.event_utils import is_boundary_event as _is_boundary_event
-from ..miscfunc.misc import round_mat
+from ..miscfunc.parity import round_mat
 
 
 logger = logging.getLogger(__name__)

@@ -3,7 +3,7 @@
 import numpy as np
 from typing import List, Dict, Optional, Tuple
 from eegprep.functions.miscfunc.event_utils import is_boundary_event as _is_boundary_event
-from ..miscfunc.misc import round_mat
+from ..miscfunc.parity import round_mat
 
 
 def eegrej(

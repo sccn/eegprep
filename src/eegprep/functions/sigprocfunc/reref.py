@@ -8,6 +8,7 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.popfunc._chanutils import normalise_reflocs as _normalise_reflocs
+from eegprep.functions.miscfunc.parity import parity_accumulate_float32
 
 
 def reref(
@@ -80,18 +81,11 @@ def reref(
     else:
         # Average reference via matrix multiplication, matching MATLAB's
         # reref.m: refmatrix = eye(n) - ones(n)/n; data = refmatrix * data.
-        # MATLAB accumulates this product column-major; replicate that float32
-        # accumulation order in NumPy (row-major) by transposing the operands
-        # (refmatrix is symmetric, so (data.T @ refmatrix).T == refmatrix @ data
-        # algebraically). The plain np.dot(refmatrix, data) form is ~0.06 uV off
-        # MATLAB in float32, which cascades through nonlinear downstream steps
-        # (ICA convergence) for borderline subjects; the transposed form is
-        # bit-exact to MATLAB on x86 BLAS.
+        # Uses parity_accumulate_float32 to replicate column-major float32 accumulation.
         n = len(chansin)
         dt = original_dtype
         refmatrix = np.eye(n, dtype=dt) - np.ones((n, n), dtype=dt) / dt.type(n)
-        block = np.ascontiguousarray(work[chansin_array, :].astype(dt).T)
-        work[chansin_array, :] = (block @ refmatrix).T
+        work[chansin_array, :] = parity_accumulate_float32(refmatrix, work[chansin_array, :])
         mean_data = None
 
     if locs is not None:

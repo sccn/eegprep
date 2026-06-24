@@ -7,7 +7,8 @@ import numpy as np
 
 from eegprep.plugins.firfilt.design import design_fir
 
-from ...functions.miscfunc.misc import finite_matmul, round_mat
+from ...functions.miscfunc.misc import finite_matmul
+from ...functions.miscfunc.parity import round_mat
 from .private.channel_removal import remove_channels_without_pop_select, update_clean_channel_mask
 from .private.ransac import calc_projector
 from .private.sigproc import filtfilt_fast

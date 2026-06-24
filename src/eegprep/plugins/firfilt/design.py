@@ -6,7 +6,7 @@ from typing import Optional, Sequence, Union
 
 import numpy as np
 
-from eegprep.functions.miscfunc.misc import round_mat
+from eegprep.functions.miscfunc.parity import round_mat
 
 __all__ = ["design_fir", "design_kaiser"]
 

@@ -2,12 +2,10 @@
 
 from copy import deepcopy
 import logging
-import math
-from math import ceil, floor, gcd
+from math import ceil
 
 import numpy as np
 import sympy as sp
-from scipy import signal
 from scipy.signal import resample, resample_poly
 from scipy.signal.windows import kaiser
 
@@ -15,6 +13,7 @@ from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.miscfunc.event_utils import is_boundary_event as _shared_is_boundary_event
+from eegprep.functions.miscfunc.parity import resample_raw
 from eegprep.functions.popfunc._file_io import events_to_records
 from eegprep.plugins.firfilt.firws import firws
 from eegprep.plugins.firfilt.firwsord import firwsord
@@ -319,156 +318,3 @@ def _scale_duration(event, ratio):
     if "duration" not in event or event["duration"] in (None, ""):
         return
     event["duration"] = float(event["duration"]) * ratio
-
-
-def upfirdn_raw(x, h, p, q):
-    """Upfirdn implementation for resampling.
-
-    Parameters
-    ----------
-    x : array_like
-        Input signal.
-    h : array_like
-        Filter coefficients.
-    p : int
-        Upsampling factor.
-    q : int
-        Downsampling factor.
-
-    Returns
-    -------
-    y : ndarray
-        Filtered and resampled signal.
-    """
-    # Ensure x is a numpy array and h is 1D.
-    x = np.array(x, copy=True)
-    h = np.array(h).flatten()
-
-    # If x is a row vector, convert it to a column vector.
-    is_row_vector = False
-    if x.ndim == 2 and x.shape[0] == 1 and x.shape[1] > 1:
-        x = x.T
-        is_row_vector = True
-
-    rx, cx = x.shape
-    Lh = h.size
-    Ly = math.ceil(((rx - 1) * p + Lh) / q)
-    y = np.zeros((Ly, cx))
-
-    for c in range(cx):
-        for m in range(Ly):
-            n = (m * q) // p
-            lm = (m * q) % p
-            # k goes from max(0, n - rx + 1) to n (inclusive)
-            for k in range(max(0, n - rx + 1), n + 1):
-                if k * p + lm < Lh:
-                    y[m, c] += h[k * p + lm] * x[n - k, c]
-
-    if is_row_vector:
-        y = y.T
-
-    return y
-
-
-def resample_raw(x, p, q, h=None):
-    """Change the sample rate of x by a factor of p/q.
-
-    Parameters
-    ----------
-    x : array_like
-        The data to be resampled.
-    p : int
-        The upsampling factor.
-    q : int
-        The downsampling factor.
-    h : array_like, optional
-        The filter coefficients. If not provided, a Kaiser-windowed sinc filter is used.
-
-    Returns
-    -------
-    y : ndarray
-        The resampled array. If input is a vector, output will be a vector.
-    h : ndarray
-        The filter coefficients used.
-    """
-    # Input validation
-    if not isinstance(p, (int, np.integer)) or not isinstance(q, (int, np.integer)):
-        raise ValueError("p and q must be positive integers")
-    if p <= 0 or q <= 0:
-        raise ValueError("p and q must be positive integers")
-
-    # Convert x to numpy array and handle row vectors
-    x = np.asarray(x)
-    is_1d = x.ndim == 1
-
-    # Reshape input to 2D array with shape (samples, channels)
-    if is_1d:
-        x = x.reshape(-1, 1)
-    elif x.ndim == 2 and x.shape[0] == 1:
-        x = x.T
-
-    # Simplify decimation and interpolation factors
-    great_common_divisor = gcd(p, q)
-    if great_common_divisor > 1:
-        p = p // great_common_divisor
-        q = q // great_common_divisor
-
-    # Filter design if required
-    if h is None:
-        # Properties of the antialiasing filter
-        log10_rejection = -3.0
-        stopband_cutoff_f = 1.0 / (2.0 * max(p, q))
-        roll_off_width = stopband_cutoff_f / 10.0
-
-        # Determine filter length
-        rejection_dB = -20.0 * log10_rejection
-        L = ceil((rejection_dB - 8.0) / (28.714 * roll_off_width))
-
-        # Ideal sinc filter
-        t = np.arange(-L, L + 1)
-        ideal_filter = 2 * p * stopband_cutoff_f * np.sinc(2 * stopband_cutoff_f * t)
-
-        # Determine parameter of Kaiser window
-        if 21 <= rejection_dB <= 50:
-            beta = 0.5842 * (rejection_dB - 21.0) ** 0.4 + 0.07886 * (rejection_dB - 21.0)
-        elif rejection_dB > 50:
-            beta = 0.1102 * (rejection_dB - 8.7)
-        else:
-            beta = 0.0
-
-        # Apply Kaiser window to ideal filter
-        h = ideal_filter * signal.windows.kaiser(2 * L + 1, beta)
-
-    if not np.isrealobj(h):
-        raise ValueError("The filter h should be a real vector")
-
-    h = np.asarray(h)
-    if h.ndim != 1:
-        raise ValueError("The filter h should be a vector")
-
-    Lx = x.shape[0]
-    Lh = len(h)
-    L = (Lh - 1) / 2.0
-    Ly = ceil(Lx * p / q)
-
-    # Pre and postpad filter response
-    nz_pre = floor(q - np.mod(L, q))
-    h_padded = np.pad(h, (nz_pre, 0), 'constant')
-
-    offset = floor((L + nz_pre) / q)
-    nz_post = 0
-    while ceil(((Lx - 1) * p + nz_pre + Lh + nz_post) / q) - offset < Ly:
-        nz_post += 1
-    h_padded = np.pad(h_padded, (0, nz_post), 'constant')
-
-    # Filtering - fixed upfirdn usage
-    y = upfirdn_raw(x, h_padded, p, q)
-    y = y[offset : offset + Ly]
-
-    # Restore original dimensionality
-    if is_1d:
-        y = y.flatten()
-    else:
-        y = y.reshape(-1, x.shape[1])
-
-    return y, h
