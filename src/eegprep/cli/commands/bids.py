@@ -68,7 +68,13 @@ def register(subparsers: argparse._SubParsersAction) -> argparse.ArgumentParser:
 
 def validate_dataset(root: str | Path) -> dict[str, Any]:
     """Validate a BIDS root enough for EEGPrep CLI recovery logic."""
-    root_path = Path(root).expanduser()
+    from eegprep.cli.cloud import resolve_input
+    
+    if isinstance(root, str) and (root.startswith("s3://") or root.startswith("gs://")):
+        root_path = resolve_input(root)
+    else:
+        root_path = Path(root).expanduser()
+        
     if not root_path.exists():
         return _error(
             "INPUT_FILE_NOT_FOUND",
@@ -116,7 +122,11 @@ def import_dataset(
     overwrite: bool = False,
 ) -> dict[str, Any]:
     """Import a BIDS EEG dataset and save it as an EEGLAB .set file."""
-    root_path = Path(root).expanduser()
+    from eegprep.cli.cloud import resolve_input
+    if isinstance(root, str) and (root.startswith("s3://") or root.startswith("gs://")):
+        root_path = resolve_input(root)
+    else:
+        root_path = Path(root).expanduser()
     started_at = now_iso()
     if not root_path.exists():
         return _error(
@@ -199,8 +209,15 @@ def export_dataset(
     overwrite: bool = False,
 ) -> dict[str, Any]:
     """Export an EEGLAB .set dataset to a BIDS EEG root."""
-    source = Path(input_path).expanduser()
-    root = Path(bids_root).expanduser()
+    from eegprep.cli.core import existing_input
+    from eegprep.cli.cloud import resolve_output
+    
+    source = existing_input(input_path)
+    if isinstance(bids_root, str) and (bids_root.startswith("s3://") or bids_root.startswith("gs://")):
+        root = resolve_output(bids_root)
+    else:
+        root = Path(bids_root).expanduser()
+        
     if root.exists() and any(root.iterdir()) and not overwrite:
         return _error(
             "OUTPUT_EXISTS",

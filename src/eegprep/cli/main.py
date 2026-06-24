@@ -68,19 +68,34 @@ class EEGPrepArgumentParser(argparse.ArgumentParser):
 
 def main(argv: list[str] | None = None) -> int:
     """Run the EEGPrep CLI."""
+    from eegprep.cli.cloud import managed_cache, CloudSyncError
+    
     raw_argv = sys.argv[1:] if argv is None else list(argv)
     requested_json = _argv_requests_json(raw_argv)
     parser = build_parser(json_requested=requested_json)
     args: argparse.Namespace | None = None
+    
     try:
-        args = parser.parse_args(raw_argv)
-        if not hasattr(args, "handler"):
-            parser.print_help()
-            return 0
-        result = args.handler(args)
-    except EEGPrepCLIError as exc:
-        print_result(exc.to_response(), as_json=requested_json)
-        return exc.exit_code
+        with managed_cache():
+            try:
+                args = parser.parse_args(raw_argv)
+                if not hasattr(args, "handler"):
+                    parser.print_help()
+                    return 0
+                result = args.handler(args)
+            except EEGPrepCLIError as exc:
+                print_result(exc.to_response(), as_json=requested_json)
+                return exc.exit_code
+    except CloudSyncError as exc:
+        payload = {
+            "status": "error",
+            "schema_version": "eegprep.error.v1",
+            "code": "CLOUD_SYNC_ERROR",
+            "message": str(exc),
+            "suggestion": "Check network, credentials, and URI validity.",
+        }
+        print_result(payload, as_json=requested_json)
+        return 1
     except Exception as exc:
         code = getattr(exc, "code", None)
         message = getattr(exc, "message", None)

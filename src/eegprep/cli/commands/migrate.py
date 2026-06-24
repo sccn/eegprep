@@ -164,7 +164,8 @@ def convert_script(
     overwrite: bool = False,
 ) -> dict[str, Any]:
     """Convert simple EEGLAB history/script lines into an EEGPrep pipeline YAML skeleton."""
-    source = Path(script).expanduser()
+    from eegprep.cli.core import existing_input
+    source = existing_input(script)
     if target != "eegprep-yaml":
         raise EEGPrepCLIError("CONFIG_SCHEMA_ERROR", "Only --to eegprep-yaml is supported.", exit_code=2)
     if not source.exists():

@@ -51,16 +51,25 @@ def run_batch(args: argparse.Namespace) -> dict[str, Any]:
     else:
         jobs_warning = None
 
+    from eegprep.cli.cloud import resolve_output
     results = []
     successes = 0
     failures = 0
+    
+    if args.output_dir and isinstance(args.output_dir, str) and (args.output_dir.startswith("s3://") or args.output_dir.startswith("gs://")):
+        resolved_output_root = resolve_output(args.output_dir)
+    elif args.output_dir:
+        resolved_output_root = Path(args.output_dir).expanduser()
+    else:
+        resolved_output_root = None
+
     for input_path in inputs:
         with tempfile.TemporaryDirectory(prefix="eegprep-batch-") as tmpdir:
             config_path = _write_input_config(
                 args.pipeline,
                 input_path,
                 tmpdir,
-                output_root=Path(args.output_dir).expanduser() if args.output_dir else None,
+                output_root=resolved_output_root,
                 overwrite=bool(args.overwrite),
             )
             result = run_pipeline_config(config_path, dry_run=bool(args.dry_run), overwrite=bool(args.overwrite))
@@ -93,10 +102,16 @@ def run_batch(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def _resolve_inputs(args: argparse.Namespace) -> list[Path]:
+    from eegprep.cli.core import existing_input
+    from eegprep.cli.cloud import resolve_input
     if args.bids_root:
+        if isinstance(args.bids_root, str) and (args.bids_root.startswith("s3://") or args.bids_root.startswith("gs://")):
+            root_path = resolve_input(args.bids_root)
+        else:
+            root_path = Path(args.bids_root).expanduser()
         subjects = [_strip_prefix(subject, "sub") for subject in (args.subjects or [])]
-        return [Path(path) for path in bids_list_eeg_files(args.bids_root, subjects=subjects)]
-    return [Path(path).expanduser().resolve() for path in args.inputs]
+        return [Path(path) for path in bids_list_eeg_files(str(root_path), subjects=subjects)]
+    return [existing_input(path) for path in args.inputs]
 
 
 def _write_input_config(

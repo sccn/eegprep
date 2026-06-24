@@ -102,7 +102,7 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _run_transform_command(args: argparse.Namespace) -> dict[str, Any]:
-    input_path = _existing_input_path(Path(args.input))
+    input_path = _existing_input_path(args.input)
     output_path = _resolve_output_path(input_path, args)
     manifest_path = _resolve_manifest_path(output_path, args)
     _validate_output_targets(input_path, output_path, manifest_path, overwrite=bool(args.overwrite))
@@ -651,17 +651,9 @@ def _add_ica_parser(subparsers: argparse._SubParsersAction, *, include_common_fl
     _set_transform_defaults(parser, "ica")
 
 
-def _existing_input_path(path: Path) -> Path:
-    expanded = path.expanduser()
-    if not expanded.exists():
-        raise CliTransformError(
-            "INPUT_FILE_NOT_FOUND",
-            f"Input file does not exist: {expanded}",
-            path=expanded,
-            suggestion="Check the dataset path before running the transform.",
-        )
-    if not expanded.is_file():
-        raise CliTransformError("UNSUPPORTED_FORMAT", f"Input path is not a file: {expanded}", path=expanded)
+def _existing_input_path(path: str | Path) -> Path:
+    from eegprep.cli.core import existing_input
+    expanded = existing_input(path)
     if expanded.suffix.lower() not in {".set", ".mat"}:
         raise CliTransformError(
             "UNSUPPORTED_FORMAT",
@@ -673,8 +665,9 @@ def _existing_input_path(path: Path) -> Path:
 
 
 def _resolve_output_path(input_path: Path, args: argparse.Namespace) -> Path:
+    from eegprep.cli.core import output_path
     if args.output:
-        return Path(args.output).expanduser().resolve()
+        return output_path(args.output, overwrite=args.overwrite)
     if args.overwrite:
         return input_path
     raise CliTransformError(
@@ -685,8 +678,9 @@ def _resolve_output_path(input_path: Path, args: argparse.Namespace) -> Path:
 
 
 def _resolve_manifest_path(output_path: Path, args: argparse.Namespace) -> Path:
+    from eegprep.cli.core import output_path as core_output_path
     if args.manifest:
-        return Path(args.manifest).expanduser().resolve()
+        return core_output_path(args.manifest, overwrite=args.overwrite)
     return output_path.with_suffix(output_path.suffix + ".manifest.json")
 
 

@@ -88,7 +88,7 @@ def run_pipeline_config(
     try:
         config, warnings = _load_normalized_config(config_path)
         if manifest_path is not None:
-            config["output"]["manifest_path"] = str(_resolve_path(manifest_path, Path(config_path).parent))
+            config["output"]["manifest_path"] = str(_resolve_path(manifest_path, Path(config_path).parent, is_output=True))
         if overwrite is not None:
             config["output"]["overwrite"] = bool(overwrite)
         plan = _build_plan(config, warnings=warnings)
@@ -210,14 +210,8 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _load_normalized_config(config_path: str | Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
-    path = Path(config_path)
-    if not path.exists():
-        raise CommandError(
-            "INPUT_FILE_NOT_FOUND",
-            f"Pipeline config not found: {path}",
-            path=str(path),
-            suggestion="Check the YAML config path and retry.",
-        )
+    from eegprep.cli.core import existing_input
+    path = existing_input(config_path)
     if path.suffix.lower() not in {".yaml", ".yml"}:
         raise CommandError(
             "UNSUPPORTED_FORMAT",
@@ -277,7 +271,7 @@ def _normalize_config(raw: Any, *, config_path: Path) -> tuple[dict[str, Any], l
         _add_error(errors, "output.directory", "output.directory is required.")
         output_dir = base_dir / "<missing-output>"
     else:
-        output_dir = _resolve_path(output_dir_value, base_dir)
+        output_dir = _resolve_path(output_dir_value, base_dir, is_output=True)
 
     steps_raw = raw.get("steps")
     steps: list[dict[str, Any]] = []
@@ -559,11 +553,14 @@ def _normalize_step_name(value: Any) -> str:
 def _output_path(value: Any, default: Path, base_dir: Path) -> Path:
     if value is None or value == "":
         return default.resolve()
-    return _resolve_path(str(value), base_dir)
+    return _resolve_path(str(value), base_dir, is_output=True)
 
 
-def _resolve_path(value: str | Path, base_dir: Path) -> Path:
-    path = Path(value)
+def _resolve_path(value: str | Path, base_dir: Path, *, is_output: bool = False) -> Path:
+    from eegprep.cli.cloud import resolve_input, resolve_output
+    if isinstance(value, str) and (value.startswith("s3://") or value.startswith("gs://")):
+        return resolve_output(value) if is_output else resolve_input(value)
+    path = Path(value).expanduser()
     if not path.is_absolute():
         path = base_dir / path
     return path.resolve()

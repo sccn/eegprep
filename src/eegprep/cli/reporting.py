@@ -20,15 +20,9 @@ def write_report_html(
     overwrite: bool = False,
 ) -> dict[str, Any]:
     """Write an HTML report for an EEG dict and return a manifest output entry."""
+    from eegprep.cli.core import output_path as core_output_path
     del EEG, dataset_path
-    target = Path(output_path)
-    if target.exists() and not overwrite:
-        raise EEGPrepCLIError(
-            "OUTPUT_EXISTS",
-            f"Output already exists: {target}",
-            path=str(target),
-            suggestion="Use --overwrite or choose a different output path.",
-        )
+    target = core_output_path(output_path, overwrite=overwrite)
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(_render_html(title, metrics), encoding="utf-8")
     return {"path": str(target), "type": "html_report", "sha256": file_sha256(target)}

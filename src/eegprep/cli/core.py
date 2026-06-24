@@ -171,6 +171,16 @@ def json_safe(value: Any) -> Any:
 
 
 def existing_input(path: str | Path) -> Path:
+    from eegprep.cli.cloud import resolve_input, CloudSyncError
+    try:
+        path = resolve_input(path)
+    except CloudSyncError as e:
+        raise EEGPrepCLIError(
+            "CLOUD_SYNC_ERROR",
+            str(e),
+            path=path,
+            suggestion="Check network, credentials, and URI validity.",
+        )
     resolved = Path(path).expanduser()
     if not resolved.exists():
         raise EEGPrepCLIError(
@@ -185,6 +195,7 @@ def existing_input(path: str | Path) -> Path:
 
 
 def output_path(path: str | Path | None, *, input_path: Path | None = None, overwrite: bool = False) -> Path:
+    from eegprep.cli.cloud import resolve_output
     if path is None:
         if input_path is None or not overwrite:
             raise EEGPrepCLIError(
@@ -193,6 +204,10 @@ def output_path(path: str | Path | None, *, input_path: Path | None = None, over
                 suggestion="Pass --output <path> for non-destructive CLI workflows.",
             )
         return input_path
+    if isinstance(path, str) and (path.startswith("s3://") or path.startswith("gs://")):
+        resolved = resolve_output(path)
+        resolved.parent.mkdir(parents=True, exist_ok=True)
+        return resolved
     resolved = Path(path).expanduser()
     if resolved.exists() and not overwrite:
         raise EEGPrepCLIError(
@@ -257,7 +272,7 @@ def build_manifest(
 def write_manifest(path: str | Path | None, manifest: dict[str, Any]) -> Path | None:
     if path is None:
         return None
-    resolved = Path(path).expanduser()
+    resolved = output_path(path, overwrite=True)
     resolved.parent.mkdir(parents=True, exist_ok=True)
     resolved.write_text(json.dumps(json_safe(manifest), indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return resolved
@@ -270,14 +285,7 @@ def write_json_file(
     overwrite: bool = False,
     output_type: str = "json",
 ) -> dict[str, Any]:
-    target = Path(path)
-    if target.exists() and not overwrite:
-        raise EEGPrepCLIError(
-            "OUTPUT_EXISTS",
-            f"Output already exists: {target}",
-            path=target,
-            suggestion="Use --overwrite or choose a different output path.",
-        )
+    target = output_path(path, overwrite=overwrite)
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(json_safe(payload), indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return {"path": str(target), "type": output_type, "sha256": sha256_file(target)}
