@@ -6,6 +6,7 @@ from collections.abc import Iterable
 from contextlib import contextmanager
 from copy import deepcopy
 from dataclasses import dataclass, field
+import threading
 from typing import Any, Callable, Iterator
 
 import numpy as np
@@ -97,36 +98,43 @@ class EEGPrepSession:
     _listeners: list[Callable[["EEGPrepSession"], None]] = field(default_factory=list, init=False, repr=False)
     _command_echo_listeners: list[Callable[[str], None]] = field(default_factory=list, init=False, repr=False)
     _gui_action_listeners: list[Callable[[str, str], None]] = field(default_factory=list, init=False, repr=False)
+    _lock: Any = field(default_factory=threading.RLock, init=False, repr=False)
 
     def add_change_listener(self, listener: Callable[["EEGPrepSession"], None]) -> None:
         """Register a callback that runs after session state changes."""
-        if listener not in self._listeners:
-            self._listeners.append(listener)
+        with self._lock:
+            if listener not in self._listeners:
+                self._listeners.append(listener)
 
     def remove_change_listener(self, listener: Callable[["EEGPrepSession"], None]) -> None:
         """Remove a previously registered session change callback."""
-        if listener in self._listeners:
-            self._listeners.remove(listener)
+        with self._lock:
+            if listener in self._listeners:
+                self._listeners.remove(listener)
 
     def add_command_echo_listener(self, listener: Callable[[str], None]) -> None:
         """Register a callback for GUI commands to display in the console."""
-        if listener not in self._command_echo_listeners:
-            self._command_echo_listeners.append(listener)
+        with self._lock:
+            if listener not in self._command_echo_listeners:
+                self._command_echo_listeners.append(listener)
 
     def remove_command_echo_listener(self, listener: Callable[[str], None]) -> None:
         """Remove a previously registered command echo callback."""
-        if listener in self._command_echo_listeners:
-            self._command_echo_listeners.remove(listener)
+        with self._lock:
+            if listener in self._command_echo_listeners:
+                self._command_echo_listeners.remove(listener)
 
     def add_gui_action_listener(self, listener: Callable[[str, str], None]) -> None:
         """Register a callback for GUI action start/end notifications."""
-        if listener not in self._gui_action_listeners:
-            self._gui_action_listeners.append(listener)
+        with self._lock:
+            if listener not in self._gui_action_listeners:
+                self._gui_action_listeners.append(listener)
 
     def remove_gui_action_listener(self, listener: Callable[[str, str], None]) -> None:
         """Remove a previously registered GUI action callback."""
-        if listener in self._gui_action_listeners:
-            self._gui_action_listeners.remove(listener)
+        with self._lock:
+            if listener in self._gui_action_listeners:
+                self._gui_action_listeners.remove(listener)
 
     def begin_gui_action(self, action: str) -> None:
         """Notify listeners that a GUI action is about to run."""
@@ -185,46 +193,48 @@ class EEGPrepSession:
         index: int | list[int] | None = None,
     ) -> int | list[int]:
         """Store ``eeg`` in ALLEEG and select it."""
-        if index is not None:
-            if new:
-                raise ValueError("new and index cannot both be set")
-            normalized_index = normalize_dataset_indices(index, allow_empty=False)
-            if isinstance(eeg, list):
-                if len(normalized_index) != len(eeg):
-                    raise ValueError("Length of EEG list must equal length of index")
-                store_index: int | list[int] = normalized_index
+        with self._lock:
+            if index is not None:
+                if new:
+                    raise ValueError("new and index cannot both be set")
+                normalized_index = normalize_dataset_indices(index, allow_empty=False)
+                if isinstance(eeg, list):
+                    if len(normalized_index) != len(eeg):
+                        raise ValueError("Length of EEG list must equal length of index")
+                    store_index: int | list[int] = normalized_index
+                else:
+                    if len(normalized_index) != 1:
+                        raise ValueError("A single EEG dataset must be stored to one index")
+                    store_index = normalized_index[0]
+            elif isinstance(eeg, list):
+                if new:
+                    store_index = [0] * len(eeg)
+                elif len(self.CURRENTSET) == len(eeg):
+                    store_index = list(self.CURRENTSET)
+                else:
+                    store_index = None
             else:
-                if len(normalized_index) != 1:
-                    raise ValueError("A single EEG dataset must be stored to one index")
-                store_index = normalized_index[0]
-        elif isinstance(eeg, list):
-            if new:
-                store_index = [0] * len(eeg)
-            elif len(self.CURRENTSET) == len(eeg):
-                store_index = list(self.CURRENTSET)
-            else:
-                store_index = None
-        else:
-            store_index = 0 if new or not self.CURRENTSET else self.CURRENTSET[0]
-        self.ALLEEG, checked, stored_index = eeg_store(self.ALLEEG, eeg, store_index)
-        self.EEG = checked
-        self.CURRENTSET = normalize_dataset_indices(stored_index, allow_empty=False)
-        self._append_current_dataset_history(command)
-        if mark_saved:
-            self.mark_current_saved()
-        self.add_history(command, notify=False)
-        self.notify_changed()
-        return stored_index
+                store_index = 0 if new or not self.CURRENTSET else self.CURRENTSET[0]
+            self.ALLEEG, checked, stored_index = eeg_store(self.ALLEEG, eeg, store_index)
+            self.EEG = checked
+            self.CURRENTSET = normalize_dataset_indices(stored_index, allow_empty=False)
+            self._append_current_dataset_history(command)
+            if mark_saved:
+                self.mark_current_saved()
+            self.add_history(command, notify=False)
+            self.notify_changed()
+            return stored_index
 
     def retrieve(self, indices: int | list[int]) -> dict[str, Any] | list[dict[str, Any]]:
         """Select dataset(s) from ALLEEG using 1-based indices."""
-        selection = normalize_dataset_indices(indices, allow_empty=False)
-        use_vector = isinstance(indices, (list, tuple)) or (isinstance(indices, np.ndarray) and indices.ndim > 0)
-        eeg, self.ALLEEG, current = eeg_retrieve(self.ALLEEG, selection if use_vector else selection[0])
-        self.EEG = eeg
-        self.CURRENTSET = normalize_dataset_indices(current, allow_empty=False)
-        self.notify_changed()
-        return eeg
+        with self._lock:
+            selection = normalize_dataset_indices(indices, allow_empty=False)
+            use_vector = isinstance(indices, (list, tuple)) or (isinstance(indices, np.ndarray) and indices.ndim > 0)
+            eeg, self.ALLEEG, current = eeg_retrieve(self.ALLEEG, selection if use_vector else selection[0])
+            self.EEG = eeg
+            self.CURRENTSET = normalize_dataset_indices(current, allow_empty=False)
+            self.notify_changed()
+            return eeg
 
     def apply_workspace_state(
         self,
@@ -240,73 +250,76 @@ class EEGPrepSession:
         append_dataset_history: bool = False,
     ) -> None:
         """Apply a GUI/console workspace update as one session transaction."""
-        dataset_changed = eeg is not _UNSET or alleeg is not _UNSET or currentset is not _UNSET
-        if dataset_changed:
-            resolved_alleeg = self.ALLEEG if alleeg is _UNSET else alleeg
-            if not isinstance(resolved_alleeg, list):
-                raise ValueError("ALLEEG must be a list of EEG datasets")
-            resolved_currentset = (
-                list(self.CURRENTSET)
-                if currentset is _UNSET
-                else normalize_dataset_indices(currentset, allow_empty=True)
-            )
-            if resolved_currentset and max(resolved_currentset) > len(resolved_alleeg):
-                raise ValueError("CURRENTSET contains indices outside ALLEEG")
-            resolved_eeg = self._resolve_workspace_eeg(eeg, resolved_alleeg, resolved_currentset)
-            current = resolved_eeg if isinstance(resolved_eeg, list) else [resolved_eeg]
-            if resolved_currentset and len(current) != len(resolved_currentset):
-                raise ValueError("EEG selection length must match CURRENTSET")
-            self.ALLEEG = resolved_alleeg
-            self.EEG = resolved_eeg
-            self.CURRENTSET = resolved_currentset
-            self._mirror_current_eeg_into_alleeg()
-            if append_dataset_history:
-                self._append_current_dataset_history(command)
-            offload_storedisk_datasets(self.ALLEEG, set(self.CURRENTSET))
+        with self._lock:
+            dataset_changed = eeg is not _UNSET or alleeg is not _UNSET or currentset is not _UNSET
+            if dataset_changed:
+                resolved_alleeg = self.ALLEEG if alleeg is _UNSET else alleeg
+                if not isinstance(resolved_alleeg, list):
+                    raise ValueError("ALLEEG must be a list of EEG datasets")
+                resolved_currentset = (
+                    list(self.CURRENTSET)
+                    if currentset is _UNSET
+                    else normalize_dataset_indices(currentset, allow_empty=True)
+                )
+                if resolved_currentset and max(resolved_currentset) > len(resolved_alleeg):
+                    raise ValueError("CURRENTSET contains indices outside ALLEEG")
+                resolved_eeg = self._resolve_workspace_eeg(eeg, resolved_alleeg, resolved_currentset)
+                current = resolved_eeg if isinstance(resolved_eeg, list) else [resolved_eeg]
+                if resolved_currentset and len(current) != len(resolved_currentset):
+                    raise ValueError("EEG selection length must match CURRENTSET")
+                self.ALLEEG = resolved_alleeg
+                self.EEG = resolved_eeg
+                self.CURRENTSET = resolved_currentset
+                self._mirror_current_eeg_into_alleeg()
+                if append_dataset_history:
+                    self._append_current_dataset_history(command)
+                offload_storedisk_datasets(self.ALLEEG, set(self.CURRENTSET))
 
-        if allcom is not _UNSET:
-            if not isinstance(allcom, list):
-                raise ValueError("ALLCOM must be a list of command strings")
-            self.ALLCOM = [str(item) for item in allcom if str(item).strip()]
-            self.LASTCOM = self.ALLCOM[-1] if self.ALLCOM else ""
-        if lastcom is not _UNSET:
-            last_command = str(lastcom or "").strip()
-            if last_command and (not self.ALLCOM or self.ALLCOM[-1] != last_command):
-                self.ALLCOM.append(last_command)
-            self.LASTCOM = last_command
+            if allcom is not _UNSET:
+                if not isinstance(allcom, list):
+                    raise ValueError("ALLCOM must be a list of command strings")
+                self.ALLCOM = [str(item) for item in allcom if str(item).strip()]
+                self.LASTCOM = self.ALLCOM[-1] if self.ALLCOM else ""
+            if lastcom is not _UNSET:
+                last_command = str(lastcom or "").strip()
+                if last_command and (not self.ALLCOM or self.ALLCOM[-1] != last_command):
+                    self.ALLCOM.append(last_command)
+                self.LASTCOM = last_command
 
-        if study is not _UNSET:
-            self.STUDY = study
-            if currentstudy is _UNSET:
-                self.CURRENTSTUDY = 1 if study else 0
-        if currentstudy is not _UNSET:
-            self.CURRENTSTUDY = int(currentstudy or 0)
+            if study is not _UNSET:
+                self.STUDY = study
+                if currentstudy is _UNSET:
+                    self.CURRENTSTUDY = 1 if study else 0
+            if currentstudy is not _UNSET:
+                self.CURRENTSTUDY = int(currentstudy or 0)
 
-        self.add_history(command, notify=False)
-        self.notify_changed()
+            self.add_history(command, notify=False)
+            self.notify_changed()
 
     def delete_current(self) -> None:
         """Delete the current dataset selection from memory."""
-        if not self.CURRENTSET:
-            return
-        deleted_indices = list(self.CURRENTSET)
-        self.ALLEEG, command = pop_delset(self.ALLEEG, self.CURRENTSET)
-        self.add_history(command, notify=False)
-        if self.ALLEEG:
-            self.retrieve(min(min(deleted_indices), len(self.ALLEEG)))
-            return
-        self.CURRENTSET = []
-        self.EEG = eeg_emptyset()
-        self.notify_changed()
+        with self._lock:
+            if not self.CURRENTSET:
+                return
+            deleted_indices = list(self.CURRENTSET)
+            self.ALLEEG, command = pop_delset(self.ALLEEG, self.CURRENTSET)
+            self.add_history(command, notify=False)
+            if self.ALLEEG:
+                self.retrieve(min(min(deleted_indices), len(self.ALLEEG)))
+                return
+            self.CURRENTSET = []
+            self.EEG = eeg_emptyset()
+            self.notify_changed()
 
     def clear_all(self) -> None:
         """Clear all datasets and study state."""
-        self.EEG = eeg_emptyset()
-        self.ALLEEG = []
-        self.CURRENTSET = []
-        self.STUDY = None
-        self.CURRENTSTUDY = 0
-        self.add_history("STUDY = []; CURRENTSTUDY = 0; ALLEEG = []; EEG=[]; CURRENTSET=[];")
+        with self._lock:
+            self.EEG = eeg_emptyset()
+            self.ALLEEG = []
+            self.CURRENTSET = []
+            self.STUDY = None
+            self.CURRENTSTUDY = 0
+            self.add_history("STUDY = []; CURRENTSTUDY = 0; ALLEEG = []; EEG=[]; CURRENTSET=[];")
 
     def set_study(
         self,
@@ -316,22 +329,23 @@ class EEGPrepSession:
         command: str = "",
     ) -> None:
         """Set STUDY/CURRENTSTUDY and optionally replace loaded datasets."""
-        self.STUDY = study
-        self.CURRENTSTUDY = 1 if study else 0
-        if alleeg is not None:
-            self.ALLEEG = alleeg
-            if self.ALLEEG and (not self.CURRENTSET or max(self.CURRENTSET) > len(self.ALLEEG)):
-                self.CURRENTSET = [1]
-                self.EEG = self.ALLEEG[0]
-            elif self.ALLEEG and self.CURRENTSET:
-                selected = [self.ALLEEG[index - 1] for index in self.CURRENTSET]
-                self.EEG = selected if len(selected) > 1 else selected[0]
-            elif not self.ALLEEG:
-                self.CURRENTSET = []
-                self.EEG = eeg_emptyset()
-            offload_storedisk_datasets(self.ALLEEG, set(self.CURRENTSET))
-        self.add_history(command, notify=False)
-        self.notify_changed()
+        with self._lock:
+            self.STUDY = study
+            self.CURRENTSTUDY = 1 if study else 0
+            if alleeg is not None:
+                self.ALLEEG = alleeg
+                if self.ALLEEG and (not self.CURRENTSET or max(self.CURRENTSET) > len(self.ALLEEG)):
+                    self.CURRENTSET = [1]
+                    self.EEG = self.ALLEEG[0]
+                elif self.ALLEEG and self.CURRENTSET:
+                    selected = [self.ALLEEG[index - 1] for index in self.CURRENTSET]
+                    self.EEG = selected if len(selected) > 1 else selected[0]
+                elif not self.ALLEEG:
+                    self.CURRENTSET = []
+                    self.EEG = eeg_emptyset()
+                offload_storedisk_datasets(self.ALLEEG, set(self.CURRENTSET))
+            self.add_history(command, notify=False)
+            self.notify_changed()
 
     def _resolve_workspace_eeg(
         self,
@@ -358,36 +372,40 @@ class EEGPrepSession:
 
     def select_study(self, *, command: str = "CURRENTSTUDY = 1") -> None:
         """Select the current STUDY set in the shared workspace."""
-        if not self.STUDY:
-            raise ValueError("No current STUDY")
-        self.CURRENTSTUDY = 1
-        self.add_history(command)
+        with self._lock:
+            if not self.STUDY:
+                raise ValueError("No current STUDY")
+            self.CURRENTSTUDY = 1
+            self.add_history(command)
 
     def add_history(self, command: str | None, *, notify: bool = True) -> None:
         """Append an EEGLAB-style command to session history."""
-        if not command:
+        with self._lock:
+            if not command:
+                if notify:
+                    self.notify_changed()
+                return
+            self.LASTCOM = eegh(command, self.ALLCOM)
             if notify:
                 self.notify_changed()
-            return
-        self.LASTCOM = eegh(command, self.ALLCOM)
-        if notify:
-            self.notify_changed()
 
     def clear_history(self, *, notify: bool = True) -> None:
         """Clear command history and LASTCOM as one session mutation."""
-        self.ALLCOM.clear()
-        self.LASTCOM = ""
-        if notify:
-            self.notify_changed()
+        with self._lock:
+            self.ALLCOM.clear()
+            self.LASTCOM = ""
+            if notify:
+                self.notify_changed()
 
     def remove_history(self, count: int, *, notify: bool = True) -> None:
         """Remove the most recent ``count`` command-history entries."""
-        remove_count = min(max(int(count), 0), len(self.ALLCOM))
-        if remove_count:
-            del self.ALLCOM[-remove_count:]
-        self.LASTCOM = self.ALLCOM[-1] if self.ALLCOM else ""
-        if notify:
-            self.notify_changed()
+        with self._lock:
+            remove_count = min(max(int(count), 0), len(self.ALLCOM))
+            if remove_count:
+                del self.ALLCOM[-remove_count:]
+            self.LASTCOM = self.ALLCOM[-1] if self.ALLCOM else ""
+            if notify:
+                self.notify_changed()
 
     def history_command_at(self, index: int) -> str:
         """Return the 1-based command from most recent history first."""
@@ -397,26 +415,29 @@ class EEGPrepSession:
 
     def clear_last_command(self, *, notify: bool = True) -> None:
         """Clear LASTCOM without deleting ALLCOM."""
-        self.LASTCOM = ""
-        if notify:
-            self.notify_changed()
+        with self._lock:
+            self.LASTCOM = ""
+            if notify:
+                self.notify_changed()
 
     def _append_current_dataset_history(self, command: str | None) -> None:
-        if not command:
-            return
-        current = self.EEG if isinstance(self.EEG, list) else [self.EEG]
-        for eeg in current:
-            if isinstance(eeg, dict):
-                eegh(command, eeg)
+        with self._lock:
+            if not command:
+                return
+            current = self.EEG if isinstance(self.EEG, list) else [self.EEG]
+            for eeg in current:
+                if isinstance(eeg, dict):
+                    eegh(command, eeg)
 
     def mark_current_saved(self) -> None:
         """Mark the current dataset selection as saved in EEG and ALLEEG."""
-        current = self.EEG if isinstance(self.EEG, list) else [self.EEG]
-        for index, eeg in zip(self.CURRENTSET, current):
-            eeg["saved"] = "yes"
-            if 1 <= index <= len(self.ALLEEG):
-                self.ALLEEG[index - 1]["saved"] = "yes"
-        offload_storedisk_datasets(self.ALLEEG, set(self.CURRENTSET))
+        with self._lock:
+            current = self.EEG if isinstance(self.EEG, list) else [self.EEG]
+            for index, eeg in zip(self.CURRENTSET, current):
+                eeg["saved"] = "yes"
+                if 1 <= index <= len(self.ALLEEG):
+                    self.ALLEEG[index - 1]["saved"] = "yes"
+            offload_storedisk_datasets(self.ALLEEG, set(self.CURRENTSET))
 
     def menu_statuses(self) -> set[str]:
         """Return EEGLAB-style menu status tokens for the current state."""
