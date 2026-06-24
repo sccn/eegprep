@@ -87,6 +87,10 @@ class EEGPrepMainWindow:
             native_file_dialogs=native_file_dialogs,
             extension_runtime=self.extension_runtime,
         )
+        from eegprep.functions.guifunc.history_manager import HistoryManagerWidget
+
+        self.history_dock = HistoryManagerWidget(self.session, self.window)
+        self.window.addDockWidget(self._qt_core.Qt.RightDockWidgetArea, self.history_dock)
         self._build_central_widget()
         self.refresh()
 
