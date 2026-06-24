@@ -22,6 +22,7 @@ from eegprep.cli.core import (
     EEGPrepCLIError,
     build_manifest,
     file_sha256,
+    json_safe,
     utc_now,
     write_manifest_file,
 )
@@ -112,8 +113,26 @@ def _run_transform_command(args: argparse.Namespace) -> dict[str, Any]:
     eeg = pop_loadset(str(input_path))
     input_files = _dataset_file_records(input_path, eeg)
 
-    logger.info("Running %s", args.transform_command)
-    result = apply_loaded_transform(eeg, args)
+    tuning_only = getattr(args, "tuning_only", False)
+
+    try:
+        logger.info("Running %s", args.transform_command)
+        result = apply_loaded_transform(eeg, args)
+    except Exception as exc:
+        if tuning_only:
+            # Try to build parameters from args if result is not available
+            params_dict = {k: v for k, v in vars(args).items() if k not in ["transform_command", "input", "output", "manifest", "overwrite", "json", "quiet", "verbose", "no_progress", "tuning_only", "handler"]}
+            manifest = {
+                "schema_version": "eegprep.tuning_manifest.v1",
+                "command": args.transform_command,
+                "status": "failure",
+                "error": str(exc),
+                "parameters": json_safe(params_dict),
+                "qc_metrics": {},
+            }
+            write_manifest_file(manifest_path, manifest, overwrite=True)
+        raise
+
     if result.history:
         _append_history(result.eeg, result.history)
 
@@ -121,6 +140,11 @@ def _run_transform_command(args: argparse.Namespace) -> dict[str, Any]:
     saved_eeg = pop_saveset(result.eeg, str(output_path))
     finished_at = utc_now()
     output_files = _dataset_file_records(output_path, saved_eeg)
+
+    qc_metrics = None
+    if tuning_only:
+        from eegprep.cli.commands.qc import compute_qc_metrics
+        qc_metrics = compute_qc_metrics(saved_eeg, dataset_path=output_path)
 
     manifest = build_manifest(
         command=args.transform_command,
@@ -132,6 +156,8 @@ def _run_transform_command(args: argparse.Namespace) -> dict[str, Any]:
         warnings=result.warnings or [],
         started_at=started_at,
         finished_at=finished_at,
+        tuning_only=tuning_only,
+        qc_metrics=qc_metrics,
     )
     write_manifest_file(manifest_path, manifest, overwrite=True)
 
@@ -567,6 +593,7 @@ def _add_common_arguments(parser: argparse.ArgumentParser, *, include_common_fla
     parser.add_argument("--overwrite", action="store_true", help="Allow writing over an existing output.")
     if include_common_flags:
         parser.add_argument("--json", action="store_true", help="Write clean JSON to stdout.")
+        parser.add_argument("--tuning-only", action="store_true", help="Generate a minimal manifest for fast parameter tuning.")
         parser.add_argument("--quiet", action="store_true", help="Suppress progress logging.")
         parser.add_argument("--verbose", action="store_true", help="Enable verbose progress logging.")
         parser.add_argument("--no-progress", action="store_true", help="Disable progress logging.")

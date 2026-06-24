@@ -236,7 +236,17 @@ def build_manifest(
     finished_at: str | None = None,
     deterministic: bool | None = None,
     warnings: list[Any] | None = None,
+    tuning_only: bool = False,
+    qc_metrics: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    if tuning_only:
+        return {
+            "schema_version": "eegprep.tuning_manifest.v1",
+            "command": command,
+            "status": "success",
+            "parameters": json_safe(parameters),
+            "qc_metrics": qc_metrics or {},
+        }
     stamp = runtime_stamp(started_at) if finished_at is None else RuntimeStamp(started_at, finished_at)
     manifest: dict[str, Any] = {
         "schema_version": "eegprep.manifest.v1",
