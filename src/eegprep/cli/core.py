@@ -218,10 +218,15 @@ def file_sha256(path: str | Path) -> str:
 
 
 def software_info() -> dict[str, Any]:
+    from eegprep.utils.math_backend import get_math_backend_info
+    
     return {
         "eegprep_version": eegprep.__version__,
         "python_version": platform.python_version(),
         "platform": platform.platform(),
+        "architecture": platform.machine(),
+        "processor": platform.processor(),
+        "math_backend_info": get_math_backend_info(),
     }
 
 
@@ -237,7 +242,15 @@ def build_manifest(
     deterministic: bool | None = None,
     warnings: list[Any] | None = None,
 ) -> dict[str, Any]:
+    from eegprep.utils.math_backend import check_conflicting_libraries
+    
     stamp = runtime_stamp(started_at) if finished_at is None else RuntimeStamp(started_at, finished_at)
+    soft_info = software_info()
+    
+    all_warnings = warnings or []
+    math_warnings = check_conflicting_libraries(soft_info.get("math_backend_info", []))
+    all_warnings.extend(math_warnings)
+    
     manifest: dict[str, Any] = {
         "schema_version": "eegprep.manifest.v1",
         "command": command,
@@ -245,9 +258,10 @@ def build_manifest(
         "output_files": output_files,
         "parameters": json_safe(parameters),
         "history": history,
-        "software": software_info(),
+        "software": soft_info,
+        "math_backend_info": soft_info.get("math_backend_info", []),
         "runtime": {"started_at": stamp.started_at, "finished_at": stamp.finished_at},
-        "warnings": warnings or [],
+        "warnings": all_warnings,
     }
     if deterministic is not None:
         manifest["deterministic"] = deterministic
