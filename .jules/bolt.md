@@ -1,0 +1,3 @@
+## 2025-05-15 - Vectorized RNG and Math.floor Optimization
+**Learning:** Calling `stream.rand()` inside a loop (like Fisher-Yates) in Python incurs significant overhead. Vectorizing this by calling `stream.rand(n)` once before the loop and indexing into it provides a substantial speedup. Additionally, for scalar non-negative rounding in tight loops, `math.floor(x + 0.5)` is much faster than `np.floor` or specialized rounding utilities due to lower call overhead.
+**Action:** Always consider pre-allocating random numbers in vectorized calls when they are used in a loop of known size. Use `math` module functions for scalar operations inside tight loops where performance is critical.
