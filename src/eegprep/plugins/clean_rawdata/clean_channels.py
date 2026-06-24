@@ -93,6 +93,13 @@ def clean_channels(
 
         # trim channels based on that
         noise_mask = znoise > noise_threshold
+
+        if 'etc' not in EEG:
+            EEG['etc'] = {}
+        if 'clean_channel_noisiness' not in EEG['etc']:
+            EEG['etc']['clean_channel_noisiness'] = noisiness.tolist()
+        if 'clean_channel_zscores' not in EEG['etc']:
+            EEG['etc']['clean_channel_zscores'] = znoise.tolist()
     else:
         X = EEG['data'].T
         noise_mask = np.zeros(C, dtype=bool)  # transpose added in MATLAB comment

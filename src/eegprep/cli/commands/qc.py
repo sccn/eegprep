@@ -111,6 +111,7 @@ def compute_qc_metrics(EEG: dict[str, Any], *, dataset_path: str | Path | None =
                 "median": _float_or_none(np.median(channel_rms)) if channel_rms else None,
                 "max": _float_or_none(np.max(channel_rms)) if channel_rms else None,
             },
+            "asr": _asr_metrics(EEG),
         },
     }
     metrics["recommendations"] = qc_recommendations(metrics)
@@ -381,7 +382,52 @@ def _ica_metrics(EEG: dict[str, Any]) -> dict[str, Any]:
         "icasphere_shape": [int(dim) for dim in sphere.shape] if sphere.size else [],
         "icawinv_shape": [int(dim) for dim in winv.shape] if winv.size else [],
         "icachansind_count": len(_as_list(EEG.get("icachansind", []))),
+        "iclabel": _iclabel_metrics(EEG),
     }
+
+
+def _iclabel_metrics(EEG: dict[str, Any]) -> dict[str, Any] | None:
+    try:
+        etc = EEG.get("etc", {})
+        if not isinstance(etc, dict):
+            return None
+        ic_class = etc.get("ic_classification", {})
+        iclabel = ic_class.get("ICLabel", {})
+        classes = iclabel.get("classes", [])
+        classifications = np.asarray(iclabel.get("classifications", []))
+        if classifications.size == 0 or len(classes) == 0:
+            return None
+
+        # mean probabilities for all classes across components
+        mean_probs = np.mean(classifications, axis=0)
+
+        return {
+            "classes": _as_list(classes),
+            "mean_probabilities": [_float_or_none(p) for p in mean_probs],
+        }
+    except Exception:
+        return None
+
+
+def _asr_metrics(EEG: dict[str, Any]) -> dict[str, Any] | None:
+    try:
+        etc = EEG.get("etc", {})
+        if not isinstance(etc, dict):
+            return None
+
+        metrics = {}
+        if "clean_channel_noisiness" in etc:
+            metrics["channel_noisiness"] = _as_list(etc["clean_channel_noisiness"])
+        if "clean_channel_zscores" in etc:
+            metrics["channel_zscores"] = _as_list(etc["clean_channel_zscores"])
+        if "clean_window_rms" in etc:
+            metrics["window_rms"] = _as_list(etc["clean_window_rms"])
+        if "clean_window_zscores" in etc:
+            metrics["window_zscores"] = _as_list(etc["clean_window_zscores"])
+
+        return metrics if metrics else None
+    except Exception:
+        return None
 
 
 def _channel_stds(data: np.ndarray) -> list[float]:

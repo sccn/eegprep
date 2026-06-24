@@ -124,6 +124,7 @@ def clean_windows(
     #                      Compute z-score per channel
     # ------------------------------------------------------------------
     wz = np.zeros((C, W), dtype=float)
+    w_rms = np.zeros((C, W), dtype=float)
     for c in reversed(range(C)):
         # compute RMS amplitude for each window
         Xsq = EEG['data'][c, :] ** 2  # power
@@ -131,6 +132,7 @@ def clean_windows(
         indices = offsets[:, None] + wnd[None, :]
         # Extract data and compute RMS per window
         rms = np.sqrt(np.sum(Xsq[indices], axis=1) / N)
+        w_rms[c, :] = rms
 
         # Fit distribution to clean EEG portion
         mu, sig, *_ = fit_eeg_distribution(
@@ -210,5 +212,10 @@ def clean_windows(
             etc['clean_sample_mask'] = sample_mask
     else:
         etc['clean_sample_mask'] = sample_mask
+
+    if 'clean_window_rms' not in etc:
+        etc['clean_window_rms'] = w_rms.tolist()
+    if 'clean_window_zscores' not in etc:
+        etc['clean_window_zscores'] = wz.tolist()
 
     return EEG, sample_mask
