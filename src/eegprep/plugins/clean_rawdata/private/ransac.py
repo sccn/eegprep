@@ -1,11 +1,11 @@
 """RANSAC utilities for EEG data processing."""
 
+import math
 from typing import Optional
 
 import numpy as np
 
 from ....functions.adminfunc.eeglabcompat import get_eeglab
-from ....functions.miscfunc.misc import round_mat
 from .sphericalSplineInterpolate import sphericalSplineInterpolate
 
 
@@ -37,10 +37,13 @@ def rand_sample(n: int, m: int, stream: np.random.RandomState) -> np.ndarray:
     pool = np.arange(n)
 
     # Fisher-Yates shuffle: only shuffle first m elements
+    # Vectorized RNG for performance
+    rands = stream.rand(m)
     for k in range(m):
         # Choose from remaining elements (k to n-1)
         remaining = n - k
-        choice = int(round_mat((remaining - 1) * stream.rand()))
+        # Faster scalar rounding for non-negative values
+        choice = int(math.floor((remaining - 1) * rands[k] + 0.5))
 
         # Swap pool[k] with pool[k + choice]
         idx = k + choice
@@ -87,9 +90,12 @@ def rand_permutation(n: int, stream: np.random.RandomState) -> np.ndarray:
     result = np.arange(n)
 
     # Fisher-Yates shuffle: iterate backward from n-1 to 1
-    for k in range(n - 1, 0, -1):
+    # Vectorized RNG for performance
+    rands = stream.rand(n - 1)
+    for i, k in enumerate(range(n - 1, 0, -1)):
         # Pick random index from 0 to k (inclusive)
-        j = int(round_mat(k * stream.rand()))
+        # Faster scalar rounding for non-negative values
+        j = int(math.floor(k * rands[i] + 0.5))
 
         # Swap elements k and j
         result[k], result[j] = result[j], result[k]
