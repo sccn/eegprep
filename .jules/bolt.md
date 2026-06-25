@@ -1,0 +1,3 @@
+## 2026-06-25 - Vectorizing Fisher-Yates shuffle RNG calls
+**Learning:** Replacing scalar random number generator calls (e.g., `stream.rand()`) in tight loops like Fisher-Yates shuffles with a single vectorized call (e.g., `stream.rand(n)`) significantly improves performance by reducing Python function call overhead. Additionally, using `math.floor(x + 0.5)` for scalar non-negative rounding is faster than general-purpose `round_mat` (which handles arrays and multiple decimal places) or `np.floor`.
+**Action:** Always pre-generate random numbers in a single vectorized call before entering a tight loop. For 0-decimal non-negative rounding in such loops, prefer `math.floor(x + 0.5)` over `round_mat` or `np.round` to maximize speed while maintaining MATLAB parity.
