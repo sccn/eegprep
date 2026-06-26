@@ -1404,6 +1404,8 @@ def _normalize_currentset(value: Any) -> list[int]:
         raise ValueError("CURRENTSET must be a 1-based integer or list of integers") from exc
 
 
+_MUTATING_METHODS = {"append", "extend", "update", "fill", "clear", "pop", "remove", "insert"}
+
 def _workspace_assignment_targets(source: str) -> set[str]:
     try:
         tree = ast.parse(source)
@@ -1415,6 +1417,9 @@ def _workspace_assignment_targets(source: str) -> set[str]:
             raw_targets = node.targets if isinstance(node, ast.Assign) else [node.target]
             for target in raw_targets:
                 targets.update(root for root in _target_root_names(target) if root in WORKSPACE_NAMES)
+        elif isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Attribute) and node.func.attr in _MUTATING_METHODS:
+                targets.update(root for root in _target_root_names(node.func.value) if root in WORKSPACE_NAMES)
     return targets
 
 
