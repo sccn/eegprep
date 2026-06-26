@@ -29,9 +29,9 @@ def _interpMx(cosEE, order, tol):
     Pn = x.copy()  # Use a copy to avoid modifying input if it was passed by reference
 
     # Calculate initial terms for G and H sums
-    nn_plus_n = n * n + n  # = 2.0 when n=1
+    nn_plus_n = 2.0  # n * n + n when n=1
     # Ensure float exponentiation/division
-    tmp = ((2.0 * n + 1.0) * Pn) / (nn_plus_n ** float(order))
+    tmp = (3.0 * Pn) / (nn_plus_n**order)
     G = tmp.copy()  # Start sum for G
     H = nn_plus_n * tmp  # Start sum for H
 
@@ -50,28 +50,25 @@ def _interpMx(cosEE, order, tol):
         Pns1 = Pn
         Pn = ((2.0 * n - 1.0) * x * Pns1 - (n - 1.0) * Pns2) / n
 
-        # Store old G, H for convergence check (make copies)
-        oG = G.copy()
-        oH = H.copy()
-
         # Calculate update term 'tmp' (vectorized)
-        nn_plus_n = n * n + n
+        nn_plus_n = n * (n + 1.0)
         # Ensure float exponentiation/division
-        tmp = ((2.0 * n + 1.0) * Pn) / (nn_plus_n ** float(order))
+        tmp = ((2.0 * n + 1.0) * Pn) / (nn_plus_n**order)
 
         # Update G and H sums (vectorized)
         G += tmp  # update function estimate, spline interp
         H += nn_plus_n * tmp  # update function estimate, SLAP
 
         # Update moving average gradient estimate for convergence (vectorized)
-        # Add small epsilon to denominator to prevent potential division by zero if dG/dH were zero?
-        # Although, initialization above should prevent this. Let's stick to MATLAB logic.
-        dG = (np.abs(oG - G) + dG) / 2.0
-        dH = (np.abs(oH - H) + dH) / 2.0
+        # Avoid redundant G.copy()/H.copy() by using magnitude of current update
+        abs_tmp = np.abs(tmp)
+        dG = (abs_tmp + dG) * 0.5
+        dH = (nn_plus_n * abs_tmp + dH) * 0.5
 
         # Check for convergence (break if *all* elements meet tolerance)
-        # Using np.all mimics the intent that the sum converges everywhere
-        if np.all(dG < tol) and np.all(dH < tol):
+        # For non-negative arrays, dG.max() < tol is equivalent to np.all(dG < tol) but faster
+        # Handle zero-size arrays to avoid ValueError in .max()
+        if x.size == 0 or (dG.max() < tol and dH.max() < tol):
             break
 
     # Final scaling
