@@ -185,7 +185,9 @@ def test_study_menu_actions_owned_by_epic_are_implemented():
 
 def test_limo_entry_points_report_standalone_limitation():
     with pytest.raises(NotImplementedError, match="does not implement EEGLAB's external LIMO toolbox"):
-        pop_limo({}, [])
+        from eegprep.functions.studyfunc.pop_limoresults import pop_limoresults
+
+        pop_limoresults({}, [])
 
 
 def test_eeglabcompat_requires_external_reference_checkout(monkeypatch, tmp_path):

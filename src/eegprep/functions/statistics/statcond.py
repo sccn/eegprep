@@ -85,6 +85,13 @@ def statcond(
         return_resampling_array: Return surrogate condition grids instead of
             computing statistics.
     """
+    if isinstance(data, dict) and "datasetinfo" in data:
+        # Group-level STUDY dictionary data structure handling
+        from eegprep.functions.studyfunc.std_readdata import std_readdata
+
+        design = data.get("currentdesign", 1)
+        _study, study_data, _x, _y = std_readdata(data, [], datatype="erp", design=design)
+        data = study_data
 
     method_name = normalize_method(mode or method)
     grid = condition_grid(data, axis=axis, min_cases=2)
