@@ -254,12 +254,62 @@ def build_manifest(
     return manifest
 
 
+def _make_manifest_relative(manifest: dict[str, Any], manifest_path: Path) -> dict[str, Any]:
+    """Convert absolute paths in a manifest to paths relative to the manifest file."""
+    import copy
+    import os
+
+    manifest = copy.deepcopy(manifest)
+    base_dir = manifest_path.parent.resolve()
+
+    def to_relative(p_str: str) -> str:
+        try:
+            rel = os.path.relpath(p_str, start=base_dir)
+            return Path(rel).as_posix()
+        except ValueError:
+            return p_str
+
+    for item in manifest.get("input_files") or []:
+        if "path" in item and Path(item["path"]).is_absolute():
+            item["path"] = to_relative(item["path"])
+
+    for item in manifest.get("output_files") or []:
+        if "path" in item and Path(item["path"]).is_absolute():
+            item["path"] = to_relative(item["path"])
+
+    return manifest
+
+
+def read_manifest(path: str | Path) -> dict[str, Any]:
+    """Read a manifest file and expand relative paths back to absolute paths."""
+    resolved = Path(path).expanduser().resolve()
+    with resolved.open("r", encoding="utf-8") as stream:
+        manifest = json.load(stream)
+
+    base_dir = resolved.parent
+
+    for item in manifest.get("input_files") or []:
+        if "path" in item:
+            p = Path(item["path"])
+            if not p.is_absolute():
+                item["path"] = str((base_dir / p).resolve())
+
+    for item in manifest.get("output_files") or []:
+        if "path" in item:
+            p = Path(item["path"])
+            if not p.is_absolute():
+                item["path"] = str((base_dir / p).resolve())
+
+    return manifest
+
+
 def write_manifest(path: str | Path | None, manifest: dict[str, Any]) -> Path | None:
     if path is None:
         return None
-    resolved = Path(path).expanduser()
+    resolved = Path(path).expanduser().resolve()
     resolved.parent.mkdir(parents=True, exist_ok=True)
-    resolved.write_text(json.dumps(json_safe(manifest), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    rel_manifest = _make_manifest_relative(manifest, resolved)
+    resolved.write_text(json.dumps(json_safe(rel_manifest), indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return resolved
 
 
@@ -284,7 +334,9 @@ def write_json_file(
 
 
 def write_manifest_file(path: str | Path, manifest: dict[str, Any], *, overwrite: bool = False) -> dict[str, Any]:
-    return write_json_file(path, manifest, overwrite=overwrite, output_type="manifest")
+    target = Path(path).expanduser().resolve()
+    rel_manifest = _make_manifest_relative(manifest, target)
+    return write_json_file(target, rel_manifest, overwrite=overwrite, output_type="manifest")
 
 
 def _input_file_record(path: Path | dict[str, Any]) -> dict[str, Any]:
