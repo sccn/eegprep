@@ -33,7 +33,6 @@ _MATLAB_MULTI_ASSIGN_PATTERN = re.compile(r"^\s*\[([A-Za-z_][A-Za-z0-9_]*(?:\s+[
 _TUPLE_ASSIGNMENT_TARGET_PATTERN = re.compile(
     r"(^|;\s*)\(([A-Za-z_][A-Za-z0-9_]*(?:,\s*[A-Za-z_][A-Za-z0-9_]*)+)\)\s*="
 )
-_POP_INTERP_CHANNELS_PATTERN = re.compile(r"(pop_interp\s*\(\s*EEG\s*,\s*)\[([0-9,\s]+)\]")
 _PYTHON_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _CONSOLE_COMMAND_EXPORTS = {"pop_newset": pop_newset}
 _BROWSER_ACCEPT_POP_FUNCTIONS = {
@@ -896,7 +895,6 @@ def _string_spans(text: str) -> list[tuple[int, int]]:
 
 
 def _pythonize_known_pop_arguments(text: str) -> str:
-    text = _pythonize_pop_interp_channels(text)
     try:
         tree = ast.parse(text)
     except SyntaxError:
@@ -905,14 +903,6 @@ def _pythonize_known_pop_arguments(text: str) -> str:
     tree = converter.visit(tree)
     ast.fix_missing_locations(tree)
     return ast.unparse(tree) if converter.changed else text
-
-
-def _pythonize_pop_interp_channels(text: str) -> str:
-    def replacement(match: re.Match[str]) -> str:
-        channels = [int(token) - 1 for token in match.group(2).replace(",", " ").split()]
-        return f"{match.group(1)}{channels}"
-
-    return _replace_outside_strings(text, _POP_INTERP_CHANNELS_PATTERN, replacement)
 
 
 def _keywordize_console_pop_calls(text: str) -> str:
@@ -949,7 +939,31 @@ class _ConsoleCommandArgumentConverter(ast.NodeTransformer):
             self._convert_pop_reref(node)
         elif node.func.id == "pop_select":
             self._convert_pop_select(node)
+        elif node.func.id == "pop_interp":
+            self._convert_pop_interp(node)
+        elif node.func.id == "pop_editset":
+            self._convert_pop_editset(node)
         return node
+
+    def _convert_pop_interp(self, node: ast.Call) -> None:
+        if len(node.args) >= 2:
+            node.args[1] = self._zero_base_channel_arg(node.args[1])
+        for index in range(1, len(node.args) - 1, 2):
+            key = self._string_constant(node.args[index])
+            if key in {"bad_elec", "channels", "bad_chans"}:
+                node.args[index + 1] = self._zero_base_channel_arg(node.args[index + 1])
+        for kw in node.keywords:
+            if kw.arg in {"bad_elec", "channels", "bad_chans"}:
+                kw.value = self._zero_base_channel_arg(kw.value)
+
+    def _convert_pop_editset(self, node: ast.Call) -> None:
+        for index in range(1, len(node.args) - 1, 2):
+            key = self._string_constant(node.args[index])
+            if key == "icachansind":
+                node.args[index + 1] = self._zero_base_channel_arg(node.args[index + 1])
+        for kw in node.keywords:
+            if kw.arg == "icachansind":
+                kw.value = self._zero_base_channel_arg(kw.value)
 
     def _convert_pop_reref(self, node: ast.Call) -> None:
         if len(node.args) >= 2:
