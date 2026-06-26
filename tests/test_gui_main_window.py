@@ -1371,7 +1371,7 @@ class MenuActionDispatcherTests(unittest.TestCase):
         self.assertEqual(session.CURRENTSET, [1])
         self.assertEqual(session.ALLCOM[-1], "EEG = pop_importdata('data', '/tmp/data.tsv');")
 
-    def test_file_menu_import_uses_native_file_dialog_by_default(self):
+    def test_file_menu_import_uses_stable_file_dialog_by_default(self):
         captured = {}
 
         class QFileDialog:
@@ -1392,9 +1392,9 @@ class MenuActionDispatcherTests(unittest.TestCase):
 
         self.assertEqual(filename, "")
         self.assertEqual(captured["args"][1], "Import data")
-        self.assertEqual(captured["kwargs"], {})
+        self.assertEqual(captured["kwargs"], {"options": QFileDialog.Option.DontUseNativeDialog})
 
-    def test_file_menu_import_can_use_stable_qt_file_dialog(self):
+    def test_file_menu_import_can_use_native_qt_file_dialog(self):
         captured = {}
 
         class QFileDialog:
@@ -1407,15 +1407,22 @@ class MenuActionDispatcherTests(unittest.TestCase):
                 captured["kwargs"] = kwargs
                 return "", ""
 
-        qt_widgets = type("FakeQtWidgets", (), {"QFileDialog": QFileDialog})
-        dispatcher = MenuActionDispatcher(EEGPrepSession(), native_file_dialogs=False)
+        from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
+        original_option = EEG_OPTIONS.get("option_native_dialogs", 0)
+        EEG_OPTIONS["option_native_dialogs"] = 1
 
-        with mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets):
-            filename = dispatcher._open_import_filename("pop_fileio", None)
+        try:
+            qt_widgets = type("FakeQtWidgets", (), {"QFileDialog": QFileDialog})
+            dispatcher = MenuActionDispatcher(EEGPrepSession())
 
-        self.assertEqual(filename, "")
-        self.assertEqual(captured["args"][1], "Import data")
-        self.assertEqual(captured["kwargs"], {"options": QFileDialog.Option.DontUseNativeDialog})
+            with mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets):
+                filename = dispatcher._open_import_filename("pop_fileio", None)
+
+            self.assertEqual(filename, "")
+            self.assertEqual(captured["args"][1], "Import data")
+            self.assertEqual(captured["kwargs"], {})
+        finally:
+            EEG_OPTIONS["option_native_dialogs"] = original_option
 
     def test_file_menu_export_dispatch_records_history_without_changing_dataset(self):
         session = EEGPrepSession()

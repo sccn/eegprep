@@ -33,6 +33,9 @@ class EEGOptions:
     # Toolbox options
     option_donotusetoolboxes: int = 0  # ignore optional MATLAB toolboxes
 
+    # Experimental Features
+    option_native_dialogs: int = 0  # 1 to use native OS file dialogs, 0 for Qt dialogs
+
     # EEGLAB connectivity and support
     option_showadvanced: int = 0  # show advanced options
     option_boundary99: int = 0  # use type "-99" for boundary events (ERPLAB compatibility)

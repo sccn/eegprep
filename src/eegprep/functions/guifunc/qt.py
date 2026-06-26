@@ -1061,12 +1061,18 @@ def _select_channels(button: Any, target: Any, params: Mapping[str, Any]) -> Non
 
 def _select_file(button: Any, target: Any, params: Mapping[str, Any], widgets: Mapping[str, Any]) -> None:
     _qt_core, qt_widgets = _require_qt()
+    from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
+    from eegprep.functions.guifunc.menu_actions import _file_dialog_kwargs
+
     caption = str(params.get("caption", "Select file"))
     file_filter = str(params.get("filter", "All files (*)"))
+    is_native = bool(EEG_OPTIONS.get("option_native_dialogs", 0))
+    kwargs = _file_dialog_kwargs(qt_widgets, native_file_dialogs=is_native)
+
     if params.get("mode") == "save":
-        filename, _selected_filter = qt_widgets.QFileDialog.getSaveFileName(button, caption, "", file_filter)
+        filename, _selected_filter = qt_widgets.QFileDialog.getSaveFileName(button, caption, "", file_filter, **kwargs)
     else:
-        filename, _selected_filter = qt_widgets.QFileDialog.getOpenFileName(button, caption, "", file_filter)
+        filename, _selected_filter = qt_widgets.QFileDialog.getOpenFileName(button, caption, "", file_filter, **kwargs)
     if not filename:
         return
     if hasattr(target, "setText"):

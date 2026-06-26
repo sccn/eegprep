@@ -807,20 +807,40 @@ class MenuActionDispatcher:
         from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
         from eegprep.functions.adminfunc.pop_editoptions import pop_editoptions
 
-        enabled = int(not bool(EEG_OPTIONS.get("option_allmenus", 0)))
+        allmenus_val = int(EEG_OPTIONS.get("option_allmenus", 0))
+        native_dialogs_val = int(EEG_OPTIONS.get("option_native_dialogs", 0))
+
         if parent is not None:
             qt_widgets = _require_qt_widgets()
-            result = qt_widgets.QMessageBox.question(
-                parent,
-                "EEGPrep preferences",
-                "Show advanced legacy menu items?",
-                qt_widgets.QMessageBox.Yes | qt_widgets.QMessageBox.No | qt_widgets.QMessageBox.Cancel,
-                qt_widgets.QMessageBox.Yes if enabled else qt_widgets.QMessageBox.No,
+            dialog = qt_widgets.QDialog(parent)
+            dialog.setWindowTitle("EEGPrep preferences")
+            layout = qt_widgets.QVBoxLayout(dialog)
+
+            allmenus_cb = qt_widgets.QCheckBox("Show advanced legacy menu items?")
+            allmenus_cb.setChecked(bool(allmenus_val))
+            layout.addWidget(allmenus_cb)
+
+            group_box = qt_widgets.QGroupBox("Experimental Features")
+            group_layout = qt_widgets.QVBoxLayout(group_box)
+            native_dialogs_cb = qt_widgets.QCheckBox("Use Native OS Dialogs")
+            native_dialogs_cb.setChecked(bool(native_dialogs_val))
+            group_layout.addWidget(native_dialogs_cb)
+            layout.addWidget(group_box)
+
+            button_box = qt_widgets.QDialogButtonBox(
+                qt_widgets.QDialogButtonBox.Ok | qt_widgets.QDialogButtonBox.Cancel
             )
-            if result == qt_widgets.QMessageBox.Cancel:
+            button_box.accepted.connect(dialog.accept)
+            button_box.rejected.connect(dialog.reject)
+            layout.addWidget(button_box)
+
+            if dialog.exec() != qt_widgets.QDialog.Accepted:
                 return
-            enabled = int(result == qt_widgets.QMessageBox.Yes)
-        command = pop_editoptions(option_allmenus=enabled)
+
+            allmenus_val = int(allmenus_cb.isChecked())
+            native_dialogs_val = int(native_dialogs_cb.isChecked())
+
+        command = pop_editoptions(option_allmenus=allmenus_val, option_native_dialogs=native_dialogs_val)
         self._add_history_from_gui(command)
         self._info(parent, "Preferences updated. Reopen the main window to rebuild the menu mode.")
         self._refresh()
@@ -1696,9 +1716,11 @@ class MenuActionDispatcher:
             self.refresh()
 
     def _file_dialog_kwargs(self, qt_widgets: Any, *, directories: bool = False) -> dict[str, Any]:
+        from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
+        
         return _file_dialog_kwargs(
             qt_widgets,
-            native_file_dialogs=self.native_file_dialogs,
+            native_file_dialogs=bool(EEG_OPTIONS.get("option_native_dialogs", 0)),
             directories=directories,
         )
 
