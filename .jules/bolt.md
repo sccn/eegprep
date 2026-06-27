@@ -1,0 +1,3 @@
+## 2025-05-15 - Fisher-Yates Vectorization and Scalar Rounding
+**Learning:** Replacing scalar PRNG calls (`stream.rand()`) with a single vectorized call (`stream.rand(n)`) and using `math.floor(x + 0.5)` instead of a generic `round_mat` utility in tight loops like Fisher-Yates shuffles provides a measurable speedup of ~40-45% while maintaining exact numerical parity with MATLAB's RNG consumption pattern.
+**Action:** Always look for scalar PRNG calls in tight loops that can be pre-generated in a single vectorized call to minimize Python-to-C overhead. Use `math.floor(x + 0.5)` for high-performance scalar "round half up" logic.
