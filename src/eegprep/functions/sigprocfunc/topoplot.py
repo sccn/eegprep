@@ -45,19 +45,22 @@ def griddata_v4(x, y, v, xq, yq):
         # If still singular, use pseudoinverse as last resort
         weights = np.linalg.pinv(g_reg) @ v
 
-    # Initialize output array
-    m, n = xq.shape
-    vq = np.zeros_like(xq)
+    # Evaluate at requested points in a vectorized way
+    # Flatten query points into a 1D complex array
+    query_points = xq.ravel() + 1j * yq.ravel()
 
-    # Evaluate at requested points
-    xy = xy[:, None]  # Make it column vector for broadcasting
-    for i in range(m):
-        for j in range(n):
-            d = np.abs(xq[i, j] + 1j * yq[i, j] - xy.ravel())
-            with np.errstate(divide='ignore', invalid='ignore'):
-                g = (d**2) * (np.log(d) - 1)  # Green's function
-            g[d == 0] = 0  # Handle Green's function at zero
-            vq[i, j] = np.dot(g, weights)
+    # Calculate distances from all channel locations to all query points
+    # xy shape: (N, 1), query_points shape: (M,)
+    # d shape: (N, M)
+    d = np.abs(xy[:, np.newaxis] - query_points[np.newaxis, :])
+
+    with np.errstate(divide='ignore', invalid='ignore'):
+        g_q = (d**2) * (np.log(d) - 1)  # Green's function
+    g_q[np.isnan(g_q)] = 0  # Handle Green's function at zero (where d=0)
+
+    # weights shape: (N,), g_q shape: (N, M)
+    # vq shape: (M,) -> (m, n)
+    vq = (weights @ g_q).reshape(xq.shape)
 
     return vq
 
