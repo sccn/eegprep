@@ -489,8 +489,7 @@ def runica(data, **kwargs):
         logger.info('Removing mean of each channel ...')
 
     rowmeans = np.mean(data, axis=1)  # shape: (chans,)
-    for i in range(data.shape[0]):
-        data[i, :] = data[i, :] - rowmeans[i]
+    data -= rowmeans[:, np.newaxis]
 
     if verbose:
         logger.info(f'Final training data range: {np.min(data):g} to {np.max(data):g}')
@@ -593,7 +592,6 @@ def runica(data, **kwargs):
     prevwtchange = np.zeros((chans, ncomps))
     oldwtchange = np.zeros((chans, ncomps))
     lrates = np.zeros(maxsteps)
-    onesrow = np.ones((1, block))
     bias = np.zeros((ncomps, 1))
 
     # Initialize signs for extended-ICA
@@ -682,7 +680,7 @@ def runica(data, **kwargs):
             for t in range(0, lastt, block):
                 # Extract and process block (MATLAB line 846)
                 # MATLAB: u = weights*double(data(:,timeperm(t:t+block-1))) + bias*onesrow
-                u = _matmul(weights, data[:, timeperm[t : t + block]]) + _matmul(bias, onesrow)
+                u = _matmul(weights, data[:, timeperm[t : t + block]]) + bias
 
                 # Apply tanh nonlinearity (MATLAB line 848)
                 y = np.tanh(u)
@@ -870,7 +868,7 @@ def runica(data, **kwargs):
                 # Extract and process block (MATLAB line 1021)
                 # MATLAB: u = weights*double(data(:,timeperm(t:t+block-1))) + bias*onesrow
                 # Note: MATLAB uses 1-based indexing, so t:t+block-1 means t to t+block
-                u = _matmul(weights, data[:, timeperm[t : t + block]]) + _matmul(bias, onesrow)
+                u = _matmul(weights, data[:, timeperm[t : t + block]]) + bias
 
                 # Apply logistic nonlinearity (MATLAB line 1022)
                 # Clip u to prevent overflow in exp

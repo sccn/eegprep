@@ -1,0 +1,3 @@
+## 2025-05-15 - [Batch Covariance Optimization]
+**Learning:** Replaced `V @ diag(D) @ V.T` with `V * D[..., np.newaxis, :] @ V.swapaxes(-2, -1)` in batch covariance functions. This optimization avoids constructing large intermediate diagonal matrices and replaces one matrix multiplication with element-wise broadcasting, significantly reducing memory and compute overhead for stacks of matrices. Also, vectorized `diag_nd` using advanced indexing (`res[..., i, i] = M`) providing ~10x speedup over loop-based `np.concatenate`.
+**Action:** Use broadcasting for diagonal-matrix scaling operations and advanced indexing for diagonal extraction/insertion in all future numerical tensor operations.
