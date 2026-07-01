@@ -34,50 +34,58 @@ __all__ = ['cov_mean', 'cov_logm', 'cov_expm', 'cov_powm', 'cov_sqrtm', 'cov_rsq
 def diag_nd(M):
     """Like np.diag, but in case of a ...,N, returns a ...,N,N array of diag matrices."""
     *dims, N = M.shape
-    if dims:
-        cat = np.concatenate([np.diag(d) for d in M.reshape((-1, N))])
-        return np.reshape(cat, dims + [N, N])
-    else:
-        return np.diag(M)
+    res = np.zeros((*dims, N, N), dtype=M.dtype)
+    # Using advanced indexing to set the diagonal
+    # For a stack of matrices, we want res[..., i, i] = M[..., i]
+    idx = np.arange(N)
+    res[..., idx, idx] = M
+    return res
 
 
 def cov_logm(C):
     """Calculate the matrix logarithm of a covariance matrix or ...,N,N array."""
     D, V = np.linalg.eigh(C)
-    return finite_matmul(finite_matmul(V, diag_nd(np.log(D))), V.swapaxes(-2, -1))
+    # Optimized: (V * log(D)) @ V.T instead of V @ diag(log(D)) @ V.T
+    return finite_matmul(V * np.log(D)[..., np.newaxis, :], V.swapaxes(-2, -1))
 
 
 def cov_expm(C):
     """Calculate the matrix exponent of a covariance matrix or ...,N,N array."""
     D, V = np.linalg.eigh(C)
-    return finite_matmul(finite_matmul(V, diag_nd(np.exp(D))), V.swapaxes(-2, -1))
+    # Optimized: (V * exp(D)) @ V.T instead of V @ diag(exp(D)) @ V.T
+    return finite_matmul(V * np.exp(D)[..., np.newaxis, :], V.swapaxes(-2, -1))
 
 
 def cov_powm(C, exp):
     """Calculate a matrix power of a covariance matrix or ...,N,N array."""
     D, V = np.linalg.eigh(C)
-    return finite_matmul(finite_matmul(V, diag_nd(D**exp)), V.swapaxes(-2, -1))
+    # Optimized: (V * D**exp) @ V.T instead of V @ diag(D**exp) @ V.T
+    return finite_matmul(V * (D**exp)[..., np.newaxis, :], V.swapaxes(-2, -1))
 
 
 def cov_sqrtm(C):
     """Calculate the matrix square root of a covariance matrix or ...,N,N array."""
     D, V = np.linalg.eigh(C)
-    return finite_matmul(finite_matmul(V, diag_nd(np.sqrt(D))), V.swapaxes(-2, -1))
+    # Optimized: (V * sqrt(D)) @ V.T instead of V @ diag(sqrt(D)) @ V.T
+    return finite_matmul(V * np.sqrt(D)[..., np.newaxis, :], V.swapaxes(-2, -1))
 
 
 def cov_rsqrtm(C):
     """Calculate the matrix reciprocal square root of a covariance matrix or ...,N,N array."""
     D, V = np.linalg.eigh(C)
-    return finite_matmul(finite_matmul(V, diag_nd(1.0 / np.sqrt(D))), V.swapaxes(-2, -1))
+    # Optimized: (V * 1/sqrt(D)) @ V.T instead of V @ diag(1/sqrt(D)) @ V.T
+    return finite_matmul(V * (1.0 / np.sqrt(D))[..., np.newaxis, :], V.swapaxes(-2, -1))
 
 
 def cov_sqrtm2(C):
     """Calculate the matrix square root, and its reciprocal, for a covariance matrix or ...,N,N array."""
     D, V = np.linalg.eigh(C)
     sqrtD = np.sqrt(D)
+    Vt = V.swapaxes(-2, -1)
+    # Optimized: avoid redundant matrix multiplications and diag matrix creation
     return (
-        finite_matmul(finite_matmul(V, diag_nd(sqrtD)), V.swapaxes(-2, -1)),
-        finite_matmul(finite_matmul(V, diag_nd(1.0 / sqrtD)), V.swapaxes(-2, -1)),
+        finite_matmul(V * sqrtD[..., np.newaxis, :], Vt),
+        finite_matmul(V * (1.0 / sqrtD)[..., np.newaxis, :], Vt),
     )
 
 
