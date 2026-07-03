@@ -149,6 +149,8 @@ def plot_spectra(
         topoplot(values, chanlocs_as_list(chanlocs), axes=topo_ax, **plot_options)
         topo_ax.set_title(label)
     fig.tight_layout()
+    if plt.get_backend().lower() != "agg":
+        plt.show()
     return fig
 
 
