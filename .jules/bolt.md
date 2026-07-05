@@ -1,0 +1,3 @@
+## 2025-05-15 - [Optimization of batched covariance functions]
+**Learning:** Replacing intermediate diagonal matrix creation and full matrix multiplication with broadcasting scaling (`V * D[..., np.newaxis, :]`) significantly improves performance by reducing memory allocation and operation complexity from $O(N^3)$ to $O(N^2)$ for the scaling step. Batched diagonal matrix creation can also be optimized using advanced indexing instead of loops.
+**Action:** Always look for diagonal matrix multiplications and replace them with vectorized broadcasting when applicable. For batched operations, avoid loops and `np.concatenate` in favor of pre-allocated arrays and advanced indexing.

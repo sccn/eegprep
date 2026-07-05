@@ -34,41 +34,42 @@ __all__ = ['cov_mean', 'cov_logm', 'cov_expm', 'cov_powm', 'cov_sqrtm', 'cov_rsq
 def diag_nd(M):
     """Like np.diag, but in case of a ...,N, returns a ...,N,N array of diag matrices."""
     *dims, N = M.shape
-    if dims:
-        cat = np.concatenate([np.diag(d) for d in M.reshape((-1, N))])
-        return np.reshape(cat, dims + [N, N])
-    else:
+    if not dims:
         return np.diag(M)
+    res = np.zeros((*dims, N, N), dtype=M.dtype)
+    idx = np.arange(N)
+    res[..., idx, idx] = M
+    return res
 
 
 def cov_logm(C):
     """Calculate the matrix logarithm of a covariance matrix or ...,N,N array."""
     D, V = np.linalg.eigh(C)
-    return finite_matmul(finite_matmul(V, diag_nd(np.log(D))), V.swapaxes(-2, -1))
+    return finite_matmul(V * np.log(D)[..., np.newaxis, :], V.swapaxes(-2, -1))
 
 
 def cov_expm(C):
     """Calculate the matrix exponent of a covariance matrix or ...,N,N array."""
     D, V = np.linalg.eigh(C)
-    return finite_matmul(finite_matmul(V, diag_nd(np.exp(D))), V.swapaxes(-2, -1))
+    return finite_matmul(V * np.exp(D)[..., np.newaxis, :], V.swapaxes(-2, -1))
 
 
 def cov_powm(C, exp):
     """Calculate a matrix power of a covariance matrix or ...,N,N array."""
     D, V = np.linalg.eigh(C)
-    return finite_matmul(finite_matmul(V, diag_nd(D**exp)), V.swapaxes(-2, -1))
+    return finite_matmul(V * (D**exp)[..., np.newaxis, :], V.swapaxes(-2, -1))
 
 
 def cov_sqrtm(C):
     """Calculate the matrix square root of a covariance matrix or ...,N,N array."""
     D, V = np.linalg.eigh(C)
-    return finite_matmul(finite_matmul(V, diag_nd(np.sqrt(D))), V.swapaxes(-2, -1))
+    return finite_matmul(V * np.sqrt(D)[..., np.newaxis, :], V.swapaxes(-2, -1))
 
 
 def cov_rsqrtm(C):
     """Calculate the matrix reciprocal square root of a covariance matrix or ...,N,N array."""
     D, V = np.linalg.eigh(C)
-    return finite_matmul(finite_matmul(V, diag_nd(1.0 / np.sqrt(D))), V.swapaxes(-2, -1))
+    return finite_matmul(V * (1.0 / np.sqrt(D))[..., np.newaxis, :], V.swapaxes(-2, -1))
 
 
 def cov_sqrtm2(C):
@@ -76,8 +77,8 @@ def cov_sqrtm2(C):
     D, V = np.linalg.eigh(C)
     sqrtD = np.sqrt(D)
     return (
-        finite_matmul(finite_matmul(V, diag_nd(sqrtD)), V.swapaxes(-2, -1)),
-        finite_matmul(finite_matmul(V, diag_nd(1.0 / sqrtD)), V.swapaxes(-2, -1)),
+        finite_matmul(V * sqrtD[..., np.newaxis, :], V.swapaxes(-2, -1)),
+        finite_matmul(V * (1.0 / sqrtD)[..., np.newaxis, :], V.swapaxes(-2, -1)),
     )
 
 
