@@ -1,0 +1,3 @@
+## 2025-05-15 - [Vectorizing biharmonic spline interpolation in topoplot]
+**Learning:** Nested loops for query point evaluation in interpolation functions (like `griddata_v4`) are massive bottlenecks in Python. Using NumPy broadcasting and the `@` operator for matrix multiplication can provide significant speedups (~6x) while maintaining numerical parity. This optimization was previously identified as missing or reverted, suggesting a pattern where performance-critical vectorizations are sometimes lost during refactors.
+**Action:** Prioritize vectorizing grid-based evaluations and verify that such optimizations are preserved during adjacent code changes.

@@ -45,19 +45,13 @@ def griddata_v4(x, y, v, xq, yq):
         # If still singular, use pseudoinverse as last resort
         weights = np.linalg.pinv(g_reg) @ v
 
-    # Initialize output array
-    m, n = xq.shape
-    vq = np.zeros_like(xq)
-
-    # Evaluate at requested points
-    xy = xy[:, None]  # Make it column vector for broadcasting
-    for i in range(m):
-        for j in range(n):
-            d = np.abs(xq[i, j] + 1j * yq[i, j] - xy.ravel())
-            with np.errstate(divide='ignore', invalid='ignore'):
-                g = (d**2) * (np.log(d) - 1)  # Green's function
-            g[d == 0] = 0  # Handle Green's function at zero
-            vq[i, j] = np.dot(g, weights)
+    # Vectorized evaluation at requested points
+    xy_q = xq + 1j * yq
+    d_q = np.abs(xy_q[..., np.newaxis] - xy)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        g_q = (d_q**2) * (np.log(d_q) - 1)  # Green's function
+    g_q[d_q == 0] = 0  # Handle Green's function at zero
+    vq = g_q @ weights
 
     return vq
 
