@@ -45,19 +45,24 @@ def griddata_v4(x, y, v, xq, yq):
         # If still singular, use pseudoinverse as last resort
         weights = np.linalg.pinv(g_reg) @ v
 
-    # Initialize output array
-    m, n = xq.shape
-    vq = np.zeros_like(xq)
+    # Evaluate at requested points (vectorized)
+    # Combine xq and yq into complex numbers
+    q = xq + 1j * yq
 
-    # Evaluate at requested points
-    xy = xy[:, None]  # Make it column vector for broadcasting
-    for i in range(m):
-        for j in range(n):
-            d = np.abs(xq[i, j] + 1j * yq[i, j] - xy.ravel())
-            with np.errstate(divide='ignore', invalid='ignore'):
-                g = (d**2) * (np.log(d) - 1)  # Green's function
-            g[d == 0] = 0  # Handle Green's function at zero
-            vq[i, j] = np.dot(g, weights)
+    # Calculate distances from all query points to all electrode points
+    # q has shape (m, n), xy has shape (k,)
+    # Resulting d will have shape (m, n, k)
+    d = np.abs(q[:, :, np.newaxis] - xy[np.newaxis, np.newaxis, :])
+
+    with np.errstate(divide='ignore', invalid='ignore'):
+        g = (d**2) * (np.log(d) - 1)  # Green's function
+
+    g[d == 0] = 0  # Handle Green's function at zero
+
+    # Weights has shape (k,)
+    # vq[i, j] = sum(g[i, j, k] * weights[k])
+    # This is equivalent to matrix multiplication g @ weights
+    vq = g @ weights
 
     return vq
 
