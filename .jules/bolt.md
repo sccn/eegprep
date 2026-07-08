@@ -1,0 +1,3 @@
+## 2025-05-15 - [Covariance Matrix Power Optimization]
+**Learning:** Matrix operations of the form $V D V^T$ where $D$ is diagonal can be optimized by replacing the first matrix multiplication ($V \times D$) with broadcasting ($V \times D_{vector}[..., \text{np.newaxis, :}]$). This avoids allocating a large sparse diagonal matrix and reduces one $O(N^3)$ operation to $O(N^2)$. Additionally, `diag_nd` (stack of diagonal matrices) should be implemented with advanced indexing rather than loops and `np.concatenate`.
+**Action:** Use broadcasting for diagonal matrix multiplications and advanced indexing for diagonal stack creation in numerical modules.
