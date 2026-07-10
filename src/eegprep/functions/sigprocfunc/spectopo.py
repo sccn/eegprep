@@ -6,10 +6,27 @@ from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.cm import ScalarMappable
+from matplotlib.colors import Normalize
+from matplotlib.patches import ConnectionPatch
 from scipy.signal import welch
 
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.sigprocfunc.topoplot import topoplot
+
+# Lowest frequency plotted on the spectra axis, matching EEGLAB ``spectopo`` LOPLOTHZ.
+LOPLOTHZ = 1.0
+# Per-channel trace colors, mirroring EEGLAB ``spectopo`` ``allcolors``. Channel
+# ``k`` (1-based) uses ``_TRACE_COLORS[k % len]``, as EEGLAB does with ``mod(k, 7) + 1``.
+_TRACE_COLORS = [
+    (0.0, 0.75, 0.75),
+    (1.0, 0.0, 0.0),
+    (0.0, 0.5, 0.0),
+    (0.0, 0.0, 1.0),
+    (0.25, 0.25, 0.25),
+    (0.75, 0.75, 0.0),
+    (0.75, 0.0, 0.75),
+]
 
 
 def spectopo(
@@ -117,41 +134,136 @@ def plot_spectra(
     topoplot_options: dict[str, Any] | None = None,
     title: str = "",
 ):
-    """Plot spectra and optional scalp maps at selected frequencies."""
-    requested_freqs = _numeric_values(freqs)
+    """Plot spectra and optional scalp maps, mirroring EEGLAB ``spectopo``.
+
+    Scalp maps sit in a top row above the spectra axis, connected to vertical
+    frequency markers by leader lines, with a ``+``/``-`` polarity colorbar on the
+    right, as in EEGLAB.
+    """
+    requested_freqs = np.sort(_numeric_values(freqs))
+    freq_case = map_values is None or not np.asarray(map_values).size
     scalp_values, scalp_labels = _scalp_maps(spectra, frequency_values, requested_freqs, map_values, map_labels)
-    if scalp_values and chanlocs_as_list(chanlocs):
-        rows = 1 + int(np.ceil(len(scalp_values) / 3))
-        fig = plt.figure(figsize=(8, 2.8 + rows * 1.7))
-        ax = fig.add_subplot(rows, 1, 1)
-        topo_axes = [
-            fig.add_subplot(rows, min(3, len(scalp_values)), index + 1 + min(3, len(scalp_values)))
-            for index in range(len(scalp_values))
-        ]
+    locs = chanlocs_as_list(chanlocs)
+    draw_maps = bool(scalp_values) and bool(locs)
+
+    if draw_maps:
+        fig = plt.figure(figsize=(7.6, 6.2))
+        spec_ax = fig.add_axes([0.13, 0.10, 0.80, 0.52])
     else:
-        fig, ax = plt.subplots(figsize=(7, 4))
-        topo_axes = []
-    for channel_spectrum in spectra:
-        ax.plot(frequency_values, channel_spectrum, linewidth=0.8)
-    mean_spectrum = np.nanmean(spectra, axis=0)
-    ax.plot(frequency_values, mean_spectrum, color="black", linewidth=2.0, label="mean")
-    ax.set_xlabel("Frequency (Hz)")
-    ax.set_ylabel("Log Power Spectral Density 10*log10(uV^2/Hz)")
-    ax.set_title(title or "Channel spectra and maps")
-    if freqrange is not None and len(_numeric_values(freqrange)) == 2:
-        bounds = _numeric_values(freqrange)
-        ax.set_xlim(float(bounds[0]), float(bounds[1]))
-    elif requested_freqs.size:
-        ax.set_xlim(0, max(float(np.nanmax(requested_freqs)) * 1.15, 1.0))
-    ax.grid(True, alpha=0.25)
-    for topo_ax, values, label in zip(topo_axes, scalp_values, scalp_labels):
-        plot_options = {"electrodes": "off", **(topoplot_options or {})}
-        topoplot(values, chanlocs_as_list(chanlocs), axes=topo_ax, **plot_options)
-        topo_ax.set_title(label)
-    fig.tight_layout()
+        fig, spec_ax = plt.subplots(figsize=(7, 4))
+
+    for index, channel_spectrum in enumerate(spectra):
+        spec_ax.plot(
+            frequency_values, channel_spectrum, color=_TRACE_COLORS[(index + 1) % len(_TRACE_COLORS)], linewidth=0.8
+        )
+    spec_ax.set_xlabel("Frequency (Hz)")
+    spec_ax.set_ylabel(r"Log Power Spectral Density 10*log$_{10}$($\mu$V$^2$/Hz)")
+    spec_ax.spines[["top", "right"]].set_visible(False)
+
+    low, high, min_idx, max_idx = _frequency_window(frequency_values, requested_freqs, freqrange)
+    spec_ax.set_xlim(low, high)
+    y_low, y_high = _spectra_ylim(spectra, min_idx, max_idx)
+    if np.isfinite(y_low) and np.isfinite(y_high) and y_high > y_low:
+        spec_ax.set_ylim(y_low, y_high)
+
+    if draw_maps:
+        _draw_maps_row(
+            fig,
+            spec_ax,
+            scalp_values,
+            scalp_labels,
+            locs,
+            requested_freqs if freq_case else None,
+            frequency_values,
+            spectra,
+            topoplot_options,
+        )
+
+    if title:
+        fig.suptitle(title, fontsize=12)
     if plt.get_backend().lower() != "agg":
         plt.show()
     return fig
+
+
+def _frequency_window(
+    frequency_values: np.ndarray, requested_freqs: np.ndarray, freqrange: Any
+) -> tuple[float, float, int, int]:
+    """Return the (low, high) x-limits and their frequency indices, as EEGLAB does."""
+    bounds = _numeric_values(freqrange)
+    if bounds.size >= 2:
+        low, high = float(bounds[0]), float(bounds[1])
+    else:
+        low = LOPLOTHZ
+        maxfreq = float(np.nanmax(requested_freqs)) if requested_freqs.size else float(np.nanmax(frequency_values))
+        high = 5.0 * np.ceil(maxfreq / 5.0) if maxfreq % 5 != 0 else maxfreq * 1.1
+    min_idx = int(np.argmin(np.abs(frequency_values - low)))
+    max_idx = int(np.argmin(np.abs(frequency_values - high)))
+    return float(frequency_values[min_idx]), float(frequency_values[max_idx]), min_idx, max_idx
+
+
+def _spectra_ylim(spectra: np.ndarray, min_idx: int, max_idx: int) -> tuple[float, float]:
+    """Data range over the plotted band, expanded by 1/7 each side (EEGLAB convention)."""
+    low_i, high_i = sorted((min_idx, max_idx))
+    window = spectra[:, low_i : high_i + 1]
+    if window.size == 0:
+        return np.nan, np.nan
+    y_low, y_high = float(np.nanmin(window)), float(np.nanmax(window))
+    span = y_high - y_low
+    return y_low - span / 7.0, y_high + span / 7.0
+
+
+def _draw_maps_row(
+    fig: Any,
+    spec_ax: Any,
+    scalp_values: list[np.ndarray],
+    scalp_labels: list[str],
+    locs: list,
+    requested_freqs: np.ndarray | None,
+    frequency_values: np.ndarray,
+    spectra: np.ndarray,
+    topoplot_options: dict[str, Any] | None,
+) -> None:
+    """Draw the top row of scalp maps, the polarity colorbar, and (for frequency
+    maps) vertical markers plus leader lines to each map."""
+    count = len(scalp_values)
+    top_y, top_h = 0.66, 0.26
+    left, right = 0.10, 0.88
+    slot = (right - left) / count
+    map_w = min(slot * 0.92, 0.24)
+    plot_options = {"electrodes": "off", "maplimits": "absmax", **(topoplot_options or {})}
+
+    map_axes = []
+    for index, (values, label) in enumerate(zip(scalp_values, scalp_labels)):
+        center = left + slot * (index + 0.5)
+        topo_ax = fig.add_axes([center - map_w / 2, top_y, map_w, top_h])
+        topoplot(values, locs, axes=topo_ax, **plot_options)
+        topo_ax.set_title(label, fontweight="bold", fontsize=11)
+        map_axes.append(topo_ax)
+
+    cbar_ax = fig.add_axes([0.92, top_y + 0.02, 0.02, top_h - 0.06])
+    colorbar = fig.colorbar(ScalarMappable(cmap=plt.get_cmap("jet"), norm=Normalize(vmin=-1, vmax=1)), cax=cbar_ax)
+    colorbar.set_ticks([-1, 0, 1])
+    colorbar.set_ticklabels(["-", "", "+"])
+    colorbar.ax.tick_params(length=0)
+
+    if requested_freqs is None:
+        return
+    for topo_ax, freq in zip(map_axes, requested_freqs):
+        freq_index = int(np.argmin(np.abs(frequency_values - freq)))
+        column = spectra[:, freq_index]
+        y_low, y_high = float(np.nanmin(column)), float(np.nanmax(column))
+        spec_ax.plot([freq, freq], [y_low, y_high], color="k", linewidth=2.0, zorder=5)
+        fig.add_artist(
+            ConnectionPatch(
+                xyA=(freq, y_high),
+                coordsA=spec_ax.transData,
+                xyB=(0.5, 0.05),
+                coordsB=topo_ax.transAxes,
+                color="k",
+                linewidth=0.5,
+            )
+        )
 
 
 def _scalp_maps(
@@ -171,10 +283,14 @@ def _scalp_maps(
         return [values[:, index] for index in range(values.shape[1])], labels[: values.shape[1]]
     maps = []
     labels = []
-    for freq in requested_freqs:
+    last = requested_freqs.size - 1
+    for index, freq in enumerate(requested_freqs):
         freq_index = int(np.argmin(np.abs(frequency_values - freq)))
-        maps.append(spectra[:, freq_index])
-        labels.append(f"{freq:g} Hz")
+        # EEGLAB maps the mean-removed power across channels so the map shows
+        # spatial deviation rather than the overall level.
+        column = spectra[:, freq_index]
+        maps.append(column - np.nanmean(column))
+        labels.append(f"{freq:.1f} Hz" if index == last else f"{freq:.1f}")
     return maps, labels
 
 
