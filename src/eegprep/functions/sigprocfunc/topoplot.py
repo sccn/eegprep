@@ -263,6 +263,16 @@ def topoplot(datavector, chan_locs, **kwargs):
         im = ax.imshow(
             Zi, extent=extent_rotated, origin='lower', cmap=cmap, **_maplimits_kwargs(kwargs.get('maplimits'), Zi)
         )
+        # Contour lines 
+        if np.count_nonzero(np.isfinite(Zi)) > 1 and np.nanmin(Zi) < np.nanmax(Zi):
+            grid_x, grid_y = np.meshgrid(
+                np.linspace(extent_rotated[0], extent_rotated[1], Zi.shape[1]),
+                np.linspace(extent_rotated[2], extent_rotated[3], Zi.shape[0]),
+            )
+            levels = np.linspace(np.nanmin(Zi), np.nanmax(Zi), 8)[1:-1]
+            ax.contour(
+                grid_x, grid_y, Zi, levels=levels, colors=[(0.2, 0.2, 0.2)], linewidths=0.5, linestyles='solid', zorder=2
+            )
         if kwargs.get('colorbar', own_figure):
             fig.colorbar(im, ax=ax, shrink=0.7)
 
