@@ -154,7 +154,7 @@ def plot_spectra(
 
     for index, channel_spectrum in enumerate(spectra):
         spec_ax.plot(
-            frequency_values, channel_spectrum, color=_TRACE_COLORS[(index + 1) % len(_TRACE_COLORS)], linewidth=0.8
+            frequency_values, channel_spectrum, color=_TRACE_COLORS[(index + 1) % len(_TRACE_COLORS)], linewidth=2.0
         )
     spec_ax.set_xlabel("Frequency (Hz)")
     spec_ax.set_ylabel(r"Log Power Spectral Density 10*log$_{10}$($\mu$V$^2$/Hz)")
