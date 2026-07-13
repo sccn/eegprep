@@ -271,7 +271,14 @@ def topoplot(datavector, chan_locs, **kwargs):
             )
             levels = np.linspace(np.nanmin(Zi), np.nanmax(Zi), 8)[1:-1]
             ax.contour(
-                grid_x, grid_y, Zi, levels=levels, colors=[(0.2, 0.2, 0.2)], linewidths=0.5, linestyles='solid', zorder=2
+                grid_x,
+                grid_y,
+                Zi,
+                levels=levels,
+                colors=[(0.2, 0.2, 0.2)],
+                linewidths=0.5,
+                linestyles='solid',
+                zorder=2,
             )
         if kwargs.get('colorbar', own_figure):
             fig.colorbar(im, ax=ax, shrink=0.7)
