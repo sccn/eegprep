@@ -263,7 +263,7 @@ def topoplot(datavector, chan_locs, **kwargs):
         im = ax.imshow(
             Zi, extent=extent_rotated, origin='lower', cmap=cmap, **_maplimits_kwargs(kwargs.get('maplimits'), Zi)
         )
-        # Contour lines 
+        # Contour lines
         if np.count_nonzero(np.isfinite(Zi)) > 1 and np.nanmin(Zi) < np.nanmax(Zi):
             grid_x, grid_y = np.meshgrid(
                 np.linspace(extent_rotated[0], extent_rotated[1], Zi.shape[1]),
@@ -289,6 +289,7 @@ def topoplot(datavector, chan_locs, **kwargs):
         # Nose marker
         nose_w = 0.08
         ax.plot([nose_w, 0, -nose_w], [rmax, rmax + 0.06, rmax], 'k', linewidth=1.5, zorder=4)
+        _draw_ears(ax)
 
         _draw_electrode_labels(ax, x_rotated, y_rotated, labels, ELECTRODES, showlabels=kwargs.get('showlabels', False))
 
@@ -363,12 +364,25 @@ def _channel_location_points(chan_locs):
     return np.asarray(labels), np.asarray(xs), np.asarray(ys)
 
 
+# Ear outline from EEGLAB topoplot (rmax = 0.5, scale factor 1); the left ear is
+# the mirror of these x-coordinates.
+_EAR_X = np.array([0.492, 0.510, 0.518, 0.5299, 0.5419, 0.540, 0.547, 0.532, 0.510, 0.484])
+_EAR_Y = np.array([0.0955, 0.1175, 0.1183, 0.1146, 0.0955, -0.0055, -0.0932, -0.1313, -0.1384, -0.1199])
+
+
+def _draw_ears(ax):
+    """Draw the left and right ear outlines, matching EEGLAB topoplot."""
+    ax.plot(_EAR_X, _EAR_Y, 'k', linewidth=1.5, zorder=4)
+    ax.plot(-_EAR_X, _EAR_Y, 'k', linewidth=1.5, zorder=4)
+
+
 def _draw_head(ax):
     theta_c = np.linspace(0, 2 * np.pi, 100)
     rmax = 0.5
     ax.plot(np.cos(theta_c) * rmax, np.sin(theta_c) * rmax, 'k', linewidth=1.5, zorder=4)
     nose_w = 0.08
     ax.plot([nose_w, 0, -nose_w], [rmax, rmax + 0.06, rmax], 'k', linewidth=1.5, zorder=4)
+    _draw_ears(ax)
 
 
 def _draw_electrode_labels(ax, x, y, labels, electrodes, *, showlabels=False):
