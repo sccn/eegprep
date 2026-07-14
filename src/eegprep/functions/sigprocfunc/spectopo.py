@@ -9,7 +9,7 @@ import numpy as np
 from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Normalize
 from matplotlib.patches import ConnectionPatch
-from scipy.signal import welch
+from scipy.signal import get_window, welch
 
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.sigprocfunc.topoplot import topoplot
@@ -107,15 +107,17 @@ def compute_spectra(
     nperseg = int(winsize or min(round(srate), sample_count))
     nperseg = max(1, min(nperseg, sample_count))
     noverlap = max(0, min(int(overlap), nperseg - 1))
+    # symmetric Hamming + no detrend to match MATLAB pwelch
+    window = get_window("hamming", nperseg, fftbins=False)
     freqs, power = welch(
         values,
         fs=float(srate),
-        window="hamming",
+        window=window,
         nperseg=nperseg,
         noverlap=noverlap,
         nfft=nfft,
         axis=1,
-        detrend="constant",
+        detrend=False,
         scaling="density",
     )
     spectra = 10.0 * np.log10(np.maximum(power, np.finfo(float).tiny))
