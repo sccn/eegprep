@@ -5,7 +5,6 @@ from typing import Optional
 import numpy as np
 
 from ....functions.adminfunc.eeglabcompat import get_eeglab
-from ....functions.miscfunc.misc import round_mat
 from .sphericalSplineInterpolate import sphericalSplineInterpolate
 
 
@@ -26,7 +25,7 @@ def rand_sample(n: int, m: int, stream: np.random.RandomState) -> np.ndarray:
 
     Performance:
         O(n) time complexity (was O(n²) in previous implementation)
-        Vectorized RNG calls (Bolt ⚡)
+        Vectorized RNG calls.
 
     Note:
         This implementation uses Fisher-Yates shuffle for efficiency.
@@ -39,7 +38,7 @@ def rand_sample(n: int, m: int, stream: np.random.RandomState) -> np.ndarray:
     if m <= 0:
         return np.array([], dtype=int)
 
-    # Pre-generate random numbers for vectorization (Bolt ⚡)
+    # Pre-generate random numbers to avoid scalar RNG overhead in the loop.
     rands = stream.rand(m)
 
     # Fisher-Yates shuffle: only shuffle first m elements
@@ -76,7 +75,7 @@ def rand_permutation(n: int, stream: np.random.RandomState) -> np.ndarray:
 
     Performance:
         O(n) time complexity (was O(n²))
-        Vectorized RNG calls (Bolt ⚡)
+        Vectorized RNG calls.
 
     Example:
         >>> rng = np.random.RandomState(5489)
@@ -96,7 +95,7 @@ def rand_permutation(n: int, stream: np.random.RandomState) -> np.ndarray:
     if n <= 1:
         return result
 
-    # Pre-generate random numbers for vectorization (Bolt ⚡)
+    # Pre-generate random numbers to avoid scalar RNG overhead in the loop.
     rands = stream.rand(n - 1)
 
     # Fisher-Yates shuffle: iterate backward from n-1 to 1
