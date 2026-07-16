@@ -162,3 +162,55 @@ def test_field_comparison_helper_supports_parity_scaffolding():
     right = {"data": np.array([1.0, 2.0 + 1e-8]), "setname": "demo"}
 
     assert_eeg_fields_close(left, right, ("data", "setname"))
+
+import threading
+
+def test_session_concurrency_with_store_and_listeners():
+    session = EEGPrepSession()
+    session.store_current(create_test_eeg(n_channels=2, n_samples=8), new=True)
+    
+    events = []
+    
+    def on_change(sess):
+        # We append to a local list. In Python, list.append is thread-safe.
+        events.append("change")
+        
+    def on_gui(action, name):
+        events.append(f"{action}:{name}")
+        
+    session.add_change_listener(on_change)
+    session.add_gui_action_listener(on_gui)
+    
+    def worker(i):
+        eeg = create_test_eeg(n_channels=2, n_samples=8)
+        eeg["setname"] = f"Thread {i}"
+        with session.gui_action(f"action_{i}"):
+            session.store_current(eeg, new=True, command=f"EEG = pop_test({i});")
+            # Also read something to trigger read locks
+            _ = session.current_set_value()
+            _ = session.menu_statuses()
+            _ = session.dataset_summaries()
+            _ = session.clone_current()
+            _ = session.history_command_at(1)
+            
+    threads = []
+    for i in range(10):
+        t = threading.Thread(target=worker, args=(i,))
+        threads.append(t)
+        
+    for t in threads:
+        t.start()
+        
+    for t in threads:
+        t.join()
+        
+    assert len(session.ALLEEG) == 11  # 1 initial + 10 workers
+    assert len(session.ALLCOM) == 10  # 10 commands added
+    
+    # Check that listener was fired properly
+    assert events.count("change") == 10
+    
+    gui_begins = [e for e in events if e.startswith("begin:")]
+    gui_ends = [e for e in events if e.startswith("end:")]
+    assert len(gui_begins) == 10
+    assert len(gui_ends) == 10
