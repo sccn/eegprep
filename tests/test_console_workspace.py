@@ -1801,3 +1801,63 @@ def test_terminal_write_sync_path_writes_immediately_without_prompt_toolkit():
 
     import_module.assert_not_called()
     assert stream.getvalue() == "\nIn [2]: EEG = pop_interp(EEG, [1]);\n"
+
+def test_console_ast_mutation_detection_triggers_sync():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(), new=True)
+    refresh = mock.Mock()
+    workspace = EEGPrepConsoleWorkspace(session, refresh=refresh, exports={})
+    
+    # 1. append on ALLEEG
+    workspace.namespace["ALLEEG"].append(_demo_eeg("new"))
+    workspace.after_execute("ALLEEG.append(new_eeg)")
+    assert refresh.call_count == 1
+    
+    # 2. update on nested EEG dict
+    workspace.namespace["EEG"].update({"setname": "updated"})
+    workspace.after_execute("EEG.update({'setname': 'updated'})")
+    assert refresh.call_count == 2
+    
+    # 3. fill on nested EEG array
+    workspace.namespace["EEG"]["data"].fill(0)
+    workspace.after_execute("EEG['data'].fill(0)")
+    assert refresh.call_count == 3
+    
+    # 4. pop from workspace
+    workspace.namespace["EEG"].pop("setname")
+    workspace.after_execute("EEG.pop('setname')")
+    assert refresh.call_count == 4
+    
+    # 5. sort on ALLEEG
+    workspace.namespace["ALLEEG"].sort(key=lambda x: x.get("setname", ""))
+    workspace.after_execute("ALLEEG.sort(key=lambda x: x.get('setname', ''))")
+    assert refresh.call_count == 5
+    
+    # 6. reverse on ALLEEG
+    workspace.namespace["ALLEEG"].reverse()
+    workspace.after_execute("ALLEEG.reverse()")
+    assert refresh.call_count == 6
+
+    # 7. Non-workspace variable read-only / mutator
+    workspace.namespace["my_list"] = [1, 2, 3]
+    workspace.after_execute("my_list = [1, 2, 3]")
+    assert refresh.call_count == 6 # Assignments to non-workspace ignore sync!
+    workspace.namespace["my_list"].append(4)
+    workspace.after_execute("my_list.append(4)")
+    assert refresh.call_count == 6 # Still 6
+    
+    # 8. Read-only method on workspace variable
+    _ = workspace.namespace["EEG"].get("data")
+    workspace.after_execute("EEG.get('data')")
+    assert refresh.call_count == 6 # Read-only methods don't trigger sync
+    
+    # 9. Assignment should still trigger exactly once
+    workspace.namespace["EEG"] = workspace.namespace["EEG"]
+    workspace.after_execute("EEG = EEG")
+    assert refresh.call_count == 7
+    
+    # 10. Multiple mutating methods on one line triggers only once
+    workspace.namespace["ALLEEG"].append(_demo_eeg("two"))
+    workspace.namespace["ALLEEG"].reverse()
+    workspace.after_execute("ALLEEG.append(two); ALLEEG.reverse()")
+    assert refresh.call_count == 8

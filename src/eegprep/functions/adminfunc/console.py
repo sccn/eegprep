@@ -1404,9 +1404,21 @@ def _normalize_currentset(value: Any) -> list[int]:
         raise ValueError("CURRENTSET must be a 1-based integer or list of integers") from exc
 
 
-_MUTATING_METHODS = {"append", "extend", "update", "fill", "clear", "pop", "remove", "insert"}
+_MUTATING_METHODS = {"append", "extend", "update", "fill", "clear", "pop", "remove", "insert", "sort", "reverse"}
 
 def _workspace_assignment_targets(source: str) -> set[str]:
+    """Parse python source and return root workspace variable names mutated within.
+    
+    Detection boundary: 
+    Direct variable assignments (e.g. EEG = ...) and method calls on workspace roots 
+    (e.g. EEG.update(), ALLEEG.append()) are detected. Nested mutations 
+    (e.g., EEG['data'].fill()) are also detected if the source AST identifies the 
+    root workspace variable (e.g. an Attribute or Subscript on a target root). 
+    
+    Unsupported: 
+    Indirect aliases (e.g. x = EEG; x.append(1)) bypass detection. Read-only
+    calls (e.g. .get()) do not trigger a sync.
+    """
     try:
         tree = ast.parse(source)
     except SyntaxError:

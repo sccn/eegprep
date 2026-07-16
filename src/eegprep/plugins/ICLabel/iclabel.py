@@ -56,7 +56,7 @@ def iclabel(EEG, algorithm='default', engine=None):
                 "and an EEGLAB ICLabel checkout that provides that artifact."
             )
         try:
-            import torch
+            import torch  # type: ignore
         except ImportError as e:
             raise ImportError(
                 f"PyTorch is not installed in your environment ({e}). "
