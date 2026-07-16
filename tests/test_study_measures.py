@@ -561,4 +561,6 @@ def test_std_interp_adds_requested_missing_channels_without_dropping_existing():
 
 def test_source_dependent_study_helpers_report_explicit_boundary():
     with pytest.raises(NotImplementedError, match="FieldTrip/DIPFIT STUDY source workflows"):
+        std_dipplot({}, [])
+    with pytest.raises(NotImplementedError, match="FieldTrip/DIPFIT STUDY source workflows"):
         std_dipoleclusters({}, [])

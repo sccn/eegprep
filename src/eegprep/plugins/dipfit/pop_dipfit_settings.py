@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from eegprep.functions.guifunc.inputgui import inputgui
-from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
+from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.popfunc._pop_utils import parse_key_value_args
 from eegprep.functions.popfunc._plot_utils import numeric_vector
 from eegprep.plugins.dipfit._utils import (
@@ -117,24 +117,7 @@ def pop_dipfit_settings_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("spacer"),
             ControlSpec("text", "Matrix to align chan. locs. with head model"),
             ControlSpec("edit", tag="coord_transform", value=coreg_text),
-            ControlSpec(
-                "pushbutton",
-                "Co-register",
-                tag="coregister",
-                enabled=True,
-                font_weight="bold",
-                callback=CallbackSpec(
-                    "headplot_manual_coreg",
-                    params={
-                        "transform_target": "coord_transform",
-                        "reference_source": "chanfile",
-                        "mesh_source": "hdmfile",
-                        "chanlocs": EEG.get("chanlocs", ()),
-                        "chaninfo": EEG.get("chaninfo", {}),
-                        "title": "Coregister channels for DIPFIT",
-                    },
-                ),
-            ),
+            ControlSpec("pushbutton", "Co-register", tag="coregister", enabled=False, font_weight="bold"),
             ControlSpec("checkbox", "No Co-Reg.", tag="no_coreg", value=not bool(coreg_text)),
             ControlSpec("text", "Channels to omit from dipole fitting"),
             ControlSpec("edit", tag="chanomit", value=""),
@@ -143,7 +126,7 @@ def pop_dipfit_settings_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
         ),
         known_differences=(
             "EEGPrep records DIPFIT settings and uses them for native spherical fitting.",
-            "Browse buttons are disabled until standalone MRI/BEM asset loading is implemented.",
+            "Browse/Coregister buttons are disabled until standalone MRI/BEM asset loading is implemented.",
         ),
         row_spacing=10,
     )
