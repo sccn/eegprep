@@ -1,55 +1,83 @@
+from __future__ import annotations
+
 import numpy as np
 import pytest
+
 from eegprep.functions.sigprocfunc.rmbase import rmbase
 
-def test_rmbase_dtype_preservation():
-    chans, frames, epochs = 2, 10, 5
-    # Float32 input
-    data_f32 = np.random.randn(chans, frames, epochs).astype(np.float32)
-    out_f32 = rmbase(data_f32, frames=frames)
-    assert out_f32.dtype == np.float32
 
-    # Float64 input
-    data_f64 = np.random.randn(chans, frames, epochs).astype(np.float64)
-    out_f64 = rmbase(data_f64, frames=frames)
-    assert out_f64.dtype == np.float64
+def _legacy_rmbase(
+    data: np.ndarray,
+    frames: int,
+    basevector: list[int] | int = 0,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Run the pre-vectorization loop as a numerical reference."""
+    array = np.asarray(data)
+    original_shape = array.shape
+    matrix = array.transpose(0, 2, 1).reshape(array.shape[0], -1) if array.ndim == 3 else array
+    channels, total_frames = matrix.shape
+    epochs = total_frames // frames
+    baseline = None if basevector == 0 else np.asarray(basevector, dtype=int) - 1
 
-    # Integer input (should promote to float64)
-    data_int = np.random.randint(0, 100, (chans, frames, epochs)).astype(np.int32)
-    out_int = rmbase(data_int, frames=frames)
-    assert out_int.dtype == np.float64
+    output = matrix.astype(np.float64, copy=True) if not np.issubdtype(matrix.dtype, np.floating) else matrix.copy()
+    means = np.zeros((channels, epochs), dtype=np.result_type(matrix.dtype, np.float64))
+    for epoch in range(epochs):
+        start = epoch * frames
+        stop = start + frames
+        if baseline is None:
+            mean = np.nanmean(matrix[:, start:stop], axis=1, keepdims=True, dtype=np.float64)
+        else:
+            mean = np.nanmean(matrix[:, start + baseline], axis=1, keepdims=True, dtype=np.float64)
+        means[:, epoch : epoch + 1] = mean
+        output[:, start:stop] = output[:, start:stop] - mean
 
-def test_rmbase_nan_equivalence():
-    chans, frames, epochs = 2, 10, 5
-    data = np.random.randn(chans, frames, epochs)
-    data[0, 0, 0] = np.nan
+    if array.ndim == 3:
+        output = output.reshape(original_shape[0], original_shape[2], original_shape[1]).transpose(0, 2, 1)
+    return output.reshape(original_shape), means
 
-    # Reference implementation (old style loop logic)
-    def ref_rmbase(data, frames):
-        array = np.asarray(data)
-        matrix = array.transpose(0, 2, 1).reshape(array.shape[0], -1) if array.ndim == 3 else array
-        chans, total_frames = matrix.shape
-        epochs = total_frames // frames
-        output = matrix.astype(np.float64, copy=True)
-        means = np.zeros((chans, epochs))
-        for epoch in range(epochs):
-            start = epoch * frames
-            stop = start + frames
-            mean = np.nanmean(matrix[:, start:stop], axis=1, keepdims=True)
-            means[:, epoch : epoch + 1] = mean
-            output[:, start:stop] = matrix[:, start:stop] - mean
-        return output.reshape(array.shape[0], array.shape[2], array.shape[1]).transpose(0, 2, 1)
 
-    out_vectorized = rmbase(data, frames=frames)
-    out_ref = ref_rmbase(data, frames=frames)
+@pytest.mark.parametrize("shape", [(3, 85), (3, 17, 5)])
+@pytest.mark.parametrize("basevector", [0, [1, 4, 7, 11]])
+def test_rmbase_float32_matches_legacy_rounding(shape: tuple[int, ...], basevector: list[int] | int):
+    rng = np.random.default_rng(268)
+    data = (rng.standard_normal(shape) * 1_000).astype(np.float32)
+    original = data.copy()
 
-    np.testing.assert_allclose(out_vectorized, out_ref, equal_nan=True)
+    expected, expected_means = _legacy_rmbase(data, frames=17, basevector=basevector)
+    actual, actual_means = rmbase(data, frames=17, basevector=basevector, return_mean=True)
 
-def test_rmbase_basevector_nan():
-    chans, frames, epochs = 1, 10, 1
-    data = np.array([[[1.0, 2.0, np.nan, 4.0, 5.0]]]).transpose(0, 2, 1) # (1, 5, 1)
-    # Baseline on samples 1, 2, 3 (1-based)
-    # Samples are 1.0, 2.0, nan. Mean is 1.5.
-    out = rmbase(data, frames=5, basevector=[1, 2, 3])
-    expected = np.array([[[1.0 - 1.5, 2.0 - 1.5, np.nan, 4.0 - 1.5, 5.0 - 1.5]]]).transpose(0, 2, 1)
-    np.testing.assert_allclose(out, expected, equal_nan=True)
+    np.testing.assert_array_equal(actual, expected)
+    np.testing.assert_array_equal(actual_means, expected_means)
+    np.testing.assert_array_equal(data, original)
+    assert actual.dtype == np.float32
+    assert actual_means.dtype == np.float64
+
+
+@pytest.mark.parametrize("dtype", [np.float64, np.int16])
+def test_rmbase_matches_legacy_for_other_dtypes(dtype: type[np.generic]):
+    rng = np.random.default_rng(269)
+    if np.issubdtype(dtype, np.integer):
+        data = rng.integers(-2_000, 2_000, size=(4, 13, 3), dtype=dtype)
+    else:
+        data = (rng.standard_normal((4, 13, 3)) * 1_000).astype(dtype)
+
+    expected, expected_means = _legacy_rmbase(data, frames=13, basevector=[2, 5, 9])
+    actual, actual_means = rmbase(data, frames=13, basevector=[2, 5, 9], return_mean=True)
+
+    np.testing.assert_array_equal(actual, expected)
+    np.testing.assert_array_equal(actual_means, expected_means)
+    assert actual.dtype == (np.dtype(np.float64) if np.issubdtype(dtype, np.integer) else dtype)
+
+
+def test_rmbase_preserves_nan_results_and_warning_behavior():
+    data = np.arange(16, dtype=np.float32).reshape(2, 8)
+    data[0, :2] = np.nan
+    data[1, 4:6] = np.nan
+
+    with pytest.warns(RuntimeWarning, match="Mean of empty slice"):
+        actual, actual_means = rmbase(data, frames=4, basevector=[1, 2], return_mean=True)
+    with pytest.warns(RuntimeWarning, match="Mean of empty slice"):
+        expected, expected_means = _legacy_rmbase(data, frames=4, basevector=[1, 2])
+
+    np.testing.assert_array_equal(actual, expected)
+    np.testing.assert_array_equal(actual_means, expected_means)

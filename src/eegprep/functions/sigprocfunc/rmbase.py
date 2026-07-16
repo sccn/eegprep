@@ -6,6 +6,8 @@ from typing import Any
 
 import numpy as np
 
+_NANMEAN_CHUNK_BYTES = 4 * 1024 * 1024
+
 
 def rmbase(data: Any, frames: int | None = 0, basevector: Any = 0, *, return_mean: bool = False):
     """Subtract per-channel baseline means from continuous or epoched data.
@@ -29,8 +31,8 @@ def rmbase(data: Any, frames: int | None = 0, basevector: Any = 0, *, return_mea
         raise ValueError("rmbase(): data must be 2D or 3D")
 
     original_shape = array.shape
-    matrix = array.transpose(0, 2, 1).reshape(array.shape[0], -1) if array.ndim == 3 else array
-    chans, total_frames = matrix.shape
+    channels = array.shape[0]
+    total_frames = array.shape[1] * array.shape[2] if array.ndim == 3 else array.shape[1]
     frames = int(frames or 0)
     if frames == 0:
         frames = total_frames
@@ -45,31 +47,35 @@ def rmbase(data: Any, frames: int | None = 0, basevector: Any = 0, *, return_mea
 
     baseline = _baseline_indices(basevector, frames)
 
-    # Use float64 for mean calculation and output if input is integer; else preserve float precision.
-    output_dtype = np.float64 if not np.issubdtype(matrix.dtype, np.floating) else matrix.dtype
-    output = np.empty((chans, total_frames), dtype=output_dtype)
+    # Keep frames contiguous, as in the original epoch loop, while using this
+    # copy as the output buffer. Integer input retains the legacy float64 output.
+    output_dtype = np.float64 if not np.issubdtype(array.dtype, np.floating) else array.dtype
+    epoch_order = array.transpose(0, 2, 1) if array.ndim == 3 else array.reshape(channels, epochs, frames)
+    output_reshaped = np.array(epoch_order, dtype=output_dtype, order="C", copy=True)
+    means = np.empty((channels, epochs), dtype=np.result_type(array.dtype, np.float64))
 
-    # Reshape to (chans, epochs, frames) for vectorized mean calculation and subtraction.
-    # Note: 'reshaped' and 'output_reshaped' are views.
-    reshaped = matrix.reshape(chans, epochs, frames)
-    output_reshaped = output.reshape(chans, epochs, frames)
+    # np.nanmean makes a data copy and a validity mask. Process several epochs
+    # at a time so those temporaries stay bounded without returning to a Python
+    # loop per epoch.
+    baseline_frames = frames if baseline is None else baseline.size
+    mean_bytes_per_epoch = channels * baseline_frames * output_reshaped.dtype.itemsize
+    chunk_epochs = max(1, min(epochs, _NANMEAN_CHUNK_BYTES // max(1, mean_bytes_per_epoch)))
+    for start in range(0, epochs, chunk_epochs):
+        stop = min(epochs, start + chunk_epochs)
+        output_chunk = output_reshaped[:, start:stop, :]
+        baseline_chunk = output_chunk if baseline is None else output_chunk[:, :, baseline]
+        chunk_means = np.nanmean(baseline_chunk, axis=2, dtype=np.float64)
+        means[:, start:stop] = chunk_means
 
-    if baseline is None:
-        means = np.nanmean(reshaped, axis=2, dtype=np.float64)
-    else:
-        # baseline contains 0-based indices within each epoch
-        means = np.nanmean(reshaped[:, :, baseline], axis=2, dtype=np.float64)
-
-    # Subtract means across all epochs. We use in-place operations on the output view
-    # to avoid promoting float32 recordings to float64 temporaries during broadcasting.
-    # means is (chans, epochs), we add a new axis for broadcasting: (chans, epochs, 1).
-    np.copyto(output_reshaped, reshaped)
-    output_reshaped -= means[:, :, np.newaxis].astype(output_dtype, copy=False)
+        # Compute with the float64 means but write directly into the intended
+        # output dtype. This preserves legacy float32 rounding without a
+        # recording-sized float64 subtraction result.
+        np.subtract(output_chunk, chunk_means[:, :, np.newaxis], out=output_chunk, casting="unsafe")
 
     if array.ndim == 3:
-        output = output.reshape(original_shape[0], original_shape[2], original_shape[1]).transpose(0, 2, 1)
+        output = output_reshaped.transpose(0, 2, 1)
     else:
-        output = output.reshape(original_shape)
+        output = output_reshaped.reshape(original_shape)
     return (output, means) if return_mean else output
 
 
