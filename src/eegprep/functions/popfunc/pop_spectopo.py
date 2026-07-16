@@ -54,7 +54,7 @@ def pop_spectopo(
         chanlocs = EEG.get("chanlocs", [])
         map_values = None
         map_labels = None
-        title = "Channel spectra and maps"
+        title = ""  # EEGLAB spectopo adds no default suptitle
     else:
         _raise_for_unsupported_component_options(options)
         plot_data, component_numbers = _component_spectral_data(EEG, timerange, options.get("icacomps"))
@@ -67,7 +67,7 @@ def pop_spectopo(
         )
         map_values = maps[:, map_numbers - 1] if map_numbers.size else None
         map_labels = [f"IC {number}" for number in map_numbers.tolist()]
-        title = "Component spectra and maps"
+        title = ""  # EEGLAB spectopo adds no default suptitle
     freqs = numeric_vector(options.pop("freqs", options.pop("freq", []))).tolist()
     freqrange = numeric_vector(options.pop("freqrange", [])).tolist()
     percent = float(options.pop("percent", 100))
@@ -103,6 +103,8 @@ def pop_spectopo(
         process=None if process == "EEG" else process,
         **history_options,
     )
+    if gui and figure is not None:
+        figure.show()
     return (result, command) if return_com else result
 
 
