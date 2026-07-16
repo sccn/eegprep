@@ -870,30 +870,6 @@ def _is_python_literal_token(token: str) -> bool:
     return True
 
 
-def _replace_outside_strings(text: str, pattern: re.Pattern[str], replacement: Callable[[re.Match[str]], str]) -> str:
-    output = []
-    cursor = 0
-    for start, end in _string_spans(text):
-        output.append(pattern.sub(replacement, text[cursor:start]))
-        output.append(text[start:end])
-        cursor = end
-    output.append(pattern.sub(replacement, text[cursor:]))
-    return "".join(output)
-
-
-def _string_spans(text: str) -> list[tuple[int, int]]:
-    spans = []
-    index = 0
-    while index < len(text):
-        if text[index] not in {"'", '"'}:
-            index += 1
-            continue
-        start = index
-        index = _string_end(text, index)
-        spans.append((start, index))
-    return spans
-
-
 def _pythonize_known_pop_arguments(text: str) -> str:
     try:
         tree = ast.parse(text)
