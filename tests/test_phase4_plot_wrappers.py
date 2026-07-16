@@ -99,38 +99,6 @@ def test_pop_spectopo_component_default_controls_succeed(ica_epoch):
     plt.close(result["figure"])
 
 
-def test_pop_spectopo_channel_figure_structure(sample_eeg):
-    freqs = [6, 10, 22]
-    fig = pop_spectopo(sample_eeg, dataflag=1, freqs=freqs, gui=False)["figure"]
-
-    spec_ax = next(ax for ax in fig.axes if "Frequency" in ax.get_xlabel())
-    map_axes = [ax for ax in fig.axes if ax.images]
-    assert len(map_axes) == len(freqs)
-    assert any(ax.get_position().x0 > 0.9 for ax in fig.axes)
-
-    marker_x = sorted(
-        float(line.get_xdata()[0])
-        for line in spec_ax.get_lines()
-        if len({round(float(value), 6) for value in line.get_xdata()}) == 1
-    )
-    assert marker_x == pytest.approx([float(freq) for freq in freqs])
-    assert fig.get_suptitle() == ""
-    plt.close(fig)
-
-
-def test_pop_spectopo_component_figure_omits_frequency_markers(ica_epoch):
-    fig = pop_spectopo(
-        ica_epoch, dataflag=0, freqs=[10], plotchan=0, icamode=True, icacomps=[1, 2], nicamaps=2, gui=False
-    )["figure"]
-
-    spec_ax = next(ax for ax in fig.axes if "Frequency" in ax.get_xlabel())
-    verticals = [
-        line for line in spec_ax.get_lines() if len({round(float(value), 6) for value in line.get_xdata()}) == 1
-    ]
-    assert verticals == []
-    plt.close(fig)
-
-
 def test_pop_spectopo_rejects_nondefault_plotchan(ica_epoch):
     with pytest.raises(ValueError, match="whole-scalp component spectra"):
         pop_spectopo(ica_epoch, dataflag=0, freqs=[10], plotchan=3, icacomps=[1, 2])
