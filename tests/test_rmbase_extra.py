@@ -36,6 +36,18 @@ def _legacy_rmbase(
     return output.reshape(original_shape), means
 
 
+def test_rmbase_3d_default_frames_matches_legacy_grand_mean():
+    data = np.arange(24, dtype=np.float32).reshape(2, 4, 3)
+    total_frames = data.shape[1] * data.shape[2]
+
+    expected, expected_means = _legacy_rmbase(data, frames=total_frames)
+    actual, actual_means = rmbase(data, return_mean=True)
+
+    np.testing.assert_array_equal(actual, expected)
+    np.testing.assert_array_equal(actual_means, expected_means)
+    assert actual_means.shape == (data.shape[0], 1)
+
+
 @pytest.mark.parametrize("shape", [(3, 85), (3, 17, 5)])
 @pytest.mark.parametrize("basevector", [0, [1, 4, 7, 11]])
 def test_rmbase_float32_matches_legacy_rounding(shape: tuple[int, ...], basevector: list[int] | int):

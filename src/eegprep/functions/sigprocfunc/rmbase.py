@@ -50,8 +50,8 @@ def rmbase(data: Any, frames: int | None = 0, basevector: Any = 0, *, return_mea
     # Keep frames contiguous, as in the original epoch loop, while using this
     # copy as the output buffer. Integer input retains the legacy float64 output.
     output_dtype = np.float64 if not np.issubdtype(array.dtype, np.floating) else array.dtype
-    epoch_order = array.transpose(0, 2, 1) if array.ndim == 3 else array.reshape(channels, epochs, frames)
-    output_reshaped = np.array(epoch_order, dtype=output_dtype, order="C", copy=True)
+    matrix = array.transpose(0, 2, 1).reshape(channels, total_frames) if array.ndim == 3 else array
+    output_reshaped = np.array(matrix.reshape(channels, epochs, frames), dtype=output_dtype, order="C", copy=True)
     means = np.empty((channels, epochs), dtype=np.result_type(array.dtype, np.float64))
 
     # np.nanmean makes a data copy and a validity mask. Process several epochs
@@ -72,10 +72,11 @@ def rmbase(data: Any, frames: int | None = 0, basevector: Any = 0, *, return_mea
         # recording-sized float64 subtraction result.
         np.subtract(output_chunk, chunk_means[:, :, np.newaxis], out=output_chunk, casting="unsafe")
 
+    output = output_reshaped.reshape(channels, total_frames)
     if array.ndim == 3:
-        output = output_reshaped.transpose(0, 2, 1)
+        output = output.reshape(original_shape[0], original_shape[2], original_shape[1]).transpose(0, 2, 1)
     else:
-        output = output_reshaped.reshape(original_shape)
+        output = output.reshape(original_shape)
     return (output, means) if return_mean else output
 
 
