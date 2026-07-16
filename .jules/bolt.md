@@ -1,5 +1,5 @@
-## 2025-05-15 - Vectorized Preprocessing and Optimized Training Loops in runica.py
+## 2025-05-15 - Optimized runica.py with focused diff
 
-**Learning:** Moving `np.errstate` context managers outside of tight iterative loops and replacing internal helper wrappers (like `_matmul`) with native operators (like `@`) eliminates significant function call and context management overhead. Additionally, using NumPy broadcasting instead of explicit matrix multiplication with ones (e.g., `+ bias` instead of `_matmul(bias, onesrow)`) avoids unnecessary (N \times M)$ operations.
+**Learning:** Replacing matrix-based bias addition (`_matmul(bias, onesrow)`) with NumPy broadcasting (`+ bias`) significantly reduces (N \times M)$ overhead and memory allocations in tight iterative loops. Using the native `@` operator and pre-configuring `np.seterr` outside of loops provides further speedups by reducing function call and context management overhead while keeping the diff clean.
 
-**Action:** Always look for repeated context management or small helper calls inside loops. Use broadcasting for bias/offset addition instead of matrix products.
+**Action:** Prefer broadcasting for bias/offset addition. Use `np.seterr` globally or at the function level for expected numerical warnings in iterative algorithms to avoid re-indenting loop bodies with `with np.errstate`.
