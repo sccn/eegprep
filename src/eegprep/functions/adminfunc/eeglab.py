@@ -34,7 +34,9 @@ def eeglab(
         native_menu_bar: Use the native macOS menu bar when ``True``. ``None``
             keeps EEGPrep's platform default; set ``False`` to keep menus in
             the window on macOS.
-        native_file_dialogs: Use platform-native file pickers when ``True``.
+        native_file_dialogs: Override the global file-dialog option. ``True``
+            uses platform-native pickers, ``False`` uses Qt pickers, and
+            ``None`` follows ``EEG_OPTIONS["option_native_dialogs"]``.
 
     Returns:
         ``EEGPrepMainWindow`` by default, or ``EEGPrepSession`` for

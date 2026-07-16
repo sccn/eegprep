@@ -6,12 +6,12 @@ import inspect
 import logging
 import webbrowser
 from collections.abc import Callable, Mapping
+from functools import wraps
 from pathlib import Path
 from typing import Any
 
-from eegprep.functions.guifunc.qt import file_dialog_kwargs
-
 from eegprep.extension_runtime import ExtensionRuntime
+from eegprep.functions.guifunc.file_dialogs import file_dialog_kwargs, native_file_dialog_override
 from eegprep.functions.guifunc.long_task import LongTaskHandle, run_long_task
 from eegprep.functions.guifunc.menu_placeholders import PLACEHOLDER_ACTIONS, is_placeholder_action, placeholder_message
 from eegprep.functions.guifunc.pophelp import pophelp
@@ -22,6 +22,16 @@ from eegprep.functions.popfunc.pop_newset import pop_newset
 
 
 logger = logging.getLogger(__name__)
+
+
+def _with_file_dialog_override(method: Callable[..., Any]) -> Callable[..., Any]:
+    @wraps(method)
+    def wrapped(self: "MenuActionDispatcher", *args: Any, **kwargs: Any) -> Any:
+        with native_file_dialog_override(self.native_file_dialogs):
+            return method(self, *args, **kwargs)
+
+    return wrapped
+
 
 # Action handlers import user-facing pop/plugin modules lazily so launching the
 # main GUI does not eagerly load heavier signal-processing and optional stacks.
@@ -276,6 +286,7 @@ class MenuActionDispatcher:
                     raise
                 self._warn(parent, str(exc))
 
+    @_with_file_dialog_override
     def dispatch(self, action: str, parent: Any | None = None) -> None:
         """Run a menu action."""
         base, _sep, variant = action.partition(":")
@@ -812,7 +823,9 @@ class MenuActionDispatcher:
         allmenus_val = int(EEG_OPTIONS.get("option_allmenus", 0))
         native_dialogs_val = int(EEG_OPTIONS.get("option_native_dialogs", 0))
 
-        if parent is not None:
+        if parent is None:
+            allmenus_val = int(not bool(allmenus_val))
+        else:
             qt_widgets = _require_qt_widgets()
             dialog = qt_widgets.QDialog(parent)
             dialog.setWindowTitle("EEGPrep preferences")
@@ -844,7 +857,10 @@ class MenuActionDispatcher:
 
         command = pop_editoptions(option_allmenus=allmenus_val, option_native_dialogs=native_dialogs_val)
         self._add_history_from_gui(command)
-        self._info(parent, "Preferences updated. Reopen the main window to rebuild the menu mode.")
+        self._info(
+            parent,
+            "Preferences updated. File-dialog changes apply immediately; reopen the main window to rebuild menus.",
+        )
         self._refresh()
 
     def _save_history(self, variant: str, parent: Any | None) -> None:
@@ -1716,7 +1732,6 @@ class MenuActionDispatcher:
     def _refresh(self) -> None:
         if self.refresh is not None:
             self.refresh()
-
 
 
 def _existing_dataset_filename(eeg: dict[str, Any]) -> str:
