@@ -213,9 +213,11 @@ def clean_windows(
     else:
         etc['clean_sample_mask'] = sample_mask
 
-    if 'clean_window_rms' not in etc:
-        etc['clean_window_rms'] = w_rms.tolist()
-    if 'clean_window_zscores' not in etc:
-        etc['clean_window_zscores'] = wz.tolist()
+    if w_rms.size > 0:
+        etc['clean_window_rms_median'] = float(np.median(w_rms))
+        etc['clean_window_rms_max'] = float(np.max(w_rms))
+    if wz.size > 0:
+        etc['clean_window_zscores_median'] = float(np.median(wz))
+        etc['clean_window_zscores_max'] = float(np.max(wz))
 
     return EEG, sample_mask

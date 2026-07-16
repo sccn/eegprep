@@ -305,6 +305,64 @@ def test_report_and_qc_report_write_html_and_manifests(tmp_path):
     assert json.loads((tmp_path / "qc_report.manifest.json").read_text(encoding="utf-8"))["command"] == "qc report"
 
 
+def test_qc_metrics_iclabel():
+    eeg = {
+        "data": np.zeros((2, 10)),
+        "nbchan": 2,
+        "pnts": 10,
+        "trials": 1,
+        "srate": 100,
+        "etc": {
+            "ic_classification": {
+                "ICLabel": {
+                    "classes": ["Brain", "Muscle", "Eye", "Heart", "Line Noise", "Channel Noise", "Other"],
+                    "classifications": [
+                        [0.9, 0.05, 0.01, 0.01, 0.01, 0.01, 0.01],
+                        [0.1, 0.8, 0.02, 0.02, 0.02, 0.02, 0.02],
+                    ],
+                }
+            }
+        },
+        "event": [],
+    }
+
+    metrics = compute_qc_metrics(eeg)
+    iclabel = metrics["ica"]["iclabel"]
+    import math
+    assert iclabel is not None
+    assert iclabel["classes"] == ["Brain", "Muscle", "Eye", "Heart", "Line Noise", "Channel Noise", "Other"]
+    assert math.isclose(iclabel["mean_probabilities"][0], 0.5)
+    assert math.isclose(iclabel["mean_probabilities"][1], 0.425)
+
+
+def test_qc_metrics_asr():
+    eeg = {
+        "data": np.zeros((2, 10)),
+        "nbchan": 2,
+        "pnts": 10,
+        "trials": 1,
+        "srate": 100,
+        "etc": {
+            "clean_channel_noisiness_median": 1.2,
+            "clean_channel_noisiness_max": 3.4,
+            "clean_channel_zscores_median": 0.5,
+            "clean_channel_zscores_max": 2.1,
+            "clean_window_rms_median": 10.0,
+            "clean_window_rms_max": 20.0,
+            "clean_window_zscores_median": 0.1,
+            "clean_window_zscores_max": 1.1,
+        },
+        "event": [],
+    }
+
+    metrics = compute_qc_metrics(eeg)
+    asr = metrics["data_quality"]["asr"]
+    assert asr is not None
+    assert asr["clean_channel_noisiness_median"] == 1.2
+    assert asr["clean_channel_noisiness_max"] == 3.4
+    assert asr["clean_window_zscores_max"] == 1.1
+
+
 def _write_pipeline_config(tmp_path, *, steps, input_path=SAMPLE_SET):
     config_path = tmp_path / "pipeline.yaml"
     config = {

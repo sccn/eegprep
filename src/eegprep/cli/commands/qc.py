@@ -46,7 +46,17 @@ class _QCArgumentParser(argparse.ArgumentParser):
 
 
 def compute_qc_metrics(EEG: dict[str, Any], *, dataset_path: str | Path | None = None) -> dict[str, Any]:
-    """Compute deterministic QC metrics and recommendation codes for an EEG dict."""
+    """Compute deterministic QC metrics and recommendation codes for an EEG dict.
+    
+    The returned dictionary matches the internal QC schema and includes:
+      - dataset, recording, channels, and events metadata.
+      - ica: Includes ICA shapes and a structured 'iclabel' field containing 
+        the classes and their mean probabilities across components (if ICLabel was run).
+      - data_quality: Includes non-finite data metrics, flat channel detection, 
+        channel RMS, and a structured 'asr' field containing median/max summaries 
+        of noisiness and z-scores for channels and temporal windows (if clean_rawdata was run).
+      - recommendations: A list of actionable recommendation codes.
+    """
     data = np.asarray(EEG.get("data", np.array([])))
     events = _as_list(EEG.get("event", []))
     chanlocs = _as_list(EEG.get("chanlocs", []))
@@ -387,47 +397,39 @@ def _ica_metrics(EEG: dict[str, Any]) -> dict[str, Any]:
 
 
 def _iclabel_metrics(EEG: dict[str, Any]) -> dict[str, Any] | None:
-    try:
-        etc = EEG.get("etc", {})
-        if not isinstance(etc, dict):
-            return None
-        ic_class = etc.get("ic_classification", {})
-        iclabel = ic_class.get("ICLabel", {})
-        classes = iclabel.get("classes", [])
-        classifications = np.asarray(iclabel.get("classifications", []))
-        if classifications.size == 0 or len(classes) == 0:
-            return None
-
-        # mean probabilities for all classes across components
-        mean_probs = np.mean(classifications, axis=0)
-
-        return {
-            "classes": _as_list(classes),
-            "mean_probabilities": [_float_or_none(p) for p in mean_probs],
-        }
-    except Exception:
+    etc = EEG.get("etc", {})
+    if not isinstance(etc, dict):
         return None
+    ic_class = etc.get("ic_classification", {})
+    iclabel = ic_class.get("ICLabel", {})
+    classes = iclabel.get("classes", [])
+    classifications = np.asarray(iclabel.get("classifications", []))
+    if classifications.size == 0 or len(classes) == 0:
+        return None
+
+    # mean probabilities for all classes across components
+    mean_probs = np.mean(classifications, axis=0)
+
+    return {
+        "classes": _as_list(classes),
+        "mean_probabilities": [_float_or_none(p) for p in mean_probs],
+    }
 
 
 def _asr_metrics(EEG: dict[str, Any]) -> dict[str, Any] | None:
-    try:
-        etc = EEG.get("etc", {})
-        if not isinstance(etc, dict):
-            return None
-
-        metrics = {}
-        if "clean_channel_noisiness" in etc:
-            metrics["channel_noisiness"] = _as_list(etc["clean_channel_noisiness"])
-        if "clean_channel_zscores" in etc:
-            metrics["channel_zscores"] = _as_list(etc["clean_channel_zscores"])
-        if "clean_window_rms" in etc:
-            metrics["window_rms"] = _as_list(etc["clean_window_rms"])
-        if "clean_window_zscores" in etc:
-            metrics["window_zscores"] = _as_list(etc["clean_window_zscores"])
-
-        return metrics if metrics else None
-    except Exception:
+    etc = EEG.get("etc", {})
+    if not isinstance(etc, dict):
         return None
+
+    metrics = {}
+    for key in ["clean_channel_noisiness_median", "clean_channel_noisiness_max", 
+                "clean_channel_zscores_median", "clean_channel_zscores_max",
+                "clean_window_rms_median", "clean_window_rms_max",
+                "clean_window_zscores_median", "clean_window_zscores_max"]:
+        if key in etc:
+            metrics[key] = _float_or_none(etc[key])
+
+    return metrics if metrics else None
 
 
 def _channel_stds(data: np.ndarray) -> list[float]:

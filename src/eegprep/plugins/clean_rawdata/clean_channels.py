@@ -96,10 +96,13 @@ def clean_channels(
 
         if 'etc' not in EEG:
             EEG['etc'] = {}
-        if 'clean_channel_noisiness' not in EEG['etc']:
-            EEG['etc']['clean_channel_noisiness'] = noisiness.tolist()
-        if 'clean_channel_zscores' not in EEG['etc']:
-            EEG['etc']['clean_channel_zscores'] = znoise.tolist()
+        
+        if noisiness.size > 0:
+            EEG['etc']['clean_channel_noisiness_median'] = float(np.median(noisiness))
+            EEG['etc']['clean_channel_noisiness_max'] = float(np.max(noisiness))
+        if znoise.size > 0:
+            EEG['etc']['clean_channel_zscores_median'] = float(np.median(znoise))
+            EEG['etc']['clean_channel_zscores_max'] = float(np.max(znoise))
     else:
         X = EEG['data'].T
         noise_mask = np.zeros(C, dtype=bool)  # transpose added in MATLAB comment
