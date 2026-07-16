@@ -8,6 +8,8 @@ from contextvars import ContextVar
 from typing import Any
 
 
+# Note: This context scopes overrides only for synchronous modal dialogs (exec()).
+# Non-modal (show()) dialogs spawned outside the dispatch frame fall back to EEG_OPTIONS.
 _NATIVE_FILE_DIALOG_OVERRIDE: ContextVar[bool | None] = ContextVar(
     "eegprep_native_file_dialog_override",
     default=None,
