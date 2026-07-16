@@ -82,7 +82,6 @@ def run_pipeline_config(
     dry_run: bool = False,
     manifest_path: str | Path | None = None,
     overwrite: bool | None = None,
-    tuning_only: bool = False,
 ) -> dict[str, Any]:
     """Run a YAML pipeline config, or return the plan when ``dry_run`` is true."""
     started_at = utc_now()
@@ -102,7 +101,6 @@ def run_pipeline_config(
         output_files: list[dict[str, Any]] = []
         latest_qc: dict[str, Any] | None = None
 
-        manifest_path = config["output"]["manifest_path"]
         for index, step in enumerate(config["steps"]):
             try:
                 EEG, history, step_outputs, latest_qc = _run_step(
@@ -112,29 +110,9 @@ def run_pipeline_config(
                     latest_qc=latest_qc,
                     overwrite=config["output"]["overwrite"],
                 )
-            except CommandError as exc:
-                if tuning_only:
-                    manifest = {
-                        "schema_version": "eegprep.tuning_manifest.v1",
-                        "command": "pipeline run",
-                        "status": "failure",
-                        "error": str(exc),
-                        "parameters": _public_config(config),
-                        "qc_metrics": {},
-                    }
-                    write_manifest_file(manifest_path, manifest, overwrite=config["output"]["overwrite"])
+            except CommandError:
                 raise
             except Exception as exc:
-                if tuning_only:
-                    manifest = {
-                        "schema_version": "eegprep.tuning_manifest.v1",
-                        "command": "pipeline run",
-                        "status": "failure",
-                        "error": str(exc),
-                        "parameters": _public_config(config),
-                        "qc_metrics": {},
-                    }
-                    write_manifest_file(manifest_path, manifest, overwrite=config["output"]["overwrite"])
                 raise CommandError(
                     "PIPELINE_STEP_FAILED",
                     f"Pipeline step {index + 1} ({step['name']}) failed: {exc}",
@@ -150,10 +128,7 @@ def run_pipeline_config(
         if dataset_output and _has_mutating_steps(config["steps"]):
             output_files.extend(_save_dataset(EEG, dataset_output, history="\n".join(histories)))
 
-        qc_metrics = None
-        if tuning_only:
-            qc_metrics = latest_qc or compute_qc_metrics(EEG, dataset_path=config["input"]["path"])
-
+        manifest_path = config["output"]["manifest_path"]
         finished_at = utc_now()
         manifest = build_manifest(
             command="pipeline run",
@@ -165,8 +140,6 @@ def run_pipeline_config(
             finished_at=finished_at,
             deterministic=_is_deterministic(config),
             warnings=plan["warnings"],
-            tuning_only=tuning_only,
-            qc_metrics=qc_metrics,
         )
         manifest_entry = write_manifest_file(manifest_path, manifest, overwrite=config["output"]["overwrite"])
         output_files.append(manifest_entry)
@@ -204,7 +177,6 @@ def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) ->
     run_parser.add_argument("--manifest", help="Override the default pipeline manifest path")
     run_parser.add_argument("--overwrite", action="store_true", help="Overwrite configured outputs")
     run_parser.add_argument("--json", action="store_true", help="Emit structured JSON")
-    run_parser.add_argument("--tuning-only", action="store_true", help="Generate a minimal manifest for fast parameter tuning.")
     run_parser.add_argument("--quiet", action="store_true", help="Suppress progress logging")
     run_parser.add_argument("--verbose", action="store_true", help="Enable verbose progress logging")
     run_parser.add_argument("--no-progress", action="store_true", help="Disable progress logging")
@@ -226,7 +198,6 @@ def handle_registered(args: argparse.Namespace) -> dict[str, Any]:
                 dry_run=args.dry_run,
                 manifest_path=args.manifest,
                 overwrite=True if args.overwrite else None,
-                tuning_only=getattr(args, "tuning_only", False),
             )
     raise CommandError("COMMAND_NOT_IMPLEMENTED", f"Unknown pipeline action: {args.pipeline_action}")
 
