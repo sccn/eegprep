@@ -183,8 +183,8 @@ def plot_spectra(
 
     if title:
         fig.suptitle(title, fontsize=12)
-    if plt.get_backend().lower() != "agg":
-        plt.show()
+    if not draw_maps:
+        fig.tight_layout()
     return fig
 
 

@@ -103,6 +103,8 @@ def pop_spectopo(
         process=None if process == "EEG" else process,
         **history_options,
     )
+    if gui and figure is not None:
+        figure.show()
     return (result, command) if return_com else result
 
 
