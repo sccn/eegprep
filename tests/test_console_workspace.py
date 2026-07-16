@@ -1638,6 +1638,113 @@ def test_console_pop_select_numeric_channels_zero_based_on_replay():
         ast.parse(command)
 
 
+def test_console_pop_interp_index_translation():
+    # Positional argument (index 1) with scalar and list literal
+    assert (
+        console_module._console_python_command("EEG = pop_interp(EEG, [1 3 5])")
+        == "EEG = pop_interp(EEG, bad_elec=[0, 2, 4])"
+    )
+    assert console_module._console_python_command("EEG = pop_interp(EEG, 1)") == "EEG = pop_interp(EEG, bad_elec=0)"
+
+    # MATLAB name/value pairs
+    assert (
+        console_module._console_python_command("EEG = pop_interp(EEG, 'bad_elec', [2])")
+        == "EEG = pop_interp(EEG, bad_elec=[1])"
+    )
+    assert (
+        console_module._console_python_command("EEG = pop_interp(EEG, 'channels', [1 2], 'method', 'spherical')")
+        == "EEG = pop_interp(EEG, 'channels', [0, 1], 'method', 'spherical')"
+    )
+    assert (
+        console_module._console_python_command("EEG = pop_interp(EEG, 'bad_chans', 1)")
+        == "EEG = pop_interp(EEG, bad_elec='bad_chans', method=0)"
+    )
+
+    # Python kwargs (Note: channels is not a valid kwarg, but if typed it just stays as is)
+    assert (
+        console_module._console_python_command("EEG = pop_interp(EEG, bad_elec=[1, 2])")
+        == "EEG = pop_interp(EEG, bad_elec=[0, 1])"
+    )
+    assert (
+        console_module._console_python_command("EEG = pop_interp(EEG, channels=1, method='spherical')")
+        == "EEG = pop_interp(EEG, channels=0, method='spherical')"
+    )
+
+    # First/last valid indices (assuming 1 is first valid for MATLAB)
+    assert console_module._console_python_command("EEG = pop_interp(EEG, 1)") == "EEG = pop_interp(EEG, bad_elec=0)"
+    assert console_module._console_python_command("EEG = pop_interp(EEG, 999)") == "EEG = pop_interp(EEG, bad_elec=998)"
+
+    # Dynamic expressions must remain unchanged
+    assert (
+        console_module._console_python_command("EEG = pop_interp(EEG, np.arange(1, 4))")
+        == "EEG = pop_interp(EEG, bad_elec=np.arange(1, 4))"
+    )
+    assert (
+        console_module._console_python_command("EEG = pop_interp(EEG, channels=my_chans)")
+        == "EEG = pop_interp(EEG, channels=my_chans)"
+    )
+    assert (
+        console_module._console_python_command("EEG = pop_interp(EEG, [1, x])")
+        == "EEG = pop_interp(EEG, bad_elec=[1, x])"
+    )
+
+
+def test_console_pop_editset_index_translation():
+    # Positional string sequences (MATLAB style inline kwargs)
+    assert (
+        console_module._console_python_command("EEG = pop_editset(EEG, 'icachansind', [1 5])")
+        == "EEG = pop_editset(EEG, icachansind=[0, 4])"
+    )
+    assert (
+        console_module._console_python_command("EEG = pop_editset(EEG, 'icachansind', 2)")
+        == "EEG = pop_editset(EEG, icachansind=1)"
+    )
+
+    # Python kwargs
+    assert (
+        console_module._console_python_command("EEG = pop_editset(EEG, icachansind=[1, 5])")
+        == "EEG = pop_editset(EEG, icachansind=[0, 4])"
+    )
+    assert (
+        console_module._console_python_command("EEG = pop_editset(EEG, icachansind=2)")
+        == "EEG = pop_editset(EEG, icachansind=1)"
+    )
+
+    # Scalar and list literals
+    assert (
+        console_module._console_python_command("EEG = pop_editset(EEG, 'icachansind', 10)")
+        == "EEG = pop_editset(EEG, icachansind=9)"
+    )
+    assert (
+        console_module._console_python_command("EEG = pop_editset(EEG, 'icachansind', [10])")
+        == "EEG = pop_editset(EEG, icachansind=[9])"
+    )
+
+    # First/last valid indices
+    assert (
+        console_module._console_python_command("EEG = pop_editset(EEG, 'icachansind', 1)")
+        == "EEG = pop_editset(EEG, icachansind=0)"
+    )
+    assert (
+        console_module._console_python_command("EEG = pop_editset(EEG, 'icachansind', 999)")
+        == "EEG = pop_editset(EEG, icachansind=998)"
+    )
+
+    # Dynamic expressions must remain unchanged
+    assert (
+        console_module._console_python_command("EEG = pop_editset(EEG, 'icachansind', np.arange(1, 4))")
+        == "EEG = pop_editset(EEG, icachansind=np.arange(1, 4))"
+    )
+    assert (
+        console_module._console_python_command("EEG = pop_editset(EEG, icachansind=get_ica_chans())")
+        == "EEG = pop_editset(EEG, icachansind=get_ica_chans())"
+    )
+    assert (
+        console_module._console_python_command("EEG = pop_editset(EEG, 'icachansind', [1, x])")
+        == "EEG = pop_editset(EEG, icachansind=[1, x])"
+    )
+
+
 def test_ipython_adapter_keeps_prompt_message_dynamic():
     shell = _FakeShell()
     shell.prompts = _FakePrompts(shell)

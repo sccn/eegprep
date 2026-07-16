@@ -1042,6 +1042,14 @@ class _ConsoleCommandKeywordizer(ast.NodeTransformer):
         arg_index = 0
         while arg_index < len(node.args) and arg_index < len(positional_parameters):
             arg = node.args[arg_index]
+
+            # If this arg is a string that can be a keyword, and there are more args,
+            # it is likely the start of MATLAB name/value pairs. Stop positional mapping.
+            if arg_index + 1 < len(node.args):
+                key = _option_pair_key(arg)
+                if key is not None and _can_pass_keyword(key, keyword_parameters, accepts_var_keywords):
+                    break
+
             parameter = positional_parameters[arg_index]
             if (
                 parameter.kind == inspect.Parameter.POSITIONAL_ONLY
