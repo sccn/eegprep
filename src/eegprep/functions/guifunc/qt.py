@@ -1059,15 +1059,47 @@ def _select_channels(button: Any, target: Any, params: Mapping[str, Any]) -> Non
     target.setText(value.strip())
 
 
+def file_dialog_kwargs(
+    qt_widgets: Any, *, native_file_dialogs: bool | None = None, directories: bool = False
+) -> dict[str, Any]:
+    """Helper to determine whether to use platform-native or Qt-pure dialogs."""
+    from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
+
+    # 1. Constructor override
+    # 2. Persisted options (default off because of ipython pulse event loop bugs)
+    if native_file_dialogs is not None:
+        use_native = native_file_dialogs
+    else:
+        use_native = bool(EEG_OPTIONS.get("option_native_dialogs", 0))
+
+    if use_native:
+        return {}
+
+    def qt_enum_value(owner: Any, enum_name: str, value_name: str) -> Any | None:
+        enum = getattr(owner, enum_name, None)
+        value = getattr(enum, value_name, None) if enum is not None else None
+        if value is not None:
+            return value
+        return getattr(owner, value_name, None)
+
+    # Native macOS file panels can close immediately under IPython's Qt input hook.
+    # We drop down to the pure-Qt implementation unless the user opts in.
+    options = qt_enum_value(qt_widgets.QFileDialog, "Option", "DontUseNativeDialog")
+    if directories:
+        show_dirs = qt_enum_value(qt_widgets.QFileDialog, "Option", "ShowDirsOnly")
+        if options is None:
+            options = show_dirs
+        elif show_dirs is not None:
+            options = options | show_dirs
+    return {"options": options} if options is not None else {}
+
+
 def _select_file(button: Any, target: Any, params: Mapping[str, Any], widgets: Mapping[str, Any]) -> None:
     _qt_core, qt_widgets = _require_qt()
-    from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
-    from eegprep.functions.guifunc.menu_actions import _file_dialog_kwargs
 
     caption = str(params.get("caption", "Select file"))
     file_filter = str(params.get("filter", "All files (*)"))
-    is_native = bool(EEG_OPTIONS.get("option_native_dialogs", 0))
-    kwargs = _file_dialog_kwargs(qt_widgets, native_file_dialogs=is_native)
+    kwargs = file_dialog_kwargs(qt_widgets)
 
     if params.get("mode") == "save":
         filename, _selected_filter = qt_widgets.QFileDialog.getSaveFileName(button, caption, "", file_filter, **kwargs)

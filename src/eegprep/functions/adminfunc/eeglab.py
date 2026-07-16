@@ -18,7 +18,7 @@ def eeglab(
     all_menus: bool | None = None,
     include_plugins: bool = True,
     native_menu_bar: bool | None = None,
-    native_file_dialogs: bool = True,
+    native_file_dialogs: bool | None = None,
 ) -> Any:
     """Start the EEGPrep EEGLAB-style main window.
 
@@ -72,7 +72,7 @@ def gui(
     all_menus: bool | None = None,
     include_plugins: bool = True,
     native_menu_bar: bool | None = None,
-    native_file_dialogs: bool = True,
+    native_file_dialogs: bool | None = None,
 ) -> Any:
     """Start the EEGPrep GUI.
 

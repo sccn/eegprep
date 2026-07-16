@@ -53,6 +53,8 @@ Common Global Options
      - Treat numeric ``-99`` events as boundary events for ERPLAB-style data.
    * - ``option_computeica``
      - Precompute ICA activations where supported.
+   * - ``option_native_dialogs``
+     - Use experimental native OS file panels instead of Qt dialogs.
    * - ``option_scaleicarms``
      - Scale ICA component activations to RMS microvolt during checkset paths.
    * - ``option_cachesize``
