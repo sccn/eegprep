@@ -143,6 +143,7 @@ def plot_spectra(
     right, as in EEGLAB.
     """
     requested_freqs = np.sort(_numeric_values(freqs))
+    # component maps span the whole spectrum, so markers + leader lines are channel-only
     freq_case = map_values is None or not np.asarray(map_values).size
     scalp_values, scalp_labels = _scalp_maps(spectra, frequency_values, requested_freqs, map_values, map_labels)
     locs = chanlocs_as_list(chanlocs)
@@ -201,7 +202,7 @@ def _frequency_window(
         high = 5.0 * np.ceil(maxfreq / 5.0) if maxfreq % 5 != 0 else maxfreq * 1.1
     min_idx = int(np.argmin(np.abs(frequency_values - low)))
     max_idx = int(np.argmin(np.abs(frequency_values - high)))
-    return float(frequency_values[min_idx]), float(frequency_values[max_idx]), min_idx, max_idx
+    return low, high, min_idx, max_idx
 
 
 def _spectra_ylim(spectra: np.ndarray, min_idx: int, max_idx: int) -> tuple[float, float]:
@@ -227,7 +228,10 @@ def _draw_maps_row(
     topoplot_options: dict[str, Any] | None,
 ) -> None:
     """Draw the top row of scalp maps, the polarity colorbar, and (for frequency
-    maps) vertical markers plus leader lines to each map."""
+    maps) vertical markers plus leader lines to each map.
+
+    Each map is scaled independently (``maplimits='absmax'``), so the shared
+    colorbar is polarity-only (``+``/``-``), not a common data scale."""
     count = len(scalp_values)
     top_y, top_h = 0.66, 0.26
     left, right = 0.10, 0.88
