@@ -134,22 +134,32 @@ planned, reviewed, and rerun.
    eegprep pipeline run preprocess.yaml --json
    eegprep batch run sub-01.set sub-02.set --pipeline preprocess.yaml --output-dir derivatives/eegprep --json
 
-
-Manifest Portability and Migration
-==================================
-
-Manifests produced by EEGPrep (``eegprep.manifest.v2``) write relative paths for input and output files based on the manifest's location. This makes project metadata portable across machines, drives, and operating systems (using POSIX slashes internally).
-
-* **Schema Version:** From ``eegprep.manifest.v1`` to ``eegprep.manifest.v2``, the paths recorded in ``input_files`` and ``output_files`` switched from absolute strings to relative paths.
-* **Limitations:** External paths (files residing outside the manifest's subtree) are recorded using ``../../`` navigation. If the project directory is moved independently of the external file structure, these references will break.
-* **Consuming Manifests:** Use the ``read_manifest(path)`` utility in ``eegprep.cli.core`` to automatically expand relative paths back into functional absolute paths upon ingestion.
-
 Pipeline transform steps use the same defaults as the matching direct CLI
 commands. In particular, ``clean`` defaults to ASR burst correction with
 ``burst_criterion: 20`` and leaves flatline, channel, line-noise, window, and
 high-pass cleaning criteria off unless the YAML config sets them explicitly.
 Set ``highpass`` as a two-value transition band, for example
 ``highpass: [0.25, 0.75]``.
+
+Manifest Portability And Migration
+==================================
+
+The ``eegprep.manifest.v2`` schema stores the ``path`` fields in
+``input_files`` and ``output_files`` relative to the manifest file. Stored
+relative paths always use forward slashes. Runtime manifests created by
+``build_manifest()`` use absolute paths, and ``read_manifest()`` restores v2
+relative paths to absolute paths for the current machine.
+
+This preserves artifact relationships when the manifest and files move
+together. References using ``..`` only remain valid when the referenced files
+move with the same directory layout. A path on another Windows drive cannot be
+made relative and remains absolute, so it is not portable to another machine.
+
+Version 1 and unknown schema versions keep their original path strings when
+read or written; EEGPrep cannot infer what their relative paths were relative
+to. Consumers that need resolved v2 paths should use ``read_manifest()``
+instead of loading the JSON directly. Path serialization does not alter or
+verify the recorded SHA-256 values.
 
 QC And Reports
 ==============

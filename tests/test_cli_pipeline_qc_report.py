@@ -57,10 +57,13 @@ def test_pipeline_run_writes_qc_report_and_manifest(tmp_path):
     assert (tmp_path / "out" / "report.html").is_file()
     manifest_path = tmp_path / "out" / "eegprep_manifest.json"
     assert manifest_path.is_file()
+    stored_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert {item["path"] for item in stored_manifest["output_files"]} == {"qc.json", "report.html"}
     manifest = read_manifest(manifest_path)
     assert manifest["schema_version"] == "eegprep.manifest.v2"
     assert manifest["command"] == "pipeline run"
     assert {item["type"] for item in manifest["output_files"]} == {"json", "html_report"}
+    assert all(Path(item["path"]).is_absolute() for item in manifest["input_files"] + manifest["output_files"])
     assert isinstance(result["qc"]["recommendations"], list)
 
 

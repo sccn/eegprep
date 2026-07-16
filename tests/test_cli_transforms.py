@@ -80,11 +80,14 @@ def test_resample_writes_dataset_manifest_and_clean_json_stdout(tmp_path):
 
     manifest_path = output.with_suffix(output.suffix + ".manifest.json")
     assert payload["manifest"]["path"] == str(manifest_path)
+    stored_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert {record["path"] for record in stored_manifest["output_files"]} == {"resampled.set"}
     manifest = read_manifest(manifest_path)
     assert manifest["schema_version"] == transforms.MANIFEST_SCHEMA_VERSION
     assert manifest["parameters"]["freq"] == 128
     assert "pop_resample" in manifest["history"]
     assert any(record["path"].endswith("eeglab_data.fdt") for record in manifest["input_files"])
+    assert all(Path(record["path"]).is_absolute() for record in manifest["input_files"] + manifest["output_files"])
 
     loaded = pop_loadset(str(output))
     assert loaded["srate"] == 128

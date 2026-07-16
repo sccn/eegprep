@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import math
+import os
 import platform
 import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
 import numpy as np
@@ -18,6 +20,7 @@ import eegprep
 
 
 COMMAND_RESULT_SCHEMA_VERSION = "eegprep.cli.result.v1"
+MANIFEST_SCHEMA_VERSION = "eegprep.manifest.v2"
 
 
 class EEGPrepCLIError(Exception):
@@ -238,11 +241,12 @@ def build_manifest(
     warnings: list[Any] | None = None,
 ) -> dict[str, Any]:
     stamp = runtime_stamp(started_at) if finished_at is None else RuntimeStamp(started_at, finished_at)
+    input_records = [_input_file_record(path) for path in input_files]
     manifest: dict[str, Any] = {
-        "schema_version": "eegprep.manifest.v2",
+        "schema_version": MANIFEST_SCHEMA_VERSION,
         "command": command,
-        "input_files": [_input_file_record(path) for path in input_files],
-        "output_files": output_files,
+        "input_files": _make_manifest_paths_absolute(input_records),
+        "output_files": _make_manifest_paths_absolute(output_files),
         "parameters": json_safe(parameters),
         "history": history,
         "software": software_info(),
@@ -255,58 +259,49 @@ def build_manifest(
 
 
 def _make_manifest_relative(manifest: dict[str, Any], manifest_path: Path) -> dict[str, Any]:
-    """Convert absolute paths in a manifest to paths relative to the manifest file."""
-    import copy
-    import os
+    """Return the on-disk representation of a v2 manifest."""
+    prepared = copy.deepcopy(json_safe(manifest))
+    if prepared.get("schema_version") != MANIFEST_SCHEMA_VERSION:
+        return prepared
 
-    manifest = copy.deepcopy(manifest)
-    base_dir = manifest_path.parent.resolve()
-
-    def to_relative(p_str: str) -> str:
+    base_dir = manifest_path.resolve().parent
+    for item in _manifest_file_records(prepared):
+        value = item.get("path")
+        if not isinstance(value, str) or not value:
+            continue
+        native_path = Path(value).expanduser()
+        if not native_path.is_absolute():
+            continue
         try:
-            rel = os.path.relpath(p_str, start=base_dir)
-            return Path(rel).as_posix()
+            item["path"] = Path(os.path.relpath(native_path, start=base_dir)).as_posix()
         except ValueError:
-            return p_str
-
-    for item in manifest.get("input_files") or []:
-        if "path" in item and Path(item["path"]).is_absolute():
-            item["path"] = to_relative(item["path"])
-
-    for item in manifest.get("output_files") or []:
-        if "path" in item and Path(item["path"]).is_absolute():
-            item["path"] = to_relative(item["path"])
-
-    return manifest
+            # Windows cannot express a path on another drive as a relative path.
+            continue
+    return prepared
 
 
 def read_manifest(path: str | Path) -> dict[str, Any]:
-    """Read a manifest file and expand relative paths back to absolute paths."""
+    """Read a manifest, resolving v2 artifact paths against its directory."""
     resolved = Path(path).expanduser().resolve()
     with resolved.open("r", encoding="utf-8") as stream:
         manifest = json.load(stream)
 
-    base_dir = resolved.parent
+    if manifest.get("schema_version") != MANIFEST_SCHEMA_VERSION:
+        return manifest
 
-    for item in manifest.get("input_files") or []:
-        if "path" in item:
-            p = Path(item["path"])
-            if not p.is_absolute():
-                item["path"] = str((base_dir / p).resolve())
-
-    for item in manifest.get("output_files") or []:
-        if "path" in item:
-            p = Path(item["path"])
-            if not p.is_absolute():
-                item["path"] = str((base_dir / p).resolve())
-
+    for item in _manifest_file_records(manifest):
+        value = item.get("path")
+        if not isinstance(value, str) or not value or _is_absolute_on_any_platform(value):
+            continue
+        relative_path = Path(*PurePosixPath(value).parts)
+        item["path"] = str((resolved.parent / relative_path).resolve())
     return manifest
 
 
 def write_manifest(path: str | Path | None, manifest: dict[str, Any]) -> Path | None:
     if path is None:
         return None
-    resolved = Path(path).expanduser().resolve()
+    resolved = Path(path).expanduser()
     resolved.parent.mkdir(parents=True, exist_ok=True)
     rel_manifest = _make_manifest_relative(manifest, resolved)
     resolved.write_text(json.dumps(json_safe(rel_manifest), indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -334,9 +329,39 @@ def write_json_file(
 
 
 def write_manifest_file(path: str | Path, manifest: dict[str, Any], *, overwrite: bool = False) -> dict[str, Any]:
-    target = Path(path).expanduser().resolve()
+    target = Path(path)
     rel_manifest = _make_manifest_relative(manifest, target)
     return write_json_file(target, rel_manifest, overwrite=overwrite, output_type="manifest")
+
+
+def _make_manifest_paths_absolute(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Normalize runtime artifact paths before they acquire manifest-relative semantics."""
+    prepared = copy.deepcopy(json_safe(records))
+    for item in prepared:
+        value = item.get("path")
+        if not isinstance(value, str) or not value or _is_foreign_absolute_path(value):
+            continue
+        item["path"] = str(Path(value).expanduser().resolve())
+    return prepared
+
+
+def _manifest_file_records(manifest: dict[str, Any]) -> list[dict[str, Any]]:
+    records: list[dict[str, Any]] = []
+    for key in ("input_files", "output_files"):
+        value = manifest.get(key)
+        if isinstance(value, list):
+            records.extend(item for item in value if isinstance(item, dict))
+    return records
+
+
+def _is_absolute_on_any_platform(value: str) -> bool:
+    return Path(value).is_absolute() or PurePosixPath(value).is_absolute() or PureWindowsPath(value).is_absolute()
+
+
+def _is_foreign_absolute_path(value: str) -> bool:
+    return not Path(value).is_absolute() and (
+        PurePosixPath(value).is_absolute() or PureWindowsPath(value).is_absolute()
+    )
 
 
 def _input_file_record(path: Path | dict[str, Any]) -> dict[str, Any]:
