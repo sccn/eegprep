@@ -45,8 +45,14 @@ def rmbase(data: Any, frames: int | None = 0, basevector: Any = 0, *, return_mea
 
     baseline = _baseline_indices(basevector, frames)
 
-    # Reshape to (chans, epochs, frames) for vectorized mean calculation and subtraction
+    # Use float64 for mean calculation and output if input is integer; else preserve float precision.
+    output_dtype = np.float64 if not np.issubdtype(matrix.dtype, np.floating) else matrix.dtype
+    output = np.empty((chans, total_frames), dtype=output_dtype)
+
+    # Reshape to (chans, epochs, frames) for vectorized mean calculation and subtraction.
+    # Note: 'reshaped' and 'output_reshaped' are views.
     reshaped = matrix.reshape(chans, epochs, frames)
+    output_reshaped = output.reshape(chans, epochs, frames)
 
     if baseline is None:
         means = np.nanmean(reshaped, axis=2, dtype=np.float64)
@@ -54,15 +60,11 @@ def rmbase(data: Any, frames: int | None = 0, basevector: Any = 0, *, return_mea
         # baseline contains 0-based indices within each epoch
         means = np.nanmean(reshaped[:, :, baseline], axis=2, dtype=np.float64)
 
-    # Subtract means across all epochs simultaneously and flatten back
-    # means is (chans, epochs), we add a new axis for broadcasting: (chans, epochs, 1)
-    output = (reshaped - means[:, :, np.newaxis]).reshape(chans, total_frames)
-
-    # Match original dtype behavior: float64 if input was integer, else preserve floating type
-    if not np.issubdtype(matrix.dtype, np.floating):
-        output = output.astype(np.float64, copy=False)
-    else:
-        output = output.astype(matrix.dtype, copy=False)
+    # Subtract means across all epochs. We use in-place operations on the output view
+    # to avoid promoting float32 recordings to float64 temporaries during broadcasting.
+    # means is (chans, epochs), we add a new axis for broadcasting: (chans, epochs, 1).
+    np.copyto(output_reshaped, reshaped)
+    output_reshaped -= means[:, :, np.newaxis].astype(output_dtype, copy=False)
 
     if array.ndim == 3:
         output = output.reshape(original_shape[0], original_shape[2], original_shape[1]).transpose(0, 2, 1)
