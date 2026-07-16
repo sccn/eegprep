@@ -933,15 +933,14 @@ class _ConsoleCommandArgumentConverter(ast.NodeTransformer):
 
     def visit_Call(self, node: ast.Call) -> ast.AST:
         self.generic_visit(node)
-        if not isinstance(node.func, ast.Name):
-            return node
-        if node.func.id == "pop_reref":
+        function_name = _console_call_name(node.func)
+        if function_name == "pop_reref":
             self._convert_pop_reref(node)
-        elif node.func.id == "pop_select":
+        elif function_name == "pop_select":
             self._convert_pop_select(node)
-        elif node.func.id == "pop_interp":
+        elif function_name == "pop_interp":
             self._convert_pop_interp(node)
-        elif node.func.id == "pop_editset":
+        elif function_name == "pop_editset":
             self._convert_pop_editset(node)
         return node
 
@@ -950,10 +949,10 @@ class _ConsoleCommandArgumentConverter(ast.NodeTransformer):
             node.args[1] = self._zero_base_channel_arg(node.args[1])
         for index in range(1, len(node.args) - 1, 2):
             key = self._string_constant(node.args[index])
-            if key in {"bad_elec", "channels", "bad_chans"}:
+            if key == "bad_elec":
                 node.args[index + 1] = self._zero_base_channel_arg(node.args[index + 1])
         for kw in node.keywords:
-            if kw.arg in {"bad_elec", "channels", "bad_chans"}:
+            if kw.arg == "bad_elec":
                 kw.value = self._zero_base_channel_arg(kw.value)
 
     def _convert_pop_editset(self, node: ast.Call) -> None:
