@@ -124,7 +124,7 @@ def topoplot(datavector, chan_locs, **kwargs):
                 noplot = 'on'
 
     # Set colormap
-    cmap = plt.get_cmap(kwargs.get('colormap') or 'jet')
+    cmap = plt.get_cmap(kwargs.get('colormap') or 'turbo')
     GRID_SCALE = gridscale
 
     datavector = np.array([] if datavector is None else datavector).flatten()
