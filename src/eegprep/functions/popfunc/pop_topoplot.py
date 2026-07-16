@@ -103,6 +103,7 @@ def pop_topoplot(
         topotitle=topotitle,
         rowcols=rowcols_array,
         options=plot_options,
+        component=typeplot == 0,
     )
     command = _history_command(typeplot, items_array, topotitle, rowcols_array, int(bool(plotdip)), options)
     return (figures, command) if return_com else figures
@@ -224,6 +225,7 @@ def _plot_map_pages(
     topotitle: str,
     rowcols: tuple[int, int],
     options: dict[str, Any],
+    component: bool = False,
 ) -> list[Any]:
     rows, cols = rowcols
     per_page = rows * cols
@@ -233,7 +235,6 @@ def _plot_map_pages(
     for page_start in range(0, len(maps), per_page):
         page_maps = maps[page_start : page_start + per_page]
         page_labels = labels[page_start : page_start + per_page]
-        plotted_map_count = sum(values is not None for values in page_maps)
         fig, axes = plt.subplots(rows, cols, squeeze=False, figsize=(cols * 2.1, rows * 2.0))
         colorbar_image = None
         plotted_axes = []
@@ -241,14 +242,8 @@ def _plot_map_pages(
             if values is None:
                 ax.axis("off")
                 continue
-            topoplot(
-                values,
-                chanlocs,
-                axes=ax,
-                colorbar=colorbar and plotted_map_count == 1,
-                maplimits=maplimits,
-                **options,
-            )
+            # pop_topoplot owns the colorbar so it can label component maps by polarity.
+            topoplot(values, chanlocs, axes=ax, colorbar=False, maplimits=maplimits, **options)
             if ax.images:
                 colorbar_image = ax.images[-1]
                 plotted_axes.append(ax)
@@ -258,10 +253,20 @@ def _plot_map_pages(
         if topotitle:
             fig.suptitle(topotitle, fontweight="bold")
         fig.tight_layout()
-        if colorbar and plotted_map_count > 1 and colorbar_image is not None:
-            fig.colorbar(colorbar_image, ax=plotted_axes, shrink=0.7)
+        if colorbar and colorbar_image is not None:
+            _add_map_colorbar(fig, colorbar_image, plotted_axes, component=component)
         figures.append(fig)
     return figures
+
+
+def _add_map_colorbar(fig: Any, image: Any, axes: list[Any], *, component: bool) -> Any:
+    """Draw the shared scalp-map colorbar, marking component maps with -/0/+ polarity labels."""
+    cbar = fig.colorbar(image, ax=axes, shrink=0.7)
+    if component:
+        low, high = image.get_clim()
+        cbar.set_ticks([low, 0.0, high])
+        cbar.set_ticklabels(["-", "0", "+"])
+    return cbar
 
 
 def _erp_maps(EEG: dict[str, Any], latencies_ms: np.ndarray) -> tuple[list[np.ndarray | None], list[str]]:

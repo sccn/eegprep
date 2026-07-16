@@ -120,6 +120,22 @@ def test_pop_topoplot_component_pages_scale_each_map_to_own_absmax():
     plt.close(figures[0])
 
 
+def test_pop_topoplot_component_colorbar_uses_polarity_labels():
+    eeg = create_test_eeg_with_ica(n_channels=6, n_samples=30, n_components=3)
+
+    comp_figs = pop_topoplot(eeg, typeplot=0, items=[1, 2], topotitle="ic", rowcols=[1, 2], electrodes="off")
+    comp_figs[0].canvas.draw()
+    comp_labels = [text.get_text() for text in comp_figs[0].axes[-1].get_yticklabels()]
+    assert comp_labels == ["-", "0", "+"]
+    plt.close(comp_figs[0])
+
+    erp_figs = pop_topoplot(eeg, typeplot=1, items=[0, 20], topotitle="erp", rowcols=[1, 2], electrodes="off")
+    erp_figs[0].canvas.draw()
+    erp_labels = [text.get_text() for text in erp_figs[0].axes[-1].get_yticklabels()]
+    assert erp_labels != ["-", "0", "+"]
+    plt.close(erp_figs[0])
+
+
 def test_pop_topoplot_plots_component_maps_with_inverted_and_blank_items():
     eeg = create_test_eeg_with_ica(n_channels=6, n_samples=50, n_components=3)
 
