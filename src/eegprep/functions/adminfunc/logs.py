@@ -6,7 +6,7 @@ import warnings
 
 # Try importing colorama, handle if missing
 try:
-    import colorama
+    import colorama  # type: ignore
 
     _COLORAMA_AVAILABLE = True
     # Initialize colorama for Windows compatibility
