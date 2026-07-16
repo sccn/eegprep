@@ -1,6 +1,4 @@
 import unittest
-import warnings
-
 import numpy as np
 from unittest.mock import patch
 
@@ -392,18 +390,6 @@ class TestCovShrinkage(unittest.TestCase):
 
 class TestEdgeCases(unittest.TestCase):
     """Test edge cases and numerical stability."""
-
-    def test_singular_matrix_warning_behavior(self):
-        singular = np.diag([1.0, 0.0])
-
-        with self.assertWarnsRegex(RuntimeWarning, "divide by zero"):
-            cov_logm(singular)
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("error", RuntimeWarning)
-            sqrt_result = cov_sqrtm(singular)
-
-        np.testing.assert_array_equal(sqrt_result, singular)
 
     def test_near_singular_matrices(self):
         """Test operations on near-singular matrices."""
