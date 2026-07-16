@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
 import platform
 import sys
 from dataclasses import dataclass
@@ -226,6 +227,7 @@ def software_info() -> dict[str, Any]:
         "platform": platform.platform(),
         "architecture": platform.machine(),
         "processor": platform.processor(),
+        "logical_cpu_count": os.cpu_count(),
         "math_backend_info": get_math_backend_info(),
     }
 

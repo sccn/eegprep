@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 from typing import Any
 
-from eegprep.cli.core import software_info, command_ok
+from eegprep.cli.core import command_ok, software_info
 
 
 def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> argparse.ArgumentParser:
@@ -17,5 +17,4 @@ def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) ->
 
 
 def handle_registered(args: argparse.Namespace) -> dict[str, Any]:
-    info = software_info()
-    return command_ok("software_info", info=info)
+    return command_ok("software_info", **software_info())
