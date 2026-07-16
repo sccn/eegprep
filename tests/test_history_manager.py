@@ -29,10 +29,9 @@ class HistoryManagerTests(unittest.TestCase):
         self.assertEqual(_extract_function_name("EEG = pop_eegfiltnew(EEG, 1, 0);"), "pop_eegfiltnew")
         self.assertEqual(_extract_function_name("pop_saveset(EEG);"), "pop_saveset")
 
-    def test_staging_intercepts_commands(self):
+    def test_displays_allcom_commands(self):
         self.session.add_history("EEG = pop_resample(EEG, 250);")
-        self.assertEqual(len(self.session.STAGEDCOM), 1)
-        self.assertEqual(len(self.session.ALLCOM), 0)
+        self.assertEqual(len(self.session.ALLCOM), 1)
         self.assertEqual(self.widget.tree.topLevelItemCount(), 1)
         self.assertEqual(self.widget.tree.topLevelItem(0).text(0), "pop_resample")
 
@@ -50,35 +49,3 @@ class HistoryManagerTests(unittest.TestCase):
         group2 = self.widget.tree.topLevelItem(1)
         self.assertEqual(group2.text(0), "pop_resample")
         self.assertEqual(group2.childCount(), 1)
-
-    def test_commit_commands(self):
-        self.session.add_history("EEG = pop_eegfiltnew(EEG, 1, 0);")
-        self.session.add_history("EEG = pop_eegfiltnew(EEG, 2, 0);")
-
-        # Select the second command
-        group = self.widget.tree.topLevelItem(0)
-        child = group.child(1)
-        child.setSelected(True)
-
-        self.widget._commit()
-
-        # It should move to ALLCOM
-        self.assertEqual(len(self.session.ALLCOM), 1)
-        self.assertEqual(self.session.ALLCOM[0], "EEG = pop_eegfiltnew(EEG, 2, 0);")
-        self.assertEqual(len(self.session.STAGEDCOM), 1)
-        self.assertEqual(self.session.STAGEDCOM[0], "EEG = pop_eegfiltnew(EEG, 1, 0);")
-
-    def test_delete_commands(self):
-        self.session.add_history("EEG = pop_eegfiltnew(EEG, 1, 0);")
-        self.session.add_history("EEG = pop_eegfiltnew(EEG, 2, 0);")
-
-        # Select the first command
-        group = self.widget.tree.topLevelItem(0)
-        child = group.child(0)
-        child.setSelected(True)
-
-        self.widget._delete_selected()
-
-        self.assertEqual(len(self.session.STAGEDCOM), 1)
-        self.assertEqual(self.session.STAGEDCOM[0], "EEG = pop_eegfiltnew(EEG, 2, 0);")
-        self.assertEqual(len(self.session.ALLCOM), 0)

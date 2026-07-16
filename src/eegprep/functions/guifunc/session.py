@@ -91,8 +91,6 @@ class EEGPrepSession:
     CURRENTSET: list[int] = field(default_factory=list)
     ALLCOM: list[str] = field(default_factory=list)
     LASTCOM: str = ""
-    STAGEDCOM: list[str] = field(default_factory=list)
-    HISTORY_STAGING_ENABLED: bool = False
     STUDY: dict[str, Any] | None = None
     CURRENTSTUDY: int = 0
     PLUGINLIST: list[dict[str, Any]] = field(default_factory=list)
@@ -366,43 +364,20 @@ class EEGPrepSession:
         self.add_history(command)
 
     def add_history(self, command: str | None, *, notify: bool = True, force_commit: bool = False) -> None:
-        """Append an EEGLAB-style command to session history.
-
-        When staging is active (not force_commit), the command is intercepted
-        and placed in STAGEDCOM instead of ALLCOM.
-        """
+        """Append an EEGLAB-style command to session history."""
         if not command:
             if notify:
                 self.notify_changed()
             return
 
-        if not force_commit and self.HISTORY_STAGING_ENABLED:
-            self.STAGEDCOM.append(command)
-            # Some pop_ functions eagerly mutate the dataset history string directly
-            # before we can intercept them. We strip the command from the end of the
-            # dataset history if it matches the staged command.
-            current = self.EEG if isinstance(self.EEG, list) else [self.EEG]
-            for eeg in current:
-                if isinstance(eeg, dict) and "history" in eeg:
-                    history_str = str(eeg["history"]).strip()
-                    line = command.rstrip(";") + ";"
-                    lines = history_str.split("\n")
-                    if lines and lines[-1].strip() == line:
-                        eeg["history"] = "\n".join(lines[:-1]).strip()
-        else:
-            self.LASTCOM = eegh(command, self.ALLCOM)
+        self.LASTCOM = eegh(command, self.ALLCOM)
 
         if notify:
             self.notify_changed()
 
     def commit_staged_commands(self, commands: list[str]) -> None:
         """Commit selected staged commands to permanent dataset and session history."""
-        for cmd in commands:
-            self.add_history(cmd, notify=False, force_commit=True)
-            self._append_current_dataset_history(cmd, force_commit=True)
-            if cmd in self.STAGEDCOM:
-                self.STAGEDCOM.remove(cmd)
-        self.notify_changed()
+        pass # Deprecated in favor of read-only history
 
     def clear_history(self, *, notify: bool = True) -> None:
         """Clear command history and LASTCOM as one session mutation."""
@@ -434,9 +409,6 @@ class EEGPrepSession:
 
     def _append_current_dataset_history(self, command: str | None, force_commit: bool = False) -> None:
         if not command:
-            return
-        if not force_commit and self.HISTORY_STAGING_ENABLED:
-            # We intercept dataset history appends during staging.
             return
         current = self.EEG if isinstance(self.EEG, list) else [self.EEG]
         for eeg in current:
