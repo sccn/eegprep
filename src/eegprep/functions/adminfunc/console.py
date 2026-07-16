@@ -180,6 +180,7 @@ class ConsolePopFunction(LazyWorkspaceExport):
         self.bridge = bridge
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        self.bridge.push_state_to_session()
         function = self.resolve()
         call_kwargs = dict(kwargs)
         recorded_commands: set[str] = set()
@@ -241,7 +242,7 @@ class ConsoleEEGPrepModule:
         self._bridge = bridge
 
     def __getattr__(self, name: str) -> Any:
-        if name.startswith("pop_"):
+        if name.startswith("pop_") or name in {"eegplot", "eeg_browser", "eegbrowser"}:
             return self._bridge.pop_wrapper(name)
         if name == "eegh":
             return self._bridge.namespace["eegh"]
@@ -340,13 +341,20 @@ class EEGPrepConsoleWorkspace:
         self.session.remove_gui_action_listener(self._gui_action_event)
         self._finish_gui_action_output()
 
-    def sync_state(self) -> None:
-        """Force the workspace to push its state to the session and refresh the GUI."""
-        eeg = self.namespace.get("EEG")
-        if _is_eeg_selection(eeg):
-            self._store_eeg(eeg, "")
-        self.pull_from_session()
-        self._refresh()
+    def push_state_to_session(self) -> None:
+        """Push the current console namespace variables to the underlying session."""
+        self._syncing = True
+        try:
+            eeg = self.namespace.get("EEG")
+            if _is_eeg_selection(eeg):
+                self._store_eeg(eeg, "")
+            self.session.ALLEEG = self.namespace.get("ALLEEG", [])
+            self.session.STUDY = self.namespace.get("STUDY")
+            self.session.CURRENTSTUDY = self.namespace.get("CURRENTSTUDY", 0)
+            self.session.CURRENTSET = self.namespace.get("CURRENTSET", [1])
+        finally:
+            self._syncing = False
+            self.pull_from_session()
 
     def pull_from_session(self) -> None:
         """Mirror session state into the console namespace."""
@@ -359,7 +367,6 @@ class EEGPrepConsoleWorkspace:
         self.namespace["LASTCOM"] = self.session.LASTCOM
         self.namespace["STUDY"] = self.session.STUDY
         self.namespace["CURRENTSTUDY"] = self.session.CURRENTSTUDY
-        self.namespace["refresh"] = self.sync_state
 
     def after_execute(self, source: str, *, success: bool = True) -> None:
         """Push console-side workspace edits back into the session."""
@@ -526,7 +533,7 @@ class EEGPrepConsoleWorkspace:
         for local_name, export_name in _eegprep_import_aliases(source).items():
             if export_name == "eegprep":
                 self.namespace[local_name] = self._eegprep_proxy
-            elif export_name.startswith("pop_"):
+            elif export_name.startswith("pop_") or export_name in {"eegplot", "eeg_browser", "eegbrowser"}:
                 self.namespace[local_name] = self.pop_wrapper(export_name)
 
     def _store_eeg(self, eeg: Any, command: str, *, new: bool = False, index: int | list[int] | None = None) -> None:
@@ -671,8 +678,6 @@ class _IPythonShellAdapter:
             _safe_after_execute(self.workspace, raw_cell, success=success, write=sys.stderr.write)
 
         self.shell.events.register("post_run_cell", post_run_cell)
-        if hasattr(self.shell, "ast_transformers"):
-            self.shell.ast_transformers.append(_PlotSyncInjector())
         try:
             self.shell()
         finally:
@@ -947,43 +952,6 @@ def _normalise_python_command(text: str) -> str:
 
 def _normalise_tuple_assignment_targets(text: str) -> str:
     return _TUPLE_ASSIGNMENT_TARGET_PATTERN.sub(lambda match: f"{match.group(1)}{match.group(2)} =", text)
-
-
-class _PlotSyncInjector(ast.NodeTransformer):
-    def visit_Expr(self, node: ast.Expr) -> Any:
-        self.generic_visit(node)
-        return self._inject_if_needed(node)
-
-    def visit_Assign(self, node: ast.Assign) -> Any:
-        self.generic_visit(node)
-        return self._inject_if_needed(node)
-
-    def visit_AnnAssign(self, node: ast.AnnAssign) -> Any:
-        self.generic_visit(node)
-        return self._inject_if_needed(node)
-
-    def visit_AugAssign(self, node: ast.AugAssign) -> Any:
-        self.generic_visit(node)
-        return self._inject_if_needed(node)
-
-    def _inject_if_needed(self, node: ast.stmt) -> list[ast.stmt] | ast.stmt:
-        has_ui_call = False
-        for child in ast.walk(node):
-            if isinstance(child, ast.Call) and isinstance(child.func, ast.Name):
-                if child.func.id.startswith("pop_") or child.func.id in {"eegplot", "eeg_browser", "eegbrowser"}:
-                    has_ui_call = True
-                    break
-        if has_ui_call:
-            refresh_call = ast.Expr(
-                value=ast.Call(
-                    func=ast.Name(id="refresh", ctx=ast.Load()),
-                    args=[],
-                    keywords=[],
-                )
-            )
-            ast.copy_location(refresh_call, node)
-            return [refresh_call, node]
-        return node
 
 
 class _ConsoleCommandArgumentConverter(ast.NodeTransformer):
