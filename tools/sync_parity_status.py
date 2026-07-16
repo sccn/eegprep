@@ -5,22 +5,33 @@ from pathlib import Path
 
 def main():
     matrix_path = Path("docs/parity/eeglab_core_parity_matrix.json")
-    metrics_path = Path(".parity_metrics.json")
+    metrics_dir = Path(".parity_metrics")
     
     if not matrix_path.exists():
         print(f"Matrix not found at {matrix_path}")
         return 1
         
-    if not metrics_path.exists():
-        print("No parity metrics found.")
+    if not metrics_dir.exists() or not metrics_dir.is_dir():
+        print("No parity metrics directory found.")
         return 0
         
     with open(matrix_path, "r", encoding="utf-8") as f:
         matrix = json.load(f)
         
-    with open(metrics_path, "r", encoding="utf-8") as f:
-        metrics = json.load(f)
-        
+    # Aggregate metrics
+    metrics = {}
+    for fpath in metrics_dir.glob("*.json"):
+        try:
+            func_name = fpath.stem.rsplit('_', 1)[0]
+            with open(fpath, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            
+            current = metrics.get(func_name, {})
+            if data["rms_diff"] > current.get("rms_diff", -1):
+                metrics[func_name] = data
+        except Exception as e:
+            print(f"Failed to read {fpath}: {e}")
+            
     has_regression = False
     updated = False
     

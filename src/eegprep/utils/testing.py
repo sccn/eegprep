@@ -29,7 +29,7 @@ default_32_bit = True
 flatten_to_2d = True
 
 
-def compare_eeg(a, b, rtol=0, atol=1e-7, use_32_bit=default_32_bit, err_msg=''):
+def compare_eeg(a, b, rtol=0, atol=1e-7, use_32_bit=default_32_bit, err_msg='', parity_name=None):
     """Compare EEG time series data, with optional 32-bit precision.
 
     Returns:
@@ -91,31 +91,20 @@ def compare_eeg(a, b, rtol=0, atol=1e-7, use_32_bit=default_32_bit, err_msg=''):
     summary = "\n".join(summary_lines)
     print(f"Actual differences: rtol: {max_rel_diff}, atol: {max_abs_diff}")
 
-    import re
-    import json
-    from pathlib import Path
-
-    # Try to extract function name from err_msg for parity tracking
-    match = re.search(r'([a-zA-Z0-9_]+)\(\)', err_msg)
-    if match:
-        func_name = match.group(1)
-        metrics_file = Path('.parity_metrics.json')
-        metrics = {}
-        if metrics_file.exists():
-            try:
-                metrics = json.loads(metrics_file.read_text())
-            except Exception:
-                pass
-        
-        current = metrics.get(func_name, {})
-        # Keep worst-case RMS difference
-        if float(rms_diff) > float(current.get('rms_diff', -1)):
-            metrics[func_name] = {
-                'rms_diff': float(rms_diff),
-                'mean_diff': float(mean_abs_diff),
-                'max_diff': float(max_abs_diff)
-            }
-        metrics_file.write_text(json.dumps(metrics, indent=2))
+    if parity_name:
+        import json
+        import uuid
+        from pathlib import Path
+        metrics_dir = Path('.parity_metrics')
+        metrics_dir.mkdir(exist_ok=True)
+        metrics_dict = {
+            'rms_diff': float(rms_diff),
+            'mean_diff': float(mean_abs_diff),
+            'max_diff': float(max_abs_diff)
+        }
+        # Write to a unique file to prevent race conditions during test execution
+        metrics_file = metrics_dir / f"{parity_name}_{uuid.uuid4().hex}.json"
+        metrics_file.write_text(json.dumps(metrics_dict, indent=2))
 
     # Perform the assertion
     try:

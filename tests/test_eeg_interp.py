@@ -169,23 +169,18 @@ class TestEegInterpParity(unittest.TestCase):
 
         import json
         import pathlib
-        metrics_file = pathlib.Path('.parity_metrics.json')
-        metrics = {}
-        if metrics_file.exists():
-            try:
-                metrics = json.loads(metrics_file.read_text())
-            except Exception:
-                pass
+        import uuid
         
+        metrics_dir = pathlib.Path('.parity_metrics')
+        metrics_dir.mkdir(exist_ok=True)
+        metrics_dict = {
+            'rms_diff': float(rms_diff),
+            'mean_diff': float(mean_abs_diff),
+            'max_diff': float(max_diff)
+        }
         func_name = 'eeg_interp'
-        current = metrics.get(func_name, {})
-        if float(rms_diff) > float(current.get('rms_diff', -1)):
-            metrics[func_name] = {
-                'rms_diff': float(rms_diff),
-                'mean_diff': float(mean_abs_diff),
-                'max_diff': float(max_diff)
-            }
-        metrics_file.write_text(json.dumps(metrics, indent=2))
+        metrics_file = metrics_dir / f"{func_name}_{uuid.uuid4().hex}.json"
+        metrics_file.write_text(json.dumps(metrics_dict, indent=2))
 
         # Compare structure fields
         self.assertEqual(py_result['nbchan'], ml_result['nbchan'])

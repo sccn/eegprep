@@ -145,7 +145,7 @@ class TestCleanDrifts(DebuggableTestCase):
         # compare vs MATLAB
         expected = eeglab.clean_drifts(self.EEG, [3, 4], 75)
         cleaned1 = clean_drifts(deepcopy(self.EEG), [3, 4], 75, method='fir')
-        compare_eeg(cleaned1['data'], expected['data'], err_msg='clean_drifts() failed')
+        compare_eeg(cleaned1['data'], expected['data'], err_msg='clean_drifts() failed', parity_name='clean_drifts')
 
         # compare FFT vs FIR
         cleaned2 = clean_drifts(deepcopy(self.EEG), [3, 4], 75, method='fft')
@@ -160,13 +160,13 @@ class TestCleanChannels(DebuggableTestCase):
         eeglab = eeglabcompat.get_eeglab('MAT')
         cleaned, _ = clean_channels_nolocs(deepcopy(self.EEG), 0.9)
         expected = eeglab.clean_channels_nolocs(self.EEG, 0.9)
-        compare_eeg(cleaned['data'], expected['data'], err_msg='clean_channels_nolocs() failed')
+        compare_eeg(cleaned['data'], expected['data'], err_msg='clean_channels_nolocs() failed', parity_name='clean_channels_nolocs')
 
     def test_clean_channels_locs(self):
         cleaned = clean_channels(deepcopy(self.EEG), 0.9)
         eeglab = eeglabcompat.get_eeglab('MAT')
         expected = eeglab.clean_channels(self.EEG, 0.9)
-        compare_eeg(cleaned['data'], expected['data'], err_msg='clean_channels() failed')
+        compare_eeg(cleaned['data'], expected['data'], err_msg='clean_channels() failed', parity_name='clean_channels')
 
 
 class TestCleanASR(DebuggableTestCase):
@@ -183,6 +183,7 @@ class TestCleanASR(DebuggableTestCase):
             atol=0,
             rtol=1e-6,  # because of eigh() precision differences
             err_msg='clean_asr() failed vs MATLAB',
+            parity_name='clean_asr'
         )
 
     def test_riemannian(self):
@@ -236,7 +237,7 @@ class TestCleanWindows(DebuggableTestCase):
         cleaned, _ = clean_windows(deepcopy(self.EEG))
         eeglab = eeglabcompat.get_eeglab('MAT')
         expected = eeglab.clean_windows(self.EEG)
-        compare_eeg(cleaned['data'], expected['data'], err_msg='clean_windows() failed vs MATLAB')
+        compare_eeg(cleaned['data'], expected['data'], err_msg='clean_windows() failed vs MATLAB', parity_name='clean_windows')
 
     def test_clean_windows_preserves_float64(self):
         cleaned, _ = clean_windows(deepcopy(self.EEG))
@@ -270,6 +271,7 @@ class TestCleanArtifacts(DebuggableTestCase):
                 rtol=0,
                 atol=1e-5,  # limit to 1e-5 uV likely due to solver differences
                 err_msg='clean_artifacts() failed vs MATLAB',
+                parity_name='clean_artifacts'
             )
 
 
@@ -303,6 +305,7 @@ class TestCleanArtifactsAdvanced(DebuggableTestCase):
             rtol=0,
             atol=2e-5,  # limit to 2e-5 uV due to solver and floating point differences
             err_msg='clean_artifacts() failed vs MATLAB',
+            parity_name='clean_artifacts'
         )
 
 

@@ -1,0 +1,50 @@
+name: Update Parity Matrix
+
+on:
+  workflow_run:
+    workflows: ["Tests"]
+    types:
+      - completed
+    branches:
+      - develop
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-parity:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: develop
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: parity-metrics-*
+          path: .parity_metrics/
+          merge-multiple: true
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run sync script
+        run: |
+          python tools/sync_parity_status.py
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "chore: update parity matrix based on recent metrics"
+          title: "Update Parity Matrix"
+          body: "Automated PR to update parity matrix based on recent test outcomes."
+          branch: "chore/update-parity-matrix"
+          base: "develop"
