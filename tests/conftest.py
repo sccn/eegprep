@@ -74,7 +74,6 @@ MATLAB_FILE_SUFFIXES = (
     "tests/test_pop_epoch.py",
     "tests/test_pop_loadset_h5.py",
     "tests/test_pop_resample.py",
-    "tests/test_spectopo_parity.py",
 )
 
 MATLAB_NODEID_PARTS = (
