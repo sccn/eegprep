@@ -219,58 +219,36 @@ def file_sha256(path: str | Path) -> str:
 
 
 def _get_active_packages() -> list[dict[str, str]]:
-    active_tops = {m.split(".")[0] for m in sys.modules if not m.startswith("_")}
+    """Return a list of fixed scientific dependencies and their installed versions.
 
-    seen = set()
+    This avoids scanning sys.modules (which can be non-deterministic due to import order)
+    and drops unreliable guessing of PyPI/Git origins in favor of locking provenance.
+    """
+    scientific_packages = [
+        "h5py",
+        "matplotlib",
+        "mne",
+        "numpy",
+        "pybids",
+        "pyedflib",
+        "python-picard",
+        "scipy",
+        "sympy",
+    ]
+
     packages = []
+    for name in scientific_packages:
+        try:
+            version = importlib.metadata.version(name)
+            packages.append({"name": name, "version": version})
+        except importlib.metadata.PackageNotFoundError:
+            pass
 
-    for dist in importlib.metadata.distributions():
-        name = dist.metadata.get("Name", dist.name)
-        if name in seen:
-            continue
-
-        norm_name = name.lower().replace("-", "_")
-        is_active = False
-
-        if norm_name in active_tops or name in active_tops:
-            is_active = True
-        else:
-            try:
-                top_level = dist.read_text("top_level.txt")
-                if top_level:
-                    tops = [line.strip() for line in top_level.split("\n") if line.strip()]
-                    if any(t in active_tops for t in tops):
-                        is_active = True
-            except Exception:
-                pass
-
-        if is_active:
-            seen.add(name)
-            try:
-                direct_url = dist.read_text("direct_url.json")
-            except Exception:
-                direct_url = None
-
-            source = "pypi"
-            if direct_url:
-                try:
-                    data = json.loads(direct_url)
-                    if "vcs_info" in data:
-                        source = data["vcs_info"].get("vcs", "git")
-                    elif data.get("url", "").startswith("file://"):
-                        source = "local"
-                    else:
-                        source = "url"
-                except Exception:
-                    source = "unknown"
-
-            packages.append({"name": name, "version": dist.version, "source": source})
-
-    packages.sort(key=lambda x: x["name"].lower())
     return packages
 
 
 def software_info() -> dict[str, Any]:
+    """Capture software information for a manifest, including package versions."""
     return {
         "eegprep_version": eegprep.__version__,
         "python_version": platform.python_version(),
@@ -291,6 +269,7 @@ def build_manifest(
     deterministic: bool | None = None,
     warnings: list[Any] | None = None,
 ) -> dict[str, Any]:
+    """Build a standard manifest dictionary containing execution metadata and provenance."""
     stamp = runtime_stamp(started_at) if finished_at is None else RuntimeStamp(started_at, finished_at)
     manifest: dict[str, Any] = {
         "schema_version": "eegprep.manifest.v1",
