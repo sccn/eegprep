@@ -94,9 +94,9 @@ def test_pop_topoplot_multi_map_pages_include_shared_colorbar_by_default():
     plt.close(figures[0])
 
 
-def test_pop_topoplot_component_pages_use_shared_default_scale():
+def test_pop_topoplot_component_pages_scale_each_map_to_own_absmax():
     eeg = create_test_eeg_with_ica(n_channels=6, n_samples=30, n_components=2)
-    eeg["icawinv"] = np.column_stack([np.ones(6), np.arange(1, 7) * 10.0])
+    eeg["icawinv"] = np.column_stack([np.arange(1, 7) * 1.0, np.arange(1, 7) * 10.0])
 
     figures = pop_topoplot(
         eeg,
@@ -107,8 +107,15 @@ def test_pop_topoplot_component_pages_use_shared_default_scale():
         electrodes="off",
     )
 
+    expected = []
+    for index in range(2):
+        _, zi, *_ = topoplot(eeg["icawinv"][:, index], eeg["chanlocs"], noplot="on")
+        limit = float(np.nanmax(np.abs(zi)))
+        expected.append((-limit, limit))
     clims = [axis.images[0].get_clim() for axis in figures[0].axes[:2]]
-    assert clims[0] == clims[1] == (-60.0, 60.0)
+    np.testing.assert_allclose(clims[0], expected[0], rtol=1e-6)
+    np.testing.assert_allclose(clims[1], expected[1], rtol=1e-6)
+    assert not np.allclose(clims[0], clims[1])
     assert len(figures[0].axes) == 3
     plt.close(figures[0])
 

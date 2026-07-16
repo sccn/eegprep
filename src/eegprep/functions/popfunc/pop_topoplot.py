@@ -93,13 +93,16 @@ def pop_topoplot(
     else:
         raise ValueError("typeplot must be 1 for ERP maps or 0 for component maps")
 
+    # EEGLAB scaling: ERP maps share one symmetric absmax scale; component maps each use their own.
+    plot_options = dict(options)
+    plot_options.setdefault("maplimits", _default_maplimits(maps) if typeplot == 1 else "absmax")
     figures = _plot_map_pages(
         maps,
         labels,
         plot_chanlocs,
         topotitle=topotitle,
         rowcols=rowcols_array,
-        options=dict(options),
+        options=plot_options,
     )
     command = _history_command(typeplot, items_array, topotitle, rowcols_array, int(bool(plotdip)), options)
     return (figures, command) if return_com else figures
@@ -227,8 +230,6 @@ def _plot_map_pages(
     figures = []
     colorbar = _is_on(options.pop("colorbar", "on"))
     maplimits = options.pop("maplimits", None)
-    if maplimits is None or _is_absmax_maplimits(maplimits):
-        maplimits = _default_maplimits(maps)
     for page_start in range(0, len(maps), per_page):
         page_maps = maps[page_start : page_start + per_page]
         page_labels = labels[page_start : page_start + per_page]
@@ -413,10 +414,6 @@ def _validate_topoplot_inputs(EEG: dict[str, Any], typeplot: int) -> None:
     _require_chanlocs(EEG)
     if typeplot == 0:
         _require_ica(EEG)
-
-
-def _is_absmax_maplimits(value: Any) -> bool:
-    return isinstance(value, str) and value.lower() == "absmax"
 
 
 def _is_plotdip_value(value: Any) -> bool:
