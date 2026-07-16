@@ -239,7 +239,7 @@ def build_manifest(
 ) -> dict[str, Any]:
     stamp = runtime_stamp(started_at) if finished_at is None else RuntimeStamp(started_at, finished_at)
     manifest: dict[str, Any] = {
-        "schema_version": "eegprep.manifest.v1",
+        "schema_version": "eegprep.manifest.v2",
         "command": command,
         "input_files": [_input_file_record(path) for path in input_files],
         "output_files": output_files,

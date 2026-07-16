@@ -7,6 +7,7 @@ from pathlib import Path
 import subprocess
 import sys
 
+from eegprep.cli.core import read_manifest
 from eegprep.cli.commands import transforms
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_saveset import pop_saveset
@@ -79,7 +80,7 @@ def test_resample_writes_dataset_manifest_and_clean_json_stdout(tmp_path):
 
     manifest_path = output.with_suffix(output.suffix + ".manifest.json")
     assert payload["manifest"]["path"] == str(manifest_path)
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest = read_manifest(manifest_path)
     assert manifest["schema_version"] == transforms.MANIFEST_SCHEMA_VERSION
     assert manifest["parameters"]["freq"] == 128
     assert "pop_resample" in manifest["history"]

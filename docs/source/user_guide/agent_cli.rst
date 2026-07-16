@@ -134,6 +134,16 @@ planned, reviewed, and rerun.
    eegprep pipeline run preprocess.yaml --json
    eegprep batch run sub-01.set sub-02.set --pipeline preprocess.yaml --output-dir derivatives/eegprep --json
 
+
+Manifest Portability and Migration
+==================================
+
+Manifests produced by EEGPrep (``eegprep.manifest.v2``) write relative paths for input and output files based on the manifest's location. This makes project metadata portable across machines, drives, and operating systems (using POSIX slashes internally).
+
+* **Schema Version:** From ``eegprep.manifest.v1`` to ``eegprep.manifest.v2``, the paths recorded in ``input_files`` and ``output_files`` switched from absolute strings to relative paths.
+* **Limitations:** External paths (files residing outside the manifest's subtree) are recorded using ``../../`` navigation. If the project directory is moved independently of the external file structure, these references will break.
+* **Consuming Manifests:** Use the ``read_manifest(path)`` utility in ``eegprep.cli.core`` to automatically expand relative paths back into functional absolute paths upon ingestion.
+
 Pipeline transform steps use the same defaults as the matching direct CLI
 commands. In particular, ``clean`` defaults to ASR burst correction with
 ``burst_criterion: 20`` and leaves flatline, channel, line-noise, window, and

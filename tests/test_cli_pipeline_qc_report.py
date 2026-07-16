@@ -4,6 +4,7 @@ from pathlib import Path
 import numpy as np
 import yaml
 
+from eegprep.cli.core import read_manifest
 from eegprep.cli.commands import transforms as transforms_cli
 from eegprep.cli.commands.pipeline import (
     _channel_indices,
@@ -56,8 +57,8 @@ def test_pipeline_run_writes_qc_report_and_manifest(tmp_path):
     assert (tmp_path / "out" / "report.html").is_file()
     manifest_path = tmp_path / "out" / "eegprep_manifest.json"
     assert manifest_path.is_file()
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    assert manifest["schema_version"] == "eegprep.manifest.v1"
+    manifest = read_manifest(manifest_path)
+    assert manifest["schema_version"] == "eegprep.manifest.v2"
     assert manifest["command"] == "pipeline run"
     assert {item["type"] for item in manifest["output_files"]} == {"json", "html_report"}
     assert isinstance(result["qc"]["recommendations"], list)
@@ -73,7 +74,7 @@ def test_pipeline_run_resample_writes_dataset_manifest_and_history(tmp_path):
 
     assert result["status"] == "ok"
     assert (tmp_path / "out" / "eeglab_data_eegprep.set").is_file()
-    manifest = json.loads((tmp_path / "out" / "eegprep_manifest.json").read_text(encoding="utf-8"))
+    manifest = read_manifest(tmp_path / "out" / "eegprep_manifest.json")
     assert "pop_resample" in manifest["history"]
     assert any(item["type"] == "eeglab_set" for item in manifest["output_files"])
     assert any("pop_resample" in item for item in result["history"])
@@ -301,8 +302,8 @@ def test_report_and_qc_report_write_html_and_manifests(tmp_path):
     assert qc_result["status"] == "ok"
     assert "EEGPrep Report" in (tmp_path / "dataset_report.html").read_text(encoding="utf-8")
     assert "EEGPrep QC Report" in (tmp_path / "qc_report.html").read_text(encoding="utf-8")
-    assert json.loads((tmp_path / "dataset_report.manifest.json").read_text(encoding="utf-8"))["command"] == "report"
-    assert json.loads((tmp_path / "qc_report.manifest.json").read_text(encoding="utf-8"))["command"] == "qc report"
+    assert read_manifest(tmp_path / "dataset_report.manifest.json")["command"] == "report"
+    assert read_manifest(tmp_path / "qc_report.manifest.json")["command"] == "qc report"
 
 
 def _write_pipeline_config(tmp_path, *, steps, input_path=SAMPLE_SET):
