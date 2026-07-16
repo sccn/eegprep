@@ -1,7 +1,6 @@
 {
   "metadata": {
     "schema_version": 1,
-    "source_audit": ".notes/eeglab-migration-gap-audit.md",
     "source_issue": "https://github.com/sccn/eegprep/issues/132",
     "parent_epic": "https://github.com/sccn/eegprep/issues/131",
     "scope": {

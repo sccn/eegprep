@@ -60,6 +60,12 @@ class PopHelpAndChanSelTests(unittest.TestCase):
                 self.assertIn("resources/help", Path(source_path).as_posix())
                 self.assertTrue(source_path.endswith(f"{target}.md"))
 
+    def test_packaged_help_does_not_reference_local_notes(self):
+        text, _ = pophelp_text("pop_preclust")
+
+        self.assertNotIn(".notes/", text)
+        self.assertIn("pop_precomp", text)
+
     def test_dialog_help_targets_have_packaged_resources(self):
         interp_eeg = {"data": [], "trials": 1, "chanlocs": [], "chaninfo": {}, "epoch": []}
         specs = (pop_reref_dialog_spec(), pop_interp_dialog_spec(interp_eeg))
