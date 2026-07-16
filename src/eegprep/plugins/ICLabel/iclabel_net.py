@@ -5,7 +5,7 @@ classifying EEG components as brain or artifact sources.
 """
 
 import scipy.io
-import torch  # type: ignore
+import torch
 import scipy
 
 

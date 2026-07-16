@@ -1802,62 +1802,73 @@ def test_terminal_write_sync_path_writes_immediately_without_prompt_toolkit():
     import_module.assert_not_called()
     assert stream.getvalue() == "\nIn [2]: EEG = pop_interp(EEG, [1]);\n"
 
-def test_console_ast_mutation_detection_triggers_sync():
+
+@pytest.mark.parametrize(
+    ("source", "expected_targets"),
+    [
+        ("ALLEEG.append(new_eeg)", {"ALLEEG"}),
+        ("EEG.update({'setname': 'updated'})", {"EEG"}),
+        ("EEG['data'].fill(0)", {"EEG"}),
+        ("ALLEEG[0]['data'].fill(0)", {"ALLEEG"}),
+        ("EEG.pop('custom')", {"EEG"}),
+        ("ALLEEG.sort(key=lambda item: item['setname'])", {"ALLEEG"}),
+        ("ALLEEG.reverse()", {"ALLEEG"}),
+        ("ALLEEG.append(new_eeg); ALLEEG.reverse()", {"ALLEEG"}),
+        ("STUDY.update({'name': 'updated'})", {"STUDY"}),
+        ("items.append(1)", set()),
+        ("EEG.get('data')", set()),
+        ("alias = EEG['data']; alias.fill(0)", set()),
+        ("np.copyto(EEG['data'], values)", set()),
+        ("ALLCOM.append('command')", set()),
+        ("not valid Python", set()),
+    ],
+)
+def test_workspace_assignment_targets_detects_only_supported_mutations(source, expected_targets):
+    assert console_module._workspace_assignment_targets(source) == expected_targets
+
+
+@pytest.mark.parametrize(
+    ("source", "expected_names", "expected_current_name", "expected_data"),
+    [
+        ("ALLEEG.append(new_eeg)", ["beta", "alpha", "new"], "alpha", None),
+        ("EEG.update({'setname': 'updated'})", ["beta", "updated"], "updated", None),
+        ("EEG['data'].fill(0)", ["beta", "alpha"], "alpha", 0.0),
+        ("EEG.pop('custom')", ["beta", "alpha"], "alpha", None),
+        (
+            "ALLEEG.sort(key=lambda item: item['setname'])",
+            ["alpha", "beta"],
+            "beta",
+            None,
+        ),
+        ("ALLEEG.reverse()", ["alpha", "beta"], "beta", None),
+    ],
+)
+def test_console_in_place_mutations_sync_session_once(
+    source,
+    expected_names,
+    expected_current_name,
+    expected_data,
+):
     session = EEGPrepSession()
-    session.store_current(_demo_eeg(), new=True)
+    session.store_current(_demo_eeg("beta"), new=True)
+    alpha = _demo_eeg("alpha")
+    alpha["custom"] = "present"
+    session.store_current(alpha, new=True)
+    notifications = mock.Mock()
+    session.add_change_listener(notifications)
     refresh = mock.Mock()
     workspace = EEGPrepConsoleWorkspace(session, refresh=refresh, exports={})
-    
-    # 1. append on ALLEEG
-    workspace.namespace["ALLEEG"].append(_demo_eeg("new"))
-    workspace.after_execute("ALLEEG.append(new_eeg)")
-    assert refresh.call_count == 1
-    
-    # 2. update on nested EEG dict
-    workspace.namespace["EEG"].update({"setname": "updated"})
-    workspace.after_execute("EEG.update({'setname': 'updated'})")
-    assert refresh.call_count == 2
-    
-    # 3. fill on nested EEG array
-    workspace.namespace["EEG"]["data"].fill(0)
-    workspace.after_execute("EEG['data'].fill(0)")
-    assert refresh.call_count == 3
-    
-    # 4. pop from workspace
-    workspace.namespace["EEG"].pop("setname")
-    workspace.after_execute("EEG.pop('setname')")
-    assert refresh.call_count == 4
-    
-    # 5. sort on ALLEEG
-    workspace.namespace["ALLEEG"].sort(key=lambda x: x.get("setname", ""))
-    workspace.after_execute("ALLEEG.sort(key=lambda x: x.get('setname', ''))")
-    assert refresh.call_count == 5
-    
-    # 6. reverse on ALLEEG
-    workspace.namespace["ALLEEG"].reverse()
-    workspace.after_execute("ALLEEG.reverse()")
-    assert refresh.call_count == 6
+    workspace.namespace["new_eeg"] = _demo_eeg("new")
 
-    # 7. Non-workspace variable read-only / mutator
-    workspace.namespace["my_list"] = [1, 2, 3]
-    workspace.after_execute("my_list = [1, 2, 3]")
-    assert refresh.call_count == 6 # Assignments to non-workspace ignore sync!
-    workspace.namespace["my_list"].append(4)
-    workspace.after_execute("my_list.append(4)")
-    assert refresh.call_count == 6 # Still 6
-    
-    # 8. Read-only method on workspace variable
-    _ = workspace.namespace["EEG"].get("data")
-    workspace.after_execute("EEG.get('data')")
-    assert refresh.call_count == 6 # Read-only methods don't trigger sync
-    
-    # 9. Assignment should still trigger exactly once
-    workspace.namespace["EEG"] = workspace.namespace["EEG"]
-    workspace.after_execute("EEG = EEG")
-    assert refresh.call_count == 7
-    
-    # 10. Multiple mutating methods on one line triggers only once
-    workspace.namespace["ALLEEG"].append(_demo_eeg("two"))
-    workspace.namespace["ALLEEG"].reverse()
-    workspace.after_execute("ALLEEG.append(two); ALLEEG.reverse()")
-    assert refresh.call_count == 8
+    exec(source, workspace.namespace)
+    workspace.after_execute(source)
+
+    assert [item.get("setname") for item in session.ALLEEG] == expected_names
+    assert session.EEG.get("setname") == expected_current_name
+    if expected_data is not None:
+        np.testing.assert_array_equal(session.EEG["data"], expected_data)
+    if source == "EEG.pop('custom')":
+        assert "custom" not in session.EEG
+    assert session.ALLCOM == [source]
+    notifications.assert_called_once_with(session)
+    refresh.assert_called_once()

@@ -11,7 +11,7 @@ import logging
 from importlib.resources import files
 
 import scipy.io
-import torch  # type: ignore
+import torch
 
 from eegprep.plugins.ICLabel.iclabel_net import ICLabelNet
 
