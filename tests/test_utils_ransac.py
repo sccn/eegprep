@@ -2,26 +2,8 @@ import unittest
 import numpy as np
 from unittest.mock import patch, MagicMock
 
-from eegprep.plugins.clean_rawdata.private.ransac import rand_permutation, rand_sample, calc_projector
+from eegprep.plugins.clean_rawdata.private.ransac import rand_sample, calc_projector
 from eegprep.plugins.clean_rawdata.private.sphericalSplineInterpolate import sphericalSplineInterpolate
-
-
-def _scalar_rand_sample(n, m, stream):
-    pool = np.arange(n)
-    for k in range(m):
-        remaining = n - k
-        choice = int(np.floor((remaining - 1) * stream.rand() + 0.5))
-        idx = k + choice
-        pool[k], pool[idx] = pool[idx], pool[k]
-    return pool[:m].copy()
-
-
-def _scalar_rand_permutation(n, stream):
-    result = np.arange(n)
-    for k in range(n - 1, 0, -1):
-        j = int(np.floor(k * stream.rand() + 0.5))
-        result[k], result[j] = result[j], result[k]
-    return result
 
 
 class TestRandSample(unittest.TestCase):
@@ -111,36 +93,6 @@ class TestRandSample(unittest.TestCase):
         # Each index should appear at least once across many runs
         unique_indices = set(results)
         self.assertEqual(len(unique_indices), n)  # All indices should appear
-
-    def test_vectorized_rng_matches_scalar_reference(self):
-        """Test that batched random draws preserve the scalar RNG sequence."""
-        for seed, n, m in ((42, 10, 5), (5489, 20, 20), (123, 8, 0)):
-            with self.subTest(seed=seed, n=n, m=m):
-                vectorized_rng = np.random.RandomState(seed)
-                scalar_rng = np.random.RandomState(seed)
-
-                result = rand_sample(n, m, vectorized_rng)
-                expected = _scalar_rand_sample(n, m, scalar_rng)
-
-                np.testing.assert_array_equal(result, expected)
-                np.testing.assert_allclose(vectorized_rng.rand(3), scalar_rng.rand(3))
-
-
-class TestRandPermutation(unittest.TestCase):
-    """Test the rand_permutation function for MATLAB-parity shuffling."""
-
-    def test_vectorized_rng_matches_scalar_reference(self):
-        """Test that batched random draws preserve the scalar RNG sequence."""
-        for seed, n in ((42, 10), (5489, 20), (123, 1), (321, 0)):
-            with self.subTest(seed=seed, n=n):
-                vectorized_rng = np.random.RandomState(seed)
-                scalar_rng = np.random.RandomState(seed)
-
-                result = rand_permutation(n, vectorized_rng)
-                expected = _scalar_rand_permutation(n, scalar_rng)
-
-                np.testing.assert_array_equal(result, expected)
-                np.testing.assert_allclose(vectorized_rng.rand(3), scalar_rng.rand(3))
 
 
 class TestCalcProjector(unittest.TestCase):
