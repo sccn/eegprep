@@ -14,7 +14,7 @@ from .clean_channels_nolocs import clean_channels_nolocs
 from .clean_asr import clean_asr
 from .clean_windows import clean_windows
 from .private.masks import mask_to_intervals
-from ...functions.miscfunc.parity import round_mat
+from ...functions.miscfunc.misc import round_mat
 from ...functions.popfunc.eeg_eegrej import eeg_eegrej
 
 

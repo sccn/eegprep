@@ -5,8 +5,7 @@ import logging
 import numpy as np
 import scipy.signal
 
-from ...functions.miscfunc.misc import finite_matmul, finite_pinv
-from ...functions.miscfunc.parity import round_mat
+from ...functions.miscfunc.misc import finite_matmul, finite_pinv, round_mat
 from .private.sigproc import moving_average
 
 logger = logging.getLogger(__name__)

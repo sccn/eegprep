@@ -24,7 +24,7 @@ import time
 
 import numpy as np
 from scipy.linalg import sqrtm, pinv, eig
-from ..miscfunc.parity import rand_permutation
+from ...plugins.clean_rawdata.private.ransac import rand_permutation
 from ..miscfunc.misc import finite_pinv
 
 logger = logging.getLogger(__name__)

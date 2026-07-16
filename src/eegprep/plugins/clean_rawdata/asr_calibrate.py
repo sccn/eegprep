@@ -6,8 +6,7 @@ import numpy as np
 import scipy.signal
 import scipy.linalg
 
-from ...functions.miscfunc.misc import canonicalize_signs, finite_matmul
-from ...functions.miscfunc.parity import round_mat
+from ...functions.miscfunc.misc import canonicalize_signs, finite_matmul, round_mat
 from .private.covariance import cov_mean, cov_shrinkage
 from .private.stats import fit_eeg_distribution, geometric_median
 

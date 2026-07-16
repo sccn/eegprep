@@ -2,8 +2,7 @@ import unittest
 import numpy as np
 from unittest.mock import patch, MagicMock
 
-from eegprep.functions.miscfunc.parity import rand_sample
-from eegprep.plugins.clean_rawdata.private.ransac import calc_projector
+from eegprep.plugins.clean_rawdata.private.ransac import rand_sample, calc_projector
 from eegprep.plugins.clean_rawdata.private.sphericalSplineInterpolate import sphericalSplineInterpolate
 
 

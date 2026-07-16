@@ -11,7 +11,7 @@ import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
-from eegprep.functions.miscfunc.parity import round_mat
+from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc._plot_utils import component_map_data
 from eegprep.functions.popfunc._plot_utils import history_command as plot_history_command

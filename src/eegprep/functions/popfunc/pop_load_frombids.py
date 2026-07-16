@@ -16,8 +16,7 @@ from eegprep.plugins.EEG_BIDS.coords import (
 )
 from eegprep.plugins.EEG_BIDS.montage import apply_montage_inference
 from eegprep.plugins.EEG_BIDS.raw import load_raw_eeg_file
-from eegprep.functions.miscfunc.misc import ExceptionUnlessDebug
-from eegprep.functions.miscfunc.parity import round_mat
+from eegprep.functions.miscfunc.misc import ExceptionUnlessDebug, round_mat
 
 import numpy as np
 

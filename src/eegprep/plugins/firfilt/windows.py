@@ -7,7 +7,7 @@ import warnings
 import numpy as np
 from scipy.special import i0
 
-from eegprep.functions.miscfunc.parity import round_mat
+from eegprep.functions.miscfunc.misc import round_mat
 
 
 def windows(t: str, m: float, a: float | None = None) -> np.ndarray:

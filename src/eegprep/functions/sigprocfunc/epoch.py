@@ -8,7 +8,7 @@ import logging
 
 import numpy as np
 
-from ..miscfunc.parity import round_mat
+from ..miscfunc.misc import round_mat
 
 logger = logging.getLogger(__name__)
 
