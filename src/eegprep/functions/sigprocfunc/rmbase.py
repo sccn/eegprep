@@ -50,8 +50,9 @@ def rmbase(data: Any, frames: int | None = 0, basevector: Any = 0, *, return_mea
     # Keep frames contiguous, as in the original epoch loop, while using this
     # copy as the output buffer. Integer input retains the legacy float64 output.
     output_dtype = np.float64 if not np.issubdtype(array.dtype, np.floating) else array.dtype
-    matrix = array.transpose(0, 2, 1).reshape(channels, total_frames) if array.ndim == 3 else array
-    output_reshaped = np.array(matrix.reshape(channels, epochs, frames), dtype=output_dtype, order="C", copy=True)
+    epoch_order = array.transpose(0, 2, 1) if array.ndim == 3 else array
+    output = np.array(epoch_order, dtype=output_dtype, order="C", copy=True)
+    output_reshaped = output.reshape(channels, epochs, frames)
     means = np.empty((channels, epochs), dtype=np.result_type(array.dtype, np.float64))
 
     # np.nanmean makes a data copy and a validity mask. Process several epochs
