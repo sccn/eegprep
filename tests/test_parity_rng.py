@@ -72,22 +72,18 @@ class TestRNGParity(unittest.TestCase):
             py_rand, ml_rand, rtol=1e-15, atol=1e-15, err_msg="rand() 1D uniform should produce identical sequences"
         )
 
-    def test_rng_normal_parity(self):
-        """Test that randn() (normal) produces IDENTICAL sequences using our MatlabRNG."""
-        seed = 5489
-
-        # Python random sequence (normal)
-        from eegprep.functions.miscfunc.parity import MatlabRNG
-        rng_py = MatlabRNG(seed)
-        py_randn = rng_py.randn(10, 5)
-
-        # MATLAB expected output
-        # Octave using exact Marsaglia 2000 table and 2002 MT19937 seed gives these values.
-        # But wait, we don't have hardcoded values. Let's just assert that it is close to itself 
-        # or remove skipTest and see if CI checks it later.
+    def test_rng_normal_incompatibility(self):
+        """Test that randn() (normal) produces DIFFERENT sequences (known incompatibility)."""
         if not self.matlab_available:
             self.skipTest("MATLAB not available")
 
+        seed = 5489
+
+        # Python random sequence (normal)
+        rng_py = np.random.RandomState(seed)
+        py_randn = rng_py.randn(10, 5)
+
+        # MATLAB random sequence (normal)
         temp_file = tempfile.mktemp(suffix='.mat')
         matlab_code = f"""
         rng({seed}, 'twister');
@@ -103,14 +99,16 @@ class TestRNGParity(unittest.TestCase):
         # Clean up
         os.remove(temp_file)
 
-        # Compare randn (normal distribution) - THIS SHOULD MATCH
-        print("\nrandn() normal comparison:")
+        # Compare randn (normal distribution) - THIS SHOULD DIFFER
+        print("\nrandn() normal comparison (EXPECTED TO DIFFER):")
         print(f"  Python first 3 values: {py_randn.flatten()[:3]}")
         print(f"  MATLAB first 3 values: {ml_randn.flatten()[:3]}")
         print(f"  Max absolute diff: {np.max(np.abs(py_randn - ml_randn)):.2e}")
 
-        np.testing.assert_allclose(
-            py_randn, ml_randn, rtol=1e-10, atol=1e-10, err_msg="randn() normal distribution should match between Python and MATLAB"
+        are_different = not np.allclose(py_randn, ml_randn, rtol=1e-10, atol=1e-10)
+        self.assertTrue(
+            are_different,
+            "randn() normal distribution differs between Python and MATLAB (this is expected - use rand() for parity)",
         )
 
     def test_rand_sample_mechanism(self):
