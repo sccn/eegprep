@@ -244,7 +244,8 @@ def _draw_maps_row(
         map_axes.append(topo_ax)
 
     cbar_ax = fig.add_axes([0.92, top_y + 0.02, 0.02, top_h - 0.06])
-    colorbar = fig.colorbar(ScalarMappable(cmap=plt.get_cmap("jet"), norm=Normalize(vmin=-1, vmax=1)), cax=cbar_ax)
+    cmap = plt.get_cmap((topoplot_options or {}).get("colormap") or "jet")
+    colorbar = fig.colorbar(ScalarMappable(cmap=cmap, norm=Normalize(vmin=-1, vmax=1)), cax=cbar_ax)
     # Inset the +/- labels from the bar ends (EEGLAB places them at the outermost
     # ticks, not flush with the extremes). Purely cosmetic; the bar still spans the
     # full gradient and does not drive the per-map scalp colors.
