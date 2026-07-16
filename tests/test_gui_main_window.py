@@ -150,6 +150,7 @@ class MainMenuSpecTests(unittest.TestCase):
         self.assertIn('(Expand tool choices via "File > Preferences")', tools_labels)
         self.assertNotIn("Automatic channel rejection", tools_labels)
         self.assertIn("Reject data using Clean Rawdata and ASR", tools_labels)
+        self.assertIn("Classify components using ICLabel", tools_labels)
         self.assertIn("Source localization using DIPFIT", tools_labels)
 
     def test_all_menus_mode_reveals_legacy_items_and_hides_expand_prompt(self):
@@ -312,7 +313,9 @@ class MainMenuSpecTests(unittest.TestCase):
         self.assertEqual(action_kind("pop_firws"), "implemented")
         self.assertEqual(action_kind("pop_firpm"), "implemented")
         self.assertEqual(action_kind("pop_firma"), "implemented")
+        self.assertEqual(action_kind("pop_clean_rawdata"), "implemented")
         self.assertEqual(action_kind("pop_runica"), "implemented")
+        self.assertEqual(action_kind("pop_iclabel"), "implemented")
         self.assertEqual(action_kind("pop_icflag"), "implemented")
         self.assertEqual(action_kind("pop_subcomp"), "implemented")
         self.assertEqual(action_kind("pop_exportbids"), "implemented")
@@ -949,6 +952,7 @@ class MenuActionDispatcherTests(unittest.TestCase):
 
     def test_new_main_window_pop_actions_dispatch_to_real_wrappers(self):
         newset_actions = {
+            "pop_clean_rawdata",
             "pop_eegfilt",
             "pop_eegfiltnew",
             "pop_epoch",
@@ -978,7 +982,9 @@ class MenuActionDispatcherTests(unittest.TestCase):
             ("pop_firws", "eegprep.plugins.firfilt.pop_firws.pop_firws", "firws"),
             ("pop_firpm", "eegprep.plugins.firfilt.pop_firpm.pop_firpm", "firpm"),
             ("pop_firma", "eegprep.plugins.firfilt.pop_firma.pop_firma", "firma"),
+            ("pop_clean_rawdata", "eegprep.plugins.clean_rawdata.pop_clean_rawdata.pop_clean_rawdata", "cleaned"),
             ("pop_runica", "eegprep.functions.popfunc.pop_runica.pop_runica", "ica"),
+            ("pop_iclabel", "eegprep.plugins.ICLabel.pop_iclabel.pop_iclabel", "labeled"),
         ]
 
         for action, patch_target, setname in action_specs:

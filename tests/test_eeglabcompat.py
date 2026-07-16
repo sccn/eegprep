@@ -20,7 +20,7 @@ from eegprep.functions.adminfunc.eeglabcompat import (
     pop_eegfiltnew,
     eeg_checkset as eeglab_eeg_checkset,
 )
-from eegprep import pop_loadset
+from eegprep import clean_artifacts, pop_loadset
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 from eegprep.utils.testing import DebuggableTestCase
 import eegprep.functions.adminfunc.eeglabcompat as eeglabcompat

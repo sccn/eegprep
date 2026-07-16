@@ -54,6 +54,13 @@ from eegprep.functions.studyfunc.pop_studywizard import pop_studywizard
 from eegprep.plugins.EEG_BIDS.bids_tools import pop_eventinfo, pop_participantinfo, pop_taskinfo, validate_bids
 from eegprep.plugins.EEG_BIDS.pop_exportbids import pop_exportbids
 from eegprep.plugins.EEG_BIDS.pop_importbids import pop_importbids
+from eegprep.plugins.ICLabel.pop_iclabel import pop_iclabel
+from eegprep.plugins.ICLabel.pop_icflag import DEFAULT_ICFLAG_THRESHOLDS, pop_icflag
+from eegprep.plugins.clean_rawdata.clean_artifacts import clean_artifacts
+from eegprep.plugins.clean_rawdata.clean_asr import clean_asr
+from eegprep.plugins.clean_rawdata.clean_channels import clean_channels
+from eegprep.plugins.clean_rawdata.clean_windows import clean_windows
+from eegprep.plugins.clean_rawdata.pop_clean_rawdata import pop_clean_rawdata
 
 
 SAMPLE_SET = Path("sample_data/eeglab_data.set")

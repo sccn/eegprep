@@ -31,6 +31,7 @@ from eegprep.functions.popfunc.pop_reref import pop_reref
 from eegprep.functions.popfunc.pop_resample import pop_resample
 from eegprep.functions.popfunc.pop_runica import pop_runica
 from eegprep.functions.popfunc.pop_saveset import pop_saveset
+from eegprep.plugins.clean_rawdata.pop_clean_rawdata import pop_clean_rawdata
 from eegprep.plugins.firfilt.pop_eegfiltnew import pop_eegfiltnew
 
 

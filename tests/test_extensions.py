@@ -54,8 +54,8 @@ def test_bundled_extension_records_match_plugin_inventory() -> None:
 
     records = registry.discover()
 
-    assert [record.name for record in records] == ["firfilt", "dipfit", "EEG_BIDS"]
-    assert [record.status for record in records] == [ExtensionStatus.BUNDLED] * 3
+    assert [record.name for record in records] == ["clean_rawdata", "ICLabel", "firfilt", "dipfit", "EEG_BIDS"]
+    assert [record.status for record in records] == [ExtensionStatus.BUNDLED] * 5
     assert all(record.spec is not None for record in records)
 
 

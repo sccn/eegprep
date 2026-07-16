@@ -729,6 +729,7 @@ def test_gui_action_without_command_releases_output_through_terminal_redraw():
     [
         ("pop_adjustevents", "eegprep.functions.popfunc.pop_adjustevents.pop_adjustevents"),
         ("pop_chanedit", "eegprep.functions.popfunc.pop_chanedit.pop_chanedit"),
+        ("pop_clean_rawdata", "eegprep.plugins.clean_rawdata.pop_clean_rawdata.pop_clean_rawdata"),
         ("pop_comments", "eegprep.functions.popfunc.pop_comments.pop_comments"),
         ("pop_editset", "eegprep.functions.popfunc.pop_editset.pop_editset"),
         ("pop_editeventfield", "eegprep.functions.popfunc.pop_editeventfield.pop_editeventfield"),
@@ -741,6 +742,8 @@ def test_gui_action_without_command_releases_output_through_terminal_redraw():
         ("pop_runica", "eegprep.functions.popfunc.pop_runica.pop_runica"),
         ("pop_select", "eegprep.functions.popfunc.pop_select.pop_select"),
         ("pop_selectevent", "eegprep.functions.popfunc.pop_selectevent.pop_selectevent"),
+        ("pop_iclabel", "eegprep.plugins.ICLabel.pop_iclabel.pop_iclabel"),
+        ("pop_icflag", "eegprep.plugins.ICLabel.pop_icflag.pop_icflag"),
         ("pop_subcomp", "eegprep.functions.popfunc.pop_subcomp.pop_subcomp"),
     ],
 )
@@ -748,6 +751,7 @@ def test_gui_pop_action_warning_output_follows_echoed_command(action, patch_targ
     from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher
 
     newset_actions = {
+        "pop_clean_rawdata",
         "pop_epoch",
         "pop_interp",
         "pop_reref",

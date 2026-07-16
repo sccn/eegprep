@@ -35,7 +35,7 @@ def test_bundled_plugins_describe_in_repo_extensions() -> None:
     plugins = bundled_plugins()
     names = [plugin["plugin"] for plugin in plugins]
 
-    assert names == ["firfilt", "dipfit", "EEG_BIDS"]
+    assert names == ["clean_rawdata", "ICLabel", "firfilt", "dipfit", "EEG_BIDS"]
     assert all(plugin["installed"] is True for plugin in plugins)
     assert all(plugin["status"] == "ok" for plugin in plugins)
     assert all(plugin["source"] == "bundled" for plugin in plugins)
@@ -77,16 +77,16 @@ def test_bundled_plugins_returns_copies() -> None:
 
 
 def test_plugin_status_supports_partial_and_exact_matches() -> None:
-    partial_status, partial_names, partial_struct = plugin_status("filt")
-    exact_status, exact_names, exact_struct = plugin_status("firfilt", exactmatch=True)
+    partial_status, partial_names, partial_struct = plugin_status("label")
+    exact_status, exact_names, exact_struct = plugin_status("ICLabel", exactmatch=True)
     missing_status, missing_names, missing_struct = plugin_status("external")
 
     assert partial_status == [1]
-    assert partial_names == ["firfilt"]
-    assert partial_struct[0]["name"] == "firfilt"
+    assert partial_names == ["ICLabel"]
+    assert partial_struct[0]["name"] == "ICLabel"
     assert exact_status == [1]
-    assert exact_names == ["firfilt"]
-    assert exact_struct[0]["foldername"] == "firfilt"
+    assert exact_names == ["ICLabel"]
+    assert exact_struct[0]["foldername"] == "ICLabel"
     assert missing_status == []
     assert missing_names == []
     assert missing_struct == []
@@ -98,18 +98,20 @@ def test_plugin_menu_updates_session_without_gui() -> None:
 
     assert session.PLUGINLIST == plugins
     assert [plugin["plugin"] for plugin in session.PLUGINLIST] == [
+        "clean_rawdata",
+        "ICLabel",
         "firfilt",
         "dipfit",
         "EEG_BIDS",
     ]
-    assert [plugin["status"] for plugin in session.PLUGINLIST] == ["bundled"] * 3
+    assert [plugin["status"] for plugin in session.PLUGINLIST] == ["bundled"] * 5
 
 
 def test_format_plugin_menu_includes_external_plugin_exclusion() -> None:
     text = format_plugin_menu()
 
     assert "Available EEGPrep extensions" in text
-    assert "firfilt" in text
+    assert "ICLabel" in text
     assert "File > Import data / Export / BIDS tools" in text
     assert EXTERNAL_PLUGIN_NOTICE in text
     assert INSTALL_TRUST_WARNING in text
@@ -122,6 +124,8 @@ def test_file_menu_plugin_action_uses_bundled_inventory_headlessly() -> None:
     dispatcher.dispatch("plugin_menu", parent=None)
 
     assert [plugin["plugin"] for plugin in session.PLUGINLIST] == [
+        "clean_rawdata",
+        "ICLabel",
         "firfilt",
         "dipfit",
         "EEG_BIDS",

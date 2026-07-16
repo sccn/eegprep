@@ -40,6 +40,7 @@ IMPLEMENTED_ACTIONS = {
     "pop_chanplot",
     "pop_clust",
     "pop_clustedit",
+    "pop_clean_rawdata",
     "pop_chanedit",
     "pop_comperp",
     "pop_delset",
@@ -77,6 +78,8 @@ IMPLEMENTED_ACTIONS = {
     "pop_firpm",
     "pop_firws",
     "pop_headplot",
+    "pop_icflag",
+    "pop_iclabel",
     "pop_jointprob",
     "pop_leadfield",
     "pop_importbids",
@@ -122,6 +125,7 @@ IMPLEMENTED_ACTIONS = {
     "pop_timtopo",
     "pop_taskinfo",
     "pop_topoplot",
+    "pop_viewprops",
     "pop_participantinfo",
     "pop_mergeset",
     "pop_multifit",
@@ -146,6 +150,7 @@ EEGPREP_DOCS_URL = "https://sccn.github.io/eegprep/"
 EEGPREP_SOURCE_URL = f"{EEGPREP_REPO_URL}/blob/develop"
 
 _MULTIPLE_DATASET_ACTIONS = {
+    "pop_clean_rawdata",
     "pop_chanedit",
     "pop_eegfilt",
     "pop_eegfiltnew",
@@ -153,6 +158,8 @@ _MULTIPLE_DATASET_ACTIONS = {
     "pop_firma",
     "pop_firpm",
     "pop_firws",
+    "pop_icflag",
+    "pop_iclabel",
     "pop_reref",
     "pop_rmdat",
     "pop_resample",
@@ -191,6 +198,7 @@ _BROWSER_ACCEPT_POP_ACTIONS = {
 }
 
 _NEWSET_COMMIT_ACTIONS = {
+    "pop_clean_rawdata",
     "pop_eegfilt",
     "pop_eegfiltnew",
     "pop_epoch",
@@ -217,6 +225,7 @@ _SIMPLE_POP_ACTIONS = {
     "pop_editeventfield",
     "pop_editeventvals",
     "pop_chanedit",
+    "pop_clean_rawdata",
     "pop_eegfilt",
     "pop_eegfiltnew",
     "pop_epoch",
@@ -231,6 +240,8 @@ _SIMPLE_POP_ACTIONS = {
     "pop_runica",
     "pop_select",
     "pop_selectevent",
+    "pop_iclabel",
+    "pop_icflag",
     "pop_subcomp",
 }
 
@@ -389,6 +400,7 @@ class MenuActionDispatcher:
             "pop_rejspec",
             "pop_rejtrend",
             "pop_selectcomps",
+            "pop_viewprops",
         }:
             self._run_pop_function(base, parent, variant=variant)
             return
@@ -1053,6 +1065,10 @@ class MenuActionDispatcher:
             from eegprep.functions.popfunc.pop_chanedit import pop_chanedit
 
             out = pop_chanedit(selection, return_com=True)
+        elif name == "pop_clean_rawdata":
+            from eegprep.plugins.clean_rawdata.pop_clean_rawdata import pop_clean_rawdata
+
+            out = pop_clean_rawdata(selection, return_com=True)
         elif name == "pop_eegfilt":
             from eegprep.functions.popfunc.pop_eegfilt import pop_eegfilt
 
@@ -1085,6 +1101,14 @@ class MenuActionDispatcher:
             from eegprep.functions.popfunc.pop_interp import pop_interp
 
             out = pop_interp(selection, alleeg=self.session.ALLEEG, return_com=True)
+        elif name == "pop_iclabel":
+            from eegprep.plugins.ICLabel.pop_iclabel import pop_iclabel
+
+            out = pop_iclabel(selection, return_com=True)
+        elif name == "pop_icflag":
+            from eegprep.plugins.ICLabel.pop_icflag import pop_icflag
+
+            out = pop_icflag(selection, return_com=True)
         elif name == "pop_resample":
             from eegprep.functions.popfunc.pop_resample import pop_resample
 
@@ -1214,7 +1238,22 @@ class MenuActionDispatcher:
             from eegprep.functions.popfunc.pop_selectcomps import pop_selectcomps
 
             out = pop_selectcomps(selection, return_com=True)
+        elif name == "pop_viewprops":
+            from eegprep.plugins.ICLabel.pop_viewprops import pop_viewprops
 
+            target_index = list(self.session.CURRENTSET)
+
+            def commit_component_rejection(eeg_out: Any, _states: dict[int, bool]) -> None:
+                with self.session.gui_action("pop_viewprops"):
+                    self._store_current_from_gui(eeg_out, command="", index=target_index)
+                    self._refresh()
+
+            out = pop_viewprops(
+                selection,
+                typecomp=0 if variant == "components" else 1,
+                reject_callback=commit_component_rejection,
+                return_com=True,
+            )
         else:
             self.show_coming_soon(name, parent)
             return
@@ -1222,6 +1261,10 @@ class MenuActionDispatcher:
             eeg_out, command = out[0], out[1] if len(out) > 1 else ""
         else:
             eeg_out, command = out, ""
+        if name == "pop_viewprops":
+            self._add_history_from_gui(command)
+            self._refresh()
+            return
         if command:
             if name in _NEWSET_COMMIT_ACTIONS:
                 self._commit_processed_dataset_from_gui(eeg_out, command=command, parent=parent)

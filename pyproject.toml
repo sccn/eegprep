@@ -43,6 +43,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+torch = [
+  "torch>=2.0"
+]
 gui = [
   "pyqtgraph>=0.13.7",
   "PySide6>=6.6",
@@ -63,6 +66,7 @@ docs = [
   "sphinxcontrib-spelling>=7.1.0"
 ]
 all = [
+  "eegprep[torch]",
   "eegprep[gui]",
   "eegprep[console]",
   "eegprep[docs]",
