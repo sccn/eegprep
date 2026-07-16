@@ -45,19 +45,18 @@ def griddata_v4(x, y, v, xq, yq):
         # If still singular, use pseudoinverse as last resort
         weights = np.linalg.pinv(g_reg) @ v
 
-    # Initialize output array
-    m, n = xq.shape
-    vq = np.zeros_like(xq)
+    # Evaluate at requested points (vectorized)
+    # xq_yq_complex: (m, n), xy: (num_electrodes,)
+    # d: (m, n, num_electrodes) via broadcasting
+    xq_yq_complex = xq + 1j * yq
+    d = np.abs(xq_yq_complex[..., np.newaxis] - xy.ravel())
+    with np.errstate(divide='ignore', invalid='ignore'):
+        g = (d**2) * (np.log(d) - 1)  # Green's function
+    g[d == 0] = 0  # Handle Green's function at zero
 
-    # Evaluate at requested points
-    xy = xy[:, None]  # Make it column vector for broadcasting
-    for i in range(m):
-        for j in range(n):
-            d = np.abs(xq[i, j] + 1j * yq[i, j] - xy.ravel())
-            with np.errstate(divide='ignore', invalid='ignore'):
-                g = (d**2) * (np.log(d) - 1)  # Green's function
-            g[d == 0] = 0  # Handle Green's function at zero
-            vq[i, j] = np.dot(g, weights)
+    # Matrix multiplication over the last dimension
+    # (m, n, num_electrodes) @ (num_electrodes,) -> (m, n)
+    vq = g @ weights
 
     return vq
 
