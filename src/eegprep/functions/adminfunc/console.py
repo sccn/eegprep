@@ -378,11 +378,10 @@ class EEGPrepConsoleWorkspace:
             alleeg = self.namespace.get("ALLEEG", [])
             if not isinstance(alleeg, list):
                 raise ValueError("ALLEEG must be a list of EEG datasets")
-            current = (
-                _normalize_currentset(self.namespace.get("CURRENTSET"))
-                if "CURRENTSET" in targets
-                else self.session.CURRENTSET
-            )
+            if "CURRENTSET" in targets:
+                current = _normalize_currentset(self.namespace.get("CURRENTSET"))
+            else:
+                current = _currentset_after_alleeg_change(self.session.CURRENTSET, len(alleeg))
             command = "" if eeg_changed else pending_history
             self.session.apply_workspace_state(
                 alleeg=alleeg,
@@ -1419,6 +1418,16 @@ def _normalize_currentset(value: Any) -> list[int]:
         return normalize_dataset_indices(value)
     except ValueError as exc:
         raise ValueError("CURRENTSET must be a 1-based integer or list of integers") from exc
+
+
+def _currentset_after_alleeg_change(currentset: list[int], dataset_count: int) -> list[int]:
+    """Keep valid selected indices, or select the nearest remaining dataset."""
+    if dataset_count == 0:
+        return []
+    valid = [index for index in currentset if index <= dataset_count]
+    if valid:
+        return valid
+    return [dataset_count] if currentset else []
 
 
 _IN_PLACE_MUTATION_METHODS = frozenset(

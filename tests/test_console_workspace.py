@@ -1872,3 +1872,64 @@ def test_console_in_place_mutations_sync_session_once(
     assert session.ALLCOM == [source]
     notifications.assert_called_once_with(session)
     refresh.assert_called_once()
+
+
+@pytest.mark.parametrize("source", ["ALLEEG.pop()", "ALLEEG.remove(ALLEEG[0])"])
+def test_console_alleeg_removal_reselects_a_remaining_dataset(source):
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg("beta"), new=True)
+    session.store_current(_demo_eeg("alpha"), new=True)
+    notifications = mock.Mock()
+    session.add_change_listener(notifications)
+    refresh = mock.Mock()
+    workspace = EEGPrepConsoleWorkspace(session, refresh=refresh, exports={})
+
+    exec(source, workspace.namespace)
+    workspace.after_execute(source)
+
+    assert len(session.ALLEEG) == 1
+    assert session.CURRENTSET == [1]
+    assert session.EEG is session.ALLEEG[0]
+    assert session.ALLCOM == [source]
+    notifications.assert_called_once_with(session)
+    refresh.assert_called_once()
+
+
+def test_console_alleeg_clear_resets_the_dataset_selection():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg("demo"), new=True)
+    notifications = mock.Mock()
+    session.add_change_listener(notifications)
+    refresh = mock.Mock()
+    workspace = EEGPrepConsoleWorkspace(session, refresh=refresh, exports={})
+    source = "ALLEEG.clear()"
+
+    exec(source, workspace.namespace)
+    workspace.after_execute(source)
+
+    assert session.ALLEEG == []
+    assert session.CURRENTSET == []
+    assert session.EEG["data"].size == 0
+    assert session.ALLCOM == [source]
+    notifications.assert_called_once_with(session)
+    refresh.assert_called_once()
+
+
+def test_console_study_in_place_update_syncs_state_and_history_once():
+    session = EEGPrepSession()
+    session.STUDY = {"name": "original", "datasetinfo": []}
+    session.CURRENTSTUDY = 1
+    notifications = mock.Mock()
+    session.add_change_listener(notifications)
+    refresh = mock.Mock()
+    workspace = EEGPrepConsoleWorkspace(session, refresh=refresh, exports={})
+    source = "STUDY.update({'name': 'updated'})"
+
+    exec(source, workspace.namespace)
+    workspace.after_execute(source)
+
+    assert session.STUDY["name"] == "updated"
+    assert session.CURRENTSTUDY == 1
+    assert session.ALLCOM == [source]
+    notifications.assert_called_once_with(session)
+    refresh.assert_called_once()
