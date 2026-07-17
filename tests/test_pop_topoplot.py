@@ -17,6 +17,14 @@ from eegprep.functions.sigprocfunc.topoplot import topoplot
 from tests.fixtures import SAMPLE_DATASET_PATH, create_test_eeg_with_ica
 
 
+def _is_numeric_label(text: str) -> bool:
+    try:
+        float(text.replace("−", "-"))  # matplotlib renders minus as U+2212
+        return True
+    except ValueError:
+        return False
+
+
 def test_topoplot_blank_channel_locations_by_label_and_number():
     chanlocs = [
         {"labels": "Fz", "theta": 0, "radius": 0.3},
@@ -131,8 +139,9 @@ def test_pop_topoplot_component_colorbar_uses_polarity_labels():
 
     erp_figs = pop_topoplot(eeg, typeplot=1, items=[0, 20], topotitle="erp", rowcols=[1, 2], electrodes="off")
     erp_figs[0].canvas.draw()
-    erp_labels = [text.get_text() for text in erp_figs[0].axes[-1].get_yticklabels()]
-    assert erp_labels != ["-", "0", "+"]
+    erp_labels = [text.get_text() for text in erp_figs[0].axes[-1].get_yticklabels() if text.get_text().strip()]
+    assert len(erp_labels) >= 2
+    assert all(_is_numeric_label(label) for label in erp_labels)
     plt.close(erp_figs[0])
 
 
