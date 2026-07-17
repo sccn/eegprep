@@ -106,6 +106,10 @@ def pop_topoplot(
         component=typeplot == 0,
     )
     command = _history_command(typeplot, items_array, topotitle, rowcols_array, int(bool(plotdip)), options)
+
+    if gui and plt.get_backend().lower() != "agg":
+        for figure in figures:
+            figure.show()
     return (figures, command) if return_com else figures
 
 
@@ -199,6 +203,9 @@ def plot_channel_locations(EEG: dict[str, Any], *, mode: str = "labels", return_
     electrodes = "numpoint" if mode == "numbers" else "labelpoint"
     fig, *_ = topoplot([], chanlocs, style="blank", electrodes=electrodes, title="Channel locations")
     command = f"topoplot([], EEG['chanlocs'], style='blank', electrodes={electrodes!r})"
+
+    if plt.get_backend().lower() != "agg":
+        fig.show()
     return (fig, command) if return_com else fig
 
 
