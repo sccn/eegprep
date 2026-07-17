@@ -107,7 +107,8 @@ def pop_topoplot(
     )
     command = _history_command(typeplot, items_array, topotitle, rowcols_array, int(bool(plotdip)), options)
 
-    if gui and plt.get_backend().lower() != "agg":
+    # EEGLAB displays the figure whether called from the GUI or the command line.
+    if _backend_can_display():
         for figure in figures:
             figure.show()
     return (figures, command) if return_com else figures
@@ -204,7 +205,7 @@ def plot_channel_locations(EEG: dict[str, Any], *, mode: str = "labels", return_
     fig, *_ = topoplot([], chanlocs, style="blank", electrodes=electrodes, title="Channel locations")
     command = f"topoplot([], EEG['chanlocs'], style='blank', electrodes={electrodes!r})"
 
-    if plt.get_backend().lower() != "agg":
+    if _backend_can_display():
         fig.show()
     return (fig, command) if return_com else fig
 
@@ -426,6 +427,15 @@ def _validate_topoplot_inputs(EEG: dict[str, Any], typeplot: int) -> None:
     _require_chanlocs(EEG)
     if typeplot == 0:
         _require_ica(EEG)
+
+
+# matplotlib's file-output backends (Agg, PDF, SVG, ...) cannot open a window.
+_NONINTERACTIVE_BACKENDS = frozenset({"agg", "cairo", "pdf", "pgf", "ps", "svg", "template"})
+
+
+def _backend_can_display() -> bool:
+    """True when the active matplotlib backend can show a figure window."""
+    return plt.get_backend().lower() not in _NONINTERACTIVE_BACKENDS
 
 
 def _is_plotdip_value(value: Any) -> bool:
