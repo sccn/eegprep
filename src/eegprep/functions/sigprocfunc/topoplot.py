@@ -432,7 +432,7 @@ def _maplimits_kwargs(maplimits, data):
 
 
 def _clim_kwargs(amin, amax):
-    # EEGLAB widens the color axis by 5% beyond the limits (topoplot caxis).
+    # Scale each limit to 1.05*v away from zero, matching EEGLAB topoplot's caxis 5% margin.
     return {
         "vmin": amin + np.sign(amin) * _CLIM_MARGIN * abs(amin),
         "vmax": amax + np.sign(amax) * _CLIM_MARGIN * abs(amax),

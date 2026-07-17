@@ -267,14 +267,13 @@ def _plot_map_pages(
     return figures
 
 
-def _add_map_colorbar(fig: Any, image: Any, axes: list[Any], *, component: bool) -> Any:
+def _add_map_colorbar(fig: Any, image: Any, axes: list[Any], *, component: bool) -> None:
     """Draw the shared scalp-map colorbar, marking component maps with -/0/+ polarity labels."""
     cbar = fig.colorbar(image, ax=axes, shrink=0.7)
     if component:
         low, high = image.get_clim()
         cbar.set_ticks([low, 0.0, high])
         cbar.set_ticklabels(["-", "0", "+"])
-    return cbar
 
 
 def _erp_maps(EEG: dict[str, Any], latencies_ms: np.ndarray) -> tuple[list[np.ndarray | None], list[str]]:
