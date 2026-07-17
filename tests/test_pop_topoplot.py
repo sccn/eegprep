@@ -110,7 +110,7 @@ def test_pop_topoplot_component_pages_scale_each_map_to_own_absmax():
     expected = []
     for index in range(2):
         _, zi, *_ = topoplot(eeg["icawinv"][:, index], eeg["chanlocs"], noplot="on")
-        limit = float(np.nanmax(np.abs(zi)))
+        limit = float(np.nanmax(np.abs(zi))) * 1.05  # topoplot widens the color axis by EEGLAB's 5% margin
         expected.append((-limit, limit))
     clims = [axis.images[0].get_clim() for axis in figures[0].axes[:2]]
     np.testing.assert_allclose(clims[0], expected[0], rtol=1e-6)
