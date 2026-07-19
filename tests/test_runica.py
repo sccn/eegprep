@@ -90,6 +90,40 @@ class TestRunicaFunctionality(unittest.TestCase):
         self.assertTrue(np.isfinite(signs).all())
         self.assertFalse([warning for warning in captured if "matmul" in str(warning.message)])
 
+    def test_strict_numpy_error_policy_does_not_escape_matmul_products(self):
+        """Backend floating-point status from ICA products stays internal."""
+
+        class StrictMatmulArray(np.ndarray):
+            def __new__(cls, values):
+                return np.asarray(values, dtype=float).view(cls)
+
+            def __matmul__(self, other):
+                # Reliably emulate a BLAS backend surfacing a finite-product
+                # floating-point status flag under a strict NumPy policy.
+                np.multiply(np.finfo(float).max, 2.0)
+                return np.asarray(self) @ np.asarray(other)
+
+        data = np.random.RandomState(0).standard_normal((2, 20))
+        initial_weights = StrictMatmulArray(np.eye(2))
+
+        previous_policy = np.seterr(over="raise")
+        try:
+            weights, sphere, _compvars, bias, signs, _lrates = runica(
+                data,
+                weights=initial_weights,
+                sphering="none",
+                maxsteps=1,
+                verbose=False,
+                rndreset="off",
+            )
+        finally:
+            np.seterr(**previous_policy)
+
+        self.assertTrue(np.isfinite(weights).all())
+        self.assertTrue(np.isfinite(sphere).all())
+        self.assertTrue(np.isfinite(bias).all())
+        self.assertTrue(np.isfinite(signs).all())
+
     def test_pca_reduction(self):
         """Test PCA dimension reduction."""
         np.random.seed(42)
